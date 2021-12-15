@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -179,8 +180,28 @@ func (c *EvalListCommand) Run(args []string) int {
 		c.Ui.Output(fmt.Sprintf(`
 Results have been paginated. To get the next page run:
 
-nomad eval list -page-token %s`, qm.NextToken))
+%s -page-token %s`, argsWithoutPageToken(os.Args), qm.NextToken))
 	}
 
 	return 0
+}
+
+// argsWithoutPageToken strips out of the -page-token argument and
+// returns the joined string
+func argsWithoutPageToken(osArgs []string) string {
+	args := []string{}
+	i := 0
+	for {
+		if i >= len(os.Args) {
+			break
+		}
+		arg := os.Args[i]
+		if arg == "-page-token" {
+			i += 2
+			continue
+		}
+		args = append(args, arg)
+		i++
+	}
+	return strings.Join(args, " ")
 }
