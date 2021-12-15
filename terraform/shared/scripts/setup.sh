@@ -9,25 +9,25 @@ cd /ops
 
 CONFIGDIR=/ops/shared/config
 
-CONSULVERSION=1.9.5
+CONSULVERSION=consul_1.10.5+ent
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
-
-VAULTVERSION=1.0.0
-VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
-VAULTCONFIGDIR=/etc/vault.d
-VAULTDIR=/opt/vault
-
-NOMADVERSION=1.2.2
-NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
-NOMADCONFIGDIR=/etc/nomad.d
-NOMADDIR=/opt/nomad
 
 CONSULTEMPLATEVERSION=0.27.2
 CONSULTEMPLATEDOWNLOAD=https://releases.hashicorp.com/consul-template/${CONSULTEMPLATEVERSION}/consul-template_${CONSULTEMPLATEVERSION}_linux_amd64.zip
 CONSULTEMPLATECONFIGDIR=/etc/consul-template.d
 CONSULTEMPLATEDIR=/opt/consul-template
+
+NOMADVERSION=nomad_1.2.0+ent
+NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
+NOMADCONFIGDIR=/etc/nomad.d
+NOMADDIR=/opt/nomad
+
+VAULTVERSION=vault_1.9.1+ent
+VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
+VAULTCONFIGDIR=/etc/vault.d
+VAULTDIR=/opt/vault
 
 # Dependencies
 sudo apt-get install -y software-properties-common

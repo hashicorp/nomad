@@ -12,3 +12,7 @@ listener "tcp" {
   cluster_address = "IP_ADDRESS:8201"
   tls_disable     = 1
 }
+
+# Enterprise license_path
+# This will be required for enterprise as of v1.8
+license_path = "/home/ubuntu/vault.lic"
