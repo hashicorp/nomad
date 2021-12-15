@@ -192,14 +192,20 @@ func argsWithoutPageToken(osArgs []string) string {
 	args := []string{}
 	i := 0
 	for {
-		if i >= len(os.Args) {
+		if i >= len(osArgs) {
 			break
 		}
-		arg := os.Args[i]
-		if arg == "-page-token" {
-			i += 2
+		arg := osArgs[i]
+
+		if strings.HasPrefix(arg, "-page-token") {
+			if strings.Contains(arg, "=") {
+				i += 1
+			} else {
+				i += 2
+			}
 			continue
 		}
+
 		args = append(args, arg)
 		i++
 	}
