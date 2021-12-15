@@ -13,6 +13,16 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.2.4
+
+#### `nomad eval status -json` deprecated
+
+Nomad 1.2.4 includes a new `nomad eval list` command that has the
+option to display the results in JSON format with the `-json`
+flag. This replaces the existing `nomad eval status -json` option. In
+Nomad 1.4.0, `nomad eval status -json` will be changed to display only
+the selected evaluation in JSON format.
+
 ## Nomad 1.2.2
 
 ### Panic on node class filtering for system and sysbatch jobs fixed

@@ -353,8 +353,21 @@
         ]
       },
       {
-        "title": "eval status",
-        "path": "commands/eval-status"
+        "title": "eval",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "commands/eval"
+          },
+          {
+            "title": "list",
+            "path": "commands/eval/list"
+          },
+          {
+            "title": "status",
+            "path": "commands/eval/status"
+          }
+        ]
       },
       {
         "title": "job",

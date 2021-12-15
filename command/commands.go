@@ -255,6 +255,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"eval list": func() (cli.Command, error) {
+			return &EvalListCommand{
+				Meta: meta,
+			}, nil
+		},
 		"eval status": func() (cli.Command, error) {
 			return &EvalStatusCommand{
 				Meta: meta,
