@@ -147,6 +147,17 @@ func (a *Agent) Members() (*ServerMembers, error) {
 	return resp, nil
 }
 
+// Members is used to query all of the known server members
+// with the ability to set QueryOptions
+func (a *Agent) MembersOpts(opts *QueryOptions) (*ServerMembers, error) {
+	var resp *ServerMembers
+	_, err := a.client.query("/v1/agent/members", &resp, opts)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // ForceLeave is used to eject an existing node from the cluster.
 func (a *Agent) ForceLeave(node string) error {
 	_, err := a.client.write("/v1/agent/force-leave?node="+node, nil, nil, nil)

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -544,4 +545,55 @@ func TestDebug_WriteBytes_PathEscapesSandbox(t *testing.T) {
 	cmd.collectDir = ""
 	err := cmd.writeBytes(testDir, testFile, testBytes)
 	require.Error(t, err)
+}
+
+// TestDebug_StaleLeadership verifies that APIs that are required to
+// complete a debug run have their query options configured with the
+// -stale flag
+func TestDebug_StaleLeadership(t *testing.T) {
+	srv, _, url := testServerWithoutLeader(t, false, nil)
+	addrServer := srv.HTTPAddr()
+
+	t.Logf("[TEST] testAgent api address: %s", url)
+	t.Logf("[TEST] Server    api address: %s", addrServer)
+
+	var cases = testCases{
+		{
+			name: "no leader without stale flag",
+			args: []string{"-address", addrServer,
+				"-duration", "250ms", "-interval", "250ms",
+				"-server-id", "all", "-node-id", "all"},
+			expectedCode: 1,
+		},
+		{
+			name: "no leader with stale flag",
+			args: []string{
+				"-address", addrServer,
+				"-duration", "250ms", "-interval", "250ms",
+				"-server-id", "all", "-node-id", "all",
+				"-stale"},
+			expectedCode:    0,
+			expectedOutputs: []string{"Created debug archive"},
+		},
+	}
+
+	runTestCases(t, cases)
+}
+
+func testServerWithoutLeader(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.TestAgent, *api.Client, string) {
+	// Make a new test server
+	a := agent.NewTestAgent(t, t.Name(), func(config *agent.Config) {
+		config.Client.Enabled = runClient
+		config.Server.Enabled = true
+		config.Server.NumSchedulers = helper.IntToPtr(0)
+		config.Server.BootstrapExpect = 3
+
+		if cb != nil {
+			cb(config)
+		}
+	})
+	t.Cleanup(func() { a.Shutdown() })
+
+	c := a.Client()
+	return a, c, a.HTTPAddr()
 }
