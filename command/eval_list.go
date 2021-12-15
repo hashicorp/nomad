@@ -23,7 +23,7 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
 
-Eval Status Options:
+Eval List Options:
 
   -verbose
     Show full information.
@@ -74,9 +74,6 @@ func (c *EvalListCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
-		if err != nil {
-			return nil
-		}
 
 		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Evals, nil)
 		if err != nil {
@@ -86,7 +83,7 @@ func (c *EvalListCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (c *EvalListCommand) Name() string { return "eval status" }
+func (c *EvalListCommand) Name() string { return "eval list" }
 
 func (c *EvalListCommand) Run(args []string) int {
 	var monitor, verbose, json bool
