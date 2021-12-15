@@ -1,6 +1,12 @@
 data_dir  = "/opt/nomad/data"
 bind_addr = "0.0.0.0"
 
+server {
+    enabled = false
+
+    license_path = "/home/ubuntu/nomad.lic"
+}
+
 # Enable the client
 client {
   enabled = true
