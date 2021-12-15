@@ -20,7 +20,7 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
       .then(allocation =>
         allocation
           .get('job')
-          .then(() => this.store.findAll('namespace'))
+          .then(() => this.store.findAll('namespace')) // namespaces belong to a job and are an asynchronous relationship so we can peak them later on
           .then(() => allocation)
       )
       .catch(notifyError(this));
