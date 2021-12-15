@@ -28,10 +28,10 @@ Eval List Options:
   -verbose
     Show full information.
 
-  -per_page
+  -per-page
     How many results to show per page.
 
-  -page_token
+  -page-token
     Where to start pagination.
 
   -job
@@ -62,8 +62,8 @@ func (c *EvalListCommand) AutocompleteFlags() complete.Flags {
 			"-verbose":    complete.PredictNothing,
 			"-job":        complete.PredictAnything,
 			"-status":     complete.PredictAnything,
-			"-per_page":   complete.PredictAnything,
-			"-page_token": complete.PredictAnything,
+			"-per-page":   complete.PredictAnything,
+			"-page-token": complete.PredictAnything,
 		})
 }
 
@@ -73,7 +73,6 @@ func (c *EvalListCommand) AutocompleteArgs() complete.Predictor {
 		if err != nil {
 			return nil
 		}
-
 
 		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Evals, nil)
 		if err != nil {
@@ -96,8 +95,8 @@ func (c *EvalListCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
-	flags.IntVar(&perPage, "per_page", 0, "")
-	flags.StringVar(&pageToken, "page_token", "", "")
+	flags.IntVar(&perPage, "per-page", 0, "")
+	flags.StringVar(&pageToken, "page-token", "", "")
 	flags.StringVar(&filterJobID, "job", "", "")
 	flags.StringVar(&filterStatus, "status", "", "")
 
@@ -172,7 +171,7 @@ func (c *EvalListCommand) Run(args []string) int {
 		c.Ui.Output(fmt.Sprintf(`
 Results have been paginated. To get the next page run:
 
-nomad eval list -page_token %s`, qm.NextToken))
+nomad eval list -page-token %s`, qm.NextToken))
 	}
 
 	return 0

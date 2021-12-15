@@ -27,8 +27,8 @@ capability for the requested namespace.
 ## List Options
 
 - `-verbose`: Show full information.
-- `-per_page`: How many results to show per page.
-- `-page_token`: Where to start pagination.
+- `-per-page`: How many results to show per page.
+- `-page-token`: Where to start pagination.
 - `-job`: Only show evaluations for this job ID.
 - `-status`: Only show evaluations with this status.
 - `-json`: Output the evaluation in its JSON format.
@@ -39,7 +39,7 @@ capability for the requested namespace.
 List all tracked evaluations:
 
 ```shell-session
-$ nomad eval list -per_page 3 -status complete
+$ nomad eval list -per-page 3 -status complete
 ID        Priority  Triggered By        Job ID   Status    Placement Failures
 456e37aa  50        deployment-watcher  example  complete  false
 1a1eafe6  50        alloc-stop          example  complete  false
@@ -47,5 +47,5 @@ ID        Priority  Triggered By        Job ID   Status    Placement Failures
 
 Results have been paginated. To get the next page run:
 
-nomad eval list -page_token 9ecffbba-73be-d909-5d7e-ac2694c10e0c
+nomad eval list -page-token 9ecffbba-73be-d909-5d7e-ac2694c10e0c
 ```
