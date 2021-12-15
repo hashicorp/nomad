@@ -51,7 +51,7 @@ Eval List Options:
 }
 
 func (c *EvalListCommand) Synopsis() string {
-	return "Display evaluation status and placement failure reasons"
+	return "List the set of evaluations processed by Nomad"
 }
 
 func (c *EvalListCommand) AutocompleteFlags() complete.Flags {
@@ -101,6 +101,14 @@ func (c *EvalListCommand) Run(args []string) int {
 	flags.StringVar(&filterStatus, "status", "", "")
 
 	if err := flags.Parse(args); err != nil {
+		return 1
+	}
+
+	// Check that we got no arguments
+	args = flags.Args()
+	if l := len(args); l != 0 {
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
