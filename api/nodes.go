@@ -49,6 +49,15 @@ func (n *Nodes) PrefixList(prefix string) ([]*NodeListStub, *QueryMeta, error) {
 	return n.List(&QueryOptions{Prefix: prefix})
 }
 
+func (n *Nodes) PrefixListOpts(prefix string, opts *QueryOptions) ([]*NodeListStub, *QueryMeta, error) {
+	if opts == nil {
+		opts = &QueryOptions{Prefix: prefix}
+	} else {
+		opts.Prefix = prefix
+	}
+	return n.List(opts)
+}
+
 // Info is used to query a specific node by its ID.
 func (n *Nodes) Info(nodeID string, q *QueryOptions) (*Node, *QueryMeta, error) {
 	var resp Node
