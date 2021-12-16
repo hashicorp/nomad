@@ -16,7 +16,14 @@
           @query={{hash namespace=(or trigger.data.result.namespace.name "default")}}
           data-test-breadcrumb={{"jobs.job.index"}}
         >
-          {{trigger.data.result.trimmedName}}
+          <dl>
+            <dt>
+              Parent Job
+            </dt>
+            <dd>
+              {{trigger.data.result.trimmedName}}
+            </dd>
+          </dl>
         </LinkTo>
       </li>
     {{/if}}
@@ -28,7 +35,14 @@
         data-test-breadcrumb={{"jobs.job.index"}}
         data-test-job-breadcrumb
       >
-        {{this.job.trimmedName}}
+        <dl>
+          <dt>
+            {{if this.job.hasChildren "Parent Job" "Job"}}
+          </dt>
+          <dd>
+            {{this.job.trimmedName}}
+          </dd>
+        </dl>
       </LinkTo>
     </li>
   {{/if}}
