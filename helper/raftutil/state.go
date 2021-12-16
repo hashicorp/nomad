@@ -2,20 +2,38 @@ package raftutil
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 )
 
+var (
+	errAlreadyOpen = errors.New("unable to open raft logs that are in use")
+)
+
 // RaftStateInfo returns info about the nomad state, as found in the passed data-dir directory
 func RaftStateInfo(p string) (store *raftboltdb.BoltStore, firstIdx uint64, lastIdx uint64, err error) {
-	s, err := raftboltdb.NewBoltStore(p)
+	opts := raftboltdb.Options{
+		Path: p,
+		BoltOptions: &bolt.Options{
+			ReadOnly: true,
+			Timeout:  1 * time.Second,
+		},
+	}
+	s, err := raftboltdb.New(opts)
 	if err != nil {
+		if strings.HasSuffix(err.Error(), "timeout") {
+			return nil, 0, 0, errAlreadyOpen
+		}
 		return nil, 0, 0, fmt.Errorf("failed to open raft logs: %v", err)
 	}
 
