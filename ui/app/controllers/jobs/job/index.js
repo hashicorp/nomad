@@ -28,7 +28,7 @@ export default class IndexController extends Controller.extend(WithNamespaceRese
     return this.model.job;
   }
 
-  @computed('model.nodes')
+  @computed('model.nodes.[]')
   get nodes() {
     return this.model.nodes;
   }
