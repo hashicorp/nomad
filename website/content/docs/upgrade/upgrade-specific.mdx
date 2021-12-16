@@ -38,6 +38,16 @@ this problem.
 The Nvidia device is now an external plugin and must be installed separately.
 Refer to [the Nvidia device plugin's documentation][nvidia] for details.
 
+#### ACL requirements for accessing the job details page in the Nomad UI
+
+Nomad 1.2.0 introduced a new UI component to display the status of `system` and
+`sysbatch` jobs in each client they are running. This feature makes an API call
+to an endpoint that requires `node:read` ACL permission. Tokens used to access
+the Nomad UI will need to be updated to include this permission in order to
+access a job details page.
+
+This was an unintended change and will be fixed in a future release.
+
 ## Nomad 1.0.11 and 1.1.5 Enterprise
 
 #### Audit log file names
