@@ -11,7 +11,23 @@
     }
   }
 
+  ul {
+    align-items: center;
+  }
+
+  li::before {
+    font-size: x-large;
+  }
+
   li.is-active a {
     opacity: 1;
+  }
+
+  dl dd {
+    font-size: medium;
+  }
+
+  dl dt {
+    font-size: small;
   }
 }
