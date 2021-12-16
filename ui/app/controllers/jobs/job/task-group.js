@@ -147,6 +147,7 @@ export default class TaskGroupController extends Controller.extend(
     if (!model) return [];
     return [
       {
+        title: 'Task Group',
         label: model.get('name'),
         args: [
           'jobs.job.task-group',
