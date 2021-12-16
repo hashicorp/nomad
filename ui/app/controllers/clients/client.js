@@ -6,6 +6,7 @@ export default class ClientsClientController extends Controller {
     if (!model) return [];
     return [
       {
+        title: 'Client',
         label: model.get('shortId'),
         args: ['clients.client', model.get('id')],
       },

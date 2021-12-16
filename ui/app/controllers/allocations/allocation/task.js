@@ -6,6 +6,7 @@ export default class AllocationsAllocationTaskController extends Controller {
     if (!model) return [];
     return [
       {
+        title: 'Task',
         label: model.get('name'),
         args: ['allocations.allocation.task', model.get('allocation'), model],
       },
