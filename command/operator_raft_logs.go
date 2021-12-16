@@ -28,6 +28,11 @@ Usage: nomad operator raft logs <path to nomad data dir>
   This is a low-level debugging tool and not subject to Nomad's usual backward
   compatibility guarantees.
 
+Raft Logs Options:
+
+  -pretty
+    By default this command outputs newline delimited JSON. If the -pretty flag
+    is passed, each entry will be pretty-printed.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -47,10 +52,20 @@ func (c *OperatorRaftLogsCommand) Synopsis() string {
 func (c *OperatorRaftLogsCommand) Name() string { return "operator raft logs" }
 
 func (c *OperatorRaftLogsCommand) Run(args []string) int {
-	if len(args) != 1 {
+
+	var pretty bool
+	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
+	flagSet.BoolVar(&pretty, "pretty", false, "")
+
+	if err := flagSet.Parse(args); err != nil {
+		return 1
+	}
+
+	args = flagSet.Args()
+	if l := len(args); l != 1 {
 		c.Ui.Error("This command takes one argument: <path>")
 		c.Ui.Error(commandErrorText(c))
-
 		return 1
 	}
 
@@ -60,21 +75,39 @@ func (c *OperatorRaftLogsCommand) Run(args []string) int {
 		return 1
 	}
 
-	logs, warnings, err := raftutil.LogEntries(raftPath)
+	enc := json.NewEncoder(os.Stdout)
+	if pretty {
+		enc.SetIndent("", "  ")
+	}
+
+	logChan, warningsChan, err := raftutil.LogEntries(raftPath)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
 	}
 
-	for _, warning := range warnings {
-		c.Ui.Error(warning.Error())
+	// so that the warnings don't end up mixed into the JSON stream,
+	// collect them and print them once we're done
+	warnings := []error{}
+
+DONE:
+	for {
+		select {
+		case log := <-logChan:
+			if log == nil {
+				break DONE // no more logs, but break to print warnings
+			}
+			if err := enc.Encode(log); err != nil {
+				c.Ui.Error(fmt.Sprintf("failed to encode output: %v", err))
+				return 1
+			}
+		case warning := <-warningsChan:
+			warnings = append(warnings, warning)
+		}
 	}
 
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(logs); err != nil {
-		c.Ui.Error(fmt.Sprintf("failed to encode output: %v", err))
-		return 1
+	for _, warning := range warnings {
+		c.Ui.Error(warning.Error())
 	}
 
 	return 0
