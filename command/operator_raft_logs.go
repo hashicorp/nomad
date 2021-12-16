@@ -16,14 +16,18 @@ type OperatorRaftLogsCommand struct {
 
 func (c *OperatorRaftLogsCommand) Help() string {
 	helpText := `
-Usage: nomad operator raft _logs <path to nomad data dir>
+Usage: nomad operator raft logs <path to nomad data dir>
 
-  Display the log entries persisted in data dir in json form.
+  Display the log entries persisted in the Nomad data directory in JSON
+  format.
+
+  This command requires file system permissions to access the data directory on
+  disk. The Nomad server locks access to the data directory, so this command
+  cannot be run on a data directory that is being used by a running Nomad server.
 
   This is a low-level debugging tool and not subject to Nomad's usual backward
   compatibility guarantees.
 
-  If ACLs are enabled, this command requires a management token.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -40,7 +44,7 @@ func (c *OperatorRaftLogsCommand) Synopsis() string {
 	return "Display raft log content"
 }
 
-func (c *OperatorRaftLogsCommand) Name() string { return "operator raft _info" }
+func (c *OperatorRaftLogsCommand) Name() string { return "operator raft logs" }
 
 func (c *OperatorRaftLogsCommand) Run(args []string) int {
 	if len(args) != 1 {
