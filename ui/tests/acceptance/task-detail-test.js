@@ -62,22 +62,22 @@ module('Acceptance | task detail', function(hooks) {
     await waitFor('[data-test-job-breadcrumb]');
     assert.equal(
       Layout.breadcrumbFor('jobs.job.index').text,
-      job.name,
+      `Job ${job.name}`,
       'Job is the second breadcrumb'
     );
     assert.equal(
       Layout.breadcrumbFor('jobs.job.task-group').text,
-      taskGroup,
+      `Task Group ${taskGroup}`,
       'Task Group is the third breadcrumb'
     );
     assert.equal(
       Layout.breadcrumbFor('allocations.allocation').text,
-      shortId,
+      `Allocation ${shortId}`,
       'Allocation short id is the fourth breadcrumb'
     );
     assert.equal(
       Layout.breadcrumbFor('allocations.allocation.task').text,
-      task.name,
+      `Task ${task.name}`,
       'Task name is the fifth breadcrumb'
     );
 
