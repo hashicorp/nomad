@@ -19,7 +19,7 @@
     font-size: x-large;
   }
 
-  li.is-active a {
+  li:last-child a.active {
     opacity: 1;
   }
 
