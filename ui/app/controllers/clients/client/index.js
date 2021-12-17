@@ -61,19 +61,16 @@ export default class ClientController extends Controller.extend(Sortable, Search
 
   onlyPreemptions = false;
 
-  @computed(
-    'model.allocations.[]',
-    'preemptions.[]',
-    'onlyPreemptions',
-    'selectionNamespace',
-    'selectionJob',
-    'selectionStatus'
-  )
+  @computed('model.allocations.[]', 'preemptions.[]', 'onlyPreemptions')
   get visibleAllocations() {
-    const allocations = this.onlyPreemptions ? this.preemptions : this.model.allocations;
+    return this.onlyPreemptions ? this.preemptions : this.model.allocations;
+  }
+
+  @computed('visibleAllocations.[]', 'selectionNamespace', 'selectionJob', 'selectionStatus')
+  get filteredAllocations() {
     const { selectionNamespace, selectionJob, selectionStatus } = this;
 
-    return allocations.filter(alloc => {
+    return this.visibleAllocations.filter(alloc => {
       if (selectionNamespace.length && !selectionNamespace.includes(alloc.get('namespace'))) {
         return false;
       }
@@ -87,7 +84,7 @@ export default class ClientController extends Controller.extend(Sortable, Search
     });
   }
 
-  @alias('visibleAllocations') listToSort;
+  @alias('filteredAllocations') listToSort;
   @alias('listSorted') listToSearch;
   @alias('listSearched') sortedAllocations;
 

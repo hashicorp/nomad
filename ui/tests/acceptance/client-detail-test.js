@@ -130,6 +130,15 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
+  test('/clients/:id should show empty message if there are no allocations on the node', async function(assert) {
+    const emptyNode = server.create('node');
+
+    await ClientDetail.visit({ id: emptyNode.id });
+
+    assert.true(ClientDetail.emptyAllocations.isVisible, 'Empty message is visible');
+    assert.equal(ClientDetail.emptyAllocations.headline, 'No Allocations');
+  });
+
   test('each allocation should have high-level details for the allocation', async function(assert) {
     const allocation = server.db.allocations
       .where({ nodeId: node.id })
@@ -1027,6 +1036,19 @@ module('Acceptance | client detail', function(hooks) {
       await ClientDetail.visit({ id: node.id });
     },
     filter: (alloc, selection) => selection.includes(alloc.clientStatus),
+  });
+
+  test('fiter results with no matches display empty message', async function(assert) {
+    const job = server.create('job', { createAllocations: false });
+    server.create('allocation', { jobId: job.id, clientStatus: 'running' });
+
+    await ClientDetail.visit({ id: node.id });
+    const statusFacet = ClientDetail.facets.status;
+    await statusFacet.toggle();
+    await statusFacet.options.objectAt(0).toggle();
+
+    assert.true(ClientDetail.emptyAllocations.isVisible);
+    assert.equal(ClientDetail.emptyAllocations.headline, 'No Matches');
   });
 });
 

@@ -39,6 +39,12 @@ export default create({
 
   ...allocations(),
 
+  emptyAllocations: {
+    scope: '[data-test-empty-allocations-list]',
+    headline: text('[data-test-empty-allocations-list-headline]'),
+    body: text('[data-test-empty-allocations-list-body]'),
+  },
+
   allocationFilter: {
     preemptions: clickable('[data-test-filter-preemptions]'),
     all: clickable('[data-test-filter-all]'),
