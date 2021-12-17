@@ -6908,6 +6908,11 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP",
 						Splay:        1,
 						Perms:        "0644",
+						Wait: &WaitConfig{
+							Enabled: helper.BoolToPtr(true),
+							Min:     helper.TimeToPtr(5 * time.Second),
+							Max:     helper.TimeToPtr(5 * time.Second),
+						},
 					},
 					{
 						SourcePath:   "foo2",
@@ -6931,6 +6936,11 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP",
 						Splay:        1,
 						Perms:        "0644",
+						Wait: &WaitConfig{
+							Enabled: helper.BoolToPtr(true),
+							Min:     helper.TimeToPtr(5 * time.Second),
+							Max:     helper.TimeToPtr(10 * time.Second),
+						},
 					},
 					{
 						SourcePath:   "foo3",
@@ -6940,6 +6950,11 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP3",
 						Splay:        3,
 						Perms:        "0776",
+						Wait: &WaitConfig{
+							Enabled: helper.BoolToPtr(true),
+							Min:     helper.TimeToPtr(5 * time.Second),
+							Max:     helper.TimeToPtr(10 * time.Second),
+						},
 					},
 				},
 			},
@@ -6955,6 +6970,20 @@ func TestTaskDiff(t *testing.T) {
 								Name: "EmbeddedTmpl",
 								Old:  "baz",
 								New:  "baz new",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Template",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeEdited,
+										Name: "Max",
+										Old:  "5000000000",
+										New:  "10000000000",
+									},
+								},
 							},
 						},
 					},
@@ -7015,6 +7044,32 @@ func TestTaskDiff(t *testing.T) {
 								Name: "VaultGrace",
 								Old:  "",
 								New:  "0",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Template",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Enabled",
+										Old:  "",
+										New:  "true",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Max",
+										Old:  "",
+										New:  "10000000000",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Min",
+										Old:  "",
+										New:  "5000000000",
+									},
+								},
 							},
 						},
 					},
@@ -7198,17 +7253,22 @@ func TestTaskDiff(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			t.Logf("running case: %d %v", i, c.Name)
-
-			actual, err := c.Old.Diff(c.New, c.Contextual)
-			if c.Error {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, c.Expected, actual)
-			}
-		})
+		//t.Run(c.Name, func(t *testing.T) {
+		t.Logf("running case: %d %v", i, c.Name)
+		if c.Name == "Template edited" {
+			t.Logf("got here")
+		}
+		actual, err := c.Old.Diff(c.New, c.Contextual)
+		if c.Name == "Template edited" {
+			t.Logf("%v", actual)
+		}
+		if c.Error {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			require.Equal(t, c.Expected, actual)
+		}
+		//})
 	}
 }
 
