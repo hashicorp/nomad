@@ -1,3 +1,4 @@
+/* eslint-disable ember-a11y-testing/a11y-audit-called */
 import { setComponentTemplate } from '@ember/component';
 import Component from '@glimmer/component';
 import { module, test } from 'qunit';
