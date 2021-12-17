@@ -1,15 +1,15 @@
 import Controller from '@ember/controller';
 
 export default class AllocationsAllocationTaskController extends Controller {
-  get breadcrumbs() {
-    const model = this.model;
-    if (!model) return [];
-    return [
-      {
-        title: 'Task',
-        label: model.get('name'),
-        args: ['allocations.allocation.task', model.get('allocation'), model],
-      },
-    ];
+  get task() {
+    return this.model;
+  }
+
+  get breadcrumb() {
+    return {
+      title: 'Task',
+      label: this.task.get('name'),
+      args: ['allocations.allocation.task', this.task.get('allocation'), this.task],
+    };
   }
 }

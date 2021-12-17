@@ -8,7 +8,7 @@ export default class JobController extends Controller {
   ];
   jobNamespace = 'default';
 
-  get breadcrumbs() {
-    return [{ type: 'job', job: this.model }];
+  get job() {
+    return this.model;
   }
 }

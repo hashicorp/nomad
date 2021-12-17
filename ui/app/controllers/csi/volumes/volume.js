@@ -14,8 +14,12 @@ export default class VolumeController extends Controller {
   ];
   volumeNamespace = 'default';
 
+  get volume() {
+    return this.model;
+  }
+
   get breadcrumbs() {
-    const volume = this.model;
+    const volume = this.volume;
     return [
       {
         label: 'Volumes',

@@ -1,16 +1,20 @@
 import Controller from '@ember/controller';
 
 export default class CsiPluginsPluginController extends Controller {
+  get plugin() {
+    return this.model;
+  }
+
   get breadcrumbs() {
-    const plugin = this.model;
+    const { plainId } = this.plugin;
     return [
       {
         label: 'Plugins',
         args: ['csi.plugins'],
       },
       {
-        label: plugin.plainId,
-        args: ['csi.plugins.plugin', plugin.plainId],
+        label: plainId,
+        args: ['csi.plugins.plugin', plainId],
       },
     ];
   }
