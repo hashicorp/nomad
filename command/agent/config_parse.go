@@ -9,10 +9,12 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl"
+	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
+// ParseConfigFile returns an agent.Config from parsed from a file.
 func ParseConfigFile(path string) (*Config, error) {
 	// slurp
 	var buf bytes.Buffer
@@ -32,7 +34,15 @@ func ParseConfigFile(path string) (*Config, error) {
 
 	// parse
 	c := &Config{
-		Client:    &ClientConfig{ServerJoin: &ServerJoin{}},
+		Client: &ClientConfig{
+			ServerJoin: &ServerJoin{},
+			TemplateConfig: &client.ClientTemplateConfig{
+				Wait:        &client.WaitConfig{},
+				WaitBounds:  &client.WaitConfig{},
+				ConsulRetry: &client.RetryConfig{},
+				VaultRetry:  &client.RetryConfig{},
+			},
+		},
 		ACL:       &ACLConfig{},
 		Audit:     &config.AuditConfig{},
 		Server:    &ServerConfig{ServerJoin: &ServerJoin{}},
@@ -48,31 +58,79 @@ func ParseConfigFile(path string) (*Config, error) {
 	}
 
 	// convert strings to time.Durations
-	tds := []td{
-		{"gc_interval", &c.Client.GCInterval, &c.Client.GCIntervalHCL},
-		{"acl.token_ttl", &c.ACL.TokenTTL, &c.ACL.TokenTTLHCL},
-		{"acl.policy_ttl", &c.ACL.PolicyTTL, &c.ACL.PolicyTTLHCL},
-		{"client.server_join.retry_interval", &c.Client.ServerJoin.RetryInterval, &c.Client.ServerJoin.RetryIntervalHCL},
-		{"server.heartbeat_grace", &c.Server.HeartbeatGrace, &c.Server.HeartbeatGraceHCL},
-		{"server.min_heartbeat_ttl", &c.Server.MinHeartbeatTTL, &c.Server.MinHeartbeatTTLHCL},
-		{"server.failover_heartbeat_ttl", &c.Server.FailoverHeartbeatTTL, &c.Server.FailoverHeartbeatTTLHCL},
-		{"server.retry_interval", &c.Server.RetryInterval, &c.Server.RetryIntervalHCL},
-		{"server.server_join.retry_interval", &c.Server.ServerJoin.RetryInterval, &c.Server.ServerJoin.RetryIntervalHCL},
-		{"consul.timeout", &c.Consul.Timeout, &c.Consul.TimeoutHCL},
-		{"autopilot.server_stabilization_time", &c.Autopilot.ServerStabilizationTime, &c.Autopilot.ServerStabilizationTimeHCL},
-		{"autopilot.last_contact_threshold", &c.Autopilot.LastContactThreshold, &c.Autopilot.LastContactThresholdHCL},
-		{"telemetry.collection_interval", &c.Telemetry.collectionInterval, &c.Telemetry.CollectionInterval},
+	tds := []durationConversionMap{
+		{"gc_interval", &c.Client.GCInterval, &c.Client.GCIntervalHCL, nil},
+		{"acl.token_ttl", &c.ACL.TokenTTL, &c.ACL.TokenTTLHCL, nil},
+		{"acl.policy_ttl", &c.ACL.PolicyTTL, &c.ACL.PolicyTTLHCL, nil},
+		{"client.server_join.retry_interval", &c.Client.ServerJoin.RetryInterval, &c.Client.ServerJoin.RetryIntervalHCL, nil},
+		{"server.heartbeat_grace", &c.Server.HeartbeatGrace, &c.Server.HeartbeatGraceHCL, nil},
+		{"server.min_heartbeat_ttl", &c.Server.MinHeartbeatTTL, &c.Server.MinHeartbeatTTLHCL, nil},
+		{"server.failover_heartbeat_ttl", &c.Server.FailoverHeartbeatTTL, &c.Server.FailoverHeartbeatTTLHCL, nil},
+		{"server.retry_interval", &c.Server.RetryInterval, &c.Server.RetryIntervalHCL, nil},
+		{"server.server_join.retry_interval", &c.Server.ServerJoin.RetryInterval, &c.Server.ServerJoin.RetryIntervalHCL, nil},
+		{"consul.timeout", &c.Consul.Timeout, &c.Consul.TimeoutHCL, nil},
+		{"autopilot.server_stabilization_time", &c.Autopilot.ServerStabilizationTime, &c.Autopilot.ServerStabilizationTimeHCL, nil},
+		{"autopilot.last_contact_threshold", &c.Autopilot.LastContactThreshold, &c.Autopilot.LastContactThresholdHCL, nil},
+		{"telemetry.collection_interval", &c.Telemetry.collectionInterval, &c.Telemetry.CollectionInterval, nil},
+		{"client.template.block_query_wait", nil, &c.Client.TemplateConfig.BlockQueryWaitTimeHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.BlockQueryWaitTime = d
+			},
+		},
+		{"client.template.max_stale", nil, &c.Client.TemplateConfig.MaxStaleHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.MaxStale = d
+			}},
+		{"client.template.wait.min", nil, &c.Client.TemplateConfig.Wait.MinHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.Wait.Min = d
+			},
+		},
+		{"client.template.wait.max", nil, &c.Client.TemplateConfig.Wait.MaxHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.Wait.Max = d
+			},
+		},
+		{"client.template.wait_bounds.min", nil, &c.Client.TemplateConfig.WaitBounds.MinHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.WaitBounds.Min = d
+			},
+		},
+		{"client.template.wait_bounds.max", nil, &c.Client.TemplateConfig.WaitBounds.MaxHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.WaitBounds.Max = d
+			},
+		},
+		{"client.template.consul_retry.backoff", nil, &c.Client.TemplateConfig.ConsulRetry.BackoffHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.ConsulRetry.Backoff = d
+			},
+		},
+		{"client.template.consul_retry.max_backoff", nil, &c.Client.TemplateConfig.ConsulRetry.MaxBackoffHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.ConsulRetry.MaxBackoff = d
+			},
+		},
+		{"client.template.vault_retry.backoff", nil, &c.Client.TemplateConfig.VaultRetry.BackoffHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.VaultRetry.Backoff = d
+			},
+		},
+		{"client.template.vault_retry.max_backoff", nil, &c.Client.TemplateConfig.VaultRetry.MaxBackoffHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.VaultRetry.MaxBackoff = d
+			},
+		},
 	}
 
 	// Add enterprise audit sinks for time.Duration parsing
 	for i, sink := range c.Audit.Sinks {
-		tds = append(tds, td{
-			fmt.Sprintf("audit.sink.%d", i), &sink.RotateDuration, &sink.RotateDurationHCL,
-		})
+		tds = append(tds, durationConversionMap{
+			fmt.Sprintf("audit.sink.%d", i), &sink.RotateDuration, &sink.RotateDurationHCL, nil})
 	}
 
 	// convert strings to time.Durations
-	err = durations(tds)
+	err = convertDurations(tds)
 	if err != nil {
 		return nil, err
 	}
@@ -83,27 +141,39 @@ func ParseConfigFile(path string) (*Config, error) {
 		return nil, err
 	}
 
+	// Set client template config or its members to nil if not set.
+	finalizeClientTemplateConfig(c)
+
 	return c, nil
 }
 
-// td holds args for one duration conversion
-type td struct {
-	path string
-	td   *time.Duration
-	str  *string
+// durationConversionMap holds args for one duration conversion
+type durationConversionMap struct {
+	targetFieldPath string
+	targetField     *time.Duration
+	sourceField     *string
+	setFunc         func(*time.Duration)
 }
 
-// durations parses the duration strings specified in the config files
+// convertDurations parses the duration strings specified in the config files
 // into time.Durations
-func durations(xs []td) error {
+func convertDurations(xs []durationConversionMap) error {
 	for _, x := range xs {
-		if x.td != nil && x.str != nil && "" != *x.str {
-			d, err := time.ParseDuration(*x.str)
+		// if targetField is not a pointer itself, use the field map.
+		if x.targetField != nil && x.sourceField != nil && "" != *x.sourceField {
+			d, err := time.ParseDuration(*x.sourceField)
 			if err != nil {
-				return fmt.Errorf("%s can't parse time duration %s", x.path, *x.str)
+				return fmt.Errorf("%s can't parse time duration %s", x.targetFieldPath, *x.sourceField)
 			}
 
-			*x.td = d
+			*x.targetField = d
+		} else if x.setFunc != nil && x.sourceField != nil && "" != *x.sourceField {
+			// if targetField is a pointer itself, use the setFunc closure.
+			d, err := time.ParseDuration(*x.sourceField)
+			if err != nil {
+				return fmt.Errorf("%s can't parse time duration %s", x.targetFieldPath, *x.sourceField)
+			}
+			x.setFunc(&d)
 		}
 	}
 
@@ -167,4 +237,30 @@ func extraKeys(c *Config) error {
 	}
 
 	return helper.UnusedKeys(c)
+}
+
+// hcl.Decode will error if the ClientTemplateConfig isn't initialized with empty
+// structs, however downstream code expect nils if the struct only contains fields
+// with the zero value for its type. This function nils out type members that are
+// structs where all the member fields are just the zero value for its type.
+func finalizeClientTemplateConfig(config *Config) {
+	if config.Client.TemplateConfig.Wait.IsEmpty() {
+		config.Client.TemplateConfig.Wait = nil
+	}
+
+	if config.Client.TemplateConfig.WaitBounds.IsEmpty() {
+		config.Client.TemplateConfig.WaitBounds = nil
+	}
+
+	if config.Client.TemplateConfig.ConsulRetry.IsEmpty() {
+		config.Client.TemplateConfig.ConsulRetry = nil
+	}
+
+	if config.Client.TemplateConfig.VaultRetry.IsEmpty() {
+		config.Client.TemplateConfig.VaultRetry = nil
+	}
+
+	if config.Client.TemplateConfig.IsEmpty() {
+		config.Client.TemplateConfig = nil
+	}
 }

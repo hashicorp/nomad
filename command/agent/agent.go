@@ -404,7 +404,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
 	conf.DisableDispatchedJobSummaryMetrics = agentConfig.Telemetry.DisableDispatchedJobSummaryMetrics
 
-	// Parse Limits timeout from a string into durations
+	// Parse Limits timeout from a string into convertDurations
 	if d, err := time.ParseDuration(agentConfig.Limits.RPCHandshakeTimeout); err != nil {
 		return nil, fmt.Errorf("error parsing rpc_handshake_timeout: %v", err)
 	} else if d < 0 {
@@ -545,7 +545,7 @@ func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 // Config. There may be missing fields that must be set by the agent. To do this
 // call finalizeServerConfig
 func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
-	// Setup the configuration
+	// Set up the configuration
 	conf := agentConfig.ClientConfig
 	if conf == nil {
 		conf = clientconfig.DefaultConfig()
@@ -595,12 +595,44 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.MaxDynamicPort = agentConfig.Client.MaxDynamicPort
 	conf.MinDynamicPort = agentConfig.Client.MinDynamicPort
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
-	if agentConfig.Client.TemplateConfig.FunctionBlacklist != nil {
-		conf.TemplateConfig.FunctionDenylist = agentConfig.Client.TemplateConfig.FunctionBlacklist
-	} else {
-		conf.TemplateConfig.FunctionDenylist = agentConfig.Client.TemplateConfig.FunctionDenylist
+
+	// TODO: Code review - Now that these aren't different types, would it be ok
+	// to just copy or directly reference the full struct instead of doing a field
+	// by field set?
+	if agentConfig.Client.TemplateConfig != nil {
+		conf.TemplateConfig.DisableSandbox = agentConfig.Client.TemplateConfig.DisableSandbox
+
+		// TODO: Code Review - Should these all be direct references or copies? Mixed right now.
+		if agentConfig.Client.TemplateConfig.MaxStale != nil {
+			conf.TemplateConfig.MaxStale = &*agentConfig.Client.TemplateConfig.MaxStale
+		}
+
+		if agentConfig.Client.TemplateConfig.BlockQueryWaitTime != nil {
+			conf.TemplateConfig.BlockQueryWaitTime = &*agentConfig.Client.TemplateConfig.BlockQueryWaitTime
+		}
+
+		if agentConfig.Client.TemplateConfig.FunctionBlacklist != nil {
+			conf.TemplateConfig.FunctionDenylist = agentConfig.Client.TemplateConfig.FunctionBlacklist
+		} else {
+			conf.TemplateConfig.FunctionDenylist = agentConfig.Client.TemplateConfig.FunctionDenylist
+		}
+
+		if agentConfig.Client.TemplateConfig.Wait != nil {
+			conf.TemplateConfig.Wait = agentConfig.Client.TemplateConfig.Wait
+		}
+
+		if agentConfig.Client.TemplateConfig.WaitBounds != nil {
+			conf.TemplateConfig.WaitBounds = agentConfig.Client.TemplateConfig.WaitBounds
+		}
+
+		if agentConfig.Client.TemplateConfig.ConsulRetry != nil {
+			conf.TemplateConfig.ConsulRetry = agentConfig.Client.TemplateConfig.ConsulRetry
+		}
+
+		if agentConfig.Client.TemplateConfig.VaultRetry != nil {
+			conf.TemplateConfig.VaultRetry = agentConfig.Client.TemplateConfig.VaultRetry
+		}
 	}
-	conf.TemplateConfig.DisableSandbox = agentConfig.Client.TemplateConfig.DisableSandbox
 
 	hvMap := make(map[string]*structs.ClientHostVolumeConfig, len(agentConfig.Client.HostVolumes))
 	for _, v := range agentConfig.Client.HostVolumes {
