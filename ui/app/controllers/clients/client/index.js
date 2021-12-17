@@ -201,7 +201,7 @@ export default class ClientController extends Controller.extend(Sortable, Search
       this.set('qpTaskGroup', serialize(intersection(taskGroups, this.selectionTaskGroup)));
     });
 
-    return taskGroups.sort().map(dc => ({ key: dc, label: dc }));
+    return taskGroups.sort().map(tg => ({ key: tg, label: tg }));
   }
 
   @action
