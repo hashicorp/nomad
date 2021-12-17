@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	templateconfig "github.com/hashicorp/consul-template/config"
 	ctestutil "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -1912,5 +1913,250 @@ WAIT_LOOP:
 		t.Logf("received all events: %v", pretty.Sprint(harness.mockHooks.Events))
 
 		t.Fatalf("bad event, expected only 3 and 5 blocked got: %q", event.DisplayMessage)
+	}
+}
+
+func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
+	t.Parallel()
+
+	testNS := "test-namespace"
+
+	clientConfig := config.DefaultConfig()
+	clientConfig.Node = mock.Node()
+
+	clientConfig.VaultConfig = &sconfig.VaultConfig{
+		Enabled:   helper.BoolToPtr(true),
+		Namespace: testNS,
+	}
+
+	clientConfig.ConsulConfig = &sconfig.ConsulConfig{
+		Namespace: testNS,
+	}
+
+	// helper to reduce boilerplate
+	waitConfig := &config.WaitConfig{
+		Enabled: helper.BoolToPtr(true),
+		Min:     helper.TimeToPtr(5 * time.Second),
+		Max:     helper.TimeToPtr(10 * time.Second),
+	}
+	// helper to reduce boilerplate
+	retryConfig := &config.RetryConfig{
+		Attempts:   helper.IntToPtr(5),
+		Backoff:    helper.TimeToPtr(5 * time.Second),
+		MaxBackoff: helper.TimeToPtr(20 * time.Second),
+		Enabled:    helper.BoolToPtr(true),
+	}
+
+	clientConfig.TemplateConfig.MaxStale = helper.TimeToPtr(5 * time.Second)
+	clientConfig.TemplateConfig.BlockQueryWaitTime = helper.TimeToPtr(60 * time.Second)
+	clientConfig.TemplateConfig.Wait = waitConfig.Copy()
+	clientConfig.TemplateConfig.ConsulRetry = retryConfig.Copy()
+	clientConfig.TemplateConfig.VaultRetry = retryConfig.Copy()
+
+	alloc := mock.Alloc()
+	allocWithOverride := mock.Alloc()
+	allocWithOverride.Job.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
+		{
+			Wait: &structs.WaitConfig{
+				Enabled: helper.BoolToPtr(true),
+				Min:     helper.TimeToPtr(2 * time.Second),
+				Max:     helper.TimeToPtr(12 * time.Second),
+			},
+		},
+	}
+
+	cases := []struct {
+		Name                   string
+		ClientTemplateConfig   *config.ClientTemplateConfig
+		TTMConfig              *TaskTemplateManagerConfig
+		ExpectedRunnerConfig   *config.Config
+		ExpectedTemplateConfig *templateconfig.TemplateConfig
+	}{
+		{
+			"basic-wait-config",
+			&config.ClientTemplateConfig{
+				MaxStale:           helper.TimeToPtr(5 * time.Second),
+				BlockQueryWaitTime: helper.TimeToPtr(60 * time.Second),
+				Wait:               waitConfig.Copy(),
+				ConsulRetry:        retryConfig.Copy(),
+				VaultRetry:         retryConfig.Copy(),
+			},
+			&TaskTemplateManagerConfig{
+				ClientConfig: clientConfig,
+				VaultToken:   "token",
+				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
+			},
+			&config.Config{
+				TemplateConfig: &config.ClientTemplateConfig{
+					MaxStale:           helper.TimeToPtr(5 * time.Second),
+					BlockQueryWaitTime: helper.TimeToPtr(60 * time.Second),
+					Wait:               waitConfig.Copy(),
+					ConsulRetry:        retryConfig.Copy(),
+					VaultRetry:         retryConfig.Copy(),
+				},
+			},
+			&templateconfig.TemplateConfig{
+				Wait: &templateconfig.WaitConfig{
+					Enabled: helper.BoolToPtr(true),
+					Min:     helper.TimeToPtr(5 * time.Second),
+					Max:     helper.TimeToPtr(10 * time.Second),
+				},
+			},
+		},
+		{
+			"template-override",
+			&config.ClientTemplateConfig{
+				MaxStale:           helper.TimeToPtr(5 * time.Second),
+				BlockQueryWaitTime: helper.TimeToPtr(60 * time.Second),
+				Wait:               waitConfig.Copy(),
+				ConsulRetry:        retryConfig.Copy(),
+				VaultRetry:         retryConfig.Copy(),
+			},
+			&TaskTemplateManagerConfig{
+				ClientConfig: clientConfig,
+				VaultToken:   "token",
+				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, allocWithOverride, allocWithOverride.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
+			},
+			&config.Config{
+				TemplateConfig: &config.ClientTemplateConfig{
+					MaxStale:           helper.TimeToPtr(5 * time.Second),
+					BlockQueryWaitTime: helper.TimeToPtr(60 * time.Second),
+					Wait:               waitConfig.Copy(),
+					ConsulRetry:        retryConfig.Copy(),
+					VaultRetry:         retryConfig.Copy(),
+				},
+			},
+			&templateconfig.TemplateConfig{
+				Wait: &templateconfig.WaitConfig{
+					Enabled: helper.BoolToPtr(true),
+					Min:     helper.TimeToPtr(2 * time.Second),
+					Max:     helper.TimeToPtr(12 * time.Second),
+				},
+			},
+		},
+		{
+			"bounds-override",
+			&config.ClientTemplateConfig{
+				MaxStale:           helper.TimeToPtr(5 * time.Second),
+				BlockQueryWaitTime: helper.TimeToPtr(60 * time.Second),
+				Wait:               waitConfig.Copy(),
+				WaitBounds: &config.WaitConfig{
+					Enabled: helper.BoolToPtr(true),
+					Min:     helper.TimeToPtr(3 * time.Second),
+					Max:     helper.TimeToPtr(11 * time.Second),
+				},
+				ConsulRetry: retryConfig.Copy(),
+				VaultRetry:  retryConfig.Copy(),
+			},
+			&TaskTemplateManagerConfig{
+				ClientConfig: clientConfig,
+				VaultToken:   "token",
+				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, allocWithOverride, allocWithOverride.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
+				Templates: []*structs.Template{
+					{
+						Wait: &structs.WaitConfig{
+							Enabled: helper.BoolToPtr(true),
+							Min:     helper.TimeToPtr(2 * time.Second),
+							Max:     helper.TimeToPtr(12 * time.Second),
+						},
+					},
+				},
+			},
+			&config.Config{
+				TemplateConfig: &config.ClientTemplateConfig{
+					MaxStale:           helper.TimeToPtr(5 * time.Second),
+					BlockQueryWaitTime: helper.TimeToPtr(60 * time.Second),
+					Wait:               waitConfig.Copy(),
+					WaitBounds: &config.WaitConfig{
+						Enabled: helper.BoolToPtr(true),
+						Min:     helper.TimeToPtr(3 * time.Second),
+						Max:     helper.TimeToPtr(11 * time.Second),
+					},
+					ConsulRetry: retryConfig.Copy(),
+					VaultRetry:  retryConfig.Copy(),
+				},
+			},
+			&templateconfig.TemplateConfig{
+				Wait: &templateconfig.WaitConfig{
+					Enabled: helper.BoolToPtr(true),
+					Min:     helper.TimeToPtr(3 * time.Second),
+					Max:     helper.TimeToPtr(11 * time.Second),
+				},
+			},
+		},
+	}
+
+	for _, _case := range cases {
+		t.Run(_case.Name, func(t *testing.T) {
+			// monkey patch the client config with the version of the ClientTemplateConfig we want to test.
+			_case.TTMConfig.ClientConfig.TemplateConfig = _case.ClientTemplateConfig
+			templateMapping, err := parseTemplateConfigs(_case.TTMConfig)
+			require.NoError(t, err)
+
+			runnerConfig, err := newRunnerConfig(_case.TTMConfig, templateMapping)
+			require.NoError(t, err)
+
+			// Direct properties
+			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.MaxStale, *runnerConfig.MaxStale)
+			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.BlockQueryWaitTime, *runnerConfig.BlockQueryWaitTime)
+			// WaitConfig
+			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.Wait.Enabled, *runnerConfig.Wait.Enabled)
+			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.Wait.Min, *runnerConfig.Wait.Min)
+			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.Wait.Max, *runnerConfig.Wait.Max)
+			// Consul Retry
+			require.NotNil(t, runnerConfig.Consul)
+			require.NotNil(t, runnerConfig.Consul.Retry)
+			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.ConsulRetry.Enabled, *runnerConfig.Consul.Retry.Enabled)
+			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.ConsulRetry.Attempts, *runnerConfig.Consul.Retry.Attempts)
+			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.ConsulRetry.Backoff, *runnerConfig.Consul.Retry.Backoff)
+			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.ConsulRetry.MaxBackoff, *runnerConfig.Consul.Retry.MaxBackoff)
+			// Vault Retry
+			require.NotNil(t, runnerConfig.Vault)
+			require.NotNil(t, runnerConfig.Vault.Retry)
+			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.Enabled, *runnerConfig.Vault.Retry.Enabled)
+			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.Attempts, *runnerConfig.Vault.Retry.Attempts)
+			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.Backoff, *runnerConfig.Vault.Retry.Backoff)
+			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.MaxBackoff, *runnerConfig.Vault.Retry.MaxBackoff)
+
+			// Test that wait_bounds are enforced
+			for _, tmpl := range *runnerConfig.Templates {
+				require.Equal(t, *_case.ExpectedTemplateConfig.Wait.Enabled, *tmpl.Wait.Enabled)
+				require.Equal(t, *_case.ExpectedTemplateConfig.Wait.Min, *tmpl.Wait.Min)
+				require.Equal(t, *_case.ExpectedTemplateConfig.Wait.Max, *tmpl.Wait.Max)
+			}
+		})
+	}
+}
+
+func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
+	t.Parallel()
+
+	c := config.DefaultConfig()
+	c.Node = mock.Node()
+
+	alloc := mock.Alloc()
+
+	ttmConfig := &TaskTemplateManagerConfig{
+		ClientConfig: c,
+		VaultToken:   "token",
+		EnvBuilder:   taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
+		Templates: []*structs.Template{
+			{
+				Wait: &structs.WaitConfig{
+					Enabled: helper.BoolToPtr(true),
+					Min:     helper.TimeToPtr(5 * time.Second),
+					Max:     helper.TimeToPtr(10 * time.Second),
+				},
+			},
+		},
+	}
+
+	ctmplMapping, err := parseTemplateConfigs(ttmConfig)
+	require.NoError(t, err)
+
+	for k, _ := range ctmplMapping {
+		require.True(t, *k.Wait.Enabled)
+		require.Equal(t, 5*time.Second, *k.Wait.Min)
+		require.Equal(t, 10*time.Second, *k.Wait.Max)
 	}
 }
