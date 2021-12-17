@@ -13,10 +13,10 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class TaskGroupController extends Controller.extend(
-    Sortable,
-    Searchable,
-    WithNamespaceResetting
-  ) {
+  Sortable,
+  Searchable,
+  WithNamespaceResetting
+) {
   @service userSettings;
   @service can;
 
@@ -54,14 +54,16 @@ export default class TaskGroupController extends Controller.extend(
     return ['shortId', 'name'];
   }
 
-  @computed('model.allocations.[]', 'selectionStatus', 'selectionClient')
+  @computed('model.allocations.[]')
   get allocations() {
-    const allocations = this.get('model.allocations') || [];
+    return this.get('model.allocations') || [];
+  }
+
+  @computed('allocations.[]', 'selectionStatus', 'selectionClient')
+  get filteredAllocations() {
     const { selectionStatus, selectionClient } = this;
 
-    if (!allocations.length) return allocations;
-
-    return allocations.filter(alloc => {
+    return this.allocations.filter(alloc => {
       if (selectionStatus.length && !selectionStatus.includes(alloc.clientStatus)) {
         return false;
       }
@@ -73,7 +75,7 @@ export default class TaskGroupController extends Controller.extend(
     });
   }
 
-  @alias('allocations') listToSort;
+  @alias('filteredAllocations') listToSort;
   @alias('listSorted') listToSearch;
   @alias('listSearched') sortedAllocations;
 
@@ -115,8 +117,7 @@ export default class TaskGroupController extends Controller.extend(
 
   get optionsAllocationStatus() {
     return [
-      { key: 'queued', label: 'Queued' },
-      { key: 'starting', label: 'Starting' },
+      { key: 'pending', label: 'Pending' },
       { key: 'running', label: 'Running' },
       { key: 'complete', label: 'Complete' },
       { key: 'failed', label: 'Failed' },
