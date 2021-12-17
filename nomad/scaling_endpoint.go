@@ -137,9 +137,9 @@ func (p *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
 	return p.srv.blockingRPC(&opts)
 }
 
-func (j *Scaling) listAllNamespaces(args *structs.ScalingPolicyListRequest, reply *structs.ScalingPolicyListResponse) error {
+func (p *Scaling) listAllNamespaces(args *structs.ScalingPolicyListRequest, reply *structs.ScalingPolicyListResponse) error {
 	// Check for list-job permissions
-	aclObj, err := j.srv.ResolveToken(args.AuthToken)
+	aclObj, err := p.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
@@ -197,8 +197,8 @@ func (j *Scaling) listAllNamespaces(args *structs.ScalingPolicyListRequest, repl
 			reply.Index = helper.Uint64Max(1, index)
 
 			// Set the query response
-			j.srv.setQueryMeta(&reply.QueryMeta)
+			p.srv.setQueryMeta(&reply.QueryMeta)
 			return nil
 		}}
-	return j.srv.blockingRPC(&opts)
+	return p.srv.blockingRPC(&opts)
 }

@@ -185,17 +185,17 @@ func (o *CSIMountOptions) Merge(p *CSIMountOptions) {
 var _ fmt.Stringer = &CSIMountOptions{}
 var _ fmt.GoStringer = &CSIMountOptions{}
 
-func (v *CSIMountOptions) String() string {
+func (o *CSIMountOptions) String() string {
 	mountFlagsString := "nil"
-	if len(v.MountFlags) != 0 {
+	if len(o.MountFlags) != 0 {
 		mountFlagsString = "[REDACTED]"
 	}
 
-	return fmt.Sprintf("csi.CSIOptions(FSType: %s, MountFlags: %s)", v.FSType, mountFlagsString)
+	return fmt.Sprintf("csi.CSIOptions(FSType: %s, MountFlags: %s)", o.FSType, mountFlagsString)
 }
 
-func (v *CSIMountOptions) GoString() string {
-	return v.String()
+func (o *CSIMountOptions) GoString() string {
+	return o.String()
 }
 
 // CSISecrets contain optional additional configuration that can be used
