@@ -13,10 +13,10 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class TaskGroupController extends Controller.extend(
-  Sortable,
-  Searchable,
-  WithNamespaceResetting
-) {
+    Sortable,
+    Searchable,
+    WithNamespaceResetting
+  ) {
   @service userSettings;
   @service can;
 

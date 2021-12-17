@@ -13,7 +13,6 @@ import TaskGroup from 'nomad-ui/tests/pages/jobs/job/task-group';
 import Layout from 'nomad-ui/tests/pages/layout';
 import pageSizeSelect from './behaviors/page-size-select';
 import moment from 'moment';
-import { pauseTest } from '@ember/test-helpers/setup-context';
 
 let job;
 let taskGroup;
