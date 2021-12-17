@@ -3105,8 +3105,8 @@ func (g *group) Go(f func()) {
 	}()
 }
 
-func (c *group) AddCh(ch <-chan struct{}) {
-	c.Go(func() {
+func (g *group) AddCh(ch <-chan struct{}) {
+	g.Go(func() {
 		<-ch
 	})
 }
