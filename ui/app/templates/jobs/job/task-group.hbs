@@ -1,6 +1,4 @@
-{{#each this.breadcrumbs as |crumb|}}
-  <Breadcrumb @crumb={{crumb}} />
-{{/each}}
+<Breadcrumb @crumb={{this.breadcrumb}} />
 {{page-title "Task group " this.model.name " - Job " this.model.job.name}}
 <div class="tabs is-subnav">
   <ul>

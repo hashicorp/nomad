@@ -1,10 +1,4 @@
 import Controller from '@ember/controller';
 
-export default class JobsController extends Controller {
-  breadcrumbs = [
-    {
-      label: 'Jobs',
-      args: ['jobs.index'],
-    },
-  ];
-}
+// The WithNamespaceResetting Mixin uses Controller Injection and requires us to keep this controller around
+export default class JobsController extends Controller {}

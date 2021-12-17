@@ -86,20 +86,21 @@ export default class TaskGroupController extends Controller.extend(
     return this.model.scale(count);
   }
 
-  get breadcrumbs() {
-    const model = this.model;
-    if (!model) return [];
-    return [
-      {
-        title: 'Task Group',
-        label: model.get('name'),
-        args: [
-          'jobs.job.task-group',
-          model.get('job'),
-          model.get('name'),
-          qpBuilder({ jobNamespace: model.get('job.namespace.name') || 'default' }),
-        ],
-      },
-    ];
+  get taskGroup() {
+    return this.model;
+  }
+
+  get breadcrumb() {
+    const { job, name } = this.taskGroup;
+    return {
+      title: 'Task Group',
+      label: name,
+      args: [
+        'jobs.job.task-group',
+        job,
+        name,
+        qpBuilder({ jobNamespace: job.get('namespace.name') || 'default' }),
+      ],
+    };
   }
 }

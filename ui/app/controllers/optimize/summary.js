@@ -10,15 +10,15 @@ export default class OptimizeSummaryController extends Controller {
     },
   ];
 
-  get breadcrumbs() {
-    const model = this.model;
-    if (!model) return [];
+  get summary() {
+    return this.model;
+  }
 
-    return [
-      {
-        label: model.slug.replace('/', ' / '),
-        args: ['optimize.summary', model.slug],
-      },
-    ];
+  get breadcrumb() {
+    const { slug } = this.summary;
+    return {
+      label: slug.replace('/', ' / '),
+      args: ['optimize.summary', slug],
+    };
   }
 }

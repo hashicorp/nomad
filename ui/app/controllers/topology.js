@@ -143,11 +143,4 @@ export default class TopologyControllers extends Controller {
       this.filteredNodes = filteredNodesError.context;
     }
   }
-
-  get breadcrumb() {
-    return {
-      label: 'Topology',
-      args: ['topology'],
-    };
-  }
 }

@@ -1,6 +1,4 @@
-{{#each this.breadcrumbs as |crumb|}}
-  <Breadcrumb @crumb={{crumb}} />
-{{/each}}
+<Breadcrumb @crumb={{hash label="Servers" args=(array "servers.index")}} />
 <PageLayout>
   {{outlet}}
 </PageLayout>
