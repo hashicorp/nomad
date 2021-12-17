@@ -296,18 +296,25 @@
       </div>
       <div class="pull-right is-subsection">
         <MultiSelectDropdown
+          data-test-allocation-namespace-facet
+          @label="Namespace"
+          @options={{this.optionsNamespace}}
+          @selection={{this.selectionNamespace}}
+          @onSelect={{action "setFacetQueryParam" "qpNamespace"}}
+        />
+        <MultiSelectDropdown
+          data-test-allocation-job-facet
+          @label="Job"
+          @options={{this.optionsJob}}
+          @selection={{this.selectionJob}}
+          @onSelect={{action "setFacetQueryParam" "qpJob"}}
+        />
+        <MultiSelectDropdown
           data-test-allocation-status-facet
           @label="Status"
           @options={{this.optionsAllocationStatus}}
           @selection={{this.selectionStatus}}
           @onSelect={{action "setFacetQueryParam" "qpStatus"}}
-        />
-        <MultiSelectDropdown
-          data-test-allocation-task-group-facet
-          @label="Task Group"
-          @options={{this.optionsTaskGroups}}
-          @selection={{this.selectionTaskGroup}}
-          @onSelect={{action "setFacetQueryParam" "qpTaskGroup"}}
         />
         <SearchBox
           @searchTerm={{mut this.searchTerm}}
