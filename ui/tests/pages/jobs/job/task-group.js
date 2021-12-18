@@ -13,6 +13,7 @@ import error from 'nomad-ui/tests/pages/components/error';
 import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 import stepperInput from 'nomad-ui/tests/pages/components/stepper-input';
 import LifecycleChart from 'nomad-ui/tests/pages/components/lifecycle-chart';
+import { multiFacet } from 'nomad-ui/tests/pages/components/facet';
 
 export default create({
   pageSize: 25,
@@ -32,6 +33,11 @@ export default create({
   ...allocations(),
 
   isEmpty: isPresent('[data-test-empty-allocations-list]'),
+
+  facets: {
+    status: multiFacet('[data-test-allocation-status-facet]'),
+    client: multiFacet('[data-test-allocation-client-facet]'),
+  },
 
   lifecycleChart: LifecycleChart,
 
