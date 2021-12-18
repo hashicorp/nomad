@@ -300,21 +300,21 @@
           @label="Namespace"
           @options={{this.optionsNamespace}}
           @selection={{this.selectionNamespace}}
-          @onSelect={{action "setFacetQueryParam" "qpNamespace"}}
+          @onSelect={{action this.setFacetQueryParam "qpNamespace"}}
         />
         <MultiSelectDropdown
           data-test-allocation-job-facet
           @label="Job"
           @options={{this.optionsJob}}
           @selection={{this.selectionJob}}
-          @onSelect={{action "setFacetQueryParam" "qpJob"}}
+          @onSelect={{action this.setFacetQueryParam "qpJob"}}
         />
         <MultiSelectDropdown
           data-test-allocation-status-facet
           @label="Status"
           @options={{this.optionsAllocationStatus}}
           @selection={{this.selectionStatus}}
-          @onSelect={{action "setFacetQueryParam" "qpStatus"}}
+          @onSelect={{action this.setFacetQueryParam "qpStatus"}}
         />
         <SearchBox
           @searchTerm={{mut this.searchTerm}}

@@ -138,7 +138,6 @@ export default class TaskGroupController extends Controller.extend(
     return clients.sort().map(dc => ({ key: dc, label: dc }));
   }
 
-  @action
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }

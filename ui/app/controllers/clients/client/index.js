@@ -230,7 +230,6 @@ export default class ClientController extends Controller.extend(Sortable, Search
     return ns.sort().map(n => ({ key: n, label: n }));
   }
 
-  @action
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }

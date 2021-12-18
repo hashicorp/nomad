@@ -75,14 +75,14 @@
           @label="Status"
           @options={{this.optionsAllocationStatus}}
           @selection={{this.selectionStatus}}
-          @onSelect={{action "setFacetQueryParam" "qpStatus"}}
+          @onSelect={{action this.setFacetQueryParam "qpStatus"}}
         />
         <MultiSelectDropdown
           data-test-allocation-client-facet
           @label="Client"
           @options={{this.optionsClients}}
           @selection={{this.selectionClient}}
-          @onSelect={{action "setFacetQueryParam" "qpClient"}}
+          @onSelect={{action this.setFacetQueryParam "qpClient"}}
         />
         <SearchBox
           @searchTerm={{mut this.searchTerm}}
