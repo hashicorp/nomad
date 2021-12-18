@@ -1,7 +1,7 @@
 {{page-title "Job " this.job.name " allocations"}}
 <JobSubnav @job={{this.job}} />
 <section class="section">
-  {{#if this.model.allocations.length}}
+  {{#if this.allocations.length}}
     <div class="toolbar">
       <div class="toolbar-item">
         <SearchBox
@@ -27,18 +27,11 @@
             @onSelect={{action this.setFacetQueryParam "qpClient"}}
           />
           <MultiSelectDropdown
-            data-test-task-group-facet
+            data-test-allocation-task-group-facet
             @label="Task Group"
             @options={{this.optionsTaskGroups}}
             @selection={{this.selectionTaskGroup}}
             @onSelect={{action this.setFacetQueryParam "qpTaskGroup"}}
-          />
-          <MultiSelectDropdown
-            data-test-job-version-facet
-            @label="Job Version"
-            @options={{this.optionsJobVersions}}
-            @selection={{this.selectionJobVersion}}
-            @onSelect={{action this.setFacetQueryParam "qpJobVersion"}}
           />
         </div>
       </div>

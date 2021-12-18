@@ -12,10 +12,10 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class AllocationsController extends Controller.extend(
-  Sortable,
-  Searchable,
-  WithNamespaceResetting
-) {
+    Sortable,
+    Searchable,
+    WithNamespaceResetting
+  ) {
   queryParams = [
     {
       currentPage: 'page',
@@ -38,15 +38,11 @@ export default class AllocationsController extends Controller.extend(
     {
       qpTaskGroup: 'taskGroup',
     },
-    {
-      qpJobVersion: 'jobVersion',
-    },
   ];
 
   qpStatus = '';
   qpClient = '';
   qpTaskGroup = '';
-  qpJobVersion = '';
   currentPage = 1;
   pageSize = 25;
 
@@ -60,20 +56,16 @@ export default class AllocationsController extends Controller.extend(
     return ['shortId', 'name', 'taskGroupName'];
   }
 
-  @computed(
-    'model.allocations.[]',
-    'selectionStatus',
-    'selectionClient',
-    'selectionTaskGroup',
-    'selectionJobVersion'
-  )
+  @computed('model.allocations.[]')
   get allocations() {
-    const allocations = this.get('model.allocations') || [];
-    const { selectionStatus, selectionClient, selectionTaskGroup, selectionJobVersion } = this;
+    return this.get('model.allocations') || [];
+  }
 
-    if (!allocations.length) return allocations;
+  @computed('allocations.[]', 'selectionStatus', 'selectionClient', 'selectionTaskGroup')
+  get filteredAllocations() {
+    const { selectionStatus, selectionClient, selectionTaskGroup } = this;
 
-    return allocations.filter(alloc => {
+    return this.allocations.filter(alloc => {
       if (selectionStatus.length && !selectionStatus.includes(alloc.clientStatus)) {
         return false;
       }
@@ -83,21 +75,17 @@ export default class AllocationsController extends Controller.extend(
       if (selectionTaskGroup.length && !selectionTaskGroup.includes(alloc.taskGroupName)) {
         return false;
       }
-      if (selectionJobVersion.length && !selectionJobVersion.includes(alloc.jobVersion)) {
-        return false;
-      }
       return true;
     });
   }
 
+  @alias('filteredAllocations') listToSort;
+  @alias('listSorted') listToSearch;
+  @alias('listSearched') sortedAllocations;
+
   @selection('qpStatus') selectionStatus;
   @selection('qpClient') selectionClient;
   @selection('qpTaskGroup') selectionTaskGroup;
-  @selection('qpJobVersion') selectionJobVersion;
-
-  @alias('allocations') listToSort;
-  @alias('listSorted') listToSearch;
-  @alias('listSearched') sortedAllocations;
 
   @action
   gotoAllocation(allocation) {
@@ -106,8 +94,7 @@ export default class AllocationsController extends Controller.extend(
 
   get optionsAllocationStatus() {
     return [
-      { key: 'queued', label: 'Queued' },
-      { key: 'starting', label: 'Starting' },
+      { key: 'pending', label: 'Pending' },
       { key: 'running', label: 'Running' },
       { key: 'complete', label: 'Complete' },
       { key: 'failed', label: 'Failed' },
@@ -132,26 +119,13 @@ export default class AllocationsController extends Controller.extend(
   get optionsTaskGroups() {
     const taskGroups = Array.from(new Set(this.model.allocations.mapBy('taskGroupName'))).compact();
 
-    // Update query param when the list of clients changes.
+    // Update query param when the list of task groups changes.
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set('qpTaskGroup', serialize(intersection(taskGroups, this.selectionTaskGroup)));
     });
 
     return taskGroups.sort().map(tg => ({ key: tg, label: tg }));
-  }
-
-  @computed('model.allocations.[]', 'selectionJobVersion')
-  get optionsJobVersions() {
-    const jobVersions = Array.from(new Set(this.model.allocations.mapBy('jobVersion'))).compact();
-
-    // Update query param when the list of clients changes.
-    scheduleOnce('actions', () => {
-      // eslint-disable-next-line ember/no-side-effects
-      this.set('qpJobVersion', serialize(intersection(jobVersions, this.selectionJobVersion)));
-    });
-
-    return jobVersions.sort().map(jv => ({ key: jv, label: jv }));
   }
 
   setFacetQueryParam(queryParam, selection) {
