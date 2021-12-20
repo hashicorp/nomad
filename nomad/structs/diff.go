@@ -1901,24 +1901,24 @@ func (r *Resources) Diff(other *Resources, contextual bool) *ObjectDiff {
 
 // Diff returns a diff of two network resources. If contextual diff is enabled,
 // non-changed fields will still be returned.
-func (r *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectDiff {
+func (n *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Network"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 	filter := []string{"Device", "CIDR", "IP"}
 
-	if reflect.DeepEqual(r, other) {
+	if reflect.DeepEqual(n, other) {
 		return nil
-	} else if r == nil {
-		r = &NetworkResource{}
+	} else if n == nil {
+		n = &NetworkResource{}
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(other, filter, true)
 	} else if other == nil {
 		other = &NetworkResource{}
 		diff.Type = DiffTypeDeleted
-		oldPrimitiveFlat = flatmap.Flatten(r, filter, true)
+		oldPrimitiveFlat = flatmap.Flatten(n, filter, true)
 	} else {
 		diff.Type = DiffTypeEdited
-		oldPrimitiveFlat = flatmap.Flatten(r, filter, true)
+		oldPrimitiveFlat = flatmap.Flatten(n, filter, true)
 		newPrimitiveFlat = flatmap.Flatten(other, filter, true)
 	}
 
@@ -1926,8 +1926,8 @@ func (r *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectD
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
 	// Port diffs
-	resPorts := portDiffs(r.ReservedPorts, other.ReservedPorts, false, contextual)
-	dynPorts := portDiffs(r.DynamicPorts, other.DynamicPorts, true, contextual)
+	resPorts := portDiffs(n.ReservedPorts, other.ReservedPorts, false, contextual)
+	dynPorts := portDiffs(n.DynamicPorts, other.DynamicPorts, true, contextual)
 	if resPorts != nil {
 		diff.Objects = append(diff.Objects, resPorts...)
 	}
@@ -1935,7 +1935,7 @@ func (r *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectD
 		diff.Objects = append(diff.Objects, dynPorts...)
 	}
 
-	if dnsDiff := r.DNS.Diff(other.DNS, contextual); dnsDiff != nil {
+	if dnsDiff := n.DNS.Diff(other.DNS, contextual); dnsDiff != nil {
 		diff.Objects = append(diff.Objects, dnsDiff)
 	}
 
@@ -1943,8 +1943,8 @@ func (r *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectD
 }
 
 // Diff returns a diff of two DNSConfig structs
-func (c *DNSConfig) Diff(other *DNSConfig, contextual bool) *ObjectDiff {
-	if reflect.DeepEqual(c, other) {
+func (d *DNSConfig) Diff(other *DNSConfig, contextual bool) *ObjectDiff {
+	if reflect.DeepEqual(d, other) {
 		return nil
 	}
 
@@ -1964,15 +1964,15 @@ func (c *DNSConfig) Diff(other *DNSConfig, contextual bool) *ObjectDiff {
 
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "DNS"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
-	if c == nil {
+	if d == nil {
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatten(other)
 	} else if other == nil {
 		diff.Type = DiffTypeDeleted
-		oldPrimitiveFlat = flatten(c)
+		oldPrimitiveFlat = flatten(d)
 	} else {
 		diff.Type = DiffTypeEdited
-		oldPrimitiveFlat = flatten(c)
+		oldPrimitiveFlat = flatten(d)
 		newPrimitiveFlat = flatten(other)
 	}
 
