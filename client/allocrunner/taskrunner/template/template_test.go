@@ -1916,6 +1916,9 @@ WAIT_LOOP:
 	}
 }
 
+// TestTaskTemplateManager_ClientTemplateConfig_Set asserts that all client level
+// configuration is accurately mapped from the client to the TaskTemplateManager
+// and that any operator defined boundaries are enforced.
 func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 	t.Parallel()
 
@@ -2128,6 +2131,9 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 	}
 }
 
+// TestTaskTemplateManager_Template_Wait_Set asserts that all template level
+// configuration is accurately mapped from the template to the TaskTemplateManager's
+// template config.
 func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 	t.Parallel()
 
@@ -2151,10 +2157,10 @@ func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 		},
 	}
 
-	ctmplMapping, err := parseTemplateConfigs(ttmConfig)
+	templateMapping, err := parseTemplateConfigs(ttmConfig)
 	require.NoError(t, err)
 
-	for k, _ := range ctmplMapping {
+	for k, _ := range templateMapping {
 		require.True(t, *k.Wait.Enabled)
 		require.Equal(t, 5*time.Second, *k.Wait.Min)
 		require.Equal(t, 10*time.Second, *k.Wait.Max)
