@@ -637,10 +637,10 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 
 // streamFile is the internal method to stream the content of a file. If limit
 // is greater than zero, the stream will end once that many bytes have been
-// read. eofCancelCh is used to cancel the stream if triggered while at EOF. If
+// read. eofCancelOnNextEofCh, if triggered while at EOF, is used to trigger one more read and cancel the stream on reaching next EOF. If
 // the connection is broken an EPIPE error is returned
 func (f *FileSystem) streamFile(ctx context.Context, offset int64, path string, limit int64,
-	fs allocdir.AllocDirFS, framer *sframer.StreamFramer, eofCancelCh chan error) error {
+	fs allocdir.AllocDirFS, framer *sframer.StreamFramer, eofCancelOnNextEofCh chan error) error {
 
 	// Get the reader
 	file, err := fs.ReadAt(path, offset)
@@ -666,6 +666,9 @@ func (f *FileSystem) streamFile(ctx context.Context, offset int64, path string, 
 	// Only create the file change watcher once. But we need to do it after we
 	// read and reach EOF.
 	var changes *watch.FileChanges
+
+	// Try to read file till end when on cancel received
+	cancelReceived := false
 
 	// Start streaming the data
 	bufSize := int64(streamFrameSize)
@@ -702,6 +705,11 @@ OUTER:
 		// avoid setting up a file event watcher.
 		if readErr == nil {
 			continue
+		}
+
+		// When eof and cancel received then cancel
+		if cancelReceived {
+			return nil
 		}
 
 		// If EOF is hit, wait for a change to the file
@@ -752,12 +760,13 @@ OUTER:
 				return nil
 			case <-ctx.Done():
 				return nil
-			case err, ok := <-eofCancelCh:
+			case _, ok := <-eofCancelOnNextEofCh:
 				if !ok {
 					return nil
 				}
 
-				return err
+				cancelReceived = true
+				continue OUTER
 			}
 		}
 	}
@@ -809,6 +818,7 @@ func blockUntilNextLog(ctx context.Context, fs allocdir.AllocDirFS, logPath, tas
 				// waiting for.
 				for _, entry := range indexes {
 					if entry.idx >= nextIndex {
+						//<-time.NewTicker(5 * time.Second).C
 						next <- nil
 						close(next)
 						return
