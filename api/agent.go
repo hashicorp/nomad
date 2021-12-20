@@ -487,7 +487,7 @@ type HostDataResponse struct {
 // GetSchedulerWorkerConfig returns the targeted agent's worker pool configuration
 func (a *Agent) GetSchedulerWorkerConfig() (*SchedulerWorkerPoolArgs, error) {
 	var resp AgentSchedulerWorkerConfigResponse
-	_, err := a.client.query("/v1/agent/workers/config", &resp, nil)
+	_, err := a.client.query("/v1/agent/schedulers/config", &resp, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -500,7 +500,7 @@ func (a *Agent) SetSchedulerWorkerConfig(args SchedulerWorkerPoolArgs) (*Schedul
 	req := AgentSchedulerWorkerConfigRequest(args)
 	var resp AgentSchedulerWorkerConfigResponse
 
-	_, err := a.client.write("/v1/agent/workers/config", &req, &resp, nil)
+	_, err := a.client.write("/v1/agent/schedulers/config", &req, &resp, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -520,6 +520,7 @@ type AgentSchedulerWorkerConfigRequest struct {
 }
 
 type AgentSchedulerWorkerConfigResponse struct {
+	ServerID          string   `json:"server_id"`
 	NumSchedulers     int      `json:"num_schedulers"`
 	EnabledSchedulers []string `json:"enabled_schedulers"`
 }
@@ -528,7 +529,7 @@ func (a *Agent) GetSchedulerWorkersInfo() (*AgentSchedulerWorkersInfo, error) {
 	var out *AgentSchedulerWorkersInfo
 
 	// Query the self endpoint on the agent
-	_, err := a.client.query("/v1/agent/workers", &out, nil)
+	_, err := a.client.query("/v1/agent/schedulers", &out, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -537,7 +538,8 @@ func (a *Agent) GetSchedulerWorkersInfo() (*AgentSchedulerWorkersInfo, error) {
 }
 
 type AgentSchedulerWorkersInfo struct {
-	Workers []AgentSchedulerWorkerInfo `json:"workers"`
+	ServerID   string                     `json:"server_id"`
+	Schedulers []AgentSchedulerWorkerInfo `json:"schedulers"`
 }
 
 type AgentSchedulerWorkerInfo struct {

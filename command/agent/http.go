@@ -35,6 +35,10 @@ const (
 	// endpoint
 	ErrEntOnly = "Nomad Enterprise only endpoint"
 
+	// ErrServerOnly is the error text returned if accessing a server only
+	// endpoint
+	ErrServerOnly = "Server only endpoint"
+
 	// ContextKeyReqID is a unique ID for a given request
 	ContextKeyReqID = "requestID"
 
@@ -293,8 +297,8 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/agent/members", s.wrap(s.AgentMembersRequest))
 	s.mux.HandleFunc("/v1/agent/force-leave", s.wrap(s.AgentForceLeaveRequest))
 	s.mux.HandleFunc("/v1/agent/servers", s.wrap(s.AgentServersRequest))
-	s.mux.HandleFunc("/v1/agent/workers", s.wrap(s.AgentSchedulerWorkerInfoRequest))
-	s.mux.HandleFunc("/v1/agent/workers/config", s.wrap(s.AgentSchedulerWorkerConfigRequest))
+	s.mux.HandleFunc("/v1/agent/schedulers", s.wrap(s.AgentSchedulerWorkerInfoRequest))
+	s.mux.HandleFunc("/v1/agent/schedulers/config", s.wrap(s.AgentSchedulerWorkerConfigRequest))
 	s.mux.HandleFunc("/v1/agent/keyring/", s.wrap(s.KeyringOperationRequest))
 	s.mux.HandleFunc("/v1/agent/health", s.wrap(s.HealthRequest))
 	s.mux.HandleFunc("/v1/agent/host", s.wrap(s.AgentHostRequest))

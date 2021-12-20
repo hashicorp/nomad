@@ -743,14 +743,12 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 	return reply, rpcErr
 }
 
-// AgentSchedulerWorkerConfigRequest is used to query the count (and state eventually)
-// of the scheduler workers running in a Nomad server agent.
-// This endpoint can also be used to update the count of running workers for a
-// given agent.
+// AgentSchedulerWorkerInfoRequest is used to query the running state of the
+// agent's scheduler workers.
 func (s *HTTPServer) AgentSchedulerWorkerInfoRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	srv := s.agent.Server()
 	if srv == nil {
-		return nil, CodedError(http.StatusBadRequest, "server only endpoint")
+		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)
 	}
 	if req.Method != http.MethodGet {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
@@ -768,18 +766,19 @@ func (s *HTTPServer) AgentSchedulerWorkerInfoRequest(resp http.ResponseWriter, r
 
 	schedulersInfo := srv.GetSchedulerWorkersInfo()
 	response := &agentSchedulerWorkersInfo{
-		Workers: make([]agentSchedulerWorkerInfo, len(schedulersInfo)),
+		ServerID:   srv.LocalMember().Name,
+		Schedulers: make([]agentSchedulerWorkerInfo, len(schedulersInfo)),
 	}
 
 	for i, workerInfo := range schedulersInfo {
-		response.Workers[i] = agentSchedulerWorkerInfo{
+		response.Schedulers[i] = agentSchedulerWorkerInfo{
 			ID:                workerInfo.ID,
 			EnabledSchedulers: make([]string, len(workerInfo.EnabledSchedulers)),
 			Started:           workerInfo.Started.UTC().Format(time.RFC3339Nano),
 			Status:            workerInfo.Status,
 			WorkloadStatus:    workerInfo.WorkloadStatus,
 		}
-		copy(response.Workers[i].EnabledSchedulers, workerInfo.EnabledSchedulers)
+		copy(response.Schedulers[i].EnabledSchedulers, workerInfo.EnabledSchedulers)
 	}
 
 	return response, nil
@@ -791,7 +790,7 @@ func (s *HTTPServer) AgentSchedulerWorkerInfoRequest(resp http.ResponseWriter, r
 // given agent.
 func (s *HTTPServer) AgentSchedulerWorkerConfigRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if s.agent.Server() == nil {
-		return nil, CodedError(http.StatusBadRequest, "server only endpoint")
+		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)
 	}
 	switch req.Method {
 	case "PUT", "POST":
@@ -806,7 +805,7 @@ func (s *HTTPServer) AgentSchedulerWorkerConfigRequest(resp http.ResponseWriter,
 func (s *HTTPServer) GetScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	srv := s.agent.Server()
 	if srv == nil {
-		return nil, CodedError(http.StatusBadRequest, "server only endpoint")
+		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)
 	}
 
 	var secret string
@@ -821,6 +820,7 @@ func (s *HTTPServer) GetScheduleWorkersConfig(resp http.ResponseWriter, req *htt
 
 	config := srv.GetSchedulerWorkerConfig()
 	response := &agentSchedulerWorkerConfig{
+		ServerID:          srv.LocalMember().Name,
 		NumSchedulers:     config.NumSchedulers,
 		EnabledSchedulers: config.EnabledSchedulers,
 	}
@@ -831,7 +831,7 @@ func (s *HTTPServer) GetScheduleWorkersConfig(resp http.ResponseWriter, req *htt
 func (s *HTTPServer) UpdateScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	srv := s.agent.Server()
 	if srv == nil {
-		return nil, CodedError(400, "server only endpoint")
+		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)
 	}
 
 	var secret string
@@ -847,18 +847,21 @@ func (s *HTTPServer) UpdateScheduleWorkersConfig(resp http.ResponseWriter, req *
 	var args agentSchedulerWorkerConfig
 
 	if err := decodeBody(req, &args); err != nil {
-		return nil, CodedError(http.StatusBadRequest, err.Error())
+		return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Invalid request: %s", err.Error()))
 	}
+	// the server_id provided in the payload is ignored to allow the
+	// response to be roundtripped right into a PUT.
 	newArgs := nomad.SchedulerWorkerPoolArgs{
 		NumSchedulers:     args.NumSchedulers,
 		EnabledSchedulers: args.EnabledSchedulers,
 	}
 	if newArgs.IsInvalid() {
-		return nil, CodedError(http.StatusBadRequest, "invalid arguments")
+		return nil, CodedError(http.StatusBadRequest, "Invalid request")
 	}
 	reply := srv.SetSchedulerWorkerConfig(newArgs)
 
 	response := &agentSchedulerWorkerConfig{
+		ServerID:          srv.LocalMember().Name,
 		NumSchedulers:     reply.NumSchedulers,
 		EnabledSchedulers: reply.EnabledSchedulers,
 	}
@@ -867,12 +870,14 @@ func (s *HTTPServer) UpdateScheduleWorkersConfig(resp http.ResponseWriter, req *
 }
 
 type agentSchedulerWorkerConfig struct {
+	ServerID          string   `json:"server_id,omitempty"`
 	NumSchedulers     int      `json:"num_schedulers"`
 	EnabledSchedulers []string `json:"enabled_schedulers"`
 }
 
 type agentSchedulerWorkersInfo struct {
-	Workers []agentSchedulerWorkerInfo `json:"workers"`
+	ServerID   string                     `json:"server_id"`
+	Schedulers []agentSchedulerWorkerInfo `json:"schedulers"`
 }
 
 type agentSchedulerWorkerInfo struct {

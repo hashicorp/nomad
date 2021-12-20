@@ -483,7 +483,7 @@ func TestAgent_SchedulerWorkersInfo(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, info)
 	defaultSchedulers := []string{"batch", "system", "sysbatch", "service", "_core"}
-	for _, worker := range info.Workers {
+	for _, worker := range info.Schedulers {
 		require.ElementsMatch(t, defaultSchedulers, worker.EnabledSchedulers)
 	}
 }
