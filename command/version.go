@@ -21,20 +21,18 @@ func (c *VersionCommand) Help() string {
 func (c *VersionCommand) Name() string { return "version" }
 
 func (c *VersionCommand) Run(_ []string) int {
-	c.Ui.Output(fmt.Sprintf("Client Version: %s", c.Version.FullVersionNumber(true)))
+	c.Ui.Output(c.Version.FullVersionNumber(true))
 
 	// Check the server version
 	client, err := c.Meta.Client()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Could not get server version: %s", err))
-		return 1
+		return 0
 	}
 	serverVersion, err := client.Status().Version()
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Could not get server version: %s", err))
-		return 1
+		return 0
 	}
-	c.Ui.Output(fmt.Sprintf("Server Version: %s", *serverVersion))
+	c.Ui.Output(fmt.Sprintf("Server Version: %s", serverVersion))
 	return 0
 }
 
