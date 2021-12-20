@@ -353,7 +353,9 @@ func (e *Eval) List(args *structs.EvalListRequest,
 			// Scan all the evaluations
 			var err error
 			var iter memdb.ResultIterator
-			if prefix := args.QueryOptions.Prefix; prefix != "" {
+			if args.RequestNamespace() == structs.AllNamespacesSentinel {
+				iter, err = store.Evals(ws)
+			} else if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = store.EvalsByIDPrefix(ws, args.RequestNamespace(), prefix)
 			} else {
 				iter, err = store.EvalsByNamespace(ws, args.RequestNamespace())

@@ -49,6 +49,10 @@ The table below shows this endpoint's support for
   specific evaluation status (one of `blocked`, `pending`, `complete`,
   `failed`, or `canceled`).
 
+- `namespace` `(string: "default")` - Specifies the target
+  namespace. Specifying `*` will return all evaluations across all
+  authorized namespaces.
+
 ### Sample Request
 
 ```shell-session
