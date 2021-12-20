@@ -74,5 +74,7 @@ Router.map(function () {
     this.route('tokens');
   });
 
+  this.route('evaluations');
+
   this.route('not-found', { path: '/*' });
 });
