@@ -74,7 +74,8 @@ Router.map(function() {
     this.route('tokens');
   });
 
-  this.route('evaluations');
+  // if we don't include function() the outlet won't render
+  this.route('evaluations', function() {});
 
   this.route('not-found', { path: '/*' });
 });
