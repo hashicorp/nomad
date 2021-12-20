@@ -1,3 +1,5 @@
-{{#each this.rows key=this.key as |row index|}}
-  {{yield row index}}
-{{/each}}
+<tbody>
+  {{#each @rows key=this.key as |row index|}}
+    {{yield row index}}
+  {{/each}}
+</tbody>
