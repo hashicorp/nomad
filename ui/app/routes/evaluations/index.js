@@ -3,7 +3,7 @@ import Route from '@ember/routing/route';
 
 const ALL_NAMESPACE_WILDCARD = '*';
 
-export default class EvaluationsRoute extends Route {
+export default class EvaluationsIndexRoute extends Route {
   @service store;
 
   queryParams = {

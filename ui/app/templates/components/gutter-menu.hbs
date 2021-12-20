@@ -79,6 +79,16 @@
           </LinkTo>
         </li>
       </ul>
+      <p class="menu-label">
+        Debugging
+      </p>
+      <ul class="menu-list">
+        <li>
+          <LinkTo @route="evaluations" @activeClass="is-active" data-test-gutter-link="evaluations">
+            Evaluations
+          </LinkTo>
+        </li>
+      </ul>
     </aside>
     {{#if this.system.agent.version}}
       <footer class="gutter-footer">

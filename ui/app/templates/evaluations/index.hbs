@@ -1,0 +1,62 @@
+{{page-title "Evaluations"}}
+<section class="section">
+  <ListTable @source={{@model}} as |t|>
+    <t.head>
+      <th>
+        Evaluation ID
+      </th>
+      <th>
+        Resource
+      </th>
+      <th>
+        Priority
+      </th>
+      <th>
+        Created
+      </th>
+      <th>
+        Triggered By
+      </th>
+      <th>
+        Status
+      </th>
+      <th>
+        Placement Failures
+      </th>
+    </t.head>
+    <t.body as |row|>
+      <tr data-test-evaluation="{{row.model.shortId}}">
+        <td data-test-id>
+          {{row.model.shortId}}
+        </td>
+        <td data-test-id>
+          Resource Placeholder
+        </td>
+        <td data-test-priority>
+          {{row.model.priority}}
+        </td>
+        <td data-test-create-time>
+          {{format-month-ts row.model.createTime}}
+        </td>
+        <td data-test-triggered-by>
+          {{row.model.triggeredBy}}
+        </td>
+        <td data-test-status>
+          {{row.model.status}}
+        </td>
+        <td data-test-blocked>
+          {{#if (eq row.model.status "blocked")}}
+            N/A - In Progress
+          {{else if row.model.hasPlacementFailures}}
+            True
+          {{else}}
+            False
+          {{/if}}
+        </td>
+      </tr>
+    </t.body>
+  </ListTable>
+  <div class="table-foot">
+    <PageSizeSelect @onChange={{this.onChange}} />
+  </div>
+</section>
