@@ -42,7 +42,7 @@
           {{row.model.triggeredBy}}
         </td>
         <td data-test-status>
-          {{row.model.status}}
+          <StatusCell @status={{row.model.status}} />
         </td>
         <td data-test-blocked>
           {{#if (eq row.model.status "blocked")}}
