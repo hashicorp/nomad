@@ -390,6 +390,15 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		}
 	}
 
+	// Validate the evaluation priority if the user supplied a non-default
+	// value. It's more efficient to do it here, within the agent rather than
+	// sending a bad request for the server to reject.
+	if args.EvalPriority != 0 {
+		if err := validateEvalPriorityOpt(args.EvalPriority); err != nil {
+			return nil, err
+		}
+	}
+
 	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
 	regReq := structs.JobRegisterRequest{
 		Job:            sJob,
@@ -397,6 +406,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		JobModifyIndex: args.JobModifyIndex,
 		PolicyOverride: args.PolicyOverride,
 		PreserveCounts: args.PreserveCounts,
+		EvalPriority:   args.EvalPriority,
 		WriteRequest:   *writeReq,
 	}
 
@@ -411,6 +421,9 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
 
+	args := structs.JobDeregisterRequest{JobID: jobName}
+
+	// Identify the purge query param and parse.
 	purgeStr := req.URL.Query().Get("purge")
 	var purgeBool bool
 	if purgeStr != "" {
@@ -420,7 +433,9 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a bool: %v", "purge", purgeStr, err)
 		}
 	}
+	args.Purge = purgeBool
 
+	// Identify the global query param and parse.
 	globalStr := req.URL.Query().Get("global")
 	var globalBool bool
 	if globalStr != "" {
@@ -430,12 +445,36 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a bool: %v", "global", globalStr, err)
 		}
 	}
+	args.Global = globalBool
 
-	args := structs.JobDeregisterRequest{
-		JobID:  jobName,
-		Purge:  purgeBool,
-		Global: globalBool,
+	// Parse the eval priority from the request URL query if present.
+	evalPriority, err := parseInt(req, "eval_priority")
+	if err != nil {
+		return nil, err
 	}
+
+	// Identify the no_shutdown_delay query param and parse.
+	noShutdownDelayStr := req.URL.Query().Get("no_shutdown_delay")
+	var noShutdownDelay bool
+	if noShutdownDelayStr != "" {
+		var err error
+		noShutdownDelay, err = strconv.ParseBool(noShutdownDelayStr)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %qq (%v) as a bool: %v", "no_shutdown_delay", noShutdownDelayStr, err)
+		}
+	}
+	args.NoShutdownDelay = noShutdownDelay
+
+	// Validate the evaluation priority if the user supplied a non-default
+	// value. It's more efficient to do it here, within the agent rather than
+	// sending a bad request for the server to reject.
+	if evalPriority != nil && *evalPriority > 0 {
+		if err := validateEvalPriorityOpt(*evalPriority); err != nil {
+			return nil, err
+		}
+		args.EvalPriority = *evalPriority
+	}
+
 	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.JobDeregisterResponse
@@ -1660,4 +1699,13 @@ func ApiSpreadToStructs(a1 *api.Spread) *structs.Spread {
 		}
 	}
 	return ret
+}
+
+// validateEvalPriorityOpt ensures the supplied evaluation priority override
+// value is within acceptable bounds.
+func validateEvalPriorityOpt(priority int) HTTPCodedError {
+	if priority < 1 || priority > 100 {
+		return CodedError(400, "Eval priority must be between 1 and 100 inclusively")
+	}
+	return nil
 }

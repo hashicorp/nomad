@@ -48,3 +48,12 @@ $mq-hidden-gutter: 'only screen and (max-width : 960px)';
 $timing-fast: 150ms;
 $timing-medium: 300ms;
 $timing-slow: 450ms;
+
+// Undo Bulma 0.8.0 button increase.
+$control-border-width: 1px !default;
+$button-border-width: $control-border-width !default;
+$control-height: 2.25em;
+$control-padding-vertical: calc(0.375em - #{$control-border-width});
+$control-padding-horizontal: calc(0.625em - #{$control-border-width});
+$button-padding-vertical: calc(0.375em - #{$button-border-width});
+$button-padding-horizontal: 0.75em;

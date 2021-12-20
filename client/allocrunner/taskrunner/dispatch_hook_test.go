@@ -26,12 +26,13 @@ func TestTaskRunner_DispatchHook_NoPayload(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 	logger := testlog.HCLogger(t)
-	allocDir := allocdir.NewAllocDir(logger, "nomadtest_nopayload")
-	defer allocDir.Destroy()
 
 	// Default mock alloc/job is not a dispatch job
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	allocDir := allocdir.NewAllocDir(logger, "nomadtest_nopayload", alloc.ID)
+	defer allocDir.Destroy()
 	taskDir := allocDir.NewTaskDir(task.Name)
 	require.NoError(taskDir.Build(false, nil))
 
@@ -61,8 +62,6 @@ func TestTaskRunner_DispatchHook_Ok(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 	logger := testlog.HCLogger(t)
-	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatchok")
-	defer allocDir.Destroy()
 
 	// Default mock alloc/job is not a dispatch job; update it
 	alloc := mock.BatchAlloc()
@@ -77,6 +76,9 @@ func TestTaskRunner_DispatchHook_Ok(t *testing.T) {
 	task.DispatchPayload = &structs.DispatchPayloadConfig{
 		File: "out",
 	}
+
+	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatchok", alloc.ID)
+	defer allocDir.Destroy()
 	taskDir := allocDir.NewTaskDir(task.Name)
 	require.NoError(taskDir.Build(false, nil))
 
@@ -104,8 +106,6 @@ func TestTaskRunner_DispatchHook_Error(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 	logger := testlog.HCLogger(t)
-	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatcherr")
-	defer allocDir.Destroy()
 
 	// Default mock alloc/job is not a dispatch job; update it
 	alloc := mock.BatchAlloc()
@@ -121,6 +121,9 @@ func TestTaskRunner_DispatchHook_Error(t *testing.T) {
 	task.DispatchPayload = &structs.DispatchPayloadConfig{
 		File: "out",
 	}
+
+	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatcherr", alloc.ID)
+	defer allocDir.Destroy()
 	taskDir := allocDir.NewTaskDir(task.Name)
 	require.NoError(taskDir.Build(false, nil))
 

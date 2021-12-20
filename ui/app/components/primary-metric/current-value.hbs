@@ -4,7 +4,7 @@
       <progress
         data-test-current-value
         class="progress {{@chartClass}} is-small"
-        value="{{@percent}}"
+        value="{{or @percent 0}}"
         max="1">
         {{@percent}}
       </progress>

@@ -189,6 +189,9 @@ environment with the most commonly used parts of the operating system. Please
 see the [Nomad `exec` driver documentation](/docs/drivers/exec#chroot) for
 the full list.
 
+As of Nomad 1.2, Nomad will never attempt to embed the `alloc_dir` in the
+chroot as doing so would cause infinite recursion.
+
 ### `options` Parameters
 
 ~> Note: In Nomad 0.9 client configuration options for drivers were deprecated.

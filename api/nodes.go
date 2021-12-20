@@ -49,6 +49,15 @@ func (n *Nodes) PrefixList(prefix string) ([]*NodeListStub, *QueryMeta, error) {
 	return n.List(&QueryOptions{Prefix: prefix})
 }
 
+func (n *Nodes) PrefixListOpts(prefix string, opts *QueryOptions) ([]*NodeListStub, *QueryMeta, error) {
+	if opts == nil {
+		opts = &QueryOptions{Prefix: prefix}
+	} else {
+		opts.Prefix = prefix
+	}
+	return n.List(opts)
+}
+
 // Info is used to query a specific node by its ID.
 func (n *Nodes) Info(nodeID string, q *QueryOptions) (*Node, *QueryMeta, error) {
 	var resp Node
@@ -506,6 +515,14 @@ type HostVolumeInfo struct {
 	ReadOnly bool
 }
 
+//HostNetworkInfo is used to return metadata about a given HostNetwork
+type HostNetworkInfo struct {
+	Name          string
+	CIDR          string
+	Interface     string
+	ReservedPorts string
+}
+
 type DrainStatus string
 
 // DrainMetadata contains information about the most recent drain operation for a given Node.
@@ -541,6 +558,7 @@ type Node struct {
 	Events                []*NodeEvent
 	Drivers               map[string]*DriverInfo
 	HostVolumes           map[string]*HostVolumeInfo
+	HostNetworks          map[string]*HostNetworkInfo
 	CSIControllerPlugins  map[string]*CSIInfo
 	CSINodePlugins        map[string]*CSIInfo
 	LastDrain             *DrainMetadata

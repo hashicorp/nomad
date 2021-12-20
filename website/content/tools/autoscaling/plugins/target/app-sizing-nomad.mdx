@@ -1,0 +1,78 @@
+---
+layout: docs
+page_title: 'Autoscaling Plugins: Dynamic Application Sizing'
+description: The "app-sizing-nomad" target plugin scales a task resource.
+---
+
+# Dynamic Application Sizing Nomad Task Target
+
+<EnterpriseAlert>
+  This functionality only exists in Nomad Autoscaler Enterprise. This is not
+  present in the open source version of Nomad Autoscaler.
+</EnterpriseAlert>
+
+The `app-sizing-nomad` target plugin reports on the current task resource value
+as well as submits recommendations to Nomad via the [recommendations API endpoint][nomad_recommendations_api]
+based on the result of the Dynamic Application Sizing strategy calculations.
+
+## Agent Configuration Options
+
+The `app-sizing-nomad` plugin is automatically launched by Nomad Autoscaler
+Enterprise and so the following setup is optional.
+
+```hcl
+target "app-sizing-nomad" {
+  driver = "app-sizing-nomad"
+}
+```
+
+## Policy Configuration Options
+
+If using the [Nomad job specification scaling stanza][nomad_scaling_stanza] to
+configure the scaling policy for a task resource, the following section can be
+omitted as Nomad will populate them on job submission. Please also refer to the
+[Nomad Autoscaler policy documentation][nomad_autoscaler_policy] for additional
+detail and guidance.
+
+```hcl
+check "mem" {
+  ...
+  target "app-sizing-nomad" {
+    Namespace = "default"
+    Job       = "example"
+    Group     = "cache"
+    Task      = "Redis"
+    Resource  = "MemoryMB"
+  }
+  ...
+```
+
+- `Region` `(string: "")` - The region in which the job resides as defined
+  by the [`region` parameter][nomad_region_parameter] within the job specification.
+
+- `Namespace` `(string: "")` - The namespace in which the job resides as defined
+  by the [`namespace` parameter][nomad_namespace_parameter] within the job
+  specification.
+
+- `Job` `(string: "")` - The job identifier which contains the task group to
+  scale as defined within the job specification [`job` stanza][nomad_job_stanza].
+
+- `Group` `(string: "")` - The name of the task group to scale as defined in the
+  job specification [`group` stanza][nomad_group_stanza].
+
+- `Task` `(string: "")` - The name of the task to scale as defined in the job
+  specification [`task` stanza][nomad_task_stanza].
+
+- `Resource` `(string: "")` - The resource to scale as defined by the job
+  specification [`resource` stanza][nomad_resource_stanza]. Supports either `CPU`
+  or `MemoryMB`.
+
+[nomad_autoscaler_policy]: /tools/autoscaling/policy
+[nomad_group_stanza]: /docs/job-specification/group
+[nomad_job_stanza]: /docs/job-specification/job
+[nomad_namespace_parameter]: /docs/job-specification/job#namespace
+[nomad_recommendations_api]: /api-docs/recommendations
+[nomad_region_parameter]: /docs/job-specification/job#region
+[nomad_resource_stanza]: /docs/job-specification/resources
+[nomad_scaling_stanza]: /docs/job-specification/scaling
+[nomad_task_stanza]: /docs/job-specification/task

@@ -1581,7 +1581,7 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	logger := testlog.HCLogger(t)
-	allocDir := allocdir.NewAllocDir(logger, filepath.Join(clientConf.AllocDir, alloc.ID))
+	allocDir := allocdir.NewAllocDir(logger, clientConf.AllocDir, alloc.ID)
 	taskDir := allocDir.NewTaskDir(task.Name)
 
 	containerEnv := func() *taskenv.Builder {

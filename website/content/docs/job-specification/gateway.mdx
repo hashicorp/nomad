@@ -35,7 +35,7 @@ service {
 
 ## `gateway` Parameters
 
-Exactly one of `ingress` or `terminating` must be configured.
+Exactly one of `ingress`, `terminating`, or `mesh` must be configured.
 
 - `proxy` <code>([proxy]: nil)</code> - Configuration of the Envoy proxy that will
   be injected into the task group.

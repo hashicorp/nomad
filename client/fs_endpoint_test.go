@@ -31,19 +31,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// tempAllocDir returns a new alloc dir that is rooted in a temp dir. The caller
-// should destroy the temp dir.
+// tempAllocDir returns a new alloc dir that is rooted in a temp dir. Caller
+// should cleanup with AllocDir.Destroy()
 func tempAllocDir(t testing.TB) *allocdir.AllocDir {
-	dir, err := ioutil.TempDir("", "nomadtest")
-	if err != nil {
-		t.Fatalf("TempDir() failed: %v", err)
-	}
+	dir := t.TempDir()
 
-	if err := os.Chmod(dir, 0777); err != nil {
-		t.Fatalf("failed to chmod dir: %v", err)
-	}
+	require.NoError(t, os.Chmod(dir, 0o777))
 
-	return allocdir.NewAllocDir(testlog.HCLogger(t), dir)
+	return allocdir.NewAllocDir(testlog.HCLogger(t), dir, "test_allocid")
 }
 
 type nopWriteCloser struct {
@@ -1561,12 +1556,11 @@ func TestFS_findClosest(t *testing.T) {
 
 func TestFS_streamFile_NoFile(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
 
 	ad := tempAllocDir(t)
-	defer os.RemoveAll(ad.AllocDir)
+	defer ad.Destroy()
 
 	frames := make(chan *sframer.StreamFrame, 32)
 	framer := sframer.NewStreamFramer(frames, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
@@ -1575,11 +1569,11 @@ func TestFS_streamFile_NoFile(t *testing.T) {
 
 	err := c.endpoints.FileSystem.streamFile(
 		context.Background(), 0, "foo", 0, ad, framer, nil)
-	require.NotNil(err)
+	require.Error(t, err)
 	if runtime.GOOS == "windows" {
-		require.Contains(err.Error(), "cannot find the file")
+		require.Contains(t, err.Error(), "cannot find the file")
 	} else {
-		require.Contains(err.Error(), "no such file")
+		require.Contains(t, err.Error(), "no such file")
 	}
 }
 
@@ -1591,7 +1585,8 @@ func TestFS_streamFile_Modify(t *testing.T) {
 
 	// Get a temp alloc dir
 	ad := tempAllocDir(t)
-	defer os.RemoveAll(ad.AllocDir)
+	require.NoError(t, ad.Build())
+	defer ad.Destroy()
 
 	// Create a file in the temp dir
 	streamFile := "stream_file"
@@ -1660,16 +1655,15 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 
 	// Get a temp alloc dir
 	ad := tempAllocDir(t)
-	defer os.RemoveAll(ad.AllocDir)
+	require.NoError(t, ad.Build())
+	defer ad.Destroy()
 
 	// Create a file in the temp dir
 	data := []byte("helloworld")
 	streamFile := "stream_file"
 	streamFilePath := filepath.Join(ad.AllocDir, streamFile)
 	f, err := os.Create(streamFilePath)
-	if err != nil {
-		t.Fatalf("Failed to create file: %v", err)
-	}
+	require.NoError(t, err)
 	defer f.Close()
 
 	// Start the reader
@@ -1768,7 +1762,8 @@ func TestFS_streamImpl_Delete(t *testing.T) {
 
 	// Get a temp alloc dir
 	ad := tempAllocDir(t)
-	defer os.RemoveAll(ad.AllocDir)
+	require.NoError(t, ad.Build())
+	defer ad.Destroy()
 
 	// Create a file in the temp dir
 	data := []byte("helloworld")
@@ -1840,7 +1835,8 @@ func TestFS_logsImpl_NoFollow(t *testing.T) {
 
 	// Get a temp alloc dir and create the log dir
 	ad := tempAllocDir(t)
-	defer os.RemoveAll(ad.AllocDir)
+	require.NoError(t, ad.Build())
+	defer ad.Destroy()
 
 	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
 	if err := os.MkdirAll(logDir, 0777); err != nil {
@@ -1908,7 +1904,8 @@ func TestFS_logsImpl_Follow(t *testing.T) {
 
 	// Get a temp alloc dir and create the log dir
 	ad := tempAllocDir(t)
-	defer os.RemoveAll(ad.AllocDir)
+	require.NoError(t, ad.Build())
+	defer ad.Destroy()
 
 	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
 	if err := os.MkdirAll(logDir, 0777); err != nil {

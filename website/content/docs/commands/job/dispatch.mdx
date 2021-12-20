@@ -30,6 +30,11 @@ flag one or more times.
 
 The payload has a **size limit of 16384 bytes (16KiB)**.
 
+An optional idempotency token can be specified to prevent dispatching more than
+one instance of the same job. The token can have any value and will be matched
+with existing jobs. If an instance with the same token already exists, the job
+will not be dispatched.
+
 Upon successful creation, the dispatched job ID will be printed and the
 triggered evaluation will be monitored. This can be disabled by supplying the
 detach flag.
@@ -57,6 +62,9 @@ capability for the job's namespace.
 - `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
   [eval status] command
+
+- `-idempotency-token`: Optional identifier used to prevent more than one
+  instance of the job from being dispatched.
 
 - `-verbose`: Show full information.
 
@@ -107,6 +115,27 @@ flag:
 $ nomad job dispatch -detach video-encode video-config.json
 Dispatched Job ID = example/dispatch-1485380684-c37b3dba
 Evaluation ID     = d9034c4e
+```
+
+Dispatch with an idempotency token for the first time:
+
+```shell-session
+$ nomad job dispatch -idempotency-token=prod video-encode video-config.json
+Dispatched Job ID = video-encode/dispatch-1485379325-cb38d00d
+Evaluation ID     = 31199841
+
+==> Monitoring evaluation "31199841"
+    Evaluation triggered by job "example/dispatch-1485379325-cb38d00d"
+    Allocation "8254b85f" created: node "82ff9c50", group "cache"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "31199841" finished with status "complete"
+```
+
+Dispatch with the same idempotency token:
+
+```shell-session
+$ nomad job dispatch -idempotency-token=prod video-encode video-config.json
+Job "video-encode/dispatch-1485379325-cb38d00d" already dispatched with idempotency token "prod".
 ```
 
 [eval status]: /docs/commands/eval-status

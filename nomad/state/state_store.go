@@ -1600,7 +1600,7 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 	}
 
 	if err := s.updateJobCSIPlugins(index, job, existingJob, txn); err != nil {
-		return fmt.Errorf("unable to update job scaling policies: %v", err)
+		return fmt.Errorf("unable to update job csi plugins: %v", err)
 	}
 
 	// Insert the job
@@ -3371,7 +3371,7 @@ func (s *StateStore) UpdateAllocsDesiredTransitions(msgType structs.MessageType,
 
 	// Handle each of the updated allocations
 	for id, transition := range allocs {
-		if err := s.nestedUpdateAllocDesiredTransition(txn, index, id, transition); err != nil {
+		if err := s.UpdateAllocDesiredTransitionTxn(txn, index, id, transition); err != nil {
 			return err
 		}
 	}
@@ -3390,9 +3390,9 @@ func (s *StateStore) UpdateAllocsDesiredTransitions(msgType structs.MessageType,
 	return txn.Commit()
 }
 
-// nestedUpdateAllocDesiredTransition is used to nest an update of an
+// UpdateAllocDesiredTransitionTxn is used to nest an update of an
 // allocations desired transition
-func (s *StateStore) nestedUpdateAllocDesiredTransition(
+func (s *StateStore) UpdateAllocDesiredTransitionTxn(
 	txn *txn, index uint64, allocID string,
 	transition *structs.DesiredTransition) error {
 
@@ -3414,8 +3414,9 @@ func (s *StateStore) nestedUpdateAllocDesiredTransition(
 	// Merge the desired transitions
 	copyAlloc.DesiredTransition.Merge(transition)
 
-	// Update the modify index
+	// Update the modify indexes
 	copyAlloc.ModifyIndex = index
+	copyAlloc.AllocModifyIndex = index
 
 	// Update the allocation
 	if err := txn.Insert("allocs", copyAlloc); err != nil {

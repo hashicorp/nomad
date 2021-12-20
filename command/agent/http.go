@@ -47,8 +47,9 @@ var (
 	// Set to false by stub_asset if the ui build tag isn't enabled
 	uiEnabled = true
 
-	// Overridden if the ui build tag isn't enabled
-	stubHTML = ""
+	// Displayed when ui is disabled, but overridden if the ui build
+	// tag isn't enabled
+	stubHTML = "<html><p>Nomad UI is disabled</p></html>"
 
 	// allowCORS sets permissive CORS headers for a handler
 	allowCORS = cors.New(cors.Options{
@@ -337,13 +338,21 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/namespace", s.wrap(s.NamespaceCreateRequest))
 	s.mux.HandleFunc("/v1/namespace/", s.wrap(s.NamespaceSpecificRequest))
 
-	if uiEnabled {
+	uiConfigEnabled := s.agent.config.UI != nil && s.agent.config.UI.Enabled
+
+	if uiEnabled && uiConfigEnabled {
 		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
+		s.logger.Debug("UI is enabled")
 	} else {
 		// Write the stubHTML
 		s.mux.HandleFunc("/ui/", func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(stubHTML))
 		})
+		if uiEnabled && !uiConfigEnabled {
+			s.logger.Warn("UI is disabled")
+		} else {
+			s.logger.Debug("UI is disabled in this build")
+		}
 	}
 	s.mux.Handle("/", s.handleRootFallthrough())
 
@@ -443,6 +452,9 @@ func errCodeFromHandler(err error) (int, string) {
 		} else if strings.HasSuffix(errMsg, structs.ErrTokenNotFound.Error()) {
 			errMsg = structs.ErrTokenNotFound.Error()
 			code = 403
+		} else if strings.HasSuffix(errMsg, structs.ErrJobRegistrationDisabled.Error()) {
+			errMsg = structs.ErrJobRegistrationDisabled.Error()
+			code = 403
 		}
 	}
 
@@ -478,6 +490,9 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 					code = 403
 				} else if strings.HasSuffix(errMsg, structs.ErrTokenNotFound.Error()) {
 					errMsg = structs.ErrTokenNotFound.Error()
+					code = 403
+				} else if strings.HasSuffix(errMsg, structs.ErrJobRegistrationDisabled.Error()) {
+					errMsg = structs.ErrJobRegistrationDisabled.Error()
 					code = 403
 				}
 			}
@@ -594,11 +609,19 @@ func setLastContact(resp http.ResponseWriter, last time.Duration) {
 	resp.Header().Set("X-Nomad-LastContact", strconv.FormatUint(lastMsec, 10))
 }
 
+// setNextToken is used to set the next token header for pagination
+func setNextToken(resp http.ResponseWriter, nextToken string) {
+	if nextToken != "" {
+		resp.Header().Set("X-Nomad-NextToken", nextToken)
+	}
+}
+
 // setMeta is used to set the query response meta data
 func setMeta(resp http.ResponseWriter, m *structs.QueryMeta) {
 	setIndex(resp, m.Index)
 	setLastContact(resp, m.LastContact)
 	setKnownLeader(resp, m.KnownLeader)
+	setNextToken(resp, m.NextToken)
 }
 
 // setHeaders is used to set canonical response header fields
@@ -688,6 +711,19 @@ func parseBool(req *http.Request, field string) (*bool, error) {
 	return nil, nil
 }
 
+// parseInt parses a query parameter to a int or returns (nil, nil) if the
+// parameter is not present.
+func parseInt(req *http.Request, field string) (*int, error) {
+	if str := req.URL.Query().Get(field); str != "" {
+		param, err := strconv.Atoi(str)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a int: %v", field, str, err)
+		}
+		return &param, nil
+	}
+	return nil, nil
+}
+
 // parseToken is used to parse the X-Nomad-Token param
 func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 	if other := req.Header.Get("X-Nomad-Token"); other != "" {
@@ -719,8 +755,7 @@ func parsePagination(req *http.Request, b *structs.QueryOptions) {
 		}
 	}
 
-	nextToken := query.Get("next_token")
-	b.NextToken = nextToken
+	b.NextToken = query.Get("next_token")
 }
 
 // parseWriteRequest is a convenience method for endpoints that need to parse a

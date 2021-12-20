@@ -10,6 +10,14 @@ import (
 	"github.com/mitchellh/hashstructure"
 )
 
+// DiffableWithID defines an object that has a unique and stable value that can
+// be used as an identifier when generating a diff.
+type DiffableWithID interface {
+	// DiffID returns the value to use to match entities between the old and
+	// the new input.
+	DiffID() string
+}
+
 // DiffType denotes the type of a diff object.
 type DiffType string
 
@@ -2419,11 +2427,20 @@ func primitiveObjectSetDiff(old, new []interface{}, filter []string, name string
 	makeSet := func(objects []interface{}) map[string]interface{} {
 		objMap := make(map[string]interface{}, len(objects))
 		for _, obj := range objects {
-			hash, err := hashstructure.Hash(obj, nil)
-			if err != nil {
-				panic(err)
+			var key string
+
+			if diffable, ok := obj.(DiffableWithID); ok {
+				key = diffable.DiffID()
 			}
-			objMap[fmt.Sprintf("%d", hash)] = obj
+
+			if key == "" {
+				hash, err := hashstructure.Hash(obj, nil)
+				if err != nil {
+					panic(err)
+				}
+				key = fmt.Sprintf("%d", hash)
+			}
+			objMap[key] = obj
 		}
 
 		return objMap
@@ -2433,10 +2450,11 @@ func primitiveObjectSetDiff(old, new []interface{}, filter []string, name string
 	newSet := makeSet(new)
 
 	var diffs []*ObjectDiff
-	for k, v := range oldSet {
-		// Deleted
-		if _, ok := newSet[k]; !ok {
-			diffs = append(diffs, primitiveObjectDiff(v, nil, filter, name, contextual))
+	for k, oldObj := range oldSet {
+		newObj := newSet[k]
+		diff := primitiveObjectDiff(oldObj, newObj, filter, name, contextual)
+		if diff != nil {
+			diffs = append(diffs, diff)
 		}
 	}
 	for k, v := range newSet {

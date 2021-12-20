@@ -37,11 +37,23 @@
   <span class="color-swatch {{this.allocation.clientStatus}}" /> {{this.allocation.clientStatus}}
 </td>
 {{#if (eq this.context "volume")}}
-  <td data-test-client><LinkTo @route="clients.client" @model={{this.allocation.node}}>{{this.allocation.node.shortId}}</LinkTo></td>
+  <td data-test-client>
+    <Tooltip @text={{this.allocation.node.name}}>
+      <LinkTo @route="clients.client" @model={{this.allocation.node}}>
+        {{this.allocation.node.shortId}}
+      </LinkTo>
+    </Tooltip>
+  </td>
 {{/if}}
 {{#if (or (eq this.context "taskGroup") (eq this.context "job"))}}
   <td data-test-job-version>{{this.allocation.jobVersion}}</td>
-  <td data-test-client><LinkTo @route="clients.client" @model={{this.allocation.node}}>{{this.allocation.node.shortId}}</LinkTo></td>
+  <td data-test-client>
+    <Tooltip @text={{this.allocation.node.name}}>
+      <LinkTo @route="clients.client" @model={{this.allocation.node}}>
+        {{this.allocation.node.shortId}}
+      </LinkTo>
+    </Tooltip>
+  </td>
 {{else if (or (eq this.context "node") (eq this.context "volume"))}}
   <td>
     {{#if (or this.allocation.job.isPending this.allocation.job.isReloading)}}

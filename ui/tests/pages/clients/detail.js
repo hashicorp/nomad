@@ -6,6 +6,7 @@ import {
   fillable,
   text,
   isPresent,
+  value,
   visitable,
 } from 'ember-cli-page-object';
 
@@ -13,6 +14,7 @@ import allocations from 'nomad-ui/tests/pages/components/allocations';
 import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
 import notification from 'nomad-ui/tests/pages/components/notification';
 import toggle from 'nomad-ui/tests/pages/components/toggle';
+import { multiFacet } from 'nomad-ui/tests/pages/components/facet';
 
 export default create({
   visit: visitable('/clients/:id'),
@@ -37,11 +39,23 @@ export default create({
 
   ...allocations(),
 
+  emptyAllocations: {
+    scope: '[data-test-empty-allocations-list]',
+    headline: text('[data-test-empty-allocations-list-headline]'),
+    body: text('[data-test-empty-allocations-list-body]'),
+  },
+
   allocationFilter: {
     preemptions: clickable('[data-test-filter-preemptions]'),
     all: clickable('[data-test-filter-all]'),
     preemptionsCount: text('[data-test-filter-preemptions]'),
     allCount: text('[data-test-filter-all]'),
+  },
+
+  facets: {
+    namespace: multiFacet('[data-test-allocation-namespace-facet]'),
+    job: multiFacet('[data-test-allocation-job-facet]'),
+    status: multiFacet('[data-test-allocation-status-facet]'),
   },
 
   attributesTable: isPresent('[data-test-attributes]'),
@@ -118,7 +132,9 @@ export default create({
 
     deadlineToggle: toggle('[data-test-drain-deadline-toggle]'),
     deadlineOptions: {
-      open: clickable('[data-test-drain-deadline-option-select-parent] .ember-power-select-trigger'),
+      open: clickable(
+        '[data-test-drain-deadline-option-select-parent] .ember-power-select-trigger'
+      ),
       options: collection('.ember-power-select-option', {
         label: text(),
         choose: clickable(),
@@ -126,7 +142,7 @@ export default create({
     },
 
     setCustomDeadline: fillable('[data-test-drain-custom-deadline]'),
-    customDeadline: attribute('value', '[data-test-drain-custom-deadline]'),
+    customDeadline: value('[data-test-drain-custom-deadline]'),
     forceDrainToggle: toggle('[data-test-force-drain-toggle]'),
     systemJobsToggle: toggle('[data-test-system-jobs-toggle]'),
 

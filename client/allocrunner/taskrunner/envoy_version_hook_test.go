@@ -228,7 +228,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_standard(t *testing.T) {
 	// Setup an Allocation
 	alloc := mock.ConnectAlloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = mock.ConnectSidecarTask()
-	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook")
+	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook", alloc.ID)
 	defer cleanupDir()
 
 	// Setup a mock for Consul API
@@ -272,7 +272,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_custom(t *testing.T) {
 	alloc := mock.ConnectAlloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = mock.ConnectSidecarTask()
 	alloc.Job.TaskGroups[0].Tasks[0].Config["image"] = "custom-${NOMAD_envoy_version}:latest"
-	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook")
+	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook", alloc.ID)
 	defer cleanupDir()
 
 	// Setup a mock for Consul API
@@ -319,7 +319,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_skip(t *testing.T) {
 	alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"command": "/sidecar",
 	}
-	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook")
+	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook", alloc.ID)
 	defer cleanupDir()
 
 	// Setup a mock for Consul API
@@ -362,7 +362,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_fallback(t *testing.T) {
 	// Setup an Allocation
 	alloc := mock.ConnectAlloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = mock.ConnectSidecarTask()
-	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook")
+	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook", alloc.ID)
 	defer cleanupDir()
 
 	// Setup a mock for Consul API
@@ -403,7 +403,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_error(t *testing.T) {
 	// Setup an Allocation
 	alloc := mock.ConnectAlloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = mock.ConnectSidecarTask()
-	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook")
+	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook", alloc.ID)
 	defer cleanupDir()
 
 	// Setup a mock for Consul API

@@ -42,6 +42,7 @@
             type="text"
             class="input {{if this.parseError "is-danger"}}"
             placeholder="1h30m"
+            value={{if (eq this.customDuration 0) "" this.customDuration}}
             oninput={{action (queue
               (action (mut this.parseError) '')
               (action (mut this.customDuration) value="target.value"))}} />

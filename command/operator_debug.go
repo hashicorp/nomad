@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"io"
@@ -24,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/version"
 	"github.com/posener/complete"
 )
 
@@ -36,7 +38,6 @@ type OperatorDebugCommand struct {
 	interval      time.Duration
 	pprofDuration time.Duration
 	logLevel      string
-	stale         bool
 	maxNodes      int
 	nodeClass     string
 	nodeIDs       []string
@@ -46,6 +47,7 @@ type OperatorDebugCommand struct {
 	manifest      []string
 	ctx           context.Context
 	cancel        context.CancelFunc
+	opts          *api.QueryOptions
 }
 
 const (
@@ -134,10 +136,11 @@ Vault Options:
 Debug Options:
 
   -duration=<duration>
-    The duration of the log monitor command. Defaults to 2m.
+    Set the duration of the debug capture. Logs will be captured from specified servers and
+	nodes at "log-level". Defaults to 2m.
 
   -interval=<interval>
-    The interval between snapshots of the Nomad state. Set interval equal to 
+    The interval between snapshots of the Nomad state. Set interval equal to
     duration to capture a single snapshot. Defaults to 30s.
 
   -log-level=<level>
@@ -147,7 +150,7 @@ Debug Options:
     Cap the maximum number of client nodes included in the capture. Defaults
     to 10, set to 0 for unlimited.
 
-  -node-id=<node>,<node>
+  -node-id=<node1>,<node2>
     Comma separated list of Nomad client node ids to monitor for logs, API
     outputs, and pprof profiles. Accepts id prefixes, and "all" to select all
     nodes (up to count = max-nodes). Defaults to "all".
@@ -158,7 +161,7 @@ Debug Options:
   -pprof-duration=<duration>
     Duration for pprof collection. Defaults to 1s.
 
-  -server-id=<server>,<server>
+  -server-id=<server1>,<server2>
     Comma separated list of Nomad server names to monitor for logs, API
     outputs, and pprof profiles. Accepts server names, "leader", or "all".
     Defaults to "all".
@@ -169,8 +172,8 @@ Debug Options:
     necessary to get the configuration from a non-leader server.
 
   -output=<path>
-    Path to the parent directory of the output directory. If not specified, an
-    archive is built in the current directory.
+    Path to the parent directory of the output directory. If specified, no
+	archive is built. Defaults to the current directory.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -208,7 +211,12 @@ func NodePredictor(factory ApiClientFactory) complete.Predictor {
 			return nil
 		}
 
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Nodes, nil)
+		// note we can't use the -stale flag here because we're in the
+		// predictor, but a stale query should be safe for prediction;
+		// we also can't use region forwarding because we can't rely
+		// on the server being up
+		resp, _, err := client.Search().PrefixSearch(
+			a.Last, contexts.Nodes, &api.QueryOptions{AllowStale: true})
 		if err != nil {
 			return []string{}
 		}
@@ -225,7 +233,11 @@ func NodeClassPredictor(factory ApiClientFactory) complete.Predictor {
 			return nil
 		}
 
-		nodes, _, err := client.Nodes().List(nil) // TODO: should be *api.QueryOptions that matches region
+		// note we can't use the -stale flag here because we're in the
+		// predictor, but a stale query should be safe for prediction;
+		// we also can't use region forwarding because we can't rely
+		// on the server being up
+		nodes, _, err := client.Nodes().List(&api.QueryOptions{AllowStale: true})
 		if err != nil {
 			return []string{}
 		}
@@ -256,7 +268,12 @@ func ServerPredictor(factory ApiClientFactory) complete.Predictor {
 		if err != nil {
 			return nil
 		}
-		members, err := client.Agent().Members()
+
+		// note we can't use the -stale flag here because we're in the
+		// predictor, but a stale query should be safe for prediction;
+		// we also can't use region forwarding because we can't rely
+		// on the server being up
+		members, err := client.Agent().MembersOpts(&api.QueryOptions{AllowStale: true})
 		if err != nil {
 			return []string{}
 		}
@@ -273,6 +290,15 @@ func ServerPredictor(factory ApiClientFactory) complete.Predictor {
 	})
 }
 
+// queryOpts returns a copy of the shared api.QueryOptions so
+// that api package methods can safely modify the options
+func (c *OperatorDebugCommand) queryOpts() *api.QueryOptions {
+	qo := new(api.QueryOptions)
+	*qo = *c.opts
+	qo.Params = helper.CopyMapStringString(c.opts.Params)
+	return qo
+}
+
 func (c *OperatorDebugCommand) Name() string { return "debug" }
 
 func (c *OperatorDebugCommand) Run(args []string) int {
@@ -281,15 +307,16 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 	var duration, interval, output, pprofDuration string
 	var nodeIDs, serverIDs string
+	var allowStale bool
 
 	flags.StringVar(&duration, "duration", "2m", "")
 	flags.StringVar(&interval, "interval", "30s", "")
 	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
 	flags.StringVar(&c.nodeClass, "node-class", "", "")
-	flags.StringVar(&nodeIDs, "node-id", "", "")
+	flags.StringVar(&nodeIDs, "node-id", "all", "")
 	flags.StringVar(&serverIDs, "server-id", "all", "")
-	flags.BoolVar(&c.stale, "stale", false, "")
+	flags.BoolVar(&allowStale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
 	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
 
@@ -390,11 +417,20 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 	c.collectDir = tmp
 
+	// Write CLI flags to JSON file
+	c.writeFlags(flags)
+
 	// Create an instance of the API client
 	client, err := c.Meta.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err.Error()))
 		return 1
+	}
+
+	c.opts = &api.QueryOptions{
+		Region:     c.Meta.region,
+		AllowStale: allowStale,
+		AuthToken:  c.Meta.token,
 	}
 
 	// Search all nodes If a node class is specified without a list of node id prefixes
@@ -415,7 +451,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 			// Capture from nodes starting with prefix id
 			id = sanitizeUUIDPrefix(id)
 		}
-		nodes, _, err := client.Nodes().PrefixList(id)
+		nodes, _, err := client.Nodes().PrefixListOpts(id, c.queryOpts())
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
 			return 1
@@ -450,12 +486,17 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 	// Return error if nodes were specified but none were found
 	if len(nodeIDs) > 0 && nodeCaptureCount == 0 {
-		c.Ui.Error(fmt.Sprintf("Failed to retrieve clients, 0 nodes found in list: %s", nodeIDs))
-		return 1
+		if nodeIDs == "all" {
+			// It's okay to have zero clients for default "all"
+			c.Ui.Info("Note: \"-node-id=all\" specified but no clients found")
+		} else {
+			c.Ui.Error(fmt.Sprintf("Failed to retrieve clients, 0 nodes found in list: %s", nodeIDs))
+			return 1
+		}
 	}
 
 	// Resolve servers
-	members, err := client.Agent().Members()
+	members, err := client.Agent().MembersOpts(c.queryOpts())
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to retrieve server list; err: %v", err))
 		return 1
@@ -490,6 +531,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	// Display general info about the capture
 	c.Ui.Output("Starting debugger...")
 	c.Ui.Output("")
+	c.Ui.Output(fmt.Sprintf("Nomad CLI Version: %s", version.GetVersion().FullVersionNumber(true)))
 	c.Ui.Output(fmt.Sprintf("           Region: %s", c.region))
 	c.Ui.Output(fmt.Sprintf("        Namespace: %s", c.namespace))
 	c.Ui.Output(fmt.Sprintf("          Servers: (%d/%d) %v", serverCaptureCount, serversFound, c.serverIDs))
@@ -547,46 +589,25 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	self, err := client.Agent().Self()
 	c.writeJSON(clusterDir, "agent-self.json", self, err)
 
-	var qo *api.QueryOptions
-	namespaces, _, err := client.Namespaces().List(qo)
+	namespaces, _, err := client.Namespaces().List(c.queryOpts())
 	c.writeJSON(clusterDir, "namespaces.json", namespaces, err)
 
 	regions, err := client.Regions().List()
 	c.writeJSON(clusterDir, "regions.json", regions, err)
 
-	// Fetch data directly from consul and vault. Ignore errors
-	var consul, vault string
-
-	if self != nil {
-		r, ok := self.Config["Consul"]
-		if ok {
-			m, ok := r.(map[string]interface{})
-			if ok {
-
-				raw := m["Addr"]
-				consul, _ = raw.(string)
-				raw = m["EnableSSL"]
-				ssl, _ := raw.(bool)
-				if ssl {
-					consul = "https://" + consul
-				} else {
-					consul = "http://" + consul
-				}
-			}
-		}
-
-		r, ok = self.Config["Vault"]
-		if ok {
-			m, ok := r.(map[string]interface{})
-			if ok {
-				raw := m["Addr"]
-				vault, _ = raw.(string)
-			}
-		}
+	// Collect data from Consul
+	if c.consul.addrVal == "" {
+		c.getConsulAddrFromSelf(self)
 	}
+	c.collectConsul(clusterDir)
 
-	c.collectConsul(clusterDir, consul)
-	c.collectVault(clusterDir, vault)
+	// Collect data from Vault
+	vaultAddr := c.vault.addrVal
+	if vaultAddr == "" {
+		vaultAddr = c.getVaultAddrFromSelf(self)
+	}
+	c.collectVault(clusterDir, vaultAddr)
+
 	c.collectAgentHosts(client)
 	c.collectPprofs(client)
 
@@ -643,6 +664,7 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 			idKey:       nodeID,
 			"log_level": c.logLevel,
 		},
+		AllowStale: c.queryOpts().AllowStale,
 	}
 
 	outCh, errCh := client.Agent().Monitor(c.ctx.Done(), &qo)
@@ -680,9 +702,9 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 	var host *api.HostDataResponse
 	var err error
 	if path == serverDir {
-		host, err = client.Agent().Host(id, "", nil)
+		host, err = client.Agent().Host(id, "", c.queryOpts())
 	} else {
-		host, err = client.Agent().Host("", id, nil)
+		host, err = client.Agent().Host("", id, c.queryOpts())
 	}
 
 	if err != nil {
@@ -722,7 +744,7 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 
 	path = filepath.Join(path, id)
 
-	bs, err := client.Agent().CPUProfile(opts, nil)
+	bs, err := client.Agent().CPUProfile(opts, c.queryOpts())
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof profile.prof, err: %v", path, err))
 		if structs.IsErrPermissionDenied(err) {
@@ -771,7 +793,7 @@ func (c *OperatorDebugCommand) savePprofProfile(path string, profile string, opt
 		fileName = fmt.Sprintf("%s-debug%d.txt", profile, opts.Debug)
 	}
 
-	bs, err := retrievePprofProfile(profile, opts, client)
+	bs, err := retrievePprofProfile(profile, opts, client, c.queryOpts())
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof %s, err: %s", path, fileName, err.Error()))
 	}
@@ -782,22 +804,23 @@ func (c *OperatorDebugCommand) savePprofProfile(path string, profile string, opt
 	}
 }
 
-// retrievePprofProfile gets a pprof profile from the node specified in opts using the API client
-func retrievePprofProfile(profile string, opts api.PprofOptions, client *api.Client) (bs []byte, err error) {
+// retrievePprofProfile gets a pprof profile from the node specified
+// in opts using the API client
+func retrievePprofProfile(profile string, opts api.PprofOptions, client *api.Client, qopts *api.QueryOptions) (bs []byte, err error) {
 	switch profile {
 	case "cpuprofile":
-		bs, err = client.Agent().CPUProfile(opts, nil)
+		bs, err = client.Agent().CPUProfile(opts, qopts)
 	case "trace":
-		bs, err = client.Agent().Trace(opts, nil)
+		bs, err = client.Agent().Trace(opts, qopts)
 	default:
-		bs, err = client.Agent().Lookup(profile, opts, nil)
+		bs, err = client.Agent().Lookup(profile, opts, qopts)
 	}
 
 	return bs, err
 }
 
-// collectPeriodic runs for duration, capturing the cluster state every interval. It flushes and stops
-// the monitor requests
+// collectPeriodic runs for duration, capturing the cluster state
+// every interval. It flushes and stops the monitor requests
 func (c *OperatorDebugCommand) collectPeriodic(client *api.Client) {
 	duration := time.After(c.duration)
 	// Set interval to 0 so that we immediately execute, wait the interval next time
@@ -828,102 +851,153 @@ func (c *OperatorDebugCommand) collectPeriodic(client *api.Client) {
 
 // collectOperator captures some cluster meta information
 func (c *OperatorDebugCommand) collectOperator(dir string, client *api.Client) {
-	rc, err := client.Operator().RaftGetConfiguration(nil)
+	rc, err := client.Operator().RaftGetConfiguration(c.queryOpts())
 	c.writeJSON(dir, "operator-raft.json", rc, err)
 
-	sc, _, err := client.Operator().SchedulerGetConfiguration(nil)
+	sc, _, err := client.Operator().SchedulerGetConfiguration(c.queryOpts())
 	c.writeJSON(dir, "operator-scheduler.json", sc, err)
 
-	ah, _, err := client.Operator().AutopilotServerHealth(nil)
+	ah, _, err := client.Operator().AutopilotServerHealth(c.queryOpts())
 	c.writeJSON(dir, "operator-autopilot-health.json", ah, err)
 
-	lic, _, err := client.Operator().LicenseGet(nil)
+	lic, _, err := client.Operator().LicenseGet(c.queryOpts())
 	c.writeJSON(dir, "license.json", lic, err)
 }
 
 // collectNomad captures the nomad cluster state
 func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) error {
-	var qo *api.QueryOptions
 
-	js, _, err := client.Jobs().List(qo)
+	js, _, err := client.Jobs().List(c.queryOpts())
 	c.writeJSON(dir, "jobs.json", js, err)
 
-	ds, _, err := client.Deployments().List(qo)
+	ds, _, err := client.Deployments().List(c.queryOpts())
 	c.writeJSON(dir, "deployments.json", ds, err)
 
-	es, _, err := client.Evaluations().List(qo)
+	es, _, err := client.Evaluations().List(c.queryOpts())
 	c.writeJSON(dir, "evaluations.json", es, err)
 
-	as, _, err := client.Allocations().List(qo)
+	as, _, err := client.Allocations().List(c.queryOpts())
 	c.writeJSON(dir, "allocations.json", as, err)
 
-	ns, _, err := client.Nodes().List(qo)
+	ns, _, err := client.Nodes().List(c.queryOpts())
 	c.writeJSON(dir, "nodes.json", ns, err)
 
 	// CSI Plugins - /v1/plugins?type=csi
-	ps, _, err := client.CSIPlugins().List(qo)
+	ps, _, err := client.CSIPlugins().List(c.queryOpts())
 	c.writeJSON(dir, "csi-plugins.json", ps, err)
 
 	// CSI Plugin details - /v1/plugin/csi/:plugin_id
 	for _, p := range ps {
-		csiPlugin, _, err := client.CSIPlugins().Info(p.ID, qo)
+		csiPlugin, _, err := client.CSIPlugins().Info(p.ID, c.queryOpts())
 		csiPluginFileName := fmt.Sprintf("csi-plugin-id-%s.json", p.ID)
 		c.writeJSON(dir, csiPluginFileName, csiPlugin, err)
 	}
 
 	// CSI Volumes - /v1/volumes?type=csi
-	csiVolumes, _, err := client.CSIVolumes().List(qo)
+	csiVolumes, _, err := client.CSIVolumes().List(c.queryOpts())
 	c.writeJSON(dir, "csi-volumes.json", csiVolumes, err)
 
 	// CSI Volume details - /v1/volumes/csi/:volume-id
 	for _, v := range csiVolumes {
-		csiVolume, _, err := client.CSIVolumes().Info(v.ID, qo)
+		csiVolume, _, err := client.CSIVolumes().Info(v.ID, c.queryOpts())
 		csiFileName := fmt.Sprintf("csi-volume-id-%s.json", v.ID)
 		c.writeJSON(dir, csiFileName, csiVolume, err)
 	}
 
-	metrics, _, err := client.Operator().MetricsSummary(qo)
+	metrics, _, err := client.Operator().MetricsSummary(c.queryOpts())
 	c.writeJSON(dir, "metrics.json", metrics, err)
 
 	return nil
 }
 
-// collectConsul calls the Consul API directly to collect data
-func (c *OperatorDebugCommand) collectConsul(dir, consul string) error {
-	addr := c.consul.addr(consul)
-	if addr == "" {
-		return nil
+// collectConsul calls the Consul API to collect data
+func (c *OperatorDebugCommand) collectConsul(dir string) {
+	if c.consul.addrVal == "" {
+		c.Ui.Output("Consul - Skipping, no API address found")
+		return
 	}
 
-	client := defaultHttpClient()
-	api.ConfigureTLS(client, c.consul.tls)
+	c.Ui.Info(fmt.Sprintf("Consul - Collecting Consul API data from: %s", c.consul.addrVal))
 
-	req, _ := http.NewRequest("GET", addr+"/v1/agent/self", nil)
+	client, err := c.consulAPIClient()
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("failed to create Consul API client: %s", err))
+		return
+	}
+
+	// Exit if we are unable to retrieve the leader
+	err = c.collectConsulAPIRequest(client, "/v1/status/leader", dir, "consul-leader.json")
+	if err != nil {
+		c.Ui.Output(fmt.Sprintf("Unable to contact Consul leader, skipping: %s", err))
+		return
+	}
+
+	c.collectConsulAPI(client, "/v1/agent/host", dir, "consul-agent-host.json")
+	c.collectConsulAPI(client, "/v1/agent/members", dir, "consul-agent-members.json")
+	c.collectConsulAPI(client, "/v1/agent/metrics", dir, "consul-agent-metrics.json")
+	c.collectConsulAPI(client, "/v1/agent/self", dir, "consul-agent-self.json")
+}
+
+func (c *OperatorDebugCommand) consulAPIClient() (*http.Client, error) {
+	httpClient := defaultHttpClient()
+
+	err := api.ConfigureTLS(httpClient, c.consul.tls)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure TLS: %w", err)
+	}
+
+	return httpClient, nil
+}
+
+func (c *OperatorDebugCommand) collectConsulAPI(client *http.Client, urlPath string, dir string, file string) {
+	err := c.collectConsulAPIRequest(client, urlPath, dir, file)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error collecting from Consul API: %s", err.Error()))
+	}
+}
+
+func (c *OperatorDebugCommand) collectConsulAPIRequest(client *http.Client, urlPath string, dir string, file string) error {
+	url := c.consul.addrVal + urlPath
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request for Consul API URL=%q: %w", url, err)
+	}
+
 	req.Header.Add("X-Consul-Token", c.consul.token())
 	req.Header.Add("User-Agent", userAgent)
+
 	resp, err := client.Do(req)
-	c.writeBody(dir, "consul-agent-self.json", resp, err)
+	if err != nil {
+		return err
+	}
 
-	req, _ = http.NewRequest("GET", addr+"/v1/agent/members", nil)
-	req.Header.Add("X-Consul-Token", c.consul.token())
-	req.Header.Add("User-Agent", userAgent)
-	resp, err = client.Do(req)
-	c.writeBody(dir, "consul-agent-members.json", resp, err)
+	c.writeBody(dir, file, resp, err)
 
 	return nil
 }
 
 // collectVault calls the Vault API directly to collect data
 func (c *OperatorDebugCommand) collectVault(dir, vault string) error {
-	addr := c.vault.addr(vault)
-	if addr == "" {
+	vaultAddr := c.vault.addr(vault)
+	if vaultAddr == "" {
 		return nil
 	}
 
+	c.Ui.Info(fmt.Sprintf("Vault - Collecting Vault API data from: %s", vaultAddr))
 	client := defaultHttpClient()
-	api.ConfigureTLS(client, c.vault.tls)
+	if c.vault.ssl {
+		err := api.ConfigureTLS(client, c.vault.tls)
+		if err != nil {
+			return fmt.Errorf("failed to configure TLS: %w", err)
+		}
+	}
 
-	req, _ := http.NewRequest("GET", addr+"/sys/health", nil)
+	req, err := http.NewRequest("GET", vaultAddr+"/v1/sys/health", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request for Vault API URL=%q: %w", vaultAddr, err)
+	}
+
 	req.Header.Add("X-Vault-Token", c.vault.token())
 	req.Header.Add("User-Agent", userAgent)
 	resp, err := client.Do(req)
@@ -1020,6 +1094,46 @@ func (c *OperatorDebugCommand) writeBody(dir, file string, resp *http.Response, 
 	if err := c.writeBytes(dir, file, body); err != nil {
 		c.Ui.Error(err.Error())
 	}
+}
+
+type flagExport struct {
+	Name      string
+	Parsed    bool
+	Actual    map[string]*flag.Flag
+	Formal    map[string]*flag.Flag
+	Effective map[string]*flag.Flag // All flags with non-empty value
+	Args      []string              // arguments after flags
+	OsArgs    []string
+}
+
+// writeFlags exports the CLI flags to JSON file
+func (c *OperatorDebugCommand) writeFlags(flags *flag.FlagSet) {
+	// c.writeJSON(clusterDir, "cli-flags-complete.json", flags, nil)
+
+	var f flagExport
+	f.Name = flags.Name()
+	f.Parsed = flags.Parsed()
+	f.Formal = make(map[string]*flag.Flag)
+	f.Actual = make(map[string]*flag.Flag)
+	f.Effective = make(map[string]*flag.Flag)
+	f.Args = flags.Args()
+	f.OsArgs = os.Args
+
+	// Formal flags (all flags)
+	flags.VisitAll(func(flagA *flag.Flag) {
+		f.Formal[flagA.Name] = flagA
+
+		// Determine which of thees are "effective" flags by comparing to empty string
+		if flagA.Value.String() != "" {
+			f.Effective[flagA.Name] = flagA
+		}
+	})
+	// Actual flags (everything passed on cmdline)
+	flags.Visit(func(flag *flag.Flag) {
+		f.Actual[flag.Name] = flag
+	})
+
+	c.writeJSON(clusterDir, "cli-flags.json", f, nil)
 }
 
 // writeManifest creates the index files
@@ -1208,27 +1322,34 @@ func (e *external) addr(defaultAddr string) string {
 		return defaultAddr
 	}
 
-	if !e.ssl {
-		if strings.HasPrefix(e.addrVal, "http:") {
-			return e.addrVal
-		}
-		if strings.HasPrefix(e.addrVal, "https:") {
-			// Mismatch: e.ssl=false but addrVal is https
-			return strings.ReplaceAll(e.addrVal, "https://", "http://")
-		}
-		return "http://" + e.addrVal
-	}
-
-	if strings.HasPrefix(e.addrVal, "https:") {
+	// Return address as-is if it contains a protocol
+	if strings.Contains(e.addrVal, "://") {
 		return e.addrVal
 	}
 
-	if strings.HasPrefix(e.addrVal, "http:") {
-		// Mismatch: e.ssl=true but addrVal is http
-		return strings.ReplaceAll(e.addrVal, "http://", "https://")
+	if e.ssl {
+		return "https://" + e.addrVal
 	}
 
-	return "https://" + e.addrVal
+	return "http://" + e.addrVal
+}
+
+func (e *external) setAddr(addr string) {
+	// Handle no protocol scenario first
+	if !strings.Contains(addr, "://") {
+		e.addrVal = "http://" + addr
+		if e.ssl {
+			e.addrVal = "https://" + addr
+		}
+		return
+	}
+
+	// Set SSL boolean based on protocol
+	e.ssl = false
+	if strings.Contains(addr, "https") {
+		e.ssl = true
+	}
+	e.addrVal = addr
 }
 
 func (e *external) token() string {
@@ -1244,6 +1365,56 @@ func (e *external) token() string {
 	}
 
 	return ""
+}
+
+func (c *OperatorDebugCommand) getConsulAddrFromSelf(self *api.AgentSelf) string {
+	if self == nil {
+		return ""
+	}
+
+	var consulAddr string
+	r, ok := self.Config["Consul"]
+	if ok {
+		m, ok := r.(map[string]interface{})
+		if ok {
+			raw := m["EnableSSL"]
+			c.consul.ssl, _ = raw.(bool)
+			raw = m["Addr"]
+			c.consul.setAddr(raw.(string))
+			raw = m["Auth"]
+			c.consul.auth, _ = raw.(string)
+			raw = m["Token"]
+			c.consul.tokenVal = raw.(string)
+
+			consulAddr = c.consul.addr("")
+		}
+	}
+	return consulAddr
+}
+
+func (c *OperatorDebugCommand) getVaultAddrFromSelf(self *api.AgentSelf) string {
+	if self == nil {
+		return ""
+	}
+
+	var vaultAddr string
+	r, ok := self.Config["Vault"]
+	if ok {
+		m, ok := r.(map[string]interface{})
+		if ok {
+			raw := m["EnableSSL"]
+			c.vault.ssl, _ = raw.(bool)
+			raw = m["Addr"]
+			c.vault.setAddr(raw.(string))
+			raw = m["Auth"]
+			c.vault.auth, _ = raw.(string)
+			raw = m["Token"]
+			c.vault.tokenVal = raw.(string)
+
+			vaultAddr = c.vault.addr("")
+		}
+	}
+	return vaultAddr
 }
 
 // defaultHttpClient configures a basic httpClient

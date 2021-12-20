@@ -492,6 +492,8 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 	c.Ui.Output("Starting Nomad agent...")
 	agent, err := NewAgent(config, logger, logOutput, inmem)
 	if err != nil {
+		// log the error as well, so it appears at the end
+		logger.Error("error starting agent", "error", err)
 		c.Ui.Error(fmt.Sprintf("Error starting agent: %s", err))
 		return err
 	}

@@ -23,6 +23,7 @@ export default class Allocation extends Model {
   @shortUUIDProperty('id') shortId;
   @belongsTo('job') job;
   @belongsTo('node') node;
+  @attr('string') namespace;
   @attr('string') name;
   @attr('string') taskGroupName;
   @fragment('resources') resources;
@@ -37,6 +38,11 @@ export default class Allocation extends Model {
 
   @attr('string') clientStatus;
   @attr('string') desiredStatus;
+
+  @computed('')
+  get plainJobId() {
+    return JSON.parse(this.belongsTo('job').id())[0];
+  }
 
   @computed('clientStatus')
   get statusIndex() {

@@ -69,8 +69,10 @@ type QueryOptions struct {
 	// paginated lists.
 	PerPage int32
 
-	// NextToken is the token used indicate where to start paging for queries
-	// that support paginated lists.
+	// NextToken is the token used to indicate where to start paging
+	// for queries that support paginated lists. This token should be
+	// the ID of the next object after the last one seen in the
+	// previous response.
 	NextToken string
 
 	// ctx is an optional context pass through to the underlying HTTP
@@ -113,6 +115,11 @@ type QueryMeta struct {
 
 	// How long did the request take
 	RequestTime time.Duration
+
+	// NextToken is the token used to indicate where to start paging
+	// for queries that support paginated lists. To resume paging from
+	// this point, pass this token in the next request's QueryOptions
+	NextToken string
 }
 
 // WriteMeta is used to return meta data about a write
@@ -574,6 +581,12 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	if q.Prefix != "" {
 		r.params.Set("prefix", q.Prefix)
 	}
+	if q.PerPage != 0 {
+		r.params.Set("per_page", fmt.Sprint(q.PerPage))
+	}
+	if q.NextToken != "" {
+		r.params.Set("next_token", q.NextToken)
+	}
 	for k, v := range q.Params {
 		r.params.Set(k, v)
 	}
@@ -958,6 +971,7 @@ func parseQueryMeta(resp *http.Response, q *QueryMeta) error {
 		return fmt.Errorf("Failed to parse X-Nomad-LastContact: %v", err)
 	}
 	q.LastContact = time.Duration(last) * time.Millisecond
+	q.NextToken = header.Get("X-Nomad-NextToken")
 
 	// Parse the X-Nomad-KnownLeader
 	switch header.Get("X-Nomad-KnownLeader") {

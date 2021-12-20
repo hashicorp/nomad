@@ -84,6 +84,10 @@ type AllocDir struct {
 	// TaskDirs is a mapping of task names to their non-shared directory.
 	TaskDirs map[string]*TaskDir
 
+	// clientAllocDir is the client agent's root alloc directory. It must
+	// be excluded from chroots and is configured via client.alloc_dir.
+	clientAllocDir string
+
 	// built is true if Build has successfully run
 	built bool
 
@@ -104,36 +108,16 @@ type AllocDirFS interface {
 
 // NewAllocDir initializes the AllocDir struct with allocDir as base path for
 // the allocation directory.
-func NewAllocDir(logger hclog.Logger, allocDir string) *AllocDir {
+func NewAllocDir(logger hclog.Logger, clientAllocDir, allocID string) *AllocDir {
 	logger = logger.Named("alloc_dir")
+	allocDir := filepath.Join(clientAllocDir, allocID)
 	return &AllocDir{
-		AllocDir:  allocDir,
-		SharedDir: filepath.Join(allocDir, SharedAllocName),
-		TaskDirs:  make(map[string]*TaskDir),
-		logger:    logger,
+		clientAllocDir: clientAllocDir,
+		AllocDir:       allocDir,
+		SharedDir:      filepath.Join(allocDir, SharedAllocName),
+		TaskDirs:       make(map[string]*TaskDir),
+		logger:         logger,
 	}
-}
-
-// Copy an AllocDir and all of its TaskDirs. Returns nil if AllocDir is
-// nil.
-func (d *AllocDir) Copy() *AllocDir {
-	if d == nil {
-		return nil
-	}
-
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	dcopy := &AllocDir{
-		AllocDir:  d.AllocDir,
-		SharedDir: d.SharedDir,
-		TaskDirs:  make(map[string]*TaskDir, len(d.TaskDirs)),
-		logger:    d.logger,
-	}
-	for k, v := range d.TaskDirs {
-		dcopy.TaskDirs[k] = v.Copy()
-	}
-	return dcopy
 }
 
 // NewTaskDir creates a new TaskDir and adds it to the AllocDirs TaskDirs map.
@@ -141,7 +125,7 @@ func (d *AllocDir) NewTaskDir(name string) *TaskDir {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	td := newTaskDir(d.logger, d.AllocDir, name)
+	td := newTaskDir(d.logger, d.clientAllocDir, d.AllocDir, name)
 	d.TaskDirs[name] = td
 	return td
 }

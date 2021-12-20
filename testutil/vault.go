@@ -130,7 +130,7 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 
 }
 
-// NewTestVault returns a new TestVault instance that has yet to be started
+// NewTestVault returns a new TestVault instance that is ready for API calls
 func NewTestVault(t testing.T) *TestVault {
 	// Lookup vault from the path
 	return NewTestVaultFromPath(t, "vault")

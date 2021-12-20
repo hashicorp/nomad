@@ -1,47 +1,47 @@
 ---
 layout: docs
-page_title: Consul Connect
+page_title: Consul Service Mesh
 description: >-
-  Learn how to use Nomad with Consul Connect to enable secure service to service
+  Learn how to use Nomad with Consul service mesh to enable secure service to service
   communication
 ---
 
-# Consul Connect
+# Consul Service Mesh
 
 ~> **Note:** This guide requires Nomad 0.10.0 or later and Consul 1.6.0 or
 later.
 
-~> **Note:** Nomad's Connect integration requires Linux network namespaces.
-Nomad Connect will not run on Windows or macOS.
+~> **Note:** Nomad's service mesh integration requires Linux network namespaces.
+Consul service mesh will not run on Windows or macOS.
 
-[Consul Connect](https://www.consul.io/docs/connect) provides
+[Consul service mesh](https://www.consul.io/docs/connect) provides
 service-to-service connection authorization and encryption using mutual
 Transport Layer Security (TLS). Applications can use sidecar proxies in a
 service mesh configuration to automatically establish TLS connections for
-inbound and outbound connections without being aware of Connect at all.
+inbound and outbound connections without being aware of the service mesh at all.
 
-# Nomad with Consul Connect Integration
+# Nomad with Consul Service Mesh Integration
 
 Nomad integrates with Consul to provide secure service-to-service communication
-between Nomad jobs and task groups. In order to support Consul Connect, Nomad
+between Nomad jobs and task groups. To support Consul service mesh, Nomad
 adds a new networking mode for jobs that enables tasks in the same task group to
 share their networking stack. With a few changes to the job specification, job
-authors can opt into Connect integration. When Connect is enabled, Nomad will
+authors can opt into service mesh integration. When service mesh is enabled, Nomad will
 launch a proxy alongside the application in the job file. The proxy (Envoy)
 provides secure communication with other applications in the cluster.
 
-Nomad job specification authors can use Nomad's Consul Connect integration to
+Nomad job specification authors can use Nomad's Consul service mesh integration to
 implement [service segmentation](https://www.consul.io/use-cases/multi-platform-service-mesh) in a
 microservice architecture running in public clouds without having to directly
 manage TLS certificates. This is transparent to job specification authors as
-security features in Connect continue to work even as the application scales up
+security features in service mesh continue to work even as the application scales up
 or down or gets rescheduled by Nomad.
 
-For using the Consul Connect integration with Consul ACLs enabled, see the
-[Secure Nomad Jobs with Consul Connect](https://learn.hashicorp.com/tutorials/nomad/consul-service-mesh)
+For using the Consul service mesh integration with Consul ACLs enabled, see the
+[Secure Nomad Jobs with Consul Service Mesh](https://learn.hashicorp.com/tutorials/nomad/consul-service-mesh)
 guide.
 
-# Nomad Consul Connect Example
+# Nomad Consul Service Mesh Example
 
 The following section walks through an example to enable secure communication
 between a web dashboard and a backend counting service. The web dashboard and
@@ -54,17 +54,17 @@ by Nomad, and handles mTLS communication to the counting service.
 
 ### Consul
 
-Connect integration with Nomad requires [Consul 1.6 or
+The Consul service mesh integration with Nomad requires [Consul 1.6 or
 later.](https://releases.hashicorp.com/consul/1.6.0/) The Consul agent can be
 run in dev mode with the following command:
 
-**Note**: Nomad's Connect integration requires Consul in your `$PATH`
+**Note**: Nomad's Consul service mesh integration requires Consul in your `$PATH`
 
 ```shell-session
 $ consul agent -dev
 ```
 
-To use Connect on a non-dev Consul agent, you will minimally need to enable the
+To use service mesh on a non-dev Consul agent, you will minimally need to enable the
 GRPC port and set `connect` to enabled by adding some additional information to
 your Consul client configurations, depending on format.
 
@@ -100,7 +100,7 @@ For JSON configurations:
 
 Nomad must schedule onto a routable interface in order for the proxies to
 connect to each other. The following steps show how to start a Nomad dev agent
-configured for Connect.
+configured for Consul service mesh.
 
 ```shell-session
 $ sudo nomad agent -dev-connect
@@ -109,7 +109,7 @@ $ sudo nomad agent -dev-connect
 ### CNI Plugins
 
 Nomad uses CNI plugins to configure the network namespace used to secure the
-Consul Connect sidecar proxy. All Nomad client nodes using network namespaces
+Consul service mesh sidecar proxy. All Nomad client nodes using network namespaces
 must have CNI plugins installed.
 
 The following commands install CNI plugins:
@@ -140,11 +140,11 @@ net.bridge.bridge-nf-call-ip6tables = 1
 net.bridge.bridge-nf-call-iptables = 1
 ```
 
-## Run the Connect-enabled Services
+## Run the Service Mesh-enabled Services
 
-Once Nomad and Consul are running, submit the following Connect-enabled services
-to Nomad by copying the HCL into a file named `connect.nomad` and running:
-`nomad run connect.nomad`
+Once Nomad and Consul are running, submit the following service mesh-enabled services
+to Nomad by copying the HCL into a file named `servicemesh.nomad` and running:
+`nomad job run servicemesh.nomad`
 
 ```hcl
 job "countdash" {
@@ -230,8 +230,8 @@ The API service is defined as a task group with a bridge network:
   }
 ```
 
-Since the API service is only accessible via Consul Connect, it does not define
-any ports in its network. The service stanza enables Connect:
+Since the API service is only accessible via Consul service mesh, it does not define
+any ports in its network. The service stanza enables service mesh.
 
 ```hcl
   group "api" {
@@ -287,7 +287,7 @@ This allows you to connect to the web frontend in a browser by visiting
 
 [![Count Dashboard][count-dashboard]][count-dashboard]
 
-The web frontend connects to the API service via Consul Connect:
+The web frontend connects to the API service via Consul service mesh.
 
 ```hcl
     service {
@@ -328,7 +328,7 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 
 - The `consul` binary must be present in Nomad's `$PATH` to run the Envoy
   proxy sidecar on client nodes.
-- Consul Connect using network namespaces is only supported on Linux.
+- Consul service mesh using network namespaces is only supported on Linux.
 - Prior to Consul 1.9, the Envoy sidecar proxy will drop and stop accepting
   connections while the Nomad agent is restarting.
 

@@ -43,16 +43,15 @@ true.
 
 ## General Options
 
-@include 'general_options_no_namespace.mdx'
+@include 'general_options.mdx'
 
 ## Debug Options
 
-- `-duration=2m`: Set the duration of the log monitor command.
-  Defaults to `"2m"`. Logs will be captured from specified servers and
-  nodes at `log-level`.
+- `-duration=2m`: Set the duration of the debug capture. Logs will be captured from
+  specified servers and nodes at `log-level`. Defaults to `2m`.
 
-- `-interval=2m`: The interval between snapshots of the Nomad state.
-  If unspecified, only one snapshot is captured.
+- `-interval=30s`: The interval between snapshots of the Nomad state.
+  If unspecified, only one snapshot is captured. Defaults to `30s`.
 
 - `-log-level=DEBUG`: The log level to monitor. Defaults to `DEBUG`.
 
@@ -61,14 +60,15 @@ true.
 
 - `-node-class=<node-class>`: Filter client nodes based on node class.
 
-- `-node-id=<node1>,<node2>`: Comma separated list of Nomad client node ids,
-  to monitor for logs and include pprof profiles. Accepts id prefixes, and
-  "all" to select all nodes (up to count = max-nodes).
+- `-node-id=<node1>,<node2>`: Comma separated list of Nomad client node ids
+  to monitor for logs, API outputs, and pprof profiles. Accepts id prefixes, and
+  "all" to select all nodes (up to count = max-nodes). Defaults to `all`.
 
 - `-pprof-duration=<duration>`: Duration for pprof collection. Defaults to 1s.
 
-- `-server-id=s1,s2`: Comma separated list of Nomad server names, "leader", or
-  "all" to monitor for logs and include pprof profiles.
+- `-server-id=<server1>,<server2>`: Comma separated list of Nomad server names to
+  monitor for logs, API outputs, and pprof profiles. Accepts server names, "leader", or
+  "all". Defaults to `all`.
 
 - `-stale=<true|false>`: If "false", the default, get membership data from the
   cluster leader. If the cluster is in an outage unable to establish

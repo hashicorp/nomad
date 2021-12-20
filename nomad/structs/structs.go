@@ -277,8 +277,10 @@ type QueryOptions struct {
 	// paginated lists.
 	PerPage int32
 
-	// NextToken is the token used indicate where to start paging for queries
-	// that support paginated lists.
+	// NextToken is the token used to indicate where to start paging
+	// for queries that support paginated lists. This token should be
+	// the ID of the next object after the last one seen in the
+	// previous response.
 	NextToken string
 
 	InternalRpcInfo
@@ -436,6 +438,11 @@ type QueryMeta struct {
 
 	// Used to indicate if there is a known leader node
 	KnownLeader bool
+
+	// NextToken is the token returned with queries that support
+	// paginated lists. To resume paging from this point, pass
+	// this token in the next request's QueryOptions.
+	NextToken string
 }
 
 // WriteMeta allows a write response to include potentially
@@ -586,6 +593,14 @@ type JobRegisterRequest struct {
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
 
+	// EvalPriority is an optional priority to use on any evaluation created as
+	// a result on this job registration. This value must be between 1-100
+	// inclusively, where a larger value corresponds to a higher priority. This
+	// is useful when an operator wishes to push through a job registration in
+	// busy clusters with a large evaluation backlog. This avoids needing to
+	// change the job priority which also impacts preemption.
+	EvalPriority int
+
 	// Eval is the evaluation that is associated with the job registration
 	Eval *Evaluation
 
@@ -605,6 +620,18 @@ type JobDeregisterRequest struct {
 	// Global controls whether all regions of a multi-region job are
 	// deregistered. It is ignored for single-region jobs.
 	Global bool
+
+	// EvalPriority is an optional priority to use on any evaluation created as
+	// a result on this job deregistration. This value must be between 1-100
+	// inclusively, where a larger value corresponds to a higher priority. This
+	// is useful when an operator wishes to push through a job deregistration
+	// in busy clusters with a large evaluation backlog.
+	EvalPriority int
+
+	// NoShutdownDelay, if set to true, will override the group and
+	// task shutdown_delay configuration and ignore the delay for any
+	// allocations stopped as a result of this Deregister call.
+	NoShutdownDelay bool
 
 	// Eval is the evaluation to create that's associated with job deregister
 	Eval *Evaluation
@@ -829,7 +856,21 @@ type EvalDequeueRequest struct {
 
 // EvalListRequest is used to list the evaluations
 type EvalListRequest struct {
+	FilterJobID      string
+	FilterEvalStatus string
 	QueryOptions
+}
+
+// ShouldBeFiltered indicates that the eval should be filtered (that
+// is, removed) from the results
+func (req *EvalListRequest) ShouldBeFiltered(e *Evaluation) bool {
+	if req.FilterJobID != "" && req.FilterJobID != e.JobID {
+		return true
+	}
+	if req.FilterEvalStatus != "" && req.FilterEvalStatus != e.Status {
+		return true
+	}
+	return false
 }
 
 // PlanRequest is used to submit an allocation plan to the leader
@@ -919,7 +960,8 @@ type AllocUpdateDesiredTransitionRequest struct {
 
 // AllocStopRequest is used to stop and reschedule a running Allocation.
 type AllocStopRequest struct {
-	AllocID string
+	AllocID         string
+	NoShutdownDelay bool
 
 	WriteRequest
 }
@@ -1908,6 +1950,9 @@ type Node struct {
 	// HostVolumes is a map of host volume names to their configuration
 	HostVolumes map[string]*ClientHostVolumeConfig
 
+	// HostNetworks is a map of host host_network names to their configuration
+	HostNetworks map[string]*ClientHostNetworkConfig
+
 	// LastDrain contains metadata about the most recent drain operation
 	LastDrain *DrainMetadata
 
@@ -1993,6 +2038,7 @@ func (n *Node) Copy() *Node {
 	nn.CSINodePlugins = copyNodeCSI(nn.CSINodePlugins)
 	nn.Drivers = copyNodeDrivers(n.Drivers)
 	nn.HostVolumes = copyNodeHostVolumes(n.HostVolumes)
+	nn.HostNetworks = copyNodeHostNetworks(n.HostNetworks)
 	return nn
 }
 
@@ -2049,6 +2095,21 @@ func copyNodeHostVolumes(volumes map[string]*ClientHostVolumeConfig) map[string]
 	c := make(map[string]*ClientHostVolumeConfig, l)
 	for volume, v := range volumes {
 		c[volume] = v.Copy()
+	}
+
+	return c
+}
+
+// copyNodeHostVolumes is a helper to copy a map of string to HostNetwork
+func copyNodeHostNetworks(networks map[string]*ClientHostNetworkConfig) map[string]*ClientHostNetworkConfig {
+	l := len(networks)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]*ClientHostNetworkConfig, l)
+	for network, v := range networks {
+		c[network] = v.Copy()
 	}
 
 	return c
@@ -7479,6 +7540,11 @@ func (t *Template) Warnings() error {
 	return mErr.ErrorOrNil()
 }
 
+// DiffID fulfills the DiffableWithID interface.
+func (t *Template) DiffID() string {
+	return t.DestPath
+}
+
 // AllocState records a single event that changes the state of the whole allocation
 type AllocStateField uint8
 
@@ -8118,6 +8184,11 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 
 func (ta *TaskArtifact) GoString() string {
 	return fmt.Sprintf("%+v", ta)
+}
+
+// DiffID fulfills the DiffableWithID interface.
+func (ta *TaskArtifact) DiffID() string {
+	return ta.RelativeDest
 }
 
 // hashStringMap appends a deterministic hash of m onto h.
@@ -8818,12 +8889,18 @@ type Deployment struct {
 	// status.
 	StatusDescription string
 
+	// EvalPriority tracks the priority of the evaluation which lead to the
+	// creation of this Deployment object. Any additional evaluations created
+	// as a result of this deployment can therefore inherit this value, which
+	// is not guaranteed to be that of the job priority parameter.
+	EvalPriority int
+
 	CreateIndex uint64
 	ModifyIndex uint64
 }
 
 // NewDeployment creates a new deployment given the job.
-func NewDeployment(job *Job) *Deployment {
+func NewDeployment(job *Job, evalPriority int) *Deployment {
 	return &Deployment{
 		ID:                 uuid.Generate(),
 		Namespace:          job.Namespace,
@@ -8836,6 +8913,7 @@ func NewDeployment(job *Job) *Deployment {
 		Status:             DeploymentStatusRunning,
 		StatusDescription:  DeploymentStatusDescriptionRunning,
 		TaskGroups:         make(map[string]*DeploymentState, len(job.TaskGroups)),
+		EvalPriority:       evalPriority,
 	}
 }
 
@@ -9068,6 +9146,11 @@ type DesiredTransition struct {
 	// This field is only used when operators want to force a placement even if
 	// a failed allocation is not eligible to be rescheduled
 	ForceReschedule *bool
+
+	// NoShutdownDelay, if set to true, will override the group and
+	// task shutdown_delay configuration and ignore the delay for any
+	// allocations stopped as a result of this Deregister call.
+	NoShutdownDelay *bool
 }
 
 // Merge merges the two desired transitions, preferring the values from the
@@ -9083,6 +9166,10 @@ func (d *DesiredTransition) Merge(o *DesiredTransition) {
 
 	if o.ForceReschedule != nil {
 		d.ForceReschedule = o.ForceReschedule
+	}
+
+	if o.NoShutdownDelay != nil {
+		d.NoShutdownDelay = o.NoShutdownDelay
 	}
 }
 
@@ -9104,6 +9191,15 @@ func (d *DesiredTransition) ShouldForceReschedule() bool {
 		return false
 	}
 	return d.ForceReschedule != nil && *d.ForceReschedule
+}
+
+// ShouldIgnoreShutdownDelay returns whether the transition object dictates
+// that shutdown skip any shutdown delays.
+func (d *DesiredTransition) ShouldIgnoreShutdownDelay() bool {
+	if d == nil {
+		return false
+	}
+	return d.NoShutdownDelay != nil && *d.NoShutdownDelay
 }
 
 const (
@@ -9668,7 +9764,7 @@ func (a *Allocation) SetEventDisplayMessages() {
 //
 // COMPAT(0.11): Remove in 0.11
 func (a *Allocation) ComparableResources() *ComparableResources {
-	// ALloc already has 0.9+ behavior
+	// Alloc already has 0.9+ behavior
 	if a.AllocatedResources != nil {
 		return a.AllocatedResources.Comparable()
 	}
@@ -9691,7 +9787,8 @@ func (a *Allocation) ComparableResources() *ComparableResources {
 				CpuShares: int64(resources.CPU),
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: int64(resources.MemoryMB),
+				MemoryMB:    int64(resources.MemoryMB),
+				MemoryMaxMB: int64(resources.MemoryMaxMB),
 			},
 			Networks: resources.Networks,
 		},
@@ -10337,6 +10434,14 @@ type Evaluation struct {
 
 	CreateTime int64
 	ModifyTime int64
+}
+
+// GetID implements the IDGetter interface, required for pagination
+func (e *Evaluation) GetID() string {
+	if e == nil {
+		return ""
+	}
+	return e.ID
 }
 
 // TerminalStatus returns if the current status is terminal and

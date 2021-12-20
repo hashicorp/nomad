@@ -388,10 +388,10 @@ type JobGetter struct {
 
 // ApiJob returns the Job struct from jobfile.
 func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
-	return j.ApiJobWithArgs(jpath, nil, nil)
+	return j.ApiJobWithArgs(jpath, nil, nil, true)
 }
 
-func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []string) (*api.Job, error) {
+func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []string, strict bool) (*api.Job, error) {
 	var jobfile io.Reader
 	pathName := filepath.Base(jpath)
 	switch jpath {
@@ -459,6 +459,7 @@ func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []strin
 			AllowFS:  true,
 			VarFiles: varfiles,
 			Envs:     os.Environ(),
+			Strict:   strict,
 		})
 
 		if err != nil {

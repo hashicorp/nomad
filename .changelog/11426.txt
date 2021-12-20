@@ -1,0 +1,3 @@
+```release-note:bug
+rpc: Set the job deregistration eval priority to the job priority
+```

@@ -574,6 +574,53 @@ func TestParseBool(t *testing.T) {
 	}
 }
 
+func Test_parseInt(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Input    string
+		Expected *int
+		Err      bool
+	}{
+		{
+			Input:    "",
+			Expected: nil,
+		},
+		{
+			Input:    "13",
+			Expected: helper.IntToPtr(13),
+		},
+		{
+			Input:    "99",
+			Expected: helper.IntToPtr(99),
+		},
+		{
+			Input: "ten",
+			Err:   true,
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run("Input-"+tc.Input, func(t *testing.T) {
+			testURL, err := url.Parse("http://localhost/foo?eval_priority=" + tc.Input)
+			require.NoError(t, err)
+			req := &http.Request{
+				URL: testURL,
+			}
+
+			result, err := parseInt(req, "eval_priority")
+			if tc.Err {
+				require.Error(t, err)
+				require.Nil(t, result)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.Expected, result)
+			}
+		})
+	}
+}
+
 func TestParsePagination(t *testing.T) {
 	t.Parallel()
 	s := makeHTTPServer(t, nil)
@@ -897,11 +944,6 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			// Use a fake agent since the HTTP server should never start
-			agent := &Agent{
-				logger: testlog.HCLogger(t),
-			}
-
 			conf := &Config{
 				normalizedAddrs: &Addresses{
 					HTTP: "localhost:0", // port is never used
@@ -913,6 +955,13 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 					HTTPSHandshakeTimeout: tc.timeout,
 					HTTPMaxConnsPerClient: tc.limit,
 				},
+			}
+
+			// Use a fake agent since the HTTP server should never start
+			agent := &Agent{
+				logger:     testlog.HCLogger(t),
+				httpLogger: testlog.HCLogger(t),
+				config:     conf,
 			}
 
 			srv, err := NewHTTPServer(agent, conf)

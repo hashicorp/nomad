@@ -1,6 +1,7 @@
 package allocrunner
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -29,9 +30,9 @@ type groupServiceHook struct {
 	consulClient        consul.ConsulServiceAPI
 	consulNamespace     string
 	prerun              bool
-	delay               time.Duration
 	deregistered        bool
 	networkStatusGetter networkStatusGetter
+	shutdownDelayCtx    context.Context
 
 	logger log.Logger
 
@@ -41,6 +42,7 @@ type groupServiceHook struct {
 	networks       structs.Networks
 	ports          structs.AllocatedPorts
 	taskEnvBuilder *taskenv.Builder
+	delay          time.Duration
 
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
@@ -54,6 +56,7 @@ type groupServiceHookConfig struct {
 	restarter           agentconsul.WorkloadRestarter
 	taskEnvBuilder      *taskenv.Builder
 	networkStatusGetter networkStatusGetter
+	shutdownDelayCtx    context.Context
 	logger              log.Logger
 }
 
@@ -76,6 +79,7 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 		networkStatusGetter: cfg.networkStatusGetter,
 		logger:              cfg.logger.Named(groupServiceHookName),
 		services:            cfg.alloc.Job.LookupTaskGroup(cfg.alloc.TaskGroup).Services,
+		shutdownDelayCtx:    cfg.shutdownDelayCtx,
 	}
 
 	if cfg.alloc.AllocatedResources != nil {
@@ -187,9 +191,12 @@ func (h *groupServiceHook) preKillLocked() {
 
 	h.logger.Debug("delay before killing tasks", "group", h.group, "shutdown_delay", h.delay)
 
-	// Wait for specified shutdown_delay
+	select {
+	// Wait for specified shutdown_delay unless ignored
 	// This will block an agent from shutting down.
-	<-time.After(h.delay)
+	case <-time.After(h.delay):
+	case <-h.shutdownDelayCtx.Done():
+	}
 }
 
 func (h *groupServiceHook) Postrun() error {

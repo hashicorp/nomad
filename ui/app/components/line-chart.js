@@ -232,15 +232,15 @@ export default class LineChart extends Component {
     const updateActiveDatum = this.updateActiveDatum.bind(this);
 
     const chart = this;
-    canvas.on('mouseenter', function() {
-      const mouseX = d3.mouse(this)[0];
+    canvas.on('mouseenter', function(ev) {
+      const mouseX = d3.pointer(ev, this)[0];
       chart.latestMouseX = mouseX;
       updateActiveDatum(mouseX);
       run.schedule('afterRender', chart, () => (chart.isActive = true));
     });
 
-    canvas.on('mousemove', function() {
-      const mouseX = d3.mouse(this)[0];
+    canvas.on('mousemove', function(ev) {
+      const mouseX = d3.pointer(ev, this)[0];
       chart.latestMouseX = mouseX;
       updateActiveDatum(mouseX);
     });

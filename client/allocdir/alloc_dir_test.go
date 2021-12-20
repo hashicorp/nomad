@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -53,7 +54,7 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.HCLogger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
 	d.NewTaskDir(t1.Name)
 	d.NewTaskDir(t2.Name)
@@ -103,7 +104,7 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.HCLogger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
@@ -148,7 +149,7 @@ func TestAllocDir_Snapshot(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.HCLogger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
@@ -235,13 +236,13 @@ func TestAllocDir_Move(t *testing.T) {
 	defer os.RemoveAll(tmp2)
 
 	// Create two alloc dirs
-	d1 := NewAllocDir(testlog.HCLogger(t), tmp1)
+	d1 := NewAllocDir(testlog.HCLogger(t), tmp1, "test")
 	if err := d1.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
 	defer d1.Destroy()
 
-	d2 := NewAllocDir(testlog.HCLogger(t), tmp2)
+	d2 := NewAllocDir(testlog.HCLogger(t), tmp2, "test")
 	if err := d2.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
@@ -296,7 +297,7 @@ func TestAllocDir_EscapeChecking(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.HCLogger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
@@ -337,7 +338,7 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.HCLogger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
@@ -419,25 +420,6 @@ func TestAllocDir_CreateDir(t *testing.T) {
 	}
 }
 
-// TestAllocDir_Copy asserts that AllocDir.Copy does a deep copy of itself and
-// all TaskDirs.
-func TestAllocDir_Copy(t *testing.T) {
-	a := NewAllocDir(testlog.HCLogger(t), "foo")
-	a.NewTaskDir("bar")
-	a.NewTaskDir("baz")
-
-	b := a.Copy()
-
-	// Clear the logger
-	require.Equal(t, a, b)
-
-	// Make sure TaskDirs map is copied
-	a.NewTaskDir("new")
-	if b.TaskDirs["new"] != nil {
-		t.Errorf("TaskDirs map shared between copied")
-	}
-}
-
 func TestPathFuncs(t *testing.T) {
 	dir, err := ioutil.TempDir("", "nomadtest-pathfuncs")
 	if err != nil {
@@ -500,5 +482,57 @@ func TestAllocDir_DetectContentType(t *testing.T) {
 		require.Nil(err)
 		res := detectContentType(fileInfo, file)
 		require.Equal(expectedEncodings[file], res, "unexpected output for %v", file)
+	}
+}
+
+// TestAllocDir_SkipAllocDir asserts that building a chroot which contains
+// itself will *not* infinitely recurse. AllocDirs should always skip embedding
+// themselves into chroots.
+//
+// Warning: If this test fails it may fill your disk before failing, so be
+// careful and/or confident.
+func TestAllocDir_SkipAllocDir(t *testing.T) {
+	MountCompatible(t)
+
+	// Create root, alloc, and other dirs
+	rootDir := t.TempDir()
+
+	clientAllocDir := filepath.Join(rootDir, "nomad")
+	require.NoError(t, os.Mkdir(clientAllocDir, fs.ModeDir|0o777))
+
+	otherDir := filepath.Join(rootDir, "etc")
+	require.NoError(t, os.Mkdir(otherDir, fs.ModeDir|0o777))
+
+	// chroot contains client.alloc_dir! This could cause infinite
+	// recursion.
+	chroot := map[string]string{
+		rootDir: "/",
+	}
+
+	allocDir := NewAllocDir(testlog.HCLogger(t), clientAllocDir, "test")
+	taskDir := allocDir.NewTaskDir("testtask")
+
+	require.NoError(t, allocDir.Build())
+	defer allocDir.Destroy()
+
+	// Build chroot
+	err := taskDir.Build(true, chroot)
+	require.NoError(t, err)
+
+	// Assert other directory *was* embedded
+	embeddedOtherDir := filepath.Join(clientAllocDir, "test", "testtask", "etc")
+	if _, err := os.Stat(embeddedOtherDir); os.IsNotExist(err) {
+		t.Fatalf("expected other directory to exist at: %q", embeddedOtherDir)
+	}
+
+	// Assert client.alloc_dir was *not* embedded
+	embeddedChroot := filepath.Join(clientAllocDir, "test", "testtask", "nomad")
+	s, err := os.Stat(embeddedChroot)
+	if s != nil {
+		t.Logf("somehow you managed to embed the chroot without causing infinite recursion!")
+		t.Fatalf("expected chroot to not exist at: %q", embeddedChroot)
+	}
+	if !os.IsNotExist(err) {
+		t.Fatalf("expected chroot to not exist but error is: %v", err)
 	}
 }

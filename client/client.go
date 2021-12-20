@@ -1426,6 +1426,14 @@ func (c *Client) setupNode() error {
 			}
 		}
 	}
+	if node.HostNetworks == nil {
+		if l := len(c.config.HostNetworks); l != 0 {
+			node.HostNetworks = make(map[string]*structs.ClientHostNetworkConfig, l)
+			for k, v := range c.config.HostNetworks {
+				node.HostNetworks[k] = v.Copy()
+			}
+		}
+	}
 
 	if node.Name == "" {
 		node.Name = node.ID
@@ -2682,11 +2690,13 @@ func taskIsPresent(taskName string, tasks []*structs.Task) bool {
 
 // triggerDiscovery causes a Consul discovery to begin (if one hasn't already)
 func (c *Client) triggerDiscovery() {
-	select {
-	case c.triggerDiscoveryCh <- struct{}{}:
-		// Discovery goroutine was released to execute
-	default:
-		// Discovery goroutine was already running
+	if c.configCopy.ConsulConfig.ClientAutoJoin != nil && *c.configCopy.ConsulConfig.ClientAutoJoin {
+		select {
+		case c.triggerDiscoveryCh <- struct{}{}:
+			// Discovery goroutine was released to execute
+		default:
+			// Discovery goroutine was already running
+		}
 	}
 }
 
@@ -2903,6 +2913,7 @@ func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.
 
 	// Emit allocated
 	metrics.SetGaugeWithLabels([]string{"client", "allocated", "memory"}, float32(allocated.Flattened.Memory.MemoryMB), baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocated", "max_memory"}, float32(allocated.Flattened.Memory.MemoryMaxMB), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "allocated", "disk"}, float32(allocated.Shared.DiskMB), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "allocated", "cpu"}, float32(allocated.Flattened.Cpu.CpuShares), baseLabels)
 

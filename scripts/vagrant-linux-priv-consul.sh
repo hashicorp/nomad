@@ -2,7 +2,7 @@
 
 set -o errexit
 
-VERSION="1.8.3"
+VERSION="1.10.3"
 DOWNLOAD=https://releases.hashicorp.com/consul/${VERSION}/consul_${VERSION}_linux_amd64.zip
 
 function install_consul() {

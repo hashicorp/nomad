@@ -73,8 +73,10 @@ type allocReconciler struct {
 	// existingAllocs is non-terminal existing allocations
 	existingAllocs []*structs.Allocation
 
-	// evalID is the ID of the evaluation that triggered the reconciler
-	evalID string
+	// evalID and evalPriority is the ID and Priority of the evaluation that
+	// triggered the reconciler.
+	evalID       string
+	evalPriority int
 
 	// now is the time used when determining rescheduling eligibility
 	// defaults to time.Now, and overidden in unit tests
@@ -160,7 +162,8 @@ func (r *reconcileResults) Changes() int {
 // the changes required to bring the cluster state inline with the declared jobspec
 func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch bool,
 	jobID string, job *structs.Job, deployment *structs.Deployment,
-	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node, evalID string) *allocReconciler {
+	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node, evalID string,
+	evalPriority int) *allocReconciler {
 	return &allocReconciler{
 		logger:         logger.Named("reconciler"),
 		allocUpdateFn:  allocUpdateFn,
@@ -171,6 +174,7 @@ func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch 
 		existingAllocs: existingAllocs,
 		taintedNodes:   taintedNodes,
 		evalID:         evalID,
+		evalPriority:   evalPriority,
 		now:            time.Now(),
 		result: &reconcileResults{
 			desiredTGUpdates:     make(map[string]*structs.DesiredUpdates),
@@ -555,7 +559,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	if !existingDeployment && !strategy.IsEmpty() && dstate.DesiredTotal != 0 && (!hadRunning || updatingSpec) {
 		// A previous group may have made the deployment already
 		if a.deployment == nil {
-			a.deployment = structs.NewDeployment(a.job)
+			a.deployment = structs.NewDeployment(a.job, a.evalPriority)
 			// in multiregion jobs, most deployments start in a pending state
 			if a.job.IsMultiregion() && !(a.job.IsPeriodic() && a.job.IsParameterized()) {
 				a.deployment.Status = structs.DeploymentStatusPending
@@ -942,7 +946,7 @@ func (a *allocReconciler) handleDelayedLost(rescheduleLater []*delayedReschedule
 	eval := &structs.Evaluation{
 		ID:                uuid.Generate(),
 		Namespace:         a.job.Namespace,
-		Priority:          a.job.Priority,
+		Priority:          a.evalPriority,
 		Type:              a.job.Type,
 		TriggeredBy:       structs.EvalTriggerRetryFailedAlloc,
 		JobID:             a.job.ID,
@@ -963,7 +967,7 @@ func (a *allocReconciler) handleDelayedLost(rescheduleLater []*delayedReschedule
 			eval = &structs.Evaluation{
 				ID:             uuid.Generate(),
 				Namespace:      a.job.Namespace,
-				Priority:       a.job.Priority,
+				Priority:       a.evalPriority,
 				Type:           a.job.Type,
 				TriggeredBy:    structs.EvalTriggerRetryFailedAlloc,
 				JobID:          a.job.ID,

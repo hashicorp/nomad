@@ -158,11 +158,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 {
-		if jobID != jobs[0].ID {
-			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, allNamespaces)))
-			return 1
-		}
-		if allNamespaces && jobs[0].ID == jobs[1].ID {
+		if (jobID != jobs[0].ID) || (allNamespaces && jobs[0].ID == jobs[1].ID) {
 			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, allNamespaces)))
 			return 1
 		}
@@ -191,6 +187,10 @@ func (c *JobStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Status|%s", getStatusString(*job.Status, job.Stop)),
 		fmt.Sprintf("Periodic|%v", periodic),
 		fmt.Sprintf("Parameterized|%v", parameterized),
+	}
+
+	if job.DispatchIdempotencyToken != nil && *job.DispatchIdempotencyToken != "" {
+		basic = append(basic, fmt.Sprintf("Idempotency Token|%v", *job.DispatchIdempotencyToken))
 	}
 
 	if periodic && !parameterized {

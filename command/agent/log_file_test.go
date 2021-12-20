@@ -50,13 +50,33 @@ func TestLogFile_openNew(t *testing.T) {
 	require.NoError(err)
 	defer os.Remove(tempDir)
 
-	logFile := logFile{fileName: testFileName, logPath: tempDir, duration: testDuration}
+	filt := LevelFilter()
+	filt.MinLevel = logutils.LogLevel("INFO")
+	logFile := logFile{
+		logFilter: filt,
+		fileName:  testFileName,
+		logPath:   tempDir,
+		MaxBytes:  testBytes,
+		duration:  24 * time.Hour,
+	}
 	require.NoError(logFile.openNew())
 
 	_, err = ioutil.ReadFile(logFile.FileInfo.Name())
 	require.NoError(err)
 
 	require.Equal(logFile.FileInfo.Name(), filepath.Join(tempDir, testFileName))
+
+	// Check if create time and bytes written are kept when opening the active
+	// log file again.
+	bytesWritten, err := logFile.Write([]byte("test"))
+	require.NoError(err)
+
+	time.Sleep(2 * time.Second)
+	require.NoError(logFile.openNew())
+
+	timeDelta := time.Now().Sub(logFile.LastCreated)
+	require.GreaterOrEqual(timeDelta, 2*time.Second)
+	require.Equal(logFile.BytesWritten, int64(bytesWritten))
 }
 
 func TestLogFile_byteRotation(t *testing.T) {

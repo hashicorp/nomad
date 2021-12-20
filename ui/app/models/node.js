@@ -21,6 +21,7 @@ export default class Node extends Model {
   @attr('string') statusDescription;
   @shortUUIDProperty('id') shortId;
   @attr('number') modifyIndex;
+  @attr('string') version;
 
   // Available from single response
   @attr('string') httpAddr;

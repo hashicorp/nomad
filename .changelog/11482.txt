@@ -1,0 +1,3 @@
+```release-note:improvement
+api: Return a HTTP 404 instead of a HTTP 500 from the Stat File and List Files API endpoints when a file or directory is not found.
+```

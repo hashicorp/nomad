@@ -44,7 +44,13 @@
     </span>
   </td>
 
-  <td data-test-client><LinkTo @route="clients.client" @model={{this.allocation.node}}>{{this.allocation.node.shortId}}</LinkTo></td>
+  <td data-test-client>
+    <Tooltip @text={{this.allocation.node.name}}>
+      <LinkTo @route="clients.client" @model={{this.allocation.node}}>
+        {{this.allocation.node.shortId}}
+      </LinkTo>
+    </Tooltip>
+  </td>
   <td>
     {{#if (or this.allocation.job.isPending this.allocation.job.isReloading)}}
       ...

@@ -54,7 +54,7 @@ export default class JobDispatch extends Component {
             name: x,
             required,
             title: titleCase(noCase(x)),
-            value: this.args.job.meta ? this.args.job.meta[x] : '',
+            value: this.args.job.meta ? this.args.job.meta.get(x) : '',
           })
       );
 

@@ -29,7 +29,7 @@ object. Supported identifiers are jobs, allocations and nodes.
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 UI Options
 
@@ -116,6 +116,17 @@ func (c *UiCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Set query params if necessary
+	qp := url.Query()
+	if ns := c.clientConfig().Namespace; ns != "" {
+		qp.Add("namespace", ns)
+	}
+	if region := c.clientConfig().Region; region != "" {
+		qp.Add("region", region)
+	}
+	url.RawQuery = qp.Encode()
+
+	// Set one-time secret
 	var ottSecret string
 	if authenticate {
 		ott, _, err := client.ACLTokens().UpsertOneTimeToken(nil)
@@ -185,7 +196,9 @@ func (c *UiCommand) Run(args []string) int {
 	var output string
 	if authenticate && ottSecret != "" {
 		output = fmt.Sprintf("Opening URL %q with one-time token", url.String())
-		url.RawQuery = fmt.Sprintf("ott=%s", ottSecret)
+		qp := url.Query()
+		qp.Add("ott", ottSecret)
+		url.RawQuery = qp.Encode()
 	} else {
 		output = fmt.Sprintf("Opening URL %q", url.String())
 	}

@@ -368,7 +368,58 @@ job "example" {
 	_, err = vf.WriteString(fileVars + "\n")
 	require.NoError(t, err)
 
-	j, err := (&JobGetter{}).ApiJobWithArgs(hclf.Name(), cliArgs, []string{vf.Name()})
+	j, err := (&JobGetter{}).ApiJobWithArgs(hclf.Name(), cliArgs, []string{vf.Name()}, true)
+	require.NoError(t, err)
+
+	require.NotNil(t, j)
+	require.Equal(t, expected, j.Datacenters)
+}
+
+func TestJobGetter_HCL2_Variables_StrictFalse(t *testing.T) {
+	t.Parallel()
+
+	hcl := `
+variables {
+  var1 = "default-val"
+  var2 = "default-val"
+  var3 = "default-val"
+  var4 = "default-val"
+}
+
+job "example" {
+  datacenters = ["${var.var1}", "${var.var2}", "${var.var3}", "${var.var4}"]
+}
+`
+
+	os.Setenv("NOMAD_VAR_var4", "from-envvar")
+	defer os.Unsetenv("NOMAD_VAR_var4")
+
+	// Both the CLI and var file contain variables that are not used with the
+	// template and therefore would error, if hcl2-strict was true.
+	cliArgs := []string{`var2=from-cli`,`unsedVar1=from-cli`}
+	fileVars := `
+var3 = "from-varfile"
+unsedVar2 = "from-varfile"
+`
+	expected := []string{"default-val", "from-cli", "from-varfile", "from-envvar"}
+
+	hclf, err := ioutil.TempFile("", "hcl")
+	require.NoError(t, err)
+	defer os.Remove(hclf.Name())
+	defer hclf.Close()
+
+	_, err = hclf.WriteString(hcl)
+	require.NoError(t, err)
+
+	vf, err := ioutil.TempFile("", "var.hcl")
+	require.NoError(t, err)
+	defer os.Remove(vf.Name())
+	defer vf.Close()
+
+	_, err = vf.WriteString(fileVars + "\n")
+	require.NoError(t, err)
+
+	j, err := (&JobGetter{}).ApiJobWithArgs(hclf.Name(), cliArgs, []string{vf.Name()}, false)
 	require.NoError(t, err)
 
 	require.NotNil(t, j)
