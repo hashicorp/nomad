@@ -31,6 +31,28 @@ The table below shows this endpoint's support for
   even number of hexadecimal characters (0-9a-f). This is specified as a query
   string parameter.
 
+- `next_token` `(string: "")` - This endpoint supports paging. The
+  `next_token` parameter accepts a string which is the `ID` field of
+  the next expected evaluation. This value can be obtained from the
+  `X-Nomad-NextToken` header from the previous response.
+
+- `per_page` `(int: 0)` - Specifies a maximum number of evaluations to
+  return for this request. If omitted, the response is not
+  paginated. The `ID` of the last evaluation in the response can be
+  used as the `last_token` of the next request to fetch additional
+  pages.
+
+- `job` `(string: "")` - Filter the list of evaluations to a specific
+  job ID.
+
+- `status` `(string: "")` - Filter the list of evaluations to a
+  specific evaluation status (one of `blocked`, `pending`, `complete`,
+  `failed`, or `canceled`).
+
+- `namespace` `(string: "default")` - Specifies the target
+  namespace. Specifying `*` will return all evaluations across all
+  authorized namespaces.
+
 ### Sample Request
 
 ```shell-session

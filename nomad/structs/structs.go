@@ -277,8 +277,10 @@ type QueryOptions struct {
 	// paginated lists.
 	PerPage int32
 
-	// NextToken is the token used indicate where to start paging for queries
-	// that support paginated lists.
+	// NextToken is the token used to indicate where to start paging
+	// for queries that support paginated lists. This token should be
+	// the ID of the next object after the last one seen in the
+	// previous response.
 	NextToken string
 
 	InternalRpcInfo
@@ -436,6 +438,11 @@ type QueryMeta struct {
 
 	// Used to indicate if there is a known leader node
 	KnownLeader bool
+
+	// NextToken is the token returned with queries that support
+	// paginated lists. To resume paging from this point, pass
+	// this token in the next request's QueryOptions.
+	NextToken string
 }
 
 // WriteMeta allows a write response to include potentially
@@ -620,6 +627,11 @@ type JobDeregisterRequest struct {
 	// is useful when an operator wishes to push through a job deregistration
 	// in busy clusters with a large evaluation backlog.
 	EvalPriority int
+
+	// NoShutdownDelay, if set to true, will override the group and
+	// task shutdown_delay configuration and ignore the delay for any
+	// allocations stopped as a result of this Deregister call.
+	NoShutdownDelay bool
 
 	// Eval is the evaluation to create that's associated with job deregister
 	Eval *Evaluation
@@ -844,7 +856,21 @@ type EvalDequeueRequest struct {
 
 // EvalListRequest is used to list the evaluations
 type EvalListRequest struct {
+	FilterJobID      string
+	FilterEvalStatus string
 	QueryOptions
+}
+
+// ShouldBeFiltered indicates that the eval should be filtered (that
+// is, removed) from the results
+func (req *EvalListRequest) ShouldBeFiltered(e *Evaluation) bool {
+	if req.FilterJobID != "" && req.FilterJobID != e.JobID {
+		return true
+	}
+	if req.FilterEvalStatus != "" && req.FilterEvalStatus != e.Status {
+		return true
+	}
+	return false
 }
 
 // PlanRequest is used to submit an allocation plan to the leader
@@ -934,7 +960,8 @@ type AllocUpdateDesiredTransitionRequest struct {
 
 // AllocStopRequest is used to stop and reschedule a running Allocation.
 type AllocStopRequest struct {
-	AllocID string
+	AllocID         string
+	NoShutdownDelay bool
 
 	WriteRequest
 }
@@ -2582,23 +2609,23 @@ type NetworkResource struct {
 	DynamicPorts  []Port     // Host Dynamically assigned ports
 }
 
-func (nr *NetworkResource) Hash() uint32 {
+func (n *NetworkResource) Hash() uint32 {
 	var data []byte
-	data = append(data, []byte(fmt.Sprintf("%s%s%s%s%s%d", nr.Mode, nr.Device, nr.CIDR, nr.IP, nr.Hostname, nr.MBits))...)
+	data = append(data, []byte(fmt.Sprintf("%s%s%s%s%s%d", n.Mode, n.Device, n.CIDR, n.IP, n.Hostname, n.MBits))...)
 
-	for i, port := range nr.ReservedPorts {
+	for i, port := range n.ReservedPorts {
 		data = append(data, []byte(fmt.Sprintf("r%d%s%d%d", i, port.Label, port.Value, port.To))...)
 	}
 
-	for i, port := range nr.DynamicPorts {
+	for i, port := range n.DynamicPorts {
 		data = append(data, []byte(fmt.Sprintf("d%d%s%d%d", i, port.Label, port.Value, port.To))...)
 	}
 
 	return crc32.ChecksumIEEE(data)
 }
 
-func (nr *NetworkResource) Equals(other *NetworkResource) bool {
-	return nr.Hash() == other.Hash()
+func (n *NetworkResource) Equals(other *NetworkResource) bool {
+	return n.Hash() == other.Hash()
 }
 
 func (n *NetworkResource) Canonicalize() {
@@ -3155,12 +3182,12 @@ type DeviceIdTuple struct {
 	Name   string
 }
 
-func (d *DeviceIdTuple) String() string {
-	if d == nil {
+func (id *DeviceIdTuple) String() string {
+	if id == nil {
 		return ""
 	}
 
-	return fmt.Sprintf("%s/%s/%s", d.Vendor, d.Type, d.Name)
+	return fmt.Sprintf("%s/%s/%s", id.Vendor, id.Type, id.Name)
 }
 
 // Matches returns if this Device ID is a superset of the passed ID.
@@ -7825,98 +7852,98 @@ type TaskEvent struct {
 	GenericSource string
 }
 
-func (event *TaskEvent) PopulateEventDisplayMessage() {
+func (e *TaskEvent) PopulateEventDisplayMessage() {
 	// Build up the description based on the event type.
-	if event == nil { //TODO(preetha) needs investigation alloc_runner's Run method sends a nil event when sigterming nomad. Why?
+	if e == nil { //TODO(preetha) needs investigation alloc_runner's Run method sends a nil event when sigterming nomad. Why?
 		return
 	}
 
-	if event.DisplayMessage != "" {
+	if e.DisplayMessage != "" {
 		return
 	}
 
 	var desc string
-	switch event.Type {
+	switch e.Type {
 	case TaskSetup:
-		desc = event.Message
+		desc = e.Message
 	case TaskStarted:
 		desc = "Task started by client"
 	case TaskReceived:
 		desc = "Task received by client"
 	case TaskFailedValidation:
-		if event.ValidationError != "" {
-			desc = event.ValidationError
+		if e.ValidationError != "" {
+			desc = e.ValidationError
 		} else {
 			desc = "Validation of task failed"
 		}
 	case TaskSetupFailure:
-		if event.SetupError != "" {
-			desc = event.SetupError
+		if e.SetupError != "" {
+			desc = e.SetupError
 		} else {
 			desc = "Task setup failed"
 		}
 	case TaskDriverFailure:
-		if event.DriverError != "" {
-			desc = event.DriverError
+		if e.DriverError != "" {
+			desc = e.DriverError
 		} else {
 			desc = "Failed to start task"
 		}
 	case TaskDownloadingArtifacts:
 		desc = "Client is downloading artifacts"
 	case TaskArtifactDownloadFailed:
-		if event.DownloadError != "" {
-			desc = event.DownloadError
+		if e.DownloadError != "" {
+			desc = e.DownloadError
 		} else {
 			desc = "Failed to download artifacts"
 		}
 	case TaskKilling:
-		if event.KillReason != "" {
-			desc = event.KillReason
-		} else if event.KillTimeout != 0 {
-			desc = fmt.Sprintf("Sent interrupt. Waiting %v before force killing", event.KillTimeout)
+		if e.KillReason != "" {
+			desc = e.KillReason
+		} else if e.KillTimeout != 0 {
+			desc = fmt.Sprintf("Sent interrupt. Waiting %v before force killing", e.KillTimeout)
 		} else {
 			desc = "Sent interrupt"
 		}
 	case TaskKilled:
-		if event.KillError != "" {
-			desc = event.KillError
+		if e.KillError != "" {
+			desc = e.KillError
 		} else {
 			desc = "Task successfully killed"
 		}
 	case TaskTerminated:
 		var parts []string
-		parts = append(parts, fmt.Sprintf("Exit Code: %d", event.ExitCode))
+		parts = append(parts, fmt.Sprintf("Exit Code: %d", e.ExitCode))
 
-		if event.Signal != 0 {
-			parts = append(parts, fmt.Sprintf("Signal: %d", event.Signal))
+		if e.Signal != 0 {
+			parts = append(parts, fmt.Sprintf("Signal: %d", e.Signal))
 		}
 
-		if event.Message != "" {
-			parts = append(parts, fmt.Sprintf("Exit Message: %q", event.Message))
+		if e.Message != "" {
+			parts = append(parts, fmt.Sprintf("Exit Message: %q", e.Message))
 		}
 		desc = strings.Join(parts, ", ")
 	case TaskRestarting:
-		in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
-		if event.RestartReason != "" && event.RestartReason != ReasonWithinPolicy {
-			desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
+		in := fmt.Sprintf("Task restarting in %v", time.Duration(e.StartDelay))
+		if e.RestartReason != "" && e.RestartReason != ReasonWithinPolicy {
+			desc = fmt.Sprintf("%s - %s", e.RestartReason, in)
 		} else {
 			desc = in
 		}
 	case TaskNotRestarting:
-		if event.RestartReason != "" {
-			desc = event.RestartReason
+		if e.RestartReason != "" {
+			desc = e.RestartReason
 		} else {
 			desc = "Task exceeded restart policy"
 		}
 	case TaskSiblingFailed:
-		if event.FailedSibling != "" {
-			desc = fmt.Sprintf("Task's sibling %q failed", event.FailedSibling)
+		if e.FailedSibling != "" {
+			desc = fmt.Sprintf("Task's sibling %q failed", e.FailedSibling)
 		} else {
 			desc = "Task's sibling failed"
 		}
 	case TaskSignaling:
-		sig := event.TaskSignal
-		reason := event.TaskSignalReason
+		sig := e.TaskSignal
+		reason := e.TaskSignalReason
 
 		if sig == "" && reason == "" {
 			desc = "Task being sent a signal"
@@ -7928,47 +7955,47 @@ func (event *TaskEvent) PopulateEventDisplayMessage() {
 			desc = fmt.Sprintf("Task being sent signal %v: %v", sig, reason)
 		}
 	case TaskRestartSignal:
-		if event.RestartReason != "" {
-			desc = event.RestartReason
+		if e.RestartReason != "" {
+			desc = e.RestartReason
 		} else {
 			desc = "Task signaled to restart"
 		}
 	case TaskDriverMessage:
-		desc = event.DriverMessage
+		desc = e.DriverMessage
 	case TaskLeaderDead:
 		desc = "Leader Task in Group dead"
 	case TaskMainDead:
 		desc = "Main tasks in the group died"
 	default:
-		desc = event.Message
+		desc = e.Message
 	}
 
-	event.DisplayMessage = desc
+	e.DisplayMessage = desc
 }
 
-func (te *TaskEvent) GoString() string {
-	return fmt.Sprintf("%v - %v", te.Time, te.Type)
+func (e *TaskEvent) GoString() string {
+	return fmt.Sprintf("%v - %v", e.Time, e.Type)
 }
 
 // SetDisplayMessage sets the display message of TaskEvent
-func (te *TaskEvent) SetDisplayMessage(msg string) *TaskEvent {
-	te.DisplayMessage = msg
-	return te
+func (e *TaskEvent) SetDisplayMessage(msg string) *TaskEvent {
+	e.DisplayMessage = msg
+	return e
 }
 
 // SetMessage sets the message of TaskEvent
-func (te *TaskEvent) SetMessage(msg string) *TaskEvent {
-	te.Message = msg
-	te.Details["message"] = msg
-	return te
+func (e *TaskEvent) SetMessage(msg string) *TaskEvent {
+	e.Message = msg
+	e.Details["message"] = msg
+	return e
 }
 
-func (te *TaskEvent) Copy() *TaskEvent {
-	if te == nil {
+func (e *TaskEvent) Copy() *TaskEvent {
+	if e == nil {
 		return nil
 	}
 	copy := new(TaskEvent)
-	*copy = *te
+	*copy = *e
 	return copy
 }
 
@@ -9119,6 +9146,11 @@ type DesiredTransition struct {
 	// This field is only used when operators want to force a placement even if
 	// a failed allocation is not eligible to be rescheduled
 	ForceReschedule *bool
+
+	// NoShutdownDelay, if set to true, will override the group and
+	// task shutdown_delay configuration and ignore the delay for any
+	// allocations stopped as a result of this Deregister call.
+	NoShutdownDelay *bool
 }
 
 // Merge merges the two desired transitions, preferring the values from the
@@ -9134,6 +9166,10 @@ func (d *DesiredTransition) Merge(o *DesiredTransition) {
 
 	if o.ForceReschedule != nil {
 		d.ForceReschedule = o.ForceReschedule
+	}
+
+	if o.NoShutdownDelay != nil {
+		d.NoShutdownDelay = o.NoShutdownDelay
 	}
 }
 
@@ -9155,6 +9191,15 @@ func (d *DesiredTransition) ShouldForceReschedule() bool {
 		return false
 	}
 	return d.ForceReschedule != nil && *d.ForceReschedule
+}
+
+// ShouldIgnoreShutdownDelay returns whether the transition object dictates
+// that shutdown skip any shutdown delays.
+func (d *DesiredTransition) ShouldIgnoreShutdownDelay() bool {
+	if d == nil {
+		return false
+	}
+	return d.NoShutdownDelay != nil && *d.NoShutdownDelay
 }
 
 const (
@@ -10391,6 +10436,14 @@ type Evaluation struct {
 	ModifyTime int64
 }
 
+// GetID implements the IDGetter interface, required for pagination
+func (e *Evaluation) GetID() string {
+	if e == nil {
+		return ""
+	}
+	return e.ID
+}
+
 // TerminalStatus returns if the current status is terminal and
 // will no longer transition.
 func (e *Evaluation) TerminalStatus() bool {
@@ -11042,7 +11095,7 @@ type ACLPolicy struct {
 }
 
 // SetHash is used to compute and set the hash of the ACL policy
-func (c *ACLPolicy) SetHash() []byte {
+func (a *ACLPolicy) SetHash() []byte {
 	// Initialize a 256bit Blake2 hash (32 bytes)
 	hash, err := blake2b.New256(nil)
 	if err != nil {
@@ -11050,15 +11103,15 @@ func (c *ACLPolicy) SetHash() []byte {
 	}
 
 	// Write all the user set fields
-	_, _ = hash.Write([]byte(c.Name))
-	_, _ = hash.Write([]byte(c.Description))
-	_, _ = hash.Write([]byte(c.Rules))
+	_, _ = hash.Write([]byte(a.Name))
+	_, _ = hash.Write([]byte(a.Description))
+	_, _ = hash.Write([]byte(a.Rules))
 
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
 
 	// Set and return the hash
-	c.Hash = hashVal
+	a.Hash = hashVal
 	return hashVal
 }
 

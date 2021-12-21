@@ -15,19 +15,19 @@ type UIConfig struct {
 	Vault *VaultUIConfig `hcl:"vault"`
 }
 
-// ConsulUIConfig configures deep links to this cluster's Consul UI
+// ConsulUIConfig configures deep links to this cluster's Consul
 type ConsulUIConfig struct {
 
-	// BaseURL provides the full base URL, ex:
+	// BaseUIURL provides the full base URL to the UI, ex:
 	// https://consul.example.com:8500/ui/
-	BaseURL string `hcl:"base_url"`
+	BaseUIURL string `hcl:"ui_url"`
 }
 
-// VaultUIConfig configures deep links to this cluster's Vault UI
+// VaultUIConfig configures deep links to this cluster's Vault
 type VaultUIConfig struct {
-	// BaseURL provides the full base URL, ex:
+	// BaseUIURL provides the full base URL to the UI, ex:
 	// https://vault.example.com:8200/ui/
-	BaseURL string `hcl:"base_url"`
+	BaseUIURL string `hcl:"ui_url"`
 }
 
 // DefaultUIConfig returns the canonical defaults for the Nomad
@@ -60,8 +60,8 @@ func (old *UIConfig) Copy() *UIConfig {
 
 // Merge returns a new UI configuration by merging another UI
 // configuration into this one
-func (this *UIConfig) Merge(other *UIConfig) *UIConfig {
-	result := this.Copy()
+func (old *UIConfig) Merge(other *UIConfig) *UIConfig {
+	result := old.Copy()
 	if other == nil {
 		return result
 	}
@@ -86,8 +86,8 @@ func (old *ConsulUIConfig) Copy() *ConsulUIConfig {
 
 // Merge returns a new Consul UI configuration by merging another Consul UI
 // configuration into this one
-func (this *ConsulUIConfig) Merge(other *ConsulUIConfig) *ConsulUIConfig {
-	result := this.Copy()
+func (old *ConsulUIConfig) Merge(other *ConsulUIConfig) *ConsulUIConfig {
+	result := old.Copy()
 	if result == nil {
 		result = &ConsulUIConfig{}
 	}
@@ -95,8 +95,8 @@ func (this *ConsulUIConfig) Merge(other *ConsulUIConfig) *ConsulUIConfig {
 		return result
 	}
 
-	if other.BaseURL != "" {
-		result.BaseURL = other.BaseURL
+	if other.BaseUIURL != "" {
+		result.BaseUIURL = other.BaseUIURL
 	}
 	return result
 }
@@ -114,8 +114,8 @@ func (old *VaultUIConfig) Copy() *VaultUIConfig {
 
 // Merge returns a new Vault UI configuration by merging another Vault UI
 // configuration into this one
-func (this *VaultUIConfig) Merge(other *VaultUIConfig) *VaultUIConfig {
-	result := this.Copy()
+func (old *VaultUIConfig) Merge(other *VaultUIConfig) *VaultUIConfig {
+	result := old.Copy()
 	if result == nil {
 		result = &VaultUIConfig{}
 	}
@@ -123,8 +123,8 @@ func (this *VaultUIConfig) Merge(other *VaultUIConfig) *VaultUIConfig {
 		return result
 	}
 
-	if other.BaseURL != "" {
-		result.BaseURL = other.BaseURL
+	if other.BaseUIURL != "" {
+		result.BaseUIURL = other.BaseUIURL
 	}
 	return result
 }

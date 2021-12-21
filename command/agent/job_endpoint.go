@@ -453,6 +453,18 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 		return nil, err
 	}
 
+	// Identify the no_shutdown_delay query param and parse.
+	noShutdownDelayStr := req.URL.Query().Get("no_shutdown_delay")
+	var noShutdownDelay bool
+	if noShutdownDelayStr != "" {
+		var err error
+		noShutdownDelay, err = strconv.ParseBool(noShutdownDelayStr)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %qq (%v) as a bool: %v", "no_shutdown_delay", noShutdownDelayStr, err)
+		}
+	}
+	args.NoShutdownDelay = noShutdownDelay
+
 	// Validate the evaluation priority if the user supplied a non-default
 	// value. It's more efficient to do it here, within the agent rather than
 	// sending a bad request for the server to reject.

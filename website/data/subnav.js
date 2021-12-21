@@ -1,22 +1,5 @@
-export default [
+const subnavData = [
   { text: 'Overview', url: '/', type: 'inbound' },
-  {
-    text: 'Use Cases',
-    submenu: [
-      {
-        text: 'Simple Container Orchestration',
-        url: '/use-cases/simple-container-orchestration',
-      },
-      {
-        text: 'Non-Containerized Application Orchestration',
-        url: '/use-cases/non-containerized-application-orchestration',
-      },
-      {
-        text: 'Automated Service Networking with Consul',
-        url: '/use-cases/automated-service-networking-with-consul',
-      },
-    ],
-  },
   {
     text: 'Enterprise',
     url: 'https://www.hashicorp.com/products/nomad/',
@@ -39,8 +22,20 @@ export default [
     type: 'inbound',
   },
   {
+    text: 'Plugins',
+    url: '/plugins',
+    type: 'inbound',
+  },
+  {
+    text: 'Tools',
+    url: '/tools',
+    type: 'inbound',
+  },
+  {
     text: 'Community',
     url: '/community',
     type: 'inbound',
   },
 ]
+
+export default subnavData

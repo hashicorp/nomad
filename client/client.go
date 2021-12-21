@@ -2690,11 +2690,13 @@ func taskIsPresent(taskName string, tasks []*structs.Task) bool {
 
 // triggerDiscovery causes a Consul discovery to begin (if one hasn't already)
 func (c *Client) triggerDiscovery() {
-	select {
-	case c.triggerDiscoveryCh <- struct{}{}:
-		// Discovery goroutine was released to execute
-	default:
-		// Discovery goroutine was already running
+	if c.configCopy.ConsulConfig.ClientAutoJoin != nil && *c.configCopy.ConsulConfig.ClientAutoJoin {
+		select {
+		case c.triggerDiscoveryCh <- struct{}{}:
+			// Discovery goroutine was released to execute
+		default:
+			// Discovery goroutine was already running
+		}
 	}
 }
 
@@ -3103,8 +3105,8 @@ func (g *group) Go(f func()) {
 	}()
 }
 
-func (c *group) AddCh(ch <-chan struct{}) {
-	c.Go(func() {
+func (g *group) AddCh(ch <-chan struct{}) {
+	g.Go(func() {
 		<-ch
 	})
 }

@@ -15,7 +15,7 @@ import (
 const (
 	jobModifyIndexHelp = `To submit the job with version verification run:
 
-nomad job run -check-index %d %s
+nomad job run -check-index %d %s%s
 
 When running the job with the check-index flag, the job will only be run if the
 job modify index given matches the server-side version. If the index has
@@ -192,8 +192,17 @@ func (c *JobPlanCommand) Run(args []string) int {
 		return 255
 	}
 
+	runArgs := strings.Builder{}
+	for _, varArg := range varArgs {
+		runArgs.WriteString(fmt.Sprintf("-var=%q ", varArg))
+	}
+
+	for _, varFile := range varFiles {
+		runArgs.WriteString(fmt.Sprintf("-var-file=%q ", varFile))
+	}
+
 	exitCode := c.outputPlannedJob(job, resp, diff, verbose)
-	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
+	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, runArgs.String(), path)))
 	return exitCode
 }
 
@@ -333,8 +342,8 @@ func getExitCode(resp *api.JobPlanResponse) int {
 
 // formatJobModifyIndex produces a help string that displays the job modify
 // index and how to submit a job with it.
-func formatJobModifyIndex(jobModifyIndex uint64, jobName string) string {
-	help := fmt.Sprintf(jobModifyIndexHelp, jobModifyIndex, jobName)
+func formatJobModifyIndex(jobModifyIndex uint64, args string, jobName string) string {
+	help := fmt.Sprintf(jobModifyIndexHelp, jobModifyIndex, args, jobName)
 	out := fmt.Sprintf("[reset][bold]Job Modify Index: %d[reset]\n%s", jobModifyIndex, help)
 	return out
 }

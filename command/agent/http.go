@@ -451,6 +451,9 @@ func errCodeFromHandler(err error) (int, string) {
 		} else if strings.HasSuffix(errMsg, structs.ErrTokenNotFound.Error()) {
 			errMsg = structs.ErrTokenNotFound.Error()
 			code = 403
+		} else if strings.HasSuffix(errMsg, structs.ErrJobRegistrationDisabled.Error()) {
+			errMsg = structs.ErrJobRegistrationDisabled.Error()
+			code = 403
 		}
 	}
 
@@ -486,6 +489,9 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 					code = 403
 				} else if strings.HasSuffix(errMsg, structs.ErrTokenNotFound.Error()) {
 					errMsg = structs.ErrTokenNotFound.Error()
+					code = 403
+				} else if strings.HasSuffix(errMsg, structs.ErrJobRegistrationDisabled.Error()) {
+					errMsg = structs.ErrJobRegistrationDisabled.Error()
 					code = 403
 				}
 			}
@@ -602,11 +608,19 @@ func setLastContact(resp http.ResponseWriter, last time.Duration) {
 	resp.Header().Set("X-Nomad-LastContact", strconv.FormatUint(lastMsec, 10))
 }
 
+// setNextToken is used to set the next token header for pagination
+func setNextToken(resp http.ResponseWriter, nextToken string) {
+	if nextToken != "" {
+		resp.Header().Set("X-Nomad-NextToken", nextToken)
+	}
+}
+
 // setMeta is used to set the query response meta data
 func setMeta(resp http.ResponseWriter, m *structs.QueryMeta) {
 	setIndex(resp, m.Index)
 	setLastContact(resp, m.LastContact)
 	setKnownLeader(resp, m.KnownLeader)
+	setNextToken(resp, m.NextToken)
 }
 
 // setHeaders is used to set canonical response header fields
@@ -740,8 +754,7 @@ func parsePagination(req *http.Request, b *structs.QueryOptions) {
 		}
 	}
 
-	nextToken := query.Get("next_token")
-	b.NextToken = nextToken
+	b.NextToken = query.Get("next_token")
 }
 
 // parseWriteRequest is a convenience method for endpoints that need to parse a

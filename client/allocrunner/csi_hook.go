@@ -212,8 +212,8 @@ func newCSIHook(ar *allocRunner, logger hclog.Logger, alloc *structs.Allocation,
 	}
 }
 
-func (h *csiHook) shouldRun() bool {
-	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
+func (c *csiHook) shouldRun() bool {
+	tg := c.alloc.Job.LookupTaskGroup(c.alloc.TaskGroup)
 	for _, vol := range tg.Volumes {
 		if vol.Type == structs.VolumeTypeCSI {
 			return true

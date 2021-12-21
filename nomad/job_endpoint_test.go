@@ -2248,6 +2248,100 @@ func TestJobEndpoint_Register_ACL_Namespace(t *testing.T) {
 	assert.NotNil(out, "expected job")
 }
 
+func TestJobRegister_ACL_RejectedBySchedulerConfig(t *testing.T) {
+	t.Parallel()
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	submitJobToken := mock.CreatePolicyAndToken(t, s1.State(), 1001, "test-valid-write",
+		mock.NamespacePolicy(structs.DefaultNamespace, "write", nil)).
+		SecretID
+
+	cases := []struct {
+		name          string
+		token         string
+		rejectEnabled bool
+		errExpected   string
+	}{
+		{
+			name:          "reject disabled, with a submit token",
+			token:         submitJobToken,
+			rejectEnabled: false,
+		},
+		{
+			name:          "reject enabled, with a submit token",
+			token:         submitJobToken,
+			rejectEnabled: true,
+			errExpected:   structs.ErrJobRegistrationDisabled.Error(),
+		},
+		{
+			name:          "reject enabled, without a token",
+			token:         "",
+			rejectEnabled: true,
+			errExpected:   structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:          "reject enabled, with a management token",
+			token:         root.SecretID,
+			rejectEnabled: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			job := mock.Job()
+			req := &structs.JobRegisterRequest{
+				Job: job,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: job.Namespace,
+				},
+			}
+			req.AuthToken = tc.token
+
+			cfgReq := &structs.SchedulerSetConfigRequest{
+				Config: structs.SchedulerConfiguration{
+					RejectJobRegistration: tc.rejectEnabled,
+				},
+				WriteRequest: structs.WriteRequest{
+					Region: "global",
+				},
+			}
+			cfgReq.AuthToken = root.SecretID
+			err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerSetConfiguration",
+				cfgReq, &structs.SchedulerSetConfigurationResponse{},
+			)
+			require.NoError(t, err)
+
+			var resp structs.JobRegisterResponse
+			err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+
+			if tc.errExpected != "" {
+				require.Error(t, err, "expected error")
+				require.EqualError(t, err, tc.errExpected)
+				state := s1.fsm.State()
+				ws := memdb.NewWatchSet()
+				out, err := state.JobByID(ws, job.Namespace, job.ID)
+				require.NoError(t, err)
+				require.Nil(t, out)
+			} else {
+				require.NoError(t, err, "unexpected error")
+				require.NotEqual(t, 0, resp.Index)
+				state := s1.fsm.State()
+				ws := memdb.NewWatchSet()
+				out, err := state.JobByID(ws, job.Namespace, job.ID)
+				require.NoError(t, err)
+				require.NotNil(t, out)
+				require.Equal(t, job.TaskGroups, out.TaskGroups)
+			}
+		})
+	}
+}
+
 func TestJobEndpoint_Revert(t *testing.T) {
 	t.Parallel()
 
@@ -3735,6 +3829,97 @@ func TestJobEndpoint_Deregister_EvalCreation_Legacy(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, resp2.EvalID)
 	})
+}
+
+func TestJobEndpoint_Deregister_NoShutdownDelay(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register requests
+	job := mock.Job()
+	reg := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp0 structs.JobRegisterResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp0))
+
+	// Deregister but don't purge
+	dereg1 := &structs.JobDeregisterRequest{
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp1 structs.JobDeregisterResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg1, &resp1))
+	require.NotZero(resp1.Index)
+
+	// Check for the job in the FSM
+	state := s1.fsm.State()
+	out, err := state.JobByID(nil, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.True(out.Stop)
+
+	// Lookup the evaluation
+	eval, err := state.EvalByID(nil, resp1.EvalID)
+	require.NoError(err)
+	require.NotNil(eval)
+	require.EqualValues(resp1.EvalCreateIndex, eval.CreateIndex)
+	require.Equal(structs.EvalTriggerJobDeregister, eval.TriggeredBy)
+
+	// Lookup allocation transitions
+	var ws memdb.WatchSet
+	allocs, err := state.AllocsByJob(ws, job.Namespace, job.ID, true)
+	require.NoError(err)
+
+	for _, alloc := range allocs {
+		require.Nil(alloc.DesiredTransition)
+	}
+
+	// Deregister with no shutdown delay
+	dereg2 := &structs.JobDeregisterRequest{
+		JobID:           job.ID,
+		NoShutdownDelay: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp2 structs.JobDeregisterResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg2, &resp2))
+	require.NotZero(resp2.Index)
+
+	// Lookup the evaluation
+	eval, err = state.EvalByID(nil, resp2.EvalID)
+	require.NoError(err)
+	require.NotNil(eval)
+	require.EqualValues(resp2.EvalCreateIndex, eval.CreateIndex)
+	require.Equal(structs.EvalTriggerJobDeregister, eval.TriggeredBy)
+
+	// Lookup allocation transitions
+	allocs, err = state.AllocsByJob(ws, job.Namespace, job.ID, true)
+	require.NoError(err)
+
+	for _, alloc := range allocs {
+		require.NotNil(alloc.DesiredTransition)
+		require.True(*(alloc.DesiredTransition.NoShutdownDelay))
+	}
+
 }
 
 func TestJobEndpoint_BatchDeregister(t *testing.T) {
@@ -6646,6 +6831,95 @@ func TestJobEndpoint_Dispatch_JobChildrenSummary(t *testing.T) {
 	require.Equal(t, structs.JobStatusDead, dispatchedStatus())
 }
 
+func TestJobEndpoint_Dispatch_ACL_RejectedBySchedulerConfig(t *testing.T) {
+	t.Parallel()
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	job := mock.BatchJob()
+	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
+
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
+	require.NoError(t, err)
+
+	dispatch := &structs.JobDispatchRequest{
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	submitJobToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid-write",
+		mock.NamespacePolicy(structs.DefaultNamespace, "write", nil)).
+		SecretID
+
+	cases := []struct {
+		name          string
+		token         string
+		rejectEnabled bool
+		errExpected   string
+	}{
+		{
+			name:          "reject disabled, with a submit token",
+			token:         submitJobToken,
+			rejectEnabled: false,
+		},
+		{
+			name:          "reject enabled, with a submit token",
+			token:         submitJobToken,
+			rejectEnabled: true,
+			errExpected:   structs.ErrJobRegistrationDisabled.Error(),
+		},
+		{
+			name:          "reject enabled, without a token",
+			token:         "",
+			rejectEnabled: true,
+			errExpected:   structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:          "reject enabled, with a management token",
+			token:         root.SecretID,
+			rejectEnabled: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			cfgReq := &structs.SchedulerSetConfigRequest{
+				Config: structs.SchedulerConfiguration{
+					RejectJobRegistration: tc.rejectEnabled,
+				},
+				WriteRequest: structs.WriteRequest{
+					Region: "global",
+				},
+			}
+			cfgReq.AuthToken = root.SecretID
+			err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerSetConfiguration",
+				cfgReq, &structs.SchedulerSetConfigurationResponse{},
+			)
+			require.NoError(t, err)
+
+			dispatch.AuthToken = tc.token
+			var resp structs.JobDispatchResponse
+			err = msgpackrpc.CallWithCodec(codec, "Job.Dispatch", dispatch, &resp)
+
+			if tc.errExpected != "" {
+				require.Error(t, err, "expected error")
+				require.EqualError(t, err, tc.errExpected)
+			} else {
+				require.NoError(t, err, "unexpected error")
+				require.NotEqual(t, 0, resp.Index)
+			}
+		})
+	}
+
+}
+
 func TestJobEndpoint_Scale(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -6930,6 +7204,97 @@ func TestJobEndpoint_Scale_ACL(t *testing.T) {
 		err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
 		require.NoError(err, tc.name)
 		require.NotNil(resp.EvalID)
+	}
+
+}
+
+func TestJobEndpoint_Scale_ACL_RejectedBySchedulerConfig(t *testing.T) {
+	t.Parallel()
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	job := mock.Job()
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
+	require.NoError(t, err)
+
+	scale := &structs.JobScaleRequest{
+		JobID: job.ID,
+		Target: map[string]string{
+			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
+		},
+		Message: "because of the load",
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	submitJobToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid-write",
+		mock.NamespacePolicy(structs.DefaultNamespace, "write", nil)).
+		SecretID
+
+	cases := []struct {
+		name          string
+		token         string
+		rejectEnabled bool
+		errExpected   string
+	}{
+		{
+			name:          "reject disabled, with a submit token",
+			token:         submitJobToken,
+			rejectEnabled: false,
+		},
+		{
+			name:          "reject enabled, with a submit token",
+			token:         submitJobToken,
+			rejectEnabled: true,
+			errExpected:   structs.ErrJobRegistrationDisabled.Error(),
+		},
+		{
+			name:          "reject enabled, without a token",
+			token:         "",
+			rejectEnabled: true,
+			errExpected:   structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:          "reject enabled, with a management token",
+			token:         root.SecretID,
+			rejectEnabled: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			cfgReq := &structs.SchedulerSetConfigRequest{
+				Config: structs.SchedulerConfiguration{
+					RejectJobRegistration: tc.rejectEnabled,
+				},
+				WriteRequest: structs.WriteRequest{
+					Region: "global",
+				},
+			}
+			cfgReq.AuthToken = root.SecretID
+			err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerSetConfiguration",
+				cfgReq, &structs.SchedulerSetConfigurationResponse{},
+			)
+			require.NoError(t, err)
+
+			var resp structs.JobRegisterResponse
+			scale.AuthToken = tc.token
+			err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+
+			if tc.errExpected != "" {
+				require.Error(t, err, "expected error")
+				require.EqualError(t, err, tc.errExpected)
+			} else {
+				require.NoError(t, err, "unexpected error")
+				require.NotEqual(t, 0, resp.Index)
+			}
+		})
 	}
 
 }

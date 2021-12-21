@@ -13,7 +13,7 @@
     "lint": "npm-run-all --aggregate-output --continue-on-error --parallel lint:*",
     "lint:hbs": "ember-template-lint .",
     "lint:js": "eslint .",
-    "start": "./node_modules/ember-cli/bin/ember server",
+    "start": "ember server",
     "build-storybook": "STORYBOOK=true ember build && build-storybook -s dist",
     "storybook": "STORYBOOK=true start-storybook -p 6006 -s dist",
     "test": "npm-run-all lint:* test:*",

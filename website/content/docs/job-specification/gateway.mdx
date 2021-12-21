@@ -163,7 +163,11 @@ envoy_gateway_bind_addresses "<service>" {
 
 ### `mesh` Parameters
 
-  The `mesh` block currently does not have any configurable parameters.
+The `mesh` block currently does not have any configurable parameters.
+
+~> **Note:** If using the Mesh Gateway for [WAN Federation][connect_mesh_gw],
+the additional piece of service metadata `{"consul-wan-federation":"1"}` must
+be applied. This can be done with the service [`meta`][meta] parameter.
 
 ### Gateway with host networking
 
@@ -630,6 +634,7 @@ job "countdash-mesh-two" {
 [address]: /docs/job-specification/gateway#address-parameters
 [advanced configuration]: https://www.consul.io/docs/connect/proxies/envoy#advanced-configuration
 [connect_timeout_ms]: https://www.consul.io/docs/agent/config-entries/service-resolver#connecttimeout
+[connect_mesh_gw]: https://www.consul.io/docs/connect/gateways/mesh-gateway/wan-federation-via-mesh-gateways#mesh-gateways
 [envoy docker]: https://hub.docker.com/r/envoyproxy/envoy/tags
 [ingress]: /docs/job-specification/gateway#ingress-parameters
 [proxy]: /docs/job-specification/gateway#proxy-parameters
@@ -641,3 +646,4 @@ job "countdash-mesh-two" {
 [terminating]: /docs/job-specification/gateway#terminating-parameters
 [tls]: /docs/job-specification/gateway#tls-parameters
 [mesh]: /docs/job-specification/gateway#mesh-parameters
+[meta]: /docs/job-specification/service#meta

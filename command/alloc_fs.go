@@ -83,8 +83,8 @@ func (f *AllocFSCommand) Synopsis() string {
 	return "Inspect the contents of an allocation directory"
 }
 
-func (c *AllocFSCommand) AutocompleteFlags() complete.Flags {
-	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+func (f *AllocFSCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(f.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-H":       complete.PredictNothing,
 			"-verbose": complete.PredictNothing,

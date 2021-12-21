@@ -299,6 +299,11 @@ type DeregisterOptions struct {
 	// is useful when an operator wishes to push through a job deregistration
 	// in busy clusters with a large evaluation backlog.
 	EvalPriority int
+
+	// NoShutdownDelay, if set to true, will override the group and
+	// task shutdown_delay configuration and ignore the delay for any
+	// allocations stopped as a result of this Deregister call.
+	NoShutdownDelay bool
 }
 
 // DeregisterOpts is used to remove an existing job. See DeregisterOptions
@@ -312,8 +317,8 @@ func (j *Jobs) DeregisterOpts(jobID string, opts *DeregisterOptions, q *WriteOpt
 	// Protect against nil opts. url.Values expects a string, and so using
 	// fmt.Sprintf is the best way to do this.
 	if opts != nil {
-		endpoint += fmt.Sprintf("?purge=%t&global=%t&eval_priority=%v",
-			opts.Purge, opts.Global, opts.EvalPriority)
+		endpoint += fmt.Sprintf("?purge=%t&global=%t&eval_priority=%v&no_shutdown_delay=%t",
+			opts.Purge, opts.Global, opts.EvalPriority, opts.NoShutdownDelay)
 	}
 
 	wm, err := j.client.delete(endpoint, &resp, q)

@@ -349,32 +349,41 @@ func (e *Eval) List(args *structs.EvalListRequest,
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// Scan all the evaluations
 			var err error
 			var iter memdb.ResultIterator
-			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.EvalsByIDPrefix(ws, args.RequestNamespace(), prefix)
+			if args.RequestNamespace() == structs.AllNamespacesSentinel {
+				iter, err = store.Evals(ws)
+			} else if prefix := args.QueryOptions.Prefix; prefix != "" {
+				iter, err = store.EvalsByIDPrefix(ws, args.RequestNamespace(), prefix)
 			} else {
-				iter, err = state.EvalsByNamespace(ws, args.RequestNamespace())
+				iter, err = store.EvalsByNamespace(ws, args.RequestNamespace())
 			}
 			if err != nil {
 				return err
 			}
 
-			var evals []*structs.Evaluation
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
+			iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+				if eval := raw.(*structs.Evaluation); eval != nil {
+					return args.ShouldBeFiltered(eval)
 				}
-				eval := raw.(*structs.Evaluation)
-				evals = append(evals, eval)
-			}
+				return false
+			})
+
+			var evals []*structs.Evaluation
+			paginator := state.NewPaginator(iter, args.QueryOptions,
+				func(raw interface{}) {
+					eval := raw.(*structs.Evaluation)
+					evals = append(evals, eval)
+				})
+
+			nextToken := paginator.Page()
+			reply.QueryMeta.NextToken = nextToken
 			reply.Evaluations = evals
 
 			// Use the last index that affected the jobs table
-			index, err := state.Index("evals")
+			index, err := store.Index("evals")
 			if err != nil {
 				return err
 			}

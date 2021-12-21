@@ -1,0 +1,40 @@
+---
+layout: docs
+page_title: Tools
+description: Learn about tools for Nomad.
+---
+
+# Tools
+
+External tools provide additional capabilities and use cases to Nomad. They are
+installed separately from Nomad itself and can sometimes be deployed as a Nomad
+job in your cluster.
+
+## HashiCorp-Maintained Tools
+
+The following external tools are currently available for Nomad and maintained by HashiCorp:
+
+- [Autoscaling](/tools/autoscaling) - HashiCorp's official Nomad Autoscaler. Supports scaling allocations within Nomad and scaling nodes on AWS, Azure, GCP, or arbitrary infrastructure via plugins.
+- [Damon](https://github.com/hashicorp/damon) - An terminal dashboard for Nomad.
+- [Levant](https://github.com/hashicorp/levant) - A templating and deployment tool for HashiCorp Nomad jobs that provides realtime feedback and detailed failure messages upon deployment issues.
+- [Nomad Pack](https://github.com/hashicorp/nomad-pack) - An official package manager and templating tool for Nomad, currently a Tech Preview.
+
+## Community Tools
+
+The following external tools are currently available for Nomad and maintained by members of the Nomad Community:
+
+- [Chaotic](https://github.com/ngine-io/chaotic) - A Chaos Engineering tool to stop allocations, reboot or stop/start virtual machines in your cloud environment
+- [Deadman Check](https://github.com/sepulworld/deadman-check) - A monitoring companion for Nomad periodic jobs that alerts if periodic isn't running at the expected interval
+- [Hashi Up](https://github.com/jsiebens/hashi-up) - A utility to install Nomad on remote Linux hosts
+- [Jenkins Nomad Cloud Plugin](https://github.com/jenkinsci/nomad-plugin) - A Jenkins plugin using Nomad to provision build workers
+- [Kreconciler](https://github.com/koyeb/kreconciler) - A library to build control-loops for things on Nomad (or other schedulers)
+- [Nelson](https://getnelson.io/) - A tool for automated, multi-region container deployment using Nomad
+- [Node Problem Detector](https://github.com/Roblox/nomad-node-problem-detector) - A tool used to detect problems on Nomad nodes based on user-defined health checks
+- [Nomad deploy result action](https://github.com/let-sh/nomad-deploy-result-action) - A Github action to monitor deployment results
+- [Nomad Firehose](https://github.com/seatgeek/nomad-firehose) - A tool to enable teams to quickly build logic around nomad task events without hooking into Nomad API
+- [Nomad Helper](https://github.com/seatgeek/nomad-helper) - A Nomad helper binary. Reevaluate jobs, force garbage collection, drain nodes, export/import count information
+- [Nomad Toast](https://github.com/jrasell/nomad-toast) - A tool for receiving notifications based on HashiCorp Nomad events
+- [Nomad Watcher](https://github.com/blalor/nomad-watcher) - A simple service that watches Nomad's nodes, jobs, deployments, evaluations, allocations, and task states, and writes the events to a file
+- [Nomadgen](https://github.com/smintz/nomadgen) - Craft your Hashicorp's Nomad job specs in python.
+- [Nomadctld](https://github.com/42wim/nomadctld) - An ssh server that sits between users and the nomad cluster allowing for limited access to your nomad cluster and allow them to attach, see logs, tail logs, stop, restart, exec containers they own on the cluster
+- [Nomad-spk](https://github.com/numkem/nomad-spk) - A tool to install nomad into a Synology NAS

@@ -120,26 +120,26 @@ func (p *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
 
 			reply.Policy = p
 
-			// Use the last index that affected the policy table
-			index, err := state.Index("scaling_policy")
-			if err != nil {
-				return err
+			// If the state lookup returned a policy object, use the modify
+			// index for the response. Otherwise, use the index table to supply
+			// this, ensuring a non-zero value.
+			if p != nil {
+				reply.Index = p.ModifyIndex
+			} else {
+				index, err := state.Index("scaling_policy")
+				if err != nil {
+					return err
+				}
+				reply.Index = helper.Uint64Max(1, index)
 			}
-
-			// Ensure we never set the index to zero, otherwise a blocking query cannot be used.
-			// We floor the index at one, since realistically the first write must have a higher index.
-			if index == 0 {
-				index = 1
-			}
-			reply.Index = index
 			return nil
 		}}
 	return p.srv.blockingRPC(&opts)
 }
 
-func (j *Scaling) listAllNamespaces(args *structs.ScalingPolicyListRequest, reply *structs.ScalingPolicyListResponse) error {
+func (p *Scaling) listAllNamespaces(args *structs.ScalingPolicyListRequest, reply *structs.ScalingPolicyListResponse) error {
 	// Check for list-job permissions
-	aclObj, err := j.srv.ResolveToken(args.AuthToken)
+	aclObj, err := p.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
@@ -197,8 +197,8 @@ func (j *Scaling) listAllNamespaces(args *structs.ScalingPolicyListRequest, repl
 			reply.Index = helper.Uint64Max(1, index)
 
 			// Set the query response
-			j.srv.setQueryMeta(&reply.QueryMeta)
+			p.srv.setQueryMeta(&reply.QueryMeta)
 			return nil
 		}}
-	return j.srv.blockingRPC(&opts)
+	return p.srv.blockingRPC(&opts)
 }

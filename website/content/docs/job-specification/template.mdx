@@ -32,11 +32,16 @@ job "docs" {
 }
 ```
 
-Nomad utilizes a tool called [Consul Template][ct]. Since Nomad v0.5.3, the
-template can reference [Nomad's runtime environment variables][env]. Since Nomad
-v0.5.6, the template can reference [Node attributes and metadata][nodevars]. For
-a full list of the API template functions, please refer to the [Consul Template
-README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
+Nomad utilizes [Go template][gt] and a tool called [Consul Template][ct], which
+adds a set of new functions that can be used to retrieve data from Consul and
+Vault. Since Nomad v0.5.3, the template can reference [Nomad's runtime
+environment variables][env], and since Nomad v0.5.6, the template can reference
+[Node attributes and metadata][nodevars]. Since Nomad v0.6.0, templates can be
+read as environment variables.
+
+For a full list of the API template functions, please refer to the [Consul
+Template documentation][ct_api]. For a an introduction to Go templates, please
+refer to the [Learn Go Template Syntax][gt_learn] Learn guide.
 
 ## `template` Parameters
 
@@ -257,6 +262,65 @@ task "task" {
 }
 ```
 
+## Consul Integration
+
+### Consul KV
+
+Consul KV values can be accessed using the [`key`][ct_api_key] function to
+retrieve a single value from a key path. The [`ls`][ct_api_ls] function can be
+used to retrieve all keys in a path. For deeply nested paths, use the
+[`tree`][ct_api_tree] function.
+
+```hcl
+  template {
+    data = <<EOF
+# Read single key from Consul KV.
+APP_NAME = "{{key "app/name"}}"
+
+# Read all keys in the path `app/environment` from Consul KV.
+{{range ls "app/environment"}}
+{{.Key}}={{.Value}}
+{{end}}
+    EOF
+
+    destination = "local/env"
+    env         = true
+  }
+```
+
+### Consul Services
+
+The Consul service catalog can be queried using the [`service`][ct_api_service]
+and [`services`][ct_api_services] functions. For Connect-capable services, use
+the [`connect`][ct_api_connect] function.
+
+```hcl
+  template {
+    data = <<EOF
+# Configuration for a single upstream service.
+upstream my_app {
+  {{range service "my_app"}}
+  server {{.Address}}:{{.Port}};
+  {{end}}
+}
+
+# Configuration for all services in the catalog.
+{{range services}}
+{{with service .Name}}
+{{with index . 0}}
+# Configuration for service {{.Name}}.
+upstream {{.Name | toLower}} {
+  {{range service .Name}}
+  server {{.Address}}:{{.Port}};
+  {{end}}
+}
+{{end}}{{end}}{{end}}
+    EOF
+
+    destination = "local/nginx.conf"
+  }
+```
+
 ## Vault Integration
 
 ### PKI Certificate
@@ -404,6 +468,15 @@ options](/docs/configuration/client#options):
   access files only within the [task working directory].
 
 [ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
+[ct_api]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md 'Consul Template API by HashiCorp'
+[ct_api_connect]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#connect 'Consul Template API by HashiCorp - connect'
+[ct_api_key]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#key 'Consul Template API by HashiCorp - key'
+[ct_api_ls]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#ls 'Consul Template API by HashiCorp - ls'
+[ct_api_service]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#service 'Consul Template API by HashiCorp - service'
+[ct_api_services]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#services 'Consul Template API by HashiCorp - services'
+[ct_api_tree]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#tree 'Consul Template API by HashiCorp - tree'
+[gt]: https://pkg.go.dev/text/template 'Go template package'
+[gt_learn]: https://learn.hashicorp.com/tutorials/nomad/go-template-syntax
 [artifact]: /docs/job-specification/artifact 'Nomad artifact Job Specification'
 [env]: /docs/runtime/environment 'Nomad Runtime Environment'
 [nodevars]: /docs/runtime/interpolation#interpreted_node_vars 'Nomad Node Variables'

@@ -23,9 +23,9 @@ type CSIVolume struct {
 
 // QueryACLObj looks up the ACL token in the request and returns the acl.ACL object
 // - fallback to node secret ids
-func (srv *Server) QueryACLObj(args *structs.QueryOptions, allowNodeAccess bool) (*acl.ACL, error) {
+func (s *Server) QueryACLObj(args *structs.QueryOptions, allowNodeAccess bool) (*acl.ACL, error) {
 	// Lookup the token
-	aclObj, err := srv.ResolveToken(args.AuthToken)
+	aclObj, err := s.ResolveToken(args.AuthToken)
 	if err != nil {
 		// If ResolveToken had an unexpected error return that
 		if !structs.IsErrTokenNotFound(err) {
@@ -41,7 +41,7 @@ func (srv *Server) QueryACLObj(args *structs.QueryOptions, allowNodeAccess bool)
 		ws := memdb.NewWatchSet()
 		// Attempt to lookup AuthToken as a Node.SecretID since nodes may call
 		// call this endpoint and don't have an ACL token.
-		node, stateErr := srv.fsm.State().NodeBySecretID(ws, args.AuthToken)
+		node, stateErr := s.fsm.State().NodeBySecretID(ws, args.AuthToken)
 		if stateErr != nil {
 			// Return the original ResolveToken error with this err
 			var merr multierror.Error
@@ -60,13 +60,13 @@ func (srv *Server) QueryACLObj(args *structs.QueryOptions, allowNodeAccess bool)
 }
 
 // WriteACLObj calls QueryACLObj for a WriteRequest
-func (srv *Server) WriteACLObj(args *structs.WriteRequest, allowNodeAccess bool) (*acl.ACL, error) {
+func (s *Server) WriteACLObj(args *structs.WriteRequest, allowNodeAccess bool) (*acl.ACL, error) {
 	opts := &structs.QueryOptions{
 		Region:    args.RequestRegion(),
 		Namespace: args.RequestNamespace(),
 		AuthToken: args.AuthToken,
 	}
-	return srv.QueryACLObj(opts, allowNodeAccess)
+	return s.QueryACLObj(opts, allowNodeAccess)
 }
 
 const (
@@ -75,17 +75,17 @@ const (
 )
 
 // replySetIndex sets the reply with the last index that modified the table
-func (srv *Server) replySetIndex(table string, reply *structs.QueryMeta) error {
-	s := srv.fsm.State()
+func (s *Server) replySetIndex(table string, reply *structs.QueryMeta) error {
+	fmsState := s.fsm.State()
 
-	index, err := s.Index(table)
+	index, err := fmsState.Index(table)
 	if err != nil {
 		return err
 	}
 	reply.Index = index
 
 	// Set the query response
-	srv.setQueryMeta(reply)
+	s.setQueryMeta(reply)
 	return nil
 }
 

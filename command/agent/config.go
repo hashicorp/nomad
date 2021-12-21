@@ -737,8 +737,8 @@ type Telemetry struct {
 }
 
 // PrefixFilters parses the PrefixFilter field and returns a list of allowed and blocked filters
-func (t *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
-	for _, rule := range t.PrefixFilter {
+func (a *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
+	for _, rule := range a.PrefixFilter {
 		if rule == "" {
 			continue
 		}
@@ -1448,8 +1448,8 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 }
 
 // Merge is used to merge two server configs together
-func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
-	result := *a
+func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
+	result := *s
 
 	if b.Enabled {
 		result.Enabled = true
@@ -1583,13 +1583,13 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	result.EnabledSchedulers = append(result.EnabledSchedulers, b.EnabledSchedulers...)
 
 	// Copy the start join addresses
-	result.StartJoin = make([]string, 0, len(a.StartJoin)+len(b.StartJoin))
-	result.StartJoin = append(result.StartJoin, a.StartJoin...)
+	result.StartJoin = make([]string, 0, len(s.StartJoin)+len(b.StartJoin))
+	result.StartJoin = append(result.StartJoin, s.StartJoin...)
 	result.StartJoin = append(result.StartJoin, b.StartJoin...)
 
 	// Copy the retry join addresses
-	result.RetryJoin = make([]string, 0, len(a.RetryJoin)+len(b.RetryJoin))
-	result.RetryJoin = append(result.RetryJoin, a.RetryJoin...)
+	result.RetryJoin = make([]string, 0, len(s.RetryJoin)+len(b.RetryJoin))
+	result.RetryJoin = append(result.RetryJoin, s.RetryJoin...)
 	result.RetryJoin = append(result.RetryJoin, b.RetryJoin...)
 
 	return &result
