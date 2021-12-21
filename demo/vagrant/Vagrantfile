@@ -1,7 +1,7 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-script = <<SCRIPT
+script = <<~SCRIPT
   echo "Installing Docker..."
   sudo apt-get update
   sudo apt-get remove docker docker-engine docker.io
@@ -32,7 +32,6 @@ script = <<SCRIPT
   sudo install nomad /usr/bin/nomad
   sudo mkdir -p /etc/nomad.d
   sudo chmod a+w /etc/nomad.d
-
 
   echo "Installing Consul..."
   CONSUL_VERSION=1.9.0
