@@ -95,7 +95,7 @@
     "ember-qunit": "^4.6.0",
     "ember-qunit-nice-errors": "^1.2.0",
     "ember-resolver": "^8.0.0",
-    "ember-responsive": "^3.0.4",
+    "ember-responsive": "^4.0.2",
     "ember-sinon": "^4.0.0",
     "ember-source": "~3.20.2",
     "ember-template-lint": "^2.9.1",
