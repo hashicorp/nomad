@@ -105,7 +105,7 @@
     "eslint-plugin-ember": "^8.9.1",
     "eslint-plugin-ember-a11y-testing": "a11y-tool-sandbox/eslint-plugin-ember-a11y-testing#ca31c9698c7cb105f1c9761d98fcaca7d6874459",
     "eslint-plugin-node": "^11.1.0",
-    "faker": "^4.1.0",
+    "faker": "^5.5.3",
     "flat": "^5.0.2",
     "fuse.js": "^3.4.4",
     "glob": "^7.2.0",
