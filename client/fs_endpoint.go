@@ -247,6 +247,7 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 
 	// If we aren't following end as soon as we hit EOF
 	var eofCancelCh chan error
+	var eofCancelOnNextEofCh chan error
 	if !req.Follow {
 		eofCancelCh = make(chan error)
 		close(eofCancelCh)
@@ -257,7 +258,7 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 
 	// Start streaming
 	go func() {
-		if err := f.streamFile(ctx, req.Offset, req.Path, req.Limit, fs, framer, eofCancelCh); err != nil {
+		if err := f.streamFile(ctx, req.Offset, req.Path, req.Limit, fs, framer, eofCancelCh, eofCancelOnNextEofCh); err != nil {
 			select {
 			case errCh <- err:
 			case <-ctx.Done():
@@ -577,6 +578,7 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 			return err
 		}
 
+		var newFileChannelCh chan error
 		var eofCancelCh chan error
 		exitAfter := false
 		if !follow && idx > maxIndex {
@@ -588,11 +590,11 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 			close(eofCancelCh)
 			exitAfter = true
 		} else {
-			eofCancelCh = blockUntilNextLog(ctx, fs, logPath, task, logType, idx+1)
+			newFileChannelCh = blockUntilNextLog(ctx, fs, logPath, task, logType, idx+1)
 		}
 
 		p := filepath.Join(logPath, logEntry.Name)
-		err = f.streamFile(ctx, openOffset, p, 0, fs, framer, eofCancelCh)
+		err = f.streamFile(ctx, openOffset, p, 0, fs, framer, eofCancelCh, newFileChannelCh)
 
 		// Check if the context is cancelled
 		select {
@@ -640,7 +642,7 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 // read. eofCancelOnNextEofCh, if triggered while at EOF, is used to trigger one more read and cancel the stream on reaching next EOF. If
 // the connection is broken an EPIPE error is returned
 func (f *FileSystem) streamFile(ctx context.Context, offset int64, path string, limit int64,
-	fs allocdir.AllocDirFS, framer *sframer.StreamFramer, eofCancelOnNextEofCh chan error) error {
+	fs allocdir.AllocDirFS, framer *sframer.StreamFramer, eofCancelCh chan error, eofCancelOnNextEofCh chan error) error {
 
 	// Get the reader
 	file, err := fs.ReadAt(path, offset)
@@ -767,6 +769,12 @@ OUTER:
 
 				cancelReceived = true
 				continue OUTER
+			case err, ok := <-eofCancelCh:
+				if !ok {
+					return nil
+				}
+
+				return err
 			}
 		}
 	}
