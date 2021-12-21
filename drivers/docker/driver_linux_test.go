@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/freeport"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -67,7 +68,7 @@ func TestDockerDriver_PluginConfig_PidsLimit(t *testing.T) {
 	cfg.PidsLimit = 3
 	opts, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
 	require.NoError(t, err)
-	require.Equal(t, opts.HostConfig.PidsLimit, 3)
+	require.Equal(t, helper.Int64ToPtr(3), opts.HostConfig.PidsLimit)
 }
 
 func TestDockerDriver_PidsLimit(t *testing.T) {
