@@ -158,7 +158,11 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 			continue
 		}
 
-		cr := alloc.ComparableResources()
+		if alloc.comparableResources == nil {
+			alloc.comparableResources = alloc.ComparableResources()
+		}
+
+		cr := alloc.comparableResources
 		used.Add(cr)
 
 		// Adding the comparable resource unions reserved core sets, need to check if reserved cores overlap

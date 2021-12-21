@@ -9341,6 +9341,12 @@ type Allocation struct {
 
 	// ModifyTime is the time the allocation was last updated.
 	ModifyTime int64
+
+	// comparableResources is a cache of calculated resources to
+	// reduce work done by the scheduler during node fit checking in
+	// AllocsFit. Note: this should never be updated to be visible
+	// outside this package, so that it's not serialized to disk.
+	comparableResources *ComparableResources
 }
 
 // ConsulNamespace returns the Consul namespace of the task group associated
