@@ -58,5 +58,22 @@
   </ListTable>
   <div class="table-foot">
     <PageSizeSelect @onChange={{this.onChange}} />
+    <button type="button" {{on "click" this.refresh}}>
+      Refresh
+    </button>
+    <button
+      type="button"
+      disabled={{this.shouldDisablePrev}}
+      {{on "click" (fn this.onPrev this.lastToken)}}
+    >
+      Prev
+    </button>
+    <button
+      type="button"
+      disabled={{this.shouldDisableNext}}
+      {{on "click" (fn this.onNext @model.meta.nextToken)}}
+    >
+      Next >
+    </button>
   </div>
 </section>
