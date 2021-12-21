@@ -46,7 +46,9 @@ func TestDockerDriver_authFromHelper(t *testing.T) {
 }
 
 func TestDockerDriver_PluginConfig_PidsLimit(t *testing.T) {
-	t.Parallel()
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 
 	dh := dockerDriverHarness(t, nil)
 	driver := dh.Impl().(*Driver)
@@ -60,6 +62,12 @@ func TestDockerDriver_PluginConfig_PidsLimit(t *testing.T) {
 	_, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), `pids_limit cannot be greater than nomad plugin config pids_limit`)
+
+	// Task PidsLimit should override plugin PidsLimit.
+	cfg.PidsLimit = 3
+	opts, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+	require.Equal(t, opts.HostConfig.PidsLimit, 3)
 }
 
 func TestDockerDriver_PidsLimit(t *testing.T) {
