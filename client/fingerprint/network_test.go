@@ -487,14 +487,16 @@ func TestNetworkFingerPrint_MultipleAliases(t *testing.T) {
 	require.Equal(t, expected, aliases, "host networks should match aliases")
 }
 
-func TestNetworkFingerPrint_HostNetorkReservedPorts(t *testing.T) {
+func TestNetworkFingerPrint_HostNetworkReservedPorts(t *testing.T) {
 	testCases := []struct {
 		name         string
 		hostNetworks map[string]*structs.ClientHostNetworkConfig
+		expected     []string
 	}{
 		{
 			name:         "no host networks",
 			hostNetworks: map[string]*structs.ClientHostNetworkConfig{},
+			expected:     []string{""},
 		},
 		{
 			name: "no reserved ports",
@@ -515,6 +517,7 @@ func TestNetworkFingerPrint_HostNetorkReservedPorts(t *testing.T) {
 					CIDR:      "100.64.0.11/10",
 				},
 			},
+			expected: []string{"", "", ""},
 		},
 		{
 			name: "reserved ports in some aliases",
@@ -537,6 +540,7 @@ func TestNetworkFingerPrint_HostNetorkReservedPorts(t *testing.T) {
 					CIDR:      "100.64.0.11/10",
 				},
 			},
+			expected: []string{"22", "80,3000-4000", ""},
 		},
 	}
 
@@ -559,15 +563,6 @@ func TestNetworkFingerPrint_HostNetorkReservedPorts(t *testing.T) {
 			err := f.Fingerprint(request, &response)
 			require.NoError(t, err)
 
-			expected := []string{}
-			if len(cfg.HostNetworks) == 0 {
-				expected = append(expected, "")
-			} else {
-				for _, cfg := range cfg.HostNetworks {
-					expected = append(expected, cfg.ReservedPorts)
-				}
-			}
-
 			got := []string{}
 			for _, network := range response.NodeResources.NodeNetworks {
 				for _, address := range network.Addresses {
@@ -575,9 +570,9 @@ func TestNetworkFingerPrint_HostNetorkReservedPorts(t *testing.T) {
 				}
 			}
 
-			sort.Strings(expected)
+			sort.Strings(tc.expected)
 			sort.Strings(got)
-			require.Equal(t, expected, got, "host networks should match reserved ports")
+			require.Equal(t, tc.expected, got, "host networks should match reserved ports")
 		})
 	}
 }
