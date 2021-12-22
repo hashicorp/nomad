@@ -56,7 +56,7 @@
     "d3-transition": "^3.0.1",
     "duration-js": "^4.0.0",
     "ember-a11y-testing": "^4.0.0",
-    "ember-auto-import": "^1.6.0",
+    "ember-auto-import": "^2.2.4",
     "ember-can": "^2.0.0",
     "ember-classic-decorator": "^1.0.8",
     "ember-cli": "~3.20.2",
