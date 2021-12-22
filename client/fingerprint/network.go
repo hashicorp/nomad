@@ -168,10 +168,16 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 			} else {
 				family = structs.NodeNetworkAF_IPv6
 			}
+
+			alias := deriveAddressAlias(iface, ip, conf)
 			newAddr := structs.NodeNetworkAddress{
 				Address: ip.String(),
 				Family:  family,
-				Alias:   deriveAddressAlias(iface, ip, conf),
+				Alias:   alias,
+			}
+
+			if hostNetwork, ok := conf.HostNetworks[alias]; ok {
+				newAddr.ReservedPorts = hostNetwork.ReservedPorts
 			}
 
 			if newAddr.Alias != "" {
