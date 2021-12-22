@@ -255,6 +255,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"eval list": func() (cli.Command, error) {
+			return &EvalListCommand{
+				Meta: meta,
+			}, nil
+		},
 		"eval status": func() (cli.Command, error) {
 			return &EvalStatusCommand{
 				Meta: meta,
@@ -535,17 +540,17 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"operator raft _info": func() (cli.Command, error) {
+		"operator raft info": func() (cli.Command, error) {
 			return &OperatorRaftInfoCommand{
 				Meta: meta,
 			}, nil
 		},
-		"operator raft _logs": func() (cli.Command, error) {
+		"operator raft logs": func() (cli.Command, error) {
 			return &OperatorRaftLogsCommand{
 				Meta: meta,
 			}, nil
 		},
-		"operator raft _state": func() (cli.Command, error) {
+		"operator raft state": func() (cli.Command, error) {
 			return &OperatorRaftStateCommand{
 				Meta: meta,
 			}, nil
@@ -566,7 +571,7 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"operator snapshot _state": func() (cli.Command, error) {
+		"operator snapshot state": func() (cli.Command, error) {
 			return &OperatorSnapshotStateCommand{
 				Meta: meta,
 			}, nil

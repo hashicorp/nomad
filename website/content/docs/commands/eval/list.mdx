@@ -1,0 +1,51 @@
+---
+layout: docs
+page_title: 'Commands: eval list'
+description: |
+  The eval list command is used to list evaluations.
+---
+
+# Command: eval list
+
+The `eval list` command is used list all evaluations.
+
+## Usage
+
+```plaintext
+nomad eval list [options]
+```
+
+The `eval list` command requires no arguments.
+
+When ACLs are enabled, this command requires a token with the `read-job`
+capability for the requested namespace.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## List Options
+
+- `-verbose`: Show full information.
+- `-per-page`: How many results to show per page.
+- `-page-token`: Where to start pagination.
+- `-job`: Only show evaluations for this job ID.
+- `-status`: Only show evaluations with this status.
+- `-json`: Output the evaluation in its JSON format.
+- `-t`: Format and display evaluation using a Go template.
+
+## Examples
+
+List all tracked evaluations:
+
+```shell-session
+$ nomad eval list -per-page 3 -status complete
+ID        Priority  Triggered By        Job ID   Status    Placement Failures
+456e37aa  50        deployment-watcher  example  complete  false
+1a1eafe6  50        alloc-stop          example  complete  false
+3411e37b  50        job-register        example  complete  false
+
+Results have been paginated. To get the next page run:
+
+nomad eval list -page-token 9ecffbba-73be-d909-5d7e-ac2694c10e0c
+```

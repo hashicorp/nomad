@@ -1,0 +1,3 @@
+```release-note:improvement
+driver/docker: Added support for client-wide `pids_limit` configuration
+```

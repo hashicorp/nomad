@@ -6270,13 +6270,13 @@ type StateRestore struct {
 }
 
 // Abort is used to abort the restore operation
-func (s *StateRestore) Abort() {
-	s.txn.Abort()
+func (r *StateRestore) Abort() {
+	r.txn.Abort()
 }
 
 // Commit is used to commit the restore operation
-func (s *StateRestore) Commit() error {
-	return s.txn.Commit()
+func (r *StateRestore) Commit() error {
+	return r.txn.Commit()
 }
 
 // NodeRestore is used to restore a node

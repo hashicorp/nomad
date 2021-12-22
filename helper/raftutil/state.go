@@ -2,20 +2,38 @@ package raftutil
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 )
 
+var (
+	errAlreadyOpen = errors.New("unable to open raft logs that are in use")
+)
+
 // RaftStateInfo returns info about the nomad state, as found in the passed data-dir directory
 func RaftStateInfo(p string) (store *raftboltdb.BoltStore, firstIdx uint64, lastIdx uint64, err error) {
-	s, err := raftboltdb.NewBoltStore(p)
+	opts := raftboltdb.Options{
+		Path: p,
+		BoltOptions: &bolt.Options{
+			ReadOnly: true,
+			Timeout:  1 * time.Second,
+		},
+	}
+	s, err := raftboltdb.New(opts)
 	if err != nil {
+		if strings.HasSuffix(err.Error(), "timeout") {
+			return nil, 0, 0, errAlreadyOpen
+		}
 		return nil, 0, 0, fmt.Errorf("failed to open raft logs: %v", err)
 	}
 
@@ -32,33 +50,44 @@ func RaftStateInfo(p string) (store *raftboltdb.BoltStore, firstIdx uint64, last
 	return s, firstIdx, lastIdx, nil
 }
 
-// LogEntries returns the log entries as found in raft log in the passed data-dir directory
-func LogEntries(p string) (logs []interface{}, warnings []error, err error) {
+// LogEntries reads the raft logs found in the data directory found at
+// the path `p`, and returns a channel of logs, and a channel of
+// warnings. If opening the raft state returns an error, both channels
+// will be nil.
+func LogEntries(p string) (<-chan interface{}, <-chan error, error) {
 	store, firstIdx, lastIdx, err := RaftStateInfo(p)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open raft logs: %v", err)
 	}
-	defer store.Close()
 
-	result := make([]interface{}, 0, lastIdx-firstIdx+1)
-	for i := firstIdx; i <= lastIdx; i++ {
-		var e raft.Log
-		err := store.GetLog(i, &e)
-		if err != nil {
-			warnings = append(warnings, fmt.Errorf("failed to read log entry at index %d (firstIdx: %d, lastIdx: %d): %v", i, firstIdx, lastIdx, err))
-			continue
+	entries := make(chan interface{})
+	warnings := make(chan error)
+
+	go func() {
+		defer store.Close()
+		defer close(entries)
+		for i := firstIdx; i <= lastIdx; i++ {
+			var e raft.Log
+			err := store.GetLog(i, &e)
+			if err != nil {
+				warnings <- fmt.Errorf(
+					"failed to read log entry at index %d (firstIdx: %d, lastIdx: %d): %v",
+					i, firstIdx, lastIdx, err)
+				continue
+			}
+
+			entry, err := decode(&e)
+			if err != nil {
+				warnings <- fmt.Errorf(
+					"failed to decode log entry at index %d: %v", i, err)
+				continue
+			}
+
+			entries <- entry
 		}
+	}()
 
-		m, err := decode(&e)
-		if err != nil {
-			warnings = append(warnings, fmt.Errorf("failed to decode log entry at index %d: %v", i, err))
-			continue
-		}
-
-		result = append(result, m)
-	}
-
-	return result, warnings, nil
+	return entries, warnings, nil
 }
 
 type logMessage struct {

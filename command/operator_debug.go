@@ -38,7 +38,6 @@ type OperatorDebugCommand struct {
 	interval      time.Duration
 	pprofDuration time.Duration
 	logLevel      string
-	stale         bool
 	maxNodes      int
 	nodeClass     string
 	nodeIDs       []string
@@ -48,6 +47,7 @@ type OperatorDebugCommand struct {
 	manifest      []string
 	ctx           context.Context
 	cancel        context.CancelFunc
+	opts          *api.QueryOptions
 }
 
 const (
@@ -140,7 +140,7 @@ Debug Options:
 	nodes at "log-level". Defaults to 2m.
 
   -interval=<interval>
-    The interval between snapshots of the Nomad state. Set interval equal to 
+    The interval between snapshots of the Nomad state. Set interval equal to
     duration to capture a single snapshot. Defaults to 30s.
 
   -log-level=<level>
@@ -172,7 +172,7 @@ Debug Options:
     necessary to get the configuration from a non-leader server.
 
   -output=<path>
-    Path to the parent directory of the output directory. If specified, no 
+    Path to the parent directory of the output directory. If specified, no
 	archive is built. Defaults to the current directory.
 `
 	return strings.TrimSpace(helpText)
@@ -211,7 +211,12 @@ func NodePredictor(factory ApiClientFactory) complete.Predictor {
 			return nil
 		}
 
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Nodes, nil)
+		// note we can't use the -stale flag here because we're in the
+		// predictor, but a stale query should be safe for prediction;
+		// we also can't use region forwarding because we can't rely
+		// on the server being up
+		resp, _, err := client.Search().PrefixSearch(
+			a.Last, contexts.Nodes, &api.QueryOptions{AllowStale: true})
 		if err != nil {
 			return []string{}
 		}
@@ -228,7 +233,11 @@ func NodeClassPredictor(factory ApiClientFactory) complete.Predictor {
 			return nil
 		}
 
-		nodes, _, err := client.Nodes().List(nil) // TODO: should be *api.QueryOptions that matches region
+		// note we can't use the -stale flag here because we're in the
+		// predictor, but a stale query should be safe for prediction;
+		// we also can't use region forwarding because we can't rely
+		// on the server being up
+		nodes, _, err := client.Nodes().List(&api.QueryOptions{AllowStale: true})
 		if err != nil {
 			return []string{}
 		}
@@ -259,7 +268,12 @@ func ServerPredictor(factory ApiClientFactory) complete.Predictor {
 		if err != nil {
 			return nil
 		}
-		members, err := client.Agent().Members()
+
+		// note we can't use the -stale flag here because we're in the
+		// predictor, but a stale query should be safe for prediction;
+		// we also can't use region forwarding because we can't rely
+		// on the server being up
+		members, err := client.Agent().MembersOpts(&api.QueryOptions{AllowStale: true})
 		if err != nil {
 			return []string{}
 		}
@@ -276,6 +290,15 @@ func ServerPredictor(factory ApiClientFactory) complete.Predictor {
 	})
 }
 
+// queryOpts returns a copy of the shared api.QueryOptions so
+// that api package methods can safely modify the options
+func (c *OperatorDebugCommand) queryOpts() *api.QueryOptions {
+	qo := new(api.QueryOptions)
+	*qo = *c.opts
+	qo.Params = helper.CopyMapStringString(c.opts.Params)
+	return qo
+}
+
 func (c *OperatorDebugCommand) Name() string { return "debug" }
 
 func (c *OperatorDebugCommand) Run(args []string) int {
@@ -284,6 +307,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 	var duration, interval, output, pprofDuration string
 	var nodeIDs, serverIDs string
+	var allowStale bool
 
 	flags.StringVar(&duration, "duration", "2m", "")
 	flags.StringVar(&interval, "interval", "30s", "")
@@ -292,7 +316,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.StringVar(&c.nodeClass, "node-class", "", "")
 	flags.StringVar(&nodeIDs, "node-id", "all", "")
 	flags.StringVar(&serverIDs, "server-id", "all", "")
-	flags.BoolVar(&c.stale, "stale", false, "")
+	flags.BoolVar(&allowStale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
 	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
 
@@ -403,6 +427,12 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.opts = &api.QueryOptions{
+		Region:     c.Meta.region,
+		AllowStale: allowStale,
+		AuthToken:  c.Meta.token,
+	}
+
 	// Search all nodes If a node class is specified without a list of node id prefixes
 	if c.nodeClass != "" && nodeIDs == "" {
 		nodeIDs = "all"
@@ -421,7 +451,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 			// Capture from nodes starting with prefix id
 			id = sanitizeUUIDPrefix(id)
 		}
-		nodes, _, err := client.Nodes().PrefixList(id)
+		nodes, _, err := client.Nodes().PrefixListOpts(id, c.queryOpts())
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
 			return 1
@@ -466,7 +496,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 
 	// Resolve servers
-	members, err := client.Agent().Members()
+	members, err := client.Agent().MembersOpts(c.queryOpts())
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to retrieve server list; err: %v", err))
 		return 1
@@ -559,8 +589,7 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	self, err := client.Agent().Self()
 	c.writeJSON(clusterDir, "agent-self.json", self, err)
 
-	var qo *api.QueryOptions
-	namespaces, _, err := client.Namespaces().List(qo)
+	namespaces, _, err := client.Namespaces().List(c.queryOpts())
 	c.writeJSON(clusterDir, "namespaces.json", namespaces, err)
 
 	regions, err := client.Regions().List()
@@ -635,6 +664,7 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 			idKey:       nodeID,
 			"log_level": c.logLevel,
 		},
+		AllowStale: c.queryOpts().AllowStale,
 	}
 
 	outCh, errCh := client.Agent().Monitor(c.ctx.Done(), &qo)
@@ -672,9 +702,9 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 	var host *api.HostDataResponse
 	var err error
 	if path == serverDir {
-		host, err = client.Agent().Host(id, "", nil)
+		host, err = client.Agent().Host(id, "", c.queryOpts())
 	} else {
-		host, err = client.Agent().Host("", id, nil)
+		host, err = client.Agent().Host("", id, c.queryOpts())
 	}
 
 	if err != nil {
@@ -714,7 +744,7 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 
 	path = filepath.Join(path, id)
 
-	bs, err := client.Agent().CPUProfile(opts, nil)
+	bs, err := client.Agent().CPUProfile(opts, c.queryOpts())
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof profile.prof, err: %v", path, err))
 		if structs.IsErrPermissionDenied(err) {
@@ -763,7 +793,7 @@ func (c *OperatorDebugCommand) savePprofProfile(path string, profile string, opt
 		fileName = fmt.Sprintf("%s-debug%d.txt", profile, opts.Debug)
 	}
 
-	bs, err := retrievePprofProfile(profile, opts, client)
+	bs, err := retrievePprofProfile(profile, opts, client, c.queryOpts())
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof %s, err: %s", path, fileName, err.Error()))
 	}
@@ -774,22 +804,23 @@ func (c *OperatorDebugCommand) savePprofProfile(path string, profile string, opt
 	}
 }
 
-// retrievePprofProfile gets a pprof profile from the node specified in opts using the API client
-func retrievePprofProfile(profile string, opts api.PprofOptions, client *api.Client) (bs []byte, err error) {
+// retrievePprofProfile gets a pprof profile from the node specified
+// in opts using the API client
+func retrievePprofProfile(profile string, opts api.PprofOptions, client *api.Client, qopts *api.QueryOptions) (bs []byte, err error) {
 	switch profile {
 	case "cpuprofile":
-		bs, err = client.Agent().CPUProfile(opts, nil)
+		bs, err = client.Agent().CPUProfile(opts, qopts)
 	case "trace":
-		bs, err = client.Agent().Trace(opts, nil)
+		bs, err = client.Agent().Trace(opts, qopts)
 	default:
-		bs, err = client.Agent().Lookup(profile, opts, nil)
+		bs, err = client.Agent().Lookup(profile, opts, qopts)
 	}
 
 	return bs, err
 }
 
-// collectPeriodic runs for duration, capturing the cluster state every interval. It flushes and stops
-// the monitor requests
+// collectPeriodic runs for duration, capturing the cluster state
+// every interval. It flushes and stops the monitor requests
 func (c *OperatorDebugCommand) collectPeriodic(client *api.Client) {
 	duration := time.After(c.duration)
 	// Set interval to 0 so that we immediately execute, wait the interval next time
@@ -820,61 +851,60 @@ func (c *OperatorDebugCommand) collectPeriodic(client *api.Client) {
 
 // collectOperator captures some cluster meta information
 func (c *OperatorDebugCommand) collectOperator(dir string, client *api.Client) {
-	rc, err := client.Operator().RaftGetConfiguration(nil)
+	rc, err := client.Operator().RaftGetConfiguration(c.queryOpts())
 	c.writeJSON(dir, "operator-raft.json", rc, err)
 
-	sc, _, err := client.Operator().SchedulerGetConfiguration(nil)
+	sc, _, err := client.Operator().SchedulerGetConfiguration(c.queryOpts())
 	c.writeJSON(dir, "operator-scheduler.json", sc, err)
 
-	ah, _, err := client.Operator().AutopilotServerHealth(nil)
+	ah, _, err := client.Operator().AutopilotServerHealth(c.queryOpts())
 	c.writeJSON(dir, "operator-autopilot-health.json", ah, err)
 
-	lic, _, err := client.Operator().LicenseGet(nil)
+	lic, _, err := client.Operator().LicenseGet(c.queryOpts())
 	c.writeJSON(dir, "license.json", lic, err)
 }
 
 // collectNomad captures the nomad cluster state
 func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) error {
-	var qo *api.QueryOptions
 
-	js, _, err := client.Jobs().List(qo)
+	js, _, err := client.Jobs().List(c.queryOpts())
 	c.writeJSON(dir, "jobs.json", js, err)
 
-	ds, _, err := client.Deployments().List(qo)
+	ds, _, err := client.Deployments().List(c.queryOpts())
 	c.writeJSON(dir, "deployments.json", ds, err)
 
-	es, _, err := client.Evaluations().List(qo)
+	es, _, err := client.Evaluations().List(c.queryOpts())
 	c.writeJSON(dir, "evaluations.json", es, err)
 
-	as, _, err := client.Allocations().List(qo)
+	as, _, err := client.Allocations().List(c.queryOpts())
 	c.writeJSON(dir, "allocations.json", as, err)
 
-	ns, _, err := client.Nodes().List(qo)
+	ns, _, err := client.Nodes().List(c.queryOpts())
 	c.writeJSON(dir, "nodes.json", ns, err)
 
 	// CSI Plugins - /v1/plugins?type=csi
-	ps, _, err := client.CSIPlugins().List(qo)
+	ps, _, err := client.CSIPlugins().List(c.queryOpts())
 	c.writeJSON(dir, "csi-plugins.json", ps, err)
 
 	// CSI Plugin details - /v1/plugin/csi/:plugin_id
 	for _, p := range ps {
-		csiPlugin, _, err := client.CSIPlugins().Info(p.ID, qo)
+		csiPlugin, _, err := client.CSIPlugins().Info(p.ID, c.queryOpts())
 		csiPluginFileName := fmt.Sprintf("csi-plugin-id-%s.json", p.ID)
 		c.writeJSON(dir, csiPluginFileName, csiPlugin, err)
 	}
 
 	// CSI Volumes - /v1/volumes?type=csi
-	csiVolumes, _, err := client.CSIVolumes().List(qo)
+	csiVolumes, _, err := client.CSIVolumes().List(c.queryOpts())
 	c.writeJSON(dir, "csi-volumes.json", csiVolumes, err)
 
 	// CSI Volume details - /v1/volumes/csi/:volume-id
 	for _, v := range csiVolumes {
-		csiVolume, _, err := client.CSIVolumes().Info(v.ID, qo)
+		csiVolume, _, err := client.CSIVolumes().Info(v.ID, c.queryOpts())
 		csiFileName := fmt.Sprintf("csi-volume-id-%s.json", v.ID)
 		c.writeJSON(dir, csiFileName, csiVolume, err)
 	}
 
-	metrics, _, err := client.Operator().MetricsSummary(qo)
+	metrics, _, err := client.Operator().MetricsSummary(c.queryOpts())
 	c.writeJSON(dir, "metrics.json", metrics, err)
 
 	return nil

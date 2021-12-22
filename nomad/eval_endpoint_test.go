@@ -718,6 +718,41 @@ func TestEvalEndpoint_List(t *testing.T) {
 
 }
 
+func TestEvalEndpoint_ListAllNamespaces(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	eval1 := mock.Eval()
+	eval1.ID = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
+	eval2 := mock.Eval()
+	eval2.ID = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
+	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
+
+	// Lookup the eval
+	get := &structs.EvalListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: "*",
+		},
+	}
+	var resp structs.EvalListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index != 1000 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 1000)
+	}
+
+	if len(resp.Evaluations) != 2 {
+		t.Fatalf("bad: %#v", resp.Evaluations)
+	}
+}
+
 func TestEvalEndpoint_List_ACL(t *testing.T) {
 	t.Parallel()
 

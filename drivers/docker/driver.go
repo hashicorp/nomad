@@ -826,6 +826,21 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
 
+	var pidsLimit int64
+
+	// Pids limit defined in Nomad plugin config. Defaults to 0 (Unlimited).
+	if d.config.PidsLimit > 0 {
+		pidsLimit = d.config.PidsLimit
+	}
+
+	// Override Nomad plugin config pids limit, by user defined pids limit.
+	if driverConfig.PidsLimit > 0 {
+		if d.config.PidsLimit > 0 && driverConfig.PidsLimit > d.config.PidsLimit {
+			return c, fmt.Errorf("pids_limit cannot be greater than nomad plugin config pids_limit: %d", d.config.PidsLimit)
+		}
+		pidsLimit = driverConfig.PidsLimit
+	}
+
 	hostConfig := &docker.HostConfig{
 		Memory:            memory,            // hard limit
 		MemoryReservation: memoryReservation, // soft limit
@@ -840,7 +855,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		StorageOpt:   driverConfig.StorageOpt,
 		VolumeDriver: driverConfig.VolumeDriver,
 
-		PidsLimit: &driverConfig.PidsLimit,
+		PidsLimit: &pidsLimit,
 
 		Runtime: containerRuntime,
 	}

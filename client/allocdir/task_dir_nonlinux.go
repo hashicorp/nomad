@@ -4,6 +4,6 @@
 package allocdir
 
 // currently a noop on non-Linux platforms
-func (d *TaskDir) unmountSpecialDirs() error {
+func (t *TaskDir) unmountSpecialDirs() error {
 	return nil
 }

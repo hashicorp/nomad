@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/freeport"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -43,6 +44,31 @@ func TestDockerDriver_authFromHelper(t *testing.T) {
 	content, err := ioutil.ReadFile(filepath.Join(dir, "helper-get.out"))
 	require.NoError(t, err)
 	require.Equal(t, "registry.local:5000", string(content))
+}
+
+func TestDockerDriver_PluginConfig_PidsLimit(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+	driver.config.PidsLimit = 5
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	cfg.PidsLimit = 7
+	_, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `pids_limit cannot be greater than nomad plugin config pids_limit`)
+
+	// Task PidsLimit should override plugin PidsLimit.
+	cfg.PidsLimit = 3
+	opts, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+	require.Equal(t, helper.Int64ToPtr(3), opts.HostConfig.PidsLimit)
 }
 
 func TestDockerDriver_PidsLimit(t *testing.T) {

@@ -11,7 +11,7 @@ type AllocStopCommand struct {
 	Meta
 }
 
-func (a *AllocStopCommand) Help() string {
+func (c *AllocStopCommand) Help() string {
 	helpText := `
 Usage: nomad alloc stop [options] <allocation>
 Alias: nomad stop
@@ -142,6 +142,6 @@ func (c *AllocStopCommand) Run(args []string) int {
 	return mon.monitor(resp.EvalID)
 }
 
-func (a *AllocStopCommand) Synopsis() string {
+func (c *AllocStopCommand) Synopsis() string {
 	return "Stop and reschedule a running allocation"
 }
