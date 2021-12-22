@@ -578,8 +578,8 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 			return err
 		}
 
-		var newFileChannelCh chan error
 		var eofCancelCh chan error
+		var eofCancelOnNextEofCh chan error
 		exitAfter := false
 		if !follow && idx > maxIndex {
 			// Exceeded what was there initially so return
@@ -590,11 +590,11 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 			close(eofCancelCh)
 			exitAfter = true
 		} else {
-			newFileChannelCh = blockUntilNextLog(ctx, fs, logPath, task, logType, idx+1)
+			eofCancelOnNextEofCh = blockUntilNextLog(ctx, fs, logPath, task, logType, idx+1)
 		}
 
 		p := filepath.Join(logPath, logEntry.Name)
-		err = f.streamFile(ctx, openOffset, p, 0, fs, framer, eofCancelCh, newFileChannelCh)
+		err = f.streamFile(ctx, openOffset, p, 0, fs, framer, eofCancelCh, eofCancelOnNextEofCh)
 
 		// Check if the context is cancelled
 		select {
@@ -639,8 +639,9 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 
 // streamFile is the internal method to stream the content of a file. If limit
 // is greater than zero, the stream will end once that many bytes have been
-// read. eofCancelOnNextEofCh, if triggered while at EOF, is used to trigger one more read and cancel the stream on reaching next EOF. If
-// the connection is broken an EPIPE error is returned
+// read. eofCancelCh is used to cancel the stream if triggered while at EOF.
+// eofCancelOnNextEofCh, if triggered while at EOF, is used to trigger one more read and cancel the stream on reaching next EOF.
+// If the connection is broken an EPIPE error is returned
 func (f *FileSystem) streamFile(ctx context.Context, offset int64, path string, limit int64,
 	fs allocdir.AllocDirFS, framer *sframer.StreamFramer, eofCancelCh chan error, eofCancelOnNextEofCh chan error) error {
 
