@@ -175,6 +175,10 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 					Alias:   alias,
 				}
 
+				if hostNetwork, ok := conf.HostNetworks[alias]; ok {
+					newAddr.ReservedPorts = hostNetwork.ReservedPorts
+				}
+
 				if newAddr.Alias != "" {
 					if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
 						linkLocalAddrs = append(linkLocalAddrs, newAddr)

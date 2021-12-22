@@ -486,3 +486,93 @@ func TestNetworkFingerPrint_MultipleAliases(t *testing.T) {
 	sort.Strings(aliases)
 	require.Equal(t, expected, aliases, "host networks should match aliases")
 }
+
+func TestNetworkFingerPrint_HostNetworkReservedPorts(t *testing.T) {
+	testCases := []struct {
+		name         string
+		hostNetworks map[string]*structs.ClientHostNetworkConfig
+		expected     []string
+	}{
+		{
+			name:         "no host networks",
+			hostNetworks: map[string]*structs.ClientHostNetworkConfig{},
+			expected:     []string{""},
+		},
+		{
+			name: "no reserved ports",
+			hostNetworks: map[string]*structs.ClientHostNetworkConfig{
+				"alias1": {
+					Name:      "alias1",
+					Interface: "eth3",
+					CIDR:      "169.254.155.20/32",
+				},
+				"alias2": {
+					Name:      "alias2",
+					Interface: "eth3",
+					CIDR:      "169.254.155.20/32",
+				},
+				"alias3": {
+					Name:      "alias3",
+					Interface: "eth0",
+					CIDR:      "100.64.0.11/10",
+				},
+			},
+			expected: []string{"", "", ""},
+		},
+		{
+			name: "reserved ports in some aliases",
+			hostNetworks: map[string]*structs.ClientHostNetworkConfig{
+				"alias1": {
+					Name:          "alias1",
+					Interface:     "eth3",
+					CIDR:          "169.254.155.20/32",
+					ReservedPorts: "22",
+				},
+				"alias2": {
+					Name:          "alias2",
+					Interface:     "eth3",
+					CIDR:          "169.254.155.20/32",
+					ReservedPorts: "80,3000-4000",
+				},
+				"alias3": {
+					Name:      "alias3",
+					Interface: "eth0",
+					CIDR:      "100.64.0.11/10",
+				},
+			},
+			expected: []string{"22", "80,3000-4000", ""},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &NetworkFingerprint{
+				logger:            testlog.HCLogger(t),
+				interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{},
+			}
+			node := &structs.Node{
+				Attributes: make(map[string]string),
+			}
+			cfg := &config.Config{
+				NetworkInterface: "eth3",
+				HostNetworks:     tc.hostNetworks,
+			}
+
+			request := &FingerprintRequest{Config: cfg, Node: node}
+			var response FingerprintResponse
+			err := f.Fingerprint(request, &response)
+			require.NoError(t, err)
+
+			got := []string{}
+			for _, network := range response.NodeResources.NodeNetworks {
+				for _, address := range network.Addresses {
+					got = append(got, address.ReservedPorts)
+				}
+			}
+
+			sort.Strings(tc.expected)
+			sort.Strings(got)
+			require.Equal(t, tc.expected, got, "host networks should match reserved ports")
+		})
+	}
+}
