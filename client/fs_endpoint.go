@@ -826,7 +826,6 @@ func blockUntilNextLog(ctx context.Context, fs allocdir.AllocDirFS, logPath, tas
 				// waiting for.
 				for _, entry := range indexes {
 					if entry.idx >= nextIndex {
-						//<-time.NewTicker(5 * time.Second).C
 						next <- nil
 						close(next)
 						return
