@@ -528,7 +528,6 @@ type AgentSchedulerWorkerConfigResponse struct {
 func (a *Agent) GetSchedulerWorkersInfo() (*AgentSchedulerWorkersInfo, error) {
 	var out *AgentSchedulerWorkersInfo
 
-	// Query the self endpoint on the agent
 	_, err := a.client.query("/v1/agent/schedulers", &out, nil)
 	if err != nil {
 		return nil, err

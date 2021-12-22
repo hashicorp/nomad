@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"net/http"
 	"reflect"
 	"sort"
 	"strings"
@@ -471,6 +472,22 @@ func TestAgent_SchedulerWorkerConfig(t *testing.T) {
 	resp, err := a.SetSchedulerWorkerConfig(newConfig)
 	require.NoError(t, err)
 	assert.NotEqual(t, config, resp)
+}
+
+func TestAgent_SchedulerWorkerConfig_BadRequest(t *testing.T) {
+	t.Parallel()
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	config, err := a.GetSchedulerWorkerConfig()
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	newConfig := SchedulerWorkerPoolArgs{NumSchedulers: -1, EnabledSchedulers: []string{"_core", "system"}}
+	_, err = a.SetSchedulerWorkerConfig(newConfig)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), fmt.Sprintf("%v (%s)", http.StatusBadRequest, "Invalid request"))
 }
 
 func TestAgent_SchedulerWorkersInfo(t *testing.T) {
