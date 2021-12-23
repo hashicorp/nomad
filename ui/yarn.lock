@@ -2766,14 +2766,6 @@
     "@handlebars/parser" "^1.1.0"
     simple-html-tokenizer "^0.5.10"
 
-"@glimmer/tracking@^1.0.0":
-  version "1.0.3"
-  resolved "https://registry.yarnpkg.com/@glimmer/tracking/-/tracking-1.0.3.tgz#8b9b42aff6c206edeaaea178a95acc1eff62e61e"
-  integrity sha512-21WR13vPdzt1IQ6JmPPAu4szjV9yKdmLHV3nD0MLDj6/EoYv1c2PqpFBBlp++6xW8OnyDa++cQ8OFoQDP+MRpA==
-  dependencies:
-    "@glimmer/env" "^0.1.7"
-    "@glimmer/validator" "^0.44.0"
-
 "@glimmer/tracking@^1.0.2", "@glimmer/tracking@^1.0.4":
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/@glimmer/tracking/-/tracking-1.0.4.tgz#f1bc1412fe5e2236d0f8d502994a8f88af1bbb21"
