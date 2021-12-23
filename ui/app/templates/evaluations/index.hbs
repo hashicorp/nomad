@@ -1,79 +1,136 @@
 {{page-title "Evaluations"}}
 <section class="section">
-  <ListTable @source={{@model}} as |t|>
-    <t.head>
-      <th>
-        Evaluation ID
-      </th>
-      <th>
-        Resource
-      </th>
-      <th>
-        Priority
-      </th>
-      <th>
-        Created
-      </th>
-      <th>
-        Triggered By
-      </th>
-      <th>
-        Status
-      </th>
-      <th>
-        Placement Failures
-      </th>
-    </t.head>
-    <t.body as |row|>
-      <tr data-test-evaluation="{{row.model.shortId}}">
-        <td data-test-id>
-          {{row.model.shortId}}
-        </td>
-        <td data-test-id>
-          Resource Placeholder
-        </td>
-        <td data-test-priority>
-          {{row.model.priority}}
-        </td>
-        <td data-test-create-time>
-          {{format-month-ts row.model.createTime}}
-        </td>
-        <td data-test-triggered-by>
-          {{row.model.triggeredBy}}
-        </td>
-        <td data-test-status>
-          <StatusCell @status={{row.model.status}} />
-        </td>
-        <td data-test-blocked>
-          {{#if (eq row.model.status "blocked")}}
-            N/A - In Progress
-          {{else if row.model.hasPlacementFailures}}
-            True
-          {{else}}
-            False
-          {{/if}}
-        </td>
-      </tr>
-    </t.body>
-  </ListTable>
-  <div class="table-foot">
-    <PageSizeSelect @onChange={{this.onChange}} />
-    <button type="button" {{on "click" this.refresh}}>
-      Refresh
-    </button>
-    <button
-      type="button"
-      disabled={{this.shouldDisablePrev}}
-      {{on "click" (fn this.onPrev this.lastToken)}}
-    >
-      Prev
-    </button>
-    <button
-      type="button"
-      disabled={{this.shouldDisableNext}}
-      {{on "click" (fn this.onNext @model.meta.nextToken)}}
-    >
-      Next >
-    </button>
+  <div class="toolbar">
+    <div class="toolbar-item">
+      <SingleSelectDropdown
+        data-test-evaluation-status-facet
+        @label="Status"
+        @options={{this.optionsEvaluationsStatus}}
+        @selection={{this.status}}
+        @onSelect={{action this.setStatus}}
+      />
+    </div>
   </div>
+  {{#if @model.length}}
+    <ListTable data-test-eval-table @source={{@model}} as |t|>
+      <t.head>
+        <th>
+          Evaluation ID
+        </th>
+        <th>
+          Resource
+        </th>
+        <th>
+          Priority
+        </th>
+        <th>
+          Created
+        </th>
+        <th>
+          Triggered By
+        </th>
+        <th>
+          Status
+        </th>
+        <th>
+          Placement Failures
+        </th>
+      </t.head>
+      <t.body as |row|>
+        <tr data-test-evaluation="{{row.model.shortId}}">
+          <td data-test-id>
+            {{row.model.shortId}}
+          </td>
+          <td data-test-id>
+            {{#if row.model.hasJob}}
+              <LinkTo
+                data-test-evaluation-resource
+                @model={{row.model.plainJobId}}
+                @route="jobs.job"
+                @query={{hash namespace=row.model.namespace}}
+              >
+                {{row.model.plainJobId}}
+              </LinkTo>
+            {{else}}
+              <LinkTo
+                data-test-evaluation-resource
+                @model={{row.model.nodeId}}
+                @route="clients.client"
+              >
+                {{row.model.shortNodeId}}
+              </LinkTo>
+            {{/if}}
+          </td>
+          <td data-test-priority>
+            {{row.model.priority}}
+          </td>
+          <td data-test-create-time>
+            {{format-month-ts row.model.createTime}}
+          </td>
+          <td data-test-triggered-by>
+            {{row.model.triggeredBy}}
+          </td>
+          <td data-test-status class="is-one-line">
+            <StatusCell @status={{row.model.status}} />
+          </td>
+          <td data-test-blocked>
+            {{#if (eq row.model.status "blocked")}}
+              N/A - In Progress
+            {{else if row.model.hasPlacementFailures}}
+              True
+            {{else}}
+              False
+            {{/if}}
+          </td>
+        </tr>
+      </t.body>
+    </ListTable>
+    <div class="table-foot">
+      <PageSizeSelect data-test-per-page @onChange={{this.onChange}} />
+      <button data-test-eval-refresh type="button" {{on "click" this.refresh}}>
+        Refresh
+      </button>
+      <button
+        data-test-eval-pagination-prev
+        type="button"
+        disabled={{this.shouldDisablePrev}}
+        {{on "click" (fn this.onPrev this.lastToken)}}
+      >
+        Prev
+      </button>
+      <button
+        data-test-eval-pagination-next
+        type="button"
+        disabled={{this.shouldDisableNext}}
+        {{on "click" (fn this.onNext @model.meta.nextToken)}}
+      >
+        Next >
+      </button>
+    </div>
+  {{else}}
+    <div class="boxed-section-body">
+      <div class="empty-message" data-test-empty-evaluations-list>
+        <h3 class="empty-message-headline" data-test-empty-evalations-list-headline>
+          No Matches
+        </h3>
+        <p class="empty-message-body">
+          {{#if this.status}}
+            <span data-test-no-eval-match>
+              No evaluations match the status
+              <strong>
+                {{this.status}}
+              </strong>
+            </span>
+            <button type="button" {{on "click" this.refresh}}>
+              Show all evaluations
+            </button>
+          {{else}}
+            <span data-test-no-eval>
+              There are no evaluations
+            </span>
+          {{/if}}
+        </p>
+      </div>
+    </div>
+  {{/if}}
 </section>

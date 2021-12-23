@@ -13,13 +13,17 @@ export default class EvaluationsIndexRoute extends Route {
     nextToken: {
       refreshModel: true,
     },
+    status: {
+      refreshModel: true,
+    },
   };
 
-  model({ pageSize, nextToken }) {
+  model({ pageSize, status, nextToken }) {
     return this.store.query('evaluation', {
       namespace: ALL_NAMESPACE_WILDCARD,
       per_page: pageSize,
       next_token: nextToken,
+      status,
     });
   }
 }
