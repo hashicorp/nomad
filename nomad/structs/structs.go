@@ -2657,6 +2657,7 @@ func (n *NetworkResource) Copy() *NetworkResource {
 	}
 	newR := new(NetworkResource)
 	*newR = *n
+	newR.DNS = n.DNS.Copy()
 	if n.ReservedPorts != nil {
 		newR.ReservedPorts = make([]Port, len(n.ReservedPorts))
 		copy(newR.ReservedPorts, n.ReservedPorts)
@@ -2874,8 +2875,7 @@ func (n *NodeResources) Copy() *NodeResources {
 
 	newN := new(NodeResources)
 	*newN = *n
-
-	// Copy the networks
+	newN.Cpu = n.Cpu.Copy()
 	newN.Networks = n.Networks.Copy()
 
 	// Copy the devices
@@ -3060,6 +3060,14 @@ type NodeCpuResources struct {
 	// This value is currently only reported on Linux platforms which support cgroups and is
 	// discovered by inspecting the cpuset of the agent's cgroup.
 	ReservableCpuCores []uint16
+}
+
+func (n NodeCpuResources) Copy() NodeCpuResources {
+	newN := n
+	newN.ReservableCpuCores = make([]uint16, len(n.ReservableCpuCores))
+	copy(newN.ReservableCpuCores, n.ReservableCpuCores)
+
+	return newN
 }
 
 func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
