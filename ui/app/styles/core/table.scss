@@ -269,6 +269,10 @@
   justify-content: space-between;
   align-items: center;
 
+  &.with-padding {
+    padding: 6px;
+  }
+
   .pagination {
     padding: 0;
     margin: 0;

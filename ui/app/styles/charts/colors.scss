@@ -6,6 +6,8 @@ $failed: $danger;
 $lost: $dark;
 $not-scheduled: $blue-200;
 $degraded: $warning;
+$blocked: $danger;
+$canceled: $dark;
 
 .chart {
   .queued {
@@ -118,6 +120,14 @@ $degraded: $warning;
 
   &.degraded {
     background: $degraded;
+  }
+
+  &.canceled {
+    background: $canceled;
+  }
+
+  &.blocked {
+    background: $blocked;
   }
 
   @each $name, $pair in $colors {

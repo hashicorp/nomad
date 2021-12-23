@@ -1,7 +1,7 @@
 {{page-title "Evaluations"}}
 <section class="section">
   <div class="toolbar">
-    <div class="toolbar-item">
+    <div class="toolbar-item is-right-aligned">
       <SingleSelectDropdown
         data-test-evaluation-status-facet
         @label="Status"
@@ -85,27 +85,32 @@
         </tr>
       </t.body>
     </ListTable>
-    <div class="table-foot">
+    <div class="table-foot with-padding">
       <PageSizeSelect data-test-per-page @onChange={{this.onChange}} />
-      <button data-test-eval-refresh type="button" {{on "click" this.refresh}}>
-        Refresh
-      </button>
-      <button
-        data-test-eval-pagination-prev
-        type="button"
-        disabled={{this.shouldDisablePrev}}
-        {{on "click" (fn this.onPrev this.lastToken)}}
-      >
-        Prev
-      </button>
-      <button
-        data-test-eval-pagination-next
-        type="button"
-        disabled={{this.shouldDisableNext}}
-        {{on "click" (fn this.onNext @model.meta.nextToken)}}
-      >
-        Next >
-      </button>
+      <div>
+        <button class="button" data-test-eval-refresh type="button" {{on "click" this.refresh}}>
+          {{x-icon "refresh-default" class="is-text"}}
+          Refresh
+        </button>
+        <button
+          data-test-eval-pagination-prev
+          type="button"
+          class="button is-text is-borderless"
+          disabled={{this.shouldDisablePrev}}
+          {{on "click" (fn this.onPrev this.lastToken)}}
+        >
+          {{x-icon "chevron-left" class="is-large"}}
+        </button>
+        <button
+          data-test-eval-pagination-next
+          type="button"
+          class="button is-text is-borderless"
+          disabled={{this.shouldDisableNext}}
+          {{on "click" (fn this.onNext @model.meta.nextToken)}}
+        >
+          {{x-icon "chevron-right" class="is-large"}}
+        </button>
+      </div>
     </div>
   {{else}}
     <div class="boxed-section-body">
@@ -121,9 +126,6 @@
                 {{this.status}}
               </strong>
             </span>
-            <button type="button" {{on "click" this.refresh}}>
-              Show all evaluations
-            </button>
           {{else}}
             <span data-test-no-eval>
               There are no evaluations
