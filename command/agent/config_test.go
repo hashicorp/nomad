@@ -883,7 +883,6 @@ func TestConfig_normalizeAddrs_IPv6Loopback(t *testing.T) {
 // TestConfig_normalizeAddrs_MultipleInterface asserts that normalizeAddrs will
 // handle normalizing multiple interfaces in a single protocol.
 func TestConfig_normalizeAddrs_MultipleInterfaces(t *testing.T) {
-	// TODO: add test with go-sockaddr templates
 	testCases := []struct {
 		name                    string
 		addressConfig           *Addresses

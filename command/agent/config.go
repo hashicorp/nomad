@@ -1352,7 +1352,6 @@ func parseMultipleIPTemplate(ipTmpl string) ([]string, error) {
 		return []string{}, fmt.Errorf("Unable to parse address template %q: %v", ipTmpl, err)
 	}
 
-	// TODO: deduplicate the parsed ips
 	ips := strings.Split(out, " ")
 	if len(ips) == 0 {
 		return []string{}, errors.New("No addresses found, please configure one.")

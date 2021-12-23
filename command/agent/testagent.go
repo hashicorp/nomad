@@ -263,7 +263,9 @@ func (a *TestAgent) start() (*Agent, error) {
 	if err != nil {
 		return agent, err
 	}
-	// TODO: change type or handle better
+
+	// TODO: investigate if there is a way to remove the requirement by updating test.
+	// Initial pass at implementing this is https://github.com/kevinschoonover/nomad/tree/tests.
 	a.Servers = httpServers
 	a.Server = &httpServers[0]
 	return agent, nil
