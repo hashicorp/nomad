@@ -99,7 +99,7 @@
     "ember-sinon": "^4.0.0",
     "ember-source": "~3.20.2",
     "ember-template-lint": "^2.9.1",
-    "ember-test-selectors": "^5.0.0",
+    "ember-test-selectors": "^6.0.0",
     "ember-truth-helpers": "^2.0.0",
     "eslint": "^7.5.0",
     "eslint-plugin-ember": "^8.9.1",
