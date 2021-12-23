@@ -1,5 +1,8 @@
-<LinkTo
-  @query={{hash sortProperty=this.prop sortDescending=this.shouldSortDescending}}
-  data-test-sort-by={{this.prop}}>
-  {{yield}}
-</LinkTo>
+<th role="title" class={{this.class}}>
+  <LinkTo
+    @query={{hash sortProperty=@prop sortDescending=this.shouldSortDescending}}
+    data-test-sort-by={{@prop}}
+  >
+    {{yield}}
+  </LinkTo>
+</th>

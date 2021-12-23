@@ -1,32 +1,21 @@
-import Component from '@ember/component';
-import { computed } from '@ember/object';
-import {
-  classNames,
-  attributeBindings,
-  classNameBindings,
-  tagName,
-} from '@ember-decorators/component';
-import classic from 'ember-classic-decorator';
+import Component from '@glimmer/component';
 
-@classic
-@tagName('th')
-@attributeBindings('title')
-@classNames('is-selectable')
-@classNameBindings('isActive:is-active', 'sortDescending:desc:asc')
 export default class SortBy extends Component {
-  // The prop that the table is currently sorted by
-  currentProp = '';
-
-  // The prop this sorter controls
-  prop = '';
-
-  @computed('currentProp', 'prop')
   get isActive() {
-    return this.currentProp === this.prop;
+    return this.args.currentProp === this.args.prop;
   }
 
-  @computed('sortDescending', 'isActive')
   get shouldSortDescending() {
-    return !this.isActive || !this.sortDescending;
+    return !this.isActive || !this.args.sortDescending;
+  }
+
+  get class() {
+    let result = 'is-selectable';
+
+    if (this.isActive) result = result.concat(' is-active');
+
+    result = this.shouldSortDescending ? result.concat(' desc') : result.concat(' asc');
+
+    return result;
   }
 }
