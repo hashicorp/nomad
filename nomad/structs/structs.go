@@ -3064,8 +3064,10 @@ type NodeCpuResources struct {
 
 func (n NodeCpuResources) Copy() NodeCpuResources {
 	newN := n
-	newN.ReservableCpuCores = make([]uint16, len(n.ReservableCpuCores))
-	copy(newN.ReservableCpuCores, n.ReservableCpuCores)
+	if n.ReservableCpuCores != nil {
+		newN.ReservableCpuCores = make([]uint16, len(n.ReservableCpuCores))
+		copy(newN.ReservableCpuCores, n.ReservableCpuCores)
+	}
 
 	return newN
 }
