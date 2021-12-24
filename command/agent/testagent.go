@@ -68,7 +68,7 @@ type TestAgent struct {
 
 	// All HTTP servers started. Used to prevent server leaks and preserve
 	// backwards compability.
-	Servers []HTTPServer
+	Servers []*HTTPServer
 
 	// Server is a reference to the primary, started HTTP endpoint.
 	// It is valid after Start().
@@ -267,7 +267,7 @@ func (a *TestAgent) start() (*Agent, error) {
 	// TODO: investigate if there is a way to remove the requirement by updating test.
 	// Initial pass at implementing this is https://github.com/kevinschoonover/nomad/tree/tests.
 	a.Servers = httpServers
-	a.Server = &httpServers[0]
+	a.Server = httpServers[0]
 	return agent, nil
 }
 

@@ -51,7 +51,7 @@ type Command struct {
 
 	args           []string
 	agent          *Agent
-	httpServers    []HTTPServer
+	httpServers    []*HTTPServer
 	logFilter      *logutils.LevelFilter
 	logOutput      io.Writer
 	retryJoinErrCh chan struct{}

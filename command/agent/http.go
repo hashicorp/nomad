@@ -78,8 +78,8 @@ type HTTPServer struct {
 
 // NewHTTPServers starts an HTTP server for every address.http configured in
 // the agent.
-func NewHTTPServers(agent *Agent, config *Config) ([]HTTPServer, error) {
-	var srvs []HTTPServer
+func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
+	var srvs []*HTTPServer
 	var serverInitializationErrors error
 
 	// Handle requests with gzip compression
@@ -166,7 +166,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]HTTPServer, error) {
 			httpServer.Serve(ln)
 		}()
 
-		srvs = append(srvs, *srv)
+		srvs = append(srvs, srv)
 	}
 
 	if serverInitializationErrors != nil {
