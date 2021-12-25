@@ -26,27 +26,19 @@ func newArtifactHook(e ti.EventEmitter, logger log.Logger) *artifactHook {
 	return h
 }
 
-func (h *artifactHook) createWorkers(req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse, noOfWorkers int, jobsChannel chan *structs.TaskArtifact, errorChannel chan error) {
-	var wg sync.WaitGroup
-	for i := 0; i < noOfWorkers; i++ {
-		wg.Add(1)
-		go h.doWork(req, resp, jobsChannel, errorChannel, &wg)
-	}
-	wg.Wait()
-	close(errorChannel)
-}
-
-func (h *artifactHook) doWork(req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse, jobs chan *structs.TaskArtifact, errorChannel chan error, wg *sync.WaitGroup) {
+func (h *artifactHook) doWork(req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse, jobs chan *structs.TaskArtifact, errorChannel chan error, wg *sync.WaitGroup, responseStateMutex *sync.Mutex) {
 	defer wg.Done()
 	for artifact := range jobs {
 		aid := artifact.Hash()
 		if req.PreviousState[aid] != "" {
 			h.logger.Trace("skipping already downloaded artifact", "artifact", artifact.GetterSource)
+			responseStateMutex.Lock()
 			resp.State[aid] = req.PreviousState[aid]
+			responseStateMutex.Unlock()
 			continue
 		}
 
-		h.logger.Debug("downloading artifact", "artifact", artifact.GetterSource)
+		h.logger.Debug("downloading artifact", "artifact", artifact.GetterSource, "aid", aid)
 		//XXX add ctx to GetArtifact to allow cancelling long downloads
 		if err := getter.GetArtifact(req.TaskEnv, artifact); err != nil {
 
@@ -63,7 +55,9 @@ func (h *artifactHook) doWork(req *interfaces.TaskPrestartRequest, resp *interfa
 		// Mark artifact as downloaded to avoid re-downloading due to
 		// retries caused by subsequent artifacts failing. Any
 		// non-empty value works.
+		responseStateMutex.Lock()
 		resp.State[aid] = "1"
+		responseStateMutex.Unlock()
 	}
 }
 
@@ -82,6 +76,9 @@ func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	// Initialize hook state to store download progress
 	resp.State = make(map[string]string, len(req.Task.Artifacts))
 
+	// responseStateMutex is a lock used to guard against concurrent writes to the above resp.State map
+	responseStateMutex := &sync.Mutex{}
+
 	h.eventEmitter.EmitEvent(structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
 
 	// maxConcurrency denotes the number of workers that will download artifacts in parallel
@@ -89,23 +86,38 @@ func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 
 	// jobsChannel is a buffered channel which will have all the artifacts that needs to be processed
 	jobsChannel := make(chan *structs.TaskArtifact, maxConcurrency)
+
+	// errorChannel is also a buffered channel that will be used to signal errors
+	errorChannel := make(chan error, maxConcurrency)
+
+	// create workers and process artifacts
+	go func() {
+		defer close(errorChannel)
+		var wg sync.WaitGroup
+		for i := 0; i < maxConcurrency; i++ {
+			wg.Add(1)
+			go h.doWork(req, resp, jobsChannel, errorChannel, &wg, responseStateMutex)
+		}
+		wg.Wait()
+	}()
+
 	// Push all artifact requests to job channel
 	go func() {
+		defer close(jobsChannel)
 		for _, artifact := range req.Task.Artifacts {
 			jobsChannel <- artifact
 		}
-		close(jobsChannel)
 	}()
 
-	errorChannel := make(chan error, maxConcurrency)
-	// create workers and process artifacts
-	h.createWorkers(req, resp, maxConcurrency, jobsChannel, errorChannel)
+	// Iterate over the errorChannel and if there is an error, store it to a variable for future return
+	var err error
+	for e := range errorChannel {
+		err = e
+	}
 
-	// Iterate over the errorChannel and if there is an error, return it
-	for err := range errorChannel {
-		if err != nil {
-			return err
-		}
+	// once error channel is closed, we can check and return the error
+	if err != nil {
+		return err
 	}
 
 	resp.Done = true
