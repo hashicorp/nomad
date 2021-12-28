@@ -18,6 +18,8 @@ module('Acceptance | application errors ', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
+    assert.expect(1);
+
     server.pretender.get('/v1/nodes', () => [500, {}, null]);
     await ClientsList.visit();
     await a11yAudit(assert);

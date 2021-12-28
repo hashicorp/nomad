@@ -18,6 +18,8 @@ module('Integration | Component | gauge chart', function (hooks) {
   });
 
   test('presents as an svg, a formatted percentage, and a label', async function (assert) {
+    assert.expect(4);
+
     const props = commonProperties();
     this.setProperties(props);
 

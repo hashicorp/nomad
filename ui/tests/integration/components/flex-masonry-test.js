@@ -12,6 +12,8 @@ module('Integration | Component | FlexMasonry', function (hooks) {
   setupRenderingTest(hooks);
 
   test('presents as a single div when @items is empty', async function (assert) {
+    assert.expect(4);
+
     this.setProperties({
       items: [],
     });
@@ -96,6 +98,8 @@ module('Integration | Component | FlexMasonry', function (hooks) {
   });
 
   test('items are rendered to the DOM in the order they were passed into the component', async function (assert) {
+    assert.expect(4);
+
     this.setProperties({
       items: [
         { text: 'One', height: h(20) },
@@ -120,6 +124,8 @@ module('Integration | Component | FlexMasonry', function (hooks) {
   });
 
   test('each item gets an order property', async function (assert) {
+    assert.expect(4);
+
     this.setProperties({
       items: [
         { text: 'One', height: h(20), expectedOrder: 0 },
@@ -144,6 +150,8 @@ module('Integration | Component | FlexMasonry', function (hooks) {
   });
 
   test('the last item in each column gets a specific flex-basis value', async function (assert) {
+    assert.expect(4);
+
     this.setProperties({
       items: [
         { text: 'One', height: h(20) },
@@ -166,12 +174,15 @@ module('Integration | Component | FlexMasonry', function (hooks) {
 
     findAll('[data-test-flex-masonry-item]').forEach((el, index) => {
       if (el.style.flexBasis) {
+        /* eslint-disable-next-line qunit/no-conditional-assertions */
         assert.equal(el.style.flexBasis, this.items[index].flexBasis);
       }
     });
   });
 
   test('when a multi-column layout becomes a single column layout, all inline-styles are reset', async function (assert) {
+    assert.expect(14);
+
     this.setProperties({
       items: [
         { text: 'One', height: h(20) },

@@ -55,6 +55,8 @@ module('Integration | Component | PrimaryMetric::Task', function (hooks) {
     store.peekAll('allocation').get('firstObject.states.firstObject');
 
   test('Must pass an accessibility audit', async function (assert) {
+    assert.expect(1);
+
     await preload(this.store);
 
     const resource = findResource(this.store);

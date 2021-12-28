@@ -12,6 +12,8 @@ module(
     setupRenderingTest(hooks);
 
     test('it can wrap to a previous line while backspacing', async function (assert) {
+      assert.expect(2);
+
       let done = assert.async();
 
       await render(hbs`
@@ -52,6 +54,8 @@ module(
     });
 
     test('it ignores arrow keys and unprintable characters other than ^U', async function (assert) {
+      assert.expect(4);
+
       let done = assert.async();
 
       await render(hbs`
@@ -95,6 +99,8 @@ module(
     });
 
     test('it supports typing ^U to delete the entire command', async function (assert) {
+      assert.expect(2);
+
       let done = assert.async();
 
       await render(hbs`

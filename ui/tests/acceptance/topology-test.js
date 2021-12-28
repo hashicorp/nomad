@@ -25,6 +25,8 @@ module('Acceptance | topology', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
+    assert.expect(1);
+
     server.createList('node', 3);
     server.createList('allocation', 5);
 

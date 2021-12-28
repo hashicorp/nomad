@@ -1,4 +1,5 @@
 /* eslint-disable ember/no-test-module-for */
+/* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';

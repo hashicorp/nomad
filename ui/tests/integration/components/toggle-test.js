@@ -29,6 +29,8 @@ module('Integration | Component | toggle', function (hooks) {
   `;
 
   test('presents as a label with an inner checkbox and display span, and text', async function (assert) {
+    assert.expect(7);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -52,6 +54,8 @@ module('Integration | Component | toggle', function (hooks) {
   });
 
   test('the isActive property dictates the active state and class', async function (assert) {
+    assert.expect(5);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -69,6 +73,8 @@ module('Integration | Component | toggle', function (hooks) {
   });
 
   test('the isDisabled property dictates the disabled state and class', async function (assert) {
+    assert.expect(5);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);

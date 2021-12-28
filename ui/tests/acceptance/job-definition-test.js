@@ -21,6 +21,8 @@ module('Acceptance | job definition', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
+    assert.expect(1);
+
     await a11yAudit(assert, 'scrollable-region-focusable');
   });
 

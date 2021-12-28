@@ -37,6 +37,8 @@ module('Integration | Component | PrimaryMetric::Node', function (hooks) {
   const findResource = (store) => store.peekAll('node').get('firstObject');
 
   test('Must pass an accessibility audit', async function (assert) {
+    assert.expect(1);
+
     await preload(this.store);
 
     const resource = findResource(this.store);

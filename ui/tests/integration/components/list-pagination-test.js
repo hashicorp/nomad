@@ -19,6 +19,8 @@ module('Integration | Component | list pagination', function (hooks) {
     .map((_, i) => i);
 
   test('the source property', async function (assert) {
+    assert.expect(36);
+
     this.set('source', list100);
     await render(hbs`
       <ListPagination @source={{source}} as |p|>
@@ -70,7 +72,7 @@ module('Integration | Component | list pagination', function (hooks) {
     );
     await componentA11yAudit(this.element, assert);
 
-    assert.ok(
+    assert.equal(
       findAll('.item').length,
       defaults.size,
       `Only ${defaults.size} (the default) number of items are rendered`
@@ -105,6 +107,8 @@ module('Integration | Component | list pagination', function (hooks) {
   });
 
   test('the spread property', async function (assert) {
+    assert.expect(12);
+
     this.setProperties({
       source: list100,
       spread: 1,
@@ -126,6 +130,8 @@ module('Integration | Component | list pagination', function (hooks) {
   });
 
   test('page property', async function (assert) {
+    assert.expect(10);
+
     this.setProperties({
       source: list100,
       size: 5,
@@ -184,6 +190,8 @@ module('Integration | Component | list pagination', function (hooks) {
 
   // when there is less pages than the total spread amount
   test('when there is less pages than the total spread amount', async function (assert) {
+    assert.expect(9);
+
     this.setProperties({
       source: list100,
       spread: 4,

@@ -46,6 +46,8 @@ module('Integration | Component | stepper input', function (hooks) {
   `;
 
   test('basic appearance includes a label, an input, and two buttons', async function (assert) {
+    assert.expect(7);
+
     this.setProperties(commonProperties());
 
     await render(commonTemplate);

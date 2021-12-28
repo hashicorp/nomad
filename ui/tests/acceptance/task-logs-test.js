@@ -1,3 +1,4 @@
+/* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';

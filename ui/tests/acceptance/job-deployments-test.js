@@ -41,6 +41,8 @@ module('Acceptance | job deployments', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
+    assert.expect(1);
+
     await Deployments.visit({ id: job.id });
     await a11yAudit(assert);
   });
@@ -48,7 +50,7 @@ module('Acceptance | job deployments', function (hooks) {
   test('/jobs/:id/deployments should list all job deployments', async function (assert) {
     await Deployments.visit({ id: job.id });
 
-    assert.ok(
+    assert.equal(
       Deployments.deployments.length,
       deployments.length,
       'Each deployment gets a row in the timeline'

@@ -49,6 +49,8 @@ module('Integration | Component | PrimaryMetric::Allocation', function (hooks) {
     store.peekAll('allocation').get('firstObject');
 
   test('Must pass an accessibility audit', async function (assert) {
+    assert.expect(1);
+
     await preload(this.store);
 
     const resource = findResource(this.store);

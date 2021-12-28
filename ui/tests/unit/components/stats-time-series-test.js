@@ -46,6 +46,8 @@ module('Unit | Component | stats-time-series', function (hooks) {
   ];
 
   test('xFormat is time-formatted for hours, minutes, and seconds', function (assert) {
+    assert.expect(11);
+
     const chart = this.createComponent({ data: wideData });
 
     wideData.forEach((datum) => {
@@ -57,6 +59,8 @@ module('Unit | Component | stats-time-series', function (hooks) {
   });
 
   test('yFormat is percent-formatted', function (assert) {
+    assert.expect(11);
+
     const chart = this.createComponent({ data: wideData });
 
     wideData.forEach((datum) => {

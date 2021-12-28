@@ -64,6 +64,8 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
   });
 
   test('eventually paginates', async function (assert) {
+    assert.expect(5);
+
     const pageSize = 10;
     window.localStorage.nomadPageSize = pageSize;
 
@@ -110,6 +112,8 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
   });
 
   test('is sorted based on the sortProperty and sortDescending properties', async function (assert) {
+    assert.expect(6);
+
     this.server.create('job', 'periodic', {
       id: 'parent',
       childrenCount: 3,

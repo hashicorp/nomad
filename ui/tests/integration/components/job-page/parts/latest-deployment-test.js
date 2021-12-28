@@ -46,6 +46,8 @@ module(
     });
 
     test('the latest deployment section shows up for the currently running deployment', async function (assert) {
+      assert.expect(11);
+
       this.server.create('job', {
         type: 'service',
         createAllocations: false,
@@ -144,6 +146,8 @@ module(
     });
 
     test('the latest deployment section can be expanded to show task groups and allocations', async function (assert) {
+      assert.expect(5);
+
       this.server.create('node');
       this.server.create('job', { type: 'service', activeDeployment: true });
 

@@ -11,7 +11,7 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
 
   const commonCrumbs = [
     { label: 'Jobs', args: ['jobs.index'] },
-    { label: 'Job', args: ['jobs.job.index'] },
+    { label: 'Job', args: ['jobs.job.index'] }
   ];
 
   test('every breadcrumb is rendered correctly', async function(assert) {
@@ -25,7 +25,9 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
 
     assert
       .dom('[data-test-breadcrumb-default]')
-      .exists('We register the default breadcrumb component if no type is specified on the crumb');
+      .exists(
+        'We register the default breadcrumb component if no type is specified on the crumb'
+      );
 
     const renderedCrumbs = findAll('[data-test-breadcrumb]');
 
@@ -41,7 +43,7 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
   test('when we register a crumb with a type property, a dedicated breadcrumb/<type> component renders', async function(assert) {
     const crumbs = [
       { label: 'Jobs', args: ['jobs.index'] },
-      { type: 'special', label: 'Job', args: ['jobs.job.index'] },
+      { type: 'special', label: 'Job', args: ['jobs.job.index'] }
     ];
     this.set('crumbs', crumbs);
 

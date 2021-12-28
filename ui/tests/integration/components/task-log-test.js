@@ -73,6 +73,8 @@ module('Integration | Component | task log', function (hooks) {
   });
 
   test('Basic appearance', async function (assert) {
+    assert.expect(8);
+
     run.later(run, run.cancelTimers, commonProps.interval);
 
     this.setProperties(commonProps);
@@ -103,6 +105,8 @@ module('Integration | Component | task log', function (hooks) {
   });
 
   test('Streaming starts on creation', async function (assert) {
+    assert.expect(3);
+
     run.later(run, run.cancelTimers, commonProps.interval);
 
     this.setProperties(commonProps);
@@ -180,6 +184,8 @@ module('Integration | Component | task log', function (hooks) {
   });
 
   test('Clicking toggleStream starts and stops the log stream', async function (assert) {
+    assert.expect(3);
+
     run.later(run, run.cancelTimers, commonProps.interval);
 
     const { interval } = commonProps;
@@ -300,6 +306,8 @@ module('Integration | Component | task log', function (hooks) {
   });
 
   test('When both the client and the server are inaccessible, an error message is shown', async function (assert) {
+    assert.expect(5);
+
     run.later(run, run.cancelTimers, allowedConnectionTime * 5);
 
     // override client and server responses to timeout

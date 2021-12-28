@@ -56,6 +56,8 @@ module('Acceptance | job run', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
+    assert.expect(1);
+
     await JobRun.visit();
     await a11yAudit(assert);
   });

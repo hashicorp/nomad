@@ -58,6 +58,8 @@ module('Unit | Component | TopoViz', function (hooks) {
   });
 
   test('the topology object contains an allocation index keyed by jobId+taskGroupName', async function (assert) {
+    assert.expect(7);
+
     const allocations = [
       alloc({ nodeId: 'node0', jobId: 'job0', taskGroupName: 'one' }),
       alloc({ nodeId: 'node0', jobId: 'job0', taskGroupName: 'one' }),

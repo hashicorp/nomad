@@ -17,6 +17,8 @@ module('Integration | Component | job diff', function (hooks) {
   `;
 
   test('job field diffs', async function (assert) {
+    assert.expect(5);
+
     this.set('diff', {
       ID: 'test-case-1',
       Type: 'Edited',
@@ -67,6 +69,8 @@ module('Integration | Component | job diff', function (hooks) {
   });
 
   test('job object diffs', async function (assert) {
+    assert.expect(9);
+
     this.set('diff', {
       ID: 'test-case-2',
       Type: 'Edited',

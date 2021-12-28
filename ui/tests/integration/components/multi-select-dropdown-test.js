@@ -44,6 +44,8 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   `;
 
   test('component is initially closed', async function (assert) {
+    assert.expect(4);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -63,6 +65,8 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   });
 
   test('component opens the options dropdown when clicked', async function (assert) {
+    assert.expect(3);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -84,6 +88,8 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   });
 
   test('all options are shown in the options dropdown, each with a checkbox input', async function (assert) {
+    assert.expect(13);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -127,6 +133,8 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   });
 
   test('the component trigger shows the selection count when there is a selection', async function (assert) {
+    assert.expect(4);
+
     const props = commonProperties();
     props.selection = [props.options[0].key, props.options[1].key];
     this.setProperties(props);
@@ -251,6 +259,8 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   });
 
   test('pressing DOWN when the last list option has focus does nothing', async function (assert) {
+    assert.expect(6);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -265,6 +275,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
       await triggerKeyEvent(option, 'keydown', ARROW_DOWN);
 
       if (index < lastIndex) {
+        /* eslint-disable-next-line qunit/no-conditional-assertions */
         assert.equal(
           document.activeElement,
           optionEls[index + 1],
@@ -301,6 +312,8 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   });
 
   test('list options have a zero tabindex and are therefore sequentially navigable', async function (assert) {
+    assert.expect(6);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -317,6 +330,8 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   });
 
   test('the checkboxes inside list options have a negative tabindex and are therefore not sequentially navigable', async function (assert) {
+    assert.expect(6);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -366,6 +381,8 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
   });
 
   test('when there are no list options, an empty message is shown', async function (assert) {
+    assert.expect(4);
+
     const props = commonProperties();
     props.options = [];
     this.setProperties(props);

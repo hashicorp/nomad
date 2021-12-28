@@ -30,6 +30,8 @@ module('Acceptance | tokens', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
+    assert.expect(1);
+
     await Tokens.visit();
     await a11yAudit(assert);
   });

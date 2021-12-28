@@ -104,9 +104,12 @@ export function primaryMetric({ template, findResource, preload }) {
 
     await render(template);
 
-    assert.ok(
+    const spy =
       this.getTrackerSpy.calledWith(resource) ||
-        this.getTrackerSpy.calledWith(resource.allocation),
+      this.getTrackerSpy.calledWith(resource.allocation);
+
+    assert.ok(
+      spy,
       'Uses the tracker registry to get the tracker for the provided resource'
     );
   });

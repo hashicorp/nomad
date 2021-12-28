@@ -28,6 +28,8 @@ module('Integration | Component | attributes table', function (hooks) {
   };
 
   test('should render a row for each key/value pair in a deep object', async function (assert) {
+    assert.expect(2);
+
     this.set('attributes', commonAttributes);
     await render(hbs`<AttributesTable @attributePairs={{attributes}} />`);
 

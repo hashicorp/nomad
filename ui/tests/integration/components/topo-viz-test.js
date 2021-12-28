@@ -45,6 +45,8 @@ module('Integration | Component | TopoViz', function (hooks) {
   `;
 
   test('presents as a FlexMasonry of datacenters', async function (assert) {
+    assert.expect(6);
+
     this.setProperties({
       nodes: [node('dc1', 'node0', 1000, 500), node('dc2', 'node1', 1000, 500)],
 

@@ -1,3 +1,5 @@
+/* eslint-disable qunit/require-expect */
+/* Mirage fixtures are random so we can't expect a set number of assertions */
 import { run } from '@ember/runloop';
 import { currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
@@ -207,6 +209,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
     await Allocation.tasks.objectAt(0).clickLink();
 
+    // Make sure the allocation is pending in order to ensure there are no tasks
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}/${task.name}`,

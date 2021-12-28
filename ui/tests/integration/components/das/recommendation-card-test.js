@@ -31,6 +31,8 @@ module('Integration | Component | das/recommendation-card', function (hooks) {
   });
 
   test('it renders a recommendation card', async function (assert) {
+    assert.expect(49);
+
     const task1 = {
       name: 'jortle',
       reservedCPU: 150,

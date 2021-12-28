@@ -1,3 +1,6 @@
+/* eslint-disable qunit/require-expect */
+/* eslint-disable qunit/no-conditional-assertions */
+/* Mirage fixtures are random so we can't expect a set number of assertions */
 import { currentURL, waitUntil, settled } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';

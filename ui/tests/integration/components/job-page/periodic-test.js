@@ -142,6 +142,8 @@ module('Integration | Component | job-page/periodic', function (hooks) {
   });
 
   test('Stopping a job sends a delete request for the job', async function (assert) {
+    assert.expect(1);
+
     const mirageJob = this.server.create('job', 'periodic', {
       childrenCount: 0,
       createAllocations: false,
@@ -161,6 +163,8 @@ module('Integration | Component | job-page/periodic', function (hooks) {
   });
 
   test('Stopping a job without proper permissions shows an error message', async function (assert) {
+    assert.expect(4);
+
     this.server.pretender.delete('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = this.server.create('job', 'periodic', {
@@ -183,6 +187,8 @@ module('Integration | Component | job-page/periodic', function (hooks) {
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {
+    assert.expect(2);
+
     const mirageJob = this.server.create('job', 'periodic', {
       childrenCount: 0,
       createAllocations: false,
@@ -200,6 +206,8 @@ module('Integration | Component | job-page/periodic', function (hooks) {
   });
 
   test('Starting a job without proper permissions shows an error message', async function (assert) {
+    assert.expect(3);
+
     this.server.pretender.post('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = this.server.create('job', 'periodic', {

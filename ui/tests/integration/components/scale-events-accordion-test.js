@@ -39,6 +39,8 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
   const commonTemplate = hbs`<ScaleEventsAccordion @events={{this.events}} />`;
 
   test('it shows an accordion with an entry for each event', async function (assert) {
+    assert.expect(2);
+
     const eventCount = 5;
     const taskGroup = await this.taskGroupWithEvents(
       server.createList('scale-event', eventCount)
@@ -55,6 +57,8 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
   });
 
   test('when an event is an error, an error icon is shown', async function (assert) {
+    assert.expect(2);
+
     const taskGroup = await this.taskGroupWithEvents(
       server.createList('scale-event', 1, { error: true })
     );
@@ -67,6 +71,8 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
   });
 
   test('when an event has a count higher than previous count, a danger up arrow is shown', async function (assert) {
+    assert.expect(4);
+
     const count = 5;
     const taskGroup = await this.taskGroupWithEvents(
       server.createList('scale-event', 1, {
@@ -124,6 +130,8 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
   });
 
   test('when an event has no meta properties, the accordion entry is not expandable', async function (assert) {
+    assert.expect(2);
+
     const taskGroup = await this.taskGroupWithEvents(
       server.createList('scale-event', 1, { meta: {} })
     );
@@ -138,6 +146,8 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
   });
 
   test('when an event has meta properties, the accordion entry is expanding, presenting the meta properties in a json viewer', async function (assert) {
+    assert.expect(4);
+
     const meta = {
       prop: 'one',
       prop2: 'two',

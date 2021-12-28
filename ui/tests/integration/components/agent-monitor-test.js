@@ -52,6 +52,8 @@ module('Integration | Component | agent-monitor', function (hooks) {
   `;
 
   test('basic appearance', async function (assert) {
+    assert.expect(5);
+
     this.setProperties({
       level: 'info',
       client: { id: 'client1' },

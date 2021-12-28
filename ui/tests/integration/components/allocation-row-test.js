@@ -35,7 +35,7 @@ module('Integration | Component | allocation row', function(hooks) {
       JSON.stringify({ ResourceUsage: generateResources() }),
       null,
       '<Not>Valid JSON</Not>',
-      JSON.stringify({ ResourceUsage: generateResources() }),
+      JSON.stringify({ ResourceUsage: generateResources() })
     ];
 
     this.server.get('/client/allocation/:id/stats', function() {
@@ -60,7 +60,7 @@ module('Integration | Component | allocation row', function(hooks) {
     this.setProperties({
       allocation,
       context: 'job',
-      enablePolling: true,
+      enablePolling: true
     });
 
     await render(hbs`
@@ -87,9 +87,9 @@ module('Integration | Component | allocation row', function(hooks) {
       name: 'node-read',
       rulesJSON: {
         Node: {
-          Policy: 'read',
-        },
-      },
+          Policy: 'read'
+        }
+      }
     });
     const clientToken = server.create('token', { type: 'client' });
     clientToken.policyIds = [policy.id];
@@ -116,7 +116,7 @@ module('Integration | Component | allocation row', function(hooks) {
 
     this.setProperties({
       allocation,
-      context: 'job',
+      context: 'job'
     });
 
     await render(hbs`
@@ -150,7 +150,7 @@ module('Integration | Component | allocation row', function(hooks) {
   test('when an allocation is not running, the utilization graphs are omitted', async function(assert) {
     this.setProperties({
       context: 'job',
-      enablePolling: false,
+      enablePolling: false
     });
 
     // All non-running statuses need to be tested

@@ -1,3 +1,4 @@
+/* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -75,11 +76,13 @@ module('Acceptance | job clients', function (hooks) {
 
       ['createTime', 'modifyTime'].forEach((col) => {
         if (jobStatus === 'not scheduled') {
+          /* eslint-disable-next-line qunit/no-conditional-assertions */
           assert.equal(
             clientRow[col].text,
             '-',
             `row ${index} doesn't have ${col} tooltip`
           );
+          /* eslint-disable-next-line qunit/no-early-return */
           return;
         }
 

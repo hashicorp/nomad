@@ -1,3 +1,4 @@
+/* eslint-disable qunit/no-conditional-assertions */
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
@@ -44,6 +45,8 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
   setupRenderingTest(hooks);
 
   test('it renders stateless phases and lifecycle- and name-sorted tasks', async function (assert) {
+    assert.expect(32);
+
     this.set('tasks', tasks);
 
     await render(hbs`<LifecycleChart @tasks={{tasks}} />`);
@@ -109,6 +112,8 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
   });
 
   test('it reflects phase and task states when states are passed in', async function (assert) {
+    assert.expect(24);
+
     this.set(
       'taskStates',
       tasks.map((task) => {
@@ -165,6 +170,8 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
     },
   ].forEach(async ({ testName, runningTaskNames, activePhaseNames }) => {
     test(testName, async function (assert) {
+      assert.expect(4);
+
       this.set(
         'taskStates',
         tasks.map((task) => ({ task }))

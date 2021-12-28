@@ -27,6 +27,8 @@ module('Acceptance | server monitor', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
+    assert.expect(1);
+
     await ServerMonitor.visit({ name: agent.name });
     await a11yAudit(assert);
   });
