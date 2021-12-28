@@ -38,13 +38,22 @@ module('Unit | Service | Breadcrumbs', function (hooks) {
       { label: 'Static 1', args: ['static.index', 1] },
       { label: 'Static 2', args: ['static.index', 2] },
     ]);
-    const dynamic = makeRoute((model) => [{ label: model, args: ['dynamic.index', model] }], {
-      model: 'Label of the Crumb',
-    });
+    const dynamic = makeRoute(
+      (model) => [{ label: model, args: ['dynamic.index', model] }],
+      {
+        model: 'Label of the Crumb',
+      }
+    );
     const manyDynamic = makeRoute(
       (model) => [
-        { label: get(model, 'fishOne'), args: ['dynamic.index', get(model, 'fishOne')] },
-        { label: get(model, 'fishTwo'), args: ['dynamic.index', get(model, 'fishTwo')] },
+        {
+          label: get(model, 'fishOne'),
+          args: ['dynamic.index', get(model, 'fishOne')],
+        },
+        {
+          label: get(model, 'fishTwo'),
+          args: ['dynamic.index', get(model, 'fishTwo')],
+        },
       ],
       {
         model: {
@@ -87,7 +96,9 @@ module('Unit | Service | Breadcrumbs', function (hooks) {
     this.router.set('currentRouteName', 'static');
 
     const service = this.subject();
-    assert.deepEqual(service.get('breadcrumbs'), [{ label: 'Static', args: ['static.index'] }]);
+    assert.deepEqual(service.get('breadcrumbs'), [
+      { label: 'Static', args: ['static.index'] },
+    ]);
   });
 
   test('when the route hierarchy has multiple segments with static crumbs', function (assert) {
@@ -106,7 +117,10 @@ module('Unit | Service | Breadcrumbs', function (hooks) {
 
     const service = this.subject();
     assert.deepEqual(service.get('breadcrumbs'), [
-      { label: 'Label of the Crumb', args: ['dynamic.index', 'Label of the Crumb'] },
+      {
+        label: 'Label of the Crumb',
+        args: ['dynamic.index', 'Label of the Crumb'],
+      },
     ]);
   });
 
@@ -115,7 +129,10 @@ module('Unit | Service | Breadcrumbs', function (hooks) {
 
     const service = this.subject();
     assert.deepEqual(service.get('breadcrumbs'), [
-      { label: 'Label of the Crumb', args: ['dynamic.index', 'Label of the Crumb'] },
+      {
+        label: 'Label of the Crumb',
+        args: ['dynamic.index', 'Label of the Crumb'],
+      },
       { label: 'red', args: ['dynamic.index', 'red'] },
       { label: 'blue', args: ['dynamic.index', 'blue'] },
     ]);

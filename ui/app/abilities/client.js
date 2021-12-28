@@ -7,7 +7,11 @@ import classic from 'ember-classic-decorator';
 export default class Client extends AbstractAbility {
   // Map abilities to policy options (which are coarse for nodes)
   // instead of specific behaviors.
-  @or('bypassAuthorization', 'selfTokenIsManagement', 'policiesIncludeNodeWrite')
+  @or(
+    'bypassAuthorization',
+    'selfTokenIsManagement',
+    'policiesIncludeNodeWrite'
+  )
   canWrite;
 
   @computed('token.selfTokenPolicies.[]')

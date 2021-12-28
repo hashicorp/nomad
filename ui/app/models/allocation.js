@@ -67,8 +67,10 @@ export default class Allocation extends Model {
   @belongsTo('allocation', { inverse: 'nextAllocation' }) previousAllocation;
   @belongsTo('allocation', { inverse: 'previousAllocation' }) nextAllocation;
 
-  @hasMany('allocation', { inverse: 'preemptedByAllocation' }) preemptedAllocations;
-  @belongsTo('allocation', { inverse: 'preemptedAllocations' }) preemptedByAllocation;
+  @hasMany('allocation', { inverse: 'preemptedByAllocation' })
+  preemptedAllocations;
+  @belongsTo('allocation', { inverse: 'preemptedAllocations' })
+  preemptedByAllocation;
   @attr('boolean') wasPreempted;
 
   @belongsTo('evaluation') followUpEvaluation;
@@ -125,7 +127,11 @@ export default class Allocation extends Model {
     return this.get('rescheduleEvents.length') > 0 || this.nextAllocation;
   }
 
-  @computed('clientStatus', 'followUpEvaluation.content', 'nextAllocation.content')
+  @computed(
+    'clientStatus',
+    'followUpEvaluation.content',
+    'nextAllocation.content'
+  )
   get hasStoppedRescheduling() {
     return (
       !this.get('nextAllocation.content') &&

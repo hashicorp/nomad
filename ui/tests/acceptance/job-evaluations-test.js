@@ -13,7 +13,10 @@ module('Acceptance | job evaluations', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    job = server.create('job', { noFailedPlacements: true, createAllocations: false });
+    job = server.create('job', {
+      noFailedPlacements: true,
+      createAllocations: false,
+    });
     evaluations = server.db.evaluations.where({ jobId: job.id });
 
     await Evaluations.visit({ id: job.id });
@@ -24,7 +27,11 @@ module('Acceptance | job evaluations', function (hooks) {
   });
 
   test('lists all evaluations for the job', async function (assert) {
-    assert.equal(Evaluations.evaluations.length, evaluations.length, 'All evaluations are listed');
+    assert.equal(
+      Evaluations.evaluations.length,
+      evaluations.length,
+      'All evaluations are listed'
+    );
 
     const sortedEvaluations = evaluations.sortBy('modifyIndex').reverse();
 
@@ -65,8 +72,16 @@ module('Acceptance | job evaluations', function (hooks) {
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
     );
-    assert.equal(currentURL(), '/jobs/not-a-real-job/evaluations', 'The URL persists');
+    assert.equal(
+      currentURL(),
+      '/jobs/not-a-real-job/evaluations',
+      'The URL persists'
+    );
     assert.ok(Evaluations.error.isPresent, 'Error message is shown');
-    assert.equal(Evaluations.error.title, 'Not Found', 'Error message is for 404');
+    assert.equal(
+      Evaluations.error.title,
+      'Not Found',
+      'Error message is for 404'
+    );
   });
 });

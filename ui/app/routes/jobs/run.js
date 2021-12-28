@@ -16,7 +16,11 @@ export default class RunRoute extends Route {
   ];
 
   beforeModel(transition) {
-    if (this.can.cannot('run job', null, { namespace: transition.to.queryParams.namespace })) {
+    if (
+      this.can.cannot('run job', null, {
+        namespace: transition.to.queryParams.namespace,
+      })
+    ) {
       this.transitionTo('jobs');
     }
   }

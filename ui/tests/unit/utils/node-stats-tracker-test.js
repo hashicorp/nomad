@@ -3,7 +3,9 @@ import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import sinon from 'sinon';
 import Pretender from 'pretender';
-import NodeStatsTracker, { stats } from 'nomad-ui/utils/classes/node-stats-tracker';
+import NodeStatsTracker, {
+  stats,
+} from 'nomad-ui/utils/classes/node-stats-tracker';
 import fetch from 'nomad-ui/utils/fetch';
 import statsTrackerFrameMissingBehavior from './behaviors/stats-tracker-frame-missing';
 
@@ -59,7 +61,11 @@ module('Unit | Util | NodeStatsTracker', function () {
     const node = MockNode();
     const tracker = NodeStatsTracker.create({ fetch, node });
 
-    assert.equal(tracker.get('reservedCPU'), node.resources.cpu, 'reservedCPU comes from the node');
+    assert.equal(
+      tracker.get('reservedCPU'),
+      node.resources.cpu,
+      'reservedCPU comes from the node'
+    );
     assert.equal(
       tracker.get('reservedMemory'),
       node.resources.memory,
@@ -69,7 +75,11 @@ module('Unit | Util | NodeStatsTracker', function () {
 
   test('poll results in requesting the url and calling append with the resulting JSON', async function (assert) {
     const node = MockNode();
-    const tracker = NodeStatsTracker.create({ fetch, node, append: sinon.spy() });
+    const tracker = NodeStatsTracker.create({
+      fetch,
+      node,
+      append: sinon.spy(),
+    });
     const mockFrame = {
       Some: {
         data: ['goes', 'here'],
@@ -116,7 +126,13 @@ module('Unit | Util | NodeStatsTracker', function () {
 
     assert.deepEqual(
       tracker.get('memory'),
-      [{ timestamp: makeDate(refDate + 1), used: 2049 * 1024 * 1024, percent: 2049 / 4096 }],
+      [
+        {
+          timestamp: makeDate(refDate + 1),
+          used: 2049 * 1024 * 1024,
+          percent: 2049 / 4096,
+        },
+      ],
       'One frame of memory'
     );
 
@@ -134,8 +150,16 @@ module('Unit | Util | NodeStatsTracker', function () {
     assert.deepEqual(
       tracker.get('memory'),
       [
-        { timestamp: makeDate(refDate + 1), used: 2049 * 1024 * 1024, percent: 2049 / 4096 },
-        { timestamp: makeDate(refDate + 2), used: 2050 * 1024 * 1024, percent: 2050 / 4096 },
+        {
+          timestamp: makeDate(refDate + 1),
+          used: 2049 * 1024 * 1024,
+          percent: 2049 / 4096,
+        },
+        {
+          timestamp: makeDate(refDate + 2),
+          used: 2050 * 1024 * 1024,
+          percent: 2050 / 4096,
+        },
       ],
       'Two frames of memory'
     );
@@ -216,8 +240,9 @@ module('Unit | Util | NodeStatsTracker', function () {
     someObject.set('theNode', node2);
     const stats2 = someObject.get('stats');
 
-    assert.notOk(
-      stats1 === stats2,
+    assert.notStrictEqual(
+      stats1,
+      stats2,
       'Changing the value of the node results in creating a new NodeStatsTracker instance'
     );
   });

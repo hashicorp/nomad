@@ -46,7 +46,9 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
       </JobPage::Parts::Body>
     `);
 
-    const subnavLabels = findAll('[data-test-tab]').map((anchor) => anchor.textContent);
+    const subnavLabels = findAll('[data-test-tab]').map(
+      (anchor) => anchor.textContent
+    );
     assert.ok(
       subnavLabels.some((label) => label === 'Definition'),
       'Definition link'
@@ -78,7 +80,9 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
       </JobPage::Parts::Body>
     `);
 
-    const subnavLabels = findAll('[data-test-tab]').map((anchor) => anchor.textContent);
+    const subnavLabels = findAll('[data-test-tab]').map(
+      (anchor) => anchor.textContent
+    );
     assert.ok(
       subnavLabels.some((label) => label === 'Definition'),
       'Definition link'

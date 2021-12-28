@@ -26,7 +26,8 @@ export default class WatchableNamespaceIDs extends Watchable {
 
   findRecord(store, type, id, snapshot) {
     const [, namespace] = JSON.parse(id);
-    const namespaceQuery = namespace && namespace !== 'default' ? { namespace } : {};
+    const namespaceQuery =
+      namespace && namespace !== 'default' ? { namespace } : {};
 
     return super.findRecord(store, type, id, snapshot, namespaceQuery);
   }

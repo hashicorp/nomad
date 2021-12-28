@@ -36,7 +36,10 @@ module('Acceptance | client monitor', function (hooks) {
     await ClientMonitor.visit({ id: node.id });
 
     assert.equal(Layout.breadcrumbFor('clients.index').text, 'Clients');
-    assert.equal(Layout.breadcrumbFor('clients.client').text, node.id.split('-')[0]);
+    assert.equal(
+      Layout.breadcrumbFor('clients.client').text,
+      node.id.split('-')[0]
+    );
 
     await Layout.breadcrumbFor('clients.index').visit();
     assert.equal(currentURL(), '/clients');

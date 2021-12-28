@@ -26,7 +26,8 @@ const sortMap = [
   return map;
 }, {});
 
-const taskPrioritySort = (a, b) => sortMap[a.lifecycleName] - sortMap[b.lifecycleName];
+const taskPrioritySort = (a, b) =>
+  sortMap[a.lifecycleName] - sortMap[b.lifecycleName];
 
 @classic
 class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
@@ -64,9 +65,12 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
       // it has already stopped), just keep going.
       if (!taskFrame) continue;
 
-      const frameTimestamp = new Date(Math.floor(taskFrame.Timestamp / 1000000));
+      const frameTimestamp = new Date(
+        Math.floor(taskFrame.Timestamp / 1000000)
+      );
 
-      const taskCpuUsed = Math.floor(taskFrame.ResourceUsage.CpuStats.TotalTicks) || 0;
+      const taskCpuUsed =
+        Math.floor(taskFrame.ResourceUsage.CpuStats.TotalTicks) || 0;
       const percentCpuTotal = percent(taskCpuUsed, this.reservedCPU);
       stats.cpu.pushObject({
         timestamp: frameTimestamp,
@@ -77,7 +81,10 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
       });
 
       const taskMemoryUsed = taskFrame.ResourceUsage.MemoryStats.RSS;
-      const percentMemoryTotal = percent(taskMemoryUsed / 1024 / 1024, this.reservedMemory);
+      const percentMemoryTotal = percent(
+        taskMemoryUsed / 1024 / 1024,
+        this.reservedMemory
+      );
       stats.memory.pushObject({
         timestamp: frameTimestamp,
         used: taskMemoryUsed,

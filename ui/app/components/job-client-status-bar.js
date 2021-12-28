@@ -12,8 +12,16 @@ export default class JobClientStatusBar extends DistributionBar {
 
   @computed('job.namespace', 'jobClientStatus.byStatus')
   get data() {
-    const { queued, starting, running, complete, degraded, failed, lost, notScheduled } =
-      this.jobClientStatus.byStatus;
+    const {
+      queued,
+      starting,
+      running,
+      complete,
+      degraded,
+      failed,
+      lost,
+      notScheduled,
+    } = this.jobClientStatus.byStatus;
 
     return [
       {

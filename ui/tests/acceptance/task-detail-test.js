@@ -18,7 +18,9 @@ module('Acceptance | task detail', function (hooks) {
     server.create('agent');
     server.create('node');
     server.create('job', { createAllocations: false });
-    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
+    allocation = server.create('allocation', 'withTaskWithPorts', {
+      clientStatus: 'running',
+    });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     await Task.visit({ id: allocation.id, name: task.name });
@@ -33,15 +35,22 @@ module('Acceptance | task detail', function (hooks) {
     assert.ok(Task.state.includes(task.state), 'Task state');
 
     assert.ok(
-      Task.startedAt.includes(moment(task.startedAt).format("MMM DD, 'YY HH:mm:ss ZZ")),
+      Task.startedAt.includes(
+        moment(task.startedAt).format("MMM DD, 'YY HH:mm:ss ZZ")
+      ),
       'Task started at'
     );
 
     const lifecycle = server.db.tasks.where({ name: task.name })[0].Lifecycle;
 
     let lifecycleName = 'main';
-    if (lifecycle && (lifecycle.Hook === 'prestart' || lifecycle.Hook === 'poststart')) {
-      lifecycleName = `${lifecycle.Hook}-${lifecycle.Sidecar ? 'sidecar' : 'ephemeral'}`;
+    if (
+      lifecycle &&
+      (lifecycle.Hook === 'prestart' || lifecycle.Hook === 'poststart')
+    ) {
+      lifecycleName = `${lifecycle.Hook}-${
+        lifecycle.Sidecar ? 'sidecar' : 'ephemeral'
+      }`;
     }
     if (lifecycle && lifecycle.Hook === 'poststop') {
       lifecycleName = 'poststop';
@@ -58,7 +67,11 @@ module('Acceptance | task detail', function (hooks) {
 
     const shortId = allocation.id.split('-')[0];
 
-    assert.equal(Layout.breadcrumbFor('jobs.index').text, 'Jobs', 'Jobs is the first breadcrumb');
+    assert.equal(
+      Layout.breadcrumbFor('jobs.index').text,
+      'Jobs',
+      'Jobs is the first breadcrumb'
+    );
     assert.equal(
       Layout.breadcrumbFor('jobs.job.index').text,
       job.name,
@@ -85,7 +98,11 @@ module('Acceptance | task detail', function (hooks) {
 
     await Task.visit({ id: allocation.id, name: task.name });
     await Layout.breadcrumbFor('jobs.job.index').visit();
-    assert.equal(currentURL(), `/jobs/${job.id}`, 'Job breadcrumb links correctly');
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}`,
+      'Job breadcrumb links correctly'
+    );
 
     await Task.visit({ id: allocation.id, name: task.name });
     await Layout.breadcrumbFor('jobs.job.task-group').visit();
@@ -105,15 +122,31 @@ module('Acceptance | task detail', function (hooks) {
   });
 
   test('/allocation/:id/:task_name should include resource utilization graphs', async function (assert) {
-    assert.equal(Task.resourceCharts.length, 2, 'Two resource utilization graphs');
-    assert.equal(Task.resourceCharts.objectAt(0).name, 'CPU', 'First chart is CPU');
-    assert.equal(Task.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
+    assert.equal(
+      Task.resourceCharts.length,
+      2,
+      'Two resource utilization graphs'
+    );
+    assert.equal(
+      Task.resourceCharts.objectAt(0).name,
+      'CPU',
+      'First chart is CPU'
+    );
+    assert.equal(
+      Task.resourceCharts.objectAt(1).name,
+      'Memory',
+      'Second chart is Memory'
+    );
   });
 
   test('the events table lists all recent events', async function (assert) {
     const events = server.db.taskEvents.where({ taskStateId: task.id });
 
-    assert.equal(Task.events.length, events.length, `Lists ${events.length} events`);
+    assert.equal(
+      Task.events.length,
+      events.length,
+      `Lists ${events.length} events`
+    );
   });
 
   test('when a task has volumes, the volumes table is shown', async function (assert) {
@@ -129,8 +162,14 @@ module('Acceptance | task detail', function (hooks) {
   });
 
   test('when a task does not have volumes, the volumes table is not shown', async function (assert) {
-    const job = server.create('job', { createAllocations: false, noHostVolumes: true });
-    allocation = server.create('allocation', { jobId: job.id, clientStatus: 'running' });
+    const job = server.create('job', {
+      createAllocations: false,
+      noHostVolumes: true,
+    });
+    allocation = server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'running',
+    });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     await Task.visit({ id: allocation.id, name: task.name });
@@ -149,8 +188,14 @@ module('Acceptance | task detail', function (hooks) {
     Task.volumes[0].as((volumeRow) => {
       assert.equal(volumeRow.name, volume.Volume);
       assert.equal(volumeRow.destination, volume.Destination);
-      assert.equal(volumeRow.permissions, volume.ReadOnly ? 'Read' : 'Read/Write');
-      assert.equal(volumeRow.clientSource, taskGroup.volumes[volume.Volume].Source);
+      assert.equal(
+        volumeRow.permissions,
+        volume.ReadOnly ? 'Read' : 'Read/Write'
+      );
+      assert.equal(
+        volumeRow.clientSource,
+        taskGroup.volumes[volume.Volume].Source
+      );
     });
   });
 
@@ -224,13 +269,20 @@ module('Acceptance | task detail', function (hooks) {
   });
 
   test('when task restart fails (403), an ACL permissions error message is shown', async function (assert) {
-    server.pretender.put('/v1/client/allocation/:id/restart', () => [403, {}, '']);
+    server.pretender.put('/v1/client/allocation/:id/restart', () => [
+      403,
+      {},
+      '',
+    ]);
 
     await Task.restart.idle();
     await Task.restart.confirm();
 
     assert.ok(Task.inlineError.isShown, 'Inline error is shown');
-    assert.ok(Task.inlineError.title.includes('Could Not Restart Task'), 'Title is descriptive');
+    assert.ok(
+      Task.inlineError.title.includes('Could Not Restart Task'),
+      'Title is descriptive'
+    );
     assert.ok(
       /ACL token.+?allocation lifecycle/.test(Task.inlineError.message),
       'Message mentions ACLs and the appropriate permission'
@@ -243,7 +295,11 @@ module('Acceptance | task detail', function (hooks) {
 
   test('when task restart fails (500), the error message from the API is piped through to the alert', async function (assert) {
     const message = 'A plaintext error message';
-    server.pretender.put('/v1/client/allocation/:id/restart', () => [500, {}, message]);
+    server.pretender.put('/v1/client/allocation/:id/restart', () => [
+      500,
+      {},
+      message,
+    ]);
 
     await Task.restart.idle();
     await Task.restart.confirm();
@@ -270,7 +326,9 @@ module('Acceptance | task detail (no addresses)', function (hooks) {
     server.create('agent');
     server.create('node');
     server.create('job');
-    allocation = server.create('allocation', 'withoutTaskWithPorts', { clientStatus: 'running' });
+    allocation = server.create('allocation', 'withoutTaskWithPorts', {
+      clientStatus: 'running',
+    });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     await Task.visit({ id: allocation.id, name: task.name });
@@ -286,8 +344,13 @@ module('Acceptance | task detail (different namespace)', function (hooks) {
     server.create('node');
     server.create('namespace');
     server.create('namespace', { id: 'other-namespace' });
-    server.create('job', { createAllocations: false, namespaceId: 'other-namespace' });
-    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
+    server.create('job', {
+      createAllocations: false,
+      namespaceId: 'other-namespace',
+    });
+    allocation = server.create('allocation', 'withTaskWithPorts', {
+      clientStatus: 'running',
+    });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     await Task.visit({ id: allocation.id, name: task.name });
@@ -298,7 +361,11 @@ module('Acceptance | task detail (different namespace)', function (hooks) {
     const job = server.db.jobs.find(jobId);
 
     await Layout.breadcrumbFor('jobs.index').visit();
-    assert.equal(currentURL(), '/jobs?namespace=*', 'Jobs breadcrumb links correctly');
+    assert.equal(
+      currentURL(),
+      '/jobs?namespace=*',
+      'Jobs breadcrumb links correctly'
+    );
 
     await Task.visit({ id: allocation.id, name: task.name });
     await Layout.breadcrumbFor('jobs.job.index').visit();
@@ -335,8 +402,13 @@ module('Acceptance | task detail (not running)', function (hooks) {
     server.create('node');
     server.create('namespace');
     server.create('namespace', { id: 'other-namespace' });
-    server.create('job', { createAllocations: false, namespaceId: 'other-namespace' });
-    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'complete' });
+    server.create('job', {
+      createAllocations: false,
+      namespaceId: 'other-namespace',
+    });
+    allocation = server.create('allocation', 'withTaskWithPorts', {
+      clientStatus: 'complete',
+    });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     await Task.visit({ id: allocation.id, name: task.name });
@@ -344,7 +416,11 @@ module('Acceptance | task detail (not running)', function (hooks) {
 
   test('when the allocation for a task is not running, the resource utilization graphs are replaced by an empty message', async function (assert) {
     assert.equal(Task.resourceCharts.length, 0, 'No resource charts');
-    assert.equal(Task.resourceEmptyMessage, "Task isn't running", 'Empty message is appropriate');
+    assert.equal(
+      Task.resourceEmptyMessage,
+      "Task isn't running",
+      'Empty message is appropriate'
+    );
   });
 
   test('exec button is absent', async function (assert) {
@@ -360,7 +436,9 @@ module('Acceptance | proxy task detail', function (hooks) {
     server.create('agent');
     server.create('node');
     server.create('job', { createAllocations: false });
-    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
+    allocation = server.create('allocation', 'withTaskWithPorts', {
+      clientStatus: 'running',
+    });
 
     const taskState = allocation.taskStates.models[0];
     const task = server.schema.tasks.findBy({ name: taskState.name });

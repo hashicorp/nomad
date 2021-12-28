@@ -76,14 +76,19 @@ module('Acceptance | volumes list', function (hooks) {
       const healthy = volume.controllersHealthy;
       const expected = volume.controllersExpected;
       const isHealthy = healthy > 0;
-      controllerHealthStr = `${isHealthy ? 'Healthy' : 'Unhealthy'} (${healthy}/${expected})`;
+      controllerHealthStr = `${
+        isHealthy ? 'Healthy' : 'Unhealthy'
+      } (${healthy}/${expected})`;
     }
 
     const nodeHealthStr = volume.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
 
     assert.equal(volumeRow.name, volume.id);
     assert.notOk(volumeRow.hasNamespace);
-    assert.equal(volumeRow.schedulable, volume.schedulable ? 'Schedulable' : 'Unschedulable');
+    assert.equal(
+      volumeRow.schedulable,
+      volume.schedulable ? 'Schedulable' : 'Unschedulable'
+    );
     assert.equal(volumeRow.controllerHealth, controllerHealthStr);
     assert.equal(
       volumeRow.nodeHealth,
@@ -95,18 +100,26 @@ module('Acceptance | volumes list', function (hooks) {
 
   test('each volume row should link to the corresponding volume', async function (assert) {
     const [, secondNamespace] = server.createList('namespace', 2);
-    const volume = server.create('csi-volume', { namespaceId: secondNamespace.id });
+    const volume = server.create('csi-volume', {
+      namespaceId: secondNamespace.id,
+    });
 
     await VolumesList.visit({ namespace: '*' });
 
     await VolumesList.volumes.objectAt(0).clickName();
-    assert.equal(currentURL(), `/csi/volumes/${volume.id}?namespace=${secondNamespace.id}`);
+    assert.equal(
+      currentURL(),
+      `/csi/volumes/${volume.id}?namespace=${secondNamespace.id}`
+    );
 
     await VolumesList.visit({ namespace: '*' });
     assert.equal(currentURL(), '/csi/volumes?namespace=*');
 
     await VolumesList.volumes.objectAt(0).clickRow();
-    assert.equal(currentURL(), `/csi/volumes/${volume.id}?namespace=${secondNamespace.id}`);
+    assert.equal(
+      currentURL(),
+      `/csi/volumes/${volume.id}?namespace=${secondNamespace.id}`
+    );
   });
 
   test('when there are no volumes, there is an empty message', async function (assert) {
@@ -152,8 +165,12 @@ module('Acceptance | volumes list', function (hooks) {
 
   test('when the namespace query param is set, only matching volumes are shown and the namespace value is forwarded to app state', async function (assert) {
     server.createList('namespace', 2);
-    const volume1 = server.create('csi-volume', { namespaceId: server.db.namespaces[0].id });
-    const volume2 = server.create('csi-volume', { namespaceId: server.db.namespaces[1].id });
+    const volume1 = server.create('csi-volume', {
+      namespaceId: server.db.namespaces[0].id,
+    });
+    const volume2 = server.create('csi-volume', {
+      namespaceId: server.db.namespaces[1].id,
+    });
 
     await VolumesList.visit();
     assert.equal(VolumesList.volumes.length, 2);

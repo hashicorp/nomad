@@ -3,7 +3,9 @@ import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import sinon from 'sinon';
 import Pretender from 'pretender';
-import AllocationStatsTracker, { stats } from 'nomad-ui/utils/classes/allocation-stats-tracker';
+import AllocationStatsTracker, {
+  stats,
+} from 'nomad-ui/utils/classes/allocation-stats-tracker';
 import fetch from 'nomad-ui/utils/fetch';
 import statsTrackerFrameMissingBehavior from './behaviors/stats-tracker-frame-missing';
 
@@ -141,7 +143,11 @@ module('Unit | Util | AllocationStatsTracker', function () {
     );
     allocation.taskGroup.tasks.forEach((task) => {
       const trackerTask = tracker.get('tasks').findBy('task', task.name);
-      assert.equal(trackerTask.reservedCPU, task.reservedCPU, `CPU matches for task ${task.name}`);
+      assert.equal(
+        trackerTask.reservedCPU,
+        task.reservedCPU,
+        `CPU matches for task ${task.name}`
+      );
       assert.equal(
         trackerTask.reservedMemory,
         task.reservedMemory,
@@ -152,7 +158,11 @@ module('Unit | Util | AllocationStatsTracker', function () {
 
   test('poll results in requesting the url and calling append with the resulting JSON', async function (assert) {
     const allocation = MockAllocation();
-    const tracker = AllocationStatsTracker.create({ fetch, allocation, append: sinon.spy() });
+    const tracker = AllocationStatsTracker.create({
+      fetch,
+      allocation,
+      append: sinon.spy(),
+    });
     const mockFrame = {
       Some: {
         data: ['goes', 'here'],
@@ -161,7 +171,11 @@ module('Unit | Util | AllocationStatsTracker', function () {
     };
 
     const server = new Pretender(function () {
-      this.get('/v1/client/allocation/:id/stats', () => [200, {}, JSON.stringify(mockFrame)]);
+      this.get('/v1/client/allocation/:id/stats', () => [
+        200,
+        {},
+        JSON.stringify(mockFrame),
+      ]);
     });
 
     tracker.get('poll').perform();
@@ -192,9 +206,27 @@ module('Unit | Util | AllocationStatsTracker', function () {
     assert.deepEqual(
       tracker.get('tasks'),
       [
-        { task: 'service', reservedCPU: 100, reservedMemory: 256, cpu: [], memory: [] },
-        { task: 'sidecar', reservedCPU: 50, reservedMemory: 128, cpu: [], memory: [] },
-        { task: 'log-shipper', reservedCPU: 50, reservedMemory: 128, cpu: [], memory: [] },
+        {
+          task: 'service',
+          reservedCPU: 100,
+          reservedMemory: 256,
+          cpu: [],
+          memory: [],
+        },
+        {
+          task: 'sidecar',
+          reservedCPU: 50,
+          reservedMemory: 128,
+          cpu: [],
+          memory: [],
+        },
+        {
+          task: 'log-shipper',
+          reservedCPU: 50,
+          reservedMemory: 128,
+          cpu: [],
+          memory: [],
+        },
       ],
       'tasks represents the tasks for the allocation with no stats yet'
     );
@@ -307,8 +339,16 @@ module('Unit | Util | AllocationStatsTracker', function () {
     assert.deepEqual(
       tracker.get('memory'),
       [
-        { timestamp: makeDate(refDate + 1000), used: 401 * 1024 * 1024, percent: 401 / 512 },
-        { timestamp: makeDate(refDate + 2000), used: 402 * 1024 * 1024, percent: 402 / 512 },
+        {
+          timestamp: makeDate(refDate + 1000),
+          used: 401 * 1024 * 1024,
+          percent: 401 / 512,
+        },
+        {
+          timestamp: makeDate(refDate + 2000),
+          used: 402 * 1024 * 1024,
+          percent: 402 / 512,
+        },
       ],
       'Two frames of memory'
     );
@@ -435,7 +475,11 @@ module('Unit | Util | AllocationStatsTracker', function () {
   test('each stat list has maxLength equal to bufferSize', async function (assert) {
     const allocation = MockAllocation();
     const bufferSize = 10;
-    const tracker = AllocationStatsTracker.create({ fetch, allocation, bufferSize });
+    const tracker = AllocationStatsTracker.create({
+      fetch,
+      allocation,
+      bufferSize,
+    });
 
     for (let i = 1; i <= 20; i++) {
       tracker.append(mockFrame(i));
@@ -553,8 +597,9 @@ module('Unit | Util | AllocationStatsTracker', function () {
     someObject.set('alloc', alloc2);
     const stats2 = someObject.get('stats');
 
-    assert.notOk(
-      stats1 === stats2,
+    assert.notStrictEqual(
+      stats1,
+      stats2,
       'Changing the value of alloc results in creating a new AllocationStatsTracker instance'
     );
   });

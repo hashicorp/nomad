@@ -11,7 +11,8 @@ export default class Evaluation extends Model {
   @attr('string') triggeredBy;
   @attr('string') status;
   @attr('string') statusDescription;
-  @fragmentArray('placement-failure', { defaultValue: () => [] }) failedTGAllocs;
+  @fragmentArray('placement-failure', { defaultValue: () => [] })
+  failedTGAllocs;
 
   @bool('failedTGAllocs.length') hasPlacementFailures;
   @equal('status', 'blocked') isBlocked;

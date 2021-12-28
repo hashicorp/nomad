@@ -21,7 +21,11 @@ module('Unit | Util | RollingArray', function () {
       array.length,
       'the return value from push is equal to the return value of Array#push'
     );
-    assert.equal(array[0], 'a', 'the arguments passed to push are appended to the array');
+    assert.equal(
+      array[0],
+      'a',
+      'the arguments passed to push are appended to the array'
+    );
 
     array.push('b', 'c', 'd');
     assert.deepEqual(
@@ -85,7 +89,7 @@ module('Unit | Util | RollingArray', function () {
 
   test('RollingArray is an instance of Array', function (assert) {
     const array = RollingArray(5);
-    assert.ok(array.constructor === Array, 'The constructor is Array');
+    assert.strictEqual(array.constructor, Array, 'The constructor is Array');
     assert.ok(array instanceof Array, 'The instanceof check is true');
     assert.ok(isArray(array), 'The ember isArray helper works');
   });

@@ -39,14 +39,18 @@ export default class StatsTimeSeries extends Component {
     const [low, high] = d3Array.extent(data, (d) => d.timestamp);
     const minLow = moment(high).subtract(5, 'minutes').toDate();
 
-    const extent = data.length ? [Math.min(low, minLow), high] : [minLow, new Date()];
+    const extent = data.length
+      ? [Math.min(low, minLow), high]
+      : [minLow, new Date()];
     scale.rangeRound([10, yAxisOffset]).domain(extent);
 
     return scale;
   }
 
   yScale(data, xAxisOffset) {
-    const yValues = (data || []).mapBy(this.args.dataProp ? 'percentStack' : 'percent');
+    const yValues = (data || []).mapBy(
+      this.args.dataProp ? 'percentStack' : 'percent'
+    );
 
     let [low, high] = [0, 1];
     if (yValues.compact().length) {

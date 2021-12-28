@@ -17,7 +17,9 @@ export default class BreadcrumbsService extends Service {
     const allRoutes = (this.get('router.currentRouteName') || '')
       .split('.')
       .without('')
-      .map((segment, index, allSegments) => allSegments.slice(0, index + 1).join('.'));
+      .map((segment, index, allSegments) =>
+        allSegments.slice(0, index + 1).join('.')
+      );
 
     let crumbs = [];
     allRoutes.forEach((routeName) => {

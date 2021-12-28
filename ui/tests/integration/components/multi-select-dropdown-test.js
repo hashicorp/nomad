@@ -1,4 +1,11 @@
-import { findAll, find, click, focus, render, triggerKeyEvent } from '@ember/test-helpers';
+import {
+  findAll,
+  find,
+  click,
+  focus,
+  render,
+  triggerKeyEvent,
+} from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import sinon from 'sinon';
@@ -47,7 +54,10 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
       props.label,
       'Trigger is appropriately labeled'
     );
-    assert.notOk(find('[data-test-dropdown-options]'), 'Options are not rendered');
+    assert.notOk(
+      find('[data-test-dropdown-options]'),
+      'Options are not rendered'
+    );
 
     await componentA11yAudit(this.element, assert);
   });
@@ -59,12 +69,18 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
 
     await click('[data-test-dropdown-trigger]');
 
-    await assert.ok(find('[data-test-dropdown-options]'), 'Options are shown now');
+    await assert.ok(
+      find('[data-test-dropdown-options]'),
+      'Options are shown now'
+    );
     await componentA11yAudit(this.element, assert);
 
     await click('[data-test-dropdown-trigger]');
 
-    assert.notOk(find('[data-test-dropdown-options]'), 'Options are hidden after clicking again');
+    assert.notOk(
+      find('[data-test-dropdown-options]'),
+      'Options are hidden after clicking again'
+    );
   });
 
   test('all options are shown in the options dropdown, each with a checkbox input', async function (assert) {
@@ -81,8 +97,15 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     );
     findAll('[data-test-dropdown-option]').forEach((optionEl, index) => {
       const label = props.options[index].label;
-      assert.equal(optionEl.textContent.trim(), label, `Correct label for ${label}`);
-      assert.ok(optionEl.querySelector('input[type="checkbox"]'), 'Option contains a checkbox');
+      assert.equal(
+        optionEl.textContent.trim(),
+        label,
+        `Correct label for ${label}`
+      );
+      assert.ok(
+        optionEl.querySelector('input[type="checkbox"]'),
+        'Option contains a checkbox'
+      );
     });
   });
 
@@ -114,7 +137,8 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
       'The count is shown'
     );
     assert.equal(
-      find('[data-test-dropdown-trigger] [data-test-dropdown-count]').textContent,
+      find('[data-test-dropdown-trigger] [data-test-dropdown-count]')
+        .textContent,
       props.selection.length,
       'The count is accurate'
     );
@@ -135,8 +159,15 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     await render(commonTemplate);
 
     await focus('[data-test-dropdown-trigger]');
-    assert.notOk(find('[data-test-dropdown-options]'), 'Options are not shown on focus');
-    await triggerKeyEvent('[data-test-dropdown-trigger]', 'keydown', ARROW_DOWN);
+    assert.notOk(
+      find('[data-test-dropdown-options]'),
+      'Options are not shown on focus'
+    );
+    await triggerKeyEvent(
+      '[data-test-dropdown-trigger]',
+      'keydown',
+      ARROW_DOWN
+    );
     assert.ok(find('[data-test-dropdown-options]'), 'Options are now shown');
     assert.equal(
       document.activeElement,
@@ -151,8 +182,16 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     await render(commonTemplate);
 
     await focus('[data-test-dropdown-trigger]');
-    await triggerKeyEvent('[data-test-dropdown-trigger]', 'keydown', ARROW_DOWN);
-    await triggerKeyEvent('[data-test-dropdown-trigger]', 'keydown', ARROW_DOWN);
+    await triggerKeyEvent(
+      '[data-test-dropdown-trigger]',
+      'keydown',
+      ARROW_DOWN
+    );
+    await triggerKeyEvent(
+      '[data-test-dropdown-trigger]',
+      'keydown',
+      ARROW_DOWN
+    );
     assert.equal(
       document.activeElement,
       find('[data-test-dropdown-option]'),
@@ -166,7 +205,11 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     await render(commonTemplate);
 
     await focus('[data-test-dropdown-trigger]');
-    await triggerKeyEvent('[data-test-dropdown-trigger]', 'keydown', ARROW_DOWN);
+    await triggerKeyEvent(
+      '[data-test-dropdown-trigger]',
+      'keydown',
+      ARROW_DOWN
+    );
     await triggerKeyEvent('[data-test-dropdown-trigger]', 'keydown', TAB);
     assert.equal(
       document.activeElement,
@@ -222,7 +265,11 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
       await triggerKeyEvent(option, 'keydown', ARROW_DOWN);
 
       if (index < lastIndex) {
-        assert.equal(document.activeElement, optionEls[index + 1], `Option ${index + 1} has focus`);
+        assert.equal(
+          document.activeElement,
+          optionEls[index + 1],
+          `Option ${index + 1} has focus`
+        );
       }
     }
 
@@ -261,7 +308,11 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     await click('[data-test-dropdown-trigger]');
 
     findAll('[data-test-dropdown-option]').forEach((option) => {
-      assert.equal(parseInt(option.getAttribute('tabindex'), 10), 0, 'tabindex is zero');
+      assert.equal(
+        parseInt(option.getAttribute('tabindex'), 10),
+        0,
+        'tabindex is zero'
+      );
     });
   });
 
@@ -274,7 +325,12 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
 
     findAll('[data-test-dropdown-option]').forEach((option) => {
       assert.ok(
-        parseInt(option.querySelector('input[type="checkbox"]').getAttribute('tabindex'), 10) < 0,
+        parseInt(
+          option
+            .querySelector('input[type="checkbox"]')
+            .getAttribute('tabindex'),
+          10
+        ) < 0,
         'tabindex is a negative value'
       );
     });
@@ -286,11 +342,22 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     await render(commonTemplate);
 
     await focus('[data-test-dropdown-trigger]');
-    await triggerKeyEvent('[data-test-dropdown-trigger]', 'keydown', ARROW_DOWN);
-    await triggerKeyEvent('[data-test-dropdown-trigger]', 'keydown', ARROW_DOWN);
+    await triggerKeyEvent(
+      '[data-test-dropdown-trigger]',
+      'keydown',
+      ARROW_DOWN
+    );
+    await triggerKeyEvent(
+      '[data-test-dropdown-trigger]',
+      'keydown',
+      ARROW_DOWN
+    );
     await triggerKeyEvent('[data-test-dropdown-option]', 'keydown', ESC);
 
-    assert.notOk(find('[data-test-dropdown-options]'), 'The options list is hidden once more');
+    assert.notOk(
+      find('[data-test-dropdown-options]'),
+      'The options list is hidden once more'
+    );
     assert.equal(
       document.activeElement,
       find('[data-test-dropdown-trigger]'),
@@ -305,7 +372,10 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     await render(commonTemplate);
 
     await click('[data-test-dropdown-trigger]');
-    assert.ok(find('[data-test-dropdown-options]'), 'The dropdown is still shown');
+    assert.ok(
+      find('[data-test-dropdown-options]'),
+      'The dropdown is still shown'
+    );
     assert.ok(find('[data-test-dropdown-empty]'), 'The empty state is shown');
     assert.notOk(find('[data-test-dropdown-option]'), 'No options are shown');
     await componentA11yAudit(this.element, assert);

@@ -26,7 +26,9 @@ export default class TaskRoute extends Route {
     const task = allocation.get('states').findBy('name', name);
 
     if (!task) {
-      const err = new EmberError(`Task ${name} not found for allocation ${allocation.get('id')}`);
+      const err = new EmberError(
+        `Task ${name} not found for allocation ${allocation.get('id')}`
+      );
       err.code = '404';
       this.controllerFor('application').set('error', err);
     }

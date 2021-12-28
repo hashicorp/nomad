@@ -95,7 +95,11 @@ export default Mixin.create({
 
       if (this.exactMatchEnabled) {
         results.push(
-          ...exactMatchSearch(searchTerm, this.listToSearch, this.exactMatchSearchProps)
+          ...exactMatchSearch(
+            searchTerm,
+            this.listToSearch,
+            this.exactMatchSearchProps
+          )
         );
       }
 
@@ -114,7 +118,9 @@ export default Mixin.create({
       }
 
       if (this.regexEnabled) {
-        results.push(...regexSearch(searchTerm, this.listToSearch, this.regexSearchProps));
+        results.push(
+          ...regexSearch(searchTerm, this.listToSearch, this.regexSearchProps)
+        );
       }
 
       return results.uniq();
@@ -134,7 +140,9 @@ function regexSearch(term, list, keys) {
       const regex = new RegExp(term, 'i');
       // Test the value of each key for each object against the regex
       // All that match are returned.
-      return list.filter((item) => keys.some((key) => regex.test(get(item, key))));
+      return list.filter((item) =>
+        keys.some((key) => regex.test(get(item, key)))
+      );
     } catch (e) {
       // Swallow the error; most likely due to an eager search of an incomplete regex
     }

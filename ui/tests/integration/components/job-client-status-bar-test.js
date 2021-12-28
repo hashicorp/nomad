@@ -67,7 +67,11 @@ module('Integration | Component | job-client-status-bar', function (hooks) {
       ...props,
       jobClientStatus: {
         ...props.jobClientStatus,
-        byStatus: { ...props.jobClientStatus.byStatus, starting: [], running: ['someNodeId'] },
+        byStatus: {
+          ...props.jobClientStatus.byStatus,
+          starting: [],
+          running: ['someNodeId'],
+        },
       },
     };
     this.setProperties(newProps);

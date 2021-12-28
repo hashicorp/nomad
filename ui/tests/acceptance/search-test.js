@@ -29,7 +29,12 @@ module('Acceptance | search', function (hooks) {
       groupsCount: 1,
       groupTaskCount: 1,
     });
-    server.create('job', { id: 'abc', namespaceId: 'default', groupsCount: 1, groupTaskCount: 1 });
+    server.create('job', {
+      id: 'abc',
+      namespaceId: 'default',
+      groupsCount: 1,
+      groupTaskCount: 1,
+    });
 
     const firstAllocation = server.schema.allocations.all().models[0];
     const firstTaskGroup = server.schema.taskGroups.all().models[0];
@@ -100,7 +105,10 @@ module('Acceptance | search', function (hooks) {
     await Layout.navbar.search.groups[4].options[0].click();
     assert.equal(currentURL(), '/csi/plugins/xyz-plugin');
 
-    const fuzzySearchQueries = server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy');
+    const fuzzySearchQueries = server.pretender.handledRequests.filterBy(
+      'url',
+      '/v1/search/fuzzy'
+    );
 
     const featureDetectionQueries = fuzzySearchQueries.filter((request) =>
       request.requestBody.includes('feature-detection-query')
@@ -128,7 +136,8 @@ module('Acceptance | search', function (hooks) {
 
     assert.ok(Layout.navbar.search.noOptionsShown);
     assert.equal(
-      server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy').length,
+      server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy')
+        .length,
       1,
       'expect the feature detection query'
     );

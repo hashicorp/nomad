@@ -8,11 +8,17 @@ import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
-import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
+import {
+  serialize,
+  deserializedQueryParam as selection,
+} from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 
 @classic
-export default class IndexController extends Controller.extend(Sortable, Searchable) {
+export default class IndexController extends Controller.extend(
+  Sortable,
+  Searchable
+) {
   @service system;
   @service userSettings;
 
@@ -100,7 +106,9 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
   @computed('selectionDatacenter', 'visibleJobs.[]')
   get optionsDatacenter() {
     const flatten = (acc, val) => acc.concat(val);
-    const allDatacenters = new Set(this.visibleJobs.mapBy('datacenters').reduce(flatten, []));
+    const allDatacenters = new Set(
+      this.visibleJobs.mapBy('datacenters').reduce(flatten, [])
+    );
 
     // Remove any invalid datacenters from the query param/selection
     const availableDatacenters = Array.from(allDatacenters).compact();
@@ -144,7 +152,10 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
     const availablePrefixes = prefixes.mapBy('prefix');
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpPrefix', serialize(intersection(availablePrefixes, this.selectionPrefix)));
+      this.set(
+        'qpPrefix',
+        serialize(intersection(availablePrefixes, this.selectionPrefix))
+      );
     });
 
     // Sort, format, and include the count in the label
@@ -216,12 +227,18 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
         return false;
       }
 
-      if (datacenters.length && !job.get('datacenters').find((dc) => datacenters.includes(dc))) {
+      if (
+        datacenters.length &&
+        !job.get('datacenters').find((dc) => datacenters.includes(dc))
+      ) {
         return false;
       }
 
       const name = job.get('name');
-      if (prefixes.length && !prefixes.find((prefix) => name.startsWith(prefix))) {
+      if (
+        prefixes.length &&
+        !prefixes.find((prefix) => name.startsWith(prefix))
+      ) {
         return false;
       }
 

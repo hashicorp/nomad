@@ -44,12 +44,16 @@ export default class ExecSocketXtermAdapter {
 
   sendTtySize() {
     this.socket.send(
-      JSON.stringify({ tty_size: { width: this.terminal.cols, height: this.terminal.rows } })
+      JSON.stringify({
+        tty_size: { width: this.terminal.cols, height: this.terminal.rows },
+      })
     );
   }
 
   sendWsHandshake() {
-    this.socket.send(JSON.stringify({ version: 1, auth_token: this.token || '' }));
+    this.socket.send(
+      JSON.stringify({ version: 1, auth_token: this.token || '' })
+    );
   }
 
   startHeartbeat() {
@@ -63,6 +67,8 @@ export default class ExecSocketXtermAdapter {
   }
 
   handleData(data) {
-    this.socket.send(JSON.stringify({ stdin: { data: base64EncodeString(data) } }));
+    this.socket.send(
+      JSON.stringify({ stdin: { data: base64EncodeString(data) } })
+    );
   }
 }

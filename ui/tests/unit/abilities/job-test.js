@@ -147,13 +147,22 @@ module('Unit | Ability | job', function (hooks) {
 
     assert.ok(this.can.cannot('scale job', null, { namespace: 'aNamespace' }));
 
-    tokenService.set('selfTokenPolicies', makePolicies('aNamespace', 'scale-job'));
+    tokenService.set(
+      'selfTokenPolicies',
+      makePolicies('aNamespace', 'scale-job')
+    );
     assert.ok(this.can.can('scale job', null, { namespace: 'aNamespace' }));
 
-    tokenService.set('selfTokenPolicies', makePolicies('aNamespace', 'submit-job'));
+    tokenService.set(
+      'selfTokenPolicies',
+      makePolicies('aNamespace', 'submit-job')
+    );
     assert.ok(this.can.can('scale job', null, { namespace: 'aNamespace' }));
 
-    tokenService.set('selfTokenPolicies', makePolicies('bNamespace', 'scale-job'));
+    tokenService.set(
+      'selfTokenPolicies',
+      makePolicies('bNamespace', 'scale-job')
+    );
     assert.ok(this.can.cannot('scale job', null, { namespace: 'aNamespace' }));
   });
 
@@ -185,9 +194,14 @@ module('Unit | Ability | job', function (hooks) {
     this.owner.register('service:token', mockToken);
     const tokenService = this.owner.lookup('service:token');
 
-    assert.ok(this.can.cannot('dispatch job', null, { namespace: 'aNamespace' }));
+    assert.ok(
+      this.can.cannot('dispatch job', null, { namespace: 'aNamespace' })
+    );
 
-    tokenService.set('selfTokenPolicies', makePolicies('aNamespace', 'dispatch-job'));
+    tokenService.set(
+      'selfTokenPolicies',
+      makePolicies('aNamespace', 'dispatch-job')
+    );
     assert.ok(this.can.can('dispatch job', null, { namespace: 'aNamespace' }));
   });
 
@@ -236,12 +250,18 @@ module('Unit | Ability | job', function (hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    assert.ok(this.can.cannot('run job', null, { namespace: 'production-web' }));
+    assert.ok(
+      this.can.cannot('run job', null, { namespace: 'production-web' })
+    );
     assert.ok(this.can.can('run job', null, { namespace: 'production-api' }));
     assert.ok(this.can.can('run job', null, { namespace: 'production-other' }));
-    assert.ok(this.can.can('run job', null, { namespace: 'something-suffixed' }));
     assert.ok(
-      this.can.cannot('run job', null, { namespace: 'something-more-suffixed' }),
+      this.can.can('run job', null, { namespace: 'something-suffixed' })
+    );
+    assert.ok(
+      this.can.cannot('run job', null, {
+        namespace: 'something-more-suffixed',
+      }),
       'expected the namespace with the greatest number of matched characters to be chosen'
     );
     assert.ok(

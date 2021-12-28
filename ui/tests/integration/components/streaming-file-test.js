@@ -125,7 +125,9 @@ module('Integration | Component | streaming file', function (hooks) {
     `);
 
     // Windows and Linux shortcut
-    await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, { ctrlKey: true });
+    await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, {
+      ctrlKey: true,
+    });
     assert.equal(
       window.getSelection().toString().trim(),
       find('[data-test-output]').textContent.trim()
@@ -134,7 +136,9 @@ module('Integration | Component | streaming file', function (hooks) {
     window.getSelection().removeAllRanges();
 
     // MacOS shortcut
-    await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, { metaKey: true });
+    await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, {
+      metaKey: true,
+    });
     assert.equal(
       window.getSelection().toString().trim(),
       find('[data-test-output]').textContent.trim()

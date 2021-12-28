@@ -35,7 +35,9 @@ module('Acceptance | server detail', function (hooks) {
   test('the details ribbon displays basic information about the server', async function (assert) {
     assert.ok(ServerDetail.serverStatus.includes(agent.member.Status));
     assert.ok(
-      ServerDetail.address.includes(formatHost(agent.member.Address, agent.member.Tags.port))
+      ServerDetail.address.includes(
+        formatHost(agent.member.Address, agent.member.Tags.port)
+      )
     );
     assert.ok(ServerDetail.datacenter.includes(agent.member.Tags.dc));
   });
@@ -61,7 +63,15 @@ module('Acceptance | server detail', function (hooks) {
   test('when the server is not found, an error message is shown, but the URL persists', async function (assert) {
     await ServerDetail.visit({ name: 'not-a-real-server' });
 
-    assert.equal(currentURL(), '/servers/not-a-real-server', 'The URL persists');
-    assert.equal(ServerDetail.error.title, 'Not Found', 'Error message is for 404');
+    assert.equal(
+      currentURL(),
+      '/servers/not-a-real-server',
+      'The URL persists'
+    );
+    assert.equal(
+      ServerDetail.error.title,
+      'Not Found',
+      'Error message is for 404'
+    );
   });
 });

@@ -6,7 +6,9 @@ import { action } from '@ember/object';
 import classic from 'ember-classic-decorator';
 
 @classic
-export default class IndexController extends Controller.extend(WithNamespaceResetting) {
+export default class IndexController extends Controller.extend(
+  WithNamespaceResetting
+) {
   @service system;
 
   queryParams = [
@@ -30,7 +32,11 @@ export default class IndexController extends Controller.extend(WithNamespaceRese
 
   @action
   gotoTaskGroup(taskGroup) {
-    this.transitionToRoute('jobs.job.task-group', taskGroup.get('job'), taskGroup);
+    this.transitionToRoute(
+      'jobs.job.task-group',
+      taskGroup.get('job'),
+      taskGroup
+    );
   }
 
   @action

@@ -10,7 +10,10 @@ class TestSerializer extends ApplicationSerializer {
 
   mapToArray = [
     'ArrayableMap',
-    { beforeName: 'OriginalNameArrayableMap', afterName: 'RenamedArrayableMap' },
+    {
+      beforeName: 'OriginalNameArrayableMap',
+      afterName: 'RenamedArrayableMap',
+    },
   ];
 
   separateNanos = ['Time'];
@@ -101,7 +104,10 @@ module('Unit | Serializer | Application', function (hooks) {
 
   normalizationTestCases.forEach((testCase) => {
     test(`normalization: ${testCase.name}`, async function (assert) {
-      assert.deepEqual(this.subject().normalize(TestModel, testCase.in), testCase.out);
+      assert.deepEqual(
+        this.subject().normalize(TestModel, testCase.in),
+        testCase.out
+      );
     });
   });
 });

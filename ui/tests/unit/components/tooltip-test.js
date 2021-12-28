@@ -7,7 +7,9 @@ module('Unit | Component | tooltip', function (hooks) {
   setupGlimmerComponentFactory(hooks, 'tooltip');
 
   test('long texts are ellipsised in the middle', function (assert) {
-    const tooltip = this.createComponent({ text: 'reeeeeeeeeeeeeeeeeally long text' });
+    const tooltip = this.createComponent({
+      text: 'reeeeeeeeeeeeeeeeeally long text',
+    });
     assert.equal(tooltip.text, 'reeeeeeeeeeeeee...long text');
   });
 });

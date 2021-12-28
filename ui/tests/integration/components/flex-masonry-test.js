@@ -45,7 +45,10 @@ module('Integration | Component | FlexMasonry', function (hooks) {
       </FlexMasonry>
     `);
 
-    assert.equal(findAll('[data-test-flex-masonry-item]').length, this.items.length);
+    assert.equal(
+      findAll('[data-test-flex-masonry-item]').length,
+      this.items.length
+    );
   });
 
   test('the @withSpacing arg adds the with-spacing class', async function (assert) {
@@ -57,7 +60,9 @@ module('Integration | Component | FlexMasonry', function (hooks) {
       </FlexMasonry>
     `);
 
-    assert.ok(find('[data-test-flex-masonry]').classList.contains('with-spacing'));
+    assert.ok(
+      find('[data-test-flex-masonry]').classList.contains('with-spacing')
+    );
   });
 
   test('individual items along with the reflow action are yielded', async function (assert) {

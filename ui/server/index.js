@@ -3,7 +3,9 @@
 module.exports = function (app, options) {
   const globSync = require('glob').sync;
   const mocks = globSync('./mocks/**/*.js', { cwd: __dirname }).map(require);
-  const proxies = globSync('./proxies/**/*.js', { cwd: __dirname }).map(require);
+  const proxies = globSync('./proxies/**/*.js', { cwd: __dirname }).map(
+    require
+  );
 
   // Log proxy requests
   const morgan = require('morgan');

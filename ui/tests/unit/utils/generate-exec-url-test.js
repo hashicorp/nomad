@@ -26,9 +26,14 @@ module('Unit | Utility | generate-exec-url', function (hooks) {
     });
 
     assert.ok(
-      this.urlForSpy.calledWith('exec.task-group', 'job-name', 'task-group-name', {
-        queryParams: { allocation: 'allocation-short-id' },
-      })
+      this.urlForSpy.calledWith(
+        'exec.task-group',
+        'job-name',
+        'task-group-name',
+        {
+          queryParams: { allocation: 'allocation-short-id' },
+        }
+      )
     );
   });
 
@@ -61,7 +66,12 @@ module('Unit | Utility | generate-exec-url', function (hooks) {
     });
 
     assert.ok(
-      this.urlForSpy.calledWith('exec.task-group', 'job-name', 'task-group-name', emptyOptions)
+      this.urlForSpy.calledWith(
+        'exec.task-group',
+        'job-name',
+        'task-group-name',
+        emptyOptions
+      )
     );
   });
 
@@ -92,7 +102,12 @@ module('Unit | Utility | generate-exec-url', function (hooks) {
     });
 
     assert.ok(
-      this.urlForSpy.calledWith('exec.task-group.task', 'job-name', 'task-group-name', 'task-name')
+      this.urlForSpy.calledWith(
+        'exec.task-group.task',
+        'job-name',
+        'task-group-name',
+        'task-name'
+      )
     );
   });
 
@@ -105,13 +120,25 @@ module('Unit | Utility | generate-exec-url', function (hooks) {
         plainId: 'job-name',
         region: 'a-region',
       },
-      allocation: { shortId: 'id', taskGroup: { name: 'task-group-name', tasks: [0, 1] } },
+      allocation: {
+        shortId: 'id',
+        taskGroup: { name: 'task-group-name', tasks: [0, 1] },
+      },
     });
 
     assert.ok(
-      this.urlForSpy.calledWith('exec.task-group', 'job-name', 'task-group-name', {
-        queryParams: { allocation: 'id', namespace: 'a-namespace', region: 'a-region' },
-      })
+      this.urlForSpy.calledWith(
+        'exec.task-group',
+        'job-name',
+        'task-group-name',
+        {
+          queryParams: {
+            allocation: 'id',
+            namespace: 'a-namespace',
+            region: 'a-region',
+          },
+        }
+      )
     );
   });
 });

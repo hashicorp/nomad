@@ -41,12 +41,16 @@ module('Acceptance | plugins list', function (hooks) {
   });
 
   test('each plugin row should contain information about the plugin', async function (assert) {
-    const plugin = server.create('csi-plugin', { shallow: true, controllerRequired: true });
+    const plugin = server.create('csi-plugin', {
+      shallow: true,
+      controllerRequired: true,
+    });
 
     await PluginsList.visit();
 
     const pluginRow = PluginsList.plugins.objectAt(0);
-    const controllerHealthStr = plugin.controllersHealthy > 0 ? 'Healthy' : 'Unhealthy';
+    const controllerHealthStr =
+      plugin.controllersHealthy > 0 ? 'Healthy' : 'Unhealthy';
     const nodeHealthStr = plugin.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
 
     assert.equal(pluginRow.id, plugin.id);
@@ -62,7 +66,10 @@ module('Acceptance | plugins list', function (hooks) {
   });
 
   test('node only plugins explain that there is no controller health for this plugin type', async function (assert) {
-    const plugin = server.create('csi-plugin', { shallow: true, controllerRequired: false });
+    const plugin = server.create('csi-plugin', {
+      shallow: true,
+      controllerRequired: false,
+    });
 
     await PluginsList.visit();
 
@@ -112,7 +119,9 @@ module('Acceptance | plugins list', function (hooks) {
   });
 
   test('search resets the current page', async function (assert) {
-    server.createList('csi-plugin', PluginsList.pageSize + 1, { shallow: true });
+    server.createList('csi-plugin', PluginsList.pageSize + 1, {
+      shallow: true,
+    });
 
     await PluginsList.visit();
     await PluginsList.nextPage();

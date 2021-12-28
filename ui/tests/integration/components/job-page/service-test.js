@@ -4,7 +4,13 @@ import { setupRenderingTest } from 'ember-qunit';
 import { click, find, render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
-import { startJob, stopJob, expectError, expectDeleteRequest, expectStartRequest } from './helpers';
+import {
+  startJob,
+  stopJob,
+  expectError,
+  expectDeleteRequest,
+  expectStartRequest,
+} from './helpers';
 import Job from 'nomad-ui/tests/pages/jobs/detail';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
@@ -124,11 +130,17 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    const allocation = this.server.db.allocations.sortBy('modifyIndex').reverse()[0];
+    const allocation = this.server.db.allocations
+      .sortBy('modifyIndex')
+      .reverse()[0];
     const allocationRow = Job.allocations.objectAt(0);
 
     assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'ID');
-    assert.equal(allocationRow.taskGroup, allocation.taskGroup, 'Task Group name');
+    assert.equal(
+      allocationRow.taskGroup,
+      allocation.taskGroup,
+      'Task Group name'
+    );
 
     await componentA11yAudit(this.element, assert);
   });
@@ -196,7 +208,11 @@ module('Integration | Component | job-page/service', function (hooks) {
   });
 
   test('When promoting the active deployment fails, an error is shown', async function (assert) {
-    this.server.pretender.post('/v1/deployment/promote/:id', () => [403, {}, '']);
+    this.server.pretender.post('/v1/deployment/promote/:id', () => [
+      403,
+      {},
+      '',
+    ]);
 
     this.server.create('node');
     const mirageJob = makeMirageJob(this.server, { activeDeployment: true });
@@ -224,7 +240,10 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     await click('[data-test-job-error-close]');
 
-    assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
+    assert.notOk(
+      find('[data-test-job-error-title]'),
+      'Error message is dismissable'
+    );
   });
 
   test('Active deployment can be failed', async function (assert) {
@@ -282,6 +301,9 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     await click('[data-test-job-error-close]');
 
-    assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
+    assert.notOk(
+      find('[data-test-job-error-title]'),
+      'Error message is dismissable'
+    );
   });
 });

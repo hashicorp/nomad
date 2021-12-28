@@ -99,12 +99,18 @@ module('Acceptance | task group detail', function (hooks) {
     let totalMemoryMaxAddendum = '';
 
     if (totalMemoryMax > totalMemory) {
-      totalMemoryMaxAddendum = ` (${formatScheduledBytes(totalMemoryMax, 'MiB')} Max)`;
+      totalMemoryMaxAddendum = ` (${formatScheduledBytes(
+        totalMemoryMax,
+        'MiB'
+      )} Max)`;
     }
 
     assert.equal(
       TaskGroup.mem,
-      `Reserved Memory ${formatScheduledBytes(totalMemory, 'MiB')}${totalMemoryMaxAddendum}`,
+      `Reserved Memory ${formatScheduledBytes(
+        totalMemory,
+        'MiB'
+      )}${totalMemoryMaxAddendum}`,
       'Aggregated Memory reservation for all tasks'
     );
     assert.equal(
@@ -113,13 +119,20 @@ module('Acceptance | task group detail', function (hooks) {
       'Aggregated Disk reservation for all tasks'
     );
 
-    assert.equal(document.title, `Task group ${taskGroup.name} - Job ${job.name} - Nomad`);
+    assert.equal(
+      document.title,
+      `Task group ${taskGroup.name} - Job ${job.name} - Nomad`
+    );
   });
 
   test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', async function (assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
-    assert.equal(Layout.breadcrumbFor('jobs.index').text, 'Jobs', 'First breadcrumb says jobs');
+    assert.equal(
+      Layout.breadcrumbFor('jobs.index').text,
+      'Jobs',
+      'First breadcrumb says jobs'
+    );
     assert.equal(
       Layout.breadcrumbFor('jobs.job.index').text,
       job.name,
@@ -158,7 +171,9 @@ module('Acceptance | task group detail', function (hooks) {
     const clientToken = server.create('token');
 
     server.create('namespace', { id: SCALE_AND_WRITE_NAMESPACE });
-    const secondNamespace = server.create('namespace', { id: READ_ONLY_NAMESPACE });
+    const secondNamespace = server.create('namespace', {
+      id: READ_ONLY_NAMESPACE,
+    });
 
     job = server.create('job', {
       groupCount: 0,
@@ -220,7 +235,10 @@ module('Acceptance | task group detail', function (hooks) {
       namespace: SCALE_AND_WRITE_NAMESPACE,
     });
 
-    assert.equal(currentURL(), `/jobs/${job.id}/scaling?namespace=${SCALE_AND_WRITE_NAMESPACE}`);
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}/scaling?namespace=${SCALE_AND_WRITE_NAMESPACE}`
+    );
     assert.notOk(TaskGroup.countStepper.increment.isDisabled);
 
     await TaskGroup.visit({
@@ -228,7 +246,10 @@ module('Acceptance | task group detail', function (hooks) {
       name: scalingGroup2.name,
       namespace: secondNamespace.name,
     });
-    assert.equal(currentURL(), `/jobs/${job2.id}/scaling?namespace=${READ_ONLY_NAMESPACE}`);
+    assert.equal(
+      currentURL(),
+      `/jobs/${job2.id}/scaling?namespace=${READ_ONLY_NAMESPACE}`
+    );
     assert.ok(TaskGroup.countStepper.increment.isDisabled);
   });
 
@@ -242,7 +263,8 @@ module('Acceptance | task group detail', function (hooks) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.ok(
-      server.db.allocations.where({ jobId: job.id }).length > TaskGroup.pageSize,
+      server.db.allocations.where({ jobId: job.id }).length >
+        TaskGroup.pageSize,
       'There are enough allocations to invoke pagination'
     );
 
@@ -259,7 +281,11 @@ module('Acceptance | task group detail', function (hooks) {
     const allocation = allocations.sortBy('modifyIndex').reverse()[0];
     const allocationRow = TaskGroup.allocations.objectAt(0);
 
-    assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation short id');
+    assert.equal(
+      allocationRow.shortId,
+      allocation.id.split('-')[0],
+      'Allocation short id'
+    );
     assert.equal(
       allocationRow.createTime,
       moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
@@ -270,8 +296,16 @@ module('Acceptance | task group detail', function (hooks) {
       moment(allocation.modifyTime / 1000000).fromNow(),
       'Allocation modify time'
     );
-    assert.equal(allocationRow.status, allocation.clientStatus, 'Client status');
-    assert.equal(allocationRow.jobVersion, allocation.jobVersion, 'Job Version');
+    assert.equal(
+      allocationRow.status,
+      allocation.clientStatus,
+      'Client status'
+    );
+    assert.equal(
+      allocationRow.jobVersion,
+      allocation.jobVersion,
+      'Job Version'
+    );
     assert.equal(
       allocationRow.client,
       server.db.nodes.find(allocation.nodeId).id.split('-')[0],
@@ -285,7 +319,11 @@ module('Acceptance | task group detail', function (hooks) {
 
     await allocationRow.visitClient();
 
-    assert.equal(currentURL(), `/clients/${allocation.nodeId}`, 'Node links to node page');
+    assert.equal(
+      currentURL(),
+      `/clients/${allocation.nodeId}`,
+      'Node links to node page'
+    );
   });
 
   test('each allocation should show stats about the allocation', async function (assert) {
@@ -298,7 +336,10 @@ module('Acceptance | task group detail', function (hooks) {
     const tasks = taskGroup.taskIds.map((id) => server.db.tasks.find(id));
 
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
-    const memoryUsed = tasks.reduce((sum, task) => sum + task.resources.MemoryMB, 0);
+    const memoryUsed = tasks.reduce(
+      (sum, task) => sum + task.resources.MemoryMB,
+      0
+    );
 
     assert.equal(
       allocationRow.cpu,
@@ -306,7 +347,9 @@ module('Acceptance | task group detail', function (hooks) {
       'CPU %'
     );
 
-    const roundedTicks = Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks);
+    const roundedTicks = Math.floor(
+      allocStats.resourceUsage.CpuStats.TotalTicks
+    );
     assert.equal(
       allocationRow.cpuTooltip,
       `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
@@ -348,7 +391,10 @@ module('Acceptance | task group detail', function (hooks) {
     const rescheduleRow = TaskGroup.allocationFor(allocations[0].id);
     const normalRow = TaskGroup.allocationFor(allocations[1].id);
 
-    assert.ok(rescheduleRow.rescheduled, 'Reschedule row has a reschedule icon');
+    assert.ok(
+      rescheduleRow.rescheduled,
+      'Reschedule row has a reschedule icon'
+    );
     assert.notOk(normalRow.rescheduled, 'Normal row has no reschedule icon');
   });
 
@@ -364,7 +410,10 @@ module('Acceptance | task group detail', function (hooks) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.ok(TaskGroup.lifecycleChart.isPresent);
-    assert.equal(TaskGroup.lifecycleChart.title, 'Task Lifecycle Configuration');
+    assert.equal(
+      TaskGroup.lifecycleChart.title,
+      'Task Lifecycle Configuration'
+    );
 
     tasks = taskGroup.taskIds.map((id) => server.db.tasks.find(id));
     const taskNames = tasks.mapBy('name');
@@ -384,7 +433,10 @@ module('Acceptance | task group detail', function (hooks) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.ok(TaskGroup.hasVolumes);
-    assert.equal(TaskGroup.volumes.length, Object.keys(taskGroup.volumes).length);
+    assert.equal(
+      TaskGroup.volumes.length,
+      Object.keys(taskGroup.volumes).length
+    );
   });
 
   test('when the task group does not depend on volumes, the volumes table is not shown', async function (assert) {
@@ -404,7 +456,10 @@ module('Acceptance | task group detail', function (hooks) {
       assert.equal(volumeRow.name, volume.Name);
       assert.equal(volumeRow.type, volume.Type);
       assert.equal(volumeRow.source, volume.Source);
-      assert.equal(volumeRow.permissions, volume.ReadOnly ? 'Read' : 'Read/Write');
+      assert.equal(
+        volumeRow.permissions,
+        volume.ReadOnly ? 'Read' : 'Read/Write'
+      );
     });
   });
 
@@ -464,7 +519,10 @@ module('Acceptance | task group detail', function (hooks) {
   });
 
   test('when the job for the task group is not found, an error message is shown, but the URL persists', async function (assert) {
-    await TaskGroup.visit({ id: 'not-a-real-job', name: 'not-a-real-task-group' });
+    await TaskGroup.visit({
+      id: 'not-a-real-job',
+      name: 'not-a-real-task-group',
+    });
 
     assert.equal(
       server.pretender.handledRequests
@@ -473,9 +531,17 @@ module('Acceptance | task group detail', function (hooks) {
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
     );
-    assert.equal(currentURL(), '/jobs/not-a-real-job/not-a-real-task-group', 'The URL persists');
+    assert.equal(
+      currentURL(),
+      '/jobs/not-a-real-job/not-a-real-task-group',
+      'The URL persists'
+    );
     assert.ok(TaskGroup.error.isPresent, 'Error message is shown');
-    assert.equal(TaskGroup.error.title, 'Not Found', 'Error message is for 404');
+    assert.equal(
+      TaskGroup.error.title,
+      'Not Found',
+      'Error message is for 404'
+    );
   });
 
   test('when the task group is not found on the job, an error message is shown, but the URL persists', async function (assert) {
@@ -488,9 +554,17 @@ module('Acceptance | task group detail', function (hooks) {
         .includes(`/v1/job/${job.id}`),
       'A request to the job is made and succeeds'
     );
-    assert.equal(currentURL(), `/jobs/${job.id}/not-a-real-task-group`, 'The URL persists');
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}/not-a-real-task-group`,
+      'The URL persists'
+    );
     assert.ok(TaskGroup.error.isPresent, 'Error message is shown');
-    assert.equal(TaskGroup.error.title, 'Not Found', 'Error message is for 404');
+    assert.equal(
+      TaskGroup.error.title,
+      'Not Found',
+      'Error message is for 404'
+    );
   });
 
   pageSizeSelect({
@@ -541,7 +615,10 @@ module('Acceptance | task group detail', function (hooks) {
 
     scaleEvents.forEach((scaleEvent, idx) => {
       const ScaleEvent = TaskGroup.scaleEvents[idx];
-      assert.equal(ScaleEvent.time, moment(scaleEvent.time / 1000000).format('MMM DD HH:mm:ss ZZ'));
+      assert.equal(
+        ScaleEvent.time,
+        moment(scaleEvent.time / 1000000).format('MMM DD HH:mm:ss ZZ')
+      );
       assert.equal(ScaleEvent.message, scaleEvent.message);
 
       if (scaleEvent.count != null) {
@@ -612,7 +689,10 @@ module('Acceptance | task group detail', function (hooks) {
       return Array.from(
         new Set(
           allocs
-            .filter((alloc) => alloc.jobId == job.id && alloc.taskGroup == taskGroup.name)
+            .filter(
+              (alloc) =>
+                alloc.jobId == job.id && alloc.taskGroup == taskGroup.name
+            )
             .mapBy('nodeId')
             .map((id) => id.split('-')[0])
         )
@@ -636,7 +716,10 @@ module('Acceptance | task group detail', function (hooks) {
   });
 });
 
-function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
+function testFacet(
+  label,
+  { facet, paramName, beforeEach, filter, expectedOptions }
+) {
   test(`facet ${label} | the ${label} facet has the correct options`, async function (assert) {
     await beforeEach();
     await facet.toggle();

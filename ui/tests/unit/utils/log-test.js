@@ -38,7 +38,12 @@ const MockStreamer = EmberObject.extend({
 const Log = _Log.extend({
   init() {
     this._super();
-    const props = this.logStreamer.getProperties('url', 'params', 'logFetch', 'write');
+    const props = this.logStreamer.getProperties(
+      'url',
+      'params',
+      'logFetch',
+      'write'
+    );
     this.set('logStreamer', MockStreamer.create(props));
   },
 });
@@ -81,7 +86,10 @@ module('Unit | Util | Log', function (hooks) {
 
     run(() => {
       log.get('gotoHead').perform();
-      assert.ok(fetchSpy.calledWith(expectedUrl), `gotoHead URL was ${expectedUrl}`);
+      assert.ok(
+        fetchSpy.calledWith(expectedUrl),
+        `gotoHead URL was ${expectedUrl}`
+      );
     });
   });
 
@@ -117,7 +125,10 @@ module('Unit | Util | Log', function (hooks) {
 
     run(() => {
       log.get('gotoTail').perform();
-      assert.ok(fetchSpy.calledWith(expectedUrl), `gotoTail URL was ${expectedUrl}`);
+      assert.ok(
+        fetchSpy.calledWith(expectedUrl),
+        `gotoTail URL was ${expectedUrl}`
+      );
     });
   });
 
@@ -126,7 +137,11 @@ module('Unit | Util | Log', function (hooks) {
 
     log.startStreaming();
     assert.ok(startSpy.calledOnce, 'Streaming started');
-    assert.equal(log.get('logPointer'), 'tail', 'Streaming points the log to the tail');
+    assert.equal(
+      log.get('logPointer'),
+      'tail',
+      'Streaming points the log to the tail'
+    );
   });
 
   test('When the log streamer calls `write`, the output is appended', async function (assert) {
@@ -145,7 +160,11 @@ module('Unit | Util | Log', function (hooks) {
     assert.equal(log.get('output'), chunk1 + chunk2, 'Second chunk written');
 
     log.get('logStreamer').step(chunk3);
-    assert.equal(log.get('output'), chunk1 + chunk2 + chunk3, 'Third chunk written');
+    assert.equal(
+      log.get('output'),
+      chunk1 + chunk2 + chunk3,
+      'Third chunk written'
+    );
   });
 
   test('stop stops the log streamer', async function (assert) {

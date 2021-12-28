@@ -19,9 +19,14 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
     this.taskGroupWithEvents = async function (events) {
       const job = this.server.create('job', { createAllocations: false });
       const group = job.taskGroups.models[0];
-      job.jobScale.taskGroupScales.models.findBy('name', group.name).update({ events });
+      job.jobScale.taskGroupScales.models
+        .findBy('name', group.name)
+        .update({ events });
 
-      const jobModel = await this.store.find('job', JSON.stringify([job.id, 'default']));
+      const jobModel = await this.store.find(
+        'job',
+        JSON.stringify([job.id, 'default'])
+      );
       await jobModel.get('scaleState');
       return jobModel.taskGroups.findBy('name', group.name);
     };
@@ -35,12 +40,17 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
 
   test('it shows an accordion with an entry for each event', async function (assert) {
     const eventCount = 5;
-    const taskGroup = await this.taskGroupWithEvents(server.createList('scale-event', eventCount));
+    const taskGroup = await this.taskGroupWithEvents(
+      server.createList('scale-event', eventCount)
+    );
     this.set('events', taskGroup.scaleState.events);
 
     await render(commonTemplate);
 
-    assert.equal(findAll('[data-test-scale-events] [data-test-accordion-head]').length, eventCount);
+    assert.equal(
+      findAll('[data-test-scale-events] [data-test-accordion-head]').length,
+      eventCount
+    );
     await componentA11yAudit(this.element, assert);
   });
 
@@ -59,7 +69,11 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
   test('when an event has a count higher than previous count, a danger up arrow is shown', async function (assert) {
     const count = 5;
     const taskGroup = await this.taskGroupWithEvents(
-      server.createList('scale-event', 1, { count, previousCount: count - 1, error: false })
+      server.createList('scale-event', 1, {
+        count,
+        previousCount: count - 1,
+        error: false,
+      })
     );
     this.set('events', taskGroup.scaleState.events);
 
@@ -68,7 +82,9 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
     assert.notOk(find('[data-test-error]'));
     assert.equal(find('[data-test-count]').textContent, count);
     assert.ok(
-      find('[data-test-count-icon]').querySelector('.icon').classList.contains('is-danger')
+      find('[data-test-count-icon]')
+        .querySelector('.icon')
+        .classList.contains('is-danger')
     );
     await componentA11yAudit(this.element, assert);
   });
@@ -76,7 +92,11 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
   test('when an event has a count lower than previous count, a primary down arrow is shown', async function (assert) {
     const count = 5;
     const taskGroup = await this.taskGroupWithEvents(
-      server.createList('scale-event', 1, { count, previousCount: count + 1, error: false })
+      server.createList('scale-event', 1, {
+        count,
+        previousCount: count + 1,
+        error: false,
+      })
     );
     this.set('events', taskGroup.scaleState.events);
 
@@ -85,7 +105,9 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
     assert.notOk(find('[data-test-error]'));
     assert.equal(find('[data-test-count]').textContent, count);
     assert.ok(
-      find('[data-test-count-icon]').querySelector('.icon').classList.contains('is-primary')
+      find('[data-test-count-icon]')
+        .querySelector('.icon')
+        .classList.contains('is-primary')
     );
   });
 
@@ -109,7 +131,9 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
 
     await render(commonTemplate);
 
-    assert.ok(find('[data-test-accordion-toggle]').classList.contains('is-invisible'));
+    assert.ok(
+      find('[data-test-accordion-toggle]').classList.contains('is-invisible')
+    );
     await componentA11yAudit(this.element, assert);
   });
 
@@ -122,7 +146,9 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
         'dot.separate.prop': 12,
       },
     };
-    const taskGroup = await this.taskGroupWithEvents(server.createList('scale-event', 1, { meta }));
+    const taskGroup = await this.taskGroupWithEvents(
+      server.createList('scale-event', 1, { meta })
+    );
     this.set('events', taskGroup.scaleState.events);
 
     await render(commonTemplate);

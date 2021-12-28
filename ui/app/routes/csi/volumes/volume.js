@@ -18,7 +18,9 @@ export default class VolumeRoute extends Route.extend(WithWatchers) {
       label: 'Volumes',
       args: [
         'csi.volumes',
-        qpBuilder({ volumeNamespace: volume.get('namespace.name') || 'default' }),
+        qpBuilder({
+          volumeNamespace: volume.get('namespace.name') || 'default',
+        }),
       ],
     },
     {
@@ -26,7 +28,9 @@ export default class VolumeRoute extends Route.extend(WithWatchers) {
       args: [
         'csi.volumes.volume',
         volume.plainId,
-        qpBuilder({ volumeNamespace: volume.get('namespace.name') || 'default' }),
+        qpBuilder({
+          volumeNamespace: volume.get('namespace.name') || 'default',
+        }),
       ],
     },
   ];

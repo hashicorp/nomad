@@ -23,7 +23,11 @@ module('Integration | Component | PrimaryMetric::Allocation', function (hooks) {
     this.server = startMirage();
     this.server.create('namespace');
     this.server.create('node');
-    this.server.create('job', { groupsCount: 1, groupTaskCount: 3, createAllocations: false });
+    this.server.create('job', {
+      groupsCount: 1,
+      groupTaskCount: 3,
+      createAllocations: false,
+    });
     this.server.create('allocation');
   });
 
@@ -41,7 +45,8 @@ module('Integration | Component | PrimaryMetric::Allocation', function (hooks) {
     await store.findAll('allocation');
   };
 
-  const findResource = (store) => store.peekAll('allocation').get('firstObject');
+  const findResource = (store) =>
+    store.peekAll('allocation').get('firstObject');
 
   test('Must pass an accessibility audit', async function (assert) {
     await preload(this.store);

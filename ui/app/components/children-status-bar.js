@@ -16,10 +16,22 @@ export default class ChildrenStatusBar extends DistributionBar {
       return [];
     }
 
-    const children = this.job.getProperties('pendingChildren', 'runningChildren', 'deadChildren');
+    const children = this.job.getProperties(
+      'pendingChildren',
+      'runningChildren',
+      'deadChildren'
+    );
     return [
-      { label: 'Pending', value: children.pendingChildren, className: 'queued' },
-      { label: 'Running', value: children.runningChildren, className: 'running' },
+      {
+        label: 'Pending',
+        value: children.pendingChildren,
+        className: 'queued',
+      },
+      {
+        label: 'Running',
+        value: children.runningChildren,
+        className: 'running',
+      },
       { label: 'Dead', value: children.deadChildren, className: 'complete' },
     ];
   }

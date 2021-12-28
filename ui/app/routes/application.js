@@ -50,13 +50,17 @@ export default class ApplicationRoute extends Route {
         this.controllerFor('application').set('error', e);
       }
 
-      const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
+      const fetchSelfTokenAndPolicies = this.get(
+        'token.fetchSelfTokenAndPolicies'
+      )
         .perform()
         .catch();
 
       const fetchLicense = this.get('system.fetchLicense').perform().catch();
 
-      const checkFuzzySearchPresence = this.get('system.checkFuzzySearchPresence')
+      const checkFuzzySearchPresence = this.get(
+        'system.checkFuzzySearchPresence'
+      )
         .perform()
         .catch();
 

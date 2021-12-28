@@ -162,7 +162,9 @@ export default class Application extends JSONSerializer {
       .filter((record) => get(record, 'id'))
       .filter(storeFilter)
       .forEach((old) => {
-        const newRecord = newRecords.find((record) => get(record, 'id') === get(old, 'id'));
+        const newRecord = newRecords.find(
+          (record) => get(record, 'id') === get(old, 'id')
+        );
         if (!newRecord) {
           removeRecord(store, old);
         } else {

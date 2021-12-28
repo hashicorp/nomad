@@ -25,7 +25,10 @@ module('Integration | Component | page layout', function (hooks) {
     );
     await click('[data-test-header-gutter-toggle]');
 
-    assert.ok(find('[data-test-gutter-menu]').classList.contains('is-open'), 'Gutter menu is open');
+    assert.ok(
+      find('[data-test-gutter-menu]').classList.contains('is-open'),
+      'Gutter menu is open'
+    );
     await componentA11yAudit(this.element, assert);
   });
 
@@ -34,7 +37,10 @@ module('Integration | Component | page layout', function (hooks) {
 
     await click('[data-test-header-gutter-toggle]');
 
-    assert.ok(find('[data-test-gutter-menu]').classList.contains('is-open'), 'Gutter menu is open');
+    assert.ok(
+      find('[data-test-gutter-menu]').classList.contains('is-open'),
+      'Gutter menu is open'
+    );
     await click('[data-test-gutter-gutter-toggle]');
 
     assert.notOk(
@@ -48,7 +54,10 @@ module('Integration | Component | page layout', function (hooks) {
 
     await click('[data-test-header-gutter-toggle]');
 
-    assert.ok(find('[data-test-gutter-menu]').classList.contains('is-open'), 'Gutter menu is open');
+    assert.ok(
+      find('[data-test-gutter-menu]').classList.contains('is-open'),
+      'Gutter menu is open'
+    );
     await click('[data-test-gutter-backdrop]');
 
     assert.notOk(

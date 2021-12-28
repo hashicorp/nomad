@@ -28,7 +28,8 @@ export default class JobSummary extends ApplicationSerializer {
     const childrenStats = get(hash, 'Children');
     if (childrenStats) {
       Object.keys(childrenStats).forEach(
-        (childrenKey) => (hash[`${childrenKey}Children`] = childrenStats[childrenKey])
+        (childrenKey) =>
+          (hash[`${childrenKey}Children`] = childrenStats[childrenKey])
       );
     }
 

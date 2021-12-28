@@ -30,7 +30,10 @@ module('Acceptance | application errors ', function (hooks) {
     assert.ok(ClientsList.error.isPresent, 'Application has errored');
 
     await JobsList.visit();
-    assert.notOk(JobsList.error.isPresent, 'Application is no longer in an error state');
+    assert.notOk(
+      JobsList.error.isPresent,
+      'Application is no longer in an error state'
+    );
   });
 
   test('the 403 error page links to the ACL tokens page', async function (assert) {

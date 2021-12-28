@@ -6,7 +6,10 @@ import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 import sinon from 'sinon';
 
-import { triggerCopyError, triggerCopySuccess } from 'ember-cli-clipboard/test-support';
+import {
+  triggerCopyError,
+  triggerCopySuccess,
+} from 'ember-cli-clipboard/test-support';
 
 module('Integration | Component | copy-button', function (hooks) {
   setupRenderingTest(hooks);

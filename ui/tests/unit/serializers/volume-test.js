@@ -358,7 +358,10 @@ module('Unit | Serializer | Volume', function (hooks) {
 
   normalizationTestCases.forEach((testCase) => {
     test(`normalization: ${testCase.name}`, async function (assert) {
-      assert.deepEqual(this.subject().normalize(VolumeModel, testCase.in), testCase.out);
+      assert.deepEqual(
+        this.subject().normalize(VolumeModel, testCase.in),
+        testCase.out
+      );
     });
   });
 });
