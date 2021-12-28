@@ -1,5 +1,5 @@
 import { htmlSafe } from '@ember/template';
-import { click, find, findAll, settled } from '@ember/test-helpers';
+import { click, find, findAll, render, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
@@ -16,7 +16,7 @@ module('Integration | Component | FlexMasonry', function (hooks) {
       items: [],
     });
 
-    await this.render(hbs`
+    await render(hbs`
       <FlexMasonry
         @items={{this.items}}
         @columns={{this.columns}}>
@@ -37,7 +37,7 @@ module('Integration | Component | FlexMasonry', function (hooks) {
       columns: 2,
     });
 
-    await this.render(hbs`
+    await render(hbs`
       <FlexMasonry
         @items={{this.items}}
         @columns={{this.columns}} as |item|>
@@ -49,7 +49,7 @@ module('Integration | Component | FlexMasonry', function (hooks) {
   });
 
   test('the @withSpacing arg adds the with-spacing class', async function (assert) {
-    await this.render(hbs`
+    await render(hbs`
       <FlexMasonry
         @items={{this.items}}
         @columns={{this.columns}}
@@ -67,7 +67,7 @@ module('Integration | Component | FlexMasonry', function (hooks) {
       height: h(50),
     });
 
-    await this.render(hbs`
+    await render(hbs`
       <FlexMasonry
         @items={{this.items}}
         @columns={{this.columns}} as |item reflow|>
@@ -101,7 +101,7 @@ module('Integration | Component | FlexMasonry', function (hooks) {
       columns: 2,
     });
 
-    await this.render(hbs`
+    await render(hbs`
       <FlexMasonry
         @items={{this.items}}
         @columns={{this.columns}} as |item|>
@@ -125,7 +125,7 @@ module('Integration | Component | FlexMasonry', function (hooks) {
       columns: 2,
     });
 
-    await this.render(hbs`
+    await render(hbs`
       <FlexMasonry
         @items={{this.items}}
         @columns={{this.columns}} as |item|>
@@ -151,7 +151,7 @@ module('Integration | Component | FlexMasonry', function (hooks) {
       columns: 4,
     });
 
-    await this.render(hbs`
+    await render(hbs`
       <FlexMasonry
         @items={{this.items}}
         @columns={{this.columns}} as |item|>
@@ -179,7 +179,7 @@ module('Integration | Component | FlexMasonry', function (hooks) {
       columns: 4,
     });
 
-    await this.render(hbs`
+    await render(hbs`
       <FlexMasonry
         @items={{this.items}}
         @columns={{this.columns}} as |item|>

@@ -161,7 +161,7 @@ module('Integration | Component | allocation row', function(hooks) {
 
     for (const allocation of allocations.toArray()) {
       this.set('allocation', allocation);
-      await this.render(hbs`
+      await render(hbs`
           <AllocationRow
             @allocation={{allocation}}
             @context={{context}}

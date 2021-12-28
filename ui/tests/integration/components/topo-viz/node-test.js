@@ -1,4 +1,4 @@
-import { findAll } from '@ember/test-helpers';
+import { findAll, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
@@ -76,7 +76,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.ok(TopoVizNode.isPresent);
     assert.equal(
@@ -103,7 +103,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.ok(TopoVizNode.label.includes(node.node.name));
     assert.ok(
@@ -126,7 +126,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.ok(TopoVizNode.statusIcon.includes('icon-is-clock-outline'));
     assert.equal(TopoVizNode.statusIconLabel, 'Client is draining');
@@ -143,7 +143,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.ok(TopoVizNode.statusIcon.includes('icon-is-lock-closed'));
     assert.equal(TopoVizNode.statusIconLabel, 'Client is ineligible');
@@ -161,7 +161,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
     await TopoVizNode.selectNode();
 
     assert.notOk(TopoVizNode.nodeIsInteractive);
@@ -180,7 +180,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
     await TopoVizNode.selectNode();
 
     assert.ok(TopoVizNode.nodeIsInteractive);
@@ -200,7 +200,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.ok(TopoVizNode.nodeIsSelected);
   });
@@ -222,7 +222,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.ok(heightSpy.called);
     assert.ok(heightSpy.calledWith(this.node.memory));
@@ -240,7 +240,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.equal(TopoVizNode.memoryRects.length, this.node.allocations.length);
     assert.equal(TopoVizNode.cpuRects.length, this.node.allocations.length);
@@ -257,7 +257,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(hbs`
+    await render(hbs`
       <div style="width:100px">
         <TopoViz::Node
           @node={{this.node}}
@@ -289,7 +289,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     await TopoVizNode.memoryRects[0].select();
     assert.equal(this.onAllocationSelect.callCount, 1);
@@ -317,7 +317,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     await TopoVizNode.memoryRects[0].hover();
     assert.equal(this.onAllocationFocus.callCount, 1);
@@ -347,7 +347,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     await TopoVizNode.memoryRects[0].hover();
     assert.equal(this.onAllocationFocus.callCount, 1);
@@ -384,7 +384,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     const expectedOrder = [
       evenAlloc,
@@ -410,7 +410,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
     assert.equal(TopoVizNode.emptyMessage, 'Empty Client');
   });
 });

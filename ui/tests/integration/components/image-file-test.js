@@ -1,4 +1,4 @@
-import { find, settled } from '@ember/test-helpers';
+import { find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
@@ -23,7 +23,7 @@ module('Integration | Component | image file', function (hooks) {
   test('component displays the image', async function (assert) {
     this.setProperties(commonProperties);
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.ok(find('img'), 'Image is in the DOM');
     assert.equal(
@@ -38,7 +38,7 @@ module('Integration | Component | image file', function (hooks) {
   test('the image is wrapped in an anchor that links directly to the image', async function (assert) {
     this.setProperties(commonProperties);
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.ok(find('a'), 'Anchor');
     assert.ok(find('a > img'), 'Image in anchor');
@@ -61,7 +61,7 @@ module('Integration | Component | image file', function (hooks) {
     this.setProperties(commonProperties);
     this.set('spy', wrapper);
 
-    this.render(hbs`
+    render(hbs`
       <ImageFile @src={{src}} @alt={{alt}} @size={{size}} @updateImageMeta={{spy}} />
     `);
 
@@ -72,8 +72,7 @@ module('Integration | Component | image file', function (hooks) {
   test('component shows the width, height, and size of the image', async function (assert) {
     this.setProperties(commonProperties);
 
-    await this.render(commonTemplate);
-    await settled();
+    await render(commonTemplate);
 
     const statsEl = find('[data-test-file-stats]');
     assert.ok(

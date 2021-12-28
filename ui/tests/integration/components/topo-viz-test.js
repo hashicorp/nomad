@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { triggerEvent } from '@ember/test-helpers';
+import { render, triggerEvent } from '@ember/test-helpers';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
@@ -55,7 +55,7 @@ module('Integration | Component | TopoViz', function (hooks) {
       ],
     });
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.equal(TopoViz.datacenters.length, 2);
     assert.equal(TopoViz.datacenters[0].nodes.length, 1);
@@ -76,7 +76,7 @@ module('Integration | Component | TopoViz', function (hooks) {
       onNodeSelect: sinon.spy(),
     });
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     await TopoViz.datacenters[0].nodes[0].selectNode();
     assert.ok(this.onNodeSelect.calledOnce);
@@ -95,7 +95,7 @@ module('Integration | Component | TopoViz', function (hooks) {
       onAllocationSelect: sinon.spy(),
     });
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     await TopoViz.datacenters[0].nodes[0].memoryRects[0].select();
     assert.ok(this.onAllocationSelect.calledOnce);
@@ -136,7 +136,7 @@ module('Integration | Component | TopoViz', function (hooks) {
       (alloc) => alloc.belongsTo('job').id() === 'job1' && alloc.taskGroupName === 'group'
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.notOk(TopoViz.allocationAssociationsArePresent);
 
@@ -176,7 +176,7 @@ module('Integration | Component | TopoViz', function (hooks) {
       onAllocationSelect: sinon.spy(),
     });
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
     assert.notOk(TopoViz.allocationAssociationsArePresent);
 
     await TopoViz.datacenters[0].nodes[0].memoryRects[0].select();
@@ -205,7 +205,7 @@ module('Integration | Component | TopoViz', function (hooks) {
       onDataError: sinon.spy(),
     });
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.ok(this.onDataError.calledOnce);
     assert.deepEqual(this.onDataError.getCall(0).args[0], [

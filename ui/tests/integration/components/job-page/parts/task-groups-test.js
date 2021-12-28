@@ -1,6 +1,6 @@
 import { assign } from '@ember/polyfills';
 import hbs from 'htmlbars-inline-precompile';
-import { click, findAll, find } from '@ember/test-helpers';
+import { click, findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import sinon from 'sinon';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
@@ -45,7 +45,7 @@ module('Integration | Component | job-page/parts/task-groups', function (hooks) 
     const job = this.store.peekAll('job').get('firstObject');
     this.setProperties(props(job));
 
-    await this.render(hbs`
+    await render(hbs`
       <JobPage::Parts::TaskGroups
         @job={{this.job}}
         @sortProperty={{this.sortProperty}}
@@ -76,7 +76,7 @@ module('Integration | Component | job-page/parts/task-groups', function (hooks) 
 
     this.setProperties(props(job));
 
-    await this.render(hbs`
+    await render(hbs`
       <JobPage::Parts::TaskGroups
         @job={{this.job}}
         @sortProperty={{this.sortProperty}}
@@ -138,7 +138,7 @@ module('Integration | Component | job-page/parts/task-groups', function (hooks) 
       })
     );
 
-    await this.render(hbs`
+    await render(hbs`
       <JobPage::Parts::TaskGroups
         @job={{this.job}}
         @sortProperty={{this.sortProperty}}
