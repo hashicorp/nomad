@@ -69,7 +69,9 @@ module('Unit | Model | task-group', function (hooks) {
     const jobWithMeta = run(() =>
       store.createRecord('job', {
         name: 'example-with-meta',
-        meta: store.createFragment('structured-attributes', { raw: { a: 'b' } }),
+        meta: store.createFragment('structured-attributes', {
+          raw: { a: 'b' },
+        }),
         taskGroups: [
           {
             name: 'one',

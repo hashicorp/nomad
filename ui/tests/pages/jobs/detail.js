@@ -7,7 +7,7 @@ import {
   isPresent,
   property,
   text,
-  visitable,
+  visitable
 } from 'ember-cli-page-object';
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
@@ -22,14 +22,17 @@ export default create({
 
   tabs: collection('[data-test-tab]', {
     id: attribute('data-test-tab'),
-    visit: clickable('a'),
+    visit: clickable('a')
   }),
 
   tabFor(id) {
     return this.tabs.toArray().findBy('id', id);
   },
 
-  recommendations: collection('[data-test-recommendation-accordion]', recommendationAccordion),
+  recommendations: collection(
+    '[data-test-recommendation-accordion]',
+    recommendationAccordion
+  ),
 
   stop: twoStepButton('[data-test-stop]'),
   start: twoStepButton('[data-test-start]'),
@@ -41,22 +44,22 @@ export default create({
     scope: '[data-test-exec-button]',
     isDisabled: property('disabled'),
     hasTooltip: hasClass('tooltip'),
-    tooltipText: attribute('aria-label'),
+    tooltipText: attribute('aria-label')
   },
 
   incrementButton: {
     scope: '[data-test-scale-controls-increment]',
-    isDisabled: property('disabled'),
+    isDisabled: property('disabled')
   },
 
   dispatchButton: {
     scope: '[data-test-dispatch-button]',
-    isDisabled: property('disabled'),
+    isDisabled: property('disabled')
   },
 
   stats: collection('[data-test-job-stat]', {
     id: attribute('data-test-job-stat'),
-    text: text(),
+    text: text()
   }),
 
   statFor(id) {
@@ -65,7 +68,7 @@ export default create({
 
   packStats: collection('[data-test-pack-stat]', {
     id: attribute('data-test-pack-stat'),
-    text: text(),
+    text: text()
   }),
 
   packStatFor(id) {
@@ -79,10 +82,12 @@ export default create({
       scope: '[data-test-accordion-head] [data-test-accordion-toggle]',
       click: clickable(),
       isDisabled: attribute('disabled'),
-      tooltip: attribute('aria-label'),
-    },
+      tooltip: attribute('aria-label')
+    }
   },
-  childrenSummary: jobClientStatusBar('[data-test-job-summary] [data-test-children-status-bar]'),
+  childrenSummary: jobClientStatusBar(
+    '[data-test-job-summary] [data-test-children-status-bar]'
+  ),
   allocationsSummary: jobClientStatusBar(
     '[data-test-job-summary] [data-test-allocation-status-bar]'
   ),
@@ -93,7 +98,7 @@ export default create({
   jobsHeader: {
     scope: '[data-test-jobs-header]',
     hasSubmitTime: isPresent('[data-test-jobs-submit-time-header]'),
-    hasNamespace: isPresent('[data-test-jobs-namespace-header]'),
+    hasNamespace: isPresent('[data-test-jobs-namespace-header]')
   },
 
   jobs: collection('[data-test-job-row]', {
@@ -108,17 +113,17 @@ export default create({
     taskGroups: text('[data-test-job-task-groups]'),
 
     clickRow: clickable(),
-    clickName: clickable('[data-test-job-name] a'),
+    clickName: clickable('[data-test-job-name] a')
   }),
 
   error: {
     isPresent: isPresent('[data-test-error]'),
     title: text('[data-test-error-title]'),
     message: text('[data-test-error-message]'),
-    seekHelp: clickable('[data-test-error-message] a'),
+    seekHelp: clickable('[data-test-error-message] a')
   },
 
   recentAllocationsEmptyState: {
-    headline: text('[data-test-empty-recent-allocations-headline]'),
-  },
+    headline: text('[data-test-empty-recent-allocations-headline]')
+  }
 });

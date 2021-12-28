@@ -30,7 +30,10 @@ export default class TokenAdapter extends ApplicationAdapter {
           tokens: [token],
         });
 
-        return store.peekRecord('token', store.normalize('token', token).data.id);
+        return store.peekRecord(
+          'token',
+          store.normalize('token', token).data.id
+        );
       })
       .catch(() => {
         throw new OTTExchangeError();

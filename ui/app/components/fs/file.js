@@ -39,7 +39,10 @@ export default class File extends Component {
 
     if (contentType.startsWith('image/')) {
       return 'image';
-    } else if (contentType.startsWith('text/') || contentType.startsWith('application/json')) {
+    } else if (
+      contentType.startsWith('text/') ||
+      contentType.startsWith('application/json')
+    ) {
       return 'stream';
     } else {
       return 'unknown';
@@ -108,7 +111,14 @@ export default class File extends Component {
     }
   }
 
-  @computed('clientTimeout', 'fileParams', 'fileUrl', 'mode', 'serverTimeout', 'useServer')
+  @computed(
+    'clientTimeout',
+    'fileParams',
+    'fileUrl',
+    'mode',
+    'serverTimeout',
+    'useServer'
+  )
   get logger() {
     // The cat and readat APIs are in plainText while the stream API is always encoded.
     const plainText = this.mode === 'head' || this.mode === 'tail';

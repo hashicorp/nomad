@@ -38,7 +38,11 @@ module('Acceptance | job definition', function (hooks) {
     const jobRequests = server.pretender.handledRequests
       .map((req) => req.url.split('?')[0])
       .filter((url) => url === jobURL);
-    assert.ok(jobRequests.length === 2, 'Two requests for the job were made');
+    assert.strictEqual(
+      jobRequests.length,
+      2,
+      'Two requests for the job were made'
+    );
   });
 
   test('the job definition can be edited', async function (assert) {
@@ -46,7 +50,10 @@ module('Acceptance | job definition', function (hooks) {
 
     await Definition.edit();
 
-    assert.ok(Definition.editor.isPresent, 'Editor is shown after clicking edit');
+    assert.ok(
+      Definition.editor.isPresent,
+      'Editor is shown after clicking edit'
+    );
     assert.notOk(Definition.jsonViewer, 'Editor replaces the JSON viewer');
   });
 
@@ -60,8 +67,15 @@ module('Acceptance | job definition', function (hooks) {
 
   test('when in editing mode, the editor is prepopulated with the job definition', async function (assert) {
     const requests = server.pretender.handledRequests;
-    const jobDefinition = requests.findBy('url', `/v1/job/${job.id}`).responseText;
-    const formattedJobDefinition = JSON.stringify(JSON.parse(jobDefinition), null, 2);
+    const jobDefinition = requests.findBy(
+      'url',
+      `/v1/job/${job.id}`
+    ).responseText;
+    const formattedJobDefinition = JSON.stringify(
+      JSON.parse(jobDefinition),
+      null,
+      2
+    );
 
     await Definition.edit();
 
@@ -77,7 +91,11 @@ module('Acceptance | job definition', function (hooks) {
 
     await Definition.editor.plan();
     await Definition.editor.run();
-    assert.equal(currentURL(), `/jobs/${job.id}`, 'Now on the job overview page');
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}`,
+      'Now on the job overview page'
+    );
   });
 
   test('when the job for the definition is not found, an error message is shown, but the URL persists', async function (assert) {
@@ -90,8 +108,16 @@ module('Acceptance | job definition', function (hooks) {
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
     );
-    assert.equal(currentURL(), '/jobs/not-a-real-job/definition', 'The URL persists');
+    assert.equal(
+      currentURL(),
+      '/jobs/not-a-real-job/definition',
+      'The URL persists'
+    );
     assert.ok(Definition.error.isPresent, 'Error message is shown');
-    assert.equal(Definition.error.title, 'Not Found', 'Error message is for 404');
+    assert.equal(
+      Definition.error.title,
+      'Not Found',
+      'Error message is for 404'
+    );
   });
 });

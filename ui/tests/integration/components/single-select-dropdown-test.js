@@ -1,7 +1,10 @@
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { selectChoose, clickTrigger } from 'ember-power-select/test-support/helpers';
+import {
+  selectChoose,
+  clickTrigger,
+} from 'ember-power-select/test-support/helpers';
 import sinon from 'sinon';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
@@ -36,7 +39,9 @@ module('Integration | Component | single-select dropdown', function (hooks) {
     this.setProperties(props);
     await render(commonTemplate);
 
-    assert.ok(find('.ember-power-select-trigger').textContent.includes(props.label));
+    assert.ok(
+      find('.ember-power-select-trigger').textContent.includes(props.label)
+    );
     assert.ok(
       find('.ember-power-select-trigger').textContent.includes(
         props.options.findBy('key', props.selection).label

@@ -5,7 +5,10 @@ export default class JobVersionAdapter extends ApplicationAdapter {
   revertTo(jobVersion) {
     const jobAdapter = this.store.adapterFor('job');
 
-    const url = addToPath(jobAdapter.urlForFindRecord(jobVersion.get('job.id'), 'job'), '/revert');
+    const url = addToPath(
+      jobAdapter.urlForFindRecord(jobVersion.get('job.id'), 'job'),
+      '/revert'
+    );
     const [jobName] = JSON.parse(jobVersion.get('job.id'));
 
     return this.ajax(url, 'POST', {

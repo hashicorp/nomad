@@ -14,7 +14,9 @@ const decoder = new TextDecoderLite('utf-8');
  */
 export function decode(chunk) {
   const lines = chunk.replace(/\}\{/g, '}\n{').split('\n').without('');
-  const frames = lines.map((line) => JSON.parse(line)).filter((frame) => frame.Data);
+  const frames = lines
+    .map((line) => JSON.parse(line))
+    .filter((frame) => frame.Data);
 
   if (frames.length) {
     frames.forEach((frame) => (frame.Data = b64decode(frame.Data)));

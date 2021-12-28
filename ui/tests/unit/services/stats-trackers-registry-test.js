@@ -60,11 +60,22 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     const registry = this.subject();
     const id = 'id';
 
-    assert.equal(registry.get('registryRef').size, 0, 'Nothing in the registry yet');
+    assert.equal(
+      registry.get('registryRef').size,
+      0,
+      'Nothing in the registry yet'
+    );
 
     const tracker = registry.getTracker(mockNode.create({ id }));
-    assert.ok(tracker instanceof NodeStatsTracker, 'The correct type of tracker is made');
-    assert.equal(registry.get('registryRef').size, 1, 'The tracker was added to the registry');
+    assert.ok(
+      tracker instanceof NodeStatsTracker,
+      'The correct type of tracker is made'
+    );
+    assert.equal(
+      registry.get('registryRef').size,
+      1,
+      'The tracker was added to the registry'
+    );
     assert.deepEqual(
       Array.from(registry.get('registryRef').keys()),
       [`node:${id}`],
@@ -79,8 +90,16 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
     const tracker1 = registry.getTracker(node);
     const tracker2 = registry.getTracker(node);
 
-    assert.equal(tracker1, tracker2, 'Returns an existing tracker for the same resource');
-    assert.equal(registry.get('registryRef').size, 1, 'Only one tracker in the registry');
+    assert.equal(
+      tracker1,
+      tracker2,
+      'Returns an existing tracker for the same resource'
+    );
+    assert.equal(
+      registry.get('registryRef').size,
+      1,
+      'Only one tracker in the registry'
+    );
   });
 
   test('Registry does not depend on persistent object references', function (assert) {
@@ -98,8 +117,16 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
       'And the same className'
     );
 
-    assert.equal(registry.getTracker(node1), registry.getTracker(node2), 'Return the same tracker');
-    assert.equal(registry.get('registryRef').size, 1, 'Only one tracker in the registry');
+    assert.equal(
+      registry.getTracker(node1),
+      registry.getTracker(node2),
+      'Return the same tracker'
+    );
+    assert.equal(
+      registry.get('registryRef').size,
+      1,
+      'Only one tracker in the registry'
+    );
   });
 
   test('Has a max size', function (assert) {
@@ -194,7 +221,9 @@ module('Unit | Service | Stats Trackers Registry', function (hooks) {
 
     tracker.get('poll').perform();
     assert.ok(
-      this.tokenAuthorizedRequestSpy.calledWith(`/v1/client/stats?node_id=${node.get('id')}`),
+      this.tokenAuthorizedRequestSpy.calledWith(
+        `/v1/client/stats?node_id=${node.get('id')}`
+      ),
       'The token service authorizedRequest function was used'
     );
 

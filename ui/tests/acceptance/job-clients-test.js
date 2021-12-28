@@ -75,14 +75,21 @@ module('Acceptance | job clients', function (hooks) {
 
       ['createTime', 'modifyTime'].forEach((col) => {
         if (jobStatus === 'not scheduled') {
-          assert.equal(clientRow[col].text, '-', `row ${index} doesn't have ${col} tooltip`);
+          assert.equal(
+            clientRow[col].text,
+            '-',
+            `row ${index} doesn't have ${col} tooltip`
+          );
           return;
         }
 
         const hasTooltip = clientRow[col].tooltip.isPresent;
         const tooltipText = clientRow[col].tooltip.text;
         assert.true(hasTooltip, `row ${index} has ${col} tooltip`);
-        assert.ok(tooltipText, `row ${index} has ${col} tooltip content ${tooltipText}`);
+        assert.ok(
+          tooltipText,
+          `row ${index} has ${col} tooltip content ${tooltipText}`
+        );
       });
     });
   });
@@ -142,7 +149,11 @@ module('Acceptance | job clients', function (hooks) {
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
     );
-    assert.equal(currentURL(), '/jobs/not-a-real-job/clients', 'The URL persists');
+    assert.equal(
+      currentURL(),
+      '/jobs/not-a-real-job/clients',
+      'The URL persists'
+    );
     assert.ok(Clients.error.isPresent, 'Error message is shown');
     assert.equal(Clients.error.title, 'Not Found', 'Error message is for 404');
   });

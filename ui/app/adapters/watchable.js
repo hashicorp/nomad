@@ -40,7 +40,10 @@ export default class Watchable extends ApplicationAdapter {
       params.index = this.watchList.getIndexFor(url);
     }
 
-    const signal = get(snapshotRecordArray || {}, 'adapterOptions.abortController.signal');
+    const signal = get(
+      snapshotRecordArray || {},
+      'adapterOptions.abortController.signal'
+    );
     return this.ajax(url, 'GET', {
       signal,
       data: params,
@@ -48,9 +51,18 @@ export default class Watchable extends ApplicationAdapter {
   }
 
   findRecord(store, type, id, snapshot, additionalParams = {}) {
-    const originalUrl = this.buildURL(type.modelName, id, snapshot, 'findRecord');
+    const originalUrl = this.buildURL(
+      type.modelName,
+      id,
+      snapshot,
+      'findRecord'
+    );
     let [url, params] = originalUrl.split('?');
-    params = assign(queryString.parse(params) || {}, this.buildQuery(), additionalParams);
+    params = assign(
+      queryString.parse(params) || {},
+      this.buildQuery(),
+      additionalParams
+    );
 
     if (get(snapshot || {}, 'adapterOptions.watch')) {
       params.index = this.watchList.getIndexFor(originalUrl);
@@ -68,15 +80,29 @@ export default class Watchable extends ApplicationAdapter {
     });
   }
 
-  query(store, type, query, snapshotRecordArray, options, additionalParams = {}) {
+  query(
+    store,
+    type,
+    query,
+    snapshotRecordArray,
+    options,
+    additionalParams = {}
+  ) {
     const url = this.buildURL(type.modelName, null, null, 'query', query);
     let [urlPath, params] = url.split('?');
-    params = assign(queryString.parse(params) || {}, this.buildQuery(), additionalParams, query);
+    params = assign(
+      queryString.parse(params) || {},
+      this.buildQuery(),
+      additionalParams,
+      query
+    );
 
     if (get(options, 'adapterOptions.watch')) {
       // The intended query without additional blocking query params is used
       // to track the appropriate query index.
-      params.index = this.watchList.getIndexFor(`${urlPath}?${queryString.stringify(query)}`);
+      params.index = this.watchList.getIndexFor(
+        `${urlPath}?${queryString.stringify(query)}`
+      );
     }
 
     const signal = get(options, 'adapterOptions.abortController.signal');
@@ -88,7 +114,9 @@ export default class Watchable extends ApplicationAdapter {
 
       // Query params may not necessarily map one-to-one to attribute names.
       // Adapters are responsible for declaring param mappings.
-      const queryParamsToAttrs = Object.keys(adapter.queryParamsToAttrs || {}).map((key) => ({
+      const queryParamsToAttrs = Object.keys(
+        adapter.queryParamsToAttrs || {}
+      ).map((key) => ({
         queryParam: key,
         attr: adapter.queryParamsToAttrs[key],
       }));
@@ -110,7 +138,11 @@ export default class Watchable extends ApplicationAdapter {
     });
   }
 
-  reloadRelationship(model, relationshipName, options = { watch: false, abortController: null }) {
+  reloadRelationship(
+    model,
+    relationshipName,
+    options = { watch: false, abortController: null }
+  ) {
     const { watch, abortController } = options;
     const relationship = model.relationshipFor(relationshipName);
     if (relationship.kind !== 'belongsTo' && relationship.kind !== 'hasMany') {
@@ -146,7 +178,11 @@ export default class Watchable extends ApplicationAdapter {
               : 'normalizeFindHasManyResponse';
           const serializer = store.serializerFor(relationship.type);
           const modelClass = store.modelFor(relationship.type);
-          const normalizedData = serializer[normalizeMethod](store, modelClass, json);
+          const normalizedData = serializer[normalizeMethod](
+            store,
+            modelClass,
+            json
+          );
           store.push(normalizedData);
         },
         (error) => {

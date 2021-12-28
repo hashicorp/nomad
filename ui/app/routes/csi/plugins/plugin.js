@@ -11,6 +11,8 @@ export default class PluginRoute extends Route {
   }
 
   model(params) {
-    return this.store.findRecord('plugin', `csi/${params.plugin_name}`).catch(notifyError(this));
+    return this.store
+      .findRecord('plugin', `csi/${params.plugin_name}`)
+      .catch(notifyError(this));
   }
 }

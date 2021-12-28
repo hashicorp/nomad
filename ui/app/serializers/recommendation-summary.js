@@ -17,9 +17,10 @@ export default class RecommendationSummarySerializer extends ApplicationSerializ
     const allRecommendations = [];
 
     payload.forEach((recommendationHash) => {
-      const slug = `${JSON.stringify([recommendationHash.JobID, recommendationHash.Namespace])}/${
-        recommendationHash.Group
-      }`;
+      const slug = `${JSON.stringify([
+        recommendationHash.JobID,
+        recommendationHash.Namespace,
+      ])}/${recommendationHash.Group}`;
 
       if (!slugToSummaryObject[slug]) {
         slugToSummaryObject[slug] = {
@@ -38,7 +39,9 @@ export default class RecommendationSummarySerializer extends ApplicationSerializ
 
     return {
       data: Object.values(slugToSummaryObject).map((summaryObject) => {
-        const latest = Math.max(...summaryObject.recommendations.mapBy('SubmitTime'));
+        const latest = Math.max(
+          ...summaryObject.recommendations.mapBy('SubmitTime')
+        );
 
         return {
           type: 'recommendation-summary',
@@ -70,7 +73,10 @@ export default class RecommendationSummarySerializer extends ApplicationSerializ
       }),
       included: allRecommendations.map(
         (recommendationHash) =>
-          recommendationSerializer.normalize(RecommendationModel, recommendationHash).data
+          recommendationSerializer.normalize(
+            RecommendationModel,
+            recommendationHash
+          ).data
       ),
     };
   }

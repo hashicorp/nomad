@@ -1,4 +1,11 @@
-import { attribute, clickable, create, collection, text, visitable } from 'ember-cli-page-object';
+import {
+  attribute,
+  clickable,
+  create,
+  collection,
+  text,
+  visitable,
+} from 'ember-cli-page-object';
 
 import error from 'nomad-ui/tests/pages/components/error';
 

@@ -36,7 +36,11 @@ module('Unit | Component | line-chart', function (hooks) {
     chart.args.data = [...data, { foo: 12, bar: 600 }];
 
     [, xDomainHigh] = chart.xScale.domain();
-    assert.equal(xDomainHigh, 12, 'When the data changes, the xScale is recalculated');
+    assert.equal(
+      xDomainHigh,
+      12,
+      'When the data changes, the xScale is recalculated'
+    );
   });
 
   test('y scale domain uses the max value in the data based off of yProp, but is always zero-based', function (assert) {
@@ -56,7 +60,11 @@ module('Unit | Component | line-chart', function (hooks) {
     chart.args.data = [...data, { foo: 12, bar: 600 }];
 
     [, yDomainHigh] = chart.yScale.domain();
-    assert.equal(yDomainHigh, 600, 'When the data changes, the yScale is recalculated');
+    assert.equal(
+      yDomainHigh,
+      600,
+      'When the data changes, the yScale is recalculated'
+    );
   });
 
   test('the number of yTicks is always odd (to always have a mid-line) and is based off the chart height', function (assert) {

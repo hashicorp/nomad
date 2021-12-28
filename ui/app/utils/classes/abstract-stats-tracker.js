@@ -18,7 +18,9 @@ export default Mixin.create({
   maxFrameMisses: 5,
 
   fetch() {
-    assert('StatsTrackers need a fetch method, which should have an interface like window.fetch');
+    assert(
+      'StatsTrackers need a fetch method, which should have an interface like window.fetch'
+    );
   },
 
   append(/* frame */) {

@@ -181,7 +181,9 @@ module('Integration | Component | task group row', function (hooks) {
     assert.ok(find('[data-test-scale="increment"]:disabled'));
     assert.ok(find('[data-test-scale="decrement"]:disabled'));
     assert.ok(
-      find('[data-test-scale-controls]').getAttribute('aria-label').includes("You aren't allowed")
+      find('[data-test-scale-controls]')
+        .getAttribute('aria-label')
+        .includes("You aren't allowed")
     );
   });
 });

@@ -24,7 +24,9 @@ export default class JobVersionsStream extends Component {
         meta.showDate = true;
       } else {
         const previousVersion = versions.objectAt(index - 1);
-        const previousStart = moment(previousVersion.get('submitTime')).startOf('day');
+        const previousStart = moment(previousVersion.get('submitTime')).startOf(
+          'day'
+        );
         const currentStart = moment(version.get('submitTime')).startOf('day');
         if (previousStart.diff(currentStart, 'days') > 0) {
           meta.showDate = true;

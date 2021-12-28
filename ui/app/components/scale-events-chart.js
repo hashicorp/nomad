@@ -40,7 +40,10 @@ export default class ScaleEventsChart extends Component {
   }
 
   toggleEvent(ev) {
-    if (this.activeEvent && get(this.activeEvent, 'event.uid') === get(ev, 'event.uid')) {
+    if (
+      this.activeEvent &&
+      get(this.activeEvent, 'event.uid') === get(ev, 'event.uid')
+    ) {
       this.closeEventDetails();
     } else {
       this.activeEvent = ev;

@@ -125,5 +125,7 @@ export default class ApplicationAdapter extends RESTAdapter {
 }
 
 function associateRegion(url, region) {
-  return url.indexOf('?') !== -1 ? `${url}&region=${region}` : `${url}?region=${region}`;
+  return url.indexOf('?') !== -1
+    ? `${url}&region=${region}`
+    : `${url}?region=${region}`;
 }

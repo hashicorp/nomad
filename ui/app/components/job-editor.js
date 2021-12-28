@@ -25,7 +25,10 @@ export default class JobEditor extends Component {
   set context(value) {
     const allowedValues = ['new', 'edit'];
 
-    assert(`context must be one of: ${allowedValues.join(', ')}`, allowedValues.includes(value));
+    assert(
+      `context must be one of: ${allowedValues.join(', ')}`,
+      allowedValues.includes(value)
+    );
 
     this.set('_context', value);
   }

@@ -30,7 +30,11 @@ module('Integration | Component | list table', function (hooks) {
     `);
 
     assert.ok(findAll('.head').length, 'Table head is rendered');
-    assert.equal(find('.head').tagName.toLowerCase(), 'thead', 'Table head is a thead element');
+    assert.equal(
+      find('.head').tagName.toLowerCase(),
+      'thead',
+      'Table head is a thead element'
+    );
   });
 
   // tbody
@@ -54,18 +58,42 @@ module('Integration | Component | list table', function (hooks) {
     `);
 
     assert.ok(findAll('.body').length, 'Table body is rendered');
-    assert.equal(find('.body').tagName.toLowerCase(), 'tbody', 'Table body is a tbody element');
+    assert.equal(
+      find('.body').tagName.toLowerCase(),
+      'tbody',
+      'Table body is a tbody element'
+    );
 
-    assert.equal(findAll('.item').length, this.get('source.length'), 'Each item gets its own row');
+    assert.equal(
+      findAll('.item').length,
+      this.get('source.length'),
+      'Each item gets its own row'
+    );
 
     // list-table is not responsible for sorting, only dispatching sort events. The table is still
     // rendered in index-order.
     this.source.forEach((item, index) => {
       const $item = this.element.querySelectorAll('.item')[index];
-      assert.equal($item.querySelectorAll('td')[0].innerHTML.trim(), item.firstName, 'First name');
-      assert.equal($item.querySelectorAll('td')[1].innerHTML.trim(), item.lastName, 'Last name');
-      assert.equal($item.querySelectorAll('td')[2].innerHTML.trim(), item.age, 'Age');
-      assert.equal($item.querySelectorAll('td')[3].innerHTML.trim(), index, 'Index');
+      assert.equal(
+        $item.querySelectorAll('td')[0].innerHTML.trim(),
+        item.firstName,
+        'First name'
+      );
+      assert.equal(
+        $item.querySelectorAll('td')[1].innerHTML.trim(),
+        item.lastName,
+        'Last name'
+      );
+      assert.equal(
+        $item.querySelectorAll('td')[2].innerHTML.trim(),
+        item.age,
+        'Age'
+      );
+      assert.equal(
+        $item.querySelectorAll('td')[3].innerHTML.trim(),
+        index,
+        'Index'
+      );
     });
 
     await componentA11yAudit(this.element, assert);

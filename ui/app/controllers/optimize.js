@@ -7,7 +7,10 @@ import { inject as service } from '@ember/service';
 import { scheduleOnce } from '@ember/runloop';
 import { task } from 'ember-concurrency';
 import intersection from 'lodash.intersection';
-import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
+import {
+  serialize,
+  deserializedQueryParam as selection,
+} from 'nomad-ui/utils/qp-serialize';
 
 import EmberObject, { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
@@ -104,13 +107,17 @@ export default class OptimizeController extends Controller {
 
   get optionsDatacenter() {
     const flatten = (acc, val) => acc.concat(val);
-    const allDatacenters = new Set(this.summaries.mapBy('job.datacenters').reduce(flatten, []));
+    const allDatacenters = new Set(
+      this.summaries.mapBy('job.datacenters').reduce(flatten, [])
+    );
 
     // Remove any invalid datacenters from the query param/selection
     const availableDatacenters = Array.from(allDatacenters).compact();
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.qpDatacenter = serialize(intersection(availableDatacenters, this.selectionDatacenter));
+      this.qpDatacenter = serialize(
+        intersection(availableDatacenters, this.selectionDatacenter)
+      );
     });
 
     return availableDatacenters.sort().map((dc) => ({ key: dc, label: dc }));
@@ -144,7 +151,9 @@ export default class OptimizeController extends Controller {
     const availablePrefixes = prefixes.mapBy('prefix');
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.qpPrefix = serialize(intersection(availablePrefixes, this.selectionPrefix));
+      this.qpPrefix = serialize(
+        intersection(availablePrefixes, this.selectionPrefix)
+      );
     });
 
     // Sort, format, and include the count in the label
@@ -171,7 +180,10 @@ export default class OptimizeController extends Controller {
         return false;
       }
 
-      if (this.qpNamespace !== '*' && job.get('namespace.name') !== this.qpNamespace) {
+      if (
+        this.qpNamespace !== '*' &&
+        job.get('namespace.name') !== this.qpNamespace
+      ) {
         return false;
       }
 
@@ -183,12 +195,18 @@ export default class OptimizeController extends Controller {
         return false;
       }
 
-      if (datacenters.length && !job.get('datacenters').find((dc) => datacenters.includes(dc))) {
+      if (
+        datacenters.length &&
+        !job.get('datacenters').find((dc) => datacenters.includes(dc))
+      ) {
         return false;
       }
 
       const name = job.get('name');
-      if (prefixes.length && !prefixes.find((prefix) => name.startsWith(prefix))) {
+      if (
+        prefixes.length &&
+        !prefixes.find((prefix) => name.startsWith(prefix))
+      ) {
         return false;
       }
 
@@ -207,8 +225,12 @@ export default class OptimizeController extends Controller {
   // This is a task because the accordion uses timeouts for animation
   // eslint-disable-next-line require-yield
   @(task(function* () {
-    const currentSummaryIndex = this.filteredSummaries.indexOf(this.activeRecommendationSummary);
-    const nextSummary = this.filteredSummaries.objectAt(currentSummaryIndex + 1);
+    const currentSummaryIndex = this.filteredSummaries.indexOf(
+      this.activeRecommendationSummary
+    );
+    const nextSummary = this.filteredSummaries.objectAt(
+      currentSummaryIndex + 1
+    );
 
     if (nextSummary) {
       this.transitionToSummary(nextSummary);

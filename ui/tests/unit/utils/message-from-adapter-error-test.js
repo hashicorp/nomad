@@ -10,7 +10,10 @@ const testCases = [
   },
   {
     name: 'Generic Error',
-    in: [new ServerError([{ detail: 'DB Max Connections' }], 'Server Error'), 'run tests'],
+    in: [
+      new ServerError([{ detail: 'DB Max Connections' }], 'Server Error'),
+      'run tests',
+    ],
     out: 'DB Max Connections',
   },
   {

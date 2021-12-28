@@ -41,11 +41,18 @@ module('Integration | Component | two step button', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(find('[data-test-idle-button]'), 'Idle button is rendered');
-    assert.equal(TwoStepButton.idleText, props.idleText, 'Button is labeled correctly');
+    assert.equal(
+      TwoStepButton.idleText,
+      props.idleText,
+      'Button is labeled correctly'
+    );
 
     assert.notOk(find('[data-test-cancel-button]'), 'No cancel button yet');
     assert.notOk(find('[data-test-confirm-button]'), 'No confirm button yet');
-    assert.notOk(find('[data-test-confirmation-message]'), 'No confirmation message yet');
+    assert.notOk(
+      find('[data-test-confirmation-message]'),
+      'No confirmation message yet'
+    );
 
     await componentA11yAudit(this.element, assert);
   });
@@ -58,10 +65,18 @@ module('Integration | Component | two step button', function (hooks) {
     await TwoStepButton.idle();
 
     assert.ok(find('[data-test-cancel-button]'), 'Cancel button is rendered');
-    assert.equal(TwoStepButton.cancelText, props.cancelText, 'Button is labeled correctly');
+    assert.equal(
+      TwoStepButton.cancelText,
+      props.cancelText,
+      'Button is labeled correctly'
+    );
 
     assert.ok(find('[data-test-confirm-button]'), 'Confirm button is rendered');
-    assert.equal(TwoStepButton.confirmText, props.confirmText, 'Button is labeled correctly');
+    assert.equal(
+      TwoStepButton.confirmText,
+      props.confirmText,
+      'Button is labeled correctly'
+    );
 
     assert.equal(
       TwoStepButton.confirmationMessage,
@@ -108,8 +123,14 @@ module('Integration | Component | two step button', function (hooks) {
     await TwoStepButton.idle();
 
     assert.ok(TwoStepButton.cancelIsDisabled, 'The cancel button is disabled');
-    assert.ok(TwoStepButton.confirmIsDisabled, 'The confirm button is disabled');
-    assert.ok(TwoStepButton.isRunning, 'The confirm button is in a loading state');
+    assert.ok(
+      TwoStepButton.confirmIsDisabled,
+      'The confirm button is disabled'
+    );
+    assert.ok(
+      TwoStepButton.isRunning,
+      'The confirm button is in a loading state'
+    );
 
     await componentA11yAudit(this.element, assert);
   });
@@ -166,7 +187,10 @@ module('Integration | Component | two step button', function (hooks) {
     assert.ok(TwoStepButton.isDisabled, 'The idle button is disabled');
 
     await TwoStepButton.idle();
-    assert.ok(find('[data-test-idle-button]'), 'Still in the idle state after clicking');
+    assert.ok(
+      find('[data-test-idle-button]'),
+      'Still in the idle state after clicking'
+    );
 
     await componentA11yAudit(this.element, assert);
   });

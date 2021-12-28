@@ -205,7 +205,11 @@ module('Unit | Serializer | RecommendationSummary', function (hooks) {
   normalizationTestCases.forEach((testCase) => {
     test(`normalization: ${testCase.name}`, async function (assert) {
       assert.deepEqual(
-        this.subject().normalizeArrayResponse(this.store, RecommendationSummaryModel, testCase.in),
+        this.subject().normalizeArrayResponse(
+          this.store,
+          RecommendationSummaryModel,
+          testCase.in
+        ),
         testCase.out
       );
     });

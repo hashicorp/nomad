@@ -165,7 +165,10 @@ module('Unit | Serializer | Allocation', function (hooks) {
           },
         },
         PreemptedByAllocation: 'preempter-allocation',
-        PreemptedAllocations: ['preempted-one-allocation', 'preempted-two-allocation'],
+        PreemptedAllocations: [
+          'preempted-one-allocation',
+          'preempted-two-allocation',
+        ],
       },
       out: {
         data: {
@@ -384,7 +387,10 @@ module('Unit | Serializer | Allocation', function (hooks) {
 
   normalizationTestCases.forEach((testCase) => {
     test(`normalization: ${testCase.name}`, async function (assert) {
-      assert.deepEqual(this.subject().normalize(AllocationModel, testCase.in), testCase.out);
+      assert.deepEqual(
+        this.subject().normalize(AllocationModel, testCase.in),
+        testCase.out
+      );
     });
   });
 });

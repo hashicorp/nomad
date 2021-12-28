@@ -1,7 +1,11 @@
 import { computed } from '@ember/object';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { attr } from '@ember-data/model';
-import { fragmentOwner, fragmentArray, fragment } from 'ember-data-model-fragments/attributes';
+import {
+  fragmentOwner,
+  fragmentArray,
+  fragment,
+} from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
 import classic from 'ember-classic-decorator';
 
@@ -39,7 +43,10 @@ export default class TaskGroup extends Fragment {
 
   @computed('job.allocations.@each.taskGroup', 'name')
   get allocations() {
-    return maybe(this.get('job.allocations')).filterBy('taskGroupName', this.name);
+    return maybe(this.get('job.allocations')).filterBy(
+      'taskGroupName',
+      this.name
+    );
   }
 
   @sumAggregation('tasks', 'reservedCPU') reservedCPU;
@@ -57,13 +64,17 @@ export default class TaskGroup extends Fragment {
 
   @computed('job.latestFailureEvaluation.failedTGAllocs.[]', 'name')
   get placementFailures() {
-    const placementFailures = this.get('job.latestFailureEvaluation.failedTGAllocs');
+    const placementFailures = this.get(
+      'job.latestFailureEvaluation.failedTGAllocs'
+    );
     return placementFailures && placementFailures.findBy('name', this.name);
   }
 
   @computed('summary.{queuedAllocs,startingAllocs}')
   get queuedOrStartingAllocs() {
-    return this.get('summary.queuedAllocs') + this.get('summary.startingAllocs');
+    return (
+      this.get('summary.queuedAllocs') + this.get('summary.startingAllocs')
+    );
   }
 
   @computed('job.taskGroupSummaries.[]', 'name')
@@ -73,7 +84,10 @@ export default class TaskGroup extends Fragment {
 
   @computed('job.scaleState.taskGroupScales.[]', 'name')
   get scaleState() {
-    return maybe(this.get('job.scaleState.taskGroupScales')).findBy('name', this.name);
+    return maybe(this.get('job.scaleState.taskGroupScales')).findBy(
+      'name',
+      this.name
+    );
   }
 
   scale(count, message) {

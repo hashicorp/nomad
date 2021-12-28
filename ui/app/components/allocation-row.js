@@ -85,7 +85,9 @@ async function qualifyAllocation() {
   // Make sure the allocation is a complete record and not a partial so we
   // can show information such as preemptions and rescheduled allocation.
   if (allocation.isPartial) {
-    await this.store.findRecord('allocation', allocation.id, { backgroundReload: false });
+    await this.store.findRecord('allocation', allocation.id, {
+      backgroundReload: false,
+    });
   }
 
   if (allocation.get('job.isPending')) {

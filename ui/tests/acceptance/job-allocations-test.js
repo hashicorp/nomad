@@ -26,11 +26,16 @@ module('Acceptance | job allocations', function (hooks) {
   hooks.beforeEach(function () {
     server.create('node');
 
-    job = server.create('job', { noFailedPlacements: true, createAllocations: false });
+    job = server.create('job', {
+      noFailedPlacements: true,
+      createAllocations: false,
+    });
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    server.createList('allocation', Allocations.pageSize - 1, { shallow: true });
+    server.createList('allocation', Allocations.pageSize - 1, {
+      shallow: true,
+    });
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
     await Allocations.visit({ id: job.id });
@@ -38,7 +43,9 @@ module('Acceptance | job allocations', function (hooks) {
   });
 
   test('lists all allocations for the job', async function (assert) {
-    server.createList('allocation', Allocations.pageSize - 1, { shallow: true });
+    server.createList('allocation', Allocations.pageSize - 1, {
+      shallow: true,
+    });
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
     await Allocations.visit({ id: job.id });
@@ -53,7 +60,11 @@ module('Acceptance | job allocations', function (hooks) {
 
     Allocations.allocations.forEach((allocation, index) => {
       const shortId = sortedAllocations[index].id.split('-')[0];
-      assert.equal(allocation.shortId, shortId, `Allocation ${index} is ${shortId}`);
+      assert.equal(
+        allocation.shortId,
+        shortId,
+        `Allocation ${index} is ${shortId}`
+      );
     });
 
     assert.equal(document.title, `Job ${job.name} allocations - Nomad`);
@@ -90,7 +101,11 @@ module('Acceptance | job allocations', function (hooks) {
     await Allocations.visit({ id: job.id });
     await Allocations.search('ffffff');
 
-    assert.equal(Allocations.allocations.length, 5, 'List is filtered by search term');
+    assert.equal(
+      Allocations.allocations.length,
+      5,
+      'List is filtered by search term'
+    );
   });
 
   test('when a search yields no results, the search box remains', async function (assert) {
@@ -120,9 +135,17 @@ module('Acceptance | job allocations', function (hooks) {
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
     );
-    assert.equal(currentURL(), '/jobs/not-a-real-job/allocations', 'The URL persists');
+    assert.equal(
+      currentURL(),
+      '/jobs/not-a-real-job/allocations',
+      'The URL persists'
+    );
     assert.ok(Allocations.error.isPresent, 'Error message is shown');
-    assert.equal(Allocations.error.title, 'Not Found', 'Error message is for 404');
+    assert.equal(
+      Allocations.error.title,
+      'Not Found',
+      'Error message is for 404'
+    );
   });
 
   testFacet('Status', {
@@ -135,7 +158,8 @@ module('Acceptance | job allocations', function (hooks) {
       });
       await Allocations.visit({ id: job.id });
     },
-    filter: (alloc, selection) => alloc.jobId == job.id && selection.includes(alloc.clientStatus),
+    filter: (alloc, selection) =>
+      alloc.jobId == job.id && selection.includes(alloc.clientStatus),
   });
 
   testFacet('Client', {
@@ -166,7 +190,9 @@ module('Acceptance | job allocations', function (hooks) {
     paramName: 'taskGroup',
     expectedOptions(allocs) {
       return Array.from(
-        new Set(allocs.filter((alloc) => alloc.jobId == job.id).mapBy('taskGroup'))
+        new Set(
+          allocs.filter((alloc) => alloc.jobId == job.id).mapBy('taskGroup')
+        )
       ).sort();
     },
     async beforeEach() {
@@ -178,11 +204,15 @@ module('Acceptance | job allocations', function (hooks) {
 
       await Allocations.visit({ id: job.id });
     },
-    filter: (alloc, selection) => alloc.jobId == job.id && selection.includes(alloc.taskGroup),
+    filter: (alloc, selection) =>
+      alloc.jobId == job.id && selection.includes(alloc.taskGroup),
   });
 });
 
-function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
+function testFacet(
+  label,
+  { facet, paramName, beforeEach, filter, expectedOptions }
+) {
   test(`facet ${label} | the ${label} facet has the correct options`, async function (assert) {
     await beforeEach();
     await facet.toggle();
@@ -267,7 +297,9 @@ function testFacet(label, { facet, paramName, beforeEach, filter, expectedOption
 
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}/allocations?${paramName}=${encodeURIComponent(JSON.stringify(selection))}`,
+      `/jobs/${job.id}/allocations?${paramName}=${encodeURIComponent(
+        JSON.stringify(selection)
+      )}`,
       'URL has the correct query param key and value'
     );
   });

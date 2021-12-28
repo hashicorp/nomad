@@ -10,17 +10,26 @@ export default class Client extends AbstractAbility {
   @or('bypassAuthorization', 'selfTokenIsManagement', 'policiesIncludeNodeRead')
   canRead;
 
-  @or('bypassAuthorization', 'selfTokenIsManagement', 'policiesIncludeNodeWrite')
+  @or(
+    'bypassAuthorization',
+    'selfTokenIsManagement',
+    'policiesIncludeNodeWrite'
+  )
   canWrite;
 
   @computed('token.selfTokenPolicies.[]')
   get policiesIncludeNodeRead() {
-    return policiesIncludePermissions(this.get('token.selfTokenPolicies'), ['read', 'write']);
+    return policiesIncludePermissions(this.get('token.selfTokenPolicies'), [
+      'read',
+      'write'
+    ]);
   }
 
   @computed('token.selfTokenPolicies.[]')
   get policiesIncludeNodeWrite() {
-    return policiesIncludePermissions(this.get('token.selfTokenPolicies'), ['write']);
+    return policiesIncludePermissions(this.get('token.selfTokenPolicies'), [
+      'write'
+    ]);
   }
 }
 

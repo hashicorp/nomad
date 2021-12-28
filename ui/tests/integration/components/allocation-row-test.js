@@ -125,7 +125,10 @@ module('Integration | Component | allocation row', function(hooks) {
         @context={{context}} />
     `);
 
-    assert.ok(find('[data-test-icon="unhealthy-driver"]'), 'Unhealthy driver icon is shown');
+    assert.ok(
+      find('[data-test-icon="unhealthy-driver"]'),
+      'Unhealthy driver icon is shown'
+    );
     await componentA11yAudit(this.element, assert);
   });
 
@@ -169,8 +172,14 @@ module('Integration | Component | allocation row', function(hooks) {
         `);
 
       const status = allocation.get('clientStatus');
-      assert.notOk(find('[data-test-cpu] .inline-chart'), `No CPU chart for ${status}`);
-      assert.notOk(find('[data-test-mem] .inline-chart'), `No Mem chart for ${status}`);
+      assert.notOk(
+        find('[data-test-cpu] .inline-chart'),
+        `No CPU chart for ${status}`
+      );
+      assert.notOk(
+        find('[data-test-mem] .inline-chart'),
+        `No Mem chart for ${status}`
+      );
     }
   });
 });

@@ -5,7 +5,7 @@ import {
   watchRecord,
   watchRelationship,
   watchAll,
-  watchQuery,
+  watchQuery
 } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
@@ -38,24 +38,30 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
       allocations: this.watchAllocations.perform(model.job),
       evaluations: this.watchEvaluations.perform(model.job),
       latestDeployment:
-        model.job.get('supportsDeployments') && this.watchLatestDeployment.perform(model.job),
+        model.job.get('supportsDeployments') &&
+        this.watchLatestDeployment.perform(model.job),
       list:
         model.job.get('hasChildren') &&
-        this.watchAllJobs.perform({ namespace: model.job.namespace.get('name') }),
+        this.watchAllJobs.perform({
+          namespace: model.job.namespace.get('name')
+        }),
       nodes:
         this.can.can('read client') &&
         model.job.get('hasClientStatus') &&
-        this.watchNodes.perform(),
+        this.watchNodes.perform()
     });
   }
 
   setupController(controller, model) {
     // Parameterized and periodic detail pages, which list children jobs,
     // should sort by submit time.
-    if (model.job && ['periodic', 'parameterized'].includes(model.job.templateType)) {
+    if (
+      model.job &&
+      ['periodic', 'parameterized'].includes(model.job.templateType)
+    ) {
       controller.setProperties({
         sortProperty: 'submitTime',
-        sortDescending: true,
+        sortDescending: true
       });
     }
     return super.setupController(...arguments);

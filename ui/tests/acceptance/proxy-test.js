@@ -36,7 +36,11 @@ module('Acceptance | reverse proxy', function (hooks) {
     const { secretId } = managementToken;
 
     await Jobs.visit();
-    assert.ok(window.localStorage.nomadTokenSecret == null, 'No token secret set');
+    assert.equal(
+      window.localStorage.nomadTokenSecret,
+      null,
+      'No token secret set'
+    );
 
     // Make sure that server received the header
     assert.ok(

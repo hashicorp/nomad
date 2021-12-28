@@ -52,7 +52,11 @@ module('Acceptance | exec', function (hooks) {
       status: 'running',
     });
 
-    await Exec.visitJob({ job: this.job.id, namespace: namespace.id, region: 'region-2' });
+    await Exec.visitJob({
+      job: this.job.id,
+      namespace: namespace.id,
+      region: 'region-2',
+    });
 
     assert.equal(document.title, 'Exec - region-2 - Nomad');
 
@@ -101,7 +105,10 @@ module('Acceptance | exec', function (hooks) {
 
   test('a task group with a pending allocation shows a loading spinner', async function (assert) {
     let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
-    this.server.db.allocations.update({ taskGroup: taskGroup.name }, { clientStatus: 'pending' });
+    this.server.db.allocations.update(
+      { taskGroup: taskGroup.name },
+      { clientStatus: 'pending' }
+    );
 
     await Exec.visitJob({ job: this.job.id });
     assert.ok(Exec.taskGroups[0].isLoading);
@@ -109,7 +116,10 @@ module('Acceptance | exec', function (hooks) {
 
   test('a task group with no running task states or pending allocations should not be shown', async function (assert) {
     let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
-    this.server.db.allocations.update({ taskGroup: taskGroup.name }, { clientStatus: 'failed' });
+    this.server.db.allocations.update(
+      { taskGroup: taskGroup.name },
+      { clientStatus: 'failed' }
+    );
 
     await Exec.visitJob({ job: this.job.id });
     assert.notEqual(Exec.taskGroups[0].name, taskGroup.name);
@@ -125,7 +135,10 @@ module('Acceptance | exec', function (hooks) {
     let runningTaskGroup = this.job.taskGroups.models.sortBy('name')[1];
     runningTaskGroup.tasks.models.forEach((task, index) => {
       if (index > 0) {
-        this.server.db.taskStates.update({ name: task.name }, { finishedAt: new Date() });
+        this.server.db.taskStates.update(
+          { name: task.name },
+          { finishedAt: new Date() }
+        );
       }
     });
 
@@ -146,7 +159,10 @@ module('Acceptance | exec', function (hooks) {
     let changingTaskStateName;
     runningTaskGroup.tasks.models.sortBy('name').forEach((task, index) => {
       if (index > 0) {
-        this.server.db.taskStates.update({ name: task.name }, { finishedAt: new Date() });
+        this.server.db.taskStates.update(
+          { name: task.name },
+          { finishedAt: new Date() }
+        );
       }
 
       if (index === 1) {
@@ -164,7 +180,10 @@ module('Acceptance | exec', function (hooks) {
       .lookup('service:store')
       .peekAll('allocation')
       .forEach((allocation) => {
-        const changingTaskState = allocation.states.findBy('name', changingTaskStateName);
+        const changingTaskState = allocation.states.findBy(
+          'name',
+          changingTaskStateName
+        );
 
         if (changingTaskState) {
           changingTaskState.set('finishedAt', undefined);
@@ -221,7 +240,11 @@ module('Acceptance | exec', function (hooks) {
     assert.ok(Exec.taskGroups[0].chevron.isDown);
 
     let task = taskGroup.tasks.models.sortBy('name')[0];
-    await Exec.visitTask({ job: this.job.id, task_group: taskGroup.name, task_name: task.name });
+    await Exec.visitTask({
+      job: this.job.id,
+      task_group: taskGroup.name,
+      task_name: task.name,
+    });
 
     assert.equal(Exec.taskGroups[0].tasks.length, taskGroup.tasks.length);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
@@ -242,7 +265,10 @@ module('Acceptance | exec', function (hooks) {
 
     await settled();
 
-    assert.equal(currentURL(), `/exec/${this.job.id}/${taskGroup.name}/${task.name}`);
+    assert.equal(
+      currentURL(),
+      `/exec/${this.job.id}/${taskGroup.name}/${task.name}`
+    );
     assert.ok(Exec.taskGroups[0].tasks[0].isActive);
 
     assert.equal(
@@ -257,7 +283,9 @@ module('Acceptance | exec', function (hooks) {
 
     assert.equal(
       window.execTerminal.buffer.active.getLine(6).translateToString().trim(),
-      `$ nomad alloc exec -i -t -task ${task.name} ${allocationId.split('-')[0]} /bin/bash`
+      `$ nomad alloc exec -i -t -task ${task.name} ${
+        allocationId.split('-')[0]
+      } /bin/bash`
     );
   });
 
@@ -270,7 +298,10 @@ module('Acceptance | exec', function (hooks) {
     });
     let allocation = allocations[allocations.length - 1];
 
-    this.server.db.taskStates.update({ name: task.name }, { name: 'spaced name!' });
+    this.server.db.taskStates.update(
+      { name: task.name },
+      { name: 'spaced name!' }
+    );
 
     task.name = 'spaced name!';
     task.save();
@@ -286,7 +317,9 @@ module('Acceptance | exec', function (hooks) {
 
     assert.equal(
       window.execTerminal.buffer.active.getLine(4).translateToString().trim(),
-      `$ nomad alloc exec -i -t -task spaced\\ name\\! ${allocation.id.split('-')[0]} /bin/bash`
+      `$ nomad alloc exec -i -t -task spaced\\ name\\! ${
+        allocation.id.split('-')[0]
+      } /bin/bash`
     );
   });
 
@@ -394,7 +427,10 @@ module('Acceptance | exec', function (hooks) {
     await Exec.terminal.pressEnter();
     await settled();
 
-    assert.equal(mockSocket.sent[0], `{"version":1,"auth_token":"${secretId}"}`);
+    assert.equal(
+      mockSocket.sent[0],
+      `{"version":1,"auth_token":"${secretId}"}`
+    );
   });
 
   test('only one socket is opened after switching between tasks', async function (assert) {
@@ -471,7 +507,9 @@ module('Acceptance | exec', function (hooks) {
 
     assert.equal(
       window.execTerminal.buffer.active.getLine(6).translateToString().trim(),
-      `$ nomad alloc exec -i -t -task ${task.name} ${allocation.id.split('-')[0]}`
+      `$ nomad alloc exec -i -t -task ${task.name} ${
+        allocation.id.split('-')[0]
+      }`
     );
 
     await window.execTerminal.simulateCommandDataEvent('/sh');
@@ -504,7 +542,9 @@ module('Acceptance | exec', function (hooks) {
 
     assert.equal(
       window.execTerminal.buffer.active.getLine(4).translateToString().trim(),
-      `$ nomad alloc exec -i -t -task ${task.name} ${allocation.id.split('-')[0]} /bin/sh`
+      `$ nomad alloc exec -i -t -task ${task.name} ${
+        allocation.id.split('-')[0]
+      } /bin/sh`
     );
   });
 

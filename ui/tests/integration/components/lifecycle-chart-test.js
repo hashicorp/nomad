@@ -158,7 +158,8 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
       activePhaseNames: [],
     },
     {
-      testName: 'poststart ephemeral task states affect main phase active state',
+      testName:
+        'poststart ephemeral task states affect main phase active state',
       runningTaskNames: ['poststart ephemeral'],
       activePhaseNames: ['Main'],
     },
@@ -184,7 +185,10 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
         if (activePhaseNames.includes(Phase.name)) {
           assert.ok(Phase.isActive, `expected ${Phase.name} not to be active`);
         } else {
-          assert.notOk(Phase.isActive, `expected ${Phase.name} phase not to be active`);
+          assert.notOk(
+            Phase.isActive,
+            `expected ${Phase.name} phase not to be active`
+          );
         }
       });
     });

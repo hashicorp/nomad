@@ -6,7 +6,12 @@ import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 
 // eslint-disable-next-line ember/no-test-module-for
-export default function moduleForJob(title, context, jobFactory, additionalTests) {
+export default function moduleForJob(
+  title,
+  context,
+  jobFactory,
+  additionalTests
+) {
   let job;
 
   module(title, function(hooks) {
@@ -59,7 +64,10 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
       await JobDetail.tabFor('definition').visit();
       assert.equal(
         currentURL(),
-        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}/definition`, job.namespace)
+        urlWithNamespace(
+          `/jobs/${encodeURIComponent(job.id)}/definition`,
+          job.namespace
+        )
       );
     });
 
@@ -67,7 +75,10 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
       await JobDetail.tabFor('versions').visit();
       assert.equal(
         currentURL(),
-        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}/versions`, job.namespace)
+        urlWithNamespace(
+          `/jobs/${encodeURIComponent(job.id)}/versions`,
+          job.namespace
+        )
       );
     });
 
@@ -75,7 +86,10 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
       await JobDetail.tabFor('evaluations').visit();
       assert.equal(
         currentURL(),
-        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}/evaluations`, job.namespace)
+        urlWithNamespace(
+          `/jobs/${encodeURIComponent(job.id)}/evaluations`,
+          job.namespace
+        )
       );
     });
 
@@ -117,13 +131,17 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
       });
 
       test('clicking legend item navigates to a pre-filtered allocations table', async function(assert) {
-        const legendItem = JobDetail.allocationsSummary.legend.clickableItems[1];
+        const legendItem =
+          JobDetail.allocationsSummary.legend.clickableItems[1];
         const status = legendItem.label;
         await legendItem.click();
 
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
         const expectedURL = new URL(
-          urlWithNamespace(`/jobs/${job.name}/clients?status=${encodedStatus}`, job.namespace),
+          urlWithNamespace(
+            `/jobs/${job.name}/clients?status=${encodedStatus}`,
+            job.namespace
+          ),
           window.location
         );
         const gotURL = new URL(currentURL(), window.location);
@@ -139,7 +157,9 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
         const expectedURL = new URL(
           urlWithNamespace(
-            `/jobs/${encodeURIComponent(job.name)}/allocations?status=${encodedStatus}`,
+            `/jobs/${encodeURIComponent(
+              job.name
+            )}/allocations?status=${encodedStatus}`,
             job.namespace
           ),
           window.location
@@ -150,13 +170,19 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
         // Sort and compare URL query params.
         gotURL.searchParams.sort();
         expectedURL.searchParams.sort();
-        assert.equal(gotURL.searchParams.toString(), expectedURL.searchParams.toString());
+        assert.equal(
+          gotURL.searchParams.toString(),
+          expectedURL.searchParams.toString()
+        );
       });
     }
 
     if (context === 'children') {
       test('children for the job are shown in the overview', async function(assert) {
-        assert.ok(JobDetail.childrenSummary.isPresent, 'Children are shown in the summary section');
+        assert.ok(
+          JobDetail.childrenSummary.isPresent,
+          'Children are shown in the summary section'
+        );
         assert.ok(
           JobDetail.allocationsSummary.isHidden,
           'Allocations are not shown in the summary section'
@@ -173,7 +199,11 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
 }
 
 // eslint-disable-next-line ember/no-test-module-for
-export function moduleForJobWithClientStatus(title, jobFactory, additionalTests) {
+export function moduleForJobWithClientStatus(
+  title,
+  jobFactory,
+  additionalTests
+) {
   let job;
 
   module(title, function(hooks) {
@@ -187,9 +217,9 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
         name: 'node-read',
         rulesJSON: {
           Node: {
-            Policy: 'read',
-          },
-        },
+            Policy: 'read'
+          }
+        }
       });
       const clientToken = server.create('token', { type: 'client' });
       clientToken.policyIds = [policy.id];
@@ -200,7 +230,7 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
 
       const clients = server.createList('node', 3, {
         datacenter: 'dc1',
-        status: 'ready',
+        status: 'ready'
       });
       job = jobFactory();
       clients.forEach(c => {
@@ -234,7 +264,10 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
       await JobDetail.tabFor('clients').visit();
       assert.equal(
         currentURL(),
-        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}/clients`, job.namespace)
+        urlWithNamespace(
+          `/jobs/${encodeURIComponent(job.id)}/clients`,
+          job.namespace
+        )
       );
     });
 
@@ -246,13 +279,17 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
     });
 
     test('clicking legend item navigates to a pre-filtered clients table', async function(assert) {
-      const legendItem = JobDetail.jobClientStatusSummary.statusBar.legend.clickableItems[0];
+      const legendItem =
+        JobDetail.jobClientStatusSummary.statusBar.legend.clickableItems[0];
       const status = legendItem.label;
       await legendItem.click();
 
       const encodedStatus = encodeURIComponent(JSON.stringify([status]));
       const expectedURL = new URL(
-        urlWithNamespace(`/jobs/${job.name}/clients?status=${encodedStatus}`, job.namespace),
+        urlWithNamespace(
+          `/jobs/${job.name}/clients?status=${encodedStatus}`,
+          job.namespace
+        ),
         window.location
       );
       const gotURL = new URL(currentURL(), window.location);
@@ -267,7 +304,10 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
 
       const encodedStatus = encodeURIComponent(JSON.stringify([status]));
       const expectedURL = new URL(
-        urlWithNamespace(`/jobs/${job.name}/clients?status=${encodedStatus}`, job.namespace),
+        urlWithNamespace(
+          `/jobs/${job.name}/clients?status=${encodedStatus}`,
+          job.namespace
+        ),
         window.location
       );
       const gotURL = new URL(currentURL(), window.location);
@@ -276,7 +316,10 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
       // Sort and compare URL query params.
       gotURL.searchParams.sort();
       expectedURL.searchParams.sort();
-      assert.equal(gotURL.searchParams.toString(), expectedURL.searchParams.toString());
+      assert.equal(
+        gotURL.searchParams.toString(),
+        expectedURL.searchParams.toString()
+      );
     });
 
     for (var testName in additionalTests) {

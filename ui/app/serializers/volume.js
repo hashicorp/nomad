@@ -44,7 +44,12 @@ export default class VolumeSerializer extends ApplicationSerializer {
     }
 
     const normalizedHash = super.normalize(typeHash, hash);
-    return this.extractEmbeddedRecords(this, this.store, typeHash, normalizedHash);
+    return this.extractEmbeddedRecords(
+      this,
+      this.store,
+      typeHash,
+      normalizedHash
+    );
   }
 
   keyForRelationship(attr, relationshipType) {

@@ -29,12 +29,16 @@ module('Integration | Component | placement failures', function (hooks) {
     await render(commonTemplate);
 
     assert.equal(
-      cleanWhitespace(find('[data-test-placement-failure-task-group]').firstChild.wholeText),
+      cleanWhitespace(
+        find('[data-test-placement-failure-task-group]').firstChild.wholeText
+      ),
       name,
       'Title is rendered with the name of the placement failure'
     );
     assert.equal(
-      parseInt(find('[data-test-placement-failure-coalesced-failures]').textContent),
+      parseInt(
+        find('[data-test-placement-failure-coalesced-failures]').textContent
+      ),
       failures,
       'Title is rendered correctly with a count of unplaced'
     );
@@ -78,7 +82,11 @@ module('Integration | Component | placement failures', function (hooks) {
       1,
       'Quota exhausted message shown'
     );
-    assert.equal(findAll('[data-test-placement-failure-scores]').length, 1, 'Scores message shown');
+    assert.equal(
+      findAll('[data-test-placement-failure-scores]').length,
+      1,
+      'Scores message shown'
+    );
 
     await componentA11yAudit(this.element, assert);
   });

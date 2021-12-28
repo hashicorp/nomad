@@ -3,7 +3,8 @@ import formatDuration from 'nomad-ui/utils/format-duration';
 
 module('Unit | Util | formatDuration', function () {
   test('When all units have values, all units are displayed', function (assert) {
-    const expectation = '39 years 1 month 13 days 23h 31m 30s 987ms 654µs 400ns';
+    const expectation =
+      '39 years 1 month 13 days 23h 31m 30s 987ms 654µs 400ns';
     assert.equal(formatDuration(1234567890987654321), expectation, expectation);
   });
 
@@ -23,13 +24,21 @@ module('Unit | Util | formatDuration', function () {
 
   test('When duration is 0, 0 is shown in terms of the units provided to the function', function (assert) {
     assert.equal(formatDuration(0), '0ns', 'formatDuration(0) -> 0ns');
-    assert.equal(formatDuration(0, 'year'), '0 years', 'formatDuration(0, "year") -> 0 years');
+    assert.equal(
+      formatDuration(0, 'year'),
+      '0 years',
+      'formatDuration(0, "year") -> 0 years'
+    );
   });
 
   test('The longForm option expands suffixes to words', function (assert) {
     const expectation1 = '3 seconds 20ms';
     const expectation2 = '5 hours 59 minutes';
     assert.equal(formatDuration(3020, 'ms', true), expectation1, expectation1);
-    assert.equal(formatDuration(60 * 5 + 59, 'm', true), expectation2, expectation2);
+    assert.equal(
+      formatDuration(60 * 5 + 59, 'm', true),
+      expectation2,
+      expectation2
+    );
   });
 });

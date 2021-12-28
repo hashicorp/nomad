@@ -22,12 +22,17 @@ module('Unit | Adapter | Deployment', function (hooks) {
 
       this.server.create('node');
       const job = this.server.create('job', { createAllocations: false });
-      const deploymentRecord = server.schema.deployments.where({ jobId: job.id }).models[0];
+      const deploymentRecord = server.schema.deployments.where({
+        jobId: job.id,
+      }).models[0];
 
       this.system.get('shouldIncludeRegion');
       await this.system.get('defaultRegion');
 
-      const deployment = await this.store.findRecord('deployment', deploymentRecord.id);
+      const deployment = await this.store.findRecord(
+        'deployment',
+        deploymentRecord.id
+      );
       this.server.pretender.handledRequests.length = 0;
 
       return deployment;
@@ -60,7 +65,10 @@ module('Unit | Adapter | Deployment', function (hooks) {
 
       const request = this.server.pretender.handledRequests[0];
 
-      assert.equal(`${request.method} ${request.url}`, testCase.promote(deployment.id));
+      assert.equal(
+        `${request.method} ${request.url}`,
+        testCase.promote(deployment.id)
+      );
       assert.deepEqual(JSON.parse(request.requestBody), {
         DeploymentId: deployment.id,
         All: true,
@@ -73,7 +81,10 @@ module('Unit | Adapter | Deployment', function (hooks) {
 
       const request = this.server.pretender.handledRequests[0];
 
-      assert.equal(`${request.method} ${request.url}`, testCase.fail(deployment.id));
+      assert.equal(
+        `${request.method} ${request.url}`,
+        testCase.fail(deployment.id)
+      );
       assert.deepEqual(JSON.parse(request.requestBody), {
         DeploymentId: deployment.id,
       });

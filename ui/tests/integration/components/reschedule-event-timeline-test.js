@@ -95,7 +95,10 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
       find('[data-test-stop-warning]'),
       'Stop warning is shown since the last allocation failed'
     );
-    assert.notOk(find('[data-test-attempt-notice]'), 'Reschdule attempt notice is not shown');
+    assert.notOk(
+      find('[data-test-attempt-notice]'),
+      'Reschdule attempt notice is not shown'
+    );
 
     await componentA11yAudit(this.element, assert);
   });
@@ -108,7 +111,9 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
       rescheduleSuccess: false,
     });
 
-    const lastAllocation = server.schema.allocations.findBy({ nextAllocation: undefined });
+    const lastAllocation = server.schema.allocations.findBy({
+      nextAllocation: undefined,
+    });
     lastAllocation.update({
       followupEvalId: server.create('evaluation', {
         waitUntil: moment().add(2, 'hours').toDate(),
@@ -143,7 +148,9 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
 
     await this.store.findAll('allocation');
 
-    const allocation = this.store.peekAll('allocation').findBy('id', originalAllocation.id);
+    const allocation = this.store
+      .peekAll('allocation')
+      .findBy('id', originalAllocation.id);
 
     this.set('allocation', allocation);
     await render(commonTemplate);
@@ -155,7 +162,9 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
     );
 
     assert.equal(
-      find('[data-test-allocation] [data-test-allocation-link]').textContent.trim(),
+      find(
+        '[data-test-allocation] [data-test-allocation-link]'
+      ).textContent.trim(),
       allocation.get('nextAllocation.shortId'),
       'The next allocation item is for the correct allocation'
     );

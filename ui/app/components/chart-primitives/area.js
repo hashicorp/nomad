@@ -7,7 +7,9 @@ export default class ChartPrimitiveArea extends Component {
   get colorClass() {
     if (this.args.colorClass) return this.args.colorClass;
     if (this.args.colorScale && this.args.index != null)
-      return `${this.args.colorScale} ${this.args.colorScale}-${this.args.index + 1}`;
+      return `${this.args.colorScale} ${this.args.colorScale}-${
+        this.args.index + 1
+      }`;
     return 'is-primary';
   }
 

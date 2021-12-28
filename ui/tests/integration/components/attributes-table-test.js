@@ -33,7 +33,9 @@ module('Integration | Component | attributes table', function (hooks) {
 
     const rowsCount = Object.keys(flatten(commonAttributes)).length;
     assert.equal(
-      this.element.querySelectorAll('[data-test-attributes-section] [data-test-value]').length,
+      this.element.querySelectorAll(
+        '[data-test-attributes-section] [data-test-value]'
+      ).length,
       rowsCount,
       `Table has ${rowsCount} rows with values`
     );
@@ -45,8 +47,16 @@ module('Integration | Component | attributes table', function (hooks) {
     this.set('attributes', commonAttributes);
     await render(hbs`<AttributesTable @attributePairs={{attributes}} />`);
 
-    assert.equal(find('[data-test-key]').textContent.trim(), 'key', 'Row renders the key');
-    assert.equal(find('[data-test-value]').textContent.trim(), 'value', 'Row renders the value');
+    assert.equal(
+      find('[data-test-key]').textContent.trim(),
+      'key',
+      'Row renders the key'
+    );
+    assert.equal(
+      find('[data-test-value]').textContent.trim(),
+      'value',
+      'Row renders the value'
+    );
 
     const deepRow = findAll('[data-test-attributes-section]')[8];
     assert.equal(
@@ -59,7 +69,10 @@ module('Integration | Component | attributes table', function (hooks) {
       'so.are.deeply.',
       'The prefix is faded to put emphasis on the attribute'
     );
-    assert.equal(deepRow.querySelector('[data-test-value]').textContent.trim(), 'properties');
+    assert.equal(
+      deepRow.querySelector('[data-test-value]').textContent.trim(),
+      'properties'
+    );
   });
 
   test('should render a row for key/value pairs even when the value is another object', async function (assert) {

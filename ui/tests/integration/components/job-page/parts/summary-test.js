@@ -35,8 +35,14 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
       <JobPage::Parts::Summary @job={{job}} />
     `);
 
-    assert.ok(find('[data-test-children-status-bar]'), 'Children status bar found');
-    assert.notOk(find('[data-test-allocation-status-bar]'), 'Allocation status bar not found');
+    assert.ok(
+      find('[data-test-children-status-bar]'),
+      'Children status bar found'
+    );
+    assert.notOk(
+      find('[data-test-allocation-status-bar]'),
+      'Allocation status bar not found'
+    );
 
     await componentA11yAudit(this.element, assert);
   });
@@ -54,8 +60,14 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
       <JobPage::Parts::Summary @job={{job}} />
     `);
 
-    assert.ok(find('[data-test-allocation-status-bar]'), 'Allocation status bar found');
-    assert.notOk(find('[data-test-children-status-bar]'), 'Children status bar not found');
+    assert.ok(
+      find('[data-test-allocation-status-bar]'),
+      'Allocation status bar found'
+    );
+    assert.notOk(
+      find('[data-test-children-status-bar]'),
+      'Children status bar not found'
+    );
 
     await componentA11yAudit(this.element, assert);
   });
@@ -176,7 +188,10 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
 
     await click('[data-test-accordion-toggle]');
 
-    assert.ok(find('[data-test-allocation-status-bar]'), 'Allocation bar still existed');
+    assert.ok(
+      find('[data-test-allocation-status-bar]'),
+      'Allocation bar still existed'
+    );
     assert.ok(
       find('.inline-chart [data-test-allocation-status-bar]'),
       'Allocation bar is rendered in an inline-chart container'
@@ -198,7 +213,10 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
       <JobPage::Parts::Summary @job={{job}} />
     `);
 
-    assert.notOk(window.localStorage.nomadExpandJobSummary, 'No value in localStorage yet');
+    assert.notOk(
+      window.localStorage.nomadExpandJobSummary,
+      'No value in localStorage yet'
+    );
     await click('[data-test-accordion-toggle]');
 
     assert.equal(
@@ -223,7 +241,10 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
       <JobPage::Parts::Summary @job={{job}} />
     `);
 
-    assert.ok(find('[data-test-allocation-status-bar]'), 'Allocation bar still existed');
+    assert.ok(
+      find('[data-test-allocation-status-bar]'),
+      'Allocation bar still existed'
+    );
     assert.ok(
       find('.inline-chart [data-test-allocation-status-bar]'),
       'Allocation bar is rendered in an inline-chart container'
