@@ -6,10 +6,10 @@ import hbs from 'htmlbars-inline-precompile';
 import { Terminal } from 'xterm';
 import KEYS from 'nomad-ui/utils/keys';
 
-module('Integration | Utility | exec-command-editor-xterm-adapter', function(hooks) {
+module('Integration | Utility | exec-command-editor-xterm-adapter', function (hooks) {
   setupRenderingTest(hooks);
 
-  test('it can wrap to a previous line while backspacing', async function(assert) {
+  test('it can wrap to a previous line while backspacing', async function (assert) {
     let done = assert.async();
 
     await render(hbs`
@@ -23,7 +23,7 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
 
     new ExecCommandEditorXtermAdapter(
       terminal,
-      command => {
+      (command) => {
         assert.equal(command, '/bin/long');
         done();
       },
@@ -41,18 +41,12 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
 
     await settled();
 
-    assert.equal(
-      terminal.buffer.active
-        .getLine(0)
-        .translateToString()
-        .trim(),
-      '/bin/long'
-    );
+    assert.equal(terminal.buffer.active.getLine(0).translateToString().trim(), '/bin/long');
 
     await terminal.simulateCommandDataEvent(KEYS.ENTER);
   });
 
-  test('it ignores arrow keys and unprintable characters other than ^U', async function(assert) {
+  test('it ignores arrow keys and unprintable characters other than ^U', async function (assert) {
     let done = assert.async();
 
     await render(hbs`
@@ -66,7 +60,7 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
 
     new ExecCommandEditorXtermAdapter(
       terminal,
-      command => {
+      (command) => {
         assert.equal(command, '/bin/bash!');
         done();
       },
@@ -87,18 +81,12 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
     assert.equal(terminal.buffer.active.cursorY, 0);
     assert.equal(terminal.buffer.active.cursorX, 10);
 
-    assert.equal(
-      terminal.buffer.active
-        .getLine(0)
-        .translateToString()
-        .trim(),
-      '/bin/bash!'
-    );
+    assert.equal(terminal.buffer.active.getLine(0).translateToString().trim(), '/bin/bash!');
 
     await terminal.simulateCommandDataEvent(KEYS.ENTER);
   });
 
-  test('it supports typing ^U to delete the entire command', async function(assert) {
+  test('it supports typing ^U to delete the entire command', async function (assert) {
     let done = assert.async();
 
     await render(hbs`
@@ -112,7 +100,7 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
 
     new ExecCommandEditorXtermAdapter(
       terminal,
-      command => {
+      (command) => {
         assert.equal(command, '!');
         done();
       },
@@ -123,13 +111,7 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
 
     await settled();
 
-    assert.equal(
-      terminal.buffer.active
-        .getLine(0)
-        .translateToString()
-        .trim(),
-      ''
-    );
+    assert.equal(terminal.buffer.active.getLine(0).translateToString().trim(), '');
 
     await terminal.simulateCommandDataEvent('!');
     await terminal.simulateCommandDataEvent(KEYS.ENTER);

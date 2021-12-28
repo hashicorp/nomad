@@ -36,7 +36,7 @@ const allocGen = (node, memory, cpu, isScheduled = true) => ({
   },
 });
 
-const props = overrides => ({
+const props = (overrides) => ({
   isDense: false,
   heightScale: () => 50,
   onAllocationSelect: sinon.spy(),
@@ -46,7 +46,7 @@ const props = overrides => ({
   ...overrides,
 });
 
-module('Integration | Component | TopoViz::Node', function(hooks) {
+module('Integration | Component | TopoViz::Node', function (hooks) {
   setupRenderingTest(hooks);
   setupMirage(hooks);
 
@@ -61,7 +61,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
       @onNodeSelect={{this.onNodeSelect}} />
   `;
 
-  test('presents as a div with a label and an svg with CPU and memory rows', async function(assert) {
+  test('presents as a div with a label and an svg with CPU and memory rows', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     this.setProperties(
       props({
@@ -88,7 +88,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('the label contains aggregate information about the node', async function(assert) {
+  test('the label contains aggregate information about the node', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     this.setProperties(
       props({
@@ -115,7 +115,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     assert.ok(TopoVizNode.label.includes(`${formatScheduledHertz(this.node.cpu, 'MHz')}`));
   });
 
-  test('the status icon indicates when the node is draining', async function(assert) {
+  test('the status icon indicates when the node is draining', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000, { isDraining: true });
     this.setProperties(
       props({
@@ -132,7 +132,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     assert.equal(TopoVizNode.statusIconLabel, 'Client is draining');
   });
 
-  test('the status icon indicates when the node is ineligible for scheduling', async function(assert) {
+  test('the status icon indicates when the node is ineligible for scheduling', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000, { isEligible: false });
     this.setProperties(
       props({
@@ -149,7 +149,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     assert.equal(TopoVizNode.statusIconLabel, 'Client is ineligible');
   });
 
-  test('when isDense is false, clicking the node does nothing', async function(assert) {
+  test('when isDense is false, clicking the node does nothing', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     this.setProperties(
       props({
@@ -168,7 +168,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     assert.notOk(this.onNodeSelect.called);
   });
 
-  test('when isDense is true, clicking the node calls onNodeSelect', async function(assert) {
+  test('when isDense is true, clicking the node calls onNodeSelect', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     this.setProperties(
       props({
@@ -188,7 +188,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     assert.ok(this.onNodeSelect.calledWith(this.node));
   });
 
-  test('the node gets the is-selected class when the node is selected', async function(assert) {
+  test('the node gets the is-selected class when the node is selected', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000, { isSelected: true });
     this.setProperties(
       props({
@@ -205,7 +205,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     assert.ok(TopoVizNode.nodeIsSelected);
   });
 
-  test('the node gets its height form the @heightScale arg', async function(assert) {
+  test('the node gets its height form the @heightScale arg', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     const height = 50;
     const heightSpy = sinon.spy();
@@ -229,7 +229,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     assert.equal(TopoVizNode.memoryRects[0].height, `${height}px`);
   });
 
-  test('each allocation gets a memory rect and a cpu rect', async function(assert) {
+  test('each allocation gets a memory rect and a cpu rect', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     this.setProperties(
       props({
@@ -246,7 +246,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     assert.equal(TopoVizNode.cpuRects.length, this.node.allocations.length);
   });
 
-  test('each allocation is sized according to its percentage of utilization', async function(assert) {
+  test('each allocation is sized according to its percentage of utilization', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     this.setProperties(
       props({
@@ -278,7 +278,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     });
   });
 
-  test('clicking either the memory or cpu rect for an allocation will call onAllocationSelect', async function(assert) {
+  test('clicking either the memory or cpu rect for an allocation will call onAllocationSelect', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     this.setProperties(
       props({
@@ -306,7 +306,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     assert.equal(this.onAllocationSelect.callCount, 4);
   });
 
-  test('hovering over a memory or cpu rect for an allocation will call onAllocationFocus', async function(assert) {
+  test('hovering over a memory or cpu rect for an allocation will call onAllocationFocus', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     this.setProperties(
       props({
@@ -336,7 +336,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     assert.equal(this.onAllocationFocus.getCall(1).args[1], findAll('[data-test-cpu-rect]')[1]);
   });
 
-  test('leaving the entire node will call onAllocationBlur, which allows for the tooltip transitions', async function(assert) {
+  test('leaving the entire node will call onAllocationBlur, which allows for the tooltip transitions', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     this.setProperties(
       props({
@@ -360,7 +360,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     assert.equal(this.onAllocationBlur.callCount, 1);
   });
 
-  test('allocations are sorted by smallest to largest delta of memory to cpu percent utilizations', async function(assert) {
+  test('allocations are sorted by smallest to largest delta of memory to cpu percent utilizations', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
 
     const evenAlloc = allocGen(node, 100, 100);
@@ -399,7 +399,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     });
   });
 
-  test('when there are no allocations, a "no allocations" note is shown', async function(assert) {
+  test('when there are no allocations, a "no allocations" note is shown', async function (assert) {
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     this.setProperties(
       props({

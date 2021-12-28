@@ -32,15 +32,17 @@ export default class GlobalSearchControl extends Component {
   }
 
   didInsertElement() {
+    super.didInsertElement(...arguments);
     set(this, '_keyDownHandler', this.keyDownHandler.bind(this));
     document.addEventListener('keydown', this._keyDownHandler);
   }
 
   willDestroyElement() {
+    super.willDestroyElement(...arguments);
     document.removeEventListener('keydown', this._keyDownHandler);
   }
 
-  @task(function*(string) {
+  @task(function* (string) {
     const searchResponse = yield this.token.authorizedRequest('/v1/search/fuzzy', {
       method: 'POST',
       body: JSON.stringify({

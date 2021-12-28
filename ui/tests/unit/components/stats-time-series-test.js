@@ -5,14 +5,11 @@ import d3Format from 'd3-format';
 import d3TimeFormat from 'd3-time-format';
 import setupGlimmerComponentFactory from 'nomad-ui/tests/helpers/glimmer-factory';
 
-module('Unit | Component | stats-time-series', function(hooks) {
+module('Unit | Component | stats-time-series', function (hooks) {
   setupTest(hooks);
   setupGlimmerComponentFactory(hooks, 'stats-time-series');
 
-  const ts = (offset, resolution = 'm') =>
-    moment()
-      .subtract(offset, resolution)
-      .toDate();
+  const ts = (offset, resolution = 'm') => moment().subtract(offset, resolution).toDate();
 
   const wideData = [
     { timestamp: ts(20), percent: 0.5 },
@@ -47,10 +44,10 @@ module('Unit | Component | stats-time-series', function(hooks) {
     { timestamp: ts(18, 's'), percent: null },
   ];
 
-  test('xFormat is time-formatted for hours, minutes, and seconds', function(assert) {
+  test('xFormat is time-formatted for hours, minutes, and seconds', function (assert) {
     const chart = this.createComponent({ data: wideData });
 
-    wideData.forEach(datum => {
+    wideData.forEach((datum) => {
       assert.equal(
         chart.xFormat(datum.timestamp),
         d3TimeFormat.timeFormat('%H:%M:%S')(datum.timestamp)
@@ -58,15 +55,15 @@ module('Unit | Component | stats-time-series', function(hooks) {
     });
   });
 
-  test('yFormat is percent-formatted', function(assert) {
+  test('yFormat is percent-formatted', function (assert) {
     const chart = this.createComponent({ data: wideData });
 
-    wideData.forEach(datum => {
+    wideData.forEach((datum) => {
       assert.equal(chart.yFormat(datum.percent), d3Format.format('.1~%')(datum.percent));
     });
   });
 
-  test('x scale domain is at least five minutes', function(assert) {
+  test('x scale domain is at least five minutes', function (assert) {
     const chart = this.createComponent({ data: narrowData });
 
     assert.equal(
@@ -78,7 +75,7 @@ module('Unit | Component | stats-time-series', function(hooks) {
     );
   });
 
-  test('x scale domain is greater than five minutes when the domain of the data is larger than five minutes', function(assert) {
+  test('x scale domain is greater than five minutes when the domain of the data is larger than five minutes', function (assert) {
     const chart = this.createComponent({ data: wideData });
 
     assert.equal(
@@ -88,7 +85,7 @@ module('Unit | Component | stats-time-series', function(hooks) {
     );
   });
 
-  test('y scale domain is typically 0 to 1 (0 to 100%)', function(assert) {
+  test('y scale domain is typically 0 to 1 (0 to 100%)', function (assert) {
     const chart = this.createComponent({ data: wideData });
 
     assert.deepEqual(
@@ -104,7 +101,7 @@ module('Unit | Component | stats-time-series', function(hooks) {
     );
   });
 
-  test('the extent of the y domain overrides the default 0 to 1 domain when there are values beyond these bounds', function(assert) {
+  test('the extent of the y domain overrides the default 0 to 1 domain when there are values beyond these bounds', function (assert) {
     const chart = this.createComponent({ data: unboundedData });
 
     assert.deepEqual(
@@ -130,7 +127,7 @@ module('Unit | Component | stats-time-series', function(hooks) {
     );
   });
 
-  test('when there are only empty frames in the data array, the default y domain is used', function(assert) {
+  test('when there are only empty frames in the data array, the default y domain is used', function (assert) {
     const chart = this.createComponent({ data: nullData });
 
     assert.deepEqual(chart.yScale(nullData, 0).domain(), [0, 1], 'The bounds are 0 and 1');

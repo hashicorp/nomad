@@ -25,7 +25,7 @@ export default class ExecController extends Controller {
   @computed('model.allocations.@each.clientStatus')
   get pendingAndRunningAllocations() {
     return this.model.allocations.filter(
-      allocation => allocation.clientStatus === 'pending' || allocation.clientStatus === 'running'
+      (allocation) => allocation.clientStatus === 'pending' || allocation.clientStatus === 'running'
     );
   }
 
@@ -63,16 +63,13 @@ export default class ExecController extends Controller {
     if (this.allocationShortId) {
       allocation = this.allocations.findBy('shortId', this.allocationShortId);
     } else {
-      allocation = this.allocations.find(allocation =>
-        allocation.states
-          .filterBy('isActive')
-          .mapBy('name')
-          .includes(this.taskName)
+      allocation = this.allocations.find((allocation) =>
+        allocation.states.filterBy('isActive').mapBy('name').includes(this.taskName)
       );
     }
 
     if (allocation) {
-      return allocation.states.find(state => state.name === this.taskName);
+      return allocation.states.find((state) => state.name === this.taskName);
     }
 
     return undefined;

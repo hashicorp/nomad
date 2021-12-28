@@ -2,9 +2,9 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import AllocationModel from 'nomad-ui/models/allocation';
 
-module('Unit | Serializer | Allocation', function(hooks) {
+module('Unit | Serializer | Allocation', function (hooks) {
   setupTest(hooks);
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.serializerFor('allocation');
   });
@@ -382,8 +382,8 @@ module('Unit | Serializer | Allocation', function(hooks) {
     },
   ];
 
-  normalizationTestCases.forEach(testCase => {
-    test(`normalization: ${testCase.name}`, async function(assert) {
+  normalizationTestCases.forEach((testCase) => {
+    test(`normalization: ${testCase.name}`, async function (assert) {
       assert.deepEqual(this.subject().normalize(AllocationModel, testCase.in), testCase.out);
     });
   });

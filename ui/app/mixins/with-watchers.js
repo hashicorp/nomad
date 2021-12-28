@@ -5,12 +5,12 @@ import WithVisibilityDetection from './with-route-visibility-detection';
 
 // eslint-disable-next-line ember/no-new-mixins
 export default Mixin.create(WithVisibilityDetection, {
-  watchers: computed(function() {
+  watchers: computed(function () {
     return [];
   }),
 
   cancelAllWatchers() {
-    this.watchers.forEach(watcher => {
+    this.watchers.forEach((watcher) => {
       assert('Watchers must be Ember Concurrency Tasks.', !!watcher.cancelAll);
       watcher.cancelAll();
     });

@@ -9,7 +9,7 @@ export default class CopyButton extends Component {
   clipboardText = null;
   state = null;
 
-  @(task(function*() {
+  @(task(function* () {
     this.set('state', 'success');
 
     yield timeout(2000);

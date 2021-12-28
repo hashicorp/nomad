@@ -9,14 +9,14 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class IndexController extends Controller.extend(
-    SortableFactory([
-      'plainId',
-      'controllersHealthyProportion',
-      'nodesHealthyProportion',
-      'provider',
-    ]),
-    Searchable
-  ) {
+  SortableFactory([
+    'plainId',
+    'controllersHealthyProportion',
+    'nodesHealthyProportion',
+    'provider',
+  ]),
+  Searchable
+) {
   @service userSettings;
   @controller('csi/plugins') pluginsController;
 

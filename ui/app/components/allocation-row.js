@@ -33,7 +33,7 @@ export default class AllocationRow extends Component {
     if (!this.get('allocation.isRunning')) return undefined;
 
     return AllocationStatsTracker.create({
-      fetch: url => this.token.authorizedRequest(url),
+      fetch: (url) => this.token.authorizedRequest(url),
       allocation: this.allocation,
     });
   }
@@ -48,6 +48,7 @@ export default class AllocationRow extends Component {
   }
 
   didReceiveAttrs() {
+    super.didReceiveAttrs();
     this.updateStatsTracker();
   }
 
@@ -61,13 +62,11 @@ export default class AllocationRow extends Component {
     }
   }
 
-  @(task(function*() {
+  @(task(function* () {
     do {
       if (this.stats) {
         try {
-          yield this.get('stats.poll')
-            .linked()
-            .perform();
+          yield this.get('stats.poll').linked().perform();
           this.set('statsError', false);
         } catch (error) {
           this.set('statsError', true);

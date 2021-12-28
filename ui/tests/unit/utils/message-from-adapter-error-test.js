@@ -31,9 +31,9 @@ const testCases = [
   },
 ];
 
-module('Unit | Util | messageFromAdapterError', function() {
-  testCases.forEach(testCase => {
-    test(testCase.name, function(assert) {
+module('Unit | Util | messageFromAdapterError', function () {
+  testCases.forEach((testCase) => {
+    test(testCase.name, function (assert) {
       assert.equal(
         messageFromAdapterError.apply(null, testCase.in),
         testCase.out,

@@ -42,7 +42,7 @@ export default class TaskPrimaryMetric extends Component {
     return 'is-primary';
   }
 
-  @task(function*() {
+  @task(function* () {
     do {
       this.tracker.poll.perform();
       yield timeout(100);
@@ -58,6 +58,7 @@ export default class TaskPrimaryMetric extends Component {
   }
 
   willDestroy() {
+    super.willDestroy(...arguments);
     this.poller.cancelAll();
     this.tracker.signalPause.perform();
   }

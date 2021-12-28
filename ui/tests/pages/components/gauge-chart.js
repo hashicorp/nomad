@@ -1,6 +1,6 @@
 import { isPresent, text } from 'ember-cli-page-object';
 
-export default scope => ({
+export default (scope) => ({
   scope,
 
   svgIsPresent: isPresent('[data-test-gauge-svg]'),

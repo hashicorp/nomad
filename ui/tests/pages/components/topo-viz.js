@@ -1,7 +1,7 @@
 import { collection, isPresent } from 'ember-cli-page-object';
 import TopoVizDatacenter from './topo-viz/datacenter';
 
-export default scope => ({
+export default (scope) => ({
   scope,
 
   datacenters: collection('[data-test-topo-viz-datacenter]', TopoVizDatacenter()),

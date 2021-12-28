@@ -13,7 +13,7 @@ export default class ExecCommandEditorXtermAdapter {
 
     this.command = command;
 
-    this.dataListener = terminal.onData(data => {
+    this.dataListener = terminal.onData((data) => {
       this.handleDataEvent(data);
     });
 

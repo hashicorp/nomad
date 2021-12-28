@@ -8,10 +8,10 @@ import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 const REF_DATE = new Date();
 
-module('Integration | Component | line-chart', function(hooks) {
+module('Integration | Component | line-chart', function (hooks) {
   setupRenderingTest(hooks);
 
-  test('when a chart has annotations, they are rendered in order', async function(assert) {
+  test('when a chart has annotations, they are rendered in order', async function (assert) {
     const annotations = [
       { x: 2, type: 'info' },
       { x: 1, type: 'error' },
@@ -48,24 +48,18 @@ module('Integration | Component | line-chart', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('when a chart has annotations and is timeseries, annotations are sorted reverse-chronologically', async function(assert) {
+  test('when a chart has annotations and is timeseries, annotations are sorted reverse-chronologically', async function (assert) {
     const annotations = [
       {
-        x: moment(REF_DATE)
-          .add(2, 'd')
-          .toDate(),
+        x: moment(REF_DATE).add(2, 'd').toDate(),
         type: 'info',
       },
       {
-        x: moment(REF_DATE)
-          .add(1, 'd')
-          .toDate(),
+        x: moment(REF_DATE).add(1, 'd').toDate(),
         type: 'error',
       },
       {
-        x: moment(REF_DATE)
-          .add(3, 'd')
-          .toDate(),
+        x: moment(REF_DATE).add(3, 'd').toDate(),
         type: 'info',
       },
     ];
@@ -99,7 +93,7 @@ module('Integration | Component | line-chart', function(hooks) {
     });
   });
 
-  test('clicking annotations calls the onAnnotationClick action with the annotation as an argument', async function(assert) {
+  test('clicking annotations calls the onAnnotationClick action with the annotation as an argument', async function (assert) {
     const annotations = [{ x: 2, type: 'info', meta: { data: 'here' } }];
     this.setProperties({
       annotations,
@@ -125,7 +119,7 @@ module('Integration | Component | line-chart', function(hooks) {
     assert.ok(this.click.calledWith(annotations[0]));
   });
 
-  test('annotations will have staggered heights when too close to be positioned side-by-side', async function(assert) {
+  test('annotations will have staggered heights when too close to be positioned side-by-side', async function (assert) {
     const annotations = [
       { x: 2, type: 'info' },
       { x: 2.4, type: 'error' },
@@ -161,7 +155,7 @@ module('Integration | Component | line-chart', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('horizontal annotations render in order', async function(assert) {
+  test('horizontal annotations render in order', async function (assert) {
     const annotations = [
       { y: 2, label: 'label one' },
       { y: 9, label: 'label three' },
@@ -195,7 +189,7 @@ module('Integration | Component | line-chart', function(hooks) {
       });
   });
 
-  test('the tooltip includes information on the data closest to the mouse', async function(assert) {
+  test('the tooltip includes information on the data closest to the mouse', async function (assert) {
     const series1 = [
       { x: 1, y: 2 },
       { x: 3, y: 3 },
@@ -256,7 +250,7 @@ module('Integration | Component | line-chart', function(hooks) {
     assert.equal(find('[data-test-chart-tooltip] .label').textContent.trim(), this.data[1].series);
     assert.equal(
       find('[data-test-chart-tooltip] .value').textContent.trim(),
-      series2.find(d => d.x === 2).y
+      series2.find((d) => d.x === 2).y
     );
 
     // When the mouse falls between points and each series has points with different x values,
@@ -264,8 +258,8 @@ module('Integration | Component | line-chart', function(hooks) {
     // to the cursor.
     // This event is intentionally between points such that both points are within proximity.
     const expected = [
-      { label: this.data[0].series, value: series1.find(d => d.x === 3).y },
-      { label: this.data[1].series, value: series2.find(d => d.x === 2).y },
+      { label: this.data[0].series, value: series1.find((d) => d.x === 3).y },
+      { label: this.data[1].series, value: series2.find((d) => d.x === 2).y },
     ];
     await triggerEvent(hoverTarget, 'mousemove', { clientX: xOffset + interval * 1.5 + 5 });
     assert.equal(findAll('[data-test-chart-tooltip] li').length, 2);

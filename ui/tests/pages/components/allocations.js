@@ -1,7 +1,7 @@
 import { attribute, collection, clickable, isPresent, text } from 'ember-cli-page-object';
 import { singularize } from 'ember-inflector';
 
-export default function(selector = '[data-test-allocation]', propKey = 'allocations') {
+export default function (selector = '[data-test-allocation]', propKey = 'allocations') {
   const lookupKey = `${singularize(propKey)}For`;
   // Remove the bracket notation
   const attr = selector.substring(1, selector.length - 1);
@@ -33,8 +33,8 @@ export default function(selector = '[data-test-allocation]', propKey = 'allocati
       visitClient: clickable('[data-test-client] a'),
     }),
 
-    [lookupKey]: function(id) {
-      return this[propKey].toArray().find(allocation => allocation.id === id);
+    [lookupKey]: function (id) {
+      return this[propKey].toArray().find((allocation) => allocation.id === id);
     },
   };
 }

@@ -1,6 +1,6 @@
 import { attribute, property, clickable, hasClass, isPresent, text } from 'ember-cli-page-object';
 
-export default scope => ({
+export default (scope) => ({
   scope,
 
   isPresent: isPresent(),

@@ -173,9 +173,9 @@ export default class DasRecommendationCardComponent extends Component {
       .save()
       .then(
         () => this.onApplied.perform(),
-        e => this.onError.perform(e)
+        (e) => this.onError.perform(e)
       )
-      .catch(e => {
+      .catch((e) => {
         if (!didCancel(e)) {
           throw e;
         }
@@ -190,16 +190,16 @@ export default class DasRecommendationCardComponent extends Component {
       .save()
       .then(
         () => this.onDismissed.perform(),
-        e => this.onError.perform(e)
+        (e) => this.onError.perform(e)
       )
-      .catch(e => {
+      .catch((e) => {
         if (!didCancel(e)) {
           throw e;
         }
       });
   }
 
-  @(task(function*() {
+  @(task(function* () {
     this.interstitialComponent = 'accepted';
     yield timeout(Ember.testing ? 0 : 2000);
 
@@ -208,8 +208,8 @@ export default class DasRecommendationCardComponent extends Component {
   }).drop())
   onApplied;
 
-  @(task(function*() {
-    const { manuallyDismissed } = yield new Promise(resolve => {
+  @(task(function* () {
+    const { manuallyDismissed } = yield new Promise((resolve) => {
       this.proceedPromiseResolve = resolve;
       this.interstitialComponent = 'dismissed';
     });
@@ -223,8 +223,8 @@ export default class DasRecommendationCardComponent extends Component {
   }).drop())
   onDismissed;
 
-  @(task(function*(error) {
-    yield new Promise(resolve => {
+  @(task(function* (error) {
+    yield new Promise((resolve) => {
       this.proceedPromiseResolve = resolve;
       this.interstitialComponent = 'error';
       this.error = error.toString();

@@ -6,14 +6,14 @@ import hbs from 'htmlbars-inline-precompile';
 import cleanWhitespace from '../../utils/clean-whitespace';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Integration | Component | placement failures', function(hooks) {
+module('Integration | Component | placement failures', function (hooks) {
   setupRenderingTest(hooks);
 
   const commonTemplate = hbs`
       <PlacementFailure @taskGroup={{taskGroup}} />
   `;
 
-  test('should render the placement failure (basic render)', async function(assert) {
+  test('should render the placement failure (basic render)', async function (assert) {
     const name = 'Placement Failure';
     const failures = 11;
     this.set(
@@ -83,7 +83,7 @@ module('Integration | Component | placement failures', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('should render correctly when a node is not evaluated', async function(assert) {
+  test('should render correctly when a node is not evaluated', async function (assert) {
     this.set(
       'taskGroup',
       createFixture({

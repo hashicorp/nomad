@@ -72,7 +72,7 @@ export default function formatDuration(duration = 0, units = 'ns', longForm = fa
   allUnits
     .filterBy('inMoment')
     .mapBy('name')
-    .forEach(unit => {
+    .forEach((unit) => {
       durationParts[unit] = momentDuration[unit]();
     });
 

@@ -5,14 +5,14 @@ import NodeModel from 'nomad-ui/models/node';
 import pushPayloadToStore from '../../utils/push-payload-to-store';
 import { settled } from '@ember/test-helpers';
 
-module('Unit | Serializer | Node', function(hooks) {
+module('Unit | Serializer | Node', function (hooks) {
   setupTest(hooks);
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.serializerFor('node');
   });
 
-  test('local store is culled to reflect the state of findAll requests', async function(assert) {
+  test('local store is culled to reflect the state of findAll requests', async function (assert) {
     const findAllResponse = [
       makeNode('1', 'One', '127.0.0.1:4646'),
       makeNode('2', 'Two', '127.0.0.2:4646'),
@@ -29,10 +29,7 @@ module('Unit | Serializer | Node', function(hooks) {
     );
 
     assert.equal(
-      this.store
-        .peekAll('node')
-        .filterBy('id')
-        .get('length'),
+      this.store.peekAll('node').filterBy('id').get('length'),
       findAllResponse.length,
       'Each original record is now in the store'
     );
@@ -61,10 +58,7 @@ module('Unit | Serializer | Node', function(hooks) {
     );
 
     assert.equal(
-      this.store
-        .peekAll('node')
-        .filterBy('id')
-        .get('length'),
+      this.store.peekAll('node').filterBy('id').get('length'),
       newFindAllResponse.length,
       'The node length in the store reflects the new response'
     );
@@ -114,7 +108,10 @@ module('Unit | Serializer | Node', function(hooks) {
                 healthy: false,
               },
             ],
-            hostVolumes: [{ name: 'one', readOnly: true }, { name: 'two', readOnly: false }],
+            hostVolumes: [
+              { name: 'one', readOnly: true },
+              { name: 'two', readOnly: false },
+            ],
           },
           relationships: {
             allocations: {
@@ -203,8 +200,8 @@ module('Unit | Serializer | Node', function(hooks) {
     },
   ];
 
-  normalizationTestCases.forEach(testCase => {
-    test(`normalization: ${testCase.name}`, async function(assert) {
+  normalizationTestCases.forEach((testCase) => {
+    test(`normalization: ${testCase.name}`, async function (assert) {
       assert.deepEqual(this.subject().normalize(NodeModel, testCase.in), testCase.out);
     });
   });

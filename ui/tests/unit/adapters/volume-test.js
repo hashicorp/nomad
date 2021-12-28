@@ -5,10 +5,10 @@ import { module, test } from 'qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { AbortController } from 'fetch';
 
-module('Unit | Adapter | Volume', function(hooks) {
+module('Unit | Adapter | Volume', function (hooks) {
   setupTest(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.adapterFor('volume');
 
@@ -43,11 +43,11 @@ module('Unit | Adapter | Volume', function(hooks) {
     };
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
   });
 
-  test('The volume endpoint can be queried by type', async function(assert) {
+  test('The volume endpoint can be queried by type', async function (assert) {
     const { pretender } = this.server;
 
     await this.initializeUI();
@@ -58,7 +58,7 @@ module('Unit | Adapter | Volume', function(hooks) {
     assert.deepEqual(pretender.handledRequests.mapBy('url'), ['/v1/volumes?type=csi']);
   });
 
-  test('When the volume has a namespace other than default, it is in the URL', async function(assert) {
+  test('When the volume has a namespace other than default, it is in the URL', async function (assert) {
     const { pretender } = this.server;
     const volumeName = 'csi/volume-1';
     const volumeNamespace = 'some-namespace';
@@ -74,7 +74,7 @@ module('Unit | Adapter | Volume', function(hooks) {
     ]);
   });
 
-  test('query can be watched', async function(assert) {
+  test('query can be watched', async function (assert) {
     await this.initializeUI();
 
     const { pretender } = this.server;
@@ -95,7 +95,7 @@ module('Unit | Adapter | Volume', function(hooks) {
     await settled();
   });
 
-  test('query can be canceled', async function(assert) {
+  test('query can be canceled', async function (assert) {
     await this.initializeUI();
 
     const { pretender } = this.server;
@@ -122,7 +122,7 @@ module('Unit | Adapter | Volume', function(hooks) {
     assert.ok(xhr.aborted, 'Request was aborted');
   });
 
-  test('query and findAll have distinct watchList entries', async function(assert) {
+  test('query and findAll have distinct watchList entries', async function (assert) {
     await this.initializeUI();
 
     const { pretender } = this.server;

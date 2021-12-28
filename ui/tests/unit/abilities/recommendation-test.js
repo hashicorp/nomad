@@ -4,12 +4,12 @@ import { setupTest } from 'ember-qunit';
 import Service from '@ember/service';
 import setupAbility from 'nomad-ui/tests/helpers/setup-ability';
 
-module('Unit | Ability | recommendation', function(hooks) {
+module('Unit | Ability | recommendation', function (hooks) {
   setupTest(hooks);
   setupAbility('recommendation')(hooks);
 
-  module('when the Dynamic Application Sizing feature is present', function(hooks) {
-    hooks.beforeEach(function() {
+  module('when the Dynamic Application Sizing feature is present', function (hooks) {
+    hooks.beforeEach(function () {
       const mockSystem = Service.extend({
         features: ['Dynamic Application Sizing'],
       });
@@ -17,7 +17,7 @@ module('Unit | Ability | recommendation', function(hooks) {
       this.owner.register('service:system', mockSystem);
     });
 
-    test('it permits accepting recommendations when ACLs are disabled', function(assert) {
+    test('it permits accepting recommendations when ACLs are disabled', function (assert) {
       const mockToken = Service.extend({
         aclEnabled: false,
       });
@@ -27,7 +27,7 @@ module('Unit | Ability | recommendation', function(hooks) {
       assert.ok(this.ability.canAccept);
     });
 
-    test('it permits accepting recommendations for client tokens where any namespace has submit-job capabilities', function(assert) {
+    test('it permits accepting recommendations for client tokens where any namespace has submit-job capabilities', function (assert) {
       this.owner.lookup('service:system').set('activeNamespace', {
         name: 'anotherNamespace',
       });
@@ -59,8 +59,8 @@ module('Unit | Ability | recommendation', function(hooks) {
     });
   });
 
-  module('when the Dynamic Application Sizing feature is not present', function(hooks) {
-    hooks.beforeEach(function() {
+  module('when the Dynamic Application Sizing feature is not present', function (hooks) {
+    hooks.beforeEach(function () {
       const mockSystem = Service.extend({
         features: [],
       });
@@ -68,7 +68,7 @@ module('Unit | Ability | recommendation', function(hooks) {
       this.owner.register('service:system', mockSystem);
     });
 
-    test('it does not permit accepting recommendations regardless of ACL status', function(assert) {
+    test('it does not permit accepting recommendations regardless of ACL status', function (assert) {
       const mockToken = Service.extend({
         aclEnabled: false,
       });

@@ -5,14 +5,14 @@ import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import sinon from 'sinon';
 
-module('Integration | Component | das/dismissed', function(hooks) {
+module('Integration | Component | das/dismissed', function (hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     window.localStorage.clear();
   });
 
-  test('it renders the dismissal interstitial with a button to proceed and an option to never show again and proceeds manually', async function(assert) {
+  test('it renders the dismissal interstitial with a button to proceed and an option to never show again and proceeds manually', async function (assert) {
     const proceedSpy = sinon.spy();
     this.set('proceedSpy', proceedSpy);
 
@@ -27,7 +27,7 @@ module('Integration | Component | das/dismissed', function(hooks) {
     assert.equal(window.localStorage.getItem('nomadRecommendationDismssalUnderstood'), 'true');
   });
 
-  test('it renders the dismissal interstitial with no button when the option to never show again has been chosen and proceeds automatically', async function(assert) {
+  test('it renders the dismissal interstitial with no button when the option to never show again has been chosen and proceeds automatically', async function (assert) {
     window.localStorage.setItem('nomadRecommendationDismssalUnderstood', true);
 
     const proceedSpy = sinon.spy();

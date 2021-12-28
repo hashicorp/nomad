@@ -12,10 +12,10 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class AllocationsController extends Controller.extend(
-    Sortable,
-    Searchable,
-    WithNamespaceResetting
-  ) {
+  Sortable,
+  Searchable,
+  WithNamespaceResetting
+) {
   queryParams = [
     {
       currentPage: 'page',
@@ -65,7 +65,7 @@ export default class AllocationsController extends Controller.extend(
   get filteredAllocations() {
     const { selectionStatus, selectionClient, selectionTaskGroup } = this;
 
-    return this.allocations.filter(alloc => {
+    return this.allocations.filter((alloc) => {
       if (selectionStatus.length && !selectionStatus.includes(alloc.clientStatus)) {
         return false;
       }
@@ -112,7 +112,7 @@ export default class AllocationsController extends Controller.extend(
       this.set('qpClient', serialize(intersection(clients, this.selectionClient)));
     });
 
-    return clients.sort().map(c => ({ key: c, label: c }));
+    return clients.sort().map((c) => ({ key: c, label: c }));
   }
 
   @computed('model.allocations.[]', 'selectionTaskGroup')
@@ -125,7 +125,7 @@ export default class AllocationsController extends Controller.extend(
       this.set('qpTaskGroup', serialize(intersection(taskGroups, this.selectionTaskGroup)));
     });
 
-    return taskGroups.sort().map(tg => ({ key: tg, label: tg }));
+    return taskGroups.sort().map((tg) => ({ key: tg, label: tg }));
   }
 
   setFacetQueryParam(queryParam, selection) {

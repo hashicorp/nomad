@@ -20,12 +20,12 @@ export default {
  * as the `controller` property so its query parameters are accessible from the template.
  */
 function injectRoutedController(controllerClass) {
-  return on('init', function() {
+  return on('init', function () {
     let container = getOwner(this);
     container.register('controller:storybook', controllerClass);
 
     let routerFactory = container.factoryFor('router:main');
-    routerFactory.class.map(function() {
+    routerFactory.class.map(function () {
       this.route('storybook');
     });
 
@@ -201,9 +201,9 @@ export let Search = () => {
       controller: EmberObject.extend({
         searchTerm: '',
 
-        filteredShortList: computed('searchTerm', function() {
+        filteredShortList: computed('searchTerm', function () {
           let term = this.searchTerm.toLowerCase();
-          return productMetadata.filter(product => product.name.toLowerCase().includes(term));
+          return productMetadata.filter((product) => product.name.toLowerCase().includes(term));
         }),
       }).create(),
     },
@@ -240,7 +240,7 @@ export let SortableColumns = () => {
         })
       ),
 
-      sortedShortList: computed('controller.{sortProperty,sortDescending}', function() {
+      sortedShortList: computed('controller.{sortProperty,sortDescending}', function () {
         let sorted = productMetadata.sortBy(this.get('controller.sortProperty') || 'name');
         return this.get('controller.sortDescending') ? sorted.reverse() : sorted;
       }),
@@ -278,7 +278,7 @@ export let MultiRow = () => {
         })
       ),
 
-      sortedShortList: computed('controller.{sortProperty,sortDescending}', function() {
+      sortedShortList: computed('controller.{sortProperty,sortDescending}', function () {
         let sorted = productMetadata.sortBy(this.get('controller.sortProperty') || 'name');
         return this.get('controller.sortDescending') ? sorted.reverse() : sorted;
       }),

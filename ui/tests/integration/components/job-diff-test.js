@@ -5,7 +5,7 @@ import hbs from 'htmlbars-inline-precompile';
 import cleanWhitespace from '../../utils/clean-whitespace';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Integration | Component | job diff', function(hooks) {
+module('Integration | Component | job diff', function (hooks) {
   setupRenderingTest(hooks);
 
   const commonTemplate = hbs`
@@ -16,7 +16,7 @@ module('Integration | Component | job diff', function(hooks) {
     </div>
   `;
 
-  test('job field diffs', async function(assert) {
+  test('job field diffs', async function (assert) {
     this.set('diff', {
       ID: 'test-case-1',
       Type: 'Edited',
@@ -60,7 +60,7 @@ module('Integration | Component | job diff', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('job object diffs', async function(assert) {
+  test('job object diffs', async function (assert) {
     this.set('diff', {
       ID: 'test-case-2',
       Type: 'Edited',

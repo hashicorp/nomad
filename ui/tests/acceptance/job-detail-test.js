@@ -89,7 +89,7 @@ moduleForJob(
   'children',
   () => server.create('job', 'periodic', { shallow: true }),
   {
-    'the default sort is submitTime descending': async function(job, assert) {
+    'the default sort is submitTime descending': async function (job, assert) {
       const mostRecentLaunch = server.db.jobs
         .where({ parentId: job.id })
         .sortBy('submitTime')
@@ -116,7 +116,7 @@ moduleForJob(
     return parent;
   },
   {
-    'display namespace in children table': async function(job, assert) {
+    'display namespace in children table': async function (job, assert) {
       assert.ok(JobDetail.jobsHeader.hasNamespace);
       assert.equal(JobDetail.jobs[0].namespace, job.namespace);
     },
@@ -155,7 +155,7 @@ moduleForJob(
     return parent;
   },
   {
-    'display namespace in children table': async function(job, assert) {
+    'display namespace in children table': async function (job, assert) {
       assert.ok(JobDetail.jobsHeader.hasNamespace);
       assert.equal(JobDetail.jobs[0].namespace, job.namespace);
     },
@@ -189,7 +189,7 @@ moduleForJob(
 
       assert.equal(
         server.pretender.handledRequests
-          .filter(request => !request.url.includes('policy'))
+          .filter((request) => !request.url.includes('policy'))
           .findBy('status', 404).url,
         '/v1/job/not-a-real-job',
         'A request to the nonexistent job is made'
@@ -201,13 +201,13 @@ moduleForJob(
   }
 );
 
-module('Acceptance | job detail (with namespaces)', function(hooks) {
+module('Acceptance | job detail (with namespaces)', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
   let job, managementToken, clientToken;
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     server.createList('namespace', 2);
     server.create('node');
     job = server.create('job', {
@@ -223,20 +223,20 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     clientToken = server.create('token');
   });
 
-  test('it passes an accessibility audit', async function(assert) {
+  test('it passes an accessibility audit', async function (assert) {
     const namespace = server.db.namespaces.find(job.namespaceId);
     await JobDetail.visit({ id: job.id, namespace: namespace.name });
     await a11yAudit(assert);
   });
 
-  test('when there are namespaces, the job detail page states the namespace for the job', async function(assert) {
+  test('when there are namespaces, the job detail page states the namespace for the job', async function (assert) {
     const namespace = server.db.namespaces.find(job.namespaceId);
     await JobDetail.visit({ id: job.id, namespace: namespace.name });
 
     assert.ok(JobDetail.statFor('namespace').text, 'Namespace included in stats');
   });
 
-  test('the exec button state can change between namespaces', async function(assert) {
+  test('the exec button state can change between namespaces', async function (assert) {
     const job1 = server.create('job', {
       status: 'running',
       namespaceId: server.db.namespaces[0].id,
@@ -276,7 +276,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     assert.ok(JobDetail.execButton.isDisabled);
   });
 
-  test('the anonymous policy is fetched to check whether to show the exec button', async function(assert) {
+  test('the anonymous policy is fetched to check whether to show the exec button', async function (assert) {
     window.localStorage.removeItem('nomadTokenSecret');
 
     server.create('policy', {
@@ -296,7 +296,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     assert.notOk(JobDetail.execButton.isDisabled);
   });
 
-  test('meta table is displayed if job has meta attributes', async function(assert) {
+  test('meta table is displayed if job has meta attributes', async function (assert) {
     const jobWithMeta = server.create('job', {
       status: 'running',
       namespaceId: server.db.namespaces[1].id,
@@ -312,7 +312,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     assert.ok(JobDetail.metaTable, 'Meta table is present');
   });
 
-  test('pack details are displayed', async function(assert) {
+  test('pack details are displayed', async function (assert) {
     const namespace = server.db.namespaces[1].id;
     const jobFromPack = server.create('job', {
       status: 'running',
@@ -337,7 +337,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     );
   });
 
-  test('resource recommendations show when they exist and can be expanded, collapsed, and processed', async function(assert) {
+  test('resource recommendations show when they exist and can be expanded, collapsed, and processed', async function (assert) {
     server.create('feature', { name: 'Dynamic Application Sizing' });
 
     job = server.create('job', {
@@ -351,8 +351,8 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
     await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
 
-    const groupsWithRecommendations = job.taskGroups.filter(group =>
-      group.tasks.models.any(task => task.recommendations.models.length)
+    const groupsWithRecommendations = job.taskGroups.filter((group) =>
+      group.tasks.models.any((task) => task.recommendations.models.length)
     );
     const jobRecommendationCount = groupsWithRecommendations.length;
 
@@ -392,20 +392,20 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     assert.equal(JobDetail.recommendations.length, jobRecommendationCount - 1);
   });
 
-  test('resource recommendations are not fetched when the feature doesn’t exist', async function(assert) {
+  test('resource recommendations are not fetched when the feature doesn’t exist', async function (assert) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
     await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
 
     assert.equal(JobDetail.recommendations.length, 0);
 
     assert.equal(
-      server.pretender.handledRequests.filter(request => request.url.includes('recommendations'))
+      server.pretender.handledRequests.filter((request) => request.url.includes('recommendations'))
         .length,
       0
     );
   });
 
-  test('when the dynamic autoscaler is applied, you can scale a task within the job detail page', async function(assert) {
+  test('when the dynamic autoscaler is applied, you can scale a task within the job detail page', async function (assert) {
     const SCALE_AND_WRITE_NAMESPACE = 'scale-and-write-namespace';
     const READ_ONLY_NAMESPACE = 'read-only-namespace';
     const clientToken = server.create('token');

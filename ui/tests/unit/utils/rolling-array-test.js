@@ -2,8 +2,8 @@ import { isArray } from '@ember/array';
 import { module, test } from 'qunit';
 import RollingArray from 'nomad-ui/utils/classes/rolling-array';
 
-module('Unit | Util | RollingArray', function() {
-  test('has a maxLength property that gets set in the constructor', function(assert) {
+module('Unit | Util | RollingArray', function () {
+  test('has a maxLength property that gets set in the constructor', function (assert) {
     const array = RollingArray(10, 'a', 'b', 'c');
     assert.equal(array.maxLength, 10, 'maxLength is set in the constructor');
     assert.deepEqual(
@@ -13,7 +13,7 @@ module('Unit | Util | RollingArray', function() {
     );
   });
 
-  test('push works like Array#push', function(assert) {
+  test('push works like Array#push', function (assert) {
     const array = RollingArray(10);
     const pushReturn = array.push('a');
     assert.equal(
@@ -31,7 +31,7 @@ module('Unit | Util | RollingArray', function() {
     );
   });
 
-  test('when pushing past maxLength, items are removed from the head of the array', function(assert) {
+  test('when pushing past maxLength, items are removed from the head of the array', function (assert) {
     const array = RollingArray(3);
     const pushReturn = array.push(1, 2, 3, 4);
     assert.deepEqual(
@@ -46,7 +46,7 @@ module('Unit | Util | RollingArray', function() {
     );
   });
 
-  test('when splicing past maxLength, items are removed from the head of the array', function(assert) {
+  test('when splicing past maxLength, items are removed from the head of the array', function (assert) {
     const array = RollingArray(3, 'a', 'b', 'c');
 
     array.splice(1, 0, 'z');
@@ -71,7 +71,7 @@ module('Unit | Util | RollingArray', function() {
     );
   });
 
-  test('unshift throws instead of prepending elements', function(assert) {
+  test('unshift throws instead of prepending elements', function (assert) {
     const array = RollingArray(5);
 
     assert.throws(
@@ -83,7 +83,7 @@ module('Unit | Util | RollingArray', function() {
     );
   });
 
-  test('RollingArray is an instance of Array', function(assert) {
+  test('RollingArray is an instance of Array', function (assert) {
     const array = RollingArray(5);
     assert.ok(array.constructor === Array, 'The constructor is Array');
     assert.ok(array instanceof Array, 'The instanceof check is true');

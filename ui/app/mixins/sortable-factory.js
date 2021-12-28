@@ -19,14 +19,14 @@ import { warn } from '@ember/debug';
     - listSorted: a copy of listToSort that has been sorted
 */
 export default function sortableFactory(properties, fromSortableMixin) {
-  const eachProperties = properties.map(property => `listToSort.@each.${property}`);
+  const eachProperties = properties.map((property) => `listToSort.@each.${property}`);
 
   // eslint-disable-next-line ember/no-new-mixins
   return Mixin.create({
     // Override in mixin consumer
     sortProperty: null,
     sortDescending: true,
-    listToSort: computed(function() {
+    listToSort: computed(function () {
       return [];
     }),
 
@@ -38,7 +38,7 @@ export default function sortableFactory(properties, fromSortableMixin) {
       'listToSort.[]',
       'sortDescending',
       'sortProperty',
-      function() {
+      function () {
         if (!this._sortableFactoryWarningPrinted && !Ember.testing) {
           let message =
             'Using SortableFactory without property keys means the list will only sort when the members change, not when any of their properties change.';

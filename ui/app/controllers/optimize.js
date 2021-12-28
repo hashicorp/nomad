@@ -70,7 +70,7 @@ export default class OptimizeController extends Controller {
   @selection('qpPrefix') selectionPrefix;
 
   get optionsNamespaces() {
-    const availableNamespaces = this.namespaces.map(namespace => ({
+    const availableNamespaces = this.namespaces.map((namespace) => ({
       key: namespace.name,
       label: namespace.name,
     }));
@@ -113,7 +113,7 @@ export default class OptimizeController extends Controller {
       this.qpDatacenter = serialize(intersection(availableDatacenters, this.selectionDatacenter));
     });
 
-    return availableDatacenters.sort().map(dc => ({ key: dc, label: dc }));
+    return availableDatacenters.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
   get optionsPrefix() {
@@ -132,13 +132,13 @@ export default class OptimizeController extends Controller {
     }, {});
 
     // Convert to an array
-    const nameTable = Object.keys(nameHistogram).map(key => ({
+    const nameTable = Object.keys(nameHistogram).map((key) => ({
       prefix: key,
       count: nameHistogram[key],
     }));
 
     // Only consider prefixes that match more than one name
-    const prefixes = nameTable.filter(name => name.count > 1);
+    const prefixes = nameTable.filter((name) => name.count > 1);
 
     // Remove any invalid prefixes from the query param/selection
     const availablePrefixes = prefixes.mapBy('prefix');
@@ -148,7 +148,7 @@ export default class OptimizeController extends Controller {
     });
 
     // Sort, format, and include the count in the label
-    return prefixes.sortBy('prefix').map(name => ({
+    return prefixes.sortBy('prefix').map((name) => ({
       key: name.prefix,
       label: `${name.prefix} (${name.count})`,
     }));
@@ -164,7 +164,7 @@ export default class OptimizeController extends Controller {
 
     // A summary’s job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.
-    return this.summarySearch.listSearched.filter(summary => {
+    return this.summarySearch.listSearched.filter((summary) => {
       const job = summary.get('job');
 
       if (job.isDestroying) {
@@ -183,12 +183,12 @@ export default class OptimizeController extends Controller {
         return false;
       }
 
-      if (datacenters.length && !job.get('datacenters').find(dc => datacenters.includes(dc))) {
+      if (datacenters.length && !job.get('datacenters').find((dc) => datacenters.includes(dc))) {
         return false;
       }
 
       const name = job.get('name');
-      if (prefixes.length && !prefixes.find(prefix => name.startsWith(prefix))) {
+      if (prefixes.length && !prefixes.find((prefix) => name.startsWith(prefix))) {
         return false;
       }
 
@@ -206,7 +206,7 @@ export default class OptimizeController extends Controller {
 
   // This is a task because the accordion uses timeouts for animation
   // eslint-disable-next-line require-yield
-  @(task(function*() {
+  @(task(function* () {
     const currentSummaryIndex = this.filteredSummaries.indexOf(this.activeRecommendationSummary);
     const nextSummary = this.filteredSummaries.objectAt(currentSummaryIndex + 1);
 

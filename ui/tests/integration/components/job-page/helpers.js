@@ -24,7 +24,7 @@ export function expectStartRequest(assert, server, job) {
   const expectedURL = jobURL(job);
   const request = server.pretender.handledRequests
     .filterBy('method', 'POST')
-    .find(req => req.url === expectedURL);
+    .find((req) => req.url === expectedURL);
 
   const requestPayload = JSON.parse(request.requestBody).Job;
 
@@ -53,7 +53,7 @@ export function expectDeleteRequest(assert, server, job) {
   assert.ok(
     server.pretender.handledRequests
       .filterBy('method', 'DELETE')
-      .find(req => req.url === expectedURL),
+      .find((req) => req.url === expectedURL),
     'DELETE URL was made correctly'
   );
 }

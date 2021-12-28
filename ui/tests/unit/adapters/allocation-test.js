@@ -2,10 +2,10 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 
-module('Unit | Adapter | Allocation', function(hooks) {
+module('Unit | Adapter | Allocation', function (hooks) {
   setupTest(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.adapterFor('allocation');
 
@@ -35,7 +35,7 @@ module('Unit | Adapter | Allocation', function(hooks) {
     };
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
   });
 
@@ -66,8 +66,8 @@ module('Unit | Adapter | Allocation', function(hooks) {
     },
   ];
 
-  testCases.forEach(testCase => {
-    test(`ls makes the correct API call ${testCase.variation}`, async function(assert) {
+  testCases.forEach((testCase) => {
+    test(`ls makes the correct API call ${testCase.variation}`, async function (assert) {
       const { pretender } = this.server;
       const allocation = await this.initialize(testCase.id, { region: testCase.region });
 
@@ -76,7 +76,7 @@ module('Unit | Adapter | Allocation', function(hooks) {
       assert.equal(`${req.method} ${req.url}`, testCase.ls);
     });
 
-    test(`stat makes the correct API call ${testCase.variation}`, async function(assert) {
+    test(`stat makes the correct API call ${testCase.variation}`, async function (assert) {
       const { pretender } = this.server;
       const allocation = await this.initialize(testCase.id, { region: testCase.region });
 
@@ -85,7 +85,7 @@ module('Unit | Adapter | Allocation', function(hooks) {
       assert.equal(`${req.method} ${req.url}`, testCase.stat);
     });
 
-    test(`stop makes the correct API call ${testCase.variation}`, async function(assert) {
+    test(`stop makes the correct API call ${testCase.variation}`, async function (assert) {
       const { pretender } = this.server;
       const allocation = await this.initialize(testCase.id, { region: testCase.region });
 
@@ -94,7 +94,7 @@ module('Unit | Adapter | Allocation', function(hooks) {
       assert.equal(`${req.method} ${req.url}`, testCase.stop);
     });
 
-    test(`restart makes the correct API call ${testCase.variation}`, async function(assert) {
+    test(`restart makes the correct API call ${testCase.variation}`, async function (assert) {
       const { pretender } = this.server;
       const allocation = await this.initialize(testCase.id, { region: testCase.region });
 
@@ -103,7 +103,7 @@ module('Unit | Adapter | Allocation', function(hooks) {
       assert.equal(`${req.method} ${req.url}`, testCase.restart);
     });
 
-    test(`restart with optional task name makes the correct API call ${testCase.variation}`, async function(assert) {
+    test(`restart with optional task name makes the correct API call ${testCase.variation}`, async function (assert) {
       const { pretender } = this.server;
       const allocation = await this.initialize(testCase.id, { region: testCase.region });
 

@@ -15,12 +15,12 @@ export default class ExecSocketXtermAdapter {
       this.sendTtySize();
       this.startHeartbeat();
 
-      terminal.onData(data => {
+      terminal.onData((data) => {
         this.handleData(data);
       });
     };
 
-    socket.onmessage = e => {
+    socket.onmessage = (e) => {
       let json = JSON.parse(e.data);
 
       // stderr messages will not be produced as the socket is opened with the tty flag

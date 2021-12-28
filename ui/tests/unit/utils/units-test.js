@@ -2,14 +2,14 @@ import { module, test } from 'qunit';
 import * as units from 'nomad-ui/utils/units';
 
 function table(fn, cases) {
-  cases.forEach(testCase => {
-    test(testCase.name || testCase.out, function(assert) {
+  cases.forEach((testCase) => {
+    test(testCase.name || testCase.out, function (assert) {
       assert.deepEqual(fn.apply(null, testCase.in), testCase.out);
     });
   });
 }
 
-module('Unit | Util | units#formatBytes', function() {
+module('Unit | Util | units#formatBytes', function () {
   table.call(this, units.formatBytes, [
     { in: [null], out: '0 Bytes', name: 'formats null as 0 bytes' },
     { in: [undefined], out: '0 Bytes', name: 'formats undefined as 0 bytes' },
@@ -35,7 +35,7 @@ module('Unit | Util | units#formatBytes', function() {
   ]);
 });
 
-module('Unit | Util | units#formatScheduledBytes', function() {
+module('Unit | Util | units#formatScheduledBytes', function () {
   table.call(this, units.formatScheduledBytes, [
     { in: [null], out: '0 Bytes', name: 'formats null as 0 bytes' },
     { in: [undefined], out: '0 Bytes', name: 'formats undefined as 0 bytes' },
@@ -59,7 +59,7 @@ module('Unit | Util | units#formatScheduledBytes', function() {
   ]);
 });
 
-module('Unit | Util | units#formatHertz', function() {
+module('Unit | Util | units#formatHertz', function () {
   table.call(this, units.formatHertz, [
     { in: [null], out: '0 Hz', name: 'formats null as 0 Hz' },
     { in: [undefined], out: '0 Hz', name: 'formats undefined as 0 Hz' },
@@ -84,7 +84,7 @@ module('Unit | Util | units#formatHertz', function() {
   ]);
 });
 
-module('Unit | Util | units#formatScheduledHertz', function() {
+module('Unit | Util | units#formatScheduledHertz', function () {
   table.call(this, units.formatScheduledHertz, [
     { in: [null], out: '0 Hz', name: 'formats null as 0 Hz' },
     { in: [undefined], out: '0 Hz', name: 'formats undefined as 0 Hz' },
@@ -108,7 +108,7 @@ module('Unit | Util | units#formatScheduledHertz', function() {
   ]);
 });
 
-module('Unit | Util | units#reduceBytes', function() {
+module('Unit | Util | units#reduceBytes', function () {
   table.call(this, units.reduceBytes, [
     { in: [], out: [0, 'Bytes'], name: 'No args behavior results in valid output' },
     { in: [1024 ** 6], out: [1024, 'PiB'], name: 'Max default unit is PiB' },
@@ -131,7 +131,7 @@ module('Unit | Util | units#reduceBytes', function() {
   ]);
 });
 
-module('Unit | Util | units#reduceHertz', function() {
+module('Unit | Util | units#reduceHertz', function () {
   table.call(this, units.reduceHertz, [
     { in: [], out: [0, 'Hz'], name: 'No args behavior results in valid output' },
     { in: [1000 ** 6], out: [1000, 'PHz'], name: 'Max default unit is PHz' },

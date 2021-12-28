@@ -6,23 +6,23 @@ import { task } from 'ember-concurrency';
 import sinon from 'sinon';
 
 export function setupPrimaryMetricMocks(hooks, tasks = []) {
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     const getTrackerSpy = (this.getTrackerSpy = sinon.spy());
     const trackerPollSpy = (this.trackerPollSpy = sinon.spy());
     const trackerSignalPauseSpy = (this.trackerSignalPauseSpy = sinon.spy());
 
     const MockTracker = EmberObject.extend({
-      poll: task(function*() {
+      poll: task(function* () {
         yield trackerPollSpy();
       }),
-      signalPause: task(function*() {
+      signalPause: task(function* () {
         yield trackerSignalPauseSpy();
       }),
 
-      cpu: computed(function() {
+      cpu: computed(function () {
         return [];
       }),
-      memory: computed(function() {
+      memory: computed(function () {
         return [];
       }),
       tasks,
@@ -41,7 +41,7 @@ export function setupPrimaryMetricMocks(hooks, tasks = []) {
 }
 
 export function primaryMetric({ template, findResource, preload }) {
-  test('Contains a line chart, a percentage bar, a percentage figure, and an absolute usage figure', async function(assert) {
+  test('Contains a line chart, a percentage bar, a percentage figure, and an absolute usage figure', async function (assert) {
     const metric = 'cpu';
 
     await preload(this.store);
@@ -57,7 +57,7 @@ export function primaryMetric({ template, findResource, preload }) {
     assert.ok(find('[data-test-absolute-value]'), 'Absolute usage figure');
   });
 
-  test('The CPU metric maps to is-info', async function(assert) {
+  test('The CPU metric maps to is-info', async function (assert) {
     const metric = 'cpu';
 
     await preload(this.store);
@@ -73,7 +73,7 @@ export function primaryMetric({ template, findResource, preload }) {
     );
   });
 
-  test('The Memory metric maps to is-danger', async function(assert) {
+  test('The Memory metric maps to is-danger', async function (assert) {
     const metric = 'memory';
 
     await preload(this.store);
@@ -89,7 +89,7 @@ export function primaryMetric({ template, findResource, preload }) {
     );
   });
 
-  test('Gets the tracker from the tracker registry', async function(assert) {
+  test('Gets the tracker from the tracker registry', async function (assert) {
     const metric = 'cpu';
 
     await preload(this.store);
@@ -105,7 +105,7 @@ export function primaryMetric({ template, findResource, preload }) {
     );
   });
 
-  test('Immediately polls the tracker', async function(assert) {
+  test('Immediately polls the tracker', async function (assert) {
     const metric = 'cpu';
 
     await preload(this.store);
@@ -118,7 +118,7 @@ export function primaryMetric({ template, findResource, preload }) {
     assert.ok(this.trackerPollSpy.calledOnce, 'The tracker is polled immediately');
   });
 
-  test('A pause signal is sent to the tracker when the component is destroyed', async function(assert) {
+  test('A pause signal is sent to the tracker when the component is destroyed', async function (assert) {
     const metric = 'cpu';
 
     // Capture a reference to the spy before the component is destroyed

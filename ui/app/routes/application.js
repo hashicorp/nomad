@@ -33,11 +33,12 @@ export default class ApplicationRoute extends Route {
     if (transition.queryParamsOnly) {
       promises = Promise.resolve(true);
     } else {
-
       let exchangeOneTimeToken;
 
       if (transition.to.queryParams.ott) {
-        exchangeOneTimeToken = this.get('token').exchangeOneTimeToken(transition.to.queryParams.ott);
+        exchangeOneTimeToken = this.get('token').exchangeOneTimeToken(
+          transition.to.queryParams.ott
+        );
       } else {
         exchangeOneTimeToken = Promise.resolve(true);
       }
@@ -52,9 +53,7 @@ export default class ApplicationRoute extends Route {
         .perform()
         .catch();
 
-      const fetchLicense = this.get('system.fetchLicense')
-        .perform()
-        .catch();
+      const fetchLicense = this.get('system.fetchLicense').perform().catch();
 
       const checkFuzzySearchPresence = this.get('system.checkFuzzySearchPresence')
         .perform()

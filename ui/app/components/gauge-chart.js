@@ -78,6 +78,7 @@ export default class GaugeChart extends Component.extend(WindowResizable) {
   }
 
   didInsertElement() {
+    super.didInsertElement(...arguments);
     this.updateDimensions();
   }
 

@@ -45,7 +45,7 @@ export default class JobVersion extends Component {
     this.toggleProperty('isOpen');
   }
 
-  @task(function*() {
+  @task(function* () {
     try {
       const versionBeforeReversion = this.get('version.job.version');
 

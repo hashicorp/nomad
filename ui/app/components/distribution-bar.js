@@ -43,15 +43,12 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
       help,
       index,
       percent: value / sum,
-      offset:
-        data
-          .slice(0, index)
-          .mapBy('value')
-          .reduce(sumAggregate, 0) / sum,
+      offset: data.slice(0, index).mapBy('value').reduce(sumAggregate, 0) / sum,
     }));
   }
 
   didInsertElement() {
+    super.didInsertElement(...arguments);
     const svg = this.element.querySelector('svg');
     const chart = d3.select(svg);
     const maskId = `dist-mask-${guidFor(this)}`;
@@ -63,10 +60,7 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
       run(() => {
         this.set('isActive', false);
         this.set('activeDatum', null);
-        chart
-          .selectAll('g')
-          .classed('active', false)
-          .classed('inactive', false);
+        chart.selectAll('g').classed('active', false).classed('inactive', false);
       });
     });
 
@@ -74,6 +68,7 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
   }
 
   didUpdateAttrs() {
+    super.didUpdateAttrs();
     this.renderChart();
   }
 

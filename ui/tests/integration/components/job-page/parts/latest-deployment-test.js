@@ -7,10 +7,10 @@ import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Integration | Component | job-page/parts/latest-deployment', function(hooks) {
+module('Integration | Component | job-page/parts/latest-deployment', function (hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     fragmentSerializerInitializer(this.owner);
     window.localStorage.clear();
     this.store = this.owner.lookup('service:store');
@@ -18,12 +18,12 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
     this.server.create('namespace');
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
     window.localStorage.clear();
   });
 
-  test('there is no latest deployment section when the job has no deployments', async function(assert) {
+  test('there is no latest deployment section when the job has no deployments', async function (assert) {
     this.server.create('job', {
       type: 'service',
       noDeployments: true,
@@ -40,7 +40,7 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
     assert.notOk(find('[data-test-active-deployment]'), 'No active deployment');
   });
 
-  test('the latest deployment section shows up for the currently running deployment', async function(assert) {
+  test('the latest deployment section shows up for the currently running deployment', async function (assert) {
     this.server.create('job', {
       type: 'service',
       createAllocations: false,
@@ -113,7 +113,7 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
     await componentA11yAudit(this.element, assert);
   });
 
-  test('when there is no running deployment, the latest deployment section shows up for the last deployment', async function(assert) {
+  test('when there is no running deployment, the latest deployment section shows up for the last deployment', async function (assert) {
     this.server.create('job', {
       type: 'service',
       createAllocations: false,
@@ -134,7 +134,7 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
     );
   });
 
-  test('the latest deployment section can be expanded to show task groups and allocations', async function(assert) {
+  test('the latest deployment section can be expanded to show task groups and allocations', async function (assert) {
     this.server.create('node');
     this.server.create('job', { type: 'service', activeDeployment: true });
 
@@ -156,7 +156,7 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
     await componentA11yAudit(this.element, assert);
   });
 
-  test('each task group in the expanded task group section shows task group details', async function(assert) {
+  test('each task group in the expanded task group section shows task group details', async function (assert) {
     this.server.create('node');
     this.server.create('job', { type: 'service', activeDeployment: true });
 
@@ -172,7 +172,7 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
     await click('[data-test-deployment-toggle-details]');
 
     const task = job.get('runningDeployment.taskGroupSummaries.firstObject');
-    const findForTaskGroup = selector => find(`[data-test-deployment-task-group-${selector}]`);
+    const findForTaskGroup = (selector) => find(`[data-test-deployment-task-group-${selector}]`);
     assert.equal(findForTaskGroup('name').textContent.trim(), task.get('name'));
     assert.equal(
       findForTaskGroup('progress-deadline').textContent.trim(),

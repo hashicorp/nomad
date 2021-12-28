@@ -10,10 +10,7 @@ export default {
   title: 'Charts/Stats Time Series',
 };
 
-let ts = offset =>
-  moment()
-    .subtract(offset, 'm')
-    .toDate();
+let ts = (offset) => moment().subtract(offset, 'm').toDate();
 
 export let Standard = () => {
   return {
@@ -66,7 +63,7 @@ export let HighLowComparison = () => {
       data: EmberObject.extend({
         timerTicks: 0,
 
-        startTimer: on('init', function() {
+        startTimer: on('init', function () {
           this.set(
             'timer',
             setInterval(() => {
@@ -102,16 +99,16 @@ export let HighLowComparison = () => {
           clearInterval(this.timer);
         },
 
-        metricsHigh: computed(function() {
+        metricsHigh: computed(function () {
           return [];
         }),
 
-        metricsLow: computed(function() {
+        metricsLow: computed(function () {
           return [];
         }),
 
         secondsFormat() {
-          return date => moment(date).format('HH:mm:ss');
+          return (date) => moment(date).format('HH:mm:ss');
         },
       }).create(),
     },

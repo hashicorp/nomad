@@ -31,7 +31,7 @@ export default class VolumeSerializer extends ApplicationSerializer {
     hash.WriteAllocations = [];
 
     if (hash.Allocations) {
-      hash.Allocations.forEach(function(alloc) {
+      hash.Allocations.forEach(function (alloc) {
         const id = alloc.ID;
         if (id in readAllocs) {
           hash.ReadAllocations.push(alloc);
@@ -57,7 +57,7 @@ export default class VolumeSerializer extends ApplicationSerializer {
   extractEmbeddedRecords(serializer, store, typeHash, partial) {
     partial.included = partial.included || [];
 
-    this.embeddedRelationships.forEach(embed => {
+    this.embeddedRelationships.forEach((embed) => {
       const relationshipMeta = typeHash.relationshipsByName.get(embed);
       const relationship = get(partial, `data.relationships.${embed}.data`);
 

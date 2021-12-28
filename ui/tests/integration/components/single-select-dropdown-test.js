@@ -6,7 +6,7 @@ import sinon from 'sinon';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Integration | Component | single-select dropdown', function(hooks) {
+module('Integration | Component | single-select dropdown', function (hooks) {
   setupRenderingTest(hooks);
 
   const commonProperties = () => ({
@@ -31,7 +31,7 @@ module('Integration | Component | single-select dropdown', function(hooks) {
       @onSelect={{this.onSelect}} />
   `;
 
-  test('component shows label and selection in the trigger', async function(assert) {
+  test('component shows label and selection in the trigger', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -47,7 +47,7 @@ module('Integration | Component | single-select dropdown', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('all options are shown in the dropdown', async function(assert) {
+  test('all options are shown in the dropdown', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -67,7 +67,7 @@ module('Integration | Component | single-select dropdown', function(hooks) {
     });
   });
 
-  test('selecting an option calls `onSelect` with the key for the selected option', async function(assert) {
+  test('selecting an option calls `onSelect` with the key for the selected option', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);

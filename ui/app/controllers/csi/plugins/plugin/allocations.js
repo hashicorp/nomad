@@ -9,8 +9,8 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class AllocationsController extends Controller.extend(
-    SortableFactory(['updateTime', 'healthy'])
-  ) {
+  SortableFactory(['updateTime', 'healthy'])
+) {
   @service userSettings;
 
   queryParams = [
@@ -45,12 +45,18 @@ export default class AllocationsController extends Controller.extend(
 
   @computed
   get optionsType() {
-    return [{ key: 'controller', label: 'Controller' }, { key: 'node', label: 'Node' }];
+    return [
+      { key: 'controller', label: 'Controller' },
+      { key: 'node', label: 'Node' },
+    ];
   }
 
   @computed
   get optionsHealth() {
-    return [{ key: 'true', label: 'Healthy' }, { key: 'false', label: 'Unhealthy' }];
+    return [
+      { key: 'true', label: 'Healthy' },
+      { key: 'false', label: 'Unhealthy' },
+    ];
   }
 
   @computed('model.{controllers.[],nodes.[]}')

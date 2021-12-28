@@ -32,7 +32,7 @@ export default class ScaleEventsChart extends Component {
   }
 
   get annotations() {
-    return this.args.events.rejectBy('hasCount').map(ev => ({
+    return this.args.events.rejectBy('hasCount').map((ev) => ({
       type: ev.error ? 'error' : 'info',
       time: ev.time,
       event: copy(ev),
