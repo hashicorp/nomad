@@ -27,6 +27,7 @@ module.exports = {
     'ember/no-computed-properties-in-native-classes': 'off',
     'ember/no-classic-components': 'off',
     'ember/no-component-lifecycle-hooks': 'off',
+    'ember/require-tagless-components': 'off',
   },
   overrides: [
     // node files
