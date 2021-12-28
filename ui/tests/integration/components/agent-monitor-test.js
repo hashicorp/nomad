@@ -1,3 +1,4 @@
+/* eslint-disable ember/no-string-prototype-extensions */
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';

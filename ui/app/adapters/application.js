@@ -96,6 +96,7 @@ export default class ApplicationAdapter extends RESTAdapter {
     let prefix = this.urlPrefix();
 
     if (modelName) {
+      /* eslint-disable-next-line ember/no-string-prototype-extensions */
       path = modelName.camelize();
       if (path) {
         url.push(path);
