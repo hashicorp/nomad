@@ -1,4 +1,4 @@
-import { find } from '@ember/test-helpers';
+import { find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
@@ -65,7 +65,7 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.ok(TopoVizDatacenter.isPresent);
     assert.equal(TopoVizDatacenter.nodes.length, this.datacenter.nodes.length);
@@ -94,7 +94,7 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     const allocs = this.datacenter.nodes.reduce(
       (allocs, node) => allocs.concat(node.allocations),
@@ -131,7 +131,7 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.ok(find('[data-test-flex-masonry].flex-masonry-columns-1'));
 
@@ -155,7 +155,7 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
       })
     );
 
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     TopoVizDatacenter.nodes[0].as(async (TopoVizNode) => {
       assert.notOk(TopoVizNode.labelIsPresent);

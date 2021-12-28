@@ -1,4 +1,4 @@
-import { click } from '@ember/test-helpers';
+import { click, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
@@ -34,7 +34,7 @@ module('Integration | Component | popover-menu', function (hooks) {
   test('presents as a button with a chevron-down icon', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.ok(PopoverMenu.isPresent);
     assert.ok(PopoverMenu.labelHasIcon);
@@ -46,7 +46,7 @@ module('Integration | Component | popover-menu', function (hooks) {
   test('clicking the trigger button toggles the popover menu', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await this.render(commonTemplate);
+    await render(commonTemplate);
     assert.notOk(PopoverMenu.menu.isOpen);
 
     await PopoverMenu.toggle();
@@ -59,7 +59,7 @@ module('Integration | Component | popover-menu', function (hooks) {
     const specialClass = 'is-special';
     const props = commonProperties({ triggerClass: specialClass });
     this.setProperties(props);
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.dom('[data-test-popover-trigger]').hasClass('is-special');
   });
@@ -67,7 +67,7 @@ module('Integration | Component | popover-menu', function (hooks) {
   test('pressing DOWN ARROW when the trigger is focused opens the popover menu', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await this.render(commonTemplate);
+    await render(commonTemplate);
     assert.notOk(PopoverMenu.menu.isOpen);
 
     await PopoverMenu.focus();
@@ -79,7 +79,7 @@ module('Integration | Component | popover-menu', function (hooks) {
   test('pressing TAB when the trigger button is focused and the menu is open focuses the first focusable element in the popover menu', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     await PopoverMenu.focus();
     await PopoverMenu.downArrow();
@@ -94,7 +94,7 @@ module('Integration | Component | popover-menu', function (hooks) {
   test('pressing ESC when the popover menu is open closes the menu and returns focus to the trigger button', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     await PopoverMenu.toggle();
     assert.ok(PopoverMenu.menu.isOpen);
@@ -107,7 +107,7 @@ module('Integration | Component | popover-menu', function (hooks) {
   test('the ember-basic-dropdown object is yielded as context, including the close action', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     await PopoverMenu.toggle();
     assert.ok(PopoverMenu.menu.isOpen);

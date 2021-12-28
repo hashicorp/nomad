@@ -70,7 +70,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     const job = this.store.peekAll('job').findBy('plainId', 'parent');
 
     this.setProperties(commonProperties(job));
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     const currentJobCount = server.db.jobs.length;
 
@@ -109,7 +109,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     const job = this.store.peekAll('job').findBy('plainId', 'parent');
 
     this.setProperties(commonProperties(job));
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.notOk(find('[data-test-job-error-title]'), 'No error message yet');
 
@@ -219,7 +219,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     const job = this.store.peekAll('job').findBy('plainId', 'parent');
 
     this.setProperties(commonProperties(job));
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.equal(
       find('[data-test-job-submit-time]').textContent,
@@ -244,7 +244,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
       const job = this.store.peekAll('job').findBy('plainId', 'parent');
 
       this.setProperties(commonProperties(job));
-      await this.render(commonTemplate);
+      await render(commonTemplate);
     },
   });
 });
