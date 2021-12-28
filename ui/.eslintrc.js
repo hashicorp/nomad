@@ -17,7 +17,11 @@ module.exports = {
     browser: true,
   },
   plugins: ['ember'],
-  extends: ['eslint:recommended', 'plugin:ember/recommended', 'plugin:prettier/recommended'],
+  extends: [
+    'eslint:recommended',
+    'plugin:ember/recommended',
+    'plugin:prettier/recommended',
+  ],
   rules: {
     'ember/classic-decorator-hooks': 'error',
     'ember/classic-decorator-no-classic-methods': 'error',
@@ -51,6 +55,7 @@ module.exports = {
         node: true,
       },
       plugins: ['node'],
+      extends: ['plugin:node/recommended'],
       rules: {
         // this can be removed once the following is fixed
         // https://github.com/mysticatea/eslint-plugin-node/issues/77
