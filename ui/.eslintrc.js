@@ -23,6 +23,7 @@ module.exports = {
     'ember/classic-decorator-no-classic-methods': 'error',
     'ember/no-get': 'off',
     'ember/no-mixins': 'off',
+    'ember/no-classic-classes': 'off',
   },
   overrides: [
     // node files
