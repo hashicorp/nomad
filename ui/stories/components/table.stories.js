@@ -29,6 +29,7 @@ function injectRoutedController(controllerClass) {
       this.route('storybook');
     });
 
+    /* eslint-disable-next-line ember/no-private-routing-service */
     let router = container.lookup('router:main');
     router.initialURL = 'storybook';
     router.startRouting(true);
