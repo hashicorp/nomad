@@ -133,6 +133,8 @@ module('Unit | Util | AllocationStatsTracker', function () {
   });
 
   test('the tasks list comes from the allocation', async function (assert) {
+    assert.expect(7);
+
     const allocation = MockAllocation();
     const tracker = AllocationStatsTracker.create({ fetch, allocation });
 
@@ -473,6 +475,8 @@ module('Unit | Util | AllocationStatsTracker', function () {
   });
 
   test('each stat list has maxLength equal to bufferSize', async function (assert) {
+    assert.expect(16);
+
     const allocation = MockAllocation();
     const bufferSize = 10;
     const tracker = AllocationStatsTracker.create({

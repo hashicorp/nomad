@@ -39,6 +39,8 @@ module(
       );
 
     test('the job detail page should list all task groups', async function (assert) {
+      assert.expect(2);
+
       this.server.create('job', {
         createAllocations: false,
       });

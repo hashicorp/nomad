@@ -1,3 +1,5 @@
+/* eslint-disable qunit/require-expect */
+/* eslint-disable qunit/no-conditional-assertions */
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -36,7 +38,7 @@ module('Acceptance | job versions', function (hooks) {
   });
 
   test('/jobs/:id/versions should list all job versions', async function (assert) {
-    assert.ok(
+    assert.equal(
       Versions.versions.length,
       versions.length,
       'Each version gets a row in the timeline'

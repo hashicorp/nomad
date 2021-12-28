@@ -52,6 +52,8 @@ module('Integration | Component | scale-events-chart', function (hooks) {
   ];
 
   test('each event is rendered as an annotation', async function (assert) {
+    assert.expect(2);
+
     this.set('events', events);
     await render(hbs`<ScaleEventsChart @events={{this.events}} />`);
 
@@ -63,6 +65,8 @@ module('Integration | Component | scale-events-chart', function (hooks) {
   });
 
   test('clicking an annotation presents details for the event', async function (assert) {
+    assert.expect(6);
+
     const annotation = events.rejectBy('hasCount').sortBy('time').reverse()[0];
 
     this.set('events', events);

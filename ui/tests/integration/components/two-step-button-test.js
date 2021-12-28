@@ -36,6 +36,8 @@ module('Integration | Component | two step button', function (hooks) {
   `;
 
   test('presents as a button in the idle state', async function (assert) {
+    assert.expect(6);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -58,6 +60,8 @@ module('Integration | Component | two step button', function (hooks) {
   });
 
   test('clicking the idle state button transitions into the promptForConfirmation state', async function (assert) {
+    assert.expect(7);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -115,6 +119,8 @@ module('Integration | Component | two step button', function (hooks) {
   });
 
   test('when awaitingConfirmation is true, the cancel and submit buttons are disabled and the submit button is loading', async function (assert) {
+    assert.expect(4);
+
     const props = commonProperties();
     props.awaitingConfirmation = true;
     this.setProperties(props);
@@ -179,6 +185,8 @@ module('Integration | Component | two step button', function (hooks) {
   });
 
   test('when disabled is true, the idle button is disabled', async function (assert) {
+    assert.expect(3);
+
     const props = commonProperties();
     props.disabled = true;
     this.setProperties(props);

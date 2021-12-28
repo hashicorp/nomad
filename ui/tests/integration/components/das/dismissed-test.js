@@ -13,6 +13,8 @@ module('Integration | Component | das/dismissed', function (hooks) {
   });
 
   test('it renders the dismissal interstitial with a button to proceed and an option to never show again and proceeds manually', async function (assert) {
+    assert.expect(3);
+
     const proceedSpy = sinon.spy();
     this.set('proceedSpy', proceedSpy);
 
@@ -31,6 +33,8 @@ module('Integration | Component | das/dismissed', function (hooks) {
   });
 
   test('it renders the dismissal interstitial with no button when the option to never show again has been chosen and proceeds automatically', async function (assert) {
+    assert.expect(3);
+
     window.localStorage.setItem('nomadRecommendationDismssalUnderstood', true);
 
     const proceedSpy = sinon.spy();

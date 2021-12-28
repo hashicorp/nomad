@@ -32,6 +32,8 @@ module('Integration | Component | popover-menu', function (hooks) {
   `;
 
   test('presents as a button with a chevron-down icon', async function (assert) {
+    assert.expect(5);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -44,6 +46,8 @@ module('Integration | Component | popover-menu', function (hooks) {
   });
 
   test('clicking the trigger button toggles the popover menu', async function (assert) {
+    assert.expect(3);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);

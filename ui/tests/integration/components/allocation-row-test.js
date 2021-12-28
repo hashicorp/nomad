@@ -79,6 +79,8 @@ module('Integration | Component | allocation row', function (hooks) {
   });
 
   test('Allocation row shows warning when it requires drivers that are unhealthy on the node it is running on', async function (assert) {
+    assert.expect(2);
+
     const node = this.server.schema.nodes.first();
     const drivers = node.drivers;
     Object.values(drivers).forEach((driver) => {
@@ -113,6 +115,8 @@ module('Integration | Component | allocation row', function (hooks) {
   });
 
   test('Allocation row shows an icon indicator when it was preempted', async function (assert) {
+    assert.expect(2);
+
     const allocId = this.server.create('allocation', 'preempted').id;
     const allocation = await this.store.findRecord('allocation', allocId);
 
@@ -128,6 +132,8 @@ module('Integration | Component | allocation row', function (hooks) {
   });
 
   test('when an allocation is not running, the utilization graphs are omitted', async function (assert) {
+    assert.expect(8);
+
     this.setProperties({
       context: 'job',
       enablePolling: false,

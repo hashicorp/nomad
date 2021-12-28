@@ -64,6 +64,8 @@ module('Unit | Model | task-group', function (hooks) {
   });
 
   test("should expose mergedMeta as merged with the job's meta", function (assert) {
+    assert.expect(8);
+
     const store = this.owner.lookup('service:store');
 
     const jobWithMeta = run(() =>

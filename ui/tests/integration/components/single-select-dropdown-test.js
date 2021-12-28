@@ -35,6 +35,8 @@ module('Integration | Component | single-select dropdown', function (hooks) {
   `;
 
   test('component shows label and selection in the trigger', async function (assert) {
+    assert.expect(4);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -53,6 +55,8 @@ module('Integration | Component | single-select dropdown', function (hooks) {
   });
 
   test('all options are shown in the dropdown', async function (assert) {
+    assert.expect(7);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);

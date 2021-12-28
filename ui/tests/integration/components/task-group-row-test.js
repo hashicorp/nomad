@@ -70,6 +70,8 @@ module('Integration | Component | task group row', function (hooks) {
   `;
 
   test('Task group row conditionally shows scaling buttons based on the presence of the scaling attr on the task group', async function (assert) {
+    assert.expect(3);
+
     makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
@@ -122,6 +124,8 @@ module('Integration | Component | task group row', function (hooks) {
   });
 
   test('When the current count is equal to the max count, the increment count button is disabled', async function (assert) {
+    assert.expect(2);
+
     makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
@@ -138,6 +142,8 @@ module('Integration | Component | task group row', function (hooks) {
   });
 
   test('When the current count is equal to the min count, the decrement count button is disabled', async function (assert) {
+    assert.expect(2);
+
     makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
@@ -154,6 +160,8 @@ module('Integration | Component | task group row', function (hooks) {
   });
 
   test('When there is an active deployment, both scale buttons are disabled', async function (assert) {
+    assert.expect(3);
+
     makeJob(this.server, { activeDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();

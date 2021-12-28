@@ -18,6 +18,8 @@ module('Integration | Component | line-chart', function (hooks) {
   setupRenderingTest(hooks);
 
   test('when a chart has annotations, they are rendered in order', async function (assert) {
+    assert.expect(4);
+
     const annotations = [
       { x: 2, type: 'info' },
       { x: 1, type: 'error' },
@@ -55,6 +57,8 @@ module('Integration | Component | line-chart', function (hooks) {
   });
 
   test('when a chart has annotations and is timeseries, annotations are sorted reverse-chronologically', async function (assert) {
+    assert.expect(3);
+
     const annotations = [
       {
         x: moment(REF_DATE).add(2, 'd').toDate(),
@@ -126,6 +130,8 @@ module('Integration | Component | line-chart', function (hooks) {
   });
 
   test('annotations will have staggered heights when too close to be positioned side-by-side', async function (assert) {
+    assert.expect(4);
+
     const annotations = [
       { x: 2, type: 'info' },
       { x: 2.4, type: 'error' },
@@ -162,6 +168,8 @@ module('Integration | Component | line-chart', function (hooks) {
   });
 
   test('horizontal annotations render in order', async function (assert) {
+    assert.expect(3);
+
     const annotations = [
       { y: 2, label: 'label one' },
       { y: 9, label: 'label three' },
@@ -196,6 +204,8 @@ module('Integration | Component | line-chart', function (hooks) {
   });
 
   test('the tooltip includes information on the data closest to the mouse', async function (assert) {
+    assert.expect(8);
+
     const series1 = [
       { x: 1, y: 2 },
       { x: 3, y: 3 },

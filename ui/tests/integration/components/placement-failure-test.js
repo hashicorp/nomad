@@ -14,6 +14,8 @@ module('Integration | Component | placement failures', function (hooks) {
   `;
 
   test('should render the placement failure (basic render)', async function (assert) {
+    assert.expect(12);
+
     const name = 'Placement Failure';
     const failures = 11;
     this.set(
@@ -92,6 +94,8 @@ module('Integration | Component | placement failures', function (hooks) {
   });
 
   test('should render correctly when a node is not evaluated', async function (assert) {
+    assert.expect(3);
+
     this.set(
       'taskGroup',
       createFixture({

@@ -44,6 +44,8 @@ module('Integration | Component | app breadcrumbs', function (hooks) {
   });
 
   test('every breadcrumb is rendered correctly', async function (assert) {
+    assert.expect(2);
+
     this.breadcrumbs.set('breadcrumbs', commonCrumbs);
 
     await render(template);
@@ -60,6 +62,8 @@ module('Integration | Component | app breadcrumbs', function (hooks) {
   });
 
   test('when breadcrumbs are pending promises, an ellipsis is rendered', async function (assert) {
+    assert.expect(3);
+
     let resolvePromise;
     const promise = new RSVP.Promise((resolve) => {
       resolvePromise = resolve;

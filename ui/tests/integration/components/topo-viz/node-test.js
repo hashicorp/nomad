@@ -65,6 +65,8 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
   `;
 
   test('presents as a div with a label and an svg with CPU and memory rows', async function (assert) {
+    assert.expect(4);
+
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     this.setProperties(
       props({
@@ -260,6 +262,8 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
   });
 
   test('each allocation is sized according to its percentage of utilization', async function (assert) {
+    assert.expect(4);
+
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
     this.setProperties(
       props({
@@ -380,6 +384,8 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
   });
 
   test('allocations are sorted by smallest to largest delta of memory to cpu percent utilizations', async function (assert) {
+    assert.expect(10);
+
     const node = nodeGen('Node One', 'dc1', 1000, 1000);
 
     const evenAlloc = allocGen(node, 100, 100);

@@ -39,6 +39,8 @@ module('Integration | Component | list table', function (hooks) {
 
   // tbody
   test('component exposes a tbody contextual component', async function (assert) {
+    assert.expect(44);
+
     this.setProperties({
       source: commonTable,
       sortProperty: 'firstName',

@@ -80,6 +80,8 @@ module('Unit | Util | Log', function (hooks) {
   });
 
   test('gotoHead builds the correct URL', async function (assert) {
+    assert.expect(1);
+
     const mocks = makeMocks('');
     const expectedUrl = `${mocks.url}?a=param&another=one&offset=0&origin=start`;
     const log = Log.create(mocks);
@@ -119,6 +121,8 @@ module('Unit | Util | Log', function (hooks) {
   });
 
   test('gotoTail builds the correct URL', async function (assert) {
+    assert.expect(1);
+
     const mocks = makeMocks('');
     const expectedUrl = `${mocks.url}?a=param&another=one&offset=50000&origin=end`;
     const log = Log.create(mocks);

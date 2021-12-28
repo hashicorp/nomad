@@ -21,6 +21,8 @@ module('Integration | Component | plugin allocation row', function (hooks) {
   });
 
   test('Plugin allocation row immediately fetches the plugin allocation', async function (assert) {
+    assert.expect(2);
+
     const plugin = this.server.create('csi-plugin', {
       id: 'plugin',
       controllerRequired: true,

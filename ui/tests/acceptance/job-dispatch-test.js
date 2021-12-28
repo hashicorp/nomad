@@ -1,4 +1,6 @@
 /* eslint-disable ember/no-test-module-for */
+/* eslint-disable qunit/require-expect */
+/* eslint-disable qunit/no-conditional-assertions */
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';

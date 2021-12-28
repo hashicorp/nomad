@@ -45,6 +45,8 @@ module('Integration | Component | streaming file', function (hooks) {
   `;
 
   test('when mode is `head`, the logger signals head', async function (assert) {
+    assert.expect(5);
+
     const url = '/file/endpoint';
     const params = { path: 'hello/world.txt', offset: 0, limit: 50000 };
     this.setProperties({

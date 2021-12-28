@@ -23,6 +23,8 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
   });
 
   test('jobs with children use the children diagram', async function (assert) {
+    assert.expect(3);
+
     this.server.create('job', 'periodic', {
       createAllocations: false,
     });
@@ -48,6 +50,8 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
   });
 
   test('jobs without children use the allocations diagram', async function (assert) {
+    assert.expect(3);
+
     this.server.create('job', {
       createAllocations: false,
     });
@@ -174,6 +178,8 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
   });
 
   test('when collapsed, the summary block includes an inline version of the chart', async function (assert) {
+    assert.expect(3);
+
     this.server.create('job', {
       createAllocations: false,
     });

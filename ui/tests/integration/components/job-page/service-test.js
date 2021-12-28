@@ -63,6 +63,8 @@ module('Integration | Component | job-page/service', function (hooks) {
     );
 
   test('Stopping a job sends a delete request for the job', async function (assert) {
+    assert.expect(1);
+
     const mirageJob = makeMirageJob(this.server);
     await this.store.findAll('job');
 
@@ -76,6 +78,8 @@ module('Integration | Component | job-page/service', function (hooks) {
   });
 
   test('Stopping a job without proper permissions shows an error message', async function (assert) {
+    assert.expect(4);
+
     this.server.pretender.delete('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = makeMirageJob(this.server);
@@ -93,6 +97,8 @@ module('Integration | Component | job-page/service', function (hooks) {
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {
+    assert.expect(2);
+
     const mirageJob = makeMirageJob(this.server, { status: 'dead' });
     await this.store.findAll('job');
 
@@ -106,6 +112,8 @@ module('Integration | Component | job-page/service', function (hooks) {
   });
 
   test('Starting a job without proper permissions shows an error message', async function (assert) {
+    assert.expect(3);
+
     this.server.pretender.post('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = makeMirageJob(this.server, { status: 'dead' });
@@ -121,6 +129,8 @@ module('Integration | Component | job-page/service', function (hooks) {
   });
 
   test('Recent allocations shows allocations in the job context', async function (assert) {
+    assert.expect(3);
+
     this.server.create('node');
     const mirageJob = makeMirageJob(this.server, { createAllocations: true });
     await this.store.findAll('job');
@@ -165,6 +175,8 @@ module('Integration | Component | job-page/service', function (hooks) {
   });
 
   test('Recent allocations shows an empty message when the job has no allocations', async function (assert) {
+    assert.expect(2);
+
     this.server.create('node');
     const mirageJob = makeMirageJob(this.server);
 
@@ -208,6 +220,8 @@ module('Integration | Component | job-page/service', function (hooks) {
   });
 
   test('When promoting the active deployment fails, an error is shown', async function (assert) {
+    assert.expect(4);
+
     this.server.pretender.post('/v1/deployment/promote/:id', () => [
       403,
       {},
@@ -272,6 +286,8 @@ module('Integration | Component | job-page/service', function (hooks) {
   });
 
   test('When failing the active deployment fails, an error is shown', async function (assert) {
+    assert.expect(4);
+
     this.server.pretender.post('/v1/deployment/fail/:id', () => [403, {}, '']);
 
     this.server.create('node');

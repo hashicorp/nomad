@@ -1,3 +1,4 @@
+/* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
 import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';

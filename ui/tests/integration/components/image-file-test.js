@@ -21,6 +21,8 @@ module('Integration | Component | image file', function (hooks) {
   };
 
   test('component displays the image', async function (assert) {
+    assert.expect(3);
+
     this.setProperties(commonProperties);
 
     await render(commonTemplate);

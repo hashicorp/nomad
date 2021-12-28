@@ -1,4 +1,5 @@
-/* eslint-disable ember-a11y-testing/a11y-audit-called */ // TODO
+/* eslint-disable ember-a11y-testing/a11y-audit-called */
+/* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
 import { currentURL, triggerEvent, visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
@@ -114,7 +115,7 @@ module('Acceptance | search', function (hooks) {
       request.requestBody.includes('feature-detection-query')
     );
 
-    assert.ok(
+    assert.equal(
       featureDetectionQueries.length,
       1,
       'expect the feature detection query to only run once'

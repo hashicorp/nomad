@@ -110,6 +110,8 @@ module('Integration | Component | job-editor', function (hooks) {
   };
 
   test('the default state is an editor with an explanation popup', async function (assert) {
+    assert.expect(3);
+
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
@@ -190,6 +192,8 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when a job is successfully parsed and planned, the plan is shown to the user', async function (assert) {
+    assert.expect(4);
+
     const spec = hclJob();
     const job = await this.store.createRecord('job');
 
@@ -221,6 +225,8 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when parse fails, the parse error message is shown', async function (assert) {
+    assert.expect(5);
+
     const spec = hclJob();
     const errorMessage = 'Parse Failed!! :o';
     const job = await this.store.createRecord('job');
@@ -243,6 +249,8 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when plan fails, the plan error message is shown', async function (assert) {
+    assert.expect(5);
+
     const spec = hclJob();
     const errorMessage = 'Plan Failed!! :o';
     const job = await this.store.createRecord('job');
@@ -269,6 +277,8 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when run fails, the run error message is shown', async function (assert) {
+    assert.expect(5);
+
     const spec = hclJob();
     const errorMessage = 'Run Failed!! :o';
     const job = await this.store.createRecord('job');
@@ -292,6 +302,8 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when the scheduler dry-run has warnings, the warnings are shown to the user', async function (assert) {
+    assert.expect(4);
+
     const spec = jsonJob({ Unschedulable: true });
     const job = await this.store.createRecord('job');
 
@@ -314,6 +326,8 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when the scheduler dry-run has no warnings, a success message is shown to the user', async function (assert) {
+    assert.expect(3);
+
     const spec = hclJob();
     const job = await this.store.createRecord('job');
 
@@ -392,6 +406,8 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when the job-editor cancelable flag is true, there is a cancel button in the header', async function (assert) {
+    assert.expect(2);
+
     const job = await this.store.createRecord('job');
 
     await renderEditJob(this, job);

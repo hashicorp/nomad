@@ -26,6 +26,8 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
   `;
 
   test('when the allocation is running, the timeline shows past allocations', async function (assert) {
+    assert.expect(7);
+
     const attempts = 2;
 
     this.server.create('allocation', 'rescheduled', {
@@ -75,6 +77,8 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
   });
 
   test('when the allocation has failed and there is a follow up evaluation, a note with a time is shown', async function (assert) {
+    assert.expect(3);
+
     const attempts = 2;
 
     this.server.create('allocation', 'rescheduled', {
@@ -104,6 +108,8 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
   });
 
   test('when the allocation has failed and there is no follow up evaluation, a warning is shown', async function (assert) {
+    assert.expect(3);
+
     const attempts = 2;
 
     this.server.create('allocation', 'rescheduled', {
@@ -155,7 +161,7 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
     this.set('allocation', allocation);
     await render(commonTemplate);
 
-    assert.ok(
+    assert.equal(
       find('[data-test-reschedule-label]').textContent.trim(),
       'Next Allocation',
       'The first allocation is the next allocation and labeled as such'

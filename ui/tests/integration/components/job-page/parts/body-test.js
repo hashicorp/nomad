@@ -32,6 +32,8 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
   });
 
   test('the subnav includes the deployments link when the job is a service', async function (assert) {
+    assert.expect(4);
+
     const store = this.owner.lookup('service:store');
     const job = await store.createRecord('job', {
       id: 'service-job',
