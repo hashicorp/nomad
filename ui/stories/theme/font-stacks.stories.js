@@ -33,7 +33,7 @@ export let FontStacks = () => {
         'Helvetica Neue',
         'sans-serif',
         'monospace',
-      ].map(family => {
+      ].map((family) => {
         return {
           name: family,
           style: htmlSafe(`font-family: ${family}`),

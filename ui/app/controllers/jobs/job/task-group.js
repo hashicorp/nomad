@@ -13,10 +13,10 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class TaskGroupController extends Controller.extend(
-    Sortable,
-    Searchable,
-    WithNamespaceResetting
-  ) {
+  Sortable,
+  Searchable,
+  WithNamespaceResetting
+) {
   @service userSettings;
   @service can;
 
@@ -63,7 +63,7 @@ export default class TaskGroupController extends Controller.extend(
   get filteredAllocations() {
     const { selectionStatus, selectionClient } = this;
 
-    return this.allocations.filter(alloc => {
+    return this.allocations.filter((alloc) => {
       if (selectionStatus.length && !selectionStatus.includes(alloc.clientStatus)) {
         return false;
       }
@@ -82,7 +82,7 @@ export default class TaskGroupController extends Controller.extend(
   @selection('qpStatus') selectionStatus;
   @selection('qpClient') selectionClient;
 
-  @computed('model.scaleState.events.@each.time', function() {
+  @computed('model.scaleState.events.@each.time', function () {
     const events = get(this, 'model.scaleState.events');
     if (events) {
       return events.sortBy('time').reverse();
@@ -91,7 +91,7 @@ export default class TaskGroupController extends Controller.extend(
   })
   sortedScaleEvents;
 
-  @computed('sortedScaleEvents.@each.hasCount', function() {
+  @computed('sortedScaleEvents.@each.hasCount', function () {
     const countEventsCount = this.sortedScaleEvents.filterBy('hasCount').length;
     return countEventsCount > 1 && countEventsCount >= this.sortedScaleEvents.length / 2;
   })
@@ -135,7 +135,7 @@ export default class TaskGroupController extends Controller.extend(
       this.set('qpClient', serialize(intersection(clients, this.selectionClient)));
     });
 
-    return clients.sort().map(dc => ({ key: dc, label: dc }));
+    return clients.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
   setFacetQueryParam(queryParam, selection) {

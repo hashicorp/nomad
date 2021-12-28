@@ -3,7 +3,7 @@ import { test } from 'qunit';
 import sinon from 'sinon';
 import { settled } from '@ember/test-helpers';
 
-const MockResponse = json => ({
+const MockResponse = (json) => ({
   ok: true,
   json() {
     return resolve(json);
@@ -17,7 +17,7 @@ export default function statsTrackerFrameMissing({
   mockFrame,
   compileResources,
 }) {
-  test('a bad response from a fetch request is handled gracefully', async function(assert) {
+  test('a bad response from a fetch request is handled gracefully', async function (assert) {
     const frame = mockFrame(1);
     const [compiledCPU, compiledMemory] = compileResources(frame);
 
@@ -56,7 +56,7 @@ export default function statsTrackerFrameMissing({
     assert.equal(tracker.get('frameMisses'), 0, 'Frame misses is reset');
   });
 
-  test('enough bad responses from fetch consecutively (as set by maxFrameMisses) results in a pause', async function(assert) {
+  test('enough bad responses from fetch consecutively (as set by maxFrameMisses) results in a pause', async function (assert) {
     const fetch = () => {
       return resolve({ ok: false });
     };

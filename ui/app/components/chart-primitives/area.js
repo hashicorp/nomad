@@ -31,9 +31,9 @@ export default class ChartPrimitiveArea extends Component {
 
     const builder = line()
       .curve(d3Shape[this.curveMethod])
-      .defined(d => d[yProp] != null)
-      .x(d => xScale(d[xProp]))
-      .y(d => yScale(d[yProp]));
+      .defined((d) => d[yProp] != null)
+      .x((d) => xScale(d[xProp]))
+      .y((d) => yScale(d[yProp]));
 
     return builder(this.args.data);
   }
@@ -43,10 +43,10 @@ export default class ChartPrimitiveArea extends Component {
 
     const builder = area()
       .curve(d3Shape[this.curveMethod])
-      .defined(d => d[yProp] != null)
-      .x(d => xScale(d[xProp]))
+      .defined((d) => d[yProp] != null)
+      .x((d) => xScale(d[xProp]))
       .y0(yScale(0))
-      .y1(d => yScale(d[yProp]));
+      .y1((d) => yScale(d[yProp]));
 
     return builder(this.args.data);
   }

@@ -10,11 +10,11 @@ import moment from 'moment';
 let allocation;
 let task;
 
-module('Acceptance | task detail', function(hooks) {
+module('Acceptance | task detail', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     server.create('agent');
     server.create('node');
     server.create('job', { createAllocations: false });
@@ -24,11 +24,11 @@ module('Acceptance | task detail', function(hooks) {
     await Task.visit({ id: allocation.id, name: task.name });
   });
 
-  test('it passes an accessibility audit', async function(assert) {
+  test('it passes an accessibility audit', async function (assert) {
     await a11yAudit(assert);
   });
 
-  test('/allocation/:id/:task_name should name the task and list high-level task information', async function(assert) {
+  test('/allocation/:id/:task_name should name the task and list high-level task information', async function (assert) {
     assert.ok(Task.title.text.includes(task.name), 'Task name');
     assert.ok(Task.state.includes(task.state), 'Task state');
 
@@ -52,7 +52,7 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(document.title, `Task ${task.name} - Nomad`);
   });
 
-  test('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {
+  test('breadcrumbs match jobs / job / task group / allocation / task', async function (assert) {
     const { jobId, taskGroup } = allocation;
     const job = server.db.jobs.find(jobId);
 
@@ -104,31 +104,31 @@ module('Acceptance | task detail', function(hooks) {
     );
   });
 
-  test('/allocation/:id/:task_name should include resource utilization graphs', async function(assert) {
+  test('/allocation/:id/:task_name should include resource utilization graphs', async function (assert) {
     assert.equal(Task.resourceCharts.length, 2, 'Two resource utilization graphs');
     assert.equal(Task.resourceCharts.objectAt(0).name, 'CPU', 'First chart is CPU');
     assert.equal(Task.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
   });
 
-  test('the events table lists all recent events', async function(assert) {
+  test('the events table lists all recent events', async function (assert) {
     const events = server.db.taskEvents.where({ taskStateId: task.id });
 
     assert.equal(Task.events.length, events.length, `Lists ${events.length} events`);
   });
 
-  test('when a task has volumes, the volumes table is shown', async function(assert) {
+  test('when a task has volumes, the volumes table is shown', async function (assert) {
     const taskGroup = server.schema.taskGroups.where({
       jobId: allocation.jobId,
       name: allocation.taskGroup,
     }).models[0];
 
-    const jobTask = taskGroup.tasks.models.find(m => m.name === task.name);
+    const jobTask = taskGroup.tasks.models.find((m) => m.name === task.name);
 
     assert.ok(Task.hasVolumes);
     assert.equal(Task.volumes.length, jobTask.volumeMounts.length);
   });
 
-  test('when a task does not have volumes, the volumes table is not shown', async function(assert) {
+  test('when a task does not have volumes, the volumes table is not shown', async function (assert) {
     const job = server.create('job', { createAllocations: false, noHostVolumes: true });
     allocation = server.create('allocation', { jobId: job.id, clientStatus: 'running' });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
@@ -137,16 +137,16 @@ module('Acceptance | task detail', function(hooks) {
     assert.notOk(Task.hasVolumes);
   });
 
-  test('each volume in the volumes table shows information about the volume', async function(assert) {
+  test('each volume in the volumes table shows information about the volume', async function (assert) {
     const taskGroup = server.schema.taskGroups.where({
       jobId: allocation.jobId,
       name: allocation.taskGroup,
     }).models[0];
 
-    const jobTask = taskGroup.tasks.models.find(m => m.name === task.name);
+    const jobTask = taskGroup.tasks.models.find((m) => m.name === task.name);
     const volume = jobTask.volumeMounts[0];
 
-    Task.volumes[0].as(volumeRow => {
+    Task.volumes[0].as((volumeRow) => {
       assert.equal(volumeRow.name, volume.Volume);
       assert.equal(volumeRow.destination, volume.Destination);
       assert.equal(volumeRow.permissions, volume.ReadOnly ? 'Read' : 'Read/Write');
@@ -154,7 +154,7 @@ module('Acceptance | task detail', function(hooks) {
     });
   });
 
-  test('each recent event should list the time, type, and description of the event', async function(assert) {
+  test('each recent event should list the time, type, and description of the event', async function (assert) {
     const event = server.db.taskEvents.where({ taskStateId: task.id })[0];
     const recentEvent = Task.events.objectAt(Task.events.length - 1);
 
@@ -167,12 +167,12 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(recentEvent.message, event.displayMessage, 'Event message');
   });
 
-  test('when the allocation is not found, the application errors', async function(assert) {
+  test('when the allocation is not found, the application errors', async function (assert) {
     await Task.visit({ id: 'not-a-real-allocation', name: task.name });
 
     assert.equal(
       server.pretender.handledRequests
-        .filter(request => !request.url.includes('policy'))
+        .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/allocation/not-a-real-allocation',
       'A request to the nonexistent allocation is made'
@@ -186,7 +186,7 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(Task.error.title, 'Not Found', 'Error message is for 404');
   });
 
-  test('when the allocation is found but the task is not, the application errors', async function(assert) {
+  test('when the allocation is found but the task is not, the application errors', async function (assert) {
     await Task.visit({ id: allocation.id, name: 'not-a-real-task-name' });
 
     assert.ok(
@@ -205,7 +205,7 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(Task.error.title, 'Not Found', 'Error message is for 404');
   });
 
-  test('task can be restarted', async function(assert) {
+  test('task can be restarted', async function (assert) {
     await Task.restart.idle();
     await Task.restart.confirm();
 
@@ -223,7 +223,7 @@ module('Acceptance | task detail', function(hooks) {
     );
   });
 
-  test('when task restart fails (403), an ACL permissions error message is shown', async function(assert) {
+  test('when task restart fails (403), an ACL permissions error message is shown', async function (assert) {
     server.pretender.put('/v1/client/allocation/:id/restart', () => [403, {}, '']);
 
     await Task.restart.idle();
@@ -241,7 +241,7 @@ module('Acceptance | task detail', function(hooks) {
     assert.notOk(Task.inlineError.isShown, 'Inline error is no longer shown');
   });
 
-  test('when task restart fails (500), the error message from the API is piped through to the alert', async function(assert) {
+  test('when task restart fails (500), the error message from the API is piped through to the alert', async function (assert) {
     const message = 'A plaintext error message';
     server.pretender.put('/v1/client/allocation/:id/restart', () => [500, {}, message]);
 
@@ -257,16 +257,16 @@ module('Acceptance | task detail', function(hooks) {
     assert.notOk(Task.inlineError.isShown);
   });
 
-  test('exec button is present', async function(assert) {
+  test('exec button is present', async function (assert) {
     assert.ok(Task.execButton.isPresent);
   });
 });
 
-module('Acceptance | task detail (no addresses)', function(hooks) {
+module('Acceptance | task detail (no addresses)', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     server.create('agent');
     server.create('node');
     server.create('job');
@@ -277,11 +277,11 @@ module('Acceptance | task detail (no addresses)', function(hooks) {
   });
 });
 
-module('Acceptance | task detail (different namespace)', function(hooks) {
+module('Acceptance | task detail (different namespace)', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     server.create('agent');
     server.create('node');
     server.create('namespace');
@@ -293,7 +293,7 @@ module('Acceptance | task detail (different namespace)', function(hooks) {
     await Task.visit({ id: allocation.id, name: task.name });
   });
 
-  test('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {
+  test('breadcrumbs match jobs / job / task group / allocation / task', async function (assert) {
     const { jobId, taskGroup } = allocation;
     const job = server.db.jobs.find(jobId);
 
@@ -326,11 +326,11 @@ module('Acceptance | task detail (different namespace)', function(hooks) {
   });
 });
 
-module('Acceptance | task detail (not running)', function(hooks) {
+module('Acceptance | task detail (not running)', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     server.create('agent');
     server.create('node');
     server.create('namespace');
@@ -342,21 +342,21 @@ module('Acceptance | task detail (not running)', function(hooks) {
     await Task.visit({ id: allocation.id, name: task.name });
   });
 
-  test('when the allocation for a task is not running, the resource utilization graphs are replaced by an empty message', async function(assert) {
+  test('when the allocation for a task is not running, the resource utilization graphs are replaced by an empty message', async function (assert) {
     assert.equal(Task.resourceCharts.length, 0, 'No resource charts');
     assert.equal(Task.resourceEmptyMessage, "Task isn't running", 'Empty message is appropriate');
   });
 
-  test('exec button is absent', async function(assert) {
+  test('exec button is absent', async function (assert) {
     assert.notOk(Task.execButton.isPresent);
   });
 });
 
-module('Acceptance | proxy task detail', function(hooks) {
+module('Acceptance | proxy task detail', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     server.create('agent');
     server.create('node');
     server.create('job', { createAllocations: false });
@@ -370,7 +370,7 @@ module('Acceptance | proxy task detail', function(hooks) {
     await Task.visit({ id: allocation.id, name: taskState.name });
   });
 
-  test('a proxy tag is shown', async function(assert) {
+  test('a proxy tag is shown', async function (assert) {
     assert.ok(Task.title.proxyTag.isPresent);
   });
 });

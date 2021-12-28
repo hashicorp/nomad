@@ -15,7 +15,7 @@ export default class OptimizeSummaryRoute extends Route {
 
   async model({ jobNamespace, slug }) {
     const model = this.modelFor('optimize').summaries.find(
-      summary => summary.slug === slug && summary.jobNamespace === jobNamespace
+      (summary) => summary.slug === slug && summary.jobNamespace === jobNamespace
     );
 
     if (!model) {

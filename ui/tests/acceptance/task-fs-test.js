@@ -10,11 +10,11 @@ let allocation;
 let task;
 let files, taskDirectory, directory, nestedDirectory;
 
-module('Acceptance | task fs', function(hooks) {
+module('Acceptance | task fs', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     server.create('agent');
     server.create('node', 'forceIPv4');
     const job = server.create('job', { createAllocations: false });

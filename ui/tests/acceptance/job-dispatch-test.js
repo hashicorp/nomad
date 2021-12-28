@@ -33,12 +33,12 @@ moduleForJobDispatch('Acceptance | job dispatch (with namespace)', () => {
 function moduleForJobDispatch(title, jobFactory) {
   let job, namespace, managementToken, clientToken;
 
-  module(title, function(hooks) {
+  module(title, function (hooks) {
     setupApplicationTest(hooks);
     setupCodeMirror(hooks);
     setupMirage(hooks);
 
-    hooks.beforeEach(function() {
+    hooks.beforeEach(function () {
       // Required for placing allocations (a result of dispatching jobs)
       server.create('node');
 
@@ -51,17 +51,17 @@ function moduleForJobDispatch(title, jobFactory) {
       window.localStorage.nomadTokenSecret = managementToken.secretId;
     });
 
-    test('it passes an accessibility audit', async function(assert) {
+    test('it passes an accessibility audit', async function (assert) {
       await JobDispatch.visit({ id: job.id, namespace: namespace.name });
       await a11yAudit(assert);
     });
 
-    test('the dispatch button is displayed with management token', async function(assert) {
+    test('the dispatch button is displayed with management token', async function (assert) {
       await JobDetail.visit({ id: job.id, namespace: namespace.name });
       assert.notOk(JobDetail.dispatchButton.isDisabled);
     });
 
-    test('the dispatch button is displayed when allowed', async function(assert) {
+    test('the dispatch button is displayed when allowed', async function (assert) {
       window.localStorage.nomadTokenSecret = clientToken.secretId;
 
       const policy = server.create('policy', {
@@ -88,14 +88,14 @@ function moduleForJobDispatch(title, jobFactory) {
       clientToken.save();
     });
 
-    test('the dispatch button is disabled when not allowed', async function(assert) {
+    test('the dispatch button is disabled when not allowed', async function (assert) {
       window.localStorage.nomadTokenSecret = clientToken.secretId;
 
       await JobDetail.visit({ id: job.id, namespace: namespace.name });
       assert.ok(JobDetail.dispatchButton.isDisabled);
     });
 
-    test('all meta fields are displayed', async function(assert) {
+    test('all meta fields are displayed', async function (assert) {
       await JobDispatch.visit({ id: job.id, namespace: namespace.name });
       assert.equal(
         JobDispatch.metaFields.length,
@@ -103,10 +103,10 @@ function moduleForJobDispatch(title, jobFactory) {
       );
     });
 
-    test('required meta fields are properly indicated', async function(assert) {
+    test('required meta fields are properly indicated', async function (assert) {
       await JobDispatch.visit({ id: job.id, namespace: namespace.name });
 
-      JobDispatch.metaFields.forEach(f => {
+      JobDispatch.metaFields.forEach((f) => {
         const hasIndicator = f.label.includes(REQUIRED_INDICATOR);
         const isRequired = job.parameterizedJob.MetaRequired.includes(f.field.id);
 
@@ -118,7 +118,7 @@ function moduleForJobDispatch(title, jobFactory) {
       });
     });
 
-    test('job without meta fields', async function(assert) {
+    test('job without meta fields', async function (assert) {
       const jobWithoutMeta = server.create('job', 'parameterized', {
         status: 'running',
         namespaceId: namespace.name,
@@ -132,7 +132,7 @@ function moduleForJobDispatch(title, jobFactory) {
       assert.ok(JobDispatch.dispatchButton.isPresent);
     });
 
-    test('payload text area is hidden when forbidden', async function(assert) {
+    test('payload text area is hidden when forbidden', async function (assert) {
       job.parameterizedJob.Payload = 'forbidden';
       job.save();
 
@@ -142,7 +142,7 @@ function moduleForJobDispatch(title, jobFactory) {
       assert.notOk(JobDispatch.payload.editor.isPresent);
     });
 
-    test('payload is indicated as required', async function(assert) {
+    test('payload is indicated as required', async function (assert) {
       const jobPayloadRequired = server.create('job', 'parameterized', {
         status: 'running',
         namespaceId: namespace.name,
@@ -175,15 +175,15 @@ function moduleForJobDispatch(title, jobFactory) {
       );
     });
 
-    test('dispatch a job', async function(assert) {
+    test('dispatch a job', async function (assert) {
       function countDispatchChildren() {
-        return server.db.jobs.where(j => j.id.startsWith(`${job.id}/`)).length;
+        return server.db.jobs.where((j) => j.id.startsWith(`${job.id}/`)).length;
       }
 
       await JobDispatch.visit({ id: job.id, namespace: namespace.name });
 
       // Fill form.
-      JobDispatch.metaFields.map(f => f.field.input('meta value'));
+      JobDispatch.metaFields.map((f) => f.field.input('meta value'));
       JobDispatch.payload.editor.fillIn('payload');
 
       const childrenCountBefore = countDispatchChildren();
@@ -195,7 +195,7 @@ function moduleForJobDispatch(title, jobFactory) {
       assert.ok(JobDetail.jobName);
     });
 
-    test('fail when required meta field is empty', async function(assert) {
+    test('fail when required meta field is empty', async function (assert) {
       // Make sure we have a required meta param.
       job.parameterizedJob.MetaRequired = ['required'];
       job.parameterizedJob.Payload = 'forbidden';
@@ -204,14 +204,14 @@ function moduleForJobDispatch(title, jobFactory) {
       await JobDispatch.visit({ id: job.id, namespace: namespace.name });
 
       // Fill only optional meta params.
-      JobDispatch.optionalMetaFields.map(f => f.field.input('meta value'));
+      JobDispatch.optionalMetaFields.map((f) => f.field.input('meta value'));
 
       await JobDispatch.dispatchButton.click();
 
       assert.ok(JobDispatch.hasError, 'Dispatch error message is shown');
     });
 
-    test('fail when required payload is empty', async function(assert) {
+    test('fail when required payload is empty', async function (assert) {
       job.parameterizedJob.MetaRequired = [];
       job.parameterizedJob.Payload = 'required';
       job.save();

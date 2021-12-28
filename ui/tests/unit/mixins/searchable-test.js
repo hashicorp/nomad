@@ -4,15 +4,15 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import Searchable from 'nomad-ui/mixins/searchable';
 
-module('Unit | Mixin | Searchable', function(hooks) {
+module('Unit | Mixin | Searchable', function (hooks) {
   setupTest(hooks);
 
-  hooks.beforeEach(function() {
-    this.subject = function() {
+  hooks.beforeEach(function () {
+    this.subject = function () {
       // eslint-disable-next-line ember/no-new-mixins
       const SearchableObject = EmberObject.extend(Searchable, {
         source: null,
-        searchProps: computed(function() {
+        searchProps: computed(function () {
           return ['id', 'name'];
         }),
         listToSearch: alias('source'),
@@ -23,14 +23,17 @@ module('Unit | Mixin | Searchable', function(hooks) {
     };
   });
 
-  test('the searchable mixin does nothing when there is no search term', function(assert) {
+  test('the searchable mixin does nothing when there is no search term', function (assert) {
     const subject = this.subject();
-    subject.set('source', [{ id: '1', name: 'hello' }, { id: '2', name: 'world' }]);
+    subject.set('source', [
+      { id: '1', name: 'hello' },
+      { id: '2', name: 'world' },
+    ]);
 
     assert.deepEqual(subject.get('listSearched'), subject.get('source'));
   });
 
-  test('the searchable mixin allows for regex search', function(assert) {
+  test('the searchable mixin allows for regex search', function (assert) {
     const subject = this.subject();
     subject.set('source', [
       { id: '1', name: 'hello' },
@@ -41,12 +44,15 @@ module('Unit | Mixin | Searchable', function(hooks) {
     subject.set('searchTerm', '.+l+[A-Z]$');
     assert.deepEqual(
       subject.get('listSearched'),
-      [{ id: '1', name: 'hello' }, { id: '2', name: 'world' }],
+      [
+        { id: '1', name: 'hello' },
+        { id: '2', name: 'world' },
+      ],
       'hello and world matched for regex'
     );
   });
 
-  test('the searchable mixin only searches the declared search props', function(assert) {
+  test('the searchable mixin only searches the declared search props', function (assert) {
     const subject = this.subject();
     subject.set('source', [
       { id: '1', name: 'United States of America', continent: 'North America' },
@@ -62,7 +68,7 @@ module('Unit | Mixin | Searchable', function(hooks) {
     );
   });
 
-  test('the fuzzy search mode is off by default', function(assert) {
+  test('the fuzzy search mode is off by default', function (assert) {
     const subject = this.subject();
     subject.set('source', [
       { id: '1', name: 'United States of America', continent: 'North America' },
@@ -78,7 +84,7 @@ module('Unit | Mixin | Searchable', function(hooks) {
     );
   });
 
-  test('the fuzzy search mode can be enabled', function(assert) {
+  test('the fuzzy search mode can be enabled', function (assert) {
     const subject = this.subject();
     subject.set('source', [
       { id: '1', name: 'United States of America', continent: 'North America' },
@@ -95,7 +101,7 @@ module('Unit | Mixin | Searchable', function(hooks) {
     );
   });
 
-  test('the fuzzy search can include match results', function(assert) {
+  test('the fuzzy search can include match results', function (assert) {
     const subject = this.subject();
     subject.set('source', [
       EmberObject.create({ id: '1', name: 'United States of America', continent: 'North America' }),
@@ -109,7 +115,7 @@ module('Unit | Mixin | Searchable', function(hooks) {
     assert.deepEqual(
       subject
         .get('listSearched')
-        .map(object => object.getProperties('id', 'name', 'continent', 'fuzzySearchMatches')),
+        .map((object) => object.getProperties('id', 'name', 'continent', 'fuzzySearchMatches')),
       [
         {
           id: '1',
@@ -117,7 +123,13 @@ module('Unit | Mixin | Searchable', function(hooks) {
           continent: 'North America',
           fuzzySearchMatches: [
             {
-              indices: [[2, 2], [4, 4], [9, 9], [11, 11], [17, 23]],
+              indices: [
+                [2, 2],
+                [4, 4],
+                [9, 9],
+                [11, 11],
+                [17, 23],
+              ],
               value: 'United States of America',
               key: 'name',
             },
@@ -128,7 +140,7 @@ module('Unit | Mixin | Searchable', function(hooks) {
     );
   });
 
-  test('the exact match search mode can be disabled', function(assert) {
+  test('the exact match search mode can be disabled', function (assert) {
     const subject = this.subject();
     subject.set('source', [
       { id: '1', name: 'United States of America', continent: 'North America' },
@@ -154,7 +166,7 @@ module('Unit | Mixin | Searchable', function(hooks) {
     );
   });
 
-  test('the regex search mode can be disabled', function(assert) {
+  test('the regex search mode can be disabled', function (assert) {
     const subject = this.subject();
     subject.set('source', [
       { id: '1', name: 'United States of America', continent: 'North America' },
@@ -181,7 +193,7 @@ module('Unit | Mixin | Searchable', function(hooks) {
     );
   });
 
-  test('each search mode has independent search props', function(assert) {
+  test('each search mode has independent search props', function (assert) {
     const subject = this.subject();
     subject.set('source', [
       { id: '1', name: 'United States of America', continent: 'North America' },
@@ -216,7 +228,7 @@ module('Unit | Mixin | Searchable', function(hooks) {
     );
   });
 
-  test('the resetPagination method is a no-op', function(assert) {
+  test('the resetPagination method is a no-op', function (assert) {
     const subject = this.subject();
     assert.strictEqual(subject.get('currentPage'), undefined, 'No currentPage value set');
     subject.resetPagination();
@@ -224,15 +236,15 @@ module('Unit | Mixin | Searchable', function(hooks) {
   });
 });
 
-module('Unit | Mixin | Searchable (with pagination)', function(hooks) {
+module('Unit | Mixin | Searchable (with pagination)', function (hooks) {
   setupTest(hooks);
 
-  hooks.beforeEach(function() {
-    this.subject = function() {
+  hooks.beforeEach(function () {
+    this.subject = function () {
       // eslint-disable-next-line ember/no-new-mixins
       const SearchablePaginatedObject = EmberObject.extend(Searchable, {
         source: null,
-        searchProps: computed(function() {
+        searchProps: computed(function () {
           return ['id', 'name'];
         }),
         listToSearch: alias('source'),
@@ -244,7 +256,7 @@ module('Unit | Mixin | Searchable (with pagination)', function(hooks) {
     };
   });
 
-  test('the resetPagination method sets the currentPage to 1', function(assert) {
+  test('the resetPagination method sets the currentPage to 1', function (assert) {
     const subject = this.subject();
     subject.set('currentPage', 5);
     assert.equal(subject.get('currentPage'), 5, 'Current page is something other than 1');

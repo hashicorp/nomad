@@ -4,11 +4,11 @@ import { setupTest } from 'ember-qunit';
 import Service from '@ember/service';
 import setupAbility from 'nomad-ui/tests/helpers/setup-ability';
 
-module('Unit | Ability | allocation', function(hooks) {
+module('Unit | Ability | allocation', function (hooks) {
   setupTest(hooks);
   setupAbility('allocation')(hooks);
 
-  test('it permits alloc exec when ACLs are disabled', function(assert) {
+  test('it permits alloc exec when ACLs are disabled', function (assert) {
     const mockToken = Service.extend({
       aclEnabled: false,
     });
@@ -18,7 +18,7 @@ module('Unit | Ability | allocation', function(hooks) {
     assert.ok(this.can.can('exec allocation'));
   });
 
-  test('it permits alloc exec for management tokens', function(assert) {
+  test('it permits alloc exec for management tokens', function (assert) {
     const mockToken = Service.extend({
       aclEnabled: true,
       selfToken: { type: 'management' },
@@ -29,7 +29,7 @@ module('Unit | Ability | allocation', function(hooks) {
     assert.ok(this.can.can('exec allocation'));
   });
 
-  test('it permits alloc exec for client tokens with a policy that has namespace alloc-exec', function(assert) {
+  test('it permits alloc exec for client tokens with a policy that has namespace alloc-exec', function (assert) {
     const mockSystem = Service.extend({
       aclEnabled: true,
     });
@@ -57,7 +57,7 @@ module('Unit | Ability | allocation', function(hooks) {
     assert.ok(this.can.can('exec allocation', null, { namespace: 'aNamespace' }));
   });
 
-  test('it permits alloc exec for client tokens with a policy that has default namespace alloc-exec and no capabilities for active namespace', function(assert) {
+  test('it permits alloc exec for client tokens with a policy that has default namespace alloc-exec and no capabilities for active namespace', function (assert) {
     const mockSystem = Service.extend({
       aclEnabled: true,
     });
@@ -89,7 +89,7 @@ module('Unit | Ability | allocation', function(hooks) {
     assert.ok(this.can.can('exec allocation', null, { namespace: 'anotherNamespace' }));
   });
 
-  test('it blocks alloc exec for client tokens with a policy that has no alloc-exec capability', function(assert) {
+  test('it blocks alloc exec for client tokens with a policy that has no alloc-exec capability', function (assert) {
     const mockSystem = Service.extend({
       aclEnabled: true,
     });
@@ -117,7 +117,7 @@ module('Unit | Ability | allocation', function(hooks) {
     assert.ok(this.can.cannot('exec allocation', null, { namespace: 'aNamespace' }));
   });
 
-  test('it handles globs in namespace names', function(assert) {
+  test('it handles globs in namespace names', function (assert) {
     const mockSystem = Service.extend({
       aclEnabled: true,
     });

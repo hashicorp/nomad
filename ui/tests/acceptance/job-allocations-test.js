@@ -8,7 +8,7 @@ import Allocations from 'nomad-ui/tests/pages/jobs/job/allocations';
 let job;
 let allocations;
 
-const makeSearchAllocations = server => {
+const makeSearchAllocations = (server) => {
   Array(10)
     .fill(null)
     .map((_, index) => {
@@ -19,17 +19,17 @@ const makeSearchAllocations = server => {
     });
 };
 
-module('Acceptance | job allocations', function(hooks) {
+module('Acceptance | job allocations', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     server.create('node');
 
     job = server.create('job', { noFailedPlacements: true, createAllocations: false });
   });
 
-  test('it passes an accessibility audit', async function(assert) {
+  test('it passes an accessibility audit', async function (assert) {
     server.createList('allocation', Allocations.pageSize - 1, { shallow: true });
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
@@ -37,7 +37,7 @@ module('Acceptance | job allocations', function(hooks) {
     await a11yAudit(assert);
   });
 
-  test('lists all allocations for the job', async function(assert) {
+  test('lists all allocations for the job', async function (assert) {
     server.createList('allocation', Allocations.pageSize - 1, { shallow: true });
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
@@ -59,7 +59,7 @@ module('Acceptance | job allocations', function(hooks) {
     assert.equal(document.title, `Job ${job.name} allocations - Nomad`);
   });
 
-  test('allocations table is sortable', async function(assert) {
+  test('allocations table is sortable', async function (assert) {
     server.createList('allocation', Allocations.pageSize - 1);
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
@@ -82,7 +82,7 @@ module('Acceptance | job allocations', function(hooks) {
     });
   });
 
-  test('allocations table is searchable', async function(assert) {
+  test('allocations table is searchable', async function (assert) {
     makeSearchAllocations(server);
 
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
@@ -93,7 +93,7 @@ module('Acceptance | job allocations', function(hooks) {
     assert.equal(Allocations.allocations.length, 5, 'List is filtered by search term');
   });
 
-  test('when a search yields no results, the search box remains', async function(assert) {
+  test('when a search yields no results, the search box remains', async function (assert) {
     makeSearchAllocations(server);
 
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
@@ -110,12 +110,12 @@ module('Acceptance | job allocations', function(hooks) {
     assert.ok(Allocations.hasSearchBox, 'Search box is still shown');
   });
 
-  test('when the job for the allocations is not found, an error message is shown, but the URL persists', async function(assert) {
+  test('when the job for the allocations is not found, an error message is shown, but the URL persists', async function (assert) {
     await Allocations.visit({ id: 'not-a-real-job' });
 
     assert.equal(
       server.pretender.handledRequests
-        .filter(request => !request.url.includes('policy'))
+        .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
@@ -130,7 +130,7 @@ module('Acceptance | job allocations', function(hooks) {
     paramName: 'status',
     expectedOptions: ['Pending', 'Running', 'Complete', 'Failed', 'Lost'],
     async beforeEach() {
-      ['pending', 'running', 'complete', 'failed', 'lost'].forEach(s => {
+      ['pending', 'running', 'complete', 'failed', 'lost'].forEach((s) => {
         server.createList('allocation', 5, { clientStatus: s });
       });
       await Allocations.visit({ id: job.id });
@@ -145,9 +145,9 @@ module('Acceptance | job allocations', function(hooks) {
       return Array.from(
         new Set(
           allocs
-            .filter(alloc => alloc.jobId == job.id)
+            .filter((alloc) => alloc.jobId == job.id)
             .mapBy('nodeId')
-            .map(id => id.split('-')[0])
+            .map((id) => id.split('-')[0])
         )
       ).sort();
     },
@@ -166,7 +166,7 @@ module('Acceptance | job allocations', function(hooks) {
     paramName: 'taskGroup',
     expectedOptions(allocs) {
       return Array.from(
-        new Set(allocs.filter(alloc => alloc.jobId == job.id).mapBy('taskGroup'))
+        new Set(allocs.filter((alloc) => alloc.jobId == job.id).mapBy('taskGroup'))
       ).sort();
     },
     async beforeEach() {
@@ -183,7 +183,7 @@ module('Acceptance | job allocations', function(hooks) {
 });
 
 function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
-  test(`facet ${label} | the ${label} facet has the correct options`, async function(assert) {
+  test(`facet ${label} | the ${label} facet has the correct options`, async function (assert) {
     await beforeEach();
     await facet.toggle();
 
@@ -195,13 +195,13 @@ function testFacet(label, { facet, paramName, beforeEach, filter, expectedOption
     }
 
     assert.deepEqual(
-      facet.options.map(option => option.label.trim()),
+      facet.options.map((option) => option.label.trim()),
       expectation,
       'Options for facet are as expected'
     );
   });
 
-  test(`facet ${label} | the ${label} facet filters the allocations list by ${label}`, async function(assert) {
+  test(`facet ${label} | the ${label} facet filters the allocations list by ${label}`, async function (assert) {
     let option;
 
     await beforeEach();
@@ -212,7 +212,7 @@ function testFacet(label, { facet, paramName, beforeEach, filter, expectedOption
 
     const selection = [option.key];
     const expectedAllocs = server.db.allocations
-      .filter(alloc => filter(alloc, selection))
+      .filter((alloc) => filter(alloc, selection))
       .sortBy('modifyIndex')
       .reverse();
 
@@ -225,7 +225,7 @@ function testFacet(label, { facet, paramName, beforeEach, filter, expectedOption
     });
   });
 
-  test(`facet ${label} | selecting multiple options in the ${label} facet results in a broader search`, async function(assert) {
+  test(`facet ${label} | selecting multiple options in the ${label} facet results in a broader search`, async function (assert) {
     const selection = [];
 
     await beforeEach();
@@ -239,7 +239,7 @@ function testFacet(label, { facet, paramName, beforeEach, filter, expectedOption
     selection.push(option2.key);
 
     const expectedAllocs = server.db.allocations
-      .filter(alloc => filter(alloc, selection))
+      .filter((alloc) => filter(alloc, selection))
       .sortBy('modifyIndex')
       .reverse();
 
@@ -252,7 +252,7 @@ function testFacet(label, { facet, paramName, beforeEach, filter, expectedOption
     });
   });
 
-  test(`facet ${label} | selecting options in the ${label} facet updates the ${paramName} query param`, async function(assert) {
+  test(`facet ${label} | selecting options in the ${label} facet updates the ${paramName} query param`, async function (assert) {
     const selection = [];
 
     await beforeEach();

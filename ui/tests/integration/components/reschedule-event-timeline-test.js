@@ -6,10 +6,10 @@ import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import moment from 'moment';
 
-module('Integration | Component | reschedule event timeline', function(hooks) {
+module('Integration | Component | reschedule event timeline', function (hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
     this.server.create('namespace');
@@ -17,7 +17,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
     this.server.create('job', { createAllocations: false });
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
   });
 
@@ -25,7 +25,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
     <RescheduleEventTimeline @allocation={{allocation}} />
   `;
 
-  test('when the allocation is running, the timeline shows past allocations', async function(assert) {
+  test('when the allocation is running, the timeline shows past allocations', async function (assert) {
     const attempts = 2;
 
     this.server.create('allocation', 'rescheduled', {
@@ -37,7 +37,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
 
     const allocation = this.store
       .peekAll('allocation')
-      .find(alloc => !alloc.get('nextAllocation.content'));
+      .find((alloc) => !alloc.get('nextAllocation.content'));
 
     this.set('allocation', allocation);
     await render(commonTemplate);
@@ -74,7 +74,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('when the allocation has failed and there is a follow up evaluation, a note with a time is shown', async function(assert) {
+  test('when the allocation has failed and there is a follow up evaluation, a note with a time is shown', async function (assert) {
     const attempts = 2;
 
     this.server.create('allocation', 'rescheduled', {
@@ -86,7 +86,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
 
     const allocation = this.store
       .peekAll('allocation')
-      .find(alloc => !alloc.get('nextAllocation.content'));
+      .find((alloc) => !alloc.get('nextAllocation.content'));
 
     this.set('allocation', allocation);
     await render(commonTemplate);
@@ -100,7 +100,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('when the allocation has failed and there is no follow up evaluation, a warning is shown', async function(assert) {
+  test('when the allocation has failed and there is no follow up evaluation, a warning is shown', async function (assert) {
     const attempts = 2;
 
     this.server.create('allocation', 'rescheduled', {
@@ -111,9 +111,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
     const lastAllocation = server.schema.allocations.findBy({ nextAllocation: undefined });
     lastAllocation.update({
       followupEvalId: server.create('evaluation', {
-        waitUntil: moment()
-          .add(2, 'hours')
-          .toDate(),
+        waitUntil: moment().add(2, 'hours').toDate(),
       }).id,
     });
 
@@ -121,7 +119,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
 
     let allocation = this.store
       .peekAll('allocation')
-      .find(alloc => !alloc.get('nextAllocation.content'));
+      .find((alloc) => !alloc.get('nextAllocation.content'));
     this.set('allocation', allocation);
 
     await render(commonTemplate);
@@ -135,7 +133,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('when the allocation has a next allocation already, it is shown in the timeline', async function(assert) {
+  test('when the allocation has a next allocation already, it is shown in the timeline', async function (assert) {
     const attempts = 2;
 
     const originalAllocation = this.server.create('allocation', 'rescheduled', {

@@ -91,7 +91,7 @@ export default class TopologyControllers extends Controller {
     const taskGroup = this.activeAllocation.taskGroupName;
     const jobId = this.activeAllocation.belongsTo('job').id();
 
-    return this.scheduledAllocations.filter(allocation => {
+    return this.scheduledAllocations.filter((allocation) => {
       return allocation.taskGroupName === taskGroup && allocation.belongsTo('job').id() === jobId;
     });
   }

@@ -12,9 +12,9 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class IndexController extends Controller.extend(
-    SortableFactory(['id', 'name', 'compositeStatus', 'datacenter', 'version']),
-    Searchable
-  ) {
+  SortableFactory(['id', 'name', 'compositeStatus', 'datacenter', 'version']),
+  Searchable
+) {
   @service userSettings;
   @controller('clients') clientsController;
 
@@ -86,7 +86,7 @@ export default class IndexController extends Controller.extend(
       this.set('qpClass', serialize(intersection(classes, this.selectionClass)));
     });
 
-    return classes.sort().map(dc => ({ key: dc, label: dc }));
+    return classes.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
   @computed
@@ -110,7 +110,7 @@ export default class IndexController extends Controller.extend(
       this.set('qpDatacenter', serialize(intersection(datacenters, this.selectionDatacenter)));
     });
 
-    return datacenters.sort().map(dc => ({ key: dc, label: dc }));
+    return datacenters.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
   @computed('nodes.[]', 'selectionVersion')
@@ -123,7 +123,7 @@ export default class IndexController extends Controller.extend(
       this.set('qpVersion', serialize(intersection(versions, this.selectionVersion)));
     });
 
-    return versions.sort().map(v => ({ key: v, label: v }));
+    return versions.sort().map((v) => ({ key: v, label: v }));
   }
 
   @computed('nodes.[]', 'selectionVolume')
@@ -138,7 +138,7 @@ export default class IndexController extends Controller.extend(
       this.set('qpVolume', serialize(intersection(volumes, this.selectionVolume)));
     });
 
-    return volumes.sort().map(volume => ({ key: volume, label: volume }));
+    return volumes.sort().map((volume) => ({ key: volume, label: volume }));
   }
 
   @computed(
@@ -164,12 +164,12 @@ export default class IndexController extends Controller.extend(
     // states is a composite of node status and other node states
     const statuses = states.without('ineligible').without('draining');
 
-    return this.nodes.filter(node => {
+    return this.nodes.filter((node) => {
       if (classes.length && !classes.includes(node.get('nodeClass'))) return false;
       if (statuses.length && !statuses.includes(node.get('status'))) return false;
       if (datacenters.length && !datacenters.includes(node.get('datacenter'))) return false;
       if (versions.length && !versions.includes(node.get('version'))) return false;
-      if (volumes.length && !node.hostVolumes.find(volume => volumes.includes(volume.name)))
+      if (volumes.length && !node.hostVolumes.find((volume) => volumes.includes(volume.name)))
         return false;
 
       if (onlyIneligible && node.get('isEligible')) return false;

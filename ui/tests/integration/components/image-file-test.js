@@ -7,7 +7,7 @@ import sinon from 'sinon';
 import RSVP from 'rsvp';
 import { formatBytes } from 'nomad-ui/utils/units';
 
-module('Integration | Component | image file', function(hooks) {
+module('Integration | Component | image file', function (hooks) {
   setupRenderingTest(hooks);
 
   const commonTemplate = hbs`
@@ -20,7 +20,7 @@ module('Integration | Component | image file', function(hooks) {
     size: 123456,
   };
 
-  test('component displays the image', async function(assert) {
+  test('component displays the image', async function (assert) {
     this.setProperties(commonProperties);
 
     await this.render(commonTemplate);
@@ -35,7 +35,7 @@ module('Integration | Component | image file', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('the image is wrapped in an anchor that links directly to the image', async function(assert) {
+  test('the image is wrapped in an anchor that links directly to the image', async function (assert) {
     this.setProperties(commonProperties);
 
     await this.render(commonTemplate);
@@ -55,7 +55,7 @@ module('Integration | Component | image file', function(hooks) {
     );
   });
 
-  test('component updates image meta when the image loads', async function(assert) {
+  test('component updates image meta when the image loads', async function (assert) {
     const { spy, wrapper, notifier } = notifyingSpy();
 
     this.setProperties(commonProperties);
@@ -69,7 +69,7 @@ module('Integration | Component | image file', function(hooks) {
     assert.ok(spy.calledOnce);
   });
 
-  test('component shows the width, height, and size of the image', async function(assert) {
+  test('component shows the width, height, and size of the image', async function (assert) {
     this.setProperties(commonProperties);
 
     await this.render(commonTemplate);
@@ -90,7 +90,7 @@ module('Integration | Component | image file', function(hooks) {
 function notifyingSpy() {
   // The notifier must resolve when the spy wrapper is called
   let dispatch;
-  const notifier = new RSVP.Promise(resolve => {
+  const notifier = new RSVP.Promise((resolve) => {
     dispatch = resolve;
   });
 

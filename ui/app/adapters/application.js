@@ -35,7 +35,7 @@ export default class ApplicationAdapter extends RESTAdapter {
   }
 
   findAll() {
-    return super.findAll(...arguments).catch(error => {
+    return super.findAll(...arguments).catch((error) => {
       const errorCodes = codesForError(error);
 
       const isNotImplemented = errorCodes.includes('501');
@@ -66,14 +66,14 @@ export default class ApplicationAdapter extends RESTAdapter {
   // In order to remove stale records from the store, findHasMany has to unload
   // all records related to the request in question.
   findHasMany(store, snapshot, link, relationship) {
-    return super.findHasMany(...arguments).then(payload => {
+    return super.findHasMany(...arguments).then((payload) => {
       const relationshipType = relationship.type;
       const inverse = snapshot.record.inverseFor(relationship.key);
       if (inverse) {
         store
           .peekAll(relationshipType)
-          .filter(record => record.get(`${inverse.name}.id`) === snapshot.id)
-          .forEach(record => {
+          .filter((record) => record.get(`${inverse.name}.id`) === snapshot.id)
+          .forEach((record) => {
             removeRecord(store, record);
           });
       }

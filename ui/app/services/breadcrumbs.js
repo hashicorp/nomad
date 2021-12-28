@@ -20,7 +20,7 @@ export default class BreadcrumbsService extends Service {
       .map((segment, index, allSegments) => allSegments.slice(0, index + 1).join('.'));
 
     let crumbs = [];
-    allRoutes.forEach(routeName => {
+    allRoutes.forEach((routeName) => {
       const route = owner.lookup(`route:${routeName}`);
 
       // Routes can reset the breadcrumb trail to start anew even

@@ -67,7 +67,7 @@ function totalsTableCell(scope) {
     scope,
     isIncrease: hasClass('increase'),
     isDecrease: hasClass('decrease'),
-    isNeutral: getter(function() {
+    isNeutral: getter(function () {
       return !this.isIncrease && !this.isDecrease;
     }),
   };

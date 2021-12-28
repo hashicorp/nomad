@@ -10,7 +10,9 @@ export default class ResourcesDiffs {
     this.model = model;
     this.multiplier = multiplier;
     this.recommendations = recommendations;
-    this.excludedRecommendations = excludedRecommendations.filter(r => recommendations.includes(r));
+    this.excludedRecommendations = excludedRecommendations.filter((r) =>
+      recommendations.includes(r)
+    );
   }
 
   get cpu() {
@@ -42,7 +44,7 @@ export default class ResourcesDiffs {
   }
 
   get includedRecommendations() {
-    return this.recommendations.reject(r => this.excludedRecommendations.includes(r));
+    return this.recommendations.reject((r) => this.excludedRecommendations.includes(r));
   }
 }
 

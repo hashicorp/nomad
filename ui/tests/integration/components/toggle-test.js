@@ -9,7 +9,7 @@ import togglePageObject from 'nomad-ui/tests/pages/components/toggle';
 
 const Toggle = create(togglePageObject());
 
-module('Integration | Component | toggle', function(hooks) {
+module('Integration | Component | toggle', function (hooks) {
   setupRenderingTest(hooks);
 
   const commonProperties = () => ({
@@ -28,7 +28,7 @@ module('Integration | Component | toggle', function(hooks) {
     </Toggle>
   `;
 
-  test('presents as a label with an inner checkbox and display span, and text', async function(assert) {
+  test('presents as a label with an inner checkbox and display span, and text', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await this.render(commonTemplate);
@@ -51,7 +51,7 @@ module('Integration | Component | toggle', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('the isActive property dictates the active state and class', async function(assert) {
+  test('the isActive property dictates the active state and class', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await this.render(commonTemplate);
@@ -68,7 +68,7 @@ module('Integration | Component | toggle', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('the isDisabled property dictates the disabled state and class', async function(assert) {
+  test('the isDisabled property dictates the disabled state and class', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await this.render(commonTemplate);
@@ -85,7 +85,7 @@ module('Integration | Component | toggle', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('toggling the input calls the onToggle action', async function(assert) {
+  test('toggling the input calls the onToggle action', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await this.render(commonTemplate);

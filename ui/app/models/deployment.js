@@ -24,7 +24,7 @@ export default class Deployment extends Model {
       this.status === 'running' &&
       this.taskGroupSummaries
         .toArray()
-        .some(summary => summary.get('requiresPromotion') && !summary.get('promoted'))
+        .some((summary) => summary.get('requiresPromotion') && !summary.get('promoted'))
     );
   }
 

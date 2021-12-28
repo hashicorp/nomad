@@ -2,11 +2,11 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import setupGlimmerComponentFactory from 'nomad-ui/tests/helpers/glimmer-factory';
 
-module('Unit | Component | TopoViz', function(hooks) {
+module('Unit | Component | TopoViz', function (hooks) {
   setupTest(hooks);
   setupGlimmerComponentFactory(hooks, 'topo-viz');
 
-  test('the topology object properly organizes a tree of datacenters > nodes > allocations', async function(assert) {
+  test('the topology object properly organizes a tree of datacenters > nodes > allocations', async function (assert) {
     const nodes = [
       { datacenter: 'dc1', id: 'node0', resources: {} },
       { datacenter: 'dc2', id: 'node1', resources: {} },
@@ -49,7 +49,7 @@ module('Unit | Component | TopoViz', function(hooks) {
     );
   });
 
-  test('the topology object contains an allocation index keyed by jobId+taskGroupName', async function(assert) {
+  test('the topology object contains an allocation index keyed by jobId+taskGroupName', async function (assert) {
     const allocations = [
       alloc({ nodeId: 'node0', jobId: 'job0', taskGroupName: 'one' }),
       alloc({ nodeId: 'node0', jobId: 'job0', taskGroupName: 'one' }),
@@ -82,16 +82,16 @@ module('Unit | Component | TopoViz', function(hooks) {
       ].sort()
     );
 
-    Object.keys(topoViz.topology.allocationIndex).forEach(key => {
+    Object.keys(topoViz.topology.allocationIndex).forEach((key) => {
       const [jobId, group] = JSON.parse(key);
       assert.deepEqual(
         topoViz.topology.allocationIndex[key].mapBy('allocation'),
-        allocations.filter(alloc => alloc.jobId === jobId && alloc.taskGroupName === group)
+        allocations.filter((alloc) => alloc.jobId === jobId && alloc.taskGroupName === group)
       );
     });
   });
 
-  test('isSingleColumn is true when there is only one datacenter', async function(assert) {
+  test('isSingleColumn is true when there is only one datacenter', async function (assert) {
     const oneDc = [{ datacenter: 'dc1', id: 'node0', resources: {} }];
     const twoDc = [...oneDc, { datacenter: 'dc2', id: 'node1', resources: {} }];
 
@@ -105,7 +105,7 @@ module('Unit | Component | TopoViz', function(hooks) {
     assert.notOk(topoViz2.isSingleColumn);
   });
 
-  test('isSingleColumn is true when there are multiple datacenters with a high variance in node count', async function(assert) {
+  test('isSingleColumn is true when there are multiple datacenters with a high variance in node count', async function (assert) {
     const uniformDcs = [
       { datacenter: 'dc1', id: 'node0', resources: {} },
       { datacenter: 'dc2', id: 'node1', resources: {} },
@@ -128,7 +128,7 @@ module('Unit | Component | TopoViz', function(hooks) {
     assert.ok(oneColumViz.isSingleColumn);
   });
 
-  test('datacenterIsSingleColumn is only ever false when isSingleColumn is false and the total node count is high', async function(assert) {
+  test('datacenterIsSingleColumn is only ever false when isSingleColumn is false and the total node count is high', async function (assert) {
     const manyUniformNodes = Array(25)
       .fill(null)
       .map((_, index) => ({
@@ -157,7 +157,7 @@ module('Unit | Component | TopoViz', function(hooks) {
     assert.ok(twoColumnViz.isSingleColumn);
   });
 
-  test('dataForAllocation correctly calculates proportion of node utilization and group key', async function(assert) {
+  test('dataForAllocation correctly calculates proportion of node utilization and group key', async function (assert) {
     const nodes = [{ datacenter: 'dc1', id: 'node0', resources: { cpu: 100, memory: 250 } }];
     const allocations = [
       alloc({
@@ -175,7 +175,7 @@ module('Unit | Component | TopoViz', function(hooks) {
     assert.equal(topoViz.topology.datacenters[0].nodes[0].allocations[0].memoryPercent, 0.1);
   });
 
-  test('allocations that reference nonexistent nodes are ignored', async function(assert) {
+  test('allocations that reference nonexistent nodes are ignored', async function (assert) {
     const nodes = [{ datacenter: 'dc1', id: 'node0', resources: {} }];
 
     const allocations = [

@@ -11,7 +11,7 @@ const SPACE = 32;
 const ARROW_UP = 38;
 const ARROW_DOWN = 40;
 
-module('Integration | Component | multi-select dropdown', function(hooks) {
+module('Integration | Component | multi-select dropdown', function (hooks) {
   setupRenderingTest(hooks);
 
   const commonProperties = () => ({
@@ -36,7 +36,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
       @onSelect={{this.onSelect}} />
   `;
 
-  test('component is initially closed', async function(assert) {
+  test('component is initially closed', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -52,7 +52,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('component opens the options dropdown when clicked', async function(assert) {
+  test('component opens the options dropdown when clicked', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -67,7 +67,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     assert.notOk(find('[data-test-dropdown-options]'), 'Options are hidden after clicking again');
   });
 
-  test('all options are shown in the options dropdown, each with a checkbox input', async function(assert) {
+  test('all options are shown in the options dropdown, each with a checkbox input', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -86,7 +86,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     });
   });
 
-  test('onSelect gets called when an option is clicked', async function(assert) {
+  test('onSelect gets called when an option is clicked', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -103,7 +103,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     );
   });
 
-  test('the component trigger shows the selection count when there is a selection', async function(assert) {
+  test('the component trigger shows the selection count when there is a selection', async function (assert) {
     const props = commonProperties();
     props.selection = [props.options[0].key, props.options[1].key];
     this.setProperties(props);
@@ -129,7 +129,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     );
   });
 
-  test('pressing DOWN when the trigger has focus opens the options list', async function(assert) {
+  test('pressing DOWN when the trigger has focus opens the options list', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -145,7 +145,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     );
   });
 
-  test('pressing DOWN when the trigger has focus and the options list is open focuses the first option', async function(assert) {
+  test('pressing DOWN when the trigger has focus and the options list is open focuses the first option', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -160,7 +160,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     );
   });
 
-  test('pressing TAB when the trigger has focus and the options list is open focuses the first option', async function(assert) {
+  test('pressing TAB when the trigger has focus and the options list is open focuses the first option', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -175,7 +175,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     );
   });
 
-  test('pressing UP when the first list option is focused does nothing', async function(assert) {
+  test('pressing UP when the first list option is focused does nothing', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -191,7 +191,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     );
   });
 
-  test('pressing DOWN when the a list option is focused moves focus to the next list option', async function(assert) {
+  test('pressing DOWN when the a list option is focused moves focus to the next list option', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -207,7 +207,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     );
   });
 
-  test('pressing DOWN when the last list option has focus does nothing', async function(assert) {
+  test('pressing DOWN when the last list option has focus does nothing', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -234,7 +234,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     );
   });
 
-  test('onSelect gets called when pressing SPACE when a list option is focused', async function(assert) {
+  test('onSelect gets called when pressing SPACE when a list option is focused', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -253,26 +253,26 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     );
   });
 
-  test('list options have a zero tabindex and are therefore sequentially navigable', async function(assert) {
+  test('list options have a zero tabindex and are therefore sequentially navigable', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
 
     await click('[data-test-dropdown-trigger]');
 
-    findAll('[data-test-dropdown-option]').forEach(option => {
+    findAll('[data-test-dropdown-option]').forEach((option) => {
       assert.equal(parseInt(option.getAttribute('tabindex'), 10), 0, 'tabindex is zero');
     });
   });
 
-  test('the checkboxes inside list options have a negative tabindex and are therefore not sequentially navigable', async function(assert) {
+  test('the checkboxes inside list options have a negative tabindex and are therefore not sequentially navigable', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
 
     await click('[data-test-dropdown-trigger]');
 
-    findAll('[data-test-dropdown-option]').forEach(option => {
+    findAll('[data-test-dropdown-option]').forEach((option) => {
       assert.ok(
         parseInt(option.querySelector('input[type="checkbox"]').getAttribute('tabindex'), 10) < 0,
         'tabindex is a negative value'
@@ -280,7 +280,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     });
   });
 
-  test('pressing ESC when the options list is open closes the list and returns focus to the dropdown trigger', async function(assert) {
+  test('pressing ESC when the options list is open closes the list and returns focus to the dropdown trigger', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -298,7 +298,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     );
   });
 
-  test('when there are no list options, an empty message is shown', async function(assert) {
+  test('when there are no list options, an empty message is shown', async function (assert) {
     const props = commonProperties();
     props.options = [];
     this.setProperties(props);

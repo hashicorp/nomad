@@ -11,11 +11,11 @@ let node;
 let managementToken;
 let clientToken;
 
-module('Acceptance | client monitor', function(hooks) {
+module('Acceptance | client monitor', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     node = server.create('node');
 
     managementToken = server.create('token');
@@ -27,12 +27,12 @@ module('Acceptance | client monitor', function(hooks) {
     run.later(run, run.cancelTimers, 500);
   });
 
-  test('it passes an accessibility audit', async function(assert) {
+  test('it passes an accessibility audit', async function (assert) {
     await ClientMonitor.visit({ id: node.id });
     await a11yAudit(assert);
   });
 
-  test('/clients/:id/monitor should have a breadcrumb trail linking back to clients', async function(assert) {
+  test('/clients/:id/monitor should have a breadcrumb trail linking back to clients', async function (assert) {
     await ClientMonitor.visit({ id: node.id });
 
     assert.equal(Layout.breadcrumbFor('clients.index').text, 'Clients');
@@ -42,10 +42,10 @@ module('Acceptance | client monitor', function(hooks) {
     assert.equal(currentURL(), '/clients');
   });
 
-  test('the monitor page immediately streams agent monitor output at the info level', async function(assert) {
+  test('the monitor page immediately streams agent monitor output at the info level', async function (assert) {
     await ClientMonitor.visit({ id: node.id });
 
-    const logRequest = server.pretender.handledRequests.find(req =>
+    const logRequest = server.pretender.handledRequests.find((req) =>
       req.url.startsWith('/v1/agent/monitor')
     );
     assert.ok(ClientMonitor.logsArePresent);
@@ -53,13 +53,13 @@ module('Acceptance | client monitor', function(hooks) {
     assert.ok(logRequest.url.includes('log_level=info'));
   });
 
-  test('switching the log level persists the new log level as a query param', async function(assert) {
+  test('switching the log level persists the new log level as a query param', async function (assert) {
     await ClientMonitor.visit({ id: node.id });
     await ClientMonitor.selectLogLevel('Debug');
     assert.equal(currentURL(), `/clients/${node.id}/monitor?level=debug`);
   });
 
-  test('when the current access token does not include the agent:read rule, a descriptive error message is shown', async function(assert) {
+  test('when the current access token does not include the agent:read rule, a descriptive error message is shown', async function (assert) {
     window.localStorage.nomadTokenSecret = clientToken.secretId;
 
     await ClientMonitor.visit({ id: node.id });

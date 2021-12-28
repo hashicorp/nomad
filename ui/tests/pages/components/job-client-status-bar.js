@@ -1,6 +1,6 @@
 import { attribute, clickable, collection } from 'ember-cli-page-object';
 
-export default scope => ({
+export default (scope) => ({
   scope,
 
   slices: collection('svg .bars g', {
@@ -21,17 +21,11 @@ export default scope => ({
     }),
   },
 
-  visitSlice: async function(label) {
-    await this.slices
-      .toArray()
-      .findBy('label', label)
-      .click();
+  visitSlice: async function (label) {
+    await this.slices.toArray().findBy('label', label).click();
   },
 
-  visitLegend: async function(label) {
-    await this.legend.clickableItems
-      .toArray()
-      .findBy('label', label)
-      .click();
+  visitLegend: async function (label) {
+    await this.legend.clickableItems.toArray().findBy('label', label).click();
   },
 });

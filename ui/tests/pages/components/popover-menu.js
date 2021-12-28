@@ -4,7 +4,7 @@ const ARROW_DOWN = 40;
 const ESC = 27;
 const TAB = 9;
 
-export default scope => ({
+export default (scope) => ({
   scope,
 
   isPresent: isPresent(),

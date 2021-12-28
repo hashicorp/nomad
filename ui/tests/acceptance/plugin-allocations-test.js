@@ -6,18 +6,18 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import PluginAllocations from 'nomad-ui/tests/pages/storage/plugins/plugin/allocations';
 
-module('Acceptance | plugin allocations', function(hooks) {
+module('Acceptance | plugin allocations', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
   let plugin;
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     server.create('node');
     window.localStorage.clear();
   });
 
-  test('it passes an accessibility audit', async function(assert) {
+  test('it passes an accessibility audit', async function (assert) {
     plugin = server.create('csi-plugin', {
       shallow: true,
       controllerRequired: true,
@@ -29,7 +29,7 @@ module('Acceptance | plugin allocations', function(hooks) {
     await a11yAudit(assert);
   });
 
-  test('/csi/plugins/:id/allocations shows all allocations in a single table', async function(assert) {
+  test('/csi/plugins/:id/allocations shows all allocations in a single table', async function (assert) {
     plugin = server.create('csi-plugin', {
       shallow: true,
       controllerRequired: true,
@@ -95,7 +95,7 @@ module('Acceptance | plugin allocations', function(hooks) {
   });
 
   function testFacet(label, { facet, paramName, beforeEach, filter }) {
-    test(`the ${label} facet filters the allocations list by ${label}`, async function(assert) {
+    test(`the ${label} facet filters the allocations list by ${label}`, async function (assert) {
       let option;
 
       await beforeEach();
@@ -107,7 +107,7 @@ module('Acceptance | plugin allocations', function(hooks) {
       const selection = [option.key];
       const allAllocations = [...plugin.controllers.models, ...plugin.nodes.models];
       const expectedAllocations = allAllocations
-        .filter(allocation => filter(allocation, selection))
+        .filter((allocation) => filter(allocation, selection))
         .sortBy('updateTime');
 
       PluginAllocations.allocations.forEach((allocation, index) => {
@@ -115,7 +115,7 @@ module('Acceptance | plugin allocations', function(hooks) {
       });
     });
 
-    test(`selecting multiple options in the ${label} facet results in a broader search`, async function(assert) {
+    test(`selecting multiple options in the ${label} facet results in a broader search`, async function (assert) {
       const selection = [];
 
       await beforeEach();
@@ -130,7 +130,7 @@ module('Acceptance | plugin allocations', function(hooks) {
 
       const allAllocations = [...plugin.controllers.models, ...plugin.nodes.models];
       const expectedAllocations = allAllocations
-        .filter(allocation => filter(allocation, selection))
+        .filter((allocation) => filter(allocation, selection))
         .sortBy('updateTime');
 
       PluginAllocations.allocations.forEach((allocation, index) => {
@@ -138,7 +138,7 @@ module('Acceptance | plugin allocations', function(hooks) {
       });
     });
 
-    test(`selecting options in the ${label} facet updates the ${paramName} query param`, async function(assert) {
+    test(`selecting options in the ${label} facet updates the ${paramName} query param`, async function (assert) {
       const selection = [];
 
       await beforeEach();

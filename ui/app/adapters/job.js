@@ -44,7 +44,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
         Job: job.get('_newDefinitionJSON'),
         Diff: true,
       },
-    }).then(json => {
+    }).then((json) => {
       json.ID = jobId;
       store.pushPayload('job-plan', { jobPlans: [json] });
       return store.peekRecord('job-plan', jobId);

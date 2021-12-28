@@ -7,10 +7,10 @@ import hbs from 'htmlbars-inline-precompile';
 import PromiseObject from 'nomad-ui/utils/classes/promise-object';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Integration | Component | app breadcrumbs', function(hooks) {
+module('Integration | Component | app breadcrumbs', function (hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     const mockBreadcrumbs = Service.extend({
       init() {
         this._super(...arguments);
@@ -22,13 +22,16 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
     this.breadcrumbs = this.owner.lookup('service:breadcrumbs');
   });
 
-  const commonCrumbs = [{ label: 'One', args: ['one'] }, { label: 'Two', args: ['two'] }];
+  const commonCrumbs = [
+    { label: 'One', args: ['one'] },
+    { label: 'Two', args: ['two'] },
+  ];
 
   const template = hbs`
     <ul><AppBreadcrumbs /></ul>
   `;
 
-  test('breadcrumbs comes from the breadcrumbs service', async function(assert) {
+  test('breadcrumbs comes from the breadcrumbs service', async function (assert) {
     this.breadcrumbs.set('breadcrumbs', commonCrumbs);
 
     await render(template);
@@ -40,7 +43,7 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
     );
   });
 
-  test('every breadcrumb is rendered correctly', async function(assert) {
+  test('every breadcrumb is rendered correctly', async function (assert) {
     this.breadcrumbs.set('breadcrumbs', commonCrumbs);
 
     await render(template);
@@ -56,9 +59,9 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
     });
   });
 
-  test('when breadcrumbs are pending promises, an ellipsis is rendered', async function(assert) {
+  test('when breadcrumbs are pending promises, an ellipsis is rendered', async function (assert) {
     let resolvePromise;
-    const promise = new RSVP.Promise(resolve => {
+    const promise = new RSVP.Promise((resolve) => {
       resolvePromise = resolve;
     });
 

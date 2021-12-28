@@ -6,7 +6,7 @@ export default class PluginRoute extends Route {
   @service store;
   @service system;
 
-  breadcrumbs = plugin => [
+  breadcrumbs = (plugin) => [
     {
       label: 'Plugins',
       args: ['csi.plugins'],

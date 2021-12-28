@@ -7,8 +7,8 @@ export default class WatchableNamespaceIDs extends Watchable {
   @service system;
 
   findAll() {
-    return super.findAll(...arguments).then(data => {
-      data.forEach(record => {
+    return super.findAll(...arguments).then((data) => {
+      data.forEach((record) => {
         record.Namespace = 'default';
       });
       return data;
@@ -16,8 +16,8 @@ export default class WatchableNamespaceIDs extends Watchable {
   }
 
   query(store, type, { namespace }) {
-    return super.query(...arguments).then(data => {
-      data.forEach(record => {
+    return super.query(...arguments).then((data) => {
+      data.forEach((record) => {
         if (!record.Namespace) record.Namespace = namespace;
       });
       return data;

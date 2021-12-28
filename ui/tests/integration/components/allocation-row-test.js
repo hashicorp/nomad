@@ -8,10 +8,10 @@ import Response from 'ember-cli-mirage/response';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Integration | Component | allocation row', function(hooks) {
+module('Integration | Component | allocation row', function (hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     fragmentSerializerInitializer(this.owner);
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
@@ -20,11 +20,11 @@ module('Integration | Component | allocation row', function(hooks) {
     this.server.create('job', { createAllocations: false });
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
   });
 
-  test('Allocation row polls for stats, even when it errors or has an invalid response', async function(assert) {
+  test('Allocation row polls for stats, even when it errors or has an invalid response', async function (assert) {
     const component = this;
 
     let currentFrame = 0;
@@ -36,7 +36,7 @@ module('Integration | Component | allocation row', function(hooks) {
       JSON.stringify({ ResourceUsage: generateResources() }),
     ];
 
-    this.server.get('/client/allocation/:id/stats', function() {
+    this.server.get('/client/allocation/:id/stats', function () {
       const response = frames[++currentFrame];
 
       // Disable polling to stop the EC task in the component
@@ -78,10 +78,10 @@ module('Integration | Component | allocation row', function(hooks) {
     );
   });
 
-  test('Allocation row shows warning when it requires drivers that are unhealthy on the node it is running on', async function(assert) {
+  test('Allocation row shows warning when it requires drivers that are unhealthy on the node it is running on', async function (assert) {
     const node = this.server.schema.nodes.first();
     const drivers = node.drivers;
-    Object.values(drivers).forEach(driver => {
+    Object.values(drivers).forEach((driver) => {
       driver.Healthy = false;
       driver.Detected = true;
     });
@@ -109,7 +109,7 @@ module('Integration | Component | allocation row', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('Allocation row shows an icon indicator when it was preempted', async function(assert) {
+  test('Allocation row shows an icon indicator when it was preempted', async function (assert) {
     const allocId = this.server.create('allocation', 'preempted').id;
     const allocation = await this.store.findRecord('allocation', allocId);
 
@@ -124,14 +124,14 @@ module('Integration | Component | allocation row', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('when an allocation is not running, the utilization graphs are omitted', async function(assert) {
+  test('when an allocation is not running, the utilization graphs are omitted', async function (assert) {
     this.setProperties({
       context: 'job',
       enablePolling: false,
     });
 
     // All non-running statuses need to be tested
-    ['pending', 'complete', 'failed', 'lost'].forEach(clientStatus =>
+    ['pending', 'complete', 'failed', 'lost'].forEach((clientStatus) =>
       this.server.create('allocation', { clientStatus })
     );
 

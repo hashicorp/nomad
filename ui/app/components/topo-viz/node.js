@@ -118,7 +118,7 @@ export default class TopoVizNode extends Component {
 
   containsActiveTaskGroup() {
     return this.args.node.allocations.some(
-      allocation =>
+      (allocation) =>
         allocation.taskGroupName === this.args.activeTaskGroup &&
         allocation.belongsTo('job').id() === this.args.activeJobId
     );

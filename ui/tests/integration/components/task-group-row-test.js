@@ -45,10 +45,10 @@ const makeJob = (server, props = {}) => {
   });
 };
 
-module('Integration | Component | task group row', function(hooks) {
+module('Integration | Component | task group row', function (hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     fragmentSerializerInitializer(this.owner);
     this.store = this.owner.lookup('service:store');
     this.token = this.owner.lookup('service:token');
@@ -60,7 +60,7 @@ module('Integration | Component | task group row', function(hooks) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
     window.localStorage.clear();
   });
@@ -69,7 +69,7 @@ module('Integration | Component | task group row', function(hooks) {
     <TaskGroupRow @taskGroup={{group}} />
   `;
 
-  test('Task group row conditionally shows scaling buttons based on the presence of the scaling attr on the task group', async function(assert) {
+  test('Task group row conditionally shows scaling buttons based on the presence of the scaling attr on the task group', async function (assert) {
     makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
@@ -88,7 +88,7 @@ module('Integration | Component | task group row', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('Clicking scaling buttons immediately updates the rendered count but debounces the scaling API request', async function(assert) {
+  test('Clicking scaling buttons immediately updates the rendered count but debounces the scaling API request', async function (assert) {
     makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
@@ -109,19 +109,19 @@ module('Integration | Component | task group row', function(hooks) {
 
     assert.notOk(
       server.pretender.handledRequests.find(
-        req => req.method === 'POST' && req.url.endsWith('/scale')
+        (req) => req.method === 'POST' && req.url.endsWith('/scale')
       )
     );
 
     await settled();
     const scaleRequests = server.pretender.handledRequests.filter(
-      req => req.method === 'POST' && req.url.endsWith('/scale')
+      (req) => req.method === 'POST' && req.url.endsWith('/scale')
     );
     assert.equal(scaleRequests.length, 1);
     assert.equal(JSON.parse(scaleRequests[0].requestBody).Count, 4);
   });
 
-  test('When the current count is equal to the max count, the increment count button is disabled', async function(assert) {
+  test('When the current count is equal to the max count, the increment count button is disabled', async function (assert) {
     makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
@@ -137,7 +137,7 @@ module('Integration | Component | task group row', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('When the current count is equal to the min count, the decrement count button is disabled', async function(assert) {
+  test('When the current count is equal to the min count, the decrement count button is disabled', async function (assert) {
     makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
@@ -153,7 +153,7 @@ module('Integration | Component | task group row', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('When there is an active deployment, both scale buttons are disabled', async function(assert) {
+  test('When there is an active deployment, both scale buttons are disabled', async function (assert) {
     makeJob(this.server, { activeDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
@@ -168,7 +168,7 @@ module('Integration | Component | task group row', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('When the current ACL token does not have the namespace:scale-job or namespace:submit-job policy rule', async function(assert) {
+  test('When the current ACL token does not have the namespace:scale-job or namespace:submit-job policy rule', async function (assert) {
     makeJob(this.server, { noActiveDeployment: true });
     window.localStorage.nomadTokenSecret = clientToken.secretId;
     this.token.fetchSelfTokenAndPolicies.perform();
@@ -181,9 +181,7 @@ module('Integration | Component | task group row', function(hooks) {
     assert.ok(find('[data-test-scale="increment"]:disabled'));
     assert.ok(find('[data-test-scale="decrement"]:disabled'));
     assert.ok(
-      find('[data-test-scale-controls]')
-        .getAttribute('aria-label')
-        .includes("You aren't allowed")
+      find('[data-test-scale-controls]').getAttribute('aria-label').includes("You aren't allowed")
     );
   });
 });

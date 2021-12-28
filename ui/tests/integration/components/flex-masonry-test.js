@@ -6,12 +6,12 @@ import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 // Used to prevent XSS warnings in console
-const h = height => htmlSafe(`height:${height}px`);
+const h = (height) => htmlSafe(`height:${height}px`);
 
-module('Integration | Component | FlexMasonry', function(hooks) {
+module('Integration | Component | FlexMasonry', function (hooks) {
   setupRenderingTest(hooks);
 
-  test('presents as a single div when @items is empty', async function(assert) {
+  test('presents as a single div when @items is empty', async function (assert) {
     this.setProperties({
       items: [],
     });
@@ -31,7 +31,7 @@ module('Integration | Component | FlexMasonry', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('each item in @items gets wrapped in a flex-masonry-item wrapper', async function(assert) {
+  test('each item in @items gets wrapped in a flex-masonry-item wrapper', async function (assert) {
     this.setProperties({
       items: ['one', 'two', 'three'],
       columns: 2,
@@ -48,7 +48,7 @@ module('Integration | Component | FlexMasonry', function(hooks) {
     assert.equal(findAll('[data-test-flex-masonry-item]').length, this.items.length);
   });
 
-  test('the @withSpacing arg adds the with-spacing class', async function(assert) {
+  test('the @withSpacing arg adds the with-spacing class', async function (assert) {
     await this.render(hbs`
       <FlexMasonry
         @items={{this.items}}
@@ -60,7 +60,7 @@ module('Integration | Component | FlexMasonry', function(hooks) {
     assert.ok(find('[data-test-flex-masonry]').classList.contains('with-spacing'));
   });
 
-  test('individual items along with the reflow action are yielded', async function(assert) {
+  test('individual items along with the reflow action are yielded', async function (assert) {
     this.setProperties({
       items: ['one', 'two'],
       columns: 2,
@@ -86,11 +86,11 @@ module('Integration | Component | FlexMasonry', function(hooks) {
 
     // The height of the div changes when reflow is called
     await click('[data-test-flex-masonry-item]:first-child div');
-    await settled();
+
     assert.equal(div.style.maxHeight, '501px');
   });
 
-  test('items are rendered to the DOM in the order they were passed into the component', async function(assert) {
+  test('items are rendered to the DOM in the order they were passed into the component', async function (assert) {
     this.setProperties({
       items: [
         { text: 'One', height: h(20) },
@@ -114,7 +114,7 @@ module('Integration | Component | FlexMasonry', function(hooks) {
     });
   });
 
-  test('each item gets an order property', async function(assert) {
+  test('each item gets an order property', async function (assert) {
     this.setProperties({
       items: [
         { text: 'One', height: h(20), expectedOrder: 0 },
@@ -138,7 +138,7 @@ module('Integration | Component | FlexMasonry', function(hooks) {
     });
   });
 
-  test('the last item in each column gets a specific flex-basis value', async function(assert) {
+  test('the last item in each column gets a specific flex-basis value', async function (assert) {
     this.setProperties({
       items: [
         { text: 'One', height: h(20) },
@@ -166,7 +166,7 @@ module('Integration | Component | FlexMasonry', function(hooks) {
     });
   });
 
-  test('when a multi-column layout becomes a single column layout, all inline-styles are reset', async function(assert) {
+  test('when a multi-column layout becomes a single column layout, all inline-styles are reset', async function (assert) {
     this.setProperties({
       items: [
         { text: 'One', height: h(20) },
@@ -192,7 +192,7 @@ module('Integration | Component | FlexMasonry', function(hooks) {
     this.set('columns', 1);
     await settled();
 
-    findAll('[data-test-flex-masonry-item]').forEach(el => {
+    findAll('[data-test-flex-masonry-item]').forEach((el) => {
       assert.equal(el.style.flexBasis, '');
       assert.equal(el.style.order, '');
     });

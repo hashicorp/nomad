@@ -11,9 +11,7 @@ export default class RegionSwitcher extends Component {
 
   @computed('system.regions')
   get sortedRegions() {
-    return this.get('system.regions')
-      .toArray()
-      .sort();
+    return this.get('system.regions').toArray().sort();
   }
 
   gotoRegion(region) {

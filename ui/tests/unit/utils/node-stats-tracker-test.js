@@ -9,11 +9,11 @@ import statsTrackerFrameMissingBehavior from './behaviors/stats-tracker-frame-mi
 
 import { settled } from '@ember/test-helpers';
 
-module('Unit | Util | NodeStatsTracker', function() {
+module('Unit | Util | NodeStatsTracker', function () {
   const refDate = Date.now() * 1000000;
-  const makeDate = ts => new Date(ts / 1000000);
+  const makeDate = (ts) => new Date(ts / 1000000);
 
-  const MockNode = overrides =>
+  const MockNode = (overrides) =>
     assign(
       {
         id: 'some-identifier',
@@ -25,7 +25,7 @@ module('Unit | Util | NodeStatsTracker', function() {
       overrides
     );
 
-  const mockFrame = step => ({
+  const mockFrame = (step) => ({
     CPUTicksConsumed: step + 1000,
     Memory: {
       Used: (step + 2048) * 1024 * 1024,
@@ -33,7 +33,7 @@ module('Unit | Util | NodeStatsTracker', function() {
     Timestamp: refDate + step,
   });
 
-  test('the NodeStatsTracker constructor expects a fetch definition and a node', async function(assert) {
+  test('the NodeStatsTracker constructor expects a fetch definition and a node', async function (assert) {
     const tracker = NodeStatsTracker.create();
     assert.throws(
       () => {
@@ -44,7 +44,7 @@ module('Unit | Util | NodeStatsTracker', function() {
     );
   });
 
-  test('the url property is computed based off the node id', async function(assert) {
+  test('the url property is computed based off the node id', async function (assert) {
     const node = MockNode();
     const tracker = NodeStatsTracker.create({ fetch, node });
 
@@ -55,7 +55,7 @@ module('Unit | Util | NodeStatsTracker', function() {
     );
   });
 
-  test('reservedCPU and reservedMemory properties come from the node', async function(assert) {
+  test('reservedCPU and reservedMemory properties come from the node', async function (assert) {
     const node = MockNode();
     const tracker = NodeStatsTracker.create({ fetch, node });
 
@@ -67,7 +67,7 @@ module('Unit | Util | NodeStatsTracker', function() {
     );
   });
 
-  test('poll results in requesting the url and calling append with the resulting JSON', async function(assert) {
+  test('poll results in requesting the url and calling append with the resulting JSON', async function (assert) {
     const node = MockNode();
     const tracker = NodeStatsTracker.create({ fetch, node, append: sinon.spy() });
     const mockFrame = {
@@ -77,7 +77,7 @@ module('Unit | Util | NodeStatsTracker', function() {
       },
     };
 
-    const server = new Pretender(function() {
+    const server = new Pretender(function () {
       this.get('/v1/client/stats', () => [200, {}, JSON.stringify(mockFrame)]);
     });
 
@@ -99,7 +99,7 @@ module('Unit | Util | NodeStatsTracker', function() {
     server.shutdown();
   });
 
-  test('append appropriately maps a data frame to the tracked stats for cpu and memory for the node', async function(assert) {
+  test('append appropriately maps a data frame to the tracked stats for cpu and memory for the node', async function (assert) {
     const node = MockNode();
     const tracker = NodeStatsTracker.create({ fetch, node });
 
@@ -141,7 +141,7 @@ module('Unit | Util | NodeStatsTracker', function() {
     );
   });
 
-  test('each stat list has maxLength equal to bufferSize', async function(assert) {
+  test('each stat list has maxLength equal to bufferSize', async function (assert) {
     const node = MockNode();
     const bufferSize = 10;
     const tracker = NodeStatsTracker.create({ fetch, node, bufferSize });
@@ -173,12 +173,12 @@ module('Unit | Util | NodeStatsTracker', function() {
     );
   });
 
-  test('the stats computed property macro constructs a NodeStatsTracker based on a nodeProp and a fetch definition', async function(assert) {
+  test('the stats computed property macro constructs a NodeStatsTracker based on a nodeProp and a fetch definition', async function (assert) {
     const node = MockNode();
     const fetchSpy = sinon.spy();
 
     const SomeClass = EmberObject.extend({
-      stats: stats('theNode', function() {
+      stats: stats('theNode', function () {
         return () => fetchSpy(this);
       }),
     });
@@ -200,7 +200,7 @@ module('Unit | Util | NodeStatsTracker', function() {
     );
   });
 
-  test('changing the value of the nodeProp constructs a new NodeStatsTracker', async function(assert) {
+  test('changing the value of the nodeProp constructs a new NodeStatsTracker', async function (assert) {
     const node1 = MockNode();
     const node2 = MockNode();
     const SomeClass = EmberObject.extend({

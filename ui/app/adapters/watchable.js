@@ -60,7 +60,7 @@ export default class Watchable extends ApplicationAdapter {
     return this.ajax(url, 'GET', {
       signal,
       data: params,
-    }).catch(error => {
+    }).catch((error) => {
       if (error instanceof AbortError || error.name == 'AbortError') {
         return;
       }
@@ -83,12 +83,12 @@ export default class Watchable extends ApplicationAdapter {
     return this.ajax(urlPath, 'GET', {
       signal,
       data: params,
-    }).then(payload => {
+    }).then((payload) => {
       const adapter = store.adapterFor(type.modelName);
 
       // Query params may not necessarily map one-to-one to attribute names.
       // Adapters are responsible for declaring param mappings.
-      const queryParamsToAttrs = Object.keys(adapter.queryParamsToAttrs || {}).map(key => ({
+      const queryParamsToAttrs = Object.keys(adapter.queryParamsToAttrs || {}).map((key) => ({
         queryParam: key,
         attr: adapter.queryParamsToAttrs[key],
       }));
@@ -97,12 +97,12 @@ export default class Watchable extends ApplicationAdapter {
       // deletes have occurred, the store won't have stale records.
       store
         .peekAll(type.modelName)
-        .filter(record =>
+        .filter((record) =>
           queryParamsToAttrs.some(
-            mapping => get(record, mapping.attr) === query[mapping.queryParam]
+            (mapping) => get(record, mapping.attr) === query[mapping.queryParam]
           )
         )
-        .forEach(record => {
+        .forEach((record) => {
           removeRecord(store, record);
         });
 
@@ -129,7 +129,7 @@ export default class Watchable extends ApplicationAdapter {
       // in the URL and in options.data
       if (url.includes('?')) {
         const paramsInUrl = queryString.parse(url.split('?')[1]);
-        Object.keys(paramsInUrl).forEach(key => {
+        Object.keys(paramsInUrl).forEach((key) => {
           delete params[key];
         });
       }
@@ -138,7 +138,7 @@ export default class Watchable extends ApplicationAdapter {
         signal: abortController && abortController.signal,
         data: params,
       }).then(
-        json => {
+        (json) => {
           const store = this.store;
           const normalizeMethod =
             relationship.kind === 'belongsTo'
@@ -149,7 +149,7 @@ export default class Watchable extends ApplicationAdapter {
           const normalizedData = serializer[normalizeMethod](store, modelClass, json);
           store.push(normalizedData);
         },
-        error => {
+        (error) => {
           if (error instanceof AbortError || error.name === 'AbortError') {
             return relationship.kind === 'belongsTo' ? {} : [];
           }

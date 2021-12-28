@@ -43,7 +43,7 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
     // Preload the job for the allocation since it's required for the breadcrumb trail
     return super
       .model(...arguments)
-      .then(allocation => allocation.get('job').then(() => allocation))
+      .then((allocation) => allocation.get('job').then(() => allocation))
       .catch(notifyError(this));
   }
 

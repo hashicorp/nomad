@@ -5,7 +5,7 @@ import faker from 'nomad-ui/mirage/faker';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Integration | Component | list table', function(hooks) {
+module('Integration | Component | list table', function (hooks) {
   setupRenderingTest(hooks);
 
   const commonTable = Array(10)
@@ -17,7 +17,7 @@ module('Integration | Component | list table', function(hooks) {
     }));
 
   // thead
-  test('component exposes a thead contextual component', async function(assert) {
+  test('component exposes a thead contextual component', async function (assert) {
     this.set('source', commonTable);
     await render(hbs`
       <ListTable @source={{source}} @sortProperty={{sortProperty}} @sortDescending={{sortDescending}} as |t|>
@@ -34,7 +34,7 @@ module('Integration | Component | list table', function(hooks) {
   });
 
   // tbody
-  test('component exposes a tbody contextual component', async function(assert) {
+  test('component exposes a tbody contextual component', async function (assert) {
     this.setProperties({
       source: commonTable,
       sortProperty: 'firstName',
@@ -74,5 +74,5 @@ module('Integration | Component | list table', function(hooks) {
   // Ember doesn't support query params (or controllers or routes) in integration tests,
   // so sorting links can only be tested in acceptance tests.
   // Leaving this test here for posterity.
-  skip('sort-by creates links using the appropriate links given sort property and sort descending', function() {});
+  skip('sort-by creates links using the appropriate links given sort property and sort descending', function () {});
 });

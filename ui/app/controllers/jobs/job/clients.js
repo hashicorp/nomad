@@ -13,10 +13,10 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class ClientsController extends Controller.extend(
-    SortableFactory(['id', 'name', 'jobStatus']),
-    Searchable,
-    WithNamespaceResetting
-  ) {
+  SortableFactory(['id', 'name', 'jobStatus']),
+  Searchable,
+  WithNamespaceResetting
+) {
   queryParams = [
     {
       currentPage: 'page',
@@ -71,7 +71,7 @@ export default class ClientsController extends Controller.extend(
 
   @computed('allNodes', 'jobClientStatus.byNode')
   get nodes() {
-    return this.allNodes.filter(node => this.jobClientStatus.byNode[node.id]);
+    return this.allNodes.filter((node) => this.jobClientStatus.byNode[node.id]);
   }
 
   @computed
@@ -95,7 +95,7 @@ export default class ClientsController extends Controller.extend(
     } = this;
 
     return this.nodes
-      .filter(node => {
+      .filter((node) => {
         if (statuses.length && !statuses.includes(this.jobClientStatus.byNode[node.id])) {
           return false;
         }
@@ -108,8 +108,8 @@ export default class ClientsController extends Controller.extend(
 
         return true;
       })
-      .map(node => {
-        const allocations = this.job.allocations.filter(alloc => alloc.get('node.id') == node.id);
+      .map((node) => {
+        const allocations = this.job.allocations.filter((alloc) => alloc.get('node.id') == node.id);
 
         return {
           node,
@@ -145,7 +145,7 @@ export default class ClientsController extends Controller.extend(
       this.set('qpDatacenter', serialize(intersection(datacenters, this.selectionDatacenter)));
     });
 
-    return datacenters.sort().map(dc => ({ key: dc, label: dc }));
+    return datacenters.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
   @computed('selectionClientClass', 'nodes')
@@ -158,7 +158,7 @@ export default class ClientsController extends Controller.extend(
       this.set('qpClientClass', serialize(intersection(clientClasses, this.selectionClientClass)));
     });
 
-    return clientClasses.sort().map(clientClass => ({ key: clientClass, label: clientClass }));
+    return clientClasses.sort().map((clientClass) => ({ key: clientClass, label: clientClass }));
   }
 
   @action

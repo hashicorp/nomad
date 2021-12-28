@@ -5,22 +5,22 @@ const path = require('path');
 module.exports = {
   description: 'generates a story for storybook',
 
-  fileMapTokens: function() {
+  fileMapTokens: function () {
     let { project } = this;
     return {
-      __path__: function() {
+      __path__: function () {
         return path.relative(project.root, project.root);
       },
-      __markdownname__: function(options) {
+      __markdownname__: function (options) {
         return options.dasherizedModuleName;
       },
-      __name__: function(options) {
+      __name__: function (options) {
         return options.dasherizedModuleName;
       },
     };
   },
 
-  locals: function(options) {
+  locals: function (options) {
     let contents = '';
 
     return {
@@ -29,7 +29,7 @@ module.exports = {
       header: stringUtil
         .dasherize(options.entity.name)
         .split('-')
-        .map(word => stringUtil.capitalize(word))
+        .map((word) => stringUtil.capitalize(word))
         .join(' '),
     };
   },

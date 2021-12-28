@@ -8,6 +8,7 @@ import classic from 'ember-classic-decorator';
 @classNames('terminal-container')
 export default class ExecTerminal extends Component.extend(WindowResizable) {
   didInsertElement() {
+    super.didInsertElement(...arguments);
     let fitAddon = new FitAddon();
     this.fitAddon = fitAddon;
     this.terminal.loadAddon(fitAddon);

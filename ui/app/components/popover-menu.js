@@ -32,6 +32,7 @@ export default class PopoverMenu extends Component {
   }
 
   didReceiveAttrs() {
+    super.didReceiveAttrs();
     const dropdown = this.dropdown;
     if (this.isOpen && dropdown) {
       run.scheduleOnce('afterRender', this, this.repositionDropdown);

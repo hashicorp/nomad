@@ -13,10 +13,10 @@ import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
 import { set } from '@ember/object';
 
-module('Integration | Component | das/recommendation-card', function(hooks) {
+module('Integration | Component | das/recommendation-card', function (hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     const mockRouter = Service.extend({
       init() {
         this._super(...arguments);
@@ -30,7 +30,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     this.owner.register('service:router', mockRouter);
   });
 
-  test('it renders a recommendation card', async function(assert) {
+  test('it renders a recommendation card', async function (assert) {
     const task1 = {
       name: 'jortle',
       reservedCPU: 150,
@@ -103,12 +103,12 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     assert.equal(RecommendationCard.totalsTable.current.cpu.text, '275 MHz');
     assert.equal(RecommendationCard.totalsTable.current.memory.text, '384 MiB');
 
-    RecommendationCard.totalsTable.recommended.cpu.as(RecommendedCpu => {
+    RecommendationCard.totalsTable.recommended.cpu.as((RecommendedCpu) => {
       assert.equal(RecommendedCpu.text, '200 MHz');
       assert.ok(RecommendedCpu.isDecrease);
     });
 
-    RecommendationCard.totalsTable.recommended.memory.as(RecommendedMemory => {
+    RecommendationCard.totalsTable.recommended.memory.as((RecommendedMemory) => {
       assert.equal(RecommendedMemory.text, '512 MiB');
       assert.ok(RecommendedMemory.isIncrease);
     });
@@ -130,12 +130,12 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     assert.equal(RecommendationCard.activeTask.totalsTable.current.cpu.text, '150 MHz');
     assert.equal(RecommendationCard.activeTask.totalsTable.current.memory.text, '128 MiB');
 
-    RecommendationCard.activeTask.totalsTable.recommended.cpu.as(RecommendedCpu => {
+    RecommendationCard.activeTask.totalsTable.recommended.cpu.as((RecommendedCpu) => {
       assert.equal(RecommendedCpu.text, '50 MHz');
       assert.ok(RecommendedCpu.isDecrease);
     });
 
-    RecommendationCard.activeTask.totalsTable.recommended.memory.as(RecommendedMemory => {
+    RecommendationCard.activeTask.totalsTable.recommended.memory.as((RecommendedMemory) => {
       assert.equal(RecommendedMemory.text, '192 MiB');
       assert.ok(RecommendedMemory.isIncrease);
     });
@@ -152,7 +152,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
 
     assert.equal(RecommendationCard.togglesTable.tasks.length, 2);
 
-    await RecommendationCard.togglesTable.tasks[0].as(async FirstTask => {
+    await RecommendationCard.togglesTable.tasks[0].as(async (FirstTask) => {
       assert.equal(FirstTask.name, 'jortle');
       assert.ok(FirstTask.isActive);
 
@@ -172,12 +172,12 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
 
     assert.equal(RecommendationCard.activeTask.name, 'jortle task');
 
-    RecommendationCard.totalsTable.recommended.cpu.as(RecommendedCpu => {
+    RecommendationCard.totalsTable.recommended.cpu.as((RecommendedCpu) => {
       assert.equal(RecommendedCpu.text, '300 MHz');
       assert.ok(RecommendedCpu.isIncrease);
     });
 
-    RecommendationCard.activeTask.totalsTable.recommended.cpu.as(RecommendedCpu => {
+    RecommendationCard.activeTask.totalsTable.recommended.cpu.as((RecommendedCpu) => {
       assert.equal(RecommendedCpu.text, '150 MHz');
       assert.ok(RecommendedCpu.isNeutral);
     });
@@ -187,7 +187,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     assert.notOk(RecommendationCard.togglesTable.tasks[0].memory.isActive);
     assert.notOk(RecommendationCard.togglesTable.tasks[1].memory.isActive);
 
-    RecommendationCard.totalsTable.recommended.memory.as(RecommendedMemory => {
+    RecommendationCard.totalsTable.recommended.memory.as((RecommendedMemory) => {
       assert.equal(RecommendedMemory.text, '384 MiB');
       assert.ok(RecommendedMemory.isNeutral);
     });
@@ -203,7 +203,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('it doesn’t have header toggles when there’s only one task', async function(assert) {
+  test('it doesn’t have header toggles when there’s only one task', async function (assert) {
     const task1 = {
       name: 'jortle',
       reservedCPU: 150,
@@ -243,7 +243,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     assert.notOk(RecommendationCard.togglesTable.toggleAllMemory.isPresent);
   });
 
-  test('it disables the accept button when all recommendations are disabled', async function(assert) {
+  test('it disables the accept button when all recommendations are disabled', async function (assert) {
     const task1 = {
       name: 'jortle',
       reservedCPU: 150,
@@ -284,7 +284,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     assert.ok(RecommendationCard.acceptButton.isDisabled);
   });
 
-  test('it doesn’t show a toggle or chart when there’s no recommendation for that resource', async function(assert) {
+  test('it doesn’t show a toggle or chart when there’s no recommendation for that resource', async function (assert) {
     const task1 = {
       name: 'jortle',
       reservedCPU: 150,
@@ -330,7 +330,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     assert.notOk(RecommendationCard.activeTask.memoryChart.isPresent);
   });
 
-  test('it disables a resource’s toggle all toggle when there are no recommendations for it', async function(assert) {
+  test('it disables a resource’s toggle all toggle when there are no recommendations for it', async function (assert) {
     const task1 = {
       name: 'jortle',
       reservedCPU: 150,
@@ -380,7 +380,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     assert.notOk(RecommendationCard.activeTask.memoryChart.isPresent);
   });
 
-  test('it renders diff calculations in a sentence', async function(assert) {
+  test('it renders diff calculations in a sentence', async function (assert) {
     const task1 = {
       name: 'jortle',
       reservedCPU: 150,
@@ -507,7 +507,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     );
   });
 
-  test('it renders diff calculations in a sentence with no aggregation for one allocatio', async function(assert) {
+  test('it renders diff calculations in a sentence with no aggregation for one allocatio', async function (assert) {
     const task1 = {
       name: 'jortle',
       reservedCPU: 150,

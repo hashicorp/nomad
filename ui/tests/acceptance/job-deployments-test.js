@@ -7,18 +7,18 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moment from 'moment';
 import Deployments from 'nomad-ui/tests/pages/jobs/job/deployments';
 
-const sum = (list, key, getter = a => a) =>
+const sum = (list, key, getter = (a) => a) =>
   list.reduce((sum, item) => sum + getter(get(item, key)), 0);
 
 let job;
 let deployments;
 let sortedDeployments;
 
-module('Acceptance | job deployments', function(hooks) {
+module('Acceptance | job deployments', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     server.create('node');
     job = server.create('job');
     deployments = server.schema.deployments.where({ jobId: job.id });
@@ -34,12 +34,12 @@ module('Acceptance | job deployments', function(hooks) {
     });
   });
 
-  test('it passes an accessibility audit', async function(assert) {
+  test('it passes an accessibility audit', async function (assert) {
     await Deployments.visit({ id: job.id });
     await a11yAudit(assert);
   });
 
-  test('/jobs/:id/deployments should list all job deployments', async function(assert) {
+  test('/jobs/:id/deployments should list all job deployments', async function (assert) {
     await Deployments.visit({ id: job.id });
 
     assert.ok(
@@ -50,7 +50,7 @@ module('Acceptance | job deployments', function(hooks) {
     assert.equal(document.title, `Job ${job.name} deployments - Nomad`);
   });
 
-  test('each deployment mentions the deployment shortId, status, version, and time since it was submitted', async function(assert) {
+  test('each deployment mentions the deployment shortId, status, version, and time since it was submitted', async function (assert) {
     await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
@@ -73,10 +73,10 @@ module('Acceptance | job deployments', function(hooks) {
     );
   });
 
-  test('when the deployment is running and needs promotion, the deployment item says so', async function(assert) {
+  test('when the deployment is running and needs promotion, the deployment item says so', async function (assert) {
     // Ensure the deployment needs deployment
     const deployment = sortedDeployments.models[0];
-    const taskGroupSummary = deployment.deploymentTaskGroupSummaryIds.map(id =>
+    const taskGroupSummary = deployment.deploymentTaskGroupSummaryIds.map((id) =>
       server.schema.deploymentTaskGroupSummaries.find(id)
     )[0];
 
@@ -97,7 +97,7 @@ module('Acceptance | job deployments', function(hooks) {
     assert.ok(deploymentRow.promotionIsRequired, 'Requires Promotion badge found');
   });
 
-  test('each deployment item can be opened to show details', async function(assert) {
+  test('each deployment item can be opened to show details', async function (assert) {
     await Deployments.visit({ id: job.id });
 
     const deploymentRow = Deployments.deployments.objectAt(0);
@@ -107,12 +107,12 @@ module('Acceptance | job deployments', function(hooks) {
     assert.ok(deploymentRow.hasDetails, 'Deployment body found');
   });
 
-  test('when open, a deployment shows the deployment metrics', async function(assert) {
+  test('when open, a deployment shows the deployment metrics', async function (assert) {
     await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
     const deploymentRow = Deployments.deployments.objectAt(0);
-    const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(id =>
+    const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map((id) =>
       server.db.deploymentTaskGroupSummaries.find(id)
     );
 
@@ -120,7 +120,7 @@ module('Acceptance | job deployments', function(hooks) {
 
     assert.equal(
       deploymentRow.metricFor('canaries').text,
-      `${sum(taskGroupSummaries, 'placedCanaries', a => a.length)} / ${sum(
+      `${sum(taskGroupSummaries, 'placedCanaries', (a) => a.length)} / ${sum(
         taskGroupSummaries,
         'desiredCanaries'
       )}`,
@@ -158,12 +158,12 @@ module('Acceptance | job deployments', function(hooks) {
     );
   });
 
-  test('when open, a deployment shows a list of all task groups and their respective stats', async function(assert) {
+  test('when open, a deployment shows a list of all task groups and their respective stats', async function (assert) {
     await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
     const deploymentRow = Deployments.deployments.objectAt(0);
-    const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(id =>
+    const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map((id) =>
       server.db.deploymentTaskGroupSummaries.find(id)
     );
 
@@ -202,7 +202,7 @@ module('Acceptance | job deployments', function(hooks) {
     );
   });
 
-  test('when open, a deployment shows a list of all allocations for the deployment', async function(assert) {
+  test('when open, a deployment shows a list of all allocations for the deployment', async function (assert) {
     await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
@@ -222,12 +222,12 @@ module('Acceptance | job deployments', function(hooks) {
     assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation is as expected');
   });
 
-  test('when the job for the deployments is not found, an error message is shown, but the URL persists', async function(assert) {
+  test('when the job for the deployments is not found, an error message is shown, but the URL persists', async function (assert) {
     await Deployments.visit({ id: 'not-a-real-job' });
 
     assert.equal(
       server.pretender.handledRequests
-        .filter(request => !request.url.includes('policy'))
+        .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'

@@ -43,7 +43,7 @@ export default class FlexMasonry extends Component {
         const height = item.clientHeight;
 
         // Pick the shortest column accounting for margins
-        const column = columns[minIndex(columns, c => c.height)];
+        const column = columns[minIndex(columns, (c) => c.height)];
 
         // Add the new element's height to the column height
         column.height += marginTop + height + marginBottom;

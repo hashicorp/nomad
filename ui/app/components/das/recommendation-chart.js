@@ -153,9 +153,7 @@ export default class RecommendationChartComponent extends Component {
   }
 
   get xScale() {
-    return scaleLinear()
-      .domain([0, this.maximumX])
-      .rangeRound([0, this.barWidth]);
+    return scaleLinear().domain([0, this.maximumX]).rangeRound([0, this.barWidth]);
   }
 
   get lowerValueWidth() {
@@ -316,7 +314,7 @@ export default class RecommendationChartComponent extends Component {
       };
 
       return Object.keys(statsWithCurrentAndRecommended)
-        .map(key => ({ label: statsKeyToLabel[key], value: statsWithCurrentAndRecommended[key] }))
+        .map((key) => ({ label: statsKeyToLabel[key], value: statsWithCurrentAndRecommended[key] }))
         .sortBy('value');
     } else {
       return [];

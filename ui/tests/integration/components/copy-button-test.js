@@ -8,17 +8,17 @@ import sinon from 'sinon';
 
 import { triggerCopyError, triggerCopySuccess } from 'ember-cli-clipboard/test-support';
 
-module('Integration | Component | copy-button', function(hooks) {
+module('Integration | Component | copy-button', function (hooks) {
   setupRenderingTest(hooks);
 
-  test('it shows the copy icon by default', async function(assert) {
+  test('it shows the copy icon by default', async function (assert) {
     await render(hbs`<CopyButton @class="copy-button" />`);
 
     assert.dom('.copy-button .icon-is-copy-action').exists();
     await componentA11yAudit(this.element, assert);
   });
 
-  test('it shows the success icon on success and resets afterward', async function(assert) {
+  test('it shows the success icon on success and resets afterward', async function (assert) {
     const clock = sinon.useFakeTimers({ shouldAdvanceTime: true });
 
     await render(hbs`<CopyButton @class="copy-button" />`);
@@ -37,7 +37,7 @@ module('Integration | Component | copy-button', function(hooks) {
     clock.restore();
   });
 
-  test('it shows the error icon on error', async function(assert) {
+  test('it shows the error icon on error', async function (assert) {
     await render(hbs`<CopyButton @class="copy-button" />`);
 
     await click('.copy-button button');

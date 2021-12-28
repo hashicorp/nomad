@@ -2,10 +2,10 @@ import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 
-module('Unit | Model | job', function(hooks) {
+module('Unit | Model | job', function (hooks) {
   setupTest(hooks);
 
-  test('should expose aggregate allocations derived from task groups', function(assert) {
+  test('should expose aggregate allocations derived from task groups', function (assert) {
     const store = this.owner.lookup('service:store');
     let summary;
     run(() => {

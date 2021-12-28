@@ -15,7 +15,7 @@ async function openIfClosedAndGetContentId(trigger) {
   // If the dropdown is closed, open it
   if (!content || content.classList.contains('ember-basic-dropdown-content-placeholder')) {
     await click(trigger);
-    await settled();
+
     contentId = `${trigger.attributes['aria-owns'].value}`;
   }
   return contentId;
@@ -56,14 +56,14 @@ export async function selectOpenChoose(contentId, valueOrSelector, optionIndex) 
   let options = document.querySelectorAll(`#${contentId} .ember-power-select-option`);
   let potentialTargets = [].slice
     .apply(options)
-    .filter(opt => opt.textContent.indexOf(valueOrSelector) > -1);
+    .filter((opt) => opt.textContent.indexOf(valueOrSelector) > -1);
   if (potentialTargets.length === 0) {
     potentialTargets = document.querySelectorAll(`#${contentId} ${valueOrSelector}`);
   }
   if (potentialTargets.length > 1) {
     let filteredTargets = [].slice
       .apply(potentialTargets)
-      .filter(t => t.textContent.trim() === valueOrSelector);
+      .filter((t) => t.textContent.trim() === valueOrSelector);
     if (optionIndex === undefined) {
       target = filteredTargets[0] || potentialTargets[0];
     } else {

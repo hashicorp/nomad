@@ -22,12 +22,12 @@ export default class ExecRoute extends Route.extend(WithWatchers) {
 
     const jobPromise = this.store
       .findRecord('job', fullId)
-      .then(job => {
+      .then((job) => {
         return job.get('allocations').then(() => job);
       })
       .catch(notifyError(this));
 
-    const xtermImport = import('xterm').then(module => module.Terminal);
+    const xtermImport = import('xterm').then((module) => module.Terminal);
 
     return Promise.all([jobPromise, xtermImport]);
   }

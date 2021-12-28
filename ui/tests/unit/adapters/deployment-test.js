@@ -2,10 +2,10 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 
-module('Unit | Adapter | Deployment', function(hooks) {
+module('Unit | Adapter | Deployment', function (hooks) {
   setupTest(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     this.store = this.owner.lookup('service:store');
     this.system = this.owner.lookup('service:system');
     this.subject = () => this.store.adapterFor('deployment');
@@ -34,7 +34,7 @@ module('Unit | Adapter | Deployment', function(hooks) {
     };
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
   });
 
@@ -42,19 +42,19 @@ module('Unit | Adapter | Deployment', function(hooks) {
     {
       variation: '',
       region: null,
-      fail: id => `POST /v1/deployment/fail/${id}`,
-      promote: id => `POST /v1/deployment/promote/${id}`,
+      fail: (id) => `POST /v1/deployment/fail/${id}`,
+      promote: (id) => `POST /v1/deployment/promote/${id}`,
     },
     {
       variation: 'with non-default region',
       region: 'region-2',
-      fail: id => `POST /v1/deployment/fail/${id}?region=region-2`,
-      promote: id => `POST /v1/deployment/promote/${id}?region=region-2`,
+      fail: (id) => `POST /v1/deployment/fail/${id}?region=region-2`,
+      promote: (id) => `POST /v1/deployment/promote/${id}?region=region-2`,
     },
   ];
 
-  testCases.forEach(testCase => {
-    test(`promote makes the correct API call ${testCase.variation}`, async function(assert) {
+  testCases.forEach((testCase) => {
+    test(`promote makes the correct API call ${testCase.variation}`, async function (assert) {
       const deployment = await this.initialize({ region: testCase.region });
       await this.subject().promote(deployment);
 
@@ -67,7 +67,7 @@ module('Unit | Adapter | Deployment', function(hooks) {
       });
     });
 
-    test(`fail makes the correct API call ${testCase.variation}`, async function(assert) {
+    test(`fail makes the correct API call ${testCase.variation}`, async function (assert) {
       const deployment = await this.initialize({ region: testCase.region });
       await this.subject().fail(deployment);
 

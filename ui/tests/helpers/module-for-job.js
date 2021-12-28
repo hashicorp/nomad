@@ -8,10 +8,10 @@ import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 export default function moduleForJob(title, context, jobFactory, additionalTests) {
   let job;
 
-  module(title, function(hooks) {
+  module(title, function (hooks) {
     setupApplicationTest(hooks);
     setupMirage(hooks);
-    hooks.before(function() {
+    hooks.before(function () {
       if (context !== 'allocations' && context !== 'children') {
         throw new Error(
           `Invalid context provided to moduleForJob, expected either "allocations" or "children", got ${context}`
@@ -19,7 +19,7 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
       }
     });
 
-    hooks.beforeEach(async function() {
+    hooks.beforeEach(async function () {
       server.create('node');
       job = jobFactory();
       if (!job.namespace || job.namespace === 'default') {
@@ -29,7 +29,7 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
       }
     });
 
-    test('visiting /jobs/:job_id', async function(assert) {
+    test('visiting /jobs/:job_id', async function (assert) {
       assert.equal(
         currentURL(),
         urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}`, job.namespace)
@@ -37,7 +37,7 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
       assert.equal(document.title, `Job ${job.name} - Nomad`);
     });
 
-    test('the subnav links to overview', async function(assert) {
+    test('the subnav links to overview', async function (assert) {
       await JobDetail.tabFor('overview').visit();
       assert.equal(
         currentURL(),
@@ -45,7 +45,7 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
       );
     });
 
-    test('the subnav links to definition', async function(assert) {
+    test('the subnav links to definition', async function (assert) {
       await JobDetail.tabFor('definition').visit();
       assert.equal(
         currentURL(),
@@ -53,7 +53,7 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
       );
     });
 
-    test('the subnav links to versions', async function(assert) {
+    test('the subnav links to versions', async function (assert) {
       await JobDetail.tabFor('versions').visit();
       assert.equal(
         currentURL(),
@@ -61,7 +61,7 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
       );
     });
 
-    test('the subnav links to evaluations', async function(assert) {
+    test('the subnav links to evaluations', async function (assert) {
       await JobDetail.tabFor('evaluations').visit();
       assert.equal(
         currentURL(),
@@ -69,7 +69,7 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
       );
     });
 
-    test('the title buttons are dependent on job status', async function(assert) {
+    test('the title buttons are dependent on job status', async function (assert) {
       if (job.status === 'dead') {
         assert.ok(JobDetail.start.isPresent);
         assert.notOk(JobDetail.stop.isPresent);
@@ -82,12 +82,12 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
     });
 
     if (context === 'allocations') {
-      test('allocations for the job are shown in the overview', async function(assert) {
+      test('allocations for the job are shown in the overview', async function (assert) {
         assert.ok(JobDetail.allocationsSummary, 'Allocations are shown in the summary section');
         assert.notOk(JobDetail.childrenSummary, 'Children are not shown in the summary section');
       });
 
-      test('clicking in an allocation row navigates to that allocation', async function(assert) {
+      test('clicking in an allocation row navigates to that allocation', async function (assert) {
         const allocationRow = JobDetail.allocations[0];
         const allocationId = allocationRow.id;
 
@@ -102,7 +102,7 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
     }
 
     if (context === 'children') {
-      test('children for the job are shown in the overview', async function(assert) {
+      test('children for the job are shown in the overview', async function (assert) {
         assert.ok(JobDetail.childrenSummary, 'Children are shown in the summary section');
         assert.notOk(
           JobDetail.allocationsSummary,
@@ -112,7 +112,7 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
     }
 
     for (var testName in additionalTests) {
-      test(testName, async function(assert) {
+      test(testName, async function (assert) {
         await additionalTests[testName].call(this, job, assert);
       });
     }
@@ -123,17 +123,17 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
 export function moduleForJobWithClientStatus(title, jobFactory, additionalTests) {
   let job;
 
-  module(title, function(hooks) {
+  module(title, function (hooks) {
     setupApplicationTest(hooks);
     setupMirage(hooks);
 
-    hooks.beforeEach(async function() {
+    hooks.beforeEach(async function () {
       const clients = server.createList('node', 3, {
         datacenter: 'dc1',
         status: 'ready',
       });
       job = jobFactory();
-      clients.forEach(c => {
+      clients.forEach((c) => {
         server.create('allocation', { jobId: job.id, nodeId: c.id });
       });
       if (!job.namespace || job.namespace === 'default') {
@@ -143,7 +143,7 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
       }
     });
 
-    test('the subnav links to clients', async function(assert) {
+    test('the subnav links to clients', async function (assert) {
       await JobDetail.tabFor('clients').visit();
       assert.equal(
         currentURL(),
@@ -151,14 +151,14 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
       );
     });
 
-    test('job status summary is shown in the overview', async function(assert) {
+    test('job status summary is shown in the overview', async function (assert) {
       assert.ok(
         JobDetail.jobClientStatusSummary.isPresent,
         'Summary bar is displayed in the Job Status in Client summary section'
       );
     });
 
-    test('clicking legend item navigates to a pre-filtered clients table', async function(assert) {
+    test('clicking legend item navigates to a pre-filtered clients table', async function (assert) {
       const legendItem = JobDetail.jobClientStatusSummary.legend.clickableItems[0];
       const status = legendItem.label;
       await legendItem.click();
@@ -173,7 +173,7 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
       assert.deepEqual(gotURL.searchParams, expectedURL.searchParams);
     });
 
-    test('clicking in a slice takes you to a pre-filtered clients table', async function(assert) {
+    test('clicking in a slice takes you to a pre-filtered clients table', async function (assert) {
       const slice = JobDetail.jobClientStatusSummary.slices[0];
       const status = slice.label;
       await slice.click();
@@ -193,7 +193,7 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
     });
 
     for (var testName in additionalTests) {
-      test(testName, async function(assert) {
+      test(testName, async function (assert) {
         await additionalTests[testName].call(this, job, assert);
       });
     }

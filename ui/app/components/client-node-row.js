@@ -22,6 +22,7 @@ export default class ClientNodeRow extends Component.extend(WithVisibilityDetect
   }
 
   didReceiveAttrs() {
+    super.didReceiveAttrs();
     // Reload the node in order to get detail information
     const node = this.node;
     if (node) {

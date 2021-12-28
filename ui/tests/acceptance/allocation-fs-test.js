@@ -9,11 +9,11 @@ import browseFilesystem from './behaviors/fs';
 let allocation;
 let files;
 
-module('Acceptance | allocation fs', function(hooks) {
+module('Acceptance | allocation fs', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     server.create('agent');
     server.create('node', 'forceIPv4');
     const job = server.create('job', { createAllocations: false });

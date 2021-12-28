@@ -10,9 +10,9 @@ export default class Client extends AbstractAbility {
   get policiesIncludeAgentReadOrWrite() {
     const policies = (get(this, 'token.selfTokenPolicies') || [])
       .toArray()
-      .map(policy => get(policy, 'rulesJSON.Agent.Policy'))
+      .map((policy) => get(policy, 'rulesJSON.Agent.Policy'))
       .compact();
 
-    return policies.some(policy => policy === 'read' || policy === 'write');
+    return policies.some((policy) => policy === 'read' || policy === 'write');
   }
 }

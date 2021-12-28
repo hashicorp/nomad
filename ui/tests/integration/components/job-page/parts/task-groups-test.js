@@ -8,17 +8,17 @@ import { setupRenderingTest } from 'ember-qunit';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { formatScheduledHertz, formatScheduledBytes } from 'nomad-ui/utils/units';
 
-module('Integration | Component | job-page/parts/task-groups', function(hooks) {
+module('Integration | Component | job-page/parts/task-groups', function (hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     window.localStorage.clear();
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
     this.server.create('namespace');
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
   });
 
@@ -33,13 +33,13 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
       options
     );
 
-  test('the job detail page should list all task groups', async function(assert) {
+  test('the job detail page should list all task groups', async function (assert) {
     this.server.create('job', {
       createAllocations: false,
     });
 
-    await this.store.findAll('job').then(jobs => {
-      jobs.forEach(job => job.reload());
+    await this.store.findAll('job').then((jobs) => {
+      jobs.forEach((job) => job.reload());
     });
 
     const job = this.store.peekAll('job').get('firstObject');
@@ -62,20 +62,17 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('each row in the task group table should show basic information about the task group', async function(assert) {
+  test('each row in the task group table should show basic information about the task group', async function (assert) {
     this.server.create('job', {
       createAllocations: false,
     });
 
-    const job = await this.store.findAll('job').then(async jobs => {
+    const job = await this.store.findAll('job').then(async (jobs) => {
       return await jobs.get('firstObject').reload();
     });
 
     const taskGroups = await job.get('taskGroups');
-    const taskGroup = taskGroups
-      .sortBy('name')
-      .reverse()
-      .get('firstObject');
+    const taskGroup = taskGroups.sortBy('name').reverse().get('firstObject');
 
     this.setProperties(props(job));
 
@@ -121,22 +118,19 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
     );
   });
 
-  test('gotoTaskGroup is called when task group rows are clicked', async function(assert) {
+  test('gotoTaskGroup is called when task group rows are clicked', async function (assert) {
     this.server.create('job', {
       createAllocations: false,
     });
 
-    const job = await this.store.findAll('job').then(async jobs => {
+    const job = await this.store.findAll('job').then(async (jobs) => {
       return await jobs.get('firstObject').reload();
     });
 
     const taskGroupSpy = sinon.spy();
 
     const taskGroups = await job.get('taskGroups');
-    const taskGroup = taskGroups
-      .sortBy('name')
-      .reverse()
-      .get('firstObject');
+    const taskGroup = taskGroups.sortBy('name').reverse().get('firstObject');
 
     this.setProperties(
       props(job, {

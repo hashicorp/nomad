@@ -28,8 +28,9 @@ export default class SocketsService extends Service {
     } else {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const applicationAdapter = getOwner(this).lookup('adapter:application');
-      const prefix = `${applicationAdapter.host ||
-        window.location.host}/${applicationAdapter.urlPrefix()}`;
+      const prefix = `${
+        applicationAdapter.host || window.location.host
+      }/${applicationAdapter.urlPrefix()}`;
       const region = this.system.activeRegion;
 
       return new WebSocket(

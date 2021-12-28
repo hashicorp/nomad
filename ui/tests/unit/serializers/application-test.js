@@ -26,10 +26,10 @@ class TestModel extends Model {
   @attr() timeNanos;
 }
 
-module('Unit | Serializer | Application', function(hooks) {
+module('Unit | Serializer | Application', function (hooks) {
   setupTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     this.store = this.owner.lookup('service:store');
     this.owner.register('model:test', TestModel);
     this.owner.register('serializer:test', TestSerializer);
@@ -99,8 +99,8 @@ module('Unit | Serializer | Application', function(hooks) {
     },
   ];
 
-  normalizationTestCases.forEach(testCase => {
-    test(`normalization: ${testCase.name}`, async function(assert) {
+  normalizationTestCases.forEach((testCase) => {
+    test(`normalization: ${testCase.name}`, async function (assert) {
       assert.deepEqual(this.subject().normalize(TestModel, testCase.in), testCase.out);
     });
   });
