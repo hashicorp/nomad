@@ -1568,7 +1568,7 @@ func TestFS_streamFile_NoFile(t *testing.T) {
 	defer framer.Destroy()
 
 	err := c.endpoints.FileSystem.streamFile(
-		context.Background(), 0, "foo", 0, ad, framer, nil, nil)
+		context.Background(), 0, "foo", 0, ad, framer, nil, false)
 	require.Error(t, err)
 	if runtime.GOOS == "windows" {
 		require.Contains(t, err.Error(), "cannot find the file")
@@ -1629,7 +1629,7 @@ func TestFS_streamFile_Modify(t *testing.T) {
 	// Start streaming
 	go func() {
 		if err := c.endpoints.FileSystem.streamFile(
-			context.Background(), 0, streamFile, 0, ad, framer, nil, nil); err != nil {
+			context.Background(), 0, streamFile, 0, ad, framer, nil, false); err != nil {
 			t.Fatalf("stream() failed: %v", err)
 		}
 	}()
@@ -1704,7 +1704,7 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 	// Start streaming
 	go func() {
 		if err := c.endpoints.FileSystem.streamFile(
-			context.Background(), 0, streamFile, 0, ad, framer, nil, nil); err != nil {
+			context.Background(), 0, streamFile, 0, ad, framer, nil, false); err != nil {
 			t.Fatalf("stream() failed: %v", err)
 		}
 	}()
@@ -1808,7 +1808,7 @@ func TestFS_streamImpl_Delete(t *testing.T) {
 	// Start streaming
 	go func() {
 		if err := c.endpoints.FileSystem.streamFile(
-			context.Background(), 0, streamFile, 0, ad, framer, nil, nil); err != nil {
+			context.Background(), 0, streamFile, 0, ad, framer, nil, false); err != nil {
 			t.Fatalf("stream() failed: %v", err)
 		}
 	}()

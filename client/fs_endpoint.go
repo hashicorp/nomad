@@ -246,19 +246,14 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	defer framer.Destroy()
 
 	// If we aren't following end as soon as we hit EOF
-	var eofCancelCh chan error
-	var eofCancelOnNextEofCh chan error
-	if !req.Follow {
-		eofCancelCh = make(chan error)
-		close(eofCancelCh)
-	}
+	cancelAfterFirstEof := !req.Follow
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// Start streaming
 	go func() {
-		if err := f.streamFile(ctx, req.Offset, req.Path, req.Limit, fs, framer, eofCancelCh, eofCancelOnNextEofCh); err != nil {
+		if err := f.streamFile(ctx, req.Offset, req.Path, req.Limit, fs, framer, nil, cancelAfterFirstEof); err != nil {
 			select {
 			case errCh <- err:
 			case <-ctx.Done():
@@ -579,22 +574,21 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 		}
 
 		var eofCancelCh chan error
-		var eofCancelOnNextEofCh chan error
+		cancelAfterFirstEof := false
 		exitAfter := false
 		if !follow && idx > maxIndex {
 			// Exceeded what was there initially so return
 			return nil
 		} else if !follow && idx == maxIndex {
 			// At the end
-			eofCancelCh = make(chan error)
-			close(eofCancelCh)
+			cancelAfterFirstEof = true
 			exitAfter = true
 		} else {
-			eofCancelOnNextEofCh = blockUntilNextLog(ctx, fs, logPath, task, logType, idx+1)
+			eofCancelCh = blockUntilNextLog(ctx, fs, logPath, task, logType, idx+1)
 		}
 
 		p := filepath.Join(logPath, logEntry.Name)
-		err = f.streamFile(ctx, openOffset, p, 0, fs, framer, eofCancelCh, eofCancelOnNextEofCh)
+		err = f.streamFile(ctx, openOffset, p, 0, fs, framer, eofCancelCh, cancelAfterFirstEof)
 
 		// Check if the context is cancelled
 		select {
@@ -639,11 +633,10 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 
 // streamFile is the internal method to stream the content of a file. If limit
 // is greater than zero, the stream will end once that many bytes have been
-// read. eofCancelCh is used to cancel the stream if triggered while at EOF.
-// eofCancelOnNextEofCh, if triggered while at EOF, is used to trigger one more read and cancel the stream on reaching next EOF.
+// read. eofCancelCh, if triggered while at EOF, is used to trigger one more read and cancel the stream on reaching next EOF.
 // If the connection is broken an EPIPE error is returned
 func (f *FileSystem) streamFile(ctx context.Context, offset int64, path string, limit int64,
-	fs allocdir.AllocDirFS, framer *sframer.StreamFramer, eofCancelCh chan error, eofCancelOnNextEofCh chan error) error {
+	fs allocdir.AllocDirFS, framer *sframer.StreamFramer, eofCancelCh chan error, cancelAfterFirstEof bool) error {
 
 	// Get the reader
 	file, err := fs.ReadAt(path, offset)
@@ -670,8 +663,8 @@ func (f *FileSystem) streamFile(ctx context.Context, offset int64, path string, 
 	// read and reach EOF.
 	var changes *watch.FileChanges
 
-	// Try to read file till end when on cancel received
-	cancelReceived := false
+	// Only watch file when there is a need for it
+	cancelReceived := cancelAfterFirstEof
 
 	// Start streaming the data
 	bufSize := int64(streamFrameSize)
@@ -763,19 +756,13 @@ OUTER:
 				return nil
 			case <-ctx.Done():
 				return nil
-			case _, ok := <-eofCancelOnNextEofCh:
+			case _, ok := <-eofCancelCh:
 				if !ok {
 					return nil
 				}
 
 				cancelReceived = true
 				continue OUTER
-			case err, ok := <-eofCancelCh:
-				if !ok {
-					return nil
-				}
-
-				return err
 			}
 		}
 	}
