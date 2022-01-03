@@ -20,6 +20,7 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -264,7 +265,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	t.Run("invalid log_json parameter", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_json=no", nil)
-			require.Nil(t, err)
+			require.NoError(t, err)
 			resp := newClosableRecorder()
 
 			// Make the request
@@ -277,7 +278,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	t.Run("unknown log_level", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=unknown", nil)
-			require.Nil(t, err)
+			require.NoError(t, err)
 			resp := newClosableRecorder()
 
 			// Make the request
@@ -290,7 +291,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	t.Run("check for specific log level", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn", nil)
-			require.Nil(t, err)
+			require.NoError(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()
 
@@ -324,7 +325,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	t.Run("plain output", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=debug&plain=true", nil)
-			require.Nil(t, err)
+			require.NoError(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()
 
@@ -358,7 +359,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	t.Run("logs for a specific node", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn&node_id="+s.client.NodeID(), nil)
-			require.Nil(t, err)
+			require.NoError(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()
 
@@ -398,7 +399,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	t.Run("logs for a local client with no server running on agent", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn", nil)
-			require.Nil(t, err)
+			require.NoError(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()
 
@@ -596,7 +597,7 @@ func TestAgent_PprofRequest(t *testing.T) {
 				}
 
 				req, err := http.NewRequest("GET", url, nil)
-				require.Nil(t, err)
+				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
 				resp, err := s.Server.AgentPprofRequest(respW, req)
@@ -914,7 +915,7 @@ func TestHTTP_AgentListKeys(t *testing.T) {
 		respW := httptest.NewRecorder()
 
 		out, err := s.Server.KeyringOperationRequest(respW, req)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		kresp := out.(structs.KeyringResponse)
 		require.Len(t, kresp.Keys, 1)
 	})
@@ -1505,8 +1506,8 @@ func schedulerWorkerInfoTest_testCases() []schedulerWorkerAPITest_testCase {
 	}
 	success := schedulerWorkerAPITest_testExpect{
 		statusCode: http.StatusOK,
-		response: &agentSchedulerWorkersInfo{
-			Schedulers: []agentSchedulerWorkerInfo{
+		response: &api.AgentSchedulerWorkersInfo{
+			Schedulers: []api.AgentSchedulerWorkerInfo{
 				{
 					ID:                "9b3713e0-6f74-0e1b-3b3e-d94f0c22dbf9",
 					EnabledSchedulers: []string{"_core", "batch"},
@@ -1621,7 +1622,7 @@ func TestHTTP_AgentSchedulerWorkerInfoRequest(t *testing.T) {
 						if testingACLS && tc.request.aclToken != "" {
 							setToken(req, tokens[tc.request.aclToken])
 						}
-						require.Nil(t, err)
+						require.NoError(t, err)
 						respW := httptest.NewRecorder()
 						workerInfoResp, err := s.Server.AgentSchedulerWorkerInfoRequest(respW, req)
 
@@ -1640,11 +1641,11 @@ func TestHTTP_AgentSchedulerWorkerInfoRequest(t *testing.T) {
 						}
 
 						require.NoError(t, err)
-						workerInfo, ok := workerInfoResp.(*agentSchedulerWorkersInfo)
-						require.True(t, ok, "expected an *agentSchedulersWorkersInfo. received:%s", reflect.TypeOf(workerInfoResp))
+						workerInfo, ok := workerInfoResp.(*api.AgentSchedulerWorkersInfo)
+						require.True(t, ok, "expected an *AgentSchedulersWorkersInfo. received:%s", reflect.TypeOf(workerInfoResp))
 
-						expectWorkerInfo, ok := expected.response.(*agentSchedulerWorkersInfo)
-						require.True(t, ok, "error casting test case to *agentSchedulersWorkersInfo. received:%s", reflect.TypeOf(workerInfoResp))
+						expectWorkerInfo, ok := expected.response.(*api.AgentSchedulerWorkersInfo)
+						require.True(t, ok, "error casting test case to *AgentSchedulersWorkersInfo. received:%s", reflect.TypeOf(workerInfoResp))
 
 						var schedCount int = *s.Config.Server.NumSchedulers
 						require.Equal(t, schedCount, len(workerInfo.Schedulers), "must match num_schedulers")
@@ -1702,12 +1703,12 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 	}
 	success1 := schedulerWorkerConfigTest_testExpect{
 		expectedResponseCode: http.StatusOK,
-		expectedResponse:     &agentSchedulerWorkerConfig{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: 8},
+		expectedResponse:     &api.AgentSchedulerWorkerConfigRequest{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: 8},
 	}
 
 	success2 := schedulerWorkerConfigTest_testExpect{
 		expectedResponseCode: http.StatusOK,
-		expectedResponse:     &agentSchedulerWorkerConfig{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: 9},
+		expectedResponse:     &api.AgentSchedulerWorkerConfigRequest{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: 9},
 	}
 
 	return []scheduleWorkerConfigTest_workerRequestTest{
@@ -1896,7 +1897,7 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_NoACL(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 
 				req, err := http.NewRequest(tc.request.verb, "/v1/agent/schedulers/config", bytes.NewReader([]byte(tc.request.requestBody)))
-				require.Nil(t, err)
+				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 				workersI, err := s.Server.AgentSchedulerWorkerConfigRequest(respW, req)
 
@@ -1939,7 +1940,7 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_ACL(t *testing.T) {
 				if tc.request.aclToken != "" {
 					setToken(req, tokens[tc.request.aclToken])
 				}
-				require.Nil(t, err)
+				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 				workersI, err := s.Server.AgentSchedulerWorkerConfigRequest(respW, req)
 
@@ -1968,10 +1969,10 @@ func schedulerWorkerTest_parseSuccess(t *testing.T, isACLEnabled bool, tc schedu
 	}
 
 	// test into the response when we expect an okay
-	tcConfig, ok := testExpect.expectedResponse.(*agentSchedulerWorkerConfig)
+	tcConfig, ok := testExpect.expectedResponse.(*api.AgentSchedulerWorkerConfigResponse)
 	require.True(t, ok, "expected response malformed - this is an issue with a test case.")
 
-	workersConfig, ok := workersI.(*agentSchedulerWorkerConfig)
+	workersConfig, ok := workersI.(*api.AgentSchedulerWorkerConfigResponse)
 	require.True(t, ok, "response can not cast to an agentSchedulerWorkerConfig")
 	require.NotNil(t, workersConfig)
 
@@ -2009,7 +2010,7 @@ func TestHTTP_AgentSchedulerWorkerInfoRequest_Client(t *testing.T) {
 			httpTest(t, nil, func(s *TestAgent) {
 				s.Agent.server = nil
 				req, err := http.NewRequest(verb, fmt.Sprintf("/v1/agent/%v", path), nil)
-				require.Nil(t, err)
+				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
 				_, err = s.Server.AgentSchedulerWorkerInfoRequest(respW, req)
@@ -2033,7 +2034,7 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_Client(t *testing.T) {
 			httpTest(t, nil, func(s *TestAgent) {
 				s.Agent.server = nil
 				req, err := http.NewRequest(verb, fmt.Sprintf("/v1/agent/%v", path), nil)
-				require.Nil(t, err)
+				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
 				_, err = s.Server.AgentSchedulerWorkerInfoRequest(respW, req)

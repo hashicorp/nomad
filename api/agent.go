@@ -485,9 +485,9 @@ type HostDataResponse struct {
 }
 
 // GetSchedulerWorkerConfig returns the targeted agent's worker pool configuration
-func (a *Agent) GetSchedulerWorkerConfig() (*SchedulerWorkerPoolArgs, error) {
+func (a *Agent) GetSchedulerWorkerConfig(q *QueryOptions) (*SchedulerWorkerPoolArgs, error) {
 	var resp AgentSchedulerWorkerConfigResponse
-	_, err := a.client.query("/v1/agent/schedulers/config", &resp, nil)
+	_, err := a.client.query("/v1/agent/schedulers/config", &resp, q)
 	if err != nil {
 		return nil, err
 	}
@@ -496,11 +496,11 @@ func (a *Agent) GetSchedulerWorkerConfig() (*SchedulerWorkerPoolArgs, error) {
 }
 
 // SetSchedulerWorkerConfig attempts to update the targeted agent's worker pool configuration
-func (a *Agent) SetSchedulerWorkerConfig(args SchedulerWorkerPoolArgs) (*SchedulerWorkerPoolArgs, error) {
+func (a *Agent) SetSchedulerWorkerConfig(args SchedulerWorkerPoolArgs, q *WriteOptions) (*SchedulerWorkerPoolArgs, error) {
 	req := AgentSchedulerWorkerConfigRequest(args)
 	var resp AgentSchedulerWorkerConfigResponse
 
-	_, err := a.client.write("/v1/agent/schedulers/config", &req, &resp, nil)
+	_, err := a.client.write("/v1/agent/schedulers/config", &req, &resp, q)
 	if err != nil {
 		return nil, err
 	}
@@ -513,22 +513,29 @@ type SchedulerWorkerPoolArgs struct {
 	EnabledSchedulers []string
 }
 
-// AgentSchedulerWorkerConfig
+// AgentSchedulerWorkerConfigRequest is used to provide new scheduler worker configuration
+// to a specific Nomad server. EnabledSchedulers must contain at least the `_core` scheduler
+// to be valid.
 type AgentSchedulerWorkerConfigRequest struct {
 	NumSchedulers     int      `json:"num_schedulers"`
 	EnabledSchedulers []string `json:"enabled_schedulers"`
 }
 
+// AgentSchedulerWorkerConfigResponse contains the Nomad server's current running configuration
+// as well as the server's id as a convenience. This can be used to provide starting values for
+// creating an AgentSchedulerWorkerConfigRequest to make changes to the running configuration.
 type AgentSchedulerWorkerConfigResponse struct {
 	ServerID          string   `json:"server_id"`
 	NumSchedulers     int      `json:"num_schedulers"`
 	EnabledSchedulers []string `json:"enabled_schedulers"`
 }
 
-func (a *Agent) GetSchedulerWorkersInfo() (*AgentSchedulerWorkersInfo, error) {
+// GetSchedulerWorkersInfo returns the current status of all of the scheduler workers on
+// a Nomad server.
+func (a *Agent) GetSchedulerWorkersInfo(q *QueryOptions) (*AgentSchedulerWorkersInfo, error) {
 	var out *AgentSchedulerWorkersInfo
 
-	_, err := a.client.query("/v1/agent/schedulers", &out, nil)
+	_, err := a.client.query("/v1/agent/schedulers", &out, q)
 	if err != nil {
 		return nil, err
 	}
@@ -536,11 +543,14 @@ func (a *Agent) GetSchedulerWorkersInfo() (*AgentSchedulerWorkersInfo, error) {
 	return out, nil
 }
 
+// AgentSchedulerWorkersInfo is the response from the scheduler information endpoint containing
+// a detailed status of each scheduler worker running on the server.
 type AgentSchedulerWorkersInfo struct {
 	ServerID   string                     `json:"server_id"`
 	Schedulers []AgentSchedulerWorkerInfo `json:"schedulers"`
 }
 
+// AgentSchedulerWorkerInfo holds the detailed status information for a single scheduler worker.
 type AgentSchedulerWorkerInfo struct {
 	ID                string   `json:"id"`
 	EnabledSchedulers []string `json:"enabled_schedulers"`

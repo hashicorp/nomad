@@ -465,11 +465,11 @@ func TestAgent_SchedulerWorkerConfig(t *testing.T) {
 	defer s.Stop()
 	a := c.Agent()
 
-	config, err := a.GetSchedulerWorkerConfig()
-	require.Nil(t, err)
+	config, err := a.GetSchedulerWorkerConfig(nil)
+	require.NoError(t, err)
 	require.NotNil(t, config)
 	newConfig := SchedulerWorkerPoolArgs{NumSchedulers: 0, EnabledSchedulers: []string{"_core", "system"}}
-	resp, err := a.SetSchedulerWorkerConfig(newConfig)
+	resp, err := a.SetSchedulerWorkerConfig(newConfig, nil)
 	require.NoError(t, err)
 	assert.NotEqual(t, config, resp)
 }
@@ -481,11 +481,11 @@ func TestAgent_SchedulerWorkerConfig_BadRequest(t *testing.T) {
 	defer s.Stop()
 	a := c.Agent()
 
-	config, err := a.GetSchedulerWorkerConfig()
+	config, err := a.GetSchedulerWorkerConfig(nil)
 	require.NoError(t, err)
 	require.NotNil(t, config)
 	newConfig := SchedulerWorkerPoolArgs{NumSchedulers: -1, EnabledSchedulers: []string{"_core", "system"}}
-	_, err = a.SetSchedulerWorkerConfig(newConfig)
+	_, err = a.SetSchedulerWorkerConfig(newConfig, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), fmt.Sprintf("%v (%s)", http.StatusBadRequest, "Invalid request"))
 }
@@ -496,8 +496,8 @@ func TestAgent_SchedulerWorkersInfo(t *testing.T) {
 	defer s.Stop()
 	a := c.Agent()
 
-	info, err := a.GetSchedulerWorkersInfo()
-	require.Nil(t, err)
+	info, err := a.GetSchedulerWorkersInfo(nil)
+	require.NoError(t, err)
 	require.NotNil(t, info)
 	defaultSchedulers := []string{"batch", "system", "sysbatch", "service", "_core"}
 	for _, worker := range info.Schedulers {

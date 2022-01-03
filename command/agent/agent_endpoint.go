@@ -17,6 +17,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
@@ -765,13 +766,13 @@ func (s *HTTPServer) AgentSchedulerWorkerInfoRequest(resp http.ResponseWriter, r
 	}
 
 	schedulersInfo := srv.GetSchedulerWorkersInfo()
-	response := &agentSchedulerWorkersInfo{
+	response := &api.AgentSchedulerWorkersInfo{
 		ServerID:   srv.LocalMember().Name,
-		Schedulers: make([]agentSchedulerWorkerInfo, len(schedulersInfo)),
+		Schedulers: make([]api.AgentSchedulerWorkerInfo, len(schedulersInfo)),
 	}
 
 	for i, workerInfo := range schedulersInfo {
-		response.Schedulers[i] = agentSchedulerWorkerInfo{
+		response.Schedulers[i] = api.AgentSchedulerWorkerInfo{
 			ID:                workerInfo.ID,
 			EnabledSchedulers: make([]string, len(workerInfo.EnabledSchedulers)),
 			Started:           workerInfo.Started.UTC().Format(time.RFC3339Nano),
@@ -793,16 +794,16 @@ func (s *HTTPServer) AgentSchedulerWorkerConfigRequest(resp http.ResponseWriter,
 		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)
 	}
 	switch req.Method {
-	case "PUT", "POST":
-		return s.UpdateScheduleWorkersConfig(resp, req)
-	case "GET":
-		return s.GetScheduleWorkersConfig(resp, req)
+	case http.MethodPut, http.MethodPost:
+		return s.updateScheduleWorkersConfig(resp, req)
+	case http.MethodGet:
+		return s.getScheduleWorkersConfig(resp, req)
 	default:
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 }
 
-func (s *HTTPServer) GetScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) getScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	srv := s.agent.Server()
 	if srv == nil {
 		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)
@@ -819,7 +820,7 @@ func (s *HTTPServer) GetScheduleWorkersConfig(resp http.ResponseWriter, req *htt
 	}
 
 	config := srv.GetSchedulerWorkerConfig()
-	response := &agentSchedulerWorkerConfig{
+	response := &api.AgentSchedulerWorkerConfigResponse{
 		ServerID:          srv.LocalMember().Name,
 		NumSchedulers:     config.NumSchedulers,
 		EnabledSchedulers: config.EnabledSchedulers,
@@ -828,7 +829,7 @@ func (s *HTTPServer) GetScheduleWorkersConfig(resp http.ResponseWriter, req *htt
 	return response, nil
 }
 
-func (s *HTTPServer) UpdateScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	srv := s.agent.Server()
 	if srv == nil {
 		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)
@@ -844,7 +845,7 @@ func (s *HTTPServer) UpdateScheduleWorkersConfig(resp http.ResponseWriter, req *
 		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
 	}
 
-	var args agentSchedulerWorkerConfig
+	var args api.AgentSchedulerWorkerConfigRequest
 
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Invalid request: %s", err.Error()))
@@ -860,30 +861,11 @@ func (s *HTTPServer) UpdateScheduleWorkersConfig(resp http.ResponseWriter, req *
 	}
 	reply := srv.SetSchedulerWorkerConfig(newArgs)
 
-	response := &agentSchedulerWorkerConfig{
+	response := &api.AgentSchedulerWorkerConfigResponse{
 		ServerID:          srv.LocalMember().Name,
 		NumSchedulers:     reply.NumSchedulers,
 		EnabledSchedulers: reply.EnabledSchedulers,
 	}
 
 	return response, nil
-}
-
-type agentSchedulerWorkerConfig struct {
-	ServerID          string   `json:"server_id,omitempty"`
-	NumSchedulers     int      `json:"num_schedulers"`
-	EnabledSchedulers []string `json:"enabled_schedulers"`
-}
-
-type agentSchedulerWorkersInfo struct {
-	ServerID   string                     `json:"server_id"`
-	Schedulers []agentSchedulerWorkerInfo `json:"schedulers"`
-}
-
-type agentSchedulerWorkerInfo struct {
-	ID                string   `json:"id"`
-	EnabledSchedulers []string `json:"enabled_schedulers"`
-	Started           string   `json:"started"`
-	Status            string   `json:"status"`
-	WorkloadStatus    string   `json:"workload_status"`
 }
