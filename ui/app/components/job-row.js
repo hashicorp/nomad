@@ -26,7 +26,7 @@ export default class JobRow extends Component {
   @action
   gotoJob() {
     const { job } = this;
-    this.router.transitionTo('jobs.job', job, {
+    this.router.transitionTo('jobs.job', job.plainId, {
       queryParams: { namespace: job.get('namespace.name') },
     });
   }
