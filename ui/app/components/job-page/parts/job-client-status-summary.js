@@ -8,6 +8,7 @@ import jobClientStatus from 'nomad-ui/utils/properties/job-client-status';
 @classic
 @classNames('boxed-section')
 export default class JobClientStatusSummary extends Component {
+  @service router;
   @service store;
 
   @jobClientStatus('nodes', 'job') jobClientStatus;
@@ -17,7 +18,16 @@ export default class JobClientStatusSummary extends Component {
   }
 
   job = null;
-  gotoClients() {}
+
+  @action
+  gotoClients(statusFilter) {
+    this.router.transitionTo('jobs.job.clients', this.job, {
+      queryParams: {
+        status: JSON.stringify(statusFilter),
+        namespace: this.job.get('namespace.name'),
+      },
+    });
+  }
 
   @computed
   get isExpanded() {
