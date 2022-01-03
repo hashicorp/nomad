@@ -35,7 +35,7 @@
         <TaskGroupRow
           data-test-task-group
           @taskGroup={{row.model}}
-          @onClick={{action this.gotoTaskGroup row.model}}
+          @onClick={{fn this.gotoTaskGroup row.model}}
         />
       </t.body>
     </ListTable>

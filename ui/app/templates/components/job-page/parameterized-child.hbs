@@ -21,11 +21,7 @@
     <jobPage.ui.JobClientStatusSummary @gotoClients={{this.gotoClients}} />
     <jobPage.ui.Summary @forceCollapsed={{@job.hasClientStatus}} />
     <jobPage.ui.PlacementFailures />
-    <jobPage.ui.TaskGroups
-      @sortProperty={{@sortProperty}}
-      @sortDescending={{@sortDescending}}
-      @gotoTaskGroup={{@gotoTaskGroup}}
-    />
+    <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} />
     <jobPage.ui.RecentAllocations />
     <div class="boxed-section">
       <div class="boxed-section-head">

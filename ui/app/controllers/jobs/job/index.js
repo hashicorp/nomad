@@ -31,15 +31,6 @@ export default class IndexController extends Controller.extend(
   sortDescending = false;
 
   @action
-  gotoTaskGroup(taskGroup) {
-    this.transitionToRoute(
-      'jobs.job.task-group',
-      taskGroup.get('job'),
-      taskGroup
-    );
-  }
-
-  @action
   gotoJob(job) {
     this.transitionToRoute('jobs.job', job, {
       queryParams: { jobNamespace: job.get('namespace.name') },
