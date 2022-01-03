@@ -18,9 +18,7 @@
         </span>
       </:before-namespace>
     </jobPage.ui.StatsBox>
-    {{#if @job.hasClientStatus}}
-      <jobPage.ui.JobClientStatusSummary @gotoClients={{@gotoClients}} />
-    {{/if}}
+    <jobPage.ui.JobClientStatusSummary @gotoClients={{@gotoClients}} />
     <jobPage.ui.Summary @forceCollapsed={{@job.hasClientStatus}} />
     <jobPage.ui.PlacementFailures />
     <jobPage.ui.TaskGroups
