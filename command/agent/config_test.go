@@ -1373,9 +1373,15 @@ func TestParseMultipleIPTemplates(t *testing.T) {
 		expectErr   bool
 	}{
 		{
-			name:        "deduplicates same ip",
-			tmpl:        "127.0.0.1 127.0.0.1",
-			expectedOut: []string{"127.0.0.1"},
+			name:        "deduplicates same ip and preserves order",
+			tmpl:        "127.0.0.1 10.0.0.1 127.0.0.1",
+			expectedOut: []string{"127.0.0.1", "10.0.0.1"},
+			expectErr:   false,
+		},
+		{
+			name:        "includes sockaddr expression",
+			tmpl:        "10.0.0.1 {{ GetAllInterfaces | include \"flags\" \"loopback\" | limit 1 | attr \"address\" }} 10.0.0.2",
+			expectedOut: []string{"10.0.0.1", "127.0.0.1", "10.0.0.2"},
 			expectErr:   false,
 		},
 	}
