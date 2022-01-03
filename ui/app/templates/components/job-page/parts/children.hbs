@@ -64,12 +64,7 @@
           </th>
         </t.head>
         <t.body @key="model.id" as |row|>
-          <JobRow
-            data-test-job-row
-            @job={{row.model}}
-            @context="child"
-            @onClick={{action this.gotoJob row.model}}
-          />
+          <JobRow data-test-job-row @job={{row.model}} @context="child" />
         </t.body>
       </ListTable>
       <div class="table-foot">
