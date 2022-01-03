@@ -935,7 +935,7 @@ func (a *Agent) setupClient() error {
 // If no HTTP health check can be supported nil is returned.
 func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	// Resolve the http check address
-	httpCheckAddr := a.config.normalizedAddrs.HTTP
+	httpCheckAddr := a.config.normalizedAddrs.HTTP[0]
 	if *a.config.Consul.ChecksUseAdvertise {
 		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 	}

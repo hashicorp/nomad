@@ -85,7 +85,7 @@ type Config struct {
 	Addresses *Addresses `hcl:"addresses"`
 
 	// normalizedAddr is set to the Address+Port by normalizeAddrs()
-	normalizedAddrs *Addresses
+	normalizedAddrs *NormalizedAddrs
 
 	// AdvertiseAddrs is used to control the addresses we advertise.
 	AdvertiseAddrs *AdvertiseAddrs `hcl:"advertise"`
@@ -777,6 +777,15 @@ type Addresses struct {
 // AdvertiseAddrs is used to control the addresses we advertise out for
 // different network services. All are optional and default to BindAddr and
 // their default Port.
+type NormalizedAddrs struct {
+	HTTP []string
+	RPC  string
+	Serf string
+}
+
+// AdvertiseAddrs is used to control the addresses we advertise out for
+// different network services. All are optional and default to BindAddr and
+// their default Port.
 type AdvertiseAddrs struct {
 	HTTP string `hcl:"http"`
 	RPC  string `hcl:"rpc"`
@@ -1228,13 +1237,13 @@ func (c *Config) normalizeAddrs() error {
 		c.BindAddr = ipStr
 	}
 
-	addr, err := normalizeBind(c.Addresses.HTTP, c.BindAddr)
+	httpAddrs, err := normalizeMultipleBind(c.Addresses.HTTP, c.BindAddr)
 	if err != nil {
 		return fmt.Errorf("Failed to parse HTTP address: %v", err)
 	}
-	c.Addresses.HTTP = addr
+	c.Addresses.HTTP = strings.Join(httpAddrs, " ")
 
-	addr, err = normalizeBind(c.Addresses.RPC, c.BindAddr)
+	addr, err := normalizeBind(c.Addresses.RPC, c.BindAddr)
 	if err != nil {
 		return fmt.Errorf("Failed to parse RPC address: %v", err)
 	}
@@ -1246,13 +1255,13 @@ func (c *Config) normalizeAddrs() error {
 	}
 	c.Addresses.Serf = addr
 
-	c.normalizedAddrs = &Addresses{
-		HTTP: net.JoinHostPort(c.Addresses.HTTP, strconv.Itoa(c.Ports.HTTP)),
+	c.normalizedAddrs = &NormalizedAddrs{
+		HTTP: joinHostPorts(httpAddrs, strconv.Itoa(c.Ports.HTTP)),
 		RPC:  net.JoinHostPort(c.Addresses.RPC, strconv.Itoa(c.Ports.RPC)),
 		Serf: net.JoinHostPort(c.Addresses.Serf, strconv.Itoa(c.Ports.Serf)),
 	}
 
-	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode)
+	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, httpAddrs[0], c.Ports.HTTP, c.DevMode)
 	if err != nil {
 		return fmt.Errorf("Failed to parse HTTP advertise address (%v, %v, %v, %v): %v", c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode, err)
 	}
@@ -1335,6 +1344,22 @@ func parseSingleIPTemplate(ipTmpl string) (string, error) {
 	}
 }
 
+// parseMultipleIPTemplate is used as a helper function to parse out a multiple IP
+// addresses from a config parameter.
+func parseMultipleIPTemplate(ipTmpl string) ([]string, error) {
+	out, err := template.Parse(ipTmpl)
+	if err != nil {
+		return []string{}, fmt.Errorf("Unable to parse address template %q: %v", ipTmpl, err)
+	}
+
+	ips := strings.Split(out, " ")
+	if len(ips) == 0 {
+		return []string{}, errors.New("No addresses found, please configure one.")
+	}
+
+	return deduplicateAddrs(ips), nil
+}
+
 // normalizeBind returns a normalized bind address.
 //
 // If addr is set it is used, if not the default bind address is used.
@@ -1343,6 +1368,16 @@ func normalizeBind(addr, bind string) (string, error) {
 		return bind, nil
 	}
 	return parseSingleIPTemplate(addr)
+}
+
+// normalizeMultipleBind returns normalized bind addresses.
+//
+// If addr is set it is used, if not the default bind address is used.
+func normalizeMultipleBind(addr, bind string) ([]string, error) {
+	if addr == "" {
+		return []string{bind}, nil
+	}
+	return parseMultipleIPTemplate(addr)
 }
 
 // normalizeAdvertise returns a normalized advertise address.
@@ -1996,6 +2031,17 @@ func LoadConfigDir(dir string) (*Config, error) {
 	return result, nil
 }
 
+// joinHostPorts joins every addr in addrs with the specified port
+func joinHostPorts(addrs []string, port string) []string {
+	localAddrs := make([]string, len(addrs))
+	for i, k := range addrs {
+		localAddrs[i] = net.JoinHostPort(k, port)
+
+	}
+
+	return localAddrs
+}
+
 // isTemporaryFile returns true or false depending on whether the
 // provided file name is a temporary file for the following editors:
 // emacs or vim.
@@ -2003,4 +2049,17 @@ func isTemporaryFile(name string) bool {
 	return strings.HasSuffix(name, "~") || // vim
 		strings.HasPrefix(name, ".#") || // emacs
 		(strings.HasPrefix(name, "#") && strings.HasSuffix(name, "#")) // emacs
+}
+
+func deduplicateAddrs(addrs []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+
+	for _, entry := range addrs {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }

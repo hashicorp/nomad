@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/rs/cors"
 
 	"github.com/hashicorp/nomad/helper/noxssrw"
@@ -75,64 +76,24 @@ type HTTPServer struct {
 	wsUpgrader *websocket.Upgrader
 }
 
-// NewHTTPServer starts new HTTP server over the agent
-func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
-	// Start the listener
-	lnAddr, err := net.ResolveTCPAddr("tcp", config.normalizedAddrs.HTTP)
-	if err != nil {
-		return nil, err
-	}
-	ln, err := config.Listener("tcp", lnAddr.IP.String(), lnAddr.Port)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start HTTP listener: %v", err)
-	}
-
-	// If TLS is enabled, wrap the listener with a TLS listener
-	if config.TLSConfig.EnableHTTP {
-		tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, config.TLSConfig.VerifyHTTPSClient, true)
-		if err != nil {
-			return nil, err
-		}
-
-		tlsConfig, err := tlsConf.IncomingTLSConfig()
-		if err != nil {
-			return nil, err
-		}
-		ln = tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, tlsConfig)
-	}
-
-	// Create the mux
-	mux := http.NewServeMux()
-
-	wsUpgrader := &websocket.Upgrader{
-		ReadBufferSize:  2048,
-		WriteBufferSize: 2048,
-	}
-
-	// Create the server
-	srv := &HTTPServer{
-		agent:      agent,
-		mux:        mux,
-		listener:   ln,
-		listenerCh: make(chan struct{}),
-		logger:     agent.httpLogger,
-		Addr:       ln.Addr().String(),
-		wsUpgrader: wsUpgrader,
-	}
-	srv.registerHandlers(config.EnableDebug)
+// NewHTTPServers starts an HTTP server for every address.http configured in
+// the agent.
+func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
+	var srvs []*HTTPServer
+	var serverInitializationErrors error
 
 	// Handle requests with gzip compression
 	gzip, err := gziphandler.GzipHandlerWithOpts(gziphandler.MinSize(0))
 	if err != nil {
-		return nil, err
+		return srvs, err
 	}
 
 	// Get connection handshake timeout limit
 	handshakeTimeout, err := time.ParseDuration(config.Limits.HTTPSHandshakeTimeout)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing https_handshake_timeout: %v", err)
+		return srvs, fmt.Errorf("error parsing https_handshake_timeout: %v", err)
 	} else if handshakeTimeout < 0 {
-		return nil, fmt.Errorf("https_handshake_timeout must be >= 0")
+		return srvs, fmt.Errorf("https_handshake_timeout must be >= 0")
 	}
 
 	// Get max connection limit
@@ -141,23 +102,80 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 		maxConns = *mc
 	}
 	if maxConns < 0 {
-		return nil, fmt.Errorf("http_max_conns_per_client must be >= 0")
+		return srvs, fmt.Errorf("http_max_conns_per_client must be >= 0")
 	}
 
-	// Create HTTP server with timeouts
-	httpServer := http.Server{
-		Addr:      srv.Addr,
-		Handler:   gzip(mux),
-		ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
-		ErrorLog:  newHTTPServerLogger(srv.logger),
+	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, config.TLSConfig.VerifyHTTPSClient, true)
+	if err != nil && config.TLSConfig.EnableHTTP {
+		return srvs, fmt.Errorf("failed to initialize HTTP server TLS configuration: %s", err)
 	}
 
-	go func() {
-		defer close(srv.listenerCh)
-		httpServer.Serve(ln)
-	}()
+	wsUpgrader := &websocket.Upgrader{
+		ReadBufferSize:  2048,
+		WriteBufferSize: 2048,
+	}
 
-	return srv, nil
+	// Start the listener
+	for _, addr := range config.normalizedAddrs.HTTP {
+		// Create the mux
+		mux := http.NewServeMux()
+
+		lnAddr, err := net.ResolveTCPAddr("tcp", addr)
+		if err != nil {
+			serverInitializationErrors = multierror.Append(serverInitializationErrors, err)
+			continue
+		}
+		ln, err := config.Listener("tcp", lnAddr.IP.String(), lnAddr.Port)
+		if err != nil {
+			serverInitializationErrors = multierror.Append(serverInitializationErrors, fmt.Errorf("failed to start HTTP listener: %v", err))
+			continue
+		}
+
+		// If TLS is enabled, wrap the listener with a TLS listener
+		if config.TLSConfig.EnableHTTP {
+			tlsConfig, err := tlsConf.IncomingTLSConfig()
+			if err != nil {
+				serverInitializationErrors = multierror.Append(serverInitializationErrors, err)
+				continue
+			}
+			ln = tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, tlsConfig)
+		}
+
+		// Create the server
+		srv := &HTTPServer{
+			agent:      agent,
+			mux:        mux,
+			listener:   ln,
+			listenerCh: make(chan struct{}),
+			logger:     agent.httpLogger,
+			Addr:       ln.Addr().String(),
+			wsUpgrader: wsUpgrader,
+		}
+		srv.registerHandlers(config.EnableDebug)
+
+		// Create HTTP server with timeouts
+		httpServer := http.Server{
+			Addr:      srv.Addr,
+			Handler:   gzip(mux),
+			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
+			ErrorLog:  newHTTPServerLogger(srv.logger),
+		}
+
+		go func() {
+			defer close(srv.listenerCh)
+			httpServer.Serve(ln)
+		}()
+
+		srvs = append(srvs, srv)
+	}
+
+	if serverInitializationErrors != nil {
+		for _, srv := range srvs {
+			srv.Shutdown()
+		}
+	}
+
+	return srvs, serverInitializationErrors
 }
 
 // makeConnState returns a ConnState func for use in an http.Server. If
@@ -249,7 +267,7 @@ func (s *HTTPServer) Shutdown() {
 }
 
 // registerHandlers is used to attach our handlers to the mux
-func (s *HTTPServer) registerHandlers(enableDebug bool) {
+func (s HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/jobs", s.wrap(s.JobsRequest))
 	s.mux.HandleFunc("/v1/jobs/parse", s.wrap(s.JobsParseRequest))
 	s.mux.HandleFunc("/v1/job/", s.wrap(s.JobSpecificRequest))

@@ -51,7 +51,7 @@ type Command struct {
 
 	args           []string
 	agent          *Agent
-	httpServer     *HTTPServer
+	httpServers    []*HTTPServer
 	logFilter      *logutils.LevelFilter
 	logOutput      io.Writer
 	retryJoinErrCh chan struct{}
@@ -500,13 +500,13 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 	c.agent = agent
 
 	// Setup the HTTP server
-	http, err := NewHTTPServer(agent, config)
+	httpServers, err := NewHTTPServers(agent, config)
 	if err != nil {
 		agent.Shutdown()
 		c.Ui.Error(fmt.Sprintf("Error starting http server: %s", err))
 		return err
 	}
-	c.httpServer = http
+	c.httpServers = httpServers
 
 	// If DisableUpdateCheck is not enabled, set up update checking
 	// (DisableUpdateCheck is false by default)
@@ -700,8 +700,10 @@ func (c *Command) Run(args []string) int {
 
 		// Shutdown the http server at the end, to ease debugging if
 		// the agent takes long to shutdown
-		if c.httpServer != nil {
-			c.httpServer.Shutdown()
+		if len(c.httpServers) > 0 {
+			for _, srv := range c.httpServers {
+				srv.Shutdown()
+			}
 		}
 	}()
 
@@ -902,13 +904,15 @@ WAIT:
 func (c *Command) reloadHTTPServer() error {
 	c.agent.logger.Info("reloading HTTP server with new TLS configuration")
 
-	c.httpServer.Shutdown()
+	for _, srv := range c.httpServers {
+		srv.Shutdown()
+	}
 
-	http, err := NewHTTPServer(c.agent, c.agent.config)
+	httpServers, err := NewHTTPServers(c.agent, c.agent.config)
 	if err != nil {
 		return err
 	}
-	c.httpServer = http
+	c.httpServers = httpServers
 
 	return nil
 }
