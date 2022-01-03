@@ -11,7 +11,7 @@ const percent = (numerator, denominator) => {
   return numerator / denominator;
 };
 
-const empty = (ts) => ({ timestamp: ts, used: null, percent: null });
+const empty = ts => ({ timestamp: ts, used: null, percent: null });
 
 @classic
 class NodeStatsTracker extends EmberObject.extend(AbstractStatsTracker) {

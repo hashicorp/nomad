@@ -2,10 +2,7 @@ import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
 import EmberError from '@ember/error';
 import { resolve, all } from 'rsvp';
-import {
-  watchRecord,
-  watchRelationship,
-} from 'nomad-ui/utils/properties/watch';
+import { watchRecord, watchRelationship } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 import notifyError from 'nomad-ui/utils/notify-error';
@@ -42,18 +39,15 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
       .then(() => {
         const taskGroup = job.get('taskGroups').findBy('name', name);
         if (!taskGroup) {
-          const err = new EmberError(
-            `Task group ${name} for job ${job.get('name')} not found`
-          );
+          const err = new EmberError(`Task group ${name} for job ${job.get('name')} not found`);
           err.code = '404';
           throw err;
         }
 
         // Refresh job allocations before-hand (so page sort works on load)
-        return all([
-          job.hasMany('allocations').reload(),
-          job.get('scaleState'),
-        ]).then(() => taskGroup);
+        return all([job.hasMany('allocations').reload(), job.get('scaleState')]).then(
+          () => taskGroup
+        );
       })
       .catch(notifyError(this));
   }
@@ -66,9 +60,7 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
         summary: this.watchSummary.perform(job.get('summary')),
         scale: this.watchScale.perform(job.get('scaleState')),
         allocations: this.watchAllocations.perform(job),
-        latestDeployment:
-          job.get('supportsDeployments') &&
-          this.watchLatestDeployment.perform(job),
+        latestDeployment: job.get('supportsDeployments') && this.watchLatestDeployment.perform(job),
       });
     }
   }
@@ -79,12 +71,6 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
   @watchRelationship('allocations') watchAllocations;
   @watchRelationship('latestDeployment') watchLatestDeployment;
 
-  @collect(
-    'watchJob',
-    'watchSummary',
-    'watchScale',
-    'watchAllocations',
-    'watchLatestDeployment'
-  )
+  @collect('watchJob', 'watchSummary', 'watchScale', 'watchAllocations', 'watchLatestDeployment')
   watchers;
 }

@@ -19,22 +19,10 @@ module('Integration | Component | fs/file', function (hooks) {
         {},
         JSON.stringify({ ServerRegion: 'default', Members: [] }),
       ]);
-      this.get('/v1/regions', () => [
-        200,
-        {},
-        JSON.stringify(['default', 'region-2']),
-      ]);
-      this.get('/v1/client/fs/stream/:alloc_id', () => [
-        200,
-        {},
-        logEncode(['Hello World'], 0),
-      ]);
+      this.get('/v1/regions', () => [200, {}, JSON.stringify(['default', 'region-2'])]);
+      this.get('/v1/client/fs/stream/:alloc_id', () => [200, {}, logEncode(['Hello World'], 0)]);
       this.get('/v1/client/fs/cat/:alloc_id', () => [200, {}, 'Hello World']);
-      this.get('/v1/client/fs/readat/:alloc_id', () => [
-        200,
-        {},
-        'Hello World',
-      ]);
+      this.get('/v1/client/fs/readat/:alloc_id', () => [200, {}, 'Hello World']);
     });
     this.system = this.owner.lookup('service:system');
   });
@@ -132,10 +120,7 @@ module('Integration | Component | fs/file', function (hooks) {
       find('[data-test-file-box] [data-test-log-cli]'),
       'The streaming file component was not rendered'
     );
-    assert.ok(
-      find('[data-test-unsupported-type]'),
-      'Unsupported file type message is shown'
-    );
+    assert.ok(find('[data-test-unsupported-type]'), 'Unsupported file type message is shown');
     await componentA11yAudit(this.element, assert);
   });
 
@@ -280,9 +265,6 @@ module('Integration | Component | fs/file', function (hooks) {
 
     classes = Array.from(find('[data-test-file-box]').classList);
     assert.notOk(classes.includes('is-dark'), 'Body is still not dark');
-    assert.notOk(
-      classes.includes('is-full-bleed'),
-      'Body is still not full-bleed'
-    );
+    assert.notOk(classes.includes('is-full-bleed'), 'Body is still not full-bleed');
   });
 });

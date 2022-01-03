@@ -1,10 +1,4 @@
-import {
-  attribute,
-  create,
-  collection,
-  text,
-  visitable,
-} from 'ember-cli-page-object';
+import { attribute, create, collection, text, visitable } from 'ember-cli-page-object';
 import { getter } from 'ember-cli-page-object/macros';
 
 import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';

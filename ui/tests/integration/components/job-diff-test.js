@@ -39,27 +39,21 @@ module('Integration | Component | job diff', function (hooks) {
     );
     assert.equal(
       cleanWhitespace(
-        find(
-          '[data-test-diff-section-label="field"][data-test-diff-field="added"]'
-        ).textContent
+        find('[data-test-diff-section-label="field"][data-test-diff-field="added"]').textContent
       ),
       '+ Added Field: "Foobar"',
       'Added field is rendered correctly'
     );
     assert.equal(
       cleanWhitespace(
-        find(
-          '[data-test-diff-section-label="field"][data-test-diff-field="edited"]'
-        ).textContent
+        find('[data-test-diff-section-label="field"][data-test-diff-field="edited"]').textContent
       ),
       '+/- Edited Field: "256" => "512"',
       'Edited field is rendered correctly'
     );
     assert.equal(
       cleanWhitespace(
-        find(
-          '[data-test-diff-section-label="field"][data-test-diff-field="deleted"]'
-        ).textContent
+        find('[data-test-diff-section-label="field"][data-test-diff-field="deleted"]').textContent
       ),
       '- Removed Field: "12"',
       'Removed field is rendered correctly'
@@ -118,50 +112,38 @@ module('Integration | Component | job diff', function (hooks) {
 
     assert.ok(
       cleanWhitespace(
-        find(
-          '[data-test-diff-section-label="object"][data-test-diff-field="added"]'
-        ).textContent
+        find('[data-test-diff-section-label="object"][data-test-diff-field="added"]').textContent
       ).startsWith('+ DeepConfiguration {'),
       'Added object starts with a JSON block'
     );
     assert.ok(
       cleanWhitespace(
-        find(
-          '[data-test-diff-section-label="object"][data-test-diff-field="edited"]'
-        ).textContent
+        find('[data-test-diff-section-label="object"][data-test-diff-field="edited"]').textContent
       ).startsWith('+/- ComplexProperty {'),
       'Edited object starts with a JSON block'
     );
     assert.ok(
       cleanWhitespace(
-        find(
-          '[data-test-diff-section-label="object"][data-test-diff-field="deleted"]'
-        ).textContent
+        find('[data-test-diff-section-label="object"][data-test-diff-field="deleted"]').textContent
       ).startsWith('- DatedStuff {'),
       'Removed object starts with a JSON block'
     );
 
     assert.ok(
       cleanWhitespace(
-        find(
-          '[data-test-diff-section-label="object"][data-test-diff-field="added"]'
-        ).textContent
+        find('[data-test-diff-section-label="object"][data-test-diff-field="added"]').textContent
       ).endsWith('}'),
       'Added object ends the JSON block'
     );
     assert.ok(
       cleanWhitespace(
-        find(
-          '[data-test-diff-section-label="object"][data-test-diff-field="edited"]'
-        ).textContent
+        find('[data-test-diff-section-label="object"][data-test-diff-field="edited"]').textContent
       ).endsWith('}'),
       'Edited object starts with a JSON block'
     );
     assert.ok(
       cleanWhitespace(
-        find(
-          '[data-test-diff-section-label="object"][data-test-diff-field="deleted"]'
-        ).textContent
+        find('[data-test-diff-section-label="object"][data-test-diff-field="deleted"]').textContent
       ).endsWith('}'),
       'Removed object ends the JSON block'
     );

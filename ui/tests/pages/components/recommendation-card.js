@@ -1,10 +1,4 @@
-import {
-  attribute,
-  collection,
-  hasClass,
-  isPresent,
-  text,
-} from 'ember-cli-page-object';
+import { attribute, collection, hasClass, isPresent, text } from 'ember-cli-page-object';
 import { getter } from 'ember-cli-page-object/macros';
 
 import toggle from 'nomad-ui/tests/pages/components/toggle';

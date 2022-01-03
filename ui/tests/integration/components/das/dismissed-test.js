@@ -26,10 +26,7 @@ module('Integration | Component | das/dismissed', function (hooks) {
     await click('[data-test-understood]');
 
     assert.ok(proceedSpy.calledWith({ manuallyDismissed: true }));
-    assert.equal(
-      window.localStorage.getItem('nomadRecommendationDismssalUnderstood'),
-      'true'
-    );
+    assert.equal(window.localStorage.getItem('nomadRecommendationDismssalUnderstood'), 'true');
   });
 
   test('it renders the dismissal interstitial with no button when the option to never show again has been chosen and proceeds automatically', async function (assert) {

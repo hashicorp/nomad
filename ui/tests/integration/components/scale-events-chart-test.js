@@ -59,7 +59,7 @@ module('Integration | Component | scale-events-chart', function (hooks) {
 
     assert.equal(
       findAll('[data-test-annotation]').length,
-      events.filter((ev) => ev.count == null).length
+      events.filter(ev => ev.count == null).length
     );
     await componentA11yAudit(this.element, assert);
   });

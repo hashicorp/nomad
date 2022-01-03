@@ -56,7 +56,7 @@ class FetchMock {
     if (this._closeRequest) {
       throw new Error('Can only call FetchMock.request once');
     }
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       this._closeRequest = resolve;
     });
   }
@@ -65,9 +65,7 @@ class FetchMock {
     if (this._closeRequest) {
       this._closeRequest(this.response);
     } else {
-      throw new Error(
-        'Must call FetchMock.request() before FetchMock.closeRequest'
-      );
+      throw new Error('Must call FetchMock.request() before FetchMock.closeRequest');
     }
   }
 }
@@ -91,7 +89,7 @@ class ReadableStreamMock {
 
   read() {
     this.readSpy();
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       resolve({ value: new ArrayBuffer(0), done: true });
     });
   }

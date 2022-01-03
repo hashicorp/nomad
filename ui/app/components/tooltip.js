@@ -8,9 +8,7 @@ export default class Tooltip extends Component {
     }
 
     const prefix = inputText.substr(0, 15).trim();
-    const suffix = inputText
-      .substr(inputText.length - 10, inputText.length)
-      .trim();
+    const suffix = inputText.substr(inputText.length - 10, inputText.length).trim();
     return `${prefix}...${suffix}`;
   }
 }

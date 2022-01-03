@@ -54,9 +54,7 @@ module('Unit | Ability | allocation', function (hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    assert.ok(
-      this.can.can('exec allocation', null, { namespace: 'aNamespace' })
-    );
+    assert.ok(this.can.can('exec allocation', null, { namespace: 'aNamespace' }));
   });
 
   test('it permits alloc exec for client tokens with a policy that has default namespace alloc-exec and no capabilities for active namespace', function (assert) {
@@ -88,9 +86,7 @@ module('Unit | Ability | allocation', function (hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    assert.ok(
-      this.can.can('exec allocation', null, { namespace: 'anotherNamespace' })
-    );
+    assert.ok(this.can.can('exec allocation', null, { namespace: 'anotherNamespace' }));
   });
 
   test('it blocks alloc exec for client tokens with a policy that has no alloc-exec capability', function (assert) {
@@ -118,9 +114,7 @@ module('Unit | Ability | allocation', function (hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    assert.ok(
-      this.can.cannot('exec allocation', null, { namespace: 'aNamespace' })
-    );
+    assert.ok(this.can.cannot('exec allocation', null, { namespace: 'aNamespace' }));
   });
 
   test('it handles globs in namespace names', function (assert) {
@@ -168,18 +162,10 @@ module('Unit | Ability | allocation', function (hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    assert.ok(
-      this.can.cannot('exec allocation', null, { namespace: 'production-web' })
-    );
-    assert.ok(
-      this.can.can('exec allocation', null, { namespace: 'production-api' })
-    );
-    assert.ok(
-      this.can.can('exec allocation', null, { namespace: 'production-other' })
-    );
-    assert.ok(
-      this.can.can('exec allocation', null, { namespace: 'something-suffixed' })
-    );
+    assert.ok(this.can.cannot('exec allocation', null, { namespace: 'production-web' }));
+    assert.ok(this.can.can('exec allocation', null, { namespace: 'production-api' }));
+    assert.ok(this.can.can('exec allocation', null, { namespace: 'production-other' }));
+    assert.ok(this.can.can('exec allocation', null, { namespace: 'something-suffixed' }));
     assert.ok(
       this.can.cannot('exec allocation', null, {
         namespace: 'something-more-suffixed',

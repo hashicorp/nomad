@@ -38,14 +38,11 @@ module('Unit | Service | Breadcrumbs', function (hooks) {
       { label: 'Static 1', args: ['static.index', 1] },
       { label: 'Static 2', args: ['static.index', 2] },
     ]);
-    const dynamic = makeRoute(
-      (model) => [{ label: model, args: ['dynamic.index', model] }],
-      {
-        model: 'Label of the Crumb',
-      }
-    );
+    const dynamic = makeRoute(model => [{ label: model, args: ['dynamic.index', model] }], {
+      model: 'Label of the Crumb',
+    });
     const manyDynamic = makeRoute(
-      (model) => [
+      model => [
         {
           label: get(model, 'fishOne'),
           args: ['dynamic.index', get(model, 'fishOne')],
@@ -70,7 +67,7 @@ module('Unit | Service | Breadcrumbs', function (hooks) {
         }),
       }),
     ]);
-    const fromURL = makeRoute((model) => [{ label: model, args: ['url'] }], {
+    const fromURL = makeRoute(model => [{ label: model, args: ['url'] }], {
       router: this.owner.lookup('service:router'),
       model: alias('router.currentURL'),
     });
@@ -96,9 +93,7 @@ module('Unit | Service | Breadcrumbs', function (hooks) {
     this.router.set('currentRouteName', 'static');
 
     const service = this.subject();
-    assert.deepEqual(service.get('breadcrumbs'), [
-      { label: 'Static', args: ['static.index'] },
-    ]);
+    assert.deepEqual(service.get('breadcrumbs'), [{ label: 'Static', args: ['static.index'] }]);
   });
 
   test('when the route hierarchy has multiple segments with static crumbs', function (assert) {

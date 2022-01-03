@@ -57,7 +57,7 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
     assert.equal(Chart.phases[2].name, 'Poststart');
     assert.equal(Chart.phases[3].name, 'Poststop');
 
-    Chart.phases.forEach((phase) => assert.notOk(phase.isActive));
+    Chart.phases.forEach(phase => assert.notOk(phase.isActive));
 
     assert.deepEqual(Chart.tasks.mapBy('name'), [
       'prestart ephemeral: 0',
@@ -85,7 +85,7 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
     assert.ok(Chart.tasks[5].isPoststartEphemeral);
     assert.ok(Chart.tasks[6].isPoststop);
 
-    Chart.tasks.forEach((task) => {
+    Chart.tasks.forEach(task => {
       assert.notOk(task.isActive);
       assert.notOk(task.isFinished);
     });
@@ -116,7 +116,7 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
 
     this.set(
       'taskStates',
-      tasks.map((task) => {
+      tasks.map(task => {
         return { task };
       })
     );
@@ -124,9 +124,9 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
     await render(hbs`<LifecycleChart @taskStates={{taskStates}} />`);
     assert.ok(Chart.isPresent);
 
-    Chart.phases.forEach((phase) => assert.notOk(phase.isActive));
+    Chart.phases.forEach(phase => assert.notOk(phase.isActive));
 
-    Chart.tasks.forEach((task) => {
+    Chart.tasks.forEach(task => {
       assert.notOk(task.isActive);
       assert.notOk(task.isFinished);
     });
@@ -163,8 +163,7 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
       activePhaseNames: [],
     },
     {
-      testName:
-        'poststart ephemeral task states affect main phase active state',
+      testName: 'poststart ephemeral task states affect main phase active state',
       runningTaskNames: ['poststart ephemeral'],
       activePhaseNames: ['Main'],
     },
@@ -174,28 +173,23 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
 
       this.set(
         'taskStates',
-        tasks.map((task) => ({ task }))
+        tasks.map(task => ({ task }))
       );
 
       await render(hbs`<LifecycleChart @taskStates={{taskStates}} />`);
 
-      runningTaskNames.forEach((taskName) => {
-        const taskState = this.taskStates.find((taskState) =>
-          taskState.task.name.includes(taskName)
-        );
+      runningTaskNames.forEach(taskName => {
+        const taskState = this.taskStates.find(taskState => taskState.task.name.includes(taskName));
         set(taskState, 'state', 'running');
       });
 
       await settled();
 
-      Chart.phases.forEach((Phase) => {
+      Chart.phases.forEach(Phase => {
         if (activePhaseNames.includes(Phase.name)) {
           assert.ok(Phase.isActive, `expected ${Phase.name} not to be active`);
         } else {
-          assert.notOk(
-            Phase.isActive,
-            `expected ${Phase.name} phase not to be active`
-          );
+          assert.notOk(Phase.isActive, `expected ${Phase.name} phase not to be active`);
         }
       });
     });

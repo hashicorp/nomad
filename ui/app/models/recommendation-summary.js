@@ -31,8 +31,7 @@ export default class RecommendationSummary extends Model {
   @action
   toggleRecommendation(recommendation) {
     if (this.excludedRecommendations.includes(recommendation)) {
-      this.excludedRecommendations =
-        this.excludedRecommendations.removeObject(recommendation);
+      this.excludedRecommendations = this.excludedRecommendations.removeObject(recommendation);
     } else {
       this.excludedRecommendations.pushObject(recommendation);
     }
@@ -41,14 +40,9 @@ export default class RecommendationSummary extends Model {
   @action
   toggleAllRecommendationsForResource(resource, enabled) {
     if (enabled) {
-      this.excludedRecommendations = this.excludedRecommendations.rejectBy(
-        'resource',
-        resource
-      );
+      this.excludedRecommendations = this.excludedRecommendations.rejectBy('resource', resource);
     } else {
-      this.excludedRecommendations.pushObjects(
-        this.recommendations.filterBy('resource', resource)
-      );
+      this.excludedRecommendations.pushObjects(this.recommendations.filterBy('resource', resource));
     }
   }
 

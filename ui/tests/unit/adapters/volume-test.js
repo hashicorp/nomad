@@ -55,18 +55,10 @@ module('Unit | Adapter | Volume', function (hooks) {
 
     await this.initializeUI();
 
-    this.subject().query(
-      this.store,
-      { modelName: 'volume' },
-      { type: 'csi' },
-      null,
-      {}
-    );
+    this.subject().query(this.store, { modelName: 'volume' }, { type: 'csi' }, null, {});
     await settled();
 
-    assert.deepEqual(pretender.handledRequests.mapBy('url'), [
-      '/v1/volumes?type=csi',
-    ]);
+    assert.deepEqual(pretender.handledRequests.mapBy('url'), ['/v1/volumes?type=csi']);
   });
 
   test('When the volume has a namespace other than default, it is in the URL', async function (assert) {
@@ -81,9 +73,7 @@ module('Unit | Adapter | Volume', function (hooks) {
     await settled();
 
     assert.deepEqual(pretender.handledRequests.mapBy('url'), [
-      `/v1/volume/${encodeURIComponent(
-        volumeName
-      )}?namespace=${volumeNamespace}`,
+      `/v1/volume/${encodeURIComponent(volumeName)}?namespace=${volumeNamespace}`,
     ]);
   });
 
@@ -93,29 +83,17 @@ module('Unit | Adapter | Volume', function (hooks) {
     const { pretender } = this.server;
 
     const request = () =>
-      this.subject().query(
-        this.store,
-        { modelName: 'volume' },
-        { type: 'csi' },
-        null,
-        {
-          reload: true,
-          adapterOptions: { watch: true },
-        }
-      );
+      this.subject().query(this.store, { modelName: 'volume' }, { type: 'csi' }, null, {
+        reload: true,
+        adapterOptions: { watch: true },
+      });
 
     request();
-    assert.equal(
-      pretender.handledRequests[0].url,
-      '/v1/volumes?type=csi&index=1'
-    );
+    assert.equal(pretender.handledRequests[0].url, '/v1/volumes?type=csi&index=1');
 
     await settled();
     request();
-    assert.equal(
-      pretender.handledRequests[1].url,
-      '/v1/volumes?type=csi&index=2'
-    );
+    assert.equal(pretender.handledRequests[1].url, '/v1/volumes?type=csi&index=2');
 
     await settled();
   });
@@ -153,16 +131,10 @@ module('Unit | Adapter | Volume', function (hooks) {
     const { pretender } = this.server;
 
     const request = () =>
-      this.subject().query(
-        this.store,
-        { modelName: 'volume' },
-        { type: 'csi' },
-        null,
-        {
-          reload: true,
-          adapterOptions: { watch: true },
-        }
-      );
+      this.subject().query(this.store, { modelName: 'volume' }, { type: 'csi' }, null, {
+        reload: true,
+        adapterOptions: { watch: true },
+      });
 
     const findAllRequest = () =>
       this.subject().findAll(null, { modelName: 'volume' }, null, {
@@ -171,17 +143,11 @@ module('Unit | Adapter | Volume', function (hooks) {
       });
 
     request();
-    assert.equal(
-      pretender.handledRequests[0].url,
-      '/v1/volumes?type=csi&index=1'
-    );
+    assert.equal(pretender.handledRequests[0].url, '/v1/volumes?type=csi&index=1');
 
     await settled();
     request();
-    assert.equal(
-      pretender.handledRequests[1].url,
-      '/v1/volumes?type=csi&index=2'
-    );
+    assert.equal(pretender.handledRequests[1].url, '/v1/volumes?type=csi&index=2');
 
     await settled();
     findAllRequest();

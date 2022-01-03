@@ -14,18 +14,13 @@ export default class FsRoute extends Route {
       decodedPath.startsWith('/') ? '' : '/'
     }${decodedPath}`;
 
-    return RSVP.all([
-      allocation.stat(pathWithTaskName),
-      taskState.get('allocation.node'),
-    ])
+    return RSVP.all([allocation.stat(pathWithTaskName), taskState.get('allocation.node')])
       .then(([statJson]) => {
         if (statJson.IsDir) {
           return RSVP.hash({
             path: decodedPath,
             taskState,
-            directoryEntries: allocation
-              .ls(pathWithTaskName)
-              .catch(notifyError(this)),
+            directoryEntries: allocation.ls(pathWithTaskName).catch(notifyError(this)),
             isFile: false,
           });
         } else {
@@ -40,10 +35,7 @@ export default class FsRoute extends Route {
       .catch(notifyError(this));
   }
 
-  setupController(
-    controller,
-    { path, taskState, directoryEntries, isFile, stat } = {}
-  ) {
+  setupController(controller, { path, taskState, directoryEntries, isFile, stat } = {}) {
     super.setupController(...arguments);
     controller.setProperties({
       path,

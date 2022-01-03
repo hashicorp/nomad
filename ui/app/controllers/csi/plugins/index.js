@@ -59,9 +59,6 @@ export default class IndexController extends Controller.extend(
 
   @action
   gotoPlugin(plugin, event) {
-    lazyClick([
-      () => this.transitionToRoute('csi.plugins.plugin', plugin.plainId),
-      event,
-    ]);
+    lazyClick([() => this.transitionToRoute('csi.plugins.plugin', plugin.plainId), event]);
   }
 }

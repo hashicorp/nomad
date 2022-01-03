@@ -16,8 +16,7 @@ import classic from 'ember-classic-decorator';
 const MAX_OUTPUT_LENGTH = 50000;
 
 // eslint-disable-next-line
-export const fetchFailure = (url) => () =>
-  console.warn(`LOG FETCH: Couldn't connect to ${url}`);
+export const fetchFailure = url => () => console.warn(`LOG FETCH: Couldn't connect to ${url}`);
 
 @classic
 class Log extends EmberObject.extend(Evented) {
@@ -31,9 +30,7 @@ class Log extends EmberObject.extend(Evented) {
   plainText = false;
 
   logFetch() {
-    assert(
-      'Log objects need a logFetch method, which should have an interface like window.fetch'
-    );
+    assert('Log objects need a logFetch method, which should have an interface like window.fetch');
   }
 
   // Read-only state
@@ -64,7 +61,7 @@ class Log extends EmberObject.extend(Evented) {
     super.init();
 
     const args = this.getProperties('url', 'params', 'logFetch');
-    args.write = (chunk) => {
+    args.write = chunk => {
       let newTail = this.tail + chunk;
       if (newTail.length > MAX_OUTPUT_LENGTH) {
         newTail = newTail.substr(newTail.length - MAX_OUTPUT_LENGTH);
@@ -99,16 +96,12 @@ class Log extends EmberObject.extend(Evented) {
     const url = `${this.url}?${queryParams}`;
 
     this.stop();
-    const response = yield logFetch(url).then(
-      (res) => res.text(),
-      fetchFailure(url)
-    );
+    const response = yield logFetch(url).then(res => res.text(), fetchFailure(url));
     let text = this.plainText ? response : decode(response).message;
 
     if (text && text.length > MAX_OUTPUT_LENGTH) {
       text = text.substr(0, MAX_OUTPUT_LENGTH);
-      text +=
-        '\n\n---------- TRUNCATED: Click "tail" to view the bottom of the log ----------';
+      text += '\n\n---------- TRUNCATED: Click "tail" to view the bottom of the log ----------';
     }
     this.set('head', text);
     this.set('logPointer', 'head');
@@ -129,10 +122,7 @@ class Log extends EmberObject.extend(Evented) {
     const url = `${this.url}?${queryParams}`;
 
     this.stop();
-    const response = yield logFetch(url).then(
-      (res) => res.text(),
-      fetchFailure(url)
-    );
+    const response = yield logFetch(url).then(res => res.text(), fetchFailure(url));
     let text = this.plainText ? response : decode(response).message;
 
     this.set('tail', text);

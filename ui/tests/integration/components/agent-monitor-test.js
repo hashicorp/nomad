@@ -7,10 +7,7 @@ import hbs from 'htmlbars-inline-precompile';
 import Pretender from 'pretender';
 import sinon from 'sinon';
 import { logEncode } from '../../../mirage/data/logs';
-import {
-  selectOpen,
-  selectOpenChoose,
-} from '../../utils/ember-power-select-extensions';
+import { selectOpen, selectOpenChoose } from '../../utils/ember-power-select-extensions';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | agent-monitor', function (hooks) {
@@ -25,14 +22,7 @@ module('Integration | Component | agent-monitor', function (hooks) {
       this.get('/v1/agent/monitor', ({ queryParams }) => [
         200,
         {},
-        logEncode(
-          [
-            `[${(
-              queryParams.log_level || 'info'
-            ).toUpperCase()}] ${LOG_MESSAGE}\n`,
-          ],
-          0
-        ),
+        logEncode([`[${(queryParams.log_level || 'info').toUpperCase()}] ${LOG_MESSAGE}\n`], 0),
       ]);
     });
   });
@@ -147,10 +137,7 @@ module('Integration | Component | agent-monitor', function (hooks) {
 
     await render(commonTemplate);
 
-    assert.equal(
-      find('[data-test-log-cli]').textContent,
-      `[INFO] ${LOG_MESSAGE}\n`
-    );
+    assert.equal(find('[data-test-log-cli]').textContent, `[INFO] ${LOG_MESSAGE}\n`);
 
     const contentId = await selectOpen('[data-test-level-switcher-parent]');
     run.later(run, run.cancelTimers, INTERVAL);
@@ -173,14 +160,7 @@ module('Integration | Component | agent-monitor', function (hooks) {
       {},
       queryParams.log_level === 'info'
         ? logEncode([''], 0)
-        : logEncode(
-            [
-              `[${(
-                queryParams.log_level || 'info'
-              ).toUpperCase()}] ${LOG_MESSAGE}\n`,
-            ],
-            0
-          ),
+        : logEncode([`[${(queryParams.log_level || 'info').toUpperCase()}] ${LOG_MESSAGE}\n`], 0),
     ]);
 
     this.setProperties({
@@ -200,9 +180,6 @@ module('Integration | Component | agent-monitor', function (hooks) {
     await selectOpenChoose(contentId, newLevel.capitalize());
     await settled();
 
-    assert.equal(
-      find('[data-test-log-cli]').textContent,
-      `[TRACE] ${LOG_MESSAGE}\n`
-    );
+    assert.equal(find('[data-test-log-cli]').textContent, `[TRACE] ${LOG_MESSAGE}\n`);
   });
 });

@@ -48,8 +48,7 @@ const pluralizeUnits = (amount, unit, longForm) => {
     suffix = amount === 1 ? unit.longSuffix : pluralize(unit.longSuffix);
   } else {
     // In the normal case, only pluralize based on the pluralizable flag
-    suffix =
-      amount === 1 || !unit.pluralizable ? unit.suffix : pluralize(unit.suffix);
+    suffix = amount === 1 || !unit.pluralizable ? unit.suffix : pluralize(unit.suffix);
   }
 
   // A space should go between the value and the unit when the unit is a full word
@@ -66,11 +65,7 @@ const pluralizeUnits = (amount, unit, longForm) => {
  * @param {Boolean} longForm Whether or not to expand single character suffixes,
  *   used to ensure screen readers correctly read units.
  */
-export default function formatDuration(
-  duration = 0,
-  units = 'ns',
-  longForm = false
-) {
+export default function formatDuration(duration = 0, units = 'ns', longForm = false) {
   const durationParts = {};
 
   // Moment only handles up to millisecond precision.
@@ -95,7 +90,7 @@ export default function formatDuration(
   allUnits
     .filterBy('inMoment')
     .mapBy('name')
-    .forEach((unit) => {
+    .forEach(unit => {
       durationParts[unit] = momentDuration[unit]();
     });
 

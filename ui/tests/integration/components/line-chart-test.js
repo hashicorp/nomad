@@ -1,10 +1,4 @@
-import {
-  find,
-  findAll,
-  click,
-  render,
-  triggerEvent,
-} from '@ember/test-helpers';
+import { find, findAll, click, render, triggerEvent } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
@@ -265,13 +259,10 @@ module('Integration | Component | line-chart', function (hooks) {
       clientX: xOffset + interval * 1 + 5,
     });
     assert.equal(findAll('[data-test-chart-tooltip] li').length, 1);
-    assert.equal(
-      find('[data-test-chart-tooltip] .label').textContent.trim(),
-      this.data[1].series
-    );
+    assert.equal(find('[data-test-chart-tooltip] .label').textContent.trim(), this.data[1].series);
     assert.equal(
       find('[data-test-chart-tooltip] .value').textContent.trim(),
-      series2.find((d) => d.x === 2).y
+      series2.find(d => d.x === 2).y
     );
 
     // When the mouse falls between points and each series has points with different x values,
@@ -279,22 +270,16 @@ module('Integration | Component | line-chart', function (hooks) {
     // to the cursor.
     // This event is intentionally between points such that both points are within proximity.
     const expected = [
-      { label: this.data[0].series, value: series1.find((d) => d.x === 3).y },
-      { label: this.data[1].series, value: series2.find((d) => d.x === 2).y },
+      { label: this.data[0].series, value: series1.find(d => d.x === 3).y },
+      { label: this.data[1].series, value: series2.find(d => d.x === 2).y },
     ];
     await triggerEvent(hoverTarget, 'mousemove', {
       clientX: xOffset + interval * 1.5 + 5,
     });
     assert.equal(findAll('[data-test-chart-tooltip] li').length, 2);
     findAll('[data-test-chart-tooltip] li').forEach((tooltipEntry, index) => {
-      assert.equal(
-        tooltipEntry.querySelector('.label').textContent.trim(),
-        expected[index].label
-      );
-      assert.equal(
-        tooltipEntry.querySelector('.value').textContent.trim(),
-        expected[index].value
-      );
+      assert.equal(tooltipEntry.querySelector('.label').textContent.trim(), expected[index].label);
+      assert.equal(tooltipEntry.querySelector('.value').textContent.trim(), expected[index].value);
     });
   });
 });

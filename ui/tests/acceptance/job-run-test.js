@@ -12,7 +12,7 @@ const newJobTaskGroupName = 'redis';
 
 let managementToken, clientToken;
 
-const jsonJob = (overrides) => {
+const jsonJob = overrides => {
   return JSON.stringify(
     assign(
       {},

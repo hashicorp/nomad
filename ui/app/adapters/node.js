@@ -11,10 +11,7 @@ export default class NodeAdapter extends Watchable {
   }
 
   setEligibility(node, isEligible) {
-    const url = addToPath(
-      this.urlForFindRecord(node.id, 'node'),
-      '/eligibility'
-    );
+    const url = addToPath(this.urlForFindRecord(node.id, 'node'), '/eligibility');
     return this.ajax(url, 'POST', {
       data: {
         NodeID: node.id,

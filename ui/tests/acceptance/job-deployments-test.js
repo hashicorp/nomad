@@ -7,7 +7,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moment from 'moment';
 import Deployments from 'nomad-ui/tests/pages/jobs/job/deployments';
 
-const sum = (list, key, getter = (a) => a) =>
+const sum = (list, key, getter = a => a) =>
   list.reduce((sum, item) => sum + getter(get(item, key)), 0);
 
 let job;
@@ -68,23 +68,15 @@ module('Acceptance | job deployments', function (hooks) {
     });
     const deploymentRow = Deployments.deployments.objectAt(0);
 
-    assert.ok(
-      deploymentRow.text.includes(deployment.id.split('-')[0]),
-      'Short ID'
-    );
+    assert.ok(deploymentRow.text.includes(deployment.id.split('-')[0]), 'Short ID');
     assert.equal(deploymentRow.status, deployment.status, 'Status');
     assert.ok(
       deploymentRow.statusClass.includes(classForStatus(deployment.status)),
       'Status Class'
     );
+    assert.ok(deploymentRow.version.includes(deployment.versionNumber), 'Version #');
     assert.ok(
-      deploymentRow.version.includes(deployment.versionNumber),
-      'Version #'
-    );
-    assert.ok(
-      deploymentRow.submitTime.includes(
-        moment(version.submitTime / 1000000).fromNow()
-      ),
+      deploymentRow.submitTime.includes(moment(version.submitTime / 1000000).fromNow()),
       'Submit time ago'
     );
   });
@@ -92,8 +84,8 @@ module('Acceptance | job deployments', function (hooks) {
   test('when the deployment is running and needs promotion, the deployment item says so', async function (assert) {
     // Ensure the deployment needs deployment
     const deployment = sortedDeployments.models[0];
-    const taskGroupSummary = deployment.deploymentTaskGroupSummaryIds.map(
-      (id) => server.schema.deploymentTaskGroupSummaries.find(id)
+    const taskGroupSummary = deployment.deploymentTaskGroupSummaryIds.map(id =>
+      server.schema.deploymentTaskGroupSummaries.find(id)
     )[0];
 
     deployment.update('status', 'running');
@@ -110,10 +102,7 @@ module('Acceptance | job deployments', function (hooks) {
     await Deployments.visit({ id: job.id });
 
     const deploymentRow = Deployments.deployments.objectAt(0);
-    assert.ok(
-      deploymentRow.promotionIsRequired,
-      'Requires Promotion badge found'
-    );
+    assert.ok(deploymentRow.promotionIsRequired, 'Requires Promotion badge found');
   });
 
   test('each deployment item can be opened to show details', async function (assert) {
@@ -131,15 +120,15 @@ module('Acceptance | job deployments', function (hooks) {
 
     const deployment = sortedDeployments.models[0];
     const deploymentRow = Deployments.deployments.objectAt(0);
-    const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(
-      (id) => server.db.deploymentTaskGroupSummaries.find(id)
+    const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(id =>
+      server.db.deploymentTaskGroupSummaries.find(id)
     );
 
     await deploymentRow.toggle();
 
     assert.equal(
       deploymentRow.metricFor('canaries').text,
-      `${sum(taskGroupSummaries, 'placedCanaries', (a) => a.length)} / ${sum(
+      `${sum(taskGroupSummaries, 'placedCanaries', a => a.length)} / ${sum(
         taskGroupSummaries,
         'desiredCanaries'
       )}`,
@@ -182,8 +171,8 @@ module('Acceptance | job deployments', function (hooks) {
 
     const deployment = sortedDeployments.models[0];
     const deploymentRow = Deployments.deployments.objectAt(0);
-    const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(
-      (id) => server.db.deploymentTaskGroupSummaries.find(id)
+    const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(id =>
+      server.db.deploymentTaskGroupSummaries.find(id)
     );
 
     await deploymentRow.toggle();
@@ -197,22 +186,11 @@ module('Acceptance | job deployments', function (hooks) {
     );
 
     const taskGroup = taskGroupSummaries[0];
-    const taskGroupRow = deploymentRow.taskGroups.findOneBy(
-      'name',
-      taskGroup.name
-    );
+    const taskGroupRow = deploymentRow.taskGroups.findOneBy('name', taskGroup.name);
 
     assert.equal(taskGroupRow.name, taskGroup.name, 'Name');
-    assert.equal(
-      taskGroupRow.promotion,
-      promotionTestForTaskGroup(taskGroup),
-      'Needs Promotion'
-    );
-    assert.equal(
-      taskGroupRow.autoRevert,
-      taskGroup.autoRevert ? 'Yes' : 'No',
-      'Auto Revert'
-    );
+    assert.equal(taskGroupRow.promotion, promotionTestForTaskGroup(taskGroup), 'Needs Promotion');
+    assert.equal(taskGroupRow.autoRevert, taskGroup.autoRevert ? 'Yes' : 'No', 'Auto Revert');
     assert.equal(
       taskGroupRow.canaries,
       `${taskGroup.placedCanaries.length} / ${taskGroup.desiredCanaries}`,
@@ -223,16 +201,8 @@ module('Acceptance | job deployments', function (hooks) {
       `${taskGroup.placedAllocs} / ${taskGroup.desiredTotal}`,
       'Allocs'
     );
-    assert.equal(
-      taskGroupRow.healthy,
-      taskGroup.healthyAllocs,
-      'Healthy Allocs'
-    );
-    assert.equal(
-      taskGroupRow.unhealthy,
-      taskGroup.unhealthyAllocs,
-      'Unhealthy Allocs'
-    );
+    assert.equal(taskGroupRow.healthy, taskGroup.healthyAllocs, 'Healthy Allocs');
+    assert.equal(taskGroupRow.unhealthy, taskGroup.unhealthyAllocs, 'Unhealthy Allocs');
     assert.equal(
       taskGroupRow.progress,
       moment(taskGroup.requireProgressBy).format("MMM DD, 'YY HH:mm:ss ZZ"),
@@ -248,26 +218,16 @@ module('Acceptance | job deployments', function (hooks) {
 
     // TODO: Make this less brittle. This logic is copied from the mirage config,
     // since there is no reference to allocations on the deployment model.
-    const allocations = server.db.allocations
-      .where({ jobId: deployment.jobId })
-      .slice(0, 3);
+    const allocations = server.db.allocations.where({ jobId: deployment.jobId }).slice(0, 3);
     await deploymentRow.toggle();
 
     assert.ok(deploymentRow.hasAllocations, 'Allocations found');
-    assert.equal(
-      deploymentRow.allocations.length,
-      allocations.length,
-      'One row per allocation'
-    );
+    assert.equal(deploymentRow.allocations.length, allocations.length, 'One row per allocation');
 
     const allocation = allocations[0];
     const allocationRow = deploymentRow.allocations.objectAt(0);
 
-    assert.equal(
-      allocationRow.shortId,
-      allocation.id.split('-')[0],
-      'Allocation is as expected'
-    );
+    assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation is as expected');
   });
 
   test('when the job for the deployments is not found, an error message is shown, but the URL persists', async function (assert) {
@@ -275,22 +235,14 @@ module('Acceptance | job deployments', function (hooks) {
 
     assert.equal(
       server.pretender.handledRequests
-        .filter((request) => !request.url.includes('policy'))
+        .filter(request => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
     );
-    assert.equal(
-      currentURL(),
-      '/jobs/not-a-real-job/deployments',
-      'The URL persists'
-    );
+    assert.equal(currentURL(), '/jobs/not-a-real-job/deployments', 'The URL persists');
     assert.ok(Deployments.error.isPresent, 'Error message is shown');
-    assert.equal(
-      Deployments.error.title,
-      'Not Found',
-      'Error message is for 404'
-    );
+    assert.equal(Deployments.error.title, 'Not Found', 'Error message is for 404');
   });
 
   function classForStatus(status) {

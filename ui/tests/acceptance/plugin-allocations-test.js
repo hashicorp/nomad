@@ -72,8 +72,7 @@ module('Acceptance | plugin allocations', function (hooks) {
 
       await PluginAllocations.visit({ id: plugin.id });
     },
-    filter: (allocation, selection) =>
-      selection.includes(allocation.healthy.toString()),
+    filter: (allocation, selection) => selection.includes(allocation.healthy.toString()),
   });
 
   testFacet('Type', {
@@ -91,8 +90,7 @@ module('Acceptance | plugin allocations', function (hooks) {
     },
     filter: (allocation, selection) => {
       if (selection.length === 0 || selection.length === 2) return true;
-      if (selection[0] === 'controller')
-        return plugin.controllers.models.includes(allocation);
+      if (selection[0] === 'controller') return plugin.controllers.models.includes(allocation);
       return plugin.nodes.models.includes(allocation);
     },
   });
@@ -108,12 +106,9 @@ module('Acceptance | plugin allocations', function (hooks) {
       await option.toggle();
 
       const selection = [option.key];
-      const allAllocations = [
-        ...plugin.controllers.models,
-        ...plugin.nodes.models,
-      ];
+      const allAllocations = [...plugin.controllers.models, ...plugin.nodes.models];
       const expectedAllocations = allAllocations
-        .filter((allocation) => filter(allocation, selection))
+        .filter(allocation => filter(allocation, selection))
         .sortBy('updateTime');
 
       PluginAllocations.allocations.forEach((allocation, index) => {
@@ -134,12 +129,9 @@ module('Acceptance | plugin allocations', function (hooks) {
       await option2.toggle();
       selection.push(option2.key);
 
-      const allAllocations = [
-        ...plugin.controllers.models,
-        ...plugin.nodes.models,
-      ];
+      const allAllocations = [...plugin.controllers.models, ...plugin.nodes.models];
       const expectedAllocations = allAllocations
-        .filter((allocation) => filter(allocation, selection))
+        .filter(allocation => filter(allocation, selection))
         .sortBy('updateTime');
 
       PluginAllocations.allocations.forEach((allocation, index) => {
@@ -160,14 +152,9 @@ module('Acceptance | plugin allocations', function (hooks) {
       await option2.toggle();
       selection.push(option2.key);
 
-      const queryString = `${paramName}=${window.encodeURIComponent(
-        JSON.stringify(selection)
-      )}`;
+      const queryString = `${paramName}=${window.encodeURIComponent(JSON.stringify(selection))}`;
 
-      assert.equal(
-        currentURL(),
-        `/csi/plugins/${plugin.id}/allocations?${queryString}`
-      );
+      assert.equal(currentURL(), `/csi/plugins/${plugin.id}/allocations?${queryString}`);
     });
   }
 });

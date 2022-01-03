@@ -170,7 +170,7 @@ export let LiveData = () => {
         },
 
         get secondsFormat() {
-          return (date) => moment(date).format('HH:mm:ss');
+          return date => moment(date).format('HH:mm:ss');
         },
       }).create(),
     },

@@ -67,7 +67,7 @@ module('Acceptance | regions (only one)', function (hooks) {
     await JobsList.jobs.objectAt(0).clickRow();
     await Layout.gutter.visitClients();
     await Layout.gutter.visitServers();
-    server.pretender.handledRequests.forEach((req) => {
+    server.pretender.handledRequests.forEach(req => {
       assert.notOk(req.url.includes('region='), req.url);
     });
   });
@@ -92,10 +92,7 @@ module('Acceptance | regions (many)', function (hooks) {
   test('the region switcher is rendered in the nav bar and the region is in the page title', async function (assert) {
     await JobsList.visit();
 
-    assert.ok(
-      Layout.navbar.regionSwitcher.isPresent,
-      'Region switcher is shown'
-    );
+    assert.ok(Layout.navbar.regionSwitcher.isPresent, 'Region switcher is shown');
     assert.equal(document.title, 'Jobs - global - Nomad');
   });
 
@@ -103,11 +100,7 @@ module('Acceptance | regions (many)', function (hooks) {
     await JobsList.visit();
 
     assert.equal(currentURL(), '/jobs', 'No region query param');
-    assert.equal(
-      window.localStorage.nomadActiveRegion,
-      'global',
-      'Region in localStorage'
-    );
+    assert.equal(window.localStorage.nomadActiveRegion, 'global', 'Region in localStorage');
   });
 
   test('switching regions sets localStorage and the region query param', async function (assert) {
@@ -121,11 +114,7 @@ module('Acceptance | regions (many)', function (hooks) {
       currentURL().includes(`region=${newRegion}`),
       'New region is the region query param value'
     );
-    assert.equal(
-      window.localStorage.nomadActiveRegion,
-      newRegion,
-      'New region in localStorage'
-    );
+    assert.equal(window.localStorage.nomadActiveRegion, newRegion, 'New region in localStorage');
   });
 
   test('switching regions to the default region, unsets the region query param', async function (assert) {
@@ -136,10 +125,7 @@ module('Acceptance | regions (many)', function (hooks) {
 
     await selectChoose('[data-test-region-switcher-parent]', defaultRegion);
 
-    assert.notOk(
-      currentURL().includes('region='),
-      'No region query param for the default region'
-    );
+    assert.notOk(currentURL().includes('region='), 'No region query param for the default region');
     assert.equal(
       window.localStorage.nomadActiveRegion,
       defaultRegion,
@@ -204,7 +190,7 @@ module('Acceptance | regions (many)', function (hooks) {
       'The default region request is made without a region qp'
     );
 
-    appRequests.forEach((req) => {
+    appRequests.forEach(req => {
       if (req.url === '/v1/agent/self') {
         assert.notOk(req.url.includes('region='), `(no region) ${req.url}`);
       } else {

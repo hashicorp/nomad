@@ -64,12 +64,10 @@ export default class RecommendationChartComponent extends Component {
   edgeTickHeight = 23;
   centerTickOffset = 6;
 
-  centerY =
-    this.tickTextHeight + this.centerTickOffset + this.edgeTickHeight / 2;
+  centerY = this.tickTextHeight + this.centerTickOffset + this.edgeTickHeight / 2;
 
   edgeTickY1 = this.tickTextHeight + this.centerTickOffset;
-  edgeTickY2 =
-    this.tickTextHeight + this.edgeTickHeight + this.centerTickOffset;
+  edgeTickY2 = this.tickTextHeight + this.edgeTickHeight + this.centerTickOffset;
 
   deltaTextY = this.edgeTickY2;
 
@@ -131,10 +129,7 @@ export default class RecommendationChartComponent extends Component {
       },
       rect: {
         x: this.gutterWidthLeft,
-        y:
-          (this.edgeTickHeight - rectHeight) / 2 +
-          this.centerTickOffset +
-          this.tickTextHeight,
+        y: (this.edgeTickHeight - rectHeight) / 2 + this.centerTickOffset + this.tickTextHeight,
         width: rectWidth,
         height: rectHeight,
       },
@@ -150,10 +145,7 @@ export default class RecommendationChartComponent extends Component {
   }
 
   get maximumX() {
-    return Math.max(
-      this.higherValue,
-      get(this.args.stats, 'max') || Number.MIN_SAFE_INTEGER
-    );
+    return Math.max(this.higherValue, get(this.args.stats, 'max') || Number.MIN_SAFE_INTEGER);
   }
 
   get lowerValue() {
@@ -161,9 +153,7 @@ export default class RecommendationChartComponent extends Component {
   }
 
   get xScale() {
-    return scaleLinear()
-      .domain([0, this.maximumX])
-      .rangeRound([0, this.barWidth]);
+    return scaleLinear().domain([0, this.maximumX]).rangeRound([0, this.barWidth]);
   }
 
   get lowerValueWidth() {
@@ -220,13 +210,9 @@ export default class RecommendationChartComponent extends Component {
     let translateX;
 
     if (this.shown) {
-      translateX = this.isIncrease
-        ? this.higherValueWidth
-        : this.lowerValueWidth;
+      translateX = this.isIncrease ? this.higherValueWidth : this.lowerValueWidth;
     } else {
-      translateX = this.isIncrease
-        ? this.lowerValueWidth
-        : this.higherValueWidth;
+      translateX = this.isIncrease ? this.lowerValueWidth : this.higherValueWidth;
     }
 
     return {
@@ -234,9 +220,7 @@ export default class RecommendationChartComponent extends Component {
       points: `
         0,${this.center.y1}
         0,${this.center.y1 - this.deltaTriangleHeight / 2}
-        ${(directionXMultiplier * this.deltaTriangleHeight) / 2},${
-        this.center.y1
-      }
+        ${(directionXMultiplier * this.deltaTriangleHeight) / 2},${this.center.y1}
         0,${this.center.y1 + this.deltaTriangleHeight / 2}
       `,
     };
@@ -250,9 +234,7 @@ export default class RecommendationChartComponent extends Component {
         },
         delta: {
           style: htmlSafe(
-            `transform: translateX(${
-              this.shown ? this.higherValueWidth : this.lowerValueWidth
-            }px)`
+            `transform: translateX(${this.shown ? this.higherValueWidth : this.lowerValueWidth}px)`
           ),
         },
       };
@@ -263,9 +245,7 @@ export default class RecommendationChartComponent extends Component {
         },
         delta: {
           style: htmlSafe(
-            `transform: translateX(${
-              this.shown ? this.lowerValueWidth : this.higherValueWidth
-            }px)`
+            `transform: translateX(${this.shown ? this.lowerValueWidth : this.higherValueWidth}px)`
           ),
         },
       };
@@ -289,8 +269,7 @@ export default class RecommendationChartComponent extends Component {
     };
 
     const percentText = formatPercent(
-      (this.args.recommendedValue - this.args.currentValue) /
-        this.args.currentValue
+      (this.args.recommendedValue - this.args.currentValue) / this.args.currentValue
     );
 
     const percent = {
@@ -335,7 +314,7 @@ export default class RecommendationChartComponent extends Component {
       };
 
       return Object.keys(statsWithCurrentAndRecommended)
-        .map((key) => ({
+        .map(key => ({
           label: statsKeyToLabel[key],
           value: statsWithCurrentAndRecommended[key],
         }))

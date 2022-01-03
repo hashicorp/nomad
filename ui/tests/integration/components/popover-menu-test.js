@@ -11,7 +11,7 @@ const PopoverMenu = create(popoverMenuPageObject());
 module('Integration | Component | popover-menu', function (hooks) {
   setupRenderingTest(hooks);
 
-  const commonProperties = (overrides) =>
+  const commonProperties = overrides =>
     Object.assign(
       {
         triggerClass: '',

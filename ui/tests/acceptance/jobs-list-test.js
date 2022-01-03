@@ -119,11 +119,7 @@ module('Acceptance | jobs list', function (hooks) {
     await JobsList.visit();
 
     assert.ok(JobsList.isEmpty, 'There is an empty message');
-    assert.equal(
-      JobsList.emptyState.headline,
-      'No Jobs',
-      'The message is appropriate'
-    );
+    assert.equal(JobsList.emptyState.headline, 'No Jobs', 'The message is appropriate');
   });
 
   test('when there are jobs, but no matches for a search result, there is an empty message', async function (assert) {
@@ -134,11 +130,7 @@ module('Acceptance | jobs list', function (hooks) {
 
     await JobsList.search.fillIn('dog');
     assert.ok(JobsList.isEmpty, 'The empty message is shown');
-    assert.equal(
-      JobsList.emptyState.headline,
-      'No Matches',
-      'The message is appropriate'
-    );
+    assert.equal(JobsList.emptyState.headline, 'No Matches', 'The message is appropriate');
   });
 
   test('searching resets the current page', async function (assert) {
@@ -149,11 +141,7 @@ module('Acceptance | jobs list', function (hooks) {
     await JobsList.visit();
     await JobsList.nextPage();
 
-    assert.equal(
-      currentURL(),
-      '/jobs?page=2',
-      'Page query param captures page=2'
-    );
+    assert.equal(currentURL(), '/jobs?page=2', 'Page query param captures page=2');
 
     await JobsList.search.fillIn('foobar');
 
@@ -186,25 +174,13 @@ module('Acceptance | jobs list', function (hooks) {
     const firstNamespace = server.db.namespaces[0];
     await JobsList.visit({ namespace: firstNamespace.id });
     assert.equal(JobsList.jobs.length, 1, 'One job in the default namespace');
-    assert.equal(
-      JobsList.jobs.objectAt(0).name,
-      job1.name,
-      'The correct job is shown'
-    );
+    assert.equal(JobsList.jobs.objectAt(0).name, job1.name, 'The correct job is shown');
 
     const secondNamespace = server.db.namespaces[1];
     await JobsList.visit({ namespace: secondNamespace.id });
 
-    assert.equal(
-      JobsList.jobs.length,
-      1,
-      `One job in the ${secondNamespace.name} namespace`
-    );
-    assert.equal(
-      JobsList.jobs.objectAt(0).name,
-      job2.name,
-      'The correct job is shown'
-    );
+    assert.equal(JobsList.jobs.length, 1, `One job in the ${secondNamespace.name} namespace`);
+    assert.equal(JobsList.jobs.objectAt(0).name, job2.name, 'The correct job is shown');
   });
 
   test('when accessing jobs is forbidden, show a message with a link to the tokens page', async function (assert) {
@@ -218,20 +194,13 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   function typeForJob(job) {
-    return job.periodic
-      ? 'periodic'
-      : job.parameterized
-      ? 'parameterized'
-      : job.type;
+    return job.periodic ? 'periodic' : job.parameterized ? 'parameterized' : job.type;
   }
 
   test('the jobs list page has appropriate faceted search options', async function (assert) {
     await JobsList.visit();
 
-    assert.ok(
-      JobsList.facets.namespace.isHidden,
-      'Namespace facet not found (no namespaces)'
-    );
+    assert.ok(JobsList.facets.namespace.isHidden, 'Namespace facet not found (no namespaces)');
     assert.ok(JobsList.facets.type.isPresent, 'Type facet found');
     assert.ok(JobsList.facets.status.isPresent, 'Status facet found');
     assert.ok(JobsList.facets.datacenter.isPresent, 'Datacenter facet found');
@@ -258,14 +227,7 @@ module('Acceptance | jobs list', function (hooks) {
   testFacet('Type', {
     facet: JobsList.facets.type,
     paramName: 'type',
-    expectedOptions: [
-      'Batch',
-      'Parameterized',
-      'Periodic',
-      'Service',
-      'System',
-      'System Batch',
-    ],
+    expectedOptions: ['Batch', 'Parameterized', 'Periodic', 'Service', 'System', 'System Batch'],
     async beforeEach() {
       server.createList('job', 2, { createAllocations: false, type: 'batch' });
       server.createList('job', 2, {
@@ -356,8 +318,7 @@ module('Acceptance | jobs list', function (hooks) {
       });
       await JobsList.visit();
     },
-    filter: (job, selection) =>
-      job.datacenters.find((dc) => selection.includes(dc)),
+    filter: (job, selection) => job.datacenters.find(dc => selection.includes(dc)),
   });
 
   testFacet('Prefix', {
@@ -375,7 +336,7 @@ module('Acceptance | jobs list', function (hooks) {
         'hashi-three',
         'nmd_two',
         'noprefix',
-      ].forEach((name) => {
+      ].forEach(name => {
         server.create('job', {
           name,
           createAllocations: false,
@@ -384,8 +345,7 @@ module('Acceptance | jobs list', function (hooks) {
       });
       await JobsList.visit();
     },
-    filter: (job, selection) =>
-      selection.find((prefix) => job.name.startsWith(prefix)),
+    filter: (job, selection) => selection.find(prefix => job.name.startsWith(prefix)),
   });
 
   test('when the facet selections result in no matches, the empty state states why', async function (assert) {
@@ -400,11 +360,7 @@ module('Acceptance | jobs list', function (hooks) {
     await JobsList.facets.status.toggle();
     await JobsList.facets.status.options.objectAt(1).toggle();
     assert.ok(JobsList.isEmpty, 'There is an empty message');
-    assert.equal(
-      JobsList.emptyState.headline,
-      'No Matches',
-      'The message is appropriate'
-    );
+    assert.equal(JobsList.emptyState.headline, 'No Matches', 'The message is appropriate');
   });
 
   test('the jobs list is immediately filtered based on query params', async function (assert) {
@@ -413,11 +369,7 @@ module('Acceptance | jobs list', function (hooks) {
 
     await JobsList.visit({ type: JSON.stringify(['batch']) });
 
-    assert.equal(
-      JobsList.jobs.length,
-      1,
-      'Only one job shown due to query param'
-    );
+    assert.equal(JobsList.jobs.length, 1, 'Only one job shown due to query param');
   });
 
   test('the active namespace is carried over to the storage pages', async function (assert) {
@@ -494,7 +446,7 @@ module('Acceptance | jobs list', function (hooks) {
     }
 
     assert.deepEqual(
-      facet.options.map((option) => option.label.trim()),
+      facet.options.map(option => option.label.trim()),
       expectation,
       'Options for facet are as expected'
     );
@@ -517,7 +469,7 @@ module('Acceptance | jobs list', function (hooks) {
       await option.select();
 
       const expectedJobs = server.db.jobs
-        .filter((job) => filter(job, selection))
+        .filter(job => filter(job, selection))
         .sortBy('modifyIndex')
         .reverse();
 
@@ -545,10 +497,7 @@ module('Acceptance | jobs list', function (hooks) {
     });
   }
 
-  function testFacet(
-    label,
-    { facet, paramName, beforeEach, filter, expectedOptions }
-  ) {
+  function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
     test(`the ${label} facet has the correct options`, async function (assert) {
       await facetOptions(assert, beforeEach, facet, expectedOptions);
     });
@@ -564,7 +513,7 @@ module('Acceptance | jobs list', function (hooks) {
 
       const selection = [option.key];
       const expectedJobs = server.db.jobs
-        .filter((job) => filter(job, selection))
+        .filter(job => filter(job, selection))
         .sortBy('modifyIndex')
         .reverse();
 
@@ -591,7 +540,7 @@ module('Acceptance | jobs list', function (hooks) {
       selection.push(option2.key);
 
       const expectedJobs = server.db.jobs
-        .filter((job) => filter(job, selection))
+        .filter(job => filter(job, selection))
         .sortBy('modifyIndex')
         .reverse();
 
@@ -624,7 +573,7 @@ module('Acceptance | jobs list', function (hooks) {
     });
 
     test('the run job button works when filters are set', async function (assert) {
-      ['pre-one', 'pre-two', 'pre-three'].forEach((name) => {
+      ['pre-one', 'pre-two', 'pre-three'].forEach(name => {
         server.create('job', {
           name,
           createAllocations: false,

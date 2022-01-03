@@ -10,7 +10,7 @@ export default {
   title: 'Charts/Stats Time Series',
 };
 
-let ts = (offset) => moment().subtract(offset, 'm').toDate();
+let ts = offset => moment().subtract(offset, 'm').toDate();
 
 export let Standard = () => {
   return {
@@ -68,18 +68,14 @@ export let HighLowComparison = () => {
             'timer',
             setInterval(() => {
               let metricsHigh = this.metricsHigh;
-              let prev = metricsHigh.length
-                ? metricsHigh[metricsHigh.length - 1].percent
-                : 0.9;
+              let prev = metricsHigh.length ? metricsHigh[metricsHigh.length - 1].percent : 0.9;
               this.appendTSValue(
                 metricsHigh,
                 Math.min(Math.max(prev + Math.random() * 0.05 - 0.025, 0.5), 1)
               );
 
               let metricsLow = this.metricsLow;
-              let prev2 = metricsLow.length
-                ? metricsLow[metricsLow.length - 1].percent
-                : 0.1;
+              let prev2 = metricsLow.length ? metricsLow[metricsLow.length - 1].percent : 0.1;
               this.appendTSValue(
                 metricsLow,
                 Math.min(Math.max(prev2 + Math.random() * 0.05 - 0.025, 0), 0.5)
@@ -112,7 +108,7 @@ export let HighLowComparison = () => {
         }),
 
         secondsFormat() {
-          return (date) => moment(date).format('HH:mm:ss');
+          return date => moment(date).format('HH:mm:ss');
         },
       }).create(),
     },

@@ -3,9 +3,7 @@ import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import sinon from 'sinon';
 import Pretender from 'pretender';
-import NodeStatsTracker, {
-  stats,
-} from 'nomad-ui/utils/classes/node-stats-tracker';
+import NodeStatsTracker, { stats } from 'nomad-ui/utils/classes/node-stats-tracker';
 import fetch from 'nomad-ui/utils/fetch';
 import statsTrackerFrameMissingBehavior from './behaviors/stats-tracker-frame-missing';
 
@@ -13,9 +11,9 @@ import { settled } from '@ember/test-helpers';
 
 module('Unit | Util | NodeStatsTracker', function () {
   const refDate = Date.now() * 1000000;
-  const makeDate = (ts) => new Date(ts / 1000000);
+  const makeDate = ts => new Date(ts / 1000000);
 
-  const MockNode = (overrides) =>
+  const MockNode = overrides =>
     assign(
       {
         id: 'some-identifier',
@@ -27,7 +25,7 @@ module('Unit | Util | NodeStatsTracker', function () {
       overrides
     );
 
-  const mockFrame = (step) => ({
+  const mockFrame = step => ({
     CPUTicksConsumed: step + 1000,
     Memory: {
       Used: (step + 2048) * 1024 * 1024,
@@ -61,11 +59,7 @@ module('Unit | Util | NodeStatsTracker', function () {
     const node = MockNode();
     const tracker = NodeStatsTracker.create({ fetch, node });
 
-    assert.equal(
-      tracker.get('reservedCPU'),
-      node.resources.cpu,
-      'reservedCPU comes from the node'
-    );
+    assert.equal(tracker.get('reservedCPU'), node.resources.cpu, 'reservedCPU comes from the node');
     assert.equal(
       tracker.get('reservedMemory'),
       node.resources.memory,

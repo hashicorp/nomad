@@ -15,8 +15,7 @@ export default class AgentSerializer extends ApplicationSerializer {
       // acts like the API in this case.
       const error = new AdapterError([{ status: '404' }]);
 
-      error.message =
-        'Requested Agent was not found in set of available Agents';
+      error.message = 'Requested Agent was not found in set of available Agents';
       throw error;
     }
 
@@ -29,21 +28,10 @@ export default class AgentSerializer extends ApplicationSerializer {
   }
 
   normalizeResponse(store, typeClass, hash, ...args) {
-    return super.normalizeResponse(
-      store,
-      typeClass,
-      hash.Members || [],
-      ...args
-    );
+    return super.normalizeResponse(store, typeClass, hash.Members || [], ...args);
   }
 
   normalizeSingleResponse(store, typeClass, hash, id, ...args) {
-    return super.normalizeSingleResponse(
-      store,
-      typeClass,
-      hash.findBy('Name', id),
-      id,
-      ...args
-    );
+    return super.normalizeSingleResponse(store, typeClass, hash.findBy('Name', id), id, ...args);
   }
 }

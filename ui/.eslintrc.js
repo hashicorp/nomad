@@ -17,11 +17,7 @@ module.exports = {
     browser: true,
   },
   plugins: ['ember'],
-  extends: [
-    'eslint:recommended',
-    'plugin:ember/recommended',
-    'plugin:prettier/recommended',
-  ],
+  extends: ['eslint:recommended', 'plugin:ember/recommended', 'plugin:prettier/recommended'],
   rules: {
     'ember/classic-decorator-hooks': 'error',
     'ember/classic-decorator-no-classic-methods': 'error',

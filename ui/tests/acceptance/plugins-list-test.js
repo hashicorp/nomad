@@ -50,8 +50,7 @@ module('Acceptance | plugins list', function (hooks) {
     await PluginsList.visit();
 
     const pluginRow = PluginsList.plugins.objectAt(0);
-    const controllerHealthStr =
-      plugin.controllersHealthy > 0 ? 'Healthy' : 'Unhealthy';
+    const controllerHealthStr = plugin.controllersHealthy > 0 ? 'Healthy' : 'Unhealthy';
     const nodeHealthStr = plugin.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
 
     assert.equal(pluginRow.id, plugin.id);

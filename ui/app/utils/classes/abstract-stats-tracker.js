@@ -18,9 +18,7 @@ export default Mixin.create({
   maxFrameMisses: 5,
 
   fetch() {
-    assert(
-      'StatsTrackers need a fetch method, which should have an interface like window.fetch'
-    );
+    assert('StatsTrackers need a fetch method, which should have an interface like window.fetch');
   },
 
   append(/* frame */) {
@@ -68,7 +66,7 @@ export default Mixin.create({
 
       yield this.fetch(url)
         .then(jsonWithDefault({ error: true }))
-        .then((frame) => this.handleResponse(frame));
+        .then(frame => this.handleResponse(frame));
     } catch (error) {
       throw new Error(error);
     }

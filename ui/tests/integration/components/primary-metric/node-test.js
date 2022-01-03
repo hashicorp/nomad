@@ -30,11 +30,11 @@ module('Integration | Component | PrimaryMetric::Node', function (hooks) {
       @metric={{this.metric}} />
   `;
 
-  const preload = async (store) => {
+  const preload = async store => {
     await store.findAll('node');
   };
 
-  const findResource = (store) => store.peekAll('node').get('firstObject');
+  const findResource = store => store.peekAll('node').get('firstObject');
 
   test('Must pass an accessibility audit', async function (assert) {
     assert.expect(1);

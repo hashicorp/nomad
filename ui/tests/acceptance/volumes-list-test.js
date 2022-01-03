@@ -65,8 +65,8 @@ module('Acceptance | volumes list', function (hooks) {
     const volume = server.create('csi-volume');
     const readAllocs = server.createList('allocation', 2, { shallow: true });
     const writeAllocs = server.createList('allocation', 3, { shallow: true });
-    readAllocs.forEach((alloc) => assignReadAlloc(volume, alloc));
-    writeAllocs.forEach((alloc) => assignWriteAlloc(volume, alloc));
+    readAllocs.forEach(alloc => assignReadAlloc(volume, alloc));
+    writeAllocs.forEach(alloc => assignWriteAlloc(volume, alloc));
 
     await VolumesList.visit();
 
@@ -77,19 +77,14 @@ module('Acceptance | volumes list', function (hooks) {
       const healthy = volume.controllersHealthy;
       const expected = volume.controllersExpected;
       const isHealthy = healthy > 0;
-      controllerHealthStr = `${
-        isHealthy ? 'Healthy' : 'Unhealthy'
-      } (${healthy}/${expected})`;
+      controllerHealthStr = `${isHealthy ? 'Healthy' : 'Unhealthy'} (${healthy}/${expected})`;
     }
 
     const nodeHealthStr = volume.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
 
     assert.equal(volumeRow.name, volume.id);
     assert.notOk(volumeRow.hasNamespace);
-    assert.equal(
-      volumeRow.schedulable,
-      volume.schedulable ? 'Schedulable' : 'Unschedulable'
-    );
+    assert.equal(volumeRow.schedulable, volume.schedulable ? 'Schedulable' : 'Unschedulable');
     assert.equal(volumeRow.controllerHealth, controllerHealthStr);
     assert.equal(
       volumeRow.nodeHealth,
@@ -108,19 +103,13 @@ module('Acceptance | volumes list', function (hooks) {
     await VolumesList.visit({ namespace: '*' });
 
     await VolumesList.volumes.objectAt(0).clickName();
-    assert.equal(
-      currentURL(),
-      `/csi/volumes/${volume.id}?namespace=${secondNamespace.id}`
-    );
+    assert.equal(currentURL(), `/csi/volumes/${volume.id}?namespace=${secondNamespace.id}`);
 
     await VolumesList.visit({ namespace: '*' });
     assert.equal(currentURL(), '/csi/volumes?namespace=*');
 
     await VolumesList.volumes.objectAt(0).clickRow();
-    assert.equal(
-      currentURL(),
-      `/csi/volumes/${volume.id}?namespace=${secondNamespace.id}`
-    );
+    assert.equal(currentURL(), `/csi/volumes/${volume.id}?namespace=${secondNamespace.id}`);
   });
 
   test('when there are no volumes, there is an empty message', async function (assert) {
@@ -254,7 +243,7 @@ module('Acceptance | volumes list', function (hooks) {
       }
 
       assert.deepEqual(
-        facet.options.map((option) => option.label.trim()),
+        facet.options.map(option => option.label.trim()),
         expectation,
         'Options for facet are as expected'
       );
@@ -269,7 +258,7 @@ module('Acceptance | volumes list', function (hooks) {
       await option.select();
 
       const expectedVolumes = server.db.csiVolumes
-        .filter((volume) => filter(volume, selection))
+        .filter(volume => filter(volume, selection))
         .sortBy('id');
 
       VolumesList.volumes.forEach((volume, index) => {

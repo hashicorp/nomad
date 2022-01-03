@@ -46,7 +46,7 @@ module('Acceptance | server monitor', function (hooks) {
   test('the monitor page immediately streams agent monitor output at the info level', async function (assert) {
     await ServerMonitor.visit({ name: agent.name });
 
-    const logRequest = server.pretender.handledRequests.find((req) =>
+    const logRequest = server.pretender.handledRequests.find(req =>
       req.url.startsWith('/v1/agent/monitor')
     );
     assert.ok(ServerMonitor.logsArePresent);

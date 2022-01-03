@@ -65,7 +65,7 @@ module('Integration | Component | app breadcrumbs', function (hooks) {
     assert.expect(3);
 
     let resolvePromise;
-    const promise = new RSVP.Promise((resolve) => {
+    const promise = new RSVP.Promise(resolve => {
       resolvePromise = resolve;
     });
 

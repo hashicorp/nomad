@@ -15,12 +15,12 @@ export default class ExecSocketXtermAdapter {
       this.sendTtySize();
       this.startHeartbeat();
 
-      terminal.onData((data) => {
+      terminal.onData(data => {
         this.handleData(data);
       });
     };
 
-    socket.onmessage = (e) => {
+    socket.onmessage = e => {
       let json = JSON.parse(e.data);
 
       // stderr messages will not be produced as the socket is opened with the tty flag
@@ -51,9 +51,7 @@ export default class ExecSocketXtermAdapter {
   }
 
   sendWsHandshake() {
-    this.socket.send(
-      JSON.stringify({ version: 1, auth_token: this.token || '' })
-    );
+    this.socket.send(JSON.stringify({ version: 1, auth_token: this.token || '' }));
   }
 
   startHeartbeat() {
@@ -67,8 +65,6 @@ export default class ExecSocketXtermAdapter {
   }
 
   handleData(data) {
-    this.socket.send(
-      JSON.stringify({ stdin: { data: base64EncodeString(data) } })
-    );
+    this.socket.send(JSON.stringify({ stdin: { data: base64EncodeString(data) } }));
   }
 }

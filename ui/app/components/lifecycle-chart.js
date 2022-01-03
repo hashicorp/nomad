@@ -22,7 +22,7 @@ export default class LifecycleChart extends Component {
       mains: [],
     };
 
-    tasksOrStates.forEach((taskOrState) => {
+    tasksOrStates.forEach(taskOrState => {
       const task = taskOrState.task || taskOrState;
 
       if (task.lifecycleName) {
@@ -31,7 +31,7 @@ export default class LifecycleChart extends Component {
     });
 
     const phases = [];
-    const stateActiveIterator = (state) => state.state === 'running';
+    const stateActiveIterator = state => state.state === 'running';
 
     if (lifecycles.mains.length < tasksOrStates.length) {
       phases.push({

@@ -34,7 +34,7 @@ export default class DrainPopover extends Component {
       'forceDrain',
       'drainSystemJobs',
       'selectedDurationQuickOption',
-    ].forEach((k) => {
+    ].forEach(k => {
       if (k in this.drainOptions) {
         this[k] = this.drainOptions[k];
       }

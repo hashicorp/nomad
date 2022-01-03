@@ -2,7 +2,7 @@ import { module, test } from 'qunit';
 import * as units from 'nomad-ui/utils/units';
 
 function table(fn, cases) {
-  cases.forEach((testCase) => {
+  cases.forEach(testCase => {
     test(testCase.name || testCase.out, function (assert) {
       assert.deepEqual(fn.apply(null, testCase.in), testCase.out);
     });

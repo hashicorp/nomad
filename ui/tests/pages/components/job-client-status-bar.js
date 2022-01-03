@@ -1,6 +1,6 @@
 import { attribute, clickable, collection } from 'ember-cli-page-object';
 
-export default (scope) => ({
+export default scope => ({
   scope,
 
   slices: collection('svg .bars g', {

@@ -23,8 +23,7 @@ export default class Recommendation extends Model {
   @attr('number') value;
 
   get currentValue() {
-    const resourceProperty =
-      this.resource === 'CPU' ? 'reservedCPU' : 'reservedMemory';
+    const resourceProperty = this.resource === 'CPU' ? 'reservedCPU' : 'reservedMemory';
     return get(this, `task.${resourceProperty}`);
   }
 

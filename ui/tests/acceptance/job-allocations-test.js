@@ -9,7 +9,7 @@ import Allocations from 'nomad-ui/tests/pages/jobs/job/allocations';
 let job;
 let allocations;
 
-const makeSearchAllocations = (server) => {
+const makeSearchAllocations = server => {
   Array(10)
     .fill(null)
     .map((_, index) => {
@@ -61,11 +61,7 @@ module('Acceptance | job allocations', function (hooks) {
 
     Allocations.allocations.forEach((allocation, index) => {
       const shortId = sortedAllocations[index].id.split('-')[0];
-      assert.equal(
-        allocation.shortId,
-        shortId,
-        `Allocation ${index} is ${shortId}`
-      );
+      assert.equal(allocation.shortId, shortId, `Allocation ${index} is ${shortId}`);
     });
 
     assert.equal(document.title, `Job ${job.name} allocations - Nomad`);
@@ -102,11 +98,7 @@ module('Acceptance | job allocations', function (hooks) {
     await Allocations.visit({ id: job.id });
     await Allocations.search('ffffff');
 
-    assert.equal(
-      Allocations.allocations.length,
-      5,
-      'List is filtered by search term'
-    );
+    assert.equal(Allocations.allocations.length, 5, 'List is filtered by search term');
   });
 
   test('when a search yields no results, the search box remains', async function (assert) {
@@ -131,22 +123,14 @@ module('Acceptance | job allocations', function (hooks) {
 
     assert.equal(
       server.pretender.handledRequests
-        .filter((request) => !request.url.includes('policy'))
+        .filter(request => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
     );
-    assert.equal(
-      currentURL(),
-      '/jobs/not-a-real-job/allocations',
-      'The URL persists'
-    );
+    assert.equal(currentURL(), '/jobs/not-a-real-job/allocations', 'The URL persists');
     assert.ok(Allocations.error.isPresent, 'Error message is shown');
-    assert.equal(
-      Allocations.error.title,
-      'Not Found',
-      'Error message is for 404'
-    );
+    assert.equal(Allocations.error.title, 'Not Found', 'Error message is for 404');
   });
 
   testFacet('Status', {
@@ -154,13 +138,12 @@ module('Acceptance | job allocations', function (hooks) {
     paramName: 'status',
     expectedOptions: ['Pending', 'Running', 'Complete', 'Failed', 'Lost'],
     async beforeEach() {
-      ['pending', 'running', 'complete', 'failed', 'lost'].forEach((s) => {
+      ['pending', 'running', 'complete', 'failed', 'lost'].forEach(s => {
         server.createList('allocation', 5, { clientStatus: s });
       });
       await Allocations.visit({ id: job.id });
     },
-    filter: (alloc, selection) =>
-      alloc.jobId == job.id && selection.includes(alloc.clientStatus),
+    filter: (alloc, selection) => alloc.jobId == job.id && selection.includes(alloc.clientStatus),
   });
 
   testFacet('Client', {
@@ -170,9 +153,9 @@ module('Acceptance | job allocations', function (hooks) {
       return Array.from(
         new Set(
           allocs
-            .filter((alloc) => alloc.jobId == job.id)
+            .filter(alloc => alloc.jobId == job.id)
             .mapBy('nodeId')
-            .map((id) => id.split('-')[0])
+            .map(id => id.split('-')[0])
         )
       ).sort();
     },
@@ -191,9 +174,7 @@ module('Acceptance | job allocations', function (hooks) {
     paramName: 'taskGroup',
     expectedOptions(allocs) {
       return Array.from(
-        new Set(
-          allocs.filter((alloc) => alloc.jobId == job.id).mapBy('taskGroup')
-        )
+        new Set(allocs.filter(alloc => alloc.jobId == job.id).mapBy('taskGroup'))
       ).sort();
     },
     async beforeEach() {
@@ -205,15 +186,11 @@ module('Acceptance | job allocations', function (hooks) {
 
       await Allocations.visit({ id: job.id });
     },
-    filter: (alloc, selection) =>
-      alloc.jobId == job.id && selection.includes(alloc.taskGroup),
+    filter: (alloc, selection) => alloc.jobId == job.id && selection.includes(alloc.taskGroup),
   });
 });
 
-function testFacet(
-  label,
-  { facet, paramName, beforeEach, filter, expectedOptions }
-) {
+function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
   test(`facet ${label} | the ${label} facet has the correct options`, async function (assert) {
     await beforeEach();
     await facet.toggle();
@@ -226,7 +203,7 @@ function testFacet(
     }
 
     assert.deepEqual(
-      facet.options.map((option) => option.label.trim()),
+      facet.options.map(option => option.label.trim()),
       expectation,
       'Options for facet are as expected'
     );
@@ -243,7 +220,7 @@ function testFacet(
 
     const selection = [option.key];
     const expectedAllocs = server.db.allocations
-      .filter((alloc) => filter(alloc, selection))
+      .filter(alloc => filter(alloc, selection))
       .sortBy('modifyIndex')
       .reverse();
 
@@ -270,7 +247,7 @@ function testFacet(
     selection.push(option2.key);
 
     const expectedAllocs = server.db.allocations
-      .filter((alloc) => filter(alloc, selection))
+      .filter(alloc => filter(alloc, selection))
       .sortBy('modifyIndex')
       .reverse();
 
@@ -298,9 +275,7 @@ function testFacet(
 
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}/allocations?${paramName}=${encodeURIComponent(
-        JSON.stringify(selection)
-      )}`,
+      `/jobs/${job.id}/allocations?${paramName}=${encodeURIComponent(JSON.stringify(selection))}`,
       'URL has the correct query param key and value'
     );
   });

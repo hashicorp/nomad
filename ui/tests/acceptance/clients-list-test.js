@@ -40,11 +40,7 @@ module('Acceptance | clients list', function (hooks) {
     const sortedNodes = server.db.nodes.sortBy('modifyIndex').reverse();
 
     ClientsList.nodes.forEach((node, index) => {
-      assert.equal(
-        node.id,
-        sortedNodes[index].id.split('-')[0],
-        'Clients are ordered'
-      );
+      assert.equal(node.id, sortedNodes[index].id.split('-')[0], 'Clients are ordered');
     });
 
     assert.equal(document.title, 'Clients - Nomad');
@@ -146,7 +142,7 @@ module('Acceptance | clients list', function (hooks) {
 
     await ClientsList.visit();
 
-    ClientsList.nodes[0].compositeStatus.as((readyClient) => {
+    ClientsList.nodes[0].compositeStatus.as(readyClient => {
       assert.equal(readyClient.text, 'ready');
       assert.ok(readyClient.isUnformatted, 'expected no status class');
       assert.equal(readyClient.tooltip, 'ready / not draining / eligible');
@@ -161,16 +157,10 @@ module('Acceptance | clients list', function (hooks) {
     );
 
     assert.equal(ClientsList.nodes[4].compositeStatus.text, 'ineligible');
-    assert.ok(
-      ClientsList.nodes[4].compositeStatus.isWarning,
-      'expected warning class'
-    );
+    assert.ok(ClientsList.nodes[4].compositeStatus.isWarning, 'expected warning class');
 
     assert.equal(ClientsList.nodes[5].compositeStatus.text, 'draining');
-    assert.ok(
-      ClientsList.nodes[5].compositeStatus.isInfo,
-      'expected info class'
-    );
+    assert.ok(ClientsList.nodes[5].compositeStatus.isInfo, 'expected info class');
 
     await ClientsList.sortBy('compositeStatus');
 
@@ -184,10 +174,7 @@ module('Acceptance | clients list', function (hooks) {
     ]);
 
     // Simulate a client state change arriving through polling
-    let readyClient = this.owner
-      .lookup('service:store')
-      .peekAll('node')
-      .findBy('modifyIndex', 5);
+    let readyClient = this.owner.lookup('service:store').peekAll('node').findBy('modifyIndex', 5);
     readyClient.set('schedulingEligibility', 'ineligible');
 
     await settled();
@@ -278,13 +265,7 @@ module('Acceptance | clients list', function (hooks) {
   testFacet('State', {
     facet: ClientsList.facets.state,
     paramName: 'state',
-    expectedOptions: [
-      'Initializing',
-      'Ready',
-      'Down',
-      'Ineligible',
-      'Draining',
-    ],
+    expectedOptions: ['Initializing', 'Ready', 'Down', 'Ineligible', 'Draining'],
     async beforeEach() {
       server.create('agent');
 
@@ -309,10 +290,7 @@ module('Acceptance | clients list', function (hooks) {
     },
     filter: (node, selection) => {
       if (selection.includes('draining') && !node.drain) return false;
-      if (
-        selection.includes('ineligible') &&
-        node.schedulingEligibility === 'eligible'
-      )
+      if (selection.includes('ineligible') && node.schedulingEligibility === 'eligible')
         return false;
 
       return selection.includes(node.status);
@@ -356,9 +334,7 @@ module('Acceptance | clients list', function (hooks) {
     paramName: 'volume',
     expectedOptions(nodes) {
       const flatten = (acc, val) => acc.concat(Object.keys(val));
-      return Array.from(
-        new Set(nodes.mapBy('hostVolumes').reduce(flatten, []))
-      );
+      return Array.from(new Set(nodes.mapBy('hostVolumes').reduce(flatten, [])));
     },
     async beforeEach() {
       server.create('agent');
@@ -370,9 +346,7 @@ module('Acceptance | clients list', function (hooks) {
       await ClientsList.visit();
     },
     filter: (node, selection) =>
-      Object.keys(node.hostVolumes).find((volume) =>
-        selection.includes(volume)
-      ),
+      Object.keys(node.hostVolumes).find(volume => selection.includes(volume)),
   });
 
   test('when the facet selections result in no matches, the empty state states why', async function (assert) {
@@ -384,11 +358,7 @@ module('Acceptance | clients list', function (hooks) {
     await ClientsList.facets.state.toggle();
     await ClientsList.facets.state.options.objectAt(0).toggle();
     assert.ok(ClientsList.isEmpty, 'There is an empty message');
-    assert.equal(
-      ClientsList.empty.headline,
-      'No Matches',
-      'The message is appropriate'
-    );
+    assert.equal(ClientsList.empty.headline, 'No Matches', 'The message is appropriate');
   });
 
   test('the clients list is immediately filtered based on query params', async function (assert) {
@@ -398,17 +368,10 @@ module('Acceptance | clients list', function (hooks) {
 
     await ClientsList.visit({ class: JSON.stringify(['wtf-tiny']) });
 
-    assert.equal(
-      ClientsList.nodes.length,
-      1,
-      'Only one client shown due to query param'
-    );
+    assert.equal(ClientsList.nodes.length, 1, 'Only one client shown due to query param');
   });
 
-  function testFacet(
-    label,
-    { facet, paramName, beforeEach, filter, expectedOptions }
-  ) {
+  function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
     test(`the ${label} facet has the correct options`, async function (assert) {
       await beforeEach();
       await facet.toggle();
@@ -421,7 +384,7 @@ module('Acceptance | clients list', function (hooks) {
       }
 
       assert.deepEqual(
-        facet.options.map((option) => option.label.trim()),
+        facet.options.map(option => option.label.trim()),
         expectation,
         'Options for facet are as expected'
       );
@@ -438,7 +401,7 @@ module('Acceptance | clients list', function (hooks) {
 
       const selection = [option.key];
       const expectedNodes = server.db.nodes
-        .filter((node) => filter(node, selection))
+        .filter(node => filter(node, selection))
         .sortBy('modifyIndex')
         .reverse();
 
@@ -465,7 +428,7 @@ module('Acceptance | clients list', function (hooks) {
       selection.push(option2.key);
 
       const expectedNodes = server.db.nodes
-        .filter((node) => filter(node, selection))
+        .filter(node => filter(node, selection))
         .sortBy('modifyIndex')
         .reverse();
 
@@ -493,9 +456,7 @@ module('Acceptance | clients list', function (hooks) {
 
       assert.equal(
         currentURL(),
-        `/clients?${paramName}=${encodeURIComponent(
-          JSON.stringify(selection)
-        )}`,
+        `/clients?${paramName}=${encodeURIComponent(JSON.stringify(selection))}`,
         'URL has the correct query param key and value'
       );
     });

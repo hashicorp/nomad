@@ -2,12 +2,7 @@ import { pluralize } from 'ember-inflector';
 import { test } from 'qunit';
 import { selectChoose } from 'ember-power-select/test-support';
 
-export default function pageSizeSelect({
-  resourceName,
-  pageObject,
-  pageObjectList,
-  setup,
-}) {
+export default function pageSizeSelect({ resourceName, pageObject, pageObjectList, setup }) {
   test(`the number of ${pluralize(
     resourceName
   )} is equal to the localStorage user setting for page size`, async function (assert) {

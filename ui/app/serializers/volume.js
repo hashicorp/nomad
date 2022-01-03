@@ -44,12 +44,7 @@ export default class VolumeSerializer extends ApplicationSerializer {
     }
 
     const normalizedHash = super.normalize(typeHash, hash);
-    return this.extractEmbeddedRecords(
-      this,
-      this.store,
-      typeHash,
-      normalizedHash
-    );
+    return this.extractEmbeddedRecords(this, this.store, typeHash, normalizedHash);
   }
 
   keyForRelationship(attr, relationshipType) {
@@ -63,7 +58,7 @@ export default class VolumeSerializer extends ApplicationSerializer {
   extractEmbeddedRecords(serializer, store, typeHash, partial) {
     partial.included = partial.included || [];
 
-    this.embeddedRelationships.forEach((embed) => {
+    this.embeddedRelationships.forEach(embed => {
       const relationshipMeta = typeHash.relationshipsByName.get(embed);
       const relationship = get(partial, `data.relationships.${embed}.data`);
 

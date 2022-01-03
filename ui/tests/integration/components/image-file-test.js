@@ -49,11 +49,7 @@ module('Integration | Component | image file', function (hooks) {
       commonProperties.src,
       `href is ${commonProperties.src}`
     );
-    assert.equal(
-      find('a').getAttribute('target'),
-      '_blank',
-      'Anchor opens to a new tab'
-    );
+    assert.equal(find('a').getAttribute('target'), '_blank', 'Anchor opens to a new tab');
     assert.equal(
       find('a').getAttribute('rel'),
       'noopener noreferrer',
@@ -86,9 +82,7 @@ module('Integration | Component | image file', function (hooks) {
       'Width and height are formatted correctly'
     );
     assert.ok(
-      statsEl.textContent
-        .trim()
-        .endsWith(formatBytes(commonProperties.size) + ')'),
+      statsEl.textContent.trim().endsWith(formatBytes(commonProperties.size) + ')'),
       'Human-formatted size is included'
     );
   });
@@ -97,7 +91,7 @@ module('Integration | Component | image file', function (hooks) {
 function notifyingSpy() {
   // The notifier must resolve when the spy wrapper is called
   let dispatch;
-  const notifier = new RSVP.Promise((resolve) => {
+  const notifier = new RSVP.Promise(resolve => {
     dispatch = resolve;
   });
 

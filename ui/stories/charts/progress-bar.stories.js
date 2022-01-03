@@ -126,14 +126,9 @@ export let LiveUpdates = () => {
           return Math.round(this.denominator * this.percentage * 100) / 100;
         }),
 
-        liveDetails: computed(
-          'denominator',
-          'numerator',
-          'percentage',
-          function () {
-            return this.getProperties('denominator', 'numerator', 'percentage');
-          }
-        ),
+        liveDetails: computed('denominator', 'numerator', 'percentage', function () {
+          return this.getProperties('denominator', 'numerator', 'percentage');
+        }),
       }).create(),
     },
   };

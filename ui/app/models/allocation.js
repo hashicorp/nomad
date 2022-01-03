@@ -127,11 +127,7 @@ export default class Allocation extends Model {
     return this.get('rescheduleEvents.length') > 0 || this.nextAllocation;
   }
 
-  @computed(
-    'clientStatus',
-    'followUpEvaluation.content',
-    'nextAllocation.content'
-  )
+  @computed('clientStatus', 'followUpEvaluation.content', 'nextAllocation.content')
   get hasStoppedRescheduling() {
     return (
       !this.get('nextAllocation.content') &&

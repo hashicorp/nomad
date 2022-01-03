@@ -39,13 +39,10 @@ module('Integration | Component | plugin allocation row', function (hooks) {
       <PluginAllocationRow @pluginAllocation={{plugin}} />
     `);
 
-    const allocationRequest = this.server.pretender.handledRequests.find(
-      (req) => req.url.startsWith('/v1/allocation')
+    const allocationRequest = this.server.pretender.handledRequests.find(req =>
+      req.url.startsWith('/v1/allocation')
     );
-    assert.equal(
-      allocationRequest.url,
-      `/v1/allocation/${storageController.allocID}`
-    );
+    assert.equal(allocationRequest.url, `/v1/allocation/${storageController.allocID}`);
     await componentA11yAudit(this.element, assert);
   });
 
@@ -68,10 +65,7 @@ module('Integration | Component | plugin allocation row', function (hooks) {
 
     const [statsRequest] = this.server.pretender.handledRequests.slice(-1);
 
-    assert.equal(
-      statsRequest.url,
-      `/v1/client/allocation/${storageController.allocID}/stats`
-    );
+    assert.equal(statsRequest.url, `/v1/client/allocation/${storageController.allocID}/stats`);
   });
 
   test('Setting a new plugin fetches the new plugin allocation', async function (assert) {
@@ -94,25 +88,19 @@ module('Integration | Component | plugin allocation row', function (hooks) {
       <PluginAllocationRow @pluginAllocation={{plugin}} />
     `);
 
-    const allocationRequest = this.server.pretender.handledRequests.find(
-      (req) => req.url.startsWith('/v1/allocation')
+    const allocationRequest = this.server.pretender.handledRequests.find(req =>
+      req.url.startsWith('/v1/allocation')
     );
 
-    assert.equal(
-      allocationRequest.url,
-      `/v1/allocation/${storageController.allocID}`
-    );
+    assert.equal(allocationRequest.url, `/v1/allocation/${storageController.allocID}`);
 
     this.set('plugin', pluginRecord.get('controllers').toArray()[1]);
     await settled();
 
     const latestAllocationRequest = this.server.pretender.handledRequests
-      .filter((req) => req.url.startsWith('/v1/allocation'))
+      .filter(req => req.url.startsWith('/v1/allocation'))
       .reverse()[0];
 
-    assert.equal(
-      latestAllocationRequest.url,
-      `/v1/allocation/${storageController2.allocID}`
-    );
+    assert.equal(latestAllocationRequest.url, `/v1/allocation/${storageController2.allocID}`);
   });
 });

@@ -39,7 +39,7 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
 
     const allocation = this.store
       .peekAll('allocation')
-      .find((alloc) => !alloc.get('nextAllocation.content'));
+      .find(alloc => !alloc.get('nextAllocation.content'));
 
     this.set('allocation', allocation);
     await render(commonTemplate);
@@ -90,7 +90,7 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
 
     const allocation = this.store
       .peekAll('allocation')
-      .find((alloc) => !alloc.get('nextAllocation.content'));
+      .find(alloc => !alloc.get('nextAllocation.content'));
 
     this.set('allocation', allocation);
     await render(commonTemplate);
@@ -99,10 +99,7 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
       find('[data-test-stop-warning]'),
       'Stop warning is shown since the last allocation failed'
     );
-    assert.notOk(
-      find('[data-test-attempt-notice]'),
-      'Reschdule attempt notice is not shown'
-    );
+    assert.notOk(find('[data-test-attempt-notice]'), 'Reschdule attempt notice is not shown');
 
     await componentA11yAudit(this.element, assert);
   });
@@ -130,7 +127,7 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
 
     let allocation = this.store
       .peekAll('allocation')
-      .find((alloc) => !alloc.get('nextAllocation.content'));
+      .find(alloc => !alloc.get('nextAllocation.content'));
     this.set('allocation', allocation);
 
     await render(commonTemplate);
@@ -154,9 +151,7 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
 
     await this.store.findAll('allocation');
 
-    const allocation = this.store
-      .peekAll('allocation')
-      .findBy('id', originalAllocation.id);
+    const allocation = this.store.peekAll('allocation').findBy('id', originalAllocation.id);
 
     this.set('allocation', allocation);
     await render(commonTemplate);
@@ -168,9 +163,7 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
     );
 
     assert.equal(
-      find(
-        '[data-test-allocation] [data-test-allocation-link]'
-      ).textContent.trim(),
+      find('[data-test-allocation] [data-test-allocation-link]').textContent.trim(),
       allocation.get('nextAllocation.shortId'),
       'The next allocation item is for the correct allocation'
     );

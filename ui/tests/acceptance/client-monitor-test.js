@@ -38,10 +38,7 @@ module('Acceptance | client monitor', function (hooks) {
     await ClientMonitor.visit({ id: node.id });
 
     assert.equal(Layout.breadcrumbFor('clients.index').text, 'Clients');
-    assert.equal(
-      Layout.breadcrumbFor('clients.client').text,
-      node.id.split('-')[0]
-    );
+    assert.equal(Layout.breadcrumbFor('clients.client').text, node.id.split('-')[0]);
 
     await Layout.breadcrumbFor('clients.index').visit();
     assert.equal(currentURL(), '/clients');
@@ -50,7 +47,7 @@ module('Acceptance | client monitor', function (hooks) {
   test('the monitor page immediately streams agent monitor output at the info level', async function (assert) {
     await ClientMonitor.visit({ id: node.id });
 
-    const logRequest = server.pretender.handledRequests.find((req) =>
+    const logRequest = server.pretender.handledRequests.find(req =>
       req.url.startsWith('/v1/agent/monitor')
     );
     assert.ok(ClientMonitor.logsArePresent);

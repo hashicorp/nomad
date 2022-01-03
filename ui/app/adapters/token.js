@@ -8,7 +8,7 @@ export default class TokenAdapter extends ApplicationAdapter {
   namespace = namespace + '/acl';
 
   findSelf() {
-    return this.ajax(`${this.buildURL()}/token/self`, 'GET').then((token) => {
+    return this.ajax(`${this.buildURL()}/token/self`, 'GET').then(token => {
       const store = this.store;
       store.pushPayload('token', {
         tokens: [token],
@@ -30,10 +30,7 @@ export default class TokenAdapter extends ApplicationAdapter {
           tokens: [token],
         });
 
-        return store.peekRecord(
-          'token',
-          store.normalize('token', token).data.id
-        );
+        return store.peekRecord('token', store.normalize('token', token).data.id);
       })
       .catch(() => {
         throw new OTTExchangeError();

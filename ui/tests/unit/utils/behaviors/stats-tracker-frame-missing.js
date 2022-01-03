@@ -3,7 +3,7 @@ import { test } from 'qunit';
 import sinon from 'sinon';
 import { settled } from '@ember/test-helpers';
 
-const MockResponse = (json) => ({
+const MockResponse = json => ({
   ok: true,
   json() {
     return resolve(json);
@@ -36,37 +36,21 @@ export default function statsTrackerFrameMissing({
     await settled();
 
     assert.deepEqual(tracker.get('cpu'), [compiledCPU], 'One frame of cpu');
-    assert.deepEqual(
-      tracker.get('memory'),
-      [compiledMemory],
-      'One frame of memory'
-    );
+    assert.deepEqual(tracker.get('memory'), [compiledMemory], 'One frame of memory');
 
     shouldFail = true;
     tracker.get('poll').perform();
     await settled();
 
-    assert.deepEqual(
-      tracker.get('cpu'),
-      [compiledCPU],
-      'Still one frame of cpu'
-    );
-    assert.deepEqual(
-      tracker.get('memory'),
-      [compiledMemory],
-      'Still one frame of memory'
-    );
+    assert.deepEqual(tracker.get('cpu'), [compiledCPU], 'Still one frame of cpu');
+    assert.deepEqual(tracker.get('memory'), [compiledMemory], 'Still one frame of memory');
     assert.equal(tracker.get('frameMisses'), 1, 'Frame miss is tracked');
 
     shouldFail = false;
     tracker.get('poll').perform();
     await settled();
 
-    assert.deepEqual(
-      tracker.get('cpu'),
-      [compiledCPU, compiledCPU],
-      'Still one frame of cpu'
-    );
+    assert.deepEqual(tracker.get('cpu'), [compiledCPU, compiledCPU], 'Still one frame of cpu');
     assert.deepEqual(
       tracker.get('memory'),
       [compiledMemory, compiledMemory],
@@ -104,9 +88,6 @@ export default function statsTrackerFrameMissing({
     await settled();
 
     assert.equal(tracker.get('frameMisses'), 0, 'Misses reset');
-    assert.ok(
-      tracker.pause.called,
-      'Pause called now that frameMisses == maxFrameMisses'
-    );
+    assert.ok(tracker.pause.called, 'Pause called now that frameMisses == maxFrameMisses');
   });
 }

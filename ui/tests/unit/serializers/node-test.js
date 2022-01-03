@@ -19,11 +19,7 @@ module('Unit | Serializer | Node', function (hooks) {
       makeNode('3', 'Three', '127.0.0.3:4646'),
     ];
 
-    const payload = this.subject().normalizeFindAllResponse(
-      this.store,
-      NodeModel,
-      findAllResponse
-    );
+    const payload = this.subject().normalizeFindAllResponse(this.store, NodeModel, findAllResponse);
     pushPayloadToStore(this.store, payload, NodeModel.modelName);
 
     assert.equal(
@@ -67,10 +63,7 @@ module('Unit | Serializer | Node', function (hooks) {
       'The node length in the store reflects the new response'
     );
 
-    assert.notOk(
-      this.store.peekAll('node').findBy('id', '1'),
-      'Record One is no longer found'
-    );
+    assert.notOk(this.store.peekAll('node').findBy('id', '1'), 'Record One is no longer found');
   });
 
   function makeNode(id, name, ip) {
@@ -207,12 +200,9 @@ module('Unit | Serializer | Node', function (hooks) {
     },
   ];
 
-  normalizationTestCases.forEach((testCase) => {
+  normalizationTestCases.forEach(testCase => {
     test(`normalization: ${testCase.name}`, async function (assert) {
-      assert.deepEqual(
-        this.subject().normalize(NodeModel, testCase.in),
-        testCase.out
-      );
+      assert.deepEqual(this.subject().normalize(NodeModel, testCase.in), testCase.out);
     });
   });
 });

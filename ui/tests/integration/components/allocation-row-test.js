@@ -83,7 +83,7 @@ module('Integration | Component | allocation row', function (hooks) {
 
     const node = this.server.schema.nodes.first();
     const drivers = node.drivers;
-    Object.values(drivers).forEach((driver) => {
+    Object.values(drivers).forEach(driver => {
       driver.Healthy = false;
       driver.Detected = true;
     });
@@ -107,10 +107,7 @@ module('Integration | Component | allocation row', function (hooks) {
         @context={{context}} />
     `);
 
-    assert.ok(
-      find('[data-test-icon="unhealthy-driver"]'),
-      'Unhealthy driver icon is shown'
-    );
+    assert.ok(find('[data-test-icon="unhealthy-driver"]'), 'Unhealthy driver icon is shown');
     await componentA11yAudit(this.element, assert);
   });
 
@@ -140,7 +137,7 @@ module('Integration | Component | allocation row', function (hooks) {
     });
 
     // All non-running statuses need to be tested
-    ['pending', 'complete', 'failed', 'lost'].forEach((clientStatus) =>
+    ['pending', 'complete', 'failed', 'lost'].forEach(clientStatus =>
       this.server.create('allocation', { clientStatus })
     );
 
@@ -158,14 +155,8 @@ module('Integration | Component | allocation row', function (hooks) {
         `);
 
       const status = allocation.get('clientStatus');
-      assert.notOk(
-        find('[data-test-cpu] .inline-chart'),
-        `No CPU chart for ${status}`
-      );
-      assert.notOk(
-        find('[data-test-mem] .inline-chart'),
-        `No Mem chart for ${status}`
-      );
+      assert.notOk(find('[data-test-cpu] .inline-chart'), `No CPU chart for ${status}`);
+      assert.notOk(find('[data-test-mem] .inline-chart'), `No Mem chart for ${status}`);
     }
   });
 });

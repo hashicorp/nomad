@@ -47,12 +47,11 @@ module('Integration | Component | PrimaryMetric::Task', function (hooks) {
       @metric={{this.metric}} />
   `;
 
-  const preload = async (store) => {
+  const preload = async store => {
     await store.findAll('allocation');
   };
 
-  const findResource = (store) =>
-    store.peekAll('allocation').get('firstObject.states.firstObject');
+  const findResource = store => store.peekAll('allocation').get('firstObject.states.firstObject');
 
   test('Must pass an accessibility audit', async function (assert) {
     assert.expect(1);

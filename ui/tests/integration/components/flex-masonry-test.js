@@ -6,7 +6,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 // Used to prevent XSS warnings in console
-const h = (height) => htmlSafe(`height:${height}px`);
+const h = height => htmlSafe(`height:${height}px`);
 
 module('Integration | Component | FlexMasonry', function (hooks) {
   setupRenderingTest(hooks);
@@ -47,10 +47,7 @@ module('Integration | Component | FlexMasonry', function (hooks) {
       </FlexMasonry>
     `);
 
-    assert.equal(
-      findAll('[data-test-flex-masonry-item]').length,
-      this.items.length
-    );
+    assert.equal(findAll('[data-test-flex-masonry-item]').length, this.items.length);
   });
 
   test('the @withSpacing arg adds the with-spacing class', async function (assert) {
@@ -62,9 +59,7 @@ module('Integration | Component | FlexMasonry', function (hooks) {
       </FlexMasonry>
     `);
 
-    assert.ok(
-      find('[data-test-flex-masonry]').classList.contains('with-spacing')
-    );
+    assert.ok(find('[data-test-flex-masonry]').classList.contains('with-spacing'));
   });
 
   test('individual items along with the reflow action are yielded', async function (assert) {
@@ -208,7 +203,7 @@ module('Integration | Component | FlexMasonry', function (hooks) {
     this.set('columns', 1);
     await settled();
 
-    findAll('[data-test-flex-masonry-item]').forEach((el) => {
+    findAll('[data-test-flex-masonry-item]').forEach(el => {
       assert.equal(el.style.flexBasis, '');
       assert.equal(el.style.order, '');
     });

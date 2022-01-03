@@ -28,10 +28,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
       send(message) {
         if (firstMessage) {
           firstMessage = false;
-          assert.deepEqual(
-            message,
-            JSON.stringify({ version: 1, auth_token: 'mysecrettoken' })
-          );
+          assert.deepEqual(message, JSON.stringify({ version: 1, auth_token: 'mysecrettoken' }));
           mockSocket.onclose();
           done();
         }
@@ -62,10 +59,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
       send(message) {
         if (firstMessage) {
           firstMessage = false;
-          assert.deepEqual(
-            message,
-            JSON.stringify({ version: 1, auth_token: '' })
-          );
+          assert.deepEqual(message, JSON.stringify({ version: 1, auth_token: '' }));
           mockSocket.onclose();
           done();
         }
@@ -193,10 +187,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function (hooks) {
 
     await settled();
 
-    assert.equal(
-      terminal.buffer.active.getLine(0).translateToString().trim(),
-      'sh-3.2 🥳$'
-    );
+    assert.equal(terminal.buffer.active.getLine(0).translateToString().trim(), 'sh-3.2 🥳$');
 
     mockSocket.onclose();
   });

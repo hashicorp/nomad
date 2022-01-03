@@ -56,11 +56,7 @@ module('Acceptance | volume detail', function (hooks) {
   test('/csi/volumes/:id should list additional details for the volume below the title', async function (assert) {
     await VolumeDetail.visit({ id: volume.id });
 
-    assert.ok(
-      VolumeDetail.health.includes(
-        volume.schedulable ? 'Schedulable' : 'Unschedulable'
-      )
-    );
+    assert.ok(VolumeDetail.health.includes(volume.schedulable ? 'Schedulable' : 'Unschedulable'));
     assert.ok(VolumeDetail.provider.includes(volume.provider));
     assert.ok(VolumeDetail.externalId.includes(volume.externalId));
     assert.notOk(
@@ -72,8 +68,8 @@ module('Acceptance | volume detail', function (hooks) {
   test('/csi/volumes/:id should list all write allocations the volume is attached to', async function (assert) {
     const writeAllocations = server.createList('allocation', 2);
     const readAllocations = server.createList('allocation', 3);
-    writeAllocations.forEach((alloc) => assignWriteAlloc(volume, alloc));
-    readAllocations.forEach((alloc) => assignReadAlloc(volume, alloc));
+    writeAllocations.forEach(alloc => assignWriteAlloc(volume, alloc));
+    readAllocations.forEach(alloc => assignReadAlloc(volume, alloc));
 
     await VolumeDetail.visit({ id: volume.id });
 
@@ -82,18 +78,15 @@ module('Acceptance | volume detail', function (hooks) {
       .sortBy('modifyIndex')
       .reverse()
       .forEach((allocation, idx) => {
-        assert.equal(
-          allocation.id,
-          VolumeDetail.writeAllocations.objectAt(idx).id
-        );
+        assert.equal(allocation.id, VolumeDetail.writeAllocations.objectAt(idx).id);
       });
   });
 
   test('/csi/volumes/:id should list all read allocations the volume is attached to', async function (assert) {
     const writeAllocations = server.createList('allocation', 2);
     const readAllocations = server.createList('allocation', 3);
-    writeAllocations.forEach((alloc) => assignWriteAlloc(volume, alloc));
-    readAllocations.forEach((alloc) => assignReadAlloc(volume, alloc));
+    writeAllocations.forEach(alloc => assignWriteAlloc(volume, alloc));
+    readAllocations.forEach(alloc => assignReadAlloc(volume, alloc));
 
     await VolumeDetail.visit({ id: volume.id });
 
@@ -102,10 +95,7 @@ module('Acceptance | volume detail', function (hooks) {
       .sortBy('modifyIndex')
       .reverse()
       .forEach((allocation, idx) => {
-        assert.equal(
-          allocation.id,
-          VolumeDetail.readAllocations.objectAt(idx).id
-        );
+        assert.equal(allocation.id, VolumeDetail.readAllocations.objectAt(idx).id);
       });
   });
 
@@ -119,21 +109,14 @@ module('Acceptance | volume detail', function (hooks) {
       jobId: allocation.jobId,
     });
 
-    const tasks = taskGroup.taskIds.map((id) => server.db.tasks.find(id));
+    const tasks = taskGroup.taskIds.map(id => server.db.tasks.find(id));
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
-    const memoryUsed = tasks.reduce(
-      (sum, task) => sum + task.resources.MemoryMB,
-      0
-    );
+    const memoryUsed = tasks.reduce((sum, task) => sum + task.resources.MemoryMB, 0);
 
     await VolumeDetail.visit({ id: volume.id });
 
-    VolumeDetail.writeAllocations.objectAt(0).as((allocationRow) => {
-      assert.equal(
-        allocationRow.shortId,
-        allocation.id.split('-')[0],
-        'Allocation short ID'
-      );
+    VolumeDetail.writeAllocations.objectAt(0).as(allocationRow => {
+      assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation short ID');
       assert.equal(
         allocationRow.createTime,
         moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
@@ -144,16 +127,8 @@ module('Acceptance | volume detail', function (hooks) {
         moment(allocation.modifyTime / 1000000).fromNow(),
         'Allocation modify time'
       );
-      assert.equal(
-        allocationRow.status,
-        allocation.clientStatus,
-        'Client status'
-      );
-      assert.equal(
-        allocationRow.job,
-        server.db.jobs.find(allocation.jobId).name,
-        'Job name'
-      );
+      assert.equal(allocationRow.status, allocation.clientStatus, 'Client status');
+      assert.equal(allocationRow.job, server.db.jobs.find(allocation.jobId).name, 'Job name');
       assert.ok(allocationRow.taskGroup, 'Task group name');
       assert.ok(allocationRow.jobVersion, 'Job Version');
       assert.equal(
@@ -171,9 +146,7 @@ module('Acceptance | volume detail', function (hooks) {
         Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
         'CPU %'
       );
-      const roundedTicks = Math.floor(
-        allocStats.resourceUsage.CpuStats.TotalTicks
-      );
+      const roundedTicks = Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks);
       assert.equal(
         allocationRow.cpuTooltip,
         `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
@@ -186,9 +159,10 @@ module('Acceptance | volume detail', function (hooks) {
       );
       assert.equal(
         allocationRow.memTooltip,
-        `${formatBytes(
-          allocStats.resourceUsage.MemoryStats.RSS
-        )} / ${formatBytes(memoryUsed, 'MiB')}`,
+        `${formatBytes(allocStats.resourceUsage.MemoryStats.RSS)} / ${formatBytes(
+          memoryUsed,
+          'MiB'
+        )}`,
         'Detailed memory information is in a tooltip'
       );
     });
@@ -222,10 +196,7 @@ module('Acceptance | volume detail', function (hooks) {
     await VolumeDetail.visit({ id: volume.id });
 
     assert.equal(VolumeDetail.constraints.accessMode, volume.accessMode);
-    assert.equal(
-      VolumeDetail.constraints.attachmentMode,
-      volume.attachmentMode
-    );
+    assert.equal(VolumeDetail.constraints.attachmentMode, volume.attachmentMode);
   });
 });
 

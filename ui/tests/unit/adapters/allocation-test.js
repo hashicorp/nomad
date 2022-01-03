@@ -28,10 +28,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
       this.system.get('shouldIncludeRegion');
       await this.system.get('defaultRegion');
 
-      const allocation = await this.store.findRecord(
-        'allocation',
-        allocationId
-      );
+      const allocation = await this.store.findRecord('allocation', allocationId);
       this.server.pretender.handledRequests.length = 0;
 
       return allocation;
@@ -49,12 +46,8 @@ module('Unit | Adapter | Allocation', function (hooks) {
       task: 'task-name',
       region: null,
       path: 'some/path',
-      ls: `GET /v1/client/fs/ls/alloc-1?path=${encodeURIComponent(
-        'some/path'
-      )}`,
-      stat: `GET /v1/client/fs/stat/alloc-1?path=${encodeURIComponent(
-        'some/path'
-      )}`,
+      ls: `GET /v1/client/fs/ls/alloc-1?path=${encodeURIComponent('some/path')}`,
+      stat: `GET /v1/client/fs/stat/alloc-1?path=${encodeURIComponent('some/path')}`,
       stop: 'POST /v1/allocation/alloc-1/stop',
       restart: 'PUT /v1/client/allocation/alloc-1/restart',
     },
@@ -64,9 +57,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
       task: 'task-name',
       region: 'region-2',
       path: 'some/path',
-      ls: `GET /v1/client/fs/ls/alloc-1?path=${encodeURIComponent(
-        'some/path'
-      )}&region=region-2`,
+      ls: `GET /v1/client/fs/ls/alloc-1?path=${encodeURIComponent('some/path')}&region=region-2`,
       stat: `GET /v1/client/fs/stat/alloc-1?path=${encodeURIComponent(
         'some/path'
       )}&region=region-2`,
@@ -75,7 +66,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
     },
   ];
 
-  testCases.forEach((testCase) => {
+  testCases.forEach(testCase => {
     test(`ls makes the correct API call ${testCase.variation}`, async function (assert) {
       const { pretender } = this.server;
       const allocation = await this.initialize(testCase.id, {

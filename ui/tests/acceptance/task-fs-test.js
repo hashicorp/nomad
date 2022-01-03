@@ -23,8 +23,7 @@ module('Acceptance | task fs', function (hooks) {
       jobId: job.id,
       clientStatus: 'running',
     });
-    task = server.schema.taskStates.where({ allocationId: allocation.id })
-      .models[0];
+    task = server.schema.taskStates.where({ allocationId: allocation.id }).models[0];
     task.name = 'task-name';
     task.save();
 
@@ -93,8 +92,7 @@ module('Acceptance | task fs', function (hooks) {
       id: allocation.id,
       name: task.name,
     }),
-    getExpectedPathBase: ({ allocation, task }) =>
-      `/allocations/${allocation.id}/${task.name}/fs/`,
+    getExpectedPathBase: ({ allocation, task }) => `/allocations/${allocation.id}/${task.name}/fs/`,
     getTitleComponent: ({ task }) => `Task ${task.name} filesystem`,
     getBreadcrumbComponent: ({ task }) => task.name,
     getFilesystemRoot: ({ task }) => task.name,

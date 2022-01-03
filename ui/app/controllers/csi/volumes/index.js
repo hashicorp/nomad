@@ -66,7 +66,7 @@ export default class IndexController extends Controller.extend(
 
   @computed('qpNamespace', 'model.namespaces.[]', 'system.cachedNamespace')
   get optionsNamespaces() {
-    const availableNamespaces = this.model.namespaces.map((namespace) => ({
+    const availableNamespaces = this.model.namespaces.map(namespace => ({
       key: namespace.name,
       label: namespace.name,
     }));

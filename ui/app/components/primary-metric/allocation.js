@@ -37,7 +37,7 @@ export default class AllocationPrimaryMetric extends Component {
   @computed('tracker.tasks.[]', 'metric')
   get series() {
     const ret = this.tracker.tasks
-      .map((task) => ({
+      .map(task => ({
         name: task.task,
         data: task[this.metric],
       }))

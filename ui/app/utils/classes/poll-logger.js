@@ -21,7 +21,7 @@ export default class PollLogger extends EmberObject.extend(AbstractLogger) {
     const { interval, logFetch } = this;
     while (true) {
       const url = this.fullUrl;
-      let response = yield logFetch(url).then((res) => res, fetchFailure(url));
+      let response = yield logFetch(url).then(res => res, fetchFailure(url));
 
       if (!response) {
         return;

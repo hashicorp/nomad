@@ -25,8 +25,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
       allocations: this.watchAllocations.perform(model),
       evaluations: this.watchEvaluations.perform(model),
       latestDeployment:
-        model.get('supportsDeployments') &&
-        this.watchLatestDeployment.perform(model),
+        model.get('supportsDeployments') && this.watchLatestDeployment.perform(model),
       list:
         model.get('hasChildren') &&
         this.watchAllJobs.perform({ namespace: model.namespace.get('name') }),

@@ -10,9 +10,7 @@ export default class TopoVizNode extends Component {
   @tracked activeAllocation = null;
 
   get height() {
-    return this.args.heightScale
-      ? this.args.heightScale(this.args.node.memory)
-      : 15;
+    return this.args.heightScale ? this.args.heightScale(this.args.node.memory) : 15;
   }
 
   get labelHeight() {
@@ -59,13 +57,11 @@ export default class TopoVizNode extends Component {
   get allocations() {
     // Sort by the delta between memory and cpu percent. This creates the least amount of
     // drift between the positional alignment of an alloc's cpu and memory representations.
-    return this.args.node.allocations
-      .filterBy('allocation.isScheduled')
-      .sort((a, b) => {
-        const deltaA = Math.abs(a.memoryPercent - a.cpuPercent);
-        const deltaB = Math.abs(b.memoryPercent - b.cpuPercent);
-        return deltaA - deltaB;
-      });
+    return this.args.node.allocations.filterBy('allocation.isScheduled').sort((a, b) => {
+      const deltaA = Math.abs(a.memoryPercent - a.cpuPercent);
+      const deltaB = Math.abs(b.memoryPercent - b.cpuPercent);
+      return deltaA - deltaB;
+    });
   }
 
   @action
@@ -95,8 +91,7 @@ export default class TopoVizNode extends Component {
   @action
   highlightAllocation(allocation, { target }) {
     this.activeAllocation = allocation;
-    this.args.onAllocationFocus &&
-      this.args.onAllocationFocus(allocation, target);
+    this.args.onAllocationFocus && this.args.onAllocationFocus(allocation, target);
   }
 
   @action
@@ -123,7 +118,7 @@ export default class TopoVizNode extends Component {
 
   containsActiveTaskGroup() {
     return this.args.node.allocations.some(
-      (allocation) =>
+      allocation =>
         allocation.taskGroupName === this.args.activeTaskGroup &&
         allocation.belongsTo('job').id() === this.args.activeJobId
     );

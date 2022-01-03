@@ -101,27 +101,21 @@ function moduleForJobDispatch(title, jobFactory) {
       await JobDispatch.visit({ id: job.id, namespace: namespace.name });
       assert.equal(
         JobDispatch.metaFields.length,
-        job.parameterizedJob.MetaOptional.length +
-          job.parameterizedJob.MetaRequired.length
+        job.parameterizedJob.MetaOptional.length + job.parameterizedJob.MetaRequired.length
       );
     });
 
     test('required meta fields are properly indicated', async function (assert) {
       await JobDispatch.visit({ id: job.id, namespace: namespace.name });
 
-      JobDispatch.metaFields.forEach((f) => {
+      JobDispatch.metaFields.forEach(f => {
         const hasIndicator = f.label.includes(REQUIRED_INDICATOR);
-        const isRequired = job.parameterizedJob.MetaRequired.includes(
-          f.field.id
-        );
+        const isRequired = job.parameterizedJob.MetaRequired.includes(f.field.id);
 
         if (isRequired) {
           assert.ok(hasIndicator, `${f.label} contains required indicator.`);
         } else {
-          assert.notOk(
-            hasIndicator,
-            `${f.label} doesn't contain required indicator.`
-          );
+          assert.notOk(hasIndicator, `${f.label} doesn't contain required indicator.`);
         }
       });
     });
@@ -194,15 +188,13 @@ function moduleForJobDispatch(title, jobFactory) {
 
     test('dispatch a job', async function (assert) {
       function countDispatchChildren() {
-        return server.db.jobs.where((j) =>
-          j.id.startsWith(`${job.id}/`)
-        ).length;
+        return server.db.jobs.where(j => j.id.startsWith(`${job.id}/`)).length;
       }
 
       await JobDispatch.visit({ id: job.id, namespace: namespace.name });
 
       // Fill form.
-      JobDispatch.metaFields.map((f) => f.field.input('meta value'));
+      JobDispatch.metaFields.map(f => f.field.input('meta value'));
       JobDispatch.payload.editor.fillIn('payload');
 
       const childrenCountBefore = countDispatchChildren();
@@ -210,9 +202,7 @@ function moduleForJobDispatch(title, jobFactory) {
       const childrenCountAfter = countDispatchChildren();
 
       assert.equal(childrenCountAfter, childrenCountBefore + 1);
-      assert.ok(
-        currentURL().startsWith(`/jobs/${encodeURIComponent(`${job.id}/`)}`)
-      );
+      assert.ok(currentURL().startsWith(`/jobs/${encodeURIComponent(`${job.id}/`)}`));
       assert.ok(JobDetail.jobName);
     });
 
@@ -225,7 +215,7 @@ function moduleForJobDispatch(title, jobFactory) {
       await JobDispatch.visit({ id: job.id, namespace: namespace.name });
 
       // Fill only optional meta params.
-      JobDispatch.optionalMetaFields.map((f) => f.field.input('meta value'));
+      JobDispatch.optionalMetaFields.map(f => f.field.input('meta value'));
 
       await JobDispatch.dispatchButton.click();
 

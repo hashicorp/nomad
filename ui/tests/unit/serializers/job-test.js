@@ -29,10 +29,7 @@ module('Unit | Serializer | Job', function (hooks) {
     const { data } = this.subject().normalize(JobModel, original);
     assert.equal(
       data.id,
-      JSON.stringify([
-        data.attributes.name,
-        data.relationships.namespace.data.id,
-      ])
+      JSON.stringify([data.attributes.name, data.relationships.namespace.data.id])
     );
   });
 });

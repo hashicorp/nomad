@@ -9,8 +9,7 @@ module('Unit | Component | stats-time-series', function (hooks) {
   setupTest(hooks);
   setupGlimmerComponentFactory(hooks, 'stats-time-series');
 
-  const ts = (offset, resolution = 'm') =>
-    moment().subtract(offset, resolution).toDate();
+  const ts = (offset, resolution = 'm') => moment().subtract(offset, resolution).toDate();
 
   const wideData = [
     { timestamp: ts(20), percent: 0.5 },
@@ -50,7 +49,7 @@ module('Unit | Component | stats-time-series', function (hooks) {
 
     const chart = this.createComponent({ data: wideData });
 
-    wideData.forEach((datum) => {
+    wideData.forEach(datum => {
       assert.equal(
         chart.xFormat(datum.timestamp),
         d3TimeFormat.timeFormat('%H:%M:%S')(datum.timestamp)
@@ -63,11 +62,8 @@ module('Unit | Component | stats-time-series', function (hooks) {
 
     const chart = this.createComponent({ data: wideData });
 
-    wideData.forEach((datum) => {
-      assert.equal(
-        chart.yFormat(datum.percent),
-        d3Format.format('.1~%')(datum.percent)
-      );
+    wideData.forEach(datum => {
+      assert.equal(chart.yFormat(datum.percent), d3Format.format('.1~%')(datum.percent));
     });
   });
 
@@ -97,10 +93,7 @@ module('Unit | Component | stats-time-series', function (hooks) {
     const chart = this.createComponent({ data: wideData });
 
     assert.deepEqual(
-      [
-        Math.min(...wideData.mapBy('percent')),
-        Math.max(...wideData.mapBy('percent')),
-      ],
+      [Math.min(...wideData.mapBy('percent')), Math.max(...wideData.mapBy('percent'))],
       [0.3, 0.9],
       'The bounds of the value prop of the dataset is narrower than 0 - 1'
     );
@@ -141,10 +134,6 @@ module('Unit | Component | stats-time-series', function (hooks) {
   test('when there are only empty frames in the data array, the default y domain is used', function (assert) {
     const chart = this.createComponent({ data: nullData });
 
-    assert.deepEqual(
-      chart.yScale(nullData, 0).domain(),
-      [0, 1],
-      'The bounds are 0 and 1'
-    );
+    assert.deepEqual(chart.yScale(nullData, 0).domain(), [0, 1], 'The bounds are 0 and 1');
   });
 });

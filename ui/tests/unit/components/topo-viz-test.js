@@ -32,17 +32,9 @@ module('Unit | Component | TopoViz', function (hooks) {
 
     topoViz.buildTopology();
 
-    assert.deepEqual(topoViz.topology.datacenters.mapBy('name'), [
-      'dc1',
-      'dc2',
-    ]);
-    assert.deepEqual(topoViz.topology.datacenters[0].nodes.mapBy('node'), [
-      nodes[0],
-      nodes[2],
-    ]);
-    assert.deepEqual(topoViz.topology.datacenters[1].nodes.mapBy('node'), [
-      nodes[1],
-    ]);
+    assert.deepEqual(topoViz.topology.datacenters.mapBy('name'), ['dc1', 'dc2']);
+    assert.deepEqual(topoViz.topology.datacenters[0].nodes.mapBy('node'), [nodes[0], nodes[2]]);
+    assert.deepEqual(topoViz.topology.datacenters[1].nodes.mapBy('node'), [nodes[1]]);
     assert.deepEqual(
       topoViz.topology.datacenters[0].nodes[0].allocations.mapBy('allocation'),
       node0Allocs
@@ -92,13 +84,11 @@ module('Unit | Component | TopoViz', function (hooks) {
       ].sort()
     );
 
-    Object.keys(topoViz.topology.allocationIndex).forEach((key) => {
+    Object.keys(topoViz.topology.allocationIndex).forEach(key => {
       const [jobId, group] = JSON.parse(key);
       assert.deepEqual(
         topoViz.topology.allocationIndex[key].mapBy('allocation'),
-        allocations.filter(
-          (alloc) => alloc.jobId === jobId && alloc.taskGroupName === group
-        )
+        allocations.filter(alloc => alloc.jobId === jobId && alloc.taskGroupName === group)
       );
     });
   });
@@ -182,9 +172,7 @@ module('Unit | Component | TopoViz', function (hooks) {
   });
 
   test('dataForAllocation correctly calculates proportion of node utilization and group key', async function (assert) {
-    const nodes = [
-      { datacenter: 'dc1', id: 'node0', resources: { cpu: 100, memory: 250 } },
-    ];
+    const nodes = [{ datacenter: 'dc1', id: 'node0', resources: { cpu: 100, memory: 250 } }];
     const allocations = [
       alloc({
         nodeId: 'node0',
@@ -197,14 +185,8 @@ module('Unit | Component | TopoViz', function (hooks) {
     const topoViz = this.createComponent({ nodes, allocations });
     topoViz.buildTopology();
 
-    assert.equal(
-      topoViz.topology.datacenters[0].nodes[0].allocations[0].cpuPercent,
-      0.5
-    );
-    assert.equal(
-      topoViz.topology.datacenters[0].nodes[0].allocations[0].memoryPercent,
-      0.1
-    );
+    assert.equal(topoViz.topology.datacenters[0].nodes[0].allocations[0].cpuPercent, 0.5);
+    assert.equal(topoViz.topology.datacenters[0].nodes[0].allocations[0].memoryPercent, 0.1);
   });
 
   test('allocations that reference nonexistent nodes are ignored', async function (assert) {
@@ -219,13 +201,10 @@ module('Unit | Component | TopoViz', function (hooks) {
 
     topoViz.buildTopology();
 
-    assert.deepEqual(topoViz.topology.datacenters[0].nodes.mapBy('node'), [
-      nodes[0],
+    assert.deepEqual(topoViz.topology.datacenters[0].nodes.mapBy('node'), [nodes[0]]);
+    assert.deepEqual(topoViz.topology.datacenters[0].nodes[0].allocations.mapBy('allocation'), [
+      allocations[0],
     ]);
-    assert.deepEqual(
-      topoViz.topology.datacenters[0].nodes[0].allocations.mapBy('allocation'),
-      [allocations[0]]
-    );
   });
 });
 

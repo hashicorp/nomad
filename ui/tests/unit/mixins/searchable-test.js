@@ -139,9 +139,7 @@ module('Unit | Mixin | Searchable', function (hooks) {
     assert.deepEqual(
       subject
         .get('listSearched')
-        .map((object) =>
-          object.getProperties('id', 'name', 'continent', 'fuzzySearchMatches')
-        ),
+        .map(object => object.getProperties('id', 'name', 'continent', 'fuzzySearchMatches')),
       [
         {
           id: '1',
@@ -262,17 +260,9 @@ module('Unit | Mixin | Searchable', function (hooks) {
 
   test('the resetPagination method is a no-op', function (assert) {
     const subject = this.subject();
-    assert.strictEqual(
-      subject.get('currentPage'),
-      undefined,
-      'No currentPage value set'
-    );
+    assert.strictEqual(subject.get('currentPage'), undefined, 'No currentPage value set');
     subject.resetPagination();
-    assert.strictEqual(
-      subject.get('currentPage'),
-      undefined,
-      'Still no currentPage value set'
-    );
+    assert.strictEqual(subject.get('currentPage'), undefined, 'Still no currentPage value set');
   });
 });
 
@@ -291,10 +281,7 @@ module('Unit | Mixin | Searchable (with pagination)', function (hooks) {
         currentPage: 1,
       });
 
-      this.owner.register(
-        'test-container:searchable-paginated-object',
-        SearchablePaginatedObject
-      );
+      this.owner.register('test-container:searchable-paginated-object', SearchablePaginatedObject);
       return this.owner.lookup('test-container:searchable-paginated-object');
     };
   });
@@ -302,11 +289,7 @@ module('Unit | Mixin | Searchable (with pagination)', function (hooks) {
   test('the resetPagination method sets the currentPage to 1', function (assert) {
     const subject = this.subject();
     subject.set('currentPage', 5);
-    assert.equal(
-      subject.get('currentPage'),
-      5,
-      'Current page is something other than 1'
-    );
+    assert.equal(subject.get('currentPage'), 5, 'Current page is something other than 1');
     subject.resetPagination();
     assert.equal(subject.get('currentPage'), 1, 'Current page gets reset to 1');
   });

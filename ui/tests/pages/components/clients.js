@@ -34,7 +34,7 @@ export default function (selector = '[data-test-client]', propKey = 'clients') {
     }),
 
     [lookupKey]: function (id) {
-      return this[propKey].toArray().find((client) => client.id === id);
+      return this[propKey].toArray().find(client => client.id === id);
     },
   };
 }

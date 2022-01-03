@@ -119,12 +119,9 @@ module('Unit | Serializer | Deployment', function (hooks) {
     },
   ];
 
-  normalizationTestCases.forEach((testCase) => {
+  normalizationTestCases.forEach(testCase => {
     test(`normalization: ${testCase.name}`, async function (assert) {
-      assert.deepEqual(
-        this.subject().normalize(DeploymentModel, testCase.in),
-        testCase.out
-      );
+      assert.deepEqual(this.subject().normalize(DeploymentModel, testCase.in), testCase.out);
     });
   });
 });

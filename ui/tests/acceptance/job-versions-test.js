@@ -53,10 +53,7 @@ module('Acceptance | job versions', function (hooks) {
     );
     const versionRow = Versions.versions.objectAt(0);
 
-    assert.ok(
-      versionRow.text.includes(`Version #${version.version}`),
-      'Version #'
-    );
+    assert.ok(versionRow.text.includes(`Version #${version.version}`), 'Version #');
     assert.equal(versionRow.stability, version.stable.toString(), 'Stability');
     assert.equal(versionRow.submitTime, formattedSubmitTime, 'Submit time');
   });
@@ -64,7 +61,7 @@ module('Acceptance | job versions', function (hooks) {
   test('all versions but the current one have a button to revert to that version', async function (assert) {
     let versionRowToRevertTo;
 
-    Versions.versions.forEach((versionRow) => {
+    Versions.versions.forEach(versionRow => {
       if (versionRow.number === job.version) {
         assert.ok(versionRow.revertToButton.isHidden);
       } else {
@@ -79,14 +76,11 @@ module('Acceptance | job versions', function (hooks) {
       await versionRowToRevertTo.revertToButton.idle();
       await versionRowToRevertTo.revertToButton.confirm();
 
-      const revertRequest = this.server.pretender.handledRequests.find(
-        (request) => request.url.includes('revert')
+      const revertRequest = this.server.pretender.handledRequests.find(request =>
+        request.url.includes('revert')
       );
 
-      assert.equal(
-        revertRequest.url,
-        `/v1/job/${job.id}/revert?namespace=${namespace.id}`
-      );
+      assert.equal(revertRequest.url, `/v1/job/${job.id}/revert?namespace=${namespace.id}`);
 
       assert.deepEqual(JSON.parse(revertRequest.requestBody), {
         JobID: job.id,
@@ -99,7 +93,7 @@ module('Acceptance | job versions', function (hooks) {
 
   test('when reversion fails, the error message from the API is piped through to the alert', async function (assert) {
     const versionRowToRevertTo = Versions.versions.filter(
-      (versionRow) => versionRow.revertToButton.isPresent
+      versionRow => versionRow.revertToButton.isPresent
     )[0];
 
     if (versionRowToRevertTo) {
@@ -124,7 +118,7 @@ module('Acceptance | job versions', function (hooks) {
 
   test('when reversion has no effect, the error message explains', async function (assert) {
     const versionRowToRevertTo = Versions.versions.filter(
-      (versionRow) => versionRow.revertToButton.isPresent
+      versionRow => versionRow.revertToButton.isPresent
     )[0];
 
     if (versionRowToRevertTo) {
@@ -151,16 +145,12 @@ module('Acceptance | job versions', function (hooks) {
 
     assert.equal(
       server.pretender.handledRequests
-        .filter((request) => !request.url.includes('policy'))
+        .filter(request => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
     );
-    assert.equal(
-      currentURL(),
-      '/jobs/not-a-real-job/versions',
-      'The URL persists'
-    );
+    assert.equal(currentURL(), '/jobs/not-a-real-job/versions', 'The URL persists');
     assert.ok(Versions.error.isPresent, 'Error message is shown');
     assert.equal(Versions.error.title, 'Not Found', 'Error message is for 404');
   });
@@ -183,7 +173,7 @@ module('Acceptance | job versions (with client token)', function (hooks) {
 
   test('reversion buttons are disabled when the token lacks permissions', async function (assert) {
     const versionRowWithReversion = Versions.versions.filter(
-      (versionRow) => versionRow.revertToButton.isPresent
+      versionRow => versionRow.revertToButton.isPresent
     )[0];
 
     if (versionRowWithReversion) {
@@ -231,7 +221,7 @@ module('Acceptance | job versions (with client token)', function (hooks) {
     versions = server.db.jobVersions.where({ jobId: job.id });
     await Versions.visit({ id: job.id, namespace: REVERT_NAMESPACE });
     const versionRowWithReversion = Versions.versions.filter(
-      (versionRow) => versionRow.revertToButton.isPresent
+      versionRow => versionRow.revertToButton.isPresent
     )[0];
 
     if (versionRowWithReversion) {

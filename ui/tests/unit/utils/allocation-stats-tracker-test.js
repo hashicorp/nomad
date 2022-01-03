@@ -3,9 +3,7 @@ import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import sinon from 'sinon';
 import Pretender from 'pretender';
-import AllocationStatsTracker, {
-  stats,
-} from 'nomad-ui/utils/classes/allocation-stats-tracker';
+import AllocationStatsTracker, { stats } from 'nomad-ui/utils/classes/allocation-stats-tracker';
 import fetch from 'nomad-ui/utils/fetch';
 import statsTrackerFrameMissingBehavior from './behaviors/stats-tracker-frame-missing';
 
@@ -13,9 +11,9 @@ import { settled } from '@ember/test-helpers';
 
 module('Unit | Util | AllocationStatsTracker', function () {
   const refDate = Date.now() * 1000000;
-  const makeDate = (ts) => new Date(ts / 1000000);
+  const makeDate = ts => new Date(ts / 1000000);
 
-  const MockAllocation = (overrides) =>
+  const MockAllocation = overrides =>
     assign(
       {
         id: 'some-identifier',
@@ -47,7 +45,7 @@ module('Unit | Util | AllocationStatsTracker', function () {
       overrides
     );
 
-  const mockFrame = (step) => ({
+  const mockFrame = step => ({
     ResourceUsage: {
       CpuStats: {
         TotalTicks: step + 100,
@@ -143,13 +141,9 @@ module('Unit | Util | AllocationStatsTracker', function () {
       allocation.taskGroup.tasks.length,
       'tasks matches lengths with the allocation task group'
     );
-    allocation.taskGroup.tasks.forEach((task) => {
+    allocation.taskGroup.tasks.forEach(task => {
       const trackerTask = tracker.get('tasks').findBy('task', task.name);
-      assert.equal(
-        trackerTask.reservedCPU,
-        task.reservedCPU,
-        `CPU matches for task ${task.name}`
-      );
+      assert.equal(trackerTask.reservedCPU, task.reservedCPU, `CPU matches for task ${task.name}`);
       assert.equal(
         trackerTask.reservedMemory,
         task.reservedMemory,
@@ -173,11 +167,7 @@ module('Unit | Util | AllocationStatsTracker', function () {
     };
 
     const server = new Pretender(function () {
-      this.get('/v1/client/allocation/:id/stats', () => [
-        200,
-        {},
-        JSON.stringify(mockFrame),
-      ]);
+      this.get('/v1/client/allocation/:id/stats', () => [200, {}, JSON.stringify(mockFrame)]);
     });
 
     tracker.get('poll').perform();
@@ -511,7 +501,7 @@ module('Unit | Util | AllocationStatsTracker', function () {
       'Old frames are removed in favor of newer ones'
     );
 
-    tracker.get('tasks').forEach((task) => {
+    tracker.get('tasks').forEach(task => {
       assert.equal(
         task.cpu.length,
         bufferSize,

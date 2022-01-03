@@ -20,8 +20,7 @@ function getLatestRecommendationSubmitTimeForJob(job) {
     .mapBy('tasks.models')
     .reduce((tasks, taskModels) => tasks.concat(taskModels), []);
   const recommendations = tasks.reduce(
-    (recommendations, task) =>
-      recommendations.concat(task.recommendations.models),
+    (recommendations, task) => recommendations.concat(task.recommendations.models),
     []
   );
   return Math.max(...recommendations.mapBy('submitTime'));
@@ -73,7 +72,7 @@ module('Acceptance | optimize', function (hooks) {
     const currentTaskGroupHasCPURecommendation = currentTaskGroup.tasks.models
       .mapBy('recommendations.models')
       .flat()
-      .find((r) => r.resource === 'CPU');
+      .find(r => r.resource === 'CPU');
 
     // If no CPU recommendation, will not be able to accept recommendation with all memory recommendations turned off
 
@@ -99,10 +98,7 @@ module('Acceptance | optimize', function (hooks) {
       `${this.job1.name} / ${currentTaskGroup.name}`
     );
 
-    assert.equal(
-      Optimize.recommendationSummaries[0].namespace,
-      this.job1.namespace
-    );
+    assert.equal(Optimize.recommendationSummaries[0].namespace, this.job1.namespace);
 
     assert.equal(
       Optimize.recommendationSummaries[1].slug,
@@ -110,20 +106,15 @@ module('Acceptance | optimize', function (hooks) {
     );
 
     const currentRecommendations = currentTaskGroup.tasks.models.reduce(
-      (recommendations, task) =>
-        recommendations.concat(task.recommendations.models),
+      (recommendations, task) => recommendations.concat(task.recommendations.models),
       []
     );
-    const latestSubmitTime = Math.max(
-      ...currentRecommendations.mapBy('submitTime')
-    );
+    const latestSubmitTime = Math.max(...currentRecommendations.mapBy('submitTime'));
 
-    Optimize.recommendationSummaries[0].as((summary) => {
+    Optimize.recommendationSummaries[0].as(summary => {
       assert.equal(
         summary.date,
-        moment(new Date(latestSubmitTime / 1000000)).format(
-          'MMM DD HH:mm:ss ZZ'
-        )
+        moment(new Date(latestSubmitTime / 1000000)).format('MMM DD HH:mm:ss ZZ')
       );
 
       const currentTaskGroupAllocations = server.schema.allocations.where({
@@ -165,39 +156,23 @@ module('Acceptance | optimize', function (hooks) {
 
       assert.equal(
         replaceMinus(summary.cpu),
-        cpuDiff
-          ? `${cpuSign}${formatHertz(
-              cpuDiff,
-              'MHz'
-            )} ${cpuSign}${cpuDiffPercent}%`
-          : ''
+        cpuDiff ? `${cpuSign}${formatHertz(cpuDiff, 'MHz')} ${cpuSign}${cpuDiffPercent}%` : ''
       );
       assert.equal(
         replaceMinus(summary.memory),
-        memDiff
-          ? `${memSign}${formattedMemDiff(
-              memDiff
-            )} ${memSign}${memDiffPercent}%`
-          : ''
+        memDiff ? `${memSign}${formattedMemDiff(memDiff)} ${memSign}${memDiffPercent}%` : ''
       );
 
       assert.equal(
         replaceMinus(summary.aggregateCpu),
         cpuDiff
-          ? `${cpuSign}${formatHertz(
-              cpuDiff * currentTaskGroupAllocations.length,
-              'MHz'
-            )}`
+          ? `${cpuSign}${formatHertz(cpuDiff * currentTaskGroupAllocations.length, 'MHz')}`
           : ''
       );
 
       assert.equal(
         replaceMinus(summary.aggregateMemory),
-        memDiff
-          ? `${memSign}${formattedMemDiff(
-              memDiff * currentTaskGroupAllocations.length
-            )}`
-          : ''
+        memDiff ? `${memSign}${formattedMemDiff(memDiff * currentTaskGroupAllocations.length)}` : ''
       );
     });
 
@@ -230,7 +205,7 @@ module('Acceptance | optimize', function (hooks) {
     );
 
     const currentTaskIds = currentTaskGroup.tasks.models.mapBy('id');
-    const taskIdFilter = (task) => currentTaskIds.includes(task.taskId);
+    const taskIdFilter = task => currentTaskIds.includes(task.taskId);
 
     const cpuRecommendationIds = server.schema.recommendations
       .where({ resource: 'CPU' })
@@ -242,16 +217,12 @@ module('Acceptance | optimize', function (hooks) {
       .models.filter(taskIdFilter)
       .mapBy('id');
 
-    const appliedIds = toggledAnything
-      ? cpuRecommendationIds
-      : memoryRecommendationIds;
+    const appliedIds = toggledAnything ? cpuRecommendationIds : memoryRecommendationIds;
     const dismissedIds = toggledAnything ? memoryRecommendationIds : [];
 
     await Optimize.card.acceptButton.click();
 
-    const request = server.pretender.handledRequests
-      .filterBy('method', 'POST')
-      .pop();
+    const request = server.pretender.handledRequests.filterBy('method', 'POST').pop();
     const { Apply, Dismiss } = JSON.parse(request.requestBody);
 
     assert.equal(request.url, '/v1/recommendations/apply');
@@ -294,34 +265,24 @@ module('Acceptance | optimize', function (hooks) {
     await Optimize.visit();
 
     const lastSummary =
-      Optimize.recommendationSummaries[
-        Optimize.recommendationSummaries.length - 1
-      ];
+      Optimize.recommendationSummaries[Optimize.recommendationSummaries.length - 1];
     const collapsedSlug = lastSummary.slug.replace(' / ', '/');
 
     // preferable to use page object’s visitable but it encodes the slash
-    await visit(
-      `/optimize/${collapsedSlug}?namespace=${lastSummary.namespace}`
-    );
+    await visit(`/optimize/${collapsedSlug}?namespace=${lastSummary.namespace}`);
 
     assert.equal(
       `${Optimize.card.slug.jobName} / ${Optimize.card.slug.groupName}`,
       lastSummary.slug
     );
     assert.ok(lastSummary.isActive);
-    assert.equal(
-      currentURL(),
-      `/optimize/${collapsedSlug}?namespace=${lastSummary.namespace}`
-    );
+    assert.equal(currentURL(), `/optimize/${collapsedSlug}?namespace=${lastSummary.namespace}`);
   });
 
   test('when a summary is not found, an error message is shown, but the URL persists', async function (assert) {
     await visit('/optimize/nonexistent/summary?namespace=anamespace');
 
-    assert.equal(
-      currentURL(),
-      '/optimize/nonexistent/summary?namespace=anamespace'
-    );
+    assert.equal(currentURL(), '/optimize/nonexistent/summary?namespace=anamespace');
     assert.ok(Optimize.applicationError.isPresent);
     assert.equal(Optimize.applicationError.title, 'Not Found');
   });
@@ -342,7 +303,7 @@ module('Acceptance | optimize', function (hooks) {
 
     const currentTaskGroup = this.job1.taskGroups.models[0];
     const currentTaskIds = currentTaskGroup.tasks.models.mapBy('id');
-    const taskIdFilter = (task) => currentTaskIds.includes(task.taskId);
+    const taskIdFilter = task => currentTaskIds.includes(task.taskId);
 
     const idsBeforeDismissal = server.schema.recommendations
       .all()
@@ -351,9 +312,7 @@ module('Acceptance | optimize', function (hooks) {
 
     await Optimize.card.dismissButton.click();
 
-    const request = server.pretender.handledRequests
-      .filterBy('method', 'POST')
-      .pop();
+    const request = server.pretender.handledRequests.filterBy('method', 'POST').pop();
     const { Apply, Dismiss } = JSON.parse(request.requestBody);
 
     assert.equal(request.url, '/v1/recommendations/apply');
@@ -534,10 +493,9 @@ module('Acceptance | optimize search and facets', function (hooks) {
       ooo222: pastSubmitTime,
     };
 
-    server.schema.recommendations.all().models.forEach((recommendation) => {
+    server.schema.recommendations.all().models.forEach(recommendation => {
       const parentJob = recommendation.task.taskGroup.job;
-      const submitTimeForJob =
-        jobNameToRecommendationSubmitTime[parentJob.name];
+      const submitTimeForJob = jobNameToRecommendationSubmitTime[parentJob.name];
       recommendation.submitTime = submitTimeForJob;
       recommendation.save();
     });
@@ -686,8 +644,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
       });
       await Optimize.visit();
     },
-    filter: (taskGroup, selection) =>
-      taskGroup.job.datacenters.find((dc) => selection.includes(dc)),
+    filter: (taskGroup, selection) => taskGroup.job.datacenters.find(dc => selection.includes(dc)),
   });
 
   testFacet('Prefix', {
@@ -705,7 +662,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
         'hashi-three',
         'nmd_two',
         'noprefix',
-      ].forEach((name) => {
+      ].forEach(name => {
         server.create('job', {
           name,
           createRecommendations: true,
@@ -718,7 +675,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
       await Optimize.visit();
     },
     filter: (taskGroup, selection) =>
-      selection.find((prefix) => taskGroup.job.name.startsWith(prefix)),
+      selection.find(prefix => taskGroup.job.name.startsWith(prefix)),
   });
 
   async function facetOptions(assert, beforeEach, facet, expectedOptions) {
@@ -733,7 +690,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
     }
 
     assert.deepEqual(
-      facet.options.map((option) => option.label.trim()),
+      facet.options.map(option => option.label.trim()),
       expectation,
       'Options for facet are as expected'
     );
@@ -755,15 +712,13 @@ module('Acceptance | optimize search and facets', function (hooks) {
       const selection = option.key;
       await option.select();
 
-      const sortedRecommendations = server.db.recommendations
-        .sortBy('submitTime')
-        .reverse();
+      const sortedRecommendations = server.db.recommendations.sortBy('submitTime').reverse();
 
       const recommendationTaskGroups = server.schema.tasks
         .find(sortedRecommendations.mapBy('taskId').uniq())
         .models.mapBy('taskGroup')
         .uniqBy('id')
-        .filter((group) => filter(group, selection));
+        .filter(group => filter(group, selection));
 
       Optimize.recommendationSummaries.forEach((summary, index) => {
         const group = recommendationTaskGroups[index];
@@ -786,10 +741,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
     });
   }
 
-  function testFacet(
-    label,
-    { facet, paramName, beforeEach, filter, expectedOptions }
-  ) {
+  function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
     test(`the ${label} facet has the correct options`, async function (assert) {
       await facetOptions.call(this, assert, beforeEach, facet, expectedOptions);
     });
@@ -805,15 +757,13 @@ module('Acceptance | optimize search and facets', function (hooks) {
 
       const selection = [option.key];
 
-      const sortedRecommendations = server.db.recommendations
-        .sortBy('submitTime')
-        .reverse();
+      const sortedRecommendations = server.db.recommendations.sortBy('submitTime').reverse();
 
       const recommendationTaskGroups = server.schema.tasks
         .find(sortedRecommendations.mapBy('taskId').uniq())
         .models.mapBy('taskGroup')
         .uniqBy('id')
-        .filter((group) => filter(group, selection));
+        .filter(group => filter(group, selection));
 
       Optimize.recommendationSummaries.forEach((summary, index) => {
         const group = recommendationTaskGroups[index];
@@ -834,15 +784,13 @@ module('Acceptance | optimize search and facets', function (hooks) {
       await option2.toggle();
       selection.push(option2.key);
 
-      const sortedRecommendations = server.db.recommendations
-        .sortBy('submitTime')
-        .reverse();
+      const sortedRecommendations = server.db.recommendations.sortBy('submitTime').reverse();
 
       const recommendationTaskGroups = server.schema.tasks
         .find(sortedRecommendations.mapBy('taskId').uniq())
         .models.mapBy('taskGroup')
         .uniqBy('id')
-        .filter((group) => filter(group, selection));
+        .filter(group => filter(group, selection));
 
       Optimize.recommendationSummaries.forEach((summary, index) => {
         const group = recommendationTaskGroups[index];
@@ -863,9 +811,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
       await option2.toggle();
       selection.push(option2.key);
 
-      assert.ok(
-        currentURL().includes(encodeURIComponent(JSON.stringify(selection)))
-      );
+      assert.ok(currentURL().includes(encodeURIComponent(JSON.stringify(selection))));
     });
   }
 });

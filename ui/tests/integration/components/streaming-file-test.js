@@ -12,7 +12,7 @@ import Log from 'nomad-ui/utils/classes/log';
 const { assign } = Object;
 const A_KEY = 65;
 
-const stringifyValues = (obj) =>
+const stringifyValues = obj =>
   Object.keys(obj).reduce((newObj, key) => {
     newObj[key] = obj[key].toString();
     return newObj;
@@ -23,7 +23,7 @@ const makeLogger = (url, params) =>
     url,
     params,
     plainText: true,
-    logFetch: (url) => fetch(url).then((res) => res),
+    logFetch: url => fetch(url).then(res => res),
   });
 
 module('Integration | Component | streaming file', function (hooks) {

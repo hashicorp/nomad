@@ -21,14 +21,7 @@ export let Standard = () => {
         data: {
           foo: 'bar',
           number: 123456789,
-          products: [
-            'Consul',
-            'Nomad',
-            'Packer',
-            'Terraform',
-            'Vagrant',
-            'Vault',
-          ],
+          products: ['Consul', 'Nomad', 'Packer', 'Terraform', 'Vagrant', 'Vault'],
           currentTime: '2019-10-16T14:24:12.378Z',
           nested: {
             obj: 'ject',

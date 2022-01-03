@@ -39,7 +39,7 @@ module('Acceptance | job clients', function (hooks) {
       resourceSpec: ['M: 256, C: 500'],
       createAllocations: false,
     });
-    clients.forEach((c) => {
+    clients.forEach(c => {
       server.create('allocation', { jobId: job.id, nodeId: c.id });
     });
 
@@ -61,8 +61,8 @@ module('Acceptance | job clients', function (hooks) {
     await Clients.visit({ id: job.id });
     assert.equal(Clients.clients.length, 15, 'Clients are shown in a table');
 
-    const clientIDs = clients.sortBy('id').map((c) => c.id);
-    const clientsInTable = Clients.clients.map((c) => c.id).sort();
+    const clientIDs = clients.sortBy('id').map(c => c.id);
+    const clientsInTable = Clients.clients.map(c => c.id).sort();
     assert.deepEqual(clientsInTable, clientIDs);
 
     assert.equal(document.title, `Job ${job.name} clients - Nomad`);
@@ -74,14 +74,10 @@ module('Acceptance | job clients', function (hooks) {
     Clients.clients.forEach((clientRow, index) => {
       const jobStatus = Clients.clientFor(clientRow.id).status;
 
-      ['createTime', 'modifyTime'].forEach((col) => {
+      ['createTime', 'modifyTime'].forEach(col => {
         if (jobStatus === 'not scheduled') {
           /* eslint-disable-next-line qunit/no-conditional-assertions */
-          assert.equal(
-            clientRow[col].text,
-            '-',
-            `row ${index} doesn't have ${col} tooltip`
-          );
+          assert.equal(clientRow[col].text, '-', `row ${index} doesn't have ${col} tooltip`);
           /* eslint-disable-next-line qunit/no-early-return */
           return;
         }
@@ -89,10 +85,7 @@ module('Acceptance | job clients', function (hooks) {
         const hasTooltip = clientRow[col].tooltip.isPresent;
         const tooltipText = clientRow[col].tooltip.text;
         assert.true(hasTooltip, `row ${index} has ${col} tooltip`);
-        assert.ok(
-          tooltipText,
-          `row ${index} has ${col} tooltip content ${tooltipText}`
-        );
+        assert.ok(tooltipText, `row ${index} has ${col} tooltip content ${tooltipText}`);
       });
     });
   });
@@ -147,16 +140,12 @@ module('Acceptance | job clients', function (hooks) {
 
     assert.equal(
       server.pretender.handledRequests
-        .filter((request) => !request.url.includes('policy'))
+        .filter(request => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
     );
-    assert.equal(
-      currentURL(),
-      '/jobs/not-a-real-job/clients',
-      'The URL persists'
-    );
+    assert.equal(currentURL(), '/jobs/not-a-real-job/clients', 'The URL persists');
     assert.ok(Clients.error.isPresent, 'Error message is shown');
     assert.equal(Clients.error.title, 'Not Found', 'Error message is for 404');
   });
@@ -208,7 +197,7 @@ module('Acceptance | job clients', function (hooks) {
       }
 
       assert.deepEqual(
-        facet.options.map((option) => option.label.trim()),
+        facet.options.map(option => option.label.trim()),
         expectation,
         `Options for facet ${paramName} are as expected`
       );

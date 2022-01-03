@@ -45,9 +45,7 @@ module('Acceptance | allocation fs', function (hooks) {
       })
     );
 
-    files.push(
-      server.create('allocFile', { isDir: true, name: 'empty-directory' })
-    );
+    files.push(server.create('allocFile', { isDir: true, name: 'empty-directory' }));
     files.push(server.create('allocFile', 'file', { fileType: 'txt' }));
     files.push(server.create('allocFile', 'file', { fileType: 'txt' }));
 
@@ -58,10 +56,8 @@ module('Acceptance | allocation fs', function (hooks) {
 
   browseFilesystem({
     visitSegments: ({ allocation }) => ({ id: allocation.id }),
-    getExpectedPathBase: ({ allocation }) =>
-      `/allocations/${allocation.id}/fs/`,
-    getTitleComponent: ({ allocation }) =>
-      `Allocation ${allocation.id.split('-')[0]} filesystem`,
+    getExpectedPathBase: ({ allocation }) => `/allocations/${allocation.id}/fs/`,
+    getTitleComponent: ({ allocation }) => `Allocation ${allocation.id.split('-')[0]} filesystem`,
     getBreadcrumbComponent: ({ allocation }) => allocation.id.split('-')[0],
     getFilesystemRoot: () => '',
     pageObjectVisitFunctionName: 'visitAllocation',

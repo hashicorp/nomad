@@ -46,33 +46,33 @@ module('Acceptance | search', function (hooks) {
 
     await selectSearch(Layout.navbar.search.scope, 'xy');
 
-    Layout.navbar.search.as((search) => {
+    Layout.navbar.search.as(search => {
       assert.equal(search.groups.length, 5);
 
-      search.groups[0].as((jobs) => {
+      search.groups[0].as(jobs => {
         assert.equal(jobs.name, 'Jobs (2)');
         assert.equal(jobs.options.length, 2);
         assert.equal(jobs.options[0].text, 'default > vwxyz');
         assert.equal(jobs.options[1].text, 'default > xyz job');
       });
 
-      search.groups[1].as((clients) => {
+      search.groups[1].as(clients => {
         assert.equal(clients.name, 'Clients (1)');
         assert.equal(clients.options.length, 1);
         assert.equal(clients.options[0].text, 'xyz');
       });
 
-      search.groups[2].as((allocs) => {
+      search.groups[2].as(allocs => {
         assert.equal(allocs.name, 'Allocations (0)');
         assert.equal(allocs.options.length, 0);
       });
 
-      search.groups[3].as((groups) => {
+      search.groups[3].as(groups => {
         assert.equal(groups.name, 'Task Groups (0)');
         assert.equal(groups.options.length, 0);
       });
 
-      search.groups[4].as((plugins) => {
+      search.groups[4].as(plugins => {
         assert.equal(plugins.name, 'CSI Plugins (1)');
         assert.equal(plugins.options.length, 1);
         assert.equal(plugins.options[0].text, 'xyz-plugin');
@@ -106,12 +106,9 @@ module('Acceptance | search', function (hooks) {
     await Layout.navbar.search.groups[4].options[0].click();
     assert.equal(currentURL(), '/csi/plugins/xyz-plugin');
 
-    const fuzzySearchQueries = server.pretender.handledRequests.filterBy(
-      'url',
-      '/v1/search/fuzzy'
-    );
+    const fuzzySearchQueries = server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy');
 
-    const featureDetectionQueries = fuzzySearchQueries.filter((request) =>
+    const featureDetectionQueries = fuzzySearchQueries.filter(request =>
       request.requestBody.includes('feature-detection-query')
     );
 
@@ -137,8 +134,7 @@ module('Acceptance | search', function (hooks) {
 
     assert.ok(Layout.navbar.search.noOptionsShown);
     assert.equal(
-      server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy')
-        .length,
+      server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy').length,
       1,
       'expect the feature detection query'
     );
@@ -165,8 +161,8 @@ module('Acceptance | search', function (hooks) {
 
     await selectSearch(Layout.navbar.search.scope, 'job');
 
-    Layout.navbar.search.as((search) => {
-      search.groups[0].as((jobs) => {
+    Layout.navbar.search.as(search => {
+      search.groups[0].as(jobs => {
         assert.equal(jobs.name, 'Jobs (showing 10 of 11)');
         assert.equal(jobs.options.length, 10);
       });
@@ -184,8 +180,8 @@ module('Acceptance | search', function (hooks) {
 
     await selectSearch(Layout.navbar.search.scope, 'job');
 
-    Layout.navbar.search.as((search) => {
-      search.groups[0].as((jobs) => {
+    Layout.navbar.search.as(search => {
+      search.groups[0].as(jobs => {
         assert.equal(jobs.name, 'Jobs (showing 10 of 20+)');
       });
     });

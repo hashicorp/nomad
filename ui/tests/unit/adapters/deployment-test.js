@@ -29,10 +29,7 @@ module('Unit | Adapter | Deployment', function (hooks) {
       this.system.get('shouldIncludeRegion');
       await this.system.get('defaultRegion');
 
-      const deployment = await this.store.findRecord(
-        'deployment',
-        deploymentRecord.id
-      );
+      const deployment = await this.store.findRecord('deployment', deploymentRecord.id);
       this.server.pretender.handledRequests.length = 0;
 
       return deployment;
@@ -47,28 +44,25 @@ module('Unit | Adapter | Deployment', function (hooks) {
     {
       variation: '',
       region: null,
-      fail: (id) => `POST /v1/deployment/fail/${id}`,
-      promote: (id) => `POST /v1/deployment/promote/${id}`,
+      fail: id => `POST /v1/deployment/fail/${id}`,
+      promote: id => `POST /v1/deployment/promote/${id}`,
     },
     {
       variation: 'with non-default region',
       region: 'region-2',
-      fail: (id) => `POST /v1/deployment/fail/${id}?region=region-2`,
-      promote: (id) => `POST /v1/deployment/promote/${id}?region=region-2`,
+      fail: id => `POST /v1/deployment/fail/${id}?region=region-2`,
+      promote: id => `POST /v1/deployment/promote/${id}?region=region-2`,
     },
   ];
 
-  testCases.forEach((testCase) => {
+  testCases.forEach(testCase => {
     test(`promote makes the correct API call ${testCase.variation}`, async function (assert) {
       const deployment = await this.initialize({ region: testCase.region });
       await this.subject().promote(deployment);
 
       const request = this.server.pretender.handledRequests[0];
 
-      assert.equal(
-        `${request.method} ${request.url}`,
-        testCase.promote(deployment.id)
-      );
+      assert.equal(`${request.method} ${request.url}`, testCase.promote(deployment.id));
       assert.deepEqual(JSON.parse(request.requestBody), {
         DeploymentId: deployment.id,
         All: true,
@@ -81,10 +75,7 @@ module('Unit | Adapter | Deployment', function (hooks) {
 
       const request = this.server.pretender.handledRequests[0];
 
-      assert.equal(
-        `${request.method} ${request.url}`,
-        testCase.fail(deployment.id)
-      );
+      assert.equal(`${request.method} ${request.url}`, testCase.fail(deployment.id));
       assert.deepEqual(JSON.parse(request.requestBody), {
         DeploymentId: deployment.id,
       });

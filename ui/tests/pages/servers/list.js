@@ -1,10 +1,4 @@
-import {
-  create,
-  collection,
-  clickable,
-  text,
-  visitable,
-} from 'ember-cli-page-object';
+import { create, collection, clickable, text, visitable } from 'ember-cli-page-object';
 
 export default create({
   pageSize: 8,

@@ -20,9 +20,7 @@ export default class SocketsService extends Service {
           if (!this.messageDisplayed) {
             this.messageDisplayed = true;
             this.onmessage({
-              data: `{"stdout":{"data":"${btoa(
-                'unsupported in Mirage\n\r'
-              )}"}}`,
+              data: `{"stdout":{"data":"${btoa('unsupported in Mirage\n\r')}"}}`,
             });
           } else {
             this.onmessage({ data: e.replace('stdin', 'stdout') });

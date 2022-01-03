@@ -31,9 +31,7 @@ export default class JobVersion extends Component {
     return (
       fieldChanges(diff) +
       taskGroups.reduce(arrayOfFieldChanges, 0) +
-      (taskGroups.mapBy('Tasks') || [])
-        .reduce(flatten, [])
-        .reduce(arrayOfFieldChanges, 0)
+      (taskGroups.mapBy('Tasks') || []).reduce(flatten, []).reduce(arrayOfFieldChanges, 0)
     );
   }
 
@@ -60,8 +58,7 @@ export default class JobVersion extends Component {
         this.handleError({
           level: 'warn',
           title: 'Reversion Had No Effect',
-          description:
-            'Reverting to an identical older version doesn’t produce a new version',
+          description: 'Reverting to an identical older version doesn’t produce a new version',
         });
       } else {
         const job = this.get('version.job');
@@ -82,8 +79,7 @@ export default class JobVersion extends Component {
 }
 
 const flatten = (accumulator, array) => accumulator.concat(array);
-const countChanges = (total, field) =>
-  changeTypes.includes(field.Type) ? total + 1 : total;
+const countChanges = (total, field) => (changeTypes.includes(field.Type) ? total + 1 : total);
 
 function fieldChanges(diff) {
   return (

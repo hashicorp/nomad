@@ -11,7 +11,7 @@ const percent = (numerator, denominator) => {
   return numerator / denominator;
 };
 
-const empty = (ts) => ({ timestamp: ts, used: null, percent: null });
+const empty = ts => ({ timestamp: ts, used: null, percent: null });
 
 // Tasks are sorted by their lifecycle phase in this order:
 const sortMap = [
@@ -26,8 +26,7 @@ const sortMap = [
   return map;
 }, {});
 
-const taskPrioritySort = (a, b) =>
-  sortMap[a.lifecycleName] - sortMap[b.lifecycleName];
+const taskPrioritySort = (a, b) => sortMap[a.lifecycleName] - sortMap[b.lifecycleName];
 
 @classic
 class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
@@ -65,12 +64,9 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
       // it has already stopped), just keep going.
       if (!taskFrame) continue;
 
-      const frameTimestamp = new Date(
-        Math.floor(taskFrame.Timestamp / 1000000)
-      );
+      const frameTimestamp = new Date(Math.floor(taskFrame.Timestamp / 1000000));
 
-      const taskCpuUsed =
-        Math.floor(taskFrame.ResourceUsage.CpuStats.TotalTicks) || 0;
+      const taskCpuUsed = Math.floor(taskFrame.ResourceUsage.CpuStats.TotalTicks) || 0;
       const percentCpuTotal = percent(taskCpuUsed, this.reservedCPU);
       stats.cpu.pushObject({
         timestamp: frameTimestamp,
@@ -81,10 +77,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
       });
 
       const taskMemoryUsed = taskFrame.ResourceUsage.MemoryStats.RSS;
-      const percentMemoryTotal = percent(
-        taskMemoryUsed / 1024 / 1024,
-        this.reservedMemory
-      );
+      const percentMemoryTotal = percent(taskMemoryUsed / 1024 / 1024, this.reservedMemory);
       stats.memory.pushObject({
         timestamp: frameTimestamp,
         used: taskMemoryUsed,
@@ -102,7 +95,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
     const ts = new Date();
     this.memory.pushObject(empty(ts));
     this.cpu.pushObject(empty(ts));
-    this.tasks.forEach((task) => {
+    this.tasks.forEach(task => {
       task.memory.pushObject(empty(ts));
       task.cpu.pushObject(empty(ts));
     });
@@ -131,7 +124,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
     return tasks
       .slice()
       .sort(taskPrioritySort)
-      .map((task) => ({
+      .map(task => ({
         task: get(task, 'name'),
 
         // Static figures, denominators for stats

@@ -25,9 +25,7 @@ export default class ExecController extends Controller {
   @computed('model.allocations.@each.clientStatus')
   get pendingAndRunningAllocations() {
     return this.model.allocations.filter(
-      (allocation) =>
-        allocation.clientStatus === 'pending' ||
-        allocation.clientStatus === 'running'
+      allocation => allocation.clientStatus === 'pending' || allocation.clientStatus === 'running'
     );
   }
 
@@ -70,16 +68,13 @@ export default class ExecController extends Controller {
     if (this.allocationShortId) {
       allocation = this.allocations.findBy('shortId', this.allocationShortId);
     } else {
-      allocation = this.allocations.find((allocation) =>
-        allocation.states
-          .filterBy('isActive')
-          .mapBy('name')
-          .includes(this.taskName)
+      allocation = this.allocations.find(allocation =>
+        allocation.states.filterBy('isActive').mapBy('name').includes(this.taskName)
       );
     }
 
     if (allocation) {
-      return allocation.states.find((state) => state.name === this.taskName);
+      return allocation.states.find(state => state.name === this.taskName);
     }
 
     return undefined;
@@ -104,9 +99,7 @@ export default class ExecController extends Controller {
         this.terminal.writeln('');
       }
 
-      this.terminal.writeln(
-        'Customize your command, then hit ‘return’ to run.'
-      );
+      this.terminal.writeln('Customize your command, then hit ‘return’ to run.');
       this.terminal.writeln('');
       this.terminal.write(
         `$ nomad alloc exec -i -t -task ${escapeTaskName(taskName)} ${
@@ -138,9 +131,7 @@ export default class ExecController extends Controller {
 
       new ExecSocketXtermAdapter(this.terminal, this.socket, this.token.secret);
     } else {
-      this.terminal.writeln(
-        `Failed to open a socket because task ${this.taskName} is not active.`
-      );
+      this.terminal.writeln(`Failed to open a socket because task ${this.taskName} is not active.`);
     }
   }
 }

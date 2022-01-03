@@ -30,7 +30,7 @@ module.exports = {
       header: stringUtil
         .dasherize(options.entity.name)
         .split('-')
-        .map((word) => stringUtil.capitalize(word))
+        .map(word => stringUtil.capitalize(word))
         .join(' '),
     };
   },

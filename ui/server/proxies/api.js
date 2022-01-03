@@ -41,10 +41,7 @@ module.exports = function (app, options) {
   });
 
   server.on('upgrade', function (req, socket, head) {
-    if (
-      req.url.startsWith('/v1/client/allocation') &&
-      req.url.includes('exec?')
-    ) {
+    if (req.url.startsWith('/v1/client/allocation') && req.url.includes('exec?')) {
       req.headers.origin = proxyAddress;
       proxy.ws(req, socket, head, { target: proxyAddress });
     }

@@ -34,7 +34,7 @@ export default class TokenService extends Service {
       return yield TokenAdapter.findSelf();
     } catch (e) {
       const errors = e.errors ? e.errors.mapBy('detail') : [];
-      if (errors.find((error) => error === 'ACL support disabled')) {
+      if (errors.find(error => error === 'ACL support disabled')) {
         this.set('aclEnabled', false);
       }
       return null;

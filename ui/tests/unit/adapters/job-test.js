@@ -145,9 +145,7 @@ module('Unit | Adapter | Job', function (hooks) {
     await settled();
 
     assert.notOk(
-      pretender.handledRequests
-        .mapBy('requestHeaders')
-        .some((headers) => headers['X-Nomad-Token']),
+      pretender.handledRequests.mapBy('requestHeaders').some(headers => headers['X-Nomad-Token']),
       'No token header present on either job request'
     );
   });
@@ -166,7 +164,7 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.ok(
       pretender.handledRequests
         .mapBy('requestHeaders')
-        .every((headers) => headers['X-Nomad-Token'] === secret),
+        .every(headers => headers['X-Nomad-Token'] === secret),
       'The token header is present on both job requests'
     );
   });
@@ -373,11 +371,7 @@ module('Unit | Adapter | Job', function (hooks) {
     const { request: xhr } = pretender.requestReferences[0];
     const { request: xhr2 } = pretender.requestReferences[1];
     assert.equal(xhr.status, 0, 'Request is still pending');
-    assert.equal(
-      pretender.requestReferences.length,
-      2,
-      'Two findRecord requests were made'
-    );
+    assert.equal(pretender.requestReferences.length, 2, 'Two findRecord requests were made');
     assert.equal(
       pretender.requestReferences.mapBy('url').uniq().length,
       1,
@@ -497,10 +491,7 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().forcePeriodic(job);
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(
-      request.url,
-      `/v1/job/${job.plainId}/periodic/force?region=${region}`
-    );
+    assert.equal(request.url, `/v1/job/${job.plainId}/periodic/force?region=${region}`);
     assert.equal(request.method, 'POST');
   });
 
@@ -585,10 +576,7 @@ module('Unit | Adapter | Job', function (hooks) {
     await this.subject().dispatch(job, {}, '');
 
     const request = this.server.pretender.handledRequests[0];
-    assert.equal(
-      request.url,
-      `/v1/job/${job.plainId}/dispatch?region=${region}`
-    );
+    assert.equal(request.url, `/v1/job/${job.plainId}/dispatch?region=${region}`);
     assert.equal(request.method, 'POST');
   });
 });

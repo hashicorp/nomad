@@ -1,4 +1,4 @@
-export default (ability) => (hooks) => {
+export default ability => hooks => {
   hooks.beforeEach(function () {
     this.ability = this.owner.lookup(`ability:${ability}`);
     this.can = this.owner.lookup('service:can');

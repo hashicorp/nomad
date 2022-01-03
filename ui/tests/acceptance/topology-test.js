@@ -48,49 +48,30 @@ module('Acceptance | topology', function (hooks) {
     );
 
     const allocs = server.schema.allocations.all().models;
-    const scheduledAllocs = allocs.filter((alloc) =>
+    const scheduledAllocs = allocs.filter(alloc =>
       ['pending', 'running'].includes(alloc.clientStatus)
     );
-    assert.equal(
-      Topology.clusterInfoPanel.allocCount,
-      `${scheduledAllocs.length} Allocations`
-    );
+    assert.equal(Topology.clusterInfoPanel.allocCount, `${scheduledAllocs.length} Allocations`);
 
-    const nodeResources = server.schema.nodes
-      .all()
-      .models.mapBy('nodeResources');
-    const taskResources = scheduledAllocs
-      .mapBy('taskResources.models')
-      .flat()
-      .mapBy('resources');
+    const nodeResources = server.schema.nodes.all().models.mapBy('nodeResources');
+    const taskResources = scheduledAllocs.mapBy('taskResources.models').flat().mapBy('resources');
 
     const totalMem = sumResources(nodeResources, 'Memory.MemoryMB');
     const totalCPU = sumResources(nodeResources, 'Cpu.CpuShares');
     const reservedMem = sumResources(taskResources, 'Memory.MemoryMB');
     const reservedCPU = sumResources(taskResources, 'Cpu.CpuShares');
 
-    assert.equal(
-      Topology.clusterInfoPanel.memoryProgressValue,
-      reservedMem / totalMem
-    );
-    assert.equal(
-      Topology.clusterInfoPanel.cpuProgressValue,
-      reservedCPU / totalCPU
-    );
+    assert.equal(Topology.clusterInfoPanel.memoryProgressValue, reservedMem / totalMem);
+    assert.equal(Topology.clusterInfoPanel.cpuProgressValue, reservedCPU / totalCPU);
 
     assert.equal(
       Topology.clusterInfoPanel.memoryAbsoluteValue,
-      `${formatBytes(reservedMem * 1024 * 1024)} / ${formatBytes(
-        totalMem * 1024 * 1024
-      )} reserved`
+      `${formatBytes(reservedMem * 1024 * 1024)} / ${formatBytes(totalMem * 1024 * 1024)} reserved`
     );
 
     assert.equal(
       Topology.clusterInfoPanel.cpuAbsoluteValue,
-      `${formatHertz(reservedCPU, 'MHz')} / ${formatHertz(
-        totalCPU,
-        'MHz'
-      )} reserved`
+      `${formatHertz(reservedCPU, 'MHz')} / ${formatHertz(totalCPU, 'MHz')} reserved`
     );
   });
 
@@ -102,14 +83,10 @@ module('Acceptance | topology', function (hooks) {
     const requests = this.server.pretender.handledRequests;
     assert.ok(requests.findBy('url', '/v1/nodes?resources=true'));
 
-    const allocationsRequest = requests.find((req) =>
-      req.url.startsWith('/v1/allocations')
-    );
+    const allocationsRequest = requests.find(req => req.url.startsWith('/v1/allocations'));
     assert.ok(allocationsRequest);
 
-    const allocationRequestParams = queryString.parse(
-      allocationsRequest.url.split('?')[1]
-    );
+    const allocationRequestParams = queryString.parse(allocationsRequest.url.split('?')[1]);
     assert.deepEqual(allocationRequestParams, {
       namespace: '*',
       task_states: 'false',
@@ -131,27 +108,19 @@ module('Acceptance | topology', function (hooks) {
     const sortedNodes = nodes.sortBy('datacenter');
     let node, alloc;
     for (let n of sortedNodes) {
-      alloc = allocs.find((a) => a.nodeId === n.id);
+      alloc = allocs.find(a => a.nodeId === n.id);
       if (alloc) {
         node = n;
         break;
       }
     }
 
-    const dcIndex = nodes
-      .mapBy('datacenter')
-      .uniq()
-      .sort()
-      .indexOf(node.datacenter);
-    const nodeIndex = nodes
-      .filterBy('datacenter', node.datacenter)
-      .indexOf(node);
+    const dcIndex = nodes.mapBy('datacenter').uniq().sort().indexOf(node.datacenter);
+    const nodeIndex = nodes.filterBy('datacenter', node.datacenter).indexOf(node);
 
     const reset = async () => {
       await Topology.visit();
-      await Topology.viz.datacenters[dcIndex].nodes[
-        nodeIndex
-      ].memoryRects[0].select();
+      await Topology.viz.datacenters[dcIndex].nodes[nodeIndex].memoryRects[0].select();
     };
 
     await reset();
@@ -160,10 +129,7 @@ module('Acceptance | topology', function (hooks) {
     assert.equal(Topology.allocInfoPanel.id, alloc.id.split('-')[0]);
 
     const uniqueClients = allocs.mapBy('nodeId').uniq();
-    assert.equal(
-      Topology.allocInfoPanel.siblingAllocs,
-      `Sibling Allocations: ${allocs.length}`
-    );
+    assert.equal(Topology.allocInfoPanel.siblingAllocs, `Sibling Allocations: ${allocs.length}`);
     assert.equal(
       Topology.allocInfoPanel.uniquePlacements,
       `Unique Client Placements: ${uniqueClients.length}`
@@ -190,10 +156,7 @@ module('Acceptance | topology', function (hooks) {
   test('changing which allocation is selected changes the metric charts', async function (assert) {
     server.create('node');
     const job1 = server.create('job', { createAllocations: false });
-    const taskGroup1 = server.schema.find(
-      'taskGroup',
-      job1.taskGroupIds[0]
-    ).name;
+    const taskGroup1 = server.schema.find('taskGroup', job1.taskGroupIds[0]).name;
     server.create('allocation', {
       forceRunningClientStatus: true,
       jobId: job1.id,
@@ -201,10 +164,7 @@ module('Acceptance | topology', function (hooks) {
     });
 
     const job2 = server.create('job', { createAllocations: false });
-    const taskGroup2 = server.schema.find(
-      'taskGroup',
-      job2.taskGroupIds[0]
-    ).name;
+    const taskGroup2 = server.schema.find('taskGroup', job2.taskGroupIds[0]).name;
     server.create('allocation', {
       forceRunningClientStatus: true,
       jobId: job2.id,
@@ -213,12 +173,10 @@ module('Acceptance | topology', function (hooks) {
 
     await Topology.visit();
     await Topology.viz.datacenters[0].nodes[0].memoryRects[0].select();
-    const firstAllocationTaskNames =
-      Topology.allocInfoPanel.charts[0].areas.mapBy('taskName');
+    const firstAllocationTaskNames = Topology.allocInfoPanel.charts[0].areas.mapBy('taskName');
 
     await Topology.viz.datacenters[0].nodes[0].memoryRects[1].select();
-    const secondAllocationTaskNames =
-      Topology.allocInfoPanel.charts[0].areas.mapBy('taskName');
+    const secondAllocationTaskNames = Topology.allocInfoPanel.charts[0].areas.mapBy('taskName');
 
     assert.notDeepEqual(firstAllocationTaskNames, secondAllocationTaskNames);
   });
@@ -241,10 +199,7 @@ module('Acceptance | topology', function (hooks) {
     assert.equal(Topology.nodeInfoPanel.address, `Address: ${node.httpAddr}`);
     assert.equal(Topology.nodeInfoPanel.status, `Status: ${node.status}`);
 
-    assert.equal(
-      Topology.nodeInfoPanel.drainingLabel,
-      node.drain ? 'Yes' : 'No'
-    );
+    assert.equal(Topology.nodeInfoPanel.drainingLabel, node.drain ? 'Yes' : 'No');
     assert.equal(
       Topology.nodeInfoPanel.eligibleLabel,
       node.schedulingEligibility === 'eligible' ? 'Yes' : 'No'
@@ -256,30 +211,22 @@ module('Acceptance | topology', function (hooks) {
       node.schedulingEligibility !== 'eligible'
     );
 
-    const taskResources = allocs
-      .mapBy('taskResources.models')
-      .flat()
-      .mapBy('resources');
+    const taskResources = allocs.mapBy('taskResources.models').flat().mapBy('resources');
     const reservedMem = sumResources(taskResources, 'Memory.MemoryMB');
     const reservedCPU = sumResources(taskResources, 'Cpu.CpuShares');
 
     const totalMem = node.nodeResources.Memory.MemoryMB;
     const totalCPU = node.nodeResources.Cpu.CpuShares;
 
-    assert.equal(
-      Topology.nodeInfoPanel.memoryProgressValue,
-      reservedMem / totalMem
-    );
-    assert.equal(
-      Topology.nodeInfoPanel.cpuProgressValue,
-      reservedCPU / totalCPU
-    );
+    assert.equal(Topology.nodeInfoPanel.memoryProgressValue, reservedMem / totalMem);
+    assert.equal(Topology.nodeInfoPanel.cpuProgressValue, reservedCPU / totalCPU);
 
     assert.equal(
       Topology.nodeInfoPanel.memoryAbsoluteValue,
-      `${formatScheduledBytes(
-        reservedMem * 1024 * 1024
-      )} / ${formatScheduledBytes(totalMem, 'MiB')} reserved`
+      `${formatScheduledBytes(reservedMem * 1024 * 1024)} / ${formatScheduledBytes(
+        totalMem,
+        'MiB'
+      )} reserved`
     );
 
     assert.equal(

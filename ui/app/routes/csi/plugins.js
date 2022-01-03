@@ -14,8 +14,6 @@ export default class PluginsRoute extends Route.extend(WithForbiddenState) {
   ];
 
   model() {
-    return this.store
-      .query('plugin', { type: 'csi' })
-      .catch(notifyForbidden(this));
+    return this.store.query('plugin', { type: 'csi' }).catch(notifyForbidden(this));
   }
 }
