@@ -7531,7 +7531,7 @@ func (t *Template) DiffID() string {
 }
 
 // WaitConfig is the Min/Max duration used by the Consul Template Watcher. Consul
-// Template relies on pointer based business logic. This struct uses points so
+// Template relies on pointer based business logic. This struct uses pointers so
 // that we tell the different between zero values and unset values.
 type WaitConfig struct {
 	Enabled *bool

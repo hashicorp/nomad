@@ -507,7 +507,7 @@ func (wc *WaitConfig) IsEmpty() bool {
 }
 
 // Validate returns an error  if the receiver is nil or empty or if Min is greater
-// than Max the user specified Max, or if the user didn't specify a Max.
+// than Max the user specified Max.
 func (wc *WaitConfig) Validate() error {
 	// If the config is nil or empty return false so that it is never assigned.
 	if wc == nil || wc.IsEmpty() {
