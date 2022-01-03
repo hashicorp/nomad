@@ -31,13 +31,6 @@ export default class IndexController extends Controller.extend(
   sortDescending = false;
 
   @action
-  gotoJob(job) {
-    this.transitionToRoute('jobs.job', job, {
-      queryParams: { jobNamespace: job.get('namespace.name') },
-    });
-  }
-
-  @action
   gotoClients(statusFilter) {
     this.transitionToRoute('jobs.job.clients', this.job, {
       queryParams: {
