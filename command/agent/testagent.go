@@ -67,7 +67,7 @@ type TestAgent struct {
 	Key string
 
 	// All HTTP servers started. Used to prevent server leaks and preserve
-	// backwards compability.
+	// backwards compatibility.
 	Servers []*HTTPServer
 
 	// Server is a reference to the primary, started HTTP endpoint.
