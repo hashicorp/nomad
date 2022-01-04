@@ -761,6 +761,10 @@ OUTER:
 					return nil
 				}
 
+				if err != nil {
+					return err
+				}
+
 				cancelReceived = true
 				continue OUTER
 			}
