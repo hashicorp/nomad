@@ -246,18 +246,14 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	defer framer.Destroy()
 
 	// If we aren't following end as soon as we hit EOF
-	var eofCancelCh chan error
-	if !req.Follow {
-		eofCancelCh = make(chan error)
-		close(eofCancelCh)
-	}
+	cancelAfterFirstEof := !req.Follow
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// Start streaming
 	go func() {
-		if err := f.streamFile(ctx, req.Offset, req.Path, req.Limit, fs, framer, eofCancelCh); err != nil {
+		if err := f.streamFile(ctx, req.Offset, req.Path, req.Limit, fs, framer, nil, cancelAfterFirstEof); err != nil {
 			select {
 			case errCh <- err:
 			case <-ctx.Done():
@@ -578,21 +574,21 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 		}
 
 		var eofCancelCh chan error
+		cancelAfterFirstEof := false
 		exitAfter := false
 		if !follow && idx > maxIndex {
 			// Exceeded what was there initially so return
 			return nil
 		} else if !follow && idx == maxIndex {
 			// At the end
-			eofCancelCh = make(chan error)
-			close(eofCancelCh)
+			cancelAfterFirstEof = true
 			exitAfter = true
 		} else {
 			eofCancelCh = blockUntilNextLog(ctx, fs, logPath, task, logType, idx+1)
 		}
 
 		p := filepath.Join(logPath, logEntry.Name)
-		err = f.streamFile(ctx, openOffset, p, 0, fs, framer, eofCancelCh)
+		err = f.streamFile(ctx, openOffset, p, 0, fs, framer, eofCancelCh, cancelAfterFirstEof)
 
 		// Check if the context is cancelled
 		select {
@@ -637,10 +633,11 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 
 // streamFile is the internal method to stream the content of a file. If limit
 // is greater than zero, the stream will end once that many bytes have been
-// read. eofCancelCh is used to cancel the stream if triggered while at EOF. If
-// the connection is broken an EPIPE error is returned
+// read. If eofCancelCh is triggered while at EOF, read one more frame and
+// cancel the stream on the next EOF. If the connection is broken an EPIPE
+// error is returned.
 func (f *FileSystem) streamFile(ctx context.Context, offset int64, path string, limit int64,
-	fs allocdir.AllocDirFS, framer *sframer.StreamFramer, eofCancelCh chan error) error {
+	fs allocdir.AllocDirFS, framer *sframer.StreamFramer, eofCancelCh chan error, cancelAfterFirstEof bool) error {
 
 	// Get the reader
 	file, err := fs.ReadAt(path, offset)
@@ -666,6 +663,9 @@ func (f *FileSystem) streamFile(ctx context.Context, offset int64, path string, 
 	// Only create the file change watcher once. But we need to do it after we
 	// read and reach EOF.
 	var changes *watch.FileChanges
+
+	// Only watch file when there is a need for it
+	cancelReceived := cancelAfterFirstEof
 
 	// Start streaming the data
 	bufSize := int64(streamFrameSize)
@@ -702,6 +702,14 @@ OUTER:
 		// avoid setting up a file event watcher.
 		if readErr == nil {
 			continue
+		}
+
+		// At this point we can stop without waiting for more changes,
+		// because we have EOF and either we're not following at all,
+		// or we received an event from the eofCancelCh channel
+		// and last read was executed
+		if cancelReceived {
+			return nil
 		}
 
 		// If EOF is hit, wait for a change to the file
@@ -752,12 +760,19 @@ OUTER:
 				return nil
 			case <-ctx.Done():
 				return nil
-			case err, ok := <-eofCancelCh:
+			case _, ok := <-eofCancelCh:
 				if !ok {
 					return nil
 				}
 
-				return err
+				if err != nil {
+					return err
+				}
+
+				// try to read one more frame to avoid dropped entries
+				// during log rotation
+				cancelReceived = true
+				continue OUTER
 			}
 		}
 	}
