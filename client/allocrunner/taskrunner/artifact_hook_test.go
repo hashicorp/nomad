@@ -73,11 +73,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	artifactHook := newArtifactHook(me, testlog.HCLogger(t))
 
 	// Create a source directory with 1 of the 2 artifacts
-	srcdir, err := ioutil.TempDir("", "nomadtest-src")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, os.RemoveAll(srcdir))
-	}()
+	srcdir := t.TempDir()
 
 	// Only create one of the 2 artifacts to cause an error on first run.
 	file1 := filepath.Join(srcdir, "foo.txt")
@@ -160,7 +156,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	require.Len(t, resp.State, 2)
 }
 
-// TestTaskRunner_ArtifactHook_ConcurrentDownload asserts that the artifact hook
+// TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess asserts that the artifact hook
 // download multiple files concurrently. this is a successful test without any errors.
 func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	t.Parallel()
@@ -169,11 +165,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	artifactHook := newArtifactHook(me, testlog.HCLogger(t))
 
 	// Create a source directory all 7 artifacts
-	srcdir, err := ioutil.TempDir("", "nomadtest-src")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, os.RemoveAll(srcdir))
-	}()
+	srcdir := t.TempDir()
 
 	numOfFiles := 7
 	for i := 0; i < numOfFiles; i++ {
@@ -252,12 +244,9 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	require.Contains(t, files[4], "file4.txt")
 	require.Contains(t, files[5], "file5.txt")
 	require.Contains(t, files[6], "file6.txt")
-
-	// Stop the test server entirely and assert that re-running works
-	ts.Close()
 }
 
-// TestTaskRunner_ArtifactHook_ConcurrentDownload asserts that the artifact hook
+// TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure asserts that the artifact hook
 // download multiple files concurrently. first iteration will result in failure and
 // second iteration should succeed without downloading already downloaded files.
 func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
@@ -267,11 +256,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	artifactHook := newArtifactHook(me, testlog.HCLogger(t))
 
 	// Create a source directory with 3 of the 4 artifacts
-	srcdir, err := ioutil.TempDir("", "nomadtest-src")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, os.RemoveAll(srcdir))
-	}()
+	srcdir := t.TempDir()
 
 	file1 := filepath.Join(srcdir, "file1.txt")
 	require.NoError(t, ioutil.WriteFile(file1, []byte{'1'}, 0644))
@@ -320,8 +305,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 
 	resp := interfaces.TaskPrestartResponse{}
 
-	// On first run file1 (foo) should download but file2 (bar) should
-	// fail.
+	// On first run all files will be downloaded except file0.txt
 	err = artifactHook.Prestart(context.Background(), req, &resp)
 
 	require.Error(t, err)
@@ -377,12 +361,6 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, data3, []byte{'3'})
 
-	// Stop the test server entirely and assert that re-running works
-	ts.Close()
-	req.PreviousState = helper.CopyMapStringString(resp.State)
-	resp = interfaces.TaskPrestartResponse{}
-	err = artifactHook.Prestart(context.Background(), req, &resp)
-	require.NoError(t, err)
 	require.True(t, resp.Done)
 	require.Len(t, resp.State, 4)
 }
