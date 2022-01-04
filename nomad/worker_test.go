@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"sync"
@@ -126,7 +125,7 @@ func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
 
 	// Create a worker
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
-	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
+	w := newWorker(s1.shutdownCtx, s1, poolArgs)
 
 	// Attempt dequeue
 	eval, token, waitIndex, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
@@ -187,7 +186,7 @@ func TestWorker_dequeueEvaluation_paused(t *testing.T) {
 
 	// Create a worker
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
-	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
+	w := newWorker(s1.shutdownCtx, s1, poolArgs)
 	w.pauseCond = sync.NewCond(&w.pauseLock)
 
 	// PAUSE the worker
@@ -232,7 +231,7 @@ func TestWorker_dequeueEvaluation_shutdown(t *testing.T) {
 
 	// Create a worker
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
-	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
+	w := newWorker(s1.shutdownCtx, s1, poolArgs)
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)
@@ -261,9 +260,8 @@ func TestWorker_Shutdown(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// Create a worker; since this tests the shutdown, you need the cancelFn too.
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
-	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
+	w := newWorker(s1.shutdownCtx, s1, poolArgs)
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)
@@ -319,7 +317,7 @@ func TestWorker_sendAck(t *testing.T) {
 
 	// Create a worker
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
-	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
+	w := newWorker(s1.shutdownCtx, s1, poolArgs)
 
 	// Attempt dequeue
 	eval, token, _, _ := w.dequeueEvaluation(10 * time.Millisecond)
@@ -375,7 +373,7 @@ func TestWorker_waitForIndex(t *testing.T) {
 
 	// Wait for a future index
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
-	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
+	w := newWorker(s1.shutdownCtx, s1, poolArgs)
 	snap, err := w.snapshotMinIndex(index+1, time.Second)
 	require.NoError(t, err)
 	require.NotNil(t, snap)
@@ -402,7 +400,7 @@ func TestWorker_invokeScheduler(t *testing.T) {
 	defer cleanupS1()
 
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
-	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
+	w := newWorker(s1.shutdownCtx, s1, poolArgs)
 	eval := mock.Eval()
 	eval.Type = "noop"
 
@@ -456,7 +454,7 @@ func TestWorker_SubmitPlan(t *testing.T) {
 
 	// Attempt to submit a plan
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
-	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
+	w := newWorker(s1.shutdownCtx, s1, poolArgs)
 	w.evalToken = token
 
 	result, state, err := w.SubmitPlan(plan)
@@ -521,7 +519,7 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 
 	// Attempt to submit a plan
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
-	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
+	w := newWorker(s1.shutdownCtx, s1, poolArgs)
 	w.SubmitPlan(plan)
 
 	assert.Equal(t, &structs.Allocation{
@@ -579,7 +577,7 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 
 	// Attempt to submit a plan
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
-	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
+	w := newWorker(s1.shutdownCtx, s1, poolArgs)
 	w.evalToken = token
 
 	result, state, err := w.SubmitPlan(plan)
@@ -639,7 +637,7 @@ func TestWorker_UpdateEval(t *testing.T) {
 
 	// Attempt to update eval
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
-	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
+	w := newWorker(s1.shutdownCtx, s1, poolArgs)
 	w.evalToken = token
 
 	err = w.UpdateEval(eval2)
@@ -691,7 +689,7 @@ func TestWorker_CreateEval(t *testing.T) {
 
 	// Attempt to create eval
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
-	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
+	w := newWorker(s1.shutdownCtx, s1, poolArgs)
 	w.evalToken = token
 
 	err = w.CreateEval(eval2)
@@ -756,7 +754,7 @@ func TestWorker_ReblockEval(t *testing.T) {
 
 	// Attempt to reblock eval
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
-	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
+	w := newWorker(s1.shutdownCtx, s1, poolArgs)
 	w.evalToken = token
 
 	err = w.ReblockEval(eval2)
@@ -818,28 +816,11 @@ func TestWorker_Info(t *testing.T) {
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
 
 	// Create a worker
-	w, err := newWorker(s1.shutdownCtx, s1, poolArgs)
-	require.NoError(t, err)
+	w := newWorker(s1.shutdownCtx, s1, poolArgs)
 
 	require.Equal(t, WorkerStarting, w.GetStatus())
 	workerInfo := w.Info()
 	require.Equal(t, WorkerStarting.String(), workerInfo.Status)
-}
-
-func TestWorker_WorkerInfo_String(t *testing.T) {
-	t.Parallel()
-	startTime := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
-	w := &Worker{
-		id:                "uuid",
-		start:             startTime,
-		status:            WorkerStarted,
-		workloadStatus:    WorkloadBackoff,
-		enabledSchedulers: []string{structs.JobTypeCore, structs.JobTypeBatch, structs.JobTypeSystem},
-	}
-	_, err := json.Marshal(w)
-	require.NoError(t, err)
-
-	require.Equal(t, `{"id":"uuid","enabled_schedulers":["_core","batch","system"],"started":"2009-11-10T23:00:00Z","status":"Started","workload_status":"Backoff"}`, fmt.Sprint(w.Info()))
 }
 
 const (
@@ -857,9 +838,7 @@ func TestWorker_SetPause(t *testing.T) {
 	args := SchedulerWorkerPoolArgs{
 		EnabledSchedulers: []string{structs.JobTypeCore, structs.JobTypeBatch, structs.JobTypeSystem},
 	}
-	w, err := newWorker(context.Background(), srv, args)
-	require.NoError(t, err)
-
+	w := newWorker(context.Background(), srv, args)
 	w._start(testWorkload)
 	require.Eventually(t, w.IsStarted, longWait, tinyWait, "should have started")
 
@@ -868,6 +847,12 @@ func TestWorker_SetPause(t *testing.T) {
 		w.Pause()
 	}()
 	require.Eventually(t, w.IsPaused, longWait, tinyWait, "should have paused")
+
+	go func() {
+		time.Sleep(tinyWait)
+		w.Pause()
+	}()
+	require.Eventually(t, w.IsPaused, longWait, tinyWait, "pausing a paused should be okay")
 
 	go func() {
 		time.Sleep(tinyWait)
@@ -882,10 +867,51 @@ func TestWorker_SetPause(t *testing.T) {
 	require.Eventually(t, w.IsStopped, longWait, tinyWait, "should have shutdown")
 }
 
+func TestWorker_SetPause_OutOfOrderEvents(t *testing.T) {
+	t.Parallel()
+	logger := testlog.HCLogger(t)
+	srv := &Server{
+		logger:      logger,
+		shutdownCtx: context.Background(),
+	}
+	args := SchedulerWorkerPoolArgs{
+		EnabledSchedulers: []string{structs.JobTypeCore, structs.JobTypeBatch, structs.JobTypeSystem},
+	}
+	w := newWorker(context.Background(), srv, args)
+	w._start(testWorkload)
+	require.Eventually(t, w.IsStarted, longWait, tinyWait, "should have started")
+
+	go func() {
+		time.Sleep(tinyWait)
+		w.Pause()
+	}()
+	require.Eventually(t, w.IsPaused, longWait, tinyWait, "should have paused")
+
+	go func() {
+		time.Sleep(tinyWait)
+		w.Stop()
+	}()
+	require.Eventually(t, w.IsStopped, longWait, tinyWait, "stop from pause should have shutdown")
+
+	go func() {
+		time.Sleep(tinyWait)
+		w.Pause()
+	}()
+	require.Eventually(t, w.IsStopped, longWait, tinyWait, "pausing a stopped should stay stopped")
+
+}
+
+// _start is a test helper function used to start a worker with an alternate workload
+func (w *Worker) _start(inFunc func(w *Worker)) {
+	w.setStatus(WorkerStarting)
+	go inFunc(w)
+}
+
+// testWorkload is a very simple function that performs the same status updating behaviors that the
+// real workload does.
 func testWorkload(w *Worker) {
 	defer w.markStopped()
-	w.setStatus(WorkerStarted)
-	w.setWorkloadStatus(WorkloadRunning)
+	w.setStatuses(WorkerStarted, WorkloadRunning)
 	w.logger.Debug("testWorkload running")
 	for {
 		// ensure state variables are happy after resuming.

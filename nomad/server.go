@@ -811,6 +811,7 @@ func (s *Server) Reload(newConfig *Config) error {
 		s.EnterpriseState.ReloadLicense(newConfig)
 	}
 
+	// Because this is a new configuration, we extract the worker pool arguments without acquiring a lock
 	workerPoolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(newConfig)
 	if reload, newVals := shouldReloadSchedulers(s, workerPoolArgs); reload {
 		if newVals.IsValid() {

@@ -1328,21 +1328,20 @@ func TestLeader_PausingWorkers(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	require.Len(t, s1.workers, 12)
 
-	pausedWorkers := func() int {
-		c := 0
-		for _, w := range s1.workers {
-			if w.IsPaused() {
-				c++
-			}
-		}
-		return c
-	}
-
 	// this satisfies the require.Eventually test interface
 	checkPaused := func(count int) func() bool {
 		return func() bool {
-			workers := pausedWorkers()
-			return workers == count
+			pausedWorkers := func() int {
+				c := 0
+				for _, w := range s1.workers {
+					if w.IsPaused() {
+						c++
+					}
+				}
+				return c
+			}
+
+			return pausedWorkers() == count
 		}
 	}
 

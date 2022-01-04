@@ -115,13 +115,13 @@ type Worker struct {
 
 // NewWorker starts a new scheduler worker associated with the given server
 func NewWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) (*Worker, error) {
-	w, _ := newWorker(ctx, srv, args)
+	w := newWorker(ctx, srv, args)
 	w.Start()
 	return w, nil
 }
 
 // _newWorker creates a worker without calling its Start func. This is useful for testing.
-func newWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) (*Worker, error) {
+func newWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) *Worker {
 	w := &Worker{
 		id:                uuid.Generate(),
 		srv:               srv,
@@ -135,7 +135,7 @@ func newWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) (
 	w.pauseCond = sync.NewCond(&w.pauseLock)
 	w.ctx, w.cancelFn = context.WithCancel(ctx)
 
-	return w, nil
+	return w
 }
 
 // ID returns a string ID for the worker.
@@ -153,8 +153,10 @@ func (w *Worker) Start() {
 // Pause transitions a worker to the pausing state. Check
 // to see if it paused using IsPaused()
 func (w *Worker) Pause() {
-	w.setStatus(WorkerPausing)
-	w.setPauseFlag(true)
+	if w.isPausable() {
+		w.setStatus(WorkerPausing)
+		w.setPauseFlag(true)
+	}
 }
 
 // Resume transitions a worker to the resuming state. Check
@@ -189,6 +191,17 @@ func (w *Worker) IsStopped() bool {
 	return w.GetStatus() == WorkerStopped
 }
 
+func (w *Worker) isPausable() bool {
+	w.statusLock.RLock()
+	defer w.statusLock.RUnlock()
+	switch w.status {
+	case WorkerPausing, WorkerPaused, WorkerStopping, WorkerStopped:
+		return false
+	default:
+		return true
+	}
+}
+
 // GetStatus returns the status of the Worker
 func (w *Worker) GetStatus() WorkerStatus {
 	w.statusLock.RLock()
@@ -196,11 +209,27 @@ func (w *Worker) GetStatus() WorkerStatus {
 	return w.status
 }
 
+// setStatuses is used internally to the worker to update the
+// status of the worker and workload at one time, since some
+// transitions need to update both values using the same lock.
+func (w *Worker) setStatuses(newWorkerStatus WorkerStatus, newWorkloadStatus SchedulerWorkerStatus) {
+	w.statusLock.Lock()
+	defer w.statusLock.Unlock()
+	w.setWorkerStatusLocked(newWorkerStatus)
+	w.setWorkloadStatusLocked(newWorkloadStatus)
+}
+
 // setStatus is used internally to the worker to update the
-// status of the worker based on calls to the Worker API.
+// status of the worker based on calls to the Worker API. For
+// atomically updating the scheduler status and the workload
+// status, use `setStatuses`.
 func (w *Worker) setStatus(newStatus WorkerStatus) {
 	w.statusLock.Lock()
 	defer w.statusLock.Unlock()
+	w.setWorkerStatusLocked(newStatus)
+}
+
+func (w *Worker) setWorkerStatusLocked(newStatus WorkerStatus) {
 	if newStatus == w.status {
 		return
 	}
@@ -220,6 +249,10 @@ func (w *Worker) GetWorkloadStatus() SchedulerWorkerStatus {
 func (w *Worker) setWorkloadStatus(newStatus SchedulerWorkerStatus) {
 	w.statusLock.Lock()
 	defer w.statusLock.Unlock()
+	w.setWorkloadStatusLocked(newStatus)
+}
+
+func (w *Worker) setWorkloadStatusLocked(newStatus SchedulerWorkerStatus) {
 	if newStatus == w.workloadStatus {
 		return
 	}
@@ -283,8 +316,9 @@ func (w *Worker) setPauseFlag(pause bool) {
 // values.
 func (w *Worker) maybeWait() {
 	w.pauseLock.Lock()
+	defer w.pauseLock.Unlock()
+
 	if !w.pauseFlag {
-		w.pauseLock.Unlock()
 		return
 	}
 
@@ -300,13 +334,16 @@ func (w *Worker) maybeWait() {
 		w.pauseCond.Wait()
 	}
 
-	w.pauseLock.Unlock()
-
 	w.statusLock.Lock()
-	w.status = WorkerStarted
-	w.workloadStatus = originalWorkloadStatus
+
 	w.logger.Trace("changed workload status", "from", w.workloadStatus, "to", originalWorkloadStatus)
-	w.logger.Trace("changed worker status", "from", WorkerPaused, "to", WorkerStarted)
+	w.workloadStatus = originalWorkloadStatus
+
+	// only reset the worker status if the worker is not resuming to stop the paused workload.
+	if w.status != WorkerStopping {
+		w.logger.Trace("changed worker status", "from", w.status, "to", WorkerStarted)
+		w.status = WorkerStarted
+	}
 	w.statusLock.Unlock()
 }
 
@@ -350,8 +387,7 @@ func (w *Worker) run() {
 		w.setWorkloadStatus(WorkloadStopped)
 		w.markStopped()
 	}()
-	w.setStatus(WorkerStarted)
-	w.setWorkloadStatus(WorkloadRunning)
+	w.setStatuses(WorkerStarted, WorkloadRunning)
 	w.logger.Debug("running")
 	for {
 		// Check to see if the context has been cancelled. Server shutdown and Shutdown()
@@ -437,8 +473,6 @@ REQ:
 			limit = backoffSchedulerVersionMismatch
 		}
 
-		// !: while I don't know _what_ to do here, shutting down the worker seems like it
-		// could end with a server with no running scheduler workers.
 		if w.backoffErr(base, limit) {
 			return nil, "", 0, true
 		}
@@ -802,11 +836,4 @@ func (w *Worker) backoffErr(base, limit time.Duration) bool {
 // exponential backoff
 func (w *Worker) backoffReset() {
 	w.failures = 0
-}
-
-// Test helpers
-//
-func (w *Worker) _start(inFunc func(w *Worker)) {
-	w.setStatus(WorkerStarting)
-	go inFunc(w)
 }
