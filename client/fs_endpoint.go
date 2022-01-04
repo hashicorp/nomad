@@ -633,8 +633,9 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 
 // streamFile is the internal method to stream the content of a file. If limit
 // is greater than zero, the stream will end once that many bytes have been
-// read. eofCancelCh, if triggered while at EOF, is used to trigger one more read and cancel the stream on reaching next EOF.
-// If the connection is broken an EPIPE error is returned
+// read. If eofCancelCh is triggered while at EOF, read one more frame and
+// cancel the stream on the next EOF. If the connection is broken an EPIPE
+// error is returned.
 func (f *FileSystem) streamFile(ctx context.Context, offset int64, path string, limit int64,
 	fs allocdir.AllocDirFS, framer *sframer.StreamFramer, eofCancelCh chan error, cancelAfterFirstEof bool) error {
 
@@ -765,6 +766,8 @@ OUTER:
 					return err
 				}
 
+				// try to read one more frame to avoid dropped entries
+				// during log rotation
 				cancelReceived = true
 				continue OUTER
 			}
