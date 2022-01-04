@@ -704,7 +704,10 @@ OUTER:
 			continue
 		}
 
-		// When eof and cancel received then cancel
+		// At this point we can stop without waiting for more changes,
+		// because we have EOF and either we're not following at all,
+		// or we received an event from the eofCancelCh channel
+		// and last read was executed
 		if cancelReceived {
 			return nil
 		}
