@@ -48,6 +48,20 @@ order to access a job details page.
 
 This was an unintended change and will be fixed in a future release.
 
+#### HCLv2 Job Specification Parsing
+
+In previous versions of Nomad, when rendering a job specification using override
+variables, a warning would be returned if a variable within an override file
+was declared that was not found within the job specification. This behaviour
+differed from passing variables via the `-var` flag, which would always cause an
+error in the same situation.
+
+Nomad 1.2.0 fixed the behaviour consistency to always return an error by default,
+where an override variable was specified which was not a known variable within the
+job specification. In order to mitigate this change for users who wish to only
+be warned when this situation arises, the `-hcl-strict=false` flag can be
+specified.
+
 ## Nomad 1.0.11 and 1.1.5 Enterprise
 
 #### Audit log file names
