@@ -1938,16 +1938,14 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 
 	// helper to reduce boilerplate
 	waitConfig := &config.WaitConfig{
-		Enabled: helper.BoolToPtr(true),
-		Min:     helper.TimeToPtr(5 * time.Second),
-		Max:     helper.TimeToPtr(10 * time.Second),
+		Min: helper.TimeToPtr(5 * time.Second),
+		Max: helper.TimeToPtr(10 * time.Second),
 	}
 	// helper to reduce boilerplate
 	retryConfig := &config.RetryConfig{
 		Attempts:   helper.IntToPtr(5),
 		Backoff:    helper.TimeToPtr(5 * time.Second),
 		MaxBackoff: helper.TimeToPtr(20 * time.Second),
-		Enabled:    helper.BoolToPtr(true),
 	}
 
 	clientConfig.TemplateConfig.MaxStale = helper.TimeToPtr(5 * time.Second)
@@ -1961,9 +1959,8 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 	allocWithOverride.Job.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
 		{
 			Wait: &structs.WaitConfig{
-				Enabled: helper.BoolToPtr(true),
-				Min:     helper.TimeToPtr(2 * time.Second),
-				Max:     helper.TimeToPtr(12 * time.Second),
+				Min: helper.TimeToPtr(2 * time.Second),
+				Max: helper.TimeToPtr(12 * time.Second),
 			},
 		},
 	}
@@ -2044,9 +2041,8 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 				BlockQueryWaitTime: helper.TimeToPtr(60 * time.Second),
 				Wait:               waitConfig.Copy(),
 				WaitBounds: &config.WaitConfig{
-					Enabled: helper.BoolToPtr(true),
-					Min:     helper.TimeToPtr(3 * time.Second),
-					Max:     helper.TimeToPtr(11 * time.Second),
+					Min: helper.TimeToPtr(3 * time.Second),
+					Max: helper.TimeToPtr(11 * time.Second),
 				},
 				ConsulRetry: retryConfig.Copy(),
 				VaultRetry:  retryConfig.Copy(),
@@ -2058,9 +2054,8 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 				Templates: []*structs.Template{
 					{
 						Wait: &structs.WaitConfig{
-							Enabled: helper.BoolToPtr(true),
-							Min:     helper.TimeToPtr(2 * time.Second),
-							Max:     helper.TimeToPtr(12 * time.Second),
+							Min: helper.TimeToPtr(2 * time.Second),
+							Max: helper.TimeToPtr(12 * time.Second),
 						},
 					},
 				},
@@ -2071,9 +2066,8 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 					BlockQueryWaitTime: helper.TimeToPtr(60 * time.Second),
 					Wait:               waitConfig.Copy(),
 					WaitBounds: &config.WaitConfig{
-						Enabled: helper.BoolToPtr(true),
-						Min:     helper.TimeToPtr(3 * time.Second),
-						Max:     helper.TimeToPtr(11 * time.Second),
+						Min: helper.TimeToPtr(3 * time.Second),
+						Max: helper.TimeToPtr(11 * time.Second),
 					},
 					ConsulRetry: retryConfig.Copy(),
 					VaultRetry:  retryConfig.Copy(),
@@ -2103,20 +2097,17 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.MaxStale, *runnerConfig.MaxStale)
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.BlockQueryWaitTime, *runnerConfig.BlockQueryWaitTime)
 			// WaitConfig
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.Wait.Enabled, *runnerConfig.Wait.Enabled)
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.Wait.Min, *runnerConfig.Wait.Min)
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.Wait.Max, *runnerConfig.Wait.Max)
 			// Consul Retry
 			require.NotNil(t, runnerConfig.Consul)
 			require.NotNil(t, runnerConfig.Consul.Retry)
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.ConsulRetry.Enabled, *runnerConfig.Consul.Retry.Enabled)
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.ConsulRetry.Attempts, *runnerConfig.Consul.Retry.Attempts)
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.ConsulRetry.Backoff, *runnerConfig.Consul.Retry.Backoff)
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.ConsulRetry.MaxBackoff, *runnerConfig.Consul.Retry.MaxBackoff)
 			// Vault Retry
 			require.NotNil(t, runnerConfig.Vault)
 			require.NotNil(t, runnerConfig.Vault.Retry)
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.Enabled, *runnerConfig.Vault.Retry.Enabled)
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.Attempts, *runnerConfig.Vault.Retry.Attempts)
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.Backoff, *runnerConfig.Vault.Retry.Backoff)
 			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.MaxBackoff, *runnerConfig.Vault.Retry.MaxBackoff)
@@ -2149,9 +2140,8 @@ func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 		Templates: []*structs.Template{
 			{
 				Wait: &structs.WaitConfig{
-					Enabled: helper.BoolToPtr(true),
-					Min:     helper.TimeToPtr(5 * time.Second),
-					Max:     helper.TimeToPtr(10 * time.Second),
+					Min: helper.TimeToPtr(5 * time.Second),
+					Max: helper.TimeToPtr(10 * time.Second),
 				},
 			},
 		},

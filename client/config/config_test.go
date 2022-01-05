@@ -44,9 +44,8 @@ func TestConfigReadDefault(t *testing.T) {
 
 func mockWaitConfig() *WaitConfig {
 	return &WaitConfig{
-		Enabled: helper.BoolToPtr(true),
-		Min:     helper.TimeToPtr(5 * time.Second),
-		Max:     helper.TimeToPtr(10 * time.Second),
+		Min: helper.TimeToPtr(5 * time.Second),
+		Max: helper.TimeToPtr(10 * time.Second),
 	}
 }
 
@@ -60,18 +59,8 @@ func TestWaitConfig_Copy(t *testing.T) {
 			"fully-populated",
 			mockWaitConfig(),
 			&WaitConfig{
-				Enabled: helper.BoolToPtr(true),
-				Min:     helper.TimeToPtr(5 * time.Second),
-				Max:     helper.TimeToPtr(10 * time.Second),
-			},
-		},
-		{
-			"enabled-only",
-			&WaitConfig{
-				Enabled: helper.BoolToPtr(true),
-			},
-			&WaitConfig{
-				Enabled: helper.BoolToPtr(true),
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(10 * time.Second),
 			},
 		},
 		{
@@ -124,7 +113,7 @@ func TestWaitConfig_IsEmpty(t *testing.T) {
 		{
 			"is-not-empty",
 			&WaitConfig{
-				Enabled: helper.BoolToPtr(true),
+				Min: helper.TimeToPtr(10 * time.Second),
 			},
 			false,
 		},
@@ -148,9 +137,8 @@ func TestWaitConfig_IsEqual(t *testing.T) {
 			"are-equal",
 			mockWaitConfig(),
 			&WaitConfig{
-				Enabled: helper.BoolToPtr(true),
-				Min:     helper.TimeToPtr(5 * time.Second),
-				Max:     helper.TimeToPtr(10 * time.Second),
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(10 * time.Second),
 			},
 			true,
 		},
@@ -158,9 +146,8 @@ func TestWaitConfig_IsEqual(t *testing.T) {
 			"min-different",
 			mockWaitConfig(),
 			&WaitConfig{
-				Enabled: helper.BoolToPtr(false),
-				Min:     helper.TimeToPtr(4 * time.Second),
-				Max:     helper.TimeToPtr(10 * time.Second),
+				Min: helper.TimeToPtr(4 * time.Second),
+				Max: helper.TimeToPtr(10 * time.Second),
 			},
 			false,
 		},
@@ -168,9 +155,8 @@ func TestWaitConfig_IsEqual(t *testing.T) {
 			"max-different",
 			mockWaitConfig(),
 			&WaitConfig{
-				Enabled: helper.BoolToPtr(true),
-				Min:     helper.TimeToPtr(5 * time.Second),
-				Max:     helper.TimeToPtr(9 * time.Second),
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(9 * time.Second),
 			},
 			false,
 		},
@@ -247,42 +233,36 @@ func TestWaitConfig_Merge(t *testing.T) {
 			"all-fields",
 			mockWaitConfig(),
 			&WaitConfig{
-				Enabled: helper.BoolToPtr(false),
-				Min:     helper.TimeToPtr(4 * time.Second),
-				Max:     helper.TimeToPtr(9 * time.Second),
+				Min: helper.TimeToPtr(4 * time.Second),
+				Max: helper.TimeToPtr(9 * time.Second),
 			},
 			&WaitConfig{
-				Enabled: helper.BoolToPtr(false),
-				Min:     helper.TimeToPtr(4 * time.Second),
-				Max:     helper.TimeToPtr(9 * time.Second),
+				Min: helper.TimeToPtr(4 * time.Second),
+				Max: helper.TimeToPtr(9 * time.Second),
 			},
 		},
 		{
 			"min-only",
 			mockWaitConfig(),
 			&WaitConfig{
-				Enabled: helper.BoolToPtr(false),
-				Min:     helper.TimeToPtr(4 * time.Second),
-				Max:     helper.TimeToPtr(10 * time.Second),
+				Min: helper.TimeToPtr(4 * time.Second),
+				Max: helper.TimeToPtr(10 * time.Second),
 			},
 			&WaitConfig{
-				Enabled: helper.BoolToPtr(false),
-				Min:     helper.TimeToPtr(4 * time.Second),
-				Max:     helper.TimeToPtr(10 * time.Second),
+				Min: helper.TimeToPtr(4 * time.Second),
+				Max: helper.TimeToPtr(10 * time.Second),
 			},
 		},
 		{
 			"max-only",
 			mockWaitConfig(),
 			&WaitConfig{
-				Enabled: helper.BoolToPtr(true),
-				Min:     helper.TimeToPtr(5 * time.Second),
-				Max:     helper.TimeToPtr(9 * time.Second),
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(9 * time.Second),
 			},
 			&WaitConfig{
-				Enabled: helper.BoolToPtr(true),
-				Min:     helper.TimeToPtr(5 * time.Second),
-				Max:     helper.TimeToPtr(9 * time.Second),
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(9 * time.Second),
 			},
 		},
 	}
@@ -306,20 +286,19 @@ func TestWaitConfig_ToConsulTemplate(t *testing.T) {
 		Max:     helper.TimeToPtr(10 * time.Second),
 	}
 
-	actual := WaitConfig{
-		Enabled: helper.BoolToPtr(true),
-		Min:     helper.TimeToPtr(5 * time.Second),
-		Max:     helper.TimeToPtr(10 * time.Second),
+	clientWaitConfig := &WaitConfig{
+		Min: helper.TimeToPtr(5 * time.Second),
+		Max: helper.TimeToPtr(10 * time.Second),
 	}
 
-	require.Equal(t, *expected.Enabled, *actual.Enabled)
+	actual, err := clientWaitConfig.ToConsulTemplate()
+	require.NoError(t, err)
 	require.Equal(t, *expected.Min, *actual.Min)
 	require.Equal(t, *expected.Max, *actual.Max)
 }
 
 func mockRetryConfig() *RetryConfig {
 	return &RetryConfig{
-		Enabled:       helper.BoolToPtr(true),
 		Attempts:      helper.IntToPtr(5),
 		Backoff:       helper.TimeToPtr(5 * time.Second),
 		BackoffHCL:    "5s",
@@ -337,21 +316,11 @@ func TestRetryConfig_Copy(t *testing.T) {
 			"fully-populated",
 			mockRetryConfig(),
 			&RetryConfig{
-				Enabled:       helper.BoolToPtr(true),
 				Attempts:      helper.IntToPtr(5),
 				Backoff:       helper.TimeToPtr(5 * time.Second),
 				BackoffHCL:    "5s",
 				MaxBackoff:    helper.TimeToPtr(10 * time.Second),
 				MaxBackoffHCL: "10s",
-			},
-		},
-		{
-			"enabled-only",
-			&RetryConfig{
-				Enabled: helper.BoolToPtr(true),
-			},
-			&RetryConfig{
-				Enabled: helper.BoolToPtr(true),
 			},
 		},
 		{
@@ -431,7 +400,7 @@ func TestRetryConfig_IsEmpty(t *testing.T) {
 		{
 			"is-not-empty",
 			&RetryConfig{
-				Enabled: helper.BoolToPtr(true),
+				Attempts: helper.IntToPtr(12),
 			},
 			false,
 		},
@@ -455,7 +424,6 @@ func TestRetryConfig_IsEqual(t *testing.T) {
 			"are-equal",
 			mockRetryConfig(),
 			&RetryConfig{
-				Enabled:       helper.BoolToPtr(true),
 				Attempts:      helper.IntToPtr(5),
 				Backoff:       helper.TimeToPtr(5 * time.Second),
 				BackoffHCL:    "5s",
@@ -465,23 +433,9 @@ func TestRetryConfig_IsEqual(t *testing.T) {
 			true,
 		},
 		{
-			"enabled-different",
-			mockRetryConfig(),
-			&RetryConfig{
-				Enabled:       helper.BoolToPtr(false),
-				Attempts:      helper.IntToPtr(5),
-				Backoff:       helper.TimeToPtr(5 * time.Second),
-				BackoffHCL:    "5s",
-				MaxBackoff:    helper.TimeToPtr(10 * time.Second),
-				MaxBackoffHCL: "10s",
-			},
-			false,
-		},
-		{
 			"attempts-different",
 			mockRetryConfig(),
 			&RetryConfig{
-				Enabled:       helper.BoolToPtr(true),
 				Attempts:      helper.IntToPtr(4),
 				Backoff:       helper.TimeToPtr(5 * time.Second),
 				BackoffHCL:    "5s",
@@ -494,7 +448,6 @@ func TestRetryConfig_IsEqual(t *testing.T) {
 			"backoff-different",
 			mockRetryConfig(),
 			&RetryConfig{
-				Enabled:       helper.BoolToPtr(true),
 				Attempts:      helper.IntToPtr(5),
 				Backoff:       helper.TimeToPtr(4 * time.Second),
 				BackoffHCL:    "5s",
@@ -507,7 +460,6 @@ func TestRetryConfig_IsEqual(t *testing.T) {
 			"backoff-hcl-different",
 			mockRetryConfig(),
 			&RetryConfig{
-				Enabled:       helper.BoolToPtr(true),
 				Attempts:      helper.IntToPtr(5),
 				Backoff:       helper.TimeToPtr(5 * time.Second),
 				BackoffHCL:    "4s",
@@ -520,7 +472,6 @@ func TestRetryConfig_IsEqual(t *testing.T) {
 			"max-backoff-different",
 			mockRetryConfig(),
 			&RetryConfig{
-				Enabled:       helper.BoolToPtr(true),
 				Attempts:      helper.IntToPtr(5),
 				Backoff:       helper.TimeToPtr(5 * time.Second),
 				BackoffHCL:    "5s",
@@ -533,7 +484,6 @@ func TestRetryConfig_IsEqual(t *testing.T) {
 			"max-backoff-hcl-different",
 			mockRetryConfig(),
 			&RetryConfig{
-				Enabled:       helper.BoolToPtr(true),
 				Attempts:      helper.IntToPtr(5),
 				Backoff:       helper.TimeToPtr(5 * time.Second),
 				BackoffHCL:    "5s",
@@ -630,7 +580,6 @@ func TestRetryConfig_Merge(t *testing.T) {
 			"all-fields",
 			mockRetryConfig(),
 			&RetryConfig{
-				Enabled:       helper.BoolToPtr(false),
 				Attempts:      helper.IntToPtr(4),
 				Backoff:       helper.TimeToPtr(4 * time.Second),
 				BackoffHCL:    "4s",
@@ -638,7 +587,6 @@ func TestRetryConfig_Merge(t *testing.T) {
 				MaxBackoffHCL: "9s",
 			},
 			&RetryConfig{
-				Enabled:       helper.BoolToPtr(false),
 				Attempts:      helper.IntToPtr(4),
 				Backoff:       helper.TimeToPtr(4 * time.Second),
 				BackoffHCL:    "4s",
@@ -650,7 +598,6 @@ func TestRetryConfig_Merge(t *testing.T) {
 			"attempts-only",
 			mockRetryConfig(),
 			&RetryConfig{
-				Enabled:       helper.BoolToPtr(false),
 				Attempts:      helper.IntToPtr(4),
 				Backoff:       helper.TimeToPtr(5 * time.Second),
 				BackoffHCL:    "5s",
@@ -658,7 +605,6 @@ func TestRetryConfig_Merge(t *testing.T) {
 				MaxBackoffHCL: "10s",
 			},
 			&RetryConfig{
-				Enabled:       helper.BoolToPtr(false),
 				Attempts:      helper.IntToPtr(4),
 				Backoff:       helper.TimeToPtr(5 * time.Second),
 				BackoffHCL:    "5s",
@@ -670,7 +616,6 @@ func TestRetryConfig_Merge(t *testing.T) {
 			"multi-field",
 			mockRetryConfig(),
 			&RetryConfig{
-				Enabled:       helper.BoolToPtr(true),
 				Attempts:      helper.IntToPtr(5),
 				Backoff:       helper.TimeToPtr(4 * time.Second),
 				BackoffHCL:    "4s",
@@ -678,7 +623,6 @@ func TestRetryConfig_Merge(t *testing.T) {
 				MaxBackoffHCL: "9s",
 			},
 			&RetryConfig{
-				Enabled:       helper.BoolToPtr(true),
 				Attempts:      helper.IntToPtr(5),
 				Backoff:       helper.TimeToPtr(4 * time.Second),
 				BackoffHCL:    "4s",
@@ -710,7 +654,6 @@ func TestRetryConfig_ToConsulTemplate(t *testing.T) {
 
 	actual := mockRetryConfig()
 
-	require.Equal(t, *expected.Enabled, *actual.Enabled)
 	require.Equal(t, *expected.Attempts, *actual.Attempts)
 	require.Equal(t, *expected.Backoff, *actual.Backoff)
 	require.Equal(t, *expected.MaxBackoff, *actual.MaxBackoff)

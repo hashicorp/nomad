@@ -600,7 +600,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 		}
 
 		if tmpl.Wait != nil {
-			if err := tmpl.Validate(); err != nil {
+			if err := tmpl.Wait.Validate(); err != nil {
 				return nil, err
 			}
 
