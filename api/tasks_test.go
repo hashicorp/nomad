@@ -426,45 +426,28 @@ func TestTask_Template_WaitConfig_Canonicalize_and_Copy(t *testing.T) {
 		{
 			name: "all-fields",
 			task: taskWithWait(&WaitConfig{
-				Enabled: boolToPtr(true),
-				Min:     timeToPtr(5),
-				Max:     timeToPtr(10),
+				Min: timeToPtr(5),
+				Max: timeToPtr(10),
 			}),
 			canonicalized: &WaitConfig{
-				Enabled: boolToPtr(true),
-				Min:     timeToPtr(5),
-				Max:     timeToPtr(10),
+				Min: timeToPtr(5),
+				Max: timeToPtr(10),
 			},
 			copied: &WaitConfig{
-				Enabled: boolToPtr(true),
-				Min:     timeToPtr(5),
-				Max:     timeToPtr(10),
+				Min: timeToPtr(5),
+				Max: timeToPtr(10),
 			},
 		},
 		{
 			name: "no-fields",
 			task: taskWithWait(&WaitConfig{}),
 			canonicalized: &WaitConfig{
-				Enabled: boolToPtr(false),
-				Min:     nil,
-				Max:     nil,
+				Min: nil,
+				Max: nil,
 			},
 			copied: &WaitConfig{
-				Enabled: nil,
-				Min:     nil,
-				Max:     nil,
-			},
-		},
-		{
-			name: "enabled-only",
-			task: taskWithWait(&WaitConfig{
-				Enabled: boolToPtr(true),
-			}),
-			canonicalized: &WaitConfig{
-				Enabled: boolToPtr(true),
-			},
-			copied: &WaitConfig{
-				Enabled: boolToPtr(true),
+				Min: nil,
+				Max: nil,
 			},
 		},
 		{
@@ -473,8 +456,7 @@ func TestTask_Template_WaitConfig_Canonicalize_and_Copy(t *testing.T) {
 				Min: timeToPtr(5),
 			}),
 			canonicalized: &WaitConfig{
-				Enabled: boolToPtr(false),
-				Min:     timeToPtr(5),
+				Min: timeToPtr(5),
 			},
 			copied: &WaitConfig{
 				Min: timeToPtr(5),
@@ -486,8 +468,7 @@ func TestTask_Template_WaitConfig_Canonicalize_and_Copy(t *testing.T) {
 				Max: timeToPtr(10),
 			}),
 			canonicalized: &WaitConfig{
-				Enabled: boolToPtr(false),
-				Max:     timeToPtr(10),
+				Max: timeToPtr(10),
 			},
 			copied: &WaitConfig{
 				Max: timeToPtr(10),

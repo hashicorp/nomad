@@ -775,9 +775,8 @@ func (a *TaskArtifact) Canonicalize() {
 // WaitConfig is the Min/Max duration to wait for the Consul cluster to reach a
 // consistent state before attempting to render Templates.
 type WaitConfig struct {
-	Enabled *bool          `mapstructure:"bool" hcl:"enabled"`
-	Min     *time.Duration `mapstructure:"min" hcl:"min"`
-	Max     *time.Duration `mapstructure:"max" hcl:"max"`
+	Min *time.Duration `mapstructure:"min" hcl:"min"`
+	Max *time.Duration `mapstructure:"max" hcl:"max"`
 }
 
 func (wc *WaitConfig) Copy() *WaitConfig {
@@ -789,12 +788,6 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 	*nwc = *wc
 
 	return nwc
-}
-
-func (wc *WaitConfig) Canonicalize() {
-	if wc.Enabled == nil {
-		wc.Enabled = boolToPtr(false)
-	}
 }
 
 type Template struct {
@@ -849,9 +842,6 @@ func (tmpl *Template) Canonicalize() {
 	}
 	if tmpl.Envvars == nil {
 		tmpl.Envvars = boolToPtr(false)
-	}
-	if tmpl.Wait != nil {
-		tmpl.Wait.Canonicalize()
 	}
 
 	//COMPAT(0.12) VaultGrace is deprecated and unused as of Vault 0.5
