@@ -2549,9 +2549,8 @@ func TestTemplate_Validate(t *testing.T) {
 				DestPath:   "local/foo",
 				ChangeMode: "noop",
 				Wait: &WaitConfig{
-					Enabled: helper.BoolToPtr(true),
-					Min:     helper.TimeToPtr(10 * time.Second),
-					Max:     helper.TimeToPtr(5 * time.Second),
+					Min: helper.TimeToPtr(10 * time.Second),
+					Max: helper.TimeToPtr(5 * time.Second),
 				},
 			},
 			Fail: true,
@@ -2565,9 +2564,8 @@ func TestTemplate_Validate(t *testing.T) {
 				DestPath:   "local/foo",
 				ChangeMode: "noop",
 				Wait: &WaitConfig{
-					Enabled: helper.BoolToPtr(true),
-					Min:     helper.TimeToPtr(5 * time.Second),
-					Max:     helper.TimeToPtr(5 * time.Second),
+					Min: helper.TimeToPtr(5 * time.Second),
+					Max: helper.TimeToPtr(5 * time.Second),
 				},
 			},
 			Fail: false,
@@ -2578,9 +2576,8 @@ func TestTemplate_Validate(t *testing.T) {
 				DestPath:   "local/foo",
 				ChangeMode: "noop",
 				Wait: &WaitConfig{
-					Enabled: helper.BoolToPtr(true),
-					Min:     helper.TimeToPtr(5 * time.Second),
-					Max:     helper.TimeToPtr(10 * time.Second),
+					Min: helper.TimeToPtr(5 * time.Second),
+					Max: helper.TimeToPtr(10 * time.Second),
 				},
 			},
 			Fail: false,
@@ -2615,29 +2612,18 @@ func TestTaskWaitConfig_Equals(t *testing.T) {
 		{
 			name: "all-fields",
 			config: &WaitConfig{
-				Enabled: helper.BoolToPtr(true),
-				Min:     helper.TimeToPtr(5 * time.Second),
-				Max:     helper.TimeToPtr(10 * time.Second),
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(10 * time.Second),
 			},
 			expected: &WaitConfig{
-				Enabled: helper.BoolToPtr(true),
-				Min:     helper.TimeToPtr(5 * time.Second),
-				Max:     helper.TimeToPtr(10 * time.Second),
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(10 * time.Second),
 			},
 		},
 		{
 			name:     "no-fields",
 			config:   &WaitConfig{},
 			expected: &WaitConfig{},
-		},
-		{
-			name: "enabled-only",
-			config: &WaitConfig{
-				Enabled: helper.BoolToPtr(true),
-			},
-			expected: &WaitConfig{
-				Enabled: helper.BoolToPtr(true),
-			},
 		},
 		{
 			name: "min-only",

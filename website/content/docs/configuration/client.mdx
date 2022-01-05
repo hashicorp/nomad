@@ -370,7 +370,6 @@ see the [drivers documentation](/docs/drivers).
 
   ```hcl
   wait {
-    enabled = true
     min     = "5s"
     max     = "10s"
   }
@@ -384,7 +383,6 @@ see the [drivers documentation](/docs/drivers).
 
   ```hcl
   wait_bounds {
-    enabled = true
     min     = "5s"
     max     = "10s"
   }
@@ -403,8 +401,6 @@ see the [drivers documentation](/docs/drivers).
 
   ```hcl
   consul_retry {
-    # This enables retries.
-    enabled = true
     # This specifies the number of attempts to make before giving up. Each
     # attempt adds the exponential backoff sleep time. Setting this to
     # zero will implement an unlimited number of retries.
@@ -430,8 +426,6 @@ see the [drivers documentation](/docs/drivers).
 
   ```hcl
   vault_retry {
-    # This enables retries.
-    enabled = true
     # This specifies the number of attempts to make before giving up. Each
     # attempt adds the exponential backoff sleep time. Setting this to
     # zero will implement an unlimited number of retries.

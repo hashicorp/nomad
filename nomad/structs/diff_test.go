@@ -6909,9 +6909,8 @@ func TestTaskDiff(t *testing.T) {
 						Splay:        1,
 						Perms:        "0644",
 						Wait: &WaitConfig{
-							Enabled: helper.BoolToPtr(true),
-							Min:     helper.TimeToPtr(5 * time.Second),
-							Max:     helper.TimeToPtr(5 * time.Second),
+							Min: helper.TimeToPtr(5 * time.Second),
+							Max: helper.TimeToPtr(5 * time.Second),
 						},
 					},
 					{
@@ -6937,9 +6936,8 @@ func TestTaskDiff(t *testing.T) {
 						Splay:        1,
 						Perms:        "0644",
 						Wait: &WaitConfig{
-							Enabled: helper.BoolToPtr(true),
-							Min:     helper.TimeToPtr(5 * time.Second),
-							Max:     helper.TimeToPtr(10 * time.Second),
+							Min: helper.TimeToPtr(5 * time.Second),
+							Max: helper.TimeToPtr(10 * time.Second),
 						},
 					},
 					{
@@ -6951,9 +6949,8 @@ func TestTaskDiff(t *testing.T) {
 						Splay:        3,
 						Perms:        "0776",
 						Wait: &WaitConfig{
-							Enabled: helper.BoolToPtr(true),
-							Min:     helper.TimeToPtr(5 * time.Second),
-							Max:     helper.TimeToPtr(10 * time.Second),
+							Min: helper.TimeToPtr(5 * time.Second),
+							Max: helper.TimeToPtr(10 * time.Second),
 						},
 					},
 				},
@@ -7051,12 +7048,6 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeAdded,
 								Name: "Template",
 								Fields: []*FieldDiff{
-									{
-										Type: DiffTypeAdded,
-										Name: "Enabled",
-										Old:  "",
-										New:  "true",
-									},
 									{
 										Type: DiffTypeAdded,
 										Name: "Max",

@@ -967,7 +967,6 @@ func TestWaitConfig(t *testing.T) {
 	tmpl := job.TaskGroups[0].Tasks[0].Templates[0]
 	require.NotNil(t, tmpl)
 	require.NotNil(t, tmpl.Wait)
-	require.True(t, *tmpl.Wait.Enabled)
 	require.Equal(t, 5*time.Second, *tmpl.Wait.Min)
 	require.Equal(t, 60*time.Second, *tmpl.Wait.Max)
 }

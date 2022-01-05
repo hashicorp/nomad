@@ -1174,9 +1174,8 @@ func ApiWaitConfigToStructsWaitConfig(waitConfig *api.WaitConfig) *structs.WaitC
 	}
 
 	return &structs.WaitConfig{
-		Enabled: &*waitConfig.Enabled,
-		Min:     &*waitConfig.Min,
-		Max:     &*waitConfig.Max,
+		Min: &*waitConfig.Min,
+		Max: &*waitConfig.Max,
 	}
 }
 

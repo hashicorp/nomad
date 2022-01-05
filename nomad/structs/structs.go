@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/blake2b"
+
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
@@ -41,7 +43,6 @@ import (
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
-	"golang.org/x/crypto/blake2b"
 )
 
 var (
@@ -7534,9 +7535,8 @@ func (t *Template) DiffID() string {
 // Template relies on pointer based business logic. This struct uses pointers so
 // that we tell the different between zero values and unset values.
 type WaitConfig struct {
-	Enabled *bool
-	Min     *time.Duration
-	Max     *time.Duration
+	Min *time.Duration
+	Max *time.Duration
 }
 
 // Copy returns a deep copy of this configuration.
@@ -7546,10 +7546,6 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 	}
 
 	nwc := new(WaitConfig)
-
-	if wc.Enabled != nil {
-		nwc.Enabled = &*wc.Enabled
-	}
 
 	if wc.Min != nil {
 		nwc.Min = &*wc.Min
@@ -7563,10 +7559,6 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 }
 
 func (wc *WaitConfig) Equals(o *WaitConfig) bool {
-	if wc.Enabled == nil && o.Enabled != nil {
-		return false
-	}
-
 	if wc.Min == nil && o.Min != nil {
 		return false
 	}
@@ -7575,15 +7567,11 @@ func (wc *WaitConfig) Equals(o *WaitConfig) bool {
 		return false
 	}
 
-	if wc.Enabled != nil && (o.Enabled == nil || &*wc.Enabled != &*o.Enabled) {
+	if wc.Min != nil && (o.Min == nil || *wc.Min != *o.Min) {
 		return false
 	}
 
-	if wc.Min != nil && (o.Min == nil || &*wc.Min != &*o.Min) {
-		return false
-	}
-
-	if wc.Max != nil && (o.Max == nil || &*wc.Max != &*o.Max) {
+	if wc.Max != nil && (o.Max == nil || *wc.Max != *o.Max) {
 		return false
 	}
 

@@ -759,9 +759,8 @@ func TestTasksUpdated(t *testing.T) {
 	j22.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
 		{
 			Wait: &structs.WaitConfig{
-				Enabled: helper.BoolToPtr(true),
-				Min:     helper.TimeToPtr(5 * time.Second),
-				Max:     helper.TimeToPtr(5 * time.Second),
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(5 * time.Second),
 			},
 		},
 	}
@@ -769,9 +768,8 @@ func TestTasksUpdated(t *testing.T) {
 	j23.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
 		{
 			Wait: &structs.WaitConfig{
-				Enabled: helper.BoolToPtr(true),
-				Min:     helper.TimeToPtr(5 * time.Second),
-				Max:     helper.TimeToPtr(5 * time.Second),
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(5 * time.Second),
 			},
 		},
 	}

@@ -465,11 +465,10 @@ func (c *ClientTemplateConfig) IsEmpty() bool {
 // which is inconsistent with how Nomad typically works. This decision was made
 // to maintain parity with the external subsystem, not to establish a new standard.
 type WaitConfig struct {
-	Enabled *bool          `hcl:"enabled,optional"`
-	Min     *time.Duration `hcl:"-"`
-	MinHCL  string         `hcl:"min,optional" json:"-"`
-	Max     *time.Duration `hcl:"-"`
-	MaxHCL  string         `hcl:"max,optional" json:"-"`
+	Min    *time.Duration `hcl:"-"`
+	MinHCL string         `hcl:"min,optional" json:"-"`
+	Max    *time.Duration `hcl:"-"`
+	MaxHCL string         `hcl:"max,optional" json:"-"`
 }
 
 // Copy returns a deep copy of the receiver.
@@ -480,12 +479,10 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 
 	nwc := new(WaitConfig)
 
-	if wc.Enabled != nil {
-		nwc.Enabled = &*wc.Enabled
-	}
 	if wc.Min != nil {
 		nwc.Min = &*wc.Min
 	}
+
 	if wc.Max != nil {
 		nwc.Max = &*wc.Max
 	}
@@ -541,10 +538,6 @@ func (wc *WaitConfig) Merge(b *WaitConfig) *WaitConfig {
 		return &result
 	}
 
-	if b.Enabled != nil {
-		result.Enabled = &*b.Enabled
-	}
-
 	if b.Min != nil {
 		result.Min = &*b.Min
 	}
@@ -574,11 +567,7 @@ func (wc *WaitConfig) ToConsulTemplate() (*config.WaitConfig, error) {
 		return nil, err
 	}
 
-	result := &config.WaitConfig{}
-
-	if wc.Enabled != nil {
-		result.Enabled = wc.Enabled
-	}
+	result := &config.WaitConfig{Enabled: helper.BoolToPtr(true)}
 
 	if wc.Min != nil {
 		result.Min = wc.Min
@@ -600,8 +589,6 @@ func (wc *WaitConfig) ToConsulTemplate() (*config.WaitConfig, error) {
 // use pointers to maintain parity with the external subystem, not to establish
 // a new standard.
 type RetryConfig struct {
-	// Enabled signals if this retry is enabled.
-	Enabled *bool `hcl:"enabled,optional"`
 	// Attempts is the total number of maximum attempts to retry before letting
 	// the error fall through.
 	// 0 means unlimited.
@@ -625,9 +612,6 @@ func (rc *RetryConfig) Copy() *RetryConfig {
 	*nrc = *rc
 
 	// Now copy pointer values
-	if rc.Enabled != nil {
-		nrc.Enabled = &*rc.Enabled
-	}
 	if rc.Attempts != nil {
 		nrc.Attempts = &*rc.Attempts
 	}
@@ -697,10 +681,6 @@ func (rc *RetryConfig) Merge(b *RetryConfig) *RetryConfig {
 		return &result
 	}
 
-	if b.Enabled != nil {
-		result.Enabled = &*b.Enabled
-	}
-
 	if b.Attempts != nil {
 		result.Attempts = &*b.Attempts
 	}
@@ -725,18 +705,12 @@ func (rc *RetryConfig) Merge(b *RetryConfig) *RetryConfig {
 }
 
 // ToConsulTemplate converts a client RetryConfig instance to a consul-template RetryConfig
-// TODO: Needs code review. The caller (TaskTemplateManager) takes direct pointers
-// to other configuration values. Need to make sure that desired here as well.
 func (rc *RetryConfig) ToConsulTemplate() (*config.RetryConfig, error) {
 	if err := rc.Validate(); err != nil {
 		return nil, err
 	}
 
-	result := &config.RetryConfig{}
-
-	if rc.Enabled != nil {
-		result.Enabled = rc.Enabled
-	}
+	result := &config.RetryConfig{Enabled: helper.BoolToPtr(true)}
 
 	if rc.Attempts != nil {
 		result.Attempts = rc.Attempts

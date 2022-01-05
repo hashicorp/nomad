@@ -600,8 +600,12 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 		}
 
 		if tmpl.Wait != nil {
+			if err := tmpl.Validate(); err != nil {
+				return nil, err
+			}
+
 			ct.Wait = &ctconf.WaitConfig{
-				Enabled: tmpl.Wait.Enabled,
+				Enabled: helper.BoolToPtr(true),
 				Min:     tmpl.Wait.Min,
 				Max:     tmpl.Wait.Max,
 			}
@@ -668,7 +672,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 
 	// Make sure any template specific configuration set by the job author is within
 	// the bounds set by the operator.
-	if cc.TemplateConfig.WaitBounds != nil && *cc.TemplateConfig.WaitBounds.Enabled {
+	if cc.TemplateConfig.WaitBounds != nil {
 		// If somehow the WaitBounds weren't set correctly upstream, return an error.
 		err := cc.TemplateConfig.WaitBounds.Validate()
 		if err != nil {
