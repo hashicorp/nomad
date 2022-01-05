@@ -245,9 +245,20 @@ export default function() {
     return this.serialize(allocations.slice(0, 3));
   });
 
-  this.get('/nodes', function({ nodes }) {
-    const json = this.serialize(nodes.all());
-    return json;
+  this.get('/nodes', function({ nodes }, req) {
+    // authorize user permissions
+    const { policyIds } = server.db.tokens.findBy({
+      secretId: req.requestHeaders['X-Nomad-Token'],
+    });
+    const policies = server.db.policies.find(policyIds);
+    const hasReadPolicy = policies.find(
+      p => p.rulesJSON.Node?.Policy === 'read' || p.rulesJSON.Node?.Policy === 'write'
+    );
+    if (hasReadPolicy) {
+      const json = this.serialize(nodes.all());
+      return json;
+    }
+    return new Response(403, {}, 'You broke everything!');
   });
 
   this.get('/node/:id');
