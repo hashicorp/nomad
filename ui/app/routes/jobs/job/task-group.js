@@ -4,25 +4,9 @@ import EmberError from '@ember/error';
 import { resolve, all } from 'rsvp';
 import { watchRecord, watchRelationship } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
-import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 import notifyError from 'nomad-ui/utils/notify-error';
 
 export default class TaskGroupRoute extends Route.extend(WithWatchers) {
-  breadcrumbs(model) {
-    if (!model) return [];
-    return [
-      {
-        label: model.get('name'),
-        args: [
-          'jobs.job.task-group',
-          model.get('job'),
-          model.get('name'),
-          qpBuilder({ jobNamespace: model.get('job.namespace.name') || 'default' }),
-        ],
-      },
-    ];
-  }
-
   model({ name }) {
     const job = this.modelFor('jobs.job');
 

@@ -5,6 +5,7 @@ import Controller from '@ember/controller';
 import { action, computed, get } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
+import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
@@ -13,10 +14,10 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class TaskGroupController extends Controller.extend(
-    Sortable,
-    Searchable,
-    WithNamespaceResetting
-  ) {
+  Sortable,
+  Searchable,
+  WithNamespaceResetting
+) {
   @service userSettings;
   @service can;
 
@@ -140,5 +141,23 @@ export default class TaskGroupController extends Controller.extend(
 
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
+  }
+
+  get taskGroup() {
+    return this.model;
+  }
+
+  get breadcrumb() {
+    const { job, name } = this.taskGroup;
+    return {
+      title: 'Task Group',
+      label: name,
+      args: [
+        'jobs.job.task-group',
+        job,
+        name,
+        qpBuilder({ jobNamespace: job.get('namespace.name') || 'default' }),
+      ],
+    };
   }
 }

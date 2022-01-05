@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Add titles to breadcrumb labels in app navigation bar
+```

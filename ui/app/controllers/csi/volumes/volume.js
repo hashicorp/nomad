@@ -1,6 +1,7 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action, computed } from '@ember/object';
+import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 
 export default class VolumeController extends Controller {
   // Used in the template
@@ -12,6 +13,31 @@ export default class VolumeController extends Controller {
     },
   ];
   volumeNamespace = 'default';
+
+  get volume() {
+    return this.model;
+  }
+
+  get breadcrumbs() {
+    const volume = this.volume;
+    return [
+      {
+        label: 'Volumes',
+        args: [
+          'csi.volumes',
+          qpBuilder({ volumeNamespace: volume.get('namespace.name') || 'default' }),
+        ],
+      },
+      {
+        label: volume.name,
+        args: [
+          'csi.volumes.volume',
+          volume.plainId,
+          qpBuilder({ volumeNamespace: volume.get('namespace.name') || 'default' }),
+        ],
+      },
+    ];
+  }
 
   @computed('model.readAllocations.@each.modifyIndex')
   get sortedReadAllocations() {

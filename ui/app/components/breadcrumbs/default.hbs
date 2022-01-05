@@ -1,0 +1,16 @@
+<li data-test-breadcrumb-default>
+  <LinkTo @params={{@crumb.args}} data-test-breadcrumb={{@crumb.args.firstObject}}>
+    {{#if @crumb.title}}
+      <dl>
+        <dt>
+          {{@crumb.title}}
+        </dt>
+        <dd>
+          {{@crumb.label}}
+        </dd>
+      </dl>
+    {{else}}
+      {{@crumb.label}}
+    {{/if}}
+  </LinkTo>
+</li>

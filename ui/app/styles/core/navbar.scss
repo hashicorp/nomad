@@ -1,5 +1,6 @@
 .navbar {
   display: flex;
+  align-items: center;
 
   &.is-primary {
     background: linear-gradient(to right, $nomad-green-darker, $nomad-green-dark);

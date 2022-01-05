@@ -122,12 +122,12 @@ module('Acceptance | task group detail', function(hooks) {
     assert.equal(Layout.breadcrumbFor('jobs.index').text, 'Jobs', 'First breadcrumb says jobs');
     assert.equal(
       Layout.breadcrumbFor('jobs.job.index').text,
-      job.name,
+      `Job ${job.name}`,
       'Second breadcrumb says the job name'
     );
     assert.equal(
       Layout.breadcrumbFor('jobs.job.task-group').text,
-      taskGroup.name,
+      `Task Group ${taskGroup.name}`,
       'Third breadcrumb says the job name'
     );
   });

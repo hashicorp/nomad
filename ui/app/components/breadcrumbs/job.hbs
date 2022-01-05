@@ -1,0 +1,49 @@
+<Trigger @onError={{action this.onError}} @do={{this.fetchParent}} as |trigger|>
+  {{did-insert trigger.fns.do}}
+  {{#if trigger.data.isBusy}}
+    <li>
+      <a href="#" aria-label="loading" data-test-breadcrumb="loading">
+        …
+      </a>
+    </li>
+  {{/if}}
+  {{#if trigger.data.isSuccess}}
+    {{#if trigger.data.result}}
+      <li>
+        <LinkTo
+          @route="jobs.job.index"
+          @model={{trigger.data.result.plainId}}
+          @query={{hash namespace=(or trigger.data.result.namespace.name "default")}}
+          data-test-breadcrumb={{"jobs.job.index"}}
+        >
+          <dl>
+            <dt>
+              Parent Job
+            </dt>
+            <dd>
+              {{trigger.data.result.trimmedName}}
+            </dd>
+          </dl>
+        </LinkTo>
+      </li>
+    {{/if}}
+    <li>
+      <LinkTo
+        @route="jobs.job.index"
+        @model={{this.job.plainId}}
+        @query={{hash namespace=(or this.job.namespace.name "default")}}
+        data-test-breadcrumb={{"jobs.job.index"}}
+        data-test-job-breadcrumb
+      >
+        <dl>
+          <dt>
+            {{if this.job.hasChildren "Parent Job" "Job"}}
+          </dt>
+          <dd>
+            {{this.job.trimmedName}}
+          </dd>
+        </dl>
+      </LinkTo>
+    </li>
+  {{/if}}
+</Trigger>

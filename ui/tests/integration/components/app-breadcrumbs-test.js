@@ -1,49 +1,31 @@
-import Service from '@ember/service';
-import RSVP from 'rsvp';
+/* eslint-disable ember-a11y-testing/a11y-audit-called */
+import { setComponentTemplate } from '@ember/component';
+import Component from '@glimmer/component';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { findAll, render, settled } from '@ember/test-helpers';
+import { findAll, render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
-import PromiseObject from 'nomad-ui/utils/classes/promise-object';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | app breadcrumbs', function(hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(function() {
-    const mockBreadcrumbs = Service.extend({
-      init() {
-        this._super(...arguments);
-        this.breadcrumbs = [];
-      },
-    });
-
-    this.owner.register('service:breadcrumbs', mockBreadcrumbs);
-    this.breadcrumbs = this.owner.lookup('service:breadcrumbs');
-  });
-
-  const commonCrumbs = [{ label: 'One', args: ['one'] }, { label: 'Two', args: ['two'] }];
-
-  const template = hbs`
-    <ul><AppBreadcrumbs /></ul>
-  `;
-
-  test('breadcrumbs comes from the breadcrumbs service', async function(assert) {
-    this.breadcrumbs.set('breadcrumbs', commonCrumbs);
-
-    await render(template);
-
-    assert.equal(
-      findAll('[data-test-breadcrumb]').length,
-      commonCrumbs.length,
-      'The number of crumbs matches the crumbs from the service'
-    );
-  });
+  const commonCrumbs = [
+    { label: 'Jobs', args: ['jobs.index'] },
+    { label: 'Job', args: ['jobs.job.index'] },
+  ];
 
   test('every breadcrumb is rendered correctly', async function(assert) {
-    this.breadcrumbs.set('breadcrumbs', commonCrumbs);
+    this.set('commonCrumbs', commonCrumbs);
+    await render(hbs`
+      <AppBreadcrumbs />
+      {{#each this.commonCrumbs as |crumb|}}
+        <Breadcrumb @crumb={{hash label=crumb.label args=crumb.args }} />
+      {{/each}}
+    `);
 
-    await render(template);
+    assert
+      .dom('[data-test-breadcrumb-default]')
+      .exists('We register the default breadcrumb component if no type is specified on the crumb');
 
     const renderedCrumbs = findAll('[data-test-breadcrumb]');
 
@@ -56,36 +38,39 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
     });
   });
 
-  test('when breadcrumbs are pending promises, an ellipsis is rendered', async function(assert) {
-    let resolvePromise;
-    const promise = new RSVP.Promise(resolve => {
-      resolvePromise = resolve;
-    });
+  test('when we register a crumb with a type property, a dedicated breadcrumb/<type> component renders', async function(assert) {
+    const crumbs = [
+      { label: 'Jobs', args: ['jobs.index'] },
+      { type: 'special', label: 'Job', args: ['jobs.job.index'] },
+    ];
+    this.set('crumbs', crumbs);
 
-    this.breadcrumbs.set('breadcrumbs', [
-      { label: 'One', args: ['one'] },
-      PromiseObject.create({ promise }),
-      { label: 'Three', args: ['three'] },
-    ]);
-
-    await render(template);
-
-    assert.equal(
-      findAll('[data-test-breadcrumb]')[1].textContent.trim(),
-      '…',
-      'Promise breadcrumb is in a loading state'
+    class MockComponent extends Component {}
+    this.owner.register(
+      'component:breadcrumbs/special',
+      setComponentTemplate(
+        hbs`
+        <div data-test-breadcrumb-special>Test</div>
+      `,
+        MockComponent
+      )
     );
 
-    await componentA11yAudit(this.element, assert);
+    await render(hbs`
+    <AppBreadcrumbs />
+    {{#each this.crumbs as |crumb|}}
+      <Breadcrumb @crumb={{hash type=crumb.type label=crumb.label args=crumb.args }} />
+    {{/each}}
+  `);
 
-    resolvePromise({ label: 'Two', args: ['two'] });
-
-    return settled().then(() => {
-      assert.equal(
-        findAll('[data-test-breadcrumb]')[1].textContent.trim(),
-        'Two',
-        'Promise breadcrumb has resolved and now renders Two'
+    assert
+      .dom('[data-test-breadcrumb-special]')
+      .exists(
+        'We can create a new type of breadcrumb component and AppBreadcrumbs will handle rendering by type'
       );
-    });
+
+    assert
+      .dom('[data-test-breadcrumb-default]')
+      .exists('Default breadcrumb registers if no type is specified');
   });
 });

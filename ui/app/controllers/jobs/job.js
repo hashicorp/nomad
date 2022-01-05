@@ -7,4 +7,8 @@ export default class JobController extends Controller {
     },
   ];
   jobNamespace = 'default';
+
+  get job() {
+    return this.model;
+  }
 }

@@ -3,7 +3,6 @@ import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
 import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
-import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import classic from 'ember-classic-decorator';
@@ -12,24 +11,6 @@ import classic from 'ember-classic-decorator';
 export default class VolumeRoute extends Route.extend(WithWatchers) {
   @service store;
   @service system;
-
-  breadcrumbs = volume => [
-    {
-      label: 'Volumes',
-      args: [
-        'csi.volumes',
-        qpBuilder({ volumeNamespace: volume.get('namespace.name') || 'default' }),
-      ],
-    },
-    {
-      label: volume.name,
-      args: [
-        'csi.volumes.volume',
-        volume.plainId,
-        qpBuilder({ volumeNamespace: volume.get('namespace.name') || 'default' }),
-      ],
-    },
-  ];
 
   startWatchers(controller, model) {
     if (!model) return;

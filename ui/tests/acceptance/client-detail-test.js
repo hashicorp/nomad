@@ -68,8 +68,8 @@ module('Acceptance | client detail', function(hooks) {
     );
     assert.equal(
       Layout.breadcrumbFor('clients.client').text,
-      node.id.split('-')[0],
-      'Second breadcrumb says the node short id'
+      `Client ${node.id.split('-')[0]}`,
+      'Second breadcrumb is a titled breadcrumb saying the node short id'
     );
     await Layout.breadcrumbFor('clients.index').visit();
     assert.equal(currentURL(), '/clients', 'First breadcrumb links back to clients');

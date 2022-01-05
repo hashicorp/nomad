@@ -5,16 +5,6 @@ import EmberError from '@ember/error';
 export default class TaskRoute extends Route {
   @service store;
 
-  breadcrumbs(model) {
-    if (!model) return [];
-    return [
-      {
-        label: model.get('name'),
-        args: ['allocations.allocation.task', model.get('allocation'), model],
-      },
-    ];
-  }
-
   model({ name }) {
     const allocation = this.modelFor('allocations.allocation');
 
