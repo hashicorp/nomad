@@ -1703,12 +1703,12 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 	}
 	success1 := schedulerWorkerConfigTest_testExpect{
 		expectedResponseCode: http.StatusOK,
-		expectedResponse:     &api.AgentSchedulerWorkerConfigRequest{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: 8},
+		expectedResponse:     &api.AgentSchedulerWorkerConfigResponse{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: 8},
 	}
 
 	success2 := schedulerWorkerConfigTest_testExpect{
 		expectedResponseCode: http.StatusOK,
-		expectedResponse:     &api.AgentSchedulerWorkerConfigRequest{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: 9},
+		expectedResponse:     &api.AgentSchedulerWorkerConfigResponse{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: 9},
 	}
 
 	return []scheduleWorkerConfigTest_workerRequestTest{
