@@ -104,6 +104,13 @@ func (vw *volumeWatcher) isRunning() bool {
 // Each pass steps the volume's claims through the various states of reaping
 // until the volume has no more claims eligible to be reaped.
 func (vw *volumeWatcher) watch() {
+	// always denormalize the volume and call reap when we first start
+	// the watcher so that we ensure we don't drop events that
+	// happened during leadership transitions and didn't get completed
+	// by the prior leader
+	vol := vw.getVolume(vw.v)
+	vw.volumeReap(vol)
+
 	for {
 		select {
 		// TODO(tgross): currently server->client RPC have no cancellation
