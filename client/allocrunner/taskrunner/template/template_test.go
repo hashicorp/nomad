@@ -146,6 +146,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 			TemplateConfig: &config.ClientTemplateConfig{
 				FunctionDenylist: []string{"plugin"},
 				DisableSandbox:   false,
+				ConsulRetry:      &config.RetryConfig{Backoff: helper.TimeToPtr(10 * time.Millisecond)},
 			}},
 		emitRate: DefaultMaxTemplateEventRate,
 	}
@@ -203,7 +204,6 @@ func (h *testHarness) startWithErr() error {
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.envBuilder,
 		MaxTemplateEventRate: h.emitRate,
-		retryRate:            10 * time.Millisecond,
 	})
 
 	return err

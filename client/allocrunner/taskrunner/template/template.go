@@ -102,9 +102,6 @@ type TaskTemplateManagerConfig struct {
 
 	// MaxTemplateEventRate is the maximum rate at which we should emit events.
 	MaxTemplateEventRate time.Duration
-
-	// retryRate is only used for testing and is used to increase the retry rate
-	retryRate time.Duration
 }
 
 // Validate validates the configuration.
@@ -642,14 +639,6 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		flat = append(flat, local)
 	}
 	conf.Templates = &flat
-
-	// TODO: Code review this. It seems that this setting is only used to force
-	// errors in a specific test scenarios. We need to rethink implementation.
-	// Force faster retries
-	if config.retryRate != 0 {
-		rate := config.retryRate
-		conf.Consul.Retry.Backoff = &rate
-	}
 
 	// Set the amount of time to do a blocking query for.
 	if cc.TemplateConfig.BlockQueryWaitTime != nil {

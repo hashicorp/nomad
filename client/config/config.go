@@ -675,11 +675,11 @@ func (rc *RetryConfig) Validate() error {
 	}
 
 	// MaxBackoff == 0 means backoff is unbounded. No need to validate.
-	if *rc.MaxBackoff == 0 {
+	if rc.MaxBackoff != nil && *rc.MaxBackoff == 0 {
 		return nil
 	}
 
-	if *rc.Backoff > *rc.MaxBackoff {
+	if rc.MaxBackoff != nil && *rc.Backoff > *rc.MaxBackoff {
 		return fmt.Errorf("retry config backoff %d is greater than max_backoff %d", *rc.Backoff, *rc.MaxBackoff)
 	}
 
