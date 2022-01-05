@@ -2342,6 +2342,84 @@ func TestJobRegister_ACL_RejectedBySchedulerConfig(t *testing.T) {
 	}
 }
 
+// TestJobEndpoint_Register_BadNodeNetwork asserts that if the only node
+// otherwise feasible returns a collision from its NetworkIndex.SetNode call.
+func TestJobEndpoint_Register_BadNodeNetwork(t *testing.T) {
+	t.Parallel()
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 1
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	state := s1.State()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a "bad" node whose NetworkIndex.SetNode call will always
+	// return a collision. This **should not be possible** but is due to
+	// either bugs or lack of validation of all node values. One example of
+	// lack of validation causing SetNode failures is:
+	// https://github.com/hashicorp/nomad/issues/9506#issuecomment-1002880600
+	node := mock.Node()
+	node.ReservedResources.Networks.ReservedHostPorts = "808081"
+	node.ComputeClass()
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
+
+	// Assert node always collides due to malformed reserved_ports
+	netIdx := structs.NewNetworkIndex()
+	assert.False(t, netIdx.SetNode(node))
+
+	// Create a job
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+
+	// Register the job
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	var resp structs.JobRegisterResponse
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(t, resp.Index)
+
+	// Follow the eval
+	var evalResp structs.SingleEvalResponse
+	evalReq := &structs.EvalSpecificRequest{
+		EvalID: resp.EvalID,
+		QueryOptions: structs.QueryOptions{
+			Region:        job.Region,
+			Namespace:     job.Namespace,
+			MinQueryIndex: resp.EvalCreateIndex,
+			MaxQueryTime:  5 * time.Second,
+		},
+	}
+	for s, e := time.Now(), time.Now().Add(10*time.Second); s.Before(e); s = time.Now() {
+		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Eval.GetEval", evalReq, &evalResp))
+		evalReq.QueryOptions.MinQueryIndex = evalResp.Index
+		if evalResp.Eval.Status == structs.EvalStatusComplete {
+			break
+		}
+	}
+
+	// Assert a blocked eval was created
+	assert.NotEmpty(t, evalResp.Eval.BlockedEval)
+
+	// Assert network dimension failed
+	require.Len(t, evalResp.Eval.FailedTGAllocs, 1, evalResp.Eval)
+	expected := map[string]int{"network: dynamic port selection failed": 1}
+	for _, v := range evalResp.Eval.FailedTGAllocs {
+		require.Equal(t, expected, v.DimensionExhausted)
+	}
+
+	// Assert blocked eval is pending
+	evalReq.EvalID = evalResp.Eval.BlockedEval
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Eval.GetEval", evalReq, &evalResp))
+	require.Equal(t, structs.EvalStatusBlocked, evalResp.Eval.Status)
+}
+
 func TestJobEndpoint_Revert(t *testing.T) {
 	t.Parallel()
 
