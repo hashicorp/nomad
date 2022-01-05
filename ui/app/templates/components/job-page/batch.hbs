@@ -1,14 +1,11 @@
-<JobPage @job={{this.job}} as |jobPage|>
+<JobPage @job={{@job}} as |jobPage|>
   <jobPage.ui.Body>
     <jobPage.ui.Error />
     <jobPage.ui.Title />
     <jobPage.ui.StatsBox />
     <jobPage.ui.Summary />
     <jobPage.ui.PlacementFailures />
-    <jobPage.ui.TaskGroups
-      @sortProperty={{this.sortProperty}}
-      @sortDescending={{this.sortDescending}}
-    />
+    <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} />
     <jobPage.ui.RecentAllocations />
     <jobPage.ui.Meta />
   </jobPage.ui.Body>
