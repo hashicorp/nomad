@@ -319,9 +319,9 @@ type ClientTemplateConfig struct {
 	BlockQueryWaitTimeHCL string         `hcl:"block_query_wait,optional"`
 
 	// Wait is the quiescence timers; it defines the minimum and maximum amount of
-	// time to wait for the cluster to reach a consistent state before rendering a
-	// template. This is useful to enable in systems that have a lot of flapping,
-	// because it will reduce the number of times a template is rendered.
+	// time to wait for the Consul cluster to reach a consistent state before rendering a
+	// template. This is useful to enable in systems where Consul is experiencing
+	// a lot of flapping because it will reduce the number of times a template is rendered.
 	Wait *WaitConfig `hcl:"wait,optional" json:"-"`
 
 	// WaitBounds allows operators to define boundaries on individual template wait
@@ -565,8 +565,6 @@ func (wc *WaitConfig) Merge(b *WaitConfig) *WaitConfig {
 }
 
 // ToConsulTemplate converts a client WaitConfig instance to a consul-template WaitConfig
-// TODO: Needs code review. The caller (TaskTemplateManager) takes direct pointers
-// to other configuration values. Need to make sure that desired here as well.
 func (wc *WaitConfig) ToConsulTemplate() (*config.WaitConfig, error) {
 	if wc.IsEmpty() {
 		return nil, errors.New("wait config is empty")

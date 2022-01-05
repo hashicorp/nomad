@@ -595,42 +595,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.MinDynamicPort = agentConfig.Client.MinDynamicPort
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
 
-	// TODO: Code review - Now that these aren't different types, would it be ok
-	// to just copy or directly reference the full struct instead of doing a field
-	// by field set?
 	if agentConfig.Client.TemplateConfig != nil {
-		conf.TemplateConfig.DisableSandbox = agentConfig.Client.TemplateConfig.DisableSandbox
-
-		// TODO: Code Review - Should these all be direct references or copies? Mixed right now.
-		if agentConfig.Client.TemplateConfig.MaxStale != nil {
-			conf.TemplateConfig.MaxStale = &*agentConfig.Client.TemplateConfig.MaxStale
-		}
-
-		if agentConfig.Client.TemplateConfig.BlockQueryWaitTime != nil {
-			conf.TemplateConfig.BlockQueryWaitTime = &*agentConfig.Client.TemplateConfig.BlockQueryWaitTime
-		}
-
-		if agentConfig.Client.TemplateConfig.FunctionBlacklist != nil {
-			conf.TemplateConfig.FunctionDenylist = agentConfig.Client.TemplateConfig.FunctionBlacklist
-		} else {
-			conf.TemplateConfig.FunctionDenylist = agentConfig.Client.TemplateConfig.FunctionDenylist
-		}
-
-		if agentConfig.Client.TemplateConfig.Wait != nil {
-			conf.TemplateConfig.Wait = agentConfig.Client.TemplateConfig.Wait
-		}
-
-		if agentConfig.Client.TemplateConfig.WaitBounds != nil {
-			conf.TemplateConfig.WaitBounds = agentConfig.Client.TemplateConfig.WaitBounds
-		}
-
-		if agentConfig.Client.TemplateConfig.ConsulRetry != nil {
-			conf.TemplateConfig.ConsulRetry = agentConfig.Client.TemplateConfig.ConsulRetry
-		}
-
-		if agentConfig.Client.TemplateConfig.VaultRetry != nil {
-			conf.TemplateConfig.VaultRetry = agentConfig.Client.TemplateConfig.VaultRetry
-		}
+		conf.TemplateConfig = agentConfig.Client.TemplateConfig.Copy()
 	}
 
 	hvMap := make(map[string]*structs.ClientHostVolumeConfig, len(agentConfig.Client.HostVolumes))

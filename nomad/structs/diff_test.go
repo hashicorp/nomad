@@ -7252,23 +7252,16 @@ func TestTaskDiff(t *testing.T) {
 		},
 	}
 
-	for i, c := range cases {
-		//t.Run(c.Name, func(t *testing.T) {
-		t.Logf("running case: %d %v", i, c.Name)
-		if c.Name == "Template edited" {
-			t.Logf("got here")
-		}
-		actual, err := c.Old.Diff(c.New, c.Contextual)
-		if c.Name == "Template edited" {
-			t.Logf("%v", actual)
-		}
-		if c.Error {
-			require.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			require.Equal(t, c.Expected, actual)
-		}
-		//})
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			actual, err := c.Old.Diff(c.New, c.Contextual)
+			if c.Error {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, c.Expected, actual)
+			}
+		})
 	}
 }
 

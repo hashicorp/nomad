@@ -96,9 +96,10 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
   time.
 
 - `wait` `(Code: nil)` - Defines the minimum and maximum amount of time to wait
-  for the cluster to reach a consistent state before rendering a template. This
-  is useful to enable in systems that are experiencing a lot of flapping, because
-  it will reduce the number of times a template is rendered. This is typically
+  for the Consul cluster to reach a consistent state before rendering a template.
+  This is useful to enable in systems where Consul is experiencing a lot of flapping,
+  because it will reduce the number of times a template is rendered. This configuration is
+  also exposed at the _task level_ to allow overrides per task. This is typically
   set globally in the client configuration, but can be overridden on per-template
   basis. Note that, this setting can be overridden by the `client.template.wait_bounds`
   setting. The `client.template.wait_bounds` setting defines a client level lower

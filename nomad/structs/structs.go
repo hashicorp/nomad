@@ -7563,7 +7563,31 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 }
 
 func (wc *WaitConfig) Equals(o *WaitConfig) bool {
-	return reflect.DeepEqual(wc, o)
+	if wc.Enabled == nil && o.Enabled != nil {
+		return false
+	}
+
+	if wc.Min == nil && o.Min != nil {
+		return false
+	}
+
+	if wc.Max == nil && o.Max != nil {
+		return false
+	}
+
+	if wc.Enabled != nil && (o.Enabled == nil || &*wc.Enabled != &*o.Enabled) {
+		return false
+	}
+
+	if wc.Min != nil && (o.Min == nil || &*wc.Min != &*o.Min) {
+		return false
+	}
+
+	if wc.Max != nil && (o.Max == nil || &*wc.Max != &*o.Max) {
+		return false
+	}
+
+	return true
 }
 
 // Validate that the min is not greater than the max

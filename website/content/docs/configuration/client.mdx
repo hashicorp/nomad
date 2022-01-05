@@ -352,20 +352,20 @@ see the [drivers documentation](/docs/drivers).
   the host as root (unless Nomad is configured to run as a non-root user).
 
 - `disable_file_sandbox` `(bool: false)` - Allows templates access to arbitrary
-  files on the client host via the `file` function. By default templates can
+  files on the client host via the `file` function. By default, templates can
   access files only within the [task working directory].
 
-- `max_stale` `(string: "5s")` - # This is the maximum interval to allow "stale"
-  data. By default, only the Consul leader will respond to queries. Requests
-  to a follower will forward to the leader. In large clusters with many requests,
-  this is not as scalable, so this option allows any follower to respond to a query,
-  so long as the last-replicated data is within these bounds. Higher values result
+- `max_stale` `(string: "")` - # This is the maximum interval to allow "stale"
+  data. By default, only the Consul leader will respond to queries. Requests to
+  a follower will forward to the leader. In large clusters with many requests,
+  this is not as scalable. This option allows any follower to respond to a query,
+  so long as the last-replicated data is within this bound. Higher values result
   in less cluster load, but are more likely to have outdated data.
 
 - `wait` `(Code: nil)` - Defines the minimum and maximum amount of time to wait
-  for the cluster to reach a consistent state before rendering a template. This
-  is useful to enable in systems that are experiencing a lot of flapping, because
-  it will reduce the number of times a template is rendered. This configuration is
+  for the Consul cluster to reach a consistent state before rendering a template.
+  This is useful to enable in systems where Consul is experiencing a lot of flapping,
+  because it will reduce the number of times a template is rendered. This configuration is
   also exposed at the _task level_ to allow overrides per task.
 
   ```hcl
