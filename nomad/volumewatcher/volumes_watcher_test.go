@@ -54,7 +54,7 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 
 // TestVolumeWatch_LeadershipTransition tests the correct behavior of
 // claim reaping across leader step-up/step-down
-func TestVolumeWatch_Checkpoint(t *testing.T) {
+func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
