@@ -67,9 +67,7 @@ export default class ClientsController extends Controller.extend(
 
   @computed('store')
   get allNodes() {
-    return this.store.peekAll('node').length
-      ? this.store.peekAll('node')
-      : this.store.findAll('node');
+    return this.store.peekAll('node');
   }
 
   @computed('allNodes', 'jobClientStatus.byNode')

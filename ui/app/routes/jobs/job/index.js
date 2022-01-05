@@ -1,3 +1,4 @@
+import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
 import {
@@ -9,9 +10,9 @@ import {
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
 export default class IndexRoute extends Route.extend(WithWatchers) {
+  @service can;
+
   async model() {
-    // Optimizing future node look ups by preemptively loading everything
-    await this.store.findAll('node');
     return this.modelFor('jobs.job');
   }
 
@@ -30,7 +31,8 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
       list:
         model.get('hasChildren') &&
         this.watchAllJobs.perform({ namespace: model.namespace.get('name') }),
-      nodes: model.get('hasClientStatus') && this.watchNodes.perform(),
+      nodes:
+        model.get('hasClientStatus') && this.can.can('read client') && this.watchNodes.perform(),
     });
   }
 
