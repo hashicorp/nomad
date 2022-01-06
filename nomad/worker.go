@@ -361,11 +361,11 @@ func (w *Worker) shutdown() {
 	}
 }
 
-// markStopped is used to mark the worker as stopped and should be called in a
+// markStopped is used to mark the worker  and workload as stopped. It should be called in a
 // defer immediately upon entering the run() function.
 func (w *Worker) markStopped() {
+	w.setStatuses(WorkerStopped, WorkloadStopped)
 	w.logger.Debug("stopped")
-	w.setStatus(WorkerStopped)
 }
 
 func (w *Worker) workerShuttingDown() bool {
@@ -384,7 +384,6 @@ func (w *Worker) workerShuttingDown() bool {
 // run is the long-lived goroutine which is used to run the worker
 func (w *Worker) run() {
 	defer func() {
-		w.setWorkloadStatus(WorkloadStopped)
 		w.markStopped()
 	}()
 	w.setStatuses(WorkerStarted, WorkloadRunning)
