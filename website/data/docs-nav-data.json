@@ -1083,6 +1083,10 @@
                     "path": "job-specification/hcl2/functions/file/file"
                   },
                   {
+                    "title": "filebase64",
+                    "path": "job-specification/hcl2/functions/file/filebase64"
+                  },
+                  {
                     "title": "fileexists",
                     "path": "job-specification/hcl2/functions/file/fileexists"
                   },
