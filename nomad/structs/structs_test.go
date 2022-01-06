@@ -1672,6 +1672,15 @@ func TestNetworkResource_Copy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			output := tc.inputNetworkResource.Copy()
 			assert.Equal(t, tc.inputNetworkResource, output, tc.name)
+
+			if output == nil {
+				return
+			}
+
+			// Assert changes to the copy aren't propagated to the
+			// original
+			output.DNS.Servers[1] = "foo"
+			assert.NotEqual(t, tc.inputNetworkResource, output, tc.name)
 		})
 	}
 }
@@ -5969,6 +5978,31 @@ func TestMultiregion_CopyCanonicalize(t *testing.T) {
 	old.Canonicalize()
 	require.Equal(old, nonEmptyOld)
 	require.False(old.Diff(nonEmptyOld))
+}
+
+func TestNodeResources_Copy(t *testing.T) {
+	orig := &NodeResources{
+		Cpu: NodeCpuResources{
+			CpuShares:          int64(32000),
+			TotalCpuCores:      32,
+			ReservableCpuCores: []uint16{1, 2, 3, 9},
+		},
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(64000),
+		},
+		Networks: Networks{
+			{
+				Device: "foo",
+			},
+		},
+	}
+
+	kopy := orig.Copy()
+	assert.Equal(t, orig, kopy)
+
+	// Make sure slices aren't shared
+	kopy.Cpu.ReservableCpuCores[1] = 9000
+	assert.NotEqual(t, orig, kopy)
 }
 
 func TestNodeResources_Merge(t *testing.T) {

@@ -2025,20 +2025,20 @@ func (n *Node) Copy() *Node {
 	nn := new(Node)
 	*nn = *n
 	nn.Attributes = helper.CopyMapStringString(nn.Attributes)
-	nn.Resources = nn.Resources.Copy()
-	nn.Reserved = nn.Reserved.Copy()
 	nn.NodeResources = nn.NodeResources.Copy()
 	nn.ReservedResources = nn.ReservedResources.Copy()
+	nn.Resources = nn.Resources.Copy()
+	nn.Reserved = nn.Reserved.Copy()
 	nn.Links = helper.CopyMapStringString(nn.Links)
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
-	nn.Events = copyNodeEvents(n.Events)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
-	nn.LastDrain = nn.LastDrain.Copy()
+	nn.Events = copyNodeEvents(n.Events)
+	nn.Drivers = copyNodeDrivers(n.Drivers)
 	nn.CSIControllerPlugins = copyNodeCSI(nn.CSIControllerPlugins)
 	nn.CSINodePlugins = copyNodeCSI(nn.CSINodePlugins)
-	nn.Drivers = copyNodeDrivers(n.Drivers)
 	nn.HostVolumes = copyNodeHostVolumes(n.HostVolumes)
 	nn.HostNetworks = copyNodeHostNetworks(n.HostNetworks)
+	nn.LastDrain = nn.LastDrain.Copy()
 	return nn
 }
 
@@ -2657,6 +2657,7 @@ func (n *NetworkResource) Copy() *NetworkResource {
 	}
 	newR := new(NetworkResource)
 	*newR = *n
+	newR.DNS = n.DNS.Copy()
 	if n.ReservedPorts != nil {
 		newR.ReservedPorts = make([]Port, len(n.ReservedPorts))
 		copy(newR.ReservedPorts, n.ReservedPorts)
@@ -2874,8 +2875,7 @@ func (n *NodeResources) Copy() *NodeResources {
 
 	newN := new(NodeResources)
 	*newN = *n
-
-	// Copy the networks
+	newN.Cpu = n.Cpu.Copy()
 	newN.Networks = n.Networks.Copy()
 
 	// Copy the devices
@@ -3060,6 +3060,16 @@ type NodeCpuResources struct {
 	// This value is currently only reported on Linux platforms which support cgroups and is
 	// discovered by inspecting the cpuset of the agent's cgroup.
 	ReservableCpuCores []uint16
+}
+
+func (n NodeCpuResources) Copy() NodeCpuResources {
+	newN := n
+	if n.ReservableCpuCores != nil {
+		newN.ReservableCpuCores = make([]uint16, len(n.ReservableCpuCores))
+		copy(newN.ReservableCpuCores, n.ReservableCpuCores)
+	}
+
+	return newN
 }
 
 func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
