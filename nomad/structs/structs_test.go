@@ -1672,6 +1672,15 @@ func TestNetworkResource_Copy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			output := tc.inputNetworkResource.Copy()
 			assert.Equal(t, tc.inputNetworkResource, output, tc.name)
+
+			if output == nil {
+				return
+			}
+
+			// Assert changes to the copy aren't propagated to the
+			// original
+			output.DNS.Servers[1] = "foo"
+			assert.NotEqual(t, tc.inputNetworkResource, output, tc.name)
 		})
 	}
 }
