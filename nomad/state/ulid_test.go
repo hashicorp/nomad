@@ -91,7 +91,7 @@ func Benchmark_SortableIDs_Iteration(b *testing.B) {
 
 }
 
-func Benchmark_SortableIDs_Upserts(b *testing.B) {
+func Benchmark_SortableIDs_UpsertsPreGenerated(b *testing.B) {
 
 	const evalCount = 10000
 
@@ -161,6 +161,102 @@ func Benchmark_SortableIDs_Upserts(b *testing.B) {
 
 }
 
+func Benchmark_SortableIDs_CreateAndUpsert(b *testing.B) {
+
+	const evalCount = 10000
+
+	b.Run("uuid upsert eval", func(b *testing.B) {
+		idFn := uuidGenerator()
+		state := setupPopulatedState(b, evalCount, idFn)
+
+		index := uint64(0)
+		var err error
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			snap, _ := state.Snapshot()
+			for j := 0; j < evalCount; j++ {
+				index++
+				err = snap.UpsertEvals(structs.MsgTypeTestSetup, index,
+					[]*structs.Evaluation{generateEval(idFn, j)})
+			}
+		}
+		if err != nil {
+			b.Fatalf("failed: %v", err)
+		}
+	})
+
+	b.Run("ulid upsert eval closely", func(b *testing.B) {
+		entropy := ulid.Monotonic(rand.New(rand.NewSource(time.Now().UnixNano())), 0)
+		state := setupPopulatedState(b, evalCount,
+			ulidGeneratorForPast(entropy, 4, evalCount))
+		idFn := ulidGenerator(entropy)
+
+		index := uint64(0)
+		var err error
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			snap, _ := state.Snapshot()
+			for j := 0; j < evalCount; j++ {
+				index++
+				err = snap.UpsertEvals(structs.MsgTypeTestSetup, index,
+					[]*structs.Evaluation{generateEval(idFn, j)})
+			}
+		}
+		if err != nil {
+			b.Fatalf("failed: %v", err)
+		}
+	})
+
+	b.Run("ulid upsert eval over hours", func(b *testing.B) {
+		entropy := ulid.Monotonic(rand.New(rand.NewSource(time.Now().UnixNano())), 0)
+		state := setupPopulatedState(b, evalCount,
+			ulidGeneratorForPast(entropy, 4, evalCount))
+		idFn := ulidGeneratorForPast(entropy, 4, evalCount)
+
+		index := uint64(0)
+		var err error
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			snap, _ := state.Snapshot()
+			for j := 0; j < evalCount; j++ {
+				index++
+				err = snap.UpsertEvals(structs.MsgTypeTestSetup, index,
+					[]*structs.Evaluation{generateEval(idFn, j)})
+			}
+		}
+		if err != nil {
+			b.Fatalf("failed: %v", err)
+		}
+	})
+
+}
+
+func Benchmark_SortableIDs_Generation(b *testing.B) {
+
+	const evalCount = 10000
+
+	b.Run("generate ulids", func(b *testing.B) {
+		entropy := ulid.Monotonic(rand.New(rand.NewSource(time.Now().UnixNano())), 0)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			ulids := []string{}
+			for j := 0; j < evalCount; j++ {
+				ulid := generateULIDAt(entropy, ulid.Timestamp(time.Now()))
+				ulids = append(ulids, ulid)
+			}
+		}
+	})
+
+	b.Run("generate uuids", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			uuids := []string{}
+			for j := 0; j < evalCount; j++ {
+				uuids = append(uuids, uuid.Generate())
+			}
+		}
+	})
+}
+
 // -----------------
 // BENCHMARK HELPER FUNCTIONS
 
@@ -184,21 +280,23 @@ func setupPopulatedState(b *testing.B, evalCount int, idFn func(int) string) *St
 func generateEvals(count int, idFn func(int) string) []*structs.Evaluation {
 	evals := []*structs.Evaluation{}
 	for i := 0; i < count; i++ {
-		now := time.Now().UTC().UnixNano()
-		eval := &structs.Evaluation{
-			ID:         idFn(i),
-			Namespace:  structs.DefaultNamespace,
-			Priority:   50,
-			Type:       structs.JobTypeService,
-			JobID:      uuid.Generate(),
-			Status:     structs.EvalStatusPending,
-			CreateTime: now,
-			ModifyTime: now,
-		}
-		evals = append(evals, eval)
-
+		evals = append(evals, generateEval(idFn, i))
 	}
 	return evals
+}
+
+func generateEval(idFn func(int) string, i int) *structs.Evaluation {
+	now := time.Now().UTC().UnixNano()
+	return &structs.Evaluation{
+		ID:         idFn(i),
+		Namespace:  structs.DefaultNamespace,
+		Priority:   50,
+		Type:       structs.JobTypeService,
+		JobID:      uuid.Generate(),
+		Status:     structs.EvalStatusPending,
+		CreateTime: now,
+		ModifyTime: now,
+	}
 }
 
 func ulidGenerator(entropy *ulid.MonotonicEntropy) func(int) string {
