@@ -276,11 +276,7 @@ OUTER:
 			token = ""
 			h.logger.Error("failed to renew Vault token", "error", err)
 			stopRenewal()
-
-			// Check if we have to do anything
-			if h.vaultStanza.ChangeMode != structs.VaultChangeModeNoop {
-				updatedToken = true
-			}
+			updatedToken = true
 		case <-h.ctx.Done():
 			stopRenewal()
 			return
