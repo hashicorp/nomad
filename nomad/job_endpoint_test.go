@@ -6788,7 +6788,7 @@ func TestJobEndpoint_Dispatch_JobChildrenSummary(t *testing.T) {
 		return job.Status
 	}
 
-	// Let's start a alloc for the dispatch job and walk through states
+	// Let's start an alloc for the dispatch job and walk through states
 	// Note that job summary reports 1 running even when alloc is pending!
 	nextIdx++
 	alloc := mock.Alloc()
