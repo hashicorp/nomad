@@ -208,8 +208,32 @@ OUTER:
 
 		// Index the existing network usage
 		netIdx := structs.NewNetworkIndex()
-		netIdx.SetNode(option.Node)
-		netIdx.AddAllocs(proposed)
+
+		var event *EvalEvent
+		if collide, reason := netIdx.SetNode(option.Node); collide {
+			event = &EvalEvent{
+				Reason:   fmt.Sprintf("SetNode collision: %v", reason),
+				NetIndex: netIdx, // TODO(luiz): copy
+				Node:     option.Node.Copy(),
+			}
+		}
+		if collide, reason := netIdx.AddAllocs(proposed); collide {
+			event = &EvalEvent{
+				Reason:      fmt.Sprintf("AddAllocs collision: %v", reason),
+				NetIndex:    netIdx,   // TODO(luiz): copy
+				Allocations: proposed, // TODO(luiz): copy
+			}
+		}
+
+		if event != nil {
+			if iter.ctx.EventsCh() != nil {
+				select {
+				case iter.ctx.EventsCh() <- event:
+				default:
+				}
+			}
+			continue
+		}
 
 		// Create a device allocator
 		devAllocator := newDeviceAllocator(iter.ctx, option.Node)

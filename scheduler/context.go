@@ -19,6 +19,8 @@ type Context interface {
 	// Logger provides a way to log
 	Logger() log.Logger
 
+	EventsCh() chan<- interface{}
+
 	// Metrics returns the current metrics
 	Metrics() *structs.AllocMetric
 
@@ -72,9 +74,17 @@ func (e *EvalCache) SemverConstraintCache() map[string]VerConstraints {
 	return e.semverCache
 }
 
+type EvalEvent struct {
+	Reason      string
+	NetIndex    *structs.NetworkIndex
+	Node        *structs.Node
+	Allocations []*structs.Allocation
+}
+
 // EvalContext is a Context used during an Evaluation
 type EvalContext struct {
 	EvalCache
+	eventsCh    chan<- interface{}
 	state       State
 	plan        *structs.Plan
 	logger      log.Logger
@@ -83,12 +93,13 @@ type EvalContext struct {
 }
 
 // NewEvalContext constructs a new EvalContext
-func NewEvalContext(s State, p *structs.Plan, log log.Logger) *EvalContext {
+func NewEvalContext(eventsCh chan<- interface{}, s State, p *structs.Plan, log log.Logger) *EvalContext {
 	ctx := &EvalContext{
-		state:   s,
-		plan:    p,
-		logger:  log,
-		metrics: new(structs.AllocMetric),
+		eventsCh: eventsCh,
+		state:    s,
+		plan:     p,
+		logger:   log,
+		metrics:  new(structs.AllocMetric),
 	}
 	return ctx
 }
@@ -103,6 +114,10 @@ func (e *EvalContext) Plan() *structs.Plan {
 
 func (e *EvalContext) Logger() log.Logger {
 	return e.logger
+}
+
+func (e *EvalContext) EventsCh() chan<- interface{} {
+	return e.eventsCh
 }
 
 func (e *EvalContext) Metrics() *structs.AllocMetric {

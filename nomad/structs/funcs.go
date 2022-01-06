@@ -187,7 +187,11 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	if netIdx == nil {
 		netIdx = NewNetworkIndex()
 		defer netIdx.Release()
-		if netIdx.SetNode(node) || netIdx.AddAllocs(allocs) {
+
+		// TODO(luiz): log reason?
+		nodeCollision, _ := netIdx.SetNode(node)
+		allocsCollision, _ := netIdx.AddAllocs(allocs)
+		if nodeCollision || allocsCollision {
 			return false, "reserved port collision", used, nil
 		}
 	}

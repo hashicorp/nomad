@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
@@ -229,6 +230,7 @@ type Server struct {
 	workers          []*Worker
 	workerLock       sync.RWMutex
 	workerConfigLock sync.RWMutex
+	workersEventCh   chan interface{}
 
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *lru.TwoQueueCache
@@ -344,6 +346,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		blockedEvals:     NewBlockedEvals(evalBroker, logger),
 		rpcTLS:           incomingTLS,
 		aclCache:         aclCache,
+		workersEventCh:   make(chan interface{}),
 	}
 
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
@@ -1581,6 +1584,8 @@ func reloadSchedulers(s *Server, newArgs *SchedulerWorkerPoolArgs) {
 func (s *Server) setupWorkers(ctx context.Context) error {
 	poolArgs := s.GetSchedulerWorkerConfig()
 
+	go s.listenWorkerEvents()
+
 	// we will be writing to the worker slice
 	s.workerLock.Lock()
 	defer s.workerLock.Unlock()
@@ -1662,6 +1667,30 @@ func (s *Server) stopOldWorkers(oldWorkers []*Worker) {
 	for i, w := range oldWorkers {
 		s.logger.Debug("stopping old scheduling worker", "id", w.ID(), "index", i+1, "of", workerCount)
 		go w.Stop()
+	}
+}
+
+func (s *Server) listenWorkerEvents() {
+	badNodes := make(map[string]time.Time)
+
+	for {
+		select {
+		//TODO(luiz): add gc
+		case <-time.After(10 * time.Minute): // but not leaky
+			// prune old entries (4h? 72h? idk) from bad Nodes here
+		case e := <-s.workersEventCh:
+			switch event := e.(type) {
+			case *scheduler.EvalEvent:
+				if event != nil && event.Node != nil {
+					if _, ok := badNodes[event.Node.ID]; !ok {
+						s.logger.Warn("detected node port collision", "reason", event.Reason, "event", spew.Sdump(event))
+					}
+					badNodes[event.Node.ID] = time.Now()
+				}
+			}
+		case <-s.shutdownCh:
+			return
+		}
 	}
 }
 
