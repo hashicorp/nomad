@@ -70,6 +70,12 @@ func CPUMHzPerCore() float64 {
 	return cpuMhzPerCore
 }
 
+// CPUMHzTotal returns the total MHz across the number
+// of available cores
+func CPUMHzTotal() float64 {
+	return float64(cpuNumCores) * cpuMhzPerCore
+}
+
 // CPUModelName returns the model name of the CPU
 func CPUModelName() string {
 	return cpuModelName

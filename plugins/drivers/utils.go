@@ -458,6 +458,7 @@ func resourceUsageToProto(ru *ResourceUsage) *proto.TaskResourceUsage {
 		MeasuredFields:   cpuUsageMeasuredFieldsToProto(ru.CpuStats.Measured),
 		SystemMode:       ru.CpuStats.SystemMode,
 		UserMode:         ru.CpuStats.UserMode,
+		TotalMHz:         ru.CpuStats.TotalMHz,
 		TotalTicks:       ru.CpuStats.TotalTicks,
 		ThrottledPeriods: ru.CpuStats.ThrottledPeriods,
 		ThrottledTime:    ru.CpuStats.ThrottledTime,

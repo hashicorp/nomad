@@ -42,6 +42,7 @@ func DockerStatsToTaskResourceUsage(s *docker.Stats) *cstructs.TaskResourceUsage
 		ThrottledPeriods: s.CPUStats.ThrottlingData.ThrottledPeriods,
 		ThrottledTime:    s.CPUStats.ThrottlingData.ThrottledTime,
 		Percent:          cpuPercent,
+		TotalMHz:         (cpuPercent / 100) * stats.CPUMHzTotal() / float64(runtime.NumCPU()),
 		TotalTicks:       (cpuPercent / 100) * stats.TotalTicksAvailable() / float64(runtime.NumCPU()),
 		Measured:         DockerMeasuredCPUStats,
 	}

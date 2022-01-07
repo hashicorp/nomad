@@ -15,6 +15,7 @@ func TestResourceUsageRoundTrip(t *testing.T) {
 		CpuStats: &CpuStats{
 			SystemMode:       0,
 			UserMode:         0.9963907032120152,
+			TotalMHz:         4096.71,
 			TotalTicks:       21.920595295932515,
 			ThrottledPeriods: 2321,
 			ThrottledTime:    123,

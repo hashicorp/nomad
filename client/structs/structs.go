@@ -235,6 +235,7 @@ type CpuStats struct {
 	SystemMode       float64
 	UserMode         float64
 	TotalTicks       float64
+	TotalMHz         float64
 	ThrottledPeriods uint64
 	ThrottledTime    uint64
 	Percent          float64
@@ -250,6 +251,7 @@ func (cs *CpuStats) Add(other *CpuStats) {
 
 	cs.SystemMode += other.SystemMode
 	cs.UserMode += other.UserMode
+	cs.TotalMHz += other.TotalMHz
 	cs.TotalTicks += other.TotalTicks
 	cs.ThrottledPeriods += other.ThrottledPeriods
 	cs.ThrottledTime += other.ThrottledTime

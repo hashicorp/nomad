@@ -406,6 +406,7 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 			Percent:          totalPercent,
 			ThrottledPeriods: stats.CpuStats.ThrottlingData.ThrottledPeriods,
 			ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
+			TotalMHz:         l.systemCpuStats.MHzConsumed(totalPercent),
 			TotalTicks:       l.systemCpuStats.TicksConsumed(totalPercent),
 			Measured:         ExecutorCgroupMeasuredCpuStats,
 		}
