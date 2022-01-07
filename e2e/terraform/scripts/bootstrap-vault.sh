@@ -28,10 +28,13 @@ NOMAD_VAULT_TOKEN=$(vault token create -policy nomad-server -period 72h -orphan 
 cat <<EOF > "${DIR}/../keys/nomad_vault.hcl"
 vault {
   enabled          = true
-  address          = "http://active.vault.service.consul:8200"
+  address          = "https://active.vault.service.consul:8200"
   task_token_ttl   = "1h"
   create_from_role = "nomad-cluster"
   token            = "$NOMAD_VAULT_TOKEN"
+  ca_file   = "/etc/vault.d/tls/ca.crt"
+  cert_file = "/etc/vault.d/tls/agent.crt"
+  key_file  = "/etc/vault.d/tls/agent.key"
 }
 
 EOF

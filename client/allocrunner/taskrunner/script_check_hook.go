@@ -399,9 +399,9 @@ const (
 // updateTTL updates the state to Consul, performing an exponential backoff
 // in the case where the check isn't registered in Consul to avoid a race between
 // service registration and the first check.
-func (s *scriptCheck) updateTTL(ctx context.Context, msg, state string) error {
+func (sc *scriptCheck) updateTTL(ctx context.Context, msg, state string) error {
 	for attempts := 0; ; attempts++ {
-		err := s.ttlUpdater.UpdateTTL(s.id, s.consulNamespace, msg, state)
+		err := sc.ttlUpdater.UpdateTTL(sc.id, sc.consulNamespace, msg, state)
 		if err == nil {
 			return nil
 		}

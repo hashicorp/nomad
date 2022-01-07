@@ -122,12 +122,12 @@ module('Acceptance | task group detail', function(hooks) {
     assert.equal(Layout.breadcrumbFor('jobs.index').text, 'Jobs', 'First breadcrumb says jobs');
     assert.equal(
       Layout.breadcrumbFor('jobs.job.index').text,
-      job.name,
+      `Job ${job.name}`,
       'Second breadcrumb says the job name'
     );
     assert.equal(
       Layout.breadcrumbFor('jobs.job.task-group').text,
-      taskGroup.name,
+      `Task Group ${taskGroup.name}`,
       'Third breadcrumb says the job name'
     );
   });
@@ -582,4 +582,143 @@ module('Acceptance | task group detail', function(hooks) {
       scaleEvents.filter(ev => ev.count == null).length
     );
   });
+
+  testFacet('Status', {
+    facet: TaskGroup.facets.status,
+    paramName: 'status',
+    expectedOptions: ['Pending', 'Running', 'Complete', 'Failed', 'Lost'],
+    async beforeEach() {
+      ['pending', 'running', 'complete', 'failed', 'lost'].forEach(s => {
+        server.createList('allocation', 5, { clientStatus: s });
+      });
+      await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    },
+    filter: (alloc, selection) =>
+      alloc.jobId == job.id &&
+      alloc.taskGroup == taskGroup.name &&
+      selection.includes(alloc.clientStatus),
+  });
+
+  testFacet('Client', {
+    facet: TaskGroup.facets.client,
+    paramName: 'client',
+    expectedOptions(allocs) {
+      return Array.from(
+        new Set(
+          allocs
+            .filter(alloc => alloc.jobId == job.id && alloc.taskGroup == taskGroup.name)
+            .mapBy('nodeId')
+            .map(id => id.split('-')[0])
+        )
+      ).sort();
+    },
+    async beforeEach() {
+      const nodes = server.createList('node', 3, 'forceIPv4');
+      nodes.forEach(node =>
+        server.createList('allocation', 5, {
+          nodeId: node.id,
+          jobId: job.id,
+          taskGroup: taskGroup.name,
+        })
+      );
+      await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    },
+    filter: (alloc, selection) =>
+      alloc.jobId == job.id &&
+      alloc.taskGroup == taskGroup.name &&
+      selection.includes(alloc.nodeId.split('-')[0]),
+  });
 });
+
+function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
+  test(`facet ${label} | the ${label} facet has the correct options`, async function(assert) {
+    await beforeEach();
+    await facet.toggle();
+
+    let expectation;
+    if (typeof expectedOptions === 'function') {
+      expectation = expectedOptions(server.db.allocations);
+    } else {
+      expectation = expectedOptions;
+    }
+
+    assert.deepEqual(
+      facet.options.map(option => option.label.trim()),
+      expectation,
+      'Options for facet are as expected'
+    );
+  });
+
+  test(`facet ${label} | the ${label} facet filters the allocations list by ${label}`, async function(assert) {
+    let option;
+
+    await beforeEach();
+
+    await facet.toggle();
+    option = facet.options.objectAt(0);
+    await option.toggle();
+
+    const selection = [option.key];
+    const expectedAllocs = server.db.allocations
+      .filter(alloc => filter(alloc, selection))
+      .sortBy('modifyIndex')
+      .reverse();
+
+    TaskGroup.allocations.forEach((alloc, index) => {
+      assert.equal(
+        alloc.id,
+        expectedAllocs[index].id,
+        `Allocation at ${index} is ${expectedAllocs[index].id}`
+      );
+    });
+  });
+
+  test(`facet ${label} | selecting multiple options in the ${label} facet results in a broader search`, async function(assert) {
+    const selection = [];
+
+    await beforeEach();
+    await facet.toggle();
+
+    const option1 = facet.options.objectAt(0);
+    const option2 = facet.options.objectAt(1);
+    await option1.toggle();
+    selection.push(option1.key);
+    await option2.toggle();
+    selection.push(option2.key);
+
+    const expectedAllocs = server.db.allocations
+      .filter(alloc => filter(alloc, selection))
+      .sortBy('modifyIndex')
+      .reverse();
+
+    TaskGroup.allocations.forEach((alloc, index) => {
+      assert.equal(
+        alloc.id,
+        expectedAllocs[index].id,
+        `Allocation at ${index} is ${expectedAllocs[index].id}`
+      );
+    });
+  });
+
+  test(`facet ${label} | selecting options in the ${label} facet updates the ${paramName} query param`, async function(assert) {
+    const selection = [];
+
+    await beforeEach();
+    await facet.toggle();
+
+    const option1 = facet.options.objectAt(0);
+    const option2 = facet.options.objectAt(1);
+    await option1.toggle();
+    selection.push(option1.key);
+    await option2.toggle();
+    selection.push(option2.key);
+
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}/${taskGroup.name}?${paramName}=${encodeURIComponent(
+        JSON.stringify(selection)
+      )}`,
+      'URL has the correct query param key and value'
+    );
+  });
+}

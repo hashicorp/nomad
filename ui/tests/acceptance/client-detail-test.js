@@ -68,8 +68,8 @@ module('Acceptance | client detail', function(hooks) {
     );
     assert.equal(
       Layout.breadcrumbFor('clients.client').text,
-      node.id.split('-')[0],
-      'Second breadcrumb says the node short id'
+      `Client ${node.id.split('-')[0]}`,
+      'Second breadcrumb is a titled breadcrumb saying the node short id'
     );
     await Layout.breadcrumbFor('clients.index').visit();
     assert.equal(currentURL(), '/clients', 'First breadcrumb links back to clients');
@@ -128,6 +128,15 @@ module('Acceptance | client detail', function(hooks) {
       allocationsCount,
       `Allocations table lists all ${allocationsCount} associated allocations`
     );
+  });
+
+  test('/clients/:id should show empty message if there are no allocations on the node', async function(assert) {
+    const emptyNode = server.create('node');
+
+    await ClientDetail.visit({ id: emptyNode.id });
+
+    assert.true(ClientDetail.emptyAllocations.isVisible, 'Empty message is visible');
+    assert.equal(ClientDetail.emptyAllocations.headline, 'No Allocations');
   });
 
   test('each allocation should have high-level details for the allocation', async function(assert) {
@@ -1000,6 +1009,47 @@ module('Acceptance | client detail', function(hooks) {
 
     assert.notOk(ClientDetail.hasHostVolumes);
   });
+
+  testFacet('Job', {
+    facet: ClientDetail.facets.job,
+    paramName: 'job',
+    expectedOptions(allocs) {
+      return Array.from(new Set(allocs.mapBy('jobId'))).sort();
+    },
+    async beforeEach() {
+      server.createList('job', 5);
+      await ClientDetail.visit({ id: node.id });
+    },
+    filter: (alloc, selection) => selection.includes(alloc.jobId),
+  });
+
+  testFacet('Status', {
+    facet: ClientDetail.facets.status,
+    paramName: 'status',
+    expectedOptions: ['Pending', 'Running', 'Complete', 'Failed', 'Lost'],
+    async beforeEach() {
+      server.createList('job', 5, { createAllocations: false });
+      ['pending', 'running', 'complete', 'failed', 'lost'].forEach(s => {
+        server.createList('allocation', 5, { clientStatus: s });
+      });
+
+      await ClientDetail.visit({ id: node.id });
+    },
+    filter: (alloc, selection) => selection.includes(alloc.clientStatus),
+  });
+
+  test('fiter results with no matches display empty message', async function(assert) {
+    const job = server.create('job', { createAllocations: false });
+    server.create('allocation', { jobId: job.id, clientStatus: 'running' });
+
+    await ClientDetail.visit({ id: node.id });
+    const statusFacet = ClientDetail.facets.status;
+    await statusFacet.toggle();
+    await statusFacet.options.objectAt(0).toggle();
+
+    assert.true(ClientDetail.emptyAllocations.isVisible);
+    assert.equal(ClientDetail.emptyAllocations.headline, 'No Matches');
+  });
 });
 
 module('Acceptance | client detail (multi-namespace)', function(hooks) {
@@ -1018,7 +1068,11 @@ module('Acceptance | client detail (multi-namespace)', function(hooks) {
 
     // Make a job for each namespace, but have both scheduled on the same node
     server.create('job', { id: 'job-1', namespaceId: 'default', createAllocations: false });
-    server.createList('allocation', 3, { nodeId: node.id, clientStatus: 'running' });
+    server.createList('allocation', 3, {
+      nodeId: node.id,
+      jobId: 'job-1',
+      clientStatus: 'running',
+    });
 
     server.create('job', { id: 'job-2', namespaceId: 'other-namespace', createAllocations: false });
     server.createList('allocation', 3, {
@@ -1047,4 +1101,135 @@ module('Acceptance | client detail (multi-namespace)', function(hooks) {
       'Job Two fetched correctly'
     );
   });
+
+  testFacet('Namespace', {
+    facet: ClientDetail.facets.namespace,
+    paramName: 'namespace',
+    expectedOptions(allocs) {
+      return Array.from(new Set(allocs.mapBy('namespace'))).sort();
+    },
+    async beforeEach() {
+      await ClientDetail.visit({ id: node.id });
+    },
+    filter: (alloc, selection) => selection.includes(alloc.namespace),
+  });
+
+  test('facet Namespace | selecting namespace filters job options', async function(assert) {
+    await ClientDetail.visit({ id: node.id });
+
+    const nsFacet = ClientDetail.facets.namespace;
+    const jobFacet = ClientDetail.facets.job;
+
+    // Select both namespaces.
+    await nsFacet.toggle();
+    await nsFacet.options.objectAt(0).toggle();
+    await nsFacet.options.objectAt(1).toggle();
+    await jobFacet.toggle();
+
+    assert.deepEqual(
+      jobFacet.options.map(option => option.label.trim()),
+      ['job-1', 'job-2']
+    );
+
+    // Select juse one namespace.
+    await nsFacet.toggle();
+    await nsFacet.options.objectAt(1).toggle(); // deselect second option
+    await jobFacet.toggle();
+
+    assert.deepEqual(
+      jobFacet.options.map(option => option.label.trim()),
+      ['job-1']
+    );
+  });
 });
+
+function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
+  test(`facet ${label} | the ${label} facet has the correct options`, async function(assert) {
+    await beforeEach();
+    await facet.toggle();
+
+    let expectation;
+    if (typeof expectedOptions === 'function') {
+      expectation = expectedOptions(server.db.allocations);
+    } else {
+      expectation = expectedOptions;
+    }
+
+    assert.deepEqual(
+      facet.options.map(option => option.label.trim()),
+      expectation,
+      'Options for facet are as expected'
+    );
+  });
+
+  test(`facet ${label} | the ${label} facet filters the allocations list by ${label}`, async function(assert) {
+    let option;
+
+    await beforeEach();
+
+    await facet.toggle();
+    option = facet.options.objectAt(0);
+    await option.toggle();
+
+    const selection = [option.key];
+    const expectedAllocs = server.db.allocations
+      .filter(alloc => filter(alloc, selection))
+      .sortBy('modifyIndex')
+      .reverse();
+
+    ClientDetail.allocations.forEach((alloc, index) => {
+      assert.equal(
+        alloc.id,
+        expectedAllocs[index].id,
+        `Allocation at ${index} is ${expectedAllocs[index].id}`
+      );
+    });
+  });
+
+  test(`facet ${label} | selecting multiple options in the ${label} facet results in a broader search`, async function(assert) {
+    const selection = [];
+
+    await beforeEach();
+    await facet.toggle();
+
+    const option1 = facet.options.objectAt(0);
+    const option2 = facet.options.objectAt(1);
+    await option1.toggle();
+    selection.push(option1.key);
+    await option2.toggle();
+    selection.push(option2.key);
+
+    const expectedAllocs = server.db.allocations
+      .filter(alloc => filter(alloc, selection))
+      .sortBy('modifyIndex')
+      .reverse();
+
+    ClientDetail.allocations.forEach((alloc, index) => {
+      assert.equal(
+        alloc.id,
+        expectedAllocs[index].id,
+        `Allocation at ${index} is ${expectedAllocs[index].id}`
+      );
+    });
+  });
+
+  test(`facet ${label} | selecting options in the ${label} facet updates the ${paramName} query param`, async function(assert) {
+    const selection = [];
+
+    await beforeEach();
+    await facet.toggle();
+
+    const option1 = facet.options.objectAt(0);
+    const option2 = facet.options.objectAt(1);
+    await option1.toggle();
+    selection.push(option1.key);
+    await option2.toggle();
+    selection.push(option2.key);
+
+    assert.equal(
+      currentURL(),
+      `/clients/${node.id}?${paramName}=${encodeURIComponent(JSON.stringify(selection))}`,
+      'URL has the correct query param key and value'
+    );
+  });
+}

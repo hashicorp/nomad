@@ -294,54 +294,97 @@
           </button>
         {{/if}}
       </div>
-      <SearchBox
-        @searchTerm={{mut this.searchTerm}}
-        @onChange={{action this.resetPagination}}
-        @placeholder="Search allocations..."
-        @class="is-inline pull-right"
-        @inputClass="is-compact" />
+      <div class="pull-right is-subsection">
+        <MultiSelectDropdown
+          data-test-allocation-namespace-facet
+          @label="Namespace"
+          @options={{this.optionsNamespace}}
+          @selection={{this.selectionNamespace}}
+          @onSelect={{action this.setFacetQueryParam "qpNamespace"}}
+        />
+        <MultiSelectDropdown
+          data-test-allocation-job-facet
+          @label="Job"
+          @options={{this.optionsJob}}
+          @selection={{this.selectionJob}}
+          @onSelect={{action this.setFacetQueryParam "qpJob"}}
+        />
+        <MultiSelectDropdown
+          data-test-allocation-status-facet
+          @label="Status"
+          @options={{this.optionsAllocationStatus}}
+          @selection={{this.selectionStatus}}
+          @onSelect={{action this.setFacetQueryParam "qpStatus"}}
+        />
+        <SearchBox
+          @searchTerm={{mut this.searchTerm}}
+          @onChange={{action this.resetPagination}}
+          @placeholder="Search allocations..."
+          @inputClass="is-compact"
+          @class="is-padded"
+        />
+      </div>
     </div>
-    <div class="boxed-section-body is-full-bleed">
-      <ListPagination
-        @source={{this.sortedAllocations}}
-        @size={{this.pageSize}}
-        @page={{this.currentPage}} as |p|>
-        <ListTable
-          @source={{p.list}}
-          @sortProperty={{this.sortProperty}}
-          @sortDescending={{this.sortDescending}}
-          @class="with-foot" as |t|>
-          <t.head>
-            <th class="is-narrow"></th>
-            <t.sort-by @prop="shortId">ID</t.sort-by>
-            <t.sort-by @prop="createIndex" @title="Create Index">Created</t.sort-by>
-            <t.sort-by @prop="modifyIndex" @title="Modify Index">Modified</t.sort-by>
-            <t.sort-by @prop="statusIndex">Status</t.sort-by>
-            <t.sort-by @prop="job.name">Job</t.sort-by>
-            <t.sort-by @prop="jobVersion">Version</t.sort-by>
-            <th>Volume</th>
-            <th>CPU</th>
-            <th>Memory</th>
-          </t.head>
-          <t.body as |row|>
-            <AllocationRow
-              @allocation={{row.model}}
-              @context="node"
-              @onClick={{action "gotoAllocation" row.model}}
-              @data-test-allocation={{row.model.id}} />
-          </t.body>
-        </ListTable>
-        <div class="table-foot">
-          <nav class="pagination">
-            <div class="pagination-numbers">
-              {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedAllocations.length}}
-            </div>
-            <p.prev @class="pagination-previous"> &lt; </p.prev>
-            <p.next @class="pagination-next"> &gt; </p.next>
-            <ul class="pagination-list"></ul>
-          </nav>
+    <div class="boxed-section-body {{if this.sortedAllocations.length "is-full-bleed"}}">
+      {{#if this.sortedAllocations.length}}
+        <ListPagination
+          @source={{this.sortedAllocations}}
+          @size={{this.pageSize}}
+          @page={{this.currentPage}} as |p|>
+          <ListTable
+            @source={{p.list}}
+            @sortProperty={{this.sortProperty}}
+            @sortDescending={{this.sortDescending}}
+            @class="with-foot" as |t|>
+            <t.head>
+              <th class="is-narrow"></th>
+              <t.sort-by @prop="shortId">ID</t.sort-by>
+              <t.sort-by @prop="createIndex" @title="Create Index">Created</t.sort-by>
+              <t.sort-by @prop="modifyIndex" @title="Modify Index">Modified</t.sort-by>
+              <t.sort-by @prop="statusIndex">Status</t.sort-by>
+              <t.sort-by @prop="job.name">Job</t.sort-by>
+              <t.sort-by @prop="jobVersion">Version</t.sort-by>
+              <th>Volume</th>
+              <th>CPU</th>
+              <th>Memory</th>
+            </t.head>
+            <t.body as |row|>
+              <AllocationRow
+                @allocation={{row.model}}
+                @context="node"
+                @onClick={{action "gotoAllocation" row.model}}
+                @data-test-allocation={{row.model.id}} />
+            </t.body>
+          </ListTable>
+          <div class="table-foot">
+            <nav class="pagination">
+              <div class="pagination-numbers">
+                {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedAllocations.length}}
+              </div>
+              <p.prev @class="pagination-previous"> &lt; </p.prev>
+              <p.next @class="pagination-next"> &gt; </p.next>
+              <ul class="pagination-list"></ul>
+            </nav>
+          </div>
+        </ListPagination>
+      {{else}}
+        <div data-test-empty-allocations-list class="empty-message">
+          {{#if (eq this.visibleAllocations.length 0)}}
+            <h3 data-test-empty-allocations-list-headline class="empty-message-headline">No Allocations</h3>
+            <p data-test-empty-allocations-list-body class="empty-message-body">
+              The node doesn't have any allocations.
+            </p>
+          {{else if this.searchTerm}}
+            <h3 data-test-empty-allocations-list-headline class="empty-message-headline">No Matches</h3>
+            <p class="empty-message-body">No allocations match the term <strong>{{this.searchTerm}}</strong></p>
+          {{else if (eq this.sortedAllocations.length 0)}}
+            <h3 data-test-empty-allocations-list-headline class="empty-message-headline">No Matches</h3>
+            <p class="empty-message-body">
+              No allocations match your current filter selection.
+            </p>
+          {{/if}}
         </div>
-      </ListPagination>
+      {{/if}}
     </div>
   </div>
 

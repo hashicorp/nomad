@@ -54,8 +54,12 @@ spread stanza. Spread scores are combined with other scoring factors such as bin
 
 A job or task group can have more than one spread criteria, with weights to express relative preference.
 
-Spread criteria are treated as a soft preference by the Nomad scheduler.
-If no nodes match a given spread criteria, placement is still successful.
+Spread criteria are treated as a soft preference by the Nomad
+scheduler. If no nodes match a given spread criteria, placement is
+still successful. To avoid scoring every node for every placement,
+allocations may not be perfectly spread. Spread works best on
+attributes with similar number of nodes: identically configured racks
+or similarly configured datacenters.
 
 Spread may be expressed on [attributes][interpolation] or [client metadata][client-meta].
 Additionally, spread may be specified at the [job][job] and [group][group] levels for ultimate flexibility. Job level spread criteria are inherited by all task groups in the job.

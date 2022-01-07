@@ -45,6 +45,7 @@ $ curl \
     "ModifyIndex": 5,
     "SchedulerAlgorithm": "spread",
     "MemoryOversubscriptionEnabled": true,
+    "RejectJobRegistration": false,
     "PreemptionConfig": {
       "SystemSchedulerEnabled": true,
       "BatchSchedulerEnabled": false,
@@ -114,6 +115,7 @@ server state is authoritative.
 {
   "SchedulerAlgorithm": "spread",
   "MemoryOversubscriptionEnabled": false,
+  "RejectJobRegistration": false,
   "PreemptionConfig": {
     "SystemSchedulerEnabled": true,
     "BatchSchedulerEnabled": false,
@@ -127,6 +129,8 @@ server state is authoritative.
   `"binpack"` and `"spread"`
 
 - `MemoryOversubscriptionEnabled` `(bool: false)` <sup>1.1 Beta</sup> - When `true`, tasks may exceed their reserved memory limit, if the client has excess memory capacity. Tasks must specify [`memory_max`](/docs/job-specification/resources#memory_max) to take advantage of memory oversubscription.
+
+- `RejectJobRegistration` `(bool: false)` - When `true`, the server will return permission denied errors for job registration, job dispatch, and job scale APIs, unless the ACL token for the request is a management token. If ACLs are disabled, no user will be able to register jobs. This allows operators to shed load from automated proceses during incident response.
 
 - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for
   various schedulers.

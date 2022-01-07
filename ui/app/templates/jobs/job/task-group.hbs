@@ -1,3 +1,4 @@
+<Breadcrumb @crumb={{this.breadcrumb}} />
 {{page-title "Task group " this.model.name " - Job " this.model.job.name}}
 <div class="tabs is-subnav">
   <ul>
@@ -66,16 +67,32 @@
       </AllocationStatusBar>
     </div>
   </div>
-
   <div class="boxed-section">
     <div class="boxed-section-head">
       Allocations
-      <SearchBox
-        @searchTerm={{mut this.searchTerm}}
-        @placeholder="Search allocations..."
-        @onChange={{action this.resetPagination}}
-        @class="is-inline pull-right"
-        @inputClass="is-compact" />
+      <div class="pull-right is-subsection">
+        <MultiSelectDropdown
+          data-test-allocation-status-facet
+          @label="Status"
+          @options={{this.optionsAllocationStatus}}
+          @selection={{this.selectionStatus}}
+          @onSelect={{action this.setFacetQueryParam "qpStatus"}}
+        />
+        <MultiSelectDropdown
+          data-test-allocation-client-facet
+          @label="Client"
+          @options={{this.optionsClients}}
+          @selection={{this.selectionClient}}
+          @onSelect={{action this.setFacetQueryParam "qpClient"}}
+        />
+        <SearchBox
+          @searchTerm={{mut this.searchTerm}}
+          @placeholder="Search allocations..."
+          @onChange={{action this.resetPagination}}
+          @class="is-padded"
+          @inputClass="is-compact"
+        />
+      </div>
     </div>
     <div class="boxed-section-body is-full-bleed">
       {{#if this.sortedAllocations}}

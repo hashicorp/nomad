@@ -69,6 +69,24 @@ func BenchmarkHTTPRequests(b *testing.B) {
 	})
 }
 
+func TestMultipleInterfaces(t *testing.T) {
+	httpIps := []string{"127.0.0.1", "127.0.0.2"}
+
+	s := makeHTTPServer(t, func(c *Config) {
+		c.Addresses.HTTP = strings.Join(httpIps, " ")
+		c.ACL.Enabled = true
+	})
+	defer s.Shutdown()
+
+	httpPort := s.ports[0]
+	for _, ip := range httpIps {
+		resp, err := http.Get(fmt.Sprintf("http://%s:%d/", ip, httpPort))
+
+		assert.Nil(t, err)
+		assert.Equal(t, resp.StatusCode, 200)
+	}
+}
+
 // TestRootFallthrough tests rootFallthrough handler to
 // verify redirect and 404 behavior
 func TestRootFallthrough(t *testing.T) {
@@ -945,8 +963,8 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 			t.Parallel()
 
 			conf := &Config{
-				normalizedAddrs: &Addresses{
-					HTTP: "localhost:0", // port is never used
+				normalizedAddrs: &NormalizedAddrs{
+					HTTP: []string{"localhost:0"}, // port is never used
 				},
 				TLSConfig: &config.TLSConfig{
 					EnableHTTP: tc.tls,
@@ -964,7 +982,7 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 				config:     conf,
 			}
 
-			srv, err := NewHTTPServer(agent, conf)
+			srv, err := NewHTTPServers(agent, conf)
 			require.Error(t, err)
 			require.Nil(t, srv)
 			require.Contains(t, err.Error(), tc.expectedErr)

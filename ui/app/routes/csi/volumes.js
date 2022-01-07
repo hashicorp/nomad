@@ -6,11 +6,4 @@ import classic from 'ember-classic-decorator';
 export default class VolumesRoute extends Route.extend() {
   @service system;
   @service store;
-
-  breadcrumbs = [
-    {
-      label: 'Storage',
-      args: ['csi.index'],
-    },
-  ];
 }

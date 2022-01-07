@@ -10,13 +10,6 @@ export default class ClientsRoute extends Route.extend(WithForbiddenState) {
   @service store;
   @service system;
 
-  breadcrumbs = [
-    {
-      label: 'Clients',
-      args: ['clients.index'],
-    },
-  ];
-
   beforeModel() {
     return this.get('system.leader');
   }

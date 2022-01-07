@@ -138,8 +138,18 @@ func (s *HTTPServer) allocStop(allocID string, resp http.ResponseWriter, req *ht
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
+	noShutdownDelay := false
+	if noShutdownDelayQS := req.URL.Query().Get("no_shutdown_delay"); noShutdownDelayQS != "" {
+		var err error
+		noShutdownDelay, err = strconv.ParseBool(noShutdownDelayQS)
+		if err != nil {
+			return nil, fmt.Errorf("no_shutdown_delay value is not a boolean: %v", err)
+		}
+	}
+
 	sr := &structs.AllocStopRequest{
-		AllocID: allocID,
+		AllocID:         allocID,
+		NoShutdownDelay: noShutdownDelay,
 	}
 	s.parseWriteRequest(req, &sr.WriteRequest)
 

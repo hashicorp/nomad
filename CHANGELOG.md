@@ -1,3 +1,9 @@
+## 1.2.3 (December 13, 2021)
+
+SECURITY:
+
+* Updated to Go 1.17.5. Go 1.17.3 contained 2 CVEs. [CVE-2021-44717](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44717) could allow a task on a Unix system with exhausted file handles to misdirect I/O. [CVE-2021-44716](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44716) could create unbounded memory growth in HTTP2 servers. Nomad servers do not use HTTP2. [[GH-11662](https://github.com/hashicorp/nomad/issues/11662)]
+
 ## 1.2.2 (November 24, 2021)
 
 BUG FIXES:
@@ -77,6 +83,12 @@ BUG FIXES:
 * rpc: Set the job scale eval priority to the job priority [[GH-11429](https://github.com/hashicorp/nomad/issues/11429)]
 * server: Fixed a panic on arm64 platform when dispatching a job with a payload [[GH-11396](https://github.com/hashicorp/nomad/issues/11396)]
 * server: Fixed a panic that may occur when preempting multiple allocations on the same node [[GH-11346](https://github.com/hashicorp/nomad/issues/11346)]
+
+## 1.1.9 (December 13, 2021)
+
+SECURITY:
+
+* Updated to Go 1.16.12. Earlier versions of Go contained 2 CVEs. [CVE-2021-44717](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44717) could allow a task on a Unix system with exhausted file handles to misdirect I/O. [CVE-2021-44716](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44716) could create unbounded memory growth in HTTP2 servers. Nomad servers do not use HTTP2. [[GH-11662](https://github.com/hashicorp/nomad/issues/11662)]
 
 ## 1.1.8 (November 19, 2021)
 
@@ -336,6 +348,12 @@ BUG FIXES:
  * server: Fixed a bug where jobs may not run if submitted with ParentID field set [[GH-10424](https://github.com/hashicorp/nomad/issues/10424)]
  * server: Fixed a panic that may arise on submission of jobs containing invalid service checks [[GH-10154](https://github.com/hashicorp/nomad/issues/10154)]
  * ui: Fixed the rendering of interstitial components shown after processing a dynamic application sizing recommendation. [[GH-10094](https://github.com/hashicorp/nomad/pull/10094)]
+
+## 1.0.15 (December 13, 2021)
+
+SECURITY:
+
+* Updated to Go 1.16.12. Earlier versions of Go contained 2 CVEs. [CVE-2021-44717](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44717) could allow a task on a Unix system with exhausted file handles to misdirect I/O. [CVE-2021-44716](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44716) could create unbounded memory growth in HTTP2 servers. Nomad servers do not use HTTP2. [[GH-11662](https://github.com/hashicorp/nomad/issues/11662)]
 
 ## 1.0.14 (November 19, 2021)
 

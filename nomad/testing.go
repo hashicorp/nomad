@@ -56,7 +56,7 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	nodeNum := atomic.AddUint32(&nodeNumber, 1)
 	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNum)
 
-	// configer logger
+	// configure logger
 	level := hclog.Trace
 	if envLogLevel := os.Getenv("NOMAD_TEST_LOG_LEVEL"); envLogLevel != "" {
 		level = hclog.LevelFromString(envLogLevel)

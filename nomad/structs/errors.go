@@ -13,6 +13,7 @@ const (
 	errNoRegionPath               = "No path to region"
 	errTokenNotFound              = "ACL token not found"
 	errPermissionDenied           = "Permission denied"
+	errJobRegistrationDisabled    = "Job registration, dispatch, and scale are disabled by the scheduler configuration"
 	errNoNodeConn                 = "No path to node"
 	errUnknownMethod              = "Unknown rpc method"
 	errUnknownNomadVersion        = "Unable to determine Nomad version"
@@ -46,6 +47,7 @@ var (
 	ErrNoRegionPath               = errors.New(errNoRegionPath)
 	ErrTokenNotFound              = errors.New(errTokenNotFound)
 	ErrPermissionDenied           = errors.New(errPermissionDenied)
+	ErrJobRegistrationDisabled    = errors.New(errJobRegistrationDisabled)
 	ErrNoNodeConn                 = errors.New(errNoNodeConn)
 	ErrUnknownMethod              = errors.New(errUnknownMethod)
 	ErrUnknownNomadVersion        = errors.New(errUnknownNomadVersion)

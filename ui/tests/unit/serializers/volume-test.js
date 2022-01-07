@@ -260,6 +260,7 @@ module('Unit | Serializer | Volume', function(hooks) {
             attributes: {
               createTime: REF_DATE,
               modifyTime: REF_DATE,
+              namespace: 'namespace-2',
               taskGroupName: 'foobar',
               wasPreempted: false,
               states: [],
@@ -292,6 +293,7 @@ module('Unit | Serializer | Volume', function(hooks) {
             attributes: {
               createTime: REF_DATE,
               modifyTime: REF_DATE,
+              namespace: 'namespace-2',
               taskGroupName: 'write-here',
               wasPreempted: false,
               states: [],
@@ -324,6 +326,7 @@ module('Unit | Serializer | Volume', function(hooks) {
             attributes: {
               createTime: REF_DATE,
               modifyTime: REF_DATE,
+              namespace: 'namespace-2',
               taskGroupName: 'look-if-you-must',
               wasPreempted: false,
               states: [],

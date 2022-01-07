@@ -8,13 +8,6 @@ export default class RunRoute extends Route {
   @service store;
   @service system;
 
-  breadcrumbs = [
-    {
-      label: 'Run',
-      args: ['jobs.run'],
-    },
-  ];
-
   beforeModel(transition) {
     if (this.can.cannot('run job', null, { namespace: transition.to.queryParams.namespace })) {
       this.transitionTo('jobs');

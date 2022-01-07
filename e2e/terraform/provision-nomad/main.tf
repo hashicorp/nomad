@@ -148,6 +148,10 @@ resource "null_resource" "upload_configs" {
 
 }
 
+// TODO: Create separate certs.
+// This creates one set of certs to manage Nomad, Consul, and Vault and therefore
+// puts all the required SAN entries to enable sharing certs. This is an anti-pattern
+// that we should clean up.
 resource "null_resource" "generate_instance_tls_certs" {
   count      = var.tls ? 1 : 0
   depends_on = [null_resource.upload_configs]
@@ -180,7 +184,7 @@ openssl req -newkey rsa:2048 -nodes \
 
 cat <<'NEOY' > keys/agent-${var.instance.public_ip}.conf
 
-subjectAltName=DNS:${local.tls_role}.global.nomad,DNS:${local.tls_role}.dc1.consul,DNS:localhost,DNS:${var.instance.public_dns},IP:127.0.0.1,IP:${var.instance.private_ip},IP:${var.instance.public_ip}
+subjectAltName=DNS:${local.tls_role}.global.nomad,DNS:${local.tls_role}.dc1.consul,DNS:localhost,DNS:${var.instance.public_dns},DNS:vault.service.consul,DNS:active.vault.service.consul,IP:127.0.0.1,IP:${var.instance.private_ip},IP:${var.instance.public_ip}
 extendedKeyUsage = serverAuth, clientAuth
 basicConstraints = CA:FALSE
 keyUsage = digitalSignature, keyEncipherment

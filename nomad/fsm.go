@@ -11,6 +11,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -605,7 +606,7 @@ func (n *nomadFSM) applyDeregisterJob(msgType structs.MessageType, buf []byte, i
 	}
 
 	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
-		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, tx)
+		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, req.NoShutdownDelay, tx)
 
 		if err != nil {
 			n.logger.Error("deregistering job failed",
@@ -645,7 +646,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []by
 	// evals for jobs whose deregistering didn't get committed yet.
 	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
 		for jobNS, options := range req.Jobs {
-			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, tx); err != nil {
+			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, false, tx); err != nil {
 				n.logger.Error("deregistering job failed", "job", jobNS.ID, "error", err)
 				return err
 			}
@@ -670,10 +671,29 @@ func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []by
 
 // handleJobDeregister is used to deregister a job. Leaves error logging up to
 // caller.
-func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, tx state.Txn) error {
+func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, noShutdownDelay bool, tx state.Txn) error {
 	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
 		return fmt.Errorf("periodicDispatcher.Remove failed: %w", err)
+	}
+
+	if noShutdownDelay {
+		ws := memdb.NewWatchSet()
+		allocs, err := n.state.AllocsByJob(ws, namespace, jobID, false)
+		if err != nil {
+			return err
+		}
+		transition := &structs.DesiredTransition{NoShutdownDelay: helper.BoolToPtr(true)}
+		for _, alloc := range allocs {
+			err := n.state.UpdateAllocDesiredTransitionTxn(tx, index, alloc.ID, transition)
+			if err != nil {
+				return err
+			}
+			err = tx.Insert("index", &state.IndexEntry{Key: "allocs", Value: index})
+			if err != nil {
+				return fmt.Errorf("index update failed: %v", err)
+			}
+		}
 	}
 
 	if purge {

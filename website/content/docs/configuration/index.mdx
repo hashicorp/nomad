@@ -88,8 +88,9 @@ testing.
   see the [`ports`](#ports) field. The values support [go-sockaddr/template
   format][go-sockaddr/template].
 
-  - `http` - The address the HTTP server is bound to. This is the most common
-    bind address to change.
+  - `http` - The address the HTTP server is bound to. This is the most
+    common bind address to change. The `http` field accepts multiple
+    values, separated by spaces, to bind to multiple addresses.
 
   - `rpc` - The address to bind the internal RPC interfaces to. Should be
     exposed only to other cluster members if possible.

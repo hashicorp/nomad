@@ -13,6 +13,16 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.2.4
+
+#### `nomad eval status -json` deprecated
+
+Nomad 1.2.4 includes a new `nomad eval list` command that has the
+option to display the results in JSON format with the `-json`
+flag. This replaces the existing `nomad eval status -json` option. In
+Nomad 1.4.0, `nomad eval status -json` will be changed to display only
+the selected evaluation in JSON format.
+
 ## Nomad 1.2.2
 
 ### Panic on node class filtering for system and sysbatch jobs fixed
@@ -27,6 +37,30 @@ this problem.
 
 The Nvidia device is now an external plugin and must be installed separately.
 Refer to [the Nvidia device plugin's documentation][nvidia] for details.
+
+#### ACL requirements for accessing the job details page in the Nomad UI
+
+Nomad 1.2.0 introduced a new UI component to display the status of `system` and
+`sysbatch` jobs in each client where they are running. This feature makes an
+API call to an endpoint that requires `node:read` ACL permission. Tokens used
+to access the Nomad UI will need to be updated to include this permission in
+order to access a job details page.
+
+This was an unintended change and will be fixed in a future release.
+
+#### HCLv2 Job Specification Parsing
+
+In previous versions of Nomad, when rendering a job specification using override
+variables, a warning would be returned if a variable within an override file
+was declared that was not found within the job specification. This behaviour
+differed from passing variables via the `-var` flag, which would always cause an
+error in the same situation.
+
+Nomad 1.2.0 fixed the behaviour consistency to always return an error by default,
+where an override variable was specified which was not a known variable within the
+job specification. In order to mitigate this change for users who wish to only
+be warned when this situation arises, the `-hcl-strict=false` flag can be
+specified.
 
 ## Nomad 1.0.11 and 1.1.5 Enterprise
 
@@ -63,7 +97,7 @@ you must ensure the `Config.Namespace` field is unset.
 
 Starting in Nomad 1.1.2, task groups with `network.mode = "bridge"` generated a
 hosts file in Docker containers. This generated hosts file was bind-mounted
-from the task directory to `/etc/hosts` within the task.  In Nomad 1.1.3 the
+from the task directory to `/etc/hosts` within the task. In Nomad 1.1.3 the
 source for the bind mount was moved to the allocation directory so that it is
 shared between all tasks in an allocation.
 
@@ -143,7 +177,6 @@ capabilities allowed for use by tasks.
 Tasks using the `exec` or `java` task drivers can add or remove desired linux
 capabilities using the [`cap_add`][cap_add_exec] and [`cap_drop`][cap_drop_exec]
 task configuration options.
-
 
 #### iptables
 
@@ -1182,11 +1215,11 @@ deleted and then Nomad 0.3.0 can be launched.
 [go-client]: https://pkg.go.dev/github.com/hashicorp/nomad/api#Client
 [hcl2]: https://github.com/hashicorp/hcl2
 [limits]: /docs/configuration#limits
-[lxc]: /docs/drivers/external/lxc
+[lxc]: /plugins/drivers/community/lxc
 [migrate]: /docs/job-specification/migrate
-[nvidia]: /docs/devices/external/nvidia
+[nvidia]: /plugins/devices/nvidia
 [plugin-stanza]: /docs/configuration/plugin
-[plugins]: /docs/drivers/external
+[plugins]: /plugins/drivers/community
 [preemption-api]: /api-docs/operator#update-scheduler-configuration
 [preemption]: /docs/internals/scheduling/preemption
 [proxy_concurrency]: /docs/job-specification/sidecar_task#proxy_concurrency
@@ -1204,8 +1237,8 @@ deleted and then Nomad 0.3.0 can be launched.
 [`volume create`]: /docs/commands/volume/create
 [`volume register`]: /docs/commands/volume/register
 [`volume`]: /docs/job-specification/volume
-[Enterprise licensing]: /docs/enterprise/license
-[`CAP_NET_RAW`]: https://security.stackexchange.com/a/128988
+[enterprise licensing]: /docs/enterprise/license
+[`cap_net_raw`]: https://security.stackexchange.com/a/128988
 [`linux capabilities`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
 [`allow_caps`]: /docs/drivers/docker#allow_caps
 [`extra_hosts`]: /docs/drivers/docker#extra_hosts

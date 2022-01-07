@@ -748,7 +748,7 @@ func TestConfig_normalizeAddrs_DevMode(t *testing.T) {
 		t.Fatalf("expected BindAddr 127.0.0.1, got %s", c.BindAddr)
 	}
 
-	if c.normalizedAddrs.HTTP != "127.0.0.1:4646" {
+	if c.normalizedAddrs.HTTP[0] != "127.0.0.1:4646" {
 		t.Fatalf("expected HTTP address 127.0.0.1:4646, got %s", c.normalizedAddrs.HTTP)
 	}
 
@@ -878,6 +878,55 @@ func TestConfig_normalizeAddrs_IPv6Loopback(t *testing.T) {
 
 	if c.AdvertiseAddrs.RPC != "[::1]:4647" {
 		t.Errorf("expected [::1] RPC advertise address, got %s", c.AdvertiseAddrs.RPC)
+	}
+}
+
+// TestConfig_normalizeAddrs_MultipleInterface asserts that normalizeAddrs will
+// handle normalizing multiple interfaces in a single protocol.
+func TestConfig_normalizeAddrs_MultipleInterfaces(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		addressConfig           *Addresses
+		expectedNormalizedAddrs *NormalizedAddrs
+		expectErr               bool
+	}{
+		{
+			name: "multiple http addresses",
+			addressConfig: &Addresses{
+				HTTP: "127.0.0.1 127.0.0.2",
+			},
+			expectedNormalizedAddrs: &NormalizedAddrs{
+				HTTP: []string{"127.0.0.1:4646", "127.0.0.2:4646"},
+				RPC:  "127.0.0.1:4647",
+				Serf: "127.0.0.1:4648",
+			},
+			expectErr: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &Config{
+				BindAddr: "127.0.0.1",
+				Ports: &Ports{
+					HTTP: 4646,
+					RPC:  4647,
+					Serf: 4648,
+				},
+				Addresses: tc.addressConfig,
+				AdvertiseAddrs: &AdvertiseAddrs{
+					HTTP: "127.0.0.1",
+					RPC:  "127.0.0.1",
+					Serf: "127.0.0.1",
+				},
+			}
+			err := c.normalizeAddrs()
+			if tc.expectErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedNormalizedAddrs, c.normalizedAddrs)
+		})
 	}
 }
 
@@ -1362,4 +1411,33 @@ func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 	require.Equal(t, 10, *templateConfig.VaultRetry.Attempts)
 	require.Equal(t, 15*time.Second, *templateConfig.VaultRetry.Backoff)
 	require.Equal(t, 20*time.Second, *templateConfig.VaultRetry.MaxBackoff)
+}
+
+func TestParseMultipleIPTemplates(t *testing.T) {
+	testCases := []struct {
+		name        string
+		tmpl        string
+		expectedOut []string
+		expectErr   bool
+	}{
+		{
+			name:        "deduplicates same ip and preserves order",
+			tmpl:        "127.0.0.1 10.0.0.1 127.0.0.1",
+			expectedOut: []string{"127.0.0.1", "10.0.0.1"},
+			expectErr:   false,
+		},
+		{
+			name:        "includes sockaddr expression",
+			tmpl:        "10.0.0.1 {{ GetAllInterfaces | include \"flags\" \"loopback\" | limit 1 | attr \"address\" }} 10.0.0.2",
+			expectedOut: []string{"10.0.0.1", "127.0.0.1", "10.0.0.2"},
+			expectErr:   false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := parseMultipleIPTemplate(tc.tmpl)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedOut, out)
+		})
+	}
 }
