@@ -70,7 +70,7 @@ func TestCSIHook(t *testing.T) {
 				"vol0": {
 					Name:           "vol0",
 					Type:           structs.VolumeTypeCSI,
-					Source:         "testvolume",
+					Source:         "testvolume0",
 					ReadOnly:       true,
 					AccessMode:     structs.CSIVolumeAccessModeSingleNodeReader,
 					AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
@@ -80,7 +80,7 @@ func TestCSIHook(t *testing.T) {
 			},
 			expectedMounts: map[string]*csimanager.MountInfo{
 				"vol0": &csimanager.MountInfo{Source: fmt.Sprintf(
-					"test-alloc-dir/%s/testvolume/ro-file-system-single-node-reader-only", alloc.ID)},
+					"test-alloc-dir/%s/testvolume0/ro-file-system-single-node-reader-only", alloc.ID)},
 			},
 			expectedMountCalls:     1,
 			expectedUnmountCalls:   0, // not until this is done client-side
@@ -88,41 +88,44 @@ func TestCSIHook(t *testing.T) {
 			expectedUnpublishCalls: 1,
 		},
 
-		{
-			name: "one source volume mounted two ways",
-			volumeRequests: map[string]*structs.VolumeRequest{
-				"vol0": {
-					Name:           "vol0",
-					Type:           structs.VolumeTypeCSI,
-					Source:         "testvolume0",
-					ReadOnly:       true,
-					AccessMode:     structs.CSIVolumeAccessModeSingleNodeReader,
-					AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-					MountOptions:   &structs.CSIMountOptions{},
-					PerAlloc:       false,
-				},
-				"vol1": {
-					Name:           "vol1",
-					Type:           structs.VolumeTypeCSI,
-					Source:         "testvolume0",
-					ReadOnly:       false,
-					AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
-					AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-					MountOptions:   &structs.CSIMountOptions{},
-					PerAlloc:       false,
-				},
-			},
-			expectedMounts: map[string]*csimanager.MountInfo{
-				"vol0": &csimanager.MountInfo{Source: fmt.Sprintf(
-					"test-alloc-dir/%s/testvolume0/ro-file-system-single-node-reader-only", alloc.ID)},
-				"vol1": &csimanager.MountInfo{Source: fmt.Sprintf(
-					"test-alloc-dir/%s/testvolume0/rw-file-system-single-node-writer", alloc.ID)},
-			},
-			expectedMountCalls:     2,
-			expectedUnmountCalls:   0, // not until this is done client-side
-			expectedClaimCalls:     2,
-			expectedUnpublishCalls: 2,
-		},
+		// TODO: this won't actually work on the client.
+		// https://github.com/hashicorp/nomad/issues/11798
+		//
+		// {
+		// 	name: "one source volume mounted read-only twice",
+		// 	volumeRequests: map[string]*structs.VolumeRequest{
+		// 		"vol0": {
+		// 			Name:           "vol0",
+		// 			Type:           structs.VolumeTypeCSI,
+		// 			Source:         "testvolume0",
+		// 			ReadOnly:       true,
+		// 			AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
+		// 			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		// 			MountOptions:   &structs.CSIMountOptions{},
+		// 			PerAlloc:       false,
+		// 		},
+		// 		"vol1": {
+		// 			Name:           "vol1",
+		// 			Type:           structs.VolumeTypeCSI,
+		// 			Source:         "testvolume0",
+		// 			ReadOnly:       false,
+		// 			AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
+		// 			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		// 			MountOptions:   &structs.CSIMountOptions{},
+		// 			PerAlloc:       false,
+		// 		},
+		// 	},
+		// 	expectedMounts: map[string]*csimanager.MountInfo{
+		// 		"vol0": &csimanager.MountInfo{Source: fmt.Sprintf(
+		// 			"test-alloc-dir/%s/testvolume0/ro-file-system-multi-node-reader-only", alloc.ID)},
+		// 		"vol1": &csimanager.MountInfo{Source: fmt.Sprintf(
+		// 			"test-alloc-dir/%s/testvolume0/ro-file-system-multi-node-reader-only", alloc.ID)},
+		// 	},
+		// 	expectedMountCalls:     1,
+		// 	expectedUnmountCalls:   0, // not until this is done client-side
+		// 	expectedClaimCalls:     1,
+		// 	expectedUnpublishCalls: 1,
+		// },
 	}
 
 	for i := range testcases {
