@@ -1466,9 +1466,10 @@ func (j *Job) Restart(args *structs.JobRestartRequest,
 	reply *structs.JobRestartResponse) error {
 	fmt.Printf("HELLO HELLO: nomad/job_endpoint.go JobRestartRequest: %+v\n", args)
 
-	//if done, err := j.srv.forward("Job.Restart", args, args, reply); done {
-	//	return err
-	//}
+	if done, err := j.srv.forward("Job.Restart", args, args, reply); done {
+		fmt.Printf("HELLO HELLO: I am inside Job.Restart error. DONE IS TRUE")
+		return err
+	}
 
 	// Check for alloc-lifecycle, read-job and list-jobs permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
@@ -1504,9 +1505,29 @@ func (j *Job) Restart(args *structs.JobRestartRequest,
 		}
 
 		var allocRestartResponse *structs.GenericResponse
-		if done, err := j.srv.forward("Allocations.Restart", allocRestartRequest, allocRestartRequest, allocRestartResponse); done {
-			return err
+		//if done, err := j.srv.forward("ClientAllocations.Restart", allocRestartRequest, allocRestartRequest, allocRestartResponse); done {
+		//	return err
+		//}
+
+		_, err = getNodeForRpc(snap, alloc.NodeID)
+		if err != nil {
+			fmt.Println(err)
 		}
+
+		// Get the connection to the client
+		state, ok := j.srv.getNodeConn(alloc.NodeID)
+		if !ok {
+			if err := findNodeConnAndForward(j.srv, alloc.NodeID, "ClientAllocations.Restart", allocRestartRequest, allocRestartResponse); err != nil {
+				fmt.Printf("Hello findNodeConnAndForward error: %v\n", err)
+			}
+		} else {
+
+			// Make the RPC
+			if err := NodeRpc(state.Session, "Allocations.Restart", allocRestartRequest, allocRestartResponse); err != nil {
+				fmt.Printf("HELLO NodeRpc error: %v\n", err)
+			}
+		}
+
 	}
 
 	// Commit this update via Raft
