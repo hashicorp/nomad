@@ -992,7 +992,7 @@ func (a *allocReconciler) handleDelayedLost(rescheduleLater []*delayedReschedule
 // provided, the waitUntil time is emitted.
 func emitRescheduleInfo(alloc *structs.Allocation, followupEval *structs.Evaluation) {
 	// Emit short-lived metrics data point. Note, these expire and stop emitting after about a minute.
-	baseMetric := []string{"client", "allocs", "reschedule"}
+	baseMetric := []string{"scheduler", "allocs", "reschedule"}
 	labels := []metrics.Label{
 		{Name: "alloc_id", Value: alloc.ID},
 		{Name: "job", Value: alloc.JobID},
