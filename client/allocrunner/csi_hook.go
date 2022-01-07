@@ -16,13 +16,33 @@ import (
 //
 // It is a noop for allocs that do not depend on CSI Volumes.
 type csiHook struct {
-	ar             *allocRunner
-	alloc          *structs.Allocation
-	logger         hclog.Logger
-	csimanager     csimanager.Manager
-	rpcClient      RPCer
-	updater        hookResourceSetter
+	alloc                *structs.Allocation
+	logger               hclog.Logger
+	csimanager           csimanager.Manager
+	rpcClient            RPCer
+	taskCapabilityGetter taskCapabilityGetter
+	updater              hookResourceSetter
+	nodeSecret           string
+
 	volumeRequests map[string]*volumeAndRequest
+}
+
+// implemented by allocrunner
+type taskCapabilityGetter interface {
+	GetTaskDriverCapabilities(string) (*drivers.Capabilities, error)
+}
+
+func newCSIHook(alloc *structs.Allocation, logger hclog.Logger, csi csimanager.Manager, rpcClient RPCer, taskCapabilityGetter taskCapabilityGetter, updater hookResourceSetter, nodeSecret string) *csiHook {
+	return &csiHook{
+		alloc:                alloc,
+		logger:               logger.Named("csi_hook"),
+		csimanager:           csi,
+		rpcClient:            rpcClient,
+		taskCapabilityGetter: taskCapabilityGetter,
+		updater:              updater,
+		nodeSecret:           nodeSecret,
+		volumeRequests:       map[string]*volumeAndRequest{},
+	}
 }
 
 func (c *csiHook) Name() string {
@@ -109,7 +129,7 @@ func (c *csiHook) Postrun() error {
 			WriteRequest: structs.WriteRequest{
 				Region:    c.alloc.Job.Region,
 				Namespace: c.alloc.Job.Namespace,
-				AuthToken: c.ar.clientConfig.Node.SecretID,
+				AuthToken: c.nodeSecret,
 			},
 		}
 		err := c.rpcClient.RPC("CSIVolume.Unpublish",
@@ -142,7 +162,7 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 		if volumeRequest.Type == structs.VolumeTypeCSI {
 
 			for _, task := range tg.Tasks {
-				caps, err := c.ar.GetTaskDriverCapabilities(task.Name)
+				caps, err := c.taskCapabilityGetter.GetTaskDriverCapabilities(task.Name)
 				if err != nil {
 					return nil, fmt.Errorf("could not validate task driver capabilities: %v", err)
 				}
@@ -180,13 +200,13 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 			WriteRequest: structs.WriteRequest{
 				Region:    c.alloc.Job.Region,
 				Namespace: c.alloc.Job.Namespace,
-				AuthToken: c.ar.clientConfig.Node.SecretID,
+				AuthToken: c.nodeSecret,
 			},
 		}
 
 		var resp structs.CSIVolumeClaimResponse
 		if err := c.rpcClient.RPC("CSIVolume.Claim", req, &resp); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not claim volume %s: %w", req.VolumeID, err)
 		}
 
 		if resp.Volume == nil {
@@ -199,17 +219,6 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 	}
 
 	return result, nil
-}
-
-func newCSIHook(ar *allocRunner, logger hclog.Logger, alloc *structs.Allocation, rpcClient RPCer, csi csimanager.Manager, updater hookResourceSetter) *csiHook {
-	return &csiHook{
-		ar:         ar,
-		alloc:      alloc,
-		logger:     logger.Named("csi_hook"),
-		rpcClient:  rpcClient,
-		csimanager: csi,
-		updater:    updater,
-	}
 }
 
 func (c *csiHook) shouldRun() bool {
