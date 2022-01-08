@@ -364,9 +364,9 @@ see the [drivers documentation](/docs/drivers).
 
 - `wait` `(Code: nil)` - Defines the minimum and maximum amount of time to wait
   for the Consul cluster to reach a consistent state before rendering a template.
-  This is useful to enable in systems where Consul is experiencing a lot of flapping,
+  This is useful to enable in systems where network connectivity to Consul is degraded,
   because it will reduce the number of times a template is rendered. This configuration is
-  also exposed at the _task level_ to allow overrides per task.
+  also exposed in the _task template stanza_ to allow overrides per task.
 
   ```hcl
   wait {
