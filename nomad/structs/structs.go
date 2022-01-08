@@ -8750,6 +8750,9 @@ type Vault struct {
 	// ChangeSignal is the signal sent to the task when a new token is
 	// retrieved. This is only valid when using the signal change mode.
 	ChangeSignal string
+
+	// Secrets is the set of secrets that should be made available
+	Secrets []*VaultSecret
 }
 
 func DefaultVaultBlock() *Vault {
@@ -8767,6 +8770,14 @@ func (v *Vault) Copy() *Vault {
 
 	nv := new(Vault)
 	*nv = *v
+
+	if l := len(v.Secrets); l != 0 {
+		nv.Secrets = make([]*VaultSecret, l)
+		for i, s := range v.Secrets {
+			nv.Secrets[i] = s.Copy()
+		}
+	}
+
 	return nv
 }
 
@@ -8803,6 +8814,34 @@ func (v *Vault) Validate() error {
 		_ = multierror.Append(&mErr, fmt.Errorf("Unknown change mode %q", v.ChangeMode))
 	}
 
+	return mErr.ErrorOrNil()
+}
+
+type VaultSecret struct {
+	// Name is the name the secret should be made available under
+	Name string
+	// Path is the Vault path to read the secret from
+	Path string
+}
+
+func (s *VaultSecret) Copy() *VaultSecret {
+	if s == nil {
+		return nil
+	}
+
+	ns := new(VaultSecret)
+	*ns = *s
+	return ns
+}
+
+func (s *VaultSecret) Validate() error {
+	var mErr multierror.Error
+	if s.Name == "" {
+		_ = multierror.Append(&mErr, fmt.Errorf("Missing secret name"))
+	}
+	if s.Path == "" {
+		_ = multierror.Append(&mErr, fmt.Errorf("Missing secret vault path"))
+	}
 	return mErr.ErrorOrNil()
 }
 

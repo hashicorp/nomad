@@ -3,6 +3,7 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -30,6 +31,8 @@ const (
 	// vaultTokenFile is the name of the file holding the Vault token inside the
 	// task's secret directory
 	vaultTokenFile = "vault_token"
+
+	vaultHookName = "vault"
 )
 
 type vaultTokenUpdateHandler interface {
@@ -45,31 +48,27 @@ func (tr *TaskRunner) updatedVaultToken(token string) {
 }
 
 type vaultHookConfig struct {
+	// vaultStanza is the vault stanza for the task
 	vaultStanza *structs.Vault
+	// client is the Vault client to retrieve and renew the Vault token
 	client      vaultclient.VaultClient
+	// eventEmitter is used to emit events to the task
 	events      ti.EventEmitter
+	// lifecycle is used to signal, restart and kill a task
 	lifecycle   ti.TaskLifecycle
+	// updater is used to update the Vault token
 	updater     vaultTokenUpdateHandler
+	// envBuilder is used to set secrets from Vault
+	envBuilder  *taskenv.Builder
 	logger      log.Logger
+	// alloc is the allocation
 	alloc       *structs.Allocation
+	// taskName is the name of the task
 	task        string
 }
 
 type vaultHook struct {
-	// vaultStanza is the vault stanza for the task
-	vaultStanza *structs.Vault
-
-	// eventEmitter is used to emit events to the task
-	eventEmitter ti.EventEmitter
-
-	// lifecycle is used to signal, restart and kill a task
-	lifecycle ti.TaskLifecycle
-
-	// updater is used to update the Vault token
-	updater vaultTokenUpdateHandler
-
-	// client is the Vault client to retrieve and renew the Vault token
-	client vaultclient.VaultClient
+	config *vaultHookConfig
 
 	// logger is used to log
 	logger log.Logger
@@ -81,12 +80,6 @@ type vaultHook struct {
 	// tokenPath is the path in which to read and write the token
 	tokenPath string
 
-	// alloc is the allocation
-	alloc *structs.Allocation
-
-	// taskName is the name of the task
-	taskName string
-
 	// firstRun stores whether it is the first run for the hook
 	firstRun bool
 
@@ -97,27 +90,23 @@ type vaultHook struct {
 func newVaultHook(config *vaultHookConfig) *vaultHook {
 	ctx, cancel := context.WithCancel(context.Background())
 	h := &vaultHook{
-		vaultStanza:  config.vaultStanza,
-		client:       config.client,
-		eventEmitter: config.events,
-		lifecycle:    config.lifecycle,
-		updater:      config.updater,
-		alloc:        config.alloc,
-		taskName:     config.task,
+		config: config,
+		logger: config.logger.Named(vaultHookName),
 		firstRun:     true,
 		ctx:          ctx,
 		cancel:       cancel,
 		future:       newTokenFuture(),
 	}
-	h.logger = config.logger.Named(h.Name())
 	return h
 }
 
 func (*vaultHook) Name() string {
-	return "vault"
+	return vaultHookName
 }
 
 func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	c := h.config
+
 	// If we have already run prestart before exit early. We do not use the
 	// PrestartDone value because we want to recover the token on restoration.
 	first := h.firstRun
@@ -152,7 +141,21 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 		return nil
 	}
 
-	h.updater.updatedVaultToken(h.future.Get())
+	token := h.future.Get()
+	c.updater.updatedVaultToken(token)
+
+	// Get secrets
+	for _, secretConfig := range c.vaultStanza.Secrets {
+		secret, err := c.client.GetSecret(token, secretConfig.Path)
+		if err != nil {
+			return err
+		}
+		if secret.Data == nil || secret.Data["data"] == nil {
+			return fmt.Errorf("no data at vault secret %s. Secret warnings: %v", secretConfig.Path, secret.Warnings)
+		}
+		c.envBuilder.SetVaultSecret(secretConfig.Name, secret.Data["data"])
+	}
+
 	return nil
 }
 
@@ -171,9 +174,10 @@ func (h *vaultHook) Shutdown() {
 // setting the initial Vault token. This is useful when the Vault token is
 // recovered off disk.
 func (h *vaultHook) run(token string) {
+	c := h.config
 	// Helper for stopping token renewal
 	stopRenewal := func() {
-		if err := h.client.StopRenewToken(h.future.Get()); err != nil {
+		if err := c.client.StopRenewToken(h.future.Get()); err != nil {
 			h.logger.Warn("failed to stop token renewal", "error", err)
 		}
 	}
@@ -208,7 +212,7 @@ OUTER:
 			if err := h.writeToken(token); err != nil {
 				errorString := "failed to write Vault token to disk"
 				h.logger.Error(errorString, "error", err)
-				h.lifecycle.Kill(h.ctx,
+				c.lifecycle.Kill(h.ctx,
 					structs.NewTaskEvent(structs.TaskKilling).
 						SetFailsTask().
 						SetDisplayMessage(fmt.Sprintf("Vault %v", errorString)))
@@ -217,7 +221,7 @@ OUTER:
 		}
 
 		// Start the renewal process
-		renewCh, err := h.client.RenewToken(token, 30)
+		renewCh, err := c.client.RenewToken(token, 30)
 
 		// An error returned means the token is not being renewed
 		if err != nil {
@@ -230,12 +234,12 @@ OUTER:
 		h.future.Set(token)
 
 		if updatedToken {
-			switch h.vaultStanza.ChangeMode {
+			switch c.vaultStanza.ChangeMode {
 			case structs.VaultChangeModeSignal:
-				s, err := signals.Parse(h.vaultStanza.ChangeSignal)
+				s, err := signals.Parse(c.vaultStanza.ChangeSignal)
 				if err != nil {
 					h.logger.Error("failed to parse signal", "error", err)
-					h.lifecycle.Kill(h.ctx,
+					c.lifecycle.Kill(h.ctx,
 						structs.NewTaskEvent(structs.TaskKilling).
 							SetFailsTask().
 							SetDisplayMessage(fmt.Sprintf("Vault: failed to parse signal: %v", err)))
@@ -243,9 +247,9 @@ OUTER:
 				}
 
 				event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Vault: new Vault token acquired")
-				if err := h.lifecycle.Signal(event, h.vaultStanza.ChangeSignal); err != nil {
+				if err := c.lifecycle.Signal(event, c.vaultStanza.ChangeSignal); err != nil {
 					h.logger.Error("failed to send signal", "error", err)
-					h.lifecycle.Kill(h.ctx,
+					c.lifecycle.Kill(h.ctx,
 						structs.NewTaskEvent(structs.TaskKilling).
 							SetFailsTask().
 							SetDisplayMessage(fmt.Sprintf("Vault: failed to send signal: %v", err)))
@@ -253,20 +257,20 @@ OUTER:
 				}
 			case structs.VaultChangeModeRestart:
 				const noFailure = false
-				h.lifecycle.Restart(h.ctx,
+				c.lifecycle.Restart(h.ctx,
 					structs.NewTaskEvent(structs.TaskRestartSignal).
 						SetDisplayMessage("Vault: new Vault token acquired"), false)
 			case structs.VaultChangeModeNoop:
 				fallthrough
 			default:
-				h.logger.Error("invalid Vault change mode", "mode", h.vaultStanza.ChangeMode)
+				h.logger.Error("invalid Vault change mode", "mode", c.vaultStanza.ChangeMode)
 			}
 
 			// We have handled it
 			updatedToken = false
 
 			// Call the handler
-			h.updater.updatedVaultToken(token)
+			c.updater.updatedVaultToken(token)
 		}
 
 		// Start watching for renewal errors
@@ -278,7 +282,7 @@ OUTER:
 			stopRenewal()
 
 			// Check if we have to do anything
-			if h.vaultStanza.ChangeMode != structs.VaultChangeModeNoop {
+			if c.vaultStanza.ChangeMode != structs.VaultChangeModeNoop {
 				updatedToken = true
 			}
 		case <-h.ctx.Done():
@@ -291,17 +295,19 @@ OUTER:
 // deriveVaultToken derives the Vault token using exponential backoffs. It
 // returns the Vault token and whether the manager should exit.
 func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
+	c := h.config
+
 	attempts := 0
 	for {
-		tokens, err := h.client.DeriveToken(h.alloc, []string{h.taskName})
+		tokens, err := c.client.DeriveToken(c.alloc, []string{c.task})
 		if err == nil {
-			return tokens[h.taskName], false
+			return tokens[c.task], false
 		}
 
 		// Check if this is a server side error
 		if structs.IsServerSide(err) {
 			h.logger.Error("failed to derive Vault token", "error", err, "server_side", true)
-			h.lifecycle.Kill(h.ctx,
+			c.lifecycle.Kill(h.ctx,
 				structs.NewTaskEvent(structs.TaskKilling).
 					SetFailsTask().
 					SetDisplayMessage(fmt.Sprintf("Vault: server failed to derive vault token: %v", err)))
@@ -311,7 +317,7 @@ func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 		// Check if we can't recover from the error
 		if !structs.IsRecoverable(err) {
 			h.logger.Error("failed to derive Vault token", "error", err, "recoverable", false)
-			h.lifecycle.Kill(h.ctx,
+			c.lifecycle.Kill(h.ctx,
 				structs.NewTaskEvent(structs.TaskKilling).
 					SetFailsTask().
 					SetDisplayMessage(fmt.Sprintf("Vault: failed to derive vault token: %v", err)))

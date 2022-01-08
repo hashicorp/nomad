@@ -2,6 +2,7 @@ package taskenv
 
 import (
 	"fmt"
+	"github.com/hashicorp/nomad/helper/flatmap"
 	"net"
 	"os"
 	"path/filepath"
@@ -123,6 +124,7 @@ const (
 	// Prefixes used for lookups.
 	nodeAttributePrefix = "attr."
 	nodeMetaPrefix      = "meta."
+	secretPrefix      = "secret."
 )
 
 // TaskEnv is a task's environment as well as node attribute's for
@@ -133,6 +135,9 @@ type TaskEnv struct {
 
 	// EnvMap is the map of environment variables
 	EnvMap map[string]string
+
+	// Secrets is the map of secrets
+	secretsMap map[string]string
 
 	// deviceEnv is the environment variables populated from the device hooks.
 	deviceEnv map[string]string
@@ -156,9 +161,10 @@ type TaskEnv struct {
 
 // NewTaskEnv creates a new task environment with the given environment, device
 // environment and node attribute maps.
-func NewTaskEnv(env, envClient, deviceEnv, node map[string]string, clientTaskDir, clientAllocDir string) *TaskEnv {
+func NewTaskEnv(env, envClient, deviceEnv, node, secrets map[string]string, clientTaskDir, clientAllocDir string) *TaskEnv {
 	return &TaskEnv{
 		NodeAttrs:            node,
+		secretsMap:           secrets,
 		deviceEnv:            deviceEnv,
 		EnvMap:               env,
 		EnvMapClient:         envClient,
@@ -220,6 +226,9 @@ func (t *TaskEnv) All() map[string]string {
 	for k, v := range t.NodeAttrs {
 		m[k] = v
 	}
+	for k, v := range t.secretsMap {
+		m[k] = v
+	}
 
 	return m
 }
@@ -251,6 +260,13 @@ func (t *TaskEnv) AllValues() (map[string]cty.Value, map[string]error, error) {
 
 	// Prepare node-based variables (eg node.*, attr.*, meta.*)
 	for k, v := range t.NodeAttrs {
+		if err := addNestedKey(allMap, k, v); err != nil {
+			errs[k] = err
+		}
+	}
+
+	// Prepare secrets (secret.*)
+	for k, v := range t.secretsMap {
 		if err := addNestedKey(allMap, k, v); err != nil {
 			errs[k] = err
 		}
@@ -307,7 +323,7 @@ func (t *TaskEnv) ParseAndReplace(args []string) []string {
 // and Nomad variables.  If the variable is found in the passed map it is
 // replaced, otherwise the original string is returned.
 func (t *TaskEnv) ReplaceEnv(arg string) string {
-	return hargs.ReplaceEnv(arg, t.EnvMap, t.NodeAttrs)
+	return hargs.ReplaceEnv(arg, t.EnvMap, t.NodeAttrs, t.secretsMap)
 }
 
 // replaceEnvClient takes an arg and replaces all occurrences of client-specific
@@ -369,6 +385,9 @@ type Builder struct {
 
 	// nodeAttrs are Node attributes and metadata
 	nodeAttrs map[string]string
+
+	// secretAttrs are Vault secrets
+	secretAttrs map[string]string
 
 	// taskMeta are the meta attributes on the task
 	taskMeta map[string]string
@@ -457,6 +476,7 @@ func NewEmptyBuilder() *Builder {
 		mu:       &sync.RWMutex{},
 		hookEnvs: map[string]map[string]string{},
 		envvars:  make(map[string]string),
+		secretAttrs: make(map[string]string),
 	}
 }
 
@@ -563,7 +583,7 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 
 	// Copy interpolated task env vars second as they override host env vars
 	for k, v := range b.envvars {
-		envMap[k] = hargs.ReplaceEnv(v, nodeAttrs, envMap)
+		envMap[k] = hargs.ReplaceEnv(v, nodeAttrs, envMap, b.secretAttrs)
 	}
 
 	// Copy hook env vars in the order the hooks were run
@@ -622,7 +642,7 @@ func (b *Builder) Build() *TaskEnv {
 	envMap, deviceEnvs := b.buildEnv(b.allocDir, b.localDir, b.secretsDir, nodeAttrs)
 	envMapClient, _ := b.buildEnv(b.clientSharedAllocDir, b.clientTaskLocalDir, b.clientTaskSecretsDir, nodeAttrs)
 
-	return NewTaskEnv(envMap, envMapClient, deviceEnvs, nodeAttrs, b.clientTaskRoot, b.clientSharedAllocDir)
+	return NewTaskEnv(envMap, envMapClient, deviceEnvs, nodeAttrs, b.secretAttrs, b.clientTaskRoot, b.clientSharedAllocDir)
 }
 
 // UpdateTask updates the environment based on a new alloc and task.
@@ -992,6 +1012,16 @@ func (b *Builder) SetVaultToken(token, namespace string, inject bool) *Builder {
 	b.vaultToken = token
 	b.vaultNamespace = namespace
 	b.injectVaultToken = inject
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetVaultSecret(name string, data interface{}) *Builder {
+	b.mu.Lock()
+	data = map[string]interface{}{name: data}
+	for k, v := range flatmap.FlattenDotPrefix(data, nil, false) {
+		b.secretAttrs[secretPrefix + k] = v
+	}
 	b.mu.Unlock()
 	return b
 }

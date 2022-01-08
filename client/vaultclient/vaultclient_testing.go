@@ -117,6 +117,8 @@ func (vc *MockVaultClient) Stop() {}
 
 func (vc *MockVaultClient) GetConsulACL(string, string) (*vaultapi.Secret, error) { return nil, nil }
 
+func (vc *MockVaultClient) GetSecret(string, string) (*vaultapi.Secret, error) { return nil, nil }
+
 // StoppedTokens tracks the tokens that have stopped renewing
 func (vc *MockVaultClient) StoppedTokens() []string {
 	vc.mu.Lock()

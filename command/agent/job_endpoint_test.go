@@ -2485,6 +2485,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							Env:          helper.BoolToPtr(true),
 							ChangeMode:   helper.StringToPtr("c"),
 							ChangeSignal: helper.StringToPtr("sighup"),
+							Secrets: []*api.VaultSecret{
+								{
+									Name: "name",
+									Path: "path",
+								},
+							},
 						},
 						Templates: []*api.Template{
 							{
@@ -2878,6 +2884,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							Env:          true,
 							ChangeMode:   "c",
 							ChangeSignal: "sighup",
+							Secrets: []*structs.VaultSecret{
+								{
+									Name: "name",
+									Path: "path",
+								},
+							},
 						},
 						Templates: []*structs.Template{
 							{
