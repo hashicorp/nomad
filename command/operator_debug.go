@@ -38,6 +38,7 @@ type OperatorDebugCommand struct {
 	collectDir    string
 	duration      time.Duration
 	interval      time.Duration
+	pprofInterval time.Duration
 	pprofDuration time.Duration
 	logLevel      string
 	maxNodes      int
@@ -164,6 +165,10 @@ Debug Options:
 
   -interval=<interval>
     The interval between snapshots of the Nomad state. Set interval equal to
+    duration to capture a single snapshot. Defaults to 30s.
+
+  -pprof-interval=<pprof-interval>
+    The interval between pprof collections. Set interval equal to
     duration to capture a single snapshot. Defaults to 30s.
 
   -log-level=<level>
@@ -334,7 +339,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	var duration, interval, output, pprofDuration, eventTopic string
+	var duration, interval, pprofInterval, output, pprofDuration, eventTopic string
 	var eventIndex int64
 	var nodeIDs, serverIDs string
 	var allowStale bool
@@ -350,7 +355,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.StringVar(&serverIDs, "server-id", "all", "")
 	flags.BoolVar(&allowStale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
-	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
+	flags.StringVar(&pprofDuration, "pprof-duration", "1m", "")
+	flags.StringVar(&pprofInterval, "pprof-interval", "30s", "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	c.consul = &external{tls: &api.TLSConfig{}}
@@ -422,6 +428,20 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 	c.index = uint64(eventIndex)
+
+	// Parse the pprof capture interval
+	pi, err := time.ParseDuration(pprofInterval)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing pprof-interval: %s: %s", pprofInterval, err.Error()))
+		return 1
+	}
+	c.pprofInterval = pi
+
+	// Validate interval
+	if pi.Seconds() > pd.Seconds() {
+		c.Ui.Error(fmt.Sprintf("pprof-interval %s must be less than pprof-duration %s", pprofInterval, pprofDuration))
+		return 1
+	}
 
 	// Verify there are no extra arguments
 	args = flags.Args()
@@ -595,6 +615,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.Ui.Output(fmt.Sprintf("         Interval: %s", interval))
 	c.Ui.Output(fmt.Sprintf("         Duration: %s", duration))
+	c.Ui.Output(fmt.Sprintf("         Pprof Interval: %s", pprofInterval))
 	if c.pprofDuration.Seconds() != 1 {
 		c.Ui.Output(fmt.Sprintf("   pprof Duration: %s", c.pprofDuration))
 	}
@@ -663,7 +684,7 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	c.collectVault(clusterDir, vaultAddr)
 
 	c.collectAgentHosts(client)
-	c.collectPprofs(client)
+	c.collectPeriodicPprofs(client)
 
 	c.collectPeriodic(client)
 
@@ -874,6 +895,34 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 
 	path = filepath.Join(path, id)
 	c.writeJSON(path, "agent-host.json", host, err)
+}
+
+func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
+	duration := time.After(c.duration)
+	// Create a ticker to execute on every interval ticks
+	ticker := time.NewTicker(c.pprofInterval)
+	// Additionally, an out of loop execute to imitate first tick
+	c.collectPprofs(client)
+
+	var pprofIntervalCount int
+	var name string
+
+	for {
+		select {
+		case <-duration:
+			c.cancel()
+			return
+
+		case <-ticker.C:
+			name = fmt.Sprintf("%04d", pprofIntervalCount)
+			c.Ui.Output(fmt.Sprintf("    Capture pprofInterval %s", name))
+			c.collectPprofs(client)
+			pprofIntervalCount++
+
+		case <-c.ctx.Done():
+			return
+		}
+	}
 }
 
 // collectPprofs captures the /agent/pprof for each listed node
