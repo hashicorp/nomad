@@ -33,9 +33,9 @@ func setCmdUser(cmd *exec.Cmd, userid string) error {
 
 	gids := make([]uint32, len(gidStrings))
 	for _, gidString := range gidStrings {
-		u, err := strconv.Atoi(gidString)
+		u, err := strconv.ParseUint(gidString, 10, 32)
 		if err != nil {
-			return fmt.Errorf("Unable to convert user's group to int %s: %v", gidString, err)
+			return fmt.Errorf("Unable to convert user's group to uint32 %s: %v", gidString, err)
 		}
 
 		gids = append(gids, uint32(u))
