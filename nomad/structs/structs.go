@@ -4736,7 +4736,7 @@ type TaskGroupSummary struct {
 
 const (
 	// Checks uses any registered health check state in combination with task
-	// states to determine if a allocation is healthy.
+	// states to determine if an allocation is healthy.
 	UpdateStrategyHealthCheck_Checks = "checks"
 
 	// TaskStates uses the task states of an allocation to determine if the
