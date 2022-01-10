@@ -70,8 +70,15 @@ type Namespace struct {
 	Name        string
 	Description string
 	Quota       string
-	CreateIndex uint64
-	ModifyIndex uint64
+	// TODO: how to encode properly?
+	Capabilities *NamespaceCapabilities
+	CreateIndex  uint64
+	ModifyIndex  uint64
+}
+
+// TODO: is this duplication between struct & api expected/wanted?
+type NamespaceCapabilities struct {
+	EnabledTaskDrivers []string
 }
 
 // NamespaceIndexSort is a wrapper to sort Namespaces by CreateIndex. We

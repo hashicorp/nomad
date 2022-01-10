@@ -111,10 +111,15 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 
 // formatNamespaceBasics formats the basic information of the namespace
 func formatNamespaceBasics(ns *api.Namespace) string {
+	drivers := "*"
+	if ns.Capabilities != nil && len(ns.Capabilities.EnabledTaskDrivers) != 0 {
+		drivers = strings.Join(ns.Capabilities.EnabledTaskDrivers, ",")
+	}
 	basic := []string{
 		fmt.Sprintf("Name|%s", ns.Name),
 		fmt.Sprintf("Description|%s", ns.Description),
 		fmt.Sprintf("Quota|%s", ns.Quota),
+		fmt.Sprintf("Drivers|%s", drivers),
 	}
 
 	return formatKV(basic)

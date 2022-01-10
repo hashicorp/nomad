@@ -4945,6 +4945,9 @@ type Namespace struct {
 	// against.
 	Quota string
 
+	// Capabilities is the set of capabilities allowed for this namespace
+	Capabilities *NamespaceCapabilities
+
 	// Hash is the hash of the namespace which is used to efficiently replicate
 	// cross-regions.
 	Hash []byte
@@ -4952,6 +4955,12 @@ type Namespace struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// NamespaceCapabilities represents a set of capabilities allowed for this
+// namespace, to be checked at job submission time.
+type NamespaceCapabilities struct {
+	EnabledTaskDrivers []string
 }
 
 func (n *Namespace) Validate() error {

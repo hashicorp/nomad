@@ -33,6 +33,9 @@ Apply Options:
 
   -description
     An optional description for the namespace.
+
+  -enabled-task-drivers
+    A comma separated list of allowed task drivers.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -40,8 +43,9 @@ Apply Options:
 func (c *NamespaceApplyCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-description": complete.PredictAnything,
-			"-quota":       QuotaPredictor(c.Meta.Client),
+			"-description":          complete.PredictAnything,
+			"-quota":                QuotaPredictor(c.Meta.Client),
+			"-enabled-task-drivers": complete.PredictAnything,
 		})
 }
 
@@ -56,7 +60,7 @@ func (c *NamespaceApplyCommand) Synopsis() string {
 func (c *NamespaceApplyCommand) Name() string { return "namespace apply" }
 
 func (c *NamespaceApplyCommand) Run(args []string) int {
-	var description, quota *string
+	var description, quota, enabledTaskDrivers *string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -68,6 +72,10 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 		quota = &s
 		return nil
 	}), "quota", "")
+	flags.Var((flaghelper.FuncVar)(func(s string) error {
+		enabledTaskDrivers = &s
+		return nil
+	}), "enabled-task-drivers", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -115,6 +123,9 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 	}
 	if quota != nil {
 		ns.Quota = *quota
+	}
+	if enabledTaskDrivers != nil {
+		ns.Capabilities = &api.NamespaceCapabilities{EnabledTaskDrivers: strings.Split(*enabledTaskDrivers, ",")}
 	}
 
 	_, err = client.Namespaces().Register(ns, nil)
