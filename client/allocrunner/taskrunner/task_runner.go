@@ -1404,6 +1404,7 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	publishMetric(ms.RSS, "rss", "RSS")
 	publishMetric(ms.Cache, "cache", "Cache")
 	publishMetric(ms.Swap, "swap", "Swap")
+	publishMetric(ms.MappedFile, "mapped_file", "Mapped File")
 	publishMetric(ms.Usage, "usage", "Usage")
 	publishMetric(ms.MaxUsage, "max_usage", "Max Usage")
 	publishMetric(ms.KernelUsage, "kernel_usage", "Kernel Usage")
