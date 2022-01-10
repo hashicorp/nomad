@@ -29,7 +29,7 @@ require (
 	github.com/coreos/go-semver v0.3.0
 	github.com/docker/cli v0.0.0-20200303215952-eb310fca4956
 	github.com/docker/distribution v2.7.1+incompatible
-	github.com/docker/docker v17.12.0-ce-rc1.0.20200330121334-7f8b4b621b5d+incompatible
+	github.com/docker/docker v20.10.12+incompatible
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20200612180813-9e99af28df21
 	github.com/dustin/go-humanize v1.0.0
@@ -126,7 +126,7 @@ require (
 	cloud.google.com/go v0.97.0 // indirect
 	cloud.google.com/go/storage v1.18.2 // indirect
 	github.com/Azure/azure-sdk-for-go v44.0.0+incompatible // indirect
-	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest v0.11.4 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.2 // indirect
@@ -159,9 +159,9 @@ require (
 	github.com/circonus-labs/circonusllhist v0.1.3 // indirect
 	github.com/cncf/udpa/go v0.0.0-20210930031921-04548b0d99d4 // indirect
 	github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1 // indirect
+	github.com/containerd/cgroups v0.0.0-20190919134610-bf292b21730f // indirect
 	github.com/containerd/console v1.0.1 // indirect
 	github.com/containerd/containerd v1.3.4 // indirect
-	github.com/containerd/continuity v0.0.0-20200709052629-daa8e1ccc0bc // indirect
 	github.com/coreos/go-systemd/v22 v22.1.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3-0.20190205144030-7efe413b52e1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -204,7 +204,9 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
-	github.com/moby/sys/mountinfo v0.4.0 // indirect
+	github.com/moby/sys/mount v0.3.0 // indirect
+	github.com/moby/sys/mountinfo v0.5.0 // indirect
+	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/mrunalp/fileutils v0.5.0 // indirect
 	github.com/nicolai86/scaleway-sdk v1.10.2-0.20180628010248-798f60e20bb2 // indirect
