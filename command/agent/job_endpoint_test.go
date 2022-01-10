@@ -2498,6 +2498,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LeftDelim:    helper.StringToPtr("abc"),
 								RightDelim:   helper.StringToPtr("def"),
 								Envvars:      helper.BoolToPtr(true),
+								Wait: &api.WaitConfig{
+									Min: helper.TimeToPtr(5 * time.Second),
+									Max: helper.TimeToPtr(10 * time.Second),
+								},
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
@@ -2891,6 +2895,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LeftDelim:    "abc",
 								RightDelim:   "def",
 								Envvars:      true,
+								Wait: &structs.WaitConfig{
+									Min: helper.TimeToPtr(5 * time.Second),
+									Max: helper.TimeToPtr(10 * time.Second),
+								},
 							},
 						},
 						DispatchPayload: &structs.DispatchPayloadConfig{

@@ -352,8 +352,96 @@ see the [drivers documentation](/docs/drivers).
   the host as root (unless Nomad is configured to run as a non-root user).
 
 - `disable_file_sandbox` `(bool: false)` - Allows templates access to arbitrary
-  files on the client host via the `file` function. By default templates can
+  files on the client host via the `file` function. By default, templates can
   access files only within the [task working directory].
+
+- `max_stale` `(string: "")` - # This is the maximum interval to allow "stale"
+  data. By default, only the Consul leader will respond to queries. Requests to
+  a follower will forward to the leader. In large clusters with many requests,
+  this is not as scalable. This option allows any follower to respond to a query,
+  so long as the last-replicated data is within this bound. Higher values result
+  in less cluster load, but are more likely to have outdated data.
+
+- `wait` `(Code: nil)` - Defines the minimum and maximum amount of time to wait
+  for the Consul cluster to reach a consistent state before rendering a template.
+  This is useful to enable in systems where network connectivity to Consul is degraded,
+  because it will reduce the number of times a template is rendered. This configuration is
+  also exposed in the _task template stanza_ to allow overrides per task.
+
+  ```hcl
+  wait {
+    min     = "5s"
+    max     = "10s"
+  }
+  ```
+
+- `wait_bounds` `(Code: nil)` - Defines client level lower and upper bounds for
+  per-template `wait` configuration. If the individual template configuration has
+  a `min` lower than `wait_bounds.min` or a `max` greater than the `wait_bounds.max`,
+  the bounds will be enforced, and the template `wait` will be adjusted before being
+  sent to `consul-template`.
+
+  ```hcl
+  wait_bounds {
+    min     = "5s"
+    max     = "10s"
+  }
+    ```
+
+- `block_query_wait` `(string: "60s")` - This is amount of time in seconds to wait
+  for the results of a blocking query. Many endpoints in Consul support a feature known as
+  "blocking queries". A blocking query is used to wait for a potential change
+  using long polling.
+
+- `consul_retry` `(Code: nil)` - This controls the retry behavior when an error is
+  returned from Consul. Consul Template is highly fault tolerant, meaning it does
+  not exit in the face of failure. Instead, it uses exponential back-off and retry
+  functions to wait for the cluster to become available, as is customary in distributed
+  systems.
+
+  ```hcl
+  consul_retry {
+    # This specifies the number of attempts to make before giving up. Each
+    # attempt adds the exponential backoff sleep time. Setting this to
+    # zero will implement an unlimited number of retries.
+    attempts = 12
+    # This is the base amount of time to sleep between retry attempts. Each
+    # retry sleeps for an exponent of 2 longer than this base. For 5 retries,
+    # the sleep times would be: 250ms, 500ms, 1s, 2s, then 4s.
+    backoff = "250ms"
+    # This is the maximum amount of time to sleep between retry attempts.
+    # When max_backoff is set to zero, there is no upper limit to the
+    # exponential sleep between retry attempts.
+    # If max_backoff is set to 10s and backoff is set to 1s, sleep times
+    # would be: 1s, 2s, 4s, 8s, 10s, 10s, ...
+    max_backoff = "1m"
+  }
+  ```
+
+- `vault_retry` `(Code: nil)` - This controls the retry behavior when an error is
+  returned from Vault. Consul Template is highly fault tolerant, meaning it does
+  not exit in the face of failure. Instead, it uses exponential back-off and retry
+  functions to wait for the cluster to become available, as is customary in distributed
+  systems.
+
+  ```hcl
+  vault_retry {
+    # This specifies the number of attempts to make before giving up. Each
+    # attempt adds the exponential backoff sleep time. Setting this to
+    # zero will implement an unlimited number of retries.
+    attempts = 12
+    # This is the base amount of time to sleep between retry attempts. Each
+    # retry sleeps for an exponent of 2 longer than this base. For 5 retries,
+    # the sleep times would be: 250ms, 500ms, 1s, 2s, then 4s.
+    backoff = "250ms"
+    # This is the maximum amount of time to sleep between retry attempts.
+    # When max_backoff is set to zero, there is no upper limit to the
+    # exponential sleep between retry attempts.
+    # If max_backoff is set to 10s and backoff is set to 1s, sleep times
+    # would be: 1s, 2s, 4s, 8s, 10s, 10s, ...
+    max_backoff = "1m"
+  }
+  ```
 
 ### `host_volume` Stanza
 

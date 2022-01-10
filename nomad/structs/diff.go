@@ -525,12 +525,7 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 	}
 
 	// Template diff
-	tmplDiffs := primitiveObjectSetDiff(
-		interfaceSlice(t.Templates),
-		interfaceSlice(other.Templates),
-		nil,
-		"Template",
-		contextual)
+	tmplDiffs := templateDiffs(t.Templates, other.Templates, contextual)
 	if tmplDiffs != nil {
 		diff.Objects = append(diff.Objects, tmplDiffs...)
 	}
@@ -1605,6 +1600,145 @@ func vaultDiff(old, new *Vault, contextual bool) *ObjectDiff {
 	}
 
 	return diff
+}
+
+// waitConfigDiff returns the diff of two WaitConfig objects. If contextual diff is
+// enabled, all fields will be returned, even if no diff occurred.
+func waitConfigDiff(old, new *WaitConfig, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Template"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, nil, false)
+	} else if new == nil {
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, false)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, false)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, false)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	return diff
+}
+
+// templateDiff returns the diff of two Consul Template objects. If contextual diff is
+// enabled, all fields will be returned, even if no diff occurred.
+func templateDiff(old, new *Template, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Template"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &Template{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &Template{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// WaitConfig diffs
+	if waitDiffs := waitConfigDiff(old.Wait, new.Wait, contextual); waitDiffs != nil {
+		diff.Objects = append(diff.Objects, waitDiffs)
+	}
+
+	return diff
+}
+
+// templateDiffs returns the diff of two Consul Template slices. If contextual diff is
+// enabled, all fields will be returned, even if no diff occurred.
+// serviceDiffs diffs a set of services. If contextual diff is enabled, unchanged
+// fields within objects nested in the tasks will be returned.
+func templateDiffs(old, new []*Template, contextual bool) []*ObjectDiff {
+	// Handle trivial case.
+	if len(old) == 1 && len(new) == 1 {
+		if diff := templateDiff(old[0], new[0], contextual); diff != nil {
+			return []*ObjectDiff{diff}
+		}
+		return nil
+	}
+
+	// For each template we will try to find a corresponding match in the other list.
+	// The following lists store the index of the matching template for each
+	// position of the inputs.
+	oldMatches := make([]int, len(old))
+	newMatches := make([]int, len(new))
+
+	// Initialize all templates as unmatched.
+	for i := range oldMatches {
+		oldMatches[i] = -1
+	}
+	for i := range newMatches {
+		newMatches[i] = -1
+	}
+
+	// Find a match in the new templates list for each old template and compute
+	// their diffs.
+	var diffs []*ObjectDiff
+	for oldIndex, oldTemplate := range old {
+		newIndex := findTemplateMatch(oldTemplate, new, newMatches)
+
+		// Old templates that don't have a match were deleted.
+		if newIndex < 0 {
+			diff := templateDiff(oldTemplate, nil, contextual)
+			diffs = append(diffs, diff)
+			continue
+		}
+
+		// If A matches B then B matches A.
+		oldMatches[oldIndex] = newIndex
+		newMatches[newIndex] = oldIndex
+
+		newTemplate := new[newIndex]
+		if diff := templateDiff(oldTemplate, newTemplate, contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	// New templates without match were added.
+	for i, m := range newMatches {
+		if m == -1 {
+			diff := templateDiff(nil, new[i], contextual)
+			diffs = append(diffs, diff)
+		}
+	}
+
+	sort.Sort(ObjectDiffs(diffs))
+	return diffs
+}
+
+func findTemplateMatch(template *Template, newTemplates []*Template, newTemplateMatches []int) int {
+	indexMatch := -1
+
+	for i, newTemplate := range newTemplates {
+		// Skip template if it's already matched.
+		if newTemplateMatches[i] >= 0 {
+			continue
+		}
+
+		if template.DiffID() == newTemplate.DiffID() {
+			indexMatch = i
+			break
+		}
+	}
+
+	return indexMatch
 }
 
 // parameterizedJobDiff returns the diff of two parameterized job objects. If

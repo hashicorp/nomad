@@ -1,13 +1,16 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/hashicorp/consul-template/config"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/command/agent/host"
 
@@ -59,6 +62,8 @@ var (
 		// In non-systemd systems, this mount is a no-op and the path is ignored if not present.
 		"/run/systemd/resolve": "/run/systemd/resolve",
 	}
+
+	DefaultTemplateMaxStale = 5 * time.Second
 )
 
 // RPCHandler can be provided to the Client if there is a local server
@@ -276,11 +281,72 @@ type Config struct {
 	ReservableCores []uint16
 }
 
+// ClientTemplateConfig is configuration on the client specific to template
+// rendering
 type ClientTemplateConfig struct {
-	FunctionDenylist []string
-	DisableSandbox   bool
+	// FunctionDenylist disables functions in consul-template that
+	// are unsafe because they expose information from the client host.
+	FunctionDenylist []string `hcl:"function_denylist"`
+
+	// Deprecated: COMPAT(1.0) consul-template uses inclusive language from
+	// v0.25.0 - function_blacklist is kept for compatibility
+	FunctionBlacklist []string `hcl:"function_blacklist"`
+
+	// DisableSandbox allows templates to access arbitrary files on the
+	// client host. By default templates can access files only within
+	// the task directory.
+	DisableSandbox bool `hcl:"disable_file_sandbox"`
+
+	// This is the maximum interval to allow "stale" data. By default, only the
+	// Consul leader will respond to queries; any requests to a follower will
+	// forward to the leader. In large clusters with many requests, this is not as
+	// scalable, so this option allows any follower to respond to a query, so long
+	// as the last-replicated data is within these bounds. Higher values result in
+	// less cluster load, but are more likely to have outdated data.
+	// NOTE: Since Consul Template uses a pointer, this field uses a pointer which
+	// is inconsistent with how Nomad typically works. This decision was made to
+	// maintain parity with the external subsystem, not to establish a new standard.
+	MaxStale    *time.Duration `hcl:"-"`
+	MaxStaleHCL string         `hcl:"max_stale,optional"`
+
+	// BlockQueryWaitTime is amount of time in seconds to do a blocking query for.
+	// Many endpoints in Consul support a feature known as "blocking queries".
+	// A blocking query is used to wait for a potential change using long polling.
+	// NOTE: Since Consul Template uses a pointer, this field uses a pointer which
+	// is inconsistent with how Nomad typically works. This decision was made to
+	// maintain parity with the external subsystem, not to establish a new standard.
+	BlockQueryWaitTime    *time.Duration `hcl:"-"`
+	BlockQueryWaitTimeHCL string         `hcl:"block_query_wait,optional"`
+
+	// Wait is the quiescence timers; it defines the minimum and maximum amount of
+	// time to wait for the Consul cluster to reach a consistent state before rendering a
+	// template. This is useful to enable in systems where Consul is experiencing
+	// a lot of flapping because it will reduce the number of times a template is rendered.
+	Wait *WaitConfig `hcl:"wait,optional" json:"-"`
+
+	// WaitBounds allows operators to define boundaries on individual template wait
+	// configuration overrides. If set, this ensures that if a job author specifies
+	// a wait configuration with values the cluster operator does not allow, the
+	// cluster operator's boundary will be applied rather than the job author's
+	// out of bounds configuration.
+	WaitBounds *WaitConfig `hcl:"wait_bounds,optional" json:"-"`
+
+	// This controls the retry behavior when an error is returned from Consul.
+	// Consul Template is highly fault tolerant, meaning it does not exit in the
+	// face of failure. Instead, it uses exponential back-off and retry functions
+	// to wait for the cluster to become available, as is customary in distributed
+	// systems.
+	ConsulRetry *RetryConfig `hcl:"consul_retry,optional"`
+
+	// This controls the retry behavior when an error is returned from Vault.
+	// Consul Template is highly fault tolerant, meaning it does not exit in the
+	// face of failure. Instead, it uses exponential back-off and retry functions
+	// to wait for the cluster to become available, as is customary in distributed
+	// systems.
+	VaultRetry *RetryConfig `hcl:"vault_retry,optional"`
 }
 
+// Copy returns a deep copy of a ClientTemplateConfig
 func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 	if c == nil {
 		return nil
@@ -289,7 +355,376 @@ func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 	nc := new(ClientTemplateConfig)
 	*nc = *c
 	nc.FunctionDenylist = helper.CopySliceString(nc.FunctionDenylist)
+
+	if c.BlockQueryWaitTime != nil {
+		nc.BlockQueryWaitTime = &*c.BlockQueryWaitTime
+	}
+
+	if c.MaxStale != nil {
+		nc.MaxStale = &*c.MaxStale
+	}
+
+	if c.Wait != nil {
+		nc.Wait = c.Wait.Copy()
+	}
+
+	if c.ConsulRetry != nil {
+		nc.ConsulRetry = c.ConsulRetry.Copy()
+	}
+
+	if c.VaultRetry != nil {
+		nc.VaultRetry = c.VaultRetry.Copy()
+	}
+
 	return nc
+}
+
+// Merge merges the values of two ClientTemplateConfigs. If first copies the receiver
+// instance, and then overrides those values with the instance to merge with.
+func (c *ClientTemplateConfig) Merge(b *ClientTemplateConfig) *ClientTemplateConfig {
+	if c == nil {
+		return b
+	}
+
+	result := *c
+
+	if b == nil {
+		return &result
+	}
+
+	if b.BlockQueryWaitTime != nil {
+		result.BlockQueryWaitTime = b.BlockQueryWaitTime
+	}
+	if b.BlockQueryWaitTimeHCL != "" {
+		result.BlockQueryWaitTimeHCL = b.BlockQueryWaitTimeHCL
+	}
+
+	if b.ConsulRetry != nil {
+		result.ConsulRetry = result.ConsulRetry.Merge(b.ConsulRetry)
+	}
+
+	result.DisableSandbox = b.DisableSandbox
+
+	// Maintain backward compatibility for older clients
+	if len(b.FunctionBlacklist) > 0 {
+		for _, fn := range b.FunctionBlacklist {
+			if !helper.SliceStringContains(result.FunctionBlacklist, fn) {
+				result.FunctionBlacklist = append(result.FunctionBlacklist, fn)
+			}
+		}
+	}
+
+	if len(b.FunctionDenylist) > 0 {
+		for _, fn := range b.FunctionDenylist {
+			if !helper.SliceStringContains(result.FunctionDenylist, fn) {
+				result.FunctionDenylist = append(result.FunctionDenylist, fn)
+			}
+		}
+	}
+
+	if b.MaxStale != nil {
+		result.MaxStale = b.MaxStale
+	}
+
+	if b.MaxStaleHCL != "" {
+		result.MaxStaleHCL = b.MaxStaleHCL
+	}
+
+	if b.Wait != nil {
+		result.Wait = result.Wait.Merge(b.Wait)
+	}
+
+	if b.WaitBounds != nil {
+		result.WaitBounds = result.WaitBounds.Merge(b.WaitBounds)
+	}
+
+	if b.VaultRetry != nil {
+		result.VaultRetry = result.VaultRetry.Merge(b.VaultRetry)
+	}
+
+	return &result
+}
+
+func (c *ClientTemplateConfig) IsEmpty() bool {
+	if c == nil {
+		return true
+	}
+
+	return c.BlockQueryWaitTime == nil &&
+		c.BlockQueryWaitTimeHCL == "" &&
+		c.MaxStale == nil &&
+		c.MaxStaleHCL == "" &&
+		c.Wait.IsEmpty() &&
+		c.ConsulRetry.IsEmpty() &&
+		c.VaultRetry.IsEmpty()
+}
+
+// WaitConfig is mirrored from templateconfig.WaitConfig because we need to handle
+// the HCL conversion which happens in agent.ParseConfigFile
+// NOTE: Since Consul Template requires pointers, this type uses pointers to fields
+// which is inconsistent with how Nomad typically works. This decision was made
+// to maintain parity with the external subsystem, not to establish a new standard.
+type WaitConfig struct {
+	Min    *time.Duration `hcl:"-"`
+	MinHCL string         `hcl:"min,optional" json:"-"`
+	Max    *time.Duration `hcl:"-"`
+	MaxHCL string         `hcl:"max,optional" json:"-"`
+}
+
+// Copy returns a deep copy of the receiver.
+func (wc *WaitConfig) Copy() *WaitConfig {
+	if wc == nil {
+		return nil
+	}
+
+	nwc := new(WaitConfig)
+
+	if wc.Min != nil {
+		nwc.Min = &*wc.Min
+	}
+
+	if wc.Max != nil {
+		nwc.Max = &*wc.Max
+	}
+
+	return wc
+}
+
+// Equals returns the result of reflect.DeepEqual
+func (wc *WaitConfig) Equals(other *WaitConfig) bool {
+	return reflect.DeepEqual(wc, other)
+}
+
+// IsEmpty returns true if the receiver only contains an instance with no fields set.
+func (wc *WaitConfig) IsEmpty() bool {
+	if wc == nil {
+		return true
+	}
+	return wc.Equals(&WaitConfig{})
+}
+
+// Validate returns an error  if the receiver is nil or empty or if Min is greater
+// than Max the user specified Max.
+func (wc *WaitConfig) Validate() error {
+	// If the config is nil or empty return false so that it is never assigned.
+	if wc == nil || wc.IsEmpty() {
+		return errors.New("wait config is nil or empty")
+	}
+
+	// If min is nil, return
+	if wc.Min == nil {
+		return nil
+	}
+
+	// If min isn't nil, make sure Max is less than Min.
+	if wc.Max != nil {
+		if *wc.Min > *wc.Max {
+			return fmt.Errorf("wait config min %d is greater than max %d", *wc.Min, *wc.Max)
+		}
+	}
+
+	// Otherwise, return nil. Consul Template will set a Max based off of Min.
+	return nil
+}
+
+// Merge merges two WaitConfigs. The passed instance always takes precedence.
+func (wc *WaitConfig) Merge(b *WaitConfig) *WaitConfig {
+	if wc == nil {
+		return b
+	}
+
+	result := *wc
+	if b == nil {
+		return &result
+	}
+
+	if b.Min != nil {
+		result.Min = &*b.Min
+	}
+
+	if b.MinHCL != "" {
+		result.MinHCL = b.MinHCL
+	}
+
+	if b.Max != nil {
+		result.Max = &*b.Max
+	}
+
+	if b.MaxHCL != "" {
+		result.MaxHCL = b.MaxHCL
+	}
+
+	return &result
+}
+
+// ToConsulTemplate converts a client WaitConfig instance to a consul-template WaitConfig
+func (wc *WaitConfig) ToConsulTemplate() (*config.WaitConfig, error) {
+	if wc.IsEmpty() {
+		return nil, errors.New("wait config is empty")
+	}
+
+	if err := wc.Validate(); err != nil {
+		return nil, err
+	}
+
+	result := &config.WaitConfig{Enabled: helper.BoolToPtr(true)}
+
+	if wc.Min != nil {
+		result.Min = wc.Min
+	}
+
+	if wc.Max != nil {
+		result.Max = wc.Max
+	}
+
+	return result, nil
+}
+
+// RetryConfig is mirrored from templateconfig.WaitConfig because we need to handle
+// the HCL indirection to support mapping in agent.ParseConfigFile.
+// NOTE: Since Consul Template requires pointers, this type uses pointers to fields
+// which is inconsistent with how Nomad typically works. However, since zero in
+// Attempts and MaxBackoff have special meaning, it is necessary to know if the
+// value was actually set rather than if it defaulted to 0. The rest of the fields
+// use pointers to maintain parity with the external subystem, not to establish
+// a new standard.
+type RetryConfig struct {
+	// Attempts is the total number of maximum attempts to retry before letting
+	// the error fall through.
+	// 0 means unlimited.
+	Attempts *int `hcl:"attempts,optional"`
+	// Backoff is the base of the exponential backoff. This number will be
+	// multiplied by the next power of 2 on each iteration.
+	Backoff    *time.Duration `hcl:"-"`
+	BackoffHCL string         `hcl:"backoff,optional" json:"-"`
+	// MaxBackoff is an upper limit to the sleep time between retries
+	// A MaxBackoff of 0 means there is no limit to the exponential growth of the backoff.
+	MaxBackoff    *time.Duration `hcl:"-"`
+	MaxBackoffHCL string         `hcl:"max_backoff,optional" json:"-"`
+}
+
+func (rc *RetryConfig) Copy() *RetryConfig {
+	if rc == nil {
+		return nil
+	}
+
+	nrc := new(RetryConfig)
+	*nrc = *rc
+
+	// Now copy pointer values
+	if rc.Attempts != nil {
+		nrc.Attempts = &*rc.Attempts
+	}
+	if rc.Backoff != nil {
+		nrc.Backoff = &*rc.Backoff
+	}
+	if rc.MaxBackoff != nil {
+		nrc.MaxBackoff = &*rc.MaxBackoff
+	}
+
+	return nrc
+}
+
+// Equals returns the result of reflect.DeepEqual
+func (rc *RetryConfig) Equals(other *RetryConfig) bool {
+	return reflect.DeepEqual(rc, other)
+}
+
+// IsEmpty returns true if the receiver only contains an instance with no fields set.
+func (rc *RetryConfig) IsEmpty() bool {
+	if rc == nil {
+		return true
+	}
+
+	return rc.Equals(&RetryConfig{})
+}
+
+// Validate returns an error if the receiver is nil or empty, or if Backoff
+// is greater than  MaxBackoff.
+func (rc *RetryConfig) Validate() error {
+	// If the config is nil or empty return false so that it is never assigned.
+	if rc == nil || rc.IsEmpty() {
+		return errors.New("retry config is nil or empty")
+	}
+
+	// If Backoff not set, no need to validate
+	if rc.Backoff == nil {
+		return nil
+	}
+
+	// MaxBackoff nil will end up defaulted to 1 minutes. We should validate that
+	// the user supplied backoff does not exceed that.
+	if rc.MaxBackoff == nil && *rc.Backoff > config.DefaultRetryMaxBackoff {
+		return fmt.Errorf("retry config backoff %d is greater than default max_backoff %d", *rc.Backoff, config.DefaultRetryMaxBackoff)
+	}
+
+	// MaxBackoff == 0 means backoff is unbounded. No need to validate.
+	if rc.MaxBackoff != nil && *rc.MaxBackoff == 0 {
+		return nil
+	}
+
+	if rc.MaxBackoff != nil && *rc.Backoff > *rc.MaxBackoff {
+		return fmt.Errorf("retry config backoff %d is greater than max_backoff %d", *rc.Backoff, *rc.MaxBackoff)
+	}
+
+	return nil
+}
+
+// Merge merges two RetryConfigs. The passed instance always takes precedence.
+func (rc *RetryConfig) Merge(b *RetryConfig) *RetryConfig {
+	if rc == nil {
+		return b
+	}
+
+	result := *rc
+	if b == nil {
+		return &result
+	}
+
+	if b.Attempts != nil {
+		result.Attempts = &*b.Attempts
+	}
+
+	if b.Backoff != nil {
+		result.Backoff = &*b.Backoff
+	}
+
+	if b.BackoffHCL != "" {
+		result.BackoffHCL = b.BackoffHCL
+	}
+
+	if b.MaxBackoff != nil {
+		result.MaxBackoff = &*b.MaxBackoff
+	}
+
+	if b.MaxBackoffHCL != "" {
+		result.MaxBackoffHCL = b.MaxBackoffHCL
+	}
+
+	return &result
+}
+
+// ToConsulTemplate converts a client RetryConfig instance to a consul-template RetryConfig
+func (rc *RetryConfig) ToConsulTemplate() (*config.RetryConfig, error) {
+	if err := rc.Validate(); err != nil {
+		return nil, err
+	}
+
+	result := &config.RetryConfig{Enabled: helper.BoolToPtr(true)}
+
+	if rc.Attempts != nil {
+		result.Attempts = rc.Attempts
+	}
+
+	if rc.Backoff != nil {
+		result.Backoff = rc.Backoff
+	}
+
+	if rc.MaxBackoff != nil {
+		result.MaxBackoff = &*rc.MaxBackoff
+	}
+
+	return result, nil
 }
 
 func (c *Config) Copy() *Config {

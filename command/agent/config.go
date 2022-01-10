@@ -278,7 +278,7 @@ type ClientConfig struct {
 	DisableRemoteExec bool `hcl:"disable_remote_exec"`
 
 	// TemplateConfig includes configuration for template rendering
-	TemplateConfig *ClientTemplateConfig `hcl:"template"`
+	TemplateConfig *client.ClientTemplateConfig `hcl:"template"`
 
 	// ServerJoin contains information that is used to attempt to join servers
 	ServerJoin *ServerJoin `hcl:"server_join"`
@@ -319,24 +319,6 @@ type ClientConfig struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
-}
-
-// ClientTemplateConfig is configuration on the client specific to template
-// rendering
-type ClientTemplateConfig struct {
-
-	// FunctionDenylist disables functions in consul-template that
-	// are unsafe because they expose information from the client host.
-	FunctionDenylist []string `hcl:"function_denylist"`
-
-	// Deprecated: COMPAT(1.0) consul-template uses inclusive language from
-	// v0.25.0 - function_blacklist is kept for compatibility
-	FunctionBlacklist []string `hcl:"function_blacklist"`
-
-	// DisableSandbox allows templates to access arbitrary files on the
-	// client host. By default templates can access files only within
-	// the task directory.
-	DisableSandbox bool `hcl:"disable_file_sandbox"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -910,7 +892,7 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.GCDiskUsageThreshold = 99
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
-	conf.Client.TemplateConfig = &ClientTemplateConfig{
+	conf.Client.TemplateConfig = &client.ClientTemplateConfig{
 		FunctionDenylist: []string{"plugin"},
 		DisableSandbox:   false,
 	}
@@ -959,7 +941,7 @@ func DefaultConfig() *Config {
 				RetryInterval:    30 * time.Second,
 				RetryMaxAttempts: 0,
 			},
-			TemplateConfig: &ClientTemplateConfig{
+			TemplateConfig: &client.ClientTemplateConfig{
 				FunctionDenylist: []string{"plugin"},
 				DisableSandbox:   false,
 			},
@@ -1706,8 +1688,11 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.DisableRemoteExec = b.DisableRemoteExec
 	}
 
-	if b.TemplateConfig != nil {
-		result.TemplateConfig = b.TemplateConfig
+	if result.TemplateConfig == nil && b.TemplateConfig != nil {
+		templateConfig := *b.TemplateConfig
+		result.TemplateConfig = &templateConfig
+	} else if b.TemplateConfig != nil {
+		result.TemplateConfig = result.TemplateConfig.Merge(b.TemplateConfig)
 	}
 
 	// Add the servers

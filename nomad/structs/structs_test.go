@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 
 	"github.com/kr/pretty"
@@ -2551,6 +2552,45 @@ func TestTemplate_Validate(t *testing.T) {
 				"as octal",
 			},
 		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "local/foo",
+				ChangeMode: "noop",
+				Wait: &WaitConfig{
+					Min: helper.TimeToPtr(10 * time.Second),
+					Max: helper.TimeToPtr(5 * time.Second),
+				},
+			},
+			Fail: true,
+			ContainsErrs: []string{
+				"greater than",
+			},
+		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "local/foo",
+				ChangeMode: "noop",
+				Wait: &WaitConfig{
+					Min: helper.TimeToPtr(5 * time.Second),
+					Max: helper.TimeToPtr(5 * time.Second),
+				},
+			},
+			Fail: false,
+		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "local/foo",
+				ChangeMode: "noop",
+				Wait: &WaitConfig{
+					Min: helper.TimeToPtr(5 * time.Second),
+					Max: helper.TimeToPtr(10 * time.Second),
+				},
+			},
+			Fail: false,
+		},
 	}
 
 	for i, c := range cases {
@@ -2569,6 +2609,55 @@ func TestTemplate_Validate(t *testing.T) {
 		} else if c.Fail {
 			t.Fatalf("Case %d: should have failed: %v", i+1, err)
 		}
+	}
+}
+
+func TestTaskWaitConfig_Equals(t *testing.T) {
+	testCases := []struct {
+		name     string
+		config   *WaitConfig
+		expected *WaitConfig
+	}{
+		{
+			name: "all-fields",
+			config: &WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(10 * time.Second),
+			},
+			expected: &WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(10 * time.Second),
+			},
+		},
+		{
+			name:     "no-fields",
+			config:   &WaitConfig{},
+			expected: &WaitConfig{},
+		},
+		{
+			name: "min-only",
+			config: &WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+			},
+			expected: &WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+			},
+		},
+		{
+			name: "max-only",
+			config: &WaitConfig{
+				Max: helper.TimeToPtr(10 * time.Second),
+			},
+			expected: &WaitConfig{
+				Max: helper.TimeToPtr(10 * time.Second),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.True(t, tc.config.Equals(tc.expected))
+		})
 	}
 }
 

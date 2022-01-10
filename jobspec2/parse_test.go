@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
@@ -949,4 +950,23 @@ func TestParseServiceCheck(t *testing.T) {
 	}
 
 	require.Equal(t, expectedJob, parsedJob)
+}
+
+func TestWaitConfig(t *testing.T) {
+	hclBytes, err := os.ReadFile("test-fixtures/template-wait-config.hcl")
+	require.NoError(t, err)
+
+	job, err := ParseWithConfig(&ParseConfig{
+		Path:    "test-fixtures/template-wait-config.hcl",
+		Body:    hclBytes,
+		AllowFS: false,
+	})
+
+	require.NoError(t, err)
+
+	tmpl := job.TaskGroups[0].Tasks[0].Templates[0]
+	require.NotNil(t, tmpl)
+	require.NotNil(t, tmpl.Wait)
+	require.Equal(t, 5*time.Second, *tmpl.Wait.Min)
+	require.Equal(t, 60*time.Second, *tmpl.Wait.Max)
 }
