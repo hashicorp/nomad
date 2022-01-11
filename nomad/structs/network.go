@@ -190,8 +190,8 @@ func (idx *NetworkIndex) SetNode(node *Node) (collide bool, reason string) {
 	// Handle reserving ports, handling both new and old
 	if node.ReservedResources != nil && node.ReservedResources.Networks.ReservedHostPorts != "" {
 		c, r := idx.AddReservedPortRange(node.ReservedResources.Networks.ReservedHostPorts)
-		if c {
-			collide = true
+		collide = c
+		if collide {
 			reason = fmt.Sprintf("collision when reserving port range for node %s: %v", node.ID, r)
 		}
 	} else if node.Reserved != nil {
