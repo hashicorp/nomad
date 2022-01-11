@@ -5015,8 +5015,10 @@ func (n *Namespace) Copy() *Namespace {
 	nc.Hash = make([]byte, len(n.Hash))
 	if n.Capabilities != nil {
 		c := new(NamespaceCapabilities)
-		*c = *nc.Capabilities
-		*nc.Capabilities = *c
+		*c = *n.Capabilities
+		copy(c.EnabledTaskDrivers, n.Capabilities.EnabledTaskDrivers)
+		copy(c.DisabledTaskDrivers, n.Capabilities.DisabledTaskDrivers)
+		nc.Capabilities = c
 	}
 	copy(nc.Hash, n.Hash)
 	return nc

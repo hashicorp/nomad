@@ -114,23 +114,11 @@ func formatNamespaces(namespaces []*api.Namespace) string {
 	sort.Slice(namespaces, func(i, j int) bool { return namespaces[i].Name < namespaces[j].Name })
 
 	rows := make([]string, len(namespaces)+1)
-	rows[0] = "Name|Description|EnabledDrivers|DisabledDrivers"
+	rows[0] = "Name|Description"
 	for i, ns := range namespaces {
-		enabled_drivers := "*"
-		disabled_drivers := ""
-		if ns.Capabilities != nil {
-			if len(ns.Capabilities.EnabledTaskDrivers) != 0 {
-				enabled_drivers = strings.Join(ns.Capabilities.EnabledTaskDrivers, ",")
-			}
-			if len(ns.Capabilities.DisabledTaskDrivers) != 0 {
-				disabled_drivers = strings.Join(ns.Capabilities.DisabledTaskDrivers, ",")
-			}
-		}
-		rows[i+1] = fmt.Sprintf("%s|%s|%s|%s",
+		rows[i+1] = fmt.Sprintf("%s|%s",
 			ns.Name,
-			ns.Description,
-			enabled_drivers,
-			disabled_drivers)
+			ns.Description)
 	}
 	return formatList(rows)
 }

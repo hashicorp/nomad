@@ -24,11 +24,12 @@ func (c *NamespaceApplyCommand) Help() string {
 	helpText := `
 Usage: nomad namespace apply [options] <input>
 
-  Apply is used to create or update a namespace.  The specification file
+  Apply is used to create or update a namespace. The specification file
   will be read from stdin by specifying "-", otherwise a path to the file is
   expected.
   
-  Alternatively It takes the namespace name to create or update as its only argument.
+  Instead of a file, you may instead pass the namespace name to create
+  or update as the only argument.
 
   If ACLs are enabled, this command requires a management ACL token.
 
@@ -100,7 +101,20 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 	file := args[0]
 	var rawNamespace []byte
 	var err error
+	var namespace *api.Namespace
+
+	// Get the HTTP client
+	client, err := c.Meta.Client()
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		return 1
+	}
+
 	if _, err = os.Stat(file); file == "-" || err == nil {
+		if quota != nil || description != nil {
+			c.Ui.Warn("Flags are ignored when a file is specified!")
+		}
+
 		if file == "-" {
 			rawNamespace, err = ioutil.ReadAll(os.Stdin)
 			if err != nil {
@@ -114,7 +128,6 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 				return 1
 			}
 		}
-		var spec *api.Namespace
 		if jsonInput {
 			var jsonSpec api.Namespace
 			dec := json.NewDecoder(bytes.NewBuffer(rawNamespace))
@@ -122,7 +135,7 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 				c.Ui.Error(fmt.Sprintf("Failed to parse quota: %v", err))
 				return 1
 			}
-			spec = &jsonSpec
+			namespace = &jsonSpec
 		} else {
 			hclSpec, err := parseNamespaceSpec(rawNamespace)
 			if err != nil {
@@ -130,23 +143,8 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 				return 1
 			}
 
-			spec = hclSpec
+			namespace = hclSpec
 		}
-		// Get the HTTP client
-		client, err := c.Meta.Client()
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
-			return 1
-		}
-
-		_, err = client.Namespaces().Register(spec, nil)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error applying namespace specification: %s", err))
-			return 1
-		}
-
-		c.Ui.Output(fmt.Sprintf("Successfully applied namespace specification %q!", spec.Name))
-
 	} else {
 		name := args[0]
 
@@ -156,42 +154,35 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 			return 1
 		}
 
-		// Get the HTTP client
-		client, err := c.Meta.Client()
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
-			return 1
-		}
-
 		// Lookup the given namespace
-		ns, _, err := client.Namespaces().Info(name, nil)
+		namespace, _, err = client.Namespaces().Info(name, nil)
 		if err != nil && !strings.Contains(err.Error(), "404") {
 			c.Ui.Error(fmt.Sprintf("Error looking up namespace: %s", err))
 			return 1
 		}
 
-		if ns == nil {
-			ns = &api.Namespace{
+		if namespace == nil {
+			namespace = &api.Namespace{
 				Name: name,
 			}
 		}
 
 		// Add what is set
 		if description != nil {
-			ns.Description = *description
+			namespace.Description = *description
 		}
 		if quota != nil {
-			ns.Quota = *quota
+			namespace.Quota = *quota
 		}
-
-		_, err = client.Namespaces().Register(ns, nil)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error applying namespace: %s", err))
-			return 1
-		}
-
-		c.Ui.Output(fmt.Sprintf("Successfully applied namespace %q!", name))
 	}
+	_, err = client.Namespaces().Register(namespace, nil)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error applying namespace: %s", err))
+		return 1
+	}
+
+	c.Ui.Output(fmt.Sprintf("Successfully applied namespace %q!", namespace.Name))
+
 	return 0
 }
 
