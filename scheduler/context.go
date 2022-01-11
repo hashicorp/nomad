@@ -19,6 +19,9 @@ type Context interface {
 	// Logger provides a way to log
 	Logger() log.Logger
 
+	// EventsCh returns a channel that can be used to send additional
+	// information during during scheduling.
+	// Returned channel may be nil or have no active listeners.
 	EventsCh() chan<- interface{}
 
 	// Metrics returns the current metrics
