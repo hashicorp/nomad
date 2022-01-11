@@ -4960,7 +4960,8 @@ type Namespace struct {
 // NamespaceCapabilities represents a set of capabilities allowed for this
 // namespace, to be checked at job submission time.
 type NamespaceCapabilities struct {
-	EnabledTaskDrivers []string
+	EnabledTaskDrivers  []string
+	DisabledTaskDrivers []string
 }
 
 func (n *Namespace) Validate() error {
@@ -4991,6 +4992,14 @@ func (n *Namespace) SetHash() []byte {
 	_, _ = hash.Write([]byte(n.Name))
 	_, _ = hash.Write([]byte(n.Description))
 	_, _ = hash.Write([]byte(n.Quota))
+	if n.Capabilities != nil {
+		for _, driver := range n.Capabilities.EnabledTaskDrivers {
+			_, _ = hash.Write([]byte(driver))
+		}
+		for _, driver := range n.Capabilities.DisabledTaskDrivers {
+			_, _ = hash.Write([]byte(driver))
+		}
+	}
 
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
@@ -5004,6 +5013,11 @@ func (n *Namespace) Copy() *Namespace {
 	nc := new(Namespace)
 	*nc = *n
 	nc.Hash = make([]byte, len(n.Hash))
+	if n.Capabilities != nil {
+		c := new(NamespaceCapabilities)
+		*c = *nc.Capabilities
+		*nc.Capabilities = *c
+	}
 	copy(nc.Hash, n.Hash)
 	return nc
 }

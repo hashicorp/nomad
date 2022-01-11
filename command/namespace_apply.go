@@ -1,11 +1,18 @@
 package command
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strings"
 
+	"github.com/hashicorp/hcl"
+	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
+	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
 )
 
@@ -15,10 +22,13 @@ type NamespaceApplyCommand struct {
 
 func (c *NamespaceApplyCommand) Help() string {
 	helpText := `
-Usage: nomad namespace apply [options] <namespace>
+Usage: nomad namespace apply [options] <input>
 
-  Apply is used to create or update a namespace. It takes the namespace name to
-  create or update as its only argument.
+  Apply is used to create or update a namespace.  The specification file
+  will be read from stdin by specifying "-", otherwise a path to the file is
+  expected.
+  
+  Alternatively It takes the namespace name to create or update as its only argument.
 
   If ACLs are enabled, this command requires a management ACL token.
 
@@ -34,8 +44,8 @@ Apply Options:
   -description
     An optional description for the namespace.
 
-  -enabled-task-drivers
-    A comma separated list of allowed task drivers.
+  -json
+    Parse the input as a JSON namespace specification.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -43,9 +53,9 @@ Apply Options:
 func (c *NamespaceApplyCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-description":          complete.PredictAnything,
-			"-quota":                QuotaPredictor(c.Meta.Client),
-			"-enabled-task-drivers": complete.PredictAnything,
+			"-description": complete.PredictAnything,
+			"-quota":       QuotaPredictor(c.Meta.Client),
+			"-json":        complete.PredictNothing,
 		})
 }
 
@@ -60,7 +70,8 @@ func (c *NamespaceApplyCommand) Synopsis() string {
 func (c *NamespaceApplyCommand) Name() string { return "namespace apply" }
 
 func (c *NamespaceApplyCommand) Run(args []string) int {
-	var description, quota, enabledTaskDrivers *string
+	var jsonInput bool
+	var description, quota *string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -72,10 +83,7 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 		quota = &s
 		return nil
 	}), "quota", "")
-	flags.Var((flaghelper.FuncVar)(func(s string) error {
-		enabledTaskDrivers = &s
-		return nil
-	}), "enabled-task-drivers", "")
+	flags.BoolVar(&jsonInput, "json", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -84,56 +92,160 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 	// Check that we get exactly one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error("This command takes one argument: <namespace>")
+		c.Ui.Error("This command takes one argument: <input>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
-	name := args[0]
+	file := args[0]
+	var rawNamespace []byte
+	var err error
+	if _, err = os.Stat(file); file == "-" || err == nil {
+		if file == "-" {
+			rawNamespace, err = ioutil.ReadAll(os.Stdin)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Failed to read stdin: %v", err))
+				return 1
+			}
+		} else {
+			rawNamespace, err = ioutil.ReadFile(file)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Failed to read file: %v", err))
+				return 1
+			}
+		}
+		var spec *api.Namespace
+		if jsonInput {
+			var jsonSpec api.Namespace
+			dec := json.NewDecoder(bytes.NewBuffer(rawNamespace))
+			if err := dec.Decode(&jsonSpec); err != nil {
+				c.Ui.Error(fmt.Sprintf("Failed to parse quota: %v", err))
+				return 1
+			}
+			spec = &jsonSpec
+		} else {
+			hclSpec, err := parseNamespaceSpec(rawNamespace)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error parsing quota specification: %s", err))
+				return 1
+			}
 
-	// Validate we have at-least a name
-	if name == "" {
-		c.Ui.Error("Namespace name required")
-		return 1
+			spec = hclSpec
+		}
+		// Get the HTTP client
+		client, err := c.Meta.Client()
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+			return 1
+		}
+
+		_, err = client.Namespaces().Register(spec, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error applying namespace specification: %s", err))
+			return 1
+		}
+
+		c.Ui.Output(fmt.Sprintf("Successfully applied namespace specification %q!", spec.Name))
+
+	} else {
+		name := args[0]
+
+		// Validate we have at-least a name
+		if name == "" {
+			c.Ui.Error("Namespace name required")
+			return 1
+		}
+
+		// Get the HTTP client
+		client, err := c.Meta.Client()
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+			return 1
+		}
+
+		// Lookup the given namespace
+		ns, _, err := client.Namespaces().Info(name, nil)
+		if err != nil && !strings.Contains(err.Error(), "404") {
+			c.Ui.Error(fmt.Sprintf("Error looking up namespace: %s", err))
+			return 1
+		}
+
+		if ns == nil {
+			ns = &api.Namespace{
+				Name: name,
+			}
+		}
+
+		// Add what is set
+		if description != nil {
+			ns.Description = *description
+		}
+		if quota != nil {
+			ns.Quota = *quota
+		}
+
+		_, err = client.Namespaces().Register(ns, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error applying namespace: %s", err))
+			return 1
+		}
+
+		c.Ui.Output(fmt.Sprintf("Successfully applied namespace %q!", name))
 	}
+	return 0
+}
 
-	// Get the HTTP client
-	client, err := c.Meta.Client()
+// parseNamespaceSpec is used to parse the namespace specification from HCL
+func parseNamespaceSpec(input []byte) (*api.Namespace, error) {
+	root, err := hcl.ParseBytes(input)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
-		return 1
+		return nil, err
 	}
 
-	// Lookup the given namespace
-	ns, _, err := client.Namespaces().Info(name, nil)
-	if err != nil && !strings.Contains(err.Error(), "404") {
-		c.Ui.Error(fmt.Sprintf("Error looking up namespace: %s", err))
-		return 1
+	// Top-level item should be a list
+	list, ok := root.Node.(*ast.ObjectList)
+	if !ok {
+		return nil, fmt.Errorf("error parsing: root should be an object")
 	}
 
-	if ns == nil {
-		ns = &api.Namespace{
-			Name: name,
+	var spec api.Namespace
+	if err := parseNamespaceSpecImpl(&spec, list); err != nil {
+		return nil, err
+	}
+
+	return &spec, nil
+}
+
+// parseNamespaceSpec parses the quota namespace taking as input the AST tree
+func parseNamespaceSpecImpl(result *api.Namespace, list *ast.ObjectList) error {
+	// Decode the full thing into a map[string]interface for ease
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, list); err != nil {
+		return err
+	}
+
+	delete(m, "capabilities")
+
+	// Decode the rest
+	if err := mapstructure.WeakDecode(m, result); err != nil {
+		return err
+	}
+
+	cObj := list.Filter("capabilities")
+	if len(cObj.Items) > 0 {
+		for _, o := range cObj.Elem().Items {
+			ot, ok := o.Val.(*ast.ObjectType)
+			if !ok {
+				break
+			}
+			var opts *api.NamespaceCapabilities
+			if err := hcl.DecodeObject(&opts, ot.List); err != nil {
+				return err
+			}
+			result.Capabilities = opts
+			break
 		}
 	}
 
-	// Add what is set
-	if description != nil {
-		ns.Description = *description
-	}
-	if quota != nil {
-		ns.Quota = *quota
-	}
-	if enabledTaskDrivers != nil {
-		ns.Capabilities = &api.NamespaceCapabilities{EnabledTaskDrivers: strings.Split(*enabledTaskDrivers, ",")}
-	}
-
-	_, err = client.Namespaces().Register(ns, nil)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error applying namespace: %s", err))
-		return 1
-	}
-
-	c.Ui.Output(fmt.Sprintf("Successfully applied namespace %q!", name))
-	return 0
+	return nil
 }

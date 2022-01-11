@@ -67,18 +67,17 @@ func (n *Namespaces) Delete(namespace string, q *WriteOptions) (*WriteMeta, erro
 
 // Namespace is used to serialize a namespace.
 type Namespace struct {
-	Name        string
-	Description string
-	Quota       string
-	// TODO: how to encode properly?
-	Capabilities *NamespaceCapabilities
+	Name         string
+	Description  string
+	Quota        string
+	Capabilities *NamespaceCapabilities `hcl:"capabilities,block"`
 	CreateIndex  uint64
 	ModifyIndex  uint64
 }
 
-// TODO: is this duplication between struct & api expected/wanted?
 type NamespaceCapabilities struct {
-	EnabledTaskDrivers []string
+	EnabledTaskDrivers  []string `hcl:"enabled_task_drivers"`
+	DisabledTaskDrivers []string `hcl:"disabled_task_drivers"`
 }
 
 // NamespaceIndexSort is a wrapper to sort Namespaces by CreateIndex. We

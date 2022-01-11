@@ -19,7 +19,6 @@ func (c jobNamespaceConstraintCheckHook) Validate(job *structs.Job) (warnings []
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Should this not get checked by another validator before?
 	if ns == nil {
 		return nil, errors.Errorf("requested namespace %s does not exist", job.Namespace)
 	}
@@ -37,13 +36,21 @@ func (c jobNamespaceConstraintCheckHook) Validate(job *structs.Job) (warnings []
 }
 
 func taskValidateDriver(task *structs.Task, ns *structs.Namespace) bool {
-	if ns.Capabilities == nil || len(ns.Capabilities.EnabledTaskDrivers) == 0 {
+	if ns.Capabilities == nil {
 		return true
 	}
+	allow := len(ns.Capabilities.EnabledTaskDrivers) == 0
 	for _, d := range ns.Capabilities.EnabledTaskDrivers {
 		if task.Driver == d {
-			return true
+			allow = true
+			break
 		}
 	}
-	return false
+	for _, d := range ns.Capabilities.DisabledTaskDrivers {
+		if task.Driver == d {
+			allow = false
+			break
+		}
+	}
+	return allow
 }
