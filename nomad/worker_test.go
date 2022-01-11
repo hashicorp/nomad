@@ -22,10 +22,11 @@ import (
 )
 
 type NoopScheduler struct {
-	state   scheduler.State
-	planner scheduler.Planner
-	eval    *structs.Evaluation
-	err     error
+	state    scheduler.State
+	planner  scheduler.Planner
+	eval     *structs.Evaluation
+	eventsCh chan<- interface{}
+	err      error
 }
 
 func (n *NoopScheduler) Process(eval *structs.Evaluation) error {
@@ -40,7 +41,7 @@ func (n *NoopScheduler) Process(eval *structs.Evaluation) error {
 }
 
 func init() {
-	scheduler.BuiltinSchedulers["noop"] = func(logger log.Logger, s scheduler.State, p scheduler.Planner) scheduler.Scheduler {
+	scheduler.BuiltinSchedulers["noop"] = func(logger log.Logger, eventsCh chan<- interface{}, s scheduler.State, p scheduler.Planner) scheduler.Scheduler {
 		n := &NoopScheduler{
 			state:   s,
 			planner: p,

@@ -21,7 +21,7 @@ func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
 
 	logger := testlog.HCLogger(t)
 
-	ctx := NewEvalContext(state, plan, logger)
+	ctx := NewEvalContext(nil, state, plan, logger)
 	return state, ctx
 }
 
