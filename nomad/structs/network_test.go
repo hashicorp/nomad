@@ -9,6 +9,94 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNetworkIndex_Copy(t *testing.T) {
+	n := &Node{
+		NodeResources: &NodeResources{
+			Networks: []*NetworkResource{
+				{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					IP:     "192.168.0.100",
+					MBits:  1000,
+				},
+			},
+		},
+		ReservedResources: &NodeReservedResources{
+			Networks: NodeReservedNetworkResources{
+				ReservedHostPorts: "22",
+			},
+		},
+	}
+
+	allocs := []*Allocation{
+		{
+			AllocatedResources: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"web": {
+						Networks: []*NetworkResource{
+							{
+								Device:        "eth0",
+								IP:            "192.168.0.100",
+								MBits:         20,
+								ReservedPorts: []Port{{"one", 8000, 0, ""}, {"two", 9000, 0, ""}},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			AllocatedResources: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"api": {
+						Networks: []*NetworkResource{
+							{
+								Device:        "eth0",
+								IP:            "192.168.0.100",
+								MBits:         50,
+								ReservedPorts: []Port{{"one", 10000, 0, ""}},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	netIdx := NewNetworkIndex()
+	netIdx.SetNode(n)
+	netIdx.AddAllocs(allocs)
+
+	// Copy must be equal.
+	netIdxCopy := netIdx.Copy()
+	require.Equal(t, netIdx, netIdxCopy)
+
+	// Modifying copy should not affect original value.
+	n.NodeResources.Networks[0].Device = "eth1"
+	n.ReservedResources.Networks.ReservedHostPorts = "22,80"
+	allocs = append(allocs, &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"db": {
+					Networks: []*NetworkResource{
+						{
+							Device:        "eth1",
+							IP:            "192.168.0.104",
+							MBits:         50,
+							ReservedPorts: []Port{{"one", 4567, 0, ""}},
+						},
+					},
+				},
+			},
+		},
+	})
+	netIdxCopy.SetNode(n)
+	netIdxCopy.AddAllocs(allocs)
+	netIdxCopy.MinDynamicPort = 1000
+	netIdxCopy.MaxDynamicPort = 2000
+	require.NotEqual(t, netIdx, netIdxCopy)
+}
+
 func TestNetworkIndex_Overcommitted(t *testing.T) {
 	t.Skip()
 	idx := NewNetworkIndex()
