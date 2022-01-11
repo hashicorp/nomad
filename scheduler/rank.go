@@ -218,11 +218,12 @@ OUTER:
 				NetIndex: netIdx.Copy(),
 				Node:     option.Node.Copy(),
 			})
+			iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("network: %s", reason))
 			continue
 		}
-		if collide, reasons := netIdx.AddAllocs(proposed); collide {
+		if collide, reason := netIdx.AddAllocs(proposed); collide {
 			event := &EvalEvent{
-				Reason:      reasons,
+				Reason:      reason,
 				NetIndex:    netIdx.Copy(),
 				Node:        option.Node.Copy(),
 				Allocations: make([]*structs.Allocation, len(proposed)),
@@ -231,6 +232,7 @@ OUTER:
 				event.Allocations[i] = alloc.Copy()
 			}
 			iter.sendEvent(event)
+			iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("network: %s", reason))
 			continue
 		}
 
