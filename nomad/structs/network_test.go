@@ -20,8 +20,8 @@ func TestNetworkIndex_Overcommitted(t *testing.T) {
 		MBits:         505,
 		ReservedPorts: []Port{{"one", 8000, 0, ""}, {"two", 9000, 0, ""}},
 	}
-	collide := idx.AddReserved(reserved)
-	if collide {
+	collide, reasons := idx.AddReserved(reserved)
+	if collide || len(reasons) != 0 {
 		t.Fatalf("bad")
 	}
 	if !idx.Overcommitted() {
@@ -71,8 +71,8 @@ func TestNetworkIndex_SetNode(t *testing.T) {
 			},
 		},
 	}
-	collide := idx.SetNode(n)
-	if collide {
+	collide, reason := idx.SetNode(n)
+	if collide || reason != "" {
 		t.Fatalf("bad")
 	}
 
@@ -123,8 +123,8 @@ func TestNetworkIndex_AddAllocs(t *testing.T) {
 			},
 		},
 	}
-	collide := idx.AddAllocs(allocs)
-	if collide {
+	collide, reason := idx.AddAllocs(allocs)
+	if collide || reason != "" {
 		t.Fatalf("bad")
 	}
 
@@ -151,8 +151,8 @@ func TestNetworkIndex_AddReserved(t *testing.T) {
 		MBits:         20,
 		ReservedPorts: []Port{{"one", 8000, 0, ""}, {"two", 9000, 0, ""}},
 	}
-	collide := idx.AddReserved(reserved)
-	if collide {
+	collide, reasons := idx.AddReserved(reserved)
+	if collide || len(reasons) > 0 {
 		t.Fatalf("bad")
 	}
 
@@ -167,8 +167,8 @@ func TestNetworkIndex_AddReserved(t *testing.T) {
 	}
 
 	// Try to reserve the same network
-	collide = idx.AddReserved(reserved)
-	if !collide {
+	collide, reasons = idx.AddReserved(reserved)
+	if !collide || len(reasons) == 0 {
 		t.Fatalf("bad")
 	}
 }
@@ -375,8 +375,8 @@ func TestNetworkIndex_SetNode_Old(t *testing.T) {
 			},
 		},
 	}
-	collide := idx.SetNode(n)
-	if collide {
+	collide, reason := idx.SetNode(n)
+	if collide || reason != "" {
 		t.Fatalf("bad")
 	}
 
@@ -427,8 +427,8 @@ func TestNetworkIndex_AddAllocs_Old(t *testing.T) {
 			},
 		},
 	}
-	collide := idx.AddAllocs(allocs)
-	if collide {
+	collide, reason := idx.AddAllocs(allocs)
+	if collide || reason != "" {
 		t.Fatalf("bad")
 	}
 
