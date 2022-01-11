@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -19,7 +20,6 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
@@ -1670,22 +1670,36 @@ func (s *Server) stopOldWorkers(oldWorkers []*Worker) {
 	}
 }
 
+// listenWorkerEvents listens for events emitted by scheduler workers and log
+// them if necessary. Some events may be skipped to avoid polluting logs with
+// duplicates.
 func (s *Server) listenWorkerEvents() {
-	badNodes := make(map[string]time.Time)
+	loggedAt := make(map[string]time.Time)
+
+	gcDeadline := 4 * time.Hour
+	gcTicker := time.NewTicker(10 * time.Second)
+	defer gcTicker.Stop()
 
 	for {
 		select {
-		//TODO(luiz): add gc
-		case <-time.After(10 * time.Minute): // but not leaky
-			// prune old entries (4h? 72h? idk) from bad Nodes here
+		case <-gcTicker.C:
+			for k, v := range loggedAt {
+				if time.Since(v) >= gcDeadline {
+					delete(loggedAt, k)
+				}
+			}
 		case e := <-s.workersEventCh:
 			switch event := e.(type) {
 			case *scheduler.EvalEvent:
 				if event != nil && event.Node != nil {
-					if _, ok := badNodes[event.Node.ID]; !ok {
-						s.logger.Warn("detected node port collision", "reason", event.Reason, "event", spew.Sdump(event))
+					if _, ok := loggedAt[event.Node.ID]; !ok {
+						eventJson, err := json.Marshal(event)
+						if err != nil {
+							s.logger.Debug("failed to encode event to JSON", "error", err)
+						}
+						s.logger.Warn("detected node port collision", "reason", event.Reason, "event", string(eventJson))
+						loggedAt[event.Node.ID] = time.Now()
 					}
-					badNodes[event.Node.ID] = time.Now()
 				}
 			}
 		case <-s.shutdownCh:

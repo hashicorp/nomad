@@ -206,32 +206,31 @@ OUTER:
 			continue
 		}
 
-		// Index the existing network usage
+		// Index the existing network usage.
+		// This should never collide, sice it represents the current state of
+		// the node. If it does collide though, it means we found a bug! So
+		// collect as much information as possible and send it back to the
+		// server.
 		netIdx := structs.NewNetworkIndex()
-
-		var event *EvalEvent
 		if collide, reason := netIdx.SetNode(option.Node); collide {
-			event = &EvalEvent{
-				Reason:   fmt.Sprintf("SetNode collision: %v", reason),
-				NetIndex: netIdx, // TODO(luiz): copy
+			iter.sendEvent(&EvalEvent{
+				Reason:   reason,
+				NetIndex: netIdx.Copy(),
 				Node:     option.Node.Copy(),
-			}
+			})
+			continue
 		}
-		if collide, reason := netIdx.AddAllocs(proposed); collide {
-			event = &EvalEvent{
-				Reason:      fmt.Sprintf("AddAllocs collision: %v", reason),
-				NetIndex:    netIdx,   // TODO(luiz): copy
-				Allocations: proposed, // TODO(luiz): copy
+		if collide, reasons := netIdx.AddAllocs(proposed); collide {
+			event := &EvalEvent{
+				Reason:      reasons,
+				NetIndex:    netIdx.Copy(),
+				Node:        option.Node.Copy(),
+				Allocations: make([]*structs.Allocation, len(proposed)),
 			}
-		}
-
-		if event != nil {
-			if iter.ctx.EventsCh() != nil {
-				select {
-				case iter.ctx.EventsCh() <- event:
-				default:
-				}
+			for i, alloc := range proposed {
+				event.Allocations[i] = alloc.Copy()
 			}
+			iter.sendEvent(event)
 			continue
 		}
 
@@ -552,6 +551,17 @@ OUTER:
 
 func (iter *BinPackIterator) Reset() {
 	iter.source.Reset()
+}
+
+func (iter *BinPackIterator) sendEvent(event interface{}) {
+	if iter.ctx.EventsCh() == nil {
+		return
+	}
+
+	select {
+	case iter.ctx.EventsCh() <- event:
+	default:
+	}
 }
 
 // JobAntiAffinityIterator is used to apply an anti-affinity to allocating

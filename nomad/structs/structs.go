@@ -2514,6 +2514,18 @@ func (n *NodeNetworkResource) Equals(o *NodeNetworkResource) bool {
 	return reflect.DeepEqual(n, o)
 }
 
+func (n *NodeNetworkResource) Copy() *NodeNetworkResource {
+	c := new(NodeNetworkResource)
+	*c = *n
+
+	if n.Addresses != nil {
+		c.Addresses = make([]NodeNetworkAddress, len(n.Addresses))
+		copy(c.Addresses, n.Addresses)
+	}
+
+	return c
+}
+
 func (n *NodeNetworkResource) HasAlias(alias string) bool {
 	for _, addr := range n.Addresses {
 		if addr.Alias == alias {
