@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NYTimes/gziphandler"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
@@ -86,12 +86,6 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 	var srvs []*HTTPServer
 	var serverInitializationErrors error
 
-	// Handle requests with gzip compression
-	gzip, err := gziphandler.GzipHandlerWithOpts(gziphandler.MinSize(0))
-	if err != nil {
-		return srvs, err
-	}
-
 	// Get connection handshake timeout limit
 	handshakeTimeout, err := time.ParseDuration(config.Limits.HTTPSHandshakeTimeout)
 	if err != nil {
@@ -160,7 +154,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		// Create HTTP server with timeouts
 		httpServer := http.Server{
 			Addr:      srv.Addr,
-			Handler:   gzip(mux),
+			Handler:   handlers.CompressHandler(mux),
 			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
 			ErrorLog:  newHTTPServerLogger(srv.logger),
 		}
