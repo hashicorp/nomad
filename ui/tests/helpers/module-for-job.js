@@ -93,8 +93,14 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
 
     if (context === 'allocations') {
       test('allocations for the job are shown in the overview', async function(assert) {
-        assert.ok(JobDetail.allocationsSummary, 'Allocations are shown in the summary section');
-        assert.notOk(JobDetail.childrenSummary, 'Children are not shown in the summary section');
+        assert.ok(
+          JobDetail.allocationsSummary.isPresent,
+          'Allocations are shown in the summary section'
+        );
+        assert.ok(
+          JobDetail.childrenSummary.isHidden,
+          'Children are not shown in the summary section'
+        );
       });
 
       test('clicking in an allocation row navigates to that allocation', async function(assert) {
@@ -109,13 +115,47 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
           'Allocation row links to allocation detail'
         );
       });
+
+      test('clicking legend item navigates to a pre-filtered allocations table', async function(assert) {
+        const legendItem = JobDetail.allocationsSummary.legend.clickableItems[1];
+        const status = legendItem.label;
+        await legendItem.click();
+
+        const encodedStatus = encodeURIComponent(JSON.stringify([status]));
+        const expectedURL = new URL(
+          urlWithNamespace(`/jobs/${job.name}/clients?status=${encodedStatus}`, job.namespace),
+          window.location
+        );
+        const gotURL = new URL(currentURL(), window.location);
+        assert.deepEqual(gotURL.path, expectedURL.path);
+        assert.deepEqual(gotURL.searchParams, expectedURL.searchParams);
+      });
+
+      test('clicking in a slice takes you to a pre-filtered allocations table', async function(assert) {
+        const slice = JobDetail.allocationsSummary.slices[1];
+        const status = slice.label;
+        await slice.click();
+
+        const encodedStatus = encodeURIComponent(JSON.stringify([status]));
+        const expectedURL = new URL(
+          urlWithNamespace(`/jobs/${job.name}/allocations?status=${encodedStatus}`, job.namespace),
+          window.location
+        );
+        const gotURL = new URL(currentURL(), window.location);
+        assert.deepEqual(gotURL.pathname, expectedURL.pathname);
+
+        // Sort and compare URL query params.
+        gotURL.searchParams.sort();
+        expectedURL.searchParams.sort();
+        assert.equal(gotURL.searchParams.toString(), expectedURL.searchParams.toString());
+      });
     }
 
     if (context === 'children') {
       test('children for the job are shown in the overview', async function(assert) {
-        assert.ok(JobDetail.childrenSummary, 'Children are shown in the summary section');
-        assert.notOk(
-          JobDetail.allocationsSummary,
+        assert.ok(JobDetail.childrenSummary.isPresent, 'Children are shown in the summary section');
+        assert.ok(
+          JobDetail.allocationsSummary.isHidden,
           'Allocations are not shown in the summary section'
         );
       });
