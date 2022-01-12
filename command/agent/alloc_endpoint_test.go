@@ -62,13 +62,13 @@ func TestHTTP_AllocsList(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -129,13 +129,13 @@ func TestHTTP_AllocsPrefixList(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -231,13 +231,13 @@ func TestHTTP_AllocQuery_Payload(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
