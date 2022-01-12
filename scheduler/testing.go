@@ -266,13 +266,10 @@ func (h *Harness) Scheduler(factory Factory) Scheduler {
 
 	// Listen for and log events from the scheduler.
 	go func() {
-		for {
-			select {
-			case e := <-eventsCh:
-				switch event := e.(type) {
-				case *EvalEvent:
-					h.t.Fatalf("unexpected worker eval event: %v", event.Reason)
-				}
+		for e := range eventsCh {
+			switch event := e.(type) {
+			case *EvalEvent:
+				h.t.Fatalf("unexpected worker eval event: %v", event.Reason)
 			}
 		}
 	}()

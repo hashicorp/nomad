@@ -162,7 +162,7 @@ func TestHTTP_AllocQuery(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
-		alloc := mock.AllocWithReservedPort()
+		alloc := mock.Alloc()
 		require.NoError(state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
 		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
