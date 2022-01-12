@@ -2277,7 +2277,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	// Create allocs that are part of the old deployment
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
-		alloc := mock.AllocForNodeWithReservedPort(nodes[i])
+		alloc := mock.AllocForNode(nodes[i])
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
@@ -4272,7 +4272,7 @@ func TestBatchSched_Run_LostAlloc(t *testing.T) {
 	// Create two running allocations
 	var allocs []*structs.Allocation
 	for i := 0; i <= 1; i++ {
-		alloc := mock.AllocForNode(node)
+		alloc := mock.AllocForNodeWithoutReservedPort(node)
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
@@ -4762,7 +4762,7 @@ func TestBatchSched_ScaleDown_SameName(t *testing.T) {
 	// Create a few running alloc
 	var allocs []*structs.Allocation
 	for i := 0; i < 5; i++ {
-		alloc := mock.AllocForNode(node)
+		alloc := mock.AllocForNodeWithoutReservedPort(node)
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.Name = "my-job.web[0]"
@@ -5774,7 +5774,7 @@ func TestServiceSched_Migrate_CanaryStatus(t *testing.T) {
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 3; i++ {
-		alloc := mock.AllocForNode(node1)
+		alloc := mock.AllocForNodeWithoutReservedPort(node1)
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.DeploymentID = deployment.ID

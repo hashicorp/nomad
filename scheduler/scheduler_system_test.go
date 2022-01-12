@@ -697,10 +697,9 @@ func TestSystemSched_JobModify_InPlace(t *testing.T) {
 
 	var allocs []*structs.Allocation
 	for _, node := range nodes {
-		alloc := mock.AllocForNodeWithReservedPort(node)
+		alloc := mock.AllocForNode(node)
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = node.ID
 		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}

@@ -271,7 +271,7 @@ func (h *Harness) Scheduler(factory Factory) Scheduler {
 			case e := <-eventsCh:
 				switch event := e.(type) {
 				case *EvalEvent:
-					logger.Error(event.Reason)
+					h.t.Fatalf("unexpected worker eval event: %v", event.Reason)
 				}
 			}
 		}
