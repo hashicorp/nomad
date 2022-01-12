@@ -2,6 +2,7 @@ package mock
 
 import (
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
@@ -1290,11 +1291,10 @@ func Alloc() *structs.Allocation {
 			DiskMB:   150,
 			Networks: []*structs.NetworkResource{
 				{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
-					MBits:         50,
-					DynamicPorts:  []structs.Port{{Label: "http"}},
+					Device:       "eth0",
+					IP:           "192.168.0.100",
+					MBits:        50,
+					DynamicPorts: []structs.Port{{Label: "http"}},
 				},
 			},
 		},
@@ -1304,11 +1304,10 @@ func Alloc() *structs.Allocation {
 				MemoryMB: 256,
 				Networks: []*structs.NetworkResource{
 					{
-						Device:        "eth0",
-						IP:            "192.168.0.100",
-						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
-						MBits:         50,
-						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+						Device:       "eth0",
+						IP:           "192.168.0.100",
+						MBits:        50,
+						DynamicPorts: []structs.Port{{Label: "http", Value: 9876}},
 					},
 				},
 			},
@@ -1328,11 +1327,10 @@ func Alloc() *structs.Allocation {
 					},
 					Networks: []*structs.NetworkResource{
 						{
-							Device:        "eth0",
-							IP:            "192.168.0.100",
-							ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
-							MBits:         50,
-							DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+							Device:       "eth0",
+							IP:           "192.168.0.100",
+							MBits:        50,
+							DynamicPorts: []structs.Port{{Label: "http", Value: 9876}},
 						},
 					},
 				},
@@ -1346,6 +1344,60 @@ func Alloc() *structs.Allocation {
 		ClientStatus:  structs.AllocClientStatusPending,
 	}
 	alloc.JobID = alloc.Job.ID
+	return alloc
+}
+
+func AllocWithReservedPort() *structs.Allocation {
+	reserved := []structs.Port{{Label: "admin", Value: 5000}}
+
+	alloc := Alloc()
+	alloc.Resources.Networks[0].ReservedPorts = reserved
+	alloc.TaskResources["web"].Networks[0].ReservedPorts = reserved
+	alloc.AllocatedResources.Tasks["web"].Networks[0].ReservedPorts = reserved
+
+	return alloc
+}
+
+func AllocForNode(n *structs.Node) *structs.Allocation {
+	nodeIP := n.NodeResources.NodeNetworks[0].Addresses[0].Address
+
+	dynamicPortRange := structs.DefaultMaxDynamicPort - structs.DefaultMinDynamicPort
+	randomDynamicPort := rand.Intn(dynamicPortRange) + structs.DefaultMinDynamicPort
+
+	alloc := Alloc()
+	alloc.NodeID = n.ID
+
+	// Set node IP address.
+	alloc.Resources.Networks[0].IP = nodeIP
+	alloc.TaskResources["web"].Networks[0].IP = nodeIP
+	alloc.AllocatedResources.Tasks["web"].Networks[0].IP = nodeIP
+
+	// Set dynamic port to a random value.
+	alloc.TaskResources["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
+	alloc.AllocatedResources.Tasks["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
+
+	return alloc
+
+}
+
+func AllocForNodeWithReservedPort(n *structs.Node) *structs.Allocation {
+	nodeIP := n.NodeResources.NodeNetworks[0].Addresses[0].Address
+
+	dynamicPortRange := structs.DefaultMaxDynamicPort - structs.DefaultMinDynamicPort
+	randomDynamicPort := rand.Intn(dynamicPortRange) + structs.DefaultMinDynamicPort
+
+	alloc := AllocWithReservedPort()
+	alloc.NodeID = n.ID
+
+	// Set node IP address.
+	alloc.Resources.Networks[0].IP = nodeIP
+	alloc.TaskResources["web"].Networks[0].IP = nodeIP
+	alloc.AllocatedResources.Tasks["web"].Networks[0].IP = nodeIP
+
+	// Set dynamic port to a random value.
+	alloc.TaskResources["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
+	alloc.AllocatedResources.Tasks["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
+
 	return alloc
 }
 
