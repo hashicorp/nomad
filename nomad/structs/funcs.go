@@ -541,6 +541,12 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 
 	var results []uint64
 	for port := range ports {
+		if port == 0 {
+			return nil, fmt.Errorf("port must be > 0")
+		}
+		if port > MaxValidPort {
+			return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, port)
+		}
 		results = append(results, port)
 	}
 

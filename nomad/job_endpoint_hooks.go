@@ -47,11 +47,11 @@ func (j *Job) admissionControllers(job *structs.Job) (out *structs.Job, warnings
 		return nil, nil, err
 	}
 
-	results := j.admissionValidators(job)
-	if err := results.Err(); err != nil {
+	validateWarnings, err := j.admissionValidators(job)
+	if err != nil {
 		return nil, nil, err
 	}
-	warnings = append(warnings, results.Warnings...)
+	warnings = append(warnings, validateWarnings...)
 
 	return out, warnings, nil
 }
@@ -72,21 +72,23 @@ func (j *Job) admissionMutators(job *structs.Job) (_ *structs.Job, warnings []er
 
 // admissionValidators returns a slice of validation warnings and a multierror
 // of validation failures.
-func (j *Job) admissionValidators(origJob *structs.Job) *helper.ValidationResults {
+func (j *Job) admissionValidators(origJob *structs.Job) ([]error, error) {
 	// ensure job is not mutated
 	job := origJob.Copy()
 
-	results := helper.NewValidationResults()
+	var warnings []error
+	var errs error
 
 	for _, validator := range j.validators {
 		w, err := validator.Validate(job)
 		j.logger.Trace("job validate results", "validator", validator.Name(), "warnings", w, "error", err)
-		results.AppendError(err)
-		results.AppendWarnings(w)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		}
+		warnings = append(warnings, w...)
 	}
 
-	return results
-
+	return warnings, errs
 }
 
 // jobCanonicalizer calls job.Canonicalize (sets defaults and initializes

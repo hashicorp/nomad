@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"errors"
 	"fmt"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -60,4 +61,45 @@ func (v *ValidationResults) AppendWarnings(warnings ...string) {
 // Errors.
 func (v *ValidationResults) Err() error {
 	return v.Errors.ErrorOrNil()
+}
+
+// ErrSummary returns nil if there are no errors, otherwise it returns an error
+// containing a summary of the warnings and errors.
+func (v *ValidationResults) ErrSummary() error {
+	if v.Errors == nil {
+		return nil
+	}
+
+	ne, nw := len(v.Errors.Errors), len(v.Warnings)
+
+	if ne == 0 {
+		return nil
+	}
+
+	var errstr string
+
+	switch ne {
+	case 1:
+		errstr = "1 error"
+	default:
+		errstr = fmt.Sprintf("%d errors", ne)
+	}
+
+	switch nw {
+	case 1:
+		errstr += ", 1 warning"
+	default:
+		errstr += fmt.Sprintf(", %d warnings", nw)
+	}
+
+	return errors.New(errstr)
+}
+
+// Problems returns true if there are any errors or warnings.
+func (v *ValidationResults) Problems() bool {
+	if v.Errors == nil {
+		return false
+	}
+
+	return len(v.Errors.Errors) > 0 || len(v.Warnings) > 0
 }

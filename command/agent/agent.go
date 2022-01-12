@@ -127,6 +127,14 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 	// Global logger should match internal logger as much as possible
 	golog.SetFlags(golog.LstdFlags | golog.Lmicroseconds)
 
+	// Validate config after logging is initialized but before starting any
+	// more agent components. This allows reporting validation issues to
+	// the user's configured logger at the expense of not being able to
+	// usefully validate logging parameters.
+	if err := a.validateConfig(); err != nil {
+		return nil, fmt.Errorf("Invalid agent configuration. Must fix configuration errors before agent can start: %w", err)
+	}
+
 	if err := a.setupConsul(config.Consul); err != nil {
 		return nil, fmt.Errorf("Failed to initialize Consul client: %v", err)
 	}
@@ -150,6 +158,25 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 	}
 
 	return a, nil
+}
+
+// validateConfig and return an error if the config is invalid. Errors and
+// warnings are logged but only errors return a non-nil value.
+func (a *Agent) validateConfig() error {
+	results := a.config.Validate()
+	if !results.Problems() {
+		// Valid! Short-circuit
+		return nil
+	}
+
+	for _, warning := range results.Warnings {
+		a.logger.Warn("Agent validation warning", "warning", warning)
+	}
+	for _, err := range results.Errors.Errors {
+		a.logger.Error("Agent validation error", "error", err)
+	}
+
+	return results.ErrSummary()
 }
 
 // convertServerConfig takes an agent config and log output and returns a Nomad
@@ -641,7 +668,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if agentConfig.Client.Reserved.Cores != "" {
 		cores, err := cpuset.Parse(agentConfig.Client.Reserved.Cores)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse client > reserved > cores value %q: %v", agentConfig.Client.Reserved.Cores, err)
+			return nil, fmt.Errorf("failed to parse client.reserved.cores value %q: %v", agentConfig.Client.Reserved.Cores, err)
 		}
 		res.Cpu.ReservedCpuCores = cores.ToSlice()
 	}

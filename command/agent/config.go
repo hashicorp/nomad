@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-sockaddr/template"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -319,6 +320,136 @@ type ClientConfig struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+}
+
+// Validate client agent configuration and append results to parameter.
+func (c *ClientConfig) Validate(results *helper.ValidationResults) {
+	for i, s := range c.Servers {
+		_, _, err := net.SplitHostPort(s)
+		if err == nil {
+			continue
+		}
+		results.AppendErrorf("client.servers[%d] invalid: %v", i, err)
+	}
+
+	//TODO Validate NodeClass
+	//TODO Validate ChrootEnv
+
+	if n := c.NetworkSpeed; n < 0 {
+		results.AppendErrorf("client.network_speed must be >= 0 but found: %v", n)
+	}
+
+	if n := c.CpuCompute; n < 0 {
+		results.AppendErrorf("client.cpu_total_compute must be >= 0 but found: %v", n)
+	}
+
+	if n := c.MemoryMB; n < 0 {
+		results.AppendErrorf("client.memory_total_mb must be >= 0 but found: %v", n)
+	}
+
+	//TODO Validate ReserveableCores
+
+	if n, err := time.ParseDuration(c.MaxKillTimeout); err != nil {
+		results.AppendErrorf("client.max_kill_timeout is not a valid duration: %w", err)
+	} else if n < 0 {
+		results.AppendErrorf("client.max_kill_timeout must be >= 0 but found: %v", n)
+	}
+
+	if c.MaxDynamicPort > structs.MaxValidPort {
+		results.AppendErrorf("client.max_dynamic_port must be <= %d but found %d", structs.MaxValidPort, c.MaxDynamicPort)
+	}
+
+	if c.MaxDynamicPort <= 0 {
+		results.AppendErrorf("client.max_dynamic_port must be > 0 but found %d", c.MaxDynamicPort)
+	}
+
+	if c.MinDynamicPort > structs.MaxValidPort {
+		results.AppendErrorf("client.min_dynamic_port must be <= %d but found %d", structs.MaxValidPort, c.MinDynamicPort)
+	}
+
+	if c.MinDynamicPort <= 0 {
+		results.AppendErrorf("client.min_dynamic_port must be > 0, but found %d", c.MinDynamicPort)
+	}
+
+	if c.MinDynamicPort > c.MaxDynamicPort {
+		results.AppendErrorf("client.min_dynamic_port (%d) must be < client.max_dynamic_port (%d)", c.MinDynamicPort, c.MaxDynamicPort)
+	}
+
+	c.validateReserved(results, c.Reserved)
+
+	// GCIntervalHCL parsing in agent/config_parse.go
+	if c.GCInterval <= 0 {
+		results.AppendErrorf("client.gc_interval must be > 0 but found %s", c.GCInterval)
+	}
+
+	if c.GCParallelDestroys <= 0 {
+		results.AppendErrorf("client.gc_parallel_destroys must be > 0 but found %d", c.GCParallelDestroys)
+	}
+
+	if c.GCDiskUsageThreshold <= 0 {
+		results.AppendErrorf("client.gc_disk_usage_threshold must be > 0 but found %f", c.GCDiskUsageThreshold)
+	}
+
+	if c.GCInodeUsageThreshold <= 0 {
+		results.AppendErrorf("client.gc_inode_usage_threshold must be > 0 but found %f", c.GCInodeUsageThreshold)
+	}
+
+	if c.GCMaxAllocs <= 0 {
+		results.AppendErrorf("client.gc_max_allocs must be > 0 but found %d", c.GCMaxAllocs)
+	}
+
+	//TODO Validate TemplateConfig
+	//TODO Validate ServerJoin
+	//TODO Validate HostVolumes
+	//TODO Validate CNIPath
+	//TODO Validate CNIConfigDir
+	//TODO Validate BridgeNetworkName
+	//TODO Validate BridgeNetworkSubnet
+
+	for _, hn := range c.HostNetworks {
+		hn.Validate(results)
+	}
+
+	//TODO Validate CgroupParent
+}
+
+// validateReserved validates the reserved resources for client agents.
+func (c *ClientConfig) validateReserved(results *helper.ValidationResults, r *Resources) {
+	if r == nil {
+		// Coding error; should always be set my DefaultConfig()
+		results.AppendErrorf("client.reserved must be initialized. Please report a bug")
+		return
+	}
+
+	if r.CPU < 0 {
+		results.AppendErrorf("reserved.cpu must be >= 0 but found: %d", r.CPU)
+	}
+
+	if c.CpuCompute > 0 && c.CpuCompute <= r.CPU {
+		results.AppendErrorf("reserved.cpu >= cpu_total_compute: node would be ineligible for scheduling")
+	}
+
+	if r.MemoryMB < 0 {
+		results.AppendErrorf("reserved.memory must be >= 0 but found: %d", r.MemoryMB)
+	}
+
+	if c.MemoryMB > 0 && c.MemoryMB <= r.MemoryMB {
+		results.AppendErrorf("reserved.memory >= memory_total_mb: node would be ineligible for scheduling")
+	}
+
+	if r.DiskMB < 0 {
+		results.AppendErrorf("reserved.disk must be >= 0 but found: %d", r.DiskMB)
+	}
+
+	if ports := r.ReservedPorts; ports != "" {
+		if _, err := structs.ParsePortRanges(ports); err != nil {
+			results.AppendErrorf("reserved.reserved_ports %s invalid: %w", ports, err)
+		}
+	}
+
+	if _, err := cpuset.Parse(r.Cores); err != nil {
+		results.AppendErrorf("failed to parse client.reserved.cores value %q: %w", r.Cores, err)
+	}
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -1206,6 +1337,48 @@ func (c *Config) Merge(b *Config) *Config {
 	result.Limits = c.Limits.Merge(b.Limits)
 
 	return &result
+}
+
+// Validate the agent configuration. Required values such as region are a
+// validation error if unset, so Validate should be called after
+// Merge(DefaultConfig()).
+//
+// Logging is not validated as it is expected to already be configured.
+//
+// Addresses and Ports are validated during address normalization.
+func (c *Config) Validate() *helper.ValidationResults {
+	results := helper.NewValidationResults()
+
+	if c.Region == "" {
+		results.AppendErrorf("Missing region")
+	} else {
+		//TODO Emit warning if region name is not a valid hostname
+	}
+
+	if c.Datacenter == "" {
+		results.AppendErrorf("Missing datacenter")
+	} else {
+		//TODO Emit warning if datacenter name is not a valid hostname
+	}
+
+	// TODO Validate NodeName (it is valid for it to be "" here)
+
+	c.Client.Validate(results)
+
+	//TODO Validate Server
+	//TODO Validate ACL
+	//TODO Validate Telemetry
+	//TODO Validate Consul
+	//TODO Validate Vault
+	//TODO Validate UI
+	//TODO Validate TLSConfig
+	//TODO Validate Sentinel
+	//TODO Validate Autopilot
+	//TODO Validate Limits
+	//TODO Validate Audit
+
+	return results
+
 }
 
 // normalizeAddrs normalizes Addresses and AdvertiseAddrs to always be
