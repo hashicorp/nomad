@@ -70,11 +70,12 @@
         <ol data-test-legend class="legend">
           {{#each chart.data as |datum index|}}
             <li
+              data-test-legend-label="{{datum.className}}"
               class="{{datum.className}}
 
                 {{if (eq datum.label chart.activeDatum.label) "is-active"}}
 
-                {{if (eq datum.value 0) "is-empty"}}"
+                {{if (eq datum.value 0) "is-empty" "is-clickable"}}"
             >
               {{#if (and (gt datum.value 0) datum.legendLink)}}
                 <LinkTo
