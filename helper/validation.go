@@ -70,7 +70,7 @@ func (v *ValidationResults) ErrSummary() error {
 		return nil
 	}
 
-	ne, nw := len(v.Errors.Errors), len(v.Warnings)
+	ne := len(v.Errors.Errors)
 
 	if ne == 0 {
 		return nil
@@ -85,7 +85,7 @@ func (v *ValidationResults) ErrSummary() error {
 		errstr = fmt.Sprintf("%d errors", ne)
 	}
 
-	switch nw {
+	switch nw := len(v.Warnings); nw {
 	case 1:
 		errstr += ", 1 warning"
 	default:
@@ -98,7 +98,7 @@ func (v *ValidationResults) ErrSummary() error {
 // Problems returns true if there are any errors or warnings.
 func (v *ValidationResults) Problems() bool {
 	if v.Errors == nil {
-		return false
+		return len(v.Warnings) > 0
 	}
 
 	return len(v.Errors.Errors) > 0 || len(v.Warnings) > 0

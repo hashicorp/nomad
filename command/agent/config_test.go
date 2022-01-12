@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1440,4 +1441,66 @@ func TestParseMultipleIPTemplates(t *testing.T) {
 			require.Equal(t, tc.expectedOut, out)
 		})
 	}
+}
+
+// TestConfig_Validate_Default asserts the DefaultConfig validates
+// successfully.
+func TestConfig_Validate(t *testing.T) {
+	results := DefaultConfig().Validate()
+	assert.Empty(t, results.Warnings)
+	assert.Nil(t, results.Errors)
+	assert.NoError(t, results.Err())
+	assert.NoError(t, results.ErrSummary())
+}
+
+// TestConfig_Validate_Bad asserts a wide range of config validation failures.
+func TestConfig_Validate_Bad(t *testing.T) {
+	config, err := ParseConfigFile("testdata/badagent.hcl")
+	require.NoError(t, err)
+
+	// Intentionally not merging in the DefaultConfig to test every bad
+	// case.
+
+	results := config.Validate()
+	assert.Empty(t, results.Warnings)
+	require.NotNil(t, results.Errors)
+
+	expected := map[string]struct{}{
+		"Missing region":     {},
+		"Missing datacenter": {},
+		"client.cpu_total_compute must be >= 0 but found: -10":                        {},
+		"client.memory_total_mb must be >= 0 but found: -11":                          {},
+		`client.max_kill_timeout is not a valid duration: time: invalid duration ""`:  {},
+		`client.max_dynamic_port must be <= 65536 but found 999998`:                   {},
+		`client.min_dynamic_port must be <= 65536 but found 999999`:                   {},
+		`client.min_dynamic_port (999999) must be < client.max_dynamic_port (999998)`: {},
+		`reserved.disk must be >= 0 but found: -3`:                                    {},
+		`client.gc_max_allocs must be > 0 but found 0`:                                {},
+		`client.gc_inode_usage_threshold must be > 0 but found 0.000000`:              {},
+		`client.gc_interval must be > 0 but found -5m0s`:                              {},
+		`client.gc_parallel_destroys must be > 0 but found -12`:                       {},
+		`client.gc_disk_usage_threshold must be > 0 but found 0.000000`:               {},
+
+		`reserved.reserved_ports 1,10-99999999 invalid: port must be < 65536 but found 99999999`:          {},
+		`host_network["bad"].reserved_ports "-10" invalid: strconv.ParseUint: parsing "": invalid syntax`: {},
+	}
+	unexpected := []string{}
+
+	for _, err := range results.Errors.Errors {
+		v := err.Error()
+		if _, ok := expected[v]; ok {
+			// Error found! Remove and continue
+			delete(expected, v)
+			continue
+		}
+
+		// Unexpected
+		unexpected = append(unexpected, v)
+	}
+
+	// All expected errors should be removed
+	assert.Len(t, expected, 0)
+
+	// There should be no unexpected errors
+	assert.Len(t, unexpected, 0, strings.Join(unexpected, "\n"))
 }
