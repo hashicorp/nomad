@@ -82,10 +82,10 @@ export default create({
       tooltip: attribute('aria-label'),
     },
   },
-
-  childrenSummary: isPresent('[data-test-job-summary] [data-test-children-status-bar]'),
-  allocationsSummary: isPresent('[data-test-job-summary] [data-test-allocation-status-bar]'),
-
+  childrenSummary: jobClientStatusBar('[data-test-job-summary] [data-test-children-status-bar]'),
+  allocationsSummary: jobClientStatusBar(
+    '[data-test-job-summary] [data-test-allocation-status-bar]'
+  ),
   ...allocations(),
 
   viewAllAllocations: text('[data-test-view-all-allocations]'),
