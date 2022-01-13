@@ -213,16 +213,16 @@ OUTER:
 		// server.
 		netIdx := structs.NewNetworkIndex()
 		if collide, reason := netIdx.SetNode(option.Node); collide {
-			iter.sendEvent(&EvalEvent{
+			iter.sendEvent(&PortCollisionEvent{
 				Reason:   reason,
 				NetIndex: netIdx.Copy(),
 				Node:     option.Node.Copy(),
 			})
-			iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("network: %s", reason))
+			iter.ctx.Metrics().ExhaustedNode(option.Node, "network: port collision")
 			continue
 		}
 		if collide, reason := netIdx.AddAllocs(proposed); collide {
-			event := &EvalEvent{
+			event := &PortCollisionEvent{
 				Reason:      reason,
 				NetIndex:    netIdx.Copy(),
 				Node:        option.Node.Copy(),
@@ -232,7 +232,7 @@ OUTER:
 				event.Allocations[i] = alloc.Copy()
 			}
 			iter.sendEvent(event)
-			iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("network: %s", reason))
+			iter.ctx.Metrics().ExhaustedNode(option.Node, "network: port collision")
 			continue
 		}
 

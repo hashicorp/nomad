@@ -1690,7 +1690,7 @@ func (s *Server) listenWorkerEvents() {
 			}
 		case e := <-s.workersEventCh:
 			switch event := e.(type) {
-			case *scheduler.EvalEvent:
+			case *scheduler.PortCollisionEvent:
 				if event != nil && event.Node != nil {
 					if _, ok := loggedAt[event.Node.ID]; !ok {
 						eventJson, err := json.Marshal(event)

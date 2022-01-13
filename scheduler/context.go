@@ -77,7 +77,9 @@ func (e *EvalCache) SemverConstraintCache() map[string]VerConstraints {
 	return e.semverCache
 }
 
-type EvalEvent struct {
+// PortCollisionEvent is an event that can happen during scheduling when
+// an unexpected port collision is detected.
+type PortCollisionEvent struct {
 	Reason      string
 	NetIndex    *structs.NetworkIndex
 	Node        *structs.Node
