@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -585,7 +586,7 @@ func TestBinPackIterator_Network_PortCollision_Node(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		select {
-		case <-time.After(time.Second):
+		case <-time.After(time.Duration(testutil.TestMultiplier()) * time.Second):
 			t.Error("timeout waiting for event")
 		case e := <-eventsCh:
 			require.NotNil(t, e)
@@ -728,7 +729,7 @@ func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		select {
-		case <-time.After(time.Second):
+		case <-time.After(time.Duration(testutil.TestMultiplier()) * time.Second):
 			t.Error("timeout waiting for event")
 		case e := <-eventsCh:
 			require.NotNil(t, e)
