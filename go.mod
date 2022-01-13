@@ -62,7 +62,7 @@ require (
 	github.com/hashicorp/go-cty-funcs v0.0.0-20200930094925-2721b1e36840
 	github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 	github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
-	github.com/hashicorp/go-getter v1.5.4
+	github.com/hashicorp/go-getter v1.5.11
 	github.com/hashicorp/go-hclog v0.14.1
 	github.com/hashicorp/go-immutable-radix v1.3.0
 	github.com/hashicorp/go-memdb v1.3.2
@@ -92,6 +92,7 @@ require (
 	github.com/kr/pretty v0.2.0
 	github.com/kr/pty v1.1.5
 	github.com/kr/text v0.2.0
+	github.com/likexian/gokit v0.25.6
 	github.com/mattn/go-colorable v0.1.7
 	github.com/miekg/dns v1.1.26
 	github.com/mitchellh/cli v1.1.0
