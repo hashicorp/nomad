@@ -77,6 +77,9 @@ func (idx *NetworkIndex) getUsedPortsFor(ip string) Bitmap {
 // Release is called when the network index is no longer needed
 // to attempt to re-use some of the memory it has allocated
 func (idx *NetworkIndex) Release() {
+	if idx == nil {
+		return
+	}
 	for _, b := range idx.UsedPorts {
 		bitmapPool.Put(b)
 	}
