@@ -77,27 +77,29 @@ func (idx *NetworkIndex) getUsedPortsFor(ip string) Bitmap {
 }
 
 func (idx *NetworkIndex) Copy() *NetworkIndex {
+	if idx == nil {
+		return nil
+	}
+
 	c := new(NetworkIndex)
 	*c = *idx
 
 	c.AvailNetworks = copyNetworkResources(idx.AvailNetworks)
 	c.NodeNetworks = copyNodeNetworks(idx.NodeNetworks)
-	c.AvailBandwidth = helper.CopyMapStringInt(idx.AvailBandwidth)
-	c.UsedBandwidth = helper.CopyMapStringInt(idx.UsedBandwidth)
-
 	if len(idx.AvailAddresses) > 0 {
 		c.AvailAddresses = make(map[string][]NodeNetworkAddress, len(idx.AvailAddresses))
 		for k, v := range idx.AvailAddresses {
 			copy(c.AvailAddresses[k], v)
 		}
 	}
-
+	c.AvailBandwidth = helper.CopyMapStringInt(idx.AvailBandwidth)
 	if len(idx.UsedPorts) > 0 {
 		c.UsedPorts = make(map[string]Bitmap, len(idx.UsedPorts))
 		for k, v := range idx.UsedPorts {
 			c.UsedPorts[k], _ = v.Copy()
 		}
 	}
+	c.UsedBandwidth = helper.CopyMapStringInt(idx.UsedBandwidth)
 
 	return c
 }

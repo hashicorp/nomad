@@ -2515,6 +2515,10 @@ func (n *NodeNetworkResource) Equals(o *NodeNetworkResource) bool {
 }
 
 func (n *NodeNetworkResource) Copy() *NodeNetworkResource {
+	if n == nil {
+		return nil
+	}
+
 	c := new(NodeNetworkResource)
 	*c = *n
 
