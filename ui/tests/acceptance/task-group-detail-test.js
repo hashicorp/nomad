@@ -282,9 +282,30 @@ module('Acceptance | task group detail', function(hooks) {
       Object.keys(taskGroup.volumes).length ? 'Yes' : '',
       'Volumes'
     );
+  });
+
+  test('clicking the client ID in the allocation row naviates to the client page', async function(assert) {
+    // Navigating to the client page requires node:read permission.
+    const policy = server.create('policy', {
+      id: 'node-read',
+      name: 'node-read',
+      rulesJSON: {
+        Node: {
+          Policy: 'read',
+        },
+      },
+    });
+    const clientToken = server.create('token', { type: 'client' });
+    clientToken.policyIds = [policy.id];
+    clientToken.save();
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
+    const allocation = allocations.sortBy('modifyIndex').reverse()[0];
+    const allocationRow = TaskGroup.allocations.objectAt(0);
 
     await allocationRow.visitClient();
-
     assert.equal(currentURL(), `/clients/${allocation.nodeId}`, 'Node links to node page');
   });
 

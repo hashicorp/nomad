@@ -6,6 +6,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
+import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import moment from 'moment';
 import formatHost from 'nomad-ui/utils/format-host';
 
@@ -44,6 +45,8 @@ module('Acceptance | allocation detail', function(hooks) {
     server.schema.tasks.first().update({
       driver: 'docker',
     });
+
+    window.localStorage.clear();
 
     await Allocation.visit({ id: allocation.id });
   });
@@ -177,6 +180,26 @@ module('Acceptance | allocation detail', function(hooks) {
   });
 
   test('tasks with an unhealthy driver have a warning icon', async function(assert) {
+    // Driver health status require node:read permission.
+    const policy = server.create('policy', {
+      id: 'node-read',
+      name: 'node-read',
+      rulesJSON: {
+        Node: {
+          Policy: 'read',
+        },
+      },
+    });
+    const clientToken = server.create('token', { type: 'client' });
+    clientToken.policyIds = [policy.id];
+    clientToken.save();
+
+    // Since the page is already visited in the beforeEach hook, setting the
+    // localStorage directly is not enough.
+    await Tokens.visit();
+    await Tokens.secret(clientToken.secretId).submit();
+    await Allocation.visit({ id: allocation.id });
+
     assert.ok(Allocation.firstUnhealthyTask().hasUnhealthyDriver, 'Warning is shown');
   });
 
@@ -271,7 +294,9 @@ module('Acceptance | allocation detail', function(hooks) {
     await Allocation.stop.confirm();
 
     assert.equal(
-      server.pretender.handledRequests.reject(request => request.url.includes('fuzzy')).findBy('method', 'POST').url,
+      server.pretender.handledRequests
+        .reject(request => request.url.includes('fuzzy'))
+        .findBy('method', 'POST').url,
       `/v1/allocation/${allocation.id}/stop`,
       'Stop request is made for the allocation'
     );
@@ -381,6 +406,7 @@ module('Acceptance | allocation detail (preemptions)', function(hooks) {
     server.create('agent');
     node = server.create('node');
     job = server.create('job', { createAllocations: false });
+    window.localStorage.clear();
   });
 
   test('shows a dedicated section to the allocation that preempted this allocation', async function(assert) {
@@ -463,6 +489,32 @@ module('Acceptance | allocation detail (preemptions)', function(hooks) {
       server.db.nodes.find(preemption.nodeId).id.split('-')[0],
       'Node ID'
     );
+  });
+
+  test('clicking the client ID in the preempted allocation row naviates to the client page', async function(assert) {
+    // Navigating to the client page requires node:read permission.
+    const policy = server.create('policy', {
+      id: 'node-read',
+      name: 'node-read',
+      rulesJSON: {
+        Node: {
+          Policy: 'read',
+        },
+      },
+    });
+    const clientToken = server.create('token', { type: 'client' });
+    clientToken.policyIds = [policy.id];
+    clientToken.save();
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    allocation = server.create('allocation', 'preempter');
+    await Allocation.visit({ id: allocation.id });
+
+    const preemption = allocation.preemptedAllocations
+      .map(id => server.schema.find('allocation', id))
+      .sortBy('modifyIndex')
+      .reverse()[0];
+    const preemptionRow = Allocation.preemptions.objectAt(0);
 
     await preemptionRow.visitClient();
     assert.equal(currentURL(), `/clients/${preemption.nodeId}`, 'Node links to node page');

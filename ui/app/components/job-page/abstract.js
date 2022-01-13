@@ -5,6 +5,7 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class Abstract extends Component {
+  @service can;
   @service system;
 
   job = null;
@@ -19,6 +20,10 @@ export default class Abstract extends Component {
 
   // Set to a { title, description } to surface an error
   errorMessage = null;
+
+  get shouldDisplayClientInformation() {
+    return this.can.can('read client') && this.job.hasClientStatus;
+  }
 
   @action
   clearErrorMessage() {

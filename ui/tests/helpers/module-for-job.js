@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
+import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 
 // eslint-disable-next-line ember/no-test-module-for
 export default function moduleForJob(title, context, jobFactory, additionalTests) {
@@ -30,19 +31,28 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
     });
 
     test('visiting /jobs/:job_id', async function(assert) {
-      assert.equal(
-        currentURL(),
-        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}`, job.namespace)
+      const expectedURL = new URL(
+        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}`, job.namespace),
+        window.location
       );
+      const gotURL = new URL(currentURL(), window.location);
+
+      assert.deepEqual(gotURL.path, expectedURL.path);
+      assert.deepEqual(gotURL.searchParams, expectedURL.searchParams);
       assert.equal(document.title, `Job ${job.name} - Nomad`);
     });
 
     test('the subnav links to overview', async function(assert) {
       await JobDetail.tabFor('overview').visit();
-      assert.equal(
-        currentURL(),
-        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}`, job.namespace)
+
+      const expectedURL = new URL(
+        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}`, job.namespace),
+        window.location
       );
+      const gotURL = new URL(currentURL(), window.location);
+
+      assert.deepEqual(gotURL.path, expectedURL.path);
+      assert.deepEqual(gotURL.searchParams, expectedURL.searchParams);
     });
 
     test('the subnav links to definition', async function(assert) {
@@ -128,6 +138,23 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
     setupMirage(hooks);
 
     hooks.beforeEach(async function() {
+      // Displaying the job status in client requires node:read permission.
+      const policy = server.create('policy', {
+        id: 'node-read',
+        name: 'node-read',
+        rulesJSON: {
+          Node: {
+            Policy: 'read',
+          },
+        },
+      });
+      const clientToken = server.create('token', { type: 'client' });
+      clientToken.policyIds = [policy.id];
+      clientToken.save();
+
+      window.localStorage.clear();
+      window.localStorage.nomadTokenSecret = clientToken.secretId;
+
       const clients = server.createList('node', 3, {
         datacenter: 'dc1',
         status: 'ready',
@@ -143,6 +170,23 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
       }
     });
 
+    test('job status summary is collapsed when not authorized', async function(assert) {
+      const clientToken = server.create('token', { type: 'client' });
+      await Tokens.visit();
+      await Tokens.secret(clientToken.secretId).submit();
+
+      await JobDetail.visit({ id: job.id, namespace: job.namespace });
+
+      assert.ok(
+        JobDetail.jobClientStatusSummary.toggle.isDisabled,
+        'Job client status summar is disabled'
+      );
+      assert.equal(
+        JobDetail.jobClientStatusSummary.toggle.tooltip,
+        'You don’t have permission to read clients'
+      );
+    });
+
     test('the subnav links to clients', async function(assert) {
       await JobDetail.tabFor('clients').visit();
       assert.equal(
@@ -153,13 +197,13 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
 
     test('job status summary is shown in the overview', async function(assert) {
       assert.ok(
-        JobDetail.jobClientStatusSummary.isPresent,
+        JobDetail.jobClientStatusSummary.statusBar.isPresent,
         'Summary bar is displayed in the Job Status in Client summary section'
       );
     });
 
     test('clicking legend item navigates to a pre-filtered clients table', async function(assert) {
-      const legendItem = JobDetail.jobClientStatusSummary.legend.clickableItems[0];
+      const legendItem = JobDetail.jobClientStatusSummary.statusBar.legend.clickableItems[0];
       const status = legendItem.label;
       await legendItem.click();
 
@@ -174,7 +218,7 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
     });
 
     test('clicking in a slice takes you to a pre-filtered clients table', async function(assert) {
-      const slice = JobDetail.jobClientStatusSummary.slices[0];
+      const slice = JobDetail.jobClientStatusSummary.statusBar.slices[0];
       const status = slice.label;
       await slice.click();
 

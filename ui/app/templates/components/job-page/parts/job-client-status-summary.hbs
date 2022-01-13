@@ -1,22 +1,28 @@
 <ListAccordion
-  data-test-job-summary
+  data-test-job-client-summary
   @source={{array this.job}}
   @key="id"
   @startExpanded={{this.isExpanded}}
   @onToggle={{action this.persist}} as |a|
 >
-  <a.head @buttonLabel={{if a.isOpen "collapse" "expand"}}>
+  <a.head
+    @buttonLabel={{if a.isOpen "collapse" "expand"}}
+    @tooltip={{if (cannot "read client") "You don’t have permission to read clients"}}
+    @isDisabled={{cannot "read client"}}
+  >
     <div class="columns">
       <div class="column is-minimum nowrap">
         Job Status in Client
-        <span class="badge {{if a.isOpen "is-white" "is-light"}}">
-          {{this.jobClientStatus.totalNodes}}
-        </span>
+        {{#if this.jobClientStatus}}
+          <span class="badge {{if a.isOpen "is-white" "is-light"}}">
+            {{this.jobClientStatus.totalNodes}}
+          </span>
+        {{/if}}
         <span class="tooltip multiline" aria-label="Aggreate status of job's allocations in each client.">
           {{x-icon "info-circle-outline" class="is-faded"}}
         </span>
       </div>
-      {{#unless a.isOpen}}
+      {{#if (and this.jobClientStatus (not a.isOpen))}}
         <div class="column">
           <div class="inline-chart bumper-left">
             <JobClientStatusBar
@@ -27,29 +33,31 @@
             />
           </div>
         </div>
-      {{/unless}}
+      {{/if}}
     </div>
   </a.head>
   <a.body>
-    <JobClientStatusBar
-      @onSliceClick={{action this.onSliceClick}}
-      @job={{this.job}}
-      @jobClientStatus={{this.jobClientStatus}}
-      class="split-view" as |chart|
-    >
-      <ol data-test-legend class="legend">
-        {{#each chart.data as |datum index|}}
-          <li data-test-legent-label="{{datum.className}}" class="{{datum.className}} {{if (eq datum.label chart.activeDatum.label) "is-active"}} {{if (eq datum.value 0) "is-empty" "is-clickable"}}">
-            {{#if (gt datum.value 0)}}
-              <LinkTo @route="jobs.job.clients" @model={{this.job}} @query={{datum.legendLink.queryParams}}>
+    {{#if this.jobClientStatus}}
+      <JobClientStatusBar
+        @onSliceClick={{action this.onSliceClick}}
+        @job={{this.job}}
+        @jobClientStatus={{this.jobClientStatus}}
+        class="split-view" as |chart|
+      >
+        <ol data-test-legend class="legend">
+          {{#each chart.data as |datum index|}}
+            <li data-test-legent-label="{{datum.className}}" class="{{datum.className}} {{if (eq datum.label chart.activeDatum.label) "is-active"}} {{if (eq datum.value 0) "is-empty" "is-clickable"}}">
+              {{#if (gt datum.value 0)}}
+                <LinkTo @route="jobs.job.clients" @model={{this.job}} @query={{datum.legendLink.queryParams}}>
+                  <JobPage::Parts::SummaryLegendItem @datum={{datum}} @index={{index}} />
+                </LinkTo>
+              {{else}}
                 <JobPage::Parts::SummaryLegendItem @datum={{datum}} @index={{index}} />
-              </LinkTo>
-            {{else}}
-              <JobPage::Parts::SummaryLegendItem @datum={{datum}} @index={{index}} />
-            {{/if}}
-          </li>
-        {{/each}}
-      </ol>
-    </JobClientStatusBar>
+              {{/if}}
+            </li>
+          {{/each}}
+        </ol>
+      </JobClientStatusBar>
+    {{/if}}
   </a.body>
 </ListAccordion>
