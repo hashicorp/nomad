@@ -2,14 +2,11 @@ package scheduler
 
 import (
 	"sort"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -578,31 +575,13 @@ func TestBinPackIterator_Network_PortCollision_Node(t *testing.T) {
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
-
-	// Start a goroutine to listen for test events before running the iterator.
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-		select {
-		case <-time.After(time.Duration(testutil.TestMultiplier()) * time.Second):
-			t.Error("timeout waiting for event")
-		case e := <-eventsCh:
-			require.NotNil(t, e)
-			require.IsType(t, e, &PortCollisionEvent{})
-			require.Contains(t, e.(*PortCollisionEvent).Reason, "22")
-		}
-	}()
-
 	out := collectRanked(scoreNorm)
 
 	// We expect a placement failure due to  port collision.
 	require.Len(t, out, 0)
 	require.Equal(t, 1, ctx.metrics.DimensionExhausted["network: port collision"])
-
-	wg.Wait()
 }
+
 func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {
 	state, ctx := testContext(t)
 	eventsCh := make(chan interface{})
@@ -721,31 +700,11 @@ func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
-
-	// Start a goroutine to listen for test events before running the iterator.
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-		select {
-		case <-time.After(time.Duration(testutil.TestMultiplier()) * time.Second):
-			t.Error("timeout waiting for event")
-		case e := <-eventsCh:
-			require.NotNil(t, e)
-			require.IsType(t, e, &PortCollisionEvent{})
-			require.Contains(t, e.(*PortCollisionEvent).Reason, "5000")
-			require.Contains(t, e.(*PortCollisionEvent).Reason, "9876")
-		}
-	}()
-
 	out := collectRanked(scoreNorm)
 
 	// We expect a placement failure due to  port collision.
 	require.Len(t, out, 0)
 	require.Equal(t, 1, ctx.metrics.DimensionExhausted["network: port collision"])
-
-	wg.Wait()
 }
 
 // Tests bin packing iterator with host network interpolation of task group level ports configuration
