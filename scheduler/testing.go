@@ -269,7 +269,7 @@ func (h *Harness) Scheduler(factory Factory) Scheduler {
 		for e := range eventsCh {
 			switch event := e.(type) {
 			case *PortCollisionEvent:
-				h.t.Fatalf("unexpected worker eval event: %v", event.Reason)
+				h.t.Errorf("unexpected worker eval event: %v", event.Reason)
 			}
 		}
 	}()
