@@ -2891,6 +2891,13 @@ func (n *NodeResources) Copy() *NodeResources {
 	newN.Cpu = n.Cpu.Copy()
 	newN.Networks = n.Networks.Copy()
 
+	if n.NodeNetworks != nil {
+		newN.NodeNetworks = make([]*NodeNetworkResource, len(n.NodeNetworks))
+		for i, nn := range n.NodeNetworks {
+			newN.NodeNetworks[i] = nn.Copy()
+		}
+	}
+
 	// Copy the devices
 	if n.Devices != nil {
 		devices := len(n.Devices)
