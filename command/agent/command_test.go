@@ -48,7 +48,7 @@ func TestCommand_Args(t *testing.T) {
 		},
 		{
 			[]string{"-server"},
-			"Must specify data directory",
+			"Must specify \"data_dir\" config option or \"data-dir\" CLI flag",
 		},
 		{
 			[]string{"-client", "-alloc-dir="},
