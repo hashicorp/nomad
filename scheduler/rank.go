@@ -207,10 +207,9 @@ OUTER:
 		}
 
 		// Index the existing network usage.
-		// This should never collide, sice it represents the current state of
+		// This should never collide, since it represents the current state of
 		// the node. If it does collide though, it means we found a bug! So
-		// collect as much information as possible and send it back to the
-		// server.
+		// collect as much information as possible.
 		netIdx := structs.NewNetworkIndex()
 		if collide, reason := netIdx.SetNode(option.Node); collide {
 			iter.sendEvent(&PortCollisionEvent{
