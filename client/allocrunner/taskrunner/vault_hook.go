@@ -216,7 +216,16 @@ OUTER:
 			}
 		}
 
-		// Start the renewal process
+		// Start the renewal process.
+		//
+		// This is the initial renew of the token which we derived from the
+		// server. The client does not know how long it took for the token to
+		// be generated and derived and also wants to gain control of the
+		// process quickly, but not too quickly. We therefore use a hardcoded
+		// increment value of 30; this value without a suffix is in seconds.
+		//
+		// If Vault is having availability issues or is overloaded, a large
+		// number of initial token renews can exacerbate the problem.
 		renewCh, err := h.client.RenewToken(token, 30)
 
 		// An error returned means the token is not being renewed
