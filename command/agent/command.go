@@ -687,7 +687,10 @@ func (c *Command) Run(args []string) int {
 
 	// Wrap log messages emitted with the 'log' package.
 	// These usually come from external dependencies.
-	log.SetOutput(logger.StandardWriter(&hclog.StandardLoggerOptions{InferLevels: true}))
+	log.SetOutput(logger.StandardWriter(&hclog.StandardLoggerOptions{
+		InferLevels:              true,
+		InferLevelsWithTimestamp: true,
+	}))
 	log.SetPrefix("")
 	log.SetFlags(0)
 
