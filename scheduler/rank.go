@@ -216,7 +216,7 @@ OUTER:
 			iter.sendEvent(&PortCollisionEvent{
 				Reason:   reason,
 				NetIndex: netIdx.Copy(),
-				Node:     option.Node.Copy(),
+				Node:     option.Node,
 			})
 			iter.ctx.Metrics().ExhaustedNode(option.Node, "network: port collision")
 			continue
@@ -225,7 +225,7 @@ OUTER:
 			event := &PortCollisionEvent{
 				Reason:      reason,
 				NetIndex:    netIdx.Copy(),
-				Node:        option.Node.Copy(),
+				Node:        option.Node,
 				Allocations: make([]*structs.Allocation, len(proposed)),
 			}
 			for i, alloc := range proposed {

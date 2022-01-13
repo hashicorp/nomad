@@ -81,9 +81,13 @@ func (e *EvalCache) SemverConstraintCache() map[string]VerConstraints {
 // an unexpected port collision is detected.
 type PortCollisionEvent struct {
 	Reason      string
-	NetIndex    *structs.NetworkIndex
 	Node        *structs.Node
 	Allocations []*structs.Allocation
+
+	// TODO: this is a large struct, but may be required to debug unexpected
+	// port collisions. Re-evaluate its need in the future if the bug is fixed
+	// or not caused by this field.
+	NetIndex *structs.NetworkIndex
 }
 
 // EvalContext is a Context used during an Evaluation

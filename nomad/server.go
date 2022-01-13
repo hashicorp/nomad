@@ -346,7 +346,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		blockedEvals:     NewBlockedEvals(evalBroker, logger),
 		rpcTLS:           incomingTLS,
 		aclCache:         aclCache,
-		workersEventCh:   make(chan interface{}),
+		workersEventCh:   make(chan interface{}, 1),
 	}
 
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
