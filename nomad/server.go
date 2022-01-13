@@ -1691,16 +1691,21 @@ func (s *Server) listenWorkerEvents() {
 		case e := <-s.workersEventCh:
 			switch event := e.(type) {
 			case *scheduler.PortCollisionEvent:
-				if event != nil && event.Node != nil {
-					if _, ok := loggedAt[event.Node.ID]; !ok {
-						eventJson, err := json.Marshal(event)
-						if err != nil {
-							s.logger.Debug("failed to encode event to JSON", "error", err)
-						}
-						s.logger.Warn("detected node port collision", "reason", event.Reason, "event", string(eventJson))
-						loggedAt[event.Node.ID] = time.Now()
-					}
+				if event == nil || event.Node == nil {
+					continue
 				}
+
+				if _, ok := loggedAt[event.Node.ID]; ok {
+					continue
+				}
+
+				eventJson, err := json.Marshal(event)
+				if err != nil {
+					s.logger.Debug("failed to encode event to JSON", "error", err)
+				}
+				s.logger.Warn("unexpected node port collision, refer to https://www.nomadproject.io/s/port-plan-failure for more information",
+					"node_id", event.Node.ID, "reason", event.Reason, "event", string(eventJson))
+				loggedAt[event.Node.ID] = time.Now()
 			}
 		case <-s.shutdownCh:
 			return

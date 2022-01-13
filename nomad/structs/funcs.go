@@ -189,10 +189,10 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 		defer netIdx.Release()
 
 		if collision, reason := netIdx.SetNode(node); collision {
-			return false, fmt.Sprintf("reserved port collision: %v", reason), used, nil
+			return false, fmt.Sprintf("reserved node port collision: %v", reason), used, nil
 		}
 		if collision, reason := netIdx.AddAllocs(allocs); collision {
-			return false, fmt.Sprintf("reserved port collision: %v", reason), used, nil
+			return false, fmt.Sprintf("reserved alloc port collision: %v", reason), used, nil
 		}
 	}
 
