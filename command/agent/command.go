@@ -30,6 +30,7 @@ import (
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/helper/logging"
 	"github.com/hashicorp/nomad/helper/winsvc"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
@@ -364,6 +365,27 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 	if err := config.Server.DefaultSchedulerConfig.Validate(); err != nil {
 		c.Ui.Error(err.Error())
 		return false
+	}
+
+	if config.Client.Reserved == nil {
+		// Coding error; should always be set by DefaultConfig()
+		c.Ui.Error("client.reserved must be initialized. Please report a bug.")
+		return false
+	}
+
+	if ports := config.Client.Reserved.ReservedPorts; ports != "" {
+		if _, err := structs.ParsePortRanges(ports); err != nil {
+			c.Ui.Error(fmt.Sprintf("reserved.reserved_ports %q invalid: %v", ports, err))
+			return false
+		}
+	}
+
+	for _, hn := range config.Client.HostNetworks {
+		if _, err := structs.ParsePortRanges(hn.ReservedPorts); err != nil {
+			c.Ui.Error(fmt.Sprintf("host_network[%q].reserved_ports %q invalid: %v",
+				hn.Name, hn.ReservedPorts, err))
+			return false
+		}
 	}
 
 	if !config.DevMode {
