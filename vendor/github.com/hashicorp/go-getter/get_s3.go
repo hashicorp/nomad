@@ -173,7 +173,15 @@ func (g *S3Getter) getObject(ctx context.Context, client *s3.S3, dst, bucket, ke
 		return err
 	}
 
-	return copyReader(dst, resp.Body, 0666, g.client.umask())
+	body := resp.Body
+
+	if g.client != nil && g.client.ProgressListener != nil {
+		fn := filepath.Base(key)
+		body = g.client.ProgressListener.TrackProgress(fn, 0, *resp.ContentLength, resp.Body)
+	}
+	defer body.Close()
+
+	return copyReader(dst, body, 0666, g.client.umask())
 }
 
 func (g *S3Getter) getAWSConfig(region string, url *url.URL, creds *credentials.Credentials) *aws.Config {

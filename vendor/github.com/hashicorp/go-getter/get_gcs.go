@@ -3,6 +3,8 @@ package getter
 import (
 	"context"
 	"fmt"
+	"golang.org/x/oauth2"
+	"google.golang.org/api/option"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -28,7 +30,7 @@ func (g *GCSGetter) ClientMode(u *url.URL) (ClientMode, error) {
 		return 0, err
 	}
 
-	client, err := storage.NewClient(ctx)
+	client, err := g.getClient(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -82,7 +84,7 @@ func (g *GCSGetter) Get(dst string, u *url.URL) error {
 		return err
 	}
 
-	client, err := storage.NewClient(ctx)
+	client, err := g.getClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -124,7 +126,7 @@ func (g *GCSGetter) GetFile(dst string, u *url.URL) error {
 		return err
 	}
 
-	client, err := storage.NewClient(ctx)
+	client, err := g.getClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -174,4 +176,21 @@ func (g *GCSGetter) parseURL(u *url.URL) (bucket, path, fragment string, err err
 		fragment = u.Fragment
 	}
 	return
+}
+
+func (g *GCSGetter) getClient(ctx context.Context) (client *storage.Client, err error) {
+	var opts []option.ClientOption
+
+	if v, ok := os.LookupEnv("GOOGLE_OAUTH_ACCESS_TOKEN"); ok {
+		tokenSource := oauth2.StaticTokenSource(&oauth2.Token{
+			AccessToken: v,
+		})
+		opts = append(opts, option.WithTokenSource(tokenSource))
+	}
+
+	newClient, err := storage.NewClient(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return newClient, nil
 }

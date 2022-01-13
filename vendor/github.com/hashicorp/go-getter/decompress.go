@@ -23,6 +23,7 @@ type Decompressor interface {
 var Decompressors map[string]Decompressor
 
 func init() {
+	tarDecompressor := new(TarDecompressor)
 	tbzDecompressor := new(TarBzip2Decompressor)
 	tgzDecompressor := new(TarGzipDecompressor)
 	txzDecompressor := new(TarXzDecompressor)
@@ -32,6 +33,7 @@ func init() {
 		"bz2":     new(Bzip2Decompressor),
 		"gz":      new(GzipDecompressor),
 		"xz":      new(XzDecompressor),
+		"tar":     tarDecompressor,
 		"tar.bz2": tbzDecompressor,
 		"tar.gz":  tgzDecompressor,
 		"tar.xz":  txzDecompressor,

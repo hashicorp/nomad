@@ -19,6 +19,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/testify v1.2.2 // indirect
 	github.com/ulikunitz/xz v0.5.8
+	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	google.golang.org/api v0.9.0
 	gopkg.in/cheggaaa/pb.v1 v1.0.27 // indirect
 )

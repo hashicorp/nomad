@@ -125,11 +125,11 @@ func untar(input io.Reader, dst, src string, dir bool, umask os.FileMode) error 
 	return nil
 }
 
-// tarDecompressor is an implementation of Decompressor that can
+// TarDecompressor is an implementation of Decompressor that can
 // unpack tar files.
-type tarDecompressor struct{}
+type TarDecompressor struct{}
 
-func (d *tarDecompressor) Decompress(dst, src string, dir bool, umask os.FileMode) error {
+func (d *TarDecompressor) Decompress(dst, src string, dir bool, umask os.FileMode) error {
 	// If we're going into a directory we should make that first
 	mkdir := dst
 	if !dir {

@@ -43,7 +43,15 @@ checksum:
   algorithm: sha256
 
 signs:
-  - args: ["-u", "{{ .Env.PGP_KEY_ID }}", "--output", "${signature}", "--detach-sign", "${artifact}"]
+  - signature: ${artifact}.sig
+    cmd: sh
+    args:
+    - -c
+    - >-
+      signore
+      sign
+      --file ${artifact}
+      --out ${signature}
     artifacts: checksum
 
 changelog:

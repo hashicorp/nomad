@@ -298,7 +298,7 @@ func (c *Client) Get() error {
 		// if we're specifying a subdir.
 		err := g.Get(dst, u)
 		if err != nil {
-			err = fmt.Errorf("error downloading '%s': %s", u.Redacted(), err)
+			err = fmt.Errorf("error downloading '%s': %s", RedactURL(u), err)
 			return err
 		}
 	}
