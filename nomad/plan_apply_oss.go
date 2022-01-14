@@ -23,6 +23,6 @@ func refreshIndex(snap *state.StateSnapshot) (uint64, error) {
 }
 
 // evaluatePlanQuota returns whether the plan would be over quota
-func evaluatePlanQuota(snap *state.StateSnapshot, plan *structs.Plan) (bool, error) {
+func evaluatePlanQuota(_ *state.StateSnapshot, _ *structs.Plan) (bool, error) {
 	return false, nil
 }
