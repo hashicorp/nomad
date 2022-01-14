@@ -107,6 +107,11 @@ func (c *csiHook) Postrun() error {
 
 	for _, pair := range c.volumeRequests {
 
+		err := c.unmount(pair)
+		if err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
+
 		mode := structs.CSIVolumeClaimRead
 		if !pair.request.ReadOnly {
 			mode = structs.CSIVolumeClaimWrite
@@ -132,7 +137,7 @@ func (c *csiHook) Postrun() error {
 				AuthToken: c.nodeSecret,
 			},
 		}
-		err := c.rpcClient.RPC("CSIVolume.Unpublish",
+		err = c.rpcClient.RPC("CSIVolume.Unpublish",
 			req, &structs.CSIVolumeUnpublishResponse{})
 		if err != nil {
 			mErr = multierror.Append(mErr, err)
@@ -230,4 +235,26 @@ func (c *csiHook) shouldRun() bool {
 	}
 
 	return false
+}
+
+func (c *csiHook) unmount(pair *volumeAndRequest) error {
+
+	mounter, err := c.csimanager.MounterForPlugin(context.TODO(), pair.volume.PluginID)
+	if err != nil {
+		return err
+	}
+
+	usageOpts := &csimanager.UsageOptions{
+		ReadOnly:       pair.request.ReadOnly,
+		AttachmentMode: pair.request.AttachmentMode,
+		AccessMode:     pair.request.AccessMode,
+		MountOptions:   pair.request.MountOptions,
+	}
+
+	err = mounter.UnmountVolume(context.TODO(),
+		pair.volume.ID, pair.volume.RemoteID(), c.alloc.ID, usageOpts)
+	if err != nil {
+		return err
+	}
+	return nil
 }

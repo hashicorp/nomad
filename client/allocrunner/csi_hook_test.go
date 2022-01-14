@@ -59,7 +59,7 @@ func TestCSIHook(t *testing.T) {
 					"test-alloc-dir/%s/testvolume0/ro-file-system-single-node-reader-only", alloc.ID)},
 			},
 			expectedMountCalls:     1,
-			expectedUnmountCalls:   0, // not until this is done client-side
+			expectedUnmountCalls:   1,
 			expectedClaimCalls:     1,
 			expectedUnpublishCalls: 1,
 		},
@@ -83,7 +83,7 @@ func TestCSIHook(t *testing.T) {
 					"test-alloc-dir/%s/testvolume0/ro-file-system-single-node-reader-only", alloc.ID)},
 			},
 			expectedMountCalls:     1,
-			expectedUnmountCalls:   0, // not until this is done client-side
+			expectedUnmountCalls:   1,
 			expectedClaimCalls:     1,
 			expectedUnpublishCalls: 1,
 		},
@@ -122,7 +122,7 @@ func TestCSIHook(t *testing.T) {
 		// 			"test-alloc-dir/%s/testvolume0/ro-file-system-multi-node-reader-only", alloc.ID)},
 		// 	},
 		// 	expectedMountCalls:     1,
-		// 	expectedUnmountCalls:   0, // not until this is done client-side
+		// 	expectedUnmountCalls:   1,
 		// 	expectedClaimCalls:     1,
 		// 	expectedUnpublishCalls: 1,
 		// },
