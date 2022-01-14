@@ -212,7 +212,7 @@ OUTER:
 		// collect as much information as possible.
 		netIdx := structs.NewNetworkIndex()
 		if collide, reason := netIdx.SetNode(option.Node); collide {
-			iter.sendEvent(&PortCollisionEvent{
+			iter.ctx.SendEvent(&PortCollisionEvent{
 				Reason:   reason,
 				NetIndex: netIdx.Copy(),
 				Node:     option.Node,
@@ -230,7 +230,7 @@ OUTER:
 			for i, alloc := range proposed {
 				event.Allocations[i] = alloc.Copy()
 			}
-			iter.sendEvent(event)
+			iter.ctx.SendEvent(event)
 			iter.ctx.Metrics().ExhaustedNode(option.Node, "network: port collision")
 			continue
 		}
@@ -552,17 +552,6 @@ OUTER:
 
 func (iter *BinPackIterator) Reset() {
 	iter.source.Reset()
-}
-
-func (iter *BinPackIterator) sendEvent(event interface{}) {
-	if iter.ctx.EventsCh() == nil {
-		return
-	}
-
-	select {
-	case iter.ctx.EventsCh() <- event:
-	default:
-	}
 }
 
 // JobAntiAffinityIterator is used to apply an anti-affinity to allocating

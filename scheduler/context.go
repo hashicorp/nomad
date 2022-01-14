@@ -19,11 +19,6 @@ type Context interface {
 	// Logger provides a way to log
 	Logger() log.Logger
 
-	// EventsCh returns a channel that can be used to send additional
-	// information during during scheduling.
-	// Returned channel may be nil or have no active listeners.
-	EventsCh() chan<- interface{}
-
 	// Metrics returns the current metrics
 	Metrics() *structs.AllocMetric
 
@@ -47,6 +42,10 @@ type Context interface {
 	// Eligibility returns a tracker for node eligibility in the context of the
 	// eval.
 	Eligibility() *EvalEligibility
+
+	// SendEvent provides best-effort delivery of scheduling and placement
+	// events.
+	SendEvent(event interface{})
 }
 
 // EvalCache is used to cache certain things during an evaluation
@@ -125,10 +124,6 @@ func (e *EvalContext) Logger() log.Logger {
 	return e.logger
 }
 
-func (e *EvalContext) EventsCh() chan<- interface{} {
-	return e.eventsCh
-}
-
 func (e *EvalContext) Metrics() *structs.AllocMetric {
 	return e.metrics
 }
@@ -186,6 +181,17 @@ func (e *EvalContext) Eligibility() *EvalEligibility {
 	}
 
 	return e.eligibility
+}
+
+func (e *EvalContext) SendEvent(event interface{}) {
+	if e == nil || e.eventsCh == nil {
+		return
+	}
+
+	select {
+	case e.eventsCh <- event:
+	default:
+	}
 }
 
 type ComputedClassFeasibility byte
