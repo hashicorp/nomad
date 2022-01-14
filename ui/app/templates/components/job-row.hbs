@@ -1,7 +1,7 @@
 <td data-test-job-name>
   <LinkTo
     @route="jobs.job"
-    @model={{this.job.plainId}}
+    @model={{this.job}}
     @query={{hash namespace=this.job.namespace.id}}
     class="is-primary"
   >
@@ -47,7 +47,10 @@
         </em>
       {{/if}}
     {{else}}
-      <AllocationStatusBar @allocationContainer={{this.job}} @isNarrow={{true}} />
+      <AllocationStatusBar
+        @allocationContainer={{this.job}}
+        @isNarrow={{true}}
+      />
     {{/if}}
   </div>
 </td>

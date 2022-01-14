@@ -11,7 +11,7 @@ export default class JobRoute extends Route {
   @service token;
 
   serialize(model) {
-    return { job_name: model.get('plainId') };
+    return { job_name: JSON.parse(model.get('id')).join('@') };
   }
 
   model(params, transition) {
