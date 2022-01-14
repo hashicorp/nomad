@@ -89,6 +89,40 @@ type PortCollisionEvent struct {
 	NetIndex *structs.NetworkIndex
 }
 
+func (ev *PortCollisionEvent) Copy() *PortCollisionEvent {
+	if ev == nil {
+		return nil
+	}
+	c := new(PortCollisionEvent)
+	*c = *ev
+	c.Node = ev.Node.Copy()
+	if len(ev.Allocations) > 0 {
+		for i, a := range ev.Allocations {
+			c.Allocations[i] = a.Copy()
+		}
+
+	}
+	c.NetIndex = ev.NetIndex.Copy()
+	return c
+}
+
+func (ev *PortCollisionEvent) Sanitize() *PortCollisionEvent {
+	if ev == nil {
+		return nil
+	}
+	clean := ev.Copy()
+
+	clean.Node = ev.Node.Sanitize()
+	clean.Node.Meta = make(map[string]string, 0)
+
+	for i, alloc := range ev.Allocations {
+		clean.Allocations[i] = alloc.Copy()
+		clean.Allocations[i].Job = nil
+	}
+
+	return clean
+}
+
 // EvalContext is a Context used during an Evaluation
 type EvalContext struct {
 	EvalCache

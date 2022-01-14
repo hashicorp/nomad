@@ -1699,7 +1699,7 @@ func (s *Server) listenWorkerEvents() {
 					continue
 				}
 
-				eventJson, err := json.Marshal(event)
+				eventJson, err := json.Marshal(event.Sanitize())
 				if err != nil {
 					s.logger.Debug("failed to encode event to JSON", "error", err)
 				}
