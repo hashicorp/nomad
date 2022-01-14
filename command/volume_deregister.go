@@ -101,7 +101,7 @@ func (c *VolumeDeregisterCommand) Run(args []string) int {
 	}
 	if len(vols) > 1 {
 		sort.Slice(vols, func(i, j int) bool { return vols[i].ID < vols[j].ID })
-		out, err := csiFormatSortedVolumes(vols, shortId)
+		out, err := csiFormatSortedVolumes(vols, fullId)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
 			return 1
