@@ -18,7 +18,10 @@
             {{this.jobClientStatus.totalNodes}}
           </span>
         {{/if}}
-        <span class="tooltip multiline" aria-label="Aggreate status of job's allocations in each client.">
+        <span
+          class="tooltip multiline"
+          aria-label="Aggreate status of job's allocations in each client."
+        >
           {{x-icon "info-circle-outline" class="is-faded"}}
         </span>
       </div>
@@ -46,9 +49,20 @@
       >
         <ol data-test-legend class="legend">
           {{#each chart.data as |datum index|}}
-            <li data-test-legent-label="{{datum.className}}" class="{{datum.className}} {{if (eq datum.label chart.activeDatum.label) "is-active"}} {{if (eq datum.value 0) "is-empty" "is-clickable"}}">
+            <li
+              data-test-legend-label="{{datum.className}}"
+              class="{{datum.className}}
+
+                {{if (eq datum.label chart.activeDatum.label) "is-active"}}
+
+                {{if (eq datum.value 0) "is-empty" "is-clickable"}}"
+            >
               {{#if (gt datum.value 0)}}
-                <LinkTo @route="jobs.job.clients" @model={{this.job}} @query={{datum.legendLink.queryParams}}>
+                <LinkTo
+                  @route="jobs.job.clients"
+                  @model={{this.job}}
+                  @query={{datum.legendLink.queryParams}}
+                >
                   <JobPage::Parts::SummaryLegendItem @datum={{datum}} @index={{index}} />
                 </LinkTo>
               {{else}}
