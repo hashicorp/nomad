@@ -2375,7 +2375,7 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []s
 	defer txn.Abort()
 
 	for _, id := range ids {
-		existing, err := txn.First("csi_volumes", "id_prefix", namespace, id)
+		existing, err := txn.First("csi_volumes", "id", namespace, id)
 		if err != nil {
 			return fmt.Errorf("volume lookup failed: %s: %v", id, err)
 		}
