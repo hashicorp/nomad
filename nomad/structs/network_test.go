@@ -20,6 +20,30 @@ func TestNetworkIndex_Copy(t *testing.T) {
 					MBits:  1000,
 				},
 			},
+			NodeNetworks: []*NodeNetworkResource{
+				{
+					Mode:   "host",
+					Device: "eth0",
+					Speed:  1000,
+					Addresses: []NodeNetworkAddress{
+						{
+							Alias:   "default",
+							Address: "192.168.0.100",
+							Family:  NodeNetworkAF_IPv4,
+						},
+					},
+				},
+			},
+		},
+		Reserved: &Resources{
+			Networks: []*NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []Port{{Label: "ssh", Value: 22}},
+					MBits:         1,
+				},
+			},
 		},
 		ReservedResources: &NodeReservedResources{
 			Networks: NodeReservedNetworkResources{

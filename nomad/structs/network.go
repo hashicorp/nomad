@@ -86,20 +86,23 @@ func (idx *NetworkIndex) Copy() *NetworkIndex {
 
 	c.AvailNetworks = copyNetworkResources(idx.AvailNetworks)
 	c.NodeNetworks = copyNodeNetworks(idx.NodeNetworks)
-	if len(idx.AvailAddresses) > 0 {
-		c.AvailAddresses = make(map[string][]NodeNetworkAddress, len(idx.AvailAddresses))
-		for k, v := range idx.AvailAddresses {
-			copy(c.AvailAddresses[k], v)
-		}
+	c.AvailAddresses = copyAvailAddresses(idx.AvailAddresses)
+	if idx.AvailBandwidth != nil && len(idx.AvailBandwidth) == 0 {
+		c.AvailBandwidth = make(map[string]int, 0)
+	} else {
+		c.AvailBandwidth = helper.CopyMapStringInt(idx.AvailBandwidth)
 	}
-	c.AvailBandwidth = helper.CopyMapStringInt(idx.AvailBandwidth)
 	if len(idx.UsedPorts) > 0 {
 		c.UsedPorts = make(map[string]Bitmap, len(idx.UsedPorts))
 		for k, v := range idx.UsedPorts {
 			c.UsedPorts[k], _ = v.Copy()
 		}
 	}
-	c.UsedBandwidth = helper.CopyMapStringInt(idx.UsedBandwidth)
+	if idx.UsedBandwidth != nil && len(idx.UsedBandwidth) == 0 {
+		c.UsedBandwidth = make(map[string]int, 0)
+	} else {
+		c.UsedBandwidth = helper.CopyMapStringInt(idx.UsedBandwidth)
+	}
 
 	return c
 }
@@ -127,6 +130,26 @@ func copyNodeNetworks(resources []*NodeNetworkResource) []*NodeNetworkResource {
 	for i, resource := range resources {
 		c[i] = resource.Copy()
 	}
+	return c
+}
+
+func copyAvailAddresses(a map[string][]NodeNetworkAddress) map[string][]NodeNetworkAddress {
+	l := len(a)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string][]NodeNetworkAddress, l)
+	for k, v := range a {
+		if len(v) == 0 {
+			continue
+		}
+		c[k] = make([]NodeNetworkAddress, len(v))
+		for i, a := range v {
+			c[k][i] = a
+		}
+	}
+
 	return c
 }
 
