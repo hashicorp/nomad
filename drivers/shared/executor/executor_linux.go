@@ -18,6 +18,8 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
+	"github.com/opencontainers/runc/libcontainer/devices"
+
 	"github.com/armon/circbuf"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
@@ -784,14 +786,14 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 }
 
 // cmdDevices converts a list of driver.DeviceConfigs into excutor.Devices.
-func cmdDevices(devices []*drivers.DeviceConfig) ([]*lconfigs.Device, error) {
-	if len(devices) == 0 {
+func cmdDevices(driverDevices []*drivers.DeviceConfig) ([]*devices.Device, error) {
+	if len(driverDevices) == 0 {
 		return nil, nil
 	}
 
-	r := make([]*lconfigs.Device, len(devices))
+	r := make([]*devices.Device, len(driverDevices))
 
-	for i, d := range devices {
+	for i, d := range driverDevices {
 		ed, err := ldevices.DeviceFromPath(d.HostPath, d.Permissions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to make device out for %s: %v", d.HostPath, err)
