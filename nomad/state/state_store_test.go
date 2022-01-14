@@ -2990,16 +2990,21 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	// registration is an error when the volume is in use
 	index++
 	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v0})
-	require.Error(t, err, fmt.Sprintf("volume exists: %s", vol0))
+	require.Error(t, err, "volume re-registered while in use")
 	// as is deregistration
 	index++
 	err = state.CSIVolumeDeregister(index, ns, []string{vol0}, false)
-	require.Error(t, err, fmt.Sprintf("volume in use: %s", vol0))
+	require.Error(t, err, "volume deregistered while in use")
 
 	// even if forced, because we have a non-terminal claim
 	index++
 	err = state.CSIVolumeDeregister(index, ns, []string{vol0}, true)
-	require.Error(t, err, fmt.Sprintf("volume in use: %s", vol0))
+	require.Error(t, err, "volume force deregistered while in use")
+
+	// we use the ID, not a prefix
+	index++
+	err = state.CSIVolumeDeregister(index, ns, []string{"fo"}, true)
+	require.Error(t, err, "volume deregistered by prefix")
 
 	// release claims to unblock deregister
 	index++
