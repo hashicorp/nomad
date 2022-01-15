@@ -752,10 +752,9 @@ func TestSystemSched_JobModify_InPlace(t *testing.T) {
 
 	var allocs []*structs.Allocation
 	for _, node := range nodes {
-		alloc := mock.Alloc()
+		alloc := mock.AllocForNode(node)
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = node.ID
 		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
@@ -1953,10 +1952,9 @@ func TestSystemSched_Preemption(t *testing.T) {
 				},
 				Networks: []*structs.NetworkResource{
 					{
-						Device:        "eth0",
-						IP:            "192.168.0.100",
-						ReservedPorts: []structs.Port{{Label: "web", Value: 80}},
-						MBits:         200,
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  200,
 					},
 				},
 			},
@@ -2042,10 +2040,9 @@ func TestSystemSched_Preemption(t *testing.T) {
 				},
 				Networks: []*structs.NetworkResource{
 					{
-						Device:        "eth0",
-						IP:            "192.168.0.100",
-						ReservedPorts: []structs.Port{{Label: "web", Value: 80}},
-						MBits:         400,
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  400,
 					},
 				},
 			},

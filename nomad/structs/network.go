@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"net"
 	"sync"
+
+	"github.com/hashicorp/nomad/helper"
 )
 
 const (
@@ -67,6 +69,83 @@ func (idx *NetworkIndex) getUsedPortsFor(ip string) Bitmap {
 	return used
 }
 
+func (idx *NetworkIndex) Copy() *NetworkIndex {
+	if idx == nil {
+		return nil
+	}
+
+	c := new(NetworkIndex)
+	*c = *idx
+
+	c.AvailNetworks = copyNetworkResources(idx.AvailNetworks)
+	c.NodeNetworks = copyNodeNetworks(idx.NodeNetworks)
+	c.AvailAddresses = copyAvailAddresses(idx.AvailAddresses)
+	if idx.AvailBandwidth != nil && len(idx.AvailBandwidth) == 0 {
+		c.AvailBandwidth = make(map[string]int)
+	} else {
+		c.AvailBandwidth = helper.CopyMapStringInt(idx.AvailBandwidth)
+	}
+	if len(idx.UsedPorts) > 0 {
+		c.UsedPorts = make(map[string]Bitmap, len(idx.UsedPorts))
+		for k, v := range idx.UsedPorts {
+			c.UsedPorts[k], _ = v.Copy()
+		}
+	}
+	if idx.UsedBandwidth != nil && len(idx.UsedBandwidth) == 0 {
+		c.UsedBandwidth = make(map[string]int)
+	} else {
+		c.UsedBandwidth = helper.CopyMapStringInt(idx.UsedBandwidth)
+	}
+
+	return c
+}
+
+func copyNetworkResources(resources []*NetworkResource) []*NetworkResource {
+	l := len(resources)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*NetworkResource, l)
+	for i, resource := range resources {
+		c[i] = resource.Copy()
+	}
+	return c
+}
+
+func copyNodeNetworks(resources []*NodeNetworkResource) []*NodeNetworkResource {
+	l := len(resources)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*NodeNetworkResource, l)
+	for i, resource := range resources {
+		c[i] = resource.Copy()
+	}
+	return c
+}
+
+func copyAvailAddresses(a map[string][]NodeNetworkAddress) map[string][]NodeNetworkAddress {
+	l := len(a)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string][]NodeNetworkAddress, l)
+	for k, v := range a {
+		if len(v) == 0 {
+			continue
+		}
+		c[k] = make([]NodeNetworkAddress, len(v))
+		for i, a := range v {
+			c[k][i] = a
+		}
+	}
+
+	return c
+}
+
 // Release is called when the network index is no longer needed
 // to attempt to re-use some of the memory it has allocated
 func (idx *NetworkIndex) Release() {
@@ -89,7 +168,7 @@ func (idx *NetworkIndex) Overcommitted() bool {
 
 // SetNode is used to setup the available network resources. Returns
 // true if there is a collision
-func (idx *NetworkIndex) SetNode(node *Node) (collide bool) {
+func (idx *NetworkIndex) SetNode(node *Node) (collide bool, reason string) {
 
 	// COMPAT(0.11): Remove in 0.11
 	// Grab the network resources, handling both new and old
@@ -118,8 +197,9 @@ func (idx *NetworkIndex) SetNode(node *Node) (collide bool) {
 	for _, n := range nodeNetworks {
 		for _, a := range n.Addresses {
 			idx.AvailAddresses[a.Alias] = append(idx.AvailAddresses[a.Alias], a)
-			if idx.AddReservedPortsForIP(a.ReservedPorts, a.Address) {
+			if c, r := idx.AddReservedPortsForIP(a.ReservedPorts, a.Address); c {
 				collide = true
+				reason = fmt.Sprintf("collision when reserving ports for node network %s in node %s: %v", a.Alias, node.ID, r)
 			}
 		}
 	}
@@ -127,11 +207,16 @@ func (idx *NetworkIndex) SetNode(node *Node) (collide bool) {
 	// COMPAT(0.11): Remove in 0.11
 	// Handle reserving ports, handling both new and old
 	if node.ReservedResources != nil && node.ReservedResources.Networks.ReservedHostPorts != "" {
-		collide = idx.AddReservedPortRange(node.ReservedResources.Networks.ReservedHostPorts)
+		c, r := idx.AddReservedPortRange(node.ReservedResources.Networks.ReservedHostPorts)
+		collide = c
+		if collide {
+			reason = fmt.Sprintf("collision when reserving port range for node %s: %v", node.ID, r)
+		}
 	} else if node.Reserved != nil {
 		for _, n := range node.Reserved.Networks {
-			if idx.AddReserved(n) {
+			if c, r := idx.AddReserved(n); c {
 				collide = true
+				reason = fmt.Sprintf("collision when reserving network %s for node %s: %v", n.IP, node.ID, r)
 			}
 		}
 	}
@@ -141,7 +226,7 @@ func (idx *NetworkIndex) SetNode(node *Node) (collide bool) {
 
 // AddAllocs is used to add the used network resources. Returns
 // true if there is a collision
-func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool) {
+func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool, reason string) {
 	for _, alloc := range allocs {
 		// Do not consider the resource impact of terminal allocations
 		if alloc.TerminalStatus() {
@@ -152,38 +237,42 @@ func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool) {
 			// Only look at AllocatedPorts if populated, otherwise use pre 0.12 logic
 			// COMPAT(1.0): Remove when network resources struct is removed.
 			if len(alloc.AllocatedResources.Shared.Ports) > 0 {
-				if idx.AddReservedPorts(alloc.AllocatedResources.Shared.Ports) {
+				if c, r := idx.AddReservedPorts(alloc.AllocatedResources.Shared.Ports); c {
 					collide = true
+					reason = fmt.Sprintf("collision when reserving port for alloc %s: %v", alloc.ID, r)
 				}
 			} else {
 				// Add network resources that are at the task group level
 				if len(alloc.AllocatedResources.Shared.Networks) > 0 {
 					for _, network := range alloc.AllocatedResources.Shared.Networks {
-						if idx.AddReserved(network) {
+						if c, r := idx.AddReserved(network); c {
 							collide = true
+							reason = fmt.Sprintf("collision when reserving port for network %s in alloc %s: %v", network.IP, alloc.ID, r)
 						}
 					}
 				}
 
-				for _, task := range alloc.AllocatedResources.Tasks {
-					if len(task.Networks) == 0 {
+				for task, resources := range alloc.AllocatedResources.Tasks {
+					if len(resources.Networks) == 0 {
 						continue
 					}
-					n := task.Networks[0]
-					if idx.AddReserved(n) {
+					n := resources.Networks[0]
+					if c, r := idx.AddReserved(n); c {
 						collide = true
+						reason = fmt.Sprintf("collision when reserving port for network %s in task %s of alloc %s: %v", n.IP, task, alloc.ID, r)
 					}
 				}
 			}
 		} else {
 			// COMPAT(0.11): Remove in 0.11
-			for _, task := range alloc.TaskResources {
-				if len(task.Networks) == 0 {
+			for task, resources := range alloc.TaskResources {
+				if len(resources.Networks) == 0 {
 					continue
 				}
-				n := task.Networks[0]
-				if idx.AddReserved(n) {
+				n := resources.Networks[0]
+				if c, r := idx.AddReserved(n); c {
 					collide = true
+					reason = fmt.Sprintf("(deprecated) collision when reserving port for network %s in task %s of alloc %s: %v", n.IP, task, alloc.ID, r)
 				}
 			}
 		}
@@ -193,7 +282,7 @@ func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool) {
 
 // AddReserved is used to add a reserved network usage, returns true
 // if there is a port collision
-func (idx *NetworkIndex) AddReserved(n *NetworkResource) (collide bool) {
+func (idx *NetworkIndex) AddReserved(n *NetworkResource) (collide bool, reasons []string) {
 	// Add the port usage
 	used := idx.getUsedPortsFor(n.IP)
 
@@ -201,10 +290,12 @@ func (idx *NetworkIndex) AddReserved(n *NetworkResource) (collide bool) {
 		for _, port := range ports {
 			// Guard against invalid port
 			if port.Value < 0 || port.Value >= maxValidPort {
-				return true
+				return true, []string{fmt.Sprintf("invalid port %d", port.Value)}
 			}
 			if used.Check(uint(port.Value)) {
 				collide = true
+				reason := fmt.Sprintf("port %d already in use", port.Value)
+				reasons = append(reasons, reason)
 			} else {
 				used.Set(uint(port.Value))
 			}
@@ -216,14 +307,16 @@ func (idx *NetworkIndex) AddReserved(n *NetworkResource) (collide bool) {
 	return
 }
 
-func (idx *NetworkIndex) AddReservedPorts(ports AllocatedPorts) (collide bool) {
+func (idx *NetworkIndex) AddReservedPorts(ports AllocatedPorts) (collide bool, reasons []string) {
 	for _, port := range ports {
 		used := idx.getUsedPortsFor(port.HostIP)
 		if port.Value < 0 || port.Value >= maxValidPort {
-			return true
+			return true, []string{fmt.Sprintf("invalid port %d", port.Value)}
 		}
 		if used.Check(uint(port.Value)) {
 			collide = true
+			reason := fmt.Sprintf("port %d already in use", port.Value)
+			reasons = append(reasons, reason)
 		} else {
 			used.Set(uint(port.Value))
 		}
@@ -235,7 +328,7 @@ func (idx *NetworkIndex) AddReservedPorts(ports AllocatedPorts) (collide bool) {
 // AddReservedPortRange marks the ports given as reserved on all network
 // interfaces. The port format is comma delimited, with spans given as n1-n2
 // (80,100-200,205)
-func (idx *NetworkIndex) AddReservedPortRange(ports string) (collide bool) {
+func (idx *NetworkIndex) AddReservedPortRange(ports string) (collide bool, reasons []string) {
 	// Convert the ports into a slice of ints
 	resPorts, err := ParsePortRanges(ports)
 	if err != nil {
@@ -251,10 +344,12 @@ func (idx *NetworkIndex) AddReservedPortRange(ports string) (collide bool) {
 		for _, port := range resPorts {
 			// Guard against invalid port
 			if port >= maxValidPort {
-				return true
+				return true, []string{fmt.Sprintf("invalid port %d", port)}
 			}
 			if used.Check(uint(port)) {
 				collide = true
+				reason := fmt.Sprintf("port %d already in use", port)
+				reasons = append(reasons, reason)
 			} else {
 				used.Set(uint(port))
 			}
@@ -265,7 +360,7 @@ func (idx *NetworkIndex) AddReservedPortRange(ports string) (collide bool) {
 }
 
 // AddReservedPortsForIP
-func (idx *NetworkIndex) AddReservedPortsForIP(ports string, ip string) (collide bool) {
+func (idx *NetworkIndex) AddReservedPortsForIP(ports string, ip string) (collide bool, reasons []string) {
 	// Convert the ports into a slice of ints
 	resPorts, err := ParsePortRanges(ports)
 	if err != nil {
@@ -276,10 +371,12 @@ func (idx *NetworkIndex) AddReservedPortsForIP(ports string, ip string) (collide
 	for _, port := range resPorts {
 		// Guard against invalid port
 		if port >= maxValidPort {
-			return true
+			return true, []string{fmt.Sprintf("invalid port %d", port)}
 		}
 		if used.Check(uint(port)) {
 			collide = true
+			reason := fmt.Sprintf("port %d already in use", port)
+			reasons = append(reasons, reason)
 		} else {
 			used.Set(uint(port))
 		}
@@ -352,7 +449,7 @@ func (idx *NetworkIndex) AssignPorts(ask *NetworkResource) (AllocatedPorts, erro
 				return nil, addrErr
 			}
 
-			return nil, fmt.Errorf("no addresses available for %q network", port.HostNetwork)
+			return nil, fmt.Errorf("no addresses available for %s network", port.HostNetwork)
 		}
 
 		offer = append(offer, *allocPort)
@@ -393,7 +490,7 @@ func (idx *NetworkIndex) AssignPorts(ask *NetworkResource) (AllocatedPorts, erro
 				return nil, addrErr
 			}
 
-			return nil, fmt.Errorf("no addresses available for %q network", port.HostNetwork)
+			return nil, fmt.Errorf("no addresses available for %s network", port.HostNetwork)
 		}
 		offer = append(offer, *allocPort)
 	}

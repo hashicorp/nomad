@@ -2442,6 +2442,22 @@ func (n *NodeNetworkResource) Equals(o *NodeNetworkResource) bool {
 	return reflect.DeepEqual(n, o)
 }
 
+func (n *NodeNetworkResource) Copy() *NodeNetworkResource {
+	if n == nil {
+		return nil
+	}
+
+	c := new(NodeNetworkResource)
+	*c = *n
+
+	if n.Addresses != nil {
+		c.Addresses = make([]NodeNetworkAddress, len(n.Addresses))
+		copy(c.Addresses, n.Addresses)
+	}
+
+	return c
+}
+
 func (n *NodeNetworkResource) HasAlias(alias string) bool {
 	for _, addr := range n.Addresses {
 		if addr.Alias == alias {
@@ -2803,6 +2819,13 @@ func (n *NodeResources) Copy() *NodeResources {
 
 	// Copy the networks
 	newN.Networks = n.Networks.Copy()
+
+	if n.NodeNetworks != nil {
+		newN.NodeNetworks = make([]*NodeNetworkResource, len(n.NodeNetworks))
+		for i, nn := range n.NodeNetworks {
+			newN.NodeNetworks[i] = nn.Copy()
+		}
+	}
 
 	// Copy the devices
 	if n.Devices != nil {

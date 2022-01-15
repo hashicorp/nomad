@@ -1781,7 +1781,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		// Ignore eval event creation during snapshot restore
 		snap.UpsertEvals(structs.IgnoreUnknownTypeFlag, 100, []*structs.Evaluation{eval})
 		// Create the scheduler and run it
-		sched, err := scheduler.NewScheduler(eval.Type, n.logger, snap, planner)
+		sched, err := scheduler.NewScheduler(eval.Type, n.logger, nil, snap, planner)
 		if err != nil {
 			return err
 		}

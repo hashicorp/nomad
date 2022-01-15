@@ -20,9 +20,10 @@ const (
 // designed for services that should be run on every client.
 // One for each job, containing an allocation for each node
 type SystemScheduler struct {
-	logger  log.Logger
-	state   State
-	planner Planner
+	logger   log.Logger
+	eventsCh chan<- interface{}
+	state    State
+	planner  Planner
 
 	eval       *structs.Evaluation
 	job        *structs.Job
@@ -42,11 +43,12 @@ type SystemScheduler struct {
 
 // NewSystemScheduler is a factory function to instantiate a new system
 // scheduler.
-func NewSystemScheduler(logger log.Logger, state State, planner Planner) Scheduler {
+func NewSystemScheduler(logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) Scheduler {
 	return &SystemScheduler{
-		logger:  logger.Named("system_sched"),
-		state:   state,
-		planner: planner,
+		logger:   logger.Named("system_sched"),
+		eventsCh: eventsCh,
+		state:    state,
+		planner:  planner,
 	}
 }
 
@@ -118,7 +120,7 @@ func (s *SystemScheduler) process() (bool, error) {
 	s.failedTGAllocs = nil
 
 	// Create an evaluation context
-	s.ctx = NewEvalContext(s.state, s.plan, s.logger)
+	s.ctx = NewEvalContext(s.eventsCh, s.state, s.plan, s.logger)
 
 	// Construct the placement stack
 	s.stack = NewSystemStack(s.ctx)

@@ -206,10 +206,34 @@ OUTER:
 			continue
 		}
 
-		// Index the existing network usage
+		// Index the existing network usage.
+		// This should never collide, since it represents the current state of
+		// the node. If it does collide though, it means we found a bug! So
+		// collect as much information as possible.
 		netIdx := structs.NewNetworkIndex()
-		netIdx.SetNode(option.Node)
-		netIdx.AddAllocs(proposed)
+		if collide, reason := netIdx.SetNode(option.Node); collide {
+			iter.ctx.SendEvent(&PortCollisionEvent{
+				Reason:   reason,
+				NetIndex: netIdx.Copy(),
+				Node:     option.Node,
+			})
+			iter.ctx.Metrics().ExhaustedNode(option.Node, "network: port collision")
+			continue
+		}
+		if collide, reason := netIdx.AddAllocs(proposed); collide {
+			event := &PortCollisionEvent{
+				Reason:      reason,
+				NetIndex:    netIdx.Copy(),
+				Node:        option.Node,
+				Allocations: make([]*structs.Allocation, len(proposed)),
+			}
+			for i, alloc := range proposed {
+				event.Allocations[i] = alloc.Copy()
+			}
+			iter.ctx.SendEvent(event)
+			iter.ctx.Metrics().ExhaustedNode(option.Node, "network: port collision")
+			continue
+		}
 
 		// Create a device allocator
 		devAllocator := newDeviceAllocator(iter.ctx, option.Node)
