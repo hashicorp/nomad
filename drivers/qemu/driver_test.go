@@ -399,6 +399,7 @@ func TestConfig_ParseAllHCL(t *testing.T) {
 	cfgStr := `
 config {
   image_path = "/tmp/image_path"
+  drive_interface = "virtio"
   accelerator = "kvm"
   args = ["arg1", "arg2"]
   port_map {
@@ -409,9 +410,10 @@ config {
 }`
 
 	expected := &TaskConfig{
-		ImagePath:   "/tmp/image_path",
-		Accelerator: "kvm",
-		Args:        []string{"arg1", "arg2"},
+		ImagePath:      "/tmp/image_path",
+		DriveInterface: "virtio",
+		Accelerator:    "kvm",
+		Args:           []string{"arg1", "arg2"},
 		PortMap: map[string]int{
 			"http":  80,
 			"https": 443,
@@ -423,6 +425,19 @@ config {
 	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
 
 	require.EqualValues(t, expected, tc)
+}
+
+func TestIsAllowedDriveInterface(t *testing.T) {
+	validInterfaces := []string{"ide", "scsi", "sd", "mtd", "floppy", "pflash", "virtio", "none"}
+	invalidInterfaces := []string{"foo", "virtio-foo"}
+
+	for _, i := range validInterfaces {
+		require.Truef(t, isAllowedDriveInterface(i), "drive_interface should be allowed: %v", i)
+	}
+
+	for _, i := range invalidInterfaces {
+		require.Falsef(t, isAllowedDriveInterface(i), "drive_interface should be not allowed: %v", i)
+	}
 }
 
 func TestIsAllowedImagePath(t *testing.T) {

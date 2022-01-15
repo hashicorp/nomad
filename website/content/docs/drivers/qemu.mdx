@@ -42,6 +42,10 @@ The `qemu` driver supports the following configuration in the job spec:
   contains the image in a subfolder, the path will need to be the relative path
   (`subdir/from_archive/my.img`).
 
+- `drive_interface` - (Optional) This option defines on which type of interface
+  the drive is connected. Available types are: `ide`, `scsi`, `sd`, `mtd`,
+  `floppy`, `pflash`, `virtio` and `none`. Default is `ide`.
+
 - `accelerator` - (Optional) The type of accelerator to use in the invocation.
   If the host machine has `qemu` installed with KVM support, users can specify
   `kvm` for the `accelerator`. Default is `tcg`.
