@@ -76,10 +76,11 @@ func (s *SetStatusError) Error() string {
 // most workloads. It also supports a 'batch' mode to optimize for fast decision
 // making at the cost of quality.
 type GenericScheduler struct {
-	logger  log.Logger
-	state   State
-	planner Planner
-	batch   bool
+	logger   log.Logger
+	eventsCh chan<- interface{}
+	state    State
+	planner  Planner
+	batch    bool
 
 	eval       *structs.Evaluation
 	job        *structs.Job
@@ -100,23 +101,25 @@ type GenericScheduler struct {
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
-func NewServiceScheduler(logger log.Logger, state State, planner Planner) Scheduler {
+func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) Scheduler {
 	s := &GenericScheduler{
-		logger:  logger.Named("service_sched"),
-		state:   state,
-		planner: planner,
-		batch:   false,
+		logger:   logger.Named("service_sched"),
+		eventsCh: eventsCh,
+		state:    state,
+		planner:  planner,
+		batch:    false,
 	}
 	return s
 }
 
 // NewBatchScheduler is a factory function to instantiate a new batch scheduler
-func NewBatchScheduler(logger log.Logger, state State, planner Planner) Scheduler {
+func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) Scheduler {
 	s := &GenericScheduler{
-		logger:  logger.Named("batch_sched"),
-		state:   state,
-		planner: planner,
-		batch:   true,
+		logger:   logger.Named("batch_sched"),
+		eventsCh: eventsCh,
+		state:    state,
+		planner:  planner,
+		batch:    true,
 	}
 	return s
 }
@@ -245,7 +248,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	s.failedTGAllocs = nil
 
 	// Create an evaluation context
-	s.ctx = NewEvalContext(s.state, s.plan, s.logger)
+	s.ctx = NewEvalContext(s.eventsCh, s.state, s.plan, s.logger)
 
 	// Construct the placement stack
 	s.stack = NewGenericStack(s.batch, s.ctx)

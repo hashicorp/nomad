@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -229,6 +230,7 @@ type Server struct {
 	workers          []*Worker
 	workerLock       sync.RWMutex
 	workerConfigLock sync.RWMutex
+	workersEventCh   chan interface{}
 
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *lru.TwoQueueCache
@@ -344,6 +346,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		blockedEvals:     NewBlockedEvals(evalBroker, logger),
 		rpcTLS:           incomingTLS,
 		aclCache:         aclCache,
+		workersEventCh:   make(chan interface{}, 1),
 	}
 
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
@@ -1581,6 +1584,8 @@ func reloadSchedulers(s *Server, newArgs *SchedulerWorkerPoolArgs) {
 func (s *Server) setupWorkers(ctx context.Context) error {
 	poolArgs := s.GetSchedulerWorkerConfig()
 
+	go s.listenWorkerEvents()
+
 	// we will be writing to the worker slice
 	s.workerLock.Lock()
 	defer s.workerLock.Unlock()
@@ -1662,6 +1667,49 @@ func (s *Server) stopOldWorkers(oldWorkers []*Worker) {
 	for i, w := range oldWorkers {
 		s.logger.Debug("stopping old scheduling worker", "id", w.ID(), "index", i+1, "of", workerCount)
 		go w.Stop()
+	}
+}
+
+// listenWorkerEvents listens for events emitted by scheduler workers and log
+// them if necessary. Some events may be skipped to avoid polluting logs with
+// duplicates.
+func (s *Server) listenWorkerEvents() {
+	loggedAt := make(map[string]time.Time)
+
+	gcDeadline := 4 * time.Hour
+	gcTicker := time.NewTicker(10 * time.Second)
+	defer gcTicker.Stop()
+
+	for {
+		select {
+		case <-gcTicker.C:
+			for k, v := range loggedAt {
+				if time.Since(v) >= gcDeadline {
+					delete(loggedAt, k)
+				}
+			}
+		case e := <-s.workersEventCh:
+			switch event := e.(type) {
+			case *scheduler.PortCollisionEvent:
+				if event == nil || event.Node == nil {
+					continue
+				}
+
+				if _, ok := loggedAt[event.Node.ID]; ok {
+					continue
+				}
+
+				eventJson, err := json.Marshal(event.Sanitize())
+				if err != nil {
+					s.logger.Debug("failed to encode event to JSON", "error", err)
+				}
+				s.logger.Warn("unexpected node port collision, refer to https://www.nomadproject.io/s/port-plan-failure for more information",
+					"node_id", event.Node.ID, "reason", event.Reason, "event", string(eventJson))
+				loggedAt[event.Node.ID] = time.Now()
+			}
+		case <-s.shutdownCh:
+			return
+		}
 	}
 }
 

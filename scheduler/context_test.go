@@ -21,7 +21,7 @@ func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
 
 	logger := testlog.HCLogger(t)
 
-	ctx := NewEvalContext(state, plan, logger)
+	ctx := NewEvalContext(nil, state, plan, logger)
 	return state, ctx
 }
 
@@ -391,4 +391,49 @@ func TestEvalEligibility_GetClasses_JobEligible_TaskGroupIneligible(t *testing.T
 
 	actClasses := e.GetClasses()
 	require.Equal(t, expClasses, actClasses)
+}
+
+func TestPortCollisionEvent_Copy(t *testing.T) {
+	ev := &PortCollisionEvent{
+		Reason: "original",
+		Node:   mock.Node(),
+		Allocations: []*structs.Allocation{
+			mock.Alloc(),
+			mock.Alloc(),
+		},
+		NetIndex: structs.NewNetworkIndex(),
+	}
+	ev.NetIndex.SetNode(ev.Node)
+
+	// Copy must be equal
+	evCopy := ev.Copy()
+	require.Equal(t, ev, evCopy)
+
+	// Modifying the copy should not affect the original value
+	evCopy.Reason = "copy"
+	require.NotEqual(t, ev.Reason, evCopy.Reason)
+
+	evCopy.Node.Attributes["test"] = "true"
+	require.NotEqual(t, ev.Node, evCopy.Node)
+
+	evCopy.Allocations = append(evCopy.Allocations, mock.Alloc())
+	require.NotEqual(t, ev.Allocations, evCopy.Allocations)
+
+	evCopy.NetIndex.AddReservedPortRange("1000-2000")
+	require.NotEqual(t, ev.NetIndex, evCopy.NetIndex)
+}
+
+func TestPortCollisionEvent_Sanitize(t *testing.T) {
+	ev := &PortCollisionEvent{
+		Reason: "original",
+		Node:   mock.Node(),
+		Allocations: []*structs.Allocation{
+			mock.Alloc(),
+		},
+		NetIndex: structs.NewNetworkIndex(),
+	}
+
+	cleanEv := ev.Sanitize()
+	require.Empty(t, cleanEv.Node.SecretID)
+	require.Nil(t, cleanEv.Allocations[0].Job)
 }

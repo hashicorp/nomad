@@ -3042,6 +3042,36 @@ func TestMemoryResources_Add(t *testing.T) {
 	}, r)
 }
 
+func TestNodeNetworkResource_Copy(t *testing.T) {
+	netResource := &NodeNetworkResource{
+		Mode:       "host",
+		Device:     "eth0",
+		MacAddress: "00:00:00:00:00:00",
+		Speed:      1000,
+		Addresses: []NodeNetworkAddress{
+			{
+				Family:        NodeNetworkAF_IPv4,
+				Alias:         "default",
+				Address:       "192.168.0.2",
+				ReservedPorts: "22",
+				Gateway:       "192.168.0.1",
+			},
+		},
+	}
+
+	// Copy must be equal.
+	netResourceCopy := netResource.Copy()
+	require.Equal(t, netResource, netResourceCopy)
+
+	// Modifying copy should not modify original value.
+	netResourceCopy.Mode = "alloc"
+	netResourceCopy.Device = "eth1"
+	netResourceCopy.MacAddress = "11:11:11:11:11:11"
+	netResourceCopy.Speed = 500
+	netResourceCopy.Addresses[0].Alias = "copy"
+	require.NotEqual(t, netResource, netResourceCopy)
+}
+
 func TestEncodeDecode(t *testing.T) {
 	type FooRequest struct {
 		Foo string
@@ -6084,6 +6114,23 @@ func TestNodeResources_Copy(t *testing.T) {
 				Device: "foo",
 			},
 		},
+		NodeNetworks: []*NodeNetworkResource{
+			{
+				Mode:       "host",
+				Device:     "eth0",
+				MacAddress: "00:00:00:00:00:00",
+				Speed:      1000,
+				Addresses: []NodeNetworkAddress{
+					{
+						Family:        NodeNetworkAF_IPv4,
+						Alias:         "private",
+						Address:       "192.168.0.100",
+						ReservedPorts: "22,80",
+						Gateway:       "192.168.0.1",
+					},
+				},
+			},
+		},
 	}
 
 	kopy := orig.Copy()
@@ -6091,7 +6138,11 @@ func TestNodeResources_Copy(t *testing.T) {
 
 	// Make sure slices aren't shared
 	kopy.Cpu.ReservableCpuCores[1] = 9000
-	assert.NotEqual(t, orig, kopy)
+	assert.NotEqual(t, orig.Cpu.ReservableCpuCores, kopy.Cpu.ReservableCpuCores)
+
+	kopy.NodeNetworks[0].MacAddress = "11:11:11:11:11:11"
+	kopy.NodeNetworks[0].Addresses[0].Alias = "public"
+	assert.NotEqual(t, orig.NodeNetworks[0], kopy.NodeNetworks[0])
 }
 
 func TestNodeResources_Merge(t *testing.T) {

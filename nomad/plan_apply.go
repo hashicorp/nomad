@@ -475,6 +475,8 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 			return true
 		}
 		if !fit {
+			metrics.IncrCounterWithLabels([]string{"nomad", "plan", "node_rejected"}, 1, []metrics.Label{{Name: "node_id", Value: nodeID}})
+
 			// Log the reason why the node's allocations could not be made
 			if reason != "" {
 				//TODO This was debug level and should return
