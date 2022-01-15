@@ -2,6 +2,7 @@ package mock
 
 import (
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
@@ -1168,6 +1169,58 @@ func Alloc() *structs.Allocation {
 		ClientStatus:  structs.AllocClientStatusPending,
 	}
 	alloc.JobID = alloc.Job.ID
+	return alloc
+}
+
+func AllocWithoutReservedPort() *structs.Allocation {
+	alloc := Alloc()
+	alloc.Resources.Networks[0].ReservedPorts = nil
+	alloc.TaskResources["web"].Networks[0].ReservedPorts = nil
+	alloc.AllocatedResources.Tasks["web"].Networks[0].ReservedPorts = nil
+
+	return alloc
+}
+
+func AllocForNode(n *structs.Node) *structs.Allocation {
+	nodeIP := n.NodeResources.NodeNetworks[0].Addresses[0].Address
+
+	dynamicPortRange := structs.MaxDynamicPort - structs.MinDynamicPort
+	randomDynamicPort := rand.Intn(dynamicPortRange) + structs.MinDynamicPort
+
+	alloc := Alloc()
+	alloc.NodeID = n.ID
+
+	// Set node IP address.
+	alloc.Resources.Networks[0].IP = nodeIP
+	alloc.TaskResources["web"].Networks[0].IP = nodeIP
+	alloc.AllocatedResources.Tasks["web"].Networks[0].IP = nodeIP
+
+	// Set dynamic port to a random value.
+	alloc.TaskResources["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
+	alloc.AllocatedResources.Tasks["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
+
+	return alloc
+
+}
+
+func AllocForNodeWithoutReservedPort(n *structs.Node) *structs.Allocation {
+	nodeIP := n.NodeResources.NodeNetworks[0].Addresses[0].Address
+
+	dynamicPortRange := structs.MaxDynamicPort - structs.MinDynamicPort
+	randomDynamicPort := rand.Intn(dynamicPortRange) + structs.MinDynamicPort
+
+	alloc := AllocWithoutReservedPort()
+	alloc.NodeID = n.ID
+
+	// Set node IP address.
+	alloc.Resources.Networks[0].IP = nodeIP
+	alloc.TaskResources["web"].Networks[0].IP = nodeIP
+	alloc.AllocatedResources.Tasks["web"].Networks[0].IP = nodeIP
+
+	// Set dynamic port to a random value.
+	alloc.TaskResources["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
+	alloc.AllocatedResources.Tasks["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
+
 	return alloc
 }
 

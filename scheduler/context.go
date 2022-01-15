@@ -42,6 +42,10 @@ type Context interface {
 	// Eligibility returns a tracker for node eligibility in the context of the
 	// eval.
 	Eligibility() *EvalEligibility
+
+	// SendEvent provides best-effort delivery of scheduling and placement
+	// events.
+	SendEvent(event interface{})
 }
 
 // EvalCache is used to cache certain things during an evaluation
@@ -72,9 +76,57 @@ func (e *EvalCache) SemverConstraintCache() map[string]VerConstraints {
 	return e.semverCache
 }
 
+// PortCollisionEvent is an event that can happen during scheduling when
+// an unexpected port collision is detected.
+type PortCollisionEvent struct {
+	Reason      string
+	Node        *structs.Node
+	Allocations []*structs.Allocation
+
+	// TODO: this is a large struct, but may be required to debug unexpected
+	// port collisions. Re-evaluate its need in the future if the bug is fixed
+	// or not caused by this field.
+	NetIndex *structs.NetworkIndex
+}
+
+func (ev *PortCollisionEvent) Copy() *PortCollisionEvent {
+	if ev == nil {
+		return nil
+	}
+	c := new(PortCollisionEvent)
+	*c = *ev
+	c.Node = ev.Node.Copy()
+	if len(ev.Allocations) > 0 {
+		for i, a := range ev.Allocations {
+			c.Allocations[i] = a.Copy()
+		}
+
+	}
+	c.NetIndex = ev.NetIndex.Copy()
+	return c
+}
+
+func (ev *PortCollisionEvent) Sanitize() *PortCollisionEvent {
+	if ev == nil {
+		return nil
+	}
+	clean := ev.Copy()
+
+	clean.Node.SecretID = ""
+	clean.Node.Meta = make(map[string]string)
+
+	for i, alloc := range ev.Allocations {
+		clean.Allocations[i] = alloc.CopySkipJob()
+		clean.Allocations[i].Job = nil
+	}
+
+	return clean
+}
+
 // EvalContext is a Context used during an Evaluation
 type EvalContext struct {
 	EvalCache
+	eventsCh    chan<- interface{}
 	state       State
 	plan        *structs.Plan
 	logger      log.Logger
@@ -83,12 +135,13 @@ type EvalContext struct {
 }
 
 // NewEvalContext constructs a new EvalContext
-func NewEvalContext(s State, p *structs.Plan, log log.Logger) *EvalContext {
+func NewEvalContext(eventsCh chan<- interface{}, s State, p *structs.Plan, log log.Logger) *EvalContext {
 	ctx := &EvalContext{
-		state:   s,
-		plan:    p,
-		logger:  log,
-		metrics: new(structs.AllocMetric),
+		eventsCh: eventsCh,
+		state:    s,
+		plan:     p,
+		logger:   log,
+		metrics:  new(structs.AllocMetric),
 	}
 	return ctx
 }
@@ -162,6 +215,17 @@ func (e *EvalContext) Eligibility() *EvalEligibility {
 	}
 
 	return e.eligibility
+}
+
+func (e *EvalContext) SendEvent(event interface{}) {
+	if e == nil || e.eventsCh == nil {
+		return
+	}
+
+	select {
+	case e.eventsCh <- event:
+	default:
+	}
 }
 
 type ComputedClassFeasibility byte

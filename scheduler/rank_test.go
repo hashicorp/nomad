@@ -487,6 +487,221 @@ func TestBinPackIterator_Network_Failure(t *testing.T) {
 	require.Equal(1, ctx.metrics.DimensionExhausted["network: bandwidth exceeded"])
 }
 
+func TestBinPackIterator_Network_PortCollision_Node(t *testing.T) {
+	_, ctx := testContext(t)
+	eventsCh := make(chan interface{})
+	ctx.eventsCh = eventsCh
+
+	// Collide on host with duplicate IPs.
+	nodes := []*RankedNode{
+		{
+			Node: &structs.Node{
+				ID: uuid.Generate(),
+				Resources: &structs.Resources{
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							CIDR:   "192.168.0.100/32",
+							IP:     "192.158.0.100",
+						},
+					},
+				},
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 4096,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 4096,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							CIDR:   "192.168.0.100/32",
+							IP:     "192.158.0.100",
+						},
+					},
+					NodeNetworks: []*structs.NodeNetworkResource{
+						{
+							Mode:   "host",
+							Device: "eth0",
+							Addresses: []structs.NodeNetworkAddress{
+								{
+									Alias:         "default",
+									Address:       "192.168.0.100",
+									ReservedPorts: "22,80",
+								},
+								{
+									Alias:         "private",
+									Address:       "192.168.0.100",
+									ReservedPorts: "22",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	taskGroup := &structs.TaskGroup{
+		EphemeralDisk: &structs.EphemeralDisk{},
+		Tasks: []*structs.Task{
+			{
+				Name: "web",
+				Resources: &structs.Resources{
+					CPU:      1024,
+					MemoryMB: 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+						},
+					},
+				},
+			},
+		},
+		Networks: []*structs.NetworkResource{
+			{
+				Device: "eth0",
+			},
+		},
+	}
+	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp.SetTaskGroup(taskGroup)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+	out := collectRanked(scoreNorm)
+
+	// We expect a placement failure due to  port collision.
+	require.Len(t, out, 0)
+	require.Equal(t, 1, ctx.metrics.DimensionExhausted["network: port collision"])
+}
+
+func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {
+	state, ctx := testContext(t)
+	eventsCh := make(chan interface{})
+	ctx.eventsCh = eventsCh
+
+	nodes := []*RankedNode{
+		{
+			Node: &structs.Node{
+				ID: uuid.Generate(),
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	// Add allocations with port collision.
+	j := mock.Job()
+	alloc1 := &structs.Allocation{
+		Namespace: structs.DefaultNamespace,
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    nodes[0].Node.ID,
+		JobID:     j.ID,
+		Job:       j,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Device:        "eth0",
+							IP:            "192.168.0.100",
+							ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+							MBits:         50,
+							DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+						},
+					},
+				},
+			},
+		},
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+		TaskGroup:     "web",
+	}
+	alloc2 := &structs.Allocation{
+		Namespace: structs.DefaultNamespace,
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    nodes[0].Node.ID,
+		JobID:     j.ID,
+		Job:       j,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Device:        "eth0",
+							IP:            "192.168.0.100",
+							ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+							MBits:         50,
+							DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+						},
+					},
+				},
+			},
+		},
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+		TaskGroup:     "web",
+	}
+	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
+
+	taskGroup := &structs.TaskGroup{
+		EphemeralDisk: &structs.EphemeralDisk{},
+		Tasks: []*structs.Task{
+			{
+				Name: "web",
+				Resources: &structs.Resources{
+					CPU:      1024,
+					MemoryMB: 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+						},
+					},
+				},
+			},
+		},
+		Networks: []*structs.NetworkResource{
+			{
+				Device: "eth0",
+			},
+		},
+	}
+	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp.SetTaskGroup(taskGroup)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+	out := collectRanked(scoreNorm)
+
+	// We expect a placement failure due to  port collision.
+	require.Len(t, out, 0)
+	require.Equal(t, 1, ctx.metrics.DimensionExhausted["network: port collision"])
+}
+
 func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{

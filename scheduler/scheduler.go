@@ -28,7 +28,7 @@ var BuiltinSchedulers = map[string]Factory{
 
 // NewScheduler is used to instantiate and return a new scheduler
 // given the scheduler name, initial state, and planner.
-func NewScheduler(name string, logger log.Logger, state State, planner Planner) (Scheduler, error) {
+func NewScheduler(name string, logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) (Scheduler, error) {
 	// Lookup the factory function
 	factory, ok := BuiltinSchedulers[name]
 	if !ok {
@@ -36,12 +36,12 @@ func NewScheduler(name string, logger log.Logger, state State, planner Planner) 
 	}
 
 	// Instantiate the scheduler
-	sched := factory(logger, state, planner)
+	sched := factory(logger, eventsCh, state, planner)
 	return sched, nil
 }
 
 // Factory is used to instantiate a new Scheduler
-type Factory func(log.Logger, State, Planner) Scheduler
+type Factory func(log.Logger, chan<- interface{}, State, Planner) Scheduler
 
 // Scheduler is the top level instance for a scheduler. A scheduler is
 // meant to only encapsulate business logic, pushing the various plumbing

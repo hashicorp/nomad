@@ -2165,10 +2165,9 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	// Create allocs that are part of the old deployment
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
-		alloc := mock.Alloc()
+		alloc := mock.AllocForNode(nodes[i])
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = nodes[i].ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		alloc.DeploymentID = d.ID
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: helper.BoolToPtr(true)}
@@ -4071,10 +4070,9 @@ func TestBatchSched_Run_LostAlloc(t *testing.T) {
 	// Create two running allocations
 	var allocs []*structs.Allocation
 	for i := 0; i <= 1; i++ {
-		alloc := mock.Alloc()
+		alloc := mock.AllocForNodeWithoutReservedPort(node)
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = node.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		alloc.ClientStatus = structs.AllocClientStatusRunning
 		allocs = append(allocs, alloc)
@@ -4566,10 +4564,9 @@ func TestBatchSched_ScaleDown_SameName(t *testing.T) {
 	// Create a few running alloc
 	var allocs []*structs.Allocation
 	for i := 0; i < 5; i++ {
-		alloc := mock.Alloc()
+		alloc := mock.AllocForNodeWithoutReservedPort(node)
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = node.ID
 		alloc.Name = "my-job.web[0]"
 		alloc.ClientStatus = structs.AllocClientStatusRunning
 		alloc.Metrics = scoreMetric
@@ -5535,10 +5532,9 @@ func TestServiceSched_Migrate_CanaryStatus(t *testing.T) {
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 3; i++ {
-		alloc := mock.Alloc()
+		alloc := mock.AllocForNodeWithoutReservedPort(node1)
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = node1.ID
 		alloc.DeploymentID = deployment.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
