@@ -113,7 +113,7 @@ func (ev *PortCollisionEvent) Sanitize() *PortCollisionEvent {
 	clean := ev.Copy()
 
 	clean.Node = ev.Node.Sanitize()
-	clean.Node.Meta = make(map[string]string, 0)
+	clean.Node.Meta = make(map[string]string)
 
 	for i, alloc := range ev.Allocations {
 		clean.Allocations[i] = alloc.CopySkipJob()

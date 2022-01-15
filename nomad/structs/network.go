@@ -88,7 +88,7 @@ func (idx *NetworkIndex) Copy() *NetworkIndex {
 	c.NodeNetworks = copyNodeNetworks(idx.NodeNetworks)
 	c.AvailAddresses = copyAvailAddresses(idx.AvailAddresses)
 	if idx.AvailBandwidth != nil && len(idx.AvailBandwidth) == 0 {
-		c.AvailBandwidth = make(map[string]int, 0)
+		c.AvailBandwidth = make(map[string]int)
 	} else {
 		c.AvailBandwidth = helper.CopyMapStringInt(idx.AvailBandwidth)
 	}
@@ -99,7 +99,7 @@ func (idx *NetworkIndex) Copy() *NetworkIndex {
 		}
 	}
 	if idx.UsedBandwidth != nil && len(idx.UsedBandwidth) == 0 {
-		c.UsedBandwidth = make(map[string]int, 0)
+		c.UsedBandwidth = make(map[string]int)
 	} else {
 		c.UsedBandwidth = helper.CopyMapStringInt(idx.UsedBandwidth)
 	}
