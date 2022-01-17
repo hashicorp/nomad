@@ -184,12 +184,16 @@ Debug Options:
     Path to the parent directory of the output directory. If specified, no 
     archive is built. Defaults to the current directory.
 
-  -event-topic=<allocation,evaluation,job,node,*>:<filter>
-    Enable event stream capture. Filter by comma delimited list of topic filters
-    or "all".  Defaults to "none" (disabled).
+  -event-topic=<Allocation,Evaluation,Job,Node,*>:<filter>
+    Enable event stream capture, filtered by comma delimited list of topic filters.
+    Examples:
+      "all" or "*:*" for all events
+      "Evaluation" or "Evaluation:*" for all evaluation events
+      "*:example" for all events related to the job "example"
+    Defaults to "none" (disabled).
 
   -verbose
-    Enable verbose output
+    Enable verbose output.
 `
 	return strings.TrimSpace(helpText)
 }
