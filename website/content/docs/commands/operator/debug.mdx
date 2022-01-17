@@ -75,6 +75,13 @@ true.
   leadership, it may be necessary to get the configuration from a non-leader
   server.
 
+- `-event-topic=<allocation,evaluation,job,node,*>:<filter>`: Enable event 
+  stream capture. Filter by comma delimited list of topic filters or "all".
+  Defaults to "none" (disabled).  Refer to the [Events API](/api-docs/events) for
+  additional detail.
+
+- `-verbose`: Enable verbose output
+
 - `-output=path`: Path to the parent directory of the output
   directory. Defaults to the current directory. If specified, no
   archive is built.
