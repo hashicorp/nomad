@@ -45,6 +45,7 @@ type OperatorDebugCommand struct {
 	nodeIDs       []string
 	serverIDs     []string
 	topics        map[api.Topic][]string
+	index         uint64
 	consul        *external
 	vault         *external
 	manifest      []string
@@ -406,6 +407,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 	c.topics = t
+	c.index = 0
 
 	// Verify there are no extra arguments
 	args = flags.Args()
@@ -621,7 +623,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	// Start background captures
 	c.startMonitors(client)
-	c.startEventStream(clusterDir, c.topics, 0, client) // TODO: allow index as cmdline arg
+	c.startEventStream(client)
 
 	// Collect cluster data
 	self, err := client.Agent().Self()
@@ -724,11 +726,11 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 }
 
 // captureEventStream wraps the event stream capture process.
-func (c *OperatorDebugCommand) startEventStream(path string, topics map[api.Topic][]string, index uint64, client *api.Client) {
+func (c *OperatorDebugCommand) startEventStream(client *api.Client) {
 	c.verboseOut("Launching eventstream goroutine...")
 
 	go func() {
-		if err := c.captureEventStream(path, topics, index, client); err != nil {
+		if err := c.captureEventStream(client); err != nil {
 			var es string
 			if mErr, ok := err.(*multierror.Error); ok {
 				es = multierror.ListFormatFunc(mErr.Errors)
@@ -741,8 +743,9 @@ func (c *OperatorDebugCommand) startEventStream(path string, topics map[api.Topi
 	}()
 }
 
-func (c *OperatorDebugCommand) captureEventStream(path string, topicMap map[api.Topic][]string, index uint64, client *api.Client) error {
+func (c *OperatorDebugCommand) captureEventStream(client *api.Client) error {
 	// Ensure output directory is present
+	path := clusterDir
 	if err := c.mkdir(c.path(path)); err != nil {
 		return err
 	}
@@ -758,7 +761,7 @@ func (c *OperatorDebugCommand) captureEventStream(path string, topicMap map[api.
 	events := client.EventStream()
 
 	// Start streaming events
-	eventCh, err := events.Stream(c.ctx, topicMap, index, c.queryOpts())
+	eventCh, err := events.Stream(c.ctx, c.topics, c.index, c.queryOpts())
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			c.verboseOut("Event stream canceled: No events captured")
