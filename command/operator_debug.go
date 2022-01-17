@@ -248,7 +248,7 @@ func NodePredictor(factory ApiClientFactory) complete.Predictor {
 }
 
 // NodeClassPredictor returns a client node class predictor
-// TODO: Consider API options for node class filtering
+// TODO dmay: Consider API options for node class filtering
 func NodeClassPredictor(factory ApiClientFactory) complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, err := factory()
@@ -284,7 +284,7 @@ func NodeClassPredictor(factory ApiClientFactory) complete.Predictor {
 }
 
 // ServerPredictor returns a server member predictor
-// TODO: Consider API options for server member filtering
+// TODO dmay: Consider API options for server member filtering
 func ServerPredictor(factory ApiClientFactory) complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, err := factory()

@@ -905,10 +905,10 @@ func TestDebug_EventStream_TopicsFromString(t *testing.T) {
 }
 
 func TestDebug_EventStream(t *testing.T) {
-	// TODO: specify output directory to allow inspection of eventstream.json
-	// TODO: require specific events in the eventstream.json file(s)
-	// TODO: scenario where no events are expected, verify "No events captured"
-	// TODO: verify event topic filtering only includes expected events
+	// TODO dmay: specify output directory to allow inspection of eventstream.json
+	// TODO dmay: require specific events in the eventstream.json file(s)
+	// TODO dmay: scenario where no events are expected, verify "No events captured"
+	// TODO dmay: verify event topic filtering only includes expected events
 
 	var start time.Time
 
@@ -996,7 +996,7 @@ func TestDebug_EventStream(t *testing.T) {
 	require.NotEmpty(t, archive)
 	fmt.Println(archive)
 
-	// TODO: verify evenstream.json output file contains expected content
+	// TODO dmay: verify evenstream.json output file contains expected content
 }
 
 // extractArchiveName searches string s for the archive filename
