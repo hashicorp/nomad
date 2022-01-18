@@ -15,8 +15,8 @@ key_name = "support_eng_dev-access-key-mikael"
 #  - Typically this is left commented unless necessary. 
 nomad_binary = "https://releases.hashicorp.com/nomad/0.8.7/nomad_0.8.7_linux_amd64.zip"
 
-# `region` ("us-east-1") - sets the AWS region to build your cluster in.
-region = "us-east-1"
+# `region` ("us-west-2") - sets the AWS region to build your cluster in.
+region = "us-west-2"
 
 # `ami` (required) - The base AMI for the created nodes, This AMI must exist in
 # the requested region for this environment to build properly.
@@ -31,12 +31,12 @@ ami = "ami-0ce4637fe61082643"
 # * For the GPU demos, we used p3.2xlarge client instances.
 # * For the Spark demos, you will need at least 4 t2.medium client
 #   instances.
-server_instance_type = "t3.medium"
+server_instance_type = "t2.medium"
 server_count         = "3"
-client_instance_type = "t3.medium"
+client_instance_type = "t2.medium"
 client_count         = "2"
 
 # `whitelist_ip` (required) - IP to whitelist for the security groups (set
 # to 0.0.0.0/0 for world).  
 #  - If it is not provided here, it will be requested interactively.
-whitelist_ip = "73.109.72.170/32"
+whitelist_ip = "97.113.155.50/32"

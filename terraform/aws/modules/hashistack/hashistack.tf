@@ -194,6 +194,7 @@ resource "aws_instance" "server" {
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.server_count
+  hibernation            = "true"
 
   # instance tags
   tags = merge(
@@ -209,6 +210,7 @@ resource "aws_instance" "server" {
     volume_type           = "gp2"
     volume_size           = var.root_block_device_size
     delete_on_termination = "true"
+    encrypted             = "true"
   }
 
   user_data            = data.template_file.user_data_server.rendered
@@ -222,6 +224,7 @@ resource "aws_instance" "client" {
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.client_count
   depends_on             = [aws_instance.server]
+  hibernation            = "true"
 
   # instance tags
   tags = merge(
@@ -237,6 +240,7 @@ resource "aws_instance" "client" {
     volume_type           = "gp2"
     volume_size           = var.root_block_device_size
     delete_on_termination = "true"
+    encrypted             = "true"
   }
 
   ebs_block_device {
