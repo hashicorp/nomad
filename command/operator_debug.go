@@ -78,9 +78,9 @@ Usage: nomad operator debug [options]
   token will also require 'agent:write', or enable_debug configuration set to
   true.
   
-  If event stream capture is enabled, the Job, Allocation, Deployment, 
-  and Evaluation topics require 'namespace:read-job' capabilities, the Node 
-  topic requires 'node:read'.  A 'management' token is required to capture 
+  If event stream capture is enabled, the Job, Allocation, Deployment,
+  and Evaluation topics require 'namespace:read-job' capabilities, the Node
+  topic requires 'node:read'.  A 'management' token is required to capture
   ACLToken, ACLPolicy, or all all events.
 
 General Options:
@@ -154,6 +154,14 @@ Debug Options:
     no longer in the buffer the stream will start at the next available index.
     Defaults to 0.
   
+  -event-topic=<Allocation,Evaluation,Job,Node,*>:<filter>
+    Enable event stream capture, filtered by comma delimited list of topic filters.
+    Examples:
+      "all" or "*:*" for all events
+      "Evaluation" or "Evaluation:*" for all evaluation events
+      "*:example" for all events related to the job "example"
+    Defaults to "none" (disabled).
+
   -interval=<interval>
     The interval between snapshots of the Nomad state. Set interval equal to
     duration to capture a single snapshot. Defaults to 30s.
@@ -187,16 +195,8 @@ Debug Options:
     necessary to get the configuration from a non-leader server.
 
   -output=<path>
-    Path to the parent directory of the output directory. If specified, no 
+    Path to the parent directory of the output directory. If specified, no
     archive is built. Defaults to the current directory.
-
-  -event-topic=<Allocation,Evaluation,Job,Node,*>:<filter>
-    Enable event stream capture, filtered by comma delimited list of topic filters.
-    Examples:
-      "all" or "*:*" for all events
-      "Evaluation" or "Evaluation:*" for all evaluation events
-      "*:example" for all events related to the job "example"
-    Defaults to "none" (disabled).
 
   -verbose
     Enable verbose output.
@@ -212,6 +212,7 @@ func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-duration":       complete.PredictAnything,
+			"-event-topic":    complete.PredictAnything,
 			"-event-index":    complete.PredictAnything,
 			"-interval":       complete.PredictAnything,
 			"-log-level":      complete.PredictSet("TRACE", "DEBUG", "INFO", "WARN", "ERROR"),
@@ -223,7 +224,6 @@ func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 			"-pprof-duration": complete.PredictAnything,
 			"-consul-token":   complete.PredictAnything,
 			"-vault-token":    complete.PredictAnything,
-			"-event-topic":    complete.PredictAnything,
 			"-verbose":        complete.PredictAnything,
 		})
 }
@@ -341,6 +341,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 	flags.StringVar(&duration, "duration", "2m", "")
 	flags.Int64Var(&eventIndex, "event-index", 0, "")
+	flags.StringVar(&eventTopic, "event-topic", "none", "")
 	flags.StringVar(&interval, "interval", "30s", "")
 	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
@@ -350,7 +351,6 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.BoolVar(&allowStale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
 	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
-	flags.StringVar(&eventTopic, "event-topic", "none", "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	c.consul = &external{tls: &api.TLSConfig{}}
