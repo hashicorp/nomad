@@ -8,7 +8,7 @@
     {{/if}}
     <li data-test-tab="allocations"><LinkTo @route="jobs.job.allocations" @query={{hash namespace=this.job.namespace.id}} @model={{@job}} @activeClass="is-active">Allocations</LinkTo></li>
     <li data-test-tab="evaluations"><LinkTo @route="jobs.job.evaluations" @query={{hash namespace=this.job.namespace.id}} @model={{@job}} @activeClass="is-active">Evaluations</LinkTo></li>
-    {{#if (and this.job.hasClientStatus (not this.job.hasChildren))}}
+    {{#if (and (can "read client") (and this.job.hasClientStatus (not this.job.hasChildren)))}}
       <li data-test-tab="clients"><LinkTo @route="jobs.job.clients" @query={{hash namespace=this.job.namespace.id}} @model={{@job}} @activeClass="is-active">Clients</LinkTo></li>
     {{/if}}
   </ul>

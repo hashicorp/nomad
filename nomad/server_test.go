@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -540,13 +541,13 @@ func TestServer_InvalidSchedulers(t *testing.T) {
 	}
 
 	config.EnabledSchedulers = []string{"batch"}
-	err := s.setupWorkers()
+	err := s.setupWorkers(s.shutdownCtx)
 	require.NotNil(err)
 	require.Contains(err.Error(), "scheduler not enabled")
 
 	// Set the config to have an unknown scheduler
 	config.EnabledSchedulers = []string{"batch", structs.JobTypeCore, "foo"}
-	err = s.setupWorkers()
+	err = s.setupWorkers(s.shutdownCtx)
 	require.NotNil(err)
 	require.Contains(err.Error(), "foo")
 }
@@ -576,4 +577,70 @@ func TestServer_RPCNameAndRegionValidation(t *testing.T) {
 			"expected %q in region %q to validate as %v",
 			tc.name, tc.region, tc.expected)
 	}
+}
+
+func TestServer_ReloadSchedulers_NumSchedulers(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 8
+	})
+	defer cleanupS1()
+
+	require.Equal(t, s1.config.NumSchedulers, len(s1.workers))
+
+	config := DefaultConfig()
+	config.NumSchedulers = 4
+	require.NoError(t, s1.Reload(config))
+
+	time.Sleep(1 * time.Second)
+	require.Equal(t, config.NumSchedulers, len(s1.workers))
+}
+
+func TestServer_ReloadSchedulers_EnabledSchedulers(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.EnabledSchedulers = []string{structs.JobTypeCore, structs.JobTypeSystem}
+	})
+	defer cleanupS1()
+
+	require.Equal(t, s1.config.NumSchedulers, len(s1.workers))
+
+	config := DefaultConfig()
+	config.EnabledSchedulers = []string{structs.JobTypeCore, structs.JobTypeSystem, structs.JobTypeBatch}
+	require.NoError(t, s1.Reload(config))
+
+	time.Sleep(1 * time.Second)
+	require.Equal(t, config.NumSchedulers, len(s1.workers))
+	require.ElementsMatch(t, config.EnabledSchedulers, s1.GetSchedulerWorkerConfig().EnabledSchedulers)
+
+}
+
+func TestServer_ReloadSchedulers_InvalidSchedulers(t *testing.T) {
+	t.Parallel()
+
+	// Set the config to not have the core scheduler
+	config := DefaultConfig()
+	logger := testlog.HCLogger(t)
+	s := &Server{
+		config: config,
+		logger: logger,
+	}
+	s.config.NumSchedulers = 0
+	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
+	s.shutdownCh = s.shutdownCtx.Done()
+
+	config.EnabledSchedulers = []string{"_core", "batch"}
+	err := s.setupWorkers(s.shutdownCtx)
+	require.Nil(t, err)
+	origWC := s.GetSchedulerWorkerConfig()
+	reloadSchedulers(s, &SchedulerWorkerPoolArgs{NumSchedulers: config.NumSchedulers, EnabledSchedulers: []string{"batch"}})
+	currentWC := s.GetSchedulerWorkerConfig()
+	require.Equal(t, origWC, currentWC)
+
+	// Set the config to have an unknown scheduler
+	reloadSchedulers(s, &SchedulerWorkerPoolArgs{NumSchedulers: config.NumSchedulers, EnabledSchedulers: []string{"_core", "foo"}})
+	currentWC = s.GetSchedulerWorkerConfig()
+	require.Equal(t, origWC, currentWC)
 }

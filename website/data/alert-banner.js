@@ -1,12 +1,11 @@
 export const ALERT_BANNER_ACTIVE = true
 // https://github.com/hashicorp/web-components/tree/master/packages/alert-banner
 export default {
-  tag: 'ANNOUNCEMENT',
-  url: 'https://www.hashicorp.com/blog/announcing-hashicorp-nomad-1-2',
-  text:
-    'Nomad 1.2.0 is now generally available, which includes 3 new major features and many improvements.',
-  linkText: 'Learn more',
+  tag: 'Survey',
+  url: 'https://docs.google.com/forms/d/e/1FAIpQLSeyDEyQXzkijZnkXjj8qVb_5IydajRkFnOrPjDNoysFs-6jDQ/viewform',
+  text: 'Using Nomad for edge workloads? We want to hear about it!',
+  linkText: 'Fill out our user survey',
   // Set the expirationDate prop with a datetime string (e.g. '2020-01-31T12:00:00-07:00')
   // if you'd like the component to stop showing at or after a certain date
-  expirationDate: '2021-11-23T00:00:00-07:00',
+  expirationDate: '2022-02-08T23:00:00-07:00',
 }

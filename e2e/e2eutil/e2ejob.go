@@ -28,8 +28,8 @@ type e2eJob struct {
 	jobID   string
 }
 
-func (e *e2eJob) Name() string {
-	return filepath.Base(e.jobfile)
+func (j *e2eJob) Name() string {
+	return filepath.Base(j.jobfile)
 }
 
 // Ensure cluster has leader and at least 1 client node

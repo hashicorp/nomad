@@ -12,11 +12,11 @@ export default scope => ({
     scope: '.legend',
 
     items: collection('li', {
-      label: attribute('data-test-legent-label'),
+      label: attribute('data-test-legend-label'),
     }),
 
     clickableItems: collection('li.is-clickable', {
-      label: attribute('data-test-legent-label'),
+      label: attribute('data-test-legend-label'),
       click: clickable('a'),
     }),
   },

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
 )
 
@@ -47,7 +48,7 @@ func TestCommand_Args(t *testing.T) {
 		},
 		{
 			[]string{"-server"},
-			"Must specify data directory",
+			"Must specify \"data_dir\" config option or \"data-dir\" CLI flag",
 		},
 		{
 			[]string{"-client", "-alloc-dir="},
@@ -362,6 +363,33 @@ func TestIsValidConfig(t *testing.T) {
 					MaxDynamicPort: 5000,
 				},
 			},
+		},
+		{
+			name: "BadReservedPorts",
+			conf: Config{
+				Client: &ClientConfig{
+					Enabled: true,
+					Reserved: &Resources{
+						ReservedPorts: "3-2147483647",
+					},
+				},
+			},
+			err: `reserved.reserved_ports "3-2147483647" invalid: port must be < 65536 but found 2147483647`,
+		},
+		{
+			name: "BadHostNetworkReservedPorts",
+			conf: Config{
+				Client: &ClientConfig{
+					Enabled: true,
+					HostNetworks: []*structs.ClientHostNetworkConfig{
+						&structs.ClientHostNetworkConfig{
+							Name:          "test",
+							ReservedPorts: "3-2147483647",
+						},
+					},
+				},
+			},
+			err: `host_network["test"].reserved_ports "3-2147483647" invalid: port must be < 65536 but found 2147483647`,
 		},
 	}
 

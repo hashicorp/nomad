@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Rework meta commands cli flag logic to handle TLS options individually. 
+```

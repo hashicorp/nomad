@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
@@ -1006,6 +1007,28 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	assert.EqualValues(resp.Index, 1000, "Wrong Index")
 	assert.Len(resp2.Deployments, 1, "Deployments")
 	assert.Equal(resp2.Deployments[0].ID, d.ID, "Deployment ID")
+
+	// add another deployment in another namespace
+
+	j2 := mock.Job()
+	d2 := mock.Deployment()
+	j2.Namespace = "prod"
+	d2.Namespace = "prod"
+	d2.JobID = j2.ID
+	assert.Nil(state.UpsertNamespaces(1001, []*structs.Namespace{{Name: "prod"}}))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1002, j2), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1003, d2), "UpsertDeployment")
+
+	// Lookup the deployments with wildcard namespace
+	get = &structs.DeploymentListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.AllNamespacesSentinel,
+		},
+	}
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
+	assert.EqualValues(resp.Index, 1003, "Wrong Index")
+	assert.Len(resp.Deployments, 2, "Deployments")
 }
 
 func TestDeploymentEndpoint_List_ACL(t *testing.T) {
@@ -1132,6 +1155,131 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	assert.Equal(d2.ID, resp2.Deployments[0].ID, "Deployment ID")
 	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+}
+
+func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
+	t.Parallel()
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// create a set of deployments. these are in the order that the
+	// state store will return them from the iterator (sorted by key),
+	// for ease of writing tests
+	mocks := []struct {
+		id        string
+		namespace string
+		jobID     string
+		status    string
+	}{
+		{id: "aaaa1111-3350-4b4b-d185-0e1992ed43e9"},
+		{id: "aaaaaa22-3350-4b4b-d185-0e1992ed43e9"},
+		{id: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9", namespace: "non-default"},
+		{id: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"},
+		{id: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9"},
+		{id: "aaaaaacc-3350-4b4b-d185-0e1992ed43e9"},
+		{id: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9"},
+	}
+
+	state := s1.fsm.State()
+	index := uint64(1000)
+
+	for _, m := range mocks {
+		index++
+		deployment := mock.Deployment()
+		deployment.Status = structs.DeploymentStatusCancelled
+		deployment.ID = m.id
+		if m.namespace != "" { // defaults to "default"
+			deployment.Namespace = m.namespace
+		}
+		require.NoError(t, state.UpsertDeployment(index, deployment))
+	}
+
+	aclToken := mock.CreatePolicyAndToken(t, state, 1100, "test-valid-read",
+		mock.NamespacePolicy(structs.DefaultNamespace, "read", nil)).
+		SecretID
+
+	cases := []struct {
+		name              string
+		namespace         string
+		prefix            string
+		nextToken         string
+		pageSize          int32
+		expectedNextToken string
+		expectedIDs       []string
+	}{
+		{
+			name:              "test01 size-2 page-1 default NS",
+			pageSize:          2,
+			expectedNextToken: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test02 size-2 page-1 default NS with prefix",
+			prefix:            "aaaa",
+			pageSize:          2,
+			expectedNextToken: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test03 size-2 page-2 default NS",
+			pageSize:          2,
+			nextToken:         "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test04 size-2 page-2 default NS with prefix",
+			prefix:            "aaaa",
+			pageSize:          2,
+			nextToken:         "aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:        "test5 no valid results with filters and prefix",
+			prefix:      "cccc",
+			pageSize:    2,
+			nextToken:   "",
+			expectedIDs: []string{},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.DeploymentListRequest{
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Namespace: tc.namespace,
+					Prefix:    tc.prefix,
+					PerPage:   tc.pageSize,
+					NextToken: tc.nextToken,
+				},
+			}
+			req.AuthToken = aclToken
+			var resp structs.DeploymentListResponse
+			require.NoError(t, msgpackrpc.CallWithCodec(codec, "Deployment.List", req, &resp))
+			gotIDs := []string{}
+			for _, deployment := range resp.Deployments {
+				gotIDs = append(gotIDs, deployment.ID)
+			}
+			require.Equal(t, tc.expectedIDs, gotIDs, "unexpected page of deployments")
+			require.Equal(t, tc.expectedNextToken, resp.QueryMeta.NextToken, "unexpected NextToken")
+		})
 	}
 }
 

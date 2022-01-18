@@ -69,6 +69,24 @@ func BenchmarkHTTPRequests(b *testing.B) {
 	})
 }
 
+func TestMultipleInterfaces(t *testing.T) {
+	httpIps := []string{"127.0.0.1", "127.0.0.2"}
+
+	s := makeHTTPServer(t, func(c *Config) {
+		c.Addresses.HTTP = strings.Join(httpIps, " ")
+		c.ACL.Enabled = true
+	})
+	defer s.Shutdown()
+
+	httpPort := s.ports[0]
+	for _, ip := range httpIps {
+		resp, err := http.Get(fmt.Sprintf("http://%s:%d/", ip, httpPort))
+
+		assert.Nil(t, err)
+		assert.Equal(t, resp.StatusCode, 200)
+	}
+}
+
 // TestRootFallthrough tests rootFallthrough handler to
 // verify redirect and 404 behavior
 func TestRootFallthrough(t *testing.T) {
@@ -574,6 +592,53 @@ func TestParseBool(t *testing.T) {
 	}
 }
 
+func Test_parseInt(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Input    string
+		Expected *int
+		Err      bool
+	}{
+		{
+			Input:    "",
+			Expected: nil,
+		},
+		{
+			Input:    "13",
+			Expected: helper.IntToPtr(13),
+		},
+		{
+			Input:    "99",
+			Expected: helper.IntToPtr(99),
+		},
+		{
+			Input: "ten",
+			Err:   true,
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run("Input-"+tc.Input, func(t *testing.T) {
+			testURL, err := url.Parse("http://localhost/foo?eval_priority=" + tc.Input)
+			require.NoError(t, err)
+			req := &http.Request{
+				URL: testURL,
+			}
+
+			result, err := parseInt(req, "eval_priority")
+			if tc.Err {
+				require.Error(t, err)
+				require.Nil(t, result)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.Expected, result)
+			}
+		})
+	}
+}
+
 func TestParsePagination(t *testing.T) {
 	t.Parallel()
 	s := makeHTTPServer(t, nil)
@@ -897,14 +962,9 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			// Use a fake agent since the HTTP server should never start
-			agent := &Agent{
-				logger: testlog.HCLogger(t),
-			}
-
 			conf := &Config{
-				normalizedAddrs: &Addresses{
-					HTTP: "localhost:0", // port is never used
+				normalizedAddrs: &NormalizedAddrs{
+					HTTP: []string{"localhost:0"}, // port is never used
 				},
 				TLSConfig: &config.TLSConfig{
 					EnableHTTP: tc.tls,
@@ -915,7 +975,14 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 				},
 			}
 
-			srv, err := NewHTTPServer(agent, conf)
+			// Use a fake agent since the HTTP server should never start
+			agent := &Agent{
+				logger:     testlog.HCLogger(t),
+				httpLogger: testlog.HCLogger(t),
+				config:     conf,
+			}
+
+			srv, err := NewHTTPServers(agent, conf)
 			require.Error(t, err)
 			require.Nil(t, srv)
 			require.Contains(t, err.Error(), tc.expectedErr)

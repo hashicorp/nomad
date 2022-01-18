@@ -25,8 +25,7 @@ module.exports = function(environment) {
 
     APP: {
       blockingQueries: true,
-      // TODO: revert before merging to main.
-      mirageScenario: 'sysbatchSmall', // convert to 'sysbatchSmall' when working on feature
+      mirageScenario: 'topoMedium',
       mirageWithNamespaces: false,
       mirageWithTokens: true,
       mirageWithRegions: true,

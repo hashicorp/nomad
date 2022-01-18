@@ -120,6 +120,10 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		fp.Attributes["driver.docker.privileged.enabled"] = pstructs.NewBoolAttribute(true)
 	}
 
+	if d.config.PidsLimit > 0 {
+		fp.Attributes["driver.docker.pids.limit"] = pstructs.NewIntAttribute(d.config.PidsLimit, "")
+	}
+
 	if d.config.Volumes.Enabled {
 		fp.Attributes["driver.docker.volumes.enabled"] = pstructs.NewBoolAttribute(true)
 	}

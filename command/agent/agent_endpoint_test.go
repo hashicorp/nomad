@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"syscall"
@@ -19,6 +20,7 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -263,7 +265,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	t.Run("invalid log_json parameter", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_json=no", nil)
-			require.Nil(t, err)
+			require.NoError(t, err)
 			resp := newClosableRecorder()
 
 			// Make the request
@@ -276,7 +278,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	t.Run("unknown log_level", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=unknown", nil)
-			require.Nil(t, err)
+			require.NoError(t, err)
 			resp := newClosableRecorder()
 
 			// Make the request
@@ -289,7 +291,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	t.Run("check for specific log level", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn", nil)
-			require.Nil(t, err)
+			require.NoError(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()
 
@@ -323,7 +325,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	t.Run("plain output", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=debug&plain=true", nil)
-			require.Nil(t, err)
+			require.NoError(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()
 
@@ -357,7 +359,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	t.Run("logs for a specific node", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn&node_id="+s.client.NodeID(), nil)
-			require.Nil(t, err)
+			require.NoError(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()
 
@@ -397,7 +399,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	t.Run("logs for a local client with no server running on agent", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn", nil)
-			require.Nil(t, err)
+			require.NoError(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()
 
@@ -595,7 +597,7 @@ func TestAgent_PprofRequest(t *testing.T) {
 				}
 
 				req, err := http.NewRequest("GET", url, nil)
-				require.Nil(t, err)
+				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
 				resp, err := s.Server.AgentPprofRequest(respW, req)
@@ -913,7 +915,7 @@ func TestHTTP_AgentListKeys(t *testing.T) {
 		respW := httptest.NewRecorder()
 
 		out, err := s.Server.KeyringOperationRequest(respW, req)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		kresp := out.(structs.KeyringResponse)
 		require.Len(t, kresp.Keys, 1)
 	})
@@ -1460,6 +1462,589 @@ func TestHTTP_XSS_Monitor(t *testing.T) {
 			case <-deadline:
 				t.Fatalf("timed out waiting for closing error from handler")
 			}
+		})
+	}
+}
+
+// ----------------------------
+// SchedulerWorkerInfoAPI tests
+// ----------------------------
+type schedulerWorkerAPITest_testCase struct {
+	name              string // test case name
+	request           schedulerWorkerAPITest_testRequest
+	whenACLNotEnabled schedulerWorkerAPITest_testExpect
+	whenACLEnabled    schedulerWorkerAPITest_testExpect
+}
+
+type schedulerWorkerAPITest_testRequest struct {
+	verb        string
+	aclToken    string
+	requestBody string
+}
+
+type schedulerWorkerAPITest_testExpect struct {
+	statusCode int
+	response   interface{}
+	err        error
+	isError    bool
+}
+
+func (te schedulerWorkerAPITest_testExpect) Code() int {
+	return te.statusCode
+}
+
+func schedulerWorkerInfoTest_testCases() []schedulerWorkerAPITest_testCase {
+	forbidden := schedulerWorkerAPITest_testExpect{
+		statusCode: http.StatusForbidden,
+		response:   structs.ErrPermissionDenied.Error(),
+		isError:    true,
+	}
+	invalidMethod := schedulerWorkerAPITest_testExpect{
+		statusCode: http.StatusMethodNotAllowed,
+		response:   ErrInvalidMethod,
+		isError:    true,
+	}
+	success := schedulerWorkerAPITest_testExpect{
+		statusCode: http.StatusOK,
+		response: &api.AgentSchedulerWorkersInfo{
+			Schedulers: []api.AgentSchedulerWorkerInfo{
+				{
+					ID:                "9b3713e0-6f74-0e1b-3b3e-d94f0c22dbf9",
+					EnabledSchedulers: []string{"_core", "batch"},
+					Started:           "2021-12-10 22:13:12.595366 -0500 EST m=+0.039016232",
+					Status:            "Pausing",
+					WorkloadStatus:    "WaitingToDequeue",
+				},
+				{
+					ID:                "ebda23e2-7f68-0c82-f0b2-f91d4581094d",
+					EnabledSchedulers: []string{"_core", "batch"},
+					Started:           "2021-12-10 22:13:12.595478 -0500 EST m=+0.039127886",
+					Status:            "Pausing",
+					WorkloadStatus:    "WaitingToDequeue",
+				},
+				{
+					ID:                "b3869c9b-64ff-686c-a003-e7d059d3a573",
+					EnabledSchedulers: []string{"_core", "batch"},
+					Started:           "2021-12-10 22:13:12.595501 -0500 EST m=+0.039151276",
+					Status:            "Pausing",
+					WorkloadStatus:    "WaitingToDequeue",
+				},
+				{
+					ID:                "cc5907c0-552e-bf36-0ca1-f150af7273c2",
+					EnabledSchedulers: []string{"_core", "batch"},
+					Started:           "2021-12-10 22:13:12.595691 -0500 EST m=+0.039341541",
+					Status:            "Starting",
+					WorkloadStatus:    "WaitingToDequeue",
+				},
+			},
+		},
+	}
+	return []schedulerWorkerAPITest_testCase{
+		{
+			name: "bad verb",
+			request: schedulerWorkerAPITest_testRequest{
+				verb:        "FOO",
+				aclToken:    "",
+				requestBody: "",
+			},
+			whenACLNotEnabled: invalidMethod,
+			whenACLEnabled:    invalidMethod,
+		},
+		{
+			name: "get without token",
+			request: schedulerWorkerAPITest_testRequest{
+				verb:        "GET",
+				aclToken:    "",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success,
+			whenACLEnabled:    forbidden,
+		},
+		{
+			name: "get with management token",
+			request: schedulerWorkerAPITest_testRequest{
+				verb:        "GET",
+				aclToken:    "management",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success,
+			whenACLEnabled:    success,
+		},
+		{
+			name: "get with read token",
+			request: schedulerWorkerAPITest_testRequest{
+				verb:        "GET",
+				aclToken:    "agent_read",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success,
+			whenACLEnabled:    success,
+		},
+		{
+			name: "get with invalid token",
+			request: schedulerWorkerAPITest_testRequest{
+				verb:        "GET",
+				aclToken:    "node_write",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success,
+			whenACLEnabled:    forbidden,
+		},
+	}
+}
+
+func TestHTTP_AgentSchedulerWorkerInfoRequest(t *testing.T) {
+	configFn := func(c *Config) {
+		var numSchedulers = 4
+		c.Server.NumSchedulers = &numSchedulers
+		c.Server.EnabledSchedulers = []string{"_core", "batch"}
+		c.Client.Enabled = false
+	}
+
+	for _, runACL := range []string{"no_acl", "acl"} {
+		t.Run(runACL, func(t *testing.T) {
+			tests := func(s *TestAgent) {
+				testingACLS := s.Config.ACL.Enabled
+				var tokens map[string]*structs.ACLToken
+				if s.Config.ACL.Enabled {
+					state := s.Agent.server.State()
+					tokens = make(map[string]*structs.ACLToken)
+
+					tokens["management"] = s.RootToken
+					tokens["agent_read"] = mock.CreatePolicyAndToken(t, state, 1005, "agent_read", mock.AgentPolicy(acl.PolicyRead))
+					tokens["agent_write"] = mock.CreatePolicyAndToken(t, state, 1007, "agent_write", mock.AgentPolicy(acl.PolicyWrite))
+					tokens["node_write"] = mock.CreatePolicyAndToken(t, state, 1009, "node_write", mock.NodePolicy(acl.PolicyWrite))
+				}
+
+				for _, tc := range schedulerWorkerInfoTest_testCases() {
+					t.Run(tc.name, func(t *testing.T) {
+						req, err := http.NewRequest(tc.request.verb, "/v1/agent/schedulers", bytes.NewReader([]byte(tc.request.requestBody)))
+						if testingACLS && tc.request.aclToken != "" {
+							setToken(req, tokens[tc.request.aclToken])
+						}
+						require.NoError(t, err)
+						respW := httptest.NewRecorder()
+						workerInfoResp, err := s.Server.AgentSchedulerWorkerInfoRequest(respW, req)
+
+						expected := tc.whenACLNotEnabled
+						if testingACLS {
+							expected = tc.whenACLEnabled
+						}
+
+						if expected.isError {
+							require.Error(t, err)
+							codedErr, ok := err.(HTTPCodedError)
+							require.True(t, ok, "expected a HTTPCodedError")
+							require.Equal(t, expected.Code(), codedErr.Code())
+							require.Equal(t, expected.response, codedErr.Error())
+							return
+						}
+
+						require.NoError(t, err)
+						workerInfo, ok := workerInfoResp.(*api.AgentSchedulerWorkersInfo)
+						require.True(t, ok, "expected an *AgentSchedulersWorkersInfo. received:%s", reflect.TypeOf(workerInfoResp))
+
+						expectWorkerInfo, ok := expected.response.(*api.AgentSchedulerWorkersInfo)
+						require.True(t, ok, "error casting test case to *AgentSchedulersWorkersInfo. received:%s", reflect.TypeOf(workerInfoResp))
+
+						var schedCount int = *s.Config.Server.NumSchedulers
+						require.Equal(t, schedCount, len(workerInfo.Schedulers), "must match num_schedulers")
+						require.Equal(t, len(expectWorkerInfo.Schedulers), len(workerInfo.Schedulers), "lengths must match")
+
+						for i, info := range expectWorkerInfo.Schedulers {
+							require.ElementsMatch(t, info.EnabledSchedulers, workerInfo.Schedulers[i].EnabledSchedulers)
+						}
+					})
+				}
+			}
+
+			if runACL == "acl" {
+				httpACLTest(t, configFn, tests)
+			} else {
+				httpTest(t, configFn, tests)
+			}
+		})
+	}
+}
+
+// ----------------------------
+// SchedulerWorkerConfigAPI tests
+// ----------------------------
+type scheduleWorkerConfigTest_workerRequestTest struct {
+	name              string // test case name
+	request           schedulerWorkerConfigTest_testRequest
+	whenACLNotEnabled schedulerWorkerConfigTest_testExpect
+	whenACLEnabled    schedulerWorkerConfigTest_testExpect
+}
+type schedulerWorkerConfigTest_testRequest struct {
+	verb        string
+	aclToken    string
+	requestBody string
+}
+type schedulerWorkerConfigTest_testExpect struct {
+	expectedResponseCode int
+	expectedResponse     interface{}
+}
+
+// These test cases are run for both the ACL and Non-ACL enabled servers. When
+// ACLS are not enabled, the request.aclTokens are ignored.
+func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequestTest {
+	forbidden := schedulerWorkerConfigTest_testExpect{
+		expectedResponseCode: http.StatusForbidden,
+		expectedResponse:     structs.ErrPermissionDenied.Error(),
+	}
+	invalidMethod := schedulerWorkerConfigTest_testExpect{
+		expectedResponseCode: http.StatusMethodNotAllowed,
+		expectedResponse:     ErrInvalidMethod,
+	}
+	invalidRequest := schedulerWorkerConfigTest_testExpect{
+		expectedResponseCode: http.StatusBadRequest,
+		expectedResponse:     "Invalid request",
+	}
+	success1 := schedulerWorkerConfigTest_testExpect{
+		expectedResponseCode: http.StatusOK,
+		expectedResponse:     &api.AgentSchedulerWorkerConfigResponse{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: 8},
+	}
+
+	success2 := schedulerWorkerConfigTest_testExpect{
+		expectedResponseCode: http.StatusOK,
+		expectedResponse:     &api.AgentSchedulerWorkerConfigResponse{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: 9},
+	}
+
+	return []scheduleWorkerConfigTest_workerRequestTest{
+		{
+			name: "bad verb",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "FOO",
+				aclToken:    "",
+				requestBody: "",
+			},
+			whenACLNotEnabled: invalidMethod,
+			whenACLEnabled:    invalidMethod,
+		},
+		{
+			name: "get without token",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "GET",
+				aclToken:    "",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    forbidden,
+		},
+		{
+			name: "get with management token",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "GET",
+				aclToken:    "management",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    success1,
+		},
+		{
+			name: "get with read token",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "GET",
+				aclToken:    "agent_read",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    success1,
+		},
+		{
+			name: "get with write token",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "GET",
+				aclToken:    "agent_write",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    success1,
+		},
+		{
+			name: "post with no token",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "POST",
+				aclToken:    "",
+				requestBody: `{"num_schedulers":9,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: success2,
+			whenACLEnabled:    forbidden,
+		},
+		{
+			name: "put with no token",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "PUT",
+				aclToken:    "",
+				requestBody: `{"num_schedulers":8,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    forbidden,
+		},
+		{
+			name: "post with invalid token",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "POST",
+				aclToken:    "node_write",
+				requestBody: `{"num_schedulers":9,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: success2,
+			whenACLEnabled:    forbidden,
+		},
+		{
+			name: "put with invalid token",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "PUT",
+				aclToken:    "node_write",
+				requestBody: `{"num_schedulers":8,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    forbidden,
+		},
+		{
+			name: "post with valid token",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "POST",
+				aclToken:    "agent_write",
+				requestBody: `{"num_schedulers":9,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: success2,
+			whenACLEnabled:    success2,
+		},
+		{
+			name: "put with valid token",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "PUT",
+				aclToken:    "agent_write",
+				requestBody: `{"num_schedulers":8,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    success1,
+		},
+		{
+			name: "post with good token and bad value",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "POST",
+				aclToken:    "agent_write",
+				requestBody: `{"num_schedulers":-1,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: invalidRequest,
+			whenACLEnabled:    invalidRequest,
+		},
+		{
+			name: "post with bad token and bad value",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "POST",
+				aclToken:    "node_write",
+				requestBody: `{"num_schedulers":-1,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: invalidRequest,
+			whenACLEnabled:    forbidden,
+		},
+		{
+			name: "put with good token and bad value",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "PUT",
+				aclToken:    "agent_write",
+				requestBody: `{"num_schedulers":-1,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: invalidRequest,
+			whenACLEnabled:    invalidRequest,
+		},
+		{
+			name: "put with bad token and bad value",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "PUT",
+				aclToken:    "node_write",
+				requestBody: `{"num_schedulers":-1,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: invalidRequest,
+			whenACLEnabled:    forbidden,
+		},
+		{
+			name: "post with bad json",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "POST",
+				aclToken:    "agent_write",
+				requestBody: `{num_schedulers:-1,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: invalidRequest,
+			whenACLEnabled:    invalidRequest,
+		},
+		{
+			name: "put with bad json",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        "PUT",
+				aclToken:    "agent_write",
+				requestBody: `{num_schedulers:-1,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: invalidRequest,
+			whenACLEnabled:    invalidRequest,
+		},
+	}
+}
+
+func TestHTTP_AgentSchedulerWorkerConfigRequest_NoACL(t *testing.T) {
+	configFn := func(c *Config) {
+		var numSchedulers = 8
+		c.Server.NumSchedulers = &numSchedulers
+		c.Server.EnabledSchedulers = []string{"_core", "batch"}
+		c.Client.Enabled = false
+	}
+	testFn := func(s *TestAgent) {
+		for _, tc := range schedulerWorkerConfigTest_testCases() {
+			t.Run(tc.name, func(t *testing.T) {
+
+				req, err := http.NewRequest(tc.request.verb, "/v1/agent/schedulers/config", bytes.NewReader([]byte(tc.request.requestBody)))
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+				workersI, err := s.Server.AgentSchedulerWorkerConfigRequest(respW, req)
+
+				switch tc.whenACLNotEnabled.expectedResponseCode {
+				case http.StatusBadRequest, http.StatusForbidden, http.StatusMethodNotAllowed:
+					schedulerWorkerTest_parseError(t, false, tc, workersI, err)
+				case http.StatusOK:
+					schedulerWorkerTest_parseSuccess(t, false, tc, workersI, err)
+				default:
+					require.Failf(t, "unexpected status code", "code: %v", tc.whenACLNotEnabled.expectedResponseCode)
+				}
+			})
+		}
+	}
+
+	httpTest(t, configFn, testFn)
+}
+
+func TestHTTP_AgentSchedulerWorkerConfigRequest_ACL(t *testing.T) {
+	configFn := func(c *Config) {
+		var numSchedulers = 8
+		c.Server.NumSchedulers = &numSchedulers
+		c.Server.EnabledSchedulers = []string{"_core", "batch"}
+		c.Client.Enabled = false
+	}
+
+	tests := func(s *TestAgent) {
+		state := s.Agent.server.State()
+		var tokens map[string]*structs.ACLToken = make(map[string]*structs.ACLToken)
+
+		tokens["management"] = s.RootToken
+		tokens["agent_read"] = mock.CreatePolicyAndToken(t, state, 1005, "agent_read", mock.AgentPolicy(acl.PolicyRead))
+		tokens["agent_write"] = mock.CreatePolicyAndToken(t, state, 1007, "agent_write", mock.AgentPolicy(acl.PolicyWrite))
+		tokens["node_write"] = mock.CreatePolicyAndToken(t, state, 1009, "node_write", mock.NodePolicy(acl.PolicyWrite))
+
+		for _, tc := range schedulerWorkerConfigTest_testCases() {
+			t.Run(tc.name, func(t *testing.T) {
+
+				req, err := http.NewRequest(tc.request.verb, "/v1/agent/schedulers", bytes.NewReader([]byte(tc.request.requestBody)))
+				if tc.request.aclToken != "" {
+					setToken(req, tokens[tc.request.aclToken])
+				}
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+				workersI, err := s.Server.AgentSchedulerWorkerConfigRequest(respW, req)
+
+				switch tc.whenACLEnabled.expectedResponseCode {
+				case http.StatusOK:
+					schedulerWorkerTest_parseSuccess(t, true, tc, workersI, err)
+				case http.StatusBadRequest, http.StatusForbidden, http.StatusMethodNotAllowed:
+					schedulerWorkerTest_parseError(t, true, tc, workersI, err)
+				default:
+					require.Failf(t, "unexpected status code", "code: %v", tc.whenACLEnabled.expectedResponseCode)
+				}
+			})
+		}
+	}
+
+	httpACLTest(t, configFn, tests)
+}
+
+func schedulerWorkerTest_parseSuccess(t *testing.T, isACLEnabled bool, tc scheduleWorkerConfigTest_workerRequestTest, workersI interface{}, err error) {
+	require.NoError(t, err)
+	require.NotNil(t, workersI)
+
+	testExpect := tc.whenACLNotEnabled
+	if isACLEnabled {
+		testExpect = tc.whenACLNotEnabled
+	}
+
+	// test into the response when we expect an okay
+	tcConfig, ok := testExpect.expectedResponse.(*api.AgentSchedulerWorkerConfigResponse)
+	require.True(t, ok, "expected response malformed - this is an issue with a test case.")
+
+	workersConfig, ok := workersI.(*api.AgentSchedulerWorkerConfigResponse)
+	require.True(t, ok, "response can not cast to an agentSchedulerWorkerConfig")
+	require.NotNil(t, workersConfig)
+
+	require.Equal(t, tcConfig.NumSchedulers, workersConfig.NumSchedulers)
+	require.ElementsMatch(t, tcConfig.EnabledSchedulers, workersConfig.EnabledSchedulers)
+}
+
+// schedulerWorkerTest_parseError parses the error response given
+// from the API call to make sure that it's a coded error and is the
+// expected value from the test case
+func schedulerWorkerTest_parseError(t *testing.T, isACLEnabled bool, tc scheduleWorkerConfigTest_workerRequestTest, workersI interface{}, err error) {
+	require.Error(t, err)
+	require.Nil(t, workersI)
+
+	codedError, ok := err.(HTTPCodedError)
+	require.True(t, ok, "expected an HTTPCodedError")
+	testExpect := tc.whenACLNotEnabled
+
+	if isACLEnabled {
+		testExpect = tc.whenACLEnabled
+	}
+
+	require.Equal(t, testExpect.expectedResponseCode, codedError.Code())
+	// this is a relaxed test to allow us to not have to create a case
+	// for concatenated error strings.
+	require.Contains(t, codedError.Error(), testExpect.expectedResponse)
+}
+
+func TestHTTP_AgentSchedulerWorkerInfoRequest_Client(t *testing.T) {
+	verbs := []string{"GET", "POST", "PUT"}
+	path := "schedulers"
+
+	for _, verb := range verbs {
+		t.Run(verb, func(t *testing.T) {
+			httpTest(t, nil, func(s *TestAgent) {
+				s.Agent.server = nil
+				req, err := http.NewRequest(verb, fmt.Sprintf("/v1/agent/%v", path), nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				_, err = s.Server.AgentSchedulerWorkerInfoRequest(respW, req)
+
+				require.Error(t, err)
+				codedErr, ok := err.(HTTPCodedError)
+				require.True(t, ok, "expected a HTTPCodedError")
+				require.Equal(t, http.StatusBadRequest, codedErr.Code())
+				require.Equal(t, ErrServerOnly, codedErr.Error())
+			})
+		})
+	}
+}
+
+func TestHTTP_AgentSchedulerWorkerConfigRequest_Client(t *testing.T) {
+	verbs := []string{"GET", "POST", "PUT"}
+	path := "schedulers/config"
+
+	for _, verb := range verbs {
+		t.Run(verb, func(t *testing.T) {
+			httpTest(t, nil, func(s *TestAgent) {
+				s.Agent.server = nil
+				req, err := http.NewRequest(verb, fmt.Sprintf("/v1/agent/%v", path), nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				_, err = s.Server.AgentSchedulerWorkerInfoRequest(respW, req)
+
+				require.Error(t, err)
+				codedErr, ok := err.(HTTPCodedError)
+				require.True(t, ok, "expected a HTTPCodedError")
+				require.Equal(t, http.StatusBadRequest, codedErr.Code())
+				require.Equal(t, ErrServerOnly, codedErr.Error())
+			})
 		})
 	}
 }

@@ -7,10 +7,11 @@
 
   <JobPage::Parts::JobClientStatusSummary
     @job={{this.job}}
-    @jobClientStatus={{this.jobClientStatus}}
+    @nodes={{this.nodes}}
+    @forceCollapsed={{not this.shouldDisplayClientInformation}}
     @gotoClients={{this.gotoClients}} />
 
-  <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed="true" />
+  <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed={{this.shouldDisplayClientInformation}} />
 
   <JobPage::Parts::PlacementFailures @job={{this.job}} />
 

@@ -262,7 +262,19 @@ func (h *Harness) Snapshot() State {
 // a snapshot of current state using the harness for planning.
 func (h *Harness) Scheduler(factory Factory) Scheduler {
 	logger := testlog.HCLogger(h.t)
-	return factory(logger, h.Snapshot(), h)
+	eventsCh := make(chan interface{})
+
+	// Listen for and log events from the scheduler.
+	go func() {
+		for e := range eventsCh {
+			switch event := e.(type) {
+			case *PortCollisionEvent:
+				h.t.Errorf("unexpected worker eval event: %v", event.Reason)
+			}
+		}
+	}()
+
+	return factory(logger, eventsCh, h.Snapshot(), h)
 }
 
 // Process is used to process an evaluation given a factory

@@ -34,7 +34,8 @@ exit after scheduling and deployment have finished or failed.
 On successful job submission and scheduling, exit code 0 will be returned. If
 there are job placement issues encountered (unsatisfiable constraints, resource
 exhaustion, etc), then the exit code will be 2. Any other errors, including
-client connection issues or internal errors, are indicated by exit code 1.
+deployment failures, client connection issues, or internal errors, are indicated
+by exit code 1.
 
 If the job has specified the region, the `-region` flag and `$NOMAD_REGION`
 environment variable are overridden and the job's region is used.
@@ -69,6 +70,9 @@ that volume.
 - `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
   [eval status] command.
+
+- `-eval-priority`: Override the priority of the evaluations produced as a result
+  of this job submission. By default, this is set to the priority of the job.
 
 - `-hcl1`: If set, HCL1 parser is used for parsing the job spec.
 

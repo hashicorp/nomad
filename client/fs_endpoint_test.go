@@ -1568,7 +1568,7 @@ func TestFS_streamFile_NoFile(t *testing.T) {
 	defer framer.Destroy()
 
 	err := c.endpoints.FileSystem.streamFile(
-		context.Background(), 0, "foo", 0, ad, framer, nil)
+		context.Background(), 0, "foo", 0, ad, framer, nil, false)
 	require.Error(t, err)
 	if runtime.GOOS == "windows" {
 		require.Contains(t, err.Error(), "cannot find the file")
@@ -1629,7 +1629,7 @@ func TestFS_streamFile_Modify(t *testing.T) {
 	// Start streaming
 	go func() {
 		if err := c.endpoints.FileSystem.streamFile(
-			context.Background(), 0, streamFile, 0, ad, framer, nil); err != nil {
+			context.Background(), 0, streamFile, 0, ad, framer, nil, false); err != nil {
 			t.Fatalf("stream() failed: %v", err)
 		}
 	}()
@@ -1704,7 +1704,7 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 	// Start streaming
 	go func() {
 		if err := c.endpoints.FileSystem.streamFile(
-			context.Background(), 0, streamFile, 0, ad, framer, nil); err != nil {
+			context.Background(), 0, streamFile, 0, ad, framer, nil, false); err != nil {
 			t.Fatalf("stream() failed: %v", err)
 		}
 	}()
@@ -1808,7 +1808,7 @@ func TestFS_streamImpl_Delete(t *testing.T) {
 	// Start streaming
 	go func() {
 		if err := c.endpoints.FileSystem.streamFile(
-			context.Background(), 0, streamFile, 0, ad, framer, nil); err != nil {
+			context.Background(), 0, streamFile, 0, ad, framer, nil, false); err != nil {
 			t.Fatalf("stream() failed: %v", err)
 		}
 	}()
@@ -1918,12 +1918,28 @@ func TestFS_logsImpl_Follow(t *testing.T) {
 	expected := []byte("012345")
 	initialWrites := 3
 
-	writeToFile := func(index int, data []byte) {
+	filePath := func(index int) string {
 		logFile := fmt.Sprintf("%s.%s.%d", task, logType, index)
-		logFilePath := filepath.Join(logDir, logFile)
+		return filepath.Join(logDir, logFile)
+	}
+	writeToFile := func(index int, data []byte) {
+		logFilePath := filePath(index)
 		err := ioutil.WriteFile(logFilePath, data, 0777)
 		if err != nil {
 			t.Fatalf("Failed to create file: %v", err)
+		}
+	}
+	appendToFile := func(index int, data []byte) {
+		logFilePath := filePath(index)
+		f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_WRONLY, 0600)
+		if err != nil {
+			t.Fatalf("Failed to create file: %v", err)
+		}
+
+		defer f.Close()
+
+		if _, err = f.Write(data); err != nil {
+			t.Fatalf("Failed to write file: %v", err)
 		}
 	}
 	for i := 0; i < initialWrites; i++ {
@@ -1967,11 +1983,13 @@ func TestFS_logsImpl_Follow(t *testing.T) {
 		t.Fatalf("did not receive data: got %q", string(received))
 	}
 
-	// We got the first chunk of data, write out the rest to the next file
+	// We got the first chunk of data, write out the rest splitted
+	// between the last file and to the next file
 	// at an index much ahead to check that it is following and detecting
 	// skips
 	skipTo := initialWrites + 10
-	writeToFile(skipTo, expected[initialWrites:])
+	appendToFile(initialWrites-1, expected[initialWrites:initialWrites+1])
+	writeToFile(skipTo, expected[initialWrites+1:])
 
 	select {
 	case <-fullResultCh:

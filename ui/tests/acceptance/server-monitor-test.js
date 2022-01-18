@@ -33,9 +33,12 @@ module('Acceptance | server monitor', function(hooks) {
 
   test('/servers/:id/monitor should have a breadcrumb trail linking back to servers', async function(assert) {
     await ServerMonitor.visit({ name: agent.name });
-
-    assert.equal(Layout.breadcrumbFor('servers.index').text, 'Servers');
-    assert.equal(Layout.breadcrumbFor('servers.server').text, agent.name);
+    assert.equal(
+      Layout.breadcrumbFor('servers.index').text,
+      'Servers',
+      'The page should read the breadcrumb Servers'
+    );
+    assert.equal(Layout.breadcrumbFor('servers.server').text, `Server ${agent.name}`);
 
     await Layout.breadcrumbFor('servers.index').visit();
     assert.equal(currentURL(), '/servers');

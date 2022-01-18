@@ -1,3 +1,21 @@
+## 1.2.3 (December 13, 2021)
+
+SECURITY:
+
+* Updated to Go 1.17.5. Go 1.17.3 contained 2 CVEs. [CVE-2021-44717](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44717) could allow a task on a Unix system with exhausted file handles to misdirect I/O. [CVE-2021-44716](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44716) could create unbounded memory growth in HTTP2 servers. Nomad servers do not use HTTP2. [[GH-11662](https://github.com/hashicorp/nomad/issues/11662)]
+
+## 1.2.2 (November 24, 2021)
+
+BUG FIXES:
+
+* scheduler: Fix panic when system jobs are filtered by node class [[GH-11565](https://github.com/hashicorp/nomad/issues/11565)]
+
+## 1.2.1 (November 19, 2021)
+
+SECURITY:
+
+* Allow limiting QEMU arguments to reduce access to host resources. [CVE-2021-43415](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-43415) [[GH-11542](https://github.com/hashicorp/nomad/issues/11542)]
+
 ## 1.2.0 (November 15, 2021)
 
 FEATURES:
@@ -65,6 +83,18 @@ BUG FIXES:
 * rpc: Set the job scale eval priority to the job priority [[GH-11429](https://github.com/hashicorp/nomad/issues/11429)]
 * server: Fixed a panic on arm64 platform when dispatching a job with a payload [[GH-11396](https://github.com/hashicorp/nomad/issues/11396)]
 * server: Fixed a panic that may occur when preempting multiple allocations on the same node [[GH-11346](https://github.com/hashicorp/nomad/issues/11346)]
+
+## 1.1.9 (December 13, 2021)
+
+SECURITY:
+
+* Updated to Go 1.16.12. Earlier versions of Go contained 2 CVEs. [CVE-2021-44717](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44717) could allow a task on a Unix system with exhausted file handles to misdirect I/O. [CVE-2021-44716](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44716) could create unbounded memory growth in HTTP2 servers. Nomad servers do not use HTTP2. [[GH-11662](https://github.com/hashicorp/nomad/issues/11662)]
+
+## 1.1.8 (November 19, 2021)
+
+SECURITY:
+
+* Allow limiting QEMU arguments to reduce access to host resources. [CVE-2021-43415](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-43415) [[GH-11542](https://github.com/hashicorp/nomad/issues/11542)]
 
 ## 1.1.7 (November 15, 2021)
 
@@ -318,6 +348,18 @@ BUG FIXES:
  * server: Fixed a bug where jobs may not run if submitted with ParentID field set [[GH-10424](https://github.com/hashicorp/nomad/issues/10424)]
  * server: Fixed a panic that may arise on submission of jobs containing invalid service checks [[GH-10154](https://github.com/hashicorp/nomad/issues/10154)]
  * ui: Fixed the rendering of interstitial components shown after processing a dynamic application sizing recommendation. [[GH-10094](https://github.com/hashicorp/nomad/pull/10094)]
+
+## 1.0.15 (December 13, 2021)
+
+SECURITY:
+
+* Updated to Go 1.16.12. Earlier versions of Go contained 2 CVEs. [CVE-2021-44717](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44717) could allow a task on a Unix system with exhausted file handles to misdirect I/O. [CVE-2021-44716](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44716) could create unbounded memory growth in HTTP2 servers. Nomad servers do not use HTTP2. [[GH-11662](https://github.com/hashicorp/nomad/issues/11662)]
+
+## 1.0.14 (November 19, 2021)
+
+SECURITY:
+
+* Allow limiting QEMU arguments to reduce access to host resources. [CVE-2021-43415](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-43415) [[GH-11542](https://github.com/hashicorp/nomad/issues/11542)]
 
 ## 1.0.13 (November 15, 2021)
 
@@ -1343,7 +1385,7 @@ FEATURES:
  * core: Add `nomad alloc stop` command to reschedule allocs [[GH-5512](https://github.com/hashicorp/nomad/pull/5512)]
  * core: Add `nomad alloc signal` command to signal allocs and tasks [[GH-5515](https://github.com/hashicorp/nomad/pull/5515)]
  * core: Add `nomad alloc restart` command to restart allocs and tasks [[GH-5502](https://github.com/hashicorp/nomad/pull/5502)]
- * code: Add `nomad alloc exec` command for debugging and running commands in a alloc [[GH-5632](https://github.com/hashicorp/nomad/pull/5632)]
+ * code: Add `nomad alloc exec` command for debugging and running commands in an alloc [[GH-5632](https://github.com/hashicorp/nomad/pull/5632)]
  * core/enterprise: Preemption capabilities for batch and service jobs
  * ui: Preemption reporting everywhere where allocations are shown and as part of the plan step of job submit [[GH-5594](https://github.com/hashicorp/nomad/issues/5594)]
  * ui: Ability to search clients list by class, status, datacenter, or eligibility flags [[GH-5318](https://github.com/hashicorp/nomad/issues/5318)]

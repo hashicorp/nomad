@@ -187,6 +187,60 @@ func TestJobs_Register_NoPreserveCounts(t *testing.T) {
 	require.Equal(3, status.TaskGroups["group3"].Desired) // new     => as specified
 }
 
+func TestJobs_Register_EvalPriority(t *testing.T) {
+	t.Parallel()
+	requireAssert := require.New(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	// Listing jobs before registering returns nothing
+	listResp, _, err := c.Jobs().List(nil)
+	requireAssert.Nil(err)
+	requireAssert.Len(listResp, 0)
+
+	// Create a job and register it with an eval priority.
+	job := testJob()
+	registerResp, wm, err := c.Jobs().RegisterOpts(job, &RegisterOptions{EvalPriority: 99}, nil)
+	requireAssert.Nil(err)
+	requireAssert.NotNil(registerResp)
+	requireAssert.NotEmpty(registerResp.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Check the created job evaluation has a priority that matches our desired
+	// value.
+	evalInfo, _, err := c.Evaluations().Info(registerResp.EvalID, nil)
+	requireAssert.NoError(err)
+	requireAssert.Equal(99, evalInfo.Priority)
+}
+
+func TestJobs_Register_NoEvalPriority(t *testing.T) {
+	t.Parallel()
+	requireAssert := require.New(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	// Listing jobs before registering returns nothing
+	listResp, _, err := c.Jobs().List(nil)
+	requireAssert.Nil(err)
+	requireAssert.Len(listResp, 0)
+
+	// Create a job and register it with an eval priority.
+	job := testJob()
+	registerResp, wm, err := c.Jobs().RegisterOpts(job, nil, nil)
+	requireAssert.Nil(err)
+	requireAssert.NotNil(registerResp)
+	requireAssert.NotEmpty(registerResp.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Check the created job evaluation has a priority that matches the job
+	// priority.
+	evalInfo, _, err := c.Evaluations().Info(registerResp.EvalID, nil)
+	requireAssert.NoError(err)
+	requireAssert.Equal(*job.Priority, evalInfo.Priority)
+}
+
 func TestJobs_Validate(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, nil)
@@ -1626,6 +1680,68 @@ func TestJobs_Deregister(t *testing.T) {
 	if n := len(result); n != 0 {
 		t.Fatalf("expected 0 jobs, got: %d", n)
 	}
+}
+
+func TestJobs_Deregister_EvalPriority(t *testing.T) {
+	t.Parallel()
+	requireAssert := require.New(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	// Listing jobs before registering returns nothing
+	listResp, _, err := c.Jobs().List(nil)
+	requireAssert.Nil(err)
+	requireAssert.Len(listResp, 0)
+
+	// Create a job and register it.
+	job := testJob()
+	registerResp, wm, err := c.Jobs().Register(job, nil)
+	requireAssert.Nil(err)
+	requireAssert.NotNil(registerResp)
+	requireAssert.NotEmpty(registerResp.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Deregister the job with an eval priority.
+	evalID, _, err := c.Jobs().DeregisterOpts(*job.ID, &DeregisterOptions{EvalPriority: 97}, nil)
+	requireAssert.NoError(err)
+	requireAssert.NotEmpty(t, evalID)
+
+	// Lookup the eval and check the priority on it.
+	evalInfo, _, err := c.Evaluations().Info(evalID, nil)
+	requireAssert.NoError(err)
+	requireAssert.Equal(97, evalInfo.Priority)
+}
+
+func TestJobs_Deregister_NoEvalPriority(t *testing.T) {
+	t.Parallel()
+	requireAssert := require.New(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	// Listing jobs before registering returns nothing
+	listResp, _, err := c.Jobs().List(nil)
+	requireAssert.Nil(err)
+	requireAssert.Len(listResp, 0)
+
+	// Create a job and register it.
+	job := testJob()
+	registerResp, wm, err := c.Jobs().Register(job, nil)
+	requireAssert.Nil(err)
+	requireAssert.NotNil(registerResp)
+	requireAssert.NotEmpty(registerResp.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Deregister the job with an eval priority.
+	evalID, _, err := c.Jobs().DeregisterOpts(*job.ID, &DeregisterOptions{}, nil)
+	requireAssert.NoError(err)
+	requireAssert.NotEmpty(t, evalID)
+
+	// Lookup the eval and check the priority on it.
+	evalInfo, _, err := c.Evaluations().Info(evalID, nil)
+	requireAssert.NoError(err)
+	requireAssert.Equal(*job.Priority, evalInfo.Priority)
 }
 
 func TestJobs_ForceEvaluate(t *testing.T) {

@@ -91,6 +91,7 @@ type RegisterOptions struct {
 	ModifyIndex    uint64
 	PolicyOverride bool
 	PreserveCounts bool
+	EvalPriority   int
 }
 
 // Register is used to register a new job. It returns the ID
@@ -105,8 +106,8 @@ func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (*
 	return j.RegisterOpts(job, &opts, q)
 }
 
-// Register is used to register a new job. It returns the ID
-// of the evaluation, along with any errors encountered.
+// RegisterOpts is used to register a new job with the passed RegisterOpts. It
+// returns the ID of the evaluation, along with any errors encountered.
 func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 	// Format the request
 	req := &JobRegisterRequest{
@@ -119,6 +120,7 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 		}
 		req.PolicyOverride = opts.PolicyOverride
 		req.PreserveCounts = opts.PreserveCounts
+		req.EvalPriority = opts.EvalPriority
 	}
 
 	var resp JobRegisterResponse
@@ -290,14 +292,36 @@ type DeregisterOptions struct {
 	// If Global is set to true, all regions of a multiregion job will be
 	// stopped.
 	Global bool
+
+	// EvalPriority is an optional priority to use on any evaluation created as
+	// a result on this job deregistration. This value must be between 1-100
+	// inclusively, where a larger value corresponds to a higher priority. This
+	// is useful when an operator wishes to push through a job deregistration
+	// in busy clusters with a large evaluation backlog.
+	EvalPriority int
+
+	// NoShutdownDelay, if set to true, will override the group and
+	// task shutdown_delay configuration and ignore the delay for any
+	// allocations stopped as a result of this Deregister call.
+	NoShutdownDelay bool
 }
 
 // DeregisterOpts is used to remove an existing job. See DeregisterOptions
 // for parameters.
 func (j *Jobs) DeregisterOpts(jobID string, opts *DeregisterOptions, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp JobDeregisterResponse
-	wm, err := j.client.delete(fmt.Sprintf("/v1/job/%v?purge=%t&global=%t",
-		url.PathEscape(jobID), opts.Purge, opts.Global), &resp, q)
+
+	// The base endpoint to add query params to.
+	endpoint := "/v1/job/" + url.PathEscape(jobID)
+
+	// Protect against nil opts. url.Values expects a string, and so using
+	// fmt.Sprintf is the best way to do this.
+	if opts != nil {
+		endpoint += fmt.Sprintf("?purge=%t&global=%t&eval_priority=%v&no_shutdown_delay=%t",
+			opts.Purge, opts.Global, opts.EvalPriority, opts.NoShutdownDelay)
+	}
+
+	wm, err := j.client.delete(endpoint, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -1169,6 +1193,14 @@ type JobRegisterRequest struct {
 	JobModifyIndex uint64 `json:",omitempty"`
 	PolicyOverride bool   `json:",omitempty"`
 	PreserveCounts bool   `json:",omitempty"`
+
+	// EvalPriority is an optional priority to use on any evaluation created as
+	// a result on this job registration. This value must be between 1-100
+	// inclusively, where a larger value corresponds to a higher priority. This
+	// is useful when an operator wishes to push through a job registration in
+	// busy clusters with a large evaluation backlog. This avoids needing to
+	// change the job priority which also impacts preemption.
+	EvalPriority int `json:",omitempty"`
 
 	WriteRequest
 }

@@ -190,6 +190,11 @@ func (tr *TaskRunner) prestart() error {
 		}()
 	}
 
+	// use a join context to allow any blocking pre-start hooks
+	// to be canceled by either killCtx or shutdownCtx
+	joinedCtx, joinedCancel := joincontext.Join(tr.killCtx, tr.shutdownCtx)
+	defer joinedCancel()
+
 	for _, hook := range tr.runnerHooks {
 		pre, ok := hook.(interfaces.TaskPrestartHook)
 		if !ok {
@@ -235,9 +240,6 @@ func (tr *TaskRunner) prestart() error {
 		}
 
 		// Run the prestart hook
-		// use a joint context to allow any blocking pre-start hooks
-		// to be canceled by either killCtx or shutdownCtx
-		joinedCtx, _ := joincontext.Join(tr.killCtx, tr.shutdownCtx)
 		var resp interfaces.TaskPrestartResponse
 		if err := pre.Prestart(joinedCtx, &req, &resp); err != nil {
 			tr.emitHookError(err, name)

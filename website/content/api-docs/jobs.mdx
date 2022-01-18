@@ -111,6 +111,10 @@ The table below shows this endpoint's support for
   the register only occurs if the job is new. This paradigm allows check-and-set
   style job updating.
 
+- `EvalPriority` `(int: 0)` - Override the priority of the evaluations produced
+  as a result of this job registration. By default, this is set to the priority
+  of the job.
+
 - `JobModifyIndex` `(int: 0)` - Specifies the `JobModifyIndex` to enforce the
   current job is at.
 
@@ -1558,6 +1562,10 @@ The table below shows this endpoint's support for
   the register only occurs if the job is new. This paradigm allows check-and-set
   style job updating.
 
+- `EvalPriority` `(int: 0)` - Override the priority of the evaluations produced
+  as a result of this job update. By default, this is set to the priority of
+  the job.
+
 - `JobModifyIndex` `(int: 0)` - Specifies the `JobModifyIndex` to enforce the
   current job is at.
 
@@ -2099,7 +2107,14 @@ The table below shows this endpoint's support for
 - `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
-- `purge` `(bool: false)` - Specifies that the job should stopped and purged
+- `eval_priority` `(int: 0)` - Override the priority of the evaluations produced
+  as a result of this job deregistration. By default, this is set to the priority
+  of the job.
+
+- `global` `(bool: false)` - Stop a multi-region job in all its regions. By default,
+  job stop will stop only a single region at a time. Ignored for single-region jobs.
+
+- `purge` `(bool: false)` - Specifies that the job should be stopped and purged
   immediately. This means the job will not be queryable after being stopped. If
   not set, the job will be purged by the garbage collector.
 

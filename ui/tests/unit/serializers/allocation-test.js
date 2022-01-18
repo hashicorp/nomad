@@ -35,6 +35,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
           attributes: {
             taskGroupName: 'test-group',
             name: 'test-summary[1]',
+            namespace: 'test-namespace',
             modifyTime: sampleDate,
             createTime: sampleDate,
             states: [
@@ -102,6 +103,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
           attributes: {
             taskGroupName: 'test-group',
             name: 'test-summary[1]',
+            namespace: 'test-namespace',
             modifyTime: sampleDate,
             createTime: sampleDate,
             states: [
@@ -172,6 +174,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
           attributes: {
             taskGroupName: 'test-group',
             name: 'test-summary[1]',
+            namespace: 'test-namespace',
             modifyTime: sampleDate,
             createTime: sampleDate,
             states: [
@@ -259,6 +262,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
           attributes: {
             taskGroupName: 'test-group',
             name: 'test-summary[1]',
+            namespace: 'test-namespace',
             modifyTime: sampleDate,
             createTime: sampleDate,
             states: [
@@ -332,6 +336,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
           attributes: {
             taskGroupName: 'test-group',
             name: 'test-summary[1]',
+            namespace: 'test-namespace',
             modifyTime: sampleDate,
             createTime: sampleDate,
             states: [

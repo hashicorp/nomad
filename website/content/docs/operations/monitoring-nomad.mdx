@@ -1,0 +1,250 @@
+---
+layout: docs
+page_title: Monitoring Nomad
+description: |-
+  Overview of runtime metrics available in Nomad along with monitoring and
+  alerting.
+---
+
+# Monitoring Nomad
+
+The Nomad client and server agents collect a wide range of runtime metrics
+related to the performance of the system. Operators can use this data to gain
+real-time visibility into their cluster and improve performance. Additionally,
+Nomad operators can set up monitoring and alerting based on these metrics in
+order to respond to any changes in the cluster state.
+
+On the server side, leaders and
+followers have metrics in common as well as metrics that are specific to their
+roles. Clients have separate metrics for the host metrics and for
+allocations/tasks, both of which have to be [explicitly
+enabled][telemetry-stanza]. There are also runtime metrics that are common to
+all servers and clients.
+
+By default, the Nomad agent collects telemetry data at a [1 second
+interval][collection-interval]. Note that Nomad supports [gauges, counters, and
+timers][metric-types].
+
+There are three ways to obtain metrics from Nomad:
+
+- Query the [/metrics API endpoint][metrics-api-endpoint] to return metrics for
+  the current Nomad process (as of Nomad 0.7). This endpoint supports Prometheus
+  formatted metrics.
+
+- Send the USR1 signal to the Nomad process. This will dump the current
+  telemetry information to STDERR (on Linux).
+
+- Configure Nomad to automatically forward metrics to a third-party provider.
+
+Nomad 0.7 added support for [tagged metrics][tagged-metrics], improving the
+integrations with [DataDog][datadog-telem] and [Prometheus][prometheus-telem].
+Metrics can also be forwarded to [Statsite][statsite-telem],
+[StatsD][statsd-telem], and [Circonus][circonus-telem].
+
+## Alerting
+
+The recommended practice for alerting is to leverage the alerting capabilities
+of your monitoring provider. Nomad’s intention is to surface metrics that enable
+users to configure the necessary alerts using their existing monitoring systems
+as a scaffold, rather than to natively support alerting. Here are a few common
+patterns.
+
+- Export metrics from Nomad to Prometheus using the [StatsD
+  exporter][statsd-exporter], define [alerting rules][alerting-rules] in
+  Prometheus, and use [Alertmanager][alertmanager] for summarization and
+  routing/notifications (to PagerDuty, Slack, etc.). A similar workflow is
+  supported for [Datadog][datadog-alerting].
+
+- Periodically submit test jobs into Nomad to determine if your application
+  deployment pipeline is working end-to-end. This pattern is well-suited to
+  batch processing workloads.
+
+- Deploy Nagios on Nomad. Centrally manage Nomad job files and add the Nagios
+  monitor when a new Nomad job is added. When a job is removed, remove the
+  Nagios monitor. Map Consul alerts to the Nagios monitor. This provides a
+  job-specific alerting system.
+
+- Write a script that looks at the history of each batch job to determine
+  whether or not the job is in an unhealthy state, updating your monitoring
+  system as appropriate. In many cases, it may be ok if a given batch job fails
+  occasionally, as long as it goes back to passing.
+
+# Key Performance Indicators
+
+The sections below cover a number of important metrics
+
+## Consensus Protocol (Raft)
+
+Nomad uses the Raft consensus protocol for leader election and state
+replication. Spurious leader elections can be caused by networking
+issues between the servers, insufficient CPU resources, or
+insufficient disk IOPS. Users in cloud environments often bump their
+servers up to the next instance class with improved networking and CPU
+to stabilize leader elections, or switch to higher-performance disks.
+
+The `nomad.raft.leader.lastContact` metric is a general indicator of
+Raft latency which can be used to observe how Raft timing is
+performing and guide infrastructure provisioning. If this number
+trends upwards, look at CPU, disk IOPs, and network
+latency. `nomad.raft.leader.lastContact` should not get too close to
+the leader lease timeout of 500ms.
+
+The `nomad.raft.replication.appendEntries` metric is an indicator of
+the time it takes for a Raft transaction to be replicated to a quorum
+of followers. If this number trends upwards, check the disk I/O on the
+followers and network latency between the leader and the followers.
+
+The details for how to examine CPU, IO operations, and networking are
+specific to your platform and environment. On Linux, the `sysstat`
+package contains a number of useful tools. Here are examples to
+consider.
+
+- **CPU** - `vmstat 1`, cloud provider metrics for "CPU %"
+
+- **IO** - `iostat`, `sar -d`, cloud provider metrics for "volume
+  write/read ops" and "burst balance"
+
+- **Network** - `sar -n`, `netstat -s`, cloud provider metrics for
+  interface "allowance"
+
+The `nomad.raft.fsm.apply` metric is an indicator of the time it takes
+for a server to apply Raft entries to the internal state machine. If
+this number trends upwards, look at the `nomad.nomad.fsm.*` metrics to
+see if a specific Raft entry is increasing in latency. You can compare
+this to warn-level logs on the Nomad servers for "attempting to apply
+large raft entry". If a specific type of message appears here, there
+may be a job with a large job specification or dispatch payload that
+is increasing the time it takes to apply raft messages.
+
+## Federated Deployments (Serf)
+
+Nomad uses the membership and failure detection capabilities of the Serf library
+to maintain a single, global gossip pool for all servers in a federated
+deployment. An uptick in `member.flap` and/or `msg.suspect` is a reliable indicator
+that membership is unstable.
+
+If these metrics increase, look at CPU load on the servers and network
+latency and packet loss for the [Serf] address.
+
+## Scheduling
+
+The [Scheduling] documentation describes the workflow of how
+evaluations become scheduled plans and placed allocations. The
+following metrics, listed in the order they are emitted, allow an
+operator to observe changes in throughput at the various points in the
+scheduling process.
+
+- **nomad.worker.invoke_scheduler.<type\>** - The time to run the
+  scheduler of the given type. Each scheduler worker handles one
+  evaluation at a time, entirely in-memory. If this metric increases,
+  examine the CPU and memory resources of the scheduler.
+
+- **nomad.broker.total_blocked** - The number of blocked
+  evaluations. Blocked evaluations are created when the scheduler
+  cannot place all allocations as part of a plan. Blocked evaluations
+  will be re-evaluated so that changes in cluster resources can be
+  used for the blocked evaluation's allocations. An increase in
+  blocked evaluations may mean that the cluster's clients are low in
+  resources or that job have been submitted that can never have all
+  their allocations placed. Nomad also emits a similar metric for each
+  individual scheduler. For example `nomad.broker.batch_blocked` shows
+  the number of blocked evaluations for the batch scheduler.
+
+- **nomad.broker.total_unacked** - The number of unacknowledged
+  evaluations. When an evaluation has been processed, the worker sends
+  an acknowledgment RPC to the leader to signal to the eval broker
+  that processing is complete. The unacked evals are those that are
+  in-flight in the scheduler and have not yet been acknowledged. An
+  increase in unacknowledged evaluations may mean that the schedulers
+  have a large queue of evaluations to process. See the
+  `invoke_scheduler` metric (above) and examine the CPU and memory
+  resources of the scheduler. Nomad also emits a similar metric for
+  each individual scheduler. For example `nomad.broker.batch_unacked`
+  shows the number of unacknowledged evaluations for the batch
+  scheduler.
+
+- **nomad.plan.evaluate** - The time to evaluate a scheduler plan
+  submitted by a worker. This operation happens on the leader to
+  serialize the plans of all the scheduler workers. This happens
+  entirely in memory on the leader. If this metric increases, examine
+  the CPU and memory resources of the leader.
+
+- **nomad.plan.wait_for_index** - The time required for the planner to
+  wait for the Raft index of the plan to be processed. If this metric
+  increases, refer to the [Consensus Protocol (Raft)] section above.
+
+- **nomad.plan.submit** - The time to submit a scheduler plan from the
+  worker to the leader. This operation requires writing to Raft and
+  includes the time from `nomad.plan.evaluate` and
+  `nomad.plan.wait_for_index` (above). If this metric increases, refer
+  to the [Consensus Protocol (Raft)] section above.
+
+- **nomad.plan.queue_depth** - The number of scheduler plans waiting
+  to be evaluated after being submitted. If this metric increases,
+  examine the `nomad.plan.evaluate` and `nomad.plan.submit` metrics to
+  determine if the problem is in general leader resources or Raft
+  performance.
+
+Upticks in any of the above metrics indicate a decrease in scheduler
+throughput.
+
+## Capacity
+
+The importance of monitoring resource availability is workload specific. Batch
+processing workloads often operate under the assumption that the cluster should
+be at or near capacity, with queued jobs running as soon as adequate resources
+become available. Clusters that are primarily responsible for long running
+services with an uptime requirement may want to maintain headroom at 20% or
+more. The following metrics can be used to assess capacity across the cluster on
+a per client basis.
+
+- **nomad.client.allocated.cpu**
+- **nomad.client.unallocated.cpu**
+- **nomad.client.allocated.disk**
+- **nomad.client.unallocated.disk**
+- **nomad.client.allocated.iops**
+- **nomad.client.unallocated.iops**
+- **nomad.client.allocated.memory**
+- **nomad.client.unallocated.memory**
+
+## Task Resource Consumption
+
+The metrics listed [here][allocation-metrics] can be used to track resource
+consumption on a per task basis. For user facing services, it is common to alert
+when the CPU is at or above the reserved resources for the task.
+
+## Job and Task Status
+
+We do not currently surface metrics for job and task/allocation status, although
+we will consider adding metrics where it makes sense.
+
+## Runtime Metrics
+
+Runtime metrics apply to all clients and servers. The following metrics are
+general indicators of load and memory pressure.
+
+- **nomad.runtime.num_goroutines**
+- **nomad.runtime.heap_objects**
+- **nomad.runtime.alloc_bytes**
+
+It is recommended to alert on upticks in any of the above, server memory usage
+in particular.
+
+[alerting-rules]: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+[alertmanager]: https://prometheus.io/docs/alerting/alertmanager/
+[allocation-metrics]: /docs/telemetry/metrics#allocation-metrics
+[circonus-telem]: /docs/configuration/telemetry#circonus
+[collection-interval]: /docs/configuration/telemetry#collection_interval
+[datadog-alerting]: https://www.datadoghq.com/blog/monitoring-101-alerting/
+[datadog-telem]: /docs/configuration/telemetry#datadog
+[prometheus-telem]: /docs/configuration/telemetry#prometheus
+[metrics-api-endpoint]: /api-docs/metrics
+[metric-types]: /docs/telemetry/metrics#metric-types
+[statsd-exporter]: https://github.com/prometheus/statsd_exporter
+[statsd-telem]: /docs/configuration/telemetry#statsd
+[statsite-telem]: /docs/configuration/telemetry#statsite
+[tagged-metrics]: /docs/telemetry/metrics#tagged-metrics
+[telemetry-stanza]: /docs/configuration/telemetry
+[serf]: /docs/configuration#serf-1
+[Consensus Protocol (Raft)]: /docs/operations/telemetry#consensus-protocol-raft
+[Scheduling]: /docs/internals/scheduling/scheduling

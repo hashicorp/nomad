@@ -14,6 +14,10 @@ import (
 	"time"
 
 	"github.com/golang/snappy"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
@@ -26,6 +30,7 @@ import (
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	mockdriver "github.com/hashicorp/nomad/drivers/mock"
 	"github.com/hashicorp/nomad/drivers/rawexec"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -33,9 +38,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type MockTaskStateUpdater struct {
@@ -94,26 +96,30 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		cleanup()
 	}
 
+	shutdownDelayCtx, shutdownDelayCancelFn := context.WithCancel(context.Background())
+
 	// Create a closed channel to mock TaskHookCoordinator.startConditionForTask.
 	// Closed channel indicates this task is not blocked on prestart hooks.
 	closedCh := make(chan struct{})
 	close(closedCh)
 
 	conf := &Config{
-		Alloc:                alloc,
-		ClientConfig:         clientConf,
-		Task:                 thisTask,
-		TaskDir:              taskDir,
-		Logger:               clientConf.Logger,
-		Consul:               consulapi.NewMockConsulServiceClient(t, logger),
-		ConsulSI:             consulapi.NewMockServiceIdentitiesClient(),
-		Vault:                vaultclient.NewMockVaultClient(),
-		StateDB:              cstate.NoopDB{},
-		StateUpdater:         NewMockTaskStateUpdater(),
-		DeviceManager:        devicemanager.NoopMockManager(),
-		DriverManager:        drivermanager.TestDriverManager(t),
-		ServersContactedCh:   make(chan struct{}),
-		StartConditionMetCtx: closedCh,
+		Alloc:                 alloc,
+		ClientConfig:          clientConf,
+		Task:                  thisTask,
+		TaskDir:               taskDir,
+		Logger:                clientConf.Logger,
+		Consul:                consulapi.NewMockConsulServiceClient(t, logger),
+		ConsulSI:              consulapi.NewMockServiceIdentitiesClient(),
+		Vault:                 vaultclient.NewMockVaultClient(),
+		StateDB:               cstate.NoopDB{},
+		StateUpdater:          NewMockTaskStateUpdater(),
+		DeviceManager:         devicemanager.NoopMockManager(),
+		DriverManager:         drivermanager.TestDriverManager(t),
+		ServersContactedCh:    make(chan struct{}),
+		StartConditionMetCtx:  closedCh,
+		ShutdownDelayCtx:      shutdownDelayCtx,
+		ShutdownDelayCancelFn: shutdownDelayCancelFn,
 	}
 	return conf, trCleanup
 }
@@ -994,6 +1000,82 @@ WAIT:
 			killDur, task.ShutdownDelay,
 		)
 	}
+}
+
+// TestTaskRunner_NoShutdownDelay asserts services are removed from
+// Consul and tasks are killed without waiting for ${shutdown_delay}
+// when the alloc has the NoShutdownDelay transition flag set.
+func TestTaskRunner_NoShutdownDelay(t *testing.T) {
+	t.Parallel()
+
+	// don't set this too high so that we don't block the test runner
+	// on shutting down the agent if the test fails
+	maxTestDuration := time.Duration(testutil.TestMultiplier()*10) * time.Second
+	maxTimeToFailDuration := time.Duration(testutil.TestMultiplier()) * time.Second
+
+	alloc := mock.Alloc()
+	alloc.DesiredTransition = structs.DesiredTransition{NoShutdownDelay: helper.BoolToPtr(true)}
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Services[0].Tags = []string{"tag1"}
+	task.Services = task.Services[:1] // only need 1 for this test
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "1000s",
+	}
+	task.ShutdownDelay = maxTestDuration
+
+	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
+	defer cleanup()
+
+	mockConsul := conf.Consul.(*consulapi.MockConsulServiceClient)
+
+	testWaitForTaskToStart(t, tr)
+
+	testutil.WaitForResult(func() (bool, error) {
+		ops := mockConsul.GetOps()
+		if n := len(ops); n != 1 {
+			return false, fmt.Errorf("expected 1 consul operation. Found %d", n)
+		}
+		return ops[0].Op == "add", fmt.Errorf("consul operation was not a registration: %#v", ops[0])
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	testCtx, cancel := context.WithTimeout(context.Background(), maxTimeToFailDuration)
+	defer cancel()
+
+	killed := make(chan error)
+	go func() {
+		tr.shutdownDelayCancel()
+		err := tr.Kill(testCtx, structs.NewTaskEvent("test"))
+		killed <- err
+	}()
+
+	// Wait for first de-registration call. Note that unlike
+	// TestTaskRunner_ShutdownDelay, we're racing with task exit
+	// and can't assert that we only get the first deregistration op
+	// (from serviceHook.PreKill).
+	testutil.WaitForResult(func() (bool, error) {
+		ops := mockConsul.GetOps()
+		if n := len(ops); n < 2 {
+			return false, fmt.Errorf("expected at least 2 consul operations.")
+		}
+		return ops[1].Op == "remove", fmt.Errorf(
+			"consul operation was not a deregistration: %#v", ops[1])
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Wait for the task to exit
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(maxTimeToFailDuration):
+		t.Fatalf("task kill did not ignore shutdown delay")
+		return
+	}
+
+	err := <-killed
+	require.NoError(t, err, "killing task returned unexpected error")
 }
 
 // TestTaskRunner_Dispatch_Payload asserts that a dispatch job runs and the
