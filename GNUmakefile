@@ -8,6 +8,13 @@ GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 
+ifneq (MSYS_NT,$(THIS_OS))
+# GOPATH supports PATH style multi-paths; assume the first entry is favorable.
+# Necessary because new Circle images override GOPATH with multiple values.
+# See: https://discuss.circleci.com/t/gopath-is-set-to-multiple-directories/7174
+GOPATH=$(shell go env GOPATH | cut -d: -f1)
+endif
+
 GO_TAGS ?=
 
 ifeq ($(CI),true)
@@ -241,7 +248,6 @@ tidy:
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
-dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
 dev: hclfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
@@ -297,7 +303,7 @@ test-nomad: dev ## Run Nomad test suites
 
 .PHONY: test-nomad-module
 test-nomad-module: dev ## Run Nomad test suites on a sub-module
-	@echo "==> Running Nomad test suites on sub-module:"
+	@echo "==> Running Nomad test suites on sub-module $(GOTEST_MOD)"
 	@cd $(GOTEST_MOD) && $(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \

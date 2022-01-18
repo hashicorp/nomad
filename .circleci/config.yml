@@ -3,15 +3,12 @@ version: 2.1
 references:
   # environment specific references - aim to avoid conflicts
   go-machine-image: &go_machine_image
-    circleci/classic:201808-01
-  go-machine-recent-image: &go_machine_recent_image
-    ubuntu-1604:201903-01
+    ubuntu-2004:202111-02
   go-windows-image: &go_windows_image
     windows-server-2019-vs2019:stable
 
   # common references
   common_envs: &common_envs
-    GOMAXPROCS: 1
     NOMAD_SLOW_TEST: 1
     GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
@@ -289,7 +286,7 @@ jobs:
         default: ""
       executor:
         type: string
-        default: "go-machine-recent"
+        default: "go-machine"
       goarch:
         type: string
         default: "amd64"
@@ -513,6 +510,7 @@ executors:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
       - image: docker.mirror.hashicorp.services/golang:1.17.5
+    resource_class: large
     environment:
       <<: *common_envs
       GOPATH: /go
@@ -521,18 +519,10 @@ executors:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
       image: *go_machine_image
+      resource_class: large
     environment: &machine_env
       <<: *common_envs
-      GOPATH: /home/circleci/go
       GOLANG_VERSION: 1.17.5
-
-  # uses a more recent image with unattended upgrades disabled properly
-  # but seems to break docker builds
-  go-machine-recent:
-    working_directory: ~/go/src/github.com/hashicorp/nomad
-    machine:
-      image: *go_machine_recent_image
-    environment: *machine_env
 
   go-macos:
     working_directory: ~/go/src/github.com/hashicorp/nomad
@@ -636,9 +626,6 @@ workflows:
       - test-machine:
           name: "test-docker"
           test_packages: "./drivers/docker"
-          # docker is misbehaving in docker-machine-recent image
-          # and we get unexpected failures
-          # e.g. https://circleci.com/gh/hashicorp/nomad/3854
           executor: go-machine
           filters: *backend_test_branches_filter
       - test-machine:
