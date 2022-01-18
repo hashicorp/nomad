@@ -418,7 +418,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 	// Validate and set initial event stream index
 	if eventIndex < 0 {
-		c.Ui.Error(fmt.Sprintf("Event stream index must be greater than zero"))
+		c.Ui.Error("Event stream index must be greater than zero")
 		return 1
 	}
 	c.index = uint64(eventIndex)
