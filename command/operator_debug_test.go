@@ -887,6 +887,15 @@ func TestDebug_EventStream_TopicsFromString(t *testing.T) {
 			},
 		},
 		{
+			name:      "capitalize topics",
+			topicList: "evaluation:example,job:*,node:*",
+			want: map[api.Topic][]string{
+				api.TopicEvaluation: {"example"},
+				api.TopicJob:        {"*"},
+				api.TopicNode:       {"*"},
+			},
+		},
+		{
 			name:      "all topics for filterKey",
 			topicList: "*:example",
 			want: map[api.Topic][]string{

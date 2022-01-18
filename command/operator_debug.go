@@ -1489,15 +1489,23 @@ func parseEventTopics(topicList []string) (map[api.Topic][]string, error) {
 	return topics, mErrs.ErrorOrNil()
 }
 
-func parseTopic(topic string) (string, string, error) {
-	parts := strings.Split(topic, ":")
-	// infer wildcard if only given a topic
-	if len(parts) == 1 {
-		return topic, "*", nil
-	} else if len(parts) != 2 {
+func parseTopic(input string) (string, string, error) {
+	var topic, filter string
+
+	parts := strings.Split(input, ":")
+	switch len(parts) {
+	case 1:
+		// infer wildcard if only given a topic
+		topic = input
+		filter = "*"
+	case 2:
+		topic = parts[0]
+		filter = parts[1]
+	default:
 		return "", "", fmt.Errorf("Invalid key value pair for topic: %s", topic)
 	}
-	return parts[0], parts[1], nil
+
+	return strings.Title(topic), filter, nil
 }
 
 func allTopics() map[api.Topic][]string {
