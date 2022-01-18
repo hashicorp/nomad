@@ -1461,16 +1461,18 @@ func stringToSlice(input string) []string {
 func parseEventTopics(topicList []string) (map[api.Topic][]string, error) {
 	topics := make(map[api.Topic][]string)
 
+	var mErrs *multierror.Error
+
 	for _, topic := range topicList {
 		k, v, err := parseTopic(topic)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing topics: %w", err)
+			mErrs = multierror.Append(mErrs, fmt.Errorf("error parsing topics: %w", err))
 		}
 
 		topics[api.Topic(k)] = append(topics[api.Topic(k)], v)
 	}
 
-	return topics, nil
+	return topics, mErrs.ErrorOrNil()
 }
 
 func parseTopic(topic string) (string, string, error) {
