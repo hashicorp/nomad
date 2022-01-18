@@ -71,6 +71,7 @@ type LibcontainerExecutor struct {
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger) Executor {
+
 	logger = logger.Named("isolated_executor")
 	if err := shelpers.Init(); err != nil {
 		logger.Error("unable to initialize stats", "error", err)
