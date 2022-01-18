@@ -6,6 +6,7 @@ import { IconArrowRight16 } from '@hashicorp/flight-icons/svg-react/arrow-right-
 import s from './style.module.css'
 
 export interface IoHomeFeatureProps {
+  isInternalLink: (link: string) => boolean
   link?: string
   image: {
     url: string
@@ -16,13 +17,14 @@ export interface IoHomeFeatureProps {
 }
 
 export default function IoHomeFeature({
+  isInternalLink,
   link,
   image,
   heading,
   description,
 }: IoHomeFeatureProps): React.ReactElement {
   return (
-    <IoHomeFeatureWrap href={link}>
+    <IoHomeFeatureWrap isInternalLink={isInternalLink} href={link}>
       <div className={s.featureMedia}>
         <Image
           src={image.url}
@@ -48,7 +50,7 @@ export default function IoHomeFeature({
   )
 }
 
-function IoHomeFeatureWrap({ href, children }) {
+function IoHomeFeatureWrap({ isInternalLink, href, children }) {
   if (!href) {
     return <div className={s.feature}>{children}</div>
   }

@@ -78,7 +78,7 @@ export default function Homepage({ data }): React.ReactElement {
 
       <IoHomeIntro
         isInternalLink={isInternalLink}
-        brand="terraform"
+        brand="nomad"
         heading={introHeading}
         description={introDescription}
         offerings={{
