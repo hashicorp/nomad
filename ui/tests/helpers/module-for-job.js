@@ -138,7 +138,10 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
 
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
         const expectedURL = new URL(
-          urlWithNamespace(`/jobs/${job.name}/allocations?status=${encodedStatus}`, job.namespace),
+          urlWithNamespace(
+            `/jobs/${encodeURIComponent(job.name)}/allocations?status=${encodedStatus}`,
+            job.namespace
+          ),
           window.location
         );
         const gotURL = new URL(currentURL(), window.location);
