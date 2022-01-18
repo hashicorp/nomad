@@ -718,6 +718,41 @@ func TestEvalEndpoint_List(t *testing.T) {
 
 }
 
+func TestEvalEndpoint_ListAllNamespaces(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	eval1 := mock.Eval()
+	eval1.ID = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
+	eval2 := mock.Eval()
+	eval2.ID = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
+	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
+
+	// Lookup the eval
+	get := &structs.EvalListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: "*",
+		},
+	}
+	var resp structs.EvalListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index != 1000 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 1000)
+	}
+
+	if len(resp.Evaluations) != 2 {
+		t.Fatalf("bad: %#v", resp.Evaluations)
+	}
+}
+
 func TestEvalEndpoint_List_ACL(t *testing.T) {
 	t.Parallel()
 
@@ -848,6 +883,225 @@ func TestEvalEndpoint_List_Blocking(t *testing.T) {
 	}
 	if len(resp2.Evaluations) != 0 {
 		t.Fatalf("bad: %#v", resp2.Evaluations)
+	}
+}
+
+func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
+	t.Parallel()
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// create a set of evals and field values to filter on. these are
+	// in the order that the state store will return them from the
+	// iterator (sorted by key), for ease of writing tests
+	mocks := []struct {
+		id        string
+		namespace string
+		jobID     string
+		status    string
+	}{
+		{id: "aaaa1111-3350-4b4b-d185-0e1992ed43e9", jobID: "example"},
+		{id: "aaaaaa22-3350-4b4b-d185-0e1992ed43e9", jobID: "example"},
+		{id: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9", namespace: "non-default"},
+		{id: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9", jobID: "example", status: "blocked"},
+		{id: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9"},
+		{id: "aaaaaacc-3350-4b4b-d185-0e1992ed43e9"},
+		{id: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9", jobID: "example"},
+		{id: "aaaaaaee-3350-4b4b-d185-0e1992ed43e9", jobID: "example"},
+		{id: "aaaaaaff-3350-4b4b-d185-0e1992ed43e9"},
+	}
+
+	mockEvals := []*structs.Evaluation{}
+	for _, m := range mocks {
+		eval := mock.Eval()
+		eval.ID = m.id
+		if m.namespace != "" { // defaults to "default"
+			eval.Namespace = m.namespace
+		}
+		if m.jobID != "" { // defaults to some random UUID
+			eval.JobID = m.jobID
+		}
+		if m.status != "" { // defaults to "pending"
+			eval.Status = m.status
+		}
+		mockEvals = append(mockEvals, eval)
+	}
+
+	state := s1.fsm.State()
+	require.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1000, mockEvals))
+
+	aclToken := mock.CreatePolicyAndToken(t, state, 1100, "test-valid-read",
+		mock.NamespacePolicy(structs.DefaultNamespace, "read", nil)).
+		SecretID
+
+	cases := []struct {
+		name              string
+		namespace         string
+		prefix            string
+		nextToken         string
+		filterJobID       string
+		filterStatus      string
+		pageSize          int32
+		expectedNextToken string
+		expectedIDs       []string
+	}{
+		{
+			name:              "test01 size-2 page-1 default NS",
+			pageSize:          2,
+			expectedNextToken: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test02 size-2 page-1 default NS with prefix",
+			prefix:            "aaaa",
+			pageSize:          2,
+			expectedNextToken: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test03 size-2 page-2 default NS",
+			pageSize:          2,
+			nextToken:         "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test04 size-2 page-2 default NS with prefix",
+			prefix:            "aaaa",
+			pageSize:          2,
+			nextToken:         "aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:         "test05 size-2 page-1 with filters default NS",
+			pageSize:     2,
+			filterJobID:  "example",
+			filterStatus: "pending",
+			// aaaaaaaa, bb, and cc are filtered by status
+			expectedNextToken: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:         "test06 size-2 page-1 with filters default NS with short prefix",
+			prefix:       "aaaa",
+			pageSize:     2,
+			filterJobID:  "example",
+			filterStatus: "pending",
+			// aaaaaaaa, bb, and cc are filtered by status
+			expectedNextToken: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test07 size-2 page-1 with filters default NS with longer prefix",
+			prefix:            "aaaaaa",
+			pageSize:          2,
+			filterJobID:       "example",
+			filterStatus:      "pending",
+			expectedNextToken: "aaaaaaee-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test08 size-2 page-2 filter skip nextToken",
+			pageSize:          3, // reads off the end
+			filterJobID:       "example",
+			filterStatus:      "pending",
+			nextToken:         "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "",
+			expectedIDs: []string{
+				"aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaaee-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test09 size-2 page-2 filters skip nextToken with prefix",
+			prefix:            "aaaaaa",
+			pageSize:          3, // reads off the end
+			filterJobID:       "example",
+			filterStatus:      "pending",
+			nextToken:         "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "",
+			expectedIDs: []string{
+				"aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaaee-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:        "test10 no valid results with filters",
+			pageSize:    2,
+			filterJobID: "whatever",
+			nextToken:   "",
+			expectedIDs: []string{},
+		},
+		{
+			name:        "test11 no valid results with filters and prefix",
+			prefix:      "aaaa",
+			pageSize:    2,
+			filterJobID: "whatever",
+			nextToken:   "",
+			expectedIDs: []string{},
+		},
+		{
+			name:        "test12 no valid results with filters page-2",
+			filterJobID: "whatever",
+			nextToken:   "aaaaaa11-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{},
+		},
+		{
+			name:        "test13 no valid results with filters page-2 with prefix",
+			prefix:      "aaaa",
+			filterJobID: "whatever",
+			nextToken:   "aaaaaa11-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.EvalListRequest{
+				FilterJobID:      tc.filterJobID,
+				FilterEvalStatus: tc.filterStatus,
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Namespace: tc.namespace,
+					Prefix:    tc.prefix,
+					PerPage:   tc.pageSize,
+					NextToken: tc.nextToken,
+				},
+			}
+			req.AuthToken = aclToken
+			var resp structs.EvalListResponse
+			require.NoError(t, msgpackrpc.CallWithCodec(codec, "Eval.List", req, &resp))
+			gotIDs := []string{}
+			for _, eval := range resp.Evaluations {
+				gotIDs = append(gotIDs, eval.ID)
+			}
+			require.Equal(t, tc.expectedIDs, gotIDs, "unexpected page of evals")
+			require.Equal(t, tc.expectedNextToken, resp.QueryMeta.NextToken, "unexpected NextToken")
+		})
 	}
 }
 

@@ -406,6 +406,91 @@ func TestTask_Canonicalize_TaskLifecycle(t *testing.T) {
 	}
 }
 
+func TestTask_Template_WaitConfig_Canonicalize_and_Copy(t *testing.T) {
+	taskWithWait := func(wc *WaitConfig) *Task {
+		return &Task{
+			Templates: []*Template{
+				{
+					Wait: wc,
+				},
+			},
+		}
+	}
+
+	testCases := []struct {
+		name          string
+		canonicalized *WaitConfig
+		copied        *WaitConfig
+		task          *Task
+	}{
+		{
+			name: "all-fields",
+			task: taskWithWait(&WaitConfig{
+				Min: timeToPtr(5),
+				Max: timeToPtr(10),
+			}),
+			canonicalized: &WaitConfig{
+				Min: timeToPtr(5),
+				Max: timeToPtr(10),
+			},
+			copied: &WaitConfig{
+				Min: timeToPtr(5),
+				Max: timeToPtr(10),
+			},
+		},
+		{
+			name: "no-fields",
+			task: taskWithWait(&WaitConfig{}),
+			canonicalized: &WaitConfig{
+				Min: nil,
+				Max: nil,
+			},
+			copied: &WaitConfig{
+				Min: nil,
+				Max: nil,
+			},
+		},
+		{
+			name: "min-only",
+			task: taskWithWait(&WaitConfig{
+				Min: timeToPtr(5),
+			}),
+			canonicalized: &WaitConfig{
+				Min: timeToPtr(5),
+			},
+			copied: &WaitConfig{
+				Min: timeToPtr(5),
+			},
+		},
+		{
+			name: "max-only",
+			task: taskWithWait(&WaitConfig{
+				Max: timeToPtr(10),
+			}),
+			canonicalized: &WaitConfig{
+				Max: timeToPtr(10),
+			},
+			copied: &WaitConfig{
+				Max: timeToPtr(10),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tg := &TaskGroup{
+				Name: stringToPtr("foo"),
+			}
+			j := &Job{
+				ID: stringToPtr("test"),
+			}
+			require.Equal(t, tc.copied, tc.task.Templates[0].Wait.Copy())
+			tc.task.Canonicalize(tg, j)
+			require.Equal(t, tc.canonicalized, tc.task.Templates[0].Wait)
+		})
+	}
+}
+
 // Ensures no regression on https://github.com/hashicorp/nomad/issues/3132
 func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 	// Job with an Empty() Update

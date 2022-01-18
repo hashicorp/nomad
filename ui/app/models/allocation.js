@@ -23,11 +23,22 @@ export default class Allocation extends Model {
   @shortUUIDProperty('id') shortId;
   @belongsTo('job') job;
   @belongsTo('node') node;
+  @attr('string') namespace;
   @attr('string') name;
   @attr('string') taskGroupName;
   @fragment('resources') resources;
   @fragment('resources') allocatedResources;
   @attr('number') jobVersion;
+
+  // Store basic node information returned by the API to avoid the need for
+  // node:read ACL permission.
+  @attr('string') nodeName;
+  @computed
+  get shortNodeId() {
+    return this.belongsTo('node')
+      .id()
+      .split('-')[0];
+  }
 
   @attr('number') modifyIndex;
   @attr('date') modifyTime;
@@ -37,6 +48,11 @@ export default class Allocation extends Model {
 
   @attr('string') clientStatus;
   @attr('string') desiredStatus;
+
+  @computed('')
+  get plainJobId() {
+    return JSON.parse(this.belongsTo('job').id())[0];
+  }
 
   @computed('clientStatus')
   get statusIndex() {

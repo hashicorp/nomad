@@ -230,9 +230,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Disable workers to free half the cores for use in the plan queue and
 	// evaluation broker
-	for _, w := range s.pausableWorkers() {
-		w.SetPause(true)
-	}
+	s.handlePausableWorkers(true)
 
 	// Initialize and start the autopilot routine
 	s.getOrCreateAutopilotConfig()
@@ -439,6 +437,16 @@ ERR_WAIT:
 		goto START
 	case <-stopCh:
 		return
+	}
+}
+
+func (s *Server) handlePausableWorkers(isLeader bool) {
+	for _, w := range s.pausableWorkers() {
+		if isLeader {
+			w.Pause()
+		} else {
+			w.Resume()
+		}
 	}
 }
 
@@ -1081,9 +1089,7 @@ func (s *Server) revokeLeadership() error {
 	}
 
 	// Unpause our worker if we paused previously
-	for _, w := range s.pausableWorkers() {
-		w.SetPause(false)
-	}
+	s.handlePausableWorkers(false)
 
 	return nil
 }

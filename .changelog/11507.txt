@@ -1,0 +1,3 @@
+```improvement
+cli: improve `nomad operator debug` error messages
+```

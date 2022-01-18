@@ -669,6 +669,72 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	require.Equal(t, vols[1].ID, resp.Volumes[0].ID)
 }
 
+func TestCSIVolumeEndpoint_ListAllNamespaces(t *testing.T) {
+	t.Parallel()
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	state := srv.fsm.State()
+	codec := rpcClient(t, srv)
+
+	// Create namespaces.
+	ns0 := structs.DefaultNamespace
+	ns1 := "namespace-1"
+	ns2 := "namespace-2"
+	err := state.UpsertNamespaces(1000, []*structs.Namespace{{Name: ns1}, {Name: ns2}})
+	require.NoError(t, err)
+
+	// Create volumes in multiple namespaces.
+	id0 := uuid.Generate()
+	id1 := uuid.Generate()
+	id2 := uuid.Generate()
+	vols := []*structs.CSIVolume{{
+		ID:        id0,
+		Namespace: ns0,
+		PluginID:  "minnie",
+		Secrets:   structs.CSISecrets{"mysecret": "secretvalue"},
+		RequestedCapabilities: []*structs.CSIVolumeCapability{{
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		}},
+	}, {
+		ID:        id1,
+		Namespace: ns1,
+		PluginID:  "adam",
+		RequestedCapabilities: []*structs.CSIVolumeCapability{{
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		}},
+	}, {
+		ID:        id2,
+		Namespace: ns2,
+		PluginID:  "beth",
+		RequestedCapabilities: []*structs.CSIVolumeCapability{{
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		}},
+	},
+	}
+	err = state.CSIVolumeRegister(1001, vols)
+	require.NoError(t, err)
+
+	// Lookup volumes in all namespaces
+	get := &structs.CSIVolumeListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: "*",
+		},
+	}
+	var resp structs.CSIVolumeListResponse
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.List", get, &resp)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1001), resp.Index)
+	require.Len(t, resp.Volumes, len(vols))
+}
+
 func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	t.Parallel()
 	var err error

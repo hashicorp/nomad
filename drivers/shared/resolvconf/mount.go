@@ -69,15 +69,10 @@ func copySystemDNS(dest string) error {
 	}
 	defer in.Close()
 
-	out, err := os.Create(dest)
+	content, err := io.ReadAll(in)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		out.Sync()
-		out.Close()
-	}()
 
-	_, err = io.Copy(out, in)
-	return err
+	return os.WriteFile(dest, content, 0644)
 }

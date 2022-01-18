@@ -65,8 +65,8 @@ func (s *State) Copy() *State {
 }
 
 // ClientTerminalStatus returns if the client status is terminal and will no longer transition
-func (a *State) ClientTerminalStatus() bool {
-	switch a.ClientStatus {
+func (s *State) ClientTerminalStatus() bool {
+	switch s.ClientStatus {
 	case structs.AllocClientStatusComplete, structs.AllocClientStatusFailed, structs.AllocClientStatusLost:
 		return true
 	default:

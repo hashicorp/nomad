@@ -121,6 +121,7 @@ type ApiClientFactory func() (*api.Client, error)
 // the default command line arguments and env vars.
 func (m *Meta) clientConfig() *api.Config {
 	config := api.DefaultConfig()
+
 	if m.flagAddress != "" {
 		config.Address = m.flagAddress
 	}
@@ -131,21 +132,34 @@ func (m *Meta) clientConfig() *api.Config {
 		config.Namespace = m.namespace
 	}
 
-	// If we need custom TLS configuration, then set it
-	if m.caCert != "" || m.caPath != "" || m.clientCert != "" || m.clientKey != "" || m.tlsServerName != "" || m.insecure {
-		t := &api.TLSConfig{
-			CACert:        m.caCert,
-			CAPath:        m.caPath,
-			ClientCert:    m.clientCert,
-			ClientKey:     m.clientKey,
-			TLSServerName: m.tlsServerName,
-			Insecure:      m.insecure,
-		}
-		config.TLSConfig = t
-	}
-
 	if m.token != "" {
 		config.SecretID = m.token
+	}
+
+	// Override TLS configuration fields we may have received from env vars with
+	// flag arguments from the user only if they're provided.
+	if m.caCert != "" {
+		config.TLSConfig.CACert = m.caCert
+	}
+
+	if m.caPath != "" {
+		config.TLSConfig.CAPath = m.caPath
+	}
+
+	if m.clientCert != "" {
+		config.TLSConfig.ClientCert = m.clientCert
+	}
+
+	if m.clientKey != "" {
+		config.TLSConfig.ClientKey = m.clientKey
+	}
+
+	if m.tlsServerName != "" {
+		config.TLSConfig.TLSServerName = m.tlsServerName
+	}
+
+	if m.insecure {
+		config.TLSConfig.Insecure = m.insecure
 	}
 
 	return config

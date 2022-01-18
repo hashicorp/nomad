@@ -6,6 +6,7 @@ import {
   hasClass,
   isHidden,
   isPresent,
+  property,
   text,
 } from 'ember-cli-page-object';
 
@@ -44,6 +45,22 @@ export default create({
         scope: '.ember-power-select-search input',
         testContainer: 'html',
         resetScope: true,
+      },
+    },
+
+    end: {
+      scope: '.navbar-end',
+
+      consulLink: {
+        scope: '[data-test-header-consul-link]',
+        text: text(),
+        link: property('href'),
+      },
+
+      vaultLink: {
+        scope: '[data-test-header-vault-link]',
+        text: text(),
+        link: property('href'),
       },
     },
   },

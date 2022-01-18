@@ -12,7 +12,24 @@ import (
 // Register registers a jobspec from a file but with a unique ID.
 // The caller is responsible for recording that ID for later cleanup.
 func Register(jobID, jobFilePath string) error {
-	cmd := exec.Command("nomad", "job", "run", "-detach", "-")
+	return register(jobID, jobFilePath, exec.Command("nomad", "job", "run", "-detach", "-"))
+}
+
+// RegisterWithArgs registers a jobspec from a file but with a unique ID. The
+// optional args are added to the run command. The caller is responsible for
+// recording that ID for later cleanup.
+func RegisterWithArgs(jobID, jobFilePath string, args ...string) error {
+
+	baseArgs := []string{"job", "run", "-detach"}
+	for i := range args {
+		baseArgs = append(baseArgs, args[i])
+	}
+	baseArgs = append(baseArgs, "-")
+
+	return register(jobID, jobFilePath, exec.Command("nomad", baseArgs...))
+}
+
+func register(jobID, jobFilePath string, cmd *exec.Cmd) error {
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("could not open stdin?: %w", err)

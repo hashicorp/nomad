@@ -1,5 +1,5 @@
 import { inject as service } from '@ember/service';
-import { alias } from '@ember/object/computed';
+import { computed } from '@ember/object';
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import { action } from '@ember/object';
@@ -23,7 +23,15 @@ export default class IndexController extends Controller.extend(WithNamespaceRese
 
   currentPage = 1;
 
-  @alias('model') job;
+  @computed('model.job')
+  get job() {
+    return this.model.job;
+  }
+
+  @computed('model.nodes.[]')
+  get nodes() {
+    return this.model.nodes;
+  }
 
   sortProperty = 'name';
   sortDescending = false;

@@ -383,10 +383,12 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 		maxUsage := stats.MemoryStats.Usage.MaxUsage
 		rss := stats.MemoryStats.Stats["rss"]
 		cache := stats.MemoryStats.Stats["cache"]
+		mapped_file := stats.MemoryStats.Stats["mapped_file"]
 		ms := &cstructs.MemoryStats{
 			RSS:            rss,
 			Cache:          cache,
 			Swap:           swap.Usage,
+			MappedFile:     mapped_file,
 			Usage:          stats.MemoryStats.Usage.Usage,
 			MaxUsage:       maxUsage,
 			KernelUsage:    stats.MemoryStats.KernelUsage.Usage,

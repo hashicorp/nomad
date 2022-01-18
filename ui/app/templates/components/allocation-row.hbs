@@ -1,8 +1,10 @@
 <td data-test-indicators class="is-narrow">
-  {{#if this.allocation.unhealthyDrivers.length}}
-    <span data-test-icon="unhealthy-driver" class="tooltip text-center" role="tooltip" aria-label="Allocation depends on unhealthy drivers">
-      {{x-icon "alert-triangle" class="is-warning"}}
-    </span>
+  {{#if (can "read client")}}
+    {{#if this.allocation.unhealthyDrivers.length}}
+      <span data-test-icon="unhealthy-driver" class="tooltip text-center" role="tooltip" aria-label="Allocation depends on unhealthy drivers">
+        {{x-icon "alert-triangle" class="is-warning"}}
+      </span>
+    {{/if}}
   {{/if}}
   {{#if this.allocation.nextAllocation}}
     <span data-test-icon="reschedule" class="tooltip text-center" role="tooltip" aria-label="Allocation was rescheduled">
@@ -38,20 +40,28 @@
 </td>
 {{#if (eq this.context "volume")}}
   <td data-test-client>
-    <Tooltip @text={{this.allocation.node.name}}>
-      <LinkTo @route="clients.client" @model={{this.allocation.node}}>
-        {{this.allocation.node.shortId}}
-      </LinkTo>
+    <Tooltip @text={{this.allocation.nodeName}}>
+      {{#if (can "read client")}}
+        <LinkTo @route="clients.client" @model={{this.allocation.node}}>
+          {{this.allocation.shortNodeId}}
+        </LinkTo>
+      {{else}}
+        {{this.allocation.shortNodeId}}
+      {{/if}}
     </Tooltip>
   </td>
 {{/if}}
 {{#if (or (eq this.context "taskGroup") (eq this.context "job"))}}
   <td data-test-job-version>{{this.allocation.jobVersion}}</td>
   <td data-test-client>
-    <Tooltip @text={{this.allocation.node.name}}>
-      <LinkTo @route="clients.client" @model={{this.allocation.node}}>
-        {{this.allocation.node.shortId}}
-      </LinkTo>
+    <Tooltip @text={{this.allocation.nodeName}}>
+      {{#if (can "read client")}}
+        <LinkTo @route="clients.client" @model={{this.allocation.node}}>
+          {{this.allocation.shortNodeId}}
+        </LinkTo>
+      {{else}}
+        {{this.allocation.shortNodeId}}
+      {{/if}}
     </Tooltip>
   </td>
 {{else if (or (eq this.context "node") (eq this.context "volume"))}}

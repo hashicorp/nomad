@@ -175,6 +175,7 @@ export default Factory.extend({
       namespace,
       jobId: job.id,
       nodeId: node.id,
+      nodeName: node.name,
       taskStateIds: [],
       taskResourceIds: [],
       taskGroup: taskGroup.name,

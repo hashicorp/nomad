@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/hashicorp/nomad/api/internal/testutil"
 )
 
 func TestEvaluations_List(t *testing.T) {
@@ -43,9 +45,37 @@ func TestEvaluations_List(t *testing.T) {
 
 	// if the eval fails fast there can be more than 1
 	// but they are in order of most recent first, so look at the last one
+	if len(result) == 0 {
+		t.Fatalf("expected eval (%s), got none", resp.EvalID)
+	}
 	idx := len(result) - 1
-	if len(result) == 0 || result[idx].ID != resp.EvalID {
+	if result[idx].ID != resp.EvalID {
 		t.Fatalf("expected eval (%s), got: %#v", resp.EvalID, result[idx])
+	}
+
+	// wait until the 2nd eval shows up before we try paging
+	results := []*Evaluation{}
+	testutil.WaitForResult(func() (bool, error) {
+		results, _, err = e.List(nil)
+		if len(results) < 2 || err != nil {
+			return false, err
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// Check the evaluations again with paging; note that while this
+	// package sorts by timestamp, the actual HTTP API sorts by ID
+	// so we need to use that for the NextToken
+	ids := []string{results[0].ID, results[1].ID}
+	sort.Strings(ids)
+	result, qm, err = e.List(&QueryOptions{PerPage: int32(1), NextToken: ids[1]})
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected no evals after last one but got %v", result[0])
 	}
 }
 

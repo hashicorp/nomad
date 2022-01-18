@@ -1,6 +1,11 @@
 <nav class="navbar is-primary" title="navigation">
   <div class="navbar-brand">
-    <span data-test-header-gutter-toggle class="gutter-toggle" aria-label="menu" onclick={{action this.onHamburgerClick}}>
+    <span
+      data-test-header-gutter-toggle
+      class="gutter-toggle"
+      aria-label="menu"
+      onclick={{action this.onHamburgerClick}}
+    >
       <HamburgerMenu />
     </span>
     <LinkTo @route="jobs" class="navbar-item is-logo" aria-label="Home">
@@ -14,10 +19,26 @@
   {{/if}}
   <div class="navbar-end">
     {{#if this.config.APP.showStorybookLink}}
-      <a href="/storybook/" class="navbar-item">Storybook</a>
+      <a href="/storybook/" class="navbar-item">
+        Storybook
+      </a>
     {{/if}}
-    <a href="https://nomadproject.io/docs" class="navbar-item">Documentation</a>
-    <LinkTo @route="settings.tokens" class="navbar-item">ACL Tokens</LinkTo>
+    {{#if this.system.agent.config.UI.Consul.BaseUIURL}}
+      <a data-test-header-consul-link href={{this.system.agent.config.UI.Consul.BaseUIURL}} class="navbar-item">
+        Consul
+      </a>
+    {{/if}}
+    {{#if this.system.agent.config.UI.Vault.BaseUIURL}}
+      <a data-test-header-vault-link href={{this.system.agent.config.UI.Vault.BaseUIURL}} class="navbar-item">
+        Vault
+      </a>
+    {{/if}}
+    <a href="https://nomadproject.io/docs" class="navbar-item">
+      Documentation
+    </a>
+    <LinkTo @route="settings.tokens" class="navbar-item">
+      ACL Tokens
+    </LinkTo>
   </div>
 </nav>
 <div class="navbar is-secondary">

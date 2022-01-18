@@ -16,7 +16,7 @@ type StatusCommand struct {
 	verbose bool
 }
 
-func (s *StatusCommand) Help() string {
+func (c *StatusCommand) Help() string {
 	helpText := `
 Usage: nomad status [options] <identifier>
 

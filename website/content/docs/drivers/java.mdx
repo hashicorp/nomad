@@ -199,7 +199,7 @@ Here is an example of using these properties in a job file:
 job "docs" {
   # Only run this job where the JVM is higher than version 1.6.0.
   constraint {
-    attribute = "${driver.java.version}"
+    attribute = "${attr.driver.java.version}"
     operator  = ">"
     value     = "1.6.0"
   }

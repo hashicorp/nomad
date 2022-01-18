@@ -17,6 +17,10 @@ func (s *HTTPServer) EvalsRequest(resp http.ResponseWriter, req *http.Request) (
 		return nil, nil
 	}
 
+	query := req.URL.Query()
+	args.FilterEvalStatus = query.Get("status")
+	args.FilterJobID = query.Get("job")
+
 	var out structs.EvalListResponse
 	if err := s.agent.RPC("Eval.List", &args, &out); err != nil {
 		return nil, err

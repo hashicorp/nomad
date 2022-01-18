@@ -32,7 +32,7 @@ PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 # LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
 # published release, but backport branches should point to the parent tag (e.g. 1.0.8 in release-1.0.9 after 1.1.0 is cut).
-LAST_RELEASE ?= v1.2.0
+LAST_RELEASE ?= v1.2.3
 
 default: help
 
@@ -124,6 +124,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
+	go install golang.org/x/tools/cmd/stringer@v0.1.8
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
