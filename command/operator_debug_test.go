@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -73,6 +74,8 @@ func newClientAgentConfigFunc(region string, nodeClass string, srvRPCAddr string
 }
 
 func TestDebug_NodeClass(t *testing.T) {
+	t.Parallel()
+
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
 
@@ -121,6 +124,8 @@ func TestDebug_NodeClass(t *testing.T) {
 }
 
 func TestDebug_ClientToServer(t *testing.T) {
+	t.Parallel()
+
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
 
@@ -264,6 +269,8 @@ func TestDebug_MultiRegion(t *testing.T) {
 }
 
 func TestDebug_SingleServer(t *testing.T) {
+	t.Parallel()
+
 	srv, _, url := testServer(t, false, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
@@ -296,6 +303,8 @@ func TestDebug_SingleServer(t *testing.T) {
 }
 
 func TestDebug_Failures(t *testing.T) {
+	t.Parallel()
+
 	srv, _, url := testServer(t, false, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
@@ -331,6 +340,11 @@ func TestDebug_Failures(t *testing.T) {
 			expectedCode: 1,
 		},
 		{
+			name:         "Fails bad pprof duration",
+			args:         []string{"-pprof-duration", "baz"},
+			expectedCode: 1,
+		},
+		{
 			name:          "Fails bad address",
 			args:          []string{"-address", url + "bogus"},
 			expectedCode:  1,
@@ -342,6 +356,8 @@ func TestDebug_Failures(t *testing.T) {
 }
 
 func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
+	t.Parallel()
+
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
 
@@ -391,6 +407,7 @@ func buildPathSlice(path string, files []string) []string {
 }
 
 func TestDebug_CapturedFiles(t *testing.T) {
+	// t.Parallel()
 	srv, _, url := testServer(t, true, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
@@ -500,6 +517,8 @@ func TestDebug_CapturedFiles(t *testing.T) {
 }
 
 func TestDebug_ExistingOutput(t *testing.T) {
+	t.Parallel()
+
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
@@ -515,6 +534,8 @@ func TestDebug_ExistingOutput(t *testing.T) {
 }
 
 func TestDebug_Fail_Pprof(t *testing.T) {
+	t.Parallel()
+
 	// Setup agent config with debug endpoints disabled
 	agentConfFunc := func(c *agent.Config) {
 		c.EnableDebug = false
@@ -822,4 +843,181 @@ func testServerWithoutLeader(t *testing.T, runClient bool, cb func(*agent.Config
 
 	c := a.Client()
 	return a, c, a.HTTPAddr()
+}
+
+// testOutput is used to receive test output from a channel
+type testOutput struct {
+	name   string
+	code   int
+	output string
+	error  string
+}
+
+func TestDebug_EventStream_TopicsFromString(t *testing.T) {
+	cases := []struct {
+		name      string
+		topicList string
+		want      map[api.Topic][]string
+	}{
+		{
+			name:      "topics = all",
+			topicList: "all",
+			want:      allTopics(),
+		},
+		{
+			name:      "topics = none",
+			topicList: "none",
+			want:      nil,
+		},
+		{
+			name:      "two topics",
+			topicList: "Deployment,Job",
+			want: map[api.Topic][]string{
+				"Deployment": {"*"},
+				"Job":        {"*"},
+			},
+		},
+		{
+			name:      "multiple topics and filters (using api const)",
+			topicList: "Evaluation:example,Job:*,Node:*",
+			want: map[api.Topic][]string{
+				api.TopicEvaluation: {"example"},
+				api.TopicJob:        {"*"},
+				api.TopicNode:       {"*"},
+			},
+		},
+		{
+			name:      "capitalize topics",
+			topicList: "evaluation:example,job:*,node:*",
+			want: map[api.Topic][]string{
+				api.TopicEvaluation: {"example"},
+				api.TopicJob:        {"*"},
+				api.TopicNode:       {"*"},
+			},
+		},
+		{
+			name:      "all topics for filterKey",
+			topicList: "*:example",
+			want: map[api.Topic][]string{
+				"*": {"example"},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := topicsFromString(tc.topicList)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestDebug_EventStream(t *testing.T) {
+	// TODO dmay: specify output directory to allow inspection of eventstream.json
+	// TODO dmay: require specific events in the eventstream.json file(s)
+	// TODO dmay: scenario where no events are expected, verify "No events captured"
+	// TODO dmay: verify event topic filtering only includes expected events
+
+	var start time.Time
+
+	// Start test server
+	srv, client, url := testServer(t, true, nil)
+	t.Logf("[TEST] %s: test server started, waiting for leadership to establish\n", time.Since(start))
+
+	// Ensure leader is ready
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+	t.Logf("[TEST] %s: Leadership established\n", time.Since(start))
+
+	// Setup mock UI
+	ui := cli.NewMockUi()
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// Create channels to pass info back from goroutine
+	chOutput := make(chan testOutput)
+	chDone := make(chan bool)
+
+	// Set duration for capture
+	duration := 5 * time.Second
+	// Fail with timeout if duration is exceeded by 5 seconds
+	timeout := duration + 5*time.Second
+
+	// Run debug in a goroutine so we can start the capture before we run the test job
+	t.Logf("[TEST] %s: Starting nomad operator debug in goroutine\n", time.Since(start))
+	go func() {
+		code := cmd.Run([]string{"-address", url, "-duration", duration.String(), "-interval", "5s", "-event-topic", "Job:*"})
+		assert.Equal(t, 0, code)
+
+		chOutput <- testOutput{
+			name:   "yo",
+			code:   code,
+			output: ui.OutputWriter.String(),
+			error:  ui.ErrorWriter.String(),
+		}
+		chDone <- true
+	}()
+
+	// Start test job
+	t.Logf("[TEST] %s: Running test job\n", time.Since(start))
+	job := testJob("event_stream_test")
+	resp, _, err := client.Jobs().Register(job, nil)
+	t.Logf("[TEST] %s: Test job started\n", time.Since(start))
+
+	// Ensure job registered
+	require.NoError(t, err)
+
+	// Wait for the job to complete
+	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
+		switch code {
+		case 1:
+			t.Fatalf("status code 1: All other failures (API connectivity, internal errors, etc)\n")
+		case 2:
+			t.Fatalf("status code 2: Problem scheduling job (impossible constraints, resources exhausted, etc)\n")
+		default:
+			t.Fatalf("status code non zero saw %d\n", code)
+		}
+	}
+	t.Logf("[TEST] %s: test job is complete, eval id: %s\n", time.Since(start), resp.EvalID)
+
+	// Capture the output struct from nomad operator debug goroutine
+	var testOut testOutput
+	var done bool
+	for {
+		select {
+		case testOut = <-chOutput:
+			t.Logf("out from channel testout\n")
+		case done = <-chDone:
+			t.Logf("[TEST] %s: goroutine is complete", time.Since(start))
+		case <-time.After(timeout):
+			t.Fatalf("timed out waiting for event stream event (duration: %s, timeout: %s", duration, timeout)
+		}
+
+		if done {
+			break
+		}
+	}
+
+	t.Logf("Values from struct -- code: %d, len(out): %d, len(outerr): %d\n", testOut.code, len(testOut.output), len(testOut.error))
+
+	require.Empty(t, testOut.error)
+
+	archive := extractArchiveName(testOut.output)
+	require.NotEmpty(t, archive)
+	fmt.Println(archive)
+
+	// TODO dmay: verify evenstream.json output file contains expected content
+}
+
+// extractArchiveName searches string s for the archive filename
+func extractArchiveName(captureOutput string) string {
+	file := ""
+
+	r := regexp.MustCompile(`Created debug archive: (.+)?\n`)
+	res := r.FindStringSubmatch(captureOutput)
+	// If found, there will be 2 elements, where element [1] is the desired text from the submatch
+	if len(res) == 2 {
+		file = res[1]
+	}
+
+	return file
 }
