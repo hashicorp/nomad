@@ -1,5 +1,5 @@
 query UseCasesQuery {
-  allVaultUseCases {
+  allNomadUseCases {
     seo: seoMeta {
       title
       description
