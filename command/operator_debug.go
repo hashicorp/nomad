@@ -77,7 +77,7 @@ Usage: nomad operator debug [options]
   'list-jobs' capability for all namespaces. To collect pprof profiles the
   token will also require 'agent:write', or enable_debug configuration set to
   true.
-  
+
   If event stream capture is enabled, the Job, Allocation, Deployment,
   and Evaluation topics require 'namespace:read-job' capabilities, the Node
   topic requires 'node:read'.  A 'management' token is required to capture
@@ -153,7 +153,7 @@ Debug Options:
     Specifies the index to start streaming events from. If the requested index is
     no longer in the buffer the stream will start at the next available index.
     Defaults to 0.
-  
+
   -event-topic=<Allocation,Evaluation,Job,Node,*>:<filter>
     Enable event stream capture, filtered by comma delimited list of topic filters.
     Examples:
@@ -212,8 +212,8 @@ func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-duration":       complete.PredictAnything,
-			"-event-topic":    complete.PredictAnything,
 			"-event-index":    complete.PredictAnything,
+			"-event-topic":    complete.PredictAnything,
 			"-interval":       complete.PredictAnything,
 			"-log-level":      complete.PredictSet("TRACE", "DEBUG", "INFO", "WARN", "ERROR"),
 			"-max-nodes":      complete.PredictAnything,
