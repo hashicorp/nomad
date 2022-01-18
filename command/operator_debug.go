@@ -1480,7 +1480,7 @@ func parseEventTopics(topicList []string) (map[api.Topic][]string, error) {
 	for _, topic := range topicList {
 		k, v, err := parseTopic(topic)
 		if err != nil {
-			mErrs = multierror.Append(mErrs, fmt.Errorf("error parsing topics: %w", err))
+			mErrs = multierror.Append(mErrs, err)
 		}
 
 		topics[api.Topic(k)] = append(topics[api.Topic(k)], v)
@@ -1495,7 +1495,7 @@ func parseTopic(topic string) (string, string, error) {
 	if len(parts) == 1 {
 		return topic, "*", nil
 	} else if len(parts) != 2 {
-		return "", "", fmt.Errorf("Invalid key value pair for topic, topic: %s", topic)
+		return "", "", fmt.Errorf("Invalid key value pair for topic: %s", topic)
 	}
 	return parts[0], parts[1], nil
 }
