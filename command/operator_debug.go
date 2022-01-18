@@ -149,6 +149,11 @@ Debug Options:
     Set the duration of the debug capture. Logs will be captured from specified servers and
     nodes at "log-level". Defaults to 2m.
 
+  -event-index=<index>
+    Specifies the index to start streaming events from. If the requested index is
+    no longer in the buffer the stream will start at the next available index.
+    Defaults to 0.
+  
   -interval=<interval>
     The interval between snapshots of the Nomad state. Set interval equal to
     duration to capture a single snapshot. Defaults to 30s.
@@ -207,6 +212,7 @@ func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-duration":       complete.PredictAnything,
+			"-event-index":    complete.PredictAnything,
 			"-interval":       complete.PredictAnything,
 			"-log-level":      complete.PredictSet("TRACE", "DEBUG", "INFO", "WARN", "ERROR"),
 			"-max-nodes":      complete.PredictAnything,
@@ -329,10 +335,12 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	var duration, interval, output, pprofDuration, eventTopic string
+	var eventIndex int64
 	var nodeIDs, serverIDs string
 	var allowStale bool
 
 	flags.StringVar(&duration, "duration", "2m", "")
+	flags.Int64Var(&eventIndex, "event-index", 0, "")
 	flags.StringVar(&interval, "interval", "30s", "")
 	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
@@ -407,7 +415,13 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 	c.topics = t
-	c.index = 0
+
+	// Validate and set initial event stream index
+	if eventIndex < 0 {
+		c.Ui.Error(fmt.Sprintf("Event stream index must be greater than zero"))
+		return 1
+	}
+	c.index = uint64(eventIndex)
 
 	// Verify there are no extra arguments
 	args = flags.Args()
