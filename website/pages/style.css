@@ -17,7 +17,7 @@
 @import '../components/use-case-page/style.css';
 
 /* Local Pages */
-@import './home/style.css';
+/* @import './home/style.css'; */
 
 /* Print Styles */
 @import './print.css';
