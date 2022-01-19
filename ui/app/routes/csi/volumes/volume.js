@@ -21,13 +21,17 @@ export default class VolumeRoute extends Route.extend(WithWatchers) {
   }
 
   serialize(model) {
-    return { volume_name: model.get('plainId') };
+    return { volume_name: JSON.parse(model.get('id')).join('@') };
   }
 
-  model(params, transition) {
-    const namespace = transition.to.queryParams.namespace;
-    const name = params.volume_name;
+  model(params) {
+    // Issue with naming collissions
+    const url = params.volume_name.split('@');
+    const namespace = url.pop();
+    const name = url.join('');
+
     const fullId = JSON.stringify([`csi/${name}`, namespace || 'default']);
+
     return RSVP.hash({
       volume: this.store.findRecord('volume', fullId, { reload: true }),
       namespaces: this.store.findAll('namespace'),

@@ -145,7 +145,7 @@ export default function moduleForJob(
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
         const expectedURL = new URL(
           urlWithNamespace(
-            `/jobs/${job.name}/clients?status=${encodedStatus}`,
+            `/jobs/${job.name}@default/clients?status=${encodedStatus}`,
             job.namespace
           ),
           window.location
