@@ -1,3 +1,69 @@
+## 1.2.4 (January 18, 2022)
+
+FEATURES:
+
+* ui: Add filters to allocations table in jobs/job/allocation view [[GH-11544](https://github.com/hashicorp/nomad/issues/11544)]
+
+IMPROVEMENTS:
+
+* agent/config: Allow binding the HTTP server to multiple addresses. [[GH-11582](https://github.com/hashicorp/nomad/issues/11582)]
+* agent: Added `ui` configuration block [[GH-11555](https://github.com/hashicorp/nomad/issues/11555)]
+* api: Add pagination and filtering to Evaluations List API [[GH-11648](https://github.com/hashicorp/nomad/issues/11648)]
+* api: Added pagination to deployments list API [[GH-11743](https://github.com/hashicorp/nomad/issues/11743)]
+* api: Improve error message returned by `Operator.LicenseGet` [[GH-11644](https://github.com/hashicorp/nomad/issues/11644)]
+* api: Return a HTTP 404 instead of a HTTP 500 from the Stat File and List Files API endpoints when a file or directory is not found. [[GH-11482](https://github.com/hashicorp/nomad/issues/11482)]
+* api: Updated the CSI volumes list API to respect wildcard namespaces [[GH-11724](https://github.com/hashicorp/nomad/issues/11724)]
+* api: Updated the deployments list API to respect wildcard namespaces [[GH-11743](https://github.com/hashicorp/nomad/issues/11743)]
+* api: Updated the evaluations list API to respect wildcard namespaces [[GH-11710](https://github.com/hashicorp/nomad/issues/11710)]
+* api: return HTTP204 on CORS pre-flight checks and allow dot in CORS header keys. [[GH-11323](https://github.com/hashicorp/nomad/issues/11323)]
+* cli: Add `-var` and `-var-file` to the command line printed by `job plan` [[GH-11631](https://github.com/hashicorp/nomad/issues/11631)]
+* cli: Add event stream capture to `nomad operator debug` [[GH-11865](https://github.com/hashicorp/nomad/issues/11865)]
+* cli: Added a `nomad eval list` command. [[GH-11675](https://github.com/hashicorp/nomad/issues/11675)]
+* cli: Made the `operator raft info`, `operator raft logs`, `operator raft state`, and `operator snapshot state` commands visible to command line help. [[GH-11682](https://github.com/hashicorp/nomad/issues/11682)]
+* cli: Return non-zero exit code from monitor if deployment fails [[GH-11550](https://github.com/hashicorp/nomad/issues/11550)]
+* cli: provide `-no-shutdown-delay` option to `job stop` and `alloc stop` commands to ignore `shutdown_delay` [[GH-11596](https://github.com/hashicorp/nomad/issues/11596)]
+* core: allow setting and propagation of eval priority on job de/registration [[GH-11532](https://github.com/hashicorp/nomad/issues/11532)]
+* deps: Update `armon/go-metrics` to `v0.3.10` [[GH-11504](https://github.com/hashicorp/nomad/issues/11504)]
+* driver/docker: Added support for client-wide `pids_limit` configuration [[GH-11526](https://github.com/hashicorp/nomad/issues/11526)]
+* hcl: tolerate empty strings for zero integer values in quota and job specification. [[GH-11325](https://github.com/hashicorp/nomad/issues/11325)]
+* metrics (Enterprise): Emit `nomad.license.expiration_time_epoch` metric to show the expiration time of the Nomad Enterprise license.
+* metrics: Added metric for `client.allocated.max_memory` [[GH-11490](https://github.com/hashicorp/nomad/issues/11490)]
+* metrics: added nomad.client.allocs.memory.mapped_file metric [[GH-11500](https://github.com/hashicorp/nomad/issues/11500)]
+* scaling: Don't emit scaling action with error in case of active deployment [[GH-11556](https://github.com/hashicorp/nomad/issues/11556)]
+* scheduler: Added a `RejectJobRegistration` field to the scheduler configuration API that enabled a setting to reject job register, dispatch, and scale requests without a management ACL token [[GH-11610](https://github.com/hashicorp/nomad/issues/11610)]
+* server: Make num_schedulers and enabled_schedulers hot reloadable; add agent API endpoint to enable dynamic modifications of these values. [[GH-11593](https://github.com/hashicorp/nomad/issues/11593)]
+* template: Expose consul-template configuration options at the client level for `consul_retry`,
+`vault_retry`, `max_stale`, `block_query_wait` and `wait`. Expose per-template configuration
+for wait that will override the client level configuration. Add `wait_bounds` to
+allow operators to constrain per-template overrides at the client level. [[GH-11606](https://github.com/hashicorp/nomad/issues/11606)]
+* ui: Add filters to the allocation list in the client and task group details pages [[GH-11545](https://github.com/hashicorp/nomad/issues/11545)]
+* ui: Add titles to breadcrumb labels in app navigation bar [[GH-11590](https://github.com/hashicorp/nomad/issues/11590)]
+* ui: Display section title in the navigation breadcrumbs [[GH-11687](https://github.com/hashicorp/nomad/issues/11687)]
+* ui: Display the Consul and Vault links configured in the agent [[GH-11557](https://github.com/hashicorp/nomad/issues/11557)]
+* ui: add links to legend items in allocation-summary [[GH-11820](https://github.com/hashicorp/nomad/issues/11820)]
+
+BUG FIXES:
+
+* agent: Fixed an issue that caused Consul values to be logged during template rendering [[GH-11838](https://github.com/hashicorp/nomad/issues/11838)]
+* agent: Validate reserved_ports are valid to prevent unschedulable nodes. [[GH-11830](https://github.com/hashicorp/nomad/issues/11830)]
+* api: Fixed a bug where API or CLI clients could become unresponsive when cron expressions contained zero-padded months [[GH-11132](https://github.com/hashicorp/nomad/issues/11132)]
+* artifact: Fixed a bug where uncompressed `.tar` archives were not unpacked after download. [[GH-11481](https://github.com/hashicorp/nomad/issues/11481)]
+* cli: Fixed a bug where the `-stale` flag was not respected by `nomad operator debug` [[GH-11678](https://github.com/hashicorp/nomad/issues/11678)]
+* cli: Rework meta commands cli flag logic to handle TLS options individually. [[GH-11592](https://github.com/hashicorp/nomad/issues/11592)]
+* client: Fixed a bug where clients would ignore the `client_auto_join` setting after losing connection with the servers, causing them to incorrectly fallback to Consul discovery if it was set to `false`. [[GH-11585](https://github.com/hashicorp/nomad/issues/11585)]
+* client: Fixed a bug where the allocation log streaming API was missing log frames that spanned log file rotation [[GH-11721](https://github.com/hashicorp/nomad/issues/11721)]
+* client: Fixed a memory and goroutine leak for batch tasks and any task that exits without being shut down from the server [[GH-11741](https://github.com/hashicorp/nomad/issues/11741)]
+* client: Fixed host network reserved port fingerprinting [[GH-11728](https://github.com/hashicorp/nomad/issues/11728)]
+* core: Fix missing fields in Node.Copy() [[GH-11744](https://github.com/hashicorp/nomad/issues/11744)]
+* csi: Fixed a bug where deregistering volumes would attempt to deregister the wrong volume if the ID was a prefix of the intended volume [[GH-11852](https://github.com/hashicorp/nomad/issues/11852)]
+* csi: Fixed a bug where volume claim releases that were not fully processed before a leadership transition would be ignored [[GH-11776](https://github.com/hashicorp/nomad/issues/11776)]
+* drivers: Fixed a bug where the `resolv.conf` copied from the system was not readable to unprivileged processes within the task [[GH-11856](https://github.com/hashicorp/nomad/issues/11856)]
+* quotas (Enterprise): Fixed a bug quotas can be incorrectly calculated when nodes fail ranking. [[GH-11848](https://github.com/hashicorp/nomad/issues/11848)]
+* rpc: Fixed scaling policy get index response when the policy is found [[GH-11579](https://github.com/hashicorp/nomad/issues/11579)]
+* scheduler: Fixed a performance bug where `spread` and node affinity can cause a job to take longer than the nack timeout to be evaluated. [[GH-11712](https://github.com/hashicorp/nomad/issues/11712)]
+* template: Fixed a bug where templates did not receive an updated vault token if `change_mode = "noop"` was set in the job definition's `vault` stanza. [[GH-11783](https://github.com/hashicorp/nomad/issues/11783)]
+* ui: Fix the ACL requirements for displaying the job details page [[GH-11672](https://github.com/hashicorp/nomad/issues/11672)]
+
 ## 1.2.3 (December 13, 2021)
 
 SECURITY:
