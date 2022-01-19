@@ -283,9 +283,16 @@ func (w *deploymentWatcher) autoPromoteDeployment(allocs []*structs.AllocListStu
 		return nil
 	}
 
-	// AutoPromote iff every task group is marked auto_promote and is healthy. The whole
+	// AutoPromote iff every task group with canaries is marked auto_promote and is healthy. The whole
 	// job version has been incremented, so we promote together. See also AutoRevert
 	for _, dstate := range d.TaskGroups {
+
+		// skip auto promote canary validation if the task group has no canaries
+		// to prevent auto promote hanging on mixed canary/non-canary taskgroup deploys
+		if dstate.DesiredCanaries < 1 {
+			continue
+		}
+
 		if !dstate.AutoPromote || dstate.DesiredCanaries != len(dstate.PlacedCanaries) {
 			return nil
 		}
