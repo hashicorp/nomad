@@ -117,9 +117,14 @@ func (v *volumeManager) ensureAllocDir(vol *structs.CSIVolume, alloc *structs.Al
 
 	// Validate that the target is not already a mount point
 	targetPath := v.targetForVolume(v.mountRoot, vol.ID, alloc.ID, usage)
+
 	m := mount.New()
 	isNotMount, err := m.IsNotAMountPoint(targetPath)
-	if err != nil {
+
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		// ignore; path does not exist and as such is not a mount
+	case err != nil:
 		return "", false, fmt.Errorf("mount point detection failed for volume (%s): %v", vol.ID, err)
 	}
 

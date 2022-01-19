@@ -121,7 +121,7 @@ func DestroyCgroup(groups *lconfigs.Cgroup, executorPid int) error {
 	// Freeze the Cgroup so that it can not continue to fork/exec.
 	groups.Resources.Freezer = lconfigs.Frozen
 	freezer := cgroupFs.FreezerGroup{}
-	if err := freezer.Set(groups.Paths[freezer.Name()], groups); err != nil {
+	if err := freezer.Set(groups.Paths[freezer.Name()], groups.Resources); err != nil {
 		return err
 	}
 
@@ -133,7 +133,7 @@ func DestroyCgroup(groups *lconfigs.Cgroup, executorPid int) error {
 		// Unfreeze the cgroup.
 		groups.Resources.Freezer = lconfigs.Thawed
 		freezer := cgroupFs.FreezerGroup{}
-		if err := freezer.Set(groups.Paths[freezer.Name()], groups); err != nil {
+		if err := freezer.Set(groups.Paths[freezer.Name()], groups.Resources); err != nil {
 			multierror.Append(mErrs, fmt.Errorf("failed to unfreeze cgroup: %v", err))
 			return mErrs.ErrorOrNil()
 		}
@@ -155,7 +155,7 @@ func DestroyCgroup(groups *lconfigs.Cgroup, executorPid int) error {
 
 	// Unfreeze the cgroug so we can wait.
 	groups.Resources.Freezer = lconfigs.Thawed
-	if err := freezer.Set(groups.Paths[freezer.Name()], groups); err != nil {
+	if err := freezer.Set(groups.Paths[freezer.Name()], groups.Resources); err != nil {
 		multierror.Append(mErrs, fmt.Errorf("failed to unfreeze cgroup: %v", err))
 		return mErrs.ErrorOrNil()
 	}
