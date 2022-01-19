@@ -337,6 +337,88 @@ func Job() *structs.Job {
 	return job
 }
 
+func MultiTaskGroupJob() *structs.Job {
+	job := Job()
+	apiTaskGroup := &structs.TaskGroup{
+		Name:  "api",
+		Count: 10,
+		EphemeralDisk: &structs.EphemeralDisk{
+			SizeMB: 150,
+		},
+		RestartPolicy: &structs.RestartPolicy{
+			Attempts: 3,
+			Interval: 10 * time.Minute,
+			Delay:    1 * time.Minute,
+			Mode:     structs.RestartPolicyModeDelay,
+		},
+		ReschedulePolicy: &structs.ReschedulePolicy{
+			Attempts:      2,
+			Interval:      10 * time.Minute,
+			Delay:         5 * time.Second,
+			DelayFunction: "constant",
+		},
+		Migrate: structs.DefaultMigrateStrategy(),
+		Networks: []*structs.NetworkResource{
+			{
+				Mode: "host",
+				DynamicPorts: []structs.Port{
+					{Label: "http"},
+					{Label: "admin"},
+				},
+			},
+		},
+		Tasks: []*structs.Task{
+			{
+				Name:   "api",
+				Driver: "exec",
+				Config: map[string]interface{}{
+					"command": "/bin/date",
+				},
+				Env: map[string]string{
+					"FOO": "bar",
+				},
+				Services: []*structs.Service{
+					{
+						Name:      "${TASK}-backend",
+						PortLabel: "http",
+						Tags:      []string{"pci:${meta.pci-dss}", "datacenter:${node.datacenter}"},
+						Checks: []*structs.ServiceCheck{
+							{
+								Name:     "check-table",
+								Type:     structs.ServiceCheckScript,
+								Command:  "/usr/local/check-table-${meta.database}",
+								Args:     []string{"${meta.version}"},
+								Interval: 30 * time.Second,
+								Timeout:  5 * time.Second,
+							},
+						},
+					},
+					{
+						Name:      "${TASK}-admin",
+						PortLabel: "admin",
+					},
+				},
+				LogConfig: structs.DefaultLogConfig(),
+				Resources: &structs.Resources{
+					CPU:      500,
+					MemoryMB: 256,
+				},
+				Meta: map[string]string{
+					"foo": "bar",
+				},
+			},
+		},
+		Meta: map[string]string{
+			"elb_check_type":     "http",
+			"elb_check_interval": "30s",
+			"elb_check_min":      "3",
+		},
+	}
+	job.TaskGroups = append(job.TaskGroups, apiTaskGroup)
+	job.Canonicalize()
+	return job
+}
+
 func LifecycleSideTask(resources structs.Resources, i int) *structs.Task {
 	return &structs.Task{
 		Name:   fmt.Sprintf("side-%d", i),
