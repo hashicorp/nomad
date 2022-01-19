@@ -12,6 +12,7 @@ BUG FIXES:
 * drivers: Fixed a bug where the `resolv.conf` copied from the system was not readable to unprivileged processes within the task [[GH-11856](https://github.com/hashicorp/nomad/issues/11856)]
 * quotas (Enterprise): Fixed a bug quotas can be incorrectly calculated when nodes fail ranking. [[GH-11848](https://github.com/hashicorp/nomad/issues/11848)]
 * rpc: Fixed scaling policy get index response when the policy is found [[GH-11579](https://github.com/hashicorp/nomad/issues/11579)]
+* scheduler: detect, log, and emit `nomad.nomad.plan.node_rejected` metric when an unexpected port collision is detected [[GH-11793](https://github.com/hashicorp/nomad/issues/11793)]
 * scheduler: Fixed a performance bug where `spread` and node affinity can cause a job to take longer than the nack timeout to be evaluated. [[GH-11712](https://github.com/hashicorp/nomad/issues/11712)]
 * template: Fixed a bug where templates did not receive an updated vault token if `change_mode = "noop"` was set in the job definition's `vault` stanza. [[GH-11783](https://github.com/hashicorp/nomad/issues/11783)]
 
