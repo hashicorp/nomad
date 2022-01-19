@@ -5,7 +5,6 @@ go 1.17
 // Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826
 replace (
 	github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
-	github.com/NYTimes/gziphandler => github.com/NYTimes/gziphandler v1.0.0
 	github.com/apparentlymart/go-textseg/v12 => github.com/apparentlymart/go-textseg/v12 v12.0.0
 	github.com/hashicorp/go-discover => github.com/hashicorp/go-discover v0.0.0-20210818145131-c573d69da192
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
@@ -18,7 +17,6 @@ replace github.com/hashicorp/nomad/api => ./api
 require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
 	github.com/Microsoft/go-winio v0.4.17
-	github.com/NYTimes/gziphandler v1.0.1
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.3.10
 	github.com/aws/aws-sdk-go v1.42.27
@@ -41,6 +39,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/golang/snappy v0.0.4
 	github.com/google/go-cmp v0.5.6
+	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.1-0.20200228141219-3ce3d519df39
@@ -179,6 +178,7 @@ require (
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/envoyproxy/go-control-plane v0.10.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v0.6.2 // indirect
+	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/godbus/dbus/v5 v5.0.4 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
