@@ -519,7 +519,7 @@ executors:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
       image: *go_machine_image
-      resource_class: large
+      resource_class: xlarge
     environment: &machine_env
       <<: *common_envs
       GOLANG_VERSION: 1.17.5
