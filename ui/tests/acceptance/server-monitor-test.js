@@ -40,7 +40,10 @@ module('Acceptance | server monitor', function (hooks) {
       'Servers',
       'The page should read the breadcrumb Servers'
     );
-    assert.equal(Layout.breadcrumbFor('servers.server').text, `Server ${agent.name}`);
+    assert.equal(
+      Layout.breadcrumbFor('servers.server').text,
+      `Server ${agent.name}`
+    );
 
     await Layout.breadcrumbFor('servers.index').visit();
     assert.equal(currentURL(), '/servers');

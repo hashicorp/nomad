@@ -16,7 +16,7 @@ export default class VolumeRoute extends Route.extend(WithWatchers) {
     if (!model) return;
 
     controller.set('watchers', {
-      model: this.watch.perform(model)
+      model: this.watch.perform(model),
     });
   }
 
@@ -30,9 +30,9 @@ export default class VolumeRoute extends Route.extend(WithWatchers) {
     const fullId = JSON.stringify([`csi/${name}`, namespace || 'default']);
     return RSVP.hash({
       volume: this.store.findRecord('volume', fullId, { reload: true }),
-      namespaces: this.store.findAll('namespace')
+      namespaces: this.store.findAll('namespace'),
     })
-      .then(hash => hash.volume)
+      .then((hash) => hash.volume)
       .catch(notifyError(this));
   }
 

@@ -4,7 +4,7 @@ import EmberError from '@ember/error';
 import { resolve, all } from 'rsvp';
 import {
   watchRecord,
-  watchRelationship
+  watchRelationship,
 } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyError from 'nomad-ui/utils/notify-error';
@@ -34,7 +34,7 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
         // Refresh job allocations before-hand (so page sort works on load)
         return all([
           job.hasMany('allocations').reload(),
-          job.get('scaleState')
+          job.get('scaleState'),
         ]).then(() => taskGroup);
       })
       .catch(notifyError(this));
@@ -50,7 +50,7 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
         allocations: this.watchAllocations.perform(job),
         latestDeployment:
           job.get('supportsDeployments') &&
-          this.watchLatestDeployment.perform(job)
+          this.watchLatestDeployment.perform(job),
       });
     }
   }

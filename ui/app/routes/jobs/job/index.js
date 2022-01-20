@@ -5,7 +5,7 @@ import {
   watchRecord,
   watchRelationship,
   watchAll,
-  watchQuery
+  watchQuery,
 } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
@@ -43,12 +43,12 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
       list:
         model.job.get('hasChildren') &&
         this.watchAllJobs.perform({
-          namespace: model.job.namespace.get('name')
+          namespace: model.job.namespace.get('name'),
         }),
       nodes:
         this.can.can('read client') &&
         model.job.get('hasClientStatus') &&
-        this.watchNodes.perform()
+        this.watchNodes.perform(),
     });
   }
 
@@ -61,7 +61,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
     ) {
       controller.setProperties({
         sortProperty: 'submitTime',
-        sortDescending: true
+        sortDescending: true,
       });
     }
     return super.setupController(...arguments);

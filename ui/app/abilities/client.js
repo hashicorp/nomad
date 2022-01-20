@@ -21,14 +21,14 @@ export default class Client extends AbstractAbility {
   get policiesIncludeNodeRead() {
     return policiesIncludePermissions(this.get('token.selfTokenPolicies'), [
       'read',
-      'write'
+      'write',
     ]);
   }
 
   @computed('token.selfTokenPolicies.[]')
   get policiesIncludeNodeWrite() {
     return policiesIncludePermissions(this.get('token.selfTokenPolicies'), [
-      'write'
+      'write',
     ]);
   }
 }
@@ -37,9 +37,9 @@ function policiesIncludePermissions(policies = [], permissions = []) {
   // For each policy record, extract the Node policy
   const nodePolicies = policies
     .toArray()
-    .map(policy => get(policy, 'rulesJSON.Node.Policy'))
+    .map((policy) => get(policy, 'rulesJSON.Node.Policy'))
     .compact();
 
   // Check for requested permissions
-  return nodePolicies.some(policy => permissions.includes(policy));
+  return nodePolicies.some((policy) => permissions.includes(policy));
 }

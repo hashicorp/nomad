@@ -35,9 +35,7 @@ export default class Allocation extends Model {
   @attr('string') nodeName;
   @computed
   get shortNodeId() {
-    return this.belongsTo('node')
-      .id()
-      .split('-')[0];
+    return this.belongsTo('node').id().split('-')[0];
   }
 
   @attr('number') modifyIndex;
