@@ -263,7 +263,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	s.nodeDrainer.SetEnabled(true, s.State())
 
 	// Enable the volume watcher, since we are now the leader
-	s.volumeWatcher.SetEnabled(true, s.State())
+	s.volumeWatcher.SetEnabled(true, s.State(), s.getLeaderAcl())
 
 	// Restore the eval broker state
 	if err := s.restoreEvals(); err != nil {
@@ -1074,7 +1074,7 @@ func (s *Server) revokeLeadership() error {
 	s.nodeDrainer.SetEnabled(false, nil)
 
 	// Disable the volume watcher
-	s.volumeWatcher.SetEnabled(false, nil)
+	s.volumeWatcher.SetEnabled(false, nil, "")
 
 	// Disable any enterprise systems required.
 	if err := s.revokeEnterpriseLeadership(); err != nil {
