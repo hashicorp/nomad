@@ -1,3 +1,5 @@
+/* eslint-disable qunit/require-expect */
+/* Mirage fixtures are random so we can't expect a set number of assertions */
 import hbs from 'htmlbars-inline-precompile';
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -25,8 +27,6 @@ module(
     });
 
     test('when the job has placement failures, they are called out', async function (assert) {
-      assert.expect(6);
-
       this.server.create('job', {
         failedPlacements: true,
         createAllocations: false,
