@@ -2773,7 +2773,7 @@ DISCOLOOP:
 				continue
 			}
 			var peers []string
-			if err := c.connPool.RPC(region, addr, c.RPCMajorVersion(), "Status.Peers", rpcargs, &peers); err != nil {
+			if err := c.connPool.RPC(region, addr, c.RPCMajorVersion(), "Status.RpcPeers", rpcargs, &peers); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}

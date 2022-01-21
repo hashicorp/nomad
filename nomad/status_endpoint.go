@@ -77,6 +77,29 @@ func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
 	return nil
 }
 
+// RpcPeers is used to get all the Rpc servers, when gaent discovered them throw consul
+func (s *Status) RpcPeers(args *structs.GenericRequest, reply *[]string) error {
+	if args.Region == "" {
+		args.Region = s.srv.config.Region
+	}
+	if done, err := s.srv.forward("Status.RpcPeers", args, args, reply); done {
+		return err
+	}
+
+	future := s.srv.raft.GetConfiguration()
+	if err := future.Error(); err != nil {
+		return err
+	}
+
+	s.srv.peerLock.RLock()
+	defer s.srv.peerLock.RUnlock()
+
+	for _, server := range future.Configuration().Servers {
+		*reply = append(*reply, s.srv.localPeers[server.Address].RPCAddr.String())
+	}
+	return nil
+}
+
 // Members return the list of servers in a cluster that a particular server is
 // aware of
 func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMembersResponse) error {
