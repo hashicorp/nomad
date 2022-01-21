@@ -5302,7 +5302,7 @@ func (s *StateStore) ACLTokenBySecretID(ws memdb.WatchSet, secretID string) (*st
 
 	txn := s.db.ReadTxn()
 
-	watchCh, existing, err := txn.FirstWatch("acl_token", "secret", secretID)
+	watchCh, existing, err := txn.FirstWatch("acl_token", "secret", strings.TrimSpace(secretID))
 	if err != nil {
 		return nil, fmt.Errorf("acl token lookup failed: %v", err)
 	}
