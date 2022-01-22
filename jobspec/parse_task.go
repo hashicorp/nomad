@@ -316,6 +316,7 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 		v := &api.Vault{
 			Env:        boolToPtr(true),
 			ChangeMode: stringToPtr("restart"),
+			File:       boolToPtr(true),
 		}
 
 		if err := parseVault(v, o); err != nil {

@@ -83,6 +83,10 @@ type vaultHook struct {
 	// tokenPath is the path in which to read and write the token
 	tokenPath string
 
+	// sharedTokenPath is the path in which to only write, but never
+	// read the token from
+	sharedTokenPath string
+
 	// alloc is the allocation
 	alloc *structs.Allocation
 
@@ -131,7 +135,7 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 	// Try to recover a token if it was previously written in the secrets
 	// directory
 	recoveredToken := ""
-	h.tokenPath = filepath.Join(req.TaskDir.SecretsDir, vaultTokenFile)
+	h.tokenPath = filepath.Join(req.TaskDir.PrivateDir, vaultTokenFile)
 	data, err := os.ReadFile(h.tokenPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -143,6 +147,7 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 		// Store the recovered token
 		recoveredToken = string(data)
 	}
+	h.sharedTokenPath = filepath.Join(req.TaskDir.SecretsDir, vaultTokenFile)
 
 	// Launch the token manager
 	go h.run(recoveredToken)
@@ -345,8 +350,13 @@ func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 
 // writeToken writes the given token to disk
 func (h *vaultHook) writeToken(token string) error {
-	if err := os.WriteFile(h.tokenPath, []byte(token), 0666); err != nil {
+	if err := os.WriteFile(h.tokenPath, []byte(token), 0600); err != nil {
 		return fmt.Errorf("failed to write vault token: %v", err)
+	}
+	if h.vaultBlock.File {
+		if err := os.WriteFile(h.sharedTokenPath, []byte(token), 0666); err != nil {
+			return fmt.Errorf("failed to write vault token to secrets dir: %v", err)
+		}
 	}
 
 	return nil

@@ -373,6 +373,7 @@ func TestParse(t *testing.T) {
 									Policies:   []string{"foo", "bar"},
 									Env:        boolToPtr(true),
 									ChangeMode: stringToPtr(vaultChangeModeRestart),
+									File:       boolToPtr(true),
 								},
 								Templates: []*api.Template{
 									{
@@ -437,6 +438,7 @@ func TestParse(t *testing.T) {
 									Env:          boolToPtr(false),
 									ChangeMode:   stringToPtr(vaultChangeModeSignal),
 									ChangeSignal: stringToPtr("SIGUSR1"),
+									File:         boolToPtr(false),
 								},
 							},
 						},
@@ -804,6 +806,7 @@ func TestParse(t *testing.T) {
 									Policies:   []string{"group"},
 									Env:        boolToPtr(true),
 									ChangeMode: stringToPtr(vaultChangeModeRestart),
+									File:       boolToPtr(true),
 								},
 							},
 							{
@@ -812,6 +815,7 @@ func TestParse(t *testing.T) {
 									Policies:   []string{"task"},
 									Env:        boolToPtr(false),
 									ChangeMode: stringToPtr(vaultChangeModeRestart),
+									File:       boolToPtr(false),
 								},
 							},
 						},
@@ -825,6 +829,7 @@ func TestParse(t *testing.T) {
 									Policies:   []string{"job"},
 									Env:        boolToPtr(true),
 									ChangeMode: stringToPtr(vaultChangeModeRestart),
+									File:       boolToPtr(true),
 								},
 							},
 						},

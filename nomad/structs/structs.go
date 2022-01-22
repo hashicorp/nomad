@@ -9767,13 +9767,10 @@ type Vault struct {
 	// ChangeSignal is the signal sent to the task when a new token is
 	// retrieved. This is only valid when using the signal change mode.
 	ChangeSignal string
-}
 
-func DefaultVaultBlock() *Vault {
-	return &Vault{
-		Env:        true,
-		ChangeMode: VaultChangeModeRestart,
-	}
+	// File marks whether the Vault Token should be exposed in the file
+	// vault_token in the task's secrets directory.
+	File bool
 }
 
 func (v *Vault) Equal(o *Vault) bool {

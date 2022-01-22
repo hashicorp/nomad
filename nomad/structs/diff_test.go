@@ -6889,6 +6889,7 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
+					File:         true,
 				},
 			},
 			Expected: &TaskDiff{
@@ -6913,6 +6914,12 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeAdded,
 								Name: "Env",
+								Old:  "",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "File",
 								Old:  "",
 								New:  "true",
 							},
@@ -6949,6 +6956,7 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
+					File:         true,
 				},
 			},
 			New: &Task{},
@@ -6974,6 +6982,12 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeDeleted,
 								Name: "Env",
+								Old:  "true",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "File",
 								Old:  "true",
 								New:  "",
 							},
@@ -7011,6 +7025,7 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
+					File:         true,
 				},
 			},
 			New: &Task{
@@ -7020,6 +7035,7 @@ func TestTaskDiff(t *testing.T) {
 					Env:          false,
 					ChangeMode:   "restart",
 					ChangeSignal: "foo",
+					File:         false,
 				},
 			},
 			Expected: &TaskDiff{
@@ -7044,6 +7060,12 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeEdited,
 								Name: "Env",
+								Old:  "true",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "File",
 								Old:  "true",
 								New:  "false",
 							},
@@ -7088,6 +7110,7 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
+					File:         true,
 				},
 			},
 			New: &Task{
@@ -7097,6 +7120,7 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
+					File:         true,
 				},
 			},
 			Expected: &TaskDiff{
@@ -7121,6 +7145,12 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "Env",
+								Old:  "true",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "File",
 								Old:  "true",
 								New:  "true",
 							},

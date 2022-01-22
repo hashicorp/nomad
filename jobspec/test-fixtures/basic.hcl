@@ -364,6 +364,7 @@ job "binstore-storagelocker" {
         env           = false
         change_mode   = "signal"
         change_signal = "SIGUSR1"
+        file          = false
       }
     }
 
