@@ -510,6 +510,7 @@ func parseVault(result *api.Vault, list *ast.ObjectList) error {
 		"env",
 		"change_mode",
 		"change_signal",
+		"file_perms",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "vault ->")

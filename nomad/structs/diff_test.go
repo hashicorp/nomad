@@ -6624,6 +6624,7 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
+					FilePerms:    "0644",
 				},
 			},
 			Expected: &TaskDiff{
@@ -6650,6 +6651,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Env",
 								Old:  "",
 								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "FilePerms",
+								Old:  "",
+								New:  "0644",
 							},
 						},
 						Objects: []*ObjectDiff{
@@ -6684,6 +6691,7 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
+					FilePerms:    "0644",
 				},
 			},
 			New: &Task{},
@@ -6710,6 +6718,12 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Env",
 								Old:  "true",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "FilePerms",
+								Old:  "0644",
 								New:  "",
 							},
 						},
@@ -6746,6 +6760,7 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
+					FilePerms:    "0666",
 				},
 			},
 			New: &Task{
@@ -6755,6 +6770,7 @@ func TestTaskDiff(t *testing.T) {
 					Env:          false,
 					ChangeMode:   "restart",
 					ChangeSignal: "foo",
+					FilePerms:    "0644",
 				},
 			},
 			Expected: &TaskDiff{
@@ -6781,6 +6797,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Env",
 								Old:  "true",
 								New:  "false",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "FilePerms",
+								Old:  "0666",
+								New:  "0644",
 							},
 							{
 								Type: DiffTypeEdited,
@@ -6823,6 +6845,7 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
+					FilePerms:    "",
 				},
 			},
 			New: &Task{
@@ -6832,6 +6855,7 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
+					FilePerms:    "",
 				},
 			},
 			Expected: &TaskDiff{
@@ -6858,6 +6882,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Env",
 								Old:  "true",
 								New:  "true",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "FilePerms",
+								Old:  "",
+								New:  "",
 							},
 							{
 								Type: DiffTypeNone,

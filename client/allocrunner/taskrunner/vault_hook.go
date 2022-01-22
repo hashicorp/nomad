@@ -3,9 +3,11 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -81,6 +83,9 @@ type vaultHook struct {
 	// tokenPath is the path in which to read and write the token
 	tokenPath string
 
+	// tokenFilePerms are the file permissions applied to tokenPath
+	tokenPerms fs.FileMode
+
 	// alloc is the allocation
 	alloc *structs.Allocation
 
@@ -103,6 +108,7 @@ func newVaultHook(config *vaultHookConfig) *vaultHook {
 		lifecycle:    config.lifecycle,
 		updater:      config.updater,
 		alloc:        config.alloc,
+		tokenPerms:   0666,
 		taskName:     config.task,
 		firstRun:     true,
 		ctx:          ctx,
@@ -124,6 +130,15 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 	h.firstRun = false
 	if !first {
 		return nil
+	}
+
+	// Set vaultTokenPath file permissions
+	if h.vaultStanza.FilePerms != "" {
+		v, err := strconv.ParseUint(h.vaultStanza.FilePerms, 8, 12)
+		if err != nil {
+			return fmt.Errorf("Failed to parse %q as octal: %v", h.vaultStanza.FilePerms, err)
+		}
+		h.tokenPerms = fs.FileMode(v)
 	}
 
 	// Try to recover a token if it was previously written in the secrets
@@ -343,7 +358,7 @@ func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 
 // writeToken writes the given token to disk
 func (h *vaultHook) writeToken(token string) error {
-	if err := ioutil.WriteFile(h.tokenPath, []byte(token), 0666); err != nil {
+	if err := ioutil.WriteFile(h.tokenPath, []byte(token), h.tokenPerms); err != nil {
 		return fmt.Errorf("failed to write vault token: %v", err)
 	}
 

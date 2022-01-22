@@ -8851,12 +8851,16 @@ type Vault struct {
 	// ChangeSignal is the signal sent to the task when a new token is
 	// retrieved. This is only valid when using the signal change mode.
 	ChangeSignal string
+
+	// FilePerms is the file permissions vault_token should be written out with.
+	FilePerms string
 }
 
 func DefaultVaultBlock() *Vault {
 	return &Vault{
 		Env:        true,
 		ChangeMode: VaultChangeModeRestart,
+		FilePerms:  "0666",
 	}
 }
 
@@ -8902,6 +8906,13 @@ func (v *Vault) Validate() error {
 	case VaultChangeModeNoop, VaultChangeModeRestart:
 	default:
 		_ = multierror.Append(&mErr, fmt.Errorf("Unknown change mode %q", v.ChangeMode))
+	}
+
+	// Verify vault_token file permissions
+	if v.FilePerms != "" {
+		if _, err := strconv.ParseUint(v.FilePerms, 8, 12); err != nil {
+			_ = multierror.Append(&mErr, fmt.Errorf("Failed to parse %q as octal: %v", v.FilePerms, err))
+		}
 	}
 
 	return mErr.ErrorOrNil()

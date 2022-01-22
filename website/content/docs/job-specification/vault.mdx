@@ -34,6 +34,7 @@ job "docs" {
 
         change_mode   = "signal"
         change_signal = "SIGUSR1"
+        file_perms = "600"
       }
     }
   }
@@ -41,10 +42,12 @@ job "docs" {
 ```
 
 The Nomad client will make the Vault token available to the task by writing it
-to the secret directory at `secrets/vault_token` and by injecting a `VAULT_TOKEN`
-environment variable. If the Nomad cluster is [configured](/docs/configuration/vault#namespace)
-to use [Vault Namespaces](https://www.vaultproject.io/docs/enterprise/namespaces),
-a `VAULT_NAMESPACE` environment variable will be injected whenever `VAULT_TOKEN` is set.
+to the secret directory at `secrets/vault_token` with access permissions as
+specified in `file_perms` and by injecting a `VAULT_TOKEN` environment variable. If the
+Nomad cluster is [configured](/docs/configuration/vault#namespace) to use
+[Vault Namespaces](https://www.vaultproject.io/docs/enterprise/namespaces),
+a `VAULT_NAMESPACE` environment variable will be injected whenever `VAULT_TOKEN`
+is set.
 
 If Nomad is unable to renew the Vault token (perhaps due to a Vault outage or
 network error), the client will attempt to retrieve a new Vault token. If successful, the
@@ -77,6 +80,12 @@ with Vault as well.
 - `policies` `(array<string>: [])` - Specifies the set of Vault policies that
   the task requires. The Nomad client will retrieve a Vault token that is
   limited to those policies.
+
+- `file_perms` `(string: "666")` - Specifies file permissions when creating
+  `secrets/vault_token`, the file containing the Vault token retrieved by
+  Nomad. File permissions are given in Unix octal notation _before applying
+  the Nomad process' umask_. Given the common _umask_ of `0022`, default
+  `file_perms` result in effective file permissions of `644` (`rw-r--r--`).
 
 ## `vault` Examples
 

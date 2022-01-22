@@ -402,6 +402,7 @@ func TestParse(t *testing.T) {
 									Env:          boolToPtr(false),
 									ChangeMode:   stringToPtr(vaultChangeModeSignal),
 									ChangeSignal: stringToPtr("SIGUSR1"),
+									FilePerms:    stringToPtr("644"),
 								},
 							},
 						},
