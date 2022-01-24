@@ -4,5 +4,8 @@
     "verify_server_hostname": true,
     "ca_file": "/etc/consul.d/tls/ca.crt",
     "cert_file": "/etc/consul.d/tls/agent.crt",
-    "key_file": "/etc/consul.d/tls/agent.key"
+    "key_file": "/etc/consul.d/tls/agent.key",
+    "ports": {
+      "https": 8501
+    }
 }
