@@ -1,4 +1,10 @@
-import { attribute, create, collection, text, visitable } from 'ember-cli-page-object';
+import {
+  attribute,
+  create,
+  collection,
+  text,
+  visitable,
+} from 'ember-cli-page-object';
 import { getter } from 'ember-cli-page-object/macros';
 
 import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
@@ -15,7 +21,7 @@ export default create({
     revertToButton: twoStepButton('[data-test-revert-to]'),
     revertToButtonIsDisabled: attribute('disabled', '[data-test-revert-to]'),
 
-    number: getter(function() {
+    number: getter(function () {
       return parseInt(this.text.match(/#(\d+)/)[1]);
     }),
   }),

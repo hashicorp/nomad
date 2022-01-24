@@ -6,7 +6,11 @@ export default class Recommendation extends AbstractAbility {
   @and('dynamicApplicationSizingIsPresent', 'hasPermissions')
   canAccept;
 
-  @or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportAcceptingOnAnyNamespace')
+  @or(
+    'bypassAuthorization',
+    'selfTokenIsManagement',
+    'policiesSupportAcceptingOnAnyNamespace'
+  )
   hasPermissions;
 
   @computed('capabilitiesForAllNamespaces.[]')

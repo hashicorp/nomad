@@ -21,7 +21,7 @@ export default class JobRoute extends Route {
 
     return this.store
       .findRecord('job', fullId, { reload: true })
-      .then(job => {
+      .then((job) => {
         const relatedModelsQueries = [
           job.get('allocations'),
           job.get('evaluations'),

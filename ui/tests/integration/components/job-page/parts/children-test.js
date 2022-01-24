@@ -7,17 +7,17 @@ import { setupRenderingTest } from 'ember-qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Integration | Component | job-page/parts/children', function(hooks) {
+module('Integration | Component | job-page/parts/children', function (hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     window.localStorage.clear();
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
     this.server.create('namespace');
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
     window.localStorage.clear();
   });
@@ -34,7 +34,7 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
       options
     );
 
-  test('lists each child', async function(assert) {
+  test('lists each child', async function (assert) {
     this.server.create('job', 'periodic', {
       id: 'parent',
       childrenCount: 3,
@@ -63,7 +63,9 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
     );
   });
 
-  test('eventually paginates', async function(assert) {
+  test('eventually paginates', async function (assert) {
+    assert.expect(5);
+
     const pageSize = 10;
     window.localStorage.nomadPageSize = pageSize;
 
@@ -89,18 +91,29 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
     `);
 
     const childrenCount = parent.get('children.length');
-    assert.ok(childrenCount > pageSize, 'Parent has more children than one page size');
-    assert.equal(findAll('[data-test-job-name]').length, pageSize, 'Table length maxes out at 10');
+    assert.ok(
+      childrenCount > pageSize,
+      'Parent has more children than one page size'
+    );
+    assert.equal(
+      findAll('[data-test-job-name]').length,
+      pageSize,
+      'Table length maxes out at 10'
+    );
     assert.ok(find('.pagination-next'), 'Next button is rendered');
 
     assert.ok(
-      new RegExp(`1.10.+?${childrenCount}`).test(find('.pagination-numbers').textContent.trim())
+      new RegExp(`1.10.+?${childrenCount}`).test(
+        find('.pagination-numbers').textContent.trim()
+      )
     );
 
     await componentA11yAudit(this.element, assert);
   });
 
-  test('is sorted based on the sortProperty and sortDescending properties', async function(assert) {
+  test('is sorted based on the sortProperty and sortDescending properties', async function (assert) {
+    assert.expect(6);
+
     this.server.create('job', 'periodic', {
       id: 'parent',
       childrenCount: 3,
@@ -144,7 +157,7 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
     });
   });
 
-  test('gotoJob is called when a job row is clicked', async function(assert) {
+  test('gotoJob is called when a job row is clicked', async function (assert) {
     const gotoJobSpy = sinon.spy();
 
     this.server.create('job', 'periodic', {

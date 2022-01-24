@@ -8,15 +8,18 @@ import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import jobClientStatus from 'nomad-ui/utils/properties/job-client-status';
-import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
+import {
+  serialize,
+  deserializedQueryParam as selection,
+} from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 
 @classic
 export default class ClientsController extends Controller.extend(
-    SortableFactory(['id', 'name', 'jobStatus']),
-    Searchable,
-    WithNamespaceResetting
-  ) {
+  SortableFactory(['id', 'name', 'jobStatus']),
+  Searchable,
+  WithNamespaceResetting
+) {
   queryParams = [
     {
       currentPage: 'page',
@@ -71,7 +74,7 @@ export default class ClientsController extends Controller.extend(
 
   @computed('allNodes', 'jobClientStatus.byNode')
   get nodes() {
-    return this.allNodes.filter(node => this.jobClientStatus.byNode[node.id]);
+    return this.allNodes.filter((node) => this.jobClientStatus.byNode[node.id]);
   }
 
   @computed
@@ -95,8 +98,11 @@ export default class ClientsController extends Controller.extend(
     } = this;
 
     return this.nodes
-      .filter(node => {
-        if (statuses.length && !statuses.includes(this.jobClientStatus.byNode[node.id])) {
+      .filter((node) => {
+        if (
+          statuses.length &&
+          !statuses.includes(this.jobClientStatus.byNode[node.id])
+        ) {
           return false;
         }
         if (datacenters.length && !datacenters.includes(node.datacenter)) {
@@ -108,8 +114,10 @@ export default class ClientsController extends Controller.extend(
 
         return true;
       })
-      .map(node => {
-        const allocations = this.job.allocations.filter(alloc => alloc.get('node.id') == node.id);
+      .map((node) => {
+        const allocations = this.job.allocations.filter(
+          (alloc) => alloc.get('node.id') == node.id
+        );
 
         return {
           node,
@@ -137,28 +145,40 @@ export default class ClientsController extends Controller.extend(
 
   @computed('selectionDatacenter', 'nodes')
   get optionsDatacenter() {
-    const datacenters = Array.from(new Set(this.nodes.mapBy('datacenter'))).compact();
+    const datacenters = Array.from(
+      new Set(this.nodes.mapBy('datacenter'))
+    ).compact();
 
     // Update query param when the list of datacenters changes.
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpDatacenter', serialize(intersection(datacenters, this.selectionDatacenter)));
+      this.set(
+        'qpDatacenter',
+        serialize(intersection(datacenters, this.selectionDatacenter))
+      );
     });
 
-    return datacenters.sort().map(dc => ({ key: dc, label: dc }));
+    return datacenters.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
   @computed('selectionClientClass', 'nodes')
   get optionsClientClass() {
-    const clientClasses = Array.from(new Set(this.nodes.mapBy('nodeClass'))).compact();
+    const clientClasses = Array.from(
+      new Set(this.nodes.mapBy('nodeClass'))
+    ).compact();
 
     // Update query param when the list of datacenters changes.
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpClientClass', serialize(intersection(clientClasses, this.selectionClientClass)));
+      this.set(
+        'qpClientClass',
+        serialize(intersection(clientClasses, this.selectionClientClass))
+      );
     });
 
-    return clientClasses.sort().map(clientClass => ({ key: clientClass, label: clientClass }));
+    return clientClasses
+      .sort()
+      .map((clientClass) => ({ key: clientClass, label: clientClass }));
   }
 
   @action

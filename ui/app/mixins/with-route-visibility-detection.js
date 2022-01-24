@@ -9,14 +9,14 @@ export default Mixin.create({
     assert('visibilityHandler needs to be overridden in the Route', false);
   },
 
-  setupDocumentVisibility: on('activate', function() {
+  setupDocumentVisibility: on('activate', function () {
     if (!Ember.testing) {
       this.set('_visibilityHandler', this.visibilityHandler.bind(this));
       document.addEventListener('visibilitychange', this._visibilityHandler);
     }
   }),
 
-  removeDocumentVisibility: on('deactivate', function() {
+  removeDocumentVisibility: on('deactivate', function () {
     if (!Ember.testing) {
       document.removeEventListener('visibilitychange', this._visibilityHandler);
     }

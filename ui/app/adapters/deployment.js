@@ -13,7 +13,10 @@ export default class DeploymentAdapter extends Watchable {
 
   promote(deployment) {
     const id = deployment.get('id');
-    const url = urlForAction(this.urlForFindRecord(id, 'deployment'), '/promote');
+    const url = urlForAction(
+      this.urlForFindRecord(id, 'deployment'),
+      '/promote'
+    );
     return this.ajax(url, 'POST', {
       data: {
         DeploymentId: id,

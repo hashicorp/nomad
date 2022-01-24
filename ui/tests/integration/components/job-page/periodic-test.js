@@ -24,17 +24,17 @@ const PeriodicJobPage = create({
   pageSizeSelect: pageSizeSelectPageObject(),
 });
 
-module('Integration | Component | job-page/periodic', function(hooks) {
+module('Integration | Component | job-page/periodic', function (hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     window.localStorage.clear();
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
     this.server.create('namespace');
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
     window.localStorage.clear();
   });
@@ -48,7 +48,7 @@ module('Integration | Component | job-page/periodic', function(hooks) {
       @gotoJob={{gotoJob}} />
   `;
 
-  const commonProperties = job => ({
+  const commonProperties = (job) => ({
     job,
     sortProperty: 'name',
     sortDescending: true,
@@ -56,7 +56,7 @@ module('Integration | Component | job-page/periodic', function(hooks) {
     gotoJob: () => {},
   });
 
-  test('Clicking Force Launch launches a new periodic child job', async function(assert) {
+  test('Clicking Force Launch launches a new periodic child job', async function (assert) {
     const childrenCount = 3;
 
     this.server.create('job', 'periodic', {
@@ -70,7 +70,7 @@ module('Integration | Component | job-page/periodic', function(hooks) {
     const job = this.store.peekAll('job').findBy('plainId', 'parent');
 
     this.setProperties(commonProperties(job));
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     const currentJobCount = server.db.jobs.length;
 
@@ -87,15 +87,23 @@ module('Integration | Component | job-page/periodic', function(hooks) {
     assert.ok(
       this.server.pretender.handledRequests
         .filterBy('method', 'POST')
-        .find(req => req.url === expectedURL),
+        .find((req) => req.url === expectedURL),
       'POST URL was correct'
     );
 
-    assert.equal(server.db.jobs.length, currentJobCount + 1, 'POST request was made');
+    assert.equal(
+      server.db.jobs.length,
+      currentJobCount + 1,
+      'POST request was made'
+    );
   });
 
-  test('Clicking force launch without proper permissions shows an error message', async function(assert) {
-    this.server.pretender.post('/v1/job/:id/periodic/force', () => [403, {}, '']);
+  test('Clicking force launch without proper permissions shows an error message', async function (assert) {
+    this.server.pretender.post('/v1/job/:id/periodic/force', () => [
+      403,
+      {},
+      '',
+    ]);
 
     this.server.create('job', 'periodic', {
       id: 'parent',
@@ -109,7 +117,7 @@ module('Integration | Component | job-page/periodic', function(hooks) {
     const job = this.store.peekAll('job').findBy('plainId', 'parent');
 
     this.setProperties(commonProperties(job));
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.notOk(find('[data-test-job-error-title]'), 'No error message yet');
 
@@ -127,10 +135,15 @@ module('Integration | Component | job-page/periodic', function(hooks) {
 
     await click('[data-test-job-error-close]');
 
-    assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
+    assert.notOk(
+      find('[data-test-job-error-title]'),
+      'Error message is dismissable'
+    );
   });
 
-  test('Stopping a job sends a delete request for the job', async function(assert) {
+  test('Stopping a job sends a delete request for the job', async function (assert) {
+    assert.expect(1);
+
     const mirageJob = this.server.create('job', 'periodic', {
       childrenCount: 0,
       createAllocations: false,
@@ -149,7 +162,9 @@ module('Integration | Component | job-page/periodic', function(hooks) {
     expectDeleteRequest(assert, this.server, job);
   });
 
-  test('Stopping a job without proper permissions shows an error message', async function(assert) {
+  test('Stopping a job without proper permissions shows an error message', async function (assert) {
+    assert.expect(4);
+
     this.server.pretender.delete('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = this.server.create('job', 'periodic', {
@@ -171,7 +186,9 @@ module('Integration | Component | job-page/periodic', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('Starting a job sends a post request for the job using the current definition', async function(assert) {
+  test('Starting a job sends a post request for the job using the current definition', async function (assert) {
+    assert.expect(2);
+
     const mirageJob = this.server.create('job', 'periodic', {
       childrenCount: 0,
       createAllocations: false,
@@ -188,7 +205,9 @@ module('Integration | Component | job-page/periodic', function(hooks) {
     expectStartRequest(assert, this.server, job);
   });
 
-  test('Starting a job without proper permissions shows an error message', async function(assert) {
+  test('Starting a job without proper permissions shows an error message', async function (assert) {
+    assert.expect(3);
+
     this.server.pretender.post('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = this.server.create('job', 'periodic', {
@@ -207,7 +226,7 @@ module('Integration | Component | job-page/periodic', function(hooks) {
     expectError(assert, 'Could Not Start Job');
   });
 
-  test('Each job row includes the submitted time', async function(assert) {
+  test('Each job row includes the submitted time', async function (assert) {
     this.server.create('job', 'periodic', {
       id: 'parent',
       childrenCount: 1,
@@ -219,11 +238,13 @@ module('Integration | Component | job-page/periodic', function(hooks) {
     const job = this.store.peekAll('job').findBy('plainId', 'parent');
 
     this.setProperties(commonProperties(job));
-    await this.render(commonTemplate);
+    await render(commonTemplate);
 
     assert.equal(
       find('[data-test-job-submit-time]').textContent,
-      moment(job.get('children.firstObject.submitTime')).format('MMM DD HH:mm:ss ZZ'),
+      moment(job.get('children.firstObject.submitTime')).format(
+        'MMM DD HH:mm:ss ZZ'
+      ),
       'The new periodic job launch is in the children list'
     );
   });
@@ -244,7 +265,7 @@ module('Integration | Component | job-page/periodic', function(hooks) {
       const job = this.store.peekAll('job').findBy('plainId', 'parent');
 
       this.setProperties(commonProperties(job));
-      await this.render(commonTemplate);
+      await render(commonTemplate);
     },
   });
 });

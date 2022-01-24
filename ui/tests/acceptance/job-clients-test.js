@@ -1,3 +1,4 @@
+/* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -21,11 +22,11 @@ const makeSearchableClients = (server, job) => {
     });
 };
 
-module('Acceptance | job clients', function(hooks) {
+module('Acceptance | job clients', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     clients = server.createList('node', 12, {
       datacenter: 'dc1',
       status: 'ready',
@@ -38,7 +39,7 @@ module('Acceptance | job clients', function(hooks) {
       resourceSpec: ['M: 256, C: 500'],
       createAllocations: false,
     });
-    clients.forEach(c => {
+    clients.forEach((c) => {
       server.create('allocation', { jobId: job.id, nodeId: c.id });
     });
 
@@ -51,43 +52,52 @@ module('Acceptance | job clients', function(hooks) {
     );
   });
 
-  test('it passes an accessibility audit', async function(assert) {
+  test('it passes an accessibility audit', async function (assert) {
     await Clients.visit({ id: job.id });
     await a11yAudit(assert);
   });
 
-  test('lists all clients for the job', async function(assert) {
+  test('lists all clients for the job', async function (assert) {
     await Clients.visit({ id: job.id });
     assert.equal(Clients.clients.length, 15, 'Clients are shown in a table');
 
-    const clientIDs = clients.sortBy('id').map(c => c.id);
-    const clientsInTable = Clients.clients.map(c => c.id).sort();
+    const clientIDs = clients.sortBy('id').map((c) => c.id);
+    const clientsInTable = Clients.clients.map((c) => c.id).sort();
     assert.deepEqual(clientsInTable, clientIDs);
 
     assert.equal(document.title, `Job ${job.name} clients - Nomad`);
   });
 
-  test('dates have tooltip', async function(assert) {
+  test('dates have tooltip', async function (assert) {
     await Clients.visit({ id: job.id });
 
     Clients.clients.forEach((clientRow, index) => {
       const jobStatus = Clients.clientFor(clientRow.id).status;
 
-      ['createTime', 'modifyTime'].forEach(col => {
+      ['createTime', 'modifyTime'].forEach((col) => {
         if (jobStatus === 'not scheduled') {
-          assert.equal(clientRow[col].text, '-', `row ${index} doesn't have ${col} tooltip`);
+          /* eslint-disable-next-line qunit/no-conditional-assertions */
+          assert.equal(
+            clientRow[col].text,
+            '-',
+            `row ${index} doesn't have ${col} tooltip`
+          );
+          /* eslint-disable-next-line qunit/no-early-return */
           return;
         }
 
         const hasTooltip = clientRow[col].tooltip.isPresent;
         const tooltipText = clientRow[col].tooltip.text;
         assert.true(hasTooltip, `row ${index} has ${col} tooltip`);
-        assert.ok(tooltipText, `row ${index} has ${col} tooltip content ${tooltipText}`);
+        assert.ok(
+          tooltipText,
+          `row ${index} has ${col} tooltip content ${tooltipText}`
+        );
       });
     });
   });
 
-  test('clients table is sortable', async function(assert) {
+  test('clients table is sortable', async function (assert) {
     await Clients.visit({ id: job.id });
     await Clients.sortBy('node.name');
 
@@ -108,7 +118,7 @@ module('Acceptance | job clients', function(hooks) {
     });
   });
 
-  test('clients table is searchable', async function(assert) {
+  test('clients table is searchable', async function (assert) {
     makeSearchableClients(server, job);
 
     await Clients.visit({ id: job.id });
@@ -117,7 +127,7 @@ module('Acceptance | job clients', function(hooks) {
     assert.equal(Clients.clients.length, 5, 'List is filtered by search term');
   });
 
-  test('when a search yields no results, the search box remains', async function(assert) {
+  test('when a search yields no results, the search box remains', async function (assert) {
     makeSearchableClients(server, job);
 
     await Clients.visit({ id: job.id });
@@ -132,22 +142,26 @@ module('Acceptance | job clients', function(hooks) {
     assert.ok(Clients.hasSearchBox, 'Search box is still shown');
   });
 
-  test('when the job for the clients is not found, an error message is shown, but the URL persists', async function(assert) {
+  test('when the job for the clients is not found, an error message is shown, but the URL persists', async function (assert) {
     await Clients.visit({ id: 'not-a-real-job' });
 
     assert.equal(
       server.pretender.handledRequests
-        .filter(request => !request.url.includes('policy'))
+        .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
     );
-    assert.equal(currentURL(), '/jobs/not-a-real-job/clients', 'The URL persists');
+    assert.equal(
+      currentURL(),
+      '/jobs/not-a-real-job/clients',
+      'The URL persists'
+    );
     assert.ok(Clients.error.isPresent, 'Error message is shown');
     assert.equal(Clients.error.title, 'Not Found', 'Error message is for 404');
   });
 
-  test('clicking row goes to client details', async function(assert) {
+  test('clicking row goes to client details', async function (assert) {
     const client = clients[0];
 
     await Clients.visit({ id: job.id });
@@ -182,7 +196,7 @@ module('Acceptance | job clients', function(hooks) {
   });
 
   function testFacet(label, { facet, paramName, beforeEach, expectedOptions }) {
-    test(`the ${label} facet has the correct options`, async function(assert) {
+    test(`the ${label} facet has the correct options`, async function (assert) {
       await beforeEach();
       await facet.toggle();
 
@@ -194,7 +208,7 @@ module('Acceptance | job clients', function(hooks) {
       }
 
       assert.deepEqual(
-        facet.options.map(option => option.label.trim()),
+        facet.options.map((option) => option.label.trim()),
         expectation,
         `Options for facet ${paramName} are as expected`
       );

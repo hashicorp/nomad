@@ -6,11 +6,11 @@ import Jobs from 'nomad-ui/tests/pages/jobs/list';
 
 let managementToken;
 
-module('Acceptance | reverse proxy', function(hooks) {
+module('Acceptance | reverse proxy', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     window.localStorage.clear();
     window.sessionStorage.clear();
 
@@ -19,30 +19,34 @@ module('Acceptance | reverse proxy', function(hooks) {
 
     // Simulate a reverse proxy injecting X-Nomad-Token header for all requests
     this._originalXMLHttpRequestSend = XMLHttpRequest.prototype.send;
-    (function(send) {
-      XMLHttpRequest.prototype.send = function(data) {
+    (function (send) {
+      XMLHttpRequest.prototype.send = function (data) {
         this.setRequestHeader('X-Nomad-Token', managementToken.secretId);
         send.call(this, data);
       };
     })(this._originalXMLHttpRequestSend);
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     XMLHttpRequest.prototype.send = this._originalXMLHttpRequestSend;
   });
 
-  test('when token is inserted by a reverse proxy, the UI is adjusted', async function(assert) {
+  test('when token is inserted by a reverse proxy, the UI is adjusted', async function (assert) {
     // when token is inserted by reserve proxy, the token is reverse proxy
     const { secretId } = managementToken;
 
     await Jobs.visit();
-    assert.ok(window.localStorage.nomadTokenSecret == null, 'No token secret set');
+    assert.equal(
+      window.localStorage.nomadTokenSecret,
+      null,
+      'No token secret set'
+    );
 
     // Make sure that server received the header
     assert.ok(
       server.pretender.handledRequests
         .mapBy('requestHeaders')
-        .every(headers => headers['X-Nomad-Token'] === secretId),
+        .every((headers) => headers['X-Nomad-Token'] === secretId),
       'The token header is always present'
     );
 

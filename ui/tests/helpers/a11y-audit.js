@@ -10,7 +10,7 @@ function appendRuleOverrides(overriddenRules) {
     },
   };
 
-  overriddenRules.forEach(rule => (rules[rule] = { enabled: false }));
+  overriddenRules.forEach((rule) => (rules[rule] = { enabled: false }));
 
   return rules;
 }

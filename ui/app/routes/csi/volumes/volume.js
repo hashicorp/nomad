@@ -32,7 +32,7 @@ export default class VolumeRoute extends Route.extend(WithWatchers) {
       volume: this.store.findRecord('volume', fullId, { reload: true }),
       namespaces: this.store.findAll('namespace'),
     })
-      .then(hash => hash.volume)
+      .then((hash) => hash.volume)
       .catch(notifyError(this));
   }
 

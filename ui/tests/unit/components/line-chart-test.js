@@ -3,7 +3,7 @@ import { setupTest } from 'ember-qunit';
 import d3Format from 'd3-format';
 import setupGlimmerComponentFactory from 'nomad-ui/tests/helpers/glimmer-factory';
 
-module('Unit | Component | line-chart', function(hooks) {
+module('Unit | Component | line-chart', function (hooks) {
   setupTest(hooks);
   setupGlimmerComponentFactory(hooks, 'line-chart');
 
@@ -15,7 +15,7 @@ module('Unit | Component | line-chart', function(hooks) {
     { foo: 4, bar: 500 },
   ];
 
-  test('x scale domain is the min and max values in data based on the xProp value', function(assert) {
+  test('x scale domain is the min and max values in data based on the xProp value', function (assert) {
     const chart = this.createComponent({
       xProp: 'foo',
       data,
@@ -36,10 +36,14 @@ module('Unit | Component | line-chart', function(hooks) {
     chart.args.data = [...data, { foo: 12, bar: 600 }];
 
     [, xDomainHigh] = chart.xScale.domain();
-    assert.equal(xDomainHigh, 12, 'When the data changes, the xScale is recalculated');
+    assert.equal(
+      xDomainHigh,
+      12,
+      'When the data changes, the xScale is recalculated'
+    );
   });
 
-  test('y scale domain uses the max value in the data based off of yProp, but is always zero-based', function(assert) {
+  test('y scale domain uses the max value in the data based off of yProp, but is always zero-based', function (assert) {
     const chart = this.createComponent({
       yProp: 'bar',
       data,
@@ -56,10 +60,14 @@ module('Unit | Component | line-chart', function(hooks) {
     chart.args.data = [...data, { foo: 12, bar: 600 }];
 
     [, yDomainHigh] = chart.yScale.domain();
-    assert.equal(yDomainHigh, 600, 'When the data changes, the yScale is recalculated');
+    assert.equal(
+      yDomainHigh,
+      600,
+      'When the data changes, the yScale is recalculated'
+    );
   });
 
-  test('the number of yTicks is always odd (to always have a mid-line) and is based off the chart height', function(assert) {
+  test('the number of yTicks is always odd (to always have a mid-line) and is based off the chart height', function (assert) {
     const chart = this.createComponent({
       yProp: 'bar',
       data,
@@ -75,7 +83,7 @@ module('Unit | Component | line-chart', function(hooks) {
     assert.equal(chart.yTicks.length, 7);
   });
 
-  test('the values for yTicks are rounded to whole numbers', function(assert) {
+  test('the values for yTicks are rounded to whole numbers', function (assert) {
     const chart = this.createComponent({
       yProp: 'bar',
       data,
@@ -91,7 +99,7 @@ module('Unit | Component | line-chart', function(hooks) {
     assert.deepEqual(chart.yTicks, [0, 83, 167, 250, 333, 417, 500]);
   });
 
-  test('the values for yTicks are fractions when the domain is between 0 and 1', function(assert) {
+  test('the values for yTicks are fractions when the domain is between 0 and 1', function (assert) {
     const chart = this.createComponent({
       yProp: 'bar',
       data: [
@@ -107,7 +115,7 @@ module('Unit | Component | line-chart', function(hooks) {
     assert.deepEqual(chart.yTicks, [0, 0.25, 0.5]);
   });
 
-  test('activeDatumLabel is the xProp value of the activeDatum formatted with xFormat', function(assert) {
+  test('activeDatumLabel is the xProp value of the activeDatum formatted with xFormat', function (assert) {
     const chart = this.createComponent({
       xProp: 'foo',
       yProp: 'bar',
@@ -123,7 +131,7 @@ module('Unit | Component | line-chart', function(hooks) {
     );
   });
 
-  test('activeDatumValue is the yProp value of the activeDatum formatted with yFormat', function(assert) {
+  test('activeDatumValue is the yProp value of the activeDatum formatted with yFormat', function (assert) {
     const chart = this.createComponent({
       xProp: 'foo',
       yProp: 'bar',

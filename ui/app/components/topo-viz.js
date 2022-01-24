@@ -26,11 +26,14 @@ export default class TopoViz extends Component {
   @styleStringProperty('tooltipProps') tooltipStyle;
 
   get isSingleColumn() {
-    if (this.topology.datacenters.length <= 1 || this.viewportColumns === 1) return true;
+    if (this.topology.datacenters.length <= 1 || this.viewportColumns === 1)
+      return true;
 
     // Compute the coefficient of variance to determine if it would be
     // better to stack datacenters or place them in columns
-    const nodeCounts = this.topology.datacenters.map(datacenter => datacenter.nodes.length);
+    const nodeCounts = this.topology.datacenters.map(
+      (datacenter) => datacenter.nodes.length
+    );
     const variationCoefficient = deviation(nodeCounts) / mean(nodeCounts);
 
     // The point at which the varation is too extreme for a two column layout
@@ -43,7 +46,10 @@ export default class TopoViz extends Component {
     // If there are enough nodes, use two columns of nodes within
     // a single column layout of datacenters to increase density.
     if (this.viewportColumns === 1) return true;
-    return !this.isSingleColumn || (this.isSingleColumn && this.args.nodes.length <= 20);
+    return (
+      !this.isSingleColumn ||
+      (this.isSingleColumn && this.args.nodes.length <= 20)
+    );
   }
 
   // Once a cluster is large enough, the exact details of a node are
@@ -89,7 +95,7 @@ export default class TopoViz extends Component {
     // Wrap nodes in a topo viz specific data structure and build an index to speed up allocation assignment
     const nodeContainers = [];
     const nodeIndex = {};
-    nodes.forEach(node => {
+    nodes.forEach((node) => {
       if (!node.resources) {
         badNodes.push(node);
         return;
@@ -103,14 +109,17 @@ export default class TopoViz extends Component {
     // Wrap allocations in a topo viz specific data structure, assign allocations to nodes, and build an allocation
     // index keyed off of job and task group
     const allocationIndex = {};
-    allocations.forEach(allocation => {
+    allocations.forEach((allocation) => {
       const nodeId = allocation.belongsTo('node').id();
       const nodeContainer = nodeIndex[nodeId];
 
       // Ignore orphaned allocations and allocations on nodes with an old Nomad agent version.
       if (!nodeContainer) return;
 
-      const allocationContainer = this.dataForAllocation(allocation, nodeContainer);
+      const allocationContainer = this.dataForAllocation(
+        allocation,
+        nodeContainer
+      );
       nodeContainer.allocations.push(allocationContainer);
 
       const key = allocationContainer.groupKey;
@@ -119,15 +128,19 @@ export default class TopoViz extends Component {
     });
 
     // Group nodes into datacenters
-    const datacentersMap = nodeContainers.reduce((datacenters, nodeContainer) => {
-      if (!datacenters[nodeContainer.datacenter]) datacenters[nodeContainer.datacenter] = [];
-      datacenters[nodeContainer.datacenter].push(nodeContainer);
-      return datacenters;
-    }, {});
+    const datacentersMap = nodeContainers.reduce(
+      (datacenters, nodeContainer) => {
+        if (!datacenters[nodeContainer.datacenter])
+          datacenters[nodeContainer.datacenter] = [];
+        datacenters[nodeContainer.datacenter].push(nodeContainer);
+        return datacenters;
+      },
+      {}
+    );
 
     // Turn hash of datacenters into a sorted array
     const datacenters = Object.keys(datacentersMap)
-      .map(key => ({ name: key, nodes: datacentersMap[key] }))
+      .map((key) => ({ name: key, nodes: datacentersMap[key] }))
       .sortBy('name');
 
     const topology = {
@@ -191,9 +204,10 @@ export default class TopoViz extends Component {
       this.activeEdges = [];
 
       if (this.topology.selectedKey) {
-        const selectedAllocations = this.topology.allocationIndex[this.topology.selectedKey];
+        const selectedAllocations =
+          this.topology.allocationIndex[this.topology.selectedKey];
         if (selectedAllocations) {
-          selectedAllocations.forEach(allocation => {
+          selectedAllocations.forEach((allocation) => {
             set(allocation, 'isSelected', false);
           });
         }
@@ -205,30 +219,37 @@ export default class TopoViz extends Component {
       }
       this.activeNode = null;
       this.activeAllocation = allocation;
-      const selectedAllocations = this.topology.allocationIndex[this.topology.selectedKey];
+      const selectedAllocations =
+        this.topology.allocationIndex[this.topology.selectedKey];
       if (selectedAllocations) {
-        selectedAllocations.forEach(allocation => {
+        selectedAllocations.forEach((allocation) => {
           set(allocation, 'isSelected', false);
         });
       }
 
       set(this.topology, 'selectedKey', allocation.groupKey);
-      const newAllocations = this.topology.allocationIndex[this.topology.selectedKey];
+      const newAllocations =
+        this.topology.allocationIndex[this.topology.selectedKey];
       if (newAllocations) {
-        newAllocations.forEach(allocation => {
+        newAllocations.forEach((allocation) => {
           set(allocation, 'isSelected', true);
         });
       }
 
       // Only show the lines if the selected allocations are sparse (low count relative to the client count or low count generally).
-      if (newAllocations.length < 10 || newAllocations.length < this.args.nodes.length * 0.75) {
+      if (
+        newAllocations.length < 10 ||
+        newAllocations.length < this.args.nodes.length * 0.75
+      ) {
         this.computedActiveEdges();
       } else {
         this.activeEdges = [];
       }
     }
     if (this.args.onAllocationSelect)
-      this.args.onAllocationSelect(this.activeAllocation && this.activeAllocation.allocation);
+      this.args.onAllocationSelect(
+        this.activeAllocation && this.activeAllocation.allocation
+      );
     if (this.args.onNodeSelect) this.args.onNodeSelect(this.activeNode);
   }
 
@@ -251,24 +272,28 @@ export default class TopoViz extends Component {
       const path = line().curve(curveBasis);
       // 1. Get the active element
       const allocation = this.activeAllocation.allocation;
-      const activeEl = this.element.querySelector(`[data-allocation-id="${allocation.id}"]`);
+      const activeEl = this.element.querySelector(
+        `[data-allocation-id="${allocation.id}"]`
+      );
       const activePoint = centerOfBBox(activeEl.getBoundingClientRect());
 
       // 2. Collect the mem and cpu pairs for all selected allocs
-      const selectedMem = Array.from(this.element.querySelectorAll('.memory .bar.is-selected'));
-      const selectedPairs = selectedMem.map(mem => {
+      const selectedMem = Array.from(
+        this.element.querySelectorAll('.memory .bar.is-selected')
+      );
+      const selectedPairs = selectedMem.map((mem) => {
         const id = mem.closest('[data-allocation-id]').dataset.allocationId;
         const cpu = mem
           .closest('.topo-viz-node')
           .querySelector(`.cpu .bar[data-allocation-id="${id}"]`);
         return [mem, cpu];
       });
-      const selectedPoints = selectedPairs.map(pair => {
-        return pair.map(el => centerOfBBox(el.getBoundingClientRect()));
+      const selectedPoints = selectedPairs.map((pair) => {
+        return pair.map((el) => centerOfBBox(el.getBoundingClientRect()));
       });
 
       // 3. For each pair, compute the midpoint of the truncated triangle of points [Mem, Cpu, Active]
-      selectedPoints.forEach(points => {
+      selectedPoints.forEach((points) => {
         const d1 = pointBetween(points[0], activePoint, 100, 0.5);
         const d2 = pointBetween(points[1], activePoint, 100, 0.5);
         points.push(midpoint(d1, d2));
@@ -281,14 +306,20 @@ export default class TopoViz extends Component {
       const stepsMain = [0, 0.8, 1.0];
       // The second prong the fork does not need to retrace the entire path from the activePoint
       const stepsSecondary = [0.8, 1.0];
-      selectedPoints.forEach(points => {
+      selectedPoints.forEach((points) => {
         curves.push(
-          curveFromPoints(...pointsAlongPath(activePoint, points[2], stepsMain), points[0]),
-          curveFromPoints(...pointsAlongPath(activePoint, points[2], stepsSecondary), points[1])
+          curveFromPoints(
+            ...pointsAlongPath(activePoint, points[2], stepsMain),
+            points[0]
+          ),
+          curveFromPoints(
+            ...pointsAlongPath(activePoint, points[2], stepsSecondary),
+            points[1]
+          )
         );
       });
 
-      this.activeEdges = curves.map(curve => path(curve));
+      this.activeEdges = curves.map((curve) => path(curve));
       this.edgeOffset = { x: window.scrollX, y: window.scrollY };
     });
   }
@@ -319,7 +350,7 @@ function pointBetweenPct(p1, p2, pct) {
 }
 
 function pointsAlongPath(p1, p2, pcts) {
-  return pcts.map(pct => pointBetweenPct(p1, p2, pct));
+  return pcts.map((pct) => pointBetweenPct(p1, p2, pct));
 }
 
 function midpoint(p1, p2) {
@@ -327,5 +358,5 @@ function midpoint(p1, p2) {
 }
 
 function curveFromPoints(...points) {
-  return points.map(p => [p.x, p.y]);
+  return points.map((p) => [p.x, p.y]);
 }

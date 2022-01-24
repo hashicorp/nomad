@@ -9,6 +9,6 @@ class QueryParams extends EmberObject {
   values = null;
 }
 
-export const qpBuilder = values => QueryParams.create({ values });
+export const qpBuilder = (values) => QueryParams.create({ values });
 
 export default QueryParams;

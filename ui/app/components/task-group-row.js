@@ -27,7 +27,8 @@ export default class TaskGroupRow extends Component {
   get tooltipText() {
     if (this.can.cannot('scale job', null, { namespace: this.namespace }))
       return "You aren't allowed to scale task groups";
-    if (this.runningDeployment) return 'You cannot scale task groups during a deployment';
+    if (this.runningDeployment)
+      return 'You cannot scale task groups during a deployment';
     return undefined;
   }
 

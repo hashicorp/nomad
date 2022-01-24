@@ -1,3 +1,6 @@
+/* eslint-disable qunit/require-expect */
+/* eslint-disable qunit/no-conditional-assertions */
+/* Mirage fixtures are random so we can't expect a set number of assertions */
 import { currentURL, waitUntil, settled } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
@@ -15,19 +18,19 @@ let node;
 let managementToken;
 let clientToken;
 
-const wasPreemptedFilter = allocation => !!allocation.preemptedByAllocation;
+const wasPreemptedFilter = (allocation) => !!allocation.preemptedByAllocation;
 
 function nonSearchPOSTS() {
   return server.pretender.handledRequests
-    .reject(request => request.url.includes('fuzzy'))
+    .reject((request) => request.url.includes('fuzzy'))
     .filterBy('method', 'POST');
 }
 
-module('Acceptance | client detail', function(hooks) {
+module('Acceptance | client detail', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     window.localStorage.clear();
 
     server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible' });
@@ -46,17 +49,17 @@ module('Acceptance | client detail', function(hooks) {
 
     // Force all allocations into the running state so now allocation rows are missing
     // CPU/Mem runtime metrics
-    server.schema.allocations.all().models.forEach(allocation => {
+    server.schema.allocations.all().models.forEach((allocation) => {
       allocation.update({ clientStatus: 'running' });
     });
   });
 
-  test('it passes an accessibility audit', async function(assert) {
+  test('it passes an accessibility audit', async function (assert) {
     await ClientDetail.visit({ id: node.id });
     await a11yAudit(assert);
   });
 
-  test('/clients/:id should have a breadcrumb trail linking back to clients', async function(assert) {
+  test('/clients/:id should have a breadcrumb trail linking back to clients', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
     assert.equal(document.title, `Client ${node.name} - Nomad`);
@@ -72,11 +75,18 @@ module('Acceptance | client detail', function(hooks) {
       'Second breadcrumb is a titled breadcrumb saying the node short id'
     );
     await Layout.breadcrumbFor('clients.index').visit();
-    assert.equal(currentURL(), '/clients', 'First breadcrumb links back to clients');
+    assert.equal(
+      currentURL(),
+      '/clients',
+      'First breadcrumb links back to clients'
+    );
   });
 
-  test('/clients/:id should list immediate details for the node in the title', async function(assert) {
-    node = server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible', drain: false });
+  test('/clients/:id should list immediate details for the node in the title', async function (assert) {
+    node = server.create('node', 'forceIPv4', {
+      schedulingEligibility: 'eligible',
+      drain: false,
+    });
 
     await ClientDetail.visit({ id: node.id });
 
@@ -89,7 +99,7 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('/clients/:id should list additional detail for the node below the title', async function(assert) {
+  test('/clients/:id should list additional detail for the node below the title', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
     assert.ok(
@@ -110,16 +120,30 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('/clients/:id should include resource utilization graphs', async function(assert) {
+  test('/clients/:id should include resource utilization graphs', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
-    assert.equal(ClientDetail.resourceCharts.length, 2, 'Two resource utilization graphs');
-    assert.equal(ClientDetail.resourceCharts.objectAt(0).name, 'CPU', 'First chart is CPU');
-    assert.equal(ClientDetail.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
+    assert.equal(
+      ClientDetail.resourceCharts.length,
+      2,
+      'Two resource utilization graphs'
+    );
+    assert.equal(
+      ClientDetail.resourceCharts.objectAt(0).name,
+      'CPU',
+      'First chart is CPU'
+    );
+    assert.equal(
+      ClientDetail.resourceCharts.objectAt(1).name,
+      'Memory',
+      'Second chart is Memory'
+    );
   });
 
-  test('/clients/:id should list all allocations on the node', async function(assert) {
-    const allocationsCount = server.db.allocations.where({ nodeId: node.id }).length;
+  test('/clients/:id should list all allocations on the node', async function (assert) {
+    const allocationsCount = server.db.allocations.where({
+      nodeId: node.id,
+    }).length;
 
     await ClientDetail.visit({ id: node.id });
 
@@ -130,16 +154,19 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('/clients/:id should show empty message if there are no allocations on the node', async function(assert) {
+  test('/clients/:id should show empty message if there are no allocations on the node', async function (assert) {
     const emptyNode = server.create('node');
 
     await ClientDetail.visit({ id: emptyNode.id });
 
-    assert.true(ClientDetail.emptyAllocations.isVisible, 'Empty message is visible');
+    assert.true(
+      ClientDetail.emptyAllocations.isVisible,
+      'Empty message is visible'
+    );
     assert.equal(ClientDetail.emptyAllocations.headline, 'No Allocations');
   });
 
-  test('each allocation should have high-level details for the allocation', async function(assert) {
+  test('each allocation should have high-level details for the allocation', async function (assert) {
     const allocation = server.db.allocations
       .where({ nodeId: node.id })
       .sortBy('modifyIndex')
@@ -151,15 +178,22 @@ module('Acceptance | client detail', function(hooks) {
       jobId: allocation.jobId,
     });
 
-    const tasks = taskGroup.taskIds.map(id => server.db.tasks.find(id));
+    const tasks = taskGroup.taskIds.map((id) => server.db.tasks.find(id));
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
-    const memoryUsed = tasks.reduce((sum, task) => sum + task.resources.MemoryMB, 0);
+    const memoryUsed = tasks.reduce(
+      (sum, task) => sum + task.resources.MemoryMB,
+      0
+    );
 
     await ClientDetail.visit({ id: node.id });
 
     const allocationRow = ClientDetail.allocations.objectAt(0);
 
-    assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation short ID');
+    assert.equal(
+      allocationRow.shortId,
+      allocation.id.split('-')[0],
+      'Allocation short ID'
+    );
     assert.equal(
       allocationRow.createTime,
       moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
@@ -170,8 +204,16 @@ module('Acceptance | client detail', function(hooks) {
       moment(allocation.modifyTime / 1000000).fromNow(),
       'Allocation modify time'
     );
-    assert.equal(allocationRow.status, allocation.clientStatus, 'Client status');
-    assert.equal(allocationRow.job, server.db.jobs.find(allocation.jobId).name, 'Job name');
+    assert.equal(
+      allocationRow.status,
+      allocation.clientStatus,
+      'Client status'
+    );
+    assert.equal(
+      allocationRow.job,
+      server.db.jobs.find(allocation.jobId).name,
+      'Job name'
+    );
     assert.ok(allocationRow.taskGroup, 'Task group name');
     assert.ok(allocationRow.jobVersion, 'Job Version');
     assert.equal(allocationRow.volume, 'Yes', 'Volume');
@@ -180,7 +222,9 @@ module('Acceptance | client detail', function(hooks) {
       Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
       'CPU %'
     );
-    const roundedTicks = Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks);
+    const roundedTicks = Math.floor(
+      allocStats.resourceUsage.CpuStats.TotalTicks
+    );
     assert.equal(
       allocationRow.cpuTooltip,
       `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
@@ -201,7 +245,7 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('each allocation should show job information even if the job is incomplete and already in the store', async function(assert) {
+  test('each allocation should show job information even if the job is incomplete and already in the store', async function (assert) {
     // First, visit clients to load the allocations for each visible node.
     // Don't load the job belongsTo of the allocation! Leave it unfulfilled.
 
@@ -224,11 +268,18 @@ module('Acceptance | client detail', function(hooks) {
       .sortBy('modifyIndex')
       .reverse()[0];
 
-    assert.equal(allocationRow.job, server.db.jobs.find(allocation.jobId).name, 'Job name');
-    assert.ok(allocationRow.taskGroup.includes(allocation.taskGroup), 'Task group name');
+    assert.equal(
+      allocationRow.job,
+      server.db.jobs.find(allocation.jobId).name,
+      'Job name'
+    );
+    assert.ok(
+      allocationRow.taskGroup.includes(allocation.taskGroup),
+      'Task group name'
+    );
   });
 
-  test('each allocation should link to the allocation detail page', async function(assert) {
+  test('each allocation should link to the allocation detail page', async function (assert) {
     const allocation = server.db.allocations
       .where({ nodeId: node.id })
       .sortBy('modifyIndex')
@@ -244,7 +295,7 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('each allocation should link to the job the allocation belongs to', async function(assert) {
+  test('each allocation should link to the job the allocation belongs to', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
     const allocation = server.db.allocations.where({ nodeId: node.id })[0];
@@ -259,7 +310,7 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('the allocation section should show the count of preempted allocations on the client', async function(assert) {
+  test('the allocation section should show the count of preempted allocations on the client', async function (assert) {
     const allocations = server.db.allocations.where({ nodeId: node.id });
 
     await ClientDetail.visit({ id: node.id });
@@ -277,7 +328,7 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('clicking the preemption badge filters the allocations table and sets a query param', async function(assert) {
+  test('clicking the preemption badge filters the allocations table and sets a query param', async function (assert) {
     const allocations = server.db.allocations.where({ nodeId: node.id });
 
     await ClientDetail.visit({ id: node.id });
@@ -295,18 +346,26 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('clicking the total allocations badge resets the filter and removes the query param', async function(assert) {
+  test('clicking the total allocations badge resets the filter and removes the query param', async function (assert) {
     const allocations = server.db.allocations.where({ nodeId: node.id });
 
     await ClientDetail.visit({ id: node.id });
     await ClientDetail.allocationFilter.preemptions();
     await ClientDetail.allocationFilter.all();
 
-    assert.equal(ClientDetail.allocations.length, allocations.length, 'All allocations are shown');
-    assert.equal(currentURL(), `/clients/${node.id}`, 'Filter is persisted in the URL');
+    assert.equal(
+      ClientDetail.allocations.length,
+      allocations.length,
+      'All allocations are shown'
+    );
+    assert.equal(
+      currentURL(),
+      `/clients/${node.id}`,
+      'Filter is persisted in the URL'
+    );
   });
 
-  test('navigating directly to the client detail page with the preemption query param set will filter the allocations table', async function(assert) {
+  test('navigating directly to the client detail page with the preemption query param set will filter the allocations table', async function (assert) {
     const allocations = server.db.allocations.where({ nodeId: node.id });
 
     await ClientDetail.visit({ id: node.id, preemptions: true });
@@ -318,13 +377,13 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('/clients/:id should list all attributes for the node', async function(assert) {
+  test('/clients/:id should list all attributes for the node', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
     assert.ok(ClientDetail.attributesTable, 'Attributes table is on the page');
   });
 
-  test('/clients/:id lists all meta attributes', async function(assert) {
+  test('/clients/:id lists all meta attributes', async function (assert) {
     node = server.create('node', 'forceIPv4', 'withMeta');
 
     await ClientDetail.visit({ id: node.id });
@@ -346,35 +405,42 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('/clients/:id shows an empty message when there is no meta data', async function(assert) {
+  test('/clients/:id shows an empty message when there is no meta data', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
-    assert.notOk(ClientDetail.metaTable, 'Meta attributes table is not on the page');
+    assert.notOk(
+      ClientDetail.metaTable,
+      'Meta attributes table is not on the page'
+    );
     assert.ok(ClientDetail.emptyMetaMessage, 'Meta attributes is empty');
   });
 
-  test('when the node is not found, an error message is shown, but the URL persists', async function(assert) {
+  test('when the node is not found, an error message is shown, but the URL persists', async function (assert) {
     await ClientDetail.visit({ id: 'not-a-real-node' });
 
     assert.equal(
       server.pretender.handledRequests
-        .filter(request => !request.url.includes('policy'))
+        .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/node/not-a-real-node',
       'A request to the nonexistent node is made'
     );
     assert.equal(currentURL(), '/clients/not-a-real-node', 'The URL persists');
     assert.ok(ClientDetail.error.isShown, 'Error message is shown');
-    assert.equal(ClientDetail.error.title, 'Not Found', 'Error message is for 404');
+    assert.equal(
+      ClientDetail.error.title,
+      'Not Found',
+      'Error message is for 404'
+    );
   });
 
-  test('/clients/:id shows the recent events list', async function(assert) {
+  test('/clients/:id shows the recent events list', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
     assert.ok(ClientDetail.hasEvents, 'Client events section exists');
   });
 
-  test('each node event shows basic node event information', async function(assert) {
+  test('each node event shows basic node event information', async function (assert) {
     const event = server.db.nodeEvents
       .where({ nodeId: node.id })
       .sortBy('time')
@@ -392,12 +458,12 @@ module('Acceptance | client detail', function(hooks) {
     assert.equal(eventRow.message, event.message, 'Event message');
   });
 
-  test('/clients/:id shows the driver status of every driver for the node', async function(assert) {
+  test('/clients/:id shows the driver status of every driver for the node', async function (assert) {
     // Set the drivers up so health and detection is well tested
     const nodeDrivers = node.drivers;
     const undetectedDriver = 'raw_exec';
 
-    Object.values(nodeDrivers).forEach(driver => {
+    Object.values(nodeDrivers).forEach((driver) => {
       driver.Detected = true;
     });
 
@@ -405,7 +471,9 @@ module('Acceptance | client detail', function(hooks) {
     node.drivers = nodeDrivers;
 
     const drivers = Object.keys(node.drivers)
-      .map(driverName => assign({ Name: driverName }, node.drivers[driverName]))
+      .map((driverName) =>
+        assign({ Name: driverName }, node.drivers[driverName])
+      )
       .sortBy('Name');
 
     assert.ok(drivers.length > 0, 'Node has drivers');
@@ -415,7 +483,11 @@ module('Acceptance | client detail', function(hooks) {
     drivers.forEach((driver, index) => {
       const driverHead = ClientDetail.driverHeads.objectAt(index);
 
-      assert.equal(driverHead.name, driver.Name, `${driver.Name}: Name is correct`);
+      assert.equal(
+        driverHead.name,
+        driver.Name,
+        `${driver.Name}: Name is correct`
+      );
       assert.equal(
         driverHead.detected,
         driver.Detected ? 'Yes' : 'No',
@@ -439,31 +511,41 @@ module('Acceptance | client detail', function(hooks) {
           `${driver.Name}: Health is correct`
         );
         assert.ok(
-          driverHead.healthClass.includes(driver.Healthy ? 'running' : 'failed'),
+          driverHead.healthClass.includes(
+            driver.Healthy ? 'running' : 'failed'
+          ),
           `${driver.Name}: Swatch with correct class is shown`
         );
       }
     });
   });
 
-  test('each driver can be opened to see a message and attributes', async function(assert) {
+  test('each driver can be opened to see a message and attributes', async function (assert) {
     // Only detected drivers can be expanded
     const nodeDrivers = node.drivers;
-    Object.values(nodeDrivers).forEach(driver => {
+    Object.values(nodeDrivers).forEach((driver) => {
       driver.Detected = true;
     });
     node.drivers = nodeDrivers;
 
     const driver = Object.keys(node.drivers)
-      .map(driverName => assign({ Name: driverName }, node.drivers[driverName]))
+      .map((driverName) =>
+        assign({ Name: driverName }, node.drivers[driverName])
+      )
       .sortBy('Name')[0];
 
     await ClientDetail.visit({ id: node.id });
     const driverHead = ClientDetail.driverHeads.objectAt(0);
     const driverBody = ClientDetail.driverBodies.objectAt(0);
 
-    assert.notOk(driverBody.descriptionIsShown, 'Driver health description is not shown');
-    assert.notOk(driverBody.attributesAreShown, 'Driver attributes section is not shown');
+    assert.notOk(
+      driverBody.descriptionIsShown,
+      'Driver health description is not shown'
+    );
+    assert.notOk(
+      driverBody.attributesAreShown,
+      'Driver attributes section is not shown'
+    );
 
     await driverHead.toggle();
     assert.equal(
@@ -471,10 +553,13 @@ module('Acceptance | client detail', function(hooks) {
       driver.HealthDescription,
       'Driver health description is now shown'
     );
-    assert.ok(driverBody.attributesAreShown, 'Driver attributes section is now shown');
+    assert.ok(
+      driverBody.attributesAreShown,
+      'Driver attributes section is now shown'
+    );
   });
 
-  test('the status light indicates when the node is ineligible for scheduling', async function(assert) {
+  test('the status light indicates when the node is ineligible for scheduling', async function (assert) {
     node = server.create('node', {
       drain: false,
       schedulingEligibility: 'ineligible',
@@ -490,7 +575,7 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('when the node has a drain strategy with a positive deadline, the drain stategy section prints the duration', async function(assert) {
+  test('when the node has a drain strategy with a positive deadline, the drain stategy section prints the duration', async function (assert) {
     const deadline = 5400000000000; // 1.5 hours in nanoseconds
     const forceDeadline = moment().add(1, 'd');
 
@@ -523,7 +608,7 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('when the node has a drain stategy with no deadline, the drain stategy section mentions that and omits the force deadline', async function(assert) {
+  test('when the node has a drain stategy with no deadline, the drain stategy section mentions that and omits the force deadline', async function (assert) {
     const deadline = 0;
 
     node = server.create('node', {
@@ -538,7 +623,10 @@ module('Acceptance | client detail', function(hooks) {
 
     await ClientDetail.visit({ id: node.id });
 
-    assert.notOk(ClientDetail.drainDetails.durationIsShown, 'Duration is omitted');
+    assert.notOk(
+      ClientDetail.drainDetails.durationIsShown,
+      'Duration is omitted'
+    );
 
     assert.ok(
       ClientDetail.drainDetails.deadline.includes('No deadline'),
@@ -551,7 +639,7 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('when the node has a drain stategy with a negative deadline, the drain strategy section shows the force badge', async function(assert) {
+  test('when the node has a drain stategy with a negative deadline, the drain strategy section shows the force badge', async function (assert) {
     const deadline = -1;
 
     node = server.create('node', {
@@ -571,9 +659,15 @@ module('Acceptance | client detail', function(hooks) {
       'Forced Drain is described'
     );
 
-    assert.ok(ClientDetail.drainDetails.duration.includes('--'), 'Duration is shown but unset');
+    assert.ok(
+      ClientDetail.drainDetails.duration.includes('--'),
+      'Duration is shown but unset'
+    );
 
-    assert.ok(ClientDetail.drainDetails.deadline.includes('--'), 'Deadline is shown but unset');
+    assert.ok(
+      ClientDetail.drainDetails.deadline.includes('--'),
+      'Deadline is shown but unset'
+    );
 
     assert.ok(
       ClientDetail.drainDetails.drainSystemJobsText.endsWith('Yes'),
@@ -581,13 +675,17 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('toggling node eligibility disables the toggle and sends the correct POST request', async function(assert) {
+  test('toggling node eligibility disables the toggle and sends the correct POST request', async function (assert) {
     node = server.create('node', {
       drain: false,
       schedulingEligibility: 'eligible',
     });
 
-    server.pretender.post('/v1/node/:id/eligibility', () => [200, {}, ''], true);
+    server.pretender.post(
+      '/v1/node/:id/eligibility',
+      () => [200, {}, ''],
+      true
+    );
 
     await ClientDetail.visit({ id: node.id });
     assert.ok(ClientDetail.eligibilityToggle.isActive);
@@ -624,7 +722,7 @@ module('Acceptance | client detail', function(hooks) {
     });
   });
 
-  test('starting a drain sends the correct POST request', async function(assert) {
+  test('starting a drain sends the correct POST request', async function (assert) {
     let request;
 
     node = server.create('node', {
@@ -690,8 +788,11 @@ module('Acceptance | client detail', function(hooks) {
 
     await ClientDetail.drainPopover.toggle();
     await ClientDetail.drainPopover.deadlineOptions.open();
-    const optionsCount = ClientDetail.drainPopover.deadlineOptions.options.length;
-    await ClientDetail.drainPopover.deadlineOptions.options.objectAt(optionsCount - 1).choose();
+    const optionsCount =
+      ClientDetail.drainPopover.deadlineOptions.options.length;
+    await ClientDetail.drainPopover.deadlineOptions.options
+      .objectAt(optionsCount - 1)
+      .choose();
     await ClientDetail.drainPopover.setCustomDeadline('1h40m20s');
     await ClientDetail.drainPopover.submit();
 
@@ -747,7 +848,7 @@ module('Acceptance | client detail', function(hooks) {
     );
   });
 
-  test('starting a drain persists options to localstorage', async function(assert) {
+  test('starting a drain persists options to localstorage', async function (assert) {
     const nodes = server.createList('node', 2, {
       drain: false,
       schedulingEligibility: 'eligible',
@@ -759,8 +860,11 @@ module('Acceptance | client detail', function(hooks) {
     // Change all options to non-default values.
     await ClientDetail.drainPopover.deadlineToggle.toggle();
     await ClientDetail.drainPopover.deadlineOptions.open();
-    const optionsCount = ClientDetail.drainPopover.deadlineOptions.options.length;
-    await ClientDetail.drainPopover.deadlineOptions.options.objectAt(optionsCount - 1).choose();
+    const optionsCount =
+      ClientDetail.drainPopover.deadlineOptions.options.length;
+    await ClientDetail.drainPopover.deadlineOptions.options
+      .objectAt(optionsCount - 1)
+      .choose();
     await ClientDetail.drainPopover.setCustomDeadline('1h40m20s');
     await ClientDetail.drainPopover.forceDrainToggle.toggle();
     await ClientDetail.drainPopover.systemJobsToggle.toggle();
@@ -786,7 +890,7 @@ module('Acceptance | client detail', function(hooks) {
     assert.false(ClientDetail.drainPopover.systemJobsToggle.isActive);
   });
 
-  test('the drain popover cancel button closes the popover', async function(assert) {
+  test('the drain popover cancel button closes the popover', async function (assert) {
     node = server.create('node', {
       drain: false,
       schedulingEligibility: 'eligible',
@@ -803,7 +907,7 @@ module('Acceptance | client detail', function(hooks) {
     assert.equal(nonSearchPOSTS(), 0);
   });
 
-  test('toggling eligibility is disabled while a drain is active', async function(assert) {
+  test('toggling eligibility is disabled while a drain is active', async function (assert) {
     node = server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
@@ -813,7 +917,7 @@ module('Acceptance | client detail', function(hooks) {
     assert.ok(ClientDetail.eligibilityToggle.isDisabled);
   });
 
-  test('stopping a drain sends the correct POST request', async function(assert) {
+  test('stopping a drain sends the correct POST request', async function (assert) {
     node = server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
@@ -833,7 +937,7 @@ module('Acceptance | client detail', function(hooks) {
     });
   });
 
-  test('when a drain is active, the "drain" popover is labeled as the "update" popover', async function(assert) {
+  test('when a drain is active, the "drain" popover is labeled as the "update" popover', async function (assert) {
     node = server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
@@ -843,7 +947,7 @@ module('Acceptance | client detail', function(hooks) {
     assert.equal(ClientDetail.drainPopover.label, 'Update Drain');
   });
 
-  test('forcing a drain sends the correct POST request', async function(assert) {
+  test('forcing a drain sends the correct POST request', async function (assert) {
     node = server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
@@ -868,7 +972,7 @@ module('Acceptance | client detail', function(hooks) {
     });
   });
 
-  test('when stopping a drain fails, an error is shown', async function(assert) {
+  test('when stopping a drain fails, an error is shown', async function (assert) {
     node = server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
@@ -887,7 +991,7 @@ module('Acceptance | client detail', function(hooks) {
     assert.notOk(ClientDetail.stopDrainError.isPresent);
   });
 
-  test('when starting a drain fails, an error message is shown', async function(assert) {
+  test('when starting a drain fails, an error message is shown', async function (assert) {
     node = server.create('node', {
       drain: false,
       schedulingEligibility: 'eligible',
@@ -906,7 +1010,7 @@ module('Acceptance | client detail', function(hooks) {
     assert.notOk(ClientDetail.drainError.isPresent);
   });
 
-  test('when updating a drain fails, an error message is shown', async function(assert) {
+  test('when updating a drain fails, an error message is shown', async function (assert) {
     node = server.create('node', {
       drain: true,
       schedulingEligibility: 'ineligible',
@@ -925,7 +1029,7 @@ module('Acceptance | client detail', function(hooks) {
     assert.notOk(ClientDetail.drainError.isPresent);
   });
 
-  test('when toggling eligibility fails, an error message is shown', async function(assert) {
+  test('when toggling eligibility fails, an error message is shown', async function (assert) {
     node = server.create('node', {
       drain: false,
       schedulingEligibility: 'eligible',
@@ -937,13 +1041,15 @@ module('Acceptance | client detail', function(hooks) {
     await ClientDetail.eligibilityToggle.toggle();
 
     assert.ok(ClientDetail.eligibilityError.isPresent);
-    assert.ok(ClientDetail.eligibilityError.title.includes('Eligibility Error'));
+    assert.ok(
+      ClientDetail.eligibilityError.title.includes('Eligibility Error')
+    );
 
     await ClientDetail.eligibilityError.dismiss();
     assert.notOk(ClientDetail.eligibilityError.isPresent);
   });
 
-  test('when navigating away from a client that has an error message to another client, the error is not shown', async function(assert) {
+  test('when navigating away from a client that has an error message to another client, the error is not shown', async function (assert) {
     node = server.create('node', {
       drain: false,
       schedulingEligibility: 'eligible',
@@ -957,14 +1063,16 @@ module('Acceptance | client detail', function(hooks) {
     await ClientDetail.eligibilityToggle.toggle();
 
     assert.ok(ClientDetail.eligibilityError.isPresent);
-    assert.ok(ClientDetail.eligibilityError.title.includes('Eligibility Error'));
+    assert.ok(
+      ClientDetail.eligibilityError.title.includes('Eligibility Error')
+    );
 
     await ClientDetail.visit({ id: node2.id });
 
     assert.notOk(ClientDetail.eligibilityError.isPresent);
   });
 
-  test('toggling eligibility and node drain are disabled when the active ACL token does not permit node write', async function(assert) {
+  test('toggling eligibility and node drain are disabled when the active ACL token does not permit node write', async function (assert) {
     window.localStorage.nomadTokenSecret = clientToken.secretId;
 
     await ClientDetail.visit({ id: node.id });
@@ -972,37 +1080,43 @@ module('Acceptance | client detail', function(hooks) {
     assert.ok(ClientDetail.drainPopover.isDisabled);
   });
 
-  test('the host volumes table lists all host volumes in alphabetical order by name', async function(assert) {
+  test('the host volumes table lists all host volumes in alphabetical order by name', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
     const sortedHostVolumes = Object.keys(node.hostVolumes)
-      .map(key => node.hostVolumes[key])
+      .map((key) => node.hostVolumes[key])
       .sortBy('Name');
 
     assert.ok(ClientDetail.hasHostVolumes);
-    assert.equal(ClientDetail.hostVolumes.length, Object.keys(node.hostVolumes).length);
+    assert.equal(
+      ClientDetail.hostVolumes.length,
+      Object.keys(node.hostVolumes).length
+    );
 
     ClientDetail.hostVolumes.forEach((volume, index) => {
       assert.equal(volume.name, sortedHostVolumes[index].Name);
     });
   });
 
-  test('each host volume row contains information about the host volume', async function(assert) {
+  test('each host volume row contains information about the host volume', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
     const sortedHostVolumes = Object.keys(node.hostVolumes)
-      .map(key => node.hostVolumes[key])
+      .map((key) => node.hostVolumes[key])
       .sortBy('Name');
 
-    ClientDetail.hostVolumes[0].as(volume => {
+    ClientDetail.hostVolumes[0].as((volume) => {
       const volumeRow = sortedHostVolumes[0];
       assert.equal(volume.name, volumeRow.Name);
       assert.equal(volume.path, volumeRow.Path);
-      assert.equal(volume.permissions, volumeRow.ReadOnly ? 'Read' : 'Read/Write');
+      assert.equal(
+        volume.permissions,
+        volumeRow.ReadOnly ? 'Read' : 'Read/Write'
+      );
     });
   });
 
-  test('the host volumes table is not shown if the client has no host volumes', async function(assert) {
+  test('the host volumes table is not shown if the client has no host volumes', async function (assert) {
     node = server.create('node', 'noHostVolumes');
 
     await ClientDetail.visit({ id: node.id });
@@ -1029,7 +1143,7 @@ module('Acceptance | client detail', function(hooks) {
     expectedOptions: ['Pending', 'Running', 'Complete', 'Failed', 'Lost'],
     async beforeEach() {
       server.createList('job', 5, { createAllocations: false });
-      ['pending', 'running', 'complete', 'failed', 'lost'].forEach(s => {
+      ['pending', 'running', 'complete', 'failed', 'lost'].forEach((s) => {
         server.createList('allocation', 5, { clientStatus: s });
       });
 
@@ -1038,7 +1152,7 @@ module('Acceptance | client detail', function(hooks) {
     filter: (alloc, selection) => selection.includes(alloc.clientStatus),
   });
 
-  test('fiter results with no matches display empty message', async function(assert) {
+  test('fiter results with no matches display empty message', async function (assert) {
     const job = server.create('job', { createAllocations: false });
     server.create('allocation', { jobId: job.id, clientStatus: 'running' });
 
@@ -1052,11 +1166,11 @@ module('Acceptance | client detail', function(hooks) {
   });
 });
 
-module('Acceptance | client detail (multi-namespace)', function(hooks) {
+module('Acceptance | client detail (multi-namespace)', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible' });
     node = server.db.nodes[0];
 
@@ -1067,14 +1181,22 @@ module('Acceptance | client detail (multi-namespace)', function(hooks) {
     server.create('agent');
 
     // Make a job for each namespace, but have both scheduled on the same node
-    server.create('job', { id: 'job-1', namespaceId: 'default', createAllocations: false });
+    server.create('job', {
+      id: 'job-1',
+      namespaceId: 'default',
+      createAllocations: false,
+    });
     server.createList('allocation', 3, {
       nodeId: node.id,
       jobId: 'job-1',
       clientStatus: 'running',
     });
 
-    server.create('job', { id: 'job-2', namespaceId: 'other-namespace', createAllocations: false });
+    server.create('job', {
+      id: 'job-2',
+      namespaceId: 'other-namespace',
+      createAllocations: false,
+    });
     server.createList('allocation', 3, {
       nodeId: node.id,
       jobId: 'job-2',
@@ -1082,7 +1204,7 @@ module('Acceptance | client detail (multi-namespace)', function(hooks) {
     });
   });
 
-  test('when the node has allocations on different namespaces, the associated jobs are fetched correctly', async function(assert) {
+  test('when the node has allocations on different namespaces, the associated jobs are fetched correctly', async function (assert) {
     window.localStorage.nomadActiveNamespace = 'other-namespace';
 
     await ClientDetail.visit({ id: node.id });
@@ -1097,7 +1219,10 @@ module('Acceptance | client detail (multi-namespace)', function(hooks) {
       'Job One fetched correctly'
     );
     assert.ok(
-      server.pretender.handledRequests.findBy('url', '/v1/job/job-2?namespace=other-namespace'),
+      server.pretender.handledRequests.findBy(
+        'url',
+        '/v1/job/job-2?namespace=other-namespace'
+      ),
       'Job Two fetched correctly'
     );
   });
@@ -1114,7 +1239,7 @@ module('Acceptance | client detail (multi-namespace)', function(hooks) {
     filter: (alloc, selection) => selection.includes(alloc.namespace),
   });
 
-  test('facet Namespace | selecting namespace filters job options', async function(assert) {
+  test('facet Namespace | selecting namespace filters job options', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
     const nsFacet = ClientDetail.facets.namespace;
@@ -1127,7 +1252,7 @@ module('Acceptance | client detail (multi-namespace)', function(hooks) {
     await jobFacet.toggle();
 
     assert.deepEqual(
-      jobFacet.options.map(option => option.label.trim()),
+      jobFacet.options.map((option) => option.label.trim()),
       ['job-1', 'job-2']
     );
 
@@ -1137,14 +1262,17 @@ module('Acceptance | client detail (multi-namespace)', function(hooks) {
     await jobFacet.toggle();
 
     assert.deepEqual(
-      jobFacet.options.map(option => option.label.trim()),
+      jobFacet.options.map((option) => option.label.trim()),
       ['job-1']
     );
   });
 });
 
-function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
-  test(`facet ${label} | the ${label} facet has the correct options`, async function(assert) {
+function testFacet(
+  label,
+  { facet, paramName, beforeEach, filter, expectedOptions }
+) {
+  test(`facet ${label} | the ${label} facet has the correct options`, async function (assert) {
     await beforeEach();
     await facet.toggle();
 
@@ -1156,13 +1284,13 @@ function testFacet(label, { facet, paramName, beforeEach, filter, expectedOption
     }
 
     assert.deepEqual(
-      facet.options.map(option => option.label.trim()),
+      facet.options.map((option) => option.label.trim()),
       expectation,
       'Options for facet are as expected'
     );
   });
 
-  test(`facet ${label} | the ${label} facet filters the allocations list by ${label}`, async function(assert) {
+  test(`facet ${label} | the ${label} facet filters the allocations list by ${label}`, async function (assert) {
     let option;
 
     await beforeEach();
@@ -1173,7 +1301,7 @@ function testFacet(label, { facet, paramName, beforeEach, filter, expectedOption
 
     const selection = [option.key];
     const expectedAllocs = server.db.allocations
-      .filter(alloc => filter(alloc, selection))
+      .filter((alloc) => filter(alloc, selection))
       .sortBy('modifyIndex')
       .reverse();
 
@@ -1186,7 +1314,7 @@ function testFacet(label, { facet, paramName, beforeEach, filter, expectedOption
     });
   });
 
-  test(`facet ${label} | selecting multiple options in the ${label} facet results in a broader search`, async function(assert) {
+  test(`facet ${label} | selecting multiple options in the ${label} facet results in a broader search`, async function (assert) {
     const selection = [];
 
     await beforeEach();
@@ -1200,7 +1328,7 @@ function testFacet(label, { facet, paramName, beforeEach, filter, expectedOption
     selection.push(option2.key);
 
     const expectedAllocs = server.db.allocations
-      .filter(alloc => filter(alloc, selection))
+      .filter((alloc) => filter(alloc, selection))
       .sortBy('modifyIndex')
       .reverse();
 
@@ -1213,7 +1341,7 @@ function testFacet(label, { facet, paramName, beforeEach, filter, expectedOption
     });
   });
 
-  test(`facet ${label} | selecting options in the ${label} facet updates the ${paramName} query param`, async function(assert) {
+  test(`facet ${label} | selecting options in the ${label} facet updates the ${paramName} query param`, async function (assert) {
     const selection = [];
 
     await beforeEach();
@@ -1228,7 +1356,9 @@ function testFacet(label, { facet, paramName, beforeEach, filter, expectedOption
 
     assert.equal(
       currentURL(),
-      `/clients/${node.id}?${paramName}=${encodeURIComponent(JSON.stringify(selection))}`,
+      `/clients/${node.id}?${paramName}=${encodeURIComponent(
+        JSON.stringify(selection)
+      )}`,
       'URL has the correct query param key and value'
     );
   });

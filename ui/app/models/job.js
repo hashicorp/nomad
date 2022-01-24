@@ -51,7 +51,9 @@ export default class Job extends Model {
   // The parent job name is prepended to child launch job names
   @computed('name', 'parent.content')
   get trimmedName() {
-    return this.get('parent.content') ? this.name.replace(/.+?\//, '') : this.name;
+    return this.get('parent.content')
+      ? this.name.replace(/.+?\//, '')
+      : this.name;
   }
 
   // A composite of type and other job attributes to determine
@@ -69,7 +71,12 @@ export default class Job extends Model {
 
   // A composite of type and other job attributes to determine
   // type for templating rather than scheduling
-  @computed('type', 'periodic', 'parameterized', 'parent.{periodic,parameterized}')
+  @computed(
+    'type',
+    'periodic',
+    'parameterized',
+    'parent.{periodic,parameterized}'
+  )
   get templateType() {
     const type = this.type;
 
@@ -158,7 +165,9 @@ export default class Job extends Model {
 
   @computed('evaluations.@each.isBlocked')
   get hasBlockedEvaluation() {
-    return this.evaluations.toArray().some(evaluation => evaluation.get('isBlocked'));
+    return this.evaluations
+      .toArray()
+      .some((evaluation) => evaluation.get('isBlocked'));
   }
 
   @and('latestFailureEvaluation', 'hasBlockedEvaluation') hasPlacementFailures;
@@ -246,7 +255,7 @@ export default class Job extends Model {
       promise = this.store
         .adapterFor('job')
         .parse(this._newDefinition)
-        .then(response => {
+        .then((response) => {
           this.set('_newDefinitionJSON', response);
           this.setIdByPayload(response);
         });
@@ -256,7 +265,8 @@ export default class Job extends Model {
   }
 
   scale(group, count, message) {
-    if (message == null) message = `Manually scaled to ${count} from the Nomad UI`;
+    if (message == null)
+      message = `Manually scaled to ${count} from the Nomad UI`;
     return this.store.adapterFor('job').scale(this, group, count, message);
   }
 
@@ -278,7 +288,10 @@ export default class Job extends Model {
   }
 
   resetId() {
-    this.set('id', JSON.stringify([this.plainId, this.get('namespace.name') || 'default']));
+    this.set(
+      'id',
+      JSON.stringify([this.plainId, this.get('namespace.name') || 'default'])
+    );
   }
 
   @computed('status')

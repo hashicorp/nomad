@@ -30,6 +30,7 @@ export default class MultiSelectDropdown extends Component {
   }
 
   didReceiveAttrs() {
+    super.didReceiveAttrs();
     const dropdown = this.dropdown;
     if (this.isOpen && dropdown) {
       run.scheduleOnce('afterRender', this, this.repositionDropdown);
@@ -59,8 +60,12 @@ export default class MultiSelectDropdown extends Component {
       dropdown.actions.open(e);
       e.preventDefault();
     } else if (this.isOpen && (e.keyCode === TAB || e.keyCode === ARROW_DOWN)) {
-      const optionsId = this.element.querySelector('.dropdown-trigger').getAttribute('aria-owns');
-      const firstElement = document.querySelector(`#${optionsId} .dropdown-option`);
+      const optionsId = this.element
+        .querySelector('.dropdown-trigger')
+        .getAttribute('aria-owns');
+      const firstElement = document.querySelector(
+        `#${optionsId} .dropdown-option`
+      );
 
       if (firstElement) {
         firstElement.focus();

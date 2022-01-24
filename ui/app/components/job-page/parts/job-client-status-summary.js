@@ -24,6 +24,7 @@ export default class JobClientStatusSummary extends Component {
 
   @action
   onSliceClick(ev, slice) {
+    /* eslint-disable-next-line ember/no-string-prototype-extensions */
     this.gotoClients([slice.className.camelize()]);
   }
 

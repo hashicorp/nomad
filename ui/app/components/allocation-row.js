@@ -33,7 +33,7 @@ export default class AllocationRow extends Component {
     if (!this.get('allocation.isRunning')) return undefined;
 
     return AllocationStatsTracker.create({
-      fetch: url => this.token.authorizedRequest(url),
+      fetch: (url) => this.token.authorizedRequest(url),
       allocation: this.allocation,
     });
   }
@@ -48,6 +48,7 @@ export default class AllocationRow extends Component {
   }
 
   didReceiveAttrs() {
+    super.didReceiveAttrs();
     this.updateStatsTracker();
   }
 
@@ -61,13 +62,11 @@ export default class AllocationRow extends Component {
     }
   }
 
-  @(task(function*() {
+  @(task(function* () {
     do {
       if (this.stats) {
         try {
-          yield this.get('stats.poll')
-            .linked()
-            .perform();
+          yield this.get('stats.poll').linked().perform();
           this.set('statsError', false);
         } catch (error) {
           this.set('statsError', true);
@@ -86,7 +85,9 @@ async function qualifyAllocation() {
   // Make sure the allocation is a complete record and not a partial so we
   // can show information such as preemptions and rescheduled allocation.
   if (allocation.isPartial) {
-    await this.store.findRecord('allocation', allocation.id, { backgroundReload: false });
+    await this.store.findRecord('allocation', allocation.id, {
+      backgroundReload: false,
+    });
   }
 
   if (allocation.get('job.isPending')) {

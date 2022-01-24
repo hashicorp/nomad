@@ -25,20 +25,27 @@ const config = {
         '--disable-software-rasterizer',
         '--mute-audio',
         '--remote-debugging-port=0',
-        '--window-size=1440,900'
-      ].filter(Boolean)
-    }
-  }
+        '--window-size=1440,900',
+      ].filter(Boolean),
+    },
+  },
 };
 
 if (process.env.CI) {
-  const reporters = [{
-    ReporterClass: TapReporter,
-    args: [false, null, { get: () => false }]
-  }, {
-    ReporterClass: XunitReporter,
-    args: [false, fs.createWriteStream('/tmp/test-reports/ui.xml'), { get: () => false }]
-  }];
+  const reporters = [
+    {
+      ReporterClass: TapReporter,
+      args: [false, null, { get: () => false }],
+    },
+    {
+      ReporterClass: XunitReporter,
+      args: [
+        false,
+        fs.createWriteStream('/tmp/test-reports/ui.xml'),
+        { get: () => false },
+      ],
+    },
+  ];
 
   const multiReporter = new MultiReporter({ reporters });
 

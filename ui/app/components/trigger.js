@@ -49,7 +49,7 @@ export default class Trigger extends Component {
     this.error = null;
   }
 
-  @task(function*() {
+  @task(function* () {
     this._reset();
     try {
       this.result = yield this.args.do();

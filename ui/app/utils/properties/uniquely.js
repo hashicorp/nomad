@@ -6,7 +6,7 @@ import { guidFor } from '@ember/object/internals';
 //
 // ex. @uniquely('name') // 'name-ember129383'
 export default function uniquely(prefix) {
-  return computed(function() {
+  return computed(function () {
     return `${prefix}-${guidFor(this)}`;
   });
 }

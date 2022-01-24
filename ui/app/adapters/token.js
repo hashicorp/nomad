@@ -8,7 +8,7 @@ export default class TokenAdapter extends ApplicationAdapter {
   namespace = namespace + '/acl';
 
   findSelf() {
-    return this.ajax(`${this.buildURL()}/token/self`, 'GET').then(token => {
+    return this.ajax(`${this.buildURL()}/token/self`, 'GET').then((token) => {
       const store = this.store;
       store.pushPayload('token', {
         tokens: [token],
@@ -23,15 +23,20 @@ export default class TokenAdapter extends ApplicationAdapter {
       data: {
         OneTimeSecretID: oneTimeToken,
       },
-    }).then(({ Token: token }) => {
-      const store = this.store;
-      store.pushPayload('token', {
-        tokens: [token],
-      });
+    })
+      .then(({ Token: token }) => {
+        const store = this.store;
+        store.pushPayload('token', {
+          tokens: [token],
+        });
 
-      return store.peekRecord('token', store.normalize('token', token).data.id);
-    }).catch(() => {
-      throw new OTTExchangeError();
-    });
+        return store.peekRecord(
+          'token',
+          store.normalize('token', token).data.id
+        );
+      })
+      .catch(() => {
+        throw new OTTExchangeError();
+      });
   }
 }

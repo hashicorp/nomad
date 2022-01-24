@@ -7,11 +7,11 @@ var Funnel = require('broccoli-funnel');
 module.exports = {
   name: 'bulma',
 
-  isDevelopingAddon: function() {
+  isDevelopingAddon: function () {
     return true;
   },
 
-  included: function(app) {
+  included: function (app) {
     this._super.included.apply(this, arguments);
 
     // see: https://github.com/ember-cli/ember-cli/issues/3718
@@ -23,7 +23,7 @@ module.exports = {
     return app;
   },
 
-  treeForStyles: function() {
+  treeForStyles: function () {
     return new Funnel(this.bulmaPath, {
       srcDir: '/',
       destDir: 'app/styles/bulma',

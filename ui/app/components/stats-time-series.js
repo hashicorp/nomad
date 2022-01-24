@@ -22,8 +22,8 @@ export default class StatsTimeSeries extends Component {
   // Specific a11y descriptors
   get description() {
     const data = this.args.data;
-    const yRange = d3Array.extent(data, d => d.percent);
-    const xRange = d3Array.extent(data, d => d.timestamp);
+    const yRange = d3Array.extent(data, (d) => d.percent);
+    const xRange = d3Array.extent(data, (d) => d.timestamp);
     const yFormatter = this.yFormat;
 
     const duration = formatDuration(xRange[1] - xRange[0], 'ms', true);
@@ -36,19 +36,21 @@ export default class StatsTimeSeries extends Component {
   xScale(data, yAxisOffset) {
     const scale = scaleTime();
 
-    const [low, high] = d3Array.extent(data, d => d.timestamp);
-    const minLow = moment(high)
-      .subtract(5, 'minutes')
-      .toDate();
+    const [low, high] = d3Array.extent(data, (d) => d.timestamp);
+    const minLow = moment(high).subtract(5, 'minutes').toDate();
 
-    const extent = data.length ? [Math.min(low, minLow), high] : [minLow, new Date()];
+    const extent = data.length
+      ? [Math.min(low, minLow), high]
+      : [minLow, new Date()];
     scale.rangeRound([10, yAxisOffset]).domain(extent);
 
     return scale;
   }
 
   yScale(data, xAxisOffset) {
-    const yValues = (data || []).mapBy(this.args.dataProp ? 'percentStack' : 'percent');
+    const yValues = (data || []).mapBy(
+      this.args.dataProp ? 'percentStack' : 'percent'
+    );
 
     let [low, high] = [0, 1];
     if (yValues.compact().length) {

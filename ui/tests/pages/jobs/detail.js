@@ -29,7 +29,10 @@ export default create({
     return this.tabs.toArray().findBy('id', id);
   },
 
-  recommendations: collection('[data-test-recommendation-accordion]', recommendationAccordion),
+  recommendations: collection(
+    '[data-test-recommendation-accordion]',
+    recommendationAccordion
+  ),
 
   stop: twoStepButton('[data-test-stop]'),
   start: twoStepButton('[data-test-start]'),
@@ -82,7 +85,9 @@ export default create({
       tooltip: attribute('aria-label'),
     },
   },
-  childrenSummary: jobClientStatusBar('[data-test-job-summary] [data-test-children-status-bar]'),
+  childrenSummary: jobClientStatusBar(
+    '[data-test-job-summary] [data-test-children-status-bar]'
+  ),
   allocationsSummary: jobClientStatusBar(
     '[data-test-job-summary] [data-test-allocation-status-bar]'
   ),

@@ -1,4 +1,5 @@
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
+import { set } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller from '@ember/controller';
@@ -7,11 +8,17 @@ import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
-import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
+import {
+  serialize,
+  deserializedQueryParam as selection,
+} from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 
 @classic
-export default class IndexController extends Controller.extend(Sortable, Searchable) {
+export default class IndexController extends Controller.extend(
+  Sortable,
+  Searchable
+) {
   @service system;
   @service userSettings;
 
@@ -99,7 +106,9 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
   @computed('selectionDatacenter', 'visibleJobs.[]')
   get optionsDatacenter() {
     const flatten = (acc, val) => acc.concat(val);
-    const allDatacenters = new Set(this.visibleJobs.mapBy('datacenters').reduce(flatten, []));
+    const allDatacenters = new Set(
+      this.visibleJobs.mapBy('datacenters').reduce(flatten, [])
+    );
 
     // Remove any invalid datacenters from the query param/selection
     const availableDatacenters = Array.from(allDatacenters).compact();
@@ -111,7 +120,7 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
       );
     });
 
-    return availableDatacenters.sort().map(dc => ({ key: dc, label: dc }));
+    return availableDatacenters.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
   @computed('selectionPrefix', 'visibleJobs.[]')
@@ -131,23 +140,26 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
     }, {});
 
     // Convert to an array
-    const nameTable = Object.keys(nameHistogram).map(key => ({
+    const nameTable = Object.keys(nameHistogram).map((key) => ({
       prefix: key,
       count: nameHistogram[key],
     }));
 
     // Only consider prefixes that match more than one name
-    const prefixes = nameTable.filter(name => name.count > 1);
+    const prefixes = nameTable.filter((name) => name.count > 1);
 
     // Remove any invalid prefixes from the query param/selection
     const availablePrefixes = prefixes.mapBy('prefix');
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpPrefix', serialize(intersection(availablePrefixes, this.selectionPrefix)));
+      this.set(
+        'qpPrefix',
+        serialize(intersection(availablePrefixes, this.selectionPrefix))
+      );
     });
 
     // Sort, format, and include the count in the label
-    return prefixes.sortBy('prefix').map(name => ({
+    return prefixes.sortBy('prefix').map((name) => ({
       key: name.prefix,
       label: `${name.prefix} (${name.count})`,
     }));
@@ -155,7 +167,7 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
 
   @computed('qpNamespace', 'model.namespaces.[]', 'system.cachedNamespace')
   get optionsNamespaces() {
-    const availableNamespaces = this.model.namespaces.map(namespace => ({
+    const availableNamespaces = this.model.namespaces.map((namespace) => ({
       key: namespace.name,
       label: namespace.name,
     }));
@@ -185,8 +197,8 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
     if (!this.model || !this.model.jobs) return [];
     return this.model.jobs
       .compact()
-      .filter(job => !job.isNew)
-      .filter(job => !job.get('parent.content'));
+      .filter((job) => !job.isNew)
+      .filter((job) => !job.get('parent.content'));
   }
 
   @computed(
@@ -206,7 +218,7 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
 
     // A job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.
-    return this.visibleJobs.filter(job => {
+    return this.visibleJobs.filter((job) => {
       if (types.length && !types.includes(job.get('displayType'))) {
         return false;
       }
@@ -215,12 +227,18 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
         return false;
       }
 
-      if (datacenters.length && !job.get('datacenters').find(dc => datacenters.includes(dc))) {
+      if (
+        datacenters.length &&
+        !job.get('datacenters').find((dc) => datacenters.includes(dc))
+      ) {
         return false;
       }
 
       const name = job.get('name');
-      if (prefixes.length && !prefixes.find(prefix => name.startsWith(prefix))) {
+      if (
+        prefixes.length &&
+        !prefixes.find((prefix) => name.startsWith(prefix))
+      ) {
         return false;
       }
 
@@ -236,7 +254,7 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
 
   @action
   cacheNamespace(namespace) {
-    this.system.cachedNamespace = namespace;
+    set(this, 'system.cachedNamespace', namespace);
   }
 
   setFacetQueryParam(queryParam, selection) {

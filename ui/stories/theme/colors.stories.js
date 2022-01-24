@@ -129,8 +129,8 @@ export let Colors = () => {
             },
           ],
         },
-      ].map(palette => {
-        palette.colors.forEach(color => {
+      ].map((palette) => {
+        palette.colors.forEach((color) => {
           color.style = htmlSafe(`background-color: ${color.base}`);
         });
         return palette;

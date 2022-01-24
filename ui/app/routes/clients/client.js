@@ -11,7 +11,7 @@ export default class ClientRoute extends Route {
 
   afterModel(model) {
     if (model && model.get('isPartial')) {
-      return model.reload().then(node => node.get('allocations'));
+      return model.reload().then((node) => node.get('allocations'));
     }
     return model && model.get('allocations');
   }
