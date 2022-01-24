@@ -1,3 +1,3 @@
-```bug
+```release-note:bug
 csi: Fixed a bug in `volume deregister` and `volume detach` commands where volume IDs were truncated when asking the user to select one of several prefix matches
 ```
