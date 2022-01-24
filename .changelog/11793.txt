@@ -1,3 +1,3 @@
-```improvement
+```release-note:improvement
 scheduler: detect, log, and emit `nomad.nomad.plan.node_rejected` metric when an unexpected port collision is detected
 ```
