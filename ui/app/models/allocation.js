@@ -30,14 +30,6 @@ export default class Allocation extends Model {
   @fragment('resources') allocatedResources;
   @attr('number') jobVersion;
 
-  // Store basic node information returned by the API to avoid the need for
-  // node:read ACL permission.
-  @attr('string') nodeName;
-  @computed
-  get shortNodeId() {
-    return this.belongsTo('node').id().split('-')[0];
-  }
-
   @attr('number') modifyIndex;
   @attr('date') modifyTime;
 

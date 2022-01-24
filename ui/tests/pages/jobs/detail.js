@@ -75,22 +75,16 @@ export default create({
     return this.packStats.toArray().findBy('id', id);
   },
 
-  jobClientStatusSummary: {
-    scope: '[data-test-job-client-summary]',
-    statusBar: jobClientStatusBar('[data-test-job-client-status-bar]'),
-    toggle: {
-      scope: '[data-test-accordion-head] [data-test-accordion-toggle]',
-      click: clickable(),
-      isDisabled: attribute('disabled'),
-      tooltip: attribute('aria-label'),
-    },
-  },
-  childrenSummary: jobClientStatusBar(
+  jobClientStatusSummary: jobClientStatusBar(
+    '[data-test-job-client-status-bar]'
+  ),
+  childrenSummary: isPresent(
     '[data-test-job-summary] [data-test-children-status-bar]'
   ),
-  allocationsSummary: jobClientStatusBar(
+  allocationsSummary: isPresent(
     '[data-test-job-summary] [data-test-allocation-status-bar]'
   ),
+
   ...allocations(),
 
   viewAllAllocations: text('[data-test-view-all-allocations]'),

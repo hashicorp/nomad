@@ -13,11 +13,10 @@
 
   <JobPage::Parts::JobClientStatusSummary
     @job={{this.job}}
-    @nodes={{this.nodes}}
-    @forceCollapsed={{not this.shouldDisplayClientInformation}}
+    @jobClientStatus={{this.jobClientStatus}}
     @gotoClients={{this.gotoClients}} />
 
-  <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed={{this.shouldDisplayClientInformation}} />
+  <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed="true" />
 
   <JobPage::Parts::PlacementFailures @job={{this.job}} />
 

@@ -35,7 +35,7 @@ export default function jobClientStatus(nodesKey, jobKey) {
       // Group the job allocations by the ID of the client that is running them.
       const allocsByNodeID = {};
       job.allocations.forEach((a) => {
-        const nodeId = a.belongsTo('node').id();
+        const nodeId = a.node.get('id');
         if (!allocsByNodeID[nodeId]) {
           allocsByNodeID[nodeId] = [];
         }
