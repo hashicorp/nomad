@@ -254,7 +254,6 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
-			require := require.New(t)
 			testExecCmd := testExecutorCommand(t)
 			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 			execCmd.Cmd = "/bin/sleep"
@@ -266,8 +265,8 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 			executor := factory.new(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
 
-			ps, err := executor.Launch(execCmd)
-			require.NoError(err)
+			pState, err := executor.Launch(execCmd)
+			require.NoError(t, err)
 
 			go func() {
 				tu.WaitForResult(func() (bool, error) {
@@ -280,10 +279,14 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 						return false, fmt.Errorf("stats failed to send on interval")
 					case ru := <-ch:
 						assert.NotEmpty(t, ru.Pids, "no pids recorded in stats")
-						assert.NotZero(t, ru.ResourceUsage.MemoryStats.RSS)
+
+						// just checking we measured something; each executor type has its own abilities,
+						// and e.g. cgroup v2 provides different information than cgroup v1
+						assert.NotEmpty(t, ru.ResourceUsage.MemoryStats.Measured)
+
 						assert.WithinDuration(t, time.Now(), time.Unix(0, ru.Timestamp), time.Second)
 					}
-					proc, err := os.FindProcess(ps.Pid)
+					proc, err := os.FindProcess(pState.Pid)
 					if err != nil {
 						return false, err
 					}
@@ -298,9 +301,9 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 				})
 			}()
 
-			ps, err = executor.Wait(context.Background())
-			require.NoError(err)
-			require.Equal(ps.Signal, int(syscall.SIGKILL))
+			pState, err = executor.Wait(context.Background())
+			require.NoError(t, err)
+			require.Equal(t, pState.Signal, int(syscall.SIGKILL))
 		})
 	}
 }

@@ -72,7 +72,7 @@ func TestCommand_Metrics_Cases(t *testing.T) {
 			[]string{"-address=http://foo"},
 			1,
 			"",
-			"no such host",
+			"dial tcp: lookup foo: Temporary failure in name resolution",
 		},
 	}
 
