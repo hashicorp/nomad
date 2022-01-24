@@ -23,8 +23,8 @@ require (
 	github.com/container-storage-interface/spec v1.4.0
 	github.com/containerd/go-cni v1.1.1
 	github.com/containernetworking/cni v1.0.1
-	github.com/containernetworking/plugins v0.9.1
-	github.com/coreos/go-iptables v0.5.0
+	github.com/containernetworking/plugins v1.0.1
+	github.com/coreos/go-iptables v0.6.0
 	github.com/coreos/go-semver v0.3.0
 	github.com/creack/pty v1.1.17
 	github.com/docker/cli v20.10.3-0.20220113150236-6e2838e18645+incompatible
@@ -203,7 +203,7 @@ require (
 	github.com/linode/linodego v0.7.1 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.7 // indirect
-	github.com/mattn/go-shellwords v1.0.10 // indirect
+	github.com/mattn/go-shellwords v1.0.12 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
@@ -233,8 +233,8 @@ require (
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
-	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852 // indirect
-	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae // indirect
+	github.com/vishvananda/netlink v1.1.1-0.20210330154013-f5de75959ad5 // indirect
+	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f // indirect
 	github.com/vmihailenco/msgpack/v4 v4.3.12 // indirect
 	github.com/vmihailenco/tagparser v0.1.1 // indirect
 	github.com/vmware/govmomi v0.18.0 // indirect
