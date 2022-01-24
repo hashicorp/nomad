@@ -12,32 +12,37 @@ import (
 
 func TestWait_WaitForFilesUntil(t *testing.T) {
 
-	var files []string
-	for i := 1; i < 10; i++ {
-		filename := fmt.Sprintf("test%d.txt", i)
-		filepath := filepath.Join(os.TempDir(), filename)
-		files = append(files, filepath)
+	N := 10
 
-		defer os.Remove(filepath)
+	tmpDir, err := os.MkdirTemp("", "waiter")
+	require.NoError(t, err)
+
+	defer func() {
+		require.NoError(t, os.RemoveAll(tmpDir))
+	}()
+
+	var files []string
+	for i := 1; i < N; i++ {
+		files = append(files, filepath.Join(
+			tmpDir, fmt.Sprintf("test%d.txt", i),
+		))
 	}
 
 	go func() {
-		for _, filepath := range files {
-			t.Logf("Creating file %s...", filepath)
-			fh, err := os.Create(filepath)
-			fh.Close()
+		for _, file := range files {
+			t.Logf("Creating file %s ...", file)
+			fh, createErr := os.Create(file)
+			require.NoError(t, createErr)
 
-			require.NoError(t, err, "error creating test file")
-			require.FileExists(t, filepath)
+			closeErr := fh.Close()
+			require.NoError(t, closeErr)
+			require.FileExists(t, file)
 
 			time.Sleep(250 * time.Millisecond)
 		}
 	}()
 
 	duration := 5 * time.Second
-	t.Log("Waiting 5 seconds for files...")
+	t.Log("Waiting 5 seconds for files ...")
 	WaitForFilesUntil(t, files, duration)
-
-	t.Log("done")
-
 }
