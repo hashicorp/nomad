@@ -1286,6 +1286,30 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"tg-service-connect-resources.hcl",
+			&api.Job{
+				ID:   stringToPtr("sidecar_task_resources"),
+				Name: stringToPtr("sidecar_task_resources"),
+				Type: stringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: stringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							SidecarTask: &api.SidecarTask{
+								Resources: &api.Resources{
+									CPU:         intToPtr(111),
+									MemoryMB:    intToPtr(222),
+									MemoryMaxMB: intToPtr(333),
+								},
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"tg-service-connect-proxy.hcl",
 			&api.Job{
 				ID:   stringToPtr("service-connect-proxy"),
