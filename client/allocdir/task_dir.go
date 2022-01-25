@@ -39,6 +39,10 @@ type TaskDir struct {
 	// <task_dir>/secrets/
 	SecretsDir string
 
+	// PrivateDir is the path to private/ directory on the host
+	// <task_dir>/private/
+	PrivateDir string
+
 	// skip embedding these paths in chroots. Used for avoiding embedding
 	// client.alloc_dir recursively.
 	skip map[string]struct{}
@@ -66,6 +70,7 @@ func newTaskDir(logger hclog.Logger, clientAllocDir, allocDir, taskName string) 
 		SharedTaskDir:  filepath.Join(taskDir, SharedAllocName),
 		LocalDir:       filepath.Join(taskDir, TaskLocal),
 		SecretsDir:     filepath.Join(taskDir, TaskSecrets),
+		PrivateDir:     filepath.Join(taskDir, TaskPrivate),
 		skip:           skip,
 		logger:         logger,
 	}
@@ -125,6 +130,15 @@ func (t *TaskDir) Build(createChroot bool, chroot map[string]string) error {
 	}
 
 	if err := dropDirPermissions(t.SecretsDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	// Create the private directory
+	if err := createSecretDir(t.PrivateDir); err != nil {
+		return err
+	}
+
+	if err := dropDirPermissions(t.PrivateDir, os.ModePerm); err != nil {
 		return err
 	}
 

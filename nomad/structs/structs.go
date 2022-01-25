@@ -8852,16 +8852,12 @@ type Vault struct {
 	// retrieved. This is only valid when using the signal change mode.
 	ChangeSignal string
 
+	// File marks whether the Vault Token should be exposed in the file
+	// vault_token in the task's secrets directory.
+	File bool
+
 	// FilePerms is the file permissions vault_token should be written out with.
 	FilePerms string
-}
-
-func DefaultVaultBlock() *Vault {
-	return &Vault{
-		Env:        true,
-		ChangeMode: VaultChangeModeRestart,
-		FilePerms:  "0666",
-	}
 }
 
 // Copy returns a copy of this Vault block.

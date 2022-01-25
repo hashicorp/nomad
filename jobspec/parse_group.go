@@ -211,6 +211,8 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			tgVault := &api.Vault{
 				Env:        boolToPtr(true),
 				ChangeMode: stringToPtr("restart"),
+				File:       boolToPtr(true),
+				FilePerms:  stringToPtr("0666"),
 			}
 
 			if err := parseVault(tgVault, o); err != nil {

@@ -1557,7 +1557,7 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 	require.False(t, finalState.Failed)
 
 	// Check that the token is on disk
-	tokenPath := filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
+	tokenPath := filepath.Join(conf.TaskDir.PrivateDir, vaultTokenFile)
 	data, err := ioutil.ReadFile(tokenPath)
 	require.NoError(t, err)
 	require.Equal(t, token, string(data))
@@ -1622,7 +1622,7 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 	require.Equal(t, 1, count)
 
 	// Check that the token is on disk
-	tokenPath := filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
+	tokenPath := filepath.Join(conf.TaskDir.PrivateDir, vaultTokenFile)
 	data, err := ioutil.ReadFile(tokenPath)
 	require.NoError(t, err)
 	require.Equal(t, token, string(data))

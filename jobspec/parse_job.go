@@ -193,6 +193,8 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		jobVault := &api.Vault{
 			Env:        boolToPtr(true),
 			ChangeMode: stringToPtr("restart"),
+			File:       boolToPtr(true),
+			FilePerms:  stringToPtr("0666"),
 		}
 
 		if err := parseVault(jobVault, o); err != nil {

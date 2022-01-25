@@ -14,6 +14,7 @@ job "example" {
       vault {
         policies = ["task"]
         env      = false
+        file     = false
       }
     }
   }

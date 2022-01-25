@@ -856,6 +856,7 @@ type Vault struct {
 	Env          *bool    `hcl:"env,optional"`
 	ChangeMode   *string  `mapstructure:"change_mode" hcl:"change_mode,optional"`
 	ChangeSignal *string  `mapstructure:"change_signal" hcl:"change_signal,optional"`
+	File         *bool    `mapstructure:"file" hcl:"file,optional"`
 	FilePerms    *string  `mapstructure:"file_perms" hcl:"file_perms,optional"`
 }
 
@@ -871,6 +872,9 @@ func (v *Vault) Canonicalize() {
 	}
 	if v.ChangeSignal == nil {
 		v.ChangeSignal = stringToPtr("SIGHUP")
+	}
+	if v.File == nil {
+		v.File = boolToPtr(true)
 	}
 	if v.FilePerms == nil {
 		v.FilePerms = stringToPtr("0666")
