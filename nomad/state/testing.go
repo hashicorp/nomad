@@ -221,8 +221,8 @@ func TestBadCSIState(t testing.TB, store *StateStore) error {
 	allocID2 := uuid.Generate() // nil alloc
 
 	alloc1 := mock.Alloc()
-	alloc1.ClientStatus = "complete"
-	alloc1.DesiredStatus = "stop"
+	alloc1.ClientStatus = structs.AllocClientStatusRunning
+	alloc1.DesiredStatus = structs.AllocDesiredStatusRun
 
 	// Insert allocs into the state store
 	err := store.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1})
@@ -303,6 +303,7 @@ func TestBadCSIState(t testing.TB, store *StateStore) error {
 		NodesHealthy:        2,
 		NodesExpected:       0,
 	}
+	vol = vol.Copy() // canonicalize
 
 	err = store.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
 	if err != nil {
