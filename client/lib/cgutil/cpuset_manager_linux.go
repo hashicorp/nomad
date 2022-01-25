@@ -60,16 +60,19 @@ func (c *cpusetManager) AddAlloc(alloc *structs.Allocation) {
 	allocInfo := allocTaskCgroupInfo{}
 	for task, resources := range alloc.AllocatedResources.Tasks {
 		taskCpuset := cpuset.New(resources.Cpu.ReservedCores...)
+		fmt.Println("AddAlloc taskCpuset task:", task, "set:", taskCpuset)
 		cgroupPath := filepath.Join(c.cgroupParentPath, SharedCpusetCgroupName)
 		relativeCgroupPath := filepath.Join(c.cgroupParent, SharedCpusetCgroupName)
 		if taskCpuset.Size() > 0 {
 			cgroupPath, relativeCgroupPath = c.getCgroupPathsForTask(alloc.ID, task)
+			fmt.Println("AddAlloc cgroupPath:", cgroupPath, "relativeCgroupPath:", relativeCgroupPath)
 		}
 		allocInfo[task] = &TaskCgroupInfo{
 			CgroupPath:         cgroupPath,
 			RelativeCgroupPath: relativeCgroupPath,
 			Cpuset:             taskCpuset,
 		}
+		fmt.Println("set allocInfo for task:", task, "Cpuset:", allocInfo[task].Cpuset)
 	}
 	c.mu.Lock()
 	c.cgroupInfo[alloc.ID] = allocInfo
@@ -192,15 +195,22 @@ func (c *cpusetManager) reconcileLoop() {
 func (c *cpusetManager) reconcileCpusets() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	fmt.Println("reconcileCpusets enter lock")
+	defer fmt.Println("reconcileCpusets exit lock")
+
 	sharedCpuset := cpuset.New(c.parentCpuset.ToSlice()...)
 	reservedCpuset := cpuset.New()
 	taskCpusets := map[string]*TaskCgroupInfo{}
-	for _, alloc := range c.cgroupInfo {
-		for _, task := range alloc {
+	for allocID, alloc := range c.cgroupInfo {
+		for taskID, task := range alloc {
 			if task.Cpuset.Size() == 0 {
 				continue
 			}
+
+			// shared := what is in shared but not in task.Cpuset
 			sharedCpuset = sharedCpuset.Difference(task.Cpuset)
+			fmt.Println("reconcile alloc:", allocID, "task:", taskID, "sharedCpuset.Size:", sharedCpuset.Size())
 			reservedCpuset = reservedCpuset.Union(task.Cpuset)
 			taskCpusets[task.CgroupPath] = task
 		}
@@ -212,6 +222,7 @@ func (c *cpusetManager) reconcileCpusets() {
 		c.logger.Error("failed to list files in reserved cgroup path during reconciliation", "path", c.reservedCpusetPath(), "error", err)
 	}
 	for _, f := range files {
+
 		if !f.IsDir() {
 			continue
 		}
@@ -219,6 +230,8 @@ func (c *cpusetManager) reconcileCpusets() {
 		if _, ok := taskCpusets[path]; ok {
 			continue
 		}
+		fmt.Println("reconcile path:", path)
+
 		c.logger.Debug("removing reserved cpuset cgroup", "path", path)
 		err := cgroups.RemovePaths(map[string]string{"cpuset": path})
 		if err != nil {
@@ -226,7 +239,9 @@ func (c *cpusetManager) reconcileCpusets() {
 		}
 	}
 
+	fmt.Println("will set shared cpu set, path:", c.sharedCpusetPath(), "string:", sharedCpuset.String())
 	if err := c.setCgroupCpusetCPUs(c.sharedCpusetPath(), sharedCpuset.String()); err != nil {
+		fmt.Println("ERR")
 		c.logger.Error("could not write shared cpuset.cpus", "path", c.sharedCpusetPath(), "cpuset.cpus", sharedCpuset.String(), "error", err)
 	}
 	if err := c.setCgroupCpusetCPUs(c.reservedCpusetPath(), reservedCpuset.String()); err != nil {
@@ -261,6 +276,8 @@ func (c *cpusetManager) reconcileCpusets() {
 
 // setCgroupCpusetCPUs will compare an existing cpuset.cpus value with an expected value, overwriting the existing if different
 // must hold a lock on cpusetManager.mu before calling
+
+// YOU ARE HERE; seems to not write the empty string?
 func (_ *cpusetManager) setCgroupCpusetCPUs(path, cpus string) error {
 	currentCpusRaw, err := fscommon.ReadFile(path, "cpuset.cpus")
 	if err != nil {

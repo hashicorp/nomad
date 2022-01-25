@@ -1,6 +1,7 @@
 package cgutil
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -33,10 +34,12 @@ func GetCPUsFromCgroup(group string) ([]uint16, error) {
 }
 
 func getCpusetSubsystemSettings(parent string) (cpus, mems string, err error) {
-	if cpus, err = fscommon.ReadFile(parent, "cpuset.cpus"); err != nil {
+	if cpus, err = cgroups.ReadFile(parent, "cpuset.cpus"); err != nil {
+		fmt.Println("SH getCpuSubsystemSettings cpus:", cpus, "err:", err)
 		return
 	}
-	if mems, err = fscommon.ReadFile(parent, "cpuset.mems"); err != nil {
+	if mems, err = cgroups.ReadFile(parent, "cpuset.mems"); err != nil {
+		fmt.Println("SH getCpuSubsystemSettings mems:", mems, "err:", err)
 		return
 	}
 	return cpus, mems, nil

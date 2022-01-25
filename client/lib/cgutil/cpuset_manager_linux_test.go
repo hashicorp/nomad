@@ -1,12 +1,14 @@
 package cgutil
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
 	"syscall"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
@@ -29,6 +31,7 @@ func tmpCpusetManager(t *testing.T) (manager *cpusetManager, cleanup func()) {
 
 	parent := "/gotest-" + uuid.Short()
 	require.NoError(t, cpusetEnsureParent(parent))
+	fmt.Println("SH tmpCpusetManager: parent:", parent)
 
 	manager = &cpusetManager{
 		cgroupParent: parent,
@@ -38,6 +41,7 @@ func tmpCpusetManager(t *testing.T) (manager *cpusetManager, cleanup func()) {
 
 	parentPath, err := getCgroupPathHelper("cpuset", parent)
 	require.NoError(t, err)
+	fmt.Println("SH tmpCpusetManager parentPath:", parentPath)
 
 	return manager, func() { require.NoError(t, cgroups.RemovePaths(map[string]string{"cpuset": parentPath})) }
 }
@@ -64,40 +68,52 @@ func TestCpusetManager_AddAlloc(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores = manager.parentCpuset.ToSlice()
+	fmt.Println("_AddAlloc Cpu.ReservedCores:", alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores)
 	manager.AddAlloc(alloc)
+
 	// force reconcile
 	manager.reconcileCpusets()
+
+	fmt.Println("_AddAlloc finished reconcile ...", manager.cgroupInfo["9debc22e-2176-4943-f470-b5e363aa37b1"]["web"])
+	for id, m := range manager.cgroupInfo {
+		fmt.Println("-> id:", id)
+		spew.Dump(m["web"])
+	}
 
 	// check that no more cores exist in the shared cgroup
 	require.DirExists(t, filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName))
 	require.FileExists(t, filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus"))
+	sharedPath := filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus")
 	sharedCpusRaw, err := ioutil.ReadFile(filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus"))
 	require.NoError(t, err)
+	fmt.Println("_AddAlloc sharedCpusRaw:", string(sharedCpusRaw), "sharedPath:", sharedPath)
+
 	sharedCpus, err := cpuset.Parse(string(sharedCpusRaw))
 	require.NoError(t, err)
-	require.Empty(t, sharedCpus.ToSlice())
+	fmt.Println("_AddAlloc sharedCpus:", sharedCpus)
+	require.Empty(t, sharedCpus.ToSlice()) // TODO: this fails
 
-	// check that all cores are allocated to reserved cgroup
-	require.DirExists(t, filepath.Join(manager.cgroupParentPath, ReservedCpusetCgroupName))
-	reservedCpusRaw, err := ioutil.ReadFile(filepath.Join(manager.cgroupParentPath, ReservedCpusetCgroupName, "cpuset.cpus"))
-	require.NoError(t, err)
-	reservedCpus, err := cpuset.Parse(string(reservedCpusRaw))
-	require.NoError(t, err)
-	require.Exactly(t, alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores, reservedCpus.ToSlice())
-
-	// check that task cgroup exists and cpuset matches expected reserved cores
-	allocInfo, ok := manager.cgroupInfo[alloc.ID]
-	require.True(t, ok)
-	require.Len(t, allocInfo, 1)
-	taskInfo, ok := allocInfo["web"]
-	require.True(t, ok)
-
-	require.DirExists(t, taskInfo.CgroupPath)
-	taskCpusRaw, err := ioutil.ReadFile(filepath.Join(taskInfo.CgroupPath, "cpuset.cpus"))
-	require.NoError(t, err)
-	taskCpus, err := cpuset.Parse(string(taskCpusRaw))
-	require.NoError(t, err)
-	require.Exactly(t, alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores, taskCpus.ToSlice())
+	//// check that all cores are allocated to reserved cgroup
+	//require.DirExists(t, filepath.Join(manager.cgroupParentPath, ReservedCpusetCgroupName))
+	//reservedCpusRaw, err := ioutil.ReadFile(filepath.Join(manager.cgroupParentPath, ReservedCpusetCgroupName, "cpuset.cpus"))
+	//require.NoError(t, err)
+	//reservedCpus, err := cpuset.Parse(string(reservedCpusRaw))
+	//require.NoError(t, err)
+	//require.Exactly(t, alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores, reservedCpus.ToSlice())
+	//
+	//// check that task cgroup exists and cpuset matches expected reserved cores
+	//allocInfo, ok := manager.cgroupInfo[alloc.ID]
+	//require.True(t, ok)
+	//require.Len(t, allocInfo, 1)
+	//taskInfo, ok := allocInfo["web"]
+	//require.True(t, ok)
+	//
+	//require.DirExists(t, taskInfo.CgroupPath)
+	//taskCpusRaw, err := ioutil.ReadFile(filepath.Join(taskInfo.CgroupPath, "cpuset.cpus"))
+	//require.NoError(t, err)
+	//taskCpus, err := cpuset.Parse(string(taskCpusRaw))
+	//require.NoError(t, err)
+	//require.Exactly(t, alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores, taskCpus.ToSlice())
 }
 
 func TestCpusetManager_RemoveAlloc(t *testing.T) {
