@@ -104,12 +104,10 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 		if len(co.Items) > 1 {
 			return nil, fmt.Errorf("connect '%s': cannot have more than 1 connect stanza", service.Name)
 		}
-
 		c, err := parseConnect(co.Items[0])
 		if err != nil {
 			return nil, multierror.Prefix(err, fmt.Sprintf("'%s',", service.Name))
 		}
-
 		service.Connect = c
 	}
 
@@ -191,33 +189,29 @@ func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
 
 	// Parse the sidecar_service
 	o = connectList.Filter("sidecar_service")
-	if len(o.Items) == 0 {
-		return &connect, nil
-	}
 	if len(o.Items) > 1 {
 		return nil, fmt.Errorf("only one 'sidecar_service' block allowed per task")
 	}
-
-	r, err := parseSidecarService(o.Items[0])
-	if err != nil {
-		return nil, fmt.Errorf("sidecar_service, %v", err)
+	if len(o.Items) == 1 {
+		r, err := parseSidecarService(o.Items[0])
+		if err != nil {
+			return nil, fmt.Errorf("sidecar_service, %v", err)
+		}
+		connect.SidecarService = r
 	}
-	connect.SidecarService = r
 
 	// Parse the sidecar_task
 	o = connectList.Filter("sidecar_task")
-	if len(o.Items) == 0 {
-		return &connect, nil
-	}
 	if len(o.Items) > 1 {
 		return nil, fmt.Errorf("only one 'sidecar_task' block allowed per task")
 	}
-
-	t, err := parseSidecarTask(o.Items[0])
-	if err != nil {
-		return nil, fmt.Errorf("sidecar_task, %v", err)
+	if len(o.Items) == 1 {
+		t, err := parseSidecarTask(o.Items[0])
+		if err != nil {
+			return nil, fmt.Errorf("sidecar_task, %v", err)
+		}
+		connect.SidecarTask = t
 	}
-	connect.SidecarTask = t
 
 	return &connect, nil
 }
