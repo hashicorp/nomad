@@ -766,7 +766,7 @@ func parsePagination(req *http.Request, b *structs.QueryOptions) {
 	query := req.URL.Query()
 	rawPerPage := query.Get("per_page")
 	if rawPerPage != "" {
-		perPage, err := strconv.Atoi(rawPerPage)
+		perPage, err := strconv.ParseInt(rawPerPage, 10, 32)
 		if err == nil {
 			b.PerPage = int32(perPage)
 		}
