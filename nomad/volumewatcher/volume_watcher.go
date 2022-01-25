@@ -177,17 +177,10 @@ func (vw *volumeWatcher) isUnclaimed(vol *structs.CSIVolume) bool {
 	return len(vol.ReadClaims) == 0 && len(vol.WriteClaims) == 0 && len(vol.PastClaims) == 0
 }
 
+// volumeReapImpl unpublished all the volume's PastClaims. PastClaims
+// will be populated from nil or terminal allocs when we call
+// CSIVolumeDenormalize(), so this assumes we've done so in the caller
 func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
-
-	// PastClaims written by a volume GC core job will have no allocation,
-	// so we need to find out which allocs are eligible for cleanup.
-	for _, claim := range vol.PastClaims {
-		if claim.AllocationID == "" {
-			vol = vw.collectPastClaims(vol)
-			break // only need to collect once
-		}
-	}
-
 	var result *multierror.Error
 	for _, claim := range vol.PastClaims {
 		err := vw.unpublish(vol, claim)
@@ -195,9 +188,7 @@ func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
 			result = multierror.Append(result, err)
 		}
 	}
-
 	return result.ErrorOrNil()
-
 }
 
 func (vw *volumeWatcher) collectPastClaims(vol *structs.CSIVolume) *structs.CSIVolume {
