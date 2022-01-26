@@ -10,6 +10,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
+import setPolicy from 'nomad-ui/tests/utils/set-policy';
 
 // moduleFor is an old Ember-QUnit API that is deprected https://guides.emberjs.com/v1.10.0/testing/unit-test-helpers/
 // this is a misnomer in our context, because we're not using this API, however, the linter does not understand this
@@ -361,16 +362,6 @@ function urlWithNamespace(url, namespace) {
   params.set('namespace', namespace);
 
   return `${parts[0]}?${params.toString()}`;
-}
-
-function setPolicy(policy) {
-  const { id: policyId } = server.create('policy', policy);
-  const clientToken = server.create('token', { type: 'client' });
-  clientToken.policyIds = [policyId];
-  clientToken.save();
-
-  window.localStorage.clear();
-  window.localStorage.nomadTokenSecret = clientToken.secretId;
 }
 
 async function visitJobDetailPage({ id, namespace }) {

@@ -5,6 +5,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Clients from 'nomad-ui/tests/pages/jobs/job/clients';
+import setPolicy from 'nomad-ui/tests/utils/set-policy';
 
 let job;
 let clients;
@@ -227,13 +228,3 @@ module('Acceptance | job clients', function (hooks) {
     // TODO: add facet tests for actual list filtering
   }
 });
-
-function setPolicy(policy) {
-  const { id: policyId } = server.create('policy', policy);
-  const clientToken = server.create('token', { type: 'client' });
-  clientToken.policyIds = [policyId];
-  clientToken.save();
-
-  window.localStorage.clear();
-  window.localStorage.nomadTokenSecret = clientToken.secretId;
-}
