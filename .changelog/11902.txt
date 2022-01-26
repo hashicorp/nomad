@@ -1,0 +1,4 @@
+```release-note:bug
+template: Fixed a bug where client template configuration that did not include any
+of the new 1.2.4 configuration options could result in none of the configuration getting set.
+```

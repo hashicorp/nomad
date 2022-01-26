@@ -450,7 +450,10 @@ func (c *ClientTemplateConfig) IsEmpty() bool {
 		return true
 	}
 
-	return c.BlockQueryWaitTime == nil &&
+	return !c.DisableSandbox &&
+		len(c.FunctionDenylist) == 0 &&
+		len(c.FunctionBlacklist) == 0 &&
+		c.BlockQueryWaitTime == nil &&
 		c.BlockQueryWaitTimeHCL == "" &&
 		c.MaxStale == nil &&
 		c.MaxStaleHCL == "" &&
