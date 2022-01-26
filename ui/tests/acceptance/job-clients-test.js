@@ -27,6 +27,16 @@ module('Acceptance | job clients', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
+    setPolicy({
+      id: 'node-read',
+      name: 'node-read',
+      rulesJSON: {
+        Node: {
+          Policy: 'read',
+        },
+      },
+    });
+
     clients = server.createList('node', 12, {
       datacenter: 'dc1',
       status: 'ready',
@@ -217,3 +227,13 @@ module('Acceptance | job clients', function (hooks) {
     // TODO: add facet tests for actual list filtering
   }
 });
+
+function setPolicy(policy) {
+  const { id: policyId } = server.create('policy', policy);
+  const clientToken = server.create('token', { type: 'client' });
+  clientToken.policyIds = [policyId];
+  clientToken.save();
+
+  window.localStorage.clear();
+  window.localStorage.nomadTokenSecret = clientToken.secretId;
+}

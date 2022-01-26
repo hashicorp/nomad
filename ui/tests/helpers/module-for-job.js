@@ -1,6 +1,11 @@
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
-import { currentRouteName, currentURL, visit } from '@ember/test-helpers';
+import {
+  click,
+  currentRouteName,
+  currentURL,
+  visit,
+} from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -36,6 +41,11 @@ export default function moduleForJob(
         await JobDetail.visit({ id: job.id });
       } else {
         await JobDetail.visit({ id: job.id, namespace: job.namespace });
+      }
+
+      const hasClientStatus = ['system', 'sysbatch'].includes(job.type);
+      if (context === 'allocations' && hasClientStatus) {
+        await click("[data-test-accordion-summary-chart='allocation-status']");
       }
     });
 
@@ -248,14 +258,14 @@ export function moduleForJobWithClientStatus(
 
       test('job status summary is shown in the overview', async function (assert) {
         assert.ok(
-          JobDetail.jobClientStatusSummary.isPresent,
+          JobDetail.jobClientStatusSummary.statusBar.isPresent,
           'Summary bar is displayed in the Job Status in Client summary section'
         );
       });
 
       test('clicking legend item navigates to a pre-filtered clients table', async function (assert) {
         const legendItem =
-          JobDetail.jobClientStatusSummary.legend.clickableItems[0];
+          JobDetail.jobClientStatusSummary.statusBar.legend.clickableItems[0];
         const status = legendItem.label;
         await legendItem.click();
 
@@ -273,7 +283,7 @@ export function moduleForJobWithClientStatus(
       });
 
       test('clicking in a slice takes you to a pre-filtered clients table', async function (assert) {
-        const slice = JobDetail.jobClientStatusSummary.slices[0];
+        const slice = JobDetail.jobClientStatusSummary.statusBar.slices[0];
         const status = slice.label;
         await slice.click();
 

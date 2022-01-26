@@ -86,6 +86,7 @@ module(
         @job={{this.job}}
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
+      />
     `);
 
       const taskGroupRow = find('[data-test-task-group]');

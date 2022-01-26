@@ -32,7 +32,9 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
         model.get('hasChildren') &&
         this.watchAllJobs.perform({ namespace: model.namespace.get('name') }),
       nodes:
-        model.get('hasClientStatus') && this.can.can('read client') && this.watchNodes.perform(),
+        model.get('hasClientStatus') &&
+        this.can.can('read client') &&
+        this.watchNodes.perform(),
     });
   }
 
