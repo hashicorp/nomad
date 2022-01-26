@@ -45,7 +45,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
       @sortProperty={{sortProperty}}
       @sortDescending={{sortDescending}}
       @currentPage={{currentPage}}
-      @gotoJob={{gotoJob}} />
+    />
   `;
 
   const commonProperties = (job) => ({
@@ -53,7 +53,6 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     sortProperty: 'name',
     sortDescending: true,
     currentPage: 1,
-    gotoJob: () => {},
   });
 
   test('Clicking Force Launch launches a new periodic child job', async function (assert) {
@@ -241,7 +240,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     await render(commonTemplate);
 
     assert.equal(
-      find('[data-test-job-submit-time]').textContent,
+      find('[data-test-job-submit-time]').textContent.trim(),
       moment(job.get('children.firstObject.submitTime')).format(
         'MMM DD HH:mm:ss ZZ'
       ),

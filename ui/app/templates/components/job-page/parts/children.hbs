@@ -22,7 +22,9 @@
     {{/if}}
   {{/if}}
 </div>
-<div class="boxed-section-body {{if this.sortedChildren.length "is-full-bleed"}}">
+<div
+  class="boxed-section-body {{if this.sortedChildren.length "is-full-bleed"}}"
+>
   {{#if this.sortedChildren}}
     <ListPagination
       @source={{this.sortedChildren}}
