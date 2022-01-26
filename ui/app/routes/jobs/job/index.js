@@ -1,5 +1,5 @@
-import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
+import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
 import {
   watchRecord,
@@ -11,43 +11,29 @@ import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
 export default class IndexRoute extends Route.extend(WithWatchers) {
   @service can;
-  @service store;
 
   async model() {
-    const job = this.modelFor('jobs.job');
-    if (!job) {
-      return { job, nodes: [] };
-    }
-
-    // Optimizing future node look ups by preemptively loading all nodes if
-    // necessary and allowed.
-    if (this.can.can('read client') && job.get('hasClientStatus')) {
-      await this.store.findAll('node');
-    }
-    const nodes = this.store.peekAll('node');
-    return { job, nodes };
+    return this.modelFor('jobs.job');
   }
 
   startWatchers(controller, model) {
-    if (!model.job) {
+    if (!model) {
       return;
     }
     controller.set('watchers', {
-      model: this.watch.perform(model.job),
-      summary: this.watchSummary.perform(model.job.get('summary')),
-      allocations: this.watchAllocations.perform(model.job),
-      evaluations: this.watchEvaluations.perform(model.job),
+      model: this.watch.perform(model),
+      summary: this.watchSummary.perform(model.get('summary')),
+      allocations: this.watchAllocations.perform(model),
+      evaluations: this.watchEvaluations.perform(model),
       latestDeployment:
-        model.job.get('supportsDeployments') &&
-        this.watchLatestDeployment.perform(model.job),
+        model.get('supportsDeployments') &&
+        this.watchLatestDeployment.perform(model),
       list:
-        model.job.get('hasChildren') &&
-        this.watchAllJobs.perform({
-          namespace: model.job.namespace.get('name'),
-        }),
+        model.get('hasChildren') &&
+        this.watchAllJobs.perform({ namespace: model.namespace.get('name') }),
       nodes:
+        model.get('hasClientStatus') &&
         this.can.can('read client') &&
-        model.job.get('hasClientStatus') &&
         this.watchNodes.perform(),
     });
   }
@@ -55,10 +41,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
   setupController(controller, model) {
     // Parameterized and periodic detail pages, which list children jobs,
     // should sort by submit time.
-    if (
-      model.job &&
-      ['periodic', 'parameterized'].includes(model.job.templateType)
-    ) {
+    if (model && ['periodic', 'parameterized'].includes(model.templateType)) {
       controller.setProperties({
         sortProperty: 'submitTime',
         sortDescending: true,

@@ -1,27 +1,11 @@
-import AbstractJobPage from './abstract';
-import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
-import classic from 'ember-classic-decorator';
-import messageForError from 'nomad-ui/utils/message-from-adapter-error';
+import Component from '@glimmer/component';
 
-@classic
-export default class Periodic extends AbstractJobPage {
-  @service store;
-
-  errorMessage = null;
-
+export default class Periodic extends Component {
   @action
-  forceLaunch() {
-    this.job.forcePeriodic().catch((err) => {
-      this.set('errorMessage', {
-        title: 'Could Not Force Launch',
-        description: messageForError(err, 'submit jobs'),
-      });
+  forceLaunch(setError) {
+    this.args.job.forcePeriodic().catch((err) => {
+      setError(err);
     });
-  }
-
-  @action
-  clearErrorMessage() {
-    this.set('errorMessage', null);
   }
 }

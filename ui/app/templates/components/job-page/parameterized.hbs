@@ -1,19 +1,18 @@
-<JobPage::Parts::Body @job={{this.job}}>
-  <JobPage::Parts::Error @errorMessage={{this.errorMessage}} @onDismiss={{action "clearErrorMessage"}} />
-
-  <JobPage::Parts::Title @job={{this.job}} @handleError={{action "handleError"}}>
-    <span class="tag is-hollow">Parameterized</span>
-  </JobPage::Parts::Title>
-
-  <JobPage::Parts::StatsBox @job={{this.job}} />
-
-  <JobPage::Parts::Summary @job={{this.job}} />
-  <JobPage::Parts::Children
-    @job={{this.job}}
-    @sortProperty={{this.sortProperty}}
-    @sortDescending={{this.sortDescending}}
-    @currentPage={{this.currentPage}}
-    @gotoJob={{this.gotoJob}} />
-
-  <JobPage::Parts::Meta @job={{this.job}} />
-</JobPage::Parts::Body>
+<JobPage @job={{@job}} as |jobPage|>
+  <jobPage.ui.Body>
+    <jobPage.ui.Error />
+    <jobPage.ui.Title>
+      <span class="tag is-hollow">
+        Parameterized
+      </span>
+    </jobPage.ui.Title>
+    <jobPage.ui.StatsBox />
+    <jobPage.ui.Summary />
+    <jobPage.ui.Children
+      @sortProperty={{@sortProperty}}
+      @sortDescending={{@sortDescending}}
+      @currentPage={{@currentPage}}
+    />
+    <jobPage.ui.Meta />
+  </jobPage.ui.Body>
+</JobPage>

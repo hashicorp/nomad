@@ -5,6 +5,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Clients from 'nomad-ui/tests/pages/jobs/job/clients';
+import setPolicy from 'nomad-ui/tests/utils/set-policy';
 
 let job;
 let clients;
@@ -27,6 +28,16 @@ module('Acceptance | job clients', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
+    setPolicy({
+      id: 'node-read',
+      name: 'node-read',
+      rulesJSON: {
+        Node: {
+          Policy: 'read',
+        },
+      },
+    });
+
     clients = server.createList('node', 12, {
       datacenter: 'dc1',
       status: 'ready',

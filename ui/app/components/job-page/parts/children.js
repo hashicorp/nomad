@@ -19,9 +19,6 @@ export default class Children extends Component.extend(Sortable) {
   sortDescending = null;
   currentPage = null;
 
-  // Provide an action with access to the router
-  gotoJob() {}
-
   @readOnly('userSettings.pageSize') pageSize;
 
   @computed('job.taskGroups.[]')

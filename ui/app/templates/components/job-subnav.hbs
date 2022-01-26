@@ -1,15 +1,79 @@
 <div data-test-subnav="job" class="tabs is-subnav">
   <ul>
-    <li data-test-tab="overview"><LinkTo @route="jobs.job.index" @query={{hash namespace=this.job.namespace.id}} @model={{@job}} @activeClass="is-active" @current-when="jobs.job.index jobs.job.dispatch">Overview</LinkTo></li>
-    <li data-test-tab="definition"><LinkTo @route="jobs.job.definition" @query={{hash namespace=this.job.namespace.id}} @model={{@job}} @activeClass="is-active">Definition</LinkTo></li>
-    <li data-test-tab="versions"><LinkTo @route="jobs.job.versions" @query={{hash namespace=this.job.namespace.id}} @model={{@job}} @activeClass="is-active">Versions</LinkTo></li>
-    {{#if this.job.supportsDeployments}}
-      <li data-test-tab="deployments"><LinkTo @route="jobs.job.deployments" @query={{hash namespace=this.job.namespace.id}} @model={{@job}} @activeClass="is-active">Deployments</LinkTo></li>
+    <li data-test-tab="overview">
+      <LinkTo
+        @route="jobs.job.index"
+        @query={{hash namespace=@job.namespace.id}}
+        @model={{@job}}
+        @activeClass="is-active"
+        @current-when="jobs.job.index jobs.job.dispatch"
+      >
+        Overview
+      </LinkTo>
+    </li>
+    <li data-test-tab="definition">
+      <LinkTo
+        @route="jobs.job.definition"
+        @query={{hash namespace=@job.namespace.id}}
+        @model={{@job}}
+        @activeClass="is-active"
+      >
+        Definition
+      </LinkTo>
+    </li>
+    <li data-test-tab="versions">
+      <LinkTo
+        @route="jobs.job.versions"
+        @query={{hash namespace=@job.namespace.id}}
+        @model={{@job}}
+        @activeClass="is-active"
+      >
+        Versions
+      </LinkTo>
+    </li>
+    {{#if @job.supportsDeployments}}
+      <li data-test-tab="deployments">
+        <LinkTo
+          @route="jobs.job.deployments"
+          @query={{hash namespace=@job.namespace.id}}
+          @model={{@job}}
+          @activeClass="is-active"
+        >
+          Deployments
+        </LinkTo>
+      </li>
     {{/if}}
-    <li data-test-tab="allocations"><LinkTo @route="jobs.job.allocations" @query={{hash namespace=this.job.namespace.id}} @model={{@job}} @activeClass="is-active">Allocations</LinkTo></li>
-    <li data-test-tab="evaluations"><LinkTo @route="jobs.job.evaluations" @query={{hash namespace=this.job.namespace.id}} @model={{@job}} @activeClass="is-active">Evaluations</LinkTo></li>
-    {{#if (and (can "read client") (and this.job.hasClientStatus (not this.job.hasChildren)))}}
-      <li data-test-tab="clients"><LinkTo @route="jobs.job.clients" @query={{hash namespace=this.job.namespace.id}} @model={{@job}} @activeClass="is-active">Clients</LinkTo></li>
+    <li data-test-tab="allocations">
+      <LinkTo
+        @route="jobs.job.allocations"
+        @query={{hash namespace=@job.namespace.id}}
+        @model={{@job}}
+        @activeClass="is-active"
+      >
+        Allocations
+      </LinkTo>
+    </li>
+    <li data-test-tab="evaluations">
+      <LinkTo
+        @route="jobs.job.evaluations"
+        @query={{hash namespace=@job.namespace.id}}
+        @model={{@job}}
+        @activeClass="is-active"
+      >
+        Evaluations
+      </LinkTo>
+    </li>
+    {{#if this.shouldRenderClientsTab}}
+      <li data-test-tab="clients">
+        <LinkTo
+          @route="jobs.job.clients"
+          @query={{hash namespace=@job.namespace.id}}
+          @model={{@job}}
+          @activeClass="is-active"
+        >
+          Clients
+        </LinkTo>
+      </li>
     {{/if}}
   </ul>
 </div>

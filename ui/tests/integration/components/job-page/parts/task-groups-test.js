@@ -1,8 +1,7 @@
 import { assign } from '@ember/polyfills';
 import hbs from 'htmlbars-inline-precompile';
-import { click, findAll, find, render } from '@ember/test-helpers';
+import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
-import sinon from 'sinon';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { setupRenderingTest } from 'ember-qunit';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
@@ -33,7 +32,6 @@ module(
           job,
           sortProperty: 'name',
           sortDescending: true,
-          gotoTaskGroup: () => {},
         },
         options
       );
@@ -57,7 +55,7 @@ module(
         @job={{this.job}}
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
-        @gotoTaskGroup={{this.gotoTaskGroup}} />
+      />
     `);
 
       assert.equal(
@@ -88,7 +86,7 @@ module(
         @job={{this.job}}
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
-        @gotoTaskGroup={{this.gotoTaskGroup}} />
+      />
     `);
 
       const taskGroupRow = find('[data-test-task-group]');
@@ -137,42 +135,6 @@ module(
           'MiB'
         )}`,
         'Reserved Disk'
-      );
-    });
-
-    test('gotoTaskGroup is called when task group rows are clicked', async function (assert) {
-      this.server.create('job', {
-        createAllocations: false,
-      });
-
-      const job = await this.store.findAll('job').then(async (jobs) => {
-        return await jobs.get('firstObject').reload();
-      });
-
-      const taskGroupSpy = sinon.spy();
-
-      const taskGroups = await job.get('taskGroups');
-      const taskGroup = taskGroups.sortBy('name').reverse().get('firstObject');
-
-      this.setProperties(
-        props(job, {
-          gotoTaskGroup: taskGroupSpy,
-        })
-      );
-
-      await render(hbs`
-      <JobPage::Parts::TaskGroups
-        @job={{this.job}}
-        @sortProperty={{this.sortProperty}}
-        @sortDescending={{this.sortDescending}}
-        @gotoTaskGroup={{this.gotoTaskGroup}} />
-    `);
-
-      await click('[data-test-task-group]');
-
-      assert.ok(
-        taskGroupSpy.withArgs(taskGroup).calledOnce,
-        'Clicking the task group row calls the gotoTaskGroup action'
       );
     });
   }

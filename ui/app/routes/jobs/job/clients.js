@@ -1,3 +1,4 @@
+import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import {
@@ -8,8 +9,15 @@ import {
 import { collect } from '@ember/object/computed';
 
 export default class ClientsRoute extends Route.extend(WithWatchers) {
+  @service can;
+
+  beforeModel() {
+    if (this.can.cannot('read client')) {
+      this.transitionTo('jobs.job');
+    }
+  }
+
   async model() {
-    await this.store.findAll('node');
     return this.modelFor('jobs.job');
   }
 

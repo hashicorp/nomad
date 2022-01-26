@@ -14,12 +14,10 @@ module('Integration | Component | allocation row', function (hooks) {
   hooks.beforeEach(function () {
     fragmentSerializerInitializer(this.owner);
     this.store = this.owner.lookup('service:store');
-    this.token = this.owner.lookup('service:token');
     this.server = startMirage();
     this.server.create('namespace');
     this.server.create('node');
     this.server.create('job', { createAllocations: false });
-    window.localStorage.clear();
   });
 
   hooks.afterEach(function () {
@@ -82,24 +80,6 @@ module('Integration | Component | allocation row', function (hooks) {
 
   test('Allocation row shows warning when it requires drivers that are unhealthy on the node it is running on', async function (assert) {
     assert.expect(2);
-
-    // Driver health status require node:read permission.
-    const policy = server.create('policy', {
-      id: 'node-read',
-      name: 'node-read',
-      rulesJSON: {
-        Node: {
-          Policy: 'read',
-        },
-      },
-    });
-    const clientToken = server.create('token', { type: 'client' });
-    clientToken.policyIds = [policy.id];
-    clientToken.save();
-
-    // Set and fetch ACL token.
-    window.localStorage.nomadTokenSecret = clientToken.secretId;
-    this.token.fetchSelfTokenAndPolicies.perform();
 
     const node = this.server.schema.nodes.first();
     const drivers = node.drivers;

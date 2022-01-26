@@ -9,10 +9,8 @@ export default class AccordionHead extends Component {
   'data-test-accordion-head' = true;
 
   buttonLabel = 'toggle';
-  tooltip = '';
   isOpen = false;
   isExpandable = true;
-  isDisabled = false;
   item = null;
 
   onClose() {}

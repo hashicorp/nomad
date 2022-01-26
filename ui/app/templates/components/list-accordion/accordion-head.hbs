@@ -3,10 +3,11 @@
 </div>
 <button
   data-test-accordion-toggle
-  class="button is-light is-compact pull-right accordion-toggle {{unless this.isExpandable "is-invisible"}} {{if this.tooltip "tooltip multiline"}}"
-  disabled={{if this.isDisabled "disabled"}}
-  aria-label={{this.tooltip}}
+  data-test-accordion-summary-chart={{this.buttonType}}
+  class="button is-light is-compact pull-right accordion-toggle
+    {{unless this.isExpandable "is-invisible"}}"
   onclick={{action (if this.isOpen this.onClose this.onOpen) this.item}}
-  type="button">
+  type="button"
+>
   {{this.buttonLabel}}
 </button>

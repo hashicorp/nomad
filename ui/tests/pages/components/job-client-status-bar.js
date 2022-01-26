@@ -8,6 +8,11 @@ export default (scope) => ({
     click: clickable(),
   }),
 
+  expand: {
+    scope: '[data-test-accordion-toggle]',
+    click: clickable(),
+  },
+
   legend: {
     scope: '.legend',
 
