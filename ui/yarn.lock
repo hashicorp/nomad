@@ -9313,7 +9313,7 @@ ember-element-helper@^0.3.2:
     ember-cli-htmlbars "^5.1.0"
     ember-compatibility-helpers "^1.2.1"
 
-ember-exam@^6.1.0:
+ember-exam@6.1.0:
   version "6.1.0"
   resolved "https://registry.yarnpkg.com/ember-exam/-/ember-exam-6.1.0.tgz#1ea2c0ece27ac8ad6a80d959b1c207611b7dfdd7"
   integrity sha512-H9tg7eUgqkjAsr1/15UzxGyZobGLgsyTi56Ng0ySnkYGCRfvVpwtVc3xgcNOFnUaa9RExUFpxC0adjW3K87Uxw==
