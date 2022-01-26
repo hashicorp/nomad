@@ -1,11 +1,12 @@
 rules:
   # Check `require` or `assert` testify overrides.
-  # https://semgrep.dev/s/Nwk7
+  # https://semgrep.dev/s/PgAq
   - id: "tests-no-testify-override"
     patterns:
       - pattern-either:
-        - pattern: "$X := $X.New(($T : *testing.T))"
-    message: "Override of testify package $X"
+        - pattern: "assert := assert.New(($T : *testing.T))"
+        - pattern: "require := require.New(($T : *testing.T))"
+    message: "Override of testify package"
     languages:
       - "go"
     severity: "WARNING"
