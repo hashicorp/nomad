@@ -5255,8 +5255,9 @@ const (
 )
 
 type TaskLifecycleConfig struct {
-	Hook    string
-	Sidecar bool
+	Hook                 string
+	Sidecar              bool
+	IgnoreMinHealthyTime bool
 }
 
 func (d *TaskLifecycleConfig) Copy() *TaskLifecycleConfig {

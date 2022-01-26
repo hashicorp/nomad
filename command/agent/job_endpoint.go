@@ -1151,8 +1151,9 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 
 	if apiTask.Lifecycle != nil {
 		structsTask.Lifecycle = &structs.TaskLifecycleConfig{
-			Hook:    apiTask.Lifecycle.Hook,
-			Sidecar: apiTask.Lifecycle.Sidecar,
+			Hook:                 apiTask.Lifecycle.Hook,
+			Sidecar:              apiTask.Lifecycle.Sidecar,
+			IgnoreMinHealthyTime: apiTask.Lifecycle.IgnoreMinHealthyTime,
 		}
 	}
 }
