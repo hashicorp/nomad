@@ -648,8 +648,9 @@ const (
 )
 
 type TaskLifecycle struct {
-	Hook    string `mapstructure:"hook" hcl:"hook,optional"`
-	Sidecar bool   `mapstructure:"sidecar" hcl:"sidecar,optional"`
+	Hook                 string `mapstructure:"hook" hcl:"hook,optional"`
+	Sidecar              bool   `mapstructure:"sidecar" hcl:"sidecar,optional"`
+	IgnoreMinHealthyTime bool   `mapstructure:"ignore_min_healthy_time" hcl:"ignore_min_healthy_time,optional"`
 }
 
 // Determine if lifecycle has user-input values

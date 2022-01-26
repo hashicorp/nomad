@@ -68,7 +68,7 @@ type Tracker struct {
 
 	// lifecycleTasks is a map of ephemeral tasks and their lifecycle hooks.
 	// These tasks may terminate without affecting alloc health
-	lifecycleTasks map[string]string
+	lifecycleTasks map[string]*structs.TaskLifecycleConfig
 
 	// l is used to lock shared fields listed below
 	l sync.Mutex
@@ -110,7 +110,7 @@ func NewTracker(parentCtx context.Context, logger hclog.Logger, alloc *structs.A
 		consulClient:        consulClient,
 		checkLookupInterval: consulCheckLookupInterval,
 		logger:              logger,
-		lifecycleTasks:      map[string]string{},
+		lifecycleTasks:      map[string]*structs.TaskLifecycleConfig{},
 	}
 
 	t.taskHealth = make(map[string]*taskHealthState, len(t.tg.Tasks))
@@ -118,7 +118,7 @@ func NewTracker(parentCtx context.Context, logger hclog.Logger, alloc *structs.A
 		t.taskHealth[task.Name] = &taskHealthState{task: task}
 
 		if task.Lifecycle != nil && !task.Lifecycle.Sidecar {
-			t.lifecycleTasks[task.Name] = task.Lifecycle.Hook
+			t.lifecycleTasks[task.Name] = task.Lifecycle
 		}
 
 		for _, s := range task.Services {
@@ -277,15 +277,35 @@ func (t *Tracker) watchTaskEvents() {
 		// Detect if the alloc is unhealthy or if all tasks have started yet
 		latestStartTime := time.Time{}
 		for taskName, state := range alloc.TaskStates {
-			// If the task is a poststop task we do not want to evaluate it
-			// since it will remain pending until the main task has finished
-			// or exited.
-			if t.lifecycleTasks[taskName] == structs.TaskLifecycleHookPoststop {
-				continue
+			if t.lifecycleTasks[taskName] != nil {
+				// If the task is a poststop task we do not want to evaluate it
+				// since it will remain pending until the main task has finished or
+				// exited.
+				if t.lifecycleTasks[taskName].Hook == structs.TaskLifecycleHookPoststop {
+					continue
+				}
+
+				// If this is a poststart task which has already succeeded we
+				// want to check for two possible success conditions before
+				// attempting to evaluate it.
+				if t.lifecycleTasks[taskName].Hook == structs.TaskLifecycleHookPoststart && state.Successful() {
+
+					// If the task was successful and it's runtime is at least
+					// t.minHealthyTime, skip evaluation.
+					if state.FinishedAt.Sub(state.StartedAt) >= t.minHealthyTime {
+						continue
+					}
+
+					// If the task was successful and the user set
+					// 'ignore_min_healthy_time' to 'true', skip evaluation.
+					if t.lifecycleTasks[taskName].IgnoreMinHealthyTime {
+						continue
+					}
+				}
 			}
 
 			// One of the tasks has failed so we can exit watching
-			if state.Failed || (!state.FinishedAt.IsZero() && t.lifecycleTasks[taskName] != structs.TaskLifecycleHookPrestart) {
+			if state.Failed || (!state.FinishedAt.IsZero() && t.lifecycleTasks[taskName].Hook != structs.TaskLifecycleHookPrestart) {
 				t.setTaskHealth(false, true)
 				return
 			}
