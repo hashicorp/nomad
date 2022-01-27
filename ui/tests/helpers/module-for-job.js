@@ -39,9 +39,9 @@ export default function moduleForJob(
       server.create('node');
       job = jobFactory();
       if (!job.namespace || job.namespace === 'default') {
-        await JobDetail.visit({ id: job.id });
+        await JobDetail.visit({ id: `${job.id}@default` });
       } else {
-        await JobDetail.visit({ id: job.id, namespace: job.namespace });
+        await JobDetail.visit({ id: `${job.id}@${job.namespace}` });
       }
 
       const hasClientStatus = ['system', 'sysbatch'].includes(job.type);
@@ -53,7 +53,7 @@ export default function moduleForJob(
     test('visiting /jobs/:job_id', async function (assert) {
       assert.equal(
         currentURL(),
-        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}`, job.namespace)
+        `/jobs/${encodeURIComponent(`${job.id}@${job.namespace}`)}`
       );
       assert.equal(document.title, `Job ${job.name} - Nomad`);
     });
@@ -62,7 +62,7 @@ export default function moduleForJob(
       await JobDetail.tabFor('overview').visit();
       assert.equal(
         currentURL(),
-        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}`, job.namespace)
+        `/jobs/${encodeURIComponent(`${job.id}@${job.namespace}`)}`
       );
     });
 
@@ -70,10 +70,7 @@ export default function moduleForJob(
       await JobDetail.tabFor('definition').visit();
       assert.equal(
         currentURL(),
-        urlWithNamespace(
-          `/jobs/${encodeURIComponent(job.id)}/definition`,
-          job.namespace
-        )
+        `/jobs/${encodeURIComponent(`${job.id}@${job.namespace}`)}/definition`
       );
     });
 
@@ -81,10 +78,7 @@ export default function moduleForJob(
       await JobDetail.tabFor('versions').visit();
       assert.equal(
         currentURL(),
-        urlWithNamespace(
-          `/jobs/${encodeURIComponent(job.id)}/versions`,
-          job.namespace
-        )
+        `/jobs/${encodeURIComponent(`${job.id}@${job.namespace}`)}/versions`
       );
     });
 
@@ -92,10 +86,7 @@ export default function moduleForJob(
       await JobDetail.tabFor('evaluations').visit();
       assert.equal(
         currentURL(),
-        urlWithNamespace(
-          `/jobs/${encodeURIComponent(job.id)}/evaluations`,
-          job.namespace
-        )
+        `/jobs/${encodeURIComponent(`${job.id}@${job.namespace}`)}/evaluations`
       );
     });
 
@@ -144,10 +135,7 @@ export default function moduleForJob(
 
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
         const expectedURL = new URL(
-          urlWithNamespace(
-            `/jobs/${job.name}/clients?status=${encodedStatus}`,
-            job.namespace
-          ),
+          `/jobs/${job.name}@default/clients?status=${encodedStatus}`,
           window.location
         );
         const gotURL = new URL(currentURL(), window.location);
@@ -162,12 +150,9 @@ export default function moduleForJob(
 
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
         const expectedURL = new URL(
-          urlWithNamespace(
-            `/jobs/${encodeURIComponent(
-              job.name
-            )}/allocations?status=${encodedStatus}`,
+          `/jobs/${encodeURIComponent(job.name)}@${
             job.namespace
-          ),
+          }/allocations?status=${encodedStatus}`,
           window.location
         );
         const gotURL = new URL(currentURL(), window.location);
@@ -250,10 +235,7 @@ export function moduleForJobWithClientStatus(
         await JobDetail.tabFor('clients').visit();
         assert.equal(
           currentURL(),
-          urlWithNamespace(
-            `/jobs/${encodeURIComponent(job.id)}/clients`,
-            job.namespace
-          )
+          `/jobs/${encodeURIComponent(`${job.id}@${job.namespace}`)}/clients`
         );
       });
 
@@ -272,10 +254,7 @@ export function moduleForJobWithClientStatus(
 
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
         const expectedURL = new URL(
-          urlWithNamespace(
-            `/jobs/${job.name}/clients?status=${encodedStatus}`,
-            job.namespace
-          ),
+          `/jobs/${job.name}@${job.namespace}/clients?status=${encodedStatus}`,
           window.location
         );
         const gotURL = new URL(currentURL(), window.location);
@@ -290,10 +269,7 @@ export function moduleForJobWithClientStatus(
 
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
         const expectedURL = new URL(
-          urlWithNamespace(
-            `/jobs/${job.name}/clients?status=${encodedStatus}`,
-            job.namespace
-          ),
+          `/jobs/${job.name}@${job.namespace}/clients?status=${encodedStatus}`,
           window.location
         );
         const gotURL = new URL(currentURL(), window.location);
@@ -352,22 +328,10 @@ export function moduleForJobWithClientStatus(
   });
 }
 
-function urlWithNamespace(url, namespace) {
-  if (!namespace || namespace === 'default') {
-    return url;
-  }
-
-  const parts = url.split('?');
-  const params = new URLSearchParams(parts[1]);
-  params.set('namespace', namespace);
-
-  return `${parts[0]}?${params.toString()}`;
-}
-
 async function visitJobDetailPage({ id, namespace }) {
   if (!namespace || namespace === 'default') {
-    await JobDetail.visit({ id });
+    await JobDetail.visit({ id: `${id}@default` });
   } else {
-    await JobDetail.visit({ id, namespace });
+    await JobDetail.visit({ id: `${id}@${namespace}` });
   }
 }
