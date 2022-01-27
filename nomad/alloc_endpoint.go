@@ -20,6 +20,9 @@ import (
 type Alloc struct {
 	srv    *Server
 	logger log.Logger
+
+	// ctx provides context regarding the underlying connection
+	ctx *RPCContext
 }
 
 // List is used to list the allocations in the system
@@ -224,6 +227,11 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 
+	// Ensure the connection was initiated by a client if TLS is used.
+	if err := a.validateTLSCertificate(); err != nil {
+		return fmt.Errorf("invalid client connection in region %s: %v", a.srv.Region(), err)
+	}
+
 	allocs := make([]*structs.Allocation, len(args.AllocIDs))
 
 	// Setup the blocking query. We wait for at least one of the requested
@@ -369,4 +377,13 @@ func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransiti
 	// Setup the response
 	reply.Index = index
 	return nil
+}
+
+func (a *Alloc) validateTLSCertificate() error {
+	if a.srv.config.TLSConfig == nil || !a.srv.config.TLSConfig.VerifyServerHostname {
+		return nil
+	}
+
+	expected := fmt.Sprintf("client.%s.nomad", a.srv.Region())
+	return a.ctx.ValidateCertificateForName(expected)
 }
