@@ -613,39 +613,25 @@ func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.C
 		return v.checkpointClaim(vol, claim)
 	}
 
-	// The RPC sent from the 'nomad node detach' command won't have an
+	// The RPC sent from the 'nomad node detach' command or GC won't have an
 	// allocation ID set so we try to unpublish every terminal or invalid
-	// alloc on the node
-	allocIDs := []string{}
+	// alloc on the node, all of which will be in PastClaims after denormalizing
 	state := v.srv.fsm.State()
 	vol, err := state.CSIVolumeDenormalize(memdb.NewWatchSet(), vol)
 	if err != nil {
 		return err
 	}
-	for allocID, alloc := range vol.ReadAllocs {
-		if alloc == nil {
-			rclaim, ok := vol.ReadClaims[allocID]
-			if ok && rclaim.NodeID == claim.NodeID {
-				allocIDs = append(allocIDs, allocID)
-			}
-		} else if alloc.NodeID == claim.NodeID && alloc.TerminalStatus() {
-			allocIDs = append(allocIDs, allocID)
+
+	claimsToUnpublish := []*structs.CSIVolumeClaim{}
+	for _, pastClaim := range vol.PastClaims {
+		if claim.NodeID == pastClaim.NodeID {
+			claimsToUnpublish = append(claimsToUnpublish, pastClaim)
 		}
 	}
-	for allocID, alloc := range vol.WriteAllocs {
-		if alloc == nil {
-			wclaim, ok := vol.WriteClaims[allocID]
-			if ok && wclaim.NodeID == claim.NodeID {
-				allocIDs = append(allocIDs, allocID)
-			}
-		} else if alloc.NodeID == claim.NodeID && alloc.TerminalStatus() {
-			allocIDs = append(allocIDs, allocID)
-		}
-	}
+
 	var merr multierror.Error
-	for _, allocID := range allocIDs {
-		claim.AllocationID = allocID
-		err := v.nodeUnpublishVolumeImpl(vol, claim)
+	for _, pastClaim := range claimsToUnpublish {
+		err := v.nodeUnpublishVolumeImpl(vol, pastClaim)
 		if err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
@@ -666,8 +652,8 @@ func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *struc
 		ExternalID:     vol.RemoteID(),
 		AllocID:        claim.AllocationID,
 		NodeID:         claim.NodeID,
-		AttachmentMode: vol.AttachmentMode,
-		AccessMode:     vol.AccessMode,
+		AttachmentMode: claim.AttachmentMode,
+		AccessMode:     claim.AccessMode,
 		ReadOnly:       claim.Mode == structs.CSIVolumeClaimRead,
 	}
 	err := v.srv.RPC("ClientCSI.NodeDetachVolume",

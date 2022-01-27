@@ -774,7 +774,6 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 		"index", oldThreshold,
 		"csi_volume_claim_gc_threshold", c.srv.config.CSIVolumeClaimGCThreshold)
 
-NEXT_VOLUME:
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		vol := i.(*structs.CSIVolume)
 
@@ -783,38 +782,12 @@ NEXT_VOLUME:
 			continue
 		}
 
-		// TODO(tgross): consider moving the TerminalStatus check into
-		// the denormalize volume logic so that we can just check the
-		// volume for past claims
-
 		// we only call the claim release RPC if the volume has claims
 		// that no longer have valid allocations. otherwise we'd send
 		// out a lot of do-nothing RPCs.
-		for id := range vol.ReadClaims {
-			alloc, err := c.snap.AllocByID(ws, id)
-			if err != nil {
-				return err
-			}
-			if alloc == nil || alloc.TerminalStatus() {
-				err = gcClaims(vol.Namespace, vol.ID)
-				if err != nil {
-					return err
-				}
-				goto NEXT_VOLUME
-			}
-		}
-		for id := range vol.WriteClaims {
-			alloc, err := c.snap.AllocByID(ws, id)
-			if err != nil {
-				return err
-			}
-			if alloc == nil || alloc.TerminalStatus() {
-				err = gcClaims(vol.Namespace, vol.ID)
-				if err != nil {
-					return err
-				}
-				goto NEXT_VOLUME
-			}
+		vol, err := c.snap.CSIVolumeDenormalize(ws, vol)
+		if err != nil {
+			return err
 		}
 		if len(vol.PastClaims) > 0 {
 			err = gcClaims(vol.Namespace, vol.ID)
