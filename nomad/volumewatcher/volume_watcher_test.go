@@ -37,6 +37,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 		logger: testlog.HCLogger(t),
 	}
 
+	vol, _ = srv.State().CSIVolumeDenormalize(nil, vol.Copy())
 	err := w.volumeReapImpl(vol)
 	require.NoError(err)
 
@@ -48,6 +49,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 			State:  structs.CSIVolumeClaimStateNodeDetached,
 		},
 	}
+	vol, _ = srv.State().CSIVolumeDenormalize(nil, vol.Copy())
 	err = w.volumeReapImpl(vol)
 	require.NoError(err)
 	require.Len(vol.PastClaims, 1)
@@ -59,6 +61,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 			Mode:   structs.CSIVolumeClaimGC,
 		},
 	}
+	vol, _ = srv.State().CSIVolumeDenormalize(nil, vol.Copy())
 	err = w.volumeReapImpl(vol)
 	require.NoError(err)
 	require.Len(vol.PastClaims, 2) // alloc claim + GC claim
@@ -71,6 +74,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 			Mode:   structs.CSIVolumeClaimRead,
 		},
 	}
+	vol, _ = srv.State().CSIVolumeDenormalize(nil, vol.Copy())
 	err = w.volumeReapImpl(vol)
 	require.NoError(err)
 	require.Len(vol.PastClaims, 2) // alloc claim + GC claim
