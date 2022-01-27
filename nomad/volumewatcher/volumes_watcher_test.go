@@ -67,7 +67,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 	plugin := mock.CSIPlugin()
 	node := testNode(plugin, srv.State())
 	alloc := mock.Alloc()
-	alloc.ClientStatus = structs.AllocClientStatusComplete
+	alloc.ClientStatus = structs.AllocClientStatusRunning
 	vol := testVolume(plugin, alloc, node.ID)
 
 	index++

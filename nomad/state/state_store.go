@@ -2531,7 +2531,7 @@ func (s *StateStore) csiVolumeDenormalizeTxn(txn Txn, ws memdb.WatchSet, vol *st
 			}
 
 			currentAllocs[id] = a
-			if a == nil && pastClaim == nil {
+			if (a == nil || a.TerminalStatus()) && pastClaim == nil {
 				// the alloc is garbage collected but nothing has written a PastClaim,
 				// so create one now
 				pastClaim = &structs.CSIVolumeClaim{
