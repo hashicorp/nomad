@@ -332,28 +332,30 @@ func TestAllocDir_EscapeChecking(t *testing.T) {
 
 // Test that `nomad fs` can't read secrets
 func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
-	if err := d.Build(); err != nil {
-		t.Fatalf("Build() failed: %v", err)
-	}
-	defer d.Destroy()
+	err := d.Build()
+	require.NoError(t, err)
+	defer func() {
+		_ = d.Destroy()
+	}()
 
 	td := d.NewTaskDir(t1.Name)
-	if err := td.Build(false, nil); err != nil {
-		t.Fatalf("TaskDir.Build() failed: %v", err)
-	}
+	err = td.Build(false, nil)
+	require.NoError(t, err)
 
-	// ReadAt of secret dir should fail
-	secret := filepath.Join(t1.Name, TaskSecrets, "test_file")
-	if _, err := d.ReadAt(secret, 0); err == nil || !strings.Contains(err.Error(), "secret file prohibited") {
-		t.Fatalf("ReadAt of secret file didn't error: %v", err)
-	}
+	// something to write and test reading
+	target := filepath.Join(t1.Name, TaskSecrets, "test_file")
+
+	// create target file in the task secrets dir
+	full := filepath.Join(d.AllocDir, target)
+	err = ioutil.WriteFile(full, []byte("hi"), 0600)
+	require.NoError(t, err)
+
+	// ReadAt of a file in the task secrets dir should fail
+	_, err = d.ReadAt(target, 0)
+	require.EqualError(t, err, "Reading secret file prohibited: web/secrets/test_file")
 }
 
 func TestAllocDir_SplitPath(t *testing.T) {
