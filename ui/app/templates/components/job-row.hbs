@@ -1,10 +1,5 @@
 <td data-test-job-name>
-  <LinkTo
-    @route="jobs.job"
-    @model={{this.job.plainId}}
-    @query={{hash namespace=this.job.namespace.id}}
-    class="is-primary"
-  >
+  <LinkTo @route="jobs.job" @model={{this.job}} class="is-primary">
     {{this.job.name}}
   </LinkTo>
 </td>

@@ -8,11 +8,7 @@
           <span class="term">
             Parent
           </span>
-          <LinkTo
-            @route="jobs.job"
-            @model={{@job.parent}}
-            @query={{hash namespace=@job.parent.namespace.name}}
-          >
+          <LinkTo @route="jobs.job" @model={{@job.parent}}>
             {{@job.parent.name}}
           </LinkTo>
         </span>
@@ -21,7 +17,10 @@
     <jobPage.ui.JobClientStatusSummary />
     <jobPage.ui.Summary @forceCollapsed={{@job.hasClientStatus}} />
     <jobPage.ui.PlacementFailures />
-    <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} />
+    <jobPage.ui.TaskGroups
+      @sortProperty={{@sortProperty}}
+      @sortDescending={{@sortDescending}}
+    />
     <jobPage.ui.RecentAllocations />
     <div class="boxed-section">
       <div class="boxed-section-head">

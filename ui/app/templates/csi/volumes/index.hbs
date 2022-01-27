@@ -92,8 +92,7 @@
             <td data-test-volume-name>
               <LinkTo
                 @route="csi.volumes.volume"
-                @model={{row.model.plainId}}
-                @query={{hash volumeNamespace=row.model.namespace.name}}
+                @model={{row.model.idWithNamespace}}
                 class="is-primary"
               >
                 {{row.model.name}}

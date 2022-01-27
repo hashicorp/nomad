@@ -1,5 +1,5 @@
-<Breadcrumb @crumb={{hash label="Topology" args=(array "topology")}} />
-{{page-title "Cluster Topology"}}
+<Breadcrumb @crumb={{hash label='Topology' args=(array 'topology')}} />
+{{page-title 'Cluster Topology'}}
 <PageLayout>
   <section class="section is-full-width">
     {{#if this.isForbidden}}
@@ -14,9 +14,13 @@
               </h3>
               <p data-test-message>
                 {{this.filteredNodes.length}}
-                {{if (eq this.filteredNodes.length 1) "client was" "clients were"}}
+                {{if
+                  (eq this.filteredNodes.length 1)
+                  'client was'
+                  'clients were'
+                }}
                 filtered from the topology visualization. This is most likely due to the
-                {{pluralize "client" this.filteredNodes.length}}
+                {{pluralize 'client' this.filteredNodes.length}}
                 running a version of Nomad
               </p>
             </div>
@@ -51,7 +55,7 @@
                     data-test-polling-notice-dismiss
                     class="button is-warning"
                     type="button"
-                    onclick={{toggle-action "showPollingNotice" this}}
+                    onclick={{toggle-action 'showPollingNotice' this}}
                   >
                     Okay
                   </button>
@@ -62,7 +66,7 @@
           <div class="boxed-section">
             <div class="boxed-section-head">
               Legend
-              {{#if (cannot "list all jobs")}}
+              {{#if (cannot 'list all jobs')}}
                 <span
                   aria-label="Your ACL token may limit your ability to list all allocations"
                   class="tag is-warning pull-right tooltip multiline"
@@ -98,7 +102,10 @@
                 <dl class="legend-terms">
                   <div class="legend-term">
                     <dt>
-                      <span class="color-swatch is-wide running" title="Running"></span>
+                      <span
+                        class="color-swatch is-wide running"
+                        title="Running"
+                      ></span>
                     </dt>
                     <dd>
                       Running
@@ -106,7 +113,10 @@
                   </div>
                   <div class="legend-term">
                     <dt>
-                      <span class="color-swatch is-wide pending" title="Starting"></span>
+                      <span
+                        class="color-swatch is-wide pending"
+                        title="Starting"
+                      ></span>
                     </dt>
                     <dd>
                       Starting
@@ -143,7 +153,11 @@
                       <strong>
                         Client:
                       </strong>
-                      <LinkTo data-test-client-link @route="clients.client" @model={{node}}>
+                      <LinkTo
+                        data-test-client-link
+                        @route="clients.client"
+                        @model={{node}}
+                      >
                         {{node.shortId}}
                       </LinkTo>
                     </h3>
@@ -171,8 +185,11 @@
                       <strong>
                         Draining?
                       </strong>
-                      <span data-test-draining class="{{if node.isDraining "status-text is-info"}}">
-                        {{if node.isDraining "Yes" "No"}}
+                      <span
+                        data-test-draining
+                        class="{{if node.isDraining 'status-text is-info'}}"
+                      >
+                        {{if node.isDraining 'Yes' 'No'}}
                       </span>
                     </h3>
                     <h3 class="pair">
@@ -181,9 +198,10 @@
                       </strong>
                       <span
                         data-test-eligible
-                        class="{{unless node.isEligible "status-text is-warning"}}"
+                        class="{{unless node.isEligible 'status-text is-warning'
+                          }}"
                       >
-                        {{if node.isEligible "Yes" "No"}}
+                        {{if node.isEligible 'Yes' 'No'}}
                       </span>
                     </h3>
                   </div>
@@ -203,7 +221,8 @@
                           <progress
                             data-test-memory-progress-bar
                             class="progress is-danger is-small"
-                            value="{{this.nodeUtilization.reservedMemoryPercent}}"
+                            value="{{this.nodeUtilization.reservedMemoryPercent
+                              }}"
                             max="1"
                           >
                             {{this.nodeUtilization.reservedMemoryPercent}}
@@ -212,16 +231,22 @@
                       </div>
                       <div class="column is-minimum">
                         <span class="nowrap" data-test-percentage>
-                          {{format-percentage this.nodeUtilization.reservedMemoryPercent total=1}}
+                          {{format-percentage
+                            this.nodeUtilization.reservedMemoryPercent
+                            total=1
+                          }}
                         </span>
                       </div>
                     </div>
                     <div class="annotation" data-test-memory-absolute-value>
                       <strong>
-                        {{format-scheduled-bytes this.nodeUtilization.totalReservedMemory}}
+                        {{format-scheduled-bytes
+                          this.nodeUtilization.totalReservedMemory
+                        }}
                       </strong>
                       /
-                      {{format-scheduled-bytes this.nodeUtilization.totalMemory}}
+                      {{format-scheduled-bytes this.nodeUtilization.totalMemory
+                      }}
                       reserved
                     </div>
                   </div>
@@ -250,13 +275,18 @@
                       </div>
                       <div class="column is-minimum">
                         <span class="nowrap" data-test-percentage>
-                          {{format-percentage this.nodeUtilization.reservedCPUPercent total=1}}
+                          {{format-percentage
+                            this.nodeUtilization.reservedCPUPercent
+                            total=1
+                          }}
                         </span>
                       </div>
                     </div>
                     <div class="annotation" data-test-cpu-absolute-value>
                       <strong>
-                        {{format-scheduled-hertz this.nodeUtilization.totalReservedCPU}}
+                        {{format-scheduled-hertz
+                          this.nodeUtilization.totalReservedCPU
+                        }}
                       </strong>
                       /
                       {{format-scheduled-hertz this.nodeUtilization.totalCPU}}
@@ -301,7 +331,6 @@
                       data-test-job
                       @route="jobs.job"
                       @model={{this.activeAllocation.job}}
-                      @query={{hash jobNamespace=this.activeAllocation.job.namespace.id}}
                     >
                       {{this.activeAllocation.job.name}}
                     </LinkTo>

@@ -1,4 +1,4 @@
-{{page-title "Jobs"}}
+{{page-title 'Jobs'}}
 <section class="section">
   <div class="toolbar">
     <div class="toolbar-item">
@@ -11,15 +11,10 @@
         />
       {{/if}}
     </div>
-    {{#if (media "isMobile")}}
+    {{#if (media 'isMobile')}}
       <div class="toolbar-item is-right-aligned">
-        {{#if (can "run job" namespace=this.qpNamespace)}}
-          <LinkTo
-            @route="jobs.run"
-            @query={{hash namespace=this.qpNamespace}}
-            data-test-run-job
-            class="button is-primary"
-          >
+        {{#if (can 'run job' namespace=this.qpNamespace)}}
+          <LinkTo @route="jobs.run" data-test-run-job class="button is-primary">
             Run Job
           </LinkTo>
         {{else}}
@@ -44,7 +39,10 @@
             @options={{this.optionsNamespaces}}
             @selection={{this.qpNamespace}}
             @onSelect={{action
-              (queue (action this.cacheNamespace) (action this.setFacetQueryParam "qpNamespace"))
+              (queue
+                (action this.cacheNamespace)
+                (action this.setFacetQueryParam 'qpNamespace')
+              )
             }}
           />
         {{/if}}
@@ -53,40 +51,35 @@
           @label="Type"
           @options={{this.optionsType}}
           @selection={{this.selectionType}}
-          @onSelect={{action this.setFacetQueryParam "qpType"}}
+          @onSelect={{action this.setFacetQueryParam 'qpType'}}
         />
         <MultiSelectDropdown
           data-test-status-facet
           @label="Status"
           @options={{this.optionsStatus}}
           @selection={{this.selectionStatus}}
-          @onSelect={{action this.setFacetQueryParam "qpStatus"}}
+          @onSelect={{action this.setFacetQueryParam 'qpStatus'}}
         />
         <MultiSelectDropdown
           data-test-datacenter-facet
           @label="Datacenter"
           @options={{this.optionsDatacenter}}
           @selection={{this.selectionDatacenter}}
-          @onSelect={{action this.setFacetQueryParam "qpDatacenter"}}
+          @onSelect={{action this.setFacetQueryParam 'qpDatacenter'}}
         />
         <MultiSelectDropdown
           data-test-prefix-facet
           @label="Prefix"
           @options={{this.optionsPrefix}}
           @selection={{this.selectionPrefix}}
-          @onSelect={{action this.setFacetQueryParam "qpPrefix"}}
+          @onSelect={{action this.setFacetQueryParam 'qpPrefix'}}
         />
       </div>
     </div>
-    {{#if (not (media "isMobile"))}}
+    {{#if (not (media 'isMobile'))}}
       <div class="toolbar-item is-right-aligned">
-        {{#if (can "run job" namespace=this.qpNamespace)}}
-          <LinkTo
-            @route="jobs.run"
-            @query={{hash namespace=this.qpNamespace}}
-            data-test-run-job
-            class="button is-primary"
-          >
+        {{#if (can 'run job' namespace=this.qpNamespace)}}
+          <LinkTo @route="jobs.run" data-test-run-job class="button is-primary">
             Run Job
           </LinkTo>
         {{else}}
@@ -164,10 +157,10 @@
             {{/if}}
           </div>
           <p.prev @class="pagination-previous">
-            {{x-icon "chevron-left"}}
+            {{x-icon 'chevron-left'}}
           </p.prev>
           <p.next @class="pagination-next">
-            {{x-icon "chevron-right"}}
+            {{x-icon 'chevron-right'}}
           </p.next>
           <ul class="pagination-list"></ul>
         </nav>

@@ -6,19 +6,19 @@
   @onToggle={{action this.persist}} as |a|
 >
   <a.head
-    @buttonLabel={{if a.isOpen "collapse" "expand"}}
-    @buttonType={{if a.item.hasChildren "children-status" "allocation-status"}}
+    @buttonLabel={{if a.isOpen 'collapse' 'expand'}}
+    @buttonType={{if a.item.hasChildren 'children-status' 'allocation-status'}}
   >
     <div class="columns">
       <div class="column is-minimum nowrap">
         {{#if a.item.hasChildren}}
           Children Status
-          <span class="badge {{if a.isOpen "is-white" "is-light"}}">
+          <span class="badge {{if a.isOpen 'is-white' 'is-light'}}">
             {{a.item.summary.totalChildren}}
           </span>
         {{else}}
           Allocation Status
-          <span class="badge {{if a.isOpen "is-white" "is-light"}}">
+          <span class="badge {{if a.isOpen 'is-white' 'is-light'}}">
             {{a.item.summary.totalAllocs}}
           </span>
         {{/if}}
@@ -57,9 +57,9 @@
             <li
               class="{{datum.className}}
 
-                {{if (eq datum.label chart.activeDatum.label) "is-active"}}
+                {{if (eq datum.label chart.activeDatum.label) 'is-active'}}
 
-                {{if (eq datum.value 0) "is-empty"}}"
+                {{if (eq datum.value 0) 'is-empty'}}"
             >
               <JobPage::Parts::SummaryLegendItem
                 @datum={{datum}}
@@ -82,16 +82,12 @@
               data-test-legend-label="{{datum.className}}"
               class="{{datum.className}}
 
-                {{if (eq datum.label chart.activeDatum.label) "is-active"}}
+                {{if (eq datum.label chart.activeDatum.label) 'is-active'}}
 
-                {{if (eq datum.value 0) "is-empty" "is-clickable"}}"
+                {{if (eq datum.value 0) 'is-empty' 'is-clickable'}}"
             >
               {{#if (and (gt datum.value 0) datum.legendLink)}}
-                <LinkTo
-                  @route="jobs.job.allocations"
-                  @model={{this.job}}
-                  @query={{datum.legendLink.queryParams}}
-                >
+                <LinkTo @route="jobs.job.allocations" @model={{this.job}}>
                   <JobPage::Parts::SummaryLegendItem
                     @datum={{datum}}
                     @index={{index}}

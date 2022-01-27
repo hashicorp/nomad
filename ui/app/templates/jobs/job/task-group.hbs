@@ -306,8 +306,8 @@
                 {{#if row.model.isCSI}}
                   <LinkTo
                     @route="csi.volumes.volume"
-                    @model={{row.model.source}}
-                    @query={{hash volumeNamespace=row.model.namespace.id}}
+                    @model={{concat row.model.source '@' row.model.namespace.id
+                    }}
                   >
                     {{row.model.name}}
                   </LinkTo>
