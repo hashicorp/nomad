@@ -30,7 +30,7 @@ module('Acceptance | job versions', function (hooks) {
     const managementToken = server.create('token');
     window.localStorage.nomadTokenSecret = managementToken.secretId;
 
-    await Versions.visit({ id: job.id, namespace: namespace.id });
+    await Versions.visit({ id: `${job.id}@${namespace.id}` });
   });
 
   test('it passes an accessibility audit', async function (assert) {
@@ -178,7 +178,7 @@ module('Acceptance | job versions (with client token)', function (hooks) {
     const clientToken = server.create('token');
     window.localStorage.nomadTokenSecret = clientToken.secretId;
 
-    await Versions.visit({ id: job.id });
+    await Versions.visit({ id: `${job.id}@default` });
   });
 
   test('reversion buttons are disabled when the token lacks permissions', async function (assert) {
@@ -229,7 +229,7 @@ module('Acceptance | job versions (with client token)', function (hooks) {
     window.localStorage.nomadTokenSecret = clientToken.secretId;
 
     versions = server.db.jobVersions.where({ jobId: job.id });
-    await Versions.visit({ id: job.id, namespace: REVERT_NAMESPACE });
+    await Versions.visit({ id: `${job.id}@${REVERT_NAMESPACE}` });
     const versionRowWithReversion = Versions.versions.filter(
       (versionRow) => versionRow.revertToButton.isPresent
     )[0];

@@ -20,7 +20,7 @@ module('Acceptance | job evaluations', function (hooks) {
     });
     evaluations = server.db.evaluations.where({ jobId: job.id });
 
-    await Evaluations.visit({ id: job.id });
+    await Evaluations.visit({ id: `${job.id}@default` });
   });
 
   test('it passes an accessibility audit', async function (assert) {

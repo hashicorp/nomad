@@ -39,7 +39,7 @@ module('Acceptance | job allocations', function (hooks) {
     });
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
-    await Allocations.visit({ id: job.id });
+    await Allocations.visit({ id: `${job.id}@default` });
     await a11yAudit(assert);
   });
 
@@ -48,8 +48,7 @@ module('Acceptance | job allocations', function (hooks) {
       shallow: true,
     });
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
-
-    await Allocations.visit({ id: job.id });
+    await Allocations.visit({ id: `${job.id}@default` });
 
     assert.equal(
       Allocations.allocations.length,
@@ -75,7 +74,7 @@ module('Acceptance | job allocations', function (hooks) {
     server.createList('allocation', Allocations.pageSize - 1);
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
-    await Allocations.visit({ id: job.id });
+    await Allocations.visit({ id: `${job.id}@default` });
     await Allocations.sortBy('taskGroupName');
 
     assert.equal(
@@ -99,7 +98,7 @@ module('Acceptance | job allocations', function (hooks) {
 
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
-    await Allocations.visit({ id: job.id });
+    await Allocations.visit({ id: `${job.id}@default` });
     await Allocations.search('ffffff');
 
     assert.equal(
@@ -114,7 +113,7 @@ module('Acceptance | job allocations', function (hooks) {
 
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
-    await Allocations.visit({ id: job.id });
+    await Allocations.visit({ id: `${job.id}@default` });
     await Allocations.search('^nothing will ever match this long regex$');
 
     assert.equal(
@@ -157,7 +156,7 @@ module('Acceptance | job allocations', function (hooks) {
       ['pending', 'running', 'complete', 'failed', 'lost'].forEach((s) => {
         server.createList('allocation', 5, { clientStatus: s });
       });
-      await Allocations.visit({ id: job.id });
+      await Allocations.visit({ id: `${job.id}@default` });
     },
     filter: (alloc, selection) =>
       alloc.jobId == job.id && selection.includes(alloc.clientStatus),
@@ -180,7 +179,7 @@ module('Acceptance | job allocations', function (hooks) {
       server.createList('node', 5);
       server.createList('allocation', 20);
 
-      await Allocations.visit({ id: job.id });
+      await Allocations.visit({ id: `${job.id}@default` });
     },
     filter: (alloc, selection) =>
       alloc.jobId == job.id && selection.includes(alloc.nodeId.split('-')[0]),
@@ -203,7 +202,7 @@ module('Acceptance | job allocations', function (hooks) {
         groupsCount: 5,
       });
 
-      await Allocations.visit({ id: job.id });
+      await Allocations.visit({ id: `${job.id}@default` });
     },
     filter: (alloc, selection) =>
       alloc.jobId == job.id && selection.includes(alloc.taskGroup),
@@ -298,7 +297,7 @@ function testFacet(
 
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}/allocations?${paramName}=${encodeURIComponent(
+      `/jobs/${job.id}@default/allocations?${paramName}=${encodeURIComponent(
         JSON.stringify(selection)
       )}`,
       'URL has the correct query param key and value'

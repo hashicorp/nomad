@@ -43,12 +43,12 @@ module('Acceptance | job deployments', function (hooks) {
   test('it passes an accessibility audit', async function (assert) {
     assert.expect(1);
 
-    await Deployments.visit({ id: job.id });
+    await Deployments.visit({ id: `${job.id}@default` });
     await a11yAudit(assert);
   });
 
   test('/jobs/:id/deployments should list all job deployments', async function (assert) {
-    await Deployments.visit({ id: job.id });
+    await Deployments.visit({ id: `${job.id}@default` });
 
     assert.equal(
       Deployments.deployments.length,
@@ -59,7 +59,7 @@ module('Acceptance | job deployments', function (hooks) {
   });
 
   test('each deployment mentions the deployment shortId, status, version, and time since it was submitted', async function (assert) {
-    await Deployments.visit({ id: job.id });
+    await Deployments.visit({ id: `${job.id}@default` });
 
     const deployment = sortedDeployments.models[0];
     const version = server.db.jobVersions.findBy({
@@ -107,7 +107,7 @@ module('Acceptance | job deployments', function (hooks) {
 
     taskGroupSummary.save();
 
-    await Deployments.visit({ id: job.id });
+    await Deployments.visit({ id: `${job.id}@default` });
 
     const deploymentRow = Deployments.deployments.objectAt(0);
     assert.ok(
@@ -117,7 +117,7 @@ module('Acceptance | job deployments', function (hooks) {
   });
 
   test('each deployment item can be opened to show details', async function (assert) {
-    await Deployments.visit({ id: job.id });
+    await Deployments.visit({ id: `${job.id}@default` });
 
     const deploymentRow = Deployments.deployments.objectAt(0);
     assert.notOk(deploymentRow.hasDetails, 'No deployment body');
@@ -127,7 +127,7 @@ module('Acceptance | job deployments', function (hooks) {
   });
 
   test('when open, a deployment shows the deployment metrics', async function (assert) {
-    await Deployments.visit({ id: job.id });
+    await Deployments.visit({ id: `${job.id}@default` });
 
     const deployment = sortedDeployments.models[0];
     const deploymentRow = Deployments.deployments.objectAt(0);
@@ -178,7 +178,7 @@ module('Acceptance | job deployments', function (hooks) {
   });
 
   test('when open, a deployment shows a list of all task groups and their respective stats', async function (assert) {
-    await Deployments.visit({ id: job.id });
+    await Deployments.visit({ id: `${job.id}@default` });
 
     const deployment = sortedDeployments.models[0];
     const deploymentRow = Deployments.deployments.objectAt(0);
@@ -241,7 +241,7 @@ module('Acceptance | job deployments', function (hooks) {
   });
 
   test('when open, a deployment shows a list of all allocations for the deployment', async function (assert) {
-    await Deployments.visit({ id: job.id });
+    await Deployments.visit({ id: `${job.id}@default` });
 
     const deployment = sortedDeployments.models[0];
     const deploymentRow = Deployments.deployments.objectAt(0);

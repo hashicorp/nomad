@@ -251,13 +251,13 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     const namespace = server.db.namespaces.find(job.namespaceId);
-    await JobDetail.visit({ id: job.id, namespace: namespace.name });
+    await JobDetail.visit({ id: `${job.id}@${namespace.name}` });
     await a11yAudit(assert);
   });
 
   test('when there are namespaces, the job detail page states the namespace for the job', async function (assert) {
     const namespace = server.db.namespaces.find(job.namespaceId);
-    await JobDetail.visit({ id: job.id, namespace: namespace.name });
+    await JobDetail.visit({ id: `${job.id}@${namespace.name}` });
 
     assert.ok(
       JobDetail.statFor('namespace').text,
@@ -518,7 +518,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     clientToken.save();
     window.localStorage.nomadTokenSecret = clientToken.secretId;
 
-    await JobDetail.visit({ id: job.id, namespace: namespace.name });
+    await JobDetail.visit({ id: `${job.id}@${namespace.name}` });
     assert.notOk(JobDetail.incrementButton.isDisabled);
 
     await JobDetail.visit({ id: job2.id, namespace: secondNamespace.name });

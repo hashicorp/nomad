@@ -17,7 +17,7 @@ module('Acceptance | job definition', function (hooks) {
     server.create('node');
     server.create('job');
     job = server.db.jobs[0];
-    await Definition.visit({ id: job.id });
+    await Definition.visit({ id: `${job.id}@default` });
   });
 
   test('it passes an accessibility audit', async function (assert) {
@@ -95,7 +95,7 @@ module('Acceptance | job definition', function (hooks) {
     await Definition.editor.run();
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}`,
+      `/jobs/${job.id}@default`,
       'Now on the job overview page'
     );
   });

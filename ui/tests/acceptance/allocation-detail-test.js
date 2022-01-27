@@ -76,7 +76,7 @@ module('Acceptance | allocation detail', function (hooks) {
     await Allocation.details.visitJob();
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}`,
+      `/jobs/${job.id}@default`,
       'Job link navigates to the job'
     );
 
@@ -274,12 +274,14 @@ module('Acceptance | allocation detail', function (hooks) {
     const allServerPorts = allocation.taskResources.models[0].resources.Ports;
 
     allServerPorts.sortBy('Label').forEach((serverPort, index) => {
-      const renderedPort = Allocation.ports[index];
+      const { address, ...renderedPort } = Allocation.ports[index];
 
       assert.equal(renderedPort.name, serverPort.Label);
       assert.equal(renderedPort.to, serverPort.To);
+
+      // Prettier in handlebars adds spaces to text
       assert.equal(
-        renderedPort.address,
+        address.split(' ').join(''),
         formatHost(serverPort.HostIP, serverPort.Value)
       );
     });
@@ -502,7 +504,7 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
     await Allocation.preempter.visitJob();
     assert.equal(
       currentURL(),
-      `/jobs/${preempterJob.id}`,
+      `/jobs/${preempterJob.id}@default`,
       'Clicking the preempter job link navigates to the preempter job page'
     );
 

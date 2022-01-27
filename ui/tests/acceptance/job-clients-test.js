@@ -64,12 +64,12 @@ module('Acceptance | job clients', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    await Clients.visit({ id: job.id });
+    await Clients.visit({ id: `${job.id}@default` });
     await a11yAudit(assert);
   });
 
   test('lists all clients for the job', async function (assert) {
-    await Clients.visit({ id: job.id });
+    await Clients.visit({ id: `${job.id}@default` });
     assert.equal(Clients.clients.length, 15, 'Clients are shown in a table');
 
     const clientIDs = clients.sortBy('id').map((c) => c.id);
@@ -80,7 +80,7 @@ module('Acceptance | job clients', function (hooks) {
   });
 
   test('dates have tooltip', async function (assert) {
-    await Clients.visit({ id: job.id });
+    await Clients.visit({ id: `${job.id}@default` });
 
     Clients.clients.forEach((clientRow, index) => {
       const jobStatus = Clients.clientFor(clientRow.id).status;
@@ -109,7 +109,7 @@ module('Acceptance | job clients', function (hooks) {
   });
 
   test('clients table is sortable', async function (assert) {
-    await Clients.visit({ id: job.id });
+    await Clients.visit({ id: `${job.id}@default` });
     await Clients.sortBy('node.name');
 
     assert.equal(
@@ -132,7 +132,7 @@ module('Acceptance | job clients', function (hooks) {
   test('clients table is searchable', async function (assert) {
     makeSearchableClients(server, job);
 
-    await Clients.visit({ id: job.id });
+    await Clients.visit({ id: `${job.id}@default` });
     await Clients.search('ffffff');
 
     assert.equal(Clients.clients.length, 5, 'List is filtered by search term');
@@ -141,7 +141,7 @@ module('Acceptance | job clients', function (hooks) {
   test('when a search yields no results, the search box remains', async function (assert) {
     makeSearchableClients(server, job);
 
-    await Clients.visit({ id: job.id });
+    await Clients.visit({ id: `${job.id}@default` });
     await Clients.search('^nothing will ever match this long regex$');
 
     assert.equal(
@@ -175,15 +175,15 @@ module('Acceptance | job clients', function (hooks) {
   test('clicking row goes to client details', async function (assert) {
     const client = clients[0];
 
-    await Clients.visit({ id: job.id });
+    await Clients.visit({ id: `${job.id}@default` });
     await Clients.clientFor(client.id).click();
     assert.equal(currentURL(), `/clients/${client.id}`);
 
-    await Clients.visit({ id: job.id });
+    await Clients.visit({ id: `${job.id}@default` });
     await Clients.clientFor(client.id).visit();
     assert.equal(currentURL(), `/clients/${client.id}`);
 
-    await Clients.visit({ id: job.id });
+    await Clients.visit({ id: `${job.id}@default` });
     await Clients.clientFor(client.id).visitRow();
     assert.equal(currentURL(), `/clients/${client.id}`);
   });
@@ -202,7 +202,7 @@ module('Acceptance | job clients', function (hooks) {
       'Lost',
     ],
     async beforeEach() {
-      await Clients.visit({ id: job.id });
+      await Clients.visit({ id: `${job.id}@default` });
     },
   });
 

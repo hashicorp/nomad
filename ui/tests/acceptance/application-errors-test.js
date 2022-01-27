@@ -43,7 +43,7 @@ module('Acceptance | application errors ', function (hooks) {
 
     server.pretender.get(`/v1/job/${job.id}`, () => [403, {}, null]);
 
-    await Job.visit({ id: job.id });
+    await Job.visit({ id: `${job.id}@default` });
 
     assert.ok(Job.error.isPresent, 'Error message is shown');
     assert.equal(Job.error.title, 'Not Authorized', 'Error message is for 403');

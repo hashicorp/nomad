@@ -77,7 +77,7 @@ module('Acceptance | task group detail', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
     await a11yAudit(assert);
   });
 
@@ -89,7 +89,7 @@ module('Acceptance | task group detail', function (hooks) {
       .reduce(sum, 0);
     const totalDisk = taskGroup.ephemeralDisk.SizeMB;
 
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     assert.equal(TaskGroup.tasksCount, `# Tasks ${tasks.length}`, '# Tasks');
     assert.equal(
@@ -128,7 +128,7 @@ module('Acceptance | task group detail', function (hooks) {
   });
 
   test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', async function (assert) {
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     assert.equal(
       Layout.breadcrumbFor('jobs.index').text,
@@ -148,19 +148,19 @@ module('Acceptance | task group detail', function (hooks) {
   });
 
   test('/jobs/:id/:task-group first breadcrumb should link to jobs', async function (assert) {
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     await Layout.breadcrumbFor('jobs.index').visit();
     assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
   });
 
   test('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', async function (assert) {
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     await Layout.breadcrumbFor('jobs.job.index').visit();
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}`,
+      `/jobs/${job.id}@default`,
       'Second breadcrumb links back to the job for the task group'
     );
   });
@@ -239,7 +239,7 @@ module('Acceptance | task group detail', function (hooks) {
 
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}/scaling?namespace=${SCALE_AND_WRITE_NAMESPACE}`
+      `/jobs/${job.id}@${SCALE_AND_WRITE_NAMESPACE}/scaling`
     );
     assert.notOk(TaskGroup.countStepper.increment.isDisabled);
 
@@ -250,7 +250,7 @@ module('Acceptance | task group detail', function (hooks) {
     });
     assert.equal(
       currentURL(),
-      `/jobs/${job2.id}/scaling?namespace=${READ_ONLY_NAMESPACE}`
+      `/jobs/${job2.id}@${READ_ONLY_NAMESPACE}/scaling`
     );
     assert.ok(TaskGroup.countStepper.increment.isDisabled);
   });
@@ -262,7 +262,7 @@ module('Acceptance | task group detail', function (hooks) {
       clientStatus: 'running',
     });
 
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     assert.ok(
       server.db.allocations.where({ jobId: job.id }).length >
@@ -278,7 +278,7 @@ module('Acceptance | task group detail', function (hooks) {
   });
 
   test('each allocation should show basic information about the allocation', async function (assert) {
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     const allocation = allocations.sortBy('modifyIndex').reverse()[0];
     const allocationRow = TaskGroup.allocations.objectAt(0);
@@ -329,7 +329,7 @@ module('Acceptance | task group detail', function (hooks) {
   });
 
   test('each allocation should show stats about the allocation', async function (assert) {
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     const allocation = allocations.sortBy('name')[0];
     const allocationRow = TaskGroup.allocations.objectAt(0);
@@ -375,7 +375,7 @@ module('Acceptance | task group detail', function (hooks) {
   });
 
   test('when the allocation search has no matches, there is an empty message', async function (assert) {
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     await TaskGroup.search('zzzzzz');
 
@@ -388,7 +388,7 @@ module('Acceptance | task group detail', function (hooks) {
   });
 
   test('when the allocation has reschedule events, the allocation row is denoted with an icon', async function (assert) {
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     const rescheduleRow = TaskGroup.allocationFor(allocations[0].id);
     const normalRow = TaskGroup.allocationFor(allocations[1].id);
@@ -409,7 +409,7 @@ module('Acceptance | task group detail', function (hooks) {
     const taskGroups = server.db.taskGroups.where({ jobId: job.id });
     taskGroup = taskGroups[0];
 
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     assert.ok(TaskGroup.lifecycleChart.isPresent);
     assert.equal(
@@ -432,7 +432,7 @@ module('Acceptance | task group detail', function (hooks) {
   });
 
   test('when the task group depends on volumes, the volumes table is shown', async function (assert) {
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     assert.ok(TaskGroup.hasVolumes);
     assert.equal(
@@ -445,13 +445,13 @@ module('Acceptance | task group detail', function (hooks) {
     job = server.create('job', { noHostVolumes: true, shallow: true });
     taskGroup = server.db.taskGroups.where({ jobId: job.id })[0];
 
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     assert.notOk(TaskGroup.hasVolumes);
   });
 
   test('each row in the volumes table lists information about the volume', async function (assert) {
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     TaskGroup.volumes[0].as((volumeRow) => {
       const volume = taskGroup.volumes[volumeRow.name];
@@ -483,7 +483,7 @@ module('Acceptance | task group detail', function (hooks) {
     });
     job.update({ taskGroupIds: [scalingGroup.id] });
 
-    await TaskGroup.visit({ id: job.id, name: scalingGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: scalingGroup.name });
     await TaskGroup.countStepper.increment.click();
     await settled();
 
@@ -513,7 +513,7 @@ module('Acceptance | task group detail', function (hooks) {
     });
     job.update({ taskGroupIds: [scalingGroup.id] });
 
-    await TaskGroup.visit({ id: job.id, name: scalingGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: scalingGroup.name });
 
     assert.ok(TaskGroup.countStepper.input.isDisabled);
     assert.ok(TaskGroup.countStepper.increment.isDisabled);
@@ -522,7 +522,7 @@ module('Acceptance | task group detail', function (hooks) {
 
   test('when the job for the task group is not found, an error message is shown, but the URL persists', async function (assert) {
     await TaskGroup.visit({
-      id: 'not-a-real-job',
+      id: 'not-a-real-job@default',
       name: 'not-a-real-task-group',
     });
 
@@ -530,12 +530,12 @@ module('Acceptance | task group detail', function (hooks) {
       server.pretender.handledRequests
         .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
-      '/v1/job/not-a-real-job',
+      '/v1/job/not-a-real-job@default',
       'A request to the nonexistent job is made'
     );
     assert.equal(
       currentURL(),
-      '/jobs/not-a-real-job/not-a-real-task-group',
+      '/jobs/not-a-real-job@default/not-a-real-task-group',
       'The URL persists'
     );
     assert.ok(TaskGroup.error.isPresent, 'Error message is shown');
@@ -547,7 +547,10 @@ module('Acceptance | task group detail', function (hooks) {
   });
 
   test('when the task group is not found on the job, an error message is shown, but the URL persists', async function (assert) {
-    await TaskGroup.visit({ id: job.id, name: 'not-a-real-task-group' });
+    await TaskGroup.visit({
+      id: `${job.id}@default`,
+      name: 'not-a-real-task-group',
+    });
 
     assert.ok(
       server.pretender.handledRequests
@@ -556,9 +559,10 @@ module('Acceptance | task group detail', function (hooks) {
         .includes(`/v1/job/${job.id}`),
       'A request to the job is made and succeeds'
     );
+
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}/not-a-real-task-group`,
+      `/jobs/${job.id}@default/not-a-real-task-group`,
       'The URL persists'
     );
     assert.ok(TaskGroup.error.isPresent, 'Error message is shown');
@@ -580,7 +584,7 @@ module('Acceptance | task group detail', function (hooks) {
         clientStatus: 'running',
       });
 
-      await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+      await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
     },
   });
 
@@ -590,7 +594,7 @@ module('Acceptance | task group detail', function (hooks) {
     );
     taskGroupScale.update({ events: [] });
 
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     assert.notOk(TaskGroup.hasScaleEvents);
   });
@@ -610,7 +614,7 @@ module('Acceptance | task group detail', function (hooks) {
       ],
     });
     const scaleEvents = taskGroupScale.events.models.sortBy('time').reverse();
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     assert.ok(TaskGroup.hasScaleEvents);
     assert.notOk(TaskGroup.hasScalingTimeline);
@@ -657,7 +661,7 @@ module('Acceptance | task group detail', function (hooks) {
       ],
     });
     const scaleEvents = taskGroupScale.events.models.sortBy('time').reverse();
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
 
     assert.ok(TaskGroup.hasScaleEvents);
     assert.ok(TaskGroup.hasScalingTimeline);
@@ -676,7 +680,7 @@ module('Acceptance | task group detail', function (hooks) {
       ['pending', 'running', 'complete', 'failed', 'lost'].forEach((s) => {
         server.createList('allocation', 5, { clientStatus: s });
       });
-      await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+      await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
     },
     filter: (alloc, selection) =>
       alloc.jobId == job.id &&
@@ -709,7 +713,7 @@ module('Acceptance | task group detail', function (hooks) {
           taskGroup: taskGroup.name,
         })
       );
-      await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+      await TaskGroup.visit({ id: `${job.id}@default`, name: taskGroup.name });
     },
     filter: (alloc, selection) =>
       alloc.jobId == job.id &&
@@ -806,9 +810,9 @@ function testFacet(
 
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}/${taskGroup.name}?${paramName}=${encodeURIComponent(
-        JSON.stringify(selection)
-      )}`,
+      `/jobs/${job.id}@default/${
+        taskGroup.name
+      }?${paramName}=${encodeURIComponent(JSON.stringify(selection))}`,
       'URL has the correct query param key and value'
     );
   });
