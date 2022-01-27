@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -21,6 +22,10 @@ func (p *Plan) Submit(args *structs.PlanRequest, reply *structs.PlanResponse) er
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "plan", "submit"}, time.Now())
+
+	if args.Plan == nil {
+		return fmt.Errorf("cannot submit nil plan")
+	}
 
 	// Pause the Nack timer for the eval as it is making progress as long as it
 	// is in the plan queue. We resume immediately after we get a result to
