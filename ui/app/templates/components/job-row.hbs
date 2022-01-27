@@ -13,7 +13,7 @@
     {{this.job.namespace.name}}
   </td>
 {{/if}}
-{{#if (eq @context "child")}}
+{{#if (eq @context 'child')}}
   <td data-test-job-submit-time>
     {{format-month-ts this.job.submitTime}}
   </td>
@@ -47,7 +47,10 @@
         </em>
       {{/if}}
     {{else}}
-      <AllocationStatusBar @allocationContainer={{this.job}} @isNarrow={{true}} />
+      <AllocationStatusBar
+        @allocationContainer={{this.job}}
+        @isNarrow={{true}}
+      />
     {{/if}}
   </div>
 </td>
