@@ -277,7 +277,7 @@ func (t *Tracker) watchTaskEvents() {
 		// Detect if the alloc is unhealthy or if all tasks have started yet
 		latestStartTime := time.Time{}
 		for taskName, state := range alloc.TaskStates {
-			if t.lifecycleTasks[taskName] != nil {
+			if t.lifecycleTasks != nil && t.lifecycleTasks[taskName] != nil {
 				// If the task is a poststop task we do not want to evaluate it
 				// since it will remain pending until the main task has finished or
 				// exited.
@@ -302,12 +302,12 @@ func (t *Tracker) watchTaskEvents() {
 						continue
 					}
 				}
-			}
 
-			// One of the tasks has failed so we can exit watching
-			if state.Failed || (!state.FinishedAt.IsZero() && t.lifecycleTasks[taskName].Hook != structs.TaskLifecycleHookPrestart) {
-				t.setTaskHealth(false, true)
-				return
+				// One of the tasks has failed so we can exit watching
+				if state.Failed || (!state.FinishedAt.IsZero() && t.lifecycleTasks[taskName].Hook != structs.TaskLifecycleHookPrestart) {
+					t.setTaskHealth(false, true)
+					return
+				}
 			}
 
 			if state.State == structs.TaskStatePending {
