@@ -17,7 +17,6 @@ import (
 	"math"
 	"net"
 	"os"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -35,6 +34,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/lib/kheap"
@@ -5238,7 +5238,7 @@ func (d *DispatchPayloadConfig) Copy() *DispatchPayloadConfig {
 
 func (d *DispatchPayloadConfig) Validate() error {
 	// Verify the destination doesn't escape
-	escaped, err := PathEscapesAllocDir("task/local/", d.File)
+	escaped, err := escapingfs.PathEscapesAllocViaRelative("task/local/", d.File)
 	if err != nil {
 		return fmt.Errorf("invalid destination path: %v", err)
 	} else if escaped {
@@ -7449,7 +7449,7 @@ func (t *Template) Validate() error {
 	}
 
 	// Verify the destination doesn't escape
-	escaped, err := PathEscapesAllocDir("task", t.DestPath)
+	escaped, err := escapingfs.PathEscapesAllocViaRelative("task", t.DestPath)
 	if err != nil {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
 	} else if escaped {
@@ -8168,31 +8168,6 @@ func (ta *TaskArtifact) Hash() string {
 	return base64.RawStdEncoding.EncodeToString(h.Sum(nil))
 }
 
-// PathEscapesAllocDir returns if the given path escapes the allocation
-// directory.
-//
-// The prefix is to joined to the path (e.g. "task/local"), and this function
-// checks if path escapes the alloc dir, NOT the prefix directory within the alloc dir.
-// With prefix="task/local", it will return false for "../secret", but
-// true for "../../../../../../root" path; only the latter escapes the alloc dir
-func PathEscapesAllocDir(prefix, path string) (bool, error) {
-	// Verify the destination doesn't escape the tasks directory
-	alloc, err := filepath.Abs(filepath.Join("/", "alloc-dir/", "alloc-id/"))
-	if err != nil {
-		return false, err
-	}
-	abs, err := filepath.Abs(filepath.Join(alloc, prefix, path))
-	if err != nil {
-		return false, err
-	}
-	rel, err := filepath.Rel(alloc, abs)
-	if err != nil {
-		return false, err
-	}
-
-	return strings.HasPrefix(rel, ".."), nil
-}
-
 func (ta *TaskArtifact) Validate() error {
 	// Verify the source
 	var mErr multierror.Error
@@ -8211,7 +8186,7 @@ func (ta *TaskArtifact) Validate() error {
 			ta.GetterMode, GetterModeAny, GetterModeFile, GetterModeDir))
 	}
 
-	escaped, err := PathEscapesAllocDir("task", ta.RelativeDest)
+	escaped, err := escapingfs.PathEscapesAllocViaRelative("task", ta.RelativeDest)
 	if err != nil {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
 	} else if escaped {
