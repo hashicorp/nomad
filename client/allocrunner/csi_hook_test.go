@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -144,6 +145,9 @@ func TestCSIHook(t *testing.T) {
 				},
 			}
 			hook := newCSIHook(alloc, logger, mgr, rpcer, ar, ar, "secret")
+			hook.maxBackoffInterval = 100 * time.Millisecond
+			hook.maxBackoffDuration = 2 * time.Second
+
 			require.NotNil(t, hook)
 
 			require.NoError(t, hook.Prerun())
