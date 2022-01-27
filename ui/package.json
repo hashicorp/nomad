@@ -20,7 +20,9 @@
     "build-storybook": "STORYBOOK=true ember build && build-storybook -s dist",
     "storybook": "STORYBOOK=true start-storybook -p 6006 -s dist",
     "test": "npm-run-all lint:* test:*",
-    "test:ember": "ember test"
+    "test:ember": "ember test",
+    "local:qunitdom": "ember test --server --query=dockcontainer",
+    "local:exam": "ember exam --server --load-balance --parallel=4"
   },
   "husky": {
     "hooks": {
@@ -83,6 +85,7 @@
     "ember-data": "~3.24",
     "ember-data-model-fragments": "5.0.0-beta.2",
     "ember-decorators": "^6.1.1",
+    "ember-exam": "6.1.0",
     "ember-export-application-global": "^2.0.1",
     "ember-fetch": "^8.0.2",
     "ember-inflector": "^3.0.0",
