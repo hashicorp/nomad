@@ -313,6 +313,17 @@ export default class Job extends Model {
     return window.atob(this.payload || '');
   }
 
+  @computed('decodedPayload')
+  get payloadJSON() {
+    let json;
+    try {
+      json = JSON.parse(this.decodedPayload);
+    } catch (e) {
+      // Swallow error and fall back to plain text rendering
+    }
+    return json;
+  }
+
   // An arbitrary HCL or JSON string that is used by the serializer to plan
   // and run this job. Used for both new job models and saved job models.
   @attr('string') _newDefinition;

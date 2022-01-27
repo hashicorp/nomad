@@ -23,40 +23,7 @@
     <jobPage.ui.PlacementFailures />
     <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} />
     <jobPage.ui.RecentAllocations />
-    <div class="boxed-section">
-      <div class="boxed-section-head">
-        Meta
-      </div>
-      {{#if @job.definition.Meta}}
-        <jobPage.ui.Meta />
-      {{else}}
-        <div class="boxed-section-body">
-          <div data-test-empty-meta-message class="empty-message">
-            <h3 class="empty-message-headline">
-              No Meta Attributes
-            </h3>
-            <p class="empty-message-body">
-              This job is configured with no meta attributes.
-            </p>
-          </div>
-        </div>
-      {{/if}}
-    </div>
-    <div class="boxed-section">
-      <div class="boxed-section-head">
-        Payload
-      </div>
-      <div class="boxed-section-body is-dark">
-        {{#if this.payloadJSON}}
-          <JsonViewer @json={{this.payloadJSON}} />
-        {{else}}
-          <pre class="cli-window is-elastic">
-            <code>
-              {{this.payload}}
-            </code>
-          </pre>
-        {{/if}}
-      </div>
-    </div>
+    <jobPage.ui.Meta />
+    <jobPage.ui.Payload />
   </jobPage.ui.Body>
 </JobPage>
