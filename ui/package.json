@@ -20,8 +20,9 @@
     "build-storybook": "STORYBOOK=true ember build && build-storybook -s dist",
     "storybook": "STORYBOOK=true start-storybook -p 6006 -s dist",
     "test": "npm-run-all lint:* test:*",
-    "test:ember": "ember test --server --query=dockcontainer",
-    "test:local": "ember exam --server --load-balance --parallel=8"
+    "test:ember": "ember test",
+    "local:qunitdom": "ember test --server --query=dockcontainer",
+    "local:exam": "ember exam --server --load-balance --parallel=4"
   },
   "husky": {
     "hooks": {
