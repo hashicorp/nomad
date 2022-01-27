@@ -66,7 +66,7 @@ type Tracker struct {
 	// not needed
 	allocStopped chan struct{}
 
-	// lifecycleTasks is a map of ephemeral tasks and their lifecycle hooks.
+	// lifecycleTasks is a map of ephemeral tasks and their lifecycle configs.
 	// These tasks may terminate without affecting alloc health
 	lifecycleTasks map[string]*structs.TaskLifecycleConfig
 
