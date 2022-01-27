@@ -96,7 +96,7 @@ func WaitForLeader(t testing.TB, rpc rpcFn) {
 }
 
 // WaitForClient blocks until the client can be found
-func WaitForClient(t testing.T, rpc rpcFn, nodeID string, region string) {
+func WaitForClient(t testing.TB, rpc rpcFn, nodeID string, region string) {
 	t.Helper()
 
 	if region == "" {

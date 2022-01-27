@@ -2461,6 +2461,18 @@ func (s *StateStore) CSIVolumeDenormalizeTxn(txn Txn, ws memdb.WatchSet, vol *st
 					State:        structs.CSIVolumeClaimStateTaken,
 				}
 			}
+		} else if _, ok := vol.PastClaims[id]; !ok {
+			// ensure that any allocs that have been GC'd since
+			// our last read are marked as past claims
+			vol.PastClaims[id] = &structs.CSIVolumeClaim{
+				AllocationID: id,
+				Mode:         structs.CSIVolumeClaimRead,
+				State:        structs.CSIVolumeClaimStateUnpublishing,
+			}
+			readClaim := vol.ReadClaims[id]
+			if readClaim != nil {
+				vol.PastClaims[id].NodeID = readClaim.NodeID
+			}
 		}
 	}
 
@@ -2479,6 +2491,20 @@ func (s *StateStore) CSIVolumeDenormalizeTxn(txn Txn, ws memdb.WatchSet, vol *st
 					State:        structs.CSIVolumeClaimStateTaken,
 				}
 			}
+		} else if _, ok := vol.PastClaims[id]; !ok {
+			// ensure that any allocs that have been GC'd since
+			// our last read are marked as past claims
+
+			vol.PastClaims[id] = &structs.CSIVolumeClaim{
+				AllocationID: id,
+				Mode:         structs.CSIVolumeClaimWrite,
+				State:        structs.CSIVolumeClaimStateUnpublishing,
+			}
+			writeClaim := vol.WriteClaims[id]
+			if writeClaim != nil {
+				vol.PastClaims[id].NodeID = writeClaim.NodeID
+			}
+
 		}
 	}
 

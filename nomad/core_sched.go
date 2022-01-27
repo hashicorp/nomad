@@ -779,6 +779,10 @@ NEXT_VOLUME:
 			continue
 		}
 
+		// TODO(tgross): consider moving the TerminalStatus check into
+		// the denormalize volume logic so that we can just check the
+		// volume for past claims
+
 		// we only call the claim release RPC if the volume has claims
 		// that no longer have valid allocations. otherwise we'd send
 		// out a lot of do-nothing RPCs.

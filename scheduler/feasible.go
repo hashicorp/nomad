@@ -15,17 +15,18 @@ import (
 )
 
 const (
-	FilterConstraintHostVolumes                 = "missing compatible host volumes"
-	FilterConstraintCSIPluginTemplate           = "CSI plugin %s is missing from client %s"
-	FilterConstraintCSIPluginUnhealthyTemplate  = "CSI plugin %s is unhealthy on client %s"
-	FilterConstraintCSIPluginMaxVolumesTemplate = "CSI plugin %s has the maximum number of volumes on client %s"
-	FilterConstraintCSIVolumesLookupFailed      = "CSI volume lookup failed"
-	FilterConstraintCSIVolumeNotFoundTemplate   = "missing CSI Volume %s"
-	FilterConstraintCSIVolumeNoReadTemplate     = "CSI volume %s is unschedulable or has exhausted its available reader claims"
-	FilterConstraintCSIVolumeNoWriteTemplate    = "CSI volume %s is unschedulable or is read-only"
-	FilterConstraintCSIVolumeInUseTemplate      = "CSI volume %s has exhausted its available writer claims" //
-	FilterConstraintDrivers                     = "missing drivers"
-	FilterConstraintDevices                     = "missing devices"
+	FilterConstraintHostVolumes                    = "missing compatible host volumes"
+	FilterConstraintCSIPluginTemplate              = "CSI plugin %s is missing from client %s"
+	FilterConstraintCSIPluginUnhealthyTemplate     = "CSI plugin %s is unhealthy on client %s"
+	FilterConstraintCSIPluginMaxVolumesTemplate    = "CSI plugin %s has the maximum number of volumes on client %s"
+	FilterConstraintCSIVolumesLookupFailed         = "CSI volume lookup failed"
+	FilterConstraintCSIVolumeNotFoundTemplate      = "missing CSI Volume %s"
+	FilterConstraintCSIVolumeNoReadTemplate        = "CSI volume %s is unschedulable or has exhausted its available reader claims"
+	FilterConstraintCSIVolumeNoWriteTemplate       = "CSI volume %s is unschedulable or is read-only"
+	FilterConstraintCSIVolumeInUseTemplate         = "CSI volume %s has exhausted its available writer claims"
+	FilterConstraintCSIVolumeGCdAllocationTemplate = "CSI volume %s has exhausted its available writer claims and is claimed by a garbage collected allocation %s; waiting for claim to be released"
+	FilterConstraintDrivers                        = "missing drivers"
+	FilterConstraintDevices                        = "missing devices"
 )
 
 var (
@@ -313,11 +314,20 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoWriteTemplate, vol.ID)
 			}
 			if !vol.WriteFreeClaims() {
-				// Check the blocking allocations to see if they belong to this job
 				for id := range vol.WriteAllocs {
 					a, err := c.ctx.State().AllocByID(ws, id)
-					if err != nil || a == nil ||
-						a.Namespace != c.namespace || a.JobID != c.jobID {
+					// the alloc for this blocking claim has been
+					// garbage collected but the volumewatcher hasn't
+					// finished releasing the claim (and possibly
+					// detaching the volume), so we need to block
+					// until it can be scheduled
+					if err != nil || a == nil {
+						return false, fmt.Sprintf(
+							FilterConstraintCSIVolumeGCdAllocationTemplate, vol.ID, id)
+					} else if a.Namespace != c.namespace || a.JobID != c.jobID {
+						// the blocking claim is for another live job
+						// so it's legitimately blocking more write
+						// claims
 						return false, fmt.Sprintf(
 							FilterConstraintCSIVolumeInUseTemplate, vol.ID)
 					}
