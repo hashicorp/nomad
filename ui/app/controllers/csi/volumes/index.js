@@ -113,10 +113,7 @@ export default class IndexController extends Controller.extend(
   @action
   gotoVolume(volume, event) {
     lazyClick([
-      () =>
-        this.transitionToRoute('csi.volumes.volume', volume.get('plainId'), {
-          queryParams: { volumeNamespace: volume.get('namespace.name') },
-        }),
+      () => this.transitionToRoute('csi.volumes.volume', volume.get('plainId')),
       event,
     ]);
   }
