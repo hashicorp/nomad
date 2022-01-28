@@ -261,6 +261,7 @@ export default function () {
     return this.serialize(evaluations.where({ jobId: params.id }));
   });
 
+  this.get('/evaluations');
   this.get('/evaluation/:id');
 
   this.get('/deployment/allocations/:id', function (schema, { params }) {
