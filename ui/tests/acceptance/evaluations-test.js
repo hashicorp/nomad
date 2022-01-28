@@ -99,6 +99,8 @@ module('Acceptance | evaluations list', function (hooks) {
   setupMirage(hooks);
 
   test('it passes an accessibility audit', async function (assert) {
+    assert.expect(2);
+
     await visit('/evaluations');
 
     assert.equal(
