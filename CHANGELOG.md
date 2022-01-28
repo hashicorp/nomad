@@ -1,3 +1,12 @@
+## 1.0.17 (February 1, 2022)
+
+BUG FIXES:
+
+* csi: Fixed a bug where garbage collected allocations could block new claims on a volume [[GH-11890](https://github.com/hashicorp/nomad/issues/11890)]
+* csi: Fixed a bug where releasing volume claims would fail with ACL errors after leadership transitions. [[GH-11891](https://github.com/hashicorp/nomad/issues/11891)]
+* csi: Fixed a bug where volume claim releases that were not fully processed before a leadership transition would be ignored [[GH-11776](https://github.com/hashicorp/nomad/issues/11776)]
+* csi: Unmount volumes from the client before sending unpublish RPC [[GH-11892](https://github.com/hashicorp/nomad/issues/11892)]
+
 ## 1.0.16 (January 18, 2022)
 
 BUG FIXES:
