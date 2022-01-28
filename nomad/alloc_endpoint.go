@@ -228,7 +228,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 
 	// Ensure the connection was initiated by a client if TLS is used.
-	if err := a.validateTLSCertificate(); err != nil {
+	if err := validateLocalClientTLSCertificate(a.srv, a.ctx); err != nil {
 		return fmt.Errorf("invalid client connection in region %s: %v", a.srv.Region(), err)
 	}
 
@@ -377,13 +377,4 @@ func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransiti
 	// Setup the response
 	reply.Index = index
 	return nil
-}
-
-func (a *Alloc) validateTLSCertificate() error {
-	if a.srv.config.TLSConfig == nil || !a.srv.config.TLSConfig.VerifyServerHostname {
-		return nil
-	}
-
-	expected := fmt.Sprintf("client.%s.nomad", a.srv.Region())
-	return a.ctx.ValidateCertificateForName(expected)
 }

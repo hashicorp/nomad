@@ -91,7 +91,7 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	defer metrics.MeasureSince([]string{"nomad", "eval", "dequeue"}, time.Now())
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	if err := e.validateTLSCertificate(); err != nil {
+	if err := validateLocalServerTLSCertificate(e.srv, e.ctx); err != nil {
 		return fmt.Errorf("invalid server connection in region %s: %v", e.srv.Region(), err)
 	}
 
@@ -181,7 +181,7 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 	defer metrics.MeasureSince([]string{"nomad", "eval", "ack"}, time.Now())
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	if err := e.validateTLSCertificate(); err != nil {
+	if err := validateLocalServerTLSCertificate(e.srv, e.ctx); err != nil {
 		return fmt.Errorf("invalid server connection in region %s: %v", e.srv.Region(), err)
 	}
 
@@ -201,7 +201,7 @@ func (e *Eval) Nack(args *structs.EvalAckRequest,
 	defer metrics.MeasureSince([]string{"nomad", "eval", "nack"}, time.Now())
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	if err := e.validateTLSCertificate(); err != nil {
+	if err := validateLocalServerTLSCertificate(e.srv, e.ctx); err != nil {
 		return fmt.Errorf("invalid server connection in region %s: %v", e.srv.Region(), err)
 	}
 
@@ -221,7 +221,7 @@ func (e *Eval) Update(args *structs.EvalUpdateRequest,
 	defer metrics.MeasureSince([]string{"nomad", "eval", "update"}, time.Now())
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	if err := e.validateTLSCertificate(); err != nil {
+	if err := validateLocalServerTLSCertificate(e.srv, e.ctx); err != nil {
 		return fmt.Errorf("invalid server connection in region %s: %v", e.srv.Region(), err)
 	}
 
@@ -256,7 +256,7 @@ func (e *Eval) Create(args *structs.EvalUpdateRequest,
 	defer metrics.MeasureSince([]string{"nomad", "eval", "create"}, time.Now())
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	if err := e.validateTLSCertificate(); err != nil {
+	if err := validateLocalServerTLSCertificate(e.srv, e.ctx); err != nil {
 		return fmt.Errorf("invalid server connection in region %s: %v", e.srv.Region(), err)
 	}
 
@@ -306,7 +306,7 @@ func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericRe
 	defer metrics.MeasureSince([]string{"nomad", "eval", "reblock"}, time.Now())
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	if err := e.validateTLSCertificate(); err != nil {
+	if err := validateLocalServerTLSCertificate(e.srv, e.ctx); err != nil {
 		return fmt.Errorf("invalid server connection in region %s: %v", e.srv.Region(), err)
 	}
 
@@ -353,7 +353,7 @@ func (e *Eval) Reap(args *structs.EvalDeleteRequest,
 	defer metrics.MeasureSince([]string{"nomad", "eval", "reap"}, time.Now())
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	if err := e.validateTLSCertificate(); err != nil {
+	if err := validateLocalServerTLSCertificate(e.srv, e.ctx); err != nil {
 		return fmt.Errorf("invalid server connection in region %s: %v", e.srv.Region(), err)
 	}
 
@@ -489,13 +489,4 @@ func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
 			return nil
 		}}
 	return e.srv.blockingRPC(&opts)
-}
-
-func (e *Eval) validateTLSCertificate() error {
-	if e.srv.config.TLSConfig == nil || !e.srv.config.TLSConfig.VerifyServerHostname {
-		return nil
-	}
-
-	expected := fmt.Sprintf("server.%s.nomad", e.srv.Region())
-	return e.ctx.ValidateCertificateForName(expected)
 }

@@ -510,7 +510,7 @@ func (d *Deployment) Reap(args *structs.DeploymentDeleteRequest,
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "reap"}, time.Now())
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	if err := d.validateTLSCertificate(); err != nil {
+	if err := validateLocalServerTLSCertificate(d.srv, d.ctx); err != nil {
 		return fmt.Errorf("invalid server connection in region %s: %v", d.srv.Region(), err)
 	}
 
@@ -523,13 +523,4 @@ func (d *Deployment) Reap(args *structs.DeploymentDeleteRequest,
 	// Update the index
 	reply.Index = index
 	return nil
-}
-
-func (d *Deployment) validateTLSCertificate() error {
-	if d.srv.config.TLSConfig == nil || !d.srv.config.TLSConfig.VerifyServerHostname {
-		return nil
-	}
-
-	expected := fmt.Sprintf("server.%s.nomad", d.srv.Region())
-	return d.ctx.ValidateCertificateForName(expected)
 }

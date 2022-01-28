@@ -1104,7 +1104,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
 
 	// Ensure the connection was initiated by a client if TLS is used.
-	if err := n.validateTLSCertificate(); err != nil {
+	if err := validateLocalClientTLSCertificate(n.srv, n.ctx); err != nil {
 		return fmt.Errorf("invalid client connection in region %s: %v", n.srv.Region(), err)
 	}
 
@@ -1926,7 +1926,7 @@ func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.Em
 	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
 
 	// Ensure the connection was initiated by a client if TLS is used.
-	if err := n.validateTLSCertificate(); err != nil {
+	if err := validateLocalClientTLSCertificate(n.srv, n.ctx); err != nil {
 		return fmt.Errorf("invalid client connection in region %s: %v", n.srv.Region(), err)
 	}
 
@@ -1947,13 +1947,4 @@ func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.Em
 
 	reply.Index = index
 	return nil
-}
-
-func (n *Node) validateTLSCertificate() error {
-	if n.srv.config.TLSConfig == nil || !n.srv.config.TLSConfig.VerifyServerHostname {
-		return nil
-	}
-
-	expected := fmt.Sprintf("client.%s.nomad", n.srv.Region())
-	return n.ctx.ValidateCertificateForName(expected)
 }

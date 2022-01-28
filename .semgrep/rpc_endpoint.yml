@@ -34,7 +34,21 @@ rules:
             return err
           }
           ...
-          ... := $A.validateTLSCertificate(...)
+          ... := validateLocalClientTLSCertificate(...)
+          ...
+      - pattern-not-inside: |
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          ... := validateLocalServerTLSCertificate(...)
+          ...
+      - pattern-not-inside: |
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          ... := validateTLSCertificate(...)
           ...
       # Pattern used by some Node endpoints.
       - pattern-not-inside: |
@@ -61,3 +75,6 @@ rules:
     languages:
       - "go"
     severity: "WARNING"
+    paths:
+      include:
+        - "*_endpoint.go"

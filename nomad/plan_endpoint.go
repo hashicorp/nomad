@@ -27,7 +27,7 @@ func (p *Plan) Submit(args *structs.PlanRequest, reply *structs.PlanResponse) er
 	defer metrics.MeasureSince([]string{"nomad", "plan", "submit"}, time.Now())
 
 	// Ensure the connection was initiated by another server if TLS is used.
-	if err := p.validateTLSCertificate(); err != nil {
+	if err := validateLocalServerTLSCertificate(p.srv, p.ctx); err != nil {
 		return fmt.Errorf("invalid server connection in region %s: %v", p.srv.Region(), err)
 	}
 
@@ -62,13 +62,4 @@ func (p *Plan) Submit(args *structs.PlanRequest, reply *structs.PlanResponse) er
 	reply.Result = result
 	reply.Index = result.AllocIndex
 	return nil
-}
-
-func (p *Plan) validateTLSCertificate() error {
-	if p.srv.config.TLSConfig == nil || !p.srv.config.TLSConfig.VerifyServerHostname {
-		return nil
-	}
-
-	expected := fmt.Sprintf("server.%s.nomad", p.srv.Region())
-	return p.ctx.ValidateCertificateForName(expected)
 }
