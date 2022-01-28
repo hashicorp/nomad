@@ -40,6 +40,8 @@ module('Unit | Serializer | Evaluation', function (hooks) {
                 nodesAvailable: 10,
               },
             ],
+            namespace: 'test-namespace',
+            plainJobId: 'some-job-id',
           },
           relationships: {
             job: {
@@ -89,6 +91,8 @@ module('Unit | Serializer | Evaluation', function (hooks) {
                 nodesAvailable: 25,
               },
             ],
+            namespace: 'test-namespace',
+            plainJobId: 'some-job-id',
           },
           relationships: {
             job: {
