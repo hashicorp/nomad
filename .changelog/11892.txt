@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Unmount volumes from the client before sending unpublish RPC
+```
