@@ -348,11 +348,16 @@ func (v *volumeManager) UnmountVolume(ctx context.Context, volID, remoteID, allo
 		}
 	}
 
+	if errors.Is(err, structs.ErrCSIClientRPCIgnorable) {
+		logger.Trace("unmounting volume failed with ignorable error", "error", err)
+		err = nil
+	}
+
 	event := structs.NewNodeEvent().
 		SetSubsystem(structs.NodeEventSubsystemStorage).
 		SetMessage("Unmount volume").
 		AddDetail("volume_id", volID)
-	if err == nil || errors.Is(err, structs.ErrCSIClientRPCIgnorable) {
+	if err == nil {
 		event.AddDetail("success", "true")
 	} else {
 		event.AddDetail("success", "false")
