@@ -683,11 +683,7 @@ func LifecycleJobWithPoststopDeploy() *structs.Job {
 	return job
 }
 
-func LifecycleJobWithPoststartDeploy(ignoreMinHealthyTime bool) *structs.Job {
-	lifecycleConfig := &structs.TaskLifecycleConfig{
-		Hook:                 structs.TaskLifecycleHookPoststart,
-		IgnoreMinHealthyTime: ignoreMinHealthyTime,
-	}
+func LifecycleJobWithPoststartDeploy() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
 		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
@@ -750,7 +746,9 @@ func LifecycleJobWithPoststartDeploy(ignoreMinHealthyTime bool) *structs.Job {
 						Config: map[string]interface{}{
 							"run_for": "1s",
 						},
-						Lifecycle: lifecycleConfig,
+						Lifecycle: &structs.TaskLifecycleConfig{
+							Hook: structs.TaskLifecycleHookPoststart,
+						},
 						LogConfig: structs.DefaultLogConfig(),
 						Resources: &structs.Resources{
 							CPU:      1000,
@@ -865,7 +863,7 @@ func LifecycleAllocWithPoststopDeploy() *structs.Allocation {
 	return alloc
 }
 
-func LifecycleAllocWithPoststartDeploy(ignoreMinHealthyTime bool) *structs.Allocation {
+func LifecycleAllocWithPoststartDeploy() *structs.Allocation {
 	alloc := &structs.Allocation{
 		ID:        uuid.Generate(),
 		EvalID:    uuid.Generate(),
@@ -933,7 +931,7 @@ func LifecycleAllocWithPoststartDeploy(ignoreMinHealthyTime bool) *structs.Alloc
 				},
 			},
 		},
-		Job:           LifecycleJobWithPoststartDeploy(ignoreMinHealthyTime),
+		Job:           LifecycleJobWithPoststartDeploy(),
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
 	}
