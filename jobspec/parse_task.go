@@ -339,7 +339,6 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 		valid := []string{
 			"hook",
 			"sidecar",
-			"ignore_min_healthy_time",
 		}
 		if err := checkHCLKeys(lifecycleBlock.Val, valid); err != nil {
 			return nil, multierror.Prefix(err, "lifecycle ->")
