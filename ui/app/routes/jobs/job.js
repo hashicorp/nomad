@@ -21,7 +21,7 @@ export default class JobRoute extends Route {
 
     return this.store
       .findRecord('job', fullId, { reload: true })
-      .then(job => {
+      .then((job) => {
         const relatedModelsQueries = [
           job.get('allocations'),
           job.get('evaluations'),
@@ -31,6 +31,11 @@ export default class JobRoute extends Route {
 
         if (this.can.can('accept recommendation')) {
           relatedModelsQueries.push(job.get('recommendationSummaries'));
+        }
+
+        // Optimizing future node look ups by preemptively loading everything
+        if (job.get('hasClientStatus') && this.can.can('read client')) {
+          relatedModelsQueries.push(this.store.findAll('node'));
         }
 
         return RSVP.all(relatedModelsQueries).then(() => job);

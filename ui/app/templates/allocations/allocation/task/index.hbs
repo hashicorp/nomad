@@ -108,18 +108,18 @@
           </t.head>
           <t.body as |row|>
             <tr data-test-volume>
-              <td data-test-volume-name>
-                {{#if row.model.isCSI}}
-                  <LinkTo @route="csi.volumes.volume" @model={{row.model.volume}} @query={{hash volumeNamespace=row.model.namespace.id}}>
-                    {{row.model.volume}}
-                  </LinkTo>
-                {{else}}
-                  {{row.model.volume}}
-                {{/if}}
-              </td>
+              <td data-test-volume-name>{{row.model.volume}}</td>
               <td data-test-volume-destination><code>{{row.model.destination}}</code></td>
               <td data-test-volume-permissions>{{if row.model.readOnly "Read" "Read/Write"}}</td>
-              <td data-test-volume-client-source>{{row.model.source}}</td>
+              <td data-test-volume-client-source>
+                {{#if row.model.isCSI}}
+                  <LinkTo @route="csi.volumes.volume" @model={{row.model.source}} @query={{hash volumeNamespace=row.model.namespace.id}}>
+                    {{row.model.source}}
+                  </LinkTo>
+                {{else}}
+                  {{row.model.source}}
+                {{/if}}
+              </td>
             </tr>
           </t.body>
         </ListTable>

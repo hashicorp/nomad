@@ -22,7 +22,7 @@ export default class LifecycleChart extends Component {
       mains: [],
     };
 
-    tasksOrStates.forEach(taskOrState => {
+    tasksOrStates.forEach((taskOrState) => {
       const task = taskOrState.task || taskOrState;
 
       if (task.lifecycleName) {
@@ -31,7 +31,7 @@ export default class LifecycleChart extends Component {
     });
 
     const phases = [];
-    const stateActiveIterator = state => state.state === 'running';
+    const stateActiveIterator = (state) => state.state === 'running';
 
     if (lifecycles.mains.length < tasksOrStates.length) {
       phases.push({
@@ -60,12 +60,12 @@ export default class LifecycleChart extends Component {
     return phases;
   }
 
-  @sort('taskStates', function(a, b) {
+  @sort('taskStates', function (a, b) {
     return getTaskSortPrefix(a.task).localeCompare(getTaskSortPrefix(b.task));
   })
   sortedLifecycleTaskStates;
 
-  @sort('tasks', function(a, b) {
+  @sort('tasks', function (a, b) {
     return getTaskSortPrefix(a).localeCompare(getTaskSortPrefix(b));
   })
   sortedLifecycleTasks;

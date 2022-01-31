@@ -9,16 +9,19 @@ import browseFilesystem from './behaviors/fs';
 let allocation;
 let files;
 
-module('Acceptance | allocation fs', function(hooks) {
+module('Acceptance | allocation fs', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     server.create('agent');
     server.create('node', 'forceIPv4');
     const job = server.create('job', { createAllocations: false });
 
-    allocation = server.create('allocation', { jobId: job.id, clientStatus: 'running' });
+    allocation = server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'running',
+    });
 
     this.allocation = allocation;
 
@@ -27,7 +30,13 @@ module('Acceptance | allocation fs', function(hooks) {
 
     // Nested files
     files.push(server.create('allocFile', { isDir: true, name: 'directory' }));
-    files.push(server.create('allocFile', { isDir: true, name: 'another', parent: files[0] }));
+    files.push(
+      server.create('allocFile', {
+        isDir: true,
+        name: 'another',
+        parent: files[0],
+      })
+    );
     files.push(
       server.create('allocFile', 'file', {
         name: 'something.txt',
@@ -36,7 +45,9 @@ module('Acceptance | allocation fs', function(hooks) {
       })
     );
 
-    files.push(server.create('allocFile', { isDir: true, name: 'empty-directory' }));
+    files.push(
+      server.create('allocFile', { isDir: true, name: 'empty-directory' })
+    );
     files.push(server.create('allocFile', 'file', { fileType: 'txt' }));
     files.push(server.create('allocFile', 'file', { fileType: 'txt' }));
 
@@ -47,8 +58,10 @@ module('Acceptance | allocation fs', function(hooks) {
 
   browseFilesystem({
     visitSegments: ({ allocation }) => ({ id: allocation.id }),
-    getExpectedPathBase: ({ allocation }) => `/allocations/${allocation.id}/fs/`,
-    getTitleComponent: ({ allocation }) => `Allocation ${allocation.id.split('-')[0]} filesystem`,
+    getExpectedPathBase: ({ allocation }) =>
+      `/allocations/${allocation.id}/fs/`,
+    getTitleComponent: ({ allocation }) =>
+      `Allocation ${allocation.id.split('-')[0]} filesystem`,
     getBreadcrumbComponent: ({ allocation }) => allocation.id.split('-')[0],
     getFilesystemRoot: () => '',
     pageObjectVisitFunctionName: 'visitAllocation',

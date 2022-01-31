@@ -5,7 +5,7 @@ import faker from 'nomad-ui/mirage/faker';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Integration | Component | list table', function(hooks) {
+module('Integration | Component | list table', function (hooks) {
   setupRenderingTest(hooks);
 
   const commonTable = Array(10)
@@ -17,7 +17,7 @@ module('Integration | Component | list table', function(hooks) {
     }));
 
   // thead
-  test('component exposes a thead contextual component', async function(assert) {
+  test('component exposes a thead contextual component', async function (assert) {
     this.set('source', commonTable);
     await render(hbs`
       <ListTable @source={{source}} @sortProperty={{sortProperty}} @sortDescending={{sortDescending}} as |t|>
@@ -30,11 +30,17 @@ module('Integration | Component | list table', function(hooks) {
     `);
 
     assert.ok(findAll('.head').length, 'Table head is rendered');
-    assert.equal(find('.head').tagName.toLowerCase(), 'thead', 'Table head is a thead element');
+    assert.equal(
+      find('.head').tagName.toLowerCase(),
+      'thead',
+      'Table head is a thead element'
+    );
   });
 
   // tbody
-  test('component exposes a tbody contextual component', async function(assert) {
+  test('component exposes a tbody contextual component', async function (assert) {
+    assert.expect(44);
+
     this.setProperties({
       source: commonTable,
       sortProperty: 'firstName',
@@ -54,18 +60,42 @@ module('Integration | Component | list table', function(hooks) {
     `);
 
     assert.ok(findAll('.body').length, 'Table body is rendered');
-    assert.equal(find('.body').tagName.toLowerCase(), 'tbody', 'Table body is a tbody element');
+    assert.equal(
+      find('.body').tagName.toLowerCase(),
+      'tbody',
+      'Table body is a tbody element'
+    );
 
-    assert.equal(findAll('.item').length, this.get('source.length'), 'Each item gets its own row');
+    assert.equal(
+      findAll('.item').length,
+      this.get('source.length'),
+      'Each item gets its own row'
+    );
 
     // list-table is not responsible for sorting, only dispatching sort events. The table is still
     // rendered in index-order.
     this.source.forEach((item, index) => {
       const $item = this.element.querySelectorAll('.item')[index];
-      assert.equal($item.querySelectorAll('td')[0].innerHTML.trim(), item.firstName, 'First name');
-      assert.equal($item.querySelectorAll('td')[1].innerHTML.trim(), item.lastName, 'Last name');
-      assert.equal($item.querySelectorAll('td')[2].innerHTML.trim(), item.age, 'Age');
-      assert.equal($item.querySelectorAll('td')[3].innerHTML.trim(), index, 'Index');
+      assert.equal(
+        $item.querySelectorAll('td')[0].innerHTML.trim(),
+        item.firstName,
+        'First name'
+      );
+      assert.equal(
+        $item.querySelectorAll('td')[1].innerHTML.trim(),
+        item.lastName,
+        'Last name'
+      );
+      assert.equal(
+        $item.querySelectorAll('td')[2].innerHTML.trim(),
+        item.age,
+        'Age'
+      );
+      assert.equal(
+        $item.querySelectorAll('td')[3].innerHTML.trim(),
+        index,
+        'Index'
+      );
     });
 
     await componentA11yAudit(this.element, assert);
@@ -74,5 +104,5 @@ module('Integration | Component | list table', function(hooks) {
   // Ember doesn't support query params (or controllers or routes) in integration tests,
   // so sorting links can only be tested in acceptance tests.
   // Leaving this test here for posterity.
-  skip('sort-by creates links using the appropriate links given sort property and sort descending', function() {});
+  skip('sort-by creates links using the appropriate links given sort property and sort descending', function () {});
 });

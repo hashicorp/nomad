@@ -33,7 +33,7 @@ export default class ChartPrimitiveVAnnotations extends Component {
 
     let prevX = 0;
     let prevHigh = false;
-    return sortedAnnotations.map(annotation => {
+    return sortedAnnotations.map((annotation) => {
       const x = scale(annotation[prop]);
       if (prevX && !prevHigh && Math.abs(x - prevX) < 30) {
         prevHigh = true;

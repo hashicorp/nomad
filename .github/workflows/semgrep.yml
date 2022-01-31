@@ -1,0 +1,18 @@
+name: Semgrep
+
+on:
+  pull_request: {}
+  # Skipping push for now since it would run against the entire code base.
+  # push:
+
+jobs:
+  semgrep:
+    name: Semgrep Scan
+    runs-on: ubuntu-latest
+    env:
+      SEMGREP_SEND_METRICS: 0
+    # Skip any PR created by dependabot to avoid permission issues
+    if: (github.actor != 'dependabot[bot]')
+    steps:
+      - uses: actions/checkout@v2
+      - uses: returntocorp/semgrep-action@v1

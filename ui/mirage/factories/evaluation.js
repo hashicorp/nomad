@@ -91,7 +91,9 @@ export default Factory.extend({
   }),
 
   afterCreate(evaluation, server) {
-    assignJob(evaluation, server);
+    if (!evaluation.nodeId) {
+      assignJob(evaluation, server);
+    }
   },
 });
 

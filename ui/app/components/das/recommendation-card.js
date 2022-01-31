@@ -93,35 +93,39 @@ export default class DasRecommendationCardComponent extends Component {
   get taskToggleRows() {
     const taskNameToTaskToggles = {};
 
-    return this.args.summary.recommendations.reduce((taskToggleRows, recommendation) => {
-      let taskToggleRow = taskNameToTaskToggles[recommendation.task.name];
+    return this.args.summary.recommendations.reduce(
+      (taskToggleRows, recommendation) => {
+        let taskToggleRow = taskNameToTaskToggles[recommendation.task.name];
 
-      if (!taskToggleRow) {
-        taskToggleRow = {
-          recommendations: [],
-          task: recommendation.task,
+        if (!taskToggleRow) {
+          taskToggleRow = {
+            recommendations: [],
+            task: recommendation.task,
+          };
+
+          taskNameToTaskToggles[recommendation.task.name] = taskToggleRow;
+          taskToggleRows.push(taskToggleRow);
+        }
+
+        const isCpu = recommendation.resource === 'CPU';
+        const rowResourceProperty = isCpu ? 'cpu' : 'memory';
+
+        taskToggleRow[rowResourceProperty] = {
+          recommendation,
+          isActive:
+            !this.args.summary.excludedRecommendations.includes(recommendation),
         };
 
-        taskNameToTaskToggles[recommendation.task.name] = taskToggleRow;
-        taskToggleRows.push(taskToggleRow);
-      }
+        if (isCpu) {
+          taskToggleRow.recommendations.unshift(recommendation);
+        } else {
+          taskToggleRow.recommendations.push(recommendation);
+        }
 
-      const isCpu = recommendation.resource === 'CPU';
-      const rowResourceProperty = isCpu ? 'cpu' : 'memory';
-
-      taskToggleRow[rowResourceProperty] = {
-        recommendation,
-        isActive: !this.args.summary.excludedRecommendations.includes(recommendation),
-      };
-
-      if (isCpu) {
-        taskToggleRow.recommendations.unshift(recommendation);
-      } else {
-        taskToggleRow.recommendations.push(recommendation);
-      }
-
-      return taskToggleRows;
-    }, []);
+        return taskToggleRows;
+      },
+      []
+    );
   }
 
   get showToggleAllToggles() {
@@ -129,23 +133,30 @@ export default class DasRecommendationCardComponent extends Component {
   }
 
   get allCpuToggleDisabled() {
-    return !this.args.summary.recommendations.filterBy('resource', 'CPU').length;
+    return !this.args.summary.recommendations.filterBy('resource', 'CPU')
+      .length;
   }
 
   get allMemoryToggleDisabled() {
-    return !this.args.summary.recommendations.filterBy('resource', 'MemoryMB').length;
+    return !this.args.summary.recommendations.filterBy('resource', 'MemoryMB')
+      .length;
   }
 
   get cannotAccept() {
     return (
-      this.args.summary.excludedRecommendations.length == this.args.summary.recommendations.length
+      this.args.summary.excludedRecommendations.length ==
+      this.args.summary.recommendations.length
     );
   }
 
   get copyButtonLink() {
-    const path = this.router.urlFor('optimize.summary', this.args.summary.slug, {
-      queryParams: { namespace: this.args.summary.jobNamespace },
-    });
+    const path = this.router.urlFor(
+      'optimize.summary',
+      this.args.summary.slug,
+      {
+        queryParams: { namespace: this.args.summary.jobNamespace },
+      }
+    );
     const { origin } = window.location;
 
     return `${origin}${path}`;
@@ -173,9 +184,9 @@ export default class DasRecommendationCardComponent extends Component {
       .save()
       .then(
         () => this.onApplied.perform(),
-        e => this.onError.perform(e)
+        (e) => this.onError.perform(e)
       )
-      .catch(e => {
+      .catch((e) => {
         if (!didCancel(e)) {
           throw e;
         }
@@ -185,21 +196,23 @@ export default class DasRecommendationCardComponent extends Component {
   @action
   dismiss() {
     this.storeCardHeight();
-    this.args.summary.excludedRecommendations.pushObjects(this.args.summary.recommendations);
+    this.args.summary.excludedRecommendations.pushObjects(
+      this.args.summary.recommendations
+    );
     this.args.summary
       .save()
       .then(
         () => this.onDismissed.perform(),
-        e => this.onError.perform(e)
+        (e) => this.onError.perform(e)
       )
-      .catch(e => {
+      .catch((e) => {
         if (!didCancel(e)) {
           throw e;
         }
       });
   }
 
-  @(task(function*() {
+  @(task(function* () {
     this.interstitialComponent = 'accepted';
     yield timeout(Ember.testing ? 0 : 2000);
 
@@ -208,8 +221,8 @@ export default class DasRecommendationCardComponent extends Component {
   }).drop())
   onApplied;
 
-  @(task(function*() {
-    const { manuallyDismissed } = yield new Promise(resolve => {
+  @(task(function* () {
+    const { manuallyDismissed } = yield new Promise((resolve) => {
       this.proceedPromiseResolve = resolve;
       this.interstitialComponent = 'dismissed';
     });
@@ -223,8 +236,8 @@ export default class DasRecommendationCardComponent extends Component {
   }).drop())
   onDismissed;
 
-  @(task(function*(error) {
-    yield new Promise(resolve => {
+  @(task(function* (error) {
+    yield new Promise((resolve) => {
       this.proceedPromiseResolve = resolve;
       this.interstitialComponent = 'error';
       this.error = error.toString();

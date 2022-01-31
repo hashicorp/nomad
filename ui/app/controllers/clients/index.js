@@ -7,14 +7,17 @@ import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';
-import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
+import {
+  serialize,
+  deserializedQueryParam as selection,
+} from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 
 @classic
 export default class IndexController extends Controller.extend(
-    SortableFactory(['id', 'name', 'compositeStatus', 'datacenter', 'version']),
-    Searchable
-  ) {
+  SortableFactory(['id', 'name', 'compositeStatus', 'datacenter', 'version']),
+  Searchable
+) {
   @service userSettings;
   @controller('clients') clientsController;
 
@@ -83,10 +86,13 @@ export default class IndexController extends Controller.extend(
     // Remove any invalid node classes from the query param/selection
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpClass', serialize(intersection(classes, this.selectionClass)));
+      this.set(
+        'qpClass',
+        serialize(intersection(classes, this.selectionClass))
+      );
     });
 
-    return classes.sort().map(dc => ({ key: dc, label: dc }));
+    return classes.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
   @computed
@@ -102,15 +108,20 @@ export default class IndexController extends Controller.extend(
 
   @computed('nodes.[]', 'selectionDatacenter')
   get optionsDatacenter() {
-    const datacenters = Array.from(new Set(this.nodes.mapBy('datacenter'))).compact();
+    const datacenters = Array.from(
+      new Set(this.nodes.mapBy('datacenter'))
+    ).compact();
 
     // Remove any invalid datacenters from the query param/selection
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpDatacenter', serialize(intersection(datacenters, this.selectionDatacenter)));
+      this.set(
+        'qpDatacenter',
+        serialize(intersection(datacenters, this.selectionDatacenter))
+      );
     });
 
-    return datacenters.sort().map(dc => ({ key: dc, label: dc }));
+    return datacenters.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
   @computed('nodes.[]', 'selectionVersion')
@@ -120,10 +131,13 @@ export default class IndexController extends Controller.extend(
     // Remove any invalid versions from the query param/selection
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpVersion', serialize(intersection(versions, this.selectionVersion)));
+      this.set(
+        'qpVersion',
+        serialize(intersection(versions, this.selectionVersion))
+      );
     });
 
-    return versions.sort().map(v => ({ key: v, label: v }));
+    return versions.sort().map((v) => ({ key: v, label: v }));
   }
 
   @computed('nodes.[]', 'selectionVolume')
@@ -135,10 +149,13 @@ export default class IndexController extends Controller.extend(
 
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpVolume', serialize(intersection(volumes, this.selectionVolume)));
+      this.set(
+        'qpVolume',
+        serialize(intersection(volumes, this.selectionVolume))
+      );
     });
 
-    return volumes.sort().map(volume => ({ key: volume, label: volume }));
+    return volumes.sort().map((volume) => ({ key: volume, label: volume }));
   }
 
   @computed(
@@ -164,12 +181,19 @@ export default class IndexController extends Controller.extend(
     // states is a composite of node status and other node states
     const statuses = states.without('ineligible').without('draining');
 
-    return this.nodes.filter(node => {
-      if (classes.length && !classes.includes(node.get('nodeClass'))) return false;
-      if (statuses.length && !statuses.includes(node.get('status'))) return false;
-      if (datacenters.length && !datacenters.includes(node.get('datacenter'))) return false;
-      if (versions.length && !versions.includes(node.get('version'))) return false;
-      if (volumes.length && !node.hostVolumes.find(volume => volumes.includes(volume.name)))
+    return this.nodes.filter((node) => {
+      if (classes.length && !classes.includes(node.get('nodeClass')))
+        return false;
+      if (statuses.length && !statuses.includes(node.get('status')))
+        return false;
+      if (datacenters.length && !datacenters.includes(node.get('datacenter')))
+        return false;
+      if (versions.length && !versions.includes(node.get('version')))
+        return false;
+      if (
+        volumes.length &&
+        !node.hostVolumes.find((volume) => volumes.includes(volume.name))
+      )
         return false;
 
       if (onlyIneligible && node.get('isEligible')) return false;

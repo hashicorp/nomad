@@ -9,15 +9,18 @@ import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
-import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
+import {
+  serialize,
+  deserializedQueryParam as selection,
+} from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 
 @classic
 export default class TaskGroupController extends Controller.extend(
-    Sortable,
-    Searchable,
-    WithNamespaceResetting
-  ) {
+  Sortable,
+  Searchable,
+  WithNamespaceResetting
+) {
   @service userSettings;
   @service can;
 
@@ -64,11 +67,17 @@ export default class TaskGroupController extends Controller.extend(
   get filteredAllocations() {
     const { selectionStatus, selectionClient } = this;
 
-    return this.allocations.filter(alloc => {
-      if (selectionStatus.length && !selectionStatus.includes(alloc.clientStatus)) {
+    return this.allocations.filter((alloc) => {
+      if (
+        selectionStatus.length &&
+        !selectionStatus.includes(alloc.clientStatus)
+      ) {
         return false;
       }
-      if (selectionClient.length && !selectionClient.includes(alloc.get('node.shortId'))) {
+      if (
+        selectionClient.length &&
+        !selectionClient.includes(alloc.get('node.shortId'))
+      ) {
         return false;
       }
 
@@ -83,7 +92,7 @@ export default class TaskGroupController extends Controller.extend(
   @selection('qpStatus') selectionStatus;
   @selection('qpClient') selectionClient;
 
-  @computed('model.scaleState.events.@each.time', function() {
+  @computed('model.scaleState.events.@each.time', function () {
     const events = get(this, 'model.scaleState.events');
     if (events) {
       return events.sortBy('time').reverse();
@@ -92,17 +101,25 @@ export default class TaskGroupController extends Controller.extend(
   })
   sortedScaleEvents;
 
-  @computed('sortedScaleEvents.@each.hasCount', function() {
+  @computed('sortedScaleEvents.@each.hasCount', function () {
     const countEventsCount = this.sortedScaleEvents.filterBy('hasCount').length;
-    return countEventsCount > 1 && countEventsCount >= this.sortedScaleEvents.length / 2;
+    return (
+      countEventsCount > 1 &&
+      countEventsCount >= this.sortedScaleEvents.length / 2
+    );
   })
   shouldShowScaleEventTimeline;
 
   @computed('model.job.{namespace,runningDeployment}')
   get tooltipText() {
-    if (this.can.cannot('scale job', null, { namespace: this.model.job.namespace.get('name') }))
+    if (
+      this.can.cannot('scale job', null, {
+        namespace: this.model.job.namespace.get('name'),
+      })
+    )
       return "You aren't allowed to scale task groups";
-    if (this.model.job.runningDeployment) return 'You cannot scale task groups during a deployment';
+    if (this.model.job.runningDeployment)
+      return 'You cannot scale task groups during a deployment';
     return undefined;
   }
 
@@ -128,15 +145,20 @@ export default class TaskGroupController extends Controller.extend(
 
   @computed('model.allocations.[]', 'selectionClient')
   get optionsClients() {
-    const clients = Array.from(new Set(this.model.allocations.mapBy('node.shortId'))).compact();
+    const clients = Array.from(
+      new Set(this.model.allocations.mapBy('node.shortId'))
+    ).compact();
 
     // Update query param when the list of clients changes.
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpClient', serialize(intersection(clients, this.selectionClient)));
+      this.set(
+        'qpClient',
+        serialize(intersection(clients, this.selectionClient))
+      );
     });
 
-    return clients.sort().map(dc => ({ key: dc, label: dc }));
+    return clients.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
   setFacetQueryParam(queryParam, selection) {

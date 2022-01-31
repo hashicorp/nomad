@@ -6,9 +6,9 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class EvaluationsController extends Controller.extend(
-    WithNamespaceResetting,
-    Sortable
-  ) {
+  WithNamespaceResetting,
+  Sortable
+) {
   queryParams = [
     {
       sortProperty: 'sort',

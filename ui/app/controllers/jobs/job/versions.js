@@ -12,14 +12,18 @@ const errorLevelToAlertClass = {
 };
 
 @classic
-export default class VersionsController extends Controller.extend(WithNamespaceResetting) {
+export default class VersionsController extends Controller.extend(
+  WithNamespaceResetting
+) {
   error = null;
 
   @alias('model') job;
 
   @computed('error.level')
   get errorLevelClass() {
-    return errorLevelToAlertClass[this.get('error.level')] || alertClassFallback;
+    return (
+      errorLevelToAlertClass[this.get('error.level')] || alertClassFallback
+    );
   }
 
   onDismiss() {

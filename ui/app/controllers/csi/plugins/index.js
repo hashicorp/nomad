@@ -9,14 +9,14 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class IndexController extends Controller.extend(
-    SortableFactory([
-      'plainId',
-      'controllersHealthyProportion',
-      'nodesHealthyProportion',
-      'provider',
-    ]),
-    Searchable
-  ) {
+  SortableFactory([
+    'plainId',
+    'controllersHealthyProportion',
+    'nodesHealthyProportion',
+    'provider',
+  ]),
+  Searchable
+) {
   @service userSettings;
   @controller('csi/plugins') pluginsController;
 
@@ -59,6 +59,9 @@ export default class IndexController extends Controller.extend(
 
   @action
   gotoPlugin(plugin, event) {
-    lazyClick([() => this.transitionToRoute('csi.plugins.plugin', plugin.plainId), event]);
+    lazyClick([
+      () => this.transitionToRoute('csi.plugins.plugin', plugin.plainId),
+      event,
+    ]);
   }
 }

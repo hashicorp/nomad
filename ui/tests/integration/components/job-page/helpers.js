@@ -24,12 +24,15 @@ export function expectStartRequest(assert, server, job) {
   const expectedURL = jobURL(job);
   const request = server.pretender.handledRequests
     .filterBy('method', 'POST')
-    .find(req => req.url === expectedURL);
+    .find((req) => req.url === expectedURL);
 
   const requestPayload = JSON.parse(request.requestBody).Job;
 
   assert.ok(request, 'POST URL was made correctly');
-  assert.ok(requestPayload.Stop == null, 'The Stop signal is not sent in the POST request');
+  assert.ok(
+    requestPayload.Stop == null,
+    'The Stop signal is not sent in the POST request'
+  );
 }
 
 export async function expectError(assert, title) {
@@ -44,7 +47,10 @@ export async function expectError(assert, title) {
   );
 
   await click('[data-test-job-error-close]');
-  assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
+  assert.notOk(
+    find('[data-test-job-error-title]'),
+    'Error message is dismissable'
+  );
 }
 
 export function expectDeleteRequest(assert, server, job) {
@@ -53,7 +59,7 @@ export function expectDeleteRequest(assert, server, job) {
   assert.ok(
     server.pretender.handledRequests
       .filterBy('method', 'DELETE')
-      .find(req => req.url === expectedURL),
+      .find((req) => req.url === expectedURL),
     'DELETE URL was made correctly'
   );
 }

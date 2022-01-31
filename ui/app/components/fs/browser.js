@@ -39,11 +39,18 @@ export default class Browser extends Component {
   @filterBy('directoryEntries', 'IsDir') directories;
   @filterBy('directoryEntries', 'IsDir', false) files;
 
-  @computed('directories', 'directoryEntries.[]', 'files', 'sortDescending', 'sortProperty')
+  @computed(
+    'directories',
+    'directoryEntries.[]',
+    'files',
+    'sortDescending',
+    'sortProperty'
+  )
   get sortedDirectoryEntries() {
     const sortProperty = this.sortProperty;
 
-    const directorySortProperty = sortProperty === 'Size' ? 'Name' : sortProperty;
+    const directorySortProperty =
+      sortProperty === 'Size' ? 'Name' : sortProperty;
 
     const sortedDirectories = this.directories.sortBy(directorySortProperty);
     const sortedFiles = this.files.sortBy(sortProperty);

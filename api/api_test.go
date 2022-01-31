@@ -1,10 +1,13 @@
 package api
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -567,4 +570,50 @@ func TestClient_HeaderRaceCondition(t *testing.T) {
 	require.Len(r.Header, 2, "local request should have two headers")
 	require.Equal(2, <-c, "goroutine  request should have two headers")
 	require.Len(conf.Headers, 1, "config headers should not mutate")
+}
+
+func TestClient_autoUnzip(t *testing.T) {
+	var client *Client = nil
+
+	try := func(resp *http.Response, exp error) {
+		err := client.autoUnzip(resp)
+		require.Equal(t, exp, err)
+	}
+
+	// response object is nil
+	try(nil, nil)
+
+	// response.Body is nil
+	try(new(http.Response), nil)
+
+	// content-encoding is not gzip
+	try(&http.Response{
+		Header: http.Header{"Content-Encoding": []string{"text"}},
+	}, nil)
+
+	// content-encoding is gzip but body is empty
+	try(&http.Response{
+		Header: http.Header{"Content-Encoding": []string{"gzip"}},
+		Body:   io.NopCloser(bytes.NewBuffer([]byte{})),
+	}, nil)
+
+	// content-encoding is gzip but body is invalid gzip
+	try(&http.Response{
+		Header: http.Header{"Content-Encoding": []string{"gzip"}},
+		Body:   io.NopCloser(bytes.NewBuffer([]byte("not a zip"))),
+	}, errors.New("unexpected EOF"))
+
+	// sample gzip payload
+	var b bytes.Buffer
+	w := gzip.NewWriter(&b)
+	_, err := w.Write([]byte("hello world"))
+	require.NoError(t, err)
+	err = w.Close()
+	require.NoError(t, err)
+
+	// content-encoding is gzip and body is gzip data
+	try(&http.Response{
+		Header: http.Header{"Content-Encoding": []string{"gzip"}},
+		Body:   io.NopCloser(&b),
+	}, nil)
 }

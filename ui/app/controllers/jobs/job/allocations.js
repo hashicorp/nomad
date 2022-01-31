@@ -7,15 +7,18 @@ import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
-import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
+import {
+  serialize,
+  deserializedQueryParam as selection,
+} from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 
 @classic
 export default class AllocationsController extends Controller.extend(
-    Sortable,
-    Searchable,
-    WithNamespaceResetting
-  ) {
+  Sortable,
+  Searchable,
+  WithNamespaceResetting
+) {
   queryParams = [
     {
       currentPage: 'page',
@@ -61,18 +64,32 @@ export default class AllocationsController extends Controller.extend(
     return this.get('model.allocations') || [];
   }
 
-  @computed('allocations.[]', 'selectionStatus', 'selectionClient', 'selectionTaskGroup')
+  @computed(
+    'allocations.[]',
+    'selectionStatus',
+    'selectionClient',
+    'selectionTaskGroup'
+  )
   get filteredAllocations() {
     const { selectionStatus, selectionClient, selectionTaskGroup } = this;
 
-    return this.allocations.filter(alloc => {
-      if (selectionStatus.length && !selectionStatus.includes(alloc.clientStatus)) {
+    return this.allocations.filter((alloc) => {
+      if (
+        selectionStatus.length &&
+        !selectionStatus.includes(alloc.clientStatus)
+      ) {
         return false;
       }
-      if (selectionClient.length && !selectionClient.includes(alloc.get('node.shortId'))) {
+      if (
+        selectionClient.length &&
+        !selectionClient.includes(alloc.get('node.shortId'))
+      ) {
         return false;
       }
-      if (selectionTaskGroup.length && !selectionTaskGroup.includes(alloc.taskGroupName)) {
+      if (
+        selectionTaskGroup.length &&
+        !selectionTaskGroup.includes(alloc.taskGroupName)
+      ) {
         return false;
       }
       return true;
@@ -104,28 +121,38 @@ export default class AllocationsController extends Controller.extend(
 
   @computed('model.allocations.[]', 'selectionClient')
   get optionsClients() {
-    const clients = Array.from(new Set(this.model.allocations.mapBy('node.shortId'))).compact();
+    const clients = Array.from(
+      new Set(this.model.allocations.mapBy('node.shortId'))
+    ).compact();
 
     // Update query param when the list of clients changes.
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpClient', serialize(intersection(clients, this.selectionClient)));
+      this.set(
+        'qpClient',
+        serialize(intersection(clients, this.selectionClient))
+      );
     });
 
-    return clients.sort().map(c => ({ key: c, label: c }));
+    return clients.sort().map((c) => ({ key: c, label: c }));
   }
 
   @computed('model.allocations.[]', 'selectionTaskGroup')
   get optionsTaskGroups() {
-    const taskGroups = Array.from(new Set(this.model.allocations.mapBy('taskGroupName'))).compact();
+    const taskGroups = Array.from(
+      new Set(this.model.allocations.mapBy('taskGroupName'))
+    ).compact();
 
     // Update query param when the list of task groups changes.
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpTaskGroup', serialize(intersection(taskGroups, this.selectionTaskGroup)));
+      this.set(
+        'qpTaskGroup',
+        serialize(intersection(taskGroups, this.selectionTaskGroup))
+      );
     });
 
-    return taskGroups.sort().map(tg => ({ key: tg, label: tg }));
+    return taskGroups.sort().map((tg) => ({ key: tg, label: tg }));
   }
 
   setFacetQueryParam(queryParam, selection) {

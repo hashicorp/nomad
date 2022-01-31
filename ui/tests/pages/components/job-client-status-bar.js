@@ -1,12 +1,17 @@
 import { attribute, clickable, collection } from 'ember-cli-page-object';
 
-export default scope => ({
+export default (scope) => ({
   scope,
 
   slices: collection('svg .bars g', {
     label: attribute('data-test-slice-label'),
     click: clickable(),
   }),
+
+  expand: {
+    scope: '[data-test-accordion-toggle]',
+    click: clickable(),
+  },
 
   legend: {
     scope: '.legend',
@@ -21,17 +26,11 @@ export default scope => ({
     }),
   },
 
-  visitSlice: async function(label) {
-    await this.slices
-      .toArray()
-      .findBy('label', label)
-      .click();
+  visitSlice: async function (label) {
+    await this.slices.toArray().findBy('label', label).click();
   },
 
-  visitLegend: async function(label) {
-    await this.legend.clickableItems
-      .toArray()
-      .findBy('label', label)
-      .click();
+  visitLegend: async function (label) {
+    await this.legend.clickableItems.toArray().findBy('label', label).click();
   },
 });

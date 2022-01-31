@@ -1,38 +1,28 @@
-<JobPage::Parts::Body @job={{this.job}}>
-  <JobPage::Parts::Error @errorMessage={{this.errorMessage}} @onDismiss={{action "clearErrorMessage"}} />
-
-  <JobPage::Parts::Title @job={{this.job}} @title={{this.job.trimmedName}} @handleError={{action "handleError"}} />
-
-  <JobPage::Parts::StatsBox @job={{this.job}}>
-    <:before-namespace>
-      <span class="pair" data-test-job-stat="parent">
-        <span class="term">Parent</span>
-        <LinkTo @route="jobs.job" @model={{this.job.parent}} @query={{hash namespace=this.job.parent.namespace.name}}>
-          {{this.job.parent.name}}
-        </LinkTo>
-      </span>
-    </:before-namespace>
-  </JobPage::Parts::StatsBox>
-
-  {{#if this.job.hasClientStatus}}
-    <JobPage::Parts::JobClientStatusSummary
-      @job={{this.job}}
-      @nodes={{this.nodes}}
-      @forceCollapsed={{not this.shouldDisplayClientInformation}}
-      @gotoClients={{this.gotoClients}} />
-  {{/if}}
-
-  <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed={{this.shouldDisplayClientInformation}} />
-
-  <JobPage::Parts::PlacementFailures @job={{this.job}} />
-
-  <JobPage::Parts::TaskGroups
-    @job={{this.job}}
-    @sortProperty={{this.sortProperty}}
-    @sortDescending={{this.sortDescending}}
-    @gotoTaskGroup={{this.gotoTaskGroup}} />
-
-  <JobPage::Parts::RecentAllocations @job={{this.job}} />
-
-  <JobPage::Parts::Meta @job={{this.job}} />
-</JobPage::Parts::Body>
+<JobPage @job={{@job}} as |jobPage|>
+  <jobPage.ui.Body>
+    <jobPage.ui.Error />
+    <jobPage.ui.Title @title={{@job.trimmedName}} />
+    <jobPage.ui.StatsBox>
+      <:before-namespace>
+        <span class="pair" data-test-job-stat="parent">
+          <span class="term">
+            Parent
+          </span>
+          <LinkTo
+            @route="jobs.job"
+            @model={{@job.parent}}
+            @query={{hash namespace=@job.parent.namespace.name}}
+          >
+            {{@job.parent.name}}
+          </LinkTo>
+        </span>
+      </:before-namespace>
+    </jobPage.ui.StatsBox>
+    <jobPage.ui.JobClientStatusSummary />
+    <jobPage.ui.Summary @forceCollapsed={{@job.hasClientStatus}} />
+    <jobPage.ui.PlacementFailures />
+    <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} />
+    <jobPage.ui.RecentAllocations />
+    <jobPage.ui.Meta />
+  </jobPage.ui.Body>
+</JobPage>

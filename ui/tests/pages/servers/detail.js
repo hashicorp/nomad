@@ -1,4 +1,11 @@
-import { create, collection, clickable, isPresent, text, visitable } from 'ember-cli-page-object';
+import {
+  create,
+  collection,
+  clickable,
+  isPresent,
+  text,
+  visitable,
+} from 'ember-cli-page-object';
 
 export default create({
   visit: visitable('/servers/:name'),

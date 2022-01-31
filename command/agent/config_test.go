@@ -1413,6 +1413,41 @@ func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 	require.Equal(t, 20*time.Second, *templateConfig.VaultRetry.MaxBackoff)
 }
 
+func TestConfig_LoadConsulTemplateBasic(t *testing.T) {
+	defaultConfig := DefaultConfig()
+
+	// hcl
+	agentConfig, err := LoadConfig("test-resources/client_with_basic_template.hcl")
+	require.NoError(t, err)
+	require.NotNil(t, agentConfig.Client.TemplateConfig)
+
+	agentConfig = defaultConfig.Merge(agentConfig)
+
+	clientAgent := Agent{config: agentConfig}
+	clientConfig, err := clientAgent.clientConfig()
+	require.NoError(t, err)
+
+	templateConfig := clientConfig.TemplateConfig
+	require.NotNil(t, templateConfig)
+	require.True(t, templateConfig.DisableSandbox)
+	require.Len(t, templateConfig.FunctionDenylist, 1)
+
+	// json
+	agentConfig, err = LoadConfig("test-resources/client_with_basic_template.json")
+	require.NoError(t, err)
+
+	agentConfig = defaultConfig.Merge(agentConfig)
+
+	clientAgent = Agent{config: agentConfig}
+	clientConfig, err = clientAgent.clientConfig()
+	require.NoError(t, err)
+
+	templateConfig = clientConfig.TemplateConfig
+	require.NotNil(t, templateConfig)
+	require.True(t, templateConfig.DisableSandbox)
+	require.Len(t, templateConfig.FunctionDenylist, 1)
+}
+
 func TestParseMultipleIPTemplates(t *testing.T) {
 	testCases := []struct {
 		name        string

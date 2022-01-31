@@ -20,7 +20,11 @@ export default class Job extends AbstractAbility {
   @or('bypassAuthorization', 'selfTokenIsManagement')
   canListAll;
 
-  @or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportDispatching')
+  @or(
+    'bypassAuthorization',
+    'selfTokenIsManagement',
+    'policiesSupportDispatching'
+  )
   canDispatch;
 
   @computed('rulesForNamespace.@each.capabilities')

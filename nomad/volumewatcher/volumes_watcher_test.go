@@ -23,7 +23,7 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 	index := uint64(100)
 
 	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv, "")
-	watcher.SetEnabled(true, srv.State())
+	watcher.SetEnabled(true, srv.State(), "")
 
 	plugin := mock.CSIPlugin()
 	node := testNode(plugin, srv.State())
@@ -48,7 +48,7 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 		return 1 == len(watcher.watchers)
 	}, time.Second, 10*time.Millisecond)
 
-	watcher.SetEnabled(false, nil)
+	watcher.SetEnabled(false, nil, "")
 	require.Equal(0, len(watcher.watchers))
 }
 
@@ -67,13 +67,18 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 	plugin := mock.CSIPlugin()
 	node := testNode(plugin, srv.State())
 	alloc := mock.Alloc()
-	alloc.ClientStatus = structs.AllocClientStatusComplete
+	alloc.ClientStatus = structs.AllocClientStatusRunning
 	vol := testVolume(plugin, alloc, node.ID)
 
-	watcher.SetEnabled(true, srv.State())
+	index++
+	err := srv.State().UpsertAllocs(structs.MsgTypeTestSetup, index,
+		[]*structs.Allocation{alloc})
+	require.NoError(err)
+
+	watcher.SetEnabled(true, srv.State(), "")
 
 	index++
-	err := srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	err = srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
 	require.NoError(err)
 
 	// we should get or start up a watcher when we get an update for
@@ -94,7 +99,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 	// watches for that change will fire on the new watcher
 
 	// step-down (this is sync)
-	watcher.SetEnabled(false, nil)
+	watcher.SetEnabled(false, nil, "")
 	require.Equal(0, len(watcher.watchers))
 
 	// allocation is now invalid
@@ -116,7 +121,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 	// create a new watcher and enable it to simulate the leadership
 	// transition
 	watcher = NewVolumesWatcher(testlog.HCLogger(t), srv, "")
-	watcher.SetEnabled(true, srv.State())
+	watcher.SetEnabled(true, srv.State(), "")
 
 	require.Eventually(func() bool {
 		watcher.wlock.RLock()
@@ -142,7 +147,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	index := uint64(100)
 	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv, "")
 
-	watcher.SetEnabled(true, srv.State())
+	watcher.SetEnabled(true, srv.State(), "")
 	require.Equal(0, len(watcher.watchers))
 
 	plugin := mock.CSIPlugin()
@@ -237,7 +242,7 @@ func TestVolumeWatch_RegisterDeregister(t *testing.T) {
 
 	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv, "")
 
-	watcher.SetEnabled(true, srv.State())
+	watcher.SetEnabled(true, srv.State(), "")
 	require.Equal(0, len(watcher.watchers))
 
 	plugin := mock.CSIPlugin()
