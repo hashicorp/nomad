@@ -2,11 +2,69 @@ import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
+import { matchesState, useMachine } from 'ember-statecharts';
+import { use } from 'ember-usable';
+import evaluationsMachine from '../../machines/evaluations';
 
 export default class EvaluationsController extends Controller {
   @service userSettings;
+  @service store;
 
-  queryParams = ['nextToken', 'pageSize', 'status'];
+  @matchesState({ sidebar: 'open' })
+  isSideBarOpen;
+
+  @use statechart = useMachine(evaluationsMachine).withConfig({
+    services: {
+      loadEvaluation: this.loadEvaluation,
+    },
+    actions: {
+      updateEvaluationQueryParameter: this.updateEvaluationQueryParameter,
+      removeCurrentEvaluationQueryParameter:
+        this.removeCurrentEvaluationQueryParameter,
+    },
+    guards: {
+      sidebarIsOpen: this._sidebarIsOpen,
+    },
+  });
+
+  queryParams = ['nextToken', 'currentEval', 'pageSize', 'status'];
+  @tracked currentEval = null;
+
+  @action
+  _sidebarIsOpen() {
+    return !!this.currentEval;
+  }
+
+  @action
+  async loadEvaluation(context, { evaluation }) {
+    let evaluationId;
+    if (evaluation?.id) {
+      evaluationId = evaluation.id;
+    } else {
+      evaluationId = this.currentEval;
+    }
+    return this.store.findRecord('evaluation', evaluationId, { reload: true });
+  }
+
+  @action
+  closeSidebar() {
+    return this.statechart.send('MODAL_CLOSE');
+  }
+
+  @action
+  async handleEvaluationClick(evaluation) {
+    this.statechart.send('LOAD_EVALUATION', { evaluation });
+  }
+
+  @action
+  updateEvaluationQueryParameter(context, { evaluation }) {
+    this.currentEval = evaluation.id;
+  }
+
+  @action
+  removeCurrentEvaluationQueryParameter() {
+    this.currentEval = null;
+  }
 
   get shouldDisableNext() {
     return !this.model.meta?.nextToken;
@@ -31,6 +89,7 @@ export default class EvaluationsController extends Controller {
   @tracked nextToken = null;
   @tracked previousTokens = [];
   @tracked status = null;
+  @tracked isShown = false;
 
   @action
   onChange(newPageSize) {

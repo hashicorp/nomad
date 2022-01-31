@@ -2786,7 +2786,7 @@
     "@glimmer/env" "^0.1.7"
     "@glimmer/validator" "^0.44.0"
 
-"@glimmer/tracking@^1.0.2", "@glimmer/tracking@^1.0.4":
+"@glimmer/tracking@^1.0.1", "@glimmer/tracking@^1.0.2", "@glimmer/tracking@^1.0.4":
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/@glimmer/tracking/-/tracking-1.0.4.tgz#f1bc1412fe5e2236d0f8d502994a8f88af1bbb21"
   integrity sha512-F+oT8I55ba2puSGIzInmVrv/8QA2PcK1VD+GWgFMhF6WC97D+uZX7BFg+a3s/2N4FVBq5KHE+QxZzgazM151Yw==
@@ -8750,7 +8750,7 @@ ember-cli-htmlbars@^3.0.1:
     json-stable-stringify "^1.0.1"
     strip-bom "^3.0.0"
 
-ember-cli-htmlbars@^4.3.1:
+ember-cli-htmlbars@^4.2.0, ember-cli-htmlbars@^4.3.1:
   version "4.5.0"
   resolved "https://registry.yarnpkg.com/ember-cli-htmlbars/-/ember-cli-htmlbars-4.5.0.tgz#d299e4f7eba6f30dc723ee086906cc550beb252e"
   integrity sha512-bYJpK1pqFu9AadDAGTw05g2LMNzY8xTCIqQm7dMJmKEoUpLRFbPf4SfHXrktzDh7Q5iggl6Skzf1M0bPlIxARw==
@@ -9022,7 +9022,7 @@ ember-cli-typescript@^3.0.0, ember-cli-typescript@^3.1.3, ember-cli-typescript@^
     stagehand "^1.0.0"
     walk-sync "^2.0.0"
 
-ember-cli-typescript@^4.0.0:
+ember-cli-typescript@^4.0.0, ember-cli-typescript@^4.2.1:
   version "4.2.1"
   resolved "https://registry.yarnpkg.com/ember-cli-typescript/-/ember-cli-typescript-4.2.1.tgz#54d08fc90318cc986f3ea562f93ce58a6cc4c24d"
   integrity sha512-0iKTZ+/wH6UB/VTWKvGuXlmwiE8HSIGcxHamwNhEC5x1mN3z8RfvsFZdQWYUzIWFN2Tek0gmepGRPTwWdBYl/A==
@@ -9183,6 +9183,15 @@ ember-cli@~3.20.2:
     watch-detector "^1.0.0"
     yam "^1.0.0"
 
+ember-click-outside@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/ember-click-outside/-/ember-click-outside-3.0.0.tgz#a7271345c5960b5dfe1e45a7f7245d1cf8f383dc"
+  integrity sha512-X2hLE9Set/tQ9KAEUxfGzCTUgJu/g2sKG+t2ghk/EDz8zF+Y/DPtlxeyZTR6NEPsUbzu3Pqe9gWJUxwaiXC0wg==
+  dependencies:
+    ember-cli-babel "^7.26.6"
+    ember-cli-htmlbars "^5.7.1"
+    ember-modifier "^2.1.0 || ^3.0.0"
+
 ember-compatibility-helpers@^1.1.1, ember-compatibility-helpers@^1.1.2, ember-compatibility-helpers@^1.2.0, ember-compatibility-helpers@^1.2.1:
   version "1.2.2"
   resolved "https://registry.yarnpkg.com/ember-compatibility-helpers/-/ember-compatibility-helpers-1.2.2.tgz#839e0c24190b7a2ec8c39b80e030811b1a95b6d3"
@@ -9190,6 +9199,16 @@ ember-compatibility-helpers@^1.1.1, ember-compatibility-helpers@^1.1.2, ember-co
   dependencies:
     babel-plugin-debug-macros "^0.2.0"
     ember-cli-version-checker "^5.1.1"
+    semver "^5.4.1"
+
+ember-compatibility-helpers@^1.2.5:
+  version "1.2.5"
+  resolved "https://registry.yarnpkg.com/ember-compatibility-helpers/-/ember-compatibility-helpers-1.2.5.tgz#b8363b1d5b8725afa9a4fe2b2986ac28626c6f23"
+  integrity sha512-7cddkQQp8Rs2Mqrj0xqZ0uO7eC9tBCKyZNcP2iE1RxQqOGPv8fiPkj1TUeidUB/Qe80lstoVXWMEuqqhW7Yy9A==
+  dependencies:
+    babel-plugin-debug-macros "^0.2.0"
+    ember-cli-version-checker "^5.1.1"
+    fs-extra "^9.1.0"
     semver "^5.4.1"
 
 ember-composable-helpers@^4.4.1:
@@ -9480,6 +9499,17 @@ ember-modifier@^2.1.0, ember-modifier@^2.1.1:
     ember-destroyable-polyfill "^2.0.2"
     ember-modifier-manager-polyfill "^1.2.0"
 
+"ember-modifier@^2.1.0 || ^3.0.0":
+  version "3.1.0"
+  resolved "https://registry.yarnpkg.com/ember-modifier/-/ember-modifier-3.1.0.tgz#ba5b0941302accd787ed3dcfc8d20400b77ffc41"
+  integrity sha512-G5Lj9jVFsD2sVJcRNQfaGKG1p81wT4LGfClBhCuB4TgwP1NGJKdqI+Q8BW2MptONxQt/71UjjUH0YK7Gm9eahg==
+  dependencies:
+    ember-cli-babel "^7.26.6"
+    ember-cli-normalize-entity-name "^1.0.0"
+    ember-cli-string-utils "^1.1.0"
+    ember-cli-typescript "^4.2.1"
+    ember-compatibility-helpers "^1.2.5"
+
 ember-moment@^7.8.1:
   version "7.8.1"
   resolved "https://registry.yarnpkg.com/ember-moment/-/ember-moment-7.8.1.tgz#6f77cf941d1a92e231b2f4b810e113b2fae50c5f"
@@ -9652,6 +9682,19 @@ ember-source@~3.20.2:
     semver "^6.1.1"
     silent-error "^1.1.1"
 
+ember-statecharts@^0.13.2:
+  version "0.13.2"
+  resolved "https://registry.yarnpkg.com/ember-statecharts/-/ember-statecharts-0.13.2.tgz#dbfe00b6a8ba54da8e01af416225d7a0d12e141c"
+  integrity sha512-4TJCAWIs7vwmZbfH+c9xkXUrMsGho8lcYZQaqgmVEa3A1yzal/ToJHSFqaXm07ckNHkVNoC88Byh4WnbcKKpqA==
+  dependencies:
+    "@glimmer/tracking" "^1.0.1"
+    ember-auto-import "^1.6.0"
+    ember-cli-babel "^7.22.1"
+    ember-cli-htmlbars "^5.3.1"
+    ember-cli-typescript "^3.1.4"
+    ember-usable "https://github.com/pzuraq/ember-usable#0d03a50"
+    xstate "^4.12.0"
+
 ember-style-modifier@^0.6.0:
   version "0.6.0"
   resolved "https://registry.yarnpkg.com/ember-style-modifier/-/ember-style-modifier-0.6.0.tgz#cc5e58db7f6d6662028a7b4e3cf63cf25ba59a8f"
@@ -9731,6 +9774,13 @@ ember-truth-helpers@^2.0.0:
   integrity sha512-hPKG9QqruAELh0li5xaiLZtr88ioWYxWCXisAWHWE0qCP4a2hgtuMzKUPpiTCkltvKjuqpzTZCU4VhQ+IlRmew==
   dependencies:
     ember-cli-babel "^7.22.1"
+
+"ember-usable@https://github.com/pzuraq/ember-usable#0d03a50":
+  version "0.0.0"
+  resolved "https://github.com/pzuraq/ember-usable#0d03a500a2f49041a4ddff0bb05b077c3907ed7d"
+  dependencies:
+    ember-cli-babel "^7.13.0"
+    ember-cli-htmlbars "^4.2.0"
 
 ember-weakmap@^3.0.0:
   version "3.3.2"
@@ -19117,6 +19167,11 @@ xmlhttprequest-ssl@~1.6.2:
   version "1.6.3"
   resolved "https://registry.yarnpkg.com/xmlhttprequest-ssl/-/xmlhttprequest-ssl-1.6.3.tgz#03b713873b01659dfa2c1c5d056065b27ddc2de6"
   integrity sha512-3XfeQE/wNkvrIktn2Kf0869fC0BN6UpydVasGIeSm2B1Llihf7/0UfZM+eCkOw3P7bP4+qPgqhm7ZoxuJtFU0Q==
+
+xstate@^4.12.0:
+  version "4.29.0"
+  resolved "https://registry.yarnpkg.com/xstate/-/xstate-4.29.0.tgz#74161f1e4b7fadb073593085f4fbb58068ee0b86"
+  integrity sha512-F6WF5s6xG/bm8Oxi2ETuzwGQW8yleL5I4JPxZl49m7Uw7D4LAXu+4dvUK78Uo4D863sM8auqw6+1Xmj9mFlmDQ==
 
 xtend@^4.0.0, xtend@^4.0.1, xtend@~4.0.1:
   version "4.0.2"

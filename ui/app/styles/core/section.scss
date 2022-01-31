@@ -9,4 +9,9 @@
   &.is-full-width {
     max-width: 100%;
   }
+
+  &.is-relative {
+    position: relative;
+    display: flex;
+  }
 }

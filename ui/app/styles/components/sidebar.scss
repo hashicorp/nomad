@@ -1,0 +1,15 @@
+.sidebar {
+  position: absolute;
+  background: #ffffff;
+  padding: 24px;
+  height: 100%;
+  right: 0px;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+  transform: translateX(100%);
+  visibility: hidden;
+  box-shadow: 6px 6px rgba(0, 0, 0, 0.06), 0px 12px 16px rgba(0, 0, 0, 0.2);
+  &.pib {
+    visibility: visible;
+  }
+}
