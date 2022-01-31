@@ -596,19 +596,19 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 	}
 
 	// Web taskgroup (0)
-	a := canaryAlloc()
-	b := canaryAlloc()
+	ca1 := canaryAlloc()
+	ca2 := canaryAlloc()
 
 	// Api taskgroup (1)
-	c := rollingAlloc()
-	e := rollingAlloc()
+	ra1 := rollingAlloc()
+	ra2 := rollingAlloc()
 
-	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID, b.ID}
-	d.TaskGroups[a.TaskGroup].DesiredCanaries = 2
-	d.TaskGroups[c.TaskGroup].PlacedAllocs = 2
+	d.TaskGroups[ca1.TaskGroup].PlacedCanaries = []string{ca1.ID, ca2.ID}
+	d.TaskGroups[ca1.TaskGroup].DesiredCanaries = 2
+	d.TaskGroups[ra1.TaskGroup].PlacedAllocs = 2
 	require.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a, b, c, e}), "UpsertAllocs")
+	require.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{ca1, ca2, ra1, ra2}), "UpsertAllocs")
 
 	// =============================================================
 	// Support method calls
@@ -627,7 +627,7 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 
 	matchConfig1 := &matchDeploymentAllocHealthRequestConfig{
 		DeploymentID: d.ID,
-		Healthy:      []string{a.ID, b.ID, c.ID, e.ID},
+		Healthy:      []string{ca1.ID, ca2.ID, ra1.ID, ra2.ID},
 		Eval:         true,
 	}
 	matcher1 := matchDeploymentAllocHealthRequest(matchConfig1)
@@ -661,7 +661,7 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 	// Mark the canaries healthy
 	req := &structs.DeploymentAllocHealthRequest{
 		DeploymentID:         d.ID,
-		HealthyAllocationIDs: []string{a.ID, b.ID, c.ID, e.ID},
+		HealthyAllocationIDs: []string{ca1.ID, ca2.ID, ra1.ID, ra2.ID},
 	}
 	var resp structs.DeploymentUpdateResponse
 	// Calls w.raft.UpdateDeploymentAllocHealth, which is implemented by StateStore in
@@ -686,12 +686,12 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 	require.Equal(t, "running", d.Status)
 	require.True(t, d.TaskGroups["web"].Promoted)
 
-	a1, _ := m.state.AllocByID(ws, a.ID)
+	a1, _ := m.state.AllocByID(ws, ca1.ID)
 	require.False(t, a1.DeploymentStatus.Canary)
 	require.Equal(t, "pending", a1.ClientStatus)
 	require.Equal(t, "run", a1.DesiredStatus)
 
-	b1, _ := m.state.AllocByID(ws, b.ID)
+	b1, _ := m.state.AllocByID(ws, ca2.ID)
 	require.False(t, b1.DeploymentStatus.Canary)
 }
 
