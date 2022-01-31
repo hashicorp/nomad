@@ -6,22 +6,20 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 
+	"github.com/hashicorp/go-cleanhttp"
 	gg "github.com/hashicorp/go-getter"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-var (
-	// getters is the map of getters suitable for Nomad. It is initialized once
-	// and the lock is used to guard access to it.
-	getters map[string]gg.Getter
-	lock    sync.Mutex
-
-	// supported is the set of download schemes supported by Nomad
-	supported = []string{"http", "https", "s3", "hg", "git", "gcs"}
-)
+// httpClient is a shared HTTP client for use across all http/https Getter
+// instantiations. The HTTP client is designed to be thread-safe, and using a pooled
+// transport will help reduce excessive connections when clients are downloading lots
+// of artifacts.
+var httpClient = &http.Client{
+	Transport: cleanhttp.DefaultPooledTransport(),
+}
 
 const (
 	// gitSSHPrefix is the prefix for downloading via git using ssh
@@ -35,53 +33,36 @@ type EnvReplacer interface {
 	ClientPath(string, bool) (string, bool)
 }
 
-func makeGetters(headers http.Header) map[string]gg.Getter {
-	getters := make(map[string]gg.Getter, len(supported))
-	for _, getter := range supported {
-		switch {
-		case getter == "http" && len(headers) > 0:
-			fallthrough
-		case getter == "https" && len(headers) > 0:
-			getters[getter] = &gg.HttpGetter{
-				Netrc:  true,
-				Header: headers,
-			}
-		default:
-			if defaultGetter, ok := gg.Getters[getter]; ok {
-				getters[getter] = defaultGetter
-			}
-		}
-	}
-	return getters
-}
-
 // getClient returns a client that is suitable for Nomad downloading artifacts.
 func getClient(src string, headers http.Header, mode gg.ClientMode, dst string) *gg.Client {
-	client := &gg.Client{
-		Src:   src,
-		Dst:   dst,
-		Mode:  mode,
-		Umask: 060000000,
+	return &gg.Client{
+		Src:     src,
+		Dst:     dst,
+		Mode:    mode,
+		Umask:   060000000,
+		Getters: createGetters(headers),
 	}
+}
 
-	switch len(headers) {
-	case 0:
-		// When no headers are present use the memoized getters, creating them
-		// on demand if they do not exist yet.
-		lock.Lock()
-		if getters == nil {
-			getters = makeGetters(nil)
-		}
-		lock.Unlock()
-		client.Getters = getters
-	default:
-		// When there are headers present, we must create fresh gg.HttpGetter
-		// objects, because that is where gg stores the headers to use in its
-		// artifact HTTP GET requests.
-		client.Getters = makeGetters(headers)
+func createGetters(header http.Header) map[string]gg.Getter {
+	httpGetter := &gg.HttpGetter{
+		Netrc:  true,
+		Client: httpClient,
+		Header: header,
 	}
-
-	return client
+	// Explicitly create fresh set of supported Getter for each Client, because
+	// go-getter is not thread-safe. Use a shared HTTP client for http/https Getter,
+	// with pooled transport which is thread-safe.
+	//
+	// If a getter type is not listed here, it is not supported (e.g. file).
+	return map[string]gg.Getter{
+		"git":   new(gg.GitGetter),
+		"gcs":   new(gg.GCSGetter),
+		"hg":    new(gg.HgGetter),
+		"s3":    new(gg.S3Getter),
+		"http":  httpGetter,
+		"https": httpGetter,
+	}
 }
 
 // getGetterUrl returns the go-getter URL to download the artifact.
