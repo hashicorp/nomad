@@ -10803,7 +10803,9 @@ type Plan struct {
 
 func (p *Plan) GoString() string {
 	out := fmt.Sprintf("(eval %s", p.EvalID[:8])
-	out += fmt.Sprintf(", job %s", p.Job.ID)
+	if p.Job != nil {
+		out += fmt.Sprintf(", job %s", p.Job.ID)
+	}
 	if p.Deployment != nil {
 		out += fmt.Sprintf(", deploy %s", p.Deployment.ID[:8])
 	}
