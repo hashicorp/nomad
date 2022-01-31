@@ -1,21 +1,12 @@
-<JobPage::Parts::Body @job={{this.job}}>
-  <JobPage::Parts::Error @errorMessage={{this.errorMessage}} @onDismiss={{action "clearErrorMessage"}} />
-
-  <JobPage::Parts::Title @job={{this.job}} @handleError={{action "handleError"}} />
-
-  <JobPage::Parts::StatsBox @job={{this.job}} />
-
-  <JobPage::Parts::Summary @job={{this.job}} />
-
-  <JobPage::Parts::PlacementFailures @job={{this.job}} />
-
-  <JobPage::Parts::TaskGroups
-    @job={{this.job}}
-    @sortProperty={{this.sortProperty}}
-    @sortDescending={{this.sortDescending}}
-    @gotoTaskGroup={{this.gotoTaskGroup}} />
-
-  <JobPage::Parts::RecentAllocations @job={{this.job}} />
-
-  <JobPage::Parts::Meta @job={{this.job}} />
-</JobPage::Parts::Body>
+<JobPage @job={{@job}} as |jobPage|>
+  <jobPage.ui.Body>
+    <jobPage.ui.Error />
+    <jobPage.ui.Title />
+    <jobPage.ui.StatsBox />
+    <jobPage.ui.Summary />
+    <jobPage.ui.PlacementFailures />
+    <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} />
+    <jobPage.ui.RecentAllocations />
+    <jobPage.ui.Meta />
+  </jobPage.ui.Body>
+</JobPage>

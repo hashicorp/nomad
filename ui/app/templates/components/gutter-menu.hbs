@@ -1,7 +1,12 @@
 <div data-test-gutter-menu class="page-column is-left {{if this.isOpen "is-open"}}">
   <div class="gutter {{if this.isOpen "is-open"}}">
     <header class="collapsed-menu {{if this.isOpen "is-open"}}">
-      <span data-test-gutter-gutter-toggle class="gutter-toggle" aria-label="menu" onclick={{action this.onHamburgerClick}}>
+      <span
+        data-test-gutter-gutter-toggle
+        class="gutter-toggle"
+        aria-label="menu"
+        onclick={{action this.onHamburgerClick}}
+      >
         <HamburgerMenu />
       </span>
       <span class="logo-container">
@@ -12,7 +17,8 @@
       {{#if this.system.shouldShowRegions}}
         <div class="collapsed-only">
           <p class="menu-label">
-            Region {{if this.system.shouldShowNamespaces "& Namespace"}}
+            Region
+            {{if this.system.shouldShowNamespaces "& Namespace"}}
           </p>
           <ul class="menu-list">
             <li>
@@ -28,19 +34,13 @@
       </p>
       <ul class="menu-list">
         <li>
-          <LinkTo
-            @route="jobs"
-            @activeClass="is-active"
-            data-test-gutter-link="jobs">
+          <LinkTo @route="jobs" @activeClass="is-active" data-test-gutter-link="jobs">
             Jobs
           </LinkTo>
         </li>
         {{#if (can "accept recommendation")}}
           <li>
-            <LinkTo
-              @route="optimize"
-              @activeClass="is-active"
-              data-test-gutter-link="optimize">
+            <LinkTo @route="optimize" @activeClass="is-active" data-test-gutter-link="optimize">
               Optimize
             </LinkTo>
           </li>
@@ -51,11 +51,11 @@
       </p>
       <ul class="menu-list">
         <li>
-          <LinkTo
-            @route="csi"
-            @activeClass="is-active"
-            data-test-gutter-link="storage">
-            Storage <span class="tag is-small">Beta</span>
+          <LinkTo @route="csi" @activeClass="is-active" data-test-gutter-link="storage">
+            Storage
+            <span class="tag is-small">
+              Beta
+            </span>
           </LinkTo>
         </li>
       </ul>
@@ -63,19 +63,48 @@
         Cluster
       </p>
       <ul class="menu-list">
-        <li><LinkTo @route="clients" @activeClass="is-active" data-test-gutter-link="clients">Clients</LinkTo></li>
-        <li><LinkTo @route="servers" @activeClass="is-active" data-test-gutter-link="servers">Servers</LinkTo></li>
-        <li><LinkTo @route="topology" @activeClass="is-active" data-test-gutter-link="topology">Topology</LinkTo></li>
+        <li>
+          <LinkTo @route="clients" @activeClass="is-active" data-test-gutter-link="clients">
+            Clients
+          </LinkTo>
+        </li>
+        <li>
+          <LinkTo @route="servers" @activeClass="is-active" data-test-gutter-link="servers">
+            Servers
+          </LinkTo>
+        </li>
+        <li>
+          <LinkTo @route="topology" @activeClass="is-active" data-test-gutter-link="topology">
+            Topology
+          </LinkTo>
+        </li>
+      </ul>
+      <p class="menu-label">
+        Debugging
+      </p>
+      <ul class="menu-list">
+        <li>
+          <LinkTo @route="evaluations" @activeClass="is-active" data-test-gutter-link="evaluations">
+            Evaluations
+          </LinkTo>
+        </li>
       </ul>
     </aside>
     {{#if this.system.agent.version}}
-    <footer class="gutter-footer">
-        <span class="is-faded">v{{this.system.agent.version}}</span>
-    </footer>
+      <footer class="gutter-footer">
+        <span class="is-faded">
+          v
+          {{this.system.agent.version}}
+        </span>
+      </footer>
     {{/if}}
   </div>
 </div>
 <div data-test-page-content class="page-column is-right">
   {{yield}}
 </div>
-<div data-test-gutter-backdrop class="gutter-backdrop {{if this.isOpen "is-open"}}" onclick={{action this.onHamburgerClick}}></div>
+<div
+  data-test-gutter-backdrop
+  class="gutter-backdrop {{if this.isOpen "is-open"}}"
+  onclick={{action this.onHamburgerClick}}
+></div>

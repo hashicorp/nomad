@@ -89,6 +89,7 @@ rkt-*
 
 # misc
 /ui/.sass-cache
+/ui/.eslintcache
 /ui/.storybook/preview-head.html
 /ui/connect.lock
 /ui/coverage/*

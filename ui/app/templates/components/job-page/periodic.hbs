@@ -1,27 +1,35 @@
-<JobPage::Parts::Body @job={{this.job}}>
-  <JobPage::Parts::Error @errorMessage={{this.errorMessage}} @onDismiss={{action "clearErrorMessage"}} />
-
-  <JobPage::Parts::Title @job={{this.job}} @title={{this.job.trimmedName}} @handleError={{action "handleError"}}>
-    <span class="tag is-hollow">periodic</span>
-    <button data-test-force-launch class="button is-warning is-small is-inline" onclick={{action "forceLaunch"}} type="button">Force Launch</button>
-  </JobPage::Parts::Title>
-
-  <JobPage::Parts::StatsBox @job={{this.job}}>
-    <:after-namespace>
-      <span class="pair" data-test-job-stat="cron">
-        <span class="term">Cron</span>
-        {{this.job.periodicDetails.Spec}}
+<JobPage @job={{@job}} as |jobPage|>
+  <jobPage.ui.Body>
+    <jobPage.ui.Error />
+    <jobPage.ui.Title @title={{@job.trimmedName}}>
+      <span class="tag is-hollow">
+        periodic
       </span>
-    </:after-namespace>
-  </JobPage::Parts::StatsBox>
-
-  <JobPage::Parts::Summary @job={{this.job}} />
-  <JobPage::Parts::Children
-    @job={{this.job}}
-    @sortProperty={{this.sortProperty}}
-    @sortDescending={{this.sortDescending}}
-    @currentPage={{this.currentPage}}
-    @gotoJob={{this.gotoJob}} />
-
-  <JobPage::Parts::Meta @job={{this.job}} />
-</JobPage::Parts::Body>
+      <button
+        data-test-force-launch
+        class="button is-warning is-small is-inline"
+        onclick={{fn this.forceLaunch jobPage.fns.setError}}
+        type="button"
+      >
+        Force Launch
+      </button>
+    </jobPage.ui.Title>
+    <jobPage.ui.StatsBox>
+      <:after-namespace>
+        <span class="pair" data-test-job-stat="cron">
+          <span class="term">
+            Cron
+          </span>
+          {{@job.periodicDetails.Spec}}
+        </span>
+      </:after-namespace>
+    </jobPage.ui.StatsBox>
+    <jobPage.ui.Summary />
+    <jobPage.ui.Children
+      @sortProperty={{@sortProperty}}
+      @sortDescending={{@sortDescending}}
+      @currentPage={{@currentPage}}
+    />
+    <jobPage.ui.Meta />
+  </jobPage.ui.Body>
+</JobPage>

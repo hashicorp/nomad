@@ -1,3 +1,4 @@
+/* eslint-disable ember/no-string-prototype-extensions */
 import { copy } from 'ember-copy';
 import { get } from '@ember/object';
 import { makeArray } from '@ember/array';
@@ -62,9 +63,7 @@ export default class Application extends JSONSerializer {
   }
 
   keyForRelationship(attr, relationshipType) {
-    const key = `${singularize(attr)
-      .camelize()
-      .capitalize()}ID`;
+    const key = `${singularize(attr).camelize().capitalize()}ID`;
     return relationshipType === 'hasMany' ? pluralize(key) : key;
   }
 
@@ -75,12 +74,12 @@ export default class Application extends JSONSerializer {
       included: [],
     };
 
-    Object.keys(payload).forEach(key => {
+    Object.keys(payload).forEach((key) => {
       const modelName = this.modelNameFromPayloadKey(key);
       const serializer = store.serializerFor(modelName);
       const type = store.modelFor(modelName);
 
-      makeArray(payload[key]).forEach(hash => {
+      makeArray(payload[key]).forEach((hash) => {
         const { data, included } = serializer.normalize(type, hash, key);
         documentHash.data.push(data);
         if (included) {
@@ -95,14 +94,14 @@ export default class Application extends JSONSerializer {
   normalize(modelClass, hash) {
     if (hash) {
       if (this.arrayNullOverrides) {
-        this.arrayNullOverrides.forEach(key => {
+        this.arrayNullOverrides.forEach((key) => {
           if (!hash[key]) {
             hash[key] = [];
           }
         });
       }
       if (this.objectNullOverrides) {
-        this.objectNullOverrides.forEach(key => {
+        this.objectNullOverrides.forEach((key) => {
           if (!hash[key]) {
             hash[key] = {};
           }
@@ -110,7 +109,7 @@ export default class Application extends JSONSerializer {
       }
 
       if (this.mapToArray) {
-        this.mapToArray.forEach(conversion => {
+        this.mapToArray.forEach((conversion) => {
           let apiKey, uiKey;
 
           if (conversion.beforeName) {
@@ -125,7 +124,7 @@ export default class Application extends JSONSerializer {
 
           hash[uiKey] = Object.keys(map)
             .sort()
-            .map(mapKey => {
+            .map((mapKey) => {
               const propertiesForKey = map[mapKey] || {};
               const convertedMap = { Name: mapKey };
 
@@ -137,7 +136,7 @@ export default class Application extends JSONSerializer {
       }
 
       if (this.separateNanos) {
-        this.separateNanos.forEach(key => {
+        this.separateNanos.forEach((key) => {
           const timeWithNanos = hash[key];
           hash[`${key}Nanos`] = timeWithNanos % 1000000;
           hash[key] = Math.floor(timeWithNanos / 1000000);
@@ -157,13 +156,15 @@ export default class Application extends JSONSerializer {
   // When records are removed server-side, and therefore don't show up in requests,
   // the local copies of those records need to be unloaded from the store.
   cullStore(store, type, records, storeFilter = () => true) {
-    const newRecords = copy(records).filter(record => get(record, 'id'));
+    const newRecords = copy(records).filter((record) => get(record, 'id'));
     const oldRecords = store.peekAll(type);
     oldRecords
-      .filter(record => get(record, 'id'))
+      .filter((record) => get(record, 'id'))
       .filter(storeFilter)
-      .forEach(old => {
-        const newRecord = newRecords.find(record => get(record, 'id') === get(old, 'id'));
+      .forEach((old) => {
+        const newRecord = newRecords.find(
+          (record) => get(record, 'id') === get(old, 'id')
+        );
         if (!newRecord) {
           removeRecord(store, old);
         } else {

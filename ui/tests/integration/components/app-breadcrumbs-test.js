@@ -1,12 +1,12 @@
 /* eslint-disable ember-a11y-testing/a11y-audit-called */
 import { setComponentTemplate } from '@ember/component';
-import Component from '@glimmer/component';
+import templateOnlyComponent from '@ember/component/template-only';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { findAll, render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 
-module('Integration | Component | app breadcrumbs', function(hooks) {
+module('Integration | Component | app breadcrumbs', function (hooks) {
   setupRenderingTest(hooks);
 
   const commonCrumbs = [
@@ -14,7 +14,8 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
     { label: 'Job', args: ['jobs.job.index'] },
   ];
 
-  test('every breadcrumb is rendered correctly', async function(assert) {
+  test('every breadcrumb is rendered correctly', async function (assert) {
+    assert.expect(3);
     this.set('commonCrumbs', commonCrumbs);
     await render(hbs`
       <AppBreadcrumbs />
@@ -25,7 +26,9 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
 
     assert
       .dom('[data-test-breadcrumb-default]')
-      .exists('We register the default breadcrumb component if no type is specified on the crumb');
+      .exists(
+        'We register the default breadcrumb component if no type is specified on the crumb'
+      );
 
     const renderedCrumbs = findAll('[data-test-breadcrumb]');
 
@@ -38,21 +41,20 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
     });
   });
 
-  test('when we register a crumb with a type property, a dedicated breadcrumb/<type> component renders', async function(assert) {
+  test('when we register a crumb with a type property, a dedicated breadcrumb/<type> component renders', async function (assert) {
     const crumbs = [
       { label: 'Jobs', args: ['jobs.index'] },
       { type: 'special', label: 'Job', args: ['jobs.job.index'] },
     ];
     this.set('crumbs', crumbs);
 
-    class MockComponent extends Component {}
     this.owner.register(
       'component:breadcrumbs/special',
       setComponentTemplate(
         hbs`
         <div data-test-breadcrumb-special>Test</div>
       `,
-        MockComponent
+        templateOnlyComponent()
       )
     );
 

@@ -50,25 +50,36 @@ export default create({
   }),
 
   hasScaleEvents: isPresent('[data-test-scale-events]'),
-  scaleEvents: collection('[data-test-scale-events] [data-test-accordion-head]', {
-    error: isPresent('[data-test-error]'),
-    time: text('[data-test-time]'),
-    count: text('[data-test-count]'),
-    countIcon: { scope: '[data-test-count-icon]' },
-    message: text('[data-test-message]'),
+  scaleEvents: collection(
+    '[data-test-scale-events] [data-test-accordion-head]',
+    {
+      error: isPresent('[data-test-error]'),
+      time: text('[data-test-time]'),
+      count: text('[data-test-count]'),
+      countIcon: { scope: '[data-test-count-icon]' },
+      message: text('[data-test-message]'),
 
-    isToggleable: isPresent('[data-test-accordion-toggle]:not(.is-invisible)'),
-    toggle: clickable('[data-test-accordion-toggle]'),
-  }),
+      isToggleable: isPresent(
+        '[data-test-accordion-toggle]:not(.is-invisible)'
+      ),
+      toggle: clickable('[data-test-accordion-toggle]'),
+    }
+  ),
 
-  scaleEventBodies: collection('[data-test-scale-events] [data-test-accordion-body]', {
-    meta: text(),
-  }),
+  scaleEventBodies: collection(
+    '[data-test-scale-events] [data-test-accordion-body]',
+    {
+      meta: text(),
+    }
+  ),
 
   hasScalingTimeline: isPresent('[data-test-scaling-timeline]'),
-  scalingAnnotations: collection('[data-test-scaling-timeline] [data-test-annotation]', {
-    open: clickable('button'),
-  }),
+  scalingAnnotations: collection(
+    '[data-test-scaling-timeline] [data-test-annotation]',
+    {
+      open: clickable('button'),
+    }
+  ),
 
   error: error(),
 

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/kr/pty"
+	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
 )
 

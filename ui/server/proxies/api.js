@@ -2,7 +2,7 @@
 
 const proxyPath = '/v1';
 
-module.exports = function(app, options) {
+module.exports = function (app, options) {
   // For options, see:
   // https://github.com/nodejitsu/node-http-proxy
 
@@ -29,19 +29,22 @@ module.exports = function(app, options) {
     changeOrigin: true,
   });
 
-  proxy.on('error', function(err, req) {
+  proxy.on('error', function (err, req) {
     // eslint-disable-next-line
     console.error(err, req.url);
   });
 
-  app.use(proxyPath, function(req, res) {
+  app.use(proxyPath, function (req, res) {
     // include root path in proxied request
     req.url = proxyPath + req.url;
     proxy.web(req, res, { target: proxyAddress });
   });
 
-  server.on('upgrade', function(req, socket, head) {
-    if (req.url.startsWith('/v1/client/allocation') && req.url.includes('exec?')) {
+  server.on('upgrade', function (req, socket, head) {
+    if (
+      req.url.startsWith('/v1/client/allocation') &&
+      req.url.includes('exec?')
+    ) {
       req.headers.origin = proxyAddress;
       proxy.ws(req, socket, head, { target: proxyAddress });
     }

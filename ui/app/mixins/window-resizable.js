@@ -6,10 +6,13 @@ import { on } from '@ember/object/evented';
 // eslint-disable-next-line ember/no-new-mixins
 export default Mixin.create({
   windowResizeHandler() {
-    assert('windowResizeHandler needs to be overridden in the Component', false);
+    assert(
+      'windowResizeHandler needs to be overridden in the Component',
+      false
+    );
   },
 
-  setupWindowResize: on('didInsertElement', function() {
+  setupWindowResize: on('didInsertElement', function () {
     run.scheduleOnce('afterRender', this, this.addResizeListener);
   }),
 
@@ -18,7 +21,7 @@ export default Mixin.create({
     window.addEventListener('resize', this._windowResizeHandler);
   },
 
-  removeWindowResize: on('willDestroyElement', function() {
+  removeWindowResize: on('willDestroyElement', function () {
     window.removeEventListener('resize', this._windowResizeHandler);
   }),
 });

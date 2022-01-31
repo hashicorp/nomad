@@ -5,12 +5,12 @@ import WithVisibilityDetection from './with-route-visibility-detection';
 
 // eslint-disable-next-line ember/no-new-mixins
 export default Mixin.create(WithVisibilityDetection, {
-  watchers: computed(function() {
+  watchers: computed(function () {
     return [];
   }),
 
   cancelAllWatchers() {
-    this.watchers.forEach(watcher => {
+    this.watchers.forEach((watcher) => {
       assert('Watchers must be Ember Concurrency Tasks.', !!watcher.cancelAll);
       watcher.cancelAll();
     });
@@ -36,7 +36,10 @@ export default Mixin.create(WithVisibilityDetection, {
   actions: {
     willTransition(transition) {
       // Don't cancel watchers if transitioning into a sub-route
-      if (!transition.intent.name || !transition.intent.name.startsWith(this.routeName)) {
+      if (
+        !transition.intent.name ||
+        !transition.intent.name.startsWith(this.routeName)
+      ) {
         this.cancelAllWatchers();
       }
 

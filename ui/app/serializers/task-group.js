@@ -7,7 +7,7 @@ export default class TaskGroup extends ApplicationSerializer {
 
   normalize(typeHash, hash) {
     // Provide EphemeralDisk to each task
-    hash.Tasks.forEach(task => {
+    hash.Tasks.forEach((task) => {
       task.EphemeralDisk = copy(hash.EphemeralDisk);
     });
 

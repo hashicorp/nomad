@@ -35,7 +35,12 @@ export default class AllocationsAllocationController extends Controller {
       {
         title: 'Task Group',
         label: allocation.taskGroupName,
-        args: ['jobs.job.task-group', job.plainId, allocation.taskGroupName, jobQueryParams],
+        args: [
+          'jobs.job.task-group',
+          job.plainId,
+          allocation.taskGroupName,
+          jobQueryParams,
+        ],
       },
       {
         title: 'Allocation',

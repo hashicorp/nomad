@@ -2,6 +2,7 @@ package cpuset
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"strconv"
@@ -153,6 +154,9 @@ func Parse(s string) (CPUSet, error) {
 				return New(), err
 			}
 
+			if v > math.MaxUint16 {
+				return New(), fmt.Errorf("failed to parse element %s, more than max allowed cores", set)
+			}
 			cpuset.cpus[uint16(v)] = struct{}{}
 			continue
 		}
@@ -168,7 +172,11 @@ func Parse(s string) (CPUSet, error) {
 		if err != nil {
 			return New(), err
 		}
+
 		for v := lower; v <= upper; v++ {
+			if v > math.MaxUint16 {
+				return New(), fmt.Errorf("failed to parse element %s, more than max allowed cores", set)
+			}
 			cpuset.cpus[uint16(v)] = struct{}{}
 		}
 	}

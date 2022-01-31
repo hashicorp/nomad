@@ -2383,16 +2383,61 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	c := core.(*CoreScheduler)
 	require.NoError(c.csiVolumeClaimGC(gc))
 
-	// the volumewatcher will hit an error here because there's no
-	// path to the node.  but we can't update the claim to bypass the
-	// client RPCs without triggering the volumewatcher's normal code
-	// path.
+	// TODO(tgross): the condition below means this test doesn't tell
+	// us much; ideally we should be intercepting the claim request
+	// and verifying that we send the expected claims but we don't
+	// have test infra in place to do that for server RPCs
+
+	// sending the GC claim will trigger the volumewatcher's normal
+	// code path. but the volumewatcher will hit an error here
+	// because there's no path to the node, so we shouldn't see
+	// the WriteClaims removed
 	require.Eventually(func() bool {
 		vol, _ := state.CSIVolumeByID(ws, ns, volID)
 		return len(vol.WriteClaims) == 1 &&
 			len(vol.WriteAllocs) == 1 &&
-			len(vol.PastClaims) == 0
+			len(vol.PastClaims) == 1
 	}, time.Second*1, 10*time.Millisecond, "claims were released unexpectedly")
+
+}
+
+func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	err := state.TestBadCSIState(t, srv.State())
+	require.NoError(err)
+
+	snap, err := srv.State().Snapshot()
+	require.NoError(err)
+	core := NewCoreScheduler(srv, snap)
+
+	index, _ := srv.State().LatestIndex()
+	index++
+	gc := srv.coreJobEval(structs.CoreJobForceGC, index)
+	c := core.(*CoreScheduler)
+	require.NoError(c.csiVolumeClaimGC(gc))
+
+	require.Eventually(func() bool {
+		vol, _ := srv.State().CSIVolumeByID(nil,
+			structs.DefaultNamespace, "csi-volume-nfs0")
+		if len(vol.PastClaims) != 2 {
+			return false
+		}
+		for _, claim := range vol.PastClaims {
+			if claim.State != structs.CSIVolumeClaimStateUnpublishing {
+				return false
+			}
+		}
+		return true
+	}, time.Second*1, 10*time.Millisecond, "invalid claims should be marked for GC")
 
 }
 

@@ -1,3 +1,4 @@
+/* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
 import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
@@ -20,24 +21,24 @@ const assignReadAlloc = (volume, alloc) => {
   volume.save();
 };
 
-module('Acceptance | volume detail', function(hooks) {
+module('Acceptance | volume detail', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
   let volume;
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     server.create('node');
     server.create('csi-plugin', { createVolumes: false });
     volume = server.create('csi-volume');
   });
 
-  test('it passes an accessibility audit', async function(assert) {
+  test('it passes an accessibility audit', async function (assert) {
     await VolumeDetail.visit({ id: volume.id });
     await a11yAudit(assert);
   });
 
-  test('/csi/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function(assert) {
+  test('/csi/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function (assert) {
     await VolumeDetail.visit({ id: volume.id });
 
     assert.equal(Layout.breadcrumbFor('csi.index').text, 'Storage');
@@ -45,17 +46,21 @@ module('Acceptance | volume detail', function(hooks) {
     assert.equal(Layout.breadcrumbFor('csi.volumes.volume').text, volume.name);
   });
 
-  test('/csi/volumes/:id should show the volume name in the title', async function(assert) {
+  test('/csi/volumes/:id should show the volume name in the title', async function (assert) {
     await VolumeDetail.visit({ id: volume.id });
 
     assert.equal(document.title, `CSI Volume ${volume.name} - Nomad`);
     assert.equal(VolumeDetail.title, volume.name);
   });
 
-  test('/csi/volumes/:id should list additional details for the volume below the title', async function(assert) {
+  test('/csi/volumes/:id should list additional details for the volume below the title', async function (assert) {
     await VolumeDetail.visit({ id: volume.id });
 
-    assert.ok(VolumeDetail.health.includes(volume.schedulable ? 'Schedulable' : 'Unschedulable'));
+    assert.ok(
+      VolumeDetail.health.includes(
+        volume.schedulable ? 'Schedulable' : 'Unschedulable'
+      )
+    );
     assert.ok(VolumeDetail.provider.includes(volume.provider));
     assert.ok(VolumeDetail.externalId.includes(volume.externalId));
     assert.notOk(
@@ -64,11 +69,11 @@ module('Acceptance | volume detail', function(hooks) {
     );
   });
 
-  test('/csi/volumes/:id should list all write allocations the volume is attached to', async function(assert) {
+  test('/csi/volumes/:id should list all write allocations the volume is attached to', async function (assert) {
     const writeAllocations = server.createList('allocation', 2);
     const readAllocations = server.createList('allocation', 3);
-    writeAllocations.forEach(alloc => assignWriteAlloc(volume, alloc));
-    readAllocations.forEach(alloc => assignReadAlloc(volume, alloc));
+    writeAllocations.forEach((alloc) => assignWriteAlloc(volume, alloc));
+    readAllocations.forEach((alloc) => assignReadAlloc(volume, alloc));
 
     await VolumeDetail.visit({ id: volume.id });
 
@@ -77,15 +82,18 @@ module('Acceptance | volume detail', function(hooks) {
       .sortBy('modifyIndex')
       .reverse()
       .forEach((allocation, idx) => {
-        assert.equal(allocation.id, VolumeDetail.writeAllocations.objectAt(idx).id);
+        assert.equal(
+          allocation.id,
+          VolumeDetail.writeAllocations.objectAt(idx).id
+        );
       });
   });
 
-  test('/csi/volumes/:id should list all read allocations the volume is attached to', async function(assert) {
+  test('/csi/volumes/:id should list all read allocations the volume is attached to', async function (assert) {
     const writeAllocations = server.createList('allocation', 2);
     const readAllocations = server.createList('allocation', 3);
-    writeAllocations.forEach(alloc => assignWriteAlloc(volume, alloc));
-    readAllocations.forEach(alloc => assignReadAlloc(volume, alloc));
+    writeAllocations.forEach((alloc) => assignWriteAlloc(volume, alloc));
+    readAllocations.forEach((alloc) => assignReadAlloc(volume, alloc));
 
     await VolumeDetail.visit({ id: volume.id });
 
@@ -94,11 +102,14 @@ module('Acceptance | volume detail', function(hooks) {
       .sortBy('modifyIndex')
       .reverse()
       .forEach((allocation, idx) => {
-        assert.equal(allocation.id, VolumeDetail.readAllocations.objectAt(idx).id);
+        assert.equal(
+          allocation.id,
+          VolumeDetail.readAllocations.objectAt(idx).id
+        );
       });
   });
 
-  test('each allocation should have high-level details for the allocation', async function(assert) {
+  test('each allocation should have high-level details for the allocation', async function (assert) {
     const allocation = server.create('allocation', { clientStatus: 'running' });
     assignWriteAlloc(volume, allocation);
 
@@ -108,14 +119,21 @@ module('Acceptance | volume detail', function(hooks) {
       jobId: allocation.jobId,
     });
 
-    const tasks = taskGroup.taskIds.map(id => server.db.tasks.find(id));
+    const tasks = taskGroup.taskIds.map((id) => server.db.tasks.find(id));
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
-    const memoryUsed = tasks.reduce((sum, task) => sum + task.resources.MemoryMB, 0);
+    const memoryUsed = tasks.reduce(
+      (sum, task) => sum + task.resources.MemoryMB,
+      0
+    );
 
     await VolumeDetail.visit({ id: volume.id });
 
-    VolumeDetail.writeAllocations.objectAt(0).as(allocationRow => {
-      assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation short ID');
+    VolumeDetail.writeAllocations.objectAt(0).as((allocationRow) => {
+      assert.equal(
+        allocationRow.shortId,
+        allocation.id.split('-')[0],
+        'Allocation short ID'
+      );
       assert.equal(
         allocationRow.createTime,
         moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
@@ -126,8 +144,16 @@ module('Acceptance | volume detail', function(hooks) {
         moment(allocation.modifyTime / 1000000).fromNow(),
         'Allocation modify time'
       );
-      assert.equal(allocationRow.status, allocation.clientStatus, 'Client status');
-      assert.equal(allocationRow.job, server.db.jobs.find(allocation.jobId).name, 'Job name');
+      assert.equal(
+        allocationRow.status,
+        allocation.clientStatus,
+        'Client status'
+      );
+      assert.equal(
+        allocationRow.job,
+        server.db.jobs.find(allocation.jobId).name,
+        'Job name'
+      );
       assert.ok(allocationRow.taskGroup, 'Task group name');
       assert.ok(allocationRow.jobVersion, 'Job Version');
       assert.equal(
@@ -145,7 +171,9 @@ module('Acceptance | volume detail', function(hooks) {
         Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
         'CPU %'
       );
-      const roundedTicks = Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks);
+      const roundedTicks = Math.floor(
+        allocStats.resourceUsage.CpuStats.TotalTicks
+      );
       assert.equal(
         allocationRow.cpuTooltip,
         `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
@@ -158,16 +186,15 @@ module('Acceptance | volume detail', function(hooks) {
       );
       assert.equal(
         allocationRow.memTooltip,
-        `${formatBytes(allocStats.resourceUsage.MemoryStats.RSS)} / ${formatBytes(
-          memoryUsed,
-          'MiB'
-        )}`,
+        `${formatBytes(
+          allocStats.resourceUsage.MemoryStats.RSS
+        )} / ${formatBytes(memoryUsed, 'MiB')}`,
         'Detailed memory information is in a tooltip'
       );
     });
   });
 
-  test('each allocation should link to the allocation detail page', async function(assert) {
+  test('each allocation should link to the allocation detail page', async function (assert) {
     const allocation = server.create('allocation');
     assignWriteAlloc(volume, allocation);
 
@@ -177,43 +204,46 @@ module('Acceptance | volume detail', function(hooks) {
     assert.equal(currentURL(), `/allocations/${allocation.id}`);
   });
 
-  test('when there are no write allocations, the table presents an empty state', async function(assert) {
+  test('when there are no write allocations, the table presents an empty state', async function (assert) {
     await VolumeDetail.visit({ id: volume.id });
 
     assert.ok(VolumeDetail.writeTableIsEmpty);
     assert.equal(VolumeDetail.writeEmptyState.headline, 'No Write Allocations');
   });
 
-  test('when there are no read allocations, the table presents an empty state', async function(assert) {
+  test('when there are no read allocations, the table presents an empty state', async function (assert) {
     await VolumeDetail.visit({ id: volume.id });
 
     assert.ok(VolumeDetail.readTableIsEmpty);
     assert.equal(VolumeDetail.readEmptyState.headline, 'No Read Allocations');
   });
 
-  test('the constraints table shows access mode and attachment mode', async function(assert) {
+  test('the constraints table shows access mode and attachment mode', async function (assert) {
     await VolumeDetail.visit({ id: volume.id });
 
     assert.equal(VolumeDetail.constraints.accessMode, volume.accessMode);
-    assert.equal(VolumeDetail.constraints.attachmentMode, volume.attachmentMode);
+    assert.equal(
+      VolumeDetail.constraints.attachmentMode,
+      volume.attachmentMode
+    );
   });
 });
 
 // Namespace test: details shows the namespace
-module('Acceptance | volume detail (with namespaces)', function(hooks) {
+module('Acceptance | volume detail (with namespaces)', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
   let volume;
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     server.createList('namespace', 2);
     server.create('node');
     server.create('csi-plugin', { createVolumes: false });
     volume = server.create('csi-volume');
   });
 
-  test('/csi/volumes/:id detail ribbon includes the namespace of the volume', async function(assert) {
+  test('/csi/volumes/:id detail ribbon includes the namespace of the volume', async function (assert) {
     await VolumeDetail.visit({ id: volume.id, namespace: volume.namespaceId });
 
     assert.ok(VolumeDetail.hasNamespace);

@@ -4,7 +4,8 @@ import { get } from '@ember/object';
 
 export default class Recommendation extends Model {
   @belongsTo('job') job;
-  @belongsTo('recommendation-summary', { inverse: 'recommendations' }) recommendationSummary;
+  @belongsTo('recommendation-summary', { inverse: 'recommendations' })
+  recommendationSummary;
 
   @attr('date') submitTime;
 
@@ -22,7 +23,8 @@ export default class Recommendation extends Model {
   @attr('number') value;
 
   get currentValue() {
-    const resourceProperty = this.resource === 'CPU' ? 'reservedCPU' : 'reservedMemory';
+    const resourceProperty =
+      this.resource === 'CPU' ? 'reservedCPU' : 'reservedMemory';
     return get(this, `task.${resourceProperty}`);
   }
 

@@ -10,12 +10,17 @@ import { click, settled } from '@ember/test-helpers';
 // these two moments. Doing it before opening means hanging on open not on select. Doing it
 // after means hanging after the select has occurred (too late).
 async function openIfClosedAndGetContentId(trigger) {
-  let contentId = trigger.attributes['aria-owns'] && `${trigger.attributes['aria-owns'].value}`;
+  let contentId =
+    trigger.attributes['aria-owns'] &&
+    `${trigger.attributes['aria-owns'].value}`;
   let content = contentId ? document.querySelector(`#${contentId}`) : undefined;
   // If the dropdown is closed, open it
-  if (!content || content.classList.contains('ember-basic-dropdown-content-placeholder')) {
+  if (
+    !content ||
+    content.classList.contains('ember-basic-dropdown-content-placeholder')
+  ) {
     await click(trigger);
-    await settled();
+
     contentId = `${trigger.attributes['aria-owns'].value}`;
   }
   return contentId;
@@ -30,7 +35,9 @@ export async function selectOpen(cssPathOrTrigger) {
       trigger = cssPathOrTrigger.querySelector('.ember-power-select-trigger');
     }
   } else {
-    trigger = document.querySelector(`${cssPathOrTrigger} .ember-power-select-trigger`);
+    trigger = document.querySelector(
+      `${cssPathOrTrigger} .ember-power-select-trigger`
+    );
 
     if (!trigger) {
       trigger = document.querySelector(cssPathOrTrigger);
@@ -50,20 +57,28 @@ export async function selectOpen(cssPathOrTrigger) {
   return await openIfClosedAndGetContentId(trigger);
 }
 
-export async function selectOpenChoose(contentId, valueOrSelector, optionIndex) {
+export async function selectOpenChoose(
+  contentId,
+  valueOrSelector,
+  optionIndex
+) {
   let target;
   // Select the option with the given text
-  let options = document.querySelectorAll(`#${contentId} .ember-power-select-option`);
+  let options = document.querySelectorAll(
+    `#${contentId} .ember-power-select-option`
+  );
   let potentialTargets = [].slice
     .apply(options)
-    .filter(opt => opt.textContent.indexOf(valueOrSelector) > -1);
+    .filter((opt) => opt.textContent.indexOf(valueOrSelector) > -1);
   if (potentialTargets.length === 0) {
-    potentialTargets = document.querySelectorAll(`#${contentId} ${valueOrSelector}`);
+    potentialTargets = document.querySelectorAll(
+      `#${contentId} ${valueOrSelector}`
+    );
   }
   if (potentialTargets.length > 1) {
     let filteredTargets = [].slice
       .apply(potentialTargets)
-      .filter(t => t.textContent.trim() === valueOrSelector);
+      .filter((t) => t.textContent.trim() === valueOrSelector);
     if (optionIndex === undefined) {
       target = filteredTargets[0] || potentialTargets[0];
     } else {

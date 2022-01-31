@@ -13,7 +13,7 @@ export default class ListTable extends Component {
   // Plan for a future with metadata (e.g., isSelected)
   @computed('source.[]')
   get decoratedSource() {
-    return (this.source || []).map(row => ({
+    return (this.source || []).map((row) => ({
       model: row,
     }));
   }

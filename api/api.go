@@ -741,33 +741,45 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 	if err != nil {
 		return 0, nil, err
 	}
+
 	start := time.Now()
 	resp, err := c.httpClient.Do(req)
 	diff := time.Since(start)
 
 	// If the response is compressed, we swap the body's reader.
-	if resp != nil && resp.Header != nil {
-		var reader io.ReadCloser
-		switch resp.Header.Get("Content-Encoding") {
-		case "gzip":
-			greader, err := gzip.NewReader(resp.Body)
-			if err != nil {
-				return 0, nil, err
-			}
-
-			// The gzip reader doesn't close the wrapped reader so we use
-			// multiCloser.
-			reader = &multiCloser{
-				reader:       greader,
-				inorderClose: []io.Closer{greader, resp.Body},
-			}
-		default:
-			reader = resp.Body
-		}
-		resp.Body = reader
+	if zipErr := c.autoUnzip(resp); zipErr != nil {
+		return 0, nil, zipErr
 	}
 
 	return diff, resp, err
+}
+
+// autoUnzip modifies resp in-place, wrapping the response body with a gzip
+// reader if the Content-Encoding of the response is "gzip".
+func (*Client) autoUnzip(resp *http.Response) error {
+	if resp == nil || resp.Header == nil {
+		return nil
+	}
+
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		zReader, err := gzip.NewReader(resp.Body)
+		if err == io.EOF {
+			// zero length response, do not wrap
+			return nil
+		} else if err != nil {
+			// some other error (e.g. corrupt)
+			return err
+		}
+
+		// The gzip reader does not close an underlying reader, so use a
+		// multiCloser to make sure response body does get closed.
+		resp.Body = &multiCloser{
+			reader:       zReader,
+			inorderClose: []io.Closer{zReader, resp.Body},
+		}
+	}
+
+	return nil
 }
 
 // rawQuery makes a GET request to the specified endpoint but returns just the
