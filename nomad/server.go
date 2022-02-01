@@ -265,9 +265,6 @@ type endpoints struct {
 	Status     *Status
 	Node       *Node
 	Job        *Job
-	Eval       *Eval
-	Plan       *Plan
-	Alloc      *Alloc
 	CSIVolume  *CSIVolume
 	CSIPlugin  *CSIPlugin
 	Deployment *Deployment
@@ -1166,12 +1163,12 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.Namespace = &Namespace{srv: s}
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
 
-		// Endpoints that need the RPC context are added but not registered
-		s.staticEndpoints.Alloc = &Alloc{srv: s, logger: s.logger.Named("alloc")}
+		// These endpoints are dynamic because they need access to the
+		// RPCContext, but they also need to be called directly in some cases,
+		// so store them into staticEndpoints for later access, but don't
+		// register them as static.
 		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
-		s.staticEndpoints.Eval = &Eval{srv: s, logger: s.logger.Named("eval")}
 		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")}
-		s.staticEndpoints.Plan = &Plan{srv: s, logger: s.logger.Named("plan")}
 
 		// Client endpoints
 		s.staticEndpoints.ClientStats = &ClientStats{srv: s, logger: s.logger.Named("client_stats")}
