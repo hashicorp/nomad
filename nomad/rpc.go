@@ -874,17 +874,12 @@ func (r *rpcHandler) validateRaftTLS(rpcCtx *RPCContext) error {
 	expected := "server." + r.Region() + ".nomad"
 	err := rpcCtx.ValidateCertificateForName(expected)
 	if err != nil {
-		logLabels := []interface{}{
-			"remote_addr", rpcCtx.Conn.RemoteAddr(),
-			"required_hostname", expected,
-		}
 		cert := rpcCtx.Certificate()
 		if cert != nil {
-			logLabels = append(logLabels, "found", cert.DNSNames)
+			err = fmt.Errorf("request certificate is only valid for %s: %v", cert.DNSNames, err)
 		}
 
-		r.logger.Warn("unauthorized raft connection", logLabels...)
-		return fmt.Errorf("certificate is invalid for expected role or region: %q", expected)
+		return fmt.Errorf("unauthorized raft connection from %s: %v", rpcCtx.Conn.RemoteAddr(), err)
 	}
 
 	// Certificate is valid for the expected name
