@@ -93,7 +93,7 @@ func (tc *CSINodeOnlyPluginEFSTest) TestEFSVolumeClaim(f *framework.F) {
 	// Shutdown the writer so we can run a reader.
 	// although EFS should support multiple readers, the plugin
 	// does not.
-	_, err = e2e.Command("nomad", "job", "stop", writeJobID)
+	err = e2e.StopJob(writeJobID)
 	require.NoError(err)
 
 	// wait for the volume unpublish workflow to complete
@@ -123,8 +123,8 @@ func (tc *CSINodeOnlyPluginEFSTest) AfterEach(f *framework.F) {
 
 	// Stop all jobs in test
 	for _, id := range tc.testJobIDs {
-		out, err := e2e.Command("nomad", "job", "stop", "-purge", id)
-		f.Assert().NoError(err, out)
+		err := e2e.StopJob(id, "-purge")
+		f.Assert().NoError(err)
 	}
 	tc.testJobIDs = []string{}
 
@@ -142,8 +142,8 @@ func (tc *CSINodeOnlyPluginEFSTest) AfterEach(f *framework.F) {
 
 	// Deregister all plugin jobs in test
 	for _, id := range tc.pluginJobIDs {
-		out, err := e2e.Command("nomad", "job", "stop", "-purge", id)
-		f.Assert().NoError(err, out)
+		err := e2e.StopJob(id, "-purge")
+		f.Assert().NoError(err)
 	}
 	tc.pluginJobIDs = []string{}
 
