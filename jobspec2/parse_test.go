@@ -373,6 +373,49 @@ job "example" {
 	require.Equal(t, "3", out.TaskGroups[2].Tasks[0].Meta["VERSION"])
 }
 
+func TestParse_InvalidHCL(t *testing.T) {
+	t.Run("invalid body", func(t *testing.T) {
+		hcl := `invalid{hcl`
+
+		_, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			ArgVars: []string{},
+			AllowFS: true,
+		})
+		require.Error(t, err)
+	})
+
+	t.Run("invalid vars file", func(t *testing.T) {
+		tmp, err := ioutil.TempFile("", "nomad-jobspec2-")
+		require.NoError(t, err)
+		defer os.Remove(tmp.Name())
+
+		vars := `invalid{hcl`
+		_, err = tmp.Write([]byte(vars))
+		require.NoError(t, err)
+
+		hcl := `
+variables {
+  region_var = "default"
+}
+job "example" {
+  datacenters = [for s in ["dc1", "dc2"] : upper(s)]
+  region      = var.region_var
+}
+`
+
+		_, err = ParseWithConfig(&ParseConfig{
+			Path:     "input.hcl",
+			Body:     []byte(hcl),
+			VarFiles: []string{tmp.Name()},
+			ArgVars:  []string{},
+			AllowFS:  true,
+		})
+		require.Error(t, err)
+	})
+}
+
 func TestParse_InvalidScalingSyntax(t *testing.T) {
 	cases := []struct {
 		name        string

@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
@@ -59,24 +58,7 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	var secret string
-	s.parseToken(req, &secret)
-
-	var aclObj *acl.ACL
-	var err error
-
-	// Get the member as a server
-	var member serf.Member
-	if srv := s.agent.Server(); srv != nil {
-		member = srv.LocalMember()
-		aclObj, err = srv.ResolveToken(secret)
-	} else {
-		// Not a Server, so use the Client for token resolution. Note
-		// this gets forwarded to a server with AllowStale = true if
-		// the local ACL cache TTL has expired (30s by default)
-		aclObj, err = s.agent.Client().ResolveToken(secret)
-	}
-
+	aclObj, err := s.ResolveToken(req)
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +66,12 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 	// Check agent read permissions
 	if aclObj != nil && !aclObj.AllowAgentRead() {
 		return nil, structs.ErrPermissionDenied
+	}
+
+	// Get the member as a server
+	var member serf.Member
+	if srv := s.agent.Server(); srv != nil {
+		member = srv.LocalMember()
 	}
 
 	self := agentSelf{
@@ -668,25 +656,17 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	var secret string
-	s.parseToken(req, &secret)
-
-	// Check agent read permissions
-	var aclObj *acl.ACL
-	var enableDebug bool
-	var err error
-	if srv := s.agent.Server(); srv != nil {
-		aclObj, err = srv.ResolveToken(secret)
-		enableDebug = srv.GetConfig().EnableDebug
-	} else {
-		// Not a Server, so use the Client for token resolution. Note
-		// this gets forwarded to a server with AllowStale = true if
-		// the local ACL cache TTL has expired (30s by default)
-		aclObj, err = s.agent.Client().ResolveToken(secret)
-		enableDebug = s.agent.Client().GetConfig().EnableDebug
-	}
+	aclObj, err := s.ResolveToken(req)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check agent read permissions
+	var enableDebug bool
+	if srv := s.agent.Server(); srv != nil {
+		enableDebug = srv.GetConfig().EnableDebug
+	} else {
+		enableDebug = s.agent.Client().GetConfig().EnableDebug
 	}
 
 	if (aclObj != nil && !aclObj.AllowAgentRead()) ||

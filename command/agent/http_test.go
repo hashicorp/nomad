@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -1248,6 +1249,57 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 	}
 }
 
+func TestHTTPServer_ResolveToken(t *testing.T) {
+	t.Parallel()
+
+	// Setup two servers, one with ACL enabled and another with ACL disabled.
+	noACLServer := makeHTTPServer(t, func(c *Config) {
+		c.ACL = &ACLConfig{Enabled: false}
+	})
+	defer noACLServer.Shutdown()
+
+	ACLServer := makeHTTPServer(t, func(c *Config) {
+		c.ACL = &ACLConfig{Enabled: true}
+	})
+	defer ACLServer.Shutdown()
+
+	// Register sample token.
+	state := ACLServer.Agent.server.State()
+	token := mock.CreatePolicyAndToken(t, state, 1000, "node", mock.NodePolicy(acl.PolicyWrite))
+
+	// Tests cases.
+	t.Run("acl disabled", func(t *testing.T) {
+		req := &http.Request{Body: http.NoBody}
+		got, err := noACLServer.Server.ResolveToken(req)
+		require.NoError(t, err)
+		require.Nil(t, got)
+	})
+
+	t.Run("token not found", func(t *testing.T) {
+		req := &http.Request{
+			Body:   http.NoBody,
+			Header: make(map[string][]string),
+		}
+		setToken(req, mock.ACLToken())
+		got, err := ACLServer.Server.ResolveToken(req)
+		require.Nil(t, got)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "ACL token not found")
+	})
+
+	t.Run("set token", func(t *testing.T) {
+		req := &http.Request{
+			Body:   http.NoBody,
+			Header: make(map[string][]string),
+		}
+		setToken(req, token)
+		got, err := ACLServer.Server.ResolveToken(req)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.True(t, got.AllowNodeWrite())
+	})
+}
+
 func Test_IsAPIClientError(t *testing.T) {
 	trueCases := []int{400, 403, 404, 499}
 	for _, c := range trueCases {
@@ -1341,6 +1393,12 @@ func httpACLTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 
 func setToken(req *http.Request, token *structs.ACLToken) {
 	req.Header.Set("X-Nomad-Token", token.SecretID)
+}
+
+func setNamespace(req *http.Request, ns string) {
+	q := req.URL.Query()
+	q.Add("namespace", ns)
+	req.URL.RawQuery = q.Encode()
 }
 
 func encodeReq(obj interface{}) io.ReadCloser {
