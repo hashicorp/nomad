@@ -18,10 +18,10 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/exptime"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/pkg/errors"
+	"oss.indeed.com/go/libtime/decay"
 )
 
 const envoyBootstrapHookName = "envoy_bootstrap"
@@ -277,7 +277,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 
 	// Since Consul services are registered asynchronously with this task
 	// hook running, retry until timeout or success.
-	if backoffErr := exptime.Backoff(func() (bool, error) {
+	if backoffErr := decay.Backoff(func() (bool, error) {
 
 		// If hook is killed, just stop.
 		select {
@@ -324,7 +324,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 		_ = os.Remove(bootstrapFilePath)
 
 		return true, cmdErr
-	}, exptime.BackoffOptions{
+	}, decay.BackoffOptions{
 		MaxSleepTime:   h.envoyBootstrapWaitTime,
 		InitialGapSize: h.envoyBoostrapInitialGap,
 		MaxJitterSize:  h.envoyBootstrapMaxJitter,
