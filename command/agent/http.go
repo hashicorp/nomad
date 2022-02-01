@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -244,6 +245,31 @@ func (s *HTTPServer) Shutdown() {
 		s.listener.Close()
 		<-s.listenerCh // block until http.Serve has returned.
 	}
+}
+
+// ResolveToken extracts the ACL token secret ID from the request and
+// translates it into an ACL object. Returns nil if ACLs are disabled.
+func (s *HTTPServer) ResolveToken(req *http.Request) (*acl.ACL, error) {
+	var secret string
+	s.parseToken(req, &secret)
+
+	var aclObj *acl.ACL
+	var err error
+
+	if srv := s.agent.Server(); srv != nil {
+		aclObj, err = srv.ResolveToken(secret)
+	} else {
+		// Not a Server, so use the Client for token resolution. Note
+		// this gets forwarded to a server with AllowStale = true if
+		// the local ACL cache TTL has expired (30s by default)
+		aclObj, err = s.agent.Client().ResolveToken(secret)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ACL token: %v", err)
+	}
+
+	return aclObj, nil
 }
 
 // registerHandlers is used to attach our handlers to the mux

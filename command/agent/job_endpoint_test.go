@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -406,6 +407,128 @@ func TestHTTP_JobsParse(t *testing.T) {
 		}
 	})
 }
+
+func TestHTTP_JobsParse_ACL(t *testing.T) {
+	t.Parallel()
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// ACL tokens used in tests.
+		nodeToken := mock.CreatePolicyAndToken(
+			t, state, 1000, "node",
+			mock.NodePolicy(acl.PolicyWrite),
+		)
+		parseJobDevToken := mock.CreatePolicyAndToken(
+			t, state, 1002, "parse-job-dev",
+			mock.NamespacePolicy("dev", "", []string{"parse-job"}),
+		)
+		readNsDevToken := mock.CreatePolicyAndToken(
+			t, state, 1004, "read-dev",
+			mock.NamespacePolicy("dev", "read", nil),
+		)
+		parseJobDefaultToken := mock.CreatePolicyAndToken(
+			t, state, 1006, "parse-job-default",
+			mock.NamespacePolicy("default", "", []string{"parse-job"}),
+		)
+		submitJobDefaultToken := mock.CreatePolicyAndToken(
+			t, state, 1008, "submit-job-default",
+			mock.NamespacePolicy("default", "", []string{"submit-job"}),
+		)
+		readNsDefaultToken := mock.CreatePolicyAndToken(
+			t, state, 1010, "read-default",
+			mock.NamespacePolicy("default", "read", nil),
+		)
+
+		testCases := []struct {
+			name        string
+			token       *structs.ACLToken
+			namespace   string
+			expectError bool
+		}{
+			{
+				name:        "missing ACL token",
+				token:       nil,
+				expectError: true,
+			},
+			{
+				name:        "wrong permissions",
+				token:       nodeToken,
+				expectError: true,
+			},
+			{
+				name:        "wrong namespace",
+				token:       readNsDevToken,
+				expectError: true,
+			},
+			{
+				name:        "wrong namespace capability",
+				token:       parseJobDevToken,
+				expectError: true,
+			},
+			{
+				name:        "default namespace read",
+				token:       readNsDefaultToken,
+				expectError: false,
+			},
+			{
+				name:        "non-default namespace read",
+				token:       readNsDevToken,
+				namespace:   "dev",
+				expectError: false,
+			},
+			{
+				name:        "default namespace parse-job capability",
+				token:       parseJobDefaultToken,
+				expectError: false,
+			},
+			{
+				name:        "default namespace submit-job capability",
+				token:       submitJobDefaultToken,
+				expectError: false,
+			},
+			{
+				name:        "non-default namespace capability",
+				token:       parseJobDevToken,
+				namespace:   "dev",
+				expectError: false,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				buf := encodeReq(api.JobsParseRequest{JobHCL: mock.HCL()})
+				req, err := http.NewRequest("POST", "/v1/jobs/parse", buf)
+				require.NoError(t, err)
+
+				if tc.namespace != "" {
+					setNamespace(req, tc.namespace)
+				}
+
+				if tc.token != nil {
+					setToken(req, tc.token)
+				}
+
+				respW := httptest.NewRecorder()
+				obj, err := s.Server.JobsParseRequest(respW, req)
+
+				if tc.expectError {
+					require.Error(t, err)
+					require.Equal(t, structs.ErrPermissionDenied.Error(), err.Error())
+				} else {
+					require.NoError(t, err)
+					require.NotNil(t, obj)
+
+					job := obj.(*api.Job)
+					expected := mock.Job()
+					require.Equal(t, expected.Name, *job.Name)
+					require.ElementsMatch(t, expected.Datacenters, job.Datacenters)
+				}
+			})
+		}
+	})
+}
+
 func TestHTTP_JobQuery(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {

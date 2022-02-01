@@ -29,6 +29,7 @@ func TestParse(t *testing.T) {
 						Policy: PolicyRead,
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
+							NamespaceCapabilityParseJob,
 							NamespaceCapabilityReadJob,
 							NamespaceCapabilityCSIListVolume,
 							NamespaceCapabilityCSIReadVolume,
@@ -78,6 +79,7 @@ func TestParse(t *testing.T) {
 						Policy: PolicyRead,
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
+							NamespaceCapabilityParseJob,
 							NamespaceCapabilityReadJob,
 							NamespaceCapabilityCSIListVolume,
 							NamespaceCapabilityCSIReadVolume,
@@ -91,6 +93,7 @@ func TestParse(t *testing.T) {
 						Policy: PolicyWrite,
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
+							NamespaceCapabilityParseJob,
 							NamespaceCapabilityReadJob,
 							NamespaceCapabilityCSIListVolume,
 							NamespaceCapabilityCSIReadVolume,

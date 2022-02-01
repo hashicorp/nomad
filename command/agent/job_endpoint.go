@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang/snappy"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
@@ -665,6 +666,25 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
+	var namespace string
+	parseNamespace(req, &namespace)
+
+	aclObj, err := s.ResolveToken(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check job parse permissions
+	if aclObj != nil {
+		hasParseJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityParseJob)
+		hasSubmitJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilitySubmitJob)
+
+		allowed := hasParseJob || hasSubmitJob
+		if !allowed {
+			return nil, structs.ErrPermissionDenied
+		}
+	}
+
 	args := &api.JobsParseRequest{}
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
@@ -674,7 +694,6 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	}
 
 	var jobStruct *api.Job
-	var err error
 	if args.HCLv1 {
 		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
 	} else {
