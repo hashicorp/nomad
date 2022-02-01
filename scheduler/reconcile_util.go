@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -208,15 +209,22 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 	return from
 }
 
-// filterByTainted takes a set of tainted nodes and filters the allocation set
-// into three groups:
+// TODO: This might need to be a new separate method to avoid impacting the
+// system scheduler OR the system scheduler may actually require updates.
+// groupByAllocOrNodeStatus takes a set of tainted nodes and filters the allocation set
+// into 5 groups:
 // 1. Those that exist on untainted nodes
 // 2. Those exist on nodes that are draining
 // 3. Those that exist on lost nodes
-func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untainted, migrate, lost allocSet) {
+// 4. Those that are on nodes that are disconnected, but have not had their ClientState set to unknown
+// 5. Those that have had their ClientState set to unknown, but their node has reconnected.
+func (a allocSet) groupByAllocOrNodeStatus(taintedNodes map[string]*structs.Node) (untainted, migrate, lost, disconnecting, reconnecting allocSet) {
 	untainted = make(map[string]*structs.Allocation)
 	migrate = make(map[string]*structs.Allocation)
 	lost = make(map[string]*structs.Allocation)
+	disconnecting = make(map[string]*structs.Allocation)
+	reconnecting = make(map[string]*structs.Allocation)
+
 	for _, alloc := range a {
 		// Terminal allocs are always untainted as they should never be migrated
 		if alloc.TerminalStatus() {
@@ -232,9 +240,34 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untain
 
 		taintedNode, ok := taintedNodes[alloc.NodeID]
 		if !ok {
-			// Node is untainted so alloc is untainted
+			// Queue allocs on a node that is now re-connected to be resumed.
+			if alloc.ClientStatus == structs.AllocClientStatusUnknown {
+				reconnecting[alloc.ID] = alloc
+				continue
+			}
+
+			// Otherwise, Node is untainted so alloc is untainted
 			untainted[alloc.ID] = alloc
 			continue
+		}
+
+		if taintedNode != nil {
+			// Group disconnecting/reconnecting
+			switch taintedNode.Status {
+			case structs.NodeStatusDisconnected:
+				// Queue running allocs on a node that is disconnected to be marked as unknown.
+				if alloc.ClientStatus == structs.AllocClientStatusRunning {
+					disconnecting[alloc.ID] = alloc
+					continue
+				}
+			case structs.NodeStatusReady:
+				// Queue unknown allocs on a node that is connected to reconnect.
+				if alloc.ClientStatus == structs.AllocClientStatusUnknown {
+					reconnecting[alloc.ID] = alloc
+					continue
+				}
+			default:
+			}
 		}
 
 		// Allocs on GC'd (nil) or lost nodes are Lost
@@ -245,13 +278,15 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untain
 
 		// All other allocs are untainted
 		untainted[alloc.ID] = alloc
+
 	}
+
 	return
 }
 
 // filterByRescheduleable filters the allocation set to return the set of allocations that are either
 // untainted or a set of allocations that must be rescheduled now. Allocations that can be rescheduled
-// at a future time are also returned so that we can create follow up evaluations for them. Allocs are
+// at a future time are also returned so that we can create followup evaluations for them. Allocs are
 // skipped or considered untainted according to logic defined in shouldFilter method.
 func (a allocSet) filterByRescheduleable(isBatch bool, now time.Time, evalID string, deployment *structs.Deployment) (untainted, rescheduleNow allocSet, rescheduleLater []*delayedRescheduleInfo) {
 	untainted = make(map[string]*structs.Allocation)
@@ -413,6 +448,34 @@ func (a allocSet) delayByStopAfterClientDisconnect() (later []*delayedReschedule
 	return later
 }
 
+// delayByResumeAfterClientReconnect returns a delay for any unknown allocation
+// that's got a resume_after_client_reconnect configured
+func (a allocSet) delayByResumeAfterClientReconnect(taintedNodes map[string]*structs.Node, now time.Time) (later []*delayedRescheduleInfo, err error) {
+	for _, alloc := range a {
+		node, ok := taintedNodes[alloc.NodeID]
+		// TODO: This shouldn't really possible by this point because of the groupBy
+		// function. Maybe we should remove this defensive guard?
+		if !ok || node.Status != structs.NodeStatusDisconnected {
+			err = errors.New("invalid disconnected set: node not disconnected")
+			return
+		}
+
+		timeout := alloc.ResumeTimeout(node, now)
+
+		if !timeout.After(now) {
+			continue
+		}
+
+		later = append(later, &delayedRescheduleInfo{
+			allocID:        alloc.ID,
+			alloc:          alloc,
+			rescheduleTime: timeout,
+		})
+	}
+
+	return
+}
+
 // allocNameIndex is used to select allocation names for placement or removal
 // given an existing set of placed allocations.
 type allocNameIndex struct {
@@ -478,7 +541,7 @@ func bitmapFrom(input allocSet, minSize uint) structs.Bitmap {
 	return bitmap
 }
 
-// RemoveHighest removes and returns the highest n used names. The returned set
+// Highest removes and returns the highest n used names. The returned set
 // can be less than n if there aren't n names set in the index
 func (a *allocNameIndex) Highest(n uint) map[string]struct{} {
 	h := make(map[string]struct{}, n)

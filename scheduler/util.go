@@ -349,15 +349,19 @@ func progressMade(result *structs.PlanResult) bool {
 }
 
 // taintedNodes is used to scan the allocations and then check if the
-// underlying nodes are tainted, and should force a migration of the allocation.
-// All the nodes returned in the map are tainted.
+// underlying nodes are tainted, and should force a migration of the allocation,
+// or if the underlying nodes are disconnected, and should be used to calculate
+// the reconnect timeout of its allocations.
 func taintedNodes(state State, allocs []*structs.Allocation) (map[string]*structs.Node, error) {
-	out := make(map[string]*structs.Node)
+	tainted := make(map[string]*structs.Node)
+
 	for _, alloc := range allocs {
-		if _, ok := out[alloc.NodeID]; ok {
+		// If already found continue
+		if _, ok := tainted[alloc.NodeID]; ok {
 			continue
 		}
 
+		// Lookup the node
 		ws := memdb.NewWatchSet()
 		node, err := state.NodeByID(ws, alloc.NodeID)
 		if err != nil {
@@ -366,14 +370,25 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]*struct
 
 		// If the node does not exist, we should migrate
 		if node == nil {
-			out[alloc.NodeID] = nil
+			tainted[alloc.NodeID] = nil
 			continue
 		}
+
+		// If the node is a drain target, add to tainted set.
 		if structs.ShouldDrainNode(node.Status) || node.DrainStrategy != nil {
-			out[alloc.NodeID] = node
+			tainted[alloc.NodeID] = node
+		}
+
+		// If the node is in the disconnected state, add to the tainted set.
+		// Disconnected nodes must also be returned so that their
+		// ResumeAfterClientDisconnect configuration can be included in the
+		// timeout calculation.
+		if node.Status == structs.NodeStatusDisconnected {
+			tainted[alloc.NodeID] = node
 		}
 	}
-	return out, nil
+
+	return tainted, nil
 }
 
 // shuffleNodes randomizes the slice order with the Fisher-Yates algorithm

@@ -210,6 +210,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	}
 
 	// Determine the tainted nodes containing job allocs
+	// TODO: Test if affected by disconnect/reconnect
 	tainted, err := taintedNodes(s.state, allocs)
 	if err != nil {
 		return fmt.Errorf("failed to get tainted nodes for job '%s': %v", s.eval.JobID, err)
@@ -223,6 +224,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	live, term := structs.SplitTerminalAllocs(allocs)
 
 	// Diff the required and existing allocations
+	// TODO: Test if affected by disconnect/reconnect
 	diff := diffSystemAllocs(s.job, s.nodes, s.notReadyNodes, tainted, live, term)
 	s.logger.Debug("reconciled current state with desired state",
 		"place", len(diff.place), "update", len(diff.update),

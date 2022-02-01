@@ -55,6 +55,11 @@ const (
 	// up evals for delayed rescheduling
 	reschedulingFollowupEvalDesc = "created for delayed rescheduling"
 
+	// disconnectTimeoutFollowupEvalDesc is the description used when creating follow
+	// up evals for allocations that be should be stopped after its disconnect
+	// timeout has passed.
+	disconnectTimeoutFollowupEvalDesc = "created delayed stop after disconnect timeout"
+
 	// maxPastRescheduleEvents is the maximum number of past reschedule event
 	// that we track when unlimited rescheduling is enabled
 	maxPastRescheduleEvents = 5
@@ -344,7 +349,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// Determine the tainted nodes containing job allocs
 	tainted, err := taintedNodes(s.state, allocs)
 	if err != nil {
-		return fmt.Errorf("failed to get tainted nodes for job '%s': %v",
+		return fmt.Errorf("failed to get tainted and disconnected nodes for job '%s': %v",
 			s.eval.JobID, err)
 	}
 
@@ -368,7 +373,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	s.plan.Deployment = results.deployment
 	s.plan.DeploymentUpdates = results.deploymentUpdates
 
-	// Store all the follow up evaluations from rescheduled allocations
+	// Store all the followup evaluations from rescheduled allocations
 	if len(results.desiredFollowupEvals) > 0 {
 		for _, evals := range results.desiredFollowupEvals {
 			s.followUpEvals = append(s.followUpEvals, evals...)
@@ -399,9 +404,19 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		s.ctx.Plan().AppendAlloc(update, nil)
 	}
 
+	// Handle disconnect updates
+	for _, update := range results.disconnectUpdates {
+		s.ctx.Plan().AppendAlloc(update, nil)
+	}
+
+	// Handle reconnect updates
+	for _, update := range results.reconnectUpdates {
+		s.ctx.Plan().AppendAlloc(update, nil)
+	}
+
 	// Nothing remaining to do if placement is not required
 	if len(results.place)+len(results.destructiveUpdate) == 0 {
-		// If the job has been purged we don't have access to the job. Otherwise
+		// If the job has been purged we don't have access to the job. Otherwise,
 		// set the queued allocs to zero. This is true if the job is being
 		// stopped as well.
 		if s.job != nil {
@@ -412,24 +427,19 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		return nil
 	}
 
-	// Record the number of allocations that needs to be placed per Task Group
-	for _, place := range results.place {
-		s.queuedAllocs[place.taskGroup.Name] += 1
-	}
-	for _, destructive := range results.destructiveUpdate {
-		s.queuedAllocs[destructive.placeTaskGroup.Name] += 1
-	}
-
 	// Compute the placements
 	place := make([]placementResult, 0, len(results.place))
 	for _, p := range results.place {
+		s.queuedAllocs[p.taskGroup.Name] += 1
 		place = append(place, p)
 	}
 
 	destructive := make([]placementResult, 0, len(results.destructiveUpdate))
 	for _, p := range results.destructiveUpdate {
+		s.queuedAllocs[p.placeTaskGroup.Name] += 1
 		destructive = append(destructive, p)
 	}
+
 	return s.computePlacements(destructive, place)
 }
 
