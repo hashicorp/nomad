@@ -192,3 +192,28 @@ func DispatchedJobs(jobID string) ([]map[string]string, error) {
 
 	return summary, nil
 }
+
+func StopJob(jobID string, args ...string) error {
+
+	// Build our argument list in the correct order, ensuring the jobID is last
+	// and the Nomad subcommand are first.
+	baseArgs := []string{"job", "stop"}
+	for i := range args {
+		baseArgs = append(baseArgs, args[i])
+	}
+	baseArgs = append(baseArgs, jobID)
+
+	// Execute the command. We do not care about the stdout, only stderr.
+	_, err := Command("nomad", baseArgs...)
+
+	if err != nil {
+		// When stopping a job and monitoring the resulting deployment, we
+		// expect that the monitor fails and exits with status code one because
+		// technically the deployment has failed. Overwrite the error to be
+		// nil.
+		if strings.Contains(err.Error(), "Description = Cancelled because job is stopped") {
+			err = nil
+		}
+	}
+	return err
+}
