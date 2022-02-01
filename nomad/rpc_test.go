@@ -1153,7 +1153,7 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 		"Node.EmitEvents": &structs.EmitNodeEventsRequest{
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		},
-		"Node.UpdateAllocs": &structs.AllocUpdateRequest{
+		"Node.UpdateAlloc": &structs.AllocUpdateRequest{
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		},
 	}
