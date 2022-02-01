@@ -60,10 +60,10 @@ target "aws-asg" {
   to connect to and where resources should be managed.
 
 - `aws_access_key_id` `(string: "")` - The AWS access key ID used to authenticate
-  with the AWS API.
+  with the AWS API. Can be empty if the agent is running on an EC2 instance with an IAM role attached.
 
 - `aws_secret_access_key` `(string: "")` - The AWS secret key ID used to authenticate
-  with the AWS API.
+  with the AWS API. Can be empty if the agent is running on an EC2 instance with an IAM role attached.
 
 - `aws_session_token` `(string: "")` - The AWS session token used to authenticate
   with the AWS API.
