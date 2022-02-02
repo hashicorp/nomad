@@ -301,3 +301,27 @@ func getAlloc(state AllocGetter, allocID string) (*structs.Allocation, error) {
 
 	return alloc, nil
 }
+
+// validateLocalClientTLSCertificate checks if the provided RPC connection was
+// initiated by a client in the same region as the target server.
+func validateLocalClientTLSCertificate(srv *Server, ctx *RPCContext) error {
+	expected := fmt.Sprintf("client.%s.nomad", srv.Region())
+	return validateTLSCertificate(srv, ctx, expected)
+}
+
+// validateLocalServerTLSCertificate checks if the provided RPC connection was
+// initiated by a server in the same region as the target server.
+func validateLocalServerTLSCertificate(srv *Server, ctx *RPCContext) error {
+	expected := fmt.Sprintf("server.%s.nomad", srv.Region())
+	return validateTLSCertificate(srv, ctx, expected)
+}
+
+// validateTLSCertificate checks if the RPC connection mTLS certificates are
+// valid for the given name.
+func validateTLSCertificate(srv *Server, ctx *RPCContext, name string) error {
+	if srv.config.TLSConfig == nil || !srv.config.TLSConfig.VerifyServerHostname {
+		return nil
+	}
+
+	return ctx.ValidateCertificateForName(name)
+}

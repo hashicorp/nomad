@@ -1103,6 +1103,11 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
 
+	// Ensure the connection was initiated by a client if TLS is used.
+	if err := validateLocalClientTLSCertificate(n.srv, n.ctx); err != nil {
+		return fmt.Errorf("invalid client connection in region %s: %v", n.srv.Region(), err)
+	}
+
 	// Ensure at least a single alloc
 	if len(args.Alloc) == 0 {
 		return fmt.Errorf("must update at least one allocation")
@@ -1919,6 +1924,11 @@ func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.Em
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
+
+	// Ensure the connection was initiated by a client if TLS is used.
+	if err := validateLocalClientTLSCertificate(n.srv, n.ctx); err != nil {
+		return fmt.Errorf("invalid client connection in region %s: %v", n.srv.Region(), err)
+	}
 
 	if len(args.NodeEvents) == 0 {
 		return fmt.Errorf("no node events given")

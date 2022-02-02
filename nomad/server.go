@@ -265,9 +265,6 @@ type endpoints struct {
 	Status     *Status
 	Node       *Node
 	Job        *Job
-	Eval       *Eval
-	Plan       *Plan
-	Alloc      *Alloc
 	CSIVolume  *CSIVolume
 	CSIPlugin  *CSIPlugin
 	Deployment *Deployment
@@ -1151,18 +1148,13 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	if s.staticEndpoints.Status == nil {
 		// Initialize the list just once
 		s.staticEndpoints.ACL = &ACL{srv: s, logger: s.logger.Named("acl")}
-		s.staticEndpoints.Alloc = &Alloc{srv: s, logger: s.logger.Named("alloc")}
-		s.staticEndpoints.Eval = &Eval{srv: s, logger: s.logger.Named("eval")}
 		s.staticEndpoints.Job = NewJobEndpoints(s)
-		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")} // Add but don't register
 		s.staticEndpoints.CSIVolume = &CSIVolume{srv: s, logger: s.logger.Named("csi_volume")}
 		s.staticEndpoints.CSIPlugin = &CSIPlugin{srv: s, logger: s.logger.Named("csi_plugin")}
-		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
 		s.staticEndpoints.Operator = &Operator{srv: s, logger: s.logger.Named("operator")}
 		s.staticEndpoints.Operator.register()
 
 		s.staticEndpoints.Periodic = &Periodic{srv: s, logger: s.logger.Named("periodic")}
-		s.staticEndpoints.Plan = &Plan{srv: s, logger: s.logger.Named("plan")}
 		s.staticEndpoints.Region = &Region{srv: s, logger: s.logger.Named("region")}
 		s.staticEndpoints.Scaling = &Scaling{srv: s, logger: s.logger.Named("scaling")}
 		s.staticEndpoints.Status = &Status{srv: s, logger: s.logger.Named("status")}
@@ -1170,6 +1162,13 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
 		s.staticEndpoints.Namespace = &Namespace{srv: s}
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
+
+		// These endpoints are dynamic because they need access to the
+		// RPCContext, but they also need to be called directly in some cases,
+		// so store them into staticEndpoints for later access, but don't
+		// register them as static.
+		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
+		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")}
 
 		// Client endpoints
 		s.staticEndpoints.ClientStats = &ClientStats{srv: s, logger: s.logger.Named("client_stats")}
@@ -1191,15 +1190,11 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 
 	// Register the static handlers
 	server.Register(s.staticEndpoints.ACL)
-	server.Register(s.staticEndpoints.Alloc)
-	server.Register(s.staticEndpoints.Eval)
 	server.Register(s.staticEndpoints.Job)
 	server.Register(s.staticEndpoints.CSIVolume)
 	server.Register(s.staticEndpoints.CSIPlugin)
-	server.Register(s.staticEndpoints.Deployment)
 	server.Register(s.staticEndpoints.Operator)
 	server.Register(s.staticEndpoints.Periodic)
-	server.Register(s.staticEndpoints.Plan)
 	server.Register(s.staticEndpoints.Region)
 	server.Register(s.staticEndpoints.Scaling)
 	server.Register(s.staticEndpoints.Status)
@@ -1214,10 +1209,18 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.Namespace)
 
 	// Create new dynamic endpoints and add them to the RPC server.
+	alloc := &Alloc{srv: s, ctx: ctx, logger: s.logger.Named("alloc")}
+	deployment := &Deployment{srv: s, ctx: ctx, logger: s.logger.Named("deployment")}
+	eval := &Eval{srv: s, ctx: ctx, logger: s.logger.Named("eval")}
 	node := &Node{srv: s, ctx: ctx, logger: s.logger.Named("client")}
+	plan := &Plan{srv: s, ctx: ctx, logger: s.logger.Named("plan")}
 
 	// Register the dynamic endpoints
+	server.Register(alloc)
+	server.Register(deployment)
+	server.Register(eval)
 	server.Register(node)
+	server.Register(plan)
 }
 
 // setupRaft is used to setup and initialize Raft

@@ -14,6 +14,9 @@ import (
 type Plan struct {
 	srv    *Server
 	logger log.Logger
+
+	// ctx provides context regarding the underlying connection
+	ctx *RPCContext
 }
 
 // Submit is used to submit a plan to the leader
@@ -22,6 +25,11 @@ func (p *Plan) Submit(args *structs.PlanRequest, reply *structs.PlanResponse) er
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "plan", "submit"}, time.Now())
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	if err := validateLocalServerTLSCertificate(p.srv, p.ctx); err != nil {
+		return fmt.Errorf("invalid server connection in region %s: %v", p.srv.Region(), err)
+	}
 
 	if args.Plan == nil {
 		return fmt.Errorf("cannot submit nil plan")

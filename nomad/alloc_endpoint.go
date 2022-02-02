@@ -20,6 +20,9 @@ import (
 type Alloc struct {
 	srv    *Server
 	logger log.Logger
+
+	// ctx provides context regarding the underlying connection
+	ctx *RPCContext
 }
 
 // List is used to list the allocations in the system
@@ -223,6 +226,11 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
+
+	// Ensure the connection was initiated by a client if TLS is used.
+	if err := validateLocalClientTLSCertificate(a.srv, a.ctx); err != nil {
+		return fmt.Errorf("invalid client connection in region %s: %v", a.srv.Region(), err)
+	}
 
 	allocs := make([]*structs.Allocation, len(args.AllocIDs))
 

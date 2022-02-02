@@ -1018,7 +1018,7 @@ func TestRPC_Limits_Streaming(t *testing.T) {
 	})
 }
 
-func TestRPC_TLS_Enforcement(t *testing.T) {
+func TestRPC_TLS_Enforcement_Raft(t *testing.T) {
 	t.Parallel()
 
 	defer func() {
@@ -1026,209 +1026,407 @@ func TestRPC_TLS_Enforcement(t *testing.T) {
 		time.Sleep(1 * time.Second)
 	}()
 
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
-
-	caPEM, pk, err := tlsutil.GenerateCA(tlsutil.CAOpts{Days: 5, Domain: "nomad"})
-	require.NoError(t, err)
-
-	err = ioutil.WriteFile(filepath.Join(dir, "ca.pem"), []byte(caPEM), 0600)
-	require.NoError(t, err)
-
-	nodeID := 1
-	newCert := func(t *testing.T, name string) string {
-		t.Helper()
-
-		node := fmt.Sprintf("node%d", nodeID)
-		nodeID++
-		signer, err := tlsutil.ParseSigner(pk)
-		require.NoError(t, err)
-
-		pem, key, err := tlsutil.GenerateCert(tlsutil.CertOpts{
-			Signer:      signer,
-			CA:          caPEM,
-			Name:        name,
-			Days:        5,
-			DNSNames:    []string{node + "." + name, name, "localhost"},
-			ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
-		})
-		require.NoError(t, err)
-
-		err = ioutil.WriteFile(filepath.Join(dir, node+"-"+name+".pem"), []byte(pem), 0600)
-		require.NoError(t, err)
-		err = ioutil.WriteFile(filepath.Join(dir, node+"-"+name+".key"), []byte(key), 0600)
-		require.NoError(t, err)
-
-		return filepath.Join(dir, node+"-"+name)
-	}
-
-	connect := func(t *testing.T, s *Server, c *config.TLSConfig) net.Conn {
-		conn, err := net.DialTimeout("tcp", s.config.RPCAddr.String(), time.Second)
-		require.NoError(t, err)
-
-		// configure TLS
-		_, err = conn.Write([]byte{byte(pool.RpcTLS)})
-		require.NoError(t, err)
-
-		// Client TLS verification isn't necessary for
-		// our assertions
-		tlsConf, err := tlsutil.NewTLSConfiguration(c, true, true)
-		require.NoError(t, err)
-		outTLSConf, err := tlsConf.OutgoingTLSConfig()
-		require.NoError(t, err)
-		outTLSConf.InsecureSkipVerify = true
-
-		tlsConn := tls.Client(conn, outTLSConf)
-		require.NoError(t, tlsConn.Handshake())
-
-		return tlsConn
-	}
-
-	nomadRPC := func(t *testing.T, s *Server, c *config.TLSConfig) error {
-		conn := connect(t, s, c)
-		defer conn.Close()
-		_, err := conn.Write([]byte{byte(pool.RpcNomad)})
-		require.NoError(t, err)
-
-		codec := pool.NewClientCodec(conn)
-
-		arg := struct{}{}
-		var out struct{}
-		return msgpackrpc.CallWithCodec(codec, "Status.Ping", arg, &out)
-	}
-
-	raftRPC := func(t *testing.T, s *Server, c *config.TLSConfig) error {
-		conn := connect(t, s, c)
-		defer conn.Close()
-
-		_, err := conn.Write([]byte{byte(pool.RpcRaft)})
-		require.NoError(t, err)
-
-		_, err = doRaftRPC(conn, s.config.NodeName)
-		return err
-	}
-
-	// generate server cert
-	serverCert := newCert(t, "server.global.nomad")
-
-	mtlsS, cleanup := TestServer(t, func(c *Config) {
-		c.TLSConfig = &config.TLSConfig{
-			EnableRPC:            true,
-			VerifyServerHostname: true,
-			CAFile:               filepath.Join(dir, "ca.pem"),
-			CertFile:             serverCert + ".pem",
-			KeyFile:              serverCert + ".key",
-		}
-	})
-	defer cleanup()
-
-	nonVerifyS, cleanup := TestServer(t, func(c *Config) {
-		c.TLSConfig = &config.TLSConfig{
-			EnableRPC:            true,
-			VerifyServerHostname: false,
-			CAFile:               filepath.Join(dir, "ca.pem"),
-			CertFile:             serverCert + ".pem",
-			KeyFile:              serverCert + ".key",
-		}
-	})
-	defer cleanup()
+	tlsHelper := newTLSTestHelper(t)
+	defer tlsHelper.cleanup()
 
 	// When VerifyServerHostname is enabled:
-	// Only all servers and local clients can make RPC requests
 	// Only local servers can connect to the Raft layer
 	cases := []struct {
 		name    string
 		cn      string
-		canRPC  bool
 		canRaft bool
 	}{
 		{
 			name:    "local server",
 			cn:      "server.global.nomad",
-			canRPC:  true,
 			canRaft: true,
 		},
 		{
 			name:    "local client",
 			cn:      "client.global.nomad",
-			canRPC:  true,
 			canRaft: false,
 		},
 		{
 			name:    "other region server",
 			cn:      "server.other.nomad",
-			canRPC:  true,
 			canRaft: false,
 		},
 		{
-			name:    "other client server",
+			name:    "other region client",
 			cn:      "client.other.nomad",
-			canRPC:  false,
 			canRaft: false,
 		},
 		{
 			name:    "irrelevant cert",
 			cn:      "nomad.example.com",
-			canRPC:  false,
 			canRaft: false,
 		},
 		{
 			name:    "globs",
 			cn:      "*.global.nomad",
-			canRPC:  false,
 			canRaft: false,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			certPath := newCert(t, tc.cn)
+			certPath := tlsHelper.newCert(t, tc.cn)
 
 			cfg := &config.TLSConfig{
 				EnableRPC:            true,
 				VerifyServerHostname: true,
-				CAFile:               filepath.Join(dir, "ca.pem"),
+				CAFile:               filepath.Join(tlsHelper.dir, "ca.pem"),
 				CertFile:             certPath + ".pem",
 				KeyFile:              certPath + ".key",
 			}
 
-			t.Run("nomad RPC: verify_hostname=true", func(t *testing.T) {
-				err := nomadRPC(t, mtlsS, cfg)
-
-				if tc.canRPC {
-					require.NoError(t, err)
-				} else {
-					require.Error(t, err)
-					require.Contains(t, err.Error(), "bad certificate")
-				}
-			})
-			t.Run("nomad RPC: verify_hostname=false", func(t *testing.T) {
-				err := nomadRPC(t, nonVerifyS, cfg)
-				require.NoError(t, err)
-			})
-
 			t.Run("Raft RPC: verify_hostname=true", func(t *testing.T) {
-				err := raftRPC(t, mtlsS, cfg)
+				err := tlsHelper.raftRPC(t, tlsHelper.mtlsServer, cfg)
 
 				// the expected error depends on location of failure.
 				// We expect "bad certificate" if connection fails during handshake,
 				// or EOF when connection is closed after RaftRPC byte.
 				if tc.canRaft {
 					require.NoError(t, err)
-				} else if !tc.canRPC {
-					require.Error(t, err)
-					require.Contains(t, err.Error(), "bad certificate")
 				} else {
 					require.Error(t, err)
-					require.Contains(t, err.Error(), "EOF")
+					require.Regexp(t, "(bad certificate|EOF)", err.Error())
 				}
 			})
 			t.Run("Raft RPC: verify_hostname=false", func(t *testing.T) {
-				err := raftRPC(t, nonVerifyS, cfg)
+				err := tlsHelper.raftRPC(t, tlsHelper.nonVerifyServer, cfg)
 				require.NoError(t, err)
 			})
 		})
 	}
+}
+
+func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		//TODO Avoid panics from logging during shutdown
+		time.Sleep(1 * time.Second)
+	}()
+
+	tlsHelper := newTLSTestHelper(t)
+	defer tlsHelper.cleanup()
+
+	standardRPCs := map[string]interface{}{
+		"Status.Ping": struct{}{},
+	}
+
+	localServersOnlyRPCs := map[string]interface{}{
+		"Eval.Update": &structs.EvalUpdateRequest{
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		},
+		"Eval.Ack": &structs.EvalAckRequest{
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		},
+		"Eval.Nack": &structs.EvalAckRequest{
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		},
+		"Eval.Dequeue": &structs.EvalDequeueRequest{
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		},
+		"Eval.Create": &structs.EvalUpdateRequest{
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		},
+		"Eval.Reblock": &structs.EvalUpdateRequest{
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		},
+		"Eval.Reap": &structs.EvalDeleteRequest{
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		},
+		"Plan.Submit": &structs.PlanRequest{
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		},
+		"Deployment.Reap": &structs.DeploymentDeleteRequest{
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		},
+	}
+
+	localClientsOnlyRPCs := map[string]interface{}{
+		"Alloc.GetAllocs": &structs.AllocsGetRequest{
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		},
+		"Node.EmitEvents": &structs.EmitNodeEventsRequest{
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		},
+		"Node.UpdateAlloc": &structs.AllocUpdateRequest{
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		},
+	}
+
+	// When VerifyServerHostname is enabled:
+	// All servers can make RPC requests
+	// Only local clients can make RPC requests
+	// Some endpoints can only be called server -> server
+	// Some endpoints can only be called client -> server
+	cases := []struct {
+		name   string
+		cn     string
+		rpcs   map[string]interface{}
+		canRPC bool
+	}{
+		// Local server.
+		{
+			name:   "local server/standard rpc",
+			cn:     "server.global.nomad",
+			rpcs:   standardRPCs,
+			canRPC: true,
+		},
+		{
+			name:   "local server/servers only rpc",
+			cn:     "server.global.nomad",
+			rpcs:   localServersOnlyRPCs,
+			canRPC: true,
+		},
+		{
+			name:   "local server/clients only rpc",
+			cn:     "server.global.nomad",
+			rpcs:   localClientsOnlyRPCs,
+			canRPC: false,
+		},
+		// Local client.
+		{
+			name:   "local client/standard rpc",
+			cn:     "client.global.nomad",
+			rpcs:   standardRPCs,
+			canRPC: true,
+		},
+		{
+			name:   "local client/servers only rpc",
+			cn:     "client.global.nomad",
+			rpcs:   localServersOnlyRPCs,
+			canRPC: false,
+		},
+		{
+			name:   "local client/clients only rpc",
+			cn:     "client.global.nomad",
+			rpcs:   localClientsOnlyRPCs,
+			canRPC: true,
+		},
+		// Other region server.
+		{
+			name:   "other region server/standard rpc",
+			cn:     "server.other.nomad",
+			rpcs:   standardRPCs,
+			canRPC: true,
+		},
+		{
+			name:   "other region server/servers only rpc",
+			cn:     "server.other.nomad",
+			rpcs:   localServersOnlyRPCs,
+			canRPC: false,
+		},
+		{
+			name:   "other region server/clients only rpc",
+			cn:     "server.other.nomad",
+			rpcs:   localClientsOnlyRPCs,
+			canRPC: false,
+		},
+		// Other region client.
+		{
+			name:   "other region client/standard rpc",
+			cn:     "client.other.nomad",
+			rpcs:   standardRPCs,
+			canRPC: false,
+		},
+		{
+			name:   "other region client/servers only rpc",
+			cn:     "client.other.nomad",
+			rpcs:   localServersOnlyRPCs,
+			canRPC: false,
+		},
+		{
+			name:   "other region client/clients only rpc",
+			cn:     "client.other.nomad",
+			rpcs:   localClientsOnlyRPCs,
+			canRPC: false,
+		},
+		// Wrong certs.
+		{
+			name:   "irrelevant cert",
+			cn:     "nomad.example.com",
+			rpcs:   standardRPCs,
+			canRPC: false,
+		},
+		{
+			name:   "globs",
+			cn:     "*.global.nomad",
+			rpcs:   standardRPCs,
+			canRPC: false,
+		},
+		{},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			certPath := tlsHelper.newCert(t, tc.cn)
+
+			cfg := &config.TLSConfig{
+				EnableRPC:            true,
+				VerifyServerHostname: true,
+				CAFile:               filepath.Join(tlsHelper.dir, "ca.pem"),
+				CertFile:             certPath + ".pem",
+				KeyFile:              certPath + ".key",
+			}
+
+			for method, arg := range tc.rpcs {
+				t.Run(fmt.Sprintf("nomad RPC: rpc=%s verify_hostname=true", method), func(t *testing.T) {
+					err := tlsHelper.nomadRPC(t, tlsHelper.mtlsServer, cfg, method, arg)
+
+					if tc.canRPC {
+						if err != nil {
+							require.NotContains(t, err, "certificate")
+						}
+					} else {
+						require.Error(t, err)
+						require.Contains(t, err.Error(), "certificate")
+					}
+				})
+				t.Run(fmt.Sprintf("nomad RPC: rpc=%s verify_hostname=false", method), func(t *testing.T) {
+					err := tlsHelper.nomadRPC(t, tlsHelper.nonVerifyServer, cfg, method, arg)
+					if err != nil {
+						require.NotContains(t, err, "certificate")
+					}
+				})
+			}
+		})
+	}
+}
+
+type tlsTestHelper struct {
+	dir    string
+	nodeID int
+
+	mtlsServer             *Server
+	mtlsServerCleanup      func()
+	nonVerifyServer        *Server
+	nonVerifyServerCleanup func()
+
+	caPEM      string
+	pk         string
+	serverCert string
+}
+
+func newTLSTestHelper(t *testing.T) tlsTestHelper {
+	var err error
+
+	h := tlsTestHelper{
+		dir:    tmpDir(t),
+		nodeID: 1,
+	}
+
+	// Generate CA certificate and write it to disk.
+	h.caPEM, h.pk, err = tlsutil.GenerateCA(tlsutil.CAOpts{Days: 5, Domain: "nomad"})
+	require.NoError(t, err)
+
+	err = ioutil.WriteFile(filepath.Join(h.dir, "ca.pem"), []byte(h.caPEM), 0600)
+	require.NoError(t, err)
+
+	// Generate servers and their certificate.
+	h.serverCert = h.newCert(t, "server.global.nomad")
+
+	h.mtlsServer, h.mtlsServerCleanup = TestServer(t, func(c *Config) {
+		c.TLSConfig = &config.TLSConfig{
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               filepath.Join(h.dir, "ca.pem"),
+			CertFile:             h.serverCert + ".pem",
+			KeyFile:              h.serverCert + ".key",
+		}
+	})
+
+	h.nonVerifyServer, h.nonVerifyServerCleanup = TestServer(t, func(c *Config) {
+		c.TLSConfig = &config.TLSConfig{
+			EnableRPC:            true,
+			VerifyServerHostname: false,
+			CAFile:               filepath.Join(h.dir, "ca.pem"),
+			CertFile:             h.serverCert + ".pem",
+			KeyFile:              h.serverCert + ".key",
+		}
+	})
+
+	return h
+}
+
+func (h tlsTestHelper) cleanup() {
+	h.mtlsServerCleanup()
+	h.nonVerifyServerCleanup()
+	os.RemoveAll(h.dir)
+}
+
+func (h tlsTestHelper) newCert(t *testing.T, name string) string {
+	t.Helper()
+
+	node := fmt.Sprintf("node%d", h.nodeID)
+	h.nodeID++
+	signer, err := tlsutil.ParseSigner(h.pk)
+	require.NoError(t, err)
+
+	pem, key, err := tlsutil.GenerateCert(tlsutil.CertOpts{
+		Signer:      signer,
+		CA:          h.caPEM,
+		Name:        name,
+		Days:        5,
+		DNSNames:    []string{node + "." + name, name, "localhost"},
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+	})
+	require.NoError(t, err)
+
+	err = ioutil.WriteFile(filepath.Join(h.dir, node+"-"+name+".pem"), []byte(pem), 0600)
+	require.NoError(t, err)
+	err = ioutil.WriteFile(filepath.Join(h.dir, node+"-"+name+".key"), []byte(key), 0600)
+	require.NoError(t, err)
+
+	return filepath.Join(h.dir, node+"-"+name)
+}
+
+func (h tlsTestHelper) connect(t *testing.T, s *Server, c *config.TLSConfig) net.Conn {
+	conn, err := net.DialTimeout("tcp", s.config.RPCAddr.String(), time.Second)
+	require.NoError(t, err)
+
+	// configure TLS
+	_, err = conn.Write([]byte{byte(pool.RpcTLS)})
+	require.NoError(t, err)
+
+	// Client TLS verification isn't necessary for
+	// our assertions
+	tlsConf, err := tlsutil.NewTLSConfiguration(c, true, true)
+	require.NoError(t, err)
+	outTLSConf, err := tlsConf.OutgoingTLSConfig()
+	require.NoError(t, err)
+	outTLSConf.InsecureSkipVerify = true
+
+	tlsConn := tls.Client(conn, outTLSConf)
+	require.NoError(t, tlsConn.Handshake())
+
+	return tlsConn
+}
+
+func (h tlsTestHelper) nomadRPC(t *testing.T, s *Server, c *config.TLSConfig, method string, arg interface{}) error {
+	conn := h.connect(t, s, c)
+	defer conn.Close()
+	_, err := conn.Write([]byte{byte(pool.RpcNomad)})
+	require.NoError(t, err)
+
+	codec := pool.NewClientCodec(conn)
+
+	var out struct{}
+	return msgpackrpc.CallWithCodec(codec, method, arg, &out)
+}
+
+func (h tlsTestHelper) raftRPC(t *testing.T, s *Server, c *config.TLSConfig) error {
+	conn := h.connect(t, s, c)
+	defer conn.Close()
+
+	_, err := conn.Write([]byte{byte(pool.RpcRaft)})
+	require.NoError(t, err)
+
+	_, err = doRaftRPC(conn, s.config.NodeName)
+	return err
 }
 
 func doRaftRPC(conn net.Conn, leader string) (*raft.AppendEntriesResponse, error) {
