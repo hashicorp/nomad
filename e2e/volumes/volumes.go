@@ -77,7 +77,7 @@ func (tc *VolumesTest) TestVolumeMounts(f *framework.F) {
 	f.NoError(err, "could not exec into task: exec_task")
 	f.Equal(out, allocID+"\n", "alloc data is missing from exec_task")
 
-	_, err = e2e.Command("nomad", "job", "stop", jobID)
+	err = e2e.StopJob(jobID)
 	f.NoError(err, "could not stop job")
 
 	// modify the job so that we make sure it's placed back on the same host.
