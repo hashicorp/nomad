@@ -47,6 +47,7 @@ $ curl \
     "MemoryOversubscriptionEnabled": true,
     "PreemptionConfig": {
       "SystemSchedulerEnabled": true,
+      "SysBatchSchedulerEnabled": false,
       "BatchSchedulerEnabled": false,
       "ServiceSchedulerEnabled": false
     }
@@ -70,6 +71,9 @@ $ curl \
 
     - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
       this defaults to true.
+
+    - `SysBatchSchedulerEnabled` `(bool: false)` - Specifies whether preemption for system batch jobs is enabled. Note that
+      this defaults to false.
 
     - `BatchSchedulerEnabled` `(bool: false)` - Specifies whether preemption for batch jobs is enabled. Note that
       this defaults to false and must be explicitly enabled.
@@ -116,6 +120,7 @@ server state is authoritative.
   "MemoryOversubscriptionEnabled": false,
   "PreemptionConfig": {
     "SystemSchedulerEnabled": true,
+    "SysBatchSchedulerEnabled": false,
     "BatchSchedulerEnabled": false,
     "ServiceSchedulerEnabled": true
   }
@@ -134,6 +139,10 @@ server state is authoritative.
   - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for
     system jobs is enabled. Note that if this is set to true, then system jobs
     can preempt any other jobs.
+    
+  - `SysBatchSchedulerEnabled` `(bool: false)` <sup>1.2</sup> - Specifies 
+    whether preemption for system batch jobs is enabled. Note that if this is 
+    set to true, then system batch jobs can preempt any other jobs.
 
   - `BatchSchedulerEnabled` `(bool: false)` - Specifies
     whether preemption for batch jobs is enabled. Note that if this is set to
