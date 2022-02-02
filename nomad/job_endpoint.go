@@ -114,7 +114,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
 
 	// Check job submission permissions
-	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+	aclObj, err := j.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
 	} else if aclObj != nil {
 		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
@@ -1867,7 +1868,8 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	defer metrics.MeasureSince([]string{"nomad", "job", "dispatch"}, time.Now())
 
 	// Check for submit-job permissions
-	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+	aclObj, err := j.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityDispatchJob) {
 		return structs.ErrPermissionDenied
