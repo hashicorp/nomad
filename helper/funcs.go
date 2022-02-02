@@ -83,6 +83,11 @@ func Int8ToPtr(i int8) *int8 {
 	return &i
 }
 
+// Int32ToPtr returns the pointer to an int
+func Int32ToPtr(i int32) *int32 {
+	return &i
+}
+
 // Int64ToPtr returns the pointer to an int
 func Int64ToPtr(i int64) *int64 {
 	return &i
