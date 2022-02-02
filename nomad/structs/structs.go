@@ -7769,9 +7769,9 @@ func (ts *TaskState) Copy() *TaskState {
 	return newTS
 }
 
-// Successful returns whether a task finished successfully. This doesn't really
-// have meaning on a non-batch allocation because a service and system
-// allocation should not finish.
+// Successful returns whether a task finished successfully. Only meaningful for
+// for batch allocations or ephemeral (non-sidecar) lifecycle tasks part of a
+// service or system allocation.
 func (ts *TaskState) Successful() bool {
 	return ts.State == TaskStateDead && !ts.Failed
 }
