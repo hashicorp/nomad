@@ -9,6 +9,7 @@ import (
 
 	"fmt"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -810,4 +811,98 @@ func validateEqualSpread(h *Harness) error {
 		return nil
 	}
 	return fmt.Errorf("expected even distributon of allocs to racks, but got:\n%+v", countSet)
+}
+
+func TestSpreadPanicDowngrade(t *testing.T) {
+
+	h := NewHarness(t)
+
+	nodes := []*structs.Node{}
+	for i := 0; i < 5; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		err := h.State.UpsertNode(structs.MsgTypeTestSetup,
+			h.NextIndex(), node)
+		require.NoError(t, err)
+	}
+
+	// job version 1
+	// max_parallel = 0, canary = 1, spread != nil, 1 failed alloc
+
+	job1 := mock.Job()
+	job1.Spreads = []*structs.Spread{
+		{
+			Attribute:    "${node.unique.name}",
+			Weight:       50,
+			SpreadTarget: []*structs.SpreadTarget{},
+		},
+	}
+	job1.Update = structs.UpdateStrategy{
+		Stagger:     time.Duration(30 * time.Second),
+		MaxParallel: 0,
+	}
+	job1.Status = structs.JobStatusRunning
+	job1.TaskGroups[0].Count = 4
+	job1.TaskGroups[0].Update = &structs.UpdateStrategy{
+		Stagger:          time.Duration(30 * time.Second),
+		MaxParallel:      1,
+		HealthCheck:      "checks",
+		MinHealthyTime:   time.Duration(30 * time.Second),
+		HealthyDeadline:  time.Duration(9 * time.Minute),
+		ProgressDeadline: time.Duration(10 * time.Minute),
+		AutoRevert:       true,
+		Canary:           1,
+	}
+
+	job1.Version = 1
+	job1.TaskGroups[0].Count = 5
+	err := h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job1)
+	require.NoError(t, err)
+
+	allocs := []*structs.Allocation{}
+	for i := 0; i < 4; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job1
+		alloc.JobID = job1.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy:     helper.BoolToPtr(true),
+			Timestamp:   time.Now(),
+			Canary:      false,
+			ModifyIndex: h.NextIndex(),
+		}
+		if i == 0 {
+			alloc.DeploymentStatus.Canary = true
+		}
+		if i == 1 {
+			alloc.ClientStatus = structs.AllocClientStatusFailed
+		}
+		allocs = append(allocs, alloc)
+	}
+	err = h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs)
+
+	// job version 2
+	// max_parallel = 0, canary = 1, spread == nil
+
+	job2 := job1.Copy()
+	job2.Version = 2
+	job2.Spreads = nil
+	err = h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job2)
+	require.NoError(t, err)
+
+	eval := &structs.Evaluation{
+		Namespace:   job2.Namespace,
+		ID:          uuid.Generate(),
+		Priority:    job2.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job2.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	err = h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{eval})
+	require.NoError(t, err)
+
+	processErr := h.Process(NewServiceScheduler, eval)
+	require.NoError(t, processErr, "failed to process eval")
+	require.Len(t, h.Plans, 1)
 }
