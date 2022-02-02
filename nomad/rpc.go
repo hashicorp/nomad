@@ -109,7 +109,7 @@ type RPCContext struct {
 
 // Certificate returns the first certificate available in the chain.
 func (ctx *RPCContext) Certificate() *x509.Certificate {
-	if len(ctx.VerifiedChains) == 0 || len(ctx.VerifiedChains[0]) == 0 {
+	if ctx == nil || len(ctx.VerifiedChains) == 0 || len(ctx.VerifiedChains[0]) == 0 {
 		return nil
 	}
 
