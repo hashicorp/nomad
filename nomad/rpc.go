@@ -107,6 +107,38 @@ type RPCContext struct {
 	NodeID string
 }
 
+// Certificate returns the first certificate available in the chain.
+func (ctx *RPCContext) Certificate() *x509.Certificate {
+	if ctx == nil || len(ctx.VerifiedChains) == 0 || len(ctx.VerifiedChains[0]) == 0 {
+		return nil
+	}
+
+	return ctx.VerifiedChains[0][0]
+}
+
+// ValidateCertificateForName returns true if the RPC context certificate is valid
+// for the given domain name.
+func (ctx *RPCContext) ValidateCertificateForName(name string) error {
+	if ctx == nil || !ctx.TLS {
+		return nil
+	}
+
+	cert := ctx.Certificate()
+	if cert == nil {
+		return errors.New("missing certificate information")
+	}
+	for _, dnsName := range cert.DNSNames {
+		if dnsName == name {
+			return nil
+		}
+	}
+	if cert.Subject.CommonName == name {
+		return nil
+	}
+
+	return fmt.Errorf("certificate not valid for %q", name)
+}
+
 // listen is used to listen for incoming RPC connections
 func (r *rpcHandler) listen(ctx context.Context) {
 	defer close(r.listenerCh)
@@ -838,30 +870,18 @@ func (r *rpcHandler) validateRaftTLS(rpcCtx *RPCContext) error {
 		return nil
 	}
 
-	// defensive conditions: these should have already been enforced by handleConn
-	if rpcCtx == nil || !rpcCtx.TLS {
-		return errors.New("non-TLS connection attempted")
-	}
-	if len(rpcCtx.VerifiedChains) == 0 || len(rpcCtx.VerifiedChains[0]) == 0 {
-		// this should never happen, as rpcNameAndRegionValidate should have enforced it
-		return errors.New("missing cert info")
-	}
-
 	// check that `server.<region>.nomad` is present in cert
 	expected := "server." + r.Region() + ".nomad"
-
-	cert := rpcCtx.VerifiedChains[0][0]
-	for _, dnsName := range cert.DNSNames {
-		if dnsName == expected {
-			// Certificate is valid for the expected name
-			return nil
+	err := rpcCtx.ValidateCertificateForName(expected)
+	if err != nil {
+		cert := rpcCtx.Certificate()
+		if cert != nil {
+			err = fmt.Errorf("request certificate is only valid for %s: %v", cert.DNSNames, err)
 		}
-	}
-	if cert.Subject.CommonName == expected {
-		// Certificate is valid for the expected name
-		return nil
+
+		return fmt.Errorf("unauthorized raft connection from %s: %v", rpcCtx.Conn.RemoteAddr(), err)
 	}
 
-	r.logger.Warn("unauthorized raft connection", "remote_addr", rpcCtx.Conn.RemoteAddr(), "required_hostname", expected, "found", cert.DNSNames)
-	return fmt.Errorf("certificate is invalid for expected role or region: %q", expected)
+	// Certificate is valid for the expected name
+	return nil
 }

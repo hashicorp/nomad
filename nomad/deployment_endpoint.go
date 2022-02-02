@@ -17,6 +17,9 @@ import (
 type Deployment struct {
 	srv    *Server
 	logger log.Logger
+
+	// ctx provides context regarding the underlying connection
+	ctx *RPCContext
 }
 
 // GetDeployment is used to request information about a specific deployment
@@ -505,6 +508,11 @@ func (d *Deployment) Reap(args *structs.DeploymentDeleteRequest,
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "reap"}, time.Now())
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	if err := validateLocalServerTLSCertificate(d.srv, d.ctx); err != nil {
+		return fmt.Errorf("invalid server connection in region %s: %v", d.srv.Region(), err)
+	}
 
 	// Update via Raft
 	_, index, err := d.srv.raftApply(structs.DeploymentDeleteRequestType, args)
