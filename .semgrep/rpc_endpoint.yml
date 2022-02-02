@@ -1,0 +1,80 @@
+rules:
+  # Check potentially unauthenticated RPC endpoints
+  - id: "rpc-potentially-unauthenticated"
+    patterns:
+      - pattern: |
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+      - pattern-not-inside: |
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          ... := $X.$Y.ResolveToken(...)
+          ...
+      - pattern-not-inside: |
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          ... := $U.requestACLToken(...)
+          ...
+      - pattern-not-inside: |
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          ... := $T.NamespaceValidator(...)
+          ...
+      # Pattern used by endpoints called exclusively between agents
+      # (server -> server or client -> server)
+      - pattern-not-inside: |
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          ... := validateLocalClientTLSCertificate(...)
+          ...
+      - pattern-not-inside: |
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          ... := validateLocalServerTLSCertificate(...)
+          ...
+      - pattern-not-inside: |
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          ... := validateTLSCertificate(...)
+          ...
+      # Pattern used by some Node endpoints.
+      - pattern-not-inside: |
+          if done, err := $A.$B.forward($METHOD, ...); done {
+            return err
+          }
+          ...
+          return $A.deregister(...)
+          ...
+      - metavariable-pattern:
+          metavariable: $METHOD
+          patterns:
+            # Endpoints that are expected not to have authentication.
+            - pattern-not: '"ACL.Bootstrap"'
+            - pattern-not: '"ACL.ResolveToken"'
+            - pattern-not: '"ACL.UpsertOneTimeToken"'
+            - pattern-not: '"ACL.ExchangeOneTimeToken"'
+            - pattern-not: '"CSIPlugin.Get"'
+            - pattern-not: '"CSIPlugin.List"'
+            - pattern-not: '"Status.Leader"'
+            - pattern-not: '"Status.Peers"'
+            - pattern-not: '"Status.Version"'
+    message: "RPC method $METHOD appears to be unauthenticated"
+    languages:
+      - "go"
+    severity: "WARNING"
+    paths:
+      include:
+        - "*_endpoint.go"
