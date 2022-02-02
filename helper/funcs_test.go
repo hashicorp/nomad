@@ -431,3 +431,17 @@ func TestPathEscapesSandbox(t *testing.T) {
 		})
 	}
 }
+
+func Test_NewSafeTimer(t *testing.T) {
+	t.Run("zero", func(t *testing.T) {
+		timer, stop := NewSafeTimer(0)
+		defer stop()
+		<-timer.C
+	})
+
+	t.Run("positive", func(t *testing.T) {
+		timer, stop := NewSafeTimer(1)
+		defer stop()
+		<-timer.C
+	})
+}
