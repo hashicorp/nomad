@@ -13,6 +13,18 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.3.0
+
+#### Raft Protocol Version 2 Deprecation
+
+Raft protocol version 2 will be removed from Nomad in the next major
+release of Nomad, 1.4.0.
+
+In Nomad 1.3.0, the default raft protocol version has been updated to
+3. If the [`raft_protocol_version`] is not explicitly set, upgrading a
+server will automatically upgrade that server's raft protocol. See the
+[Upgrading to Raft Protocol 3] guide.
+
 ## Nomad 1.2.4
 
 #### `nomad eval status -json` deprecated
@@ -959,7 +971,7 @@ will be interpolated properly. Please see the
 ### Raft Protocol Version Compatibility
 
 When upgrading to Nomad 0.8.0 from a version lower than 0.7.0, users will need
-to set the [`raft_protocol`](/docs/configuration/server#raft_protocol) option in
+to set the [`raft_protocol`] option in
 their `server` stanza to 1 in order to maintain backwards compatibility with the
 old servers during the upgrade. After the servers have been migrated to version
 0.8.0, `raft_protocol` can be moved up to 2 and the servers restarted to match
@@ -996,40 +1008,6 @@ In order to enable all
 [Autopilot](https://learn.hashicorp.com/tutorials/nomad/autopilot) features, all
 servers in a Nomad cluster must be running with Raft protocol version 3 or
 later.
-
-#### Upgrading to Raft Protocol 3
-
-This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and
-higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all
-servers in order to work. See [Raft Protocol Version
-Compatibility](/docs/upgrade/upgrade-specific#raft-protocol-version-compatibility)
-for more details. Also the format of `peers.json` used for outage recovery is
-different when running with the latest Raft protocol. See [Manual Recovery Using
-peers.json](https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson)
-for a description of the required format.
-
-Please note that the Raft protocol is different from Nomad's internal protocol
-as shown in commands like `nomad server members`. To see the version of the Raft
-protocol in use on each server, use the `nomad operator raft list-peers`
-command.
-
-The easiest way to upgrade servers is to have each server leave the cluster,
-upgrade its `raft_protocol` version in the `server` stanza, and then add it
-back. Make sure the new server joins successfully and that the cluster is stable
-before rolling the upgrade forward to the next server. It's also possible to
-stand up a new set of servers, and then slowly stand down each of the older
-servers in a similar fashion.
-
-When using Raft protocol version 3, servers are identified by their `node-id`
-instead of their IP address when Nomad makes changes to its internal Raft quorum
-configuration. This means that once a cluster has been upgraded with servers all
-running Raft protocol version 3, it will no longer allow servers running any
-older Raft protocol versions to be added. If running a single Nomad server,
-restarting it in-place will result in that server not being able to elect itself
-as a leader. To avoid this, either set the Raft protocol back to 2, or use
-[Manual Recovery Using
-peers.json](https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson)
-to map the server to its node ID in the Raft quorum configuration.
 
 ### Node Draining Improvements
 
@@ -1224,6 +1202,8 @@ deleted and then Nomad 0.3.0 can be launched.
 [preemption]: /docs/internals/scheduling/preemption
 [proxy_concurrency]: /docs/job-specification/sidecar_task#proxy_concurrency
 [`sidecar_task.config`]: /docs/job-specification/sidecar_task#config
+[raft protocol version]: /docs/configuration/server#raft_protocol
+[`raft protocol`]: /docs/configuration/server#raft_protocol
 [reserved]: /docs/configuration/client#reserved-parameters
 [task-config]: /docs/job-specification/task#config
 [tls-guide]: https://learn.hashicorp.com/tutorials/nomad/security-enable-tls
@@ -1248,3 +1228,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [cap_add_exec]: /docs/drivers/exec#cap_add
 [cap_drop_exec]: /docs/drivers/exec#cap_drop
 [`log_file`]: /docs/configuration#log_file
+[Upgrading to Raft Protocol 3]: /docs/upgrade#upgrading-to-raft-protocol-3
