@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
 	tomb "gopkg.in/tomb.v2"
 
 	metrics "github.com/armon/go-metrics"
@@ -1423,9 +1424,14 @@ func (v *vaultClient) stats() *VaultStats {
 
 // EmitStats is used to export metrics about the blocked eval tracker while enabled
 func (v *vaultClient) EmitStats(period time.Duration, stopCh <-chan struct{}) {
+	timer, stop := helper.NewSafeTimer(period)
+	defer stop()
+
 	for {
+		timer.Reset(period)
+
 		select {
-		case <-time.After(period):
+		case <-timer.C:
 			stats := v.stats()
 			metrics.SetGauge([]string{"nomad", "vault", "distributed_tokens_revoking"}, float32(stats.TrackedForRevoke))
 			metrics.SetGauge([]string{"nomad", "vault", "token_ttl"}, float32(stats.TokenTTL/time.Millisecond))

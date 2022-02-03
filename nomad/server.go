@@ -27,6 +27,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/stats"
@@ -1855,9 +1856,14 @@ func (s *Server) Stats() map[string]map[string]string {
 
 // EmitRaftStats is used to export metrics about raft indexes and state store snapshot index
 func (s *Server) EmitRaftStats(period time.Duration, stopCh <-chan struct{}) {
+	timer, stop := helper.NewSafeTimer(period)
+	defer stop()
+
 	for {
+		timer.Reset(period)
+
 		select {
-		case <-time.After(period):
+		case <-timer.C:
 			lastIndex := s.raft.LastIndex()
 			metrics.SetGauge([]string{"raft", "lastIndex"}, float32(lastIndex))
 			appliedIndex := s.raft.AppliedIndex()

@@ -577,3 +577,30 @@ func PathEscapesSandbox(sandboxDir, path string) bool {
 	}
 	return false
 }
+
+// StopFunc is used to stop a time.Timer created with NewSafeTimer
+type StopFunc func()
+
+// NewSafeTimer creates a time.Timer but does not panic if duration is <= 0.
+//
+// Using a time.Timer is recommended instead of time.After when it is necessary
+// to avoid leaking goroutines (e.g. in a select inside a loop).
+//
+// Returns the time.Timer and also a StopFunc, forcing the caller to deal
+// with stopping the time.Timer to avoid leaking a goroutine.
+func NewSafeTimer(duration time.Duration) (*time.Timer, StopFunc) {
+	if duration <= 0 {
+		// Avoid panic by using the smallest positive value. This is close enough
+		// to the behavior of time.After(0), which this helper is intended to
+		// replace.
+		// https://go.dev/play/p/EIkm9MsPbHY
+		duration = 1
+	}
+
+	t := time.NewTimer(duration)
+	cancel := func() {
+		t.Stop()
+	}
+
+	return t, cancel
+}
