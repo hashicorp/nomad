@@ -128,7 +128,8 @@ func (ctx *RPCContext) ValidateCertificateForName(name string) error {
 		return errors.New("missing certificate information")
 	}
 
-	validNames := append(cert.DNSNames, cert.Subject.CommonName)
+	validNames := []string{cert.Subject.CommonName}
+	validNames = append(validNames, cert.DNSNames...)
 	for _, valid := range validNames {
 		if name == valid {
 			return nil
