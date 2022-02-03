@@ -1081,7 +1081,7 @@ func TestRPC_TLS_Enforcement_Raft(t *testing.T) {
 			}
 
 			t.Run("Raft RPC: verify_hostname=true", func(t *testing.T) {
-				err := tlsHelper.raftRPC(t, tlsHelper.mtlsServer, cfg)
+				err := tlsHelper.raftRPC(t, tlsHelper.mtlsServer1, cfg)
 
 				// the expected error depends on location of failure.
 				// We expect "bad certificate" if connection fails during handshake,
@@ -1186,7 +1186,7 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 			name:   "local server/clients only rpc",
 			cn:     "server.global.nomad",
 			rpcs:   localClientsOnlyRPCs,
-			canRPC: false,
+			canRPC: true,
 		},
 		// Local client.
 		{
@@ -1274,18 +1274,22 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 			}
 
 			for method, arg := range tc.rpcs {
-				t.Run(fmt.Sprintf("nomad RPC: rpc=%s verify_hostname=true", method), func(t *testing.T) {
-					err := tlsHelper.nomadRPC(t, tlsHelper.mtlsServer, cfg, method, arg)
+				for _, srv := range []*Server{tlsHelper.mtlsServer1, tlsHelper.mtlsServer2} {
+					name := fmt.Sprintf("nomad RPC: rpc=%s verify_hostname=true leader=%v", method, srv.IsLeader())
+					t.Run(name, func(t *testing.T) {
+						err := tlsHelper.nomadRPC(t, srv, cfg, method, arg)
 
-					if tc.canRPC {
-						if err != nil {
-							require.NotContains(t, err, "certificate")
+						if tc.canRPC {
+							if err != nil {
+								require.NotContains(t, err, "certificate")
+							}
+						} else {
+							require.Error(t, err)
+							require.Contains(t, err.Error(), "certificate")
 						}
-					} else {
-						require.Error(t, err)
-						require.Contains(t, err.Error(), "certificate")
-					}
-				})
+					})
+				}
+
 				t.Run(fmt.Sprintf("nomad RPC: rpc=%s verify_hostname=false", method), func(t *testing.T) {
 					err := tlsHelper.nomadRPC(t, tlsHelper.nonVerifyServer, cfg, method, arg)
 					if err != nil {
@@ -1301,8 +1305,10 @@ type tlsTestHelper struct {
 	dir    string
 	nodeID int
 
-	mtlsServer             *Server
-	mtlsServerCleanup      func()
+	mtlsServer1            *Server
+	mtlsServer1Cleanup     func()
+	mtlsServer2            *Server
+	mtlsServer2Cleanup     func()
 	nonVerifyServer        *Server
 	nonVerifyServerCleanup func()
 
@@ -1329,7 +1335,8 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 	// Generate servers and their certificate.
 	h.serverCert = h.newCert(t, "server.global.nomad")
 
-	h.mtlsServer, h.mtlsServerCleanup = TestServer(t, func(c *Config) {
+	h.mtlsServer1, h.mtlsServer1Cleanup = TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
 		c.TLSConfig = &config.TLSConfig{
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -1338,6 +1345,19 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 			KeyFile:              h.serverCert + ".key",
 		}
 	})
+	h.mtlsServer2, h.mtlsServer2Cleanup = TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.TLSConfig = &config.TLSConfig{
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               filepath.Join(h.dir, "ca.pem"),
+			CertFile:             h.serverCert + ".pem",
+			KeyFile:              h.serverCert + ".key",
+		}
+	})
+	TestJoin(t, h.mtlsServer1, h.mtlsServer2)
+	testutil.WaitForLeader(t, h.mtlsServer1.RPC)
+	testutil.WaitForLeader(t, h.mtlsServer2.RPC)
 
 	h.nonVerifyServer, h.nonVerifyServerCleanup = TestServer(t, func(c *Config) {
 		c.TLSConfig = &config.TLSConfig{
@@ -1353,7 +1373,8 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 }
 
 func (h tlsTestHelper) cleanup() {
-	h.mtlsServerCleanup()
+	h.mtlsServer1Cleanup()
+	h.mtlsServer2Cleanup()
 	h.nonVerifyServerCleanup()
 	os.RemoveAll(h.dir)
 }

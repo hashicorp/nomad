@@ -30,26 +30,11 @@ rules:
       # Pattern used by endpoints called exclusively between agents
       # (server -> server or client -> server)
       - pattern-not-inside: |
+          ... := validateTLSCertificateLevel(...)
+          ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
-          ...
-          ... := validateLocalClientTLSCertificate(...)
-          ...
-      - pattern-not-inside: |
-          if done, err := $A.$B.forward($METHOD, ...); done {
-            return err
-          }
-          ...
-          ... := validateLocalServerTLSCertificate(...)
-          ...
-      - pattern-not-inside: |
-          if done, err := $A.$B.forward($METHOD, ...); done {
-            return err
-          }
-          ...
-          ... := validateTLSCertificate(...)
-          ...
       # Pattern used by some Node endpoints.
       - pattern-not-inside: |
           if done, err := $A.$B.forward($METHOD, ...); done {

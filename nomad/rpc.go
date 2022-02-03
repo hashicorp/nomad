@@ -127,16 +127,15 @@ func (ctx *RPCContext) ValidateCertificateForName(name string) error {
 	if cert == nil {
 		return errors.New("missing certificate information")
 	}
-	for _, dnsName := range cert.DNSNames {
-		if dnsName == name {
+
+	validNames := append(cert.DNSNames, cert.Subject.CommonName)
+	for _, valid := range validNames {
+		if name == valid {
 			return nil
 		}
 	}
-	if cert.Subject.CommonName == name {
-		return nil
-	}
 
-	return fmt.Errorf("certificate not valid for %q", name)
+	return fmt.Errorf("invalid certificate, %s not in %s", name, strings.Join(validNames, ","))
 }
 
 // listen is used to listen for incoming RPC connections

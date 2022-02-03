@@ -222,15 +222,17 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 // GetAllocs is used to lookup a set of allocations
 func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	reply *structs.AllocsGetResponse) error {
+
+	// Ensure the connection was initiated by a client if TLS is used.
+	err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelClient)
+	if err != nil {
+		return err
+	}
+
 	if done, err := a.srv.forward("Alloc.GetAllocs", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
-
-	// Ensure the connection was initiated by a client if TLS is used.
-	if err := validateLocalClientTLSCertificate(a.srv, a.ctx); err != nil {
-		return fmt.Errorf("invalid client connection in region %s: %v", a.srv.Region(), err)
-	}
 
 	allocs := make([]*structs.Allocation, len(args.AllocIDs))
 
