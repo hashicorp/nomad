@@ -189,7 +189,6 @@ func (a *allocReconciler) Compute() *reconcileResults {
 	// Create the allocation matrix
 	m := newAllocMatrix(a.job, a.existingAllocs)
 
-	// Stop unneeded deployments
 	a.cancelUnneededDeployments()
 
 	// If we are just stopping a job we do not need to do anything more than
