@@ -122,7 +122,7 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 
 	t.Run("excluding SI token", func(t *testing.T) {
 		ebArgs := envoyBootstrapArgs{
-			sidecarFor:     "s1",
+			proxyID:        "s1-sidecar-proxy",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulPlainConfig,
 			envoyAdminBind: "127.0.0.2:19000",
@@ -134,15 +134,15 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-http-addr", "2.2.2.2",
 			"-admin-bind", "127.0.0.2:19000",
 			"-address", "127.0.0.1:19100",
+			"-proxy-id", "s1-sidecar-proxy",
 			"-bootstrap",
-			"-sidecar-for", "s1",
 		}, result)
 	})
 
 	t.Run("including SI token", func(t *testing.T) {
 		token := uuid.Generate()
 		ebArgs := envoyBootstrapArgs{
-			sidecarFor:     "s1",
+			proxyID:        "s1-sidecar-proxy",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulPlainConfig,
 			envoyAdminBind: "127.0.0.2:19000",
@@ -155,15 +155,15 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-http-addr", "2.2.2.2",
 			"-admin-bind", "127.0.0.2:19000",
 			"-address", "127.0.0.1:19100",
+			"-proxy-id", "s1-sidecar-proxy",
 			"-bootstrap",
-			"-sidecar-for", "s1",
 			"-token", token,
 		}, result)
 	})
 
 	t.Run("including certificates", func(t *testing.T) {
 		ebArgs := envoyBootstrapArgs{
-			sidecarFor:     "s1",
+			proxyID:        "s1-sidecar-proxy",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulTLSConfig,
 			envoyAdminBind: "127.0.0.2:19000",
@@ -175,8 +175,8 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-http-addr", "2.2.2.2",
 			"-admin-bind", "127.0.0.2:19000",
 			"-address", "127.0.0.1:19100",
+			"-proxy-id", "s1-sidecar-proxy",
 			"-bootstrap",
-			"-sidecar-for", "s1",
 			"-ca-file", "/etc/tls/ca-file",
 			"-client-cert", "/etc/tls/cert-file",
 			"-client-key", "/etc/tls/key-file",
@@ -198,9 +198,9 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-http-addr", "2.2.2.2",
 			"-admin-bind", "127.0.0.2:19000",
 			"-address", "127.0.0.1:19100",
+			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-ig-ig-8080",
 			"-bootstrap",
 			"-gateway", "my-ingress-gateway",
-			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-ig-ig-8080",
 		}, result)
 	})
 
@@ -219,9 +219,9 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-http-addr", "2.2.2.2",
 			"-admin-bind", "127.0.0.2:19000",
 			"-address", "127.0.0.1:19100",
+			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-mesh-mesh-8080",
 			"-bootstrap",
 			"-gateway", "my-mesh-gateway",
-			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-mesh-mesh-8080",
 		}, result)
 	})
 }
@@ -235,7 +235,7 @@ func TestEnvoyBootstrapHook_envoyBootstrapEnv(t *testing.T) {
 		require.Equal(t, []string{
 			"foo=bar", "baz=1",
 		}, envoyBootstrapArgs{
-			sidecarFor:     "s1",
+			proxyID:        "s1-sidecar-proxy",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulPlainConfig,
 			envoyAdminBind: "localhost:3333",
@@ -249,7 +249,7 @@ func TestEnvoyBootstrapHook_envoyBootstrapEnv(t *testing.T) {
 			"CONSUL_HTTP_SSL=true",
 			"CONSUL_HTTP_SSL_VERIFY=true",
 		}, envoyBootstrapArgs{
-			sidecarFor:     "s1",
+			proxyID:        "s1-sidecar-proxy",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulTLSConfig,
 			envoyAdminBind: "localhost:3333",
