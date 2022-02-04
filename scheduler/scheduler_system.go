@@ -72,7 +72,13 @@ func NewSysBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state 
 }
 
 // Process is used to handle a single evaluation.
-func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
+func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("processing eval %q panicked scheduler: %v", eval.ID, r)
+		}
+	}()
 
 	// Store the evaluation
 	s.eval = eval
