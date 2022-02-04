@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -214,7 +213,7 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 // 1. Those that exist on untainted nodes
 // 2. Those exist on nodes that are draining
 // 3. Those that exist on lost nodes
-func (a allocSet) filterByTainted(nodes map[string]*structs.Node) (untainted, migrate, lost allocSet) {
+func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untainted, migrate, lost allocSet) {
 	untainted = make(map[string]*structs.Allocation)
 	migrate = make(map[string]*structs.Allocation)
 	lost = make(map[string]*structs.Allocation)
@@ -231,7 +230,7 @@ func (a allocSet) filterByTainted(nodes map[string]*structs.Node) (untainted, mi
 			continue
 		}
 
-		n, ok := nodes[alloc.NodeID]
+		taintedNode, ok := taintedNodes[alloc.NodeID]
 		if !ok {
 			// Node is untainted so alloc is untainted
 			untainted[alloc.ID] = alloc
@@ -239,7 +238,7 @@ func (a allocSet) filterByTainted(nodes map[string]*structs.Node) (untainted, mi
 		}
 
 		// Allocs on GC'd (nil) or lost nodes are Lost
-		if n == nil || n.TerminalStatus() {
+		if taintedNode == nil || taintedNode.TerminalStatus() {
 			lost[alloc.ID] = alloc
 			continue
 		}
