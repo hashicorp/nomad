@@ -200,7 +200,6 @@ func (a *allocReconciler) Compute() *reconcileResults {
 
 	a.computeDeploymentPaused()
 
-	// Reconcile each group
 	deploymentComplete := a.computeDeploymentComplete(m)
 
 	a.computeDeploymentUpdates(deploymentComplete)
