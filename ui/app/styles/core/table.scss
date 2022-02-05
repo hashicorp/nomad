@@ -1,4 +1,4 @@
-@use "sass:math";
+@use 'sass:math';
 
 .table {
   color: $text;
@@ -103,6 +103,10 @@
       }
     }
 
+    &.is-long-text {
+      word-break: break-word;
+    }
+
     // Only use px modifiers when text needs to be truncated.
     // In this and only this scenario are percentages not effective.
     &.is-200px {
@@ -127,10 +131,6 @@
         text-decoration: none;
         font-weight: $weight-semibold;
       }
-    }
-
-    &.ensure-break {
-      word-break: break-word;
     }
   }
 
