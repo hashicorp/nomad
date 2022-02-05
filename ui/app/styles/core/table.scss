@@ -1,4 +1,4 @@
-@use "sass:math";
+@use 'sass:math';
 
 .table {
   color: $text;
@@ -101,6 +101,10 @@
       & + td {
         padding-left: 0.5em;
       }
+    }
+
+    &.is-long-text {
+      word-break: break-word;
     }
 
     // Only use px modifiers when text needs to be truncated.
