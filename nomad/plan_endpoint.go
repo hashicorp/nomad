@@ -21,15 +21,16 @@ type Plan struct {
 
 // Submit is used to submit a plan to the leader
 func (p *Plan) Submit(args *structs.PlanRequest, reply *structs.PlanResponse) error {
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(p.srv, p.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := p.srv.forward("Plan.Submit", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "plan", "submit"}, time.Now())
-
-	// Ensure the connection was initiated by another server if TLS is used.
-	if err := validateLocalServerTLSCertificate(p.srv, p.ctx); err != nil {
-		return fmt.Errorf("invalid server connection in region %s: %v", p.srv.Region(), err)
-	}
 
 	if args.Plan == nil {
 		return fmt.Errorf("cannot submit nil plan")
