@@ -45,7 +45,7 @@ func TestFingerprint_DigitalOcean(t *testing.T) {
 	// configure mock server with fixture routes, data
 	routes := routes{}
 	if err := json.Unmarshal([]byte(DO_routes), &routes); err != nil {
-		t.Fatalf("Failed to unmarshal JSON in GCE ENV test: %s", err)
+		t.Fatalf("Failed to unmarshal JSON in DO ENV test: %s", err)
 	}
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -98,7 +98,6 @@ func TestFingerprint_DigitalOcean(t *testing.T) {
 		t.Fatalf("expected response to be applicable")
 	}
 
-	// TODO: tags
 	keys := []string{
 		"unique.platform.digitalocean.id",
 		"unique.platform.digitalocean.hostname",
@@ -117,7 +116,7 @@ func TestFingerprint_DigitalOcean(t *testing.T) {
 		t.Fatalf("Empty links for Node in DO Fingerprint test")
 	}
 
-	// Make sure Links contains the GCE ID.
+	// Make sure Links contains the DO ID.
 	for _, k := range []string{"digitalocean"} {
 		assertNodeLinksContains(t, response.Links, k)
 	}

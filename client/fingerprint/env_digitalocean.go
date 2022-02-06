@@ -16,19 +16,13 @@ import (
 )
 
 const (
-	// DigitalOceanMetadataURL is where the DigitalOcean metadata server normally resides. We hardcode the
-	// "instance" path as well since it's the only one we access here.
+	// DigitalOceanMetadataURL is where the DigitalOcean metadata api normally resides.
 	DigitalOceanMetadataURL = "http://169.254.169.254/metadata/v1/"
 
 	// DigitalOceanMetadataTimeout is the timeout used when contacting the DigitalOcean metadata
 	// services.
 	DigitalOceanMetadataTimeout = 2 * time.Second
 )
-
-type DigitalOceanMetadataTag struct {
-	Name  string
-	Value string
-}
 
 type DigitalOceanMetadataPair struct {
 	path   string
@@ -76,7 +70,6 @@ func (f *EnvDigitalOceanFingerprint) Get(attribute string, format string) (strin
 		Method: "GET",
 		URL:    parsedURL,
 		Header: http.Header{
-			"Metadata":   []string{"true"},
 			"User-Agent": []string{useragent.String()},
 		},
 	}
