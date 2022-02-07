@@ -125,7 +125,14 @@ func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state Sta
 }
 
 // Process is used to handle a single evaluation
-func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
+func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("processing eval %q panicked scheduler - please report this as a bug! - %v", eval.ID, r)
+		}
+	}()
+
 	// Store the evaluation
 	s.eval = eval
 
