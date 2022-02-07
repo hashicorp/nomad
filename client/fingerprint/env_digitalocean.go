@@ -1,6 +1,7 @@
 package fingerprint
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -17,6 +18,7 @@ import (
 
 const (
 	// DigitalOceanMetadataURL is where the DigitalOcean metadata api normally resides.
+	// https://docs.digitalocean.com/products/droplets/how-to/retrieve-droplet-metadata/#how-to-retrieve-droplet-metadata
 	DigitalOceanMetadataURL = "http://169.254.169.254/metadata/v1/"
 
 	// DigitalOceanMetadataTimeout is the timeout used when contacting the DigitalOcean metadata
@@ -67,7 +69,7 @@ func (f *EnvDigitalOceanFingerprint) Get(attribute string, format string) (strin
 	}
 
 	req := &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    parsedURL,
 		Header: http.Header{
 			"User-Agent": []string{useragent.String()},
@@ -76,36 +78,23 @@ func (f *EnvDigitalOceanFingerprint) Get(attribute string, format string) (strin
 
 	res, err := f.client.Do(req)
 	if err != nil {
-		f.logger.Debug("could not read value for attribute", "attribute", attribute, "error", err)
-		return "", err
-	} else if res.StatusCode != http.StatusOK {
-		f.logger.Debug("could not read value for attribute", "attribute", attribute, "resp_code", res.StatusCode)
+		f.logger.Debug("failed to request metadata", "attribute", attribute, "error", err)
 		return "", err
 	}
 
-	resp, err := ioutil.ReadAll(res.Body)
+	body, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		f.logger.Error("error reading response body for DigitalOcean attribute", "attribute", attribute, "error", err)
+		f.logger.Error("failed to read metadata", "attribute", attribute, "error", err, "resp_code", res.StatusCode)
 		return "", err
 	}
 
-	if res.StatusCode >= 400 {
-		return "", ReqError{res.StatusCode}
+	if res.StatusCode != http.StatusOK {
+		f.logger.Debug("could not read value for attribute", "attribute", attribute, "resp_code", res.StatusCode)
+		return "", fmt.Errorf("error reading attribute %s. digitalocean metadata api returned an error: resp_code: %d, resp_body: %s", attribute, res.StatusCode, body)
 	}
 
-	return string(resp), nil
-}
-
-func checkDigitalOceanError(err error, logger log.Logger, desc string) error {
-	// If it's a URL error, assume we're not actually in an DigitalOcean environment.
-	// To the outer layers, this isn't an error so return nil.
-	if _, ok := err.(*url.Error); ok {
-		logger.Debug("error querying DigitalOcean attribute; skipping", "attribute", desc)
-		return nil
-	}
-	// Otherwise pass the error through.
-	return err
+	return string(body), nil
 }
 
 func (f *EnvDigitalOceanFingerprint) Fingerprint(request *FingerprintRequest, response *FingerprintResponse) error {
@@ -138,7 +127,8 @@ func (f *EnvDigitalOceanFingerprint) Fingerprint(request *FingerprintRequest, re
 		resp, err := f.Get(attr.path, "text")
 		v := strings.TrimSpace(resp)
 		if err != nil {
-			return checkDigitalOceanError(err, f.logger, k)
+			f.logger.Warn("failed to read attribute", "attribute", k, "err", err)
+			continue
 		} else if v == "" {
 			f.logger.Debug("read an empty value", "attribute", k)
 			continue

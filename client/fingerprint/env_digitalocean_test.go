@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDigitalOceanFingerprint_nonDigitalOcean(t *testing.T) {
@@ -90,13 +91,8 @@ func TestFingerprint_DigitalOcean(t *testing.T) {
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !response.Detected {
-		t.Fatalf("expected response to be applicable")
-	}
+	assert.NoError(t, err)
+	assert.True(t, response.Detected, "expected response to be applicable")
 
 	keys := []string{
 		"unique.platform.digitalocean.id",
@@ -112,9 +108,7 @@ func TestFingerprint_DigitalOcean(t *testing.T) {
 		assertNodeAttributeContains(t, response.Attributes, k)
 	}
 
-	if len(response.Links) == 0 {
-		t.Fatalf("Empty links for Node in DO Fingerprint test")
-	}
+	assert.NotEmpty(t, response.Links, "Empty links for Node in DO Fingerprint test")
 
 	// Make sure Links contains the DO ID.
 	for _, k := range []string{"digitalocean"} {
