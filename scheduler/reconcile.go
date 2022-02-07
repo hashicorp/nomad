@@ -395,17 +395,17 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	}
 
 	// Get the deployment state for the group
-	var deploymentState *structs.DeploymentState
+	var dstate *structs.DeploymentState
 	existingDeployment := false
 	if a.deployment != nil {
-		deploymentState, existingDeployment = a.deployment.TaskGroups[group]
+		dstate, existingDeployment = a.deployment.TaskGroups[group]
 	}
 	if !existingDeployment {
-		deploymentState = &structs.DeploymentState{}
+		dstate = &structs.DeploymentState{}
 		if !tg.Update.IsEmpty() {
-			deploymentState.AutoRevert = tg.Update.AutoRevert
-			deploymentState.AutoPromote = tg.Update.AutoPromote
-			deploymentState.ProgressDeadline = tg.Update.ProgressDeadline
+			dstate.AutoRevert = tg.Update.AutoRevert
+			dstate.AutoPromote = tg.Update.AutoPromote
+			dstate.ProgressDeadline = tg.Update.ProgressDeadline
 		}
 	}
 
@@ -448,7 +448,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// Stop any unneeded allocations and update the untainted set to not
 	// include stopped allocations.
 	isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
-	stop := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, isCanarying, lostLaterEvals)
+	stop := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, reconnecting, isCanarying, lostLaterEvals)
 	desiredChanges.Stop += uint64(len(stop))
 	untainted = untainted.difference(stop)
 
@@ -461,7 +461,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	desiredChanges.Ignore += uint64(len(ignore))
 	desiredChanges.InPlaceUpdate += uint64(len(inplace))
 	if !existingDeployment {
-		deploymentState.DesiredTotal += len(destructive) + len(inplace)
+		dstate.DesiredTotal += len(destructive) + len(inplace)
 	}
 
 	// Remove the canaries now that we have handled rescheduling so that we do
@@ -473,10 +473,10 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// The fact that we have destructive updates and have fewer canaries than is
 	// desired means we need to create canaries.
 	strategy := tg.Update
-	canariesPromoted := deploymentState != nil && deploymentState.Promoted
+	canariesPromoted := dstate != nil && dstate.Promoted
 	requireCanary := len(destructive) != 0 && strategy != nil && len(canaries) < strategy.Canary && !canariesPromoted
 	if requireCanary {
-		deploymentState.DesiredCanaries = strategy.Canary
+		dstate.DesiredCanaries = strategy.Canary
 	}
 	if requireCanary && !a.deploymentPaused && !a.deploymentFailed {
 		number := strategy.Canary - len(canaries)
@@ -506,7 +506,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	if len(lostLater) == 0 {
 		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, reconnecting, isCanarying, lost)
 		if !existingDeployment {
-			deploymentState.DesiredTotal += len(place)
+			dstate.DesiredTotal += len(place)
 		}
 	}
 
@@ -600,7 +600,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	}
 
 	// Create a new deployment if necessary
-	if !existingDeployment && !strategy.IsEmpty() && deploymentState.DesiredTotal != 0 && (!hadRunning || updatingSpec) {
+	if !existingDeployment && !strategy.IsEmpty() && dstate.DesiredTotal != 0 && (!hadRunning || updatingSpec) {
 		// A previous group may have made the deployment already
 		if a.deployment == nil {
 			a.deployment = structs.NewDeployment(a.job, a.evalPriority)
@@ -613,7 +613,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		}
 
 		// Attach the groups deployment state to the deployment
-		a.deployment.TaskGroups[group] = deploymentState
+		a.deployment.TaskGroups[group] = dstate
 	}
 
 	// TODO: Does this need to account for reconnects?
@@ -625,9 +625,9 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// is healthy
 	if deploymentComplete && a.deployment != nil {
 		var ok bool
-		if deploymentState, ok = a.deployment.TaskGroups[group]; ok {
-			if deploymentState.HealthyAllocs < helper.IntMax(deploymentState.DesiredTotal, deploymentState.DesiredCanaries) || // Make sure we have enough healthy allocs
-				(deploymentState.DesiredCanaries > 0 && !deploymentState.Promoted) { // Make sure we are promoted if we have canaries
+		if dstate, ok = a.deployment.TaskGroups[group]; ok {
+			if dstate.HealthyAllocs < helper.IntMax(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
+				(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
 				deploymentComplete = false
 			}
 		}
