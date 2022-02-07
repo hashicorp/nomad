@@ -353,8 +353,21 @@
         ]
       },
       {
-        "title": "eval status",
-        "path": "commands/eval-status"
+        "title": "eval",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "commands/eval"
+          },
+          {
+            "title": "list",
+            "path": "commands/eval/list"
+          },
+          {
+            "title": "status",
+            "path": "commands/eval/status"
+          }
+        ]
       },
       {
         "title": "job",
@@ -536,12 +549,24 @@
             "path": "commands/operator/metrics"
           },
           {
+            "title": "raft info",
+            "path": "commands/operator/raft-info"
+          },
+          {
             "title": "raft list-peers",
             "path": "commands/operator/raft-list-peers"
           },
           {
+            "title": "raft logs",
+            "path": "commands/operator/raft-logs"
+          },
+          {
             "title": "raft remove-peer",
             "path": "commands/operator/raft-remove-peer"
+          },
+          {
+            "title": "raft state",
+            "path": "commands/operator/raft-state"
           },
           {
             "title": "snapshot agent",
@@ -558,6 +583,10 @@
           {
             "title": "snapshot save",
             "path": "commands/operator/snapshot-save"
+          },
+          {
+            "title": "snapshot state",
+            "path": "commands/operator/snapshot-state"
           }
         ]
       },

@@ -1,5 +1,14 @@
-<ListAccordion data-test-job-summary @source={{array this.job}} @key="id" @startExpanded={{this.isExpanded}} @onToggle={{action this.persist}} as |a|>
-  <a.head @buttonLabel={{if a.isOpen "collapse" "expand"}}>
+<ListAccordion
+  data-test-job-summary
+  @source={{array this.job}}
+  @key="id"
+  @startExpanded={{this.isExpanded}}
+  @onToggle={{action this.persist}} as |a|
+>
+  <a.head
+    @buttonLabel={{if a.isOpen "collapse" "expand"}}
+    @buttonType={{if a.item.hasChildren "children-status" "allocation-status"}}
+  >
     <div class="columns">
       <div class="column is-minimum nowrap">
         {{#if a.item.hasChildren}}
@@ -14,7 +23,6 @@
           </span>
         {{/if}}
       </div>
-
       {{#unless a.isOpen}}
         <div class="column">
           <div class="inline-chart bumper-left">
@@ -22,10 +30,15 @@
               {{#if (gt a.item.totalChildren 0)}}
                 <ChildrenStatusBar @job={{a.item}} @isNarrow={{true}} />
               {{else}}
-                <em class="is-faded">No Children</em>
+                <em class="is-faded">
+                  No Children
+                </em>
               {{/if}}
             {{else}}
-              <AllocationStatusBar @allocationContainer={{a.item}} @isNarrow={{true}} />
+              <AllocationStatusBar
+                @allocationContainer={{a.item}}
+                @isNarrow={{true}}
+              />
             {{/if}}
           </div>
         </div>
@@ -33,17 +46,67 @@
     </div>
   </a.head>
   <a.body>
-    {{#component (if a.item.hasChildren "children-status-bar" "allocation-status-bar")
-    allocationContainer=a.item.summary
-    job=a.item.summary
-    class="split-view" as |chart|}}
-    <ol data-test-legend class="legend">
-      {{#each chart.data as |datum index|}}
-        <li class="{{datum.className}} {{if (eq datum.label chart.activeDatum.label) "is-active"}} {{if (eq datum.value 0) "is-empty"}}">
-          <JobPage::Parts::SummaryLegendItem @datum={{datum}} @index={{index}} />
-        </li>
-      {{/each}}
-    </ol>
-  {{/component}}
+    {{#if a.item.hasChildren}}
+      <ChildrenStatusBar
+        @allocationContainer={{a.item.summary}}
+        @job={{a.item.summary}}
+        @class="split-view" as |chart|
+      >
+        <ol data-test-legend class="legend">
+          {{#each chart.data as |datum index|}}
+            <li
+              class="{{datum.className}}
+
+                {{if (eq datum.label chart.activeDatum.label) "is-active"}}
+
+                {{if (eq datum.value 0) "is-empty"}}"
+            >
+              <JobPage::Parts::SummaryLegendItem
+                @datum={{datum}}
+                @index={{index}}
+              />
+            </li>
+          {{/each}}
+        </ol>
+      </ChildrenStatusBar>
+    {{else}}
+      <AllocationStatusBar
+        @allocationContainer={{a.item.summary}}
+        @job={{this.job}}
+        @onSliceClick={{this.onSliceClick}}
+        @class="split-view" as |chart|
+      >
+        <ol data-test-legend class="legend">
+          {{#each chart.data as |datum index|}}
+            <li
+              data-test-legend-label="{{datum.className}}"
+              class="{{datum.className}}
+
+                {{if (eq datum.label chart.activeDatum.label) "is-active"}}
+
+                {{if (eq datum.value 0) "is-empty" "is-clickable"}}"
+            >
+              {{#if (and (gt datum.value 0) datum.legendLink)}}
+                <LinkTo
+                  @route="jobs.job.allocations"
+                  @model={{this.job}}
+                  @query={{datum.legendLink.queryParams}}
+                >
+                  <JobPage::Parts::SummaryLegendItem
+                    @datum={{datum}}
+                    @index={{index}}
+                  />
+                </LinkTo>
+              {{else}}
+                <JobPage::Parts::SummaryLegendItem
+                  @datum={{datum}}
+                  @index={{index}}
+                />
+              {{/if}}
+            </li>
+          {{/each}}
+        </ol>
+      </AllocationStatusBar>
+    {{/if}}
   </a.body>
 </ListAccordion>

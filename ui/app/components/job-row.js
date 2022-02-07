@@ -1,5 +1,6 @@
-import { inject as service } from '@ember/service';
 import Component from '@ember/component';
+import { action } from '@ember/object';
+import { inject as service } from '@ember/service';
 import { lazyClick } from '../helpers/lazy-click';
 import { classNames, tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
@@ -8,8 +9,9 @@ import classic from 'ember-classic-decorator';
 @tagName('tr')
 @classNames('job-row', 'is-interactive')
 export default class JobRow extends Component {
-  @service system;
+  @service router;
   @service store;
+  @service system;
 
   job = null;
 
@@ -17,9 +19,15 @@ export default class JobRow extends Component {
   // based on the relationship of this job to others.
   context = 'independent';
 
-  onClick() {}
-
   click(event) {
-    lazyClick([this.onClick, event]);
+    lazyClick([this.gotoJob, event]);
+  }
+
+  @action
+  gotoJob() {
+    const { job } = this;
+    this.router.transitionTo('jobs.job', job.plainId, {
+      queryParams: { namespace: job.get('namespace.name') },
+    });
   }
 }

@@ -1,4 +1,10 @@
-import { clickable, create, isPresent, text, visitable } from 'ember-cli-page-object';
+import {
+  clickable,
+  create,
+  isPresent,
+  text,
+  visitable,
+} from 'ember-cli-page-object';
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 import { multiFacet } from 'nomad-ui/tests/pages/components/facet';

@@ -153,3 +153,83 @@ differences may require specific steps.
 [node-status]: /docs/commands/node/status
 [server-members]: /docs/commands/server/members
 [upgrade-specific]: /docs/upgrade/upgrade-specific
+
+## Upgrading to Raft Protocol 3
+
+This section provides details on upgrading to Raft Protocol 3. Raft
+protocol version 3 requires Nomad running 0.8.0 or newer on all
+servers in order to work. Raft protocol version 2 will be removed in
+Nomad 1.4.0.
+
+To see the version of the Raft protocol in use on each server, use the
+`nomad operator raft list-peers` command.
+
+Note that the format of `peers.json` used for outage recovery is
+different when running with the latest Raft protocol. See [Manual
+Recovery Using
+peers.json](https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson)
+for a description of the required format.
+
+When using Raft protocol version 3, servers are identified by their
+`node-id` instead of their IP address when Nomad makes changes to its
+internal Raft quorum configuration. This means that once a cluster has
+been upgraded with servers all running Raft protocol version 3, it
+will no longer allow servers running any older Raft protocol versions
+to be added.
+
+### Upgrading a Production Cluster to Raft Version 3
+
+For production raft clusters with 3 or more memebrs, the easiest way
+to upgrade servers is to have each server leave the cluster, upgrade
+its [`raft_protocol`] version in the `server` stanza, and then add it
+back. Make sure the new server joins successfully and that the cluster
+is stable before rolling the upgrade forward to the next server. It's
+also possible to stand up a new set of servers, and then slowly stand
+down each of the older servers in a similar fashion.
+
+For in-place raft protocol upgrades, perform the following for each
+server, leaving the leader until last to reduce the chance of leader
+elections that will slow down the process:
+
+* Stop the server
+* Run `nomad server force-leave $server_name`
+* Update the `raft_protocol` in the server's configuration file to 3.
+* Restart the server
+* Run `nomad operator raft list-peers` to verify that the `raft_vsn`
+  for the server is now 3.
+* On the server, run `nomad agent-info` and check that the
+  `last_log_index` is of a similar value to the other servers. This
+  step ensures that raft is healthy and changes are replicating to the
+  new server.
+
+### Upgrading a Single Server Cluster to Raft Version 3
+
+If you are running a single Nomad server, restarting it in-place will
+result in that server not being able to elect itself as a leader. To
+avoid this, create a new [`raft.peers`][peers-json] file before
+restarting the server with the new configuration. If you have `jq`
+installed you can run the following script on the server's host to
+write the correct `raft.peers` file:
+
+```
+#!/usr/bin/env bash
+
+NOMAD_DATA_DIR=$(nomad agent-info -json | jq -r '.config.DataDir')
+NOMAD_ADDR=$(nomad agent-info -json | jq -r '.stats.nomad.leader_addr')
+NODE_ID=$(cat "$NOMAD_DATA_DIR/server/node-id")
+
+cat <<EOF > "$NOMAD_DATA_DIR/server/raft/peers.json"
+[
+  {
+    "id": "$NODE_ID",
+    "address": "$NOMAD_ADDR",
+    "non_voter": false
+  }
+]
+EOF
+```
+
+After running this script, update the `raft_protocol` in the server's
+configuration to 3 and restart the server.
+
+[peers-json]: https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson

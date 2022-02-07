@@ -5,10 +5,10 @@ import { module, test } from 'qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { AbortController } from 'fetch';
 
-module('Unit | Adapter | Volume', function(hooks) {
+module('Unit | Adapter | Volume', function (hooks) {
   setupTest(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.adapterFor('volume');
 
@@ -23,7 +23,10 @@ module('Unit | Adapter | Volume', function(hooks) {
       this.server.create('node');
       this.server.create('job', { id: 'job-1', namespaceId: 'default' });
       this.server.create('csi-plugin', 2);
-      this.server.create('csi-volume', { id: 'volume-1', namespaceId: 'some-namespace' });
+      this.server.create('csi-volume', {
+        id: 'volume-1',
+        namespaceId: 'some-namespace',
+      });
 
       this.server.create('region', { id: 'region-1' });
       this.server.create('region', { id: 'region-2' });
@@ -43,22 +46,30 @@ module('Unit | Adapter | Volume', function(hooks) {
     };
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
   });
 
-  test('The volume endpoint can be queried by type', async function(assert) {
+  test('The volume endpoint can be queried by type', async function (assert) {
     const { pretender } = this.server;
 
     await this.initializeUI();
 
-    this.subject().query(this.store, { modelName: 'volume' }, { type: 'csi' }, null, {});
+    this.subject().query(
+      this.store,
+      { modelName: 'volume' },
+      { type: 'csi' },
+      null,
+      {}
+    );
     await settled();
 
-    assert.deepEqual(pretender.handledRequests.mapBy('url'), ['/v1/volumes?type=csi']);
+    assert.deepEqual(pretender.handledRequests.mapBy('url'), [
+      '/v1/volumes?type=csi',
+    ]);
   });
 
-  test('When the volume has a namespace other than default, it is in the URL', async function(assert) {
+  test('When the volume has a namespace other than default, it is in the URL', async function (assert) {
     const { pretender } = this.server;
     const volumeName = 'csi/volume-1';
     const volumeNamespace = 'some-namespace';
@@ -70,32 +81,46 @@ module('Unit | Adapter | Volume', function(hooks) {
     await settled();
 
     assert.deepEqual(pretender.handledRequests.mapBy('url'), [
-      `/v1/volume/${encodeURIComponent(volumeName)}?namespace=${volumeNamespace}`,
+      `/v1/volume/${encodeURIComponent(
+        volumeName
+      )}?namespace=${volumeNamespace}`,
     ]);
   });
 
-  test('query can be watched', async function(assert) {
+  test('query can be watched', async function (assert) {
     await this.initializeUI();
 
     const { pretender } = this.server;
 
     const request = () =>
-      this.subject().query(this.store, { modelName: 'volume' }, { type: 'csi' }, null, {
-        reload: true,
-        adapterOptions: { watch: true },
-      });
+      this.subject().query(
+        this.store,
+        { modelName: 'volume' },
+        { type: 'csi' },
+        null,
+        {
+          reload: true,
+          adapterOptions: { watch: true },
+        }
+      );
 
     request();
-    assert.equal(pretender.handledRequests[0].url, '/v1/volumes?type=csi&index=1');
+    assert.equal(
+      pretender.handledRequests[0].url,
+      '/v1/volumes?type=csi&index=1'
+    );
 
     await settled();
     request();
-    assert.equal(pretender.handledRequests[1].url, '/v1/volumes?type=csi&index=2');
+    assert.equal(
+      pretender.handledRequests[1].url,
+      '/v1/volumes?type=csi&index=2'
+    );
 
     await settled();
   });
 
-  test('query can be canceled', async function(assert) {
+  test('query can be canceled', async function (assert) {
     await this.initializeUI();
 
     const { pretender } = this.server;
@@ -122,16 +147,22 @@ module('Unit | Adapter | Volume', function(hooks) {
     assert.ok(xhr.aborted, 'Request was aborted');
   });
 
-  test('query and findAll have distinct watchList entries', async function(assert) {
+  test('query and findAll have distinct watchList entries', async function (assert) {
     await this.initializeUI();
 
     const { pretender } = this.server;
 
     const request = () =>
-      this.subject().query(this.store, { modelName: 'volume' }, { type: 'csi' }, null, {
-        reload: true,
-        adapterOptions: { watch: true },
-      });
+      this.subject().query(
+        this.store,
+        { modelName: 'volume' },
+        { type: 'csi' },
+        null,
+        {
+          reload: true,
+          adapterOptions: { watch: true },
+        }
+      );
 
     const findAllRequest = () =>
       this.subject().findAll(null, { modelName: 'volume' }, null, {
@@ -140,11 +171,17 @@ module('Unit | Adapter | Volume', function(hooks) {
       });
 
     request();
-    assert.equal(pretender.handledRequests[0].url, '/v1/volumes?type=csi&index=1');
+    assert.equal(
+      pretender.handledRequests[0].url,
+      '/v1/volumes?type=csi&index=1'
+    );
 
     await settled();
     request();
-    assert.equal(pretender.handledRequests[1].url, '/v1/volumes?type=csi&index=2');
+    assert.equal(
+      pretender.handledRequests[1].url,
+      '/v1/volumes?type=csi&index=2'
+    );
 
     await settled();
     findAllRequest();

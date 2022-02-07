@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: add links to legend items in allocation-summary
+```

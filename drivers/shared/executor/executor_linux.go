@@ -15,15 +15,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/nomad/drivers/shared/capabilities"
-	"github.com/opencontainers/runtime-spec/specs-go"
-
 	"github.com/armon/circbuf"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -31,9 +29,11 @@ import (
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/devices"
 	ldevices "github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
 )
 
@@ -71,6 +71,7 @@ type LibcontainerExecutor struct {
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger) Executor {
+
 	logger = logger.Named("isolated_executor")
 	if err := shelpers.Init(); err != nil {
 		logger.Error("unable to initialize stats", "error", err)
@@ -383,10 +384,12 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 		maxUsage := stats.MemoryStats.Usage.MaxUsage
 		rss := stats.MemoryStats.Stats["rss"]
 		cache := stats.MemoryStats.Stats["cache"]
+		mapped_file := stats.MemoryStats.Stats["mapped_file"]
 		ms := &cstructs.MemoryStats{
 			RSS:            rss,
 			Cache:          cache,
 			Swap:           swap.Usage,
+			MappedFile:     mapped_file,
 			Usage:          stats.MemoryStats.Usage.Usage,
 			MaxUsage:       maxUsage,
 			KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
@@ -782,14 +785,14 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 }
 
 // cmdDevices converts a list of driver.DeviceConfigs into excutor.Devices.
-func cmdDevices(devices []*drivers.DeviceConfig) ([]*lconfigs.Device, error) {
-	if len(devices) == 0 {
+func cmdDevices(driverDevices []*drivers.DeviceConfig) ([]*devices.Device, error) {
+	if len(driverDevices) == 0 {
 		return nil, nil
 	}
 
-	r := make([]*lconfigs.Device, len(devices))
+	r := make([]*devices.Device, len(driverDevices))
 
-	for i, d := range devices {
+	for i, d := range driverDevices {
 		ed, err := ldevices.DeviceFromPath(d.HostPath, d.Permissions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to make device out for %s: %v", d.HostPath, err)

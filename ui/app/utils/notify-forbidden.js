@@ -2,7 +2,7 @@
 // forbidden flag on the route
 import codesForError from './codes-for-error';
 export default function notifyForbidden(route) {
-  return error => {
+  return (error) => {
     if (codesForError(error).includes('403')) {
       route.set('isForbidden', true);
     } else {

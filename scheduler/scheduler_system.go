@@ -26,6 +26,7 @@ const (
 // whereas 'sysbatch' considers the task complete on success.
 type SystemScheduler struct {
 	logger   log.Logger
+	eventsCh chan<- interface{}
 	state    State
 	planner  Planner
 	sysbatch bool
@@ -50,18 +51,20 @@ type SystemScheduler struct {
 
 // NewSystemScheduler is a factory function to instantiate a new system
 // scheduler.
-func NewSystemScheduler(logger log.Logger, state State, planner Planner) Scheduler {
+func NewSystemScheduler(logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) Scheduler {
 	return &SystemScheduler{
 		logger:   logger.Named("system_sched"),
+		eventsCh: eventsCh,
 		state:    state,
 		planner:  planner,
 		sysbatch: false,
 	}
 }
 
-func NewSysBatchScheduler(logger log.Logger, state State, planner Planner) Scheduler {
+func NewSysBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) Scheduler {
 	return &SystemScheduler{
 		logger:   logger.Named("sysbatch_sched"),
+		eventsCh: eventsCh,
 		state:    state,
 		planner:  planner,
 		sysbatch: true,
@@ -69,7 +72,13 @@ func NewSysBatchScheduler(logger log.Logger, state State, planner Planner) Sched
 }
 
 // Process is used to handle a single evaluation.
-func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
+func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("processing eval %q panicked scheduler - please report this as a bug! - %v", eval.ID, r)
+		}
+	}()
 
 	// Store the evaluation
 	s.eval = eval
@@ -136,7 +145,7 @@ func (s *SystemScheduler) process() (bool, error) {
 	s.failedTGAllocs = nil
 
 	// Create an evaluation context
-	s.ctx = NewEvalContext(s.state, s.plan, s.logger)
+	s.ctx = NewEvalContext(s.eventsCh, s.state, s.plan, s.logger)
 
 	// Construct the placement stack
 	s.stack = NewSystemStack(s.sysbatch, s.ctx)

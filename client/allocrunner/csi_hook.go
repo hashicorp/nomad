@@ -3,6 +3,8 @@ package allocrunner
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
@@ -16,13 +18,37 @@ import (
 //
 // It is a noop for allocs that do not depend on CSI Volumes.
 type csiHook struct {
-	ar             *allocRunner
-	alloc          *structs.Allocation
-	logger         hclog.Logger
-	csimanager     csimanager.Manager
-	rpcClient      RPCer
-	updater        hookResourceSetter
-	volumeRequests map[string]*volumeAndRequest
+	alloc                *structs.Allocation
+	logger               hclog.Logger
+	csimanager           csimanager.Manager
+	rpcClient            RPCer
+	taskCapabilityGetter taskCapabilityGetter
+	updater              hookResourceSetter
+	nodeSecret           string
+
+	volumeRequests     map[string]*volumeAndRequest
+	maxBackoffInterval time.Duration
+	maxBackoffDuration time.Duration
+}
+
+// implemented by allocrunner
+type taskCapabilityGetter interface {
+	GetTaskDriverCapabilities(string) (*drivers.Capabilities, error)
+}
+
+func newCSIHook(alloc *structs.Allocation, logger hclog.Logger, csi csimanager.Manager, rpcClient RPCer, taskCapabilityGetter taskCapabilityGetter, updater hookResourceSetter, nodeSecret string) *csiHook {
+	return &csiHook{
+		alloc:                alloc,
+		logger:               logger.Named("csi_hook"),
+		csimanager:           csi,
+		rpcClient:            rpcClient,
+		taskCapabilityGetter: taskCapabilityGetter,
+		updater:              updater,
+		nodeSecret:           nodeSecret,
+		volumeRequests:       map[string]*volumeAndRequest{},
+		maxBackoffInterval:   time.Minute,
+		maxBackoffDuration:   time.Hour * 24,
+	}
 }
 
 func (c *csiHook) Name() string {
@@ -83,41 +109,43 @@ func (c *csiHook) Postrun() error {
 		return nil
 	}
 
-	var mErr *multierror.Error
+	var wg sync.WaitGroup
+	errs := make(chan error, len(c.volumeRequests))
 
 	for _, pair := range c.volumeRequests {
+		wg.Add(1)
 
-		mode := structs.CSIVolumeClaimRead
-		if !pair.request.ReadOnly {
-			mode = structs.CSIVolumeClaimWrite
-		}
+		// CSI RPCs can potentially fail for a very long time if a
+		// node plugin has failed. split the work into goroutines so
+		// that operators could potentially reuse one of a set of
+		// volumes even if this hook is stuck waiting on the others
+		go func(pair *volumeAndRequest) {
+			defer wg.Done()
 
-		source := pair.request.Source
-		if pair.request.PerAlloc {
-			// NOTE: PerAlloc can't be set if we have canaries
-			source = source + structs.AllocSuffix(c.alloc.Name)
-		}
+			// we can recover an unmount failure if the operator
+			// brings the plugin back up, so retry every few minutes
+			// but eventually give up
+			err := c.unmountWithRetry(pair)
+			if err != nil {
+				errs <- err
+				return
+			}
 
-		req := &structs.CSIVolumeUnpublishRequest{
-			VolumeID: source,
-			Claim: &structs.CSIVolumeClaim{
-				AllocationID: c.alloc.ID,
-				NodeID:       c.alloc.NodeID,
-				Mode:         mode,
-				State:        structs.CSIVolumeClaimStateUnpublishing,
-			},
-			WriteRequest: structs.WriteRequest{
-				Region:    c.alloc.Job.Region,
-				Namespace: c.alloc.Job.Namespace,
-				AuthToken: c.ar.clientConfig.Node.SecretID,
-			},
-		}
-		err := c.rpcClient.RPC("CSIVolume.Unpublish",
-			req, &structs.CSIVolumeUnpublishResponse{})
-		if err != nil {
-			mErr = multierror.Append(mErr, err)
-		}
+			// we can't recover from this RPC error client-side; the
+			// volume claim GC job will have to clean up for us once
+			// the allocation is marked terminal
+			errs <- c.unpublish(pair)
+		}(pair)
 	}
+
+	wg.Wait()
+	close(errs) // so we don't block waiting if there were no errors
+
+	var mErr *multierror.Error
+	for err := range errs {
+		mErr = multierror.Append(mErr, err)
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -142,7 +170,7 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 		if volumeRequest.Type == structs.VolumeTypeCSI {
 
 			for _, task := range tg.Tasks {
-				caps, err := c.ar.GetTaskDriverCapabilities(task.Name)
+				caps, err := c.taskCapabilityGetter.GetTaskDriverCapabilities(task.Name)
 				if err != nil {
 					return nil, fmt.Errorf("could not validate task driver capabilities: %v", err)
 				}
@@ -180,13 +208,13 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 			WriteRequest: structs.WriteRequest{
 				Region:    c.alloc.Job.Region,
 				Namespace: c.alloc.Job.Namespace,
-				AuthToken: c.ar.clientConfig.Node.SecretID,
+				AuthToken: c.nodeSecret,
 			},
 		}
 
 		var resp structs.CSIVolumeClaimResponse
 		if err := c.rpcClient.RPC("CSIVolume.Claim", req, &resp); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not claim volume %s: %w", req.VolumeID, err)
 		}
 
 		if resp.Volume == nil {
@@ -201,19 +229,8 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 	return result, nil
 }
 
-func newCSIHook(ar *allocRunner, logger hclog.Logger, alloc *structs.Allocation, rpcClient RPCer, csi csimanager.Manager, updater hookResourceSetter) *csiHook {
-	return &csiHook{
-		ar:         ar,
-		alloc:      alloc,
-		logger:     logger.Named("csi_hook"),
-		rpcClient:  rpcClient,
-		csimanager: csi,
-		updater:    updater,
-	}
-}
-
-func (h *csiHook) shouldRun() bool {
-	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
+func (c *csiHook) shouldRun() bool {
+	tg := c.alloc.Job.LookupTaskGroup(c.alloc.TaskGroup)
 	for _, vol := range tg.Volumes {
 		if vol.Type == structs.VolumeTypeCSI {
 			return true
@@ -221,4 +238,96 @@ func (h *csiHook) shouldRun() bool {
 	}
 
 	return false
+}
+
+func (c *csiHook) unpublish(pair *volumeAndRequest) error {
+
+	mode := structs.CSIVolumeClaimRead
+	if !pair.request.ReadOnly {
+		mode = structs.CSIVolumeClaimWrite
+	}
+
+	source := pair.request.Source
+	if pair.request.PerAlloc {
+		// NOTE: PerAlloc can't be set if we have canaries
+		source = source + structs.AllocSuffix(c.alloc.Name)
+	}
+
+	req := &structs.CSIVolumeUnpublishRequest{
+		VolumeID: source,
+		Claim: &structs.CSIVolumeClaim{
+			AllocationID: c.alloc.ID,
+			NodeID:       c.alloc.NodeID,
+			Mode:         mode,
+			State:        structs.CSIVolumeClaimStateUnpublishing,
+		},
+		WriteRequest: structs.WriteRequest{
+			Region:    c.alloc.Job.Region,
+			Namespace: c.alloc.Job.Namespace,
+			AuthToken: c.nodeSecret,
+		},
+	}
+
+	return c.rpcClient.RPC("CSIVolume.Unpublish",
+		req, &structs.CSIVolumeUnpublishResponse{})
+
+}
+
+// unmountWithRetry tries to unmount/unstage the volume, retrying with
+// exponential backoff capped to a maximum interval
+func (c *csiHook) unmountWithRetry(pair *volumeAndRequest) error {
+
+	// note: allocrunner hooks don't have access to the client's
+	// shutdown context, just the allocrunner's shutdown; if we make
+	// it available in the future we should thread it through here so
+	// that retry can exit gracefully instead of dropping the
+	// in-flight goroutine
+	ctx, cancel := context.WithTimeout(context.TODO(), c.maxBackoffDuration)
+	defer cancel()
+	var err error
+	backoff := time.Second
+	ticker := time.NewTicker(backoff)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return err
+		case <-ticker.C:
+		}
+
+		err = c.unmountImpl(pair)
+		if err == nil {
+			break
+		}
+
+		if backoff < c.maxBackoffInterval {
+			backoff = backoff * 2
+			if backoff > c.maxBackoffInterval {
+				backoff = c.maxBackoffInterval
+			}
+		}
+		ticker.Reset(backoff)
+	}
+	return nil
+}
+
+// unmountImpl implements the call to the CSI plugin manager to
+// unmount the volume. Each retry will write an "Unmount volume"
+// NodeEvent
+func (c *csiHook) unmountImpl(pair *volumeAndRequest) error {
+
+	mounter, err := c.csimanager.MounterForPlugin(context.TODO(), pair.volume.PluginID)
+	if err != nil {
+		return err
+	}
+
+	usageOpts := &csimanager.UsageOptions{
+		ReadOnly:       pair.request.ReadOnly,
+		AttachmentMode: pair.request.AttachmentMode,
+		AccessMode:     pair.request.AccessMode,
+		MountOptions:   pair.request.MountOptions,
+	}
+
+	return mounter.UnmountVolume(context.TODO(),
+		pair.volume.ID, pair.volume.RemoteID(), c.alloc.ID, usageOpts)
 }

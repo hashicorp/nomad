@@ -1,9 +1,6 @@
 import { productName, productSlug } from 'data/metadata'
 import DocsPage from '@hashicorp/react-docs-page'
-import {
-  generateStaticPaths,
-  generateStaticProps,
-} from '@hashicorp/react-docs-page/server'
+import { getStaticGenerationFunctions } from '@hashicorp/react-docs-page/server'
 
 const NAV_DATA_FILE = 'data/tools-nav-data.json'
 const CONTENT_DIR = 'content/tools'
@@ -19,24 +16,11 @@ export default function DocsLayout(props) {
   )
 }
 
-export async function getStaticPaths() {
-  return {
-    fallback: false,
-    paths: await generateStaticPaths({
-      navDataFile: NAV_DATA_FILE,
-      localContentDir: CONTENT_DIR,
-    }),
-  }
-}
+const { getStaticPaths, getStaticProps } = getStaticGenerationFunctions({
+  strategy: 'fs',
+  localContentDir: CONTENT_DIR,
+  navDataFile: NAV_DATA_FILE,
+  product: productSlug,
+})
 
-export async function getStaticProps({ params }) {
-  return {
-    props: await generateStaticProps({
-      navDataFile: NAV_DATA_FILE,
-      localContentDir: CONTENT_DIR,
-      product: { name: productName, slug: productSlug },
-      params,
-      basePath: basePath,
-    }),
-  }
-}
+export { getStaticPaths, getStaticProps }

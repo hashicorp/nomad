@@ -68,7 +68,11 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
   Consul communication. If this is set then you need to also set `key_file`.
 
 - `checks_use_advertise` `(bool: false)` - Specifies if Consul health checks
-  should bind to the advertise address. By default, this is the bind address.
+  should bind to the advertise address. By default, this is the first [HTTP
+  address](https://www.nomadproject.io/docs/configuration#http). If no
+  [HTTP address](https://www.nomadproject.io/docs/configuration#http) is
+  specified, it will fall back to the
+  [bind_addr](https://www.nomadproject.io/docs/configuration#bind_addr).
 
 - `client_auto_join` `(bool: true)` - Specifies if the Nomad clients should
   automatically discover servers in the same region by searching for the Consul

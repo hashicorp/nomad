@@ -67,7 +67,7 @@
         {{x-icon "alert-triangle" class="is-warning"}}
       </span>
     {{else}}
-      <div class="inline-chart tooltip" role="tooltip" aria-label="{{format-scheduled-bytes this.memory.used}} / {{format-scheduled-bytes this.taskStats.reservedMemory}}">
+      <div class="inline-chart tooltip" role="tooltip" aria-label="{{format-bytes this.memory.used}} / {{format-bytes this.taskStats.reservedMemory start='MiB'}}">
         <progress
           class="progress is-danger is-small"
           value="{{this.memory.percent}}"

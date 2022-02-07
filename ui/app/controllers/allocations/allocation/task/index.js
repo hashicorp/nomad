@@ -16,7 +16,7 @@ export default class IndexController extends Controller {
     this.set('error', null);
   }
 
-  @task(function*() {
+  @task(function* () {
     try {
       yield this.model.restart();
     } catch (err) {

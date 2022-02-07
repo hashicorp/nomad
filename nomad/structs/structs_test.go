@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 
 	"github.com/kr/pretty"
@@ -1672,6 +1673,15 @@ func TestNetworkResource_Copy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			output := tc.inputNetworkResource.Copy()
 			assert.Equal(t, tc.inputNetworkResource, output, tc.name)
+
+			if output == nil {
+				return
+			}
+
+			// Assert changes to the copy aren't propagated to the
+			// original
+			output.DNS.Servers[1] = "foo"
+			assert.NotEqual(t, tc.inputNetworkResource, output, tc.name)
 		})
 	}
 }
@@ -2542,6 +2552,45 @@ func TestTemplate_Validate(t *testing.T) {
 				"as octal",
 			},
 		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "local/foo",
+				ChangeMode: "noop",
+				Wait: &WaitConfig{
+					Min: helper.TimeToPtr(10 * time.Second),
+					Max: helper.TimeToPtr(5 * time.Second),
+				},
+			},
+			Fail: true,
+			ContainsErrs: []string{
+				"greater than",
+			},
+		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "local/foo",
+				ChangeMode: "noop",
+				Wait: &WaitConfig{
+					Min: helper.TimeToPtr(5 * time.Second),
+					Max: helper.TimeToPtr(5 * time.Second),
+				},
+			},
+			Fail: false,
+		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "local/foo",
+				ChangeMode: "noop",
+				Wait: &WaitConfig{
+					Min: helper.TimeToPtr(5 * time.Second),
+					Max: helper.TimeToPtr(10 * time.Second),
+				},
+			},
+			Fail: false,
+		},
 	}
 
 	for i, c := range cases {
@@ -2560,6 +2609,55 @@ func TestTemplate_Validate(t *testing.T) {
 		} else if c.Fail {
 			t.Fatalf("Case %d: should have failed: %v", i+1, err)
 		}
+	}
+}
+
+func TestTaskWaitConfig_Equals(t *testing.T) {
+	testCases := []struct {
+		name     string
+		config   *WaitConfig
+		expected *WaitConfig
+	}{
+		{
+			name: "all-fields",
+			config: &WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(10 * time.Second),
+			},
+			expected: &WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(10 * time.Second),
+			},
+		},
+		{
+			name:     "no-fields",
+			config:   &WaitConfig{},
+			expected: &WaitConfig{},
+		},
+		{
+			name: "min-only",
+			config: &WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+			},
+			expected: &WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+			},
+		},
+		{
+			name: "max-only",
+			config: &WaitConfig{
+				Max: helper.TimeToPtr(10 * time.Second),
+			},
+			expected: &WaitConfig{
+				Max: helper.TimeToPtr(10 * time.Second),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.True(t, tc.config.Equals(tc.expected))
+		})
 	}
 }
 
@@ -2942,6 +3040,36 @@ func TestMemoryResources_Add(t *testing.T) {
 		MemoryMB:    200,
 		MemoryMaxMB: 300,
 	}, r)
+}
+
+func TestNodeNetworkResource_Copy(t *testing.T) {
+	netResource := &NodeNetworkResource{
+		Mode:       "host",
+		Device:     "eth0",
+		MacAddress: "00:00:00:00:00:00",
+		Speed:      1000,
+		Addresses: []NodeNetworkAddress{
+			{
+				Family:        NodeNetworkAF_IPv4,
+				Alias:         "default",
+				Address:       "192.168.0.2",
+				ReservedPorts: "22",
+				Gateway:       "192.168.0.1",
+			},
+		},
+	}
+
+	// Copy must be equal.
+	netResourceCopy := netResource.Copy()
+	require.Equal(t, netResource, netResourceCopy)
+
+	// Modifying copy should not modify original value.
+	netResourceCopy.Mode = "alloc"
+	netResourceCopy.Device = "eth1"
+	netResourceCopy.MacAddress = "11:11:11:11:11:11"
+	netResourceCopy.Speed = 500
+	netResourceCopy.Addresses[0].Alias = "copy"
+	require.NotEqual(t, netResource, netResourceCopy)
 }
 
 func TestEncodeDecode(t *testing.T) {
@@ -5969,6 +6097,52 @@ func TestMultiregion_CopyCanonicalize(t *testing.T) {
 	old.Canonicalize()
 	require.Equal(old, nonEmptyOld)
 	require.False(old.Diff(nonEmptyOld))
+}
+
+func TestNodeResources_Copy(t *testing.T) {
+	orig := &NodeResources{
+		Cpu: NodeCpuResources{
+			CpuShares:          int64(32000),
+			TotalCpuCores:      32,
+			ReservableCpuCores: []uint16{1, 2, 3, 9},
+		},
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(64000),
+		},
+		Networks: Networks{
+			{
+				Device: "foo",
+			},
+		},
+		NodeNetworks: []*NodeNetworkResource{
+			{
+				Mode:       "host",
+				Device:     "eth0",
+				MacAddress: "00:00:00:00:00:00",
+				Speed:      1000,
+				Addresses: []NodeNetworkAddress{
+					{
+						Family:        NodeNetworkAF_IPv4,
+						Alias:         "private",
+						Address:       "192.168.0.100",
+						ReservedPorts: "22,80",
+						Gateway:       "192.168.0.1",
+					},
+				},
+			},
+		},
+	}
+
+	kopy := orig.Copy()
+	assert.Equal(t, orig, kopy)
+
+	// Make sure slices aren't shared
+	kopy.Cpu.ReservableCpuCores[1] = 9000
+	assert.NotEqual(t, orig.Cpu.ReservableCpuCores, kopy.Cpu.ReservableCpuCores)
+
+	kopy.NodeNetworks[0].MacAddress = "11:11:11:11:11:11"
+	kopy.NodeNetworks[0].Addresses[0].Alias = "public"
+	assert.NotEqual(t, orig.NodeNetworks[0], kopy.NodeNetworks[0])
 }
 
 func TestNodeResources_Merge(t *testing.T) {

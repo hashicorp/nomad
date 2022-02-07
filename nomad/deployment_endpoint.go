@@ -17,6 +17,9 @@ import (
 type Deployment struct {
 	srv    *Server
 	logger log.Logger
+
+	// ctx provides context regarding the underlying connection
+	ctx *RPCContext
 }
 
 // GetDeployment is used to request information about a specific deployment
@@ -400,32 +403,34 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// Capture all the deployments
 			var err error
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.DeploymentsByIDPrefix(ws, args.RequestNamespace(), prefix)
+				iter, err = store.DeploymentsByIDPrefix(ws, args.RequestNamespace(), prefix)
+			} else if args.RequestNamespace() == structs.AllNamespacesSentinel {
+				iter, err = store.Deployments(ws)
 			} else {
-				iter, err = state.DeploymentsByNamespace(ws, args.RequestNamespace())
+				iter, err = store.DeploymentsByNamespace(ws, args.RequestNamespace())
 			}
 			if err != nil {
 				return err
 			}
 
 			var deploys []*structs.Deployment
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				deploy := raw.(*structs.Deployment)
-				deploys = append(deploys, deploy)
-			}
+			paginator := state.NewPaginator(iter, args.QueryOptions,
+				func(raw interface{}) {
+					deploy := raw.(*structs.Deployment)
+					deploys = append(deploys, deploy)
+				})
+
+			nextToken := paginator.Page()
+			reply.QueryMeta.NextToken = nextToken
 			reply.Deployments = deploys
 
 			// Use the last index that affected the deployment table
-			index, err := state.Index("deployment")
+			index, err := store.Index("deployment")
 			if err != nil {
 				return err
 			}
@@ -499,6 +504,13 @@ func (d *Deployment) Allocations(args *structs.DeploymentSpecificRequest, reply 
 // Reap is used to cleanup terminal deployments
 func (d *Deployment) Reap(args *structs.DeploymentDeleteRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(d.srv, d.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := d.srv.forward("Deployment.Reap", args, args, reply); done {
 		return err
 	}

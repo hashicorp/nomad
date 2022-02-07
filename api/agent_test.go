@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"net/http"
 	"reflect"
 	"sort"
 	"strings"
@@ -454,5 +455,52 @@ func TestAgentProfile(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Unexpected response code: 404")
 		require.Nil(t, resp)
+	}
+}
+
+func TestAgent_SchedulerWorkerConfig(t *testing.T) {
+	t.Parallel()
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	config, err := a.GetSchedulerWorkerConfig(nil)
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	newConfig := SchedulerWorkerPoolArgs{NumSchedulers: 0, EnabledSchedulers: []string{"_core", "system"}}
+	resp, err := a.SetSchedulerWorkerConfig(newConfig, nil)
+	require.NoError(t, err)
+	assert.NotEqual(t, config, resp)
+}
+
+func TestAgent_SchedulerWorkerConfig_BadRequest(t *testing.T) {
+	t.Parallel()
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	config, err := a.GetSchedulerWorkerConfig(nil)
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	newConfig := SchedulerWorkerPoolArgs{NumSchedulers: -1, EnabledSchedulers: []string{"_core", "system"}}
+	_, err = a.SetSchedulerWorkerConfig(newConfig, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), fmt.Sprintf("%v (%s)", http.StatusBadRequest, "Invalid request"))
+}
+
+func TestAgent_SchedulerWorkersInfo(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	info, err := a.GetSchedulerWorkersInfo(nil)
+	require.NoError(t, err)
+	require.NotNil(t, info)
+	defaultSchedulers := []string{"batch", "system", "sysbatch", "service", "_core"}
+	for _, worker := range info.Schedulers {
+		require.ElementsMatch(t, defaultSchedulers, worker.EnabledSchedulers)
 	}
 }

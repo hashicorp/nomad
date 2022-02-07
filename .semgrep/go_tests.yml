@@ -1,0 +1,116 @@
+rules:
+  # Check `require` or `assert` testify overrides.
+  # https://semgrep.dev/s/PgAq
+  - id: "tests-no-testify-override"
+    patterns:
+      - pattern-either:
+        - pattern: "assert := assert.New(($T : *testing.T))"
+        - pattern: "require := require.New(($T : *testing.T))"
+    message: "Override of testify package"
+    languages:
+      - "go"
+    severity: "WARNING"
+    # TODO(luiz): figure out how to do a 'delete line' fix.
+    fix: " "
+    paths:
+      include:
+        - "*_test.go"
+
+  # Check `assert` and `require` calls without `t` as first argument.
+  # https://semgrep.dev/s/wZW0
+  - id: "tests-no-assert-without-t"
+    patterns:
+      - pattern: "assert.$FUNC($...ARGS)"
+      - pattern-not: "assert.$FUNC($T,...)"
+      - pattern-inside: |
+          func $TEST_FUNC($T *testing.T) {
+            ...
+          }
+      # Nested functions have a different signature, so they are tested in a
+      # different rule.
+      - pattern-not-inside: |
+          $T.Run(..., func(...) {
+            ...
+          })
+      - metavariable-pattern:
+          metavariable: $FUNC
+          patterns:
+            # Calls to `New` are checked in `tests-no-testify-override`.
+            - pattern-not: New
+    message: "Calling `assert.$FUNC` without `$T`"
+    languages:
+      - "go"
+    severity: "WARNING"
+    fix: "assert.$FUNC($T, $...ARGS)"
+    paths:
+      include:
+        - "*_test.go"
+  - id: "tests-no-assert-without-t-nested"
+    patterns:
+      - pattern: "assert.$FUNC($...ARGS)"
+      - pattern-not: "assert.$FUNC($T,...)"
+      - pattern-inside: |
+          ($T_ROOT : *testing.T).Run(..., func($T *testing.T) {
+            ...
+          })
+      - metavariable-pattern:
+          metavariable: $FUNC
+          patterns:
+            # Calls to `New` are checked in `tests-no-testify-override`.
+            - pattern-not: New
+    message: "Calling `assert.$FUNC` without `$T`"
+    languages:
+      - "go"
+    severity: "WARNING"
+    fix: "assert.$FUNC($T, $...ARGS)"
+    paths:
+      include:
+        - "*_test.go"
+  - id: "tests-no-require-without-t"
+    patterns:
+      - pattern: "require.$FUNC($...ARGS)"
+      - pattern-not: "require.$FUNC($T,...)"
+      - pattern-inside: |
+          func $TEST_FUNC($T *testing.T) {
+            ...
+          }
+      # Nested functions have a different signature, so they are tested in a
+      # different rule.
+      - pattern-not-inside: |
+          $T.Run(..., func(...) {
+            ...
+          })
+      - metavariable-pattern:
+          metavariable: $FUNC
+          patterns:
+            # Calls to `New` are checked in `tests-no-testify-override`.
+            - pattern-not: New
+    message: "Calling `require.$FUNC` without `$T`"
+    languages:
+      - "go"
+    severity: "WARNING"
+    fix: "require.$FUNC($T, $...ARGS)"
+    paths:
+      include:
+        - "*_test.go"
+  - id: "tests-no-require-without-t-nested"
+    patterns:
+      - pattern: "require.$FUNC($...ARGS)"
+      - pattern-not: "require.$FUNC($T,...)"
+      - pattern-inside: |
+          ($T_ROOT : *testing.T).Run(..., func($T *testing.T) {
+            ...
+          })
+      - metavariable-pattern:
+          metavariable: "$FUNC"
+          patterns:
+            # Calls to `New` are checked in `tests-no-testify-override`.
+            - pattern-not: "New"
+    message: "Calling `require.$FUNC` without `$T`"
+    languages:
+      - "go"
+    severity: "WARNING"
+    fix: "require.$FUNC($T, $...ARGS)"
+    paths:
+      include:
+        - "*_test.go"

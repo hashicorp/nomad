@@ -6,6 +6,7 @@ import Head from 'next/head'
 import NProgress from '@hashicorp/platform-util/nprogress'
 import { ErrorBoundary } from '@hashicorp/platform-runtime-error-monitoring'
 import createConsentManager from '@hashicorp/react-consent-manager/loader'
+import localConsentManagerServices from 'lib/consent-manager-services'
 import useFathomAnalytics from '@hashicorp/platform-analytics'
 import useAnchorLinkAnalytics from '@hashicorp/platform-util/anchor-link-analytics'
 import HashiStackMenu from '@hashicorp/react-hashi-stack-menu'
@@ -19,6 +20,7 @@ import alertBannerData, { ALERT_BANNER_ACTIVE } from 'data/alert-banner'
 NProgress({ Router })
 const { ConsentManager, openConsentManager } = createConsentManager({
   preset: 'oss',
+  otherServices: [...localConsentManagerServices],
 })
 
 export default function App({ Component, pageProps }) {

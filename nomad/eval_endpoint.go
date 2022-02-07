@@ -24,6 +24,9 @@ const (
 type Eval struct {
 	srv    *Server
 	logger log.Logger
+
+	// ctx provides context regarding the underlying connection
+	ctx *RPCContext
 }
 
 // GetEval is used to request information about a specific evaluation
@@ -82,6 +85,13 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 // Dequeue is used to dequeue a pending evaluation
 func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	reply *structs.EvalDequeueResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Dequeue", args, args, reply); done {
 		return err
 	}
@@ -167,6 +177,13 @@ func (e *Eval) getWaitIndex(namespace, job string, evalModifyIndex uint64) (uint
 // Ack is used to acknowledge completion of a dequeued evaluation
 func (e *Eval) Ack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Ack", args, args, reply); done {
 		return err
 	}
@@ -182,6 +199,13 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 // Nack is used to negative acknowledge completion of a dequeued evaluation.
 func (e *Eval) Nack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Nack", args, args, reply); done {
 		return err
 	}
@@ -197,6 +221,13 @@ func (e *Eval) Nack(args *structs.EvalAckRequest,
 // Update is used to perform an update of an Eval if it is outstanding.
 func (e *Eval) Update(args *structs.EvalUpdateRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Update", args, args, reply); done {
 		return err
 	}
@@ -227,6 +258,13 @@ func (e *Eval) Update(args *structs.EvalUpdateRequest,
 // Create is used to make a new evaluation
 func (e *Eval) Create(args *structs.EvalUpdateRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Create", args, args, reply); done {
 		return err
 	}
@@ -272,6 +310,12 @@ func (e *Eval) Create(args *structs.EvalUpdateRequest,
 // Reblock is used to reinsert an existing blocked evaluation into the blocked
 // evaluation tracker.
 func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericResponse) error {
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Reblock", args, args, reply); done {
 		return err
 	}
@@ -314,6 +358,13 @@ func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericRe
 // Reap is used to cleanup dead evaluations and allocations
 func (e *Eval) Reap(args *structs.EvalDeleteRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Reap", args, args, reply); done {
 		return err
 	}
@@ -353,7 +404,9 @@ func (e *Eval) List(args *structs.EvalListRequest,
 			// Scan all the evaluations
 			var err error
 			var iter memdb.ResultIterator
-			if prefix := args.QueryOptions.Prefix; prefix != "" {
+			if args.RequestNamespace() == structs.AllNamespacesSentinel {
+				iter, err = store.Evals(ws)
+			} else if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = store.EvalsByIDPrefix(ws, args.RequestNamespace(), prefix)
 			} else {
 				iter, err = store.EvalsByNamespace(ws, args.RequestNamespace())

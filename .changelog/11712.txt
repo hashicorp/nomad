@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a performance bug where `spread` and node affinity can cause a job to take longer than the nack timeout to be evaluated.
+```

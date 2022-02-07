@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
+	"github.com/creack/pty"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
@@ -22,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/kr/pty"
 	"github.com/syndtr/gocapability/capability"
 
 	shelpers "github.com/hashicorp/nomad/helper/stats"

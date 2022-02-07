@@ -1,0 +1,3 @@
+```release-note:bug
+template: Fixed a bug where templates did not receive an updated vault token if `change_mode = "noop"` was set in the job definition's `vault` stanza.
+```

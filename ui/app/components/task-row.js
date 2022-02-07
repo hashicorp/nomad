@@ -50,13 +50,11 @@ export default class TaskRow extends Component {
     lazyClick([this.onClick, event]);
   }
 
-  @(task(function*() {
+  @(task(function* () {
     do {
       if (this.stats) {
         try {
-          yield this.get('stats.poll')
-            .linked()
-            .perform();
+          yield this.get('stats.poll').linked().perform();
           this.set('statsError', false);
         } catch (error) {
           this.set('statsError', true);
@@ -69,6 +67,7 @@ export default class TaskRow extends Component {
   fetchStats;
 
   didReceiveAttrs() {
+    super.didReceiveAttrs();
     const allocation = this.get('task.allocation');
 
     if (allocation) {

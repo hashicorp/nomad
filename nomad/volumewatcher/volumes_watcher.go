@@ -57,14 +57,15 @@ func NewVolumesWatcher(logger log.Logger, rpc CSIVolumeRPC, leaderAcl string) *W
 
 // SetEnabled is used to control if the watcher is enabled. The
 // watcher should only be enabled on the active leader. When being
-// enabled the state is passed in as it is no longer valid once a
-// leader election has taken place.
-func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) {
+// enabled the state and leader's ACL is passed in as it is no longer
+// valid once a leader election has taken place.
+func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore, leaderAcl string) {
 	w.wlock.Lock()
 	defer w.wlock.Unlock()
 
 	wasEnabled := w.enabled
 	w.enabled = enabled
+	w.leaderAcl = leaderAcl
 
 	if state != nil {
 		w.state = state

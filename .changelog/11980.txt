@@ -1,0 +1,3 @@
+```release-note:bug
+ui: fix the unit for the task row memory usage metric
+```

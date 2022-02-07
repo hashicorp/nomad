@@ -2,9 +2,9 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import RecommendationSummaryModel from 'nomad-ui/models/recommendation-summary';
 
-module('Unit | Serializer | RecommendationSummary', function(hooks) {
+module('Unit | Serializer | RecommendationSummary', function (hooks) {
   setupTest(hooks);
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.serializerFor('recommendation-summary');
   });
@@ -202,10 +202,14 @@ module('Unit | Serializer | RecommendationSummary', function(hooks) {
     },
   ];
 
-  normalizationTestCases.forEach(testCase => {
-    test(`normalization: ${testCase.name}`, async function(assert) {
+  normalizationTestCases.forEach((testCase) => {
+    test(`normalization: ${testCase.name}`, async function (assert) {
       assert.deepEqual(
-        this.subject().normalizeArrayResponse(this.store, RecommendationSummaryModel, testCase.in),
+        this.subject().normalizeArrayResponse(
+          this.store,
+          RecommendationSummaryModel,
+          testCase.in
+        ),
         testCase.out
       );
     });

@@ -1122,7 +1122,7 @@ func (c *Client) restoreState() error {
 		// now.  If allocs should be run, they will be started when the client
 		// gets allocs from servers.
 		if !c.hasLocalState(alloc) {
-			c.logger.Warn("found a alloc without any local state, skipping restore", "alloc_id", alloc.ID)
+			c.logger.Warn("found an alloc without any local state, skipping restore", "alloc_id", alloc.ID)
 			continue
 		}
 
@@ -3105,8 +3105,8 @@ func (g *group) Go(f func()) {
 	}()
 }
 
-func (c *group) AddCh(ch <-chan struct{}) {
-	c.Go(func() {
+func (g *group) AddCh(ch <-chan struct{}) {
+	g.Go(func() {
 		<-ch
 	})
 }

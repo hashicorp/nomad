@@ -1,3 +1,4 @@
+/* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -8,7 +9,7 @@ import Allocations from 'nomad-ui/tests/pages/jobs/job/allocations';
 let job;
 let allocations;
 
-const makeSearchAllocations = server => {
+const makeSearchAllocations = (server) => {
   Array(10)
     .fill(null)
     .map((_, index) => {
@@ -19,26 +20,33 @@ const makeSearchAllocations = server => {
     });
 };
 
-module('Acceptance | job allocations', function(hooks) {
+module('Acceptance | job allocations', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     server.create('node');
 
-    job = server.create('job', { noFailedPlacements: true, createAllocations: false });
+    job = server.create('job', {
+      noFailedPlacements: true,
+      createAllocations: false,
+    });
   });
 
-  test('it passes an accessibility audit', async function(assert) {
-    server.createList('allocation', Allocations.pageSize - 1, { shallow: true });
+  test('it passes an accessibility audit', async function (assert) {
+    server.createList('allocation', Allocations.pageSize - 1, {
+      shallow: true,
+    });
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
     await Allocations.visit({ id: job.id });
     await a11yAudit(assert);
   });
 
-  test('lists all allocations for the job', async function(assert) {
-    server.createList('allocation', Allocations.pageSize - 1, { shallow: true });
+  test('lists all allocations for the job', async function (assert) {
+    server.createList('allocation', Allocations.pageSize - 1, {
+      shallow: true,
+    });
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
     await Allocations.visit({ id: job.id });
@@ -53,13 +61,17 @@ module('Acceptance | job allocations', function(hooks) {
 
     Allocations.allocations.forEach((allocation, index) => {
       const shortId = sortedAllocations[index].id.split('-')[0];
-      assert.equal(allocation.shortId, shortId, `Allocation ${index} is ${shortId}`);
+      assert.equal(
+        allocation.shortId,
+        shortId,
+        `Allocation ${index} is ${shortId}`
+      );
     });
 
     assert.equal(document.title, `Job ${job.name} allocations - Nomad`);
   });
 
-  test('allocations table is sortable', async function(assert) {
+  test('allocations table is sortable', async function (assert) {
     server.createList('allocation', Allocations.pageSize - 1);
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
@@ -82,7 +94,7 @@ module('Acceptance | job allocations', function(hooks) {
     });
   });
 
-  test('allocations table is searchable', async function(assert) {
+  test('allocations table is searchable', async function (assert) {
     makeSearchAllocations(server);
 
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
@@ -90,10 +102,14 @@ module('Acceptance | job allocations', function(hooks) {
     await Allocations.visit({ id: job.id });
     await Allocations.search('ffffff');
 
-    assert.equal(Allocations.allocations.length, 5, 'List is filtered by search term');
+    assert.equal(
+      Allocations.allocations.length,
+      5,
+      'List is filtered by search term'
+    );
   });
 
-  test('when a search yields no results, the search box remains', async function(assert) {
+  test('when a search yields no results, the search box remains', async function (assert) {
     makeSearchAllocations(server);
 
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
@@ -110,18 +126,182 @@ module('Acceptance | job allocations', function(hooks) {
     assert.ok(Allocations.hasSearchBox, 'Search box is still shown');
   });
 
-  test('when the job for the allocations is not found, an error message is shown, but the URL persists', async function(assert) {
+  test('when the job for the allocations is not found, an error message is shown, but the URL persists', async function (assert) {
     await Allocations.visit({ id: 'not-a-real-job' });
 
     assert.equal(
       server.pretender.handledRequests
-        .filter(request => !request.url.includes('policy'))
+        .filter((request) => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
     );
-    assert.equal(currentURL(), '/jobs/not-a-real-job/allocations', 'The URL persists');
+    assert.equal(
+      currentURL(),
+      '/jobs/not-a-real-job/allocations',
+      'The URL persists'
+    );
     assert.ok(Allocations.error.isPresent, 'Error message is shown');
-    assert.equal(Allocations.error.title, 'Not Found', 'Error message is for 404');
+    assert.equal(
+      Allocations.error.title,
+      'Not Found',
+      'Error message is for 404'
+    );
+  });
+
+  testFacet('Status', {
+    facet: Allocations.facets.status,
+    paramName: 'status',
+    expectedOptions: ['Pending', 'Running', 'Complete', 'Failed', 'Lost'],
+    async beforeEach() {
+      ['pending', 'running', 'complete', 'failed', 'lost'].forEach((s) => {
+        server.createList('allocation', 5, { clientStatus: s });
+      });
+      await Allocations.visit({ id: job.id });
+    },
+    filter: (alloc, selection) =>
+      alloc.jobId == job.id && selection.includes(alloc.clientStatus),
+  });
+
+  testFacet('Client', {
+    facet: Allocations.facets.client,
+    paramName: 'client',
+    expectedOptions(allocs) {
+      return Array.from(
+        new Set(
+          allocs
+            .filter((alloc) => alloc.jobId == job.id)
+            .mapBy('nodeId')
+            .map((id) => id.split('-')[0])
+        )
+      ).sort();
+    },
+    async beforeEach() {
+      server.createList('node', 5);
+      server.createList('allocation', 20);
+
+      await Allocations.visit({ id: job.id });
+    },
+    filter: (alloc, selection) =>
+      alloc.jobId == job.id && selection.includes(alloc.nodeId.split('-')[0]),
+  });
+
+  testFacet('Task Group', {
+    facet: Allocations.facets.taskGroup,
+    paramName: 'taskGroup',
+    expectedOptions(allocs) {
+      return Array.from(
+        new Set(
+          allocs.filter((alloc) => alloc.jobId == job.id).mapBy('taskGroup')
+        )
+      ).sort();
+    },
+    async beforeEach() {
+      job = server.create('job', {
+        type: 'service',
+        status: 'running',
+        groupsCount: 5,
+      });
+
+      await Allocations.visit({ id: job.id });
+    },
+    filter: (alloc, selection) =>
+      alloc.jobId == job.id && selection.includes(alloc.taskGroup),
   });
 });
+
+function testFacet(
+  label,
+  { facet, paramName, beforeEach, filter, expectedOptions }
+) {
+  test(`facet ${label} | the ${label} facet has the correct options`, async function (assert) {
+    await beforeEach();
+    await facet.toggle();
+
+    let expectation;
+    if (typeof expectedOptions === 'function') {
+      expectation = expectedOptions(server.db.allocations);
+    } else {
+      expectation = expectedOptions;
+    }
+
+    assert.deepEqual(
+      facet.options.map((option) => option.label.trim()),
+      expectation,
+      'Options for facet are as expected'
+    );
+  });
+
+  test(`facet ${label} | the ${label} facet filters the allocations list by ${label}`, async function (assert) {
+    let option;
+
+    await beforeEach();
+
+    await facet.toggle();
+    option = facet.options.objectAt(0);
+    await option.toggle();
+
+    const selection = [option.key];
+    const expectedAllocs = server.db.allocations
+      .filter((alloc) => filter(alloc, selection))
+      .sortBy('modifyIndex')
+      .reverse();
+
+    Allocations.allocations.forEach((alloc, index) => {
+      assert.equal(
+        alloc.id,
+        expectedAllocs[index].id,
+        `Allocation at ${index} is ${expectedAllocs[index].id}`
+      );
+    });
+  });
+
+  test(`facet ${label} | selecting multiple options in the ${label} facet results in a broader search`, async function (assert) {
+    const selection = [];
+
+    await beforeEach();
+    await facet.toggle();
+
+    const option1 = facet.options.objectAt(0);
+    const option2 = facet.options.objectAt(1);
+    await option1.toggle();
+    selection.push(option1.key);
+    await option2.toggle();
+    selection.push(option2.key);
+
+    const expectedAllocs = server.db.allocations
+      .filter((alloc) => filter(alloc, selection))
+      .sortBy('modifyIndex')
+      .reverse();
+
+    Allocations.allocations.forEach((alloc, index) => {
+      assert.equal(
+        alloc.id,
+        expectedAllocs[index].id,
+        `Allocation at ${index} is ${expectedAllocs[index].id}`
+      );
+    });
+  });
+
+  test(`facet ${label} | selecting options in the ${label} facet updates the ${paramName} query param`, async function (assert) {
+    const selection = [];
+
+    await beforeEach();
+    await facet.toggle();
+
+    const option1 = facet.options.objectAt(0);
+    const option2 = facet.options.objectAt(1);
+    await option1.toggle();
+    selection.push(option1.key);
+    await option2.toggle();
+    selection.push(option2.key);
+
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}/allocations?${paramName}=${encodeURIComponent(
+        JSON.stringify(selection)
+      )}`,
+      'URL has the correct query param key and value'
+    );
+  });
+}

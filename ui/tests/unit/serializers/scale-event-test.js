@@ -2,9 +2,9 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import ScaleEventModel from 'nomad-ui/models/scale-event';
 
-module('Unit | Serializer | Scale Event', function(hooks) {
+module('Unit | Serializer | Scale Event', function (hooks) {
   setupTest(hooks);
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.serializerFor('scale-event');
   });
@@ -79,9 +79,12 @@ module('Unit | Serializer | Scale Event', function(hooks) {
     },
   ];
 
-  normalizationTestCases.forEach(testCase => {
-    test(`normalization: ${testCase.name}`, async function(assert) {
-      assert.deepEqual(this.subject().normalize(ScaleEventModel, testCase.in), testCase.out);
+  normalizationTestCases.forEach((testCase) => {
+    test(`normalization: ${testCase.name}`, async function (assert) {
+      assert.deepEqual(
+        this.subject().normalize(ScaleEventModel, testCase.in),
+        testCase.out
+      );
     });
   });
 });

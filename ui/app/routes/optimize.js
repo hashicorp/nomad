@@ -9,13 +9,6 @@ import RSVP from 'rsvp';
 export default class OptimizeRoute extends Route {
   @service can;
 
-  breadcrumbs = [
-    {
-      label: 'Recommendations',
-      args: ['optimize'],
-    },
-  ];
-
   beforeModel() {
     if (this.can.cannot('accept recommendation')) {
       this.transitionTo('jobs');
@@ -28,9 +21,9 @@ export default class OptimizeRoute extends Route {
     const [namespaces] = await RSVP.all([
       this.store.findAll('namespace'),
       ...jobs
-        .filter(job => job)
+        .filter((job) => job)
         .filterBy('isPartial')
-        .map(j => j.reload()),
+        .map((j) => j.reload()),
     ]);
 
     return {

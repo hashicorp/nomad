@@ -2,9 +2,9 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import AllocationModel from 'nomad-ui/models/allocation';
 
-module('Unit | Serializer | Allocation', function(hooks) {
+module('Unit | Serializer | Allocation', function (hooks) {
   setupTest(hooks);
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.serializerFor('allocation');
   });
@@ -35,6 +35,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
           attributes: {
             taskGroupName: 'test-group',
             name: 'test-summary[1]',
+            namespace: 'test-namespace',
             modifyTime: sampleDate,
             createTime: sampleDate,
             states: [
@@ -102,6 +103,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
           attributes: {
             taskGroupName: 'test-group',
             name: 'test-summary[1]',
+            namespace: 'test-namespace',
             modifyTime: sampleDate,
             createTime: sampleDate,
             states: [
@@ -163,7 +165,10 @@ module('Unit | Serializer | Allocation', function(hooks) {
           },
         },
         PreemptedByAllocation: 'preempter-allocation',
-        PreemptedAllocations: ['preempted-one-allocation', 'preempted-two-allocation'],
+        PreemptedAllocations: [
+          'preempted-one-allocation',
+          'preempted-two-allocation',
+        ],
       },
       out: {
         data: {
@@ -172,6 +177,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
           attributes: {
             taskGroupName: 'test-group',
             name: 'test-summary[1]',
+            namespace: 'test-namespace',
             modifyTime: sampleDate,
             createTime: sampleDate,
             states: [
@@ -259,6 +265,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
           attributes: {
             taskGroupName: 'test-group',
             name: 'test-summary[1]',
+            namespace: 'test-namespace',
             modifyTime: sampleDate,
             createTime: sampleDate,
             states: [
@@ -332,6 +339,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
           attributes: {
             taskGroupName: 'test-group',
             name: 'test-summary[1]',
+            namespace: 'test-namespace',
             modifyTime: sampleDate,
             createTime: sampleDate,
             states: [
@@ -377,9 +385,12 @@ module('Unit | Serializer | Allocation', function(hooks) {
     },
   ];
 
-  normalizationTestCases.forEach(testCase => {
-    test(`normalization: ${testCase.name}`, async function(assert) {
-      assert.deepEqual(this.subject().normalize(AllocationModel, testCase.in), testCase.out);
+  normalizationTestCases.forEach((testCase) => {
+    test(`normalization: ${testCase.name}`, async function (assert) {
+      assert.deepEqual(
+        this.subject().normalize(AllocationModel, testCase.in),
+        testCase.out
+      );
     });
   });
 });

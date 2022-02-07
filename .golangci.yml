@@ -65,9 +65,8 @@ linters-settings:
       - commentFormatting
       - deprecatedComment
   staticcheck:
-    # Only enable a single check to start.
     # I(jrasell) will work on enabling additional checks when possible.
-    checks: ["ST1020"]
+    checks: ["ST1020", "ST1016"]
 
 issues:
   exclude:

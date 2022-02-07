@@ -173,7 +173,7 @@
             <tr data-test-service>
               <td data-test-service-name>{{row.model.name}}</td>
               <td data-test-service-port>{{row.model.portLabel}}</td>
-              <td data-test-service-tags>{{join ", " row.model.tags}}</td>
+              <td data-test-service-tags class="is-long-text">{{join ", " row.model.tags}}</td>
               <td data-test-service-onupdate>{{row.model.onUpdate}}</td>
               <td data-test-service-connect>{{if row.model.connect "Yes" "No"}}</td>
               <td data-test-service-upstreams>

@@ -85,7 +85,7 @@ type Config struct {
 	Addresses *Addresses `hcl:"addresses"`
 
 	// normalizedAddr is set to the Address+Port by normalizeAddrs()
-	normalizedAddrs *Addresses
+	normalizedAddrs *NormalizedAddrs
 
 	// AdvertiseAddrs is used to control the addresses we advertise.
 	AdvertiseAddrs *AdvertiseAddrs `hcl:"advertise"`
@@ -278,7 +278,7 @@ type ClientConfig struct {
 	DisableRemoteExec bool `hcl:"disable_remote_exec"`
 
 	// TemplateConfig includes configuration for template rendering
-	TemplateConfig *ClientTemplateConfig `hcl:"template"`
+	TemplateConfig *client.ClientTemplateConfig `hcl:"template"`
 
 	// ServerJoin contains information that is used to attempt to join servers
 	ServerJoin *ServerJoin `hcl:"server_join"`
@@ -319,24 +319,6 @@ type ClientConfig struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
-}
-
-// ClientTemplateConfig is configuration on the client specific to template
-// rendering
-type ClientTemplateConfig struct {
-
-	// FunctionDenylist disables functions in consul-template that
-	// are unsafe because they expose information from the client host.
-	FunctionDenylist []string `hcl:"function_denylist"`
-
-	// Deprecated: COMPAT(1.0) consul-template uses inclusive language from
-	// v0.25.0 - function_blacklist is kept for compatibility
-	FunctionBlacklist []string `hcl:"function_blacklist"`
-
-	// DisableSandbox allows templates to access arbitrary files on the
-	// client host. By default templates can access files only within
-	// the task directory.
-	DisableSandbox bool `hcl:"disable_file_sandbox"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -737,8 +719,8 @@ type Telemetry struct {
 }
 
 // PrefixFilters parses the PrefixFilter field and returns a list of allowed and blocked filters
-func (t *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
-	for _, rule := range t.PrefixFilter {
+func (a *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
+	for _, rule := range a.PrefixFilter {
 		if rule == "" {
 			continue
 		}
@@ -772,6 +754,15 @@ type Addresses struct {
 	Serf string `hcl:"serf"`
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+}
+
+// AdvertiseAddrs is used to control the addresses we advertise out for
+// different network services. All are optional and default to BindAddr and
+// their default Port.
+type NormalizedAddrs struct {
+	HTTP []string
+	RPC  string
+	Serf string
 }
 
 // AdvertiseAddrs is used to control the addresses we advertise out for
@@ -901,7 +892,7 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.GCDiskUsageThreshold = 99
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
-	conf.Client.TemplateConfig = &ClientTemplateConfig{
+	conf.Client.TemplateConfig = &client.ClientTemplateConfig{
 		FunctionDenylist: []string{"plugin"},
 		DisableSandbox:   false,
 	}
@@ -950,7 +941,7 @@ func DefaultConfig() *Config {
 				RetryInterval:    30 * time.Second,
 				RetryMaxAttempts: 0,
 			},
-			TemplateConfig: &ClientTemplateConfig{
+			TemplateConfig: &client.ClientTemplateConfig{
 				FunctionDenylist: []string{"plugin"},
 				DisableSandbox:   false,
 			},
@@ -962,6 +953,7 @@ func DefaultConfig() *Config {
 			Enabled:           false,
 			EnableEventBroker: helper.BoolToPtr(true),
 			EventBufferSize:   helper.IntToPtr(100),
+			RaftProtocol:      3,
 			StartJoin:         []string{},
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
@@ -1228,13 +1220,13 @@ func (c *Config) normalizeAddrs() error {
 		c.BindAddr = ipStr
 	}
 
-	addr, err := normalizeBind(c.Addresses.HTTP, c.BindAddr)
+	httpAddrs, err := normalizeMultipleBind(c.Addresses.HTTP, c.BindAddr)
 	if err != nil {
 		return fmt.Errorf("Failed to parse HTTP address: %v", err)
 	}
-	c.Addresses.HTTP = addr
+	c.Addresses.HTTP = strings.Join(httpAddrs, " ")
 
-	addr, err = normalizeBind(c.Addresses.RPC, c.BindAddr)
+	addr, err := normalizeBind(c.Addresses.RPC, c.BindAddr)
 	if err != nil {
 		return fmt.Errorf("Failed to parse RPC address: %v", err)
 	}
@@ -1246,13 +1238,13 @@ func (c *Config) normalizeAddrs() error {
 	}
 	c.Addresses.Serf = addr
 
-	c.normalizedAddrs = &Addresses{
-		HTTP: net.JoinHostPort(c.Addresses.HTTP, strconv.Itoa(c.Ports.HTTP)),
+	c.normalizedAddrs = &NormalizedAddrs{
+		HTTP: joinHostPorts(httpAddrs, strconv.Itoa(c.Ports.HTTP)),
 		RPC:  net.JoinHostPort(c.Addresses.RPC, strconv.Itoa(c.Ports.RPC)),
 		Serf: net.JoinHostPort(c.Addresses.Serf, strconv.Itoa(c.Ports.Serf)),
 	}
 
-	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode)
+	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, httpAddrs[0], c.Ports.HTTP, c.DevMode)
 	if err != nil {
 		return fmt.Errorf("Failed to parse HTTP advertise address (%v, %v, %v, %v): %v", c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode, err)
 	}
@@ -1335,6 +1327,22 @@ func parseSingleIPTemplate(ipTmpl string) (string, error) {
 	}
 }
 
+// parseMultipleIPTemplate is used as a helper function to parse out a multiple IP
+// addresses from a config parameter.
+func parseMultipleIPTemplate(ipTmpl string) ([]string, error) {
+	out, err := template.Parse(ipTmpl)
+	if err != nil {
+		return []string{}, fmt.Errorf("Unable to parse address template %q: %v", ipTmpl, err)
+	}
+
+	ips := strings.Split(out, " ")
+	if len(ips) == 0 {
+		return []string{}, errors.New("No addresses found, please configure one.")
+	}
+
+	return deduplicateAddrs(ips), nil
+}
+
 // normalizeBind returns a normalized bind address.
 //
 // If addr is set it is used, if not the default bind address is used.
@@ -1343,6 +1351,16 @@ func normalizeBind(addr, bind string) (string, error) {
 		return bind, nil
 	}
 	return parseSingleIPTemplate(addr)
+}
+
+// normalizeMultipleBind returns normalized bind addresses.
+//
+// If addr is set it is used, if not the default bind address is used.
+func normalizeMultipleBind(addr, bind string) ([]string, error) {
+	if addr == "" {
+		return []string{bind}, nil
+	}
+	return parseMultipleIPTemplate(addr)
 }
 
 // normalizeAdvertise returns a normalized advertise address.
@@ -1448,8 +1466,8 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 }
 
 // Merge is used to merge two server configs together
-func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
-	result := *a
+func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
+	result := *s
 
 	if b.Enabled {
 		result.Enabled = true
@@ -1583,13 +1601,13 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	result.EnabledSchedulers = append(result.EnabledSchedulers, b.EnabledSchedulers...)
 
 	// Copy the start join addresses
-	result.StartJoin = make([]string, 0, len(a.StartJoin)+len(b.StartJoin))
-	result.StartJoin = append(result.StartJoin, a.StartJoin...)
+	result.StartJoin = make([]string, 0, len(s.StartJoin)+len(b.StartJoin))
+	result.StartJoin = append(result.StartJoin, s.StartJoin...)
 	result.StartJoin = append(result.StartJoin, b.StartJoin...)
 
 	// Copy the retry join addresses
-	result.RetryJoin = make([]string, 0, len(a.RetryJoin)+len(b.RetryJoin))
-	result.RetryJoin = append(result.RetryJoin, a.RetryJoin...)
+	result.RetryJoin = make([]string, 0, len(s.RetryJoin)+len(b.RetryJoin))
+	result.RetryJoin = append(result.RetryJoin, s.RetryJoin...)
 	result.RetryJoin = append(result.RetryJoin, b.RetryJoin...)
 
 	return &result
@@ -1671,8 +1689,11 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.DisableRemoteExec = b.DisableRemoteExec
 	}
 
-	if b.TemplateConfig != nil {
-		result.TemplateConfig = b.TemplateConfig
+	if result.TemplateConfig == nil && b.TemplateConfig != nil {
+		templateConfig := *b.TemplateConfig
+		result.TemplateConfig = &templateConfig
+	} else if b.TemplateConfig != nil {
+		result.TemplateConfig = result.TemplateConfig.Merge(b.TemplateConfig)
 	}
 
 	// Add the servers
@@ -1996,6 +2017,17 @@ func LoadConfigDir(dir string) (*Config, error) {
 	return result, nil
 }
 
+// joinHostPorts joins every addr in addrs with the specified port
+func joinHostPorts(addrs []string, port string) []string {
+	localAddrs := make([]string, len(addrs))
+	for i, k := range addrs {
+		localAddrs[i] = net.JoinHostPort(k, port)
+
+	}
+
+	return localAddrs
+}
+
 // isTemporaryFile returns true or false depending on whether the
 // provided file name is a temporary file for the following editors:
 // emacs or vim.
@@ -2003,4 +2035,17 @@ func isTemporaryFile(name string) bool {
 	return strings.HasSuffix(name, "~") || // vim
 		strings.HasPrefix(name, ".#") || // emacs
 		(strings.HasPrefix(name, "#") && strings.HasSuffix(name, "#")) // emacs
+}
+
+func deduplicateAddrs(addrs []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+
+	for _, entry := range addrs {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }

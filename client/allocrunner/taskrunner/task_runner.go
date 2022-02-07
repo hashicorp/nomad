@@ -527,6 +527,9 @@ func (tr *TaskRunner) Run() {
 		return
 	}
 
+	timer, stop := helper.NewSafeTimer(0) // timer duration calculated JIT
+	defer stop()
+
 MAIN:
 	for !tr.shouldShutdown() {
 		select {
@@ -612,9 +615,11 @@ MAIN:
 			break MAIN
 		}
 
+		timer.Reset(restartDelay)
+
 		// Actually restart by sleeping and also watching for destroy events
 		select {
-		case <-time.After(restartDelay):
+		case <-timer.C:
 		case <-tr.killCtx.Done():
 			tr.logger.Trace("task killed between restarts", "delay", restartDelay)
 			break MAIN
@@ -1404,6 +1409,7 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	publishMetric(ms.RSS, "rss", "RSS")
 	publishMetric(ms.Cache, "cache", "Cache")
 	publishMetric(ms.Swap, "swap", "Swap")
+	publishMetric(ms.MappedFile, "mapped_file", "Mapped File")
 	publishMetric(ms.Usage, "usage", "Usage")
 	publishMetric(ms.MaxUsage, "max_usage", "Max Usage")
 	publishMetric(ms.KernelUsage, "kernel_usage", "Kernel Usage")

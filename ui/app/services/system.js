@@ -21,9 +21,9 @@ export default class SystemService extends Service {
     return PromiseObject.create({
       promise: token
         .authorizedRequest(`/${namespace}/status/leader`)
-        .then(res => res.json())
-        .then(rpcAddr => ({ rpcAddr }))
-        .then(leader => {
+        .then((res) => res.json())
+        .then((rpcAddr) => ({ rpcAddr }))
+        .then((leader) => {
           // Dirty self so leader can be used as a dependent key
           this.notifyPropertyChange('leader.rpcAddr');
           return leader;
@@ -38,12 +38,15 @@ export default class SystemService extends Service {
       promise: token
         .authorizedRawRequest(`/${namespace}/agent/self`)
         .then(jsonWithDefault({}))
-        .then(agent => {
+        .then((agent) => {
           if (agent?.config?.Version) {
-            const { Version, VersionPrerelease, VersionMetadata } = agent.config.Version;
+            const { Version, VersionPrerelease, VersionMetadata } =
+              agent.config.Version;
             agent.version = Version;
-            if (VersionPrerelease) agent.version = `${agent.version}-${VersionPrerelease}`;
-            if (VersionMetadata) agent.version = `${agent.version}+${VersionMetadata}`;
+            if (VersionPrerelease)
+              agent.version = `${agent.version}-${VersionPrerelease}`;
+            if (VersionMetadata)
+              agent.version = `${agent.version}+${VersionMetadata}`;
           }
           return agent;
         }),
@@ -57,7 +60,7 @@ export default class SystemService extends Service {
       promise: token
         .authorizedRawRequest(`/${namespace}/agent/members`)
         .then(jsonWithDefault({}))
-        .then(json => {
+        .then((json) => {
           return { region: json.ServerRegion };
         }),
     });
@@ -68,7 +71,9 @@ export default class SystemService extends Service {
     const token = this.token;
 
     return PromiseArray.create({
-      promise: token.authorizedRawRequest(`/${namespace}/regions`).then(jsonWithDefault([])),
+      promise: token
+        .authorizedRawRequest(`/${namespace}/regions`)
+        .then(jsonWithDefault([])),
     });
   }
 
@@ -103,20 +108,28 @@ export default class SystemService extends Service {
 
   @computed('activeRegion', 'defaultRegion.region', 'shouldShowRegions')
   get shouldIncludeRegion() {
-    return this.shouldShowRegions && this.activeRegion !== this.get('defaultRegion.region');
+    return (
+      this.shouldShowRegions &&
+      this.activeRegion !== this.get('defaultRegion.region')
+    );
   }
 
   @computed('activeRegion')
   get namespaces() {
     return PromiseArray.create({
-      promise: this.store.findAll('namespace').then(namespaces => namespaces.compact()),
+      promise: this.store
+        .findAll('namespace')
+        .then((namespaces) => namespaces.compact()),
     });
   }
 
   @computed('namespaces.[]')
   get shouldShowNamespaces() {
     const namespaces = this.namespaces.toArray();
-    return namespaces.length && namespaces.some(namespace => namespace.get('id') !== 'default');
+    return (
+      namespaces.length &&
+      namespaces.some((namespace) => namespace.get('id') !== 'default')
+    );
   }
 
   // The cachedNamespace is set on pages that have a namespaces filter.
@@ -125,7 +138,7 @@ export default class SystemService extends Service {
   // to 'default' or '*'.
   @tracked cachedNamespace = null;
 
-  @task(function*() {
+  @task(function* () {
     const emptyLicense = { License: { Features: [] } };
 
     try {
@@ -138,7 +151,7 @@ export default class SystemService extends Service {
   })
   fetchLicense;
 
-  @task(function*() {
+  @task(function* () {
     try {
       const request = yield this.token.authorizedRequest('/v1/search/fuzzy', {
         method: 'POST',

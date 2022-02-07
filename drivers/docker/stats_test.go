@@ -27,6 +27,7 @@ func TestDriver_DockerStatsCollector(t *testing.T) {
 	stats.MemoryStats.Stats.Rss = 6537216
 	stats.MemoryStats.Stats.Cache = 1234
 	stats.MemoryStats.Stats.Swap = 0
+	stats.MemoryStats.Stats.MappedFile = 1024
 	stats.MemoryStats.Usage = 5651904
 	stats.MemoryStats.MaxUsage = 6651904
 	stats.MemoryStats.Commit = 123231
@@ -47,6 +48,7 @@ func TestDriver_DockerStatsCollector(t *testing.T) {
 			require.Equal(stats.MemoryStats.Stats.Rss, ru.ResourceUsage.MemoryStats.RSS)
 			require.Equal(stats.MemoryStats.Stats.Cache, ru.ResourceUsage.MemoryStats.Cache)
 			require.Equal(stats.MemoryStats.Stats.Swap, ru.ResourceUsage.MemoryStats.Swap)
+			require.Equal(stats.MemoryStats.Stats.MappedFile, ru.ResourceUsage.MemoryStats.MappedFile)
 			require.Equal(stats.MemoryStats.Usage, ru.ResourceUsage.MemoryStats.Usage)
 			require.Equal(stats.MemoryStats.MaxUsage, ru.ResourceUsage.MemoryStats.MaxUsage)
 			require.Equal(stats.CPUStats.ThrottlingData.ThrottledPeriods, ru.ResourceUsage.CpuStats.ThrottledPeriods)

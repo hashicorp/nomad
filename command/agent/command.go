@@ -51,7 +51,7 @@ type Command struct {
 
 	args           []string
 	agent          *Agent
-	httpServer     *HTTPServer
+	httpServers    []*HTTPServer
 	logFilter      *logutils.LevelFilter
 	logOutput      io.Writer
 	retryJoinErrCh chan struct{}
@@ -386,10 +386,31 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
+	if config.Client.Reserved == nil {
+		// Coding error; should always be set by DefaultConfig()
+		c.Ui.Error("client.reserved must be initialized. Please report a bug.")
+		return false
+	}
+
+	if ports := config.Client.Reserved.ReservedPorts; ports != "" {
+		if _, err := structs.ParsePortRanges(ports); err != nil {
+			c.Ui.Error(fmt.Sprintf("reserved.reserved_ports %q invalid: %v", ports, err))
+			return false
+		}
+	}
+
+	for _, hn := range config.Client.HostNetworks {
+		if _, err := structs.ParsePortRanges(hn.ReservedPorts); err != nil {
+			c.Ui.Error(fmt.Sprintf("host_network[%q].reserved_ports %q invalid: %v",
+				hn.Name, hn.ReservedPorts, err))
+			return false
+		}
+	}
+
 	if !config.DevMode {
 		// Ensure that we have the directories we need to run.
 		if config.Server.Enabled && config.DataDir == "" {
-			c.Ui.Error("Must specify data directory")
+			c.Ui.Error(`Must specify "data_dir" config option or "data-dir" CLI flag`)
 			return false
 		}
 
@@ -500,13 +521,13 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 	c.agent = agent
 
 	// Setup the HTTP server
-	http, err := NewHTTPServer(agent, config)
+	httpServers, err := NewHTTPServers(agent, config)
 	if err != nil {
 		agent.Shutdown()
 		c.Ui.Error(fmt.Sprintf("Error starting http server: %s", err))
 		return err
 	}
-	c.httpServer = http
+	c.httpServers = httpServers
 
 	// If DisableUpdateCheck is not enabled, set up update checking
 	// (DisableUpdateCheck is false by default)
@@ -666,7 +687,10 @@ func (c *Command) Run(args []string) int {
 
 	// Wrap log messages emitted with the 'log' package.
 	// These usually come from external dependencies.
-	log.SetOutput(logger.StandardWriter(&hclog.StandardLoggerOptions{InferLevels: true}))
+	log.SetOutput(logger.StandardWriter(&hclog.StandardLoggerOptions{
+		InferLevels:              true,
+		InferLevelsWithTimestamp: true,
+	}))
 	log.SetPrefix("")
 	log.SetFlags(0)
 
@@ -700,8 +724,10 @@ func (c *Command) Run(args []string) int {
 
 		// Shutdown the http server at the end, to ease debugging if
 		// the agent takes long to shutdown
-		if c.httpServer != nil {
-			c.httpServer.Shutdown()
+		if len(c.httpServers) > 0 {
+			for _, srv := range c.httpServers {
+				srv.Shutdown()
+			}
 		}
 	}()
 
@@ -902,13 +928,15 @@ WAIT:
 func (c *Command) reloadHTTPServer() error {
 	c.agent.logger.Info("reloading HTTP server with new TLS configuration")
 
-	c.httpServer.Shutdown()
+	for _, srv := range c.httpServers {
+		srv.Shutdown()
+	}
 
-	http, err := NewHTTPServer(c.agent, c.agent.config)
+	httpServers, err := NewHTTPServers(c.agent, c.agent.config)
 	if err != nil {
 		return err
 	}
-	c.httpServer = http
+	c.httpServers = httpServers
 
 	return nil
 }

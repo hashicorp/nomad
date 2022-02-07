@@ -31,7 +31,7 @@ export default class VolumeSerializer extends ApplicationSerializer {
     hash.WriteAllocations = [];
 
     if (hash.Allocations) {
-      hash.Allocations.forEach(function(alloc) {
+      hash.Allocations.forEach(function (alloc) {
         const id = alloc.ID;
         if (id in readAllocs) {
           hash.ReadAllocations.push(alloc);
@@ -44,11 +44,17 @@ export default class VolumeSerializer extends ApplicationSerializer {
     }
 
     const normalizedHash = super.normalize(typeHash, hash);
-    return this.extractEmbeddedRecords(this, this.store, typeHash, normalizedHash);
+    return this.extractEmbeddedRecords(
+      this,
+      this.store,
+      typeHash,
+      normalizedHash
+    );
   }
 
   keyForRelationship(attr, relationshipType) {
     //Embedded relationship attributes don't end in IDs
+    /* eslint-disable-next-line ember/no-string-prototype-extensions */
     if (this.embeddedRelationships.includes(attr)) return attr.capitalize();
     return super.keyForRelationship(attr, relationshipType);
   }
@@ -57,7 +63,7 @@ export default class VolumeSerializer extends ApplicationSerializer {
   extractEmbeddedRecords(serializer, store, typeHash, partial) {
     partial.included = partial.included || [];
 
-    this.embeddedRelationships.forEach(embed => {
+    this.embeddedRelationships.forEach((embed) => {
       const relationshipMeta = typeHash.relationshipsByName.get(embed);
       const relationship = get(partial, `data.relationships.${embed}.data`);
 

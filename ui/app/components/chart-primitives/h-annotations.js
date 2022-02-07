@@ -19,7 +19,7 @@ export default class ChartPrimitiveVAnnotations extends Component {
 
     let sortedAnnotations = annotations.sortBy(prop).reverse();
 
-    return sortedAnnotations.map(annotation => {
+    return sortedAnnotations.map((annotation) => {
       const y = scale(annotation[prop]);
       const x = 0;
       const formattedY = format()(annotation[prop]);

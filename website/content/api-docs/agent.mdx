@@ -725,3 +725,204 @@ $ curl -O -J \
 
 go tool trace trace
 ```
+
+## Fetch all scheduler worker's status
+
+The `/agent/schedulers` endpoint allow Nomad operators to inspect the state of
+a Nomad server agent's scheduler workers.
+
+| Method | Path                | Produces           |
+| ------ | ------------------- | ------------------ |
+| `GET`  | `/agent/schedulers` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `agent:read` |
+
+### Parameters
+
+This endpoint accepts no additional parameters.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/agent/schedulers
+```
+
+### Sample Response
+
+```json
+{
+  "schedulers": [
+    {
+      "enabled_schedulers": [
+        "service",
+        "batch",
+        "system",
+        "sysbatch",
+        "_core"
+      ],
+      "id": "5669d6fa-0def-7369-6558-a47c35fdc675",
+      "started": "2021-12-21T19:25:00.911883Z",
+      "status": "Paused",
+      "workload_status": "Paused"
+    },
+    {
+      "enabled_schedulers": [
+        "service",
+        "batch",
+        "system",
+        "sysbatch",
+        "_core"
+      ],
+      "id": "c919709d-6d14-66bf-b425-80b8167a267e",
+      "started": "2021-12-21T19:25:00.91189Z",
+      "status": "Paused",
+      "workload_status": "Paused"
+    },
+    {
+      "enabled_schedulers": [
+        "service",
+        "batch",
+        "system",
+        "sysbatch",
+        "_core"
+      ],
+      "id": "f5edb69a-6122-be8f-b32a-23cd8511dba5",
+      "started": "2021-12-21T19:25:00.911961Z",
+      "status": "Paused",
+      "workload_status": "Paused"
+    },
+    {
+      "enabled_schedulers": [
+        "service",
+        "batch",
+        "system",
+        "sysbatch",
+        "_core"
+      ],
+      "id": "458816ae-83cf-0710-d8d4-35d2ad2e42d7",
+      "started": "2021-12-21T19:25:00.912119Z",
+      "status": "Started",
+      "workload_status": "WaitingToDequeue"
+    }
+  ],
+  "server_id": "server1.global"
+}
+
+```
+
+## Read scheduler worker configuration
+
+This endpoint returns data about the agent's scheduler configuration from
+the perspective of the agent. This is only applicable for servers.
+
+| Method | Path                       | Produces           |
+| ------ | -------------------------- | ------------------ |
+| `GET`  | `/agent/schedulers/config` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `agent:read` |
+
+### Parameters
+
+This endpoint accepts no additional parameters.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request PUT \
+    --data @payload.json \
+    https://localhost:4646/v1/jobs
+```
+
+### Sample Response
+
+```json
+{
+  "enabled_schedulers": [
+    "service",
+    "batch",
+    "system",
+    "sysbatch",
+    "_core"
+  ],
+  "num_schedulers": 8,
+  "server_id": "server1.global"
+}
+```
+
+## Update scheduler worker configuration
+
+This allows a Nomad operator to modify the server's running scheduler
+configuration, which will remain in effect until another update or until the
+node is restarted. For durable changes to this value, set the corresponding
+values—[`num_schedulers`][] and [`enabled_schedulers`][]—in the node's
+configuration file. The response contains the configuration after attempting
+to apply the provided values. This is only applicable for servers.
+
+| Method | Path                       | Produces           |
+| ------ | -------------------------- | ------------------ |
+| `PUT`  | `/agent/schedulers/config` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required  |
+| ---------------- | ------------- |
+| `NO`             | `agent:write` |
+
+### Sample Payload
+
+```json
+{
+  "enabled_schedulers": [
+    "service",
+    "batch",
+    "system",
+    "sysbatch",
+    "_core"
+  ],
+  "num_schedulers": 12
+}
+```
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request PUT \
+    --data @payload.json \
+    https://localhost:4646/v1/jobs
+```
+
+### Sample Response
+
+```json
+{
+  "enabled_schedulers": [
+    "service",
+    "batch",
+    "system",
+    "sysbatch",
+    "_core"
+  ],
+  "num_schedulers": 12,
+  "server_id": "server1.global"
+}
+```
+
+[`enabled_schedulers`]: /docs/configuration/server#enabled_schedulers
+[`num_schedulers`]: /docs/configuration/server#num_schedulers

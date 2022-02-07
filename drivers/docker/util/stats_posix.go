@@ -29,12 +29,13 @@ func DockerStatsToTaskResourceUsage(s *docker.Stats) *cstructs.TaskResourceUsage
 	}
 
 	ms := &cstructs.MemoryStats{
-		RSS:      s.MemoryStats.Stats.Rss,
-		Cache:    s.MemoryStats.Stats.Cache,
-		Swap:     s.MemoryStats.Stats.Swap,
-		Usage:    s.MemoryStats.Usage,
-		MaxUsage: s.MemoryStats.MaxUsage,
-		Measured: measuredMems,
+		RSS:        s.MemoryStats.Stats.Rss,
+		Cache:      s.MemoryStats.Stats.Cache,
+		Swap:       s.MemoryStats.Stats.Swap,
+		MappedFile: s.MemoryStats.Stats.MappedFile,
+		Usage:      s.MemoryStats.Usage,
+		MaxUsage:   s.MemoryStats.MaxUsage,
+		Measured:   measuredMems,
 	}
 
 	cs := &cstructs.CpuStats{

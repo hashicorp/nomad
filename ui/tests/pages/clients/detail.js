@@ -14,6 +14,7 @@ import allocations from 'nomad-ui/tests/pages/components/allocations';
 import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
 import notification from 'nomad-ui/tests/pages/components/notification';
 import toggle from 'nomad-ui/tests/pages/components/toggle';
+import { multiFacet } from 'nomad-ui/tests/pages/components/facet';
 
 export default create({
   visit: visitable('/clients/:id'),
@@ -27,7 +28,10 @@ export default create({
   }),
 
   statusDefinition: text('[data-test-status-definition]'),
-  statusDecorationClass: attribute('class', '[data-test-status-definition] .status-text'),
+  statusDecorationClass: attribute(
+    'class',
+    '[data-test-status-definition] .status-text'
+  ),
   addressDefinition: text('[data-test-address-definition]'),
   datacenterDefinition: text('[data-test-datacenter-definition]'),
 
@@ -38,6 +42,12 @@ export default create({
 
   ...allocations(),
 
+  emptyAllocations: {
+    scope: '[data-test-empty-allocations-list]',
+    headline: text('[data-test-empty-allocations-list-headline]'),
+    body: text('[data-test-empty-allocations-list-body]'),
+  },
+
   allocationFilter: {
     preemptions: clickable('[data-test-filter-preemptions]'),
     all: clickable('[data-test-filter-all]'),
@@ -45,14 +55,23 @@ export default create({
     allCount: text('[data-test-filter-all]'),
   },
 
+  facets: {
+    namespace: multiFacet('[data-test-allocation-namespace-facet]'),
+    job: multiFacet('[data-test-allocation-job-facet]'),
+    status: multiFacet('[data-test-allocation-status-facet]'),
+  },
+
   attributesTable: isPresent('[data-test-attributes]'),
   metaTable: isPresent('[data-test-meta]'),
   emptyMetaMessage: isPresent('[data-test-empty-meta-message]'),
 
-  metaAttributes: collection('[data-test-meta] [data-test-attributes-section]', {
-    key: text('[data-test-key]'),
-    value: text('[data-test-value]'),
-  }),
+  metaAttributes: collection(
+    '[data-test-meta] [data-test-attributes-section]',
+    {
+      key: text('[data-test-key]'),
+      value: text('[data-test-value]'),
+    }
+  ),
 
   error: {
     isShown: isPresent('[data-test-error]'),
@@ -75,22 +94,28 @@ export default create({
     permissions: text('[data-test-permissions]'),
   }),
 
-  driverHeads: collection('[data-test-driver-status] [data-test-accordion-head]', {
-    name: text('[data-test-name]'),
-    detected: text('[data-test-detected]'),
-    lastUpdated: text('[data-test-last-updated]'),
-    healthIsShown: isPresent('[data-test-health]'),
-    health: text('[data-test-health]'),
-    healthClass: attribute('class', '[data-test-health] .color-swatch'),
+  driverHeads: collection(
+    '[data-test-driver-status] [data-test-accordion-head]',
+    {
+      name: text('[data-test-name]'),
+      detected: text('[data-test-detected]'),
+      lastUpdated: text('[data-test-last-updated]'),
+      healthIsShown: isPresent('[data-test-health]'),
+      health: text('[data-test-health]'),
+      healthClass: attribute('class', '[data-test-health] .color-swatch'),
 
-    toggle: clickable('[data-test-accordion-toggle]'),
-  }),
+      toggle: clickable('[data-test-accordion-toggle]'),
+    }
+  ),
 
-  driverBodies: collection('[data-test-driver-status] [data-test-accordion-body]', {
-    description: text('[data-test-health-description]'),
-    descriptionIsShown: isPresent('[data-test-health-description]'),
-    attributesAreShown: isPresent('[data-test-driver-attributes]'),
-  }),
+  driverBodies: collection(
+    '[data-test-driver-status] [data-test-accordion-body]',
+    {
+      description: text('[data-test-health-description]'),
+      descriptionIsShown: isPresent('[data-test-health-description]'),
+      attributesAreShown: isPresent('[data-test-driver-attributes]'),
+    }
+  ),
 
   drainDetails: {
     scope: '[data-test-drain-details]',
@@ -138,10 +163,7 @@ export default create({
 
     setDeadline(label) {
       this.deadlineOptions.open();
-      this.deadlineOptions.options
-        .toArray()
-        .findBy('label', label)
-        .choose();
+      this.deadlineOptions.options.toArray().findBy('label', label).choose();
     },
   },
 
@@ -153,7 +175,13 @@ export default create({
   eligibilityError: notification('[data-test-eligibility-error]'),
   stopDrainError: notification('[data-test-stop-drain-error]'),
   drainError: notification('[data-test-drain-error]'),
-  drainStoppedNotification: notification('[data-test-drain-stopped-notification]'),
-  drainUpdatedNotification: notification('[data-test-drain-updated-notification]'),
-  drainCompleteNotification: notification('[data-test-drain-complete-notification]'),
+  drainStoppedNotification: notification(
+    '[data-test-drain-stopped-notification]'
+  ),
+  drainUpdatedNotification: notification(
+    '[data-test-drain-updated-notification]'
+  ),
+  drainCompleteNotification: notification(
+    '[data-test-drain-complete-notification]'
+  ),
 });

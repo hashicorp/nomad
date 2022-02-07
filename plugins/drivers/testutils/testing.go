@@ -36,8 +36,8 @@ type DriverHarness struct {
 	impl   drivers.DriverPlugin
 }
 
-func (d *DriverHarness) Impl() drivers.DriverPlugin {
-	return d.impl
+func (h *DriverHarness) Impl() drivers.DriverPlugin {
+	return h.impl
 }
 func NewDriverHarness(t testing.T, d drivers.DriverPlugin) *DriverHarness {
 	logger := testlog.HCLogger(t).Named("driver_harness")

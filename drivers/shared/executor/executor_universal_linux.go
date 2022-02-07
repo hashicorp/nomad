@@ -33,9 +33,9 @@ func setCmdUser(cmd *exec.Cmd, userid string) error {
 
 	gids := make([]uint32, len(gidStrings))
 	for _, gidString := range gidStrings {
-		u, err := strconv.Atoi(gidString)
+		u, err := strconv.ParseUint(gidString, 10, 32)
 		if err != nil {
-			return fmt.Errorf("Unable to convert user's group to int %s: %v", gidString, err)
+			return fmt.Errorf("Unable to convert user's group to uint32 %s: %v", gidString, err)
 		}
 
 		gids = append(gids, uint32(u))
@@ -121,7 +121,7 @@ func DestroyCgroup(groups *lconfigs.Cgroup, executorPid int) error {
 	// Freeze the Cgroup so that it can not continue to fork/exec.
 	groups.Resources.Freezer = lconfigs.Frozen
 	freezer := cgroupFs.FreezerGroup{}
-	if err := freezer.Set(groups.Paths[freezer.Name()], groups); err != nil {
+	if err := freezer.Set(groups.Paths[freezer.Name()], groups.Resources); err != nil {
 		return err
 	}
 
@@ -133,7 +133,7 @@ func DestroyCgroup(groups *lconfigs.Cgroup, executorPid int) error {
 		// Unfreeze the cgroup.
 		groups.Resources.Freezer = lconfigs.Thawed
 		freezer := cgroupFs.FreezerGroup{}
-		if err := freezer.Set(groups.Paths[freezer.Name()], groups); err != nil {
+		if err := freezer.Set(groups.Paths[freezer.Name()], groups.Resources); err != nil {
 			multierror.Append(mErrs, fmt.Errorf("failed to unfreeze cgroup: %v", err))
 			return mErrs.ErrorOrNil()
 		}
@@ -155,7 +155,7 @@ func DestroyCgroup(groups *lconfigs.Cgroup, executorPid int) error {
 
 	// Unfreeze the cgroug so we can wait.
 	groups.Resources.Freezer = lconfigs.Thawed
-	if err := freezer.Set(groups.Paths[freezer.Name()], groups); err != nil {
+	if err := freezer.Set(groups.Paths[freezer.Name()], groups.Resources); err != nil {
 		multierror.Append(mErrs, fmt.Errorf("failed to unfreeze cgroup: %v", err))
 		return mErrs.ErrorOrNil()
 	}

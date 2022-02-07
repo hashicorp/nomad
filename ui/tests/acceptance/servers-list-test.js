@@ -1,3 +1,4 @@
+/* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -12,7 +13,7 @@ const minimumSetup = () => {
   server.createList('agent', 1);
 };
 
-const agentSort = leader => (a, b) => {
+const agentSort = (leader) => (a, b) => {
   if (formatHost(a.member.Address, a.member.Tags.port) === leader) {
     return 1;
   } else if (formatHost(b.member.Address, b.member.Tags.port) === leader) {
@@ -21,17 +22,17 @@ const agentSort = leader => (a, b) => {
   return 0;
 };
 
-module('Acceptance | servers list', function(hooks) {
+module('Acceptance | servers list', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  test('it passes an accessibility audit', async function(assert) {
+  test('it passes an accessibility audit', async function (assert) {
     minimumSetup();
     await ServersList.visit();
     await a11yAudit(assert);
   });
 
-  test('/servers should list all servers', async function(assert) {
+  test('/servers should list all servers', async function (assert) {
     server.createList('node', 1);
     server.createList('agent', 10);
 
@@ -40,16 +41,24 @@ module('Acceptance | servers list', function(hooks) {
 
     await ServersList.visit();
 
-    assert.equal(ServersList.servers.length, ServersList.pageSize, 'List is stopped at pageSize');
+    assert.equal(
+      ServersList.servers.length,
+      ServersList.pageSize,
+      'List is stopped at pageSize'
+    );
 
     ServersList.servers.forEach((server, index) => {
-      assert.equal(server.name, sortedAgents[index].name, 'Servers are ordered');
+      assert.equal(
+        server.name,
+        sortedAgents[index].name,
+        'Servers are ordered'
+      );
     });
 
     assert.equal(document.title, 'Servers - Nomad');
   });
 
-  test('each server should show high-level info of the server', async function(assert) {
+  test('each server should show high-level info of the server', async function (assert) {
     minimumSetup();
     const agent = server.db.agents[0];
 
@@ -66,17 +75,21 @@ module('Acceptance | servers list', function(hooks) {
     assert.equal(agentRow.version, agent.version, 'Version');
   });
 
-  test('each server should link to the server detail page', async function(assert) {
+  test('each server should link to the server detail page', async function (assert) {
     minimumSetup();
     const agent = server.db.agents[0];
 
     await ServersList.visit();
     await ServersList.servers.objectAt(0).clickRow();
 
-    assert.equal(currentURL(), `/servers/${agent.name}`, 'Now at the server detail page');
+    assert.equal(
+      currentURL(),
+      `/servers/${agent.name}`,
+      'Now at the server detail page'
+    );
   });
 
-  test('when accessing servers is forbidden, show a message with a link to the tokens page', async function(assert) {
+  test('when accessing servers is forbidden, show a message with a link to the tokens page', async function (assert) {
     server.create('agent');
     server.pretender.get('/v1/agent/members', () => [403, {}, null]);
 

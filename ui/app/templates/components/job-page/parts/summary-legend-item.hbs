@@ -1,8 +1,14 @@
 <div class="legend-item">
-  <span class="color-swatch {{if @datum.className @datum.className (concat "swatch-" @index)}}" />
+  <span
+    class="color-swatch {{if @datum.className @datum.className (concat "swatch-" @index)}}"
+  ></span>
   <span class="text">
-    <span class="value" data-test-legend-value="{{@datum.className}}">{{@datum.value}}</span>
-    <span class="label">{{@datum.label}}</span>
+    <span class="value" data-test-legend-value="{{@datum.className}}">
+      {{@datum.value}}
+    </span>
+    <span>
+      {{@datum.label}}
+    </span>
   </span>
   {{#if @datum.help}}
     <span class="tooltip multiline" role="tooltip" aria-label="{{@datum.help}}">
