@@ -129,12 +129,16 @@ func (h *networkHook) Prerun() error {
 		Hostname: interpolatedNetworks[0].Hostname,
 	}
 
+	fmt.Println("SH networkCreateReq Hostname:", networkCreateReq.Hostname)
+
 	spec, created, err := h.manager.CreateNetwork(h.alloc.ID, &networkCreateReq)
 	if err != nil {
 		return fmt.Errorf("failed to create network for alloc: %v", err)
 	}
 
+	fmt.Println("SH created:", created)
 	if spec != nil {
+		fmt.Println("SH spec != nil")
 		h.spec = spec
 		h.isolationSetter.SetNetworkIsolation(spec)
 	}
@@ -145,6 +149,8 @@ func (h *networkHook) Prerun() error {
 			return fmt.Errorf("failed to configure networking for alloc: %v", err)
 		}
 
+		fmt.Println("SH created status:", status)
+
 		// If the driver set the sandbox hostname label, then we will use that
 		// to set the HostsConfig.Hostname. Otherwise, identify the sandbox
 		// container ID which will have been used to set the network namespace
@@ -154,6 +160,7 @@ func (h *networkHook) Prerun() error {
 				Address:  status.Address,
 				Hostname: hostname,
 			}
+			fmt.Println("SH set hostname using dockerNetSpecHostnameKey, hostname:", hostname)
 		} else if hostname, ok := spec.Labels[dockerNetSpecLabelKey]; ok {
 
 			// the docker_sandbox_container_id is the full ID of the pause
@@ -167,6 +174,7 @@ func (h *networkHook) Prerun() error {
 				Address:  status.Address,
 				Hostname: hostname,
 			}
+			fmt.Println("SH set hostname using dockerNetSpecLabelKey, hostname:", hostname)
 		}
 
 		h.networkStatusSetter.SetNetworkStatus(status)
