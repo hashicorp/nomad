@@ -2847,367 +2847,189 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Equal(t, 1, len(vs))
 }
 
-// TestStateStore_CSIPluginNodes uses node fingerprinting to create a plugin and update health
-func TestStateStore_CSIPluginNodes(t *testing.T) {
-	index := uint64(999)
-	state := testStateStore(t)
-	ws := memdb.NewWatchSet()
+func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
+	t.Parallel()
+
+	store := testStateStore(t)
 	plugID := "foo"
-
-	// Create Nomad client Nodes
-	ns := []*structs.Node{mock.Node(), mock.Node()}
-	for _, n := range ns {
-		index++
-		err := state.UpsertNode(structs.MsgTypeTestSetup, index, n)
-		require.NoError(t, err)
-	}
-
-	// Fingerprint a running controller plugin
-	n0, _ := state.NodeByID(ws, ns[0].ID)
-	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		plugID: {
-			PluginID:                 plugID,
-			Healthy:                  true,
-			UpdateTime:               time.Now(),
-			RequiresControllerPlugin: true,
-			RequiresTopologies:       false,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsReadOnlyAttach: true,
-				SupportsListVolumes:    true,
-			},
-		},
-	}
-	index++
-	err := state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
-	require.NoError(t, err)
-
-	// Fingerprint two running node plugins
-	for _, n := range ns[:] {
-		n, _ := state.NodeByID(ws, n.ID)
-		n.CSINodePlugins = map[string]*structs.CSIInfo{
-			plugID: {
-				PluginID:                 plugID,
-				Healthy:                  true,
-				UpdateTime:               time.Now(),
-				RequiresControllerPlugin: true,
-				RequiresTopologies:       false,
-				NodeInfo:                 &structs.CSINodeInfo{},
-			},
-		}
-		index++
-		err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
-		require.NoError(t, err)
-	}
-
-	plug, err := state.CSIPluginByID(ws, plugID)
-	require.NoError(t, err)
-	require.True(t, plug.ControllerRequired)
-	require.Equal(t, 1, plug.ControllersHealthy, "controllers healthy")
-	require.Equal(t, 2, plug.NodesHealthy, "nodes healthy")
-	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
-	require.Equal(t, 2, len(plug.Nodes), "nodes expected")
-
-	// Volume using the plugin
-	index++
-	vol := &structs.CSIVolume{
-		ID:        uuid.Generate(),
-		Namespace: structs.DefaultNamespace,
-		PluginID:  plugID,
-	}
-	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
-	require.NoError(t, err)
-
-	vol, err = state.CSIVolumeByID(ws, structs.DefaultNamespace, vol.ID)
-	require.NoError(t, err)
-	require.True(t, vol.Schedulable, "volume should be schedulable")
-
-	// Controller is unhealthy
-	n0, _ = state.NodeByID(ws, ns[0].ID)
-	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		plugID: {
-			PluginID:                 plugID,
-			Healthy:                  false,
-			UpdateTime:               time.Now(),
-			RequiresControllerPlugin: true,
-			RequiresTopologies:       false,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsReadOnlyAttach: true,
-				SupportsListVolumes:    true,
-			},
-		},
-	}
-
-	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
-	require.NoError(t, err)
-
-	plug, err = state.CSIPluginByID(ws, plugID)
-	require.NoError(t, err)
-	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
-	require.Equal(t, 2, plug.NodesHealthy, "nodes healthy")
-	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
-	require.Equal(t, 2, len(plug.Nodes), "nodes expected")
-
-	vol, err = state.CSIVolumeByID(ws, structs.DefaultNamespace, vol.ID)
-	require.NoError(t, err)
-	require.False(t, vol.Schedulable, "volume should not be schedulable")
-
-	// Node plugin is removed
-	n1, _ := state.NodeByID(ws, ns[1].ID)
-	n1.CSINodePlugins = map[string]*structs.CSIInfo{}
-	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n1)
-	require.NoError(t, err)
-
-	plug, err = state.CSIPluginByID(ws, plugID)
-	require.NoError(t, err)
-	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
-	require.Equal(t, 1, plug.NodesHealthy, "nodes healthy")
-	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
-	require.Equal(t, 1, len(plug.Nodes), "nodes expected")
-
-	// Last node plugin is removed
-	n0, _ = state.NodeByID(ws, ns[0].ID)
-	n0.CSINodePlugins = map[string]*structs.CSIInfo{}
-	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
-	require.NoError(t, err)
-
-	// Nodes plugins should be gone but controllers left
-	plug, err = state.CSIPluginByID(ws, plugID)
-	require.NoError(t, err)
-	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
-	require.Equal(t, 0, plug.NodesHealthy, "nodes healthy")
-	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
-	require.Equal(t, 0, len(plug.Nodes), "nodes expected")
-
-	// A node plugin is restored
-	n0, _ = state.NodeByID(ws, n0.ID)
-	n0.CSINodePlugins = map[string]*structs.CSIInfo{
-		plugID: {
-			PluginID:                 plugID,
-			Healthy:                  true,
-			UpdateTime:               time.Now(),
-			RequiresControllerPlugin: true,
-			RequiresTopologies:       false,
-			NodeInfo:                 &structs.CSINodeInfo{},
-		},
-	}
-	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
-	require.NoError(t, err)
-
-	// Nodes plugin should be replaced and healthy
-	plug, err = state.CSIPluginByID(ws, plugID)
-	require.NoError(t, err)
-	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
-	require.Equal(t, 1, plug.NodesHealthy, "nodes healthy")
-	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
-	require.Equal(t, 1, len(plug.Nodes), "nodes expected")
-
-	// Remove node again
-	n0, _ = state.NodeByID(ws, ns[0].ID)
-	n0.CSINodePlugins = map[string]*structs.CSIInfo{}
-	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
-	require.NoError(t, err)
-
-	// Nodes plugins should be gone but controllers left
-	plug, err = state.CSIPluginByID(ws, plugID)
-	require.NoError(t, err)
-	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
-	require.Equal(t, 0, plug.NodesHealthy, "nodes healthy")
-	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
-	require.Equal(t, 0, len(plug.Nodes), "nodes expected")
-
-	// controller is removed
-	n0, _ = state.NodeByID(ws, ns[0].ID)
-	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{}
-	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
-	require.NoError(t, err)
-
-	// Plugin has been removed entirely
-	plug, err = state.CSIPluginByID(ws, plugID)
-	require.NoError(t, err)
-	require.Nil(t, plug)
-
-	// Volume still exists and is safe to query, but unschedulable
-	vol, err = state.CSIVolumeByID(ws, structs.DefaultNamespace, vol.ID)
-	require.NoError(t, err)
-	require.False(t, vol.Schedulable)
-}
-
-// TestStateStore_CSIPluginAllocUpdates tests the ordering
-// interactions for CSI plugins between Nomad client node updates and
-// allocation updates.
-func TestStateStore_CSIPluginAllocUpdates(t *testing.T) {
-	t.Parallel()
-	index := uint64(999)
-	state := testStateStore(t)
-	ws := memdb.NewWatchSet()
-
-	n := mock.Node()
-	index++
-	err := state.UpsertNode(structs.MsgTypeTestSetup, index, n)
-	require.NoError(t, err)
-
-	// (1) unhealthy fingerprint, then terminal alloc, then healthy node update
-	plugID0 := "foo0"
-
-	alloc0 := mock.Alloc()
-	alloc0.NodeID = n.ID
-	alloc0.DesiredStatus = "run"
-	alloc0.ClientStatus = "running"
-	alloc0.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{ID: plugID0}
-	index++
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc0})
-	require.NoError(t, err)
-
-	n, _ = state.NodeByID(ws, n.ID)
-	n.CSINodePlugins = map[string]*structs.CSIInfo{
-		plugID0: {
-			PluginID:                 plugID0,
-			AllocID:                  alloc0.ID,
-			Healthy:                  false,
-			UpdateTime:               time.Now(),
-			RequiresControllerPlugin: true,
-			NodeInfo:                 &structs.CSINodeInfo{},
-		},
-	}
-	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
-	require.NoError(t, err)
-
-	plug, err := state.CSIPluginByID(ws, plugID0)
-	require.NoError(t, err)
-	require.Nil(t, plug, "no plugin should exist: not yet healthy")
-
-	alloc0.DesiredStatus = "stopped"
-	alloc0.ClientStatus = "complete"
-	index++
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc0})
-	require.NoError(t, err)
-
-	plug, err = state.CSIPluginByID(ws, plugID0)
-	require.NoError(t, err)
-	require.Nil(t, plug, "no plugin should exist: allocs never healthy")
-
-	n, _ = state.NodeByID(ws, n.ID)
-	n.CSINodePlugins[plugID0].Healthy = true
-	n.CSINodePlugins[plugID0].UpdateTime = time.Now()
-	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
-	require.NoError(t, err)
-
-	plug, err = state.CSIPluginByID(ws, plugID0)
-	require.NoError(t, err)
-	require.NotNil(t, plug, "plugin should exist")
-
-	// (2) healthy fingerprint, then terminal alloc update
-	plugID1 := "foo1"
-
-	alloc1 := mock.Alloc()
-	n, _ = state.NodeByID(ws, n.ID)
-	n.CSINodePlugins = map[string]*structs.CSIInfo{
-		plugID1: {
-			PluginID:                 plugID1,
-			AllocID:                  alloc1.ID,
-			Healthy:                  true,
-			UpdateTime:               time.Now(),
-			RequiresControllerPlugin: true,
-			NodeInfo:                 &structs.CSINodeInfo{},
-		},
-	}
-	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
-	require.NoError(t, err)
-
-	plug, err = state.CSIPluginByID(ws, plugID1)
-	require.NoError(t, err)
-	require.NotNil(t, plug, "plugin should exist")
-
-	alloc1.NodeID = n.ID
-	alloc1.DesiredStatus = "stop"
-	alloc1.ClientStatus = "complete"
-	alloc1.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{ID: plugID1}
-	index++
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1})
-	require.NoError(t, err)
-
-	plug, err = state.CSIPluginByID(ws, plugID1)
-	require.NoError(t, err)
-	require.Nil(t, plug, "no plugin should exist: alloc became terminal")
-
-	// (3) terminal alloc update, then unhealthy fingerprint
-	plugID2 := "foo2"
-
-	alloc2 := mock.Alloc()
-	alloc2.NodeID = n.ID
-	alloc2.DesiredStatus = "stop"
-	alloc2.ClientStatus = "complete"
-	alloc2.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{ID: plugID2}
-	index++
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc2})
-	require.NoError(t, err)
-
-	plug, err = state.CSIPluginByID(ws, plugID2)
-	require.NoError(t, err)
-	require.Nil(t, plug, "no plugin should exist: alloc became terminal")
-
-	n, _ = state.NodeByID(ws, n.ID)
-	n.CSINodePlugins = map[string]*structs.CSIInfo{
-		plugID2: {
-			PluginID:                 plugID2,
-			AllocID:                  alloc2.ID,
-			Healthy:                  false,
-			UpdateTime:               time.Now(),
-			RequiresControllerPlugin: true,
-			NodeInfo:                 &structs.CSINodeInfo{},
-		},
-	}
-	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
-	require.NoError(t, err)
-
-	plug, err = state.CSIPluginByID(ws, plugID2)
-	require.NoError(t, err)
-	require.Nil(t, plug, "plugin should not exist: never became healthy")
-
-}
-
-// TestStateStore_CSIPluginMultiNodeUpdates tests the ordering
-// interactions for CSI plugins between Nomad client node updates and
-// allocation updates when multiple nodes are involved
-func TestStateStore_CSIPluginMultiNodeUpdates(t *testing.T) {
-	t.Parallel()
-	index := uint64(999)
-	state := testStateStore(t)
-	ws := memdb.NewWatchSet()
-
 	var err error
+	var controllerJobID string
+	var nodeJobID string
+	allocIDs := []string{}
 
-	// Create Nomad client Nodes
-	ns := []*structs.Node{mock.Node(), mock.Node()}
-	for _, n := range ns {
-		index++
-		err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
+	type pluginCounts struct {
+		controllerFingerprints int
+		nodeFingerprints       int
+		controllersHealthy     int
+		nodesHealthy           int
+		controllersExpected    int
+		nodesExpected          int
+	}
+
+	// helper function for test assertions
+	checkPlugin := func(counts pluginCounts) *structs.CSIPlugin {
+		plug, err := store.CSIPluginByID(memdb.NewWatchSet(), plugID)
+		require.NotNil(t, plug, "plugin was nil")
+		require.NoError(t, err)
+		require.Equal(t, counts.controllerFingerprints, len(plug.Controllers), "controllers fingerprinted")
+		require.Equal(t, counts.nodeFingerprints, len(plug.Nodes), "nodes fingerprinted")
+		require.Equal(t, counts.controllersHealthy, plug.ControllersHealthy, "controllers healthy")
+		require.Equal(t, counts.nodesHealthy, plug.NodesHealthy, "nodes healthy")
+		require.Equal(t, counts.controllersExpected, plug.ControllersExpected, "controllers expected")
+		require.Equal(t, counts.nodesExpected, plug.NodesExpected, "nodes expected")
+		return plug
+	}
+
+	type allocUpdateKind int
+	const (
+		SERVER allocUpdateKind = iota
+		CLIENT
+	)
+
+	// helper function calling client-side update with with
+	// UpsertAllocs and/or UpdateAllocsFromClient, depending on which
+	// status(es) are set
+	updateAllocsFn := func(allocIDs []string, kind allocUpdateKind,
+		transform func(alloc *structs.Allocation)) []*structs.Allocation {
+		allocs := []*structs.Allocation{}
+		ws := memdb.NewWatchSet()
+		for _, id := range allocIDs {
+			alloc, err := store.AllocByID(ws, id)
+			require.NoError(t, err)
+			alloc = alloc.Copy()
+			transform(alloc)
+			allocs = append(allocs, alloc)
+		}
+		switch kind {
+		case SERVER:
+			err = store.UpsertAllocs(structs.MsgTypeTestSetup, nextIndex(store), allocs)
+		case CLIENT:
+			// this is somewhat artificial b/c we get alloc updates
+			// from multiple nodes concurrently but not in a single
+			// RPC call. But this guarantees we'll trigger any nested
+			// transaction setup bugs
+			err = store.UpdateAllocsFromClient(structs.MsgTypeTestSetup, nextIndex(store), allocs)
+		}
+		require.NoError(t, err)
+		return allocs
+	}
+
+	// helper function calling UpsertNode for fingerprinting
+	updateNodeFn := func(nodeID string, transform func(node *structs.Node)) {
+		ws := memdb.NewWatchSet()
+		node, _ := store.NodeByID(ws, nodeID)
+		node = node.Copy()
+		transform(node)
+		err = store.UpsertNode(structs.MsgTypeTestSetup, nextIndex(store), node)
 		require.NoError(t, err)
 	}
 
-	plugID := "foo"
-	plugCfg := &structs.TaskCSIPluginConfig{ID: plugID}
+	nodes := []*structs.Node{mock.Node(), mock.Node(), mock.Node()}
+	for _, node := range nodes {
+		err = store.UpsertNode(structs.MsgTypeTestSetup, nextIndex(store), node)
+		require.NoError(t, err)
+	}
 
-	// Fingerprint two running node plugins and their allocs; we'll
-	// leave these in place for the test to ensure we don't GC the
-	// plugin
-	for _, n := range ns[:] {
-		nAlloc := mock.Alloc()
-		n, _ := state.NodeByID(ws, n.ID)
-		n.CSINodePlugins = map[string]*structs.CSIInfo{
+	// Note: these are all subtests for clarity but are expected to be
+	// ordered, because they walk through all the phases of plugin
+	// instance registration and deregistration
+
+	t.Run("register plugin jobs", func(t *testing.T) {
+
+		controllerJob := mock.CSIPluginJob(structs.CSIPluginTypeController, plugID)
+		controllerJobID = controllerJob.ID
+		err = store.UpsertJob(structs.MsgTypeTestSetup, nextIndex(store), controllerJob)
+
+		nodeJob := mock.CSIPluginJob(structs.CSIPluginTypeNode, plugID)
+		nodeJobID = nodeJob.ID
+		err = store.UpsertJob(structs.MsgTypeTestSetup, nextIndex(store), nodeJob)
+
+		// plugins created, but no fingerprints or allocs yet
+		// note: there's no job summary yet, but we know the task
+		// group count for the non-system job
+		//
+		// TODO: that's the current code but we really should be able
+		// to figure out the system jobs too
+		plug := checkPlugin(pluginCounts{
+			controllerFingerprints: 0,
+			nodeFingerprints:       0,
+			controllersHealthy:     0,
+			nodesHealthy:           0,
+			controllersExpected:    2,
+			nodesExpected:          0,
+		})
+		require.False(t, plug.ControllerRequired)
+	})
+
+	t.Run("plan apply upserts allocations", func(t *testing.T) {
+
+		allocForJob := func(job *structs.Job) *structs.Allocation {
+			alloc := mock.Alloc()
+			alloc.Job = job.Copy()
+			alloc.JobID = job.ID
+			alloc.TaskGroup = job.TaskGroups[0].Name
+			alloc.DesiredStatus = structs.AllocDesiredStatusRun
+			alloc.ClientStatus = structs.AllocClientStatusPending
+			return alloc
+		}
+
+		ws := memdb.NewWatchSet()
+		controllerJob, _ := store.JobByID(ws, structs.DefaultNamespace, controllerJobID)
+		controllerAlloc0 := allocForJob(controllerJob)
+		controllerAlloc0.NodeID = nodes[0].ID
+		allocIDs = append(allocIDs, controllerAlloc0.ID)
+
+		controllerAlloc1 := allocForJob(controllerJob)
+		controllerAlloc1.NodeID = nodes[1].ID
+		allocIDs = append(allocIDs, controllerAlloc1.ID)
+
+		allocs := []*structs.Allocation{controllerAlloc0, controllerAlloc1}
+
+		nodeJob, _ := store.JobByID(ws, structs.DefaultNamespace, nodeJobID)
+		for _, node := range nodes {
+			nodeAlloc := allocForJob(nodeJob)
+			nodeAlloc.NodeID = node.ID
+			allocIDs = append(allocIDs, nodeAlloc.ID)
+			allocs = append(allocs, nodeAlloc)
+		}
+		err = store.UpsertAllocs(structs.MsgTypeTestSetup, nextIndex(store), allocs)
+		require.NoError(t, err)
+
+		// node plugin now has expected counts too
+		plug := checkPlugin(pluginCounts{
+			controllerFingerprints: 0,
+			nodeFingerprints:       0,
+			controllersHealthy:     0,
+			nodesHealthy:           0,
+			controllersExpected:    2,
+			nodesExpected:          3,
+		})
+		require.False(t, plug.ControllerRequired)
+	})
+
+	t.Run("client upserts alloc status", func(t *testing.T) {
+
+		updateAllocsFn(allocIDs, CLIENT, func(alloc *structs.Allocation) {
+			alloc.ClientStatus = structs.AllocClientStatusRunning
+		})
+
+		// plugin still has allocs but no fingerprints
+		plug := checkPlugin(pluginCounts{
+			controllerFingerprints: 0,
+			nodeFingerprints:       0,
+			controllersHealthy:     0,
+			nodesHealthy:           0,
+			controllersExpected:    2,
+			nodesExpected:          3,
+		})
+		require.False(t, plug.ControllerRequired)
+	})
+
+	t.Run("client upserts node fingerprints", func(t *testing.T) {
+
+		nodeFingerprint := map[string]*structs.CSIInfo{
 			plugID: {
 				PluginID:                 plugID,
-				AllocID:                  nAlloc.ID,
 				Healthy:                  true,
 				UpdateTime:               time.Now(),
 				RequiresControllerPlugin: true,
@@ -3215,291 +3037,184 @@ func TestStateStore_CSIPluginMultiNodeUpdates(t *testing.T) {
 				NodeInfo:                 &structs.CSINodeInfo{},
 			},
 		}
-		index++
-		err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
-		require.NoError(t, err)
+		for _, node := range nodes {
+			updateNodeFn(node.ID, func(node *structs.Node) {
+				node.CSINodePlugins = nodeFingerprint
+			})
+		}
 
-		nAlloc.NodeID = n.ID
-		nAlloc.DesiredStatus = "run"
-		nAlloc.ClientStatus = "running"
-		nAlloc.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = plugCfg
-
-		index++
-		err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{nAlloc})
-		require.NoError(t, err)
-	}
-
-	// Fingerprint a running controller plugin
-	alloc0 := mock.Alloc()
-	n0, _ := state.NodeByID(ws, ns[0].ID)
-	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		plugID: {
-			PluginID:                 plugID,
-			AllocID:                  alloc0.ID,
-			Healthy:                  true,
-			UpdateTime:               time.Now(),
-			RequiresControllerPlugin: true,
-			RequiresTopologies:       false,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsReadOnlyAttach: true,
-				SupportsListVolumes:    true,
-			},
-		},
-	}
-	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
-	require.NoError(t, err)
-
-	plug, err := state.CSIPluginByID(ws, plugID)
-	require.NoError(t, err)
-	require.Equal(t, 1, plug.ControllersHealthy, "controllers healthy")
-	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
-	require.Equal(t, 2, plug.NodesHealthy, "nodes healthy")
-	require.Equal(t, 2, len(plug.Nodes), "nodes expected")
-
-	n1, _ := state.NodeByID(ws, ns[1].ID)
-
-	alloc0.NodeID = n0.ID
-	alloc0.DesiredStatus = "stop"
-	alloc0.ClientStatus = "complete"
-	alloc0.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = plugCfg
-
-	index++
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc0})
-	require.NoError(t, err)
-
-	plug, err = state.CSIPluginByID(ws, plugID)
-	require.NoError(t, err)
-	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
-	require.Equal(t, 0, len(plug.Controllers), "controllers expected")
-	require.Equal(t, 2, plug.NodesHealthy, "nodes healthy")
-	require.Equal(t, 2, len(plug.Nodes), "nodes expected")
-
-	alloc1 := mock.Alloc()
-	alloc1.NodeID = n1.ID
-	alloc1.DesiredStatus = "run"
-	alloc1.ClientStatus = "running"
-	alloc1.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = plugCfg
-
-	index++
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1})
-	require.NoError(t, err)
-
-	plug, err = state.CSIPluginByID(ws, plugID)
-	require.NoError(t, err)
-	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
-	require.Equal(t, 0, len(plug.Controllers), "controllers expected")
-	require.Equal(t, 2, plug.NodesHealthy, "nodes healthy")
-	require.Equal(t, 2, len(plug.Nodes), "nodes expected")
-
-	n0, _ = state.NodeByID(ws, ns[0].ID)
-	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		plugID: {
-			PluginID:                 plugID,
-			AllocID:                  alloc0.ID,
-			Healthy:                  false,
-			UpdateTime:               time.Now(),
-			RequiresControllerPlugin: true,
-			RequiresTopologies:       false,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsReadOnlyAttach: true,
-				SupportsListVolumes:    true,
-			},
-		},
-	}
-	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
-	require.NoError(t, err)
-
-	n1.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		plugID: {
-			PluginID:                 plugID,
-			AllocID:                  alloc1.ID,
-			Healthy:                  true,
-			UpdateTime:               time.Now(),
-			RequiresControllerPlugin: true,
-			RequiresTopologies:       false,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsReadOnlyAttach: true,
-				SupportsListVolumes:    true,
-			},
-		},
-	}
-	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n1)
-	require.NoError(t, err)
-
-	plug, err = state.CSIPluginByID(ws, plugID)
-	require.NoError(t, err)
-	require.True(t, plug.ControllerRequired)
-	require.Equal(t, 1, plug.ControllersHealthy, "controllers healthy")
-	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
-	require.Equal(t, 2, plug.NodesHealthy, "nodes healthy")
-	require.Equal(t, 2, len(plug.Nodes), "nodes expected")
-
-}
-
-// TestStateStore_CSIPlugin_ConcurrentStop tests that concurrent allocation
-// updates don't cause the count to drift unexpectedly or cause allocation
-// update errors.
-func TestStateStore_CSIPlugin_ConcurrentStop(t *testing.T) {
-	t.Parallel()
-	index := uint64(999)
-	state := testStateStore(t)
-	ws := memdb.NewWatchSet()
-
-	var err error
-
-	// Create Nomad client Nodes
-	ns := []*structs.Node{mock.Node(), mock.Node(), mock.Node()}
-	for _, n := range ns {
-		index++
-		err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
-		require.NoError(t, err)
-	}
-
-	plugID := "foo"
-	plugCfg := &structs.TaskCSIPluginConfig{ID: plugID}
-
-	allocs := []*structs.Allocation{}
-
-	// Fingerprint 3 running node plugins and their allocs
-	for _, n := range ns[:] {
-		alloc := mock.Alloc()
-		n, _ := state.NodeByID(ws, n.ID)
-		n.CSINodePlugins = map[string]*structs.CSIInfo{
+		controllerFingerprint := map[string]*structs.CSIInfo{
 			plugID: {
 				PluginID:                 plugID,
-				AllocID:                  alloc.ID,
 				Healthy:                  true,
 				UpdateTime:               time.Now(),
 				RequiresControllerPlugin: true,
 				RequiresTopologies:       false,
-				NodeInfo:                 &structs.CSINodeInfo{},
+				ControllerInfo: &structs.CSIControllerInfo{
+					SupportsReadOnlyAttach: true,
+					SupportsListVolumes:    true,
+				},
 			},
 		}
-		index++
-		err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
+		for n := 0; n < 2; n++ {
+			updateNodeFn(nodes[n].ID, func(node *structs.Node) {
+				node.CSIControllerPlugins = controllerFingerprint
+			})
+		}
+
+		// plugins have been fingerprinted so we have healthy counts
+		plug := checkPlugin(pluginCounts{
+			controllerFingerprints: 2,
+			nodeFingerprints:       3,
+			controllersHealthy:     2,
+			nodesHealthy:           3,
+			controllersExpected:    2,
+			nodesExpected:          3,
+		})
+		require.True(t, plug.ControllerRequired)
+	})
+
+	t.Run("node marked for drain", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		nodeAllocs, err := store.AllocsByNode(ws, nodes[0].ID)
+		require.NoError(t, err)
+		require.Len(t, nodeAllocs, 2)
+
+		updateAllocsFn([]string{nodeAllocs[0].ID, nodeAllocs[1].ID},
+			SERVER, func(alloc *structs.Allocation) {
+				alloc.DesiredStatus = structs.AllocDesiredStatusStop
+			})
+
+		plug := checkPlugin(pluginCounts{
+			controllerFingerprints: 2,
+			nodeFingerprints:       3,
+			controllersHealthy:     2,
+			nodesHealthy:           3,
+			controllersExpected:    2, // job summary hasn't changed
+			nodesExpected:          3, // job summary hasn't changed
+		})
+		require.True(t, plug.ControllerRequired)
+	})
+
+	t.Run("client removes fingerprints after node drain", func(t *testing.T) {
+		updateNodeFn(nodes[0].ID, func(node *structs.Node) {
+			node.CSIControllerPlugins = nil
+			node.CSINodePlugins = nil
+		})
+
+		plug := checkPlugin(pluginCounts{
+			controllerFingerprints: 1,
+			nodeFingerprints:       2,
+			controllersHealthy:     1,
+			nodesHealthy:           2,
+			controllersExpected:    2,
+			nodesExpected:          3,
+		})
+		require.True(t, plug.ControllerRequired)
+	})
+
+	t.Run("client updates alloc status to stopped after node drain", func(t *testing.T) {
+		nodeAllocs, err := store.AllocsByNode(memdb.NewWatchSet(), nodes[0].ID)
+		require.NoError(t, err)
+		require.Len(t, nodeAllocs, 2)
+
+		updateAllocsFn([]string{nodeAllocs[0].ID, nodeAllocs[1].ID}, CLIENT,
+			func(alloc *structs.Allocation) {
+				alloc.ClientStatus = structs.AllocClientStatusComplete
+			})
+
+		plug := checkPlugin(pluginCounts{
+			controllerFingerprints: 1,
+			nodeFingerprints:       2,
+			controllersHealthy:     1,
+			nodesHealthy:           2,
+			controllersExpected:    2, // still 2 because count=2
+			nodesExpected:          2, // has to use nodes we're actually placed on
+		})
+		require.True(t, plug.ControllerRequired)
+	})
+
+	t.Run("job stop with purge", func(t *testing.T) {
+
+		vol := &structs.CSIVolume{
+			ID:        uuid.Generate(),
+			Namespace: structs.DefaultNamespace,
+			PluginID:  plugID,
+		}
+		err = store.CSIVolumeRegister(nextIndex(store), []*structs.CSIVolume{vol})
 		require.NoError(t, err)
 
-		alloc.NodeID = n.ID
-		alloc.DesiredStatus = "run"
-		alloc.ClientStatus = "running"
-		alloc.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = plugCfg
-
-		index++
-		err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc})
+		err = store.DeleteJob(nextIndex(store), structs.DefaultNamespace, controllerJobID)
 		require.NoError(t, err)
 
-		allocs = append(allocs, alloc)
-	}
+		err = store.DeleteJob(nextIndex(store), structs.DefaultNamespace, nodeJobID)
+		require.NoError(t, err)
 
-	plug, err := state.CSIPluginByID(ws, plugID)
-	require.NoError(t, err)
-	require.Equal(t, 3, plug.NodesHealthy, "nodes healthy")
-	require.Equal(t, 3, len(plug.Nodes), "nodes expected")
-
-	// stop all the allocs
-	for _, alloc := range allocs {
-		alloc.DesiredStatus = "stop"
-		alloc.ClientStatus = "complete"
-	}
-
-	// this is somewhat artificial b/c we get alloc updates from multiple
-	// nodes concurrently but not in a single RPC call. But this guarantees
-	// we'll trigger any nested transaction setup bugs
-	index++
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, allocs)
-	require.NoError(t, err)
-
-	plug, err = state.CSIPluginByID(ws, plugID)
-	require.NoError(t, err)
-	require.Nil(t, plug)
-}
-
-func TestStateStore_CSIPluginJobs(t *testing.T) {
-	s := testStateStore(t)
-	index := uint64(1001)
-
-	controllerJob := mock.Job()
-	controllerJob.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
-		ID:   "foo",
-		Type: structs.CSIPluginTypeController,
-	}
-
-	nodeJob := mock.Job()
-	nodeJob.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
-		ID:   "foo",
-		Type: structs.CSIPluginTypeNode,
-	}
-
-	err := s.UpsertJob(structs.MsgTypeTestSetup, index, controllerJob)
-	require.NoError(t, err)
-	index++
-
-	err = s.UpsertJob(structs.MsgTypeTestSetup, index, nodeJob)
-	require.NoError(t, err)
-	index++
-
-	// Get the plugin, and make better fake allocations for it
-	ws := memdb.NewWatchSet()
-	plug, err := s.CSIPluginByID(ws, "foo")
-	require.NoError(t, err)
-	index++
-
-	as := []*structs.Allocation{}
-	for id, info := range plug.Controllers {
-		as = append(as, &structs.Allocation{
-			ID:        info.AllocID,
-			Namespace: controllerJob.Namespace,
-			JobID:     controllerJob.ID,
-			Job:       controllerJob,
-			TaskGroup: "web",
-			EvalID:    uuid.Generate(),
-			NodeID:    id,
+		plug := checkPlugin(pluginCounts{
+			controllerFingerprints: 1, // no changes till we get fingerprint
+			nodeFingerprints:       2,
+			controllersHealthy:     1,
+			nodesHealthy:           2,
+			controllersExpected:    0,
+			nodesExpected:          0,
 		})
-	}
-	for id, info := range plug.Nodes {
-		as = append(as, &structs.Allocation{
-			ID:        info.AllocID,
-			JobID:     nodeJob.ID,
-			Namespace: nodeJob.Namespace,
-			Job:       nodeJob,
-			TaskGroup: "web",
-			EvalID:    uuid.Generate(),
-			NodeID:    id,
+		require.True(t, plug.ControllerRequired)
+		require.False(t, plug.IsEmpty())
+
+		updateAllocsFn(allocIDs, SERVER,
+			func(alloc *structs.Allocation) {
+				alloc.DesiredStatus = structs.AllocDesiredStatusStop
+			})
+
+		updateAllocsFn(allocIDs, CLIENT,
+			func(alloc *structs.Allocation) {
+				alloc.ClientStatus = structs.AllocClientStatusComplete
+			})
+
+		plug = checkPlugin(pluginCounts{
+			controllerFingerprints: 1,
+			nodeFingerprints:       2,
+			controllersHealthy:     1,
+			nodesHealthy:           2,
+			controllersExpected:    0,
+			nodesExpected:          0,
 		})
-	}
+		require.True(t, plug.ControllerRequired)
+		require.False(t, plug.IsEmpty())
 
-	err = s.UpsertAllocs(structs.MsgTypeTestSetup, index, as)
-	require.NoError(t, err)
-	index++
+		for _, node := range nodes {
+			updateNodeFn(node.ID, func(node *structs.Node) {
+				node.CSIControllerPlugins = nil
+			})
+		}
 
-	// We use the summary to add
-	err = s.ReconcileJobSummaries(index)
-	require.NoError(t, err)
-	index++
+		plug = checkPlugin(pluginCounts{
+			controllerFingerprints: 0,
+			nodeFingerprints:       2, // haven't removed fingerprints yet
+			controllersHealthy:     0,
+			nodesHealthy:           2,
+			controllersExpected:    0,
+			nodesExpected:          0,
+		})
+		require.True(t, plug.ControllerRequired)
+		require.False(t, plug.IsEmpty())
 
-	// Delete a job
-	err = s.DeleteJob(index, controllerJob.Namespace, controllerJob.ID)
-	require.NoError(t, err)
-	index++
+		for _, node := range nodes {
+			updateNodeFn(node.ID, func(node *structs.Node) {
+				node.CSINodePlugins = nil
+			})
+		}
 
-	// plugin still exists
-	plug, err = s.CSIPluginByID(ws, "foo")
-	require.NoError(t, err)
-	require.NotNil(t, plug)
-	require.Equal(t, 0, len(plug.Controllers))
+		ws := memdb.NewWatchSet()
+		plug, err := store.CSIPluginByID(ws, plugID)
+		require.NoError(t, err)
+		require.Nil(t, plug, "plugin was not deleted")
 
-	// Delete a job
-	err = s.DeleteJob(index, nodeJob.Namespace, nodeJob.ID)
-	require.NoError(t, err)
-	index++
-
-	// plugin was collected
-	plug, err = s.CSIPluginByID(ws, "foo")
-	require.NoError(t, err)
-	require.True(t, plug.IsEmpty())
+		vol, err = store.CSIVolumeByID(ws, vol.Namespace, vol.ID)
+		require.NoError(t, err)
+		require.NotNil(t, vol, "volume should be queryable even if plugin is deleted")
+		require.False(t, vol.Schedulable)
+	})
 }
 
 func TestStateStore_Indexes(t *testing.T) {
@@ -9353,4 +9068,12 @@ func (n AllocIDSort) Less(i, j int) bool {
 
 func (n AllocIDSort) Swap(i, j int) {
 	n[i], n[j] = n[j], n[i]
+}
+
+// nextIndex gets the LatestIndex for this store and assumes no error
+// note: this helper is not safe for concurrent use
+func nextIndex(s *StateStore) uint64 {
+	index, _ := s.LatestIndex()
+	index++
+	return index
 }
