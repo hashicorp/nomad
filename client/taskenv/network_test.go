@@ -34,6 +34,42 @@ func Test_InterpolateNetworks(t *testing.T) {
 			},
 			name: "interpolated hostname",
 		},
+		{
+			inputTaskEnv: testEnv,
+			inputNetworks: structs.Networks{
+				{
+					DNS: &structs.DNSConfig{
+						Servers: []string{"127.0.0.1"},
+					},
+				},
+			},
+			expectedOutputNetworks: structs.Networks{
+				{
+					DNS: &structs.DNSConfig{
+						Servers: []string{"127.0.0.1"},
+					},
+				},
+			},
+			name: "non-interpolated dns",
+		},
+		{
+			inputTaskEnv: testEnv,
+			inputNetworks: structs.Networks{
+				{
+					DNS: &structs.DNSConfig{
+						Servers: []string{"${foo}"},
+					},
+				},
+			},
+			expectedOutputNetworks: structs.Networks{
+				{
+					DNS: &structs.DNSConfig{
+						Servers: []string{"bar"},
+					},
+				},
+			},
+			name: "interpolated dns",
+		},
 	}
 
 	for _, tc := range testCases {
