@@ -1958,10 +1958,6 @@ type Node struct {
 	// LastDrain contains metadata about the most recent drain operation
 	LastDrain *DrainMetadata
 
-	// ResumeAfterClientReconnect, if set, configures the client to allow placed
-	// allocations for tasks to attempt to resume running without a restart.
-	ResumeAfterClientReconnect *time.Duration
-
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -6090,9 +6086,9 @@ type TaskGroup struct {
 	// after this duration since the last known good heartbeat
 	StopAfterClientDisconnect *time.Duration
 
-	// ResumeAfterClientReconnect, if set, configures the client to allow placed
+	// IgnoreClientDisconnect, if set, configures the client to allow placed
 	// allocations for tasks in this group to attempt to resume running without a restart.
-	ResumeAfterClientReconnect *time.Duration
+	IgnoreClientDisconnect *time.Duration
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -9758,18 +9754,13 @@ func (a *Allocation) WaitClientStop() time.Time {
 	return t.Add(*tg.StopAfterClientDisconnect + kill)
 }
 
-// ResumeTimeout uses the ResumeOnClientAfterReconnect to block rescheduling until
+// DisconnectTimeout uses the IgnoreClientDisconnect to block rescheduling until
 // the interval passes.
-func (a *Allocation) ResumeTimeout(node *Node, now time.Time) time.Time {
-	// TODO: Handle infinite timeout.
+func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
 	// Prefer the duration from the task group.
-	timeout := tg.ResumeAfterClientReconnect
-	// If not configured on the task group, try the client.
-	if timeout == nil {
-		timeout = node.ResumeAfterClientReconnect
-	}
+	timeout := tg.IgnoreClientDisconnect
 
 	// If not configured, return now
 	if timeout == nil {
@@ -10429,22 +10420,22 @@ const (
 )
 
 const (
-	EvalTriggerJobRegister       = "job-register"
-	EvalTriggerJobDeregister     = "job-deregister"
-	EvalTriggerPeriodicJob       = "periodic-job"
-	EvalTriggerNodeDrain         = "node-drain"
-	EvalTriggerNodeUpdate        = "node-update"
-	EvalTriggerAllocStop         = "alloc-stop"
-	EvalTriggerScheduled         = "scheduled"
-	EvalTriggerRollingUpdate     = "rolling-update"
-	EvalTriggerDeploymentWatcher = "deployment-watcher"
-	EvalTriggerFailedFollowUp    = "failed-follow-up"
-	EvalTriggerMaxPlans          = "max-plan-attempts"
-	EvalTriggerRetryFailedAlloc  = "alloc-failure"
-	EvalTriggerQueuedAllocs      = "queued-allocs"
-	EvalTriggerPreemption        = "preemption"
-	EvalTriggerScaling           = "job-scaling"
-	EvalTriggerResumeTimeout     = "resume-timeout"
+	EvalTriggerJobRegister             = "job-register"
+	EvalTriggerJobDeregister           = "job-deregister"
+	EvalTriggerPeriodicJob             = "periodic-job"
+	EvalTriggerNodeDrain               = "node-drain"
+	EvalTriggerNodeUpdate              = "node-update"
+	EvalTriggerAllocStop               = "alloc-stop"
+	EvalTriggerScheduled               = "scheduled"
+	EvalTriggerRollingUpdate           = "rolling-update"
+	EvalTriggerDeploymentWatcher       = "deployment-watcher"
+	EvalTriggerFailedFollowUp          = "failed-follow-up"
+	EvalTriggerMaxPlans                = "max-plan-attempts"
+	EvalTriggerRetryFailedAlloc        = "alloc-failure"
+	EvalTriggerQueuedAllocs            = "queued-allocs"
+	EvalTriggerPreemption              = "preemption"
+	EvalTriggerScaling                 = "job-scaling"
+	EvalTriggerIgnoreDisconnectTimeout = "ignore-disconnect-timeout"
 )
 
 const (

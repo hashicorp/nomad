@@ -333,7 +333,7 @@ func buildDisconnectedNodes(allocs []*structs.Allocation, count int) map[string]
 
 func buildResumableAllocations(count int, clientStatus, desiredStatus string, nodeScore float64) (*structs.Job, []*structs.Allocation) {
 	job := mock.Job()
-	job.TaskGroups[0].ResumeAfterClientReconnect = helper.TimeToPtr(5 * time.Minute)
+	job.TaskGroups[0].IgnoreClientDisconnect = helper.TimeToPtr(5 * time.Minute)
 	job.TaskGroups[0].Count = count
 
 	return job, buildAllocations(job, count, clientStatus, desiredStatus, nodeScore)

@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -211,14 +210,15 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 
 // TODO: This might need to be a new separate method to avoid impacting the
 // system scheduler OR the system scheduler may actually require updates.
-// groupByAllocOrNodeStatus takes a set of tainted nodes and filters the allocation set
+// TODO: This name is no longer accurate.
+// filterByTainted takes a set of tainted nodes and filters the allocation set
 // into 5 groups:
 // 1. Those that exist on untainted nodes
 // 2. Those exist on nodes that are draining
 // 3. Those that exist on lost nodes
 // 4. Those that are on nodes that are disconnected, but have not had their ClientState set to unknown
 // 5. Those that have had their ClientState set to unknown, but their node has reconnected.
-func (a allocSet) groupByAllocOrNodeStatus(taintedNodes map[string]*structs.Node) (untainted, migrate, lost, disconnecting, reconnecting allocSet) {
+func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untainted, migrate, lost, disconnecting, reconnecting allocSet) {
 	untainted = make(map[string]*structs.Allocation)
 	migrate = make(map[string]*structs.Allocation)
 	lost = make(map[string]*structs.Allocation)
@@ -303,6 +303,7 @@ func (a allocSet) filterByRescheduleable(isBatch bool, now time.Time, evalID str
 			continue
 		}
 
+		// TODO: Think about semantics to express this more clearly.
 		isUntainted, ignore := shouldFilter(alloc, isBatch)
 		if isUntainted {
 			untainted[alloc.ID] = alloc
@@ -378,7 +379,7 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 // should be rescheduled now, later or left in the untainted set
 func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string, d *structs.Deployment) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
 	// If the allocation is part of an ongoing active deployment, we only allow it to reschedule
-	// if it has been marked eligible
+	// if it has been marked eligible.
 	if d != nil && alloc.DeploymentID == d.ID && d.Active() && !alloc.DesiredTransition.ShouldReschedule() {
 		return
 	}
@@ -388,7 +389,7 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 		rescheduleNow = true
 	}
 
-	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
+	// Reschedule if the eval ID matches the alloc's followup evalID or if it's close to its reschedule time
 	rescheduleTime, eligible := alloc.NextRescheduleTime()
 	if eligible && (alloc.FollowupEvalID == evalID || rescheduleTime.Sub(now) <= rescheduleWindowSize) {
 		rescheduleNow = true
@@ -448,19 +449,11 @@ func (a allocSet) delayByStopAfterClientDisconnect() (later []*delayedReschedule
 	return later
 }
 
-// delayByResumeAfterClientReconnect returns a delay for any unknown allocation
+// delayByIgnoreClientDisconnect returns a delay for any unknown allocation
 // that's got a resume_after_client_reconnect configured
-func (a allocSet) delayByResumeAfterClientReconnect(taintedNodes map[string]*structs.Node, now time.Time) (later []*delayedRescheduleInfo, err error) {
+func (a allocSet) delayByIgnoreClientDisconnect(now time.Time) (later []*delayedRescheduleInfo, err error) {
 	for _, alloc := range a {
-		node, ok := taintedNodes[alloc.NodeID]
-		// TODO: This shouldn't really possible by this point because of the groupBy
-		// function. Maybe we should remove this defensive guard?
-		if !ok || node.Status != structs.NodeStatusDisconnected {
-			err = errors.New("invalid disconnected set: node not disconnected")
-			return
-		}
-
-		timeout := alloc.ResumeTimeout(node, now)
+		timeout := alloc.DisconnectTimeout(now)
 
 		if !timeout.After(now) {
 			continue

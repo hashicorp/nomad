@@ -1045,6 +1045,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		}
 
 		// Get the existing node
+		// TODO: Get rid of WatchSet and test
 		ws := memdb.NewWatchSet()
 		node, err := ctx.State().NodeByID(ws, existing.NodeID)
 		if err != nil {

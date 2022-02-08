@@ -146,7 +146,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc,
 		structs.EvalTriggerFailedFollowUp, structs.EvalTriggerPreemption,
-		structs.EvalTriggerScaling:
+		structs.EvalTriggerScaling, structs.EvalTriggerIgnoreDisconnectTimeout:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
@@ -501,7 +501,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 	now := time.Now()
 
 	// Have to handle destructive changes first as we need to discount their
-	// resources. To understand this imagine the resources were reduced and the
+	// resources. To understand this, imagine the resources were reduced and the
 	// count was scaled up.
 	for _, results := range [][]placementResult{destructive, place} {
 		for _, missing := range results {

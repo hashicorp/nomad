@@ -153,7 +153,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 		},
 	}
 
-	untainted, migrate, lost, disconnecting, reconnecting := allocs.groupByAllocOrNodeStatus(nodes)
+	untainted, migrate, lost, disconnecting, reconnecting := allocs.filterByTainted(nodes)
 	require.Len(t, untainted, 4)
 	require.Contains(t, untainted, "untainted1")
 	require.Contains(t, untainted, "untainted2")

@@ -5008,7 +5008,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			summaryChanged = true
 		case structs.AllocClientStatusRunning, structs.AllocClientStatusFailed,
 			structs.AllocClientStatusComplete:
-			s.logger.Error("new allocation inserted into state store with bad client status",
+			s.logger.Error("`new allocation inserted into state store with bad client status",
 				"alloc_id", alloc.ID, "client_status", alloc.ClientStatus)
 		}
 	} else if existingAlloc.ClientStatus != alloc.ClientStatus {
