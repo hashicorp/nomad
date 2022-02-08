@@ -5124,7 +5124,9 @@ func (s *StateStore) updatePluginWithJobSummary(index uint64, summary *structs.J
 				plug = plug.Copy()
 			}
 
-			plug.UpdateExpectedWithJob(alloc.Job, summary, alloc.ServerTerminalStatus())
+			plug.UpdateExpectedWithJob(alloc.Job, summary,
+				alloc.Job.Status == structs.JobStatusDead)
+
 			err = updateOrGCPlugin(index, txn, plug)
 			if err != nil {
 				return err
