@@ -33,9 +33,11 @@ View the status of a namespace:
 
 ```shell-session
 $ nomad namespace status default
-Name        = default
-Description = Default shared namespace
-Quota       = shared-default-quota
+Name            = default
+Description     = Default shared namespace
+Quota           = shared-default-quota
+EnabledDrivers  = docker,exec
+DisabledDrivers = raw_exec
 
 Quota Limits
 Region  CPU Usage   Memory Usage
