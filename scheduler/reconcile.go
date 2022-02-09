@@ -451,43 +451,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// placements can be made without any other consideration.
 	deploymentPlaceReady := !a.deploymentPaused && !a.deploymentFailed && !isCanarying
 
-	if deploymentPlaceReady {
-		desiredChanges.Place += uint64(len(place))
-		a.result.place = append(a.result.place, place...)
-		a.markStop(rescheduleNow, "", allocRescheduled)
-		desiredChanges.Stop += uint64(len(rescheduleNow))
-
-		min := helper.IntMin(len(place), underProvisionedBy)
-		underProvisionedBy -= min
-	} else if !deploymentPlaceReady {
-		// We do not want to place additional allocations but in the case we
-		// have lost allocations or allocations that require rescheduling now,
-		// we do so regardless to avoid odd user experiences.
-		if len(lost) != 0 {
-			allowed := helper.IntMin(len(lost), len(place))
-			desiredChanges.Place += uint64(allowed)
-			a.result.place = append(a.result.place, place[:allowed]...)
-		}
-
-		// Handle rescheduling of failed allocations even if the deployment is
-		// failed. We do not reschedule if the allocation is part of the failed
-		// deployment.
-		if now := len(rescheduleNow); now != 0 {
-			for _, p := range place {
-				prev := p.PreviousAllocation()
-				if p.IsRescheduling() && !(a.deploymentFailed && prev != nil && a.deployment.ID == prev.DeploymentID) {
-					a.result.place = append(a.result.place, p)
-					desiredChanges.Place++
-
-					a.result.stop = append(a.result.stop, allocStopResult{
-						alloc:             prev,
-						statusDescription: allocRescheduled,
-					})
-					desiredChanges.Stop++
-				}
-			}
-		}
-	}
+	underProvisionedBy = a.computeReplacements(deploymentPlaceReady, desiredChanges, place, rescheduleNow, lost, underProvisionedBy)
 
 	if deploymentPlaceReady {
 		// Do all destructive updates
@@ -806,6 +770,65 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	}
 
 	return place
+}
+
+// computeReplacements either applies the placements calculated by computePlacements,
+// or computes more placements based on whether the deployment is ready for placement
+// and if the placement is already rescheduling or part of a failed deployment.
+// The input deploymentPlaceReady is calculated as the deployment is not paused, failed, or canarying
+// The following rules are applied:
+// * If the deployment is place ready, apply all placements and return
+// * If not place ready, check if any allocs have been lost
+// * If allocs have been lost, determine the number of replacements that are needed.
+// * Add placements to the result for the lost allocs.
+// * If there are failed allocations, inspect them.
+// * If the placement is rescheduling, and not part of a failed deployment, add
+//   to the place set, and add the previous alloc to the stop set.
+// * Return the number of allocs still needed.
+func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desiredChanges *structs.DesiredUpdates,
+	place []allocPlaceResult, rescheduleNow, lost allocSet, underProvisionedBy int) int {
+
+	if deploymentPlaceReady {
+		desiredChanges.Place += uint64(len(place))
+		// This relies on the computePlacements having built this set, which in
+		// turn relies on len(lostLater) == 0.
+		a.result.place = append(a.result.place, place...)
+		a.markStop(rescheduleNow, "", allocRescheduled)
+		desiredChanges.Stop += uint64(len(rescheduleNow))
+
+		min := helper.IntMin(len(place), underProvisionedBy)
+		underProvisionedBy -= min
+	} else if !deploymentPlaceReady {
+		// We do not want to place additional allocations but in the case we
+		// have lost allocations or allocations that require rescheduling now,
+		// we do so regardless to avoid odd user experiences.
+		if len(lost) != 0 {
+			allowed := helper.IntMin(len(lost), len(place))
+			desiredChanges.Place += uint64(allowed)
+			a.result.place = append(a.result.place, place[:allowed]...)
+		}
+
+		// Handle rescheduling of failed allocations even if the deployment is
+		// failed. We do not reschedule if the allocation is part of the failed
+		// deployment.
+		if now := len(rescheduleNow); now != 0 {
+			for _, p := range place {
+				prev := p.PreviousAllocation()
+				if p.IsRescheduling() && !(a.deploymentFailed && prev != nil && a.deployment.ID == prev.DeploymentID) {
+					a.result.place = append(a.result.place, p)
+					desiredChanges.Place++
+
+					a.result.stop = append(a.result.stop, allocStopResult{
+						alloc:             prev,
+						statusDescription: allocRescheduled,
+					})
+					desiredChanges.Stop++
+				}
+			}
+		}
+	}
+
+	return underProvisionedBy
 }
 
 // computeStop returns the set of allocations that are marked for stopping given
