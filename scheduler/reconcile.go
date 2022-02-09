@@ -454,18 +454,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	underProvisionedBy = a.computeReplacements(deploymentPlaceReady, desiredChanges, place, rescheduleNow, lost, underProvisionedBy)
 
 	if deploymentPlaceReady {
-		// Do all destructive updates
-		min := helper.IntMin(len(destructive), underProvisionedBy)
-		desiredChanges.DestructiveUpdate += uint64(min)
-		desiredChanges.Ignore += uint64(len(destructive) - min)
-		for _, alloc := range destructive.nameOrder()[:min] {
-			a.result.destructiveUpdate = append(a.result.destructiveUpdate, allocDestructiveResult{
-				placeName:             alloc.Name,
-				placeTaskGroup:        tg,
-				stopAlloc:             alloc,
-				stopStatusDescription: allocUpdating,
-			})
-		}
+		a.computeDestructiveUpdates(destructive, underProvisionedBy, desiredChanges, tg)
 	} else {
 		desiredChanges.Ignore += uint64(len(destructive))
 	}
@@ -829,6 +818,23 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 	}
 
 	return underProvisionedBy
+}
+
+func (a *allocReconciler) computeDestructiveUpdates(destructive allocSet, underProvisionedBy int,
+	desiredChanges *structs.DesiredUpdates, tg *structs.TaskGroup) {
+
+	// Do all destructive updates
+	min := helper.IntMin(len(destructive), underProvisionedBy)
+	desiredChanges.DestructiveUpdate += uint64(min)
+	desiredChanges.Ignore += uint64(len(destructive) - min)
+	for _, alloc := range destructive.nameOrder()[:min] {
+		a.result.destructiveUpdate = append(a.result.destructiveUpdate, allocDestructiveResult{
+			placeName:             alloc.Name,
+			placeTaskGroup:        tg,
+			stopAlloc:             alloc,
+			stopStatusDescription: allocUpdating,
+		})
+	}
 }
 
 // computeStop returns the set of allocations that are marked for stopping given
