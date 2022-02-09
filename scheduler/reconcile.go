@@ -320,14 +320,18 @@ func (a *allocReconciler) cancelUnneededDeployments() {
 func (a *allocReconciler) handleStop(m allocMatrix) {
 	for group, as := range m {
 		as = filterByTerminal(as)
-		untainted, migrate, lost := as.filterByTainted(a.taintedNodes)
-		a.markStop(untainted, "", allocNotNeeded)
-		a.markStop(migrate, "", allocNotNeeded)
-		a.markStop(lost, structs.AllocClientStatusLost, allocLost)
 		desiredChanges := new(structs.DesiredUpdates)
-		desiredChanges.Stop = uint64(len(as))
+		desiredChanges.Stop += a.stopAllocSet(as)
 		a.result.desiredTGUpdates[group] = desiredChanges
 	}
+}
+
+func (a *allocReconciler) stopAllocSet(set allocSet) uint64 {
+	untainted, migrate, lost := set.filterByTainted(a.taintedNodes)
+	a.markStop(untainted, "", allocNotNeeded)
+	a.markStop(migrate, "", allocNotNeeded)
+	a.markStop(lost, structs.AllocClientStatusLost, allocLost)
+	return uint64(len(untainted) + len(migrate) + len(lost))
 }
 
 // markStop is a helper for marking a set of allocation for stop with a
@@ -369,11 +373,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// If the task group is nil, then the task group has been removed so all we
 	// need to do is stop everything
 	if tg == nil {
-		untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
-		a.markStop(untainted, "", allocNotNeeded)
-		a.markStop(migrate, "", allocNotNeeded)
-		a.markStop(lost, structs.AllocClientStatusLost, allocLost)
-		desiredChanges.Stop = uint64(len(untainted) + len(migrate) + len(lost))
+		desiredChanges.Stop += a.stopAllocSet(all)
 		return true
 	}
 
