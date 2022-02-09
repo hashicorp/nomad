@@ -377,20 +377,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 		return true
 	}
 
-	// Get the deployment state for the group
-	var dstate *structs.DeploymentState
-	existingDeployment := false
-	if a.deployment != nil {
-		dstate, existingDeployment = a.deployment.TaskGroups[groupName]
-	}
-	if !existingDeployment {
-		dstate = &structs.DeploymentState{}
-		if !tg.Update.IsEmpty() {
-			dstate.AutoRevert = tg.Update.AutoRevert
-			dstate.AutoPromote = tg.Update.AutoPromote
-			dstate.ProgressDeadline = tg.Update.ProgressDeadline
-		}
-	}
+	dstate, existingDeployment := a.initializeDeploymentState(groupName, tg)
 
 	// Filter allocations that do not need to be considered because they are
 	// from an older job version and are terminal.
@@ -603,6 +590,26 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	}
 
 	return deploymentComplete
+}
+
+func (a *allocReconciler) initializeDeploymentState(group string, tg *structs.TaskGroup) (*structs.DeploymentState, bool) {
+	var dstate *structs.DeploymentState
+	existingDeployment := false
+
+	if a.deployment != nil {
+		dstate, existingDeployment = a.deployment.TaskGroups[group]
+	}
+
+	if !existingDeployment {
+		dstate = &structs.DeploymentState{}
+		if !tg.Update.IsEmpty() {
+			dstate.AutoRevert = tg.Update.AutoRevert
+			dstate.AutoPromote = tg.Update.AutoPromote
+			dstate.ProgressDeadline = tg.Update.ProgressDeadline
+		}
+	}
+
+	return dstate, existingDeployment
 }
 
 // filterOldTerminalAllocs filters allocations that should be ignored since they
