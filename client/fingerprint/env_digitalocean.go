@@ -73,7 +73,6 @@ func (f *EnvDigitalOceanFingerprint) Get(attribute string, format string) (strin
 		URL:    parsedURL,
 		Header: http.Header{
 			"User-Agent": []string{useragent.String()},
-			"Metadata":   []string{"true"},
 		},
 	}
 
