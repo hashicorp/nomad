@@ -427,26 +427,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 		untainted = untainted.difference(canaries)
 	}
 
-	// The fact that we have destructive updates and have less canaries than is
-	// desired means we need to create canaries
-	strategy := tg.Update
-	canariesPromoted := dstate != nil && dstate.Promoted
-	requireCanary := len(destructive) != 0 && strategy != nil && len(canaries) < strategy.Canary && !canariesPromoted
-	if requireCanary {
-		dstate.DesiredCanaries = strategy.Canary
-	}
-	if requireCanary && !a.deploymentPaused && !a.deploymentFailed {
-		number := strategy.Canary - len(canaries)
-		desiredChanges.Canary += uint64(number)
-
-		for _, name := range nameIndex.NextCanaries(uint(number), canaries, destructive) {
-			a.result.place = append(a.result.place, allocPlaceResult{
-				name:      name,
-				canary:    true,
-				taskGroup: tg,
-			})
-		}
-	}
+	strategy, canariesNeeded := a.computeCanaries(tg, dstate, destructive, canaries, desiredChanges, nameIndex)
 
 	// Determine how many non-canary allocs we can place
 	isCanarying = dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
@@ -574,7 +555,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	// deploymentComplete is whether the deployment is complete which largely
 	// means that no placements were made or desired to be made
-	deploymentComplete := len(destructive)+len(inplace)+len(place)+len(migrate)+len(rescheduleNow)+len(rescheduleLater) == 0 && !requireCanary
+	deploymentComplete := len(destructive)+len(inplace)+len(place)+len(migrate)+len(rescheduleNow)+len(rescheduleLater) == 0 && !canariesNeeded
 
 	// Final check to see if the deployment is complete is to ensure everything
 	// is healthy
@@ -608,6 +589,35 @@ func (a *allocReconciler) initializeDeploymentState(group string, tg *structs.Ta
 	}
 
 	return dstate, existingDeployment
+}
+
+func (a *allocReconciler) computeCanaries(tg *structs.TaskGroup, dstate *structs.DeploymentState,
+	destructive, canaries allocSet, desiredChanges *structs.DesiredUpdates, nameIndex *allocNameIndex) (*structs.UpdateStrategy, bool) {
+
+	// If we have destructive updates, and have fewer canaries than is
+	// desired, we need to create canaries.
+	strategy := tg.Update
+	canariesPromoted := dstate != nil && dstate.Promoted
+	canariesNeeded := len(destructive) != 0 &&
+		strategy != nil &&
+		len(canaries) < strategy.Canary &&
+		!canariesPromoted
+
+	if canariesNeeded {
+		dstate.DesiredCanaries = strategy.Canary
+	}
+
+	if canariesNeeded && !a.deploymentPaused && !a.deploymentFailed {
+		desiredChanges.Canary += uint64(strategy.Canary - len(canaries))
+		for _, name := range nameIndex.NextCanaries(uint(desiredChanges.Canary), canaries, destructive) {
+			a.result.place = append(a.result.place, allocPlaceResult{
+				name:      name,
+				canary:    true,
+				taskGroup: tg,
+			})
+		}
+	}
+	return strategy, canariesNeeded
 }
 
 // filterOldTerminalAllocs filters allocations that should be ignored since they
