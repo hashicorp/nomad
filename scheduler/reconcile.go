@@ -384,9 +384,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	all, ignore := a.filterOldTerminalAllocs(all)
 	desiredChanges.Ignore += uint64(len(ignore))
 
-	// canaries is the set of canaries for the current deployment and all is all
-	// allocs including the canaries
-	canaries, all := a.handleGroupCanaries(all, desiredChanges)
+	canaries, all := a.cancelUnneededCanaries(all, desiredChanges)
 
 	// Determine what set of allocations are on tainted nodes
 	untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
@@ -396,11 +394,11 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	// Find delays for any lost allocs that have stop_after_client_disconnect
 	lostLater := lost.delayByStopAfterClientDisconnect()
-	lostLaterEvals := a.handleDelayedLost(lostLater, all, tg.Name)
+	lostLaterEvals := a.computeLostLaterEvals(lostLater, all, tg.Name)
 
 	// Create batched follow up evaluations for allocations that are
 	// reschedulable later and mark the allocations for in place updating
-	a.handleDelayedReschedules(rescheduleLater, all, tg.Name)
+	a.computeRescheduleLater(rescheduleLater, all, tg.Name)
 
 	// Create a structure for choosing names. Seed with the taken names
 	// which is the union of untainted, rescheduled, allocs on migrating
@@ -450,9 +448,9 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 		}
 	}
 
-	// Determine how many we can place
+	// Determine how many non-canary allocs we can place
 	isCanarying = dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
-	limit := a.computeLimit(tg, untainted, destructive, migrate, isCanarying)
+	underProvisionedBy := a.computeUnderProvisionedBy(tg, untainted, destructive, migrate, isCanarying)
 
 	// Place if:
 	// * The deployment is not paused or failed
@@ -478,8 +476,8 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 		a.markStop(rescheduleNow, "", allocRescheduled)
 		desiredChanges.Stop += uint64(len(rescheduleNow))
 
-		min := helper.IntMin(len(place), limit)
-		limit -= min
+		min := helper.IntMin(len(place), underProvisionedBy)
+		underProvisionedBy -= min
 	} else if !deploymentPlaceReady {
 		// We do not want to place additional allocations but in the case we
 		// have lost allocations or allocations that require rescheduling now,
@@ -512,7 +510,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	if deploymentPlaceReady {
 		// Do all destructive updates
-		min := helper.IntMin(len(destructive), limit)
+		min := helper.IntMin(len(destructive), underProvisionedBy)
 		desiredChanges.DestructiveUpdate += uint64(min)
 		desiredChanges.Ignore += uint64(len(destructive) - min)
 		for _, alloc := range destructive.nameOrder()[:min] {
@@ -634,10 +632,10 @@ func (a *allocReconciler) filterOldTerminalAllocs(all allocSet) (filtered, ignor
 	return filtered, ignored
 }
 
-// handleGroupCanaries handles the canaries for the group by stopping the
+// cancelUnneededCanaries handles the canaries for the group by stopping the
 // unneeded ones and returning the current set of canaries and the updated total
 // set of allocs for the group
-func (a *allocReconciler) handleGroupCanaries(all allocSet, desiredChanges *structs.DesiredUpdates) (canaries, newAll allocSet) {
+func (a *allocReconciler) cancelUnneededCanaries(all allocSet, desiredChanges *structs.DesiredUpdates) (canaries, newAll allocSet) {
 	// Stop any canary from an older deployment or from a failed one
 	var stop []string
 
@@ -686,49 +684,57 @@ func (a *allocReconciler) handleGroupCanaries(all allocSet, desiredChanges *stru
 	return canaries, all
 }
 
-// computeLimit returns the placement limit for a particular group. The inputs
-// are the group definition, the untainted, destructive, and migrate allocation
-// set and whether we are in a canary state.
-func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, destructive, migrate allocSet, canaryState bool) int {
+// computeUnderProvisionedBy returns the number of allocs that still need to be
+// placed for a particular group. The inputs are the group definition, the untainted,
+// destructive, and migrate allocation sets, and whether we are in a canary state.
+// The following rules are applied:
+// * If no update strategy, or nothing is migrating, being replaced, or reconnecting,
+//   allow as many as defined in group.Count
+// * If the deployment is paused, failed, or canarying, allow no placements
+// * If the deployment is nil, allow MaxParallel placements
+// * If the deployment is not nil, but has unhealthy allocs, allow no placements
+// * If the deployment is not nil, and all allocs are healthy, allow MaxParallel
+//   minus the number of healthy allocs placements
+// * If the calculated limit is less than zero, return 0
+func (a *allocReconciler) computeUnderProvisionedBy(group *structs.TaskGroup, untainted, destructive, migrate allocSet, isCanarying bool) int {
 	// If there is no update strategy or deployment for the group we can deploy
 	// as many as the group has
 	if group.Update.IsEmpty() || len(destructive)+len(migrate) == 0 {
 		return group.Count
-	} else if a.deploymentPaused || a.deploymentFailed {
-		// If the deployment is paused or failed, do not create anything else
-		return 0
 	}
 
-	// If we have canaries and they have not been promoted the limit is 0
-	if canaryState {
+	// If the deployment is paused or failed, or we have un-promoted canaries
+	// do not create anything else
+	if a.deploymentPaused ||
+		a.deploymentFailed ||
+		isCanarying {
 		return 0
 	}
 
 	// If we have been promoted or there are no canaries, the limit is the
-	// configured MaxParallel minus any outstanding non-healthy alloc for the
-	// deployment
-	limit := group.Update.MaxParallel
+	// configured MaxParallel minus any outstanding non-healthy alloc for the deployment
+	underProvisionedBy := group.Update.MaxParallel
 	if a.deployment != nil {
 		partOf, _ := untainted.filterByDeployment(a.deployment.ID)
 		for _, alloc := range partOf {
-			// An unhealthy allocation means nothing else should be happen.
+			// An unhealthy allocation means nothing else should be happening.
 			if alloc.DeploymentStatus.IsUnhealthy() {
 				return 0
 			}
 
 			if !alloc.DeploymentStatus.IsHealthy() {
-				limit--
+				underProvisionedBy--
 			}
 		}
 	}
 
 	// The limit can be less than zero in the case that the job was changed such
 	// that it required destructive changes and the count was scaled up.
-	if limit < 0 {
+	if underProvisionedBy < 0 {
 		return 0
 	}
 
-	return limit
+	return underProvisionedBy
 }
 
 // computePlacement returns the set of allocations to place given the group
@@ -926,12 +932,12 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 	return
 }
 
-// handleDelayedReschedules creates batched followup evaluations with the WaitUntil field
+// computeRescheduleLater creates batched followup evaluations with the WaitUntil field
 // set for allocations that are eligible to be rescheduled later, and marks the alloc with
 // the followupEvalID
-func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
+func (a *allocReconciler) computeRescheduleLater(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
 	// followupEvals are created in the same way as for delayed lost allocs
-	allocIDToFollowupEvalID := a.handleDelayedLost(rescheduleLater, all, tgName)
+	allocIDToFollowupEvalID := a.computeLostLaterEvals(rescheduleLater, all, tgName)
 
 	// Initialize the annotations
 	if len(allocIDToFollowupEvalID) != 0 && a.result.attributeUpdates == nil {
@@ -947,10 +953,10 @@ func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRes
 	}
 }
 
-// handleDelayedLost creates batched followup evaluations with the WaitUntil field set for
+// computeLostLaterEvals creates batched followup evaluations with the WaitUntil field set for
 // lost allocations. followupEvals are appended to a.result as a side effect, we return a
 // map of alloc IDs to their followupEval IDs
-func (a *allocReconciler) handleDelayedLost(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) map[string]string {
+func (a *allocReconciler) computeLostLaterEvals(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) map[string]string {
 	if len(rescheduleLater) == 0 {
 		return map[string]string{}
 	}
