@@ -20,7 +20,7 @@ func init() {
 		CanRunLocal: true,
 		Cases: []framework.TestCase{
 			e2eutil.NewE2EJob("networking/inputs/basic.nomad"),
-			new(NetworkingE2ETest),
+			// new(NetworkingE2ETest),
 		},
 	})
 }
