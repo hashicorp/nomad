@@ -361,14 +361,14 @@ func (a *allocReconciler) markDelayed(allocs allocSet, clientStatus, statusDescr
 
 // computeGroup reconciles state for a particular task group. It returns whether
 // the deployment it is for is complete with regards to the task group.
-func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
+func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// Create the desired update object for the group
 	desiredChanges := new(structs.DesiredUpdates)
-	a.result.desiredTGUpdates[group] = desiredChanges
+	a.result.desiredTGUpdates[groupName] = desiredChanges
 
 	// Get the task group. The task group may be nil if the job was updates such
 	// that the task group no longer exists
-	tg := a.job.LookupTaskGroup(group)
+	tg := a.job.LookupTaskGroup(groupName)
 
 	// If the task group is nil, then the task group has been removed so all we
 	// need to do is stop everything
@@ -381,7 +381,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	var dstate *structs.DeploymentState
 	existingDeployment := false
 	if a.deployment != nil {
-		dstate, existingDeployment = a.deployment.TaskGroups[group]
+		dstate, existingDeployment = a.deployment.TaskGroups[groupName]
 	}
 	if !existingDeployment {
 		dstate = &structs.DeploymentState{}
@@ -418,7 +418,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// Create a structure for choosing names. Seed with the taken names
 	// which is the union of untainted, rescheduled, allocs on migrating
 	// nodes, and allocs on down nodes (includes canaries)
-	nameIndex := newAllocNameIndex(a.jobID, group, tg.Count, untainted.union(migrate, rescheduleNow, lost))
+	nameIndex := newAllocNameIndex(a.jobID, groupName, tg.Count, untainted.union(migrate, rescheduleNow, lost))
 
 	// Stop any unneeded allocations and update the untainted set to not
 	// include stopped allocations.
@@ -584,7 +584,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		}
 
 		// Attach the groups deployment state to the deployment
-		a.deployment.TaskGroups[group] = dstate
+		a.deployment.TaskGroups[groupName] = dstate
 	}
 
 	// deploymentComplete is whether the deployment is complete which largely
@@ -594,7 +594,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// Final check to see if the deployment is complete is to ensure everything
 	// is healthy
 	if deploymentComplete && a.deployment != nil {
-		if dstate, ok := a.deployment.TaskGroups[group]; ok {
+		if dstate, ok := a.deployment.TaskGroups[groupName]; ok {
 			if dstate.HealthyAllocs < helper.IntMax(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
 				(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
 				deploymentComplete = false
