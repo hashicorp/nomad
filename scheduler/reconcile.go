@@ -331,7 +331,7 @@ func (a *allocReconciler) stopAllocSet(set allocSet) uint64 {
 	a.markStop(untainted, "", allocNotNeeded)
 	a.markStop(migrate, "", allocNotNeeded)
 	a.markStop(lost, structs.AllocClientStatusLost, allocLost)
-	return uint64(len(untainted) + len(migrate) + len(lost))
+	return uint64(len(set))
 }
 
 // markStop is a helper for marking a set of allocation for stop with a
