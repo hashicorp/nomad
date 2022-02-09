@@ -50,14 +50,6 @@ func TestFingerprint_DigitalOcean(t *testing.T) {
 	}
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		value, ok := r.Header["Metadata"]
-		if !ok {
-			t.Fatal("Metadata not present in HTTP request header")
-		}
-		if value[0] != "true" {
-			t.Fatalf("Expected Metadata true, saw %s", value[0])
-		}
-
 		uavalue, ok := r.Header["User-Agent"]
 		if !ok {
 			t.Fatal("User-Agent not present in HTTP request header")
