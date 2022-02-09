@@ -441,7 +441,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// * An alloc was lost
 	var place []allocPlaceResult
 	if len(lostLater) == 0 {
-		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, isCanarying, lost)
+		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying)
 		if !existingDeployment {
 			dstate.DesiredTotal += len(place)
 		}
@@ -747,13 +747,13 @@ func (a *allocReconciler) computeUnderProvisionedBy(group *structs.TaskGroup, un
 	return underProvisionedBy
 }
 
-// computePlacement returns the set of allocations to place given the group
+// computePlacements returns the set of allocations to place given the group
 // definition, the set of untainted, migrating and reschedule allocations for the group.
 //
 // Placements will meet or exceed group count.
 func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
-	nameIndex *allocNameIndex, untainted, migrate allocSet, reschedule allocSet,
-	canaryState bool, lost allocSet) []allocPlaceResult {
+	nameIndex *allocNameIndex, untainted, migrate, reschedule, lost allocSet,
+	isCanarying bool) []allocPlaceResult {
 
 	// Add rescheduled placement results
 	var place []allocPlaceResult
@@ -765,7 +765,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 			reschedule:    true,
 			canary:        alloc.DeploymentStatus.IsCanary(),
 
-			downgradeNonCanary: canaryState && !alloc.DeploymentStatus.IsCanary(),
+			downgradeNonCanary: isCanarying && !alloc.DeploymentStatus.IsCanary(),
 			minJobVersion:      alloc.Job.Version,
 			lost:               false,
 		})
@@ -788,7 +788,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 			previousAlloc:      alloc,
 			reschedule:         false,
 			canary:             alloc.DeploymentStatus.IsCanary(),
-			downgradeNonCanary: canaryState && !alloc.DeploymentStatus.IsCanary(),
+			downgradeNonCanary: isCanarying && !alloc.DeploymentStatus.IsCanary(),
 			minJobVersion:      alloc.Job.Version,
 			lost:               true,
 		})
@@ -800,7 +800,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 			place = append(place, allocPlaceResult{
 				name:               name,
 				taskGroup:          group,
-				downgradeNonCanary: canaryState,
+				downgradeNonCanary: isCanarying,
 			})
 		}
 	}
