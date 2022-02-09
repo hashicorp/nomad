@@ -1234,25 +1234,20 @@ func (a *allocReconciler) handleDisconnecting(disconnecting allocSet, tgName str
 	}
 
 	// TODO: Handle infinite timeout.
-	timeoutLater, err := disconnecting.delayByIgnoreClientDisconnect(a.now)
-	if err != nil {
+	timeoutDelays, err := disconnecting.delayByIgnoreClientDisconnect(a.now)
+	if err != nil || len(timeoutDelays) != len(disconnecting) {
 		a.logger.Debug(fmt.Sprintf("error computing disconnecting timeouts for task_group.name %q: %s", tgName, err))
 		return map[string]string{}
 	}
 
-	if len(timeoutLater) == 0 {
-		a.logger.Debug(fmt.Sprintf("no disconnecting allocs found for task_group.name %q", tgName))
-		return map[string]string{}
-	}
-
 	// Sort by time
-	sort.Slice(timeoutLater, func(i, j int) bool {
-		return timeoutLater[i].rescheduleTime.Before(timeoutLater[j].rescheduleTime)
+	sort.Slice(timeoutDelays, func(i, j int) bool {
+		return timeoutDelays[i].rescheduleTime.Before(timeoutDelays[j].rescheduleTime)
 	})
 
 	var evals []*structs.Evaluation
-	nextReschedTime := timeoutLater[0].rescheduleTime
-	allocIDToFollowupEvalID := make(map[string]string, len(timeoutLater))
+	nextReschedTime := timeoutDelays[0].rescheduleTime
+	allocIDToFollowupEvalID := make(map[string]string, len(timeoutDelays))
 
 	// Create a new eval batch based on the first allocation.
 	eval := &structs.Evaluation{
@@ -1274,7 +1269,7 @@ func (a *allocReconciler) handleDisconnecting(disconnecting allocSet, tgName str
 	// Important to remember that these are sorted. The rescheduleTime can only
 	// get farther into the future. If this loop detects the next delay is greater
 	// that the batch window (5s) it creates another batch.
-	for _, timeoutInfo := range timeoutLater {
+	for _, timeoutInfo := range timeoutDelays {
 		// If more than 5s in the future, create another eval batch.
 		if timeoutInfo.rescheduleTime.Sub(nextReschedTime) < batchedFailedAllocWindowSize {
 			if timeoutInfo.rescheduleTime.Sub(nextReschedTime) < batchedFailedAllocWindowSize {
