@@ -459,23 +459,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 		desiredChanges.Ignore += uint64(len(destructive))
 	}
 
-	// Migrate all the allocations
-	desiredChanges.Migrate += uint64(len(migrate))
-	for _, alloc := range migrate.nameOrder() {
-		a.result.stop = append(a.result.stop, allocStopResult{
-			alloc:             alloc,
-			statusDescription: allocMigrating,
-		})
-		a.result.place = append(a.result.place, allocPlaceResult{
-			name:          alloc.Name,
-			canary:        alloc.DeploymentStatus.IsCanary(),
-			taskGroup:     tg,
-			previousAlloc: alloc,
-
-			downgradeNonCanary: isCanarying && !alloc.DeploymentStatus.IsCanary(),
-			minJobVersion:      alloc.Job.Version,
-		})
-	}
+	a.computeMigrations(desiredChanges, migrate, tg, isCanarying)
 
 	// Create new deployment if:
 	// 1. Updating a job specification
@@ -833,6 +817,25 @@ func (a *allocReconciler) computeDestructiveUpdates(destructive allocSet, underP
 			placeTaskGroup:        tg,
 			stopAlloc:             alloc,
 			stopStatusDescription: allocUpdating,
+		})
+	}
+}
+
+func (a *allocReconciler) computeMigrations(desiredChanges *structs.DesiredUpdates, migrate allocSet, tg *structs.TaskGroup, isCanarying bool) {
+	desiredChanges.Migrate += uint64(len(migrate))
+	for _, alloc := range migrate.nameOrder() {
+		a.result.stop = append(a.result.stop, allocStopResult{
+			alloc:             alloc,
+			statusDescription: allocMigrating,
+		})
+		a.result.place = append(a.result.place, allocPlaceResult{
+			name:          alloc.Name,
+			canary:        alloc.DeploymentStatus.IsCanary(),
+			taskGroup:     tg,
+			previousAlloc: alloc,
+
+			downgradeNonCanary: isCanarying && !alloc.DeploymentStatus.IsCanary(),
+			minJobVersion:      alloc.Job.Version,
 		})
 	}
 }
