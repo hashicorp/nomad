@@ -241,4 +241,16 @@ EOF
     ]
   }
 
+  provisioner "remote-exec" {
+    inline = [
+      "echo 'Setting HTTPS envars'",
+      "sudo tee -a /home/ubuntu/.bashrc << EOF",
+      "export CONSUL_RPC_ADDR=https://${var.instance.private_ip}:8400",
+      "export CONSUL_HTTP_ADDR=https://${var.instance.private_ip}:8500",
+      "export VAULT_ADDR=https://${var.instance.private_ip}:8200",
+      "export NOMAD_ADDR=https://${var.instance.private_ip}:4646",
+      "EOF",
+    ]
+  }
+
 }
