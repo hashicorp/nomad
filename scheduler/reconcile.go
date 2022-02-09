@@ -461,49 +461,8 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	a.computeMigrations(desiredChanges, migrate, tg, isCanarying)
 
-	// Create new deployment if:
-	// 1. Updating a job specification
-	// 2. No running allocations (first time running a job)
-	updatingSpec := len(destructive) != 0 || len(a.result.inplaceUpdate) != 0
-	hadRunning := false
-	for _, alloc := range all {
-		if alloc.Job.Version == a.job.Version && alloc.Job.CreateIndex == a.job.CreateIndex {
-			hadRunning = true
-			break
-		}
-	}
-
-	// Create a new deployment if necessary
-	if !existingDeployment && !strategy.IsEmpty() && dstate.DesiredTotal != 0 && (!hadRunning || updatingSpec) {
-		// A previous group may have made the deployment already
-		if a.deployment == nil {
-			a.deployment = structs.NewDeployment(a.job, a.evalPriority)
-			// in multiregion jobs, most deployments start in a pending state
-			if a.job.IsMultiregion() && !(a.job.IsPeriodic() && a.job.IsParameterized()) {
-				a.deployment.Status = structs.DeploymentStatusPending
-				a.deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
-			}
-			a.result.deployment = a.deployment
-		}
-
-		// Attach the groups deployment state to the deployment
-		a.deployment.TaskGroups[groupName] = dstate
-	}
-
-	// deploymentComplete is whether the deployment is complete which largely
-	// means that no placements were made or desired to be made
-	deploymentComplete := len(destructive)+len(inplace)+len(place)+len(migrate)+len(rescheduleNow)+len(rescheduleLater) == 0 && !canariesNeeded
-
-	// Final check to see if the deployment is complete is to ensure everything
-	// is healthy
-	if deploymentComplete && a.deployment != nil {
-		if dstate, ok := a.deployment.TaskGroups[groupName]; ok {
-			if dstate.HealthyAllocs < helper.IntMax(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
-				(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
-				deploymentComplete = false
-			}
-		}
-	}
+	deploymentComplete := a.completeDeployment(groupName, all, destructive, inplace,
+		migrate, rescheduleNow, existingDeployment, strategy, dstate, place, rescheduleLater, canariesNeeded)
 
 	return deploymentComplete
 }
@@ -838,6 +797,55 @@ func (a *allocReconciler) computeMigrations(desiredChanges *structs.DesiredUpdat
 			minJobVersion:      alloc.Job.Version,
 		})
 	}
+}
+
+func (a *allocReconciler) completeDeployment(groupName string, all, destructive, inplace, migrate, rescheduleNow allocSet,
+	existingDeployment bool, strategy *structs.UpdateStrategy, dstate *structs.DeploymentState,
+	place []allocPlaceResult, rescheduleLater []*delayedRescheduleInfo, canariesNeeded bool) bool {
+
+	// Create new deployment if:
+	// 1. Updating a job specification
+	// 2. No running allocations (first time running a job)
+	updatingSpec := len(destructive) != 0 || len(a.result.inplaceUpdate) != 0
+	hadRunning := false
+	for _, alloc := range all {
+		if alloc.Job.Version == a.job.Version && alloc.Job.CreateIndex == a.job.CreateIndex {
+			hadRunning = true
+			break
+		}
+	}
+
+	// Create a new deployment if necessary
+	if !existingDeployment && !strategy.IsEmpty() && dstate.DesiredTotal != 0 && (!hadRunning || updatingSpec) {
+		// A previous group may have made the deployment already
+		if a.deployment == nil {
+			a.deployment = structs.NewDeployment(a.job, a.evalPriority)
+			// in multiregion jobs, most deployments start in a pending state
+			if a.job.IsMultiregion() && !(a.job.IsPeriodic() && a.job.IsParameterized()) {
+				a.deployment.Status = structs.DeploymentStatusPending
+				a.deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
+			}
+			a.result.deployment = a.deployment
+		}
+
+		// Attach the groups deployment state to the deployment
+		a.deployment.TaskGroups[groupName] = dstate
+	}
+
+	complete := len(destructive)+len(inplace)+len(place)+len(migrate)+len(rescheduleNow)+len(rescheduleLater) == 0 && !canariesNeeded
+
+	// Final check to see if the deployment is complete is to ensure everything
+	// is healthy
+	if complete && a.deployment != nil {
+		var ok bool
+		if dstate, ok = a.deployment.TaskGroups[groupName]; ok {
+			if dstate.HealthyAllocs < helper.IntMax(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
+				(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
+				complete = false
+			}
+		}
+	}
+	return complete
 }
 
 // computeStop returns the set of allocations that are marked for stopping given
