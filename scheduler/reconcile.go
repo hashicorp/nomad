@@ -79,7 +79,7 @@ type allocReconciler struct {
 	evalPriority int
 
 	// now is the time used when determining rescheduling eligibility
-	// defaults to time.Now, and overidden in unit tests
+	// defaults to time.Now, and overridden in unit tests
 	now time.Time
 
 	// result is the results of the reconcile. During computation it can be
@@ -177,6 +177,7 @@ func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch 
 		evalPriority:   evalPriority,
 		now:            time.Now(),
 		result: &reconcileResults{
+			attributeUpdates:     make(map[string]*structs.Allocation),
 			desiredTGUpdates:     make(map[string]*structs.DesiredUpdates),
 			desiredFollowupEvals: make(map[string][]*structs.Evaluation),
 		},
@@ -199,9 +200,7 @@ func (a *allocReconciler) Compute() *reconcileResults {
 	}
 
 	a.computeDeploymentPaused()
-
 	deploymentComplete := a.computeDeploymentComplete(m)
-
 	a.computeDeploymentUpdates(deploymentComplete)
 
 	return a.result
@@ -268,12 +267,12 @@ func (a *allocReconciler) computeDeploymentPaused() {
 }
 
 // cancelUnneededDeployments cancels any deployment that is not needed. If the
-//// current deployment is not needed the deployment field is set to nil. A deployment
-//// update will be staged for jobs that should stop or have the wrong version.
-//// Unneeded deployments include:
-//// 1. Jobs that are marked for stop, but there is a non-terminal deployment.
-//// 2. Deployments that are active, but referencing a different job version.
-//// 3. Deployments that are already successful.
+// current deployment is not needed the deployment field is set to nil. A deployment
+// update will be staged for jobs that should stop or have the wrong version.
+// Unneeded deployments include:
+// 1. Jobs that are marked for stop, but there is a non-terminal deployment.
+// 2. Deployments that are active, but referencing a different job version.
+// 3. Deployments that are already successful.
 func (a *allocReconciler) cancelUnneededDeployments() {
 	// If the job is stopped and there is a non-terminal deployment, cancel it
 	if a.job.Stopped() {
