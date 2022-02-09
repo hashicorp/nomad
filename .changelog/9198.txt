@@ -1,33 +1,3 @@
 ```release-note:improvement
-cli: add Usage: nomad [-version] [-help] [-autocomplete-(un)install] <command> [args]
-
-Common commands:
-    run         Run a new job or update an existing job
-    stop        Stop a running job
-    status      Display the status output for a resource
-    alloc       Interact with allocations
-    job         Interact with jobs
-    node        Interact with nodes
-    agent       Runs a Nomad agent
-
-Other commands:
-    acl                 Interact with ACL policies and tokens
-    agent-info          Display status information about the local agent
-    deployment          Interact with deployments
-    eval                Interact with evaluations
-    exec                Execute commands in task
-    license             Interact with Nomad Enterprise License
-    monitor             Stream logs from a Nomad agent
-    namespace           Interact with namespaces
-    operator            Provides cluster-level tools for Nomad operators
-    plugin              Inspect plugins
-    quota               Interact with quotas
-    recommendation      Interact with the Nomad recommendation endpoint
-    scaling             Interact with the Nomad scaling endpoint
-    sentinel            Interact with Sentinel policies
-    server              Interact with servers
-    system              Interact with the system API
-    ui                  Open the Nomad Web UI
-    version             Prints the Nomad version
-    volume              Interact with volumes command to check configuration files without an agent
+cli: add `nomad config validate` command to check configuration files without an agent
 ```
