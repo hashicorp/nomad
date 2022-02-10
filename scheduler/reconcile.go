@@ -593,7 +593,6 @@ func (a *allocReconciler) cancelUnneededCanaries(all allocSet, desiredChanges *s
 // computeUnderProvisionedBy returns the number of allocs that still need to be
 // placed for a particular group. The inputs are the group definition, the untainted,
 // destructive, and migrate allocation sets, and whether we are in a canary state.
-// This function
 func (a *allocReconciler) computeUnderProvisionedBy(group *structs.TaskGroup, untainted, destructive, migrate allocSet, isCanarying bool) int {
 	// If no update strategy, nothing is migrating, and nothing is being replaced,
 	// allow as many as defined in group.Count
@@ -796,10 +795,6 @@ func (a *allocReconciler) computeMigrations(desiredChanges *structs.DesiredUpdat
 func (a *allocReconciler) createDeployment(groupName string, strategy *structs.UpdateStrategy,
 	existingDeployment bool, dstate *structs.DeploymentState, all, destructive allocSet) {
 	// Guard the simple cases that require no computation first.
-	// Don't create a deployment if:
-	// 1. There is an existing deployment
-	// 2. There is no update strategy defined
-	// 3. The deployment state doesn't specify we want any allocs
 	if existingDeployment ||
 		strategy.IsEmpty() ||
 		dstate.DesiredTotal == 0 {
