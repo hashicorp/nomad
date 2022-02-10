@@ -463,9 +463,10 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	}
 
 	a.computeMigrations(desiredChanges, migrate, tg, isCanarying)
+	a.createDeployment(tg.Name, tg.Update, existingDeployment, dstate, all, destructive)
 
-	deploymentComplete := a.completeDeployment(groupName, all, destructive, inplace,
-		migrate, rescheduleNow, existingDeployment, tg.Update, dstate, place, rescheduleLater, requiresCanaries)
+	deploymentComplete := a.isDeploymentComplete(groupName, destructive, inplace,
+		migrate, rescheduleNow, dstate, place, rescheduleLater, requiresCanaries)
 
 	return deploymentComplete
 }
@@ -730,9 +731,9 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 	// to the place set, and add the previous alloc to the stop set.
 	for _, p := range place {
 		prev := p.PreviousAllocation()
-		deploymentFailed := !(a.deploymentFailed && prev != nil && a.deployment.ID == prev.DeploymentID)
+		partOfFailedDeployment := a.deploymentFailed && prev != nil && a.deployment.ID == prev.DeploymentID
 
-		if !deploymentFailed && p.IsRescheduling() {
+		if !partOfFailedDeployment && p.IsRescheduling() {
 			a.result.place = append(a.result.place, p)
 			desiredChanges.Place++
 
@@ -783,14 +784,21 @@ func (a *allocReconciler) computeMigrations(desiredChanges *structs.DesiredUpdat
 	}
 }
 
-func (a *allocReconciler) completeDeployment(groupName string, all, destructive, inplace, migrate, rescheduleNow allocSet,
-	existingDeployment bool, strategy *structs.UpdateStrategy, dstate *structs.DeploymentState,
-	place []allocPlaceResult, rescheduleLater []*delayedRescheduleInfo, canariesNeeded bool) bool {
+func (a *allocReconciler) createDeployment(groupName string, strategy *structs.UpdateStrategy,
+	existingDeployment bool, dstate *structs.DeploymentState, all, destructive allocSet) {
+	// Guard the simple cases that require no computation first.
+	// Don't create a deployment if:
+	// 1. There is an existing deployment
+	// 2. There is no update strategy defined
+	// 3. The deployment state doesn't specify we want any allocs
+	if existingDeployment ||
+		strategy.IsEmpty() ||
+		dstate.DesiredTotal == 0 {
+		return
+	}
 
-	// Create new deployment if:
-	// 1. Updating a job specification
-	// 2. No running allocations (first time running a job)
 	updatingSpec := len(destructive) != 0 || len(a.result.inplaceUpdate) != 0
+
 	hadRunning := false
 	for _, alloc := range all {
 		if alloc.Job.Version == a.job.Version && alloc.Job.CreateIndex == a.job.CreateIndex {
@@ -799,36 +807,46 @@ func (a *allocReconciler) completeDeployment(groupName string, all, destructive,
 		}
 	}
 
-	// Create a new deployment if necessary
-	if !existingDeployment && !strategy.IsEmpty() && dstate.DesiredTotal != 0 && (!hadRunning || updatingSpec) {
-		// A previous group may have made the deployment already
-		if a.deployment == nil {
-			a.deployment = structs.NewDeployment(a.job, a.evalPriority)
-			// in multiregion jobs, most deployments start in a pending state
-			if a.job.IsMultiregion() && !(a.job.IsPeriodic() && a.job.IsParameterized()) {
-				a.deployment.Status = structs.DeploymentStatusPending
-				a.deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
-			}
-			a.result.deployment = a.deployment
-		}
-
-		// Attach the groups deployment state to the deployment
-		a.deployment.TaskGroups[groupName] = dstate
+	// Don't create a deployment if it's not the first time running the job
+	// and there are no updates to the spec.
+	if hadRunning && !updatingSpec {
+		return
 	}
 
-	complete := len(destructive)+len(inplace)+len(place)+len(migrate)+len(rescheduleNow)+len(rescheduleLater) == 0 && !canariesNeeded
+	// A previous group may have made the deployment already. If not create one.
+	if a.deployment == nil {
+		a.deployment = structs.NewDeployment(a.job, a.evalPriority)
+		// in multiregion jobs, most deployments start in a pending state
+		if a.job.IsMultiregion() && !(a.job.IsPeriodic() && a.job.IsParameterized()) {
+			a.deployment.Status = structs.DeploymentStatusPending
+			a.deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
+		}
+		a.result.deployment = a.deployment
+	}
 
-	// Final check to see if the deployment is complete is to ensure everything
-	// is healthy
-	if complete && a.deployment != nil {
-		var ok bool
-		if dstate, ok = a.deployment.TaskGroups[groupName]; ok {
-			if dstate.HealthyAllocs < helper.IntMax(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
-				(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
-				complete = false
-			}
+	// Attach the groups deployment state to the deployment
+	a.deployment.TaskGroups[groupName] = dstate
+}
+
+func (a *allocReconciler) isDeploymentComplete(groupName string, destructive, inplace, migrate, rescheduleNow allocSet,
+	dstate *structs.DeploymentState, place []allocPlaceResult, rescheduleLater []*delayedRescheduleInfo, requiresCanaries bool) bool {
+
+	complete := len(destructive)+len(inplace)+len(place)+len(migrate)+len(rescheduleNow)+len(rescheduleLater) == 0 &&
+		!requiresCanaries
+
+	if !complete || a.deployment == nil {
+		return false
+	}
+
+	// Final check to see if the deployment is complete is to ensure everything is healthy
+	var ok bool
+	if dstate, ok = a.deployment.TaskGroups[groupName]; ok {
+		if dstate.HealthyAllocs < helper.IntMax(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
+			(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
+			complete = false
 		}
 	}
+
 	return complete
 }
 
