@@ -204,7 +204,7 @@ func (w *Watcher) getDeploys(ctx context.Context, minIndex uint64) ([]*structs.D
 // getDeploysImpl retrieves all deployments from the passed state store.
 func (w *Watcher) getDeploysImpl(ws memdb.WatchSet, state *state.StateStore) (interface{}, uint64, error) {
 
-	iter, err := state.Deployments(ws)
+	iter, err := state.Deployments(ws, false)
 	if err != nil {
 		return nil, 0, err
 	}

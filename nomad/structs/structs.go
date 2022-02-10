@@ -859,6 +859,7 @@ type EvalDequeueRequest struct {
 type EvalListRequest struct {
 	FilterJobID      string
 	FilterEvalStatus string
+	OrderAscending   bool
 	QueryOptions
 }
 
@@ -1093,6 +1094,7 @@ type GenericRequest struct {
 
 // DeploymentListRequest is used to list the deployments
 type DeploymentListRequest struct {
+	OrderAscending bool
 	QueryOptions
 }
 

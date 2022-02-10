@@ -32,6 +32,14 @@ const (
 	NodeRegisterEventReregistered = "Node re-registered"
 )
 
+// terminate appends the go-memdb terminator character to s.
+//
+// We can then use the result for exact matches during prefix
+// scans over compound indexes that start with s.
+func terminate(s string) string {
+	return s + "\x00"
+}
+
 // IndexEntry is used with the "index" table
 // for managing the latest Raft index affecting a table.
 type IndexEntry struct {
@@ -536,17 +544,25 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 	return nil
 }
 
-func (s *StateStore) Deployments(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) Deployments(ws memdb.WatchSet, ascending bool) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	// Walk the entire deployments table
-	iter, err := txn.Get("deployment", "id")
+	var it memdb.ResultIterator
+	var err error
+
+	if ascending {
+		it, err = txn.Get("deployment", "create")
+	} else {
+		it, err = txn.GetReverse("deployment", "create")
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	ws.Add(iter.WatchCh())
-	return iter, nil
+	ws.Add(it.WatchCh())
+
+	return it, nil
 }
 
 func (s *StateStore) DeploymentsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
@@ -560,6 +576,30 @@ func (s *StateStore) DeploymentsByNamespace(ws memdb.WatchSet, namespace string)
 
 	ws.Add(iter.WatchCh())
 	return iter, nil
+}
+
+func (s *StateStore) DeploymentsByNamespaceOrdered(ws memdb.WatchSet, namespace string, ascending bool) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	var (
+		it    memdb.ResultIterator
+		err   error
+		exact = terminate(namespace)
+	)
+
+	if ascending {
+		it, err = txn.Get("deployment", "namespace_create_prefix", exact)
+	} else {
+		it, err = txn.GetReverse("deployment", "namespace_create_prefix", exact)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(it.WatchCh())
+
+	return it, nil
 }
 
 func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, namespace, deploymentID string) (memdb.ResultIterator, error) {
@@ -3112,35 +3152,68 @@ func (s *StateStore) EvalsByJob(ws memdb.WatchSet, namespace, jobID string) ([]*
 	return out, nil
 }
 
-// Evals returns an iterator over all the evaluations
-func (s *StateStore) Evals(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+// Evals returns an iterator over all the evaluations in ascending or descending
+// order of CreationIndex as determined by the ascending parameter.
+func (s *StateStore) Evals(ws memdb.WatchSet, ascending bool) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	// Walk the entire table
-	iter, err := txn.Get("evals", "id")
+	var it memdb.ResultIterator
+	var err error
+
+	if ascending {
+		it, err = txn.Get("evals", "create")
+	} else {
+		it, err = txn.GetReverse("evals", "create")
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	ws.Add(iter.WatchCh())
+	ws.Add(it.WatchCh())
 
-	return iter, nil
+	return it, nil
 }
 
-// EvalsByNamespace returns an iterator over all the evaluations in the given
-// namespace
+// EvalsByNamespace returns an iterator over all evaluations in no particular
+// order.
+//
+// todo(shoenig): can this be removed?
 func (s *StateStore) EvalsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	// Walk the entire table
-	iter, err := txn.Get("evals", "namespace", namespace)
+	it, err := txn.Get("evals", "namespace", namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	ws.Add(iter.WatchCh())
+	ws.Add(it.WatchCh())
 
-	return iter, nil
+	return it, nil
+}
+
+func (s *StateStore) EvalsByNamespaceOrdered(ws memdb.WatchSet, namespace string, ascending bool) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	var (
+		it    memdb.ResultIterator
+		err   error
+		exact = terminate(namespace)
+	)
+
+	if ascending {
+		it, err = txn.Get("evals", "namespace_create_prefix", exact)
+	} else {
+		it, err = txn.GetReverse("evals", "namespace_create_prefix", exact)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(it.WatchCh())
+
+	return it, nil
 }
 
 // UpdateAllocsFromClient is used to update an allocation based on input

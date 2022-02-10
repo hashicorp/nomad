@@ -666,39 +666,24 @@ func TestStateStore_Deployments(t *testing.T) {
 		deployments = append(deployments, deployment)
 
 		err := state.UpsertDeployment(1000+uint64(i), deployment)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(t, err)
 	}
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.Deployments(ws)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	it, err := state.Deployments(ws, true)
+	require.NoError(t, err)
 
 	var out []*structs.Deployment
 	for {
-		raw := iter.Next()
+		raw := it.Next()
 		if raw == nil {
 			break
 		}
 		out = append(out, raw.(*structs.Deployment))
 	}
 
-	lessThan := func(i, j int) bool {
-		return deployments[i].ID < deployments[j].ID
-	}
-	sort.Slice(deployments, lessThan)
-	sort.Slice(out, lessThan)
-
-	if !reflect.DeepEqual(deployments, out) {
-		t.Fatalf("bad: %#v %#v", deployments, out)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.Equal(t, deployments, out)
+	require.False(t, watchFired(ws))
 }
 
 func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
@@ -3827,7 +3812,7 @@ func TestStateStore_Evals(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.Evals(ws)
+	iter, err := state.Evals(ws, false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

@@ -231,7 +231,7 @@ func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string) 
 func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 	// Iterate over the evaluations
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.Evals(ws)
+	iter, err := c.snap.Evals(ws, false)
 	if err != nil {
 		return err
 	}
@@ -545,7 +545,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
 	// Iterate over the deployments
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.Deployments(ws)
+	iter, err := c.snap.Deployments(ws, false)
 	if err != nil {
 		return err
 	}

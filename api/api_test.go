@@ -181,27 +181,25 @@ func TestSetQueryOptions(t *testing.T) {
 		WaitIndex:  1000,
 		WaitTime:   100 * time.Second,
 		AuthToken:  "foobar",
+		Ascending:  true,
 	}
 	r.setQueryOptions(q)
 
-	if r.params.Get("region") != "foo" {
-		t.Fatalf("bad: %v", r.params)
+	try := func(key, exp string) {
+		result := r.params.Get(key)
+		require.Equal(t, exp, result)
 	}
-	if r.params.Get("namespace") != "bar" {
-		t.Fatalf("bad: %v", r.params)
-	}
-	if _, ok := r.params["stale"]; !ok {
-		t.Fatalf("bad: %v", r.params)
-	}
-	if r.params.Get("index") != "1000" {
-		t.Fatalf("bad: %v", r.params)
-	}
-	if r.params.Get("wait") != "100000ms" {
-		t.Fatalf("bad: %v", r.params)
-	}
-	if r.token != "foobar" {
-		t.Fatalf("bad: %v", r.token)
-	}
+
+	// Check auth token is set
+	require.Equal(t, "foobar", r.token)
+
+	// Check query parameters are set
+	try("region", "foo")
+	try("namespace", "bar")
+	try("stale", "") // should not be present
+	try("index", "1000")
+	try("wait", "100000ms")
+	try("ascending", "true")
 }
 
 func TestQueryOptionsContext(t *testing.T) {
