@@ -5271,3 +5271,39 @@ func TestReconciler_Disconnected_Node_FollowUpEvals_Stop_After_Timeout(t *testin
 		},
 	})
 }
+
+func TestReconciler_Compute_Disconnecting(t *testing.T) {
+	// Build a set of resumable allocations. Helper will set the timeout to 5 min.
+	job, allocs := buildResumableAllocations(3, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun, 2)
+
+	// Build a map of disconnected nodes. Only disconnect 2 of the nodes to make it a little
+	// more discernible that only the affected alloc(s) get marked unknown.
+	nodes := buildDisconnectedNodes(allocs, 2)
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
+		nil, allocs, nodes, "", 50)
+	reconciler.now = time.Now().UTC()
+
+	tgName := allocs[0].TaskGroup
+	matrix := newAllocMatrix(job, allocs)
+	_, _, _, reconnecting, _ := matrix[tgName].filterByTainted(nodes)
+	require.NotNil(t, reconnecting)
+	require.Len(t, reconnecting, 2)
+
+	result := reconciler.handleDisconnecting(reconnecting, tgName)
+	require.NotNil(t, result)
+	require.Len(t, reconciler.result.desiredFollowupEvals, 1)
+
+	evals := reconciler.result.desiredFollowupEvals[tgName]
+
+	for _, eval := range evals {
+		found := false
+		for _, evalID := range result {
+			found = eval.ID == evalID
+			if found {
+				break
+			}
+		}
+		require.True(t, found)
+	}
+}
