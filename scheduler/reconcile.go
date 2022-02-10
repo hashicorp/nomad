@@ -606,16 +606,25 @@ func (a *allocReconciler) computeUnderProvisionedBy(group *structs.TaskGroup, un
 		return group.Update.MaxParallel
 	}
 
-	// If the deployment is paused, failed, we have un-promoted canaries, or
-	// any of the allocs have an unhealthy DeploymentStatus, do not create anything else.
+	// If the deployment is paused, failed, or we have un-promoted canaries, do not create anything else.
 	if a.deploymentPaused ||
 		a.deploymentFailed ||
-		isCanarying ||
-		untainted.isUnhealthy(a.deployment.ID) {
+		isCanarying {
 		return 0
 	}
 
-	underProvisionedBy := group.Update.MaxParallel - len(untainted)
+	underProvisionedBy := group.Update.MaxParallel
+	partOf, _ := untainted.filterByDeployment(a.deployment.ID)
+	for _, alloc := range partOf {
+		// An unhealthy allocation means nothing else should happen.
+		if alloc.DeploymentStatus.IsUnhealthy() {
+			return 0
+		}
+		// If not yet explicitly set to healthy (nil) decrement.
+		if !alloc.DeploymentStatus.IsHealthy() {
+			underProvisionedBy--
+		}
+	}
 
 	// The limit can be less than zero in the case that the job was changed such
 	// that it required destructive changes and the count was scaled up.
