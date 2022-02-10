@@ -1662,6 +1662,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	} else if b.Reserved != nil {
 		result.Reserved = result.Reserved.Merge(b.Reserved)
 	}
+	if b.ReserveableCores != "" {
+		result.ReserveableCores = b.ReserveableCores
+	}
 	if b.GCInterval != 0 {
 		result.GCInterval = b.GCInterval
 	}
