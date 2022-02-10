@@ -25,6 +25,18 @@ In Nomad 1.3.0, the default raft protocol version has been updated to
 server will automatically upgrade that server's raft protocol. See the
 [Upgrading to Raft Protocol 3] guide.
 
+## Nomad 1.2.6, 1.1.12, and 1.0.18
+
+#### ACL requirement for the job parse endpoint
+
+Nomad 1.2.6, 1.1.12, and 1.0.18 require ACL authentication for the
+[job parse][api_jobs_parse] API endpoint. The `parse-job` capability has been
+created to allow access to this endpoint. The `submit-job`, `read`, and `write`
+policies include this capability.
+
+
+The capability must be enabled for the namespace used in the API request.
+
 ## Nomad 1.2.4
 
 #### `nomad eval status -json` deprecated
@@ -1180,6 +1192,7 @@ draining the node so no tasks are running on it. This can be verified by running
 state. Once that is done the client can be killed, the `data_dir` should be
 deleted and then Nomad 0.3.0 can be launched.
 
+[api_jobs_parse]: /api-docs/jobs#parse-job
 [dangling-containers]: /docs/drivers/docker#dangling-containers
 [drain-api]: /api-docs/nodes#drain-node
 [drain-cli]: /docs/commands/node/drain
