@@ -1,4 +1,4 @@
-{{page-title "Jobs"}}
+{{!-- {{page-title "Jobs"}}
 <section class="section">
   <div class="toolbar">
     <div class="toolbar-item">
@@ -44,7 +44,10 @@
             @options={{this.optionsNamespaces}}
             @selection={{this.qpNamespace}}
             @onSelect={{action
-              (queue (action this.cacheNamespace) (action this.setFacetQueryParam "qpNamespace"))
+              (queue
+                (action this.cacheNamespace)
+                (action this.setFacetQueryParam "qpNamespace")
+              )
             }}
           />
         {{/if}}
@@ -202,4 +205,4 @@
       {{/if}}
     </div>
   {{/if}}
-</section>
+</section> --}}

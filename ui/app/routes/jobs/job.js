@@ -11,13 +11,16 @@ export default class JobRoute extends Route {
   @service token;
 
   serialize(model) {
+    debugger;
     return { job_name: JSON.parse(model.get('id')).join('@') };
   }
 
-  model(params, transition) {
-    const namespace = transition.to.queryParams.namespace || 'default';
-    const name = params.job_name;
-    const fullId = JSON.stringify([name, namespace]);
+  model(params) {
+    const url = params.job_name.split('@');
+    const namespace = url.pop();
+    const name = url.join('');
+
+    const fullId = JSON.stringify([name, namespace || 'default']);
 
     return this.store
       .findRecord('job', fullId, { reload: true })
