@@ -321,12 +321,12 @@ func (a *allocReconciler) handleStop(m allocMatrix) {
 	for group, as := range m {
 		as = filterByTerminal(as)
 		desiredChanges := new(structs.DesiredUpdates)
-		desiredChanges.Stop += a.stopAllocSet(as)
+		desiredChanges.Stop = a.filterAndStopAll(as)
 		a.result.desiredTGUpdates[group] = desiredChanges
 	}
 }
 
-func (a *allocReconciler) stopAllocSet(set allocSet) uint64 {
+func (a *allocReconciler) filterAndStopAll(set allocSet) uint64 {
 	untainted, migrate, lost := set.filterByTainted(a.taintedNodes)
 	a.markStop(untainted, "", allocNotNeeded)
 	a.markStop(migrate, "", allocNotNeeded)
@@ -373,7 +373,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// If the task group is nil, then the task group has been removed so all we
 	// need to do is stop everything
 	if tg == nil {
-		desiredChanges.Stop += a.stopAllocSet(all)
+		desiredChanges.Stop = a.filterAndStopAll(all)
 		return true
 	}
 
@@ -394,11 +394,11 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	// Find delays for any lost allocs that have stop_after_client_disconnect
 	lostLater := lost.delayByStopAfterClientDisconnect()
-	lostLaterEvals := a.computeLostLaterEvals(lostLater, all, tg.Name)
+	lostLaterEvals := a.processLostLaterEvals(lostLater, all, tg.Name)
 
 	// Create batched follow up evaluations for allocations that are
 	// reschedulable later and mark the allocations for in place updating
-	a.computeRescheduleLater(rescheduleLater, all, tg.Name)
+	a.processReschedulerLater(rescheduleLater, all, tg.Name)
 
 	// Create a structure for choosing names. Seed with the taken names
 	// which is the union of untainted, rescheduled, allocs on migrating
@@ -982,17 +982,12 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 	return
 }
 
-// computeRescheduleLater creates batched followup evaluations with the WaitUntil field
+// processReschedulerLater creates batched followup evaluations with the WaitUntil field
 // set for allocations that are eligible to be rescheduled later, and marks the alloc with
 // the followupEvalID
-func (a *allocReconciler) computeRescheduleLater(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
+func (a *allocReconciler) processReschedulerLater(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
 	// followupEvals are created in the same way as for delayed lost allocs
-	allocIDToFollowupEvalID := a.computeLostLaterEvals(rescheduleLater, all, tgName)
-
-	// Initialize the annotations
-	if len(allocIDToFollowupEvalID) != 0 && a.result.attributeUpdates == nil {
-		a.result.attributeUpdates = make(map[string]*structs.Allocation)
-	}
+	allocIDToFollowupEvalID := a.processLostLaterEvals(rescheduleLater, all, tgName)
 
 	// Create updates that will be applied to the allocs to mark the FollowupEvalID
 	for allocID, evalID := range allocIDToFollowupEvalID {
@@ -1003,10 +998,10 @@ func (a *allocReconciler) computeRescheduleLater(rescheduleLater []*delayedResch
 	}
 }
 
-// computeLostLaterEvals creates batched followup evaluations with the WaitUntil field set for
+// processLostLaterEvals creates batched followup evaluations with the WaitUntil field set for
 // lost allocations. followupEvals are appended to a.result as a side effect, we return a
-// map of alloc IDs to their followupEval IDs
-func (a *allocReconciler) computeLostLaterEvals(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) map[string]string {
+// map of alloc IDs to their followupEval IDs.
+func (a *allocReconciler) processLostLaterEvals(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) map[string]string {
 	if len(rescheduleLater) == 0 {
 		return map[string]string{}
 	}
