@@ -34,6 +34,8 @@ type csiPluginSupervisorHook struct {
 	runner     *TaskRunner
 	mountPoint string
 
+	caps *drivers.Capabilities
+
 	// eventEmitter is used to emit events to the task
 	eventEmitter ti.EventEmitter
 
@@ -61,7 +63,7 @@ var _ interfaces.TaskPoststartHook = &csiPluginSupervisorHook{}
 // with the catalog and to ensure any mounts are cleaned up.
 var _ interfaces.TaskStopHook = &csiPluginSupervisorHook{}
 
-func newCSIPluginSupervisorHook(csiRootDir string, eventEmitter ti.EventEmitter, runner *TaskRunner, logger hclog.Logger) *csiPluginSupervisorHook {
+func newCSIPluginSupervisorHook(csiRootDir string, eventEmitter ti.EventEmitter, runner *TaskRunner, caps *drivers.Capabilities, logger hclog.Logger) *csiPluginSupervisorHook {
 	task := runner.Task()
 
 	// The Plugin directory will look something like this:
@@ -82,6 +84,7 @@ func newCSIPluginSupervisorHook(csiRootDir string, eventEmitter ti.EventEmitter,
 		logger:           logger,
 		task:             task,
 		mountPoint:       pluginRoot,
+		caps:             caps,
 		shutdownCtx:      shutdownCtx,
 		shutdownCancelFn: cancelFn,
 		eventEmitter:     eventEmitter,
@@ -117,6 +120,20 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 		TaskPath: "/dev",
 		HostPath: "/dev",
 		Readonly: false,
+	}
+
+	switch h.caps.FSIsolation {
+	case drivers.FSIsolationNone:
+		// Plugin tasks with no filesystem isolation won't have the
+		// plugin dir bind-mounted to their alloc dir, but we can
+		// provide them the path to the socket. These Nomad-only
+		// plugins will need to be aware of the csi directory layout
+		// in the client data dir
+		resp.Env = map[string]string{
+			"CSI_ENDPOINT": filepath.Join(h.mountPoint, "csi.sock")}
+	default:
+		resp.Env = map[string]string{
+			"CSI_ENDPOINT": filepath.Join(h.task.CSIPluginConfig.MountDir, "csi.sock")}
 	}
 
 	mounts := ensureMountpointInserted(h.runner.hookResources.getMounts(), configMount)
