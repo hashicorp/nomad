@@ -1,3 +1,16 @@
+## 1.2.6 (February 9, 2022)
+
+__BACKWARDS INCOMPATIBILITIES:__
+
+* ACL authentication is now required for the Nomad API job parse endpoint to address a potential security vulnerability
+
+SECURITY:
+
+* Add ACL requirement and HCL validation to the job parse API endpoint to prevent excessive CPU usage. [CVE-2022-24685](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24685) [[GH-12038](https://github.com/hashicorp/nomad/issues/12038)]
+* Fix race condition in use of go-getter that could cause a client agent to download the wrong artifact into the wrong destination. [CVE-2022-24686](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24686) [[GH-12036](https://github.com/hashicorp/nomad/issues/12036)]
+* Prevent panic in spread iterator during allocation stop. [CVE-2022-24684](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24684) [[GH-12039](https://github.com/hashicorp/nomad/issues/12039)]
+* Resolve symlinks to prevent unauthorized access to files outside the allocation directory. [CVE-2022-24683](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24683) [[GH-12037](https://github.com/hashicorp/nomad/issues/12037)]
+
 ## 1.2.5 (February 1, 2022)
 
 BUG FIXES:
@@ -159,6 +172,19 @@ BUG FIXES:
 * rpc: Set the job scale eval priority to the job priority [[GH-11429](https://github.com/hashicorp/nomad/issues/11429)]
 * server: Fixed a panic on arm64 platform when dispatching a job with a payload [[GH-11396](https://github.com/hashicorp/nomad/issues/11396)]
 * server: Fixed a panic that may occur when preempting multiple allocations on the same node [[GH-11346](https://github.com/hashicorp/nomad/issues/11346)]
+
+## 1.1.12 (February 9, 2022)
+
+__BACKWARDS INCOMPATIBILITIES:__
+
+* ACL authentication is now required for the Nomad API job parse endpoint to address a potential security vulnerability
+
+SECURITY:
+
+* Add ACL requirement and HCL validation to the job parse API endpoint to prevent excessive CPU usage. [CVE-2022-24685](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24685) [[GH-12038](https://github.com/hashicorp/nomad/issues/12038)]
+* Fix race condition in use of go-getter that could cause a client agent to download the wrong artifact into the wrong destination. [CVE-2022-24686](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24686) [[GH-12036](https://github.com/hashicorp/nomad/issues/12036)]
+* Prevent panic in spread iterator during allocation stop. [CVE-2022-24684](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24684) [[GH-12039](https://github.com/hashicorp/nomad/issues/12039)]
+* Resolve symlinks to prevent unauthorized access to files outside the allocation directory. [CVE-2022-24683](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24683) [[GH-12037](https://github.com/hashicorp/nomad/issues/12037)]
 
 ## 1.1.11 (February 1, 2022)
 
@@ -451,6 +477,19 @@ BUG FIXES:
  * server: Fixed a bug where jobs may not run if submitted with ParentID field set [[GH-10424](https://github.com/hashicorp/nomad/issues/10424)]
  * server: Fixed a panic that may arise on submission of jobs containing invalid service checks [[GH-10154](https://github.com/hashicorp/nomad/issues/10154)]
  * ui: Fixed the rendering of interstitial components shown after processing a dynamic application sizing recommendation. [[GH-10094](https://github.com/hashicorp/nomad/pull/10094)]
+
+## 1.0.18 (February 9, 2022)
+
+__BACKWARDS INCOMPATIBILITIES:__
+
+* ACL authentication is now required for the Nomad API job parse endpoint to address a potential security vulnerability
+
+SECURITY:
+
+* Add ACL requirement and HCL validation to the job parse API endpoint to prevent excessive CPU usage. [CVE-2022-24685](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24685) [[GH-12038](https://github.com/hashicorp/nomad/issues/12038)]
+* Fix race condition in use of go-getter that could cause a client agent to download the wrong artifact into the wrong destination. [CVE-2022-24686](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24686) [[GH-12036](https://github.com/hashicorp/nomad/issues/12036)]
+* Prevent panic in spread iterator during allocation stop. [CVE-2022-24684](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24684) [[GH-12039](https://github.com/hashicorp/nomad/issues/12039)]
+* Resolve symlinks to prevent unauthorized access to files outside the allocation directory. [CVE-2022-24683](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24683) [[GH-12037](https://github.com/hashicorp/nomad/issues/12037)]
 
 ## 1.0.17 (February 1, 2022)
 
