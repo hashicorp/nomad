@@ -1,3 +1,12 @@
+## 1.2.6 (February 9, 2022)
+
+SECURITY:
+
+* Add ACL requirement and HCL validation to the job parse API endpoint to prevent excessive CPU usage. [CVE-2022-24685](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24685) [[GH-12038](https://github.com/hashicorp/nomad/issues/12038)]
+* Fix race condition in use of go-getter that could cause a client agent to download the wrong artifact into the wrong destination. [CVE-2022-24686](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24686) [[GH-12036](https://github.com/hashicorp/nomad/issues/12036)]
+* Prevent panic in spread iterator during allocation stop. [CVE-2022-24684](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24684) [[GH-12039](https://github.com/hashicorp/nomad/issues/12039)]
+* Resolve symlinks to prevent unauthorized access to files outside the allocation directory. [CVE-2022-24683](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24683) [[GH-12037](https://github.com/hashicorp/nomad/issues/12037)]
+
 ## 1.2.5 (February 1, 2022)
 
 BUG FIXES:
