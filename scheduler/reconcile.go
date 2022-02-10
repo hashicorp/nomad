@@ -394,11 +394,11 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	// Find delays for any lost allocs that have stop_after_client_disconnect
 	lostLater := lost.delayByStopAfterClientDisconnect()
-	lostLaterEvals := a.processLostLaterEvals(lostLater, all, tg.Name)
+	lostLaterEvals := a.createLostLaterEvals(lostLater, all, tg.Name)
 
 	// Create batched follow up evaluations for allocations that are
 	// reschedulable later and mark the allocations for in place updating
-	a.processRescheduleLater(rescheduleLater, all, tg.Name)
+	a.createRescheduleLaterEvals(rescheduleLater, all, tg.Name)
 
 	// Create a structure for choosing names. Seed with the taken names
 	// which is the union of untainted, rescheduled, allocs on migrating
@@ -982,12 +982,12 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 	return
 }
 
-// processRescheduleLater creates batched followup evaluations with the WaitUntil field
+// createRescheduleLaterEvals creates batched followup evaluations with the WaitUntil field
 // set for allocations that are eligible to be rescheduled later, and marks the alloc with
 // the followupEvalID
-func (a *allocReconciler) processRescheduleLater(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
+func (a *allocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
 	// followupEvals are created in the same way as for delayed lost allocs
-	allocIDToFollowupEvalID := a.processLostLaterEvals(rescheduleLater, all, tgName)
+	allocIDToFollowupEvalID := a.createLostLaterEvals(rescheduleLater, all, tgName)
 
 	// Create updates that will be applied to the allocs to mark the FollowupEvalID
 	for allocID, evalID := range allocIDToFollowupEvalID {
@@ -998,10 +998,10 @@ func (a *allocReconciler) processRescheduleLater(rescheduleLater []*delayedResch
 	}
 }
 
-// processLostLaterEvals creates batched followup evaluations with the WaitUntil field set for
+// createLostLaterEvals creates batched followup evaluations with the WaitUntil field set for
 // lost allocations. followupEvals are appended to a.result as a side effect, we return a
 // map of alloc IDs to their followupEval IDs.
-func (a *allocReconciler) processLostLaterEvals(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) map[string]string {
+func (a *allocReconciler) createLostLaterEvals(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) map[string]string {
 	if len(rescheduleLater) == 0 {
 		return map[string]string{}
 	}
