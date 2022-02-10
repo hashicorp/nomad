@@ -1,0 +1,97 @@
+{{#with @data.evaluation as |evaluation|}}
+  <Portal @target="eval-detail-portal">
+    <div
+      class="absolute right-0 bg-red-200 h-full z-10 transform transition ease-in-out
+        {{if @data.isSideBarOpen "translate-x-0" "translate-x-full"}}"
+      {{on-click-outside
+        @fns.closeSidebar
+        capture=true
+        exceptSelector="tr[data-eval-row]"
+      }}
+    >
+      <div data-header style="display: flex; justify-content: space-between">
+        <h1 data-test-title class="title">
+          Evaluation
+          {{evaluation.shortId}}
+          <span class="bumper-left tag is-primary">
+            {{evaluation.status}}
+          </span>
+        </h1>
+        <button type="button" {{on "click" @fns.closeSidebar}}>
+          X
+        </button>
+      </div>
+      <div class="boxed-section is-small">
+        <div
+          class="boxed-section-body inline-definitions"
+          style="display: flex;"
+        >
+          <span class="label" style="width: 6.125rem;">
+            Evaluation Details
+          </span>
+          <div style="display: flex; flex-direction: column">
+            <span class="pair" data-test-job-stat="type">
+              <span class="term">
+                Type
+              </span>
+              Some Type
+            </span>
+            <span class="pair" data-test-job-stat="type">
+              <span class="term">
+                Triggered By
+              </span>
+              Some Type
+            </span>
+          </div>
+          <div style="display: flex; flex-direction: column">
+            <span class="pair" data-test-job-stat="priority">
+              <span class="term">
+                Triggered By
+              </span>
+              Some Priority
+            </span>
+            <span class="pair" data-test-job-stat="priority">
+              <span class="term">
+                Priority
+              </span>
+              Some Priority
+            </span>
+          </div>
+          <div>
+            <span class="label" style="width: 6.125rem;"></span>
+            <span class="pair" data-test-job-stat="type">
+              <span class="term">
+                Type
+              </span>
+              Some Type
+            </span>
+            <span class="pair" data-test-job-stat="priority">
+              <span class="term">
+                Priority
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div
+        class="boxed-section
+          {{if evaluation.failedTGAllocs "is-warning" "is-primary"}}"
+        data-test-dry-run-message
+      >
+        <div class="boxed-section-head" data-test-dry-run-title>
+          Placement Failures
+        </div>
+        <div class="boxed-section-body" data-test-dry-run-body>
+          {{#if evaluation.failedTGAllocs}}
+            {{#each evaluation.failedTGAllocs as |placementFailure|}}
+              <PlacementFailure @failedTGAlloc={{placementFailure}} />
+            {{/each}}
+          {{else}}
+            All tasks successfully allocated.
+          {{/if}}
+        </div>
+      </div>
+      <JsonViewer @json={{evaluation}} />
+    </div>
+  </Portal>
+{{/with}}

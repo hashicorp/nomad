@@ -1,0 +1,10 @@
+{
+  "name": "css-tooling",
+  "version": "1.0.0",
+  "description": "Functional CSS classes to no longer worry about global classes.",
+  "private": true,
+  "devDependencies": {
+    "postcss": "^8.4.6",
+    "tailwindcss": "^3.0.19"
+  }
+}

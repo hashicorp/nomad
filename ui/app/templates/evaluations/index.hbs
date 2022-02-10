@@ -149,39 +149,11 @@
       </div>
     {{/if}}
   </div>
-  {{#if this.isSideBarOpen}}
-    <div
-      class="sidebar pib"
-      {{on-click-outside
-        this.closeSidebar
-        capture=true
-        exceptSelector="tr[data-eval-row]"
-      }}
-    >
-      <h2>
-        Evaluation Hash | Status
-      </h2>
-      <div class="boxed-section is-small">
-        <div class="boxed-section-body inline-definitions">
-          <span class="label" style="width: 6.125rem;">
-            Evaluation Details
-          </span>
-          <span class="pair" data-test-job-stat="type">
-            <span class="term">
-              Type
-            </span>
-            Some Type
-          </span>
-          <span class="pair" data-test-job-stat="priority">
-            <span class="term">
-              Priority
-            </span>
-            Some Priority
-          </span>
-        </div>
-      </div>
-      <PlacementFailure />
-      <JsonViewer @json="" />
-    </div>
-  {{/if}}
+  <EvaluationSidebar::Detail
+    @data={{hash
+      evaluation=this.currentEvalDetail
+      isSideBarOpen=this.isSideBarOpen
+    }}
+    @fns={{hash closeSidebar=this.closeSidebar}}
+  />
 </section>

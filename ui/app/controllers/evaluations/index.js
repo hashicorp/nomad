@@ -29,6 +29,7 @@ export default class EvaluationsController extends Controller {
 
   queryParams = ['nextToken', 'currentEval', 'pageSize', 'status'];
   @tracked currentEval = null;
+  @tracked currentEvalDetail = null;
 
   @action
   _sidebarIsOpen() {
@@ -43,7 +44,11 @@ export default class EvaluationsController extends Controller {
     } else {
       evaluationId = this.currentEval;
     }
-    return this.store.findRecord('evaluation', evaluationId, { reload: true });
+    this.currentEvalDetail = await this.store.findRecord(
+      'evaluation',
+      evaluationId,
+      { reload: true }
+    );
   }
 
   @action

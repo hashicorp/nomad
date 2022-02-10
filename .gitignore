@@ -85,6 +85,7 @@ rkt-*
 
 # dependencies
 /ui/node_modules
+/ui/css-tooling/node_modules
 /ui/bower_components
 
 # misc
