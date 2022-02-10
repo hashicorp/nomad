@@ -121,19 +121,21 @@ func (c *VolumeDetachCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
 			return 1
 		}
-		if len(vols) > 1 {
-			sort.Slice(vols, func(i, j int) bool { return vols[i].ID < vols[j].ID })
-			out, err := csiFormatSortedVolumes(vols, fullId)
-			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
-				return 1
-			}
-			c.Ui.Error(fmt.Sprintf("Prefix matched multiple volumes\n\n%s", out))
-			return 1
-		}
 		if len(vols) == 0 {
 			c.Ui.Error(fmt.Sprintf("No volumes(s) with prefix or ID %q found", volID))
 			return 1
+		}
+		if len(vols) > 1 {
+			if (volID != vols[0].ID) || (c.allNamespaces() && vols[0].ID == vols[1].ID) {
+				sort.Slice(vols, func(i, j int) bool { return vols[i].ID < vols[j].ID })
+				out, err := csiFormatSortedVolumes(vols, fullId)
+				if err != nil {
+					c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
+					return 1
+				}
+				c.Ui.Error(fmt.Sprintf("Prefix matched multiple volumes\n\n%s", out))
+				return 1
+			}
 		}
 		volID = vols[0].ID
 
