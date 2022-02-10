@@ -398,7 +398,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	// Create batched follow up evaluations for allocations that are
 	// reschedulable later and mark the allocations for in place updating
-	a.processReschedulerLater(rescheduleLater, all, tg.Name)
+	a.processRescheduleLater(rescheduleLater, all, tg.Name)
 
 	// Create a structure for choosing names. Seed with the taken names
 	// which is the union of untainted, rescheduled, allocs on migrating
@@ -982,10 +982,10 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 	return
 }
 
-// processReschedulerLater creates batched followup evaluations with the WaitUntil field
+// processRescheduleLater creates batched followup evaluations with the WaitUntil field
 // set for allocations that are eligible to be rescheduled later, and marks the alloc with
 // the followupEvalID
-func (a *allocReconciler) processReschedulerLater(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
+func (a *allocReconciler) processRescheduleLater(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
 	// followupEvals are created in the same way as for delayed lost allocs
 	allocIDToFollowupEvalID := a.processLostLaterEvals(rescheduleLater, all, tgName)
 
