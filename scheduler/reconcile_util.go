@@ -413,6 +413,17 @@ func (a allocSet) delayByStopAfterClientDisconnect() (later []*delayedReschedule
 	return later
 }
 
+// An allocSet is unhealthy if any members have an unhealthy deployment status.
+func (a allocSet) isUnhealthy(deploymentID string) bool {
+	partOf, _ := a.filterByDeployment(deploymentID)
+	for _, alloc := range partOf {
+		if alloc.DeploymentStatus.IsUnhealthy() {
+			return true
+		}
+	}
+	return false
+}
+
 // allocNameIndex is used to select allocation names for placement or removal
 // given an existing set of placed allocations.
 type allocNameIndex struct {

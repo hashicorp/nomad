@@ -592,46 +592,29 @@ func (a *allocReconciler) cancelUnneededCanaries(all allocSet, desiredChanges *s
 // computeUnderProvisionedBy returns the number of allocs that still need to be
 // placed for a particular group. The inputs are the group definition, the untainted,
 // destructive, and migrate allocation sets, and whether we are in a canary state.
-// The following rules are applied:
-// * If no update strategy, or nothing is migrating, being replaced, or reconnecting,
-//   allow as many as defined in group.Count
-// * If the deployment is paused, failed, or canarying, allow no placements
-// * If the deployment is nil, allow MaxParallel placements
-// * If the deployment is not nil, but has unhealthy allocs, allow no placements
-// * If the deployment is not nil, and all allocs are healthy, allow MaxParallel
-//   minus the number of healthy allocs placements
-// * If the calculated limit is less than zero, return 0
+// This function
 func (a *allocReconciler) computeUnderProvisionedBy(group *structs.TaskGroup, untainted, destructive, migrate allocSet, isCanarying bool) int {
-	// If there is no update strategy or deployment for the group we can deploy
-	// as many as the group has
+	// If no update strategy, nothing is migrating, and nothing is being replaced,
+	// allow as many as defined in group.Count
 	if group.Update.IsEmpty() || len(destructive)+len(migrate) == 0 {
 		return group.Count
 	}
 
-	// If the deployment is paused or failed, or we have un-promoted canaries
-	// do not create anything else
+	// If the deployment is nil, allow MaxParallel placements
+	if a.deployment == nil {
+		return group.Update.MaxParallel
+	}
+
+	// If the deployment is paused, failed, we have un-promoted canaries, or
+	// any of the allocs have an unhealthy DeploymentStatus, do not create anything else.
 	if a.deploymentPaused ||
 		a.deploymentFailed ||
-		isCanarying {
+		isCanarying ||
+		untainted.isUnhealthy(a.deployment.ID) {
 		return 0
 	}
 
-	// If we have been promoted or there are no canaries, the limit is the
-	// configured MaxParallel minus any outstanding non-healthy alloc for the deployment
-	underProvisionedBy := group.Update.MaxParallel
-	if a.deployment != nil {
-		partOf, _ := untainted.filterByDeployment(a.deployment.ID)
-		for _, alloc := range partOf {
-			// An unhealthy allocation means nothing else should be happening.
-			if alloc.DeploymentStatus.IsUnhealthy() {
-				return 0
-			}
-
-			if !alloc.DeploymentStatus.IsHealthy() {
-				underProvisionedBy--
-			}
-		}
-	}
+	underProvisionedBy := group.Update.MaxParallel - len(untainted)
 
 	// The limit can be less than zero in the case that the job was changed such
 	// that it required destructive changes and the count was scaled up.
