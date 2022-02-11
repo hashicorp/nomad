@@ -34,6 +34,8 @@ type csiPluginSupervisorHook struct {
 	runner     *TaskRunner
 	mountPoint string
 
+	caps *drivers.Capabilities
+
 	// eventEmitter is used to emit events to the task
 	eventEmitter ti.EventEmitter
 
@@ -46,6 +48,14 @@ type csiPluginSupervisorHook struct {
 	// previousHealthstate is used by the supervisor goroutine to track historic
 	// health states for gating task events.
 	previousHealthState bool
+}
+
+type csiPluginSupervisorHookConfig struct {
+	clientStateDirPath string
+	events             ti.EventEmitter
+	runner             *TaskRunner
+	capabilities       *drivers.Capabilities
+	logger             hclog.Logger
 }
 
 // The plugin supervisor uses the PrestartHook mechanism to setup the requisite
@@ -61,8 +71,8 @@ var _ interfaces.TaskPoststartHook = &csiPluginSupervisorHook{}
 // with the catalog and to ensure any mounts are cleaned up.
 var _ interfaces.TaskStopHook = &csiPluginSupervisorHook{}
 
-func newCSIPluginSupervisorHook(csiRootDir string, eventEmitter ti.EventEmitter, runner *TaskRunner, logger hclog.Logger) *csiPluginSupervisorHook {
-	task := runner.Task()
+func newCSIPluginSupervisorHook(config *csiPluginSupervisorHookConfig) *csiPluginSupervisorHook {
+	task := config.runner.Task()
 
 	// The Plugin directory will look something like this:
 	// .
@@ -72,19 +82,21 @@ func newCSIPluginSupervisorHook(csiRootDir string, eventEmitter ti.EventEmitter,
 	//  {volume-id}/{usage-mode-hash}/ - Intermediary mount point that will be used by plugins that support NODE_STAGE_UNSTAGE capabilities.
 	// per-alloc/
 	//  {alloc-id}/{volume-id}/{usage-mode-hash}/ - Mount Point that will be bind-mounted into tasks that utilise the volume
-	pluginRoot := filepath.Join(csiRootDir, string(task.CSIPluginConfig.Type), task.CSIPluginConfig.ID)
+	pluginRoot := filepath.Join(config.clientStateDirPath, "csi",
+		string(task.CSIPluginConfig.Type), task.CSIPluginConfig.ID)
 
 	shutdownCtx, cancelFn := context.WithCancel(context.Background())
 
 	hook := &csiPluginSupervisorHook{
-		alloc:            runner.Alloc(),
-		runner:           runner,
-		logger:           logger,
+		alloc:            config.runner.Alloc(),
+		runner:           config.runner,
+		logger:           config.logger,
 		task:             task,
 		mountPoint:       pluginRoot,
+		caps:             config.capabilities,
 		shutdownCtx:      shutdownCtx,
 		shutdownCancelFn: cancelFn,
-		eventEmitter:     eventEmitter,
+		eventEmitter:     config.events,
 	}
 
 	return hook
@@ -117,6 +129,20 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 		TaskPath: "/dev",
 		HostPath: "/dev",
 		Readonly: false,
+	}
+
+	switch h.caps.FSIsolation {
+	case drivers.FSIsolationNone:
+		// Plugin tasks with no filesystem isolation won't have the
+		// plugin dir bind-mounted to their alloc dir, but we can
+		// provide them the path to the socket. These Nomad-only
+		// plugins will need to be aware of the csi directory layout
+		// in the client data dir
+		resp.Env = map[string]string{
+			"CSI_ENDPOINT": filepath.Join(h.mountPoint, "csi.sock")}
+	default:
+		resp.Env = map[string]string{
+			"CSI_ENDPOINT": filepath.Join(h.task.CSIPluginConfig.MountDir, "csi.sock")}
 	}
 
 	mounts := ensureMountpointInserted(h.runner.hookResources.getMounts(), configMount)
