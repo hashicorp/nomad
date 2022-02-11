@@ -122,10 +122,12 @@ func NewClient(addr string, logger hclog.Logger) (CSIPlugin, error) {
 }
 
 func newGrpcConn(addr string, logger hclog.Logger) (*grpc.ClientConn, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	// after DialContext returns w/ initial connection, closing this
+	// context is a no-op
+	connectCtx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	defer cancel()
 	conn, err := grpc.DialContext(
-		ctx,
+		connectCtx,
 		addr,
 		grpc.WithBlock(),
 		grpc.WithInsecure(),
