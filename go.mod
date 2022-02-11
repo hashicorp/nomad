@@ -28,7 +28,7 @@ require (
 	github.com/coreos/go-semver v0.3.0
 	github.com/creack/pty v1.1.17
 	github.com/docker/cli v20.10.3-0.20220113150236-6e2838e18645+incompatible
-	github.com/docker/distribution v2.7.1+incompatible
+	github.com/docker/distribution v2.8.0+incompatible
 	github.com/docker/docker v20.10.12+incompatible
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20210525090646-64b7a4574d14
