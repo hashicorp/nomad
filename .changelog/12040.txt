@@ -1,0 +1,3 @@
+```release-note:bug
+recommendations (Enterprise): Fixed a bug where the recommendations list RPC incorrectly forwarded requests to the authoritative region
+```
