@@ -169,7 +169,7 @@ Debug Options:
 
   -pprof-interval=<pprof-interval>
     The interval between pprof collections. Set interval equal to
-    duration to capture a single snapshot. Defaults to 30s.
+    duration to capture a single snapshot. Defaults to 250ms.
 
   -log-level=<level>
     The log level to monitor. Defaults to DEBUG.
@@ -355,8 +355,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.StringVar(&serverIDs, "server-id", "all", "")
 	flags.BoolVar(&allowStale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
-	flags.StringVar(&pprofDuration, "pprof-duration", "1m", "")
-	flags.StringVar(&pprofInterval, "pprof-interval", "30s", "")
+	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
+	flags.StringVar(&pprofInterval, "pprof-interval", "250ms", "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	c.consul = &external{tls: &api.TLSConfig{}}

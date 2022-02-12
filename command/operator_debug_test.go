@@ -211,12 +211,12 @@ func TestDebug_MultiRegion(t *testing.T) {
 		// Good
 		{
 			name:         "no region - all servers, all clients",
-			args:         []string{"-address", addrServer1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			args:         []string{"-address", addrServer1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
 			expectedCode: 0,
 		},
 		{
 			name:         "region1 - server1 address",
-			args:         []string{"-address", addrServer1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			args:         []string{"-address", addrServer1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region1 + "\n",
@@ -227,7 +227,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		},
 		{
 			name:         "region1 - client1 address",
-			args:         []string{"-address", addrClient1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			args:         []string{"-address", addrClient1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region1 + "\n",
@@ -238,7 +238,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		},
 		{
 			name:         "region2 - server2 address",
-			args:         []string{"-address", addrServer2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			args:         []string{"-address", addrServer2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region2 + "\n",
@@ -249,7 +249,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		},
 		{
 			name:         "region2 - client2 address",
-			args:         []string{"-address", addrClient2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			args:         []string{"-address", addrClient2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region2 + "\n",
@@ -262,7 +262,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		// Bad
 		{
 			name:          "invalid region - all servers, all clients",
-			args:          []string{"-address", addrServer1, "-region", "never", "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			args:          []string{"-address", addrServer1, "-region", "never", "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
 			expectedCode:  1,
 			expectedError: "500 (No path to region)",
 		},
@@ -345,6 +345,11 @@ func TestDebug_Failures(t *testing.T) {
 		{
 			name:         "Fails bad pprof duration",
 			args:         []string{"-pprof-duration", "baz"},
+			expectedCode: 1,
+		},
+		{
+			name:         "Fails bad pprof interval",
+			args:         []string{"-pprof-interval", "bar"},
 			expectedCode: 1,
 		},
 		{
@@ -482,7 +487,8 @@ func TestDebug_CapturedFiles(t *testing.T) {
 		"-node-id", clientID,
 		"-duration", duration.String(),
 		"-interval", interval.String(),
-		"-pprof-duration", "0",
+		"-pprof-duration", "1s",
+		"-pprof-interval", "250ms",
 	})
 
 	// Get capture directory
