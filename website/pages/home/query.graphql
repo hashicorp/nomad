@@ -24,20 +24,6 @@ query homepageQuery {
     }
     introHeading
     introDescription
-    introOfferingsImage {
-      url
-      width
-      height
-      alt
-    }
-    introOfferings {
-      heading
-      description
-    }
-    introOfferingsCta {
-      title
-      link
-    }
     introVideo {
       youtubeId
       heading
