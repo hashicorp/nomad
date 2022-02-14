@@ -1,4 +1,8 @@
-import { currentURL, visit } from '@ember/test-helpers';
+import {
+  currentRouteName as currentRoute,
+  currentURL,
+  visit,
+} from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -30,7 +34,8 @@ module('Acceptance | application errors ', function (hooks) {
 
     await ClientsList.visit();
     assert.ok(ClientsList.error.isPresent, 'Application has errored');
-
+    assert.equal(currentRoute(), 'clients');
+    assert.equal(currentRoute(), 'jobs');
     await JobsList.visit();
     assert.notOk(
       JobsList.error.isPresent,
