@@ -209,14 +209,19 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 }
 
 // filterByTainted takes a set of tainted nodes and filters the allocation set
-// into three groups:
+// into 5 groups:
 // 1. Those that exist on untainted nodes
 // 2. Those exist on nodes that are draining
 // 3. Those that exist on lost nodes
-func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untainted, migrate, lost allocSet) {
+// 4. Those that are on nodes that are disconnected, but have not had their ClientState set to unknown
+// 5. Those that have had their ClientState set to unknown, but their node has reconnected.
+func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untainted, migrate, lost, disconnecting, reconnecting allocSet) {
 	untainted = make(map[string]*structs.Allocation)
 	migrate = make(map[string]*structs.Allocation)
 	lost = make(map[string]*structs.Allocation)
+	disconnecting = make(map[string]*structs.Allocation)
+	reconnecting = make(map[string]*structs.Allocation)
+
 	for _, alloc := range a {
 		// Terminal allocs are always untainted as they should never be migrated
 		if alloc.TerminalStatus() {
@@ -232,9 +237,34 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untain
 
 		taintedNode, ok := taintedNodes[alloc.NodeID]
 		if !ok {
-			// Node is untainted so alloc is untainted
+			// Queue allocs on a node that is now re-connected to be resumed.
+			if alloc.ClientStatus == structs.AllocClientStatusUnknown {
+				reconnecting[alloc.ID] = alloc
+				continue
+			}
+
+			// Otherwise, Node is untainted so alloc is untainted
 			untainted[alloc.ID] = alloc
 			continue
+		}
+
+		if taintedNode != nil {
+			// Group disconnecting/reconnecting
+			switch taintedNode.Status {
+			case structs.NodeStatusDisconnected:
+				// Queue running allocs on a node that is disconnected to be marked as unknown.
+				if alloc.ClientStatus == structs.AllocClientStatusRunning {
+					disconnecting[alloc.ID] = alloc
+					continue
+				}
+			case structs.NodeStatusReady:
+				// Queue unknown allocs on a node that is connected to reconnect.
+				if alloc.ClientStatus == structs.AllocClientStatusUnknown {
+					reconnecting[alloc.ID] = alloc
+					continue
+				}
+			default:
+			}
 		}
 
 		// Allocs on GC'd (nil) or lost nodes are Lost
@@ -245,7 +275,9 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untain
 
 		// All other allocs are untainted
 		untainted[alloc.ID] = alloc
+
 	}
+
 	return
 }
 
@@ -411,6 +443,26 @@ func (a allocSet) delayByStopAfterClientDisconnect() (later []*delayedReschedule
 		}
 	}
 	return later
+}
+
+// delayByMaxClientDisconnect returns a delay for any unknown allocation
+// that's got a resume_after_client_reconnect configured
+func (a allocSet) delayByMaxClientDisconnect(now time.Time) (later []*delayedRescheduleInfo, err error) {
+	for _, alloc := range a {
+		timeout := alloc.DisconnectTimeout(now)
+
+		if !timeout.After(now) {
+			continue
+		}
+
+		later = append(later, &delayedRescheduleInfo{
+			allocID:        alloc.ID,
+			alloc:          alloc,
+			rescheduleTime: timeout,
+		})
+	}
+
+	return
 }
 
 // allocNameIndex is used to select allocation names for placement or removal

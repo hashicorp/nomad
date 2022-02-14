@@ -34,8 +34,6 @@ func TestBitmapFrom(t *testing.T) {
 }
 
 func TestAllocSet_filterByTainted(t *testing.T) {
-	require := require.New(t)
-
 	nodes := map[string]*structs.Node{
 		"draining": {
 			ID:            "draining",
@@ -49,6 +47,10 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 		"normal": {
 			ID:     "normal",
 			Status: structs.NodeStatusReady,
+		},
+		"disconnected": {
+			ID:     "disconnected",
+			Status: structs.NodeStatusDisconnected,
 		},
 	}
 
@@ -114,18 +116,60 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			Job:          batchJob,
 			NodeID:       "lost",
 		},
+		// Non-terminal allocs on disconnected nodes are disconnecting
+		"disconnecting1": {
+			ID:           "disconnecting1",
+			ClientStatus: structs.AllocClientStatusRunning,
+			Job:          batchJob,
+			NodeID:       "disconnected",
+		},
+		// Non-terminal allocs on disconnected nodes are disconnecting
+		"disconnecting2": {
+			ID:           "disconnecting2",
+			ClientStatus: structs.AllocClientStatusRunning,
+			Job:          batchJob,
+			NodeID:       "disconnected",
+		},
+		// Non-terminal allocs on disconnected nodes are disconnecting
+		"disconnecting3": {
+			ID:           "disconnecting3",
+			ClientStatus: structs.AllocClientStatusRunning,
+			Job:          batchJob,
+			NodeID:       "disconnected",
+		},
+		// Unknown allocs on re-connected nodes are reconnecting
+		"reconnecting1": {
+			ID:           "reconnecting1",
+			ClientStatus: structs.AllocClientStatusUnknown,
+			Job:          batchJob,
+			NodeID:       "normal",
+		},
+		// Unknown allocs on re-connected nodes are reconnecting
+		"reconnecting2": {
+			ID:           "reconnecting2",
+			ClientStatus: structs.AllocClientStatusUnknown,
+			Job:          batchJob,
+			NodeID:       "normal",
+		},
 	}
 
-	untainted, migrate, lost := allocs.filterByTainted(nodes)
-	require.Len(untainted, 4)
-	require.Contains(untainted, "untainted1")
-	require.Contains(untainted, "untainted2")
-	require.Contains(untainted, "untainted3")
-	require.Contains(untainted, "untainted4")
-	require.Len(migrate, 2)
-	require.Contains(migrate, "migrating1")
-	require.Contains(migrate, "migrating2")
-	require.Len(lost, 2)
-	require.Contains(lost, "lost1")
-	require.Contains(lost, "lost2")
+	untainted, migrate, lost, disconnecting, reconnecting := allocs.filterByTainted(nodes)
+	require.Len(t, untainted, 4)
+	require.Contains(t, untainted, "untainted1")
+	require.Contains(t, untainted, "untainted2")
+	require.Contains(t, untainted, "untainted3")
+	require.Contains(t, untainted, "untainted4")
+	require.Len(t, migrate, 2)
+	require.Contains(t, migrate, "migrating1")
+	require.Contains(t, migrate, "migrating2")
+	require.Len(t, lost, 2)
+	require.Contains(t, lost, "lost1")
+	require.Contains(t, lost, "lost2")
+	require.Len(t, disconnecting, 3)
+	require.Contains(t, disconnecting, "disconnecting1")
+	require.Contains(t, disconnecting, "disconnecting2")
+	require.Contains(t, disconnecting, "disconnecting3")
+	require.Len(t, reconnecting, 2)
+	require.Contains(t, reconnecting, "reconnecting1")
+	require.Contains(t, reconnecting, "reconnecting2")
 }
