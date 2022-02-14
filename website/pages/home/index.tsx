@@ -21,9 +21,6 @@ export default function Homepage({ data }): React.ReactElement {
     heroCards,
     introHeading,
     introDescription,
-    introOfferingsImage,
-    introOfferings,
-    introOfferingsCta,
     introVideo,
     inPracticeHeading,
     inPracticeDescription,
@@ -47,7 +44,6 @@ export default function Homepage({ data }): React.ReactElement {
     preFooterCtas,
   } = data
   const _introVideo = introVideo[0]
-  const _introOfferingsCta = introOfferingsCta[0]
 
   return (
     <>
@@ -81,16 +77,6 @@ export default function Homepage({ data }): React.ReactElement {
         brand="nomad"
         heading={introHeading}
         description={introDescription}
-        offerings={{
-          image: {
-            src: introOfferingsImage.url,
-            width: introOfferingsImage.width,
-            height: introOfferingsImage.height,
-            alt: introOfferingsImage.alt,
-          },
-          list: introOfferings,
-          cta: _introOfferingsCta,
-        }}
         video={{
           youtubeId: _introVideo?.youtubeId,
           thumbnail: _introVideo?.thumbnail?.url,
