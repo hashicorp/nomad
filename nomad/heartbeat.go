@@ -161,10 +161,32 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 			Region: h.config.Region,
 		},
 	}
+
+	if h.isDisconnected(id) {
+		req.Status = structs.NodeStatusDisconnected
+	}
+
 	var resp structs.NodeUpdateResponse
 	if err := h.staticEndpoints.Node.UpdateStatus(&req, &resp); err != nil {
 		h.logger.Error("update node status failed", "error", err)
 	}
+}
+
+// If any of the node allocs have a MaxClientDisconnect that evaluates to the future,
+// the node should transition to NodeStatusDisconnected rather than NodeStatusDown.
+func (h *nodeHeartbeater) isDisconnected(id string) bool {
+	allocs, err := h.State().AllocsByNode(nil, id)
+	if err != nil {
+		h.logger.Error("update node status unable to retrieve allocs by node", "error", err)
+	}
+	now := time.Now().UTC()
+	for _, alloc := range allocs {
+		if alloc.DisconnectTimeout(now).After(now) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // clearHeartbeatTimer is used to clear the heartbeat time for
