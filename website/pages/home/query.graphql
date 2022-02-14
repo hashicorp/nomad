@@ -24,6 +24,15 @@ query homepageQuery {
     }
     introHeading
     introDescription
+    introFeatures {
+      heading
+      description
+      link
+      image {
+        url
+        alt
+      }
+    }
     introVideo {
       youtubeId
       heading

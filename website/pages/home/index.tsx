@@ -21,6 +21,7 @@ export default function Homepage({ data }): React.ReactElement {
     heroCards,
     introHeading,
     introDescription,
+    introFeatures,
     introVideo,
     inPracticeHeading,
     inPracticeDescription,
@@ -77,6 +78,7 @@ export default function Homepage({ data }): React.ReactElement {
         brand="nomad"
         heading={introHeading}
         description={introDescription}
+        features={introFeatures}
         video={{
           youtubeId: _introVideo?.youtubeId,
           thumbnail: _introVideo?.thumbnail?.url,
