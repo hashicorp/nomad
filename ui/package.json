@@ -103,6 +103,7 @@
     "ember-render-helpers": "^0.2.0",
     "ember-resolver": "^8.0.3",
     "ember-responsive": "^4.0.2",
+    "ember-sinon": "^5.0.0",
     "ember-source": "~3.28.0",
     "ember-template-lint": "^2.15.0",
     "ember-test-selectors": "^6.0.0",
@@ -148,7 +149,8 @@
     "@storybook/addons": "^6.4.18",
     "@storybook/ember": "^6.4.18",
     "babel-loader": "^8.0.6",
-    "ember-cli-get-component-path-option": "^1.0.0"
+    "ember-cli-get-component-path-option": "^1.0.0",
+    "ember-cli-string-utils": "^1.1.0"
   },
   "engines": {
     "node": "10.* || >= 12"
@@ -167,7 +169,6 @@
     "ember-exam": "^8.0.0",
     "lru_map": "^0.4.1",
     "no-case": "^3.0.4",
-    "sinon": "^13.0.1",
     "title-case": "^3.0.3"
   },
   "resolutions": {
