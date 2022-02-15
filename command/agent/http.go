@@ -784,6 +784,7 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *strin
 	parsePrefix(req, b)
 	parseNamespace(req, &b.Namespace)
 	parsePagination(req, b)
+	parseFilter(req, b)
 	return parseWait(resp, req, b)
 }
 
@@ -799,6 +800,14 @@ func parsePagination(req *http.Request, b *structs.QueryOptions) {
 	}
 
 	b.NextToken = query.Get("next_token")
+}
+
+// parseFilter parses the filter query parameter for QueryOptions
+func parseFilter(req *http.Request, b *structs.QueryOptions) {
+	query := req.URL.Query()
+	if filter := query.Get("filter"); filter != "" {
+		b.Filter = filter
+	}
 }
 
 // parseWriteRequest is a convenience method for endpoints that need to parse a
