@@ -1002,24 +1002,10 @@ func (a *allocReconciler) computeStopByReconnecting(untainted, reconnecting, sto
 	}
 
 	for _, reconnectingAlloc := range reconnecting {
-		// if the desired status is not run, stop the allocation.
-		if reconnectingAlloc.DesiredStatus != structs.AllocDesiredStatusRun {
-			stop[reconnectingAlloc.ID] = reconnectingAlloc
-			a.result.stop = append(a.result.stop, allocStopResult{
-				alloc:             reconnectingAlloc,
-				statusDescription: allocNotNeeded,
-			})
-			delete(reconnecting, reconnectingAlloc.ID)
-
-			remove--
-			// if we've removed all we need to, stop iterating and return.
-			if remove == 0 {
-				return remove
-			}
-		}
-
-		// if the user-specified desired transition is not run, stop the allocation.
-		if reconnectingAlloc.DesiredTransition.ShouldMigrate() ||
+		// if the desired status is not run, or if the user-specified desired
+		// transition is not run, stop the allocation.
+		if reconnectingAlloc.DesiredStatus != structs.AllocDesiredStatusRun ||
+			reconnectingAlloc.DesiredTransition.ShouldMigrate() ||
 			reconnectingAlloc.DesiredTransition.ShouldReschedule() ||
 			reconnectingAlloc.DesiredTransition.ShouldForceReschedule() {
 
@@ -1052,12 +1038,12 @@ func (a *allocReconciler) computeStopByReconnecting(untainted, reconnecting, sto
 			reconnectingMaxScoreMeta := reconnectingAlloc.Metrics.MaxNormScore()
 
 			if untaintedMaxScoreMeta == nil {
-				a.logger.Debug(fmt.Sprintf("error computing stop: replacement allocation metrics not available for alloc.name %q", untaintedAlloc.Name))
+				a.logger.Error(fmt.Sprintf("error computing stop: replacement allocation metrics not available for alloc.name %q", untaintedAlloc.Name))
 				continue
 			}
 
 			if reconnectingMaxScoreMeta == nil {
-				a.logger.Debug(fmt.Sprintf("error computing stop: reconnecting allocation metrics not available for alloc.name %q", reconnectingAlloc.Name))
+				a.logger.Error(fmt.Sprintf("error computing stop: reconnecting allocation metrics not available for alloc.name %q", reconnectingAlloc.Name))
 				continue
 			}
 
