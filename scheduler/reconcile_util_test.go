@@ -137,6 +137,27 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			Job:          batchJob,
 			NodeID:       "disconnected",
 		},
+		// Complete allocs on disconnected nodes don't get restarted
+		"disconnecting4": {
+			ID:           "disconnecting4",
+			ClientStatus: structs.AllocClientStatusComplete,
+			Job:          batchJob,
+			NodeID:       "disconnected",
+		},
+		// Failed allocs on disconnected nodes don't get restarted
+		"disconnecting5": {
+			ID:           "disconnecting5",
+			ClientStatus: structs.AllocClientStatusFailed,
+			Job:          batchJob,
+			NodeID:       "disconnected",
+		},
+		// Lost allocs on disconnected nodes don't get restarted
+		"disconnecting6": {
+			ID:           "disconnecting6",
+			ClientStatus: structs.AllocClientStatusLost,
+			Job:          batchJob,
+			NodeID:       "disconnected",
+		},
 		// Unknown allocs on re-connected nodes are reconnecting
 		"reconnecting1": {
 			ID:           "reconnecting1",
@@ -151,14 +172,41 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			Job:          batchJob,
 			NodeID:       "normal",
 		},
+		// Complete allocs on disconnected nodes don't get restarted
+		"reconnecting3": {
+			ID:           "reconnecting3",
+			ClientStatus: structs.AllocClientStatusComplete,
+			Job:          batchJob,
+			NodeID:       "normal",
+		},
+		// Failed allocs on disconnected nodes don't get restarted
+		"reconnecting4": {
+			ID:           "reconnecting4",
+			ClientStatus: structs.AllocClientStatusFailed,
+			Job:          batchJob,
+			NodeID:       "normal",
+		},
+		// Lost allocs on disconnected nodes don't get restarted
+		"reconnecting5": {
+			ID:           "reconnecting5",
+			ClientStatus: structs.AllocClientStatusLost,
+			Job:          batchJob,
+			NodeID:       "normal",
+		},
 	}
 
 	untainted, migrate, lost, disconnecting, reconnecting := allocs.filterByTainted(nodes)
-	require.Len(t, untainted, 4)
+	require.Len(t, untainted, 10)
 	require.Contains(t, untainted, "untainted1")
 	require.Contains(t, untainted, "untainted2")
 	require.Contains(t, untainted, "untainted3")
 	require.Contains(t, untainted, "untainted4")
+	require.Contains(t, untainted, "disconnecting4")
+	require.Contains(t, untainted, "disconnecting5")
+	require.Contains(t, untainted, "disconnecting6")
+	require.Contains(t, untainted, "reconnecting3")
+	require.Contains(t, untainted, "reconnecting4")
+	require.Contains(t, untainted, "reconnecting5")
 	require.Len(t, migrate, 2)
 	require.Contains(t, migrate, "migrating1")
 	require.Contains(t, migrate, "migrating2")
