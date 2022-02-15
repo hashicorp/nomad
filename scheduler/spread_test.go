@@ -880,6 +880,7 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 	err = h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs)
+	require.NoError(t, err)
 
 	// job version 2
 	// max_parallel = 0, canary = 1, spread == nil
