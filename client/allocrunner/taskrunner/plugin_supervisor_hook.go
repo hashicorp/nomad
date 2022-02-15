@@ -238,6 +238,7 @@ WAITFORREADY:
 			}
 
 			// Mark the plugin as healthy in a task event
+			h.logger.Debug("CSI plugin is ready")
 			h.previousHealthState = pluginHealthy
 			event := structs.NewTaskEvent(structs.TaskPluginHealthy)
 			event.SetMessage(fmt.Sprintf("plugin: %s", h.task.CSIPluginConfig.ID))
@@ -251,6 +252,7 @@ WAITFORREADY:
 	deregisterPluginFn, err := h.registerPlugin(client, socketPath)
 	if err != nil {
 		h.kill(ctx, fmt.Errorf("CSI plugin failed to register: %v", err))
+		return
 	}
 
 	// Step 3: Start the lightweight supervisor loop. At this point, failures
