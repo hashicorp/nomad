@@ -6395,7 +6395,7 @@ func TestServiceSched_Client_Disconnect_Creates_Updates_and_Evals(t *testing.T) 
 	}
 
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf(""), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			h := NewHarness(t)
 
 			disconnectedNode, job, unknownAllocs := initNodeAndAllocs(t, h, tc.count, tc.maxClientDisconnect,

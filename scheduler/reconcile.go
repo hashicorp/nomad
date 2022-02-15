@@ -1263,7 +1263,7 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 
 	// Important to remember that these are sorted. The rescheduleTime can only
 	// get farther into the future. If this loop detects the next delay is greater
-	// that the batch window (5s) it creates another batch.
+	// than the batch window (5s) it creates another batch.
 	for _, timeoutInfo := range timeoutDelays {
 		// If more than 5s in the future, create another eval batch.
 		if timeoutInfo.rescheduleTime.Sub(nextReschedTime) < batchedFailedAllocWindowSize {
@@ -1301,7 +1301,7 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 	return allocIDToFollowupEvalID
 }
 
-// appendFollowupEvals appends a set of followup evals for task group to the
+// appendFollowupEvals appends a set of followup evals for a task group to the
 // desiredFollowupEvals queue which is later added to the scheduler's followUpEvals set.
 func (a *allocReconciler) appendFollowupEvals(tgName string, evals []*structs.Evaluation) {
 	// Merge with

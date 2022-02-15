@@ -346,7 +346,7 @@ func CopyMapStringInterface(m map[string]interface{}) map[string]interface{} {
 
 // MergeMapStringString will merge two maps into one. If a duplicate key exists
 // the value in the second map will replace the value in the first map. If both
-// maps are nil this returns an empty map.
+// maps are empty or nil this returns an empty map.
 func MergeMapStringString(m map[string]string, n map[string]string) map[string]string {
 	if len(m) == 0 && len(n) == 0 {
 		return map[string]string{}
