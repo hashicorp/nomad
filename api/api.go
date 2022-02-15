@@ -75,6 +75,11 @@ type QueryOptions struct {
 	// previous response.
 	NextToken string
 
+	// Ascending is used to have results sorted in ascending chronological order.
+	//
+	// Currently only supported by evaluations.List and deployments.list endpoints.
+	Ascending bool
+
 	// ctx is an optional context pass through to the underlying HTTP
 	// request layer. Use Context() and WithContext() to manage this.
 	ctx context.Context
@@ -586,6 +591,9 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	}
 	if q.NextToken != "" {
 		r.params.Set("next_token", q.NextToken)
+	}
+	if q.Ascending {
+		r.params.Set("ascending", "true")
 	}
 	for k, v := range q.Params {
 		r.params.Set(k, v)

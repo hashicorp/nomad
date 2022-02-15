@@ -503,7 +503,7 @@ func diffNamespaces(state *state.StateStore, minIndex uint64, remoteList []*stru
 func (s *Server) restoreEvals() error {
 	// Get an iterator over every evaluation
 	ws := memdb.NewWatchSet()
-	iter, err := s.fsm.State().Evals(ws)
+	iter, err := s.fsm.State().Evals(ws, false)
 	if err != nil {
 		return fmt.Errorf("failed to get evaluations: %v", err)
 	}

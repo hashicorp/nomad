@@ -382,17 +382,18 @@ func (e *Eval) Reap(args *structs.EvalDeleteRequest,
 }
 
 // List is used to get a list of the evaluations in the system
-func (e *Eval) List(args *structs.EvalListRequest,
-	reply *structs.EvalListResponse) error {
+func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListResponse) error {
 	if done, err := e.srv.forward("Eval.List", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "list"}, time.Now())
 
+	namespace := args.RequestNamespace()
+
 	// Check for read-job permissions
 	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -404,12 +405,13 @@ func (e *Eval) List(args *structs.EvalListRequest,
 			// Scan all the evaluations
 			var err error
 			var iter memdb.ResultIterator
-			if args.RequestNamespace() == structs.AllNamespacesSentinel {
-				iter, err = store.Evals(ws)
-			} else if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = store.EvalsByIDPrefix(ws, args.RequestNamespace(), prefix)
+
+			if prefix := args.QueryOptions.Prefix; prefix != "" {
+				iter, err = store.EvalsByIDPrefix(ws, namespace, prefix)
+			} else if namespace != structs.AllNamespacesSentinel {
+				iter, err = store.EvalsByNamespaceOrdered(ws, namespace, args.OrderAscending)
 			} else {
-				iter, err = store.EvalsByNamespace(ws, args.RequestNamespace())
+				iter, err = store.Evals(ws, args.OrderAscending)
 			}
 			if err != nil {
 				return err

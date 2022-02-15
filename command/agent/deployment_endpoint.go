@@ -17,6 +17,9 @@ func (s *HTTPServer) DeploymentsRequest(resp http.ResponseWriter, req *http.Requ
 		return nil, nil
 	}
 
+	query := req.URL.Query()
+	args.OrderAscending = query.Get("ascending") == "true"
+
 	var out structs.DeploymentListResponse
 	if err := s.agent.RPC("Deployment.List", &args, &out); err != nil {
 		return nil, err
