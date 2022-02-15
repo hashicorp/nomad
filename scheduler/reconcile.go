@@ -336,6 +336,8 @@ func (a *allocReconciler) handleStop(m allocMatrix) {
 	}
 }
 
+// filterAndStopAll stops all allocations in an allocSet. This is useful in when
+// stopping an entire job or task group.
 func (a *allocReconciler) filterAndStopAll(set allocSet) uint64 {
 	untainted, migrate, lost, disconnecting, reconnecting := set.filterByTainted(a.taintedNodes)
 	a.markStop(untainted, "", allocNotNeeded)
