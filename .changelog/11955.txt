@@ -1,5 +1,4 @@
 ```
 release-note: improvement
-Update shirou/gopsutil  v3.21.6-0.20210619153009-7ea8062810b6 to v3.21.12 to
-resolve use of deprecated macOS APIs
+deps: Update shirou/gopsutil v3.21.12 to resolve use of deprecated macOS APIs
 ```
