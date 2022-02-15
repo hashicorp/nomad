@@ -9590,14 +9590,16 @@ ember-concurrency-decorators@^2.0.0:
     ember-compatibility-helpers "^1.2.0"
     ember-destroyable-polyfill "^2.0.2"
 
-ember-concurrency@^1.0.0:
-  version "1.3.0"
-  resolved "https://registry.yarnpkg.com/ember-concurrency/-/ember-concurrency-1.3.0.tgz#66f90fb792687470bcee1172adc0ebf33f5e8b9c"
-  integrity sha512-DwGlfWFpYyAkTwsedlEtK4t1DznJSculAW6Vq5S1C0shVPc5b6tTpHB2FFYisannSYkm+wpm1f1Pd40qiNPtOQ==
+ember-concurrency@^2.0.0:
+  version "2.2.1"
+  resolved "https://registry.yarnpkg.com/ember-concurrency/-/ember-concurrency-2.2.1.tgz#4ed2e167036d00f7142312bc93c16f13ed9a259c"
+  integrity sha512-a4283Yq+jimxqoD5YaxQu7cXePHKqkNQfsT4fs0nYTz5PYbUd6wzUtelp6k8R1JTNPwDdxyVvUgu7yYoC8Sk5A==
   dependencies:
-    ember-cli-babel "^7.7.3"
+    "@glimmer/tracking" "^1.0.4"
+    ember-cli-babel "^7.26.6"
+    ember-cli-htmlbars "^5.7.1"
     ember-compatibility-helpers "^1.2.0"
-    ember-maybe-import-regenerator "^0.1.6"
+    ember-destroyable-polyfill "^2.0.2"
 
 ember-copy@2.0.1:
   version "2.0.1"
