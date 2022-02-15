@@ -446,7 +446,7 @@ func (a allocSet) delayByStopAfterClientDisconnect() (later []*delayedReschedule
 }
 
 // delayByMaxClientDisconnect returns a delay for any unknown allocation
-// that's got a resume_after_client_reconnect configured
+// that's got a max_client_reconnect configured
 func (a allocSet) delayByMaxClientDisconnect(now time.Time) (later []*delayedRescheduleInfo, err error) {
 	for _, alloc := range a {
 		timeout := alloc.DisconnectTimeout(now)
