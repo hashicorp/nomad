@@ -384,6 +384,12 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// that the task group no longer exists
 	tg := a.job.LookupTaskGroup(groupName)
 
+	// DEBUG: DO NOT MERGE
+	for _, node := range a.taintedNodes {
+		a.logger.Trace(fmt.Sprintf("computing group for node: %q with status %q", node.ID, node.Status))
+	}
+	tg.MaxClientDisconnect = helper.TimeToPtr(60 * time.Minute)
+
 	// If the task group is nil, then the task group has been removed so all we
 	// need to do is stop everything
 	if tg == nil {
@@ -402,6 +408,8 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	// Determine what set of allocations are on tainted nodes
 	untainted, migrate, lost, disconnecting, reconnecting := all.filterByTainted(a.taintedNodes)
+	a.logger.Trace(fmt.Sprintf("disconnecting: %#v", disconnecting))
+	a.logger.Trace(fmt.Sprintf("reconnecting: %#v", reconnecting))
 
 	// Determine what set of terminal allocations need to be rescheduled
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, a.now, a.evalID, a.deployment)
@@ -492,6 +500,9 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	deploymentComplete := a.isDeploymentComplete(groupName, destructive, inplace,
 		migrate, rescheduleNow, dstate, place, rescheduleLater, requiresCanaries)
+
+	a.logger.Trace(fmt.Sprintf("disconnectUpdates: %#v", a.result.disconnectUpdates))
+	a.logger.Trace(fmt.Sprintf("reconnectUpdates: %#v", a.result.reconnectUpdates))
 
 	return deploymentComplete
 }
@@ -1135,6 +1146,7 @@ func (a *allocReconciler) computeReconnecting(reconnecting allocSet) {
 			continue
 		}
 
+		a.logger.Trace(fmt.Sprintf("alloc %q queued for reconnect: %#v", alloc.ID, alloc))
 		a.result.reconnectUpdates[alloc.ID] = alloc.Copy()
 	}
 }
@@ -1274,6 +1286,7 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 		a.result.disconnectUpdates[updatedAlloc.ID] = updatedAlloc
 	}
 
+	a.logger.Trace(fmt.Sprintf("disconnecting allocs generated follow up evals: %#v", evals))
 	a.appendFollowupEvals(tgName, evals)
 
 	return allocIDToFollowupEvalID

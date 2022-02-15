@@ -3269,6 +3269,8 @@ func (s *StateStore) UpsertAllocs(msgType structs.MessageType, index uint64, all
 // upsertAllocs is the actual implementation of UpsertAllocs so that it may be
 // used with an existing transaction.
 func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation, txn *txn) error {
+	s.logger.Trace(fmt.Sprintf("upsert allocs called for allocs: %#v", allocs))
+
 	// Handle the allocations
 	jobs := make(map[structs.NamespacedID]string, 1)
 	for _, alloc := range allocs {
@@ -3301,6 +3303,8 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 				return fmt.Errorf("attempting to upsert allocation %q without a job", alloc.ID)
 			}
 		} else {
+			s.logger.Trace(fmt.Sprintf("upserting alloc with client status: %q", alloc.ClientStatus))
+
 			alloc.CreateIndex = exist.CreateIndex
 			alloc.ModifyIndex = index
 			alloc.AllocModifyIndex = index
@@ -3314,6 +3318,8 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 				alloc.ClientStatus != structs.AllocClientStatusUnknown {
 				alloc.ClientStatus = exist.ClientStatus
 				alloc.ClientDescription = exist.ClientDescription
+			} else if alloc.ClientStatus == structs.AllocClientStatusUnknown {
+				s.logger.Trace(fmt.Sprintf("upserting alloc with client status unknown: %q", alloc.ID))
 			}
 
 			// The job has been denormalized so re-attach the original job

@@ -125,3 +125,6 @@ e2e/remotetasks/input/ecs.vars
 
 # local terraform overrides
 *.auto.tfvars
+
+# dlv debug binary
+__debug_bin

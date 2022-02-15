@@ -9,6 +9,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 
+	"fmt"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -164,6 +165,7 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 
 	if h.isDisconnected(id) {
 		req.Status = structs.NodeStatusDisconnected
+		h.logger.Trace(fmt.Sprintf("node disconnect: %#v", req))
 	}
 
 	var resp structs.NodeUpdateResponse

@@ -511,6 +511,9 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 			result.NodeUpdate[nodeID] = nodeUpdate
 		}
 		if nodeAlloc := plan.NodeAllocation[nodeID]; len(nodeAlloc) > 0 {
+			for _, alloc := range nodeAlloc {
+				fmt.Println(fmt.Sprintf("evaluatePlanPlacements found NodeAllocation with client status %q", alloc.ClientStatus))
+			}
 			result.NodeAllocation[nodeID] = nodeAlloc
 		}
 

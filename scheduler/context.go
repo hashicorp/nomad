@@ -3,6 +3,7 @@ package scheduler
 import (
 	"regexp"
 
+	"fmt"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -171,6 +172,8 @@ func (e *EvalContext) Reset() {
 }
 
 func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, error) {
+	e.logger.Trace("EvalContext ProposedAllocs called")
+
 	// Get the existing allocations that are non-terminal
 	ws := memdb.NewWatchSet()
 	proposed, err := e.state.AllocsByNodeTerminal(ws, nodeID, false)
@@ -197,6 +200,7 @@ func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, erro
 		proposedIDs[alloc.ID] = alloc
 	}
 	for _, alloc := range e.plan.NodeAllocation[nodeID] {
+		e.logger.Trace(fmt.Sprintf("ProposedAllocs found NodeAllocation with client status %q", alloc.ClientStatus))
 		proposedIDs[alloc.ID] = alloc
 	}
 
