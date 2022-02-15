@@ -433,7 +433,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	desiredChanges.Stop += uint64(len(stop))
 	untainted = untainted.difference(stop)
 
-	// Validate and queue up reconnecting allocs to be synced by the client on next poll.
+	// Validate and add reconnecting allocs to the plan so that they will be synced by the client on next poll.
 	a.computeReconnecting(reconnecting)
 
 	// Do inplace upgrades where possible and capture the set of upgrades that
@@ -1144,19 +1144,11 @@ func (a *allocReconciler) computeReconnecting(reconnecting allocSet) {
 	for _, alloc := range reconnecting {
 		// If the user has defined a DesiredTransition don't queue to resume.
 		if alloc.DesiredTransition.ShouldMigrate() || alloc.DesiredTransition.ShouldReschedule() || alloc.DesiredTransition.ShouldForceReschedule() {
-			a.logger.Debug(fmt.Sprintf("alloc %s - %s queued for reconnect with incompatible DesiredTransition:  %+v", alloc.ID, alloc.Name, alloc.DesiredTransition))
 			continue
 		}
 
 		// If the scheduler has defined a terminal DesiredStatus don't queue to resume.
 		if alloc.DesiredStatus != structs.AllocDesiredStatusRun {
-			a.logger.Debug(fmt.Sprintf("alloc %s - %s queued for reconnect with incompatible DesiredStatus:  %s", alloc.ID, alloc.Name, alloc.DesiredStatus))
-			continue
-		}
-
-		// if somehow already added, move to next.
-		if _, ok := a.result.reconnectUpdates[alloc.ID]; ok {
-			a.logger.Debug(fmt.Sprintf("alloc %s - %s already queued for reconnect", alloc.ID, alloc.Name))
 			continue
 		}
 
