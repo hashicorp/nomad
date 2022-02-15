@@ -994,16 +994,13 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	return stop
 }
 
-// computeStopByReconnecting helps build the stop set by analyzing the reconnecting
-// and untainted sets. The function accepts and decrements a target number of
-// allocations to remove. If at any time that reaches zero, the function exits.
-// If there are still allocations to be removed after analyzing the full reconnecting
-// set, that count is returned.
-// The following rules are enforced.
-// * If the reconnecting alloc's desired status in not run, stop it.
-// * If the user-specified desired transition for the reconnecting alloc is not run, stop it.
-// * If the reconnecting alloc has been rescheduled, compare the node NormScores and keep the best.
+// computeStopByReconnecting moves allocations from either the untainted or reconnecting
+// sets to the stop set and returns the number of allocations that still need to be removed.
 func (a *allocReconciler) computeStopByReconnecting(untainted, reconnecting, stop allocSet, remove int) int {
+	if remove == 0 {
+		return remove
+	}
+
 	for _, reconnectingAlloc := range reconnecting {
 		// if the desired status is not run, stop the allocation.
 		if reconnectingAlloc.DesiredStatus != structs.AllocDesiredStatusRun {
