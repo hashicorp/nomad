@@ -24,9 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/blake2b"
-
 	"github.com/hashicorp/nomad/helper/escapingfs"
+	"golang.org/x/crypto/blake2b"
 
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
@@ -10252,20 +10251,7 @@ func (a *AllocMetric) MaxNormScore() *NodeScoreMeta {
 	if a == nil || len(a.ScoreMetaData) == 0 {
 		return nil
 	}
-
-	var maxNormScore *NodeScoreMeta
-	for _, scoreMetaData := range a.ScoreMetaData {
-		if maxNormScore == nil {
-			maxNormScore = scoreMetaData
-			continue
-		}
-
-		if scoreMetaData.NormScore > maxNormScore.NormScore {
-			maxNormScore = scoreMetaData
-		}
-	}
-
-	return maxNormScore
+	return a.ScoreMetaData[0]
 }
 
 // NodeScoreMeta captures scoring meta data derived from
