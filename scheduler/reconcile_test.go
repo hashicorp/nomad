@@ -5074,12 +5074,6 @@ func TestReconciler_RescheduleNot_Batch(t *testing.T) {
 
 // Tests that when a node disconnects running allocations are queued to transition to unknown.
 func TestReconciler_Node_Disconnect_Updates_Alloc_To_Unknown(t *testing.T) {
-	// TODO: Table tests
-	// * Reschedule Policy doesn't allow reschedule
-	// * Constraints don't allow reschedule
-	// * No replacement nodes available
-	// * Canaries in progress
-
 	job, allocs := buildResumableAllocations(3, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun, 2)
 	// Build a map of disconnected nodes
 	nodes := buildDisconnectedNodes(allocs, 2)
