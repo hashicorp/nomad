@@ -1203,7 +1203,8 @@ func (a *allocReconciler) createLostLaterEvals(rescheduleLater []*delayedResched
 
 // createTimeoutLaterEvals creates followup evaluations with the
 // WaitUntil field set for allocations in an unknown state on disconnected nodes.
-// Followup Evals are appended to a.result as a side effect.
+// Followup Evals are appended to a.result as a side effect. It returns a map of
+// allocIDs to their associated followUpEvalIDs.
 func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName string) map[string]string {
 	if len(disconnecting) == 0 {
 		return map[string]string{}
