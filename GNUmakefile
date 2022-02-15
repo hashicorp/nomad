@@ -151,7 +151,7 @@ $(git-dir)/hooks/%: dev/hooks/%
 .PHONY: check
 check: ## Lint the source code
 	@echo "==> Linting source code..."
-	@golangci-lint run -j 1
+	@golangci-lint run
 
 	@echo "==> Linting hclog statements..."
 	@hclogvet .
