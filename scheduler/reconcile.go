@@ -1212,7 +1212,7 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 
 	timeoutDelays, err := disconnecting.delayByMaxClientDisconnect(a.now)
 	if err != nil || len(timeoutDelays) != len(disconnecting) {
-		a.logger.Debug(fmt.Sprintf("error computing disconnecting timeouts for task_group.name %q: %s", tgName, err))
+		a.logger.Error(fmt.Sprintf("error computing disconnecting timeouts for task_group.name %q: %s", tgName, err))
 		return map[string]string{}
 	}
 
@@ -1243,35 +1243,35 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 	// get farther into the future. If this loop detects the next delay is greater
 	// than the batch window (5s) it creates another batch.
 	for _, timeoutInfo := range timeoutDelays {
-		// If more than 5s in the future, create another eval batch.
 		if timeoutInfo.rescheduleTime.Sub(nextReschedTime) < batchedFailedAllocWindowSize {
-			if timeoutInfo.rescheduleTime.Sub(nextReschedTime) < batchedFailedAllocWindowSize {
-				allocIDToFollowupEvalID[timeoutInfo.allocID] = eval.ID
-			} else {
-				eval = &structs.Evaluation{
-					ID:                uuid.Generate(),
-					Namespace:         a.job.Namespace,
-					Priority:          a.evalPriority,
-					Type:              a.job.Type,
-					TriggeredBy:       structs.EvalTriggerMaxDisconnectTimeout,
-					JobID:             a.job.ID,
-					JobModifyIndex:    a.job.ModifyIndex,
-					Status:            structs.EvalStatusPending,
-					StatusDescription: disconnectTimeoutFollowupEvalDesc,
-					WaitUntil:         timeoutInfo.rescheduleTime,
-				}
-				evals = append(evals, eval)
-				allocIDToFollowupEvalID[timeoutInfo.allocID] = eval.ID
+			allocIDToFollowupEvalID[timeoutInfo.allocID] = eval.ID
+		} else {
+			// Start a new batch
+			nextReschedTime = timeoutInfo.rescheduleTime
+			// Create a new eval for the new batch
+			eval = &structs.Evaluation{
+				ID:                uuid.Generate(),
+				Namespace:         a.job.Namespace,
+				Priority:          a.evalPriority,
+				Type:              a.job.Type,
+				TriggeredBy:       structs.EvalTriggerMaxDisconnectTimeout,
+				JobID:             a.job.ID,
+				JobModifyIndex:    a.job.ModifyIndex,
+				Status:            structs.EvalStatusPending,
+				StatusDescription: disconnectTimeoutFollowupEvalDesc,
+				WaitUntil:         timeoutInfo.rescheduleTime,
 			}
-
-			// Create updates that will be applied to the allocs to mark the FollowupEvalID
-			// and the unknown ClientStatus.
-			updatedAlloc := timeoutInfo.alloc.Copy()
-			updatedAlloc.ClientStatus = structs.AllocClientStatusUnknown
-			updatedAlloc.ClientDescription = allocUnknown
-			updatedAlloc.FollowupEvalID = eval.ID
-			a.result.disconnectUpdates[updatedAlloc.ID] = updatedAlloc
+			evals = append(evals, eval)
+			allocIDToFollowupEvalID[timeoutInfo.allocID] = eval.ID
 		}
+
+		// Create updates that will be applied to the allocs to mark the FollowupEvalID
+		// and the unknown ClientStatus.
+		updatedAlloc := timeoutInfo.alloc.Copy()
+		updatedAlloc.ClientStatus = structs.AllocClientStatusUnknown
+		updatedAlloc.ClientDescription = allocUnknown
+		updatedAlloc.FollowupEvalID = eval.ID
+		a.result.disconnectUpdates[updatedAlloc.ID] = updatedAlloc
 	}
 
 	a.appendFollowupEvals(tgName, evals)
