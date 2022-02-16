@@ -1050,7 +1050,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 	}
 
 	aclToken := mock.CreatePolicyAndToken(t, state, 1100, "test-valid-read",
-		mock.NamespacePolicy(structs.DefaultNamespace, "read", nil)).
+		mock.NamespacePolicy("*", "read", nil)).
 		SecretID
 
 	cases := []struct {
@@ -1060,9 +1060,11 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		nextToken         string
 		filterJobID       string
 		filterStatus      string
+		filter            string
 		pageSize          int32
 		expectedNextToken string
 		expectedIDs       []string
+		expectedError     string
 	}{
 		{
 			name:     "test01 size-2 page-1 default NS",
@@ -1194,6 +1196,52 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			nextToken:   "aaaaaa11-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{},
 		},
+		{
+			name:        "test14 go-bexpr filter",
+			filter:      `Status == "blocked"`,
+			nextToken:   "",
+			expectedIDs: []string{"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"},
+		},
+		{
+			name:              "test15 go-bexpr filter with pagination",
+			filter:            `JobID == "example"`,
+			pageSize:          2,
+			expectedNextToken: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:      "test16 go-bexpr filter namespace",
+			namespace: "non-default",
+			filter:    `ID contains "aaa"`,
+			expectedIDs: []string{
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:        "test17 go-bexpr wrong namespace",
+			namespace:   "default",
+			filter:      `Namespace == "non-default"`,
+			expectedIDs: []string{},
+		},
+		{
+			name:          "test18 incompatible filtering",
+			filter:        `JobID == "example"`,
+			filterStatus:  "complete",
+			expectedError: structs.ErrIncompatibleFiltering.Error(),
+		},
+		{
+			name:          "test19 go-bexpr invalid expression",
+			filter:        `NotValid`,
+			expectedError: "failed to read filter expression",
+		},
+		{
+			name:          "test20 go-bexpr invalid field",
+			filter:        `InvalidField == "value"`,
+			expectedError: "error finding value in datum",
+		},
 	}
 
 	for _, tc := range cases {
@@ -1208,11 +1256,20 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 					Prefix:    tc.prefix,
 					PerPage:   tc.pageSize,
 					NextToken: tc.nextToken,
+					Filter:    tc.filter,
 				},
 			}
 			req.AuthToken = aclToken
 			var resp structs.EvalListResponse
-			require.NoError(t, msgpackrpc.CallWithCodec(codec, "Eval.List", req, &resp))
+			err := msgpackrpc.CallWithCodec(codec, "Eval.List", req, &resp)
+			if tc.expectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedError)
+				return
+			}
+
 			gotIDs := []string{}
 			for _, eval := range resp.Evaluations {
 				gotIDs = append(gotIDs, eval.ID)

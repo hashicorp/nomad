@@ -29,7 +29,7 @@ The table below shows this endpoint's support for
 - `prefix` `(string: "")`- Specifies a string to filter evaluations based on an
   ID prefix. Because the value is decoded to bytes, the prefix must have an
   even number of hexadecimal characters (0-9a-f). This is specified as a query
-  string parameter.
+  string parameter and and is used before any `filter` expression is applied.
 
 - `next_token` `(string: "")` - This endpoint supports paging. The
   `next_token` parameter accepts a string which is the `ID` field of
@@ -42,6 +42,10 @@ The table below shows this endpoint's support for
   used as the `last_token` of the next request to fetch additional
   pages.
 
+- `filter` `(string: "")` - Specifies the expression used to filter the query
+  results. Consider using pagination or a query parameter to reduce resource
+  used to serve the request.
+
 - `job` `(string: "")` - Filter the list of evaluations to a specific
   job ID.
 
@@ -49,9 +53,9 @@ The table below shows this endpoint's support for
   specific evaluation status (one of `blocked`, `pending`, `complete`,
   `failed`, or `canceled`).
 
-- `namespace` `(string: "default")` - Specifies the target
-  namespace. Specifying `*` will return all evaluations across all
-  authorized namespaces.
+- `namespace` `(string: "default")` - Specifies the target namespace.
+  Specifying `*` will return all evaluations across all authorized namespaces.
+  This parameter is used before any `filter` expression is applied.
 
 - `ascending` `(bool: false)` - Specifies the list of returned evaluations should
   be sorted in chronological order (oldest evaluations first). By default evaluations

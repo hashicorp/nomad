@@ -29,11 +29,11 @@ The table below shows this endpoint's support for
 - `prefix` `(string: "")`- Specifies a string to filter deployments based on
   an ID prefix. Because the value is decoded to bytes, the prefix must have an
   even number of hexadecimal characters (0-9a-f) .This is specified as a query
-  string parameter.
+  string parameter and is used before any `filter` expression is applied.
 
-- `namespace` `(string: "default")` - Specifies the target
-  namespace. Specifying `*` will return all evaluations across all
-  authorized namespaces.
+- `namespace` `(string: "default")` - Specifies the target namespace.
+  Specifying `*` will return all evaluations across all authorized namespaces.
+  This parameter is used before any `filter` expression is applied.
 
 - `next_token` `(string: "")` - This endpoint supports paging. The
   `next_token` parameter accepts a string which is the `ID` field of
@@ -45,6 +45,10 @@ The table below shows this endpoint's support for
   paginated. The `ID` of the last deployment in the response can be
   used as the `last_token` of the next request to fetch additional
   pages.
+
+- `filter` `(string: "")` - Specifies the expression used to filter the query
+  results. Consider using pagination or a query parameter to reduce resource
+  used to serve the request.
 
 - `ascending` `(bool: false)` - Specifies the list of returned deployments should
   be sorted in chronological order (oldest evaluations first). By default deployments

@@ -65,6 +65,10 @@ type QueryOptions struct {
 	// AuthToken is the secret ID of an ACL token
 	AuthToken string
 
+	// Filter specifies the go-bexpr filter expression to be used for
+	// filtering the data prior to returning a response
+	Filter string
+
 	// PerPage is the number of entries to be returned in queries that support
 	// paginated lists.
 	PerPage int32
@@ -585,6 +589,9 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	}
 	if q.Prefix != "" {
 		r.params.Set("prefix", q.Prefix)
+	}
+	if q.Filter != "" {
+		r.params.Set("filter", q.Filter)
 	}
 	if q.PerPage != 0 {
 		r.params.Set("per_page", fmt.Sprint(q.PerPage))

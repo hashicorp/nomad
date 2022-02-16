@@ -274,6 +274,10 @@ type QueryOptions struct {
 	// AuthToken is secret portion of the ACL token used for the request
 	AuthToken string
 
+	// Filter specifies the go-bexpr filter expression to be used for
+	// filtering the data prior to returning a response
+	Filter string
+
 	// PerPage is the number of entries to be returned in queries that support
 	// paginated lists.
 	PerPage int32

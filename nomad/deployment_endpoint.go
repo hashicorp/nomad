@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -421,13 +422,22 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 			}
 
 			var deploys []*structs.Deployment
-			paginator := state.NewPaginator(iter, args.QueryOptions,
+			paginator, err := state.NewPaginator(iter, args.QueryOptions,
 				func(raw interface{}) {
 					deploy := raw.(*structs.Deployment)
 					deploys = append(deploys, deploy)
 				})
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to create result paginator: %v", err)
+			}
 
-			nextToken := paginator.Page()
+			nextToken, err := paginator.Page()
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to read result page: %v", err)
+			}
+
 			reply.QueryMeta.NextToken = nextToken
 			reply.Deployments = deploys
 

@@ -1288,17 +1288,19 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 	}
 
 	aclToken := mock.CreatePolicyAndToken(t, state, 1100, "test-valid-read",
-		mock.NamespacePolicy(structs.DefaultNamespace, "read", nil)).
+		mock.NamespacePolicy("*", "read", nil)).
 		SecretID
 
 	cases := []struct {
 		name              string
 		namespace         string
 		prefix            string
+		filter            string
 		nextToken         string
 		pageSize          int32
 		expectedNextToken string
 		expectedIDs       []string
+		expectedError     string
 	}{
 		{
 			name:              "test01 size-2 page-1 default NS",
@@ -1341,11 +1343,56 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 			},
 		},
 		{
-			name:        "test5 no valid results with filters and prefix",
+			name:        "test05 no valid results with filters and prefix",
 			prefix:      "cccc",
 			pageSize:    2,
 			nextToken:   "",
 			expectedIDs: []string{},
+		},
+		{
+			name:      "test06 go-bexpr filter",
+			namespace: "*",
+			filter:    `ID matches "^a+[123]"`,
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test07 go-bexpr filter with pagination",
+			namespace:         "*",
+			filter:            `ID matches "^a+[123]"`,
+			pageSize:          2,
+			expectedNextToken: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:      "test08 go-bexpr filter in namespace",
+			namespace: "non-default",
+			filter:    `Status == "cancelled"`,
+			expectedIDs: []string{
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:        "test09 go-bexpr wrong namespace",
+			namespace:   "default",
+			filter:      `Namespace == "non-default"`,
+			expectedIDs: []string{},
+		},
+		{
+			name:          "test10 go-bexpr invalid expression",
+			filter:        `NotValid`,
+			expectedError: "failed to read filter expression",
+		},
+		{
+			name:          "test11 go-bexpr invalid field",
+			filter:        `InvalidField == "value"`,
+			expectedError: "error finding value in datum",
 		},
 	}
 
@@ -1357,13 +1404,22 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 					Region:    "global",
 					Namespace: tc.namespace,
 					Prefix:    tc.prefix,
+					Filter:    tc.filter,
 					PerPage:   tc.pageSize,
 					NextToken: tc.nextToken,
 				},
 			}
 			req.AuthToken = aclToken
 			var resp structs.DeploymentListResponse
-			require.NoError(t, msgpackrpc.CallWithCodec(codec, "Deployment.List", req, &resp))
+			err := msgpackrpc.CallWithCodec(codec, "Deployment.List", req, &resp)
+			if tc.expectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedError)
+				return
+			}
+
 			gotIDs := []string{}
 			for _, deployment := range resp.Deployments {
 				gotIDs = append(gotIDs, deployment.ID)
