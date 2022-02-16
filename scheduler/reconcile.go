@@ -1125,12 +1125,12 @@ func (a *allocReconciler) computeReconnecting(reconnecting allocSet) {
 
 	// Create updates that will be appended to the plan.
 	for _, alloc := range reconnecting {
-		// If the user has defined a DesiredTransition don't queue to resume.
+		// If the user has defined a DesiredTransition don't resume the alloc.
 		if alloc.DesiredTransition.ShouldMigrate() || alloc.DesiredTransition.ShouldReschedule() || alloc.DesiredTransition.ShouldForceReschedule() {
 			continue
 		}
 
-		// If the scheduler has defined a terminal DesiredStatus don't queue to resume.
+		// If the scheduler has defined a terminal DesiredStatus don't resume the alloc.
 		if alloc.DesiredStatus != structs.AllocDesiredStatusRun {
 			continue
 		}
