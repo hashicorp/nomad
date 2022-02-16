@@ -9,6 +9,7 @@ import (
 //
 // Current interoperable fields:
 //   - Hostname
+//   - DNS
 func InterpolateNetworks(taskEnv *TaskEnv, networks structs.Networks) structs.Networks {
 
 	// Guard against not having a valid taskEnv. This can be the case if the
@@ -23,6 +24,11 @@ func InterpolateNetworks(taskEnv *TaskEnv, networks structs.Networks) structs.Ne
 	// Iterate the copy and perform the interpolation.
 	for i := range interpolated {
 		interpolated[i].Hostname = taskEnv.ReplaceEnv(interpolated[i].Hostname)
+		if interpolated[i].DNS != nil {
+			interpolated[i].DNS.Servers = taskEnv.ParseAndReplace(interpolated[i].DNS.Servers)
+			interpolated[i].DNS.Searches = taskEnv.ParseAndReplace(interpolated[i].DNS.Searches)
+			interpolated[i].DNS.Options = taskEnv.ParseAndReplace(interpolated[i].DNS.Options)
+		}
 	}
 
 	return interpolated
