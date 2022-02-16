@@ -1280,7 +1280,7 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 }
 
 // appendFollowupEvals appends a set of followup evals for a task group to the
-// desiredFollowupEvals queue which is later added to the scheduler's followUpEvals set.
+// desiredFollowupEvals map which is later added to the scheduler's followUpEvals set.
 func (a *allocReconciler) appendFollowupEvals(tgName string, evals []*structs.Evaluation) {
 	// Merge with
 	if existingFollowUpEvals, ok := a.result.desiredFollowupEvals[tgName]; ok {
