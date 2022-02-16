@@ -501,8 +501,13 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	deploymentComplete := a.isDeploymentComplete(groupName, destructive, inplace,
 		migrate, rescheduleNow, dstate, place, rescheduleLater, requiresCanaries)
 
-	a.logger.Trace(fmt.Sprintf("disconnectUpdates: %#v", a.result.disconnectUpdates))
-	a.logger.Trace(fmt.Sprintf("reconnectUpdates: %#v", a.result.reconnectUpdates))
+	for _, update := range a.result.disconnectUpdates {
+		a.logger.Trace(fmt.Sprintf("disconnectUpdate: alloc %q for node %q with client status %q", update.ID, update.NodeID, update.ClientStatus))
+	}
+
+	for _, update := range a.result.reconnectUpdates {
+		a.logger.Trace(fmt.Sprintf("reconnectUpdate: alloc %q for node %q with client status %q", update.ID, update.NodeID, update.ClientStatus))
+	}
 
 	return deploymentComplete
 }

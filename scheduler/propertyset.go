@@ -175,7 +175,13 @@ func (p *propertySet) PopulateProposed() {
 	for _, pallocs := range p.ctx.Plan().NodeAllocation {
 		proposed = append(proposed, pallocs...)
 	}
+	for _, alloc := range proposed {
+		p.logger.Trace(fmt.Sprintf("PopulateProposed line 179 before filterAllocs alloc %q for node %q has client status %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
+	}
 	proposed = p.filterAllocs(proposed, true)
+	for _, alloc := range proposed {
+		p.logger.Trace(fmt.Sprintf("PopulateProposed line 183 after filterAllocs alloc %q for node %q has client status %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
+	}
 
 	// Get the used nodes
 	both := make([]*structs.Allocation, 0, len(stopping)+len(proposed))
@@ -193,6 +199,9 @@ func (p *propertySet) PopulateProposed() {
 
 	// Populate the proposed values
 	p.populateProperties(proposed, nodes, p.proposedValues)
+	for _, alloc := range proposed {
+		p.logger.Trace(fmt.Sprintf("PopulateProposed line 203 final proposed has alloc %q for node %q has client status %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
+	}
 
 	// Remove any cleared value that is now being used by the proposed allocs
 	for value := range p.proposedValues {

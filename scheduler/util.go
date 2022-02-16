@@ -982,6 +982,10 @@ func adjustQueuedAllocations(logger log.Logger, result *structs.PlanResult, queu
 
 	for _, allocations := range result.NodeAllocation {
 		for _, allocation := range allocations {
+			if allocation.ClientStatus == structs.AllocClientStatusUnknown {
+				logger.Trace(fmt.Sprintf("adjustQueueAllocations line 987 line 235 skipping alloc %q for node %q with status: %q", allocation.ID, allocation.NodeID, allocation.ClientStatus))
+				continue
+			}
 			// Ensure that the allocation is newly created. We check that
 			// the CreateIndex is equal to the ModifyIndex in order to check
 			// that the allocation was just created. We do not check that

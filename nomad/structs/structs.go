@@ -11053,7 +11053,7 @@ func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
 	actual := 0
 	for name, allocList := range plan.NodeAllocation {
 		for _, alloc := range allocList {
-			fmt.Println(fmt.Sprintf("FullCommit found NodeAllocation with client status %q", alloc.ClientStatus))
+			fmt.Println(fmt.Sprintf("FullCommit line 11052 alloc %q for node %q with status: %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
 		}
 		didAlloc := p.NodeAllocation[name]
 		expected += len(allocList)

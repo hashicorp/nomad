@@ -402,8 +402,8 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// Handle disconnect updates
 	for _, update := range results.disconnectUpdates {
-		s.logger.Trace(fmt.Sprintf("upserting disconnect update with client status: %s", update.ClientStatus))
-		s.plan.AppendUnknownAlloc(update)
+		// s.plan.AppendUnknownAlloc(update)
+		s.ctx.Plan().AppendUnknownAlloc(update)
 	}
 
 	// Handle the in-place updates

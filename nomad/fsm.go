@@ -1825,6 +1825,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		}
 		for _, allocations := range planner.Plans[0].NodeAllocation {
 			for _, allocation := range allocations {
+				n.logger.Trace(fmt.Sprintf("reconcileQueuedAllocations line 1828 alloc %q for node %d has client status %q", allocation.ID, allocation.NodeID, allocation.ClientStatus))
 				tgSummary, ok := summary.Summary[allocation.TaskGroup]
 				if !ok {
 					return fmt.Errorf("task group %q not found while updating queued count", allocation.TaskGroup)

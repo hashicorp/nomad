@@ -387,10 +387,12 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 
 	// handle upgrade path
 	for _, alloc := range allocsToUpsert {
+		s.logger.Trace(fmt.Sprintf("UpsertPlanResults line 390 alloc %q for node %q has client status %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
 		alloc.Canonicalize()
 	}
 
 	if err := s.upsertAllocsImpl(index, allocsToUpsert, txn); err != nil {
+		s.logger.Trace(fmt.Sprintf("UpsertPlanResults line 395 error %s", err))
 		return err
 	}
 
@@ -3274,6 +3276,7 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 	// Handle the allocations
 	jobs := make(map[structs.NamespacedID]string, 1)
 	for _, alloc := range allocs {
+		s.logger.Trace(fmt.Sprintf("upsert alloc %q for node %q with status: %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
 		existing, err := txn.First("allocs", "id", alloc.ID)
 		if err != nil {
 			return fmt.Errorf("alloc lookup failed: %v", err)

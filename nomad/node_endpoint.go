@@ -1120,7 +1120,12 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 	// Ensure at least a single alloc
 	if len(args.Alloc) == 0 {
+		n.logger.Trace("UpdateAlloc line 1123 no allocs passed")
 		return fmt.Errorf("must update at least one allocation")
+	}
+
+	for _, alloc := range args.Alloc {
+		n.logger.Trace(fmt.Sprintf("UpdateAlloc line 1127 alloc %q for node %q has client status %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
 	}
 
 	// Ensure that evals aren't set from client RPCs
@@ -1134,16 +1139,19 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	var evals []*structs.Evaluation
 
 	for _, allocToUpdate := range args.Alloc {
+		n.logger.Trace(fmt.Sprintf("UpdateAlloc line 1141 alloc %q for node %q has client status %q", allocToUpdate.ID, allocToUpdate.NodeID, allocToUpdate.ClientStatus))
 		allocToUpdate.ModifyTime = now.UTC().UnixNano()
 
 		if !allocToUpdate.TerminalStatus() {
 			continue
 		}
+		n.logger.Trace(fmt.Sprintf("UpdateAlloc line 1148 alloc %q for node %q has client status %q", allocToUpdate.ID, allocToUpdate.NodeID, allocToUpdate.ClientStatus))
 
 		alloc, _ := n.srv.State().AllocByID(nil, allocToUpdate.ID)
 		if alloc == nil {
 			continue
 		}
+		n.logger.Trace(fmt.Sprintf("UpdateAlloc line 1153 alloc %q for node %q has client status %q", allocToUpdate.ID, allocToUpdate.NodeID, allocToUpdate.ClientStatus))
 
 		// if the job has been purged, this will always return error
 		job, err := n.srv.State().JobByID(nil, alloc.Namespace, alloc.JobID)
@@ -1155,6 +1163,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			n.logger.Debug("UpdateAlloc unable to find job", "job", alloc.JobID)
 			continue
 		}
+		n.logger.Trace(fmt.Sprintf("UpdateAlloc line 1165 alloc %q for node %q has client status %q", allocToUpdate.ID, allocToUpdate.NodeID, allocToUpdate.ClientStatus))
 
 		taskGroup := job.LookupTaskGroup(alloc.TaskGroup)
 		if taskGroup == nil {
@@ -1211,8 +1220,13 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	}
 	n.updatesLock.Unlock()
 
+	for _, allocToUpdate := range n.updates {
+		n.logger.Trace(fmt.Sprintf("UpdateAlloc line 1223 alloc %q for node %q has client status %q", allocToUpdate.ID, allocToUpdate.NodeID, allocToUpdate.ClientStatus))
+	}
+
 	// Wait for the future
 	if err := future.Wait(); err != nil {
+		n.logger.Trace(fmt.Sprintf("UpdateAlloc line 1228 err %s", err))
 		return err
 	}
 
@@ -1268,11 +1282,12 @@ func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Alloc
 	)
 
 	for _, alloc := range updates {
+		n.logger.Trace(fmt.Sprintf("batchUpdates line 1284 alloc %q for node %q has client status %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
 		// Skip any allocation that isn't dead on the client
 		if !alloc.Terminated() {
 			continue
 		}
-
+		n.logger.Trace(fmt.Sprintf("batchUpdates line 1289 alloc %q for node %q has client status %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
 		ws := memdb.NewWatchSet()
 
 		// Determine if there are any orphaned Vault accessors for the allocation

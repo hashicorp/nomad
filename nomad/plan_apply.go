@@ -231,6 +231,9 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 		for _, allocList := range result.NodeAllocation {
 			req.AllocsUpdated = append(req.AllocsUpdated, allocList...)
+			for _, alloc := range allocList {
+				p.logger.Trace(fmt.Sprintf("applyPlan line 235 alloc %q for node %q with status: %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
+			}
 		}
 
 		// Set the time the alloc was applied for the first time. This can be used
@@ -263,6 +266,9 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		}
 		for _, allocList := range result.NodeAllocation {
 			req.Alloc = append(req.Alloc, allocList...)
+			for _, alloc := range allocList {
+				p.logger.Trace(fmt.Sprintf("applyPlan line 270 alloc %q for node %q with status: %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
+			}
 		}
 
 		for _, preemptions := range result.NodePreemptions {
@@ -455,10 +461,14 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 			nodeIDList = append(nodeIDList, nodeID)
 		}
 	}
-	for nodeID := range plan.NodeAllocation {
+	for nodeID, allocList := range plan.NodeAllocation {
 		if _, ok := nodeIDs[nodeID]; !ok {
 			nodeIDs[nodeID] = struct{}{}
 			nodeIDList = append(nodeIDList, nodeID)
+
+			for _, alloc := range allocList {
+				fmt.Println(fmt.Sprintf("evaluatePlanPlacements line 470 alloc %q for node %q with status: %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
+			}
 		}
 	}
 
@@ -494,6 +504,7 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 			// If we require all-at-once scheduling, there is no point
 			// to continue the evaluation, as we've already failed.
 			if plan.AllAtOnce {
+				logger.Trace("evaluatePlanPlacements line 507 setting NodeAllocation nil")
 				result.NodeUpdate = nil
 				result.NodeAllocation = nil
 				result.DeploymentUpdates = nil
@@ -512,7 +523,7 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 		}
 		if nodeAlloc := plan.NodeAllocation[nodeID]; len(nodeAlloc) > 0 {
 			for _, alloc := range nodeAlloc {
-				fmt.Println(fmt.Sprintf("evaluatePlanPlacements found NodeAllocation with client status %q", alloc.ClientStatus))
+				fmt.Println(fmt.Sprintf("evaluatePlanPlacements line 525 alloc %q for node %q with status: %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
 			}
 			result.NodeAllocation[nodeID] = nodeAlloc
 		}
@@ -684,12 +695,23 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 
 	if updated := plan.NodeAllocation[nodeID]; len(updated) > 0 {
 		remove = append(remove, updated...)
+		for _, alloc := range updated {
+			fmt.Println(fmt.Sprintf("evaluateNodePlan line 699 alloc %q for node %q has client status %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
+		}
+		for _, alloc := range remove {
+			fmt.Println(fmt.Sprintf("evaluateNodePlan line 702 plans to remove alloc %q for node %q has client status %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
+		}
 	}
 	proposed := structs.RemoveAllocs(existingAlloc, remove)
 	proposed = append(proposed, plan.NodeAllocation[nodeID]...)
 
+	for _, alloc := range proposed {
+		fmt.Println(fmt.Sprintf("evaluateNodePlan line 709 proposes alloc %q for node %q has client status %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
+	}
+
 	// Check if these allocations fit
 	fit, reason, _, err := structs.AllocsFit(node, proposed, nil, true)
+	fmt.Println(fmt.Sprintf("evaluateNodePlan line 714 returns fit %s with reason %q and err %q", fit, reason, err))
 	return fit, reason, err
 }
 

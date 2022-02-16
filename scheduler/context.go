@@ -200,7 +200,7 @@ func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, erro
 		proposedIDs[alloc.ID] = alloc
 	}
 	for _, alloc := range e.plan.NodeAllocation[nodeID] {
-		e.logger.Trace(fmt.Sprintf("ProposedAllocs found NodeAllocation with client status %q", alloc.ClientStatus))
+		e.logger.Trace(fmt.Sprintf("ProposedAllocs line 203 has alloc %q with node %q with client status %q", alloc.ID, alloc.NodeID, alloc.ClientStatus))
 		proposedIDs[alloc.ID] = alloc
 	}
 
