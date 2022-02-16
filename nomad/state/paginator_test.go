@@ -1,6 +1,7 @@
 package state
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -19,6 +20,7 @@ func TestPaginator(t *testing.T) {
 		nextToken         string
 		expected          []string
 		expectedNextToken string
+		expectedError     string
 	}{
 		{
 			name:              "size-3 page-1",
@@ -47,6 +49,10 @@ func TestPaginator(t *testing.T) {
 			expected:          []string{},
 			expectedNextToken: "",
 		},
+		{
+			name:          "error during append",
+			expectedError: "failed to append",
+		},
 	}
 
 	for _, tc := range cases {
@@ -59,17 +65,27 @@ func TestPaginator(t *testing.T) {
 				structs.QueryOptions{
 					PerPage: tc.perPage, NextToken: tc.nextToken,
 				},
-				func(raw interface{}) {
+				func(raw interface{}) error {
+					if tc.expectedError != "" {
+						return errors.New(tc.expectedError)
+					}
+
 					result := raw.(*mockObject)
 					results = append(results, result.GetID())
+					return nil
 				},
 			)
 			require.NoError(t, err)
 
 			nextToken, err := paginator.Page()
-			require.NoError(t, err)
-			require.Equal(t, tc.expected, results)
-			require.Equal(t, tc.expectedNextToken, nextToken)
+			if tc.expectedError == "" {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, results)
+				require.Equal(t, tc.expectedNextToken, nextToken)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedError)
+			}
 		})
 	}
 

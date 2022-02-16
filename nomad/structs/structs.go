@@ -288,6 +288,9 @@ type QueryOptions struct {
 	// previous response.
 	NextToken string
 
+	// Ascending is used to have results sorted in ascending chronological order.
+	Ascending bool
+
 	InternalRpcInfo
 }
 
@@ -863,7 +866,6 @@ type EvalDequeueRequest struct {
 type EvalListRequest struct {
 	FilterJobID      string
 	FilterEvalStatus string
-	OrderAscending   bool
 	QueryOptions
 }
 
@@ -1098,7 +1100,6 @@ type GenericRequest struct {
 
 // DeploymentListRequest is used to list the deployments
 type DeploymentListRequest struct {
-	OrderAscending bool
 	QueryOptions
 }
 

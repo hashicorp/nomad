@@ -20,7 +20,6 @@ func (s *HTTPServer) EvalsRequest(resp http.ResponseWriter, req *http.Request) (
 	query := req.URL.Query()
 	args.FilterEvalStatus = query.Get("status")
 	args.FilterJobID = query.Get("job")
-	args.OrderAscending = query.Get("ascending") == "true"
 
 	var out structs.EvalListResponse
 	if err := s.agent.RPC("Eval.List", &args, &out); err != nil {

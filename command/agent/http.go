@@ -788,6 +788,7 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *strin
 	parseNamespace(req, &b.Namespace)
 	parsePagination(req, b)
 	parseFilter(req, b)
+	parseAscending(req, b)
 	return parseWait(resp, req, b)
 }
 
@@ -811,6 +812,12 @@ func parseFilter(req *http.Request, b *structs.QueryOptions) {
 	if filter := query.Get("filter"); filter != "" {
 		b.Filter = filter
 	}
+}
+
+// parseAscending parses the ascending query parameter for QueryOptions
+func parseAscending(req *http.Request, b *structs.QueryOptions) {
+	query := req.URL.Query()
+	b.Ascending = query.Get("ascending") == "true"
 }
 
 // parseWriteRequest is a convenience method for endpoints that need to parse a

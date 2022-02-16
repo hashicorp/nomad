@@ -32,10 +32,10 @@ type Paginator struct {
 	// appendFunc is the function the caller should use to append raw
 	// entries to the results set. The object is guaranteed to be
 	// non-nil.
-	appendFunc func(interface{})
+	appendFunc func(interface{}) error
 }
 
-func NewPaginator(iter Iterator, opts structs.QueryOptions, appendFunc func(interface{})) (*Paginator, error) {
+func NewPaginator(iter Iterator, opts structs.QueryOptions, appendFunc func(interface{}) error) (*Paginator, error) {
 	var evaluator *bexpr.Evaluator
 	var err error
 
@@ -64,7 +64,11 @@ DONE:
 		raw, andThen := p.next()
 		switch andThen {
 		case paginatorInclude:
-			p.appendFunc(raw)
+			err := p.appendFunc(raw)
+			if err != nil {
+				p.pageErr = err
+				break DONE
+			}
 		case paginatorSkip:
 			continue
 		case paginatorComplete:
