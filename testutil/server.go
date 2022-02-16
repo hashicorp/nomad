@@ -22,9 +22,9 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/hashicorp/consul/sdk/freeport"
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/helper/discover"
-	"github.com/hashicorp/nomad/helper/freeport"
 	testing "github.com/mitchellh/go-testing-interface"
 )
 
