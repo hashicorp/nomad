@@ -3,7 +3,6 @@
     <li data-test-tab="overview">
       <LinkTo
         @route="jobs.job.index"
-        @query={{hash namespace=@job.namespace.id}}
         @model={{@job}}
         @activeClass="is-active"
         @current-when="jobs.job.index jobs.job.dispatch"
@@ -14,7 +13,6 @@
     <li data-test-tab="definition">
       <LinkTo
         @route="jobs.job.definition"
-        @query={{hash namespace=@job.namespace.id}}
         @model={{@job}}
         @activeClass="is-active"
       >
@@ -24,7 +22,6 @@
     <li data-test-tab="versions">
       <LinkTo
         @route="jobs.job.versions"
-        @query={{hash namespace=@job.namespace.id}}
         @model={{@job}}
         @activeClass="is-active"
       >
@@ -35,7 +32,6 @@
       <li data-test-tab="deployments">
         <LinkTo
           @route="jobs.job.deployments"
-          @query={{hash namespace=@job.namespace.id}}
           @model={{@job}}
           @activeClass="is-active"
         >
@@ -46,7 +42,6 @@
     <li data-test-tab="allocations">
       <LinkTo
         @route="jobs.job.allocations"
-        @query={{hash namespace=@job.namespace.id}}
         @model={{@job}}
         @activeClass="is-active"
       >
@@ -56,7 +51,6 @@
     <li data-test-tab="evaluations">
       <LinkTo
         @route="jobs.job.evaluations"
-        @query={{hash namespace=@job.namespace.id}}
         @model={{@job}}
         @activeClass="is-active"
       >
@@ -67,7 +61,6 @@
       <li data-test-tab="clients">
         <LinkTo
           @route="jobs.job.clients"
-          @query={{hash namespace=@job.namespace.id}}
           @model={{@job}}
           @activeClass="is-active"
         >
