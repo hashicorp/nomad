@@ -447,6 +447,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// Validate and add reconnecting allocs to the plan so that they will be logged.
 	a.computeReconnecting(reconnecting)
 	desiredChanges.Ignore += uint64(len(a.result.reconnectUpdates))
+
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
 	ignore, inplace, destructive := a.computeUpdates(tg, untainted)

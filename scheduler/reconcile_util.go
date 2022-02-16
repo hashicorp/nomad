@@ -304,6 +304,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 
 		// All other allocs are untainted
 		untainted[alloc.ID] = alloc
+
 	}
 
 	return
