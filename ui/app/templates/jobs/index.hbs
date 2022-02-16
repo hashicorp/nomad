@@ -1,4 +1,4 @@
-{{!-- {{page-title "Jobs"}}
+{{page-title "Jobs"}}
 <section class="section">
   <div class="toolbar">
     <div class="toolbar-item">
@@ -112,13 +112,15 @@
     <ListPagination
       @source={{this.sortedJobs}}
       @size={{this.pageSize}}
-      @page={{this.currentPage}} as |p|
+      @page={{this.currentPage}}
+      as |p|
     >
       <ListTable
         @source={{p.list}}
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
-        @class="with-foot" as |t|
+        @class="with-foot"
+        as |t|
       >
         <t.head>
           <t.sort-by @prop="name">
@@ -205,4 +207,4 @@
       {{/if}}
     </div>
   {{/if}}
-</section> --}}
+</section>
