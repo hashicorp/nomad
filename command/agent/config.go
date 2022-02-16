@@ -516,11 +516,26 @@ type ServerConfig struct {
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 
+	// Search configures UI search features.
 	Search *Search `hcl:"search"`
 
 	// DeploymentQueryRateLimit is in queries per second and is used by the
 	// DeploymentWatcher to throttle the amount of simultaneously deployments
 	DeploymentQueryRateLimit float64 `hcl:"deploy_query_rate_limit"`
+
+	// RaftBoltConfig configures boltdb as used by raft.
+	RaftBoltConfig *RaftBoltConfig `hcl:"raft_boltdb"`
+}
+
+// RaftBoltConfig is used in servers to configure parameters of the boltdb
+// used for raft consensus.
+type RaftBoltConfig struct {
+	// NoFreelistSync toggles whether the underlying raft storage should sync its
+	// freelist to disk within the bolt .db file. When disabled, IO performance
+	// will be improved but at the expense of longer startup times.
+	//
+	// Default: false.
+	NoFreelistSync bool `hcl:"no_freelist_sync"`
 }
 
 // Search is used in servers to configure search API options.
@@ -1596,6 +1611,12 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		}
 		if b.Search.MinTermLength > 0 {
 			result.Search.MinTermLength = b.Search.MinTermLength
+		}
+	}
+
+	if b.RaftBoltConfig != nil {
+		result.RaftBoltConfig = &RaftBoltConfig{
+			NoFreelistSync: b.RaftBoltConfig.NoFreelistSync,
 		}
 	}
 

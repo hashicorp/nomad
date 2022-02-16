@@ -40,8 +40,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/volumewatcher"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
+	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 	"github.com/hashicorp/serf/serf"
+	"go.etcd.io/bbolt"
 )
 
 const (
@@ -1222,6 +1223,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 
 // setupRaft is used to setup and initialize Raft
 func (s *Server) setupRaft() error {
+
 	// If we have an unclean exit then attempt to close the Raft store.
 	defer func() {
 		if s.raft == nil && s.raftStore != nil {
@@ -1282,13 +1284,23 @@ func (s *Server) setupRaft() error {
 			return err
 		}
 
-		// Create the BoltDB backend
-		store, err := raftboltdb.NewBoltStore(filepath.Join(path, "raft.db"))
-		if err != nil {
-			return err
+		// Create the BoltDB backend, with NoFreelistSync option
+		store, raftErr := raftboltdb.New(raftboltdb.Options{
+			Path:   filepath.Join(path, "raft.db"),
+			NoSync: false, // fsync each log write
+			BoltOptions: &bbolt.Options{
+				NoFreelistSync: s.config.RaftBoltNoFreelistSync,
+			},
+		})
+		if raftErr != nil {
+			return raftErr
 		}
 		s.raftStore = store
 		stable = store
+		s.logger.Info("setting up raft bolt store", "no_freelist_sync", s.config.RaftBoltNoFreelistSync)
+
+		// Start publishing bboltdb metrics
+		go store.RunMetrics(s.shutdownCtx, 0)
 
 		// Wrap the store in a LogCache to improve performance
 		cacheStore, err := raft.NewLogCache(raftLogCacheSize, store)

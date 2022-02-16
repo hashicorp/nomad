@@ -444,6 +444,11 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 	}
 
+	// Set the raft bolt parameters
+	if bolt := agentConfig.Server.RaftBoltConfig; bolt != nil {
+		conf.RaftBoltNoFreelistSync = bolt.NoFreelistSync
+	}
+
 	return conf, nil
 }
 

@@ -1,0 +1,19 @@
+```release-note:improvement
+deps: Update hashicorp/raft-boltdb to v2.2.0
+```
+
+```release-note:improvement
+core: Switch from boltdb/bolt to go.etcd.io/bbolt
+```
+
+```release-note:improvement
+core: Enable configuring raft boltdb freelist sync behavior
+```
+
+```release-note:improvement
+metrics: Emit metrics regarding raft boltdb operations
+```
+
+```release-note:breaking-change
+core: The server raft implementation will automatically migrate its underlying raft.db database on startup. Downgrading to a previous version of the server after upgrading it to Nomad 1.3 is not supported.
+```

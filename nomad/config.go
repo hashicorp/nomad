@@ -339,6 +339,9 @@ type Config struct {
 	// SearchConfig provides knobs for Search API.
 	SearchConfig *structs.SearchConfig
 
+	// RaftBoltNoFreelistSync configures whether freelist syncing is enabled.
+	RaftBoltNoFreelistSync bool
+
 	// AgentShutdown is used to call agent.Shutdown from the context of a Server
 	// It is used primarily for licensing
 	AgentShutdown func() error
