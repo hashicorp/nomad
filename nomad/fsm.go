@@ -2099,7 +2099,7 @@ func (s *nomadSnapshot) persistAllocs(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the allocations
 	ws := memdb.NewWatchSet()
-	allocs, err := s.snap.Allocs(ws)
+	allocs, err := s.snap.Allocs(ws, false)
 	if err != nil {
 		return err
 	}

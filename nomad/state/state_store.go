@@ -3574,22 +3574,12 @@ func allocNamespaceFilter(namespace string) func(interface{}) bool {
 			return true
 		}
 
+		if namespace == structs.AllNamespacesSentinel {
+			return false
+		}
+
 		return alloc.Namespace != namespace
 	}
-}
-
-// AllocsByIDPrefixAllNSs is used to lookup allocs by prefix.
-func (s *StateStore) AllocsByIDPrefixAllNSs(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get("allocs", "id_prefix", prefix)
-	if err != nil {
-		return nil, fmt.Errorf("alloc lookup failed: %v", err)
-	}
-
-	ws.Add(iter.WatchCh())
-
-	return iter, nil
 }
 
 // AllocsByNode returns all the allocations by node
@@ -3731,19 +3721,50 @@ func (s *StateStore) AllocsByDeployment(ws memdb.WatchSet, deploymentID string) 
 	return out, nil
 }
 
-// Allocs returns an iterator over all the evaluations
-func (s *StateStore) Allocs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+// Allocs returns an iterator over all the evaluations.
+func (s *StateStore) Allocs(ws memdb.WatchSet, ascending bool) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	// Walk the entire table
-	iter, err := txn.Get("allocs", "id")
+	var it memdb.ResultIterator
+	var err error
+
+	if ascending {
+		it, err = txn.Get("allocs", "create")
+	} else {
+		it, err = txn.GetReverse("allocs", "create")
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	ws.Add(iter.WatchCh())
+	ws.Add(it.WatchCh())
 
-	return iter, nil
+	return it, nil
+}
+
+func (s *StateStore) AllocsByNamespaceOrdered(ws memdb.WatchSet, namespace string, ascending bool) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	var (
+		it    memdb.ResultIterator
+		err   error
+		exact = terminate(namespace)
+	)
+
+	if ascending {
+		it, err = txn.Get("allocs", "namespace_create_prefix", exact)
+	} else {
+		it, err = txn.GetReverse("allocs", "namespace_create_prefix", exact)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(it.WatchCh())
+
+	return it, nil
 }
 
 // AllocsByNamespace returns an iterator over all the allocations in the

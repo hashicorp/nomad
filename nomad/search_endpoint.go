@@ -405,7 +405,7 @@ func getFuzzyResourceIterator(context structs.Context, aclObj *acl.ACL, namespac
 
 	case structs.Allocs:
 		if wildcard(namespace) {
-			iter, err := state.Allocs(ws)
+			iter, err := state.Allocs(ws, false)
 			return nsCapIterFilter(iter, err, aclObj)
 		}
 		return state.AllocsByNamespace(ws, namespace)

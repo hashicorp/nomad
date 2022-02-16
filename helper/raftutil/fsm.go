@@ -189,7 +189,7 @@ func StateAsMap(state *state.StateStore) map[string][]interface{} {
 	result := map[string][]interface{}{
 		"ACLPolicies":      toArray(state.ACLPolicies(nil)),
 		"ACLTokens":        toArray(state.ACLTokens(nil)),
-		"Allocs":           toArray(state.Allocs(nil)),
+		"Allocs":           toArray(state.Allocs(nil, false)),
 		"CSIPlugins":       toArray(state.CSIPlugins(nil)),
 		"CSIVolumes":       toArray(state.CSIVolumes(nil)),
 		"Deployments":      toArray(state.Deployments(nil, false)),

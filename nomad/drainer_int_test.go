@@ -933,7 +933,7 @@ func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
 	// Wait for the two allocations to be placed
 	state := s1.State()
 	testutil.WaitForResult(func() (bool, error) {
-		iter, err := state.Allocs(nil)
+		iter, err := state.Allocs(nil, false)
 		if err != nil {
 			return false, err
 		}

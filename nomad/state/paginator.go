@@ -7,6 +7,46 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// NamespaceGetter is an interface for types that have a Namespace
+//
+// todo(shoenig) we could probably replace this with something like:
+//
+// type Identifiable interface {
+//     GetID() string
+//     GetNamespace() string
+// }
+//
+// and apply it to each type that is iterated over from the state store. But we
+// could also wait for Generics in Go 1.18, where we could enforce such a constraint
+// on Iterator[T GetID|GetNamespace] or something like that.
+type NamespaceGetter interface {
+	GetNamespace() string
+}
+
+// NamespaceFilterIterator iterates through Iter, applying the Allow predicate
+// to the Namespace of each item.
+//
+// All items returned by Iter must implement NamespaceGetter.
+type NamespaceFilterIterator struct {
+	Iter  Iterator
+	Allow func(namespace string) bool
+}
+
+func (f *NamespaceFilterIterator) Next() interface{} {
+	next := f.Iter.Next()
+	if next == nil {
+		return nil
+	}
+
+	item, _ := next.(NamespaceGetter)
+
+	if f.Allow(item.GetNamespace()) {
+		return next
+	}
+
+	return f.Next()
+}
+
 // Iterator is the interface that must be implemented to use the Paginator.
 type Iterator interface {
 	// Next returns the next element to be considered for pagination.
