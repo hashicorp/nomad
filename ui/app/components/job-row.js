@@ -26,6 +26,6 @@ export default class JobRow extends Component {
   @action
   gotoJob() {
     const { job } = this;
-    this.router.transitionTo('jobs.job.index', job);
+    this.router.transitionTo('jobs.job.index', job.idWithNamespace);
   }
 }
