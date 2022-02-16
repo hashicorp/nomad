@@ -33,6 +33,9 @@ const (
 	// allocLost is the status used when an allocation is lost
 	allocLost = "alloc is lost since its node is down"
 
+	// allocUnknown is the status used when an allocation is unknown
+	allocUnknown = "alloc is unknown since its node is disconnected"
+
 	// allocInPlace is the status used when speculating on an in-place update
 	allocInPlace = "alloc updating in-place"
 
@@ -54,6 +57,11 @@ const (
 	// reschedulingFollowupEvalDesc is the description used when creating follow
 	// up evals for delayed rescheduling
 	reschedulingFollowupEvalDesc = "created for delayed rescheduling"
+
+	// disconnectTimeoutFollowupEvalDesc is the description used when creating follow
+	// up evals for allocations that be should be stopped after its disconnect
+	// timeout has passed.
+	disconnectTimeoutFollowupEvalDesc = "created for delayed disconnect timeout"
 
 	// maxPastRescheduleEvents is the maximum number of past reschedule event
 	// that we track when unlimited rescheduling is enabled
@@ -148,7 +156,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc,
 		structs.EvalTriggerFailedFollowUp, structs.EvalTriggerPreemption,
-		structs.EvalTriggerScaling:
+		structs.EvalTriggerScaling, structs.EvalTriggerMaxDisconnectTimeout:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
@@ -392,6 +400,11 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		s.plan.AppendStoppedAlloc(stop.alloc, stop.statusDescription, stop.clientStatus, stop.followupEvalID)
 	}
 
+	// Handle disconnect updates
+	for _, update := range results.disconnectUpdates {
+		s.plan.AppendUnknownAlloc(update)
+	}
+
 	// Handle the in-place updates
 	for _, update := range results.inplaceUpdate {
 		if update.DeploymentID != s.deployment.GetID() {
@@ -403,6 +416,11 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// Handle the annotation updates
 	for _, update := range results.attributeUpdates {
+		s.ctx.Plan().AppendAlloc(update, nil)
+	}
+
+	// Handle reconnect updates
+	for _, update := range results.reconnectUpdates {
 		s.ctx.Plan().AppendAlloc(update, nil)
 	}
 
