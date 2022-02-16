@@ -418,9 +418,9 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = store.EvalsByIDPrefix(ws, namespace, prefix)
 			} else if namespace != structs.AllNamespacesSentinel {
-				iter, err = store.EvalsByNamespaceOrdered(ws, namespace, args.OrderAscending)
+				iter, err = store.EvalsByNamespaceOrdered(ws, namespace, args.Ascending)
 			} else {
-				iter, err = store.Evals(ws, args.OrderAscending)
+				iter, err = store.Evals(ws, args.Ascending)
 			}
 			if err != nil {
 				return err
@@ -435,9 +435,10 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 
 			var evals []*structs.Evaluation
 			paginator, err := state.NewPaginator(iter, args.QueryOptions,
-				func(raw interface{}) {
+				func(raw interface{}) error {
 					eval := raw.(*structs.Evaluation)
 					evals = append(evals, eval)
+					return nil
 				})
 			if err != nil {
 				return structs.NewErrRPCCodedf(

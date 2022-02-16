@@ -76,9 +76,10 @@ func BenchmarkEvalListFilter(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, opts, func(raw interface{}) {
+			paginator, err := NewPaginator(iter, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
+				return nil
 			})
 			if err != nil {
 				b.Fatalf("failed: %v", err)
@@ -98,9 +99,10 @@ func BenchmarkEvalListFilter(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.Evals(nil, false)
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, opts, func(raw interface{}) {
+			paginator, err := NewPaginator(iter, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
+				return nil
 			})
 			if err != nil {
 				b.Fatalf("failed: %v", err)
@@ -133,9 +135,10 @@ func BenchmarkEvalListFilter(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, opts, func(raw interface{}) {
+			paginator, err := NewPaginator(iter, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
+				return nil
 			})
 			if err != nil {
 				b.Fatalf("failed: %v", err)
@@ -169,9 +172,10 @@ func BenchmarkEvalListFilter(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.Evals(nil, false)
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, opts, func(raw interface{}) {
+			paginator, err := NewPaginator(iter, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
+				return nil
 			})
 			if err != nil {
 				b.Fatalf("failed: %v", err)

@@ -757,8 +757,8 @@ func TestEvalEndpoint_List_order(t *testing.T) {
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
+				Ascending: false,
 			},
-			OrderAscending: false,
 		}
 
 		var resp structs.EvalListResponse
@@ -784,8 +784,8 @@ func TestEvalEndpoint_List_order(t *testing.T) {
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
+				Ascending: true,
 			},
-			OrderAscending: true,
 		}
 
 		var resp structs.EvalListResponse
@@ -811,8 +811,8 @@ func TestEvalEndpoint_List_order(t *testing.T) {
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
+				Ascending: false,
 			},
-			OrderAscending: false,
 		}
 
 		var resp structs.EvalListResponse
@@ -1249,7 +1249,6 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			req := &structs.EvalListRequest{
 				FilterJobID:      tc.filterJobID,
 				FilterEvalStatus: tc.filterStatus,
-				OrderAscending:   true, // counting up is easier to think about
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
 					Namespace: tc.namespace,
@@ -1257,6 +1256,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 					PerPage:   tc.pageSize,
 					NextToken: tc.nextToken,
 					Filter:    tc.filter,
+					Ascending: true, // counting up is easier to think about
 				},
 			}
 			req.AuthToken = aclToken

@@ -1072,8 +1072,8 @@ func TestDeploymentEndpoint_List_order(t *testing.T) {
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
+				Ascending: true,
 			},
-			OrderAscending: true,
 		}
 
 		var resp structs.DeploymentListResponse
@@ -1099,8 +1099,8 @@ func TestDeploymentEndpoint_List_order(t *testing.T) {
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
+				Ascending: false,
 			},
-			OrderAscending: false,
 		}
 
 		var resp structs.DeploymentListResponse
@@ -1399,7 +1399,6 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			req := &structs.DeploymentListRequest{
-				OrderAscending: true, // counting up is easier to think about
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
 					Namespace: tc.namespace,
@@ -1407,6 +1406,7 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 					Filter:    tc.filter,
 					PerPage:   tc.pageSize,
 					NextToken: tc.nextToken,
+					Ascending: true, // counting up is easier to think about
 				},
 			}
 			req.AuthToken = aclToken
