@@ -6420,9 +6420,8 @@ func TestServiceSched_Client_Disconnect_Creates_Updates_and_Evals(t *testing.T) 
 	require.NotEmpty(t, followUpEval.WaitUntil)
 
 	// Insert eval in the state store
-	ws := memdb.NewWatchSet()
 	testutil.WaitForResult(func() (bool, error) {
-		found, err := h.State.EvalByID(ws, followUpEval.ID)
+		found, err := h.State.EvalByID(nil, followUpEval.ID)
 		if err != nil {
 			return false, err
 		}
@@ -6447,17 +6446,12 @@ func TestServiceSched_Client_Disconnect_Creates_Updates_and_Evals(t *testing.T) 
 	}
 
 	// Simulate that NodeAllocation got processed.
-	testutil.WaitForResult(func() (bool, error) {
-		err = h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), h.Plans[0].NodeAllocation[disconnectedNode.ID])
-		require.NoError(t, err, "plan.NodeUpdate")
-		return true, nil
-	}, func(err error) {
-		require.NoError(t, err)
-	})
+	err = h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), h.Plans[0].NodeAllocation[disconnectedNode.ID])
+	require.NoError(t, err, "plan.NodeUpdate")
 
 	// Validate that the StateStore Upsert applied the ClientStatus we specified.
 	for _, alloc := range unknownAllocs {
-		alloc, err = h.State.AllocByID(ws, alloc.ID)
+		alloc, err = h.State.AllocByID(nil, alloc.ID)
 		require.NoError(t, err)
 		require.Equal(t, alloc.ClientStatus, structs.AllocClientStatusUnknown)
 
