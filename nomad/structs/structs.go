@@ -9732,6 +9732,10 @@ func (a *Allocation) WaitClientStop() time.Time {
 // DisconnectTimeout uses the MaxClientDisconnect to compute when the allocation
 // should transition to lost.
 func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
+	if a == nil || a.Job == nil {
+		return now
+	}
+
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
 	// Prefer the duration from the task group.
