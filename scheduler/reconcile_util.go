@@ -237,7 +237,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untain
 
 		taintedNode, ok := taintedNodes[alloc.NodeID]
 		if !ok {
-			// Queue allocs on a node that is now re-connected to be resumed.
+			// Filter allocs on a node that is now re-connected to be resumed.
 			if alloc.ClientStatus == structs.AllocClientStatusUnknown {
 				reconnecting[alloc.ID] = alloc
 				continue
@@ -252,13 +252,18 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untain
 			// Group disconnecting/reconnecting
 			switch taintedNode.Status {
 			case structs.NodeStatusDisconnected:
-				// Queue running allocs on a node that is disconnected to be marked as unknown.
+				// Filter running allocs on a node that is disconnected to be marked as unknown.
 				if alloc.ClientStatus == structs.AllocClientStatusRunning {
 					disconnecting[alloc.ID] = alloc
 					continue
 				}
+				// Filter pending allocs on a node that is disconnected to be marked as lost.
+				if alloc.ClientStatus == structs.AllocClientStatusPending {
+					lost[alloc.ID] = alloc
+					continue
+				}
 			case structs.NodeStatusReady:
-				// Queue unknown allocs on a node that is connected to reconnect.
+				// Filter unknown allocs on a node that is connected to reconnect.
 				if alloc.ClientStatus == structs.AllocClientStatusUnknown {
 					reconnecting[alloc.ID] = alloc
 					continue
