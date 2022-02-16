@@ -30,7 +30,7 @@ module('Acceptance | job versions', function (hooks) {
     const managementToken = server.create('token');
     window.localStorage.nomadTokenSecret = managementToken.secretId;
 
-    await Versions.visit({ id: job.id, namespace: namespace.id });
+    await Versions.visit({ id: `${job.id}@${namespace.id}` });
   });
 
   test('it passes an accessibility audit', async function (assert) {
