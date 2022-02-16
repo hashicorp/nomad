@@ -1698,16 +1698,17 @@ func (ne *NodeEvent) AddDetail(k, v string) *NodeEvent {
 }
 
 const (
-	NodeStatusInit  = "initializing"
-	NodeStatusReady = "ready"
-	NodeStatusDown  = "down"
+	NodeStatusInit         = "initializing"
+	NodeStatusReady        = "ready"
+	NodeStatusDown         = "down"
+	NodeStatusDisconnected = "disconnected"
 )
 
 // ShouldDrainNode checks if a given node status should trigger an
 // evaluation. Some states don't require any further action.
 func ShouldDrainNode(status string) bool {
 	switch status {
-	case NodeStatusInit, NodeStatusReady:
+	case NodeStatusInit, NodeStatusReady, NodeStatusDisconnected:
 		return false
 	case NodeStatusDown:
 		return true
@@ -1719,7 +1720,7 @@ func ShouldDrainNode(status string) bool {
 // ValidNodeStatus is used to check if a node status is valid
 func ValidNodeStatus(status string) bool {
 	switch status {
-	case NodeStatusInit, NodeStatusReady, NodeStatusDown:
+	case NodeStatusInit, NodeStatusReady, NodeStatusDown, NodeStatusDisconnected:
 		return true
 	default:
 		return false
@@ -6084,6 +6085,10 @@ type TaskGroup struct {
 	// StopAfterClientDisconnect, if set, configures the client to stop the task group
 	// after this duration since the last known good heartbeat
 	StopAfterClientDisconnect *time.Duration
+
+	// MaxClientDisconnect, if set, configures the client to allow placed
+	// allocations for tasks in this group to attempt to resume running without a restart.
+	MaxClientDisconnect *time.Duration
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -9300,6 +9305,7 @@ const (
 	AllocClientStatusComplete = "complete"
 	AllocClientStatusFailed   = "failed"
 	AllocClientStatusLost     = "lost"
+	AllocClientStatusUnknown  = "unknown"
 )
 
 // Allocation is used to allocate the placement of a task group to a node.
@@ -9721,6 +9727,26 @@ func (a *Allocation) WaitClientStop() time.Time {
 	}
 
 	return t.Add(*tg.StopAfterClientDisconnect + kill)
+}
+
+// DisconnectTimeout uses the MaxClientDisconnect to compute when the allocation
+// should transition to lost.
+func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
+	if a == nil || a.Job == nil {
+		return now
+	}
+
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	// Prefer the duration from the task group.
+	timeout := tg.MaxClientDisconnect
+
+	// If not configured, return now
+	if timeout == nil {
+		return now
+	}
+
+	return now.Add(*timeout)
 }
 
 // NextDelay returns a duration after which the allocation can be rescheduled.
@@ -10223,6 +10249,15 @@ func (a *AllocMetric) PopulateScoreMetaData() {
 	}
 }
 
+// MaxNormScore returns the ScoreMetaData entry with the highest normalized
+// score.
+func (a *AllocMetric) MaxNormScore() *NodeScoreMeta {
+	if a == nil || len(a.ScoreMetaData) == 0 {
+		return nil
+	}
+	return a.ScoreMetaData[0]
+}
+
 // NodeScoreMeta captures scoring meta data derived from
 // different scoring factors.
 type NodeScoreMeta struct {
@@ -10351,21 +10386,22 @@ const (
 )
 
 const (
-	EvalTriggerJobRegister       = "job-register"
-	EvalTriggerJobDeregister     = "job-deregister"
-	EvalTriggerPeriodicJob       = "periodic-job"
-	EvalTriggerNodeDrain         = "node-drain"
-	EvalTriggerNodeUpdate        = "node-update"
-	EvalTriggerAllocStop         = "alloc-stop"
-	EvalTriggerScheduled         = "scheduled"
-	EvalTriggerRollingUpdate     = "rolling-update"
-	EvalTriggerDeploymentWatcher = "deployment-watcher"
-	EvalTriggerFailedFollowUp    = "failed-follow-up"
-	EvalTriggerMaxPlans          = "max-plan-attempts"
-	EvalTriggerRetryFailedAlloc  = "alloc-failure"
-	EvalTriggerQueuedAllocs      = "queued-allocs"
-	EvalTriggerPreemption        = "preemption"
-	EvalTriggerScaling           = "job-scaling"
+	EvalTriggerJobRegister          = "job-register"
+	EvalTriggerJobDeregister        = "job-deregister"
+	EvalTriggerPeriodicJob          = "periodic-job"
+	EvalTriggerNodeDrain            = "node-drain"
+	EvalTriggerNodeUpdate           = "node-update"
+	EvalTriggerAllocStop            = "alloc-stop"
+	EvalTriggerScheduled            = "scheduled"
+	EvalTriggerRollingUpdate        = "rolling-update"
+	EvalTriggerDeploymentWatcher    = "deployment-watcher"
+	EvalTriggerFailedFollowUp       = "failed-follow-up"
+	EvalTriggerMaxPlans             = "max-plan-attempts"
+	EvalTriggerRetryFailedAlloc     = "alloc-failure"
+	EvalTriggerQueuedAllocs         = "queued-allocs"
+	EvalTriggerPreemption           = "preemption"
+	EvalTriggerScaling              = "job-scaling"
+	EvalTriggerMaxDisconnectTimeout = "max-disconnect-timeout"
 )
 
 const (
@@ -10467,7 +10503,8 @@ type Evaluation struct {
 	Wait time.Duration
 
 	// WaitUntil is the time when this eval should be run. This is used to
-	// supported delayed rescheduling of failed allocations
+	// supported delayed rescheduling of failed allocations, and delayed
+	// stopping of allocations that are configured with resume_after_client_reconnect.
 	WaitUntil time.Time
 
 	// NextEval is the evaluation ID for the eval created to do a followup.
@@ -10902,6 +10939,17 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string)
 	node := alloc.NodeID
 	existing := p.NodePreemptions[node]
 	p.NodePreemptions[node] = append(existing, newAlloc)
+}
+
+// AppendUnknownAlloc marks an allocation as unknown.
+func (p *Plan) AppendUnknownAlloc(alloc *Allocation) {
+	// Strip the job as it's set once on the ApplyPlanResultRequest.
+	alloc.Job = nil
+	// Strip the resources as they can be rebuilt.
+	alloc.Resources = nil
+
+	existing := p.NodeAllocation[alloc.NodeID]
+	p.NodeAllocation[alloc.NodeID] = append(existing, alloc)
 }
 
 func (p *Plan) PopUpdate(alloc *Allocation) {
