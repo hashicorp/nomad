@@ -36,8 +36,7 @@ Eval List Options:
     Where to start pagination.
 
   -filter
-    Specifies the expression used to filter the queries results prior to
-    returning the data.
+    Specifies an expression used to filter query results.
 
   -job
     Only show evaluations for this job ID.

@@ -31,8 +31,7 @@ List Options:
     Output the deployments in a JSON format.
 
   -filter
-    Specifies the expression used to filter the queries results prior to
-    returning the data.
+    Specifies an expression used to filter query results.
 
   -t
     Format and display the deployments using a Go template.
