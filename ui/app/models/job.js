@@ -35,6 +35,17 @@ export default class Job extends Model {
   @attr() periodicDetails;
   @attr() parameterizedDetails;
 
+  @computed('plainId')
+  get idWithNamespace() {
+    const namespaceId = this.belongsTo('namespace').id();
+
+    if (!namespaceId || namespaceId === 'default') {
+      return this.plainId;
+    } else {
+      return `${this.plainId}@${namespaceId}`;
+    }
+  }
+
   @computed('periodic', 'parameterized', 'dispatched')
   get hasChildren() {
     return this.periodic || (this.parameterized && !this.dispatched);
