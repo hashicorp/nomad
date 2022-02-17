@@ -152,7 +152,6 @@ module('Acceptance | regions (many)', function (hooks) {
 
     await Allocation.visit({ id: server.db.allocations[0].id });
 
-    await this.pauseTest();
     await selectChoose('[data-test-region-switcher-parent]', newRegion);
 
     assert.ok(currentURL().includes('/jobs?'), 'Back at the jobs page');
