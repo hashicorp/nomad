@@ -361,7 +361,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
       },
     });
 
-    await JobDetail.visit({ id: jobFromPack.id, namespace });
+    await JobDetail.visit({ id: `${jobFromPack.id}@${namespace}` });
     assert.ok(JobDetail.packTag, 'Pack tag is present');
     assert.equal(
       JobDetail.packStatFor('name').text,
