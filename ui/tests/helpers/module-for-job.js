@@ -51,52 +51,52 @@ export default function moduleForJob(
     });
 
     test('visiting /jobs/:job_id', async function (assert) {
-      assert.equal(
-        currentURL(),
-        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}`, job.namespace)
-      );
+      const expectedURL = job.namespace
+        ? `/jobs/${job.name}@${job.namespace}`
+        : `/jobs/${job.name}`;
+
+      assert.equal(decodeURIComponent(currentURL()), expectedURL);
       assert.equal(document.title, `Job ${job.name} - Nomad`);
     });
 
     test('the subnav links to overview', async function (assert) {
       await JobDetail.tabFor('overview').visit();
-      assert.equal(
-        currentURL(),
-        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}`, job.namespace)
-      );
+
+      const expectedURL = job.namespace
+        ? `/jobs/${job.name}@${job.namespace}`
+        : `/jobs/${job.name}`;
+
+      assert.equal(decodeURIComponent(currentURL()), expectedURL);
     });
 
     test('the subnav links to definition', async function (assert) {
       await JobDetail.tabFor('definition').visit();
-      assert.equal(
-        currentURL(),
-        urlWithNamespace(
-          `/jobs/${encodeURIComponent(job.id)}/definition`,
-          job.namespace
-        )
-      );
+
+      const expectedURL = job.namespace
+        ? `/jobs/${job.name}@${job.namespace}/definition`
+        : `/jobs/${job.name}/definition`;
+
+      assert.equal(decodeURIComponent(currentURL()), expectedURL);
     });
 
     test('the subnav links to versions', async function (assert) {
       await JobDetail.tabFor('versions').visit();
-      assert.equal(
-        currentURL(),
-        urlWithNamespace(
-          `/jobs/${encodeURIComponent(job.id)}/versions`,
-          job.namespace
-        )
-      );
+
+      const expectedURL = job.namespace
+        ? `/jobs/${job.name}@${job.namespace}/versions`
+        : `/jobs/${job.name}/versions`;
+
+      assert.equal(decodeURIComponent(currentURL()), expectedURL);
     });
 
     test('the subnav links to evaluations', async function (assert) {
       await JobDetail.tabFor('evaluations').visit();
-      assert.equal(
-        currentURL(),
-        urlWithNamespace(
-          `/jobs/${encodeURIComponent(job.id)}/evaluations`,
-          job.namespace
-        )
-      );
+
+      const expectedURL = job.namespace
+        ? `/jobs/${job.name}@${job.namespace}/evaluations`
+        : `/jobs/${job.name}/evaluations`;
+
+      assert.equal(decodeURIComponent(currentURL()), expectedURL);
     });
 
     test('the title buttons are dependent on job status', async function (assert) {
