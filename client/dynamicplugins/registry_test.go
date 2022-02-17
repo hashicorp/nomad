@@ -133,11 +133,12 @@ func TestDynamicRegistry_DeregisterPlugin_SendsUpdateEvents(t *testing.T) {
 	err := r.RegisterPlugin(&PluginInfo{
 		Type:           "csi",
 		Name:           "my-plugin",
+		AllocID:        "alloc-0",
 		ConnectionInfo: &PluginConnectionInfo{},
 	})
 	require.NoError(t, err)
 
-	err = r.DeregisterPlugin("csi", "my-plugin")
+	err = r.DeregisterPlugin("csi", "my-plugin", "alloc-0")
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
@@ -179,6 +180,7 @@ func TestDynamicRegistry_IsolatePluginTypes(t *testing.T) {
 	err := r.RegisterPlugin(&PluginInfo{
 		Type:           PluginTypeCSIController,
 		Name:           "my-plugin",
+		AllocID:        "alloc-0",
 		ConnectionInfo: &PluginConnectionInfo{},
 	})
 	require.NoError(t, err)
@@ -186,14 +188,15 @@ func TestDynamicRegistry_IsolatePluginTypes(t *testing.T) {
 	err = r.RegisterPlugin(&PluginInfo{
 		Type:           PluginTypeCSINode,
 		Name:           "my-plugin",
+		AllocID:        "alloc-1",
 		ConnectionInfo: &PluginConnectionInfo{},
 	})
 	require.NoError(t, err)
 
-	err = r.DeregisterPlugin(PluginTypeCSIController, "my-plugin")
+	err = r.DeregisterPlugin(PluginTypeCSIController, "my-plugin", "alloc-0")
 	require.NoError(t, err)
-	require.Equal(t, len(r.ListPlugins(PluginTypeCSINode)), 1)
-	require.Equal(t, len(r.ListPlugins(PluginTypeCSIController)), 0)
+	require.Equal(t, 1, len(r.ListPlugins(PluginTypeCSINode)))
+	require.Equal(t, 0, len(r.ListPlugins(PluginTypeCSIController)))
 }
 
 func TestDynamicRegistry_StateStore(t *testing.T) {
@@ -278,8 +281,6 @@ func TestDynamicRegistry_ConcurrentAllocs(t *testing.T) {
 
 		require.NoError(t, newR.RegisterPlugin(plugin0))
 		plugin = dispensePlugin(t, newR)
-		// TODO: this currently fails because the RestoreTask races
-		// between the two allocations and the old plugin is overwritten
 		require.Equal(t, "/var/data/alloc/alloc-1/csi.sock", plugin.ConnectionInfo.SocketPath)
 		require.Equal(t, "alloc-1", plugin.AllocID)
 	})
@@ -308,13 +309,8 @@ func TestDynamicRegistry_ConcurrentAllocs(t *testing.T) {
 		require.Equal(t, "alloc-1", plugin.AllocID)
 
 		// RestoreTask fires for all allocations but none of them are
-		// running because we restarted the whole host
-		//
-		// TODO: csi_hooks fail in this window because we'll send to a
-		// socket no one is listening on! We won't be able to
-		// unpublish either!
-
-		// server gives us a replacement alloc
+		// running because we restarted the whole host. Server gives
+		// us a replacement alloc
 
 		require.NoError(t, newR.RegisterPlugin(plugin2))
 		plugin = dispensePlugin(t, newR)
@@ -336,9 +332,7 @@ func TestDynamicRegistry_ConcurrentAllocs(t *testing.T) {
 		plugin := dispensePlugin(t, reg)
 		require.Equal(t, "alloc-1", plugin.AllocID)
 
-		reg.DeregisterPlugin(PluginTypeCSINode, "my-plugin")
-		// TODO: this currently fails because the Deregister lost the race
-		// and removes the plugin outright, leaving no running plugin
+		reg.DeregisterPlugin(PluginTypeCSINode, "my-plugin", "alloc-0")
 		plugin = dispensePlugin(t, reg)
 		require.Equal(t, "alloc-1", plugin.AllocID)
 	})

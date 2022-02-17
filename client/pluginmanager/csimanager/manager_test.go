@@ -27,6 +27,15 @@ func fakePlugin(idx int, pluginType string) *dynamicplugins.PluginInfo {
 	}
 }
 
+func testManager(t *testing.T, registry dynamicplugins.Registry, resyncPeriod time.Duration) *csiManager {
+	return New(&Config{
+		Logger:                testlog.HCLogger(t),
+		DynamicRegistry:       registry,
+		UpdateNodeCSIInfoFunc: func(string, *structs.CSIInfo) {},
+		PluginResyncPeriod:    resyncPeriod,
+	}).(*csiManager)
+}
+
 func setupRegistry(reg *MemDB) dynamicplugins.Registry {
 	return dynamicplugins.NewRegistry(
 		reg,
@@ -43,13 +52,7 @@ func setupRegistry(reg *MemDB) dynamicplugins.Registry {
 func TestManager_RegisterPlugin(t *testing.T) {
 	registry := setupRegistry(nil)
 	defer registry.Shutdown()
-
-	cfg := &Config{
-		Logger:                testlog.HCLogger(t),
-		DynamicRegistry:       registry,
-		UpdateNodeCSIInfoFunc: func(string, *structs.CSIInfo) {},
-	}
-	pm := New(cfg).(*csiManager)
+	pm := testManager(t, registry, time.Hour)
 	defer pm.Shutdown()
 
 	plugin := fakePlugin(0, dynamicplugins.PluginTypeCSIController)
@@ -72,14 +75,7 @@ func TestManager_RegisterPlugin(t *testing.T) {
 func TestManager_DeregisterPlugin(t *testing.T) {
 	registry := setupRegistry(nil)
 	defer registry.Shutdown()
-
-	cfg := &Config{
-		Logger:                testlog.HCLogger(t),
-		DynamicRegistry:       registry,
-		UpdateNodeCSIInfoFunc: func(string, *structs.CSIInfo) {},
-		PluginResyncPeriod:    500 * time.Millisecond,
-	}
-	pm := New(cfg).(*csiManager)
+	pm := testManager(t, registry, 500*time.Millisecond)
 	defer pm.Shutdown()
 
 	plugin := fakePlugin(0, dynamicplugins.PluginTypeCSIController)
@@ -93,7 +89,7 @@ func TestManager_DeregisterPlugin(t *testing.T) {
 		return ok
 	}, 5*time.Second, 10*time.Millisecond)
 
-	err = registry.DeregisterPlugin(plugin.Type, plugin.Name)
+	err = registry.DeregisterPlugin(plugin.Type, plugin.Name, "alloc-0")
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
@@ -109,13 +105,7 @@ func TestManager_MultiplePlugins(t *testing.T) {
 	registry := setupRegistry(nil)
 	defer registry.Shutdown()
 
-	cfg := &Config{
-		Logger:                testlog.HCLogger(t),
-		DynamicRegistry:       registry,
-		UpdateNodeCSIInfoFunc: func(string, *structs.CSIInfo) {},
-		PluginResyncPeriod:    500 * time.Millisecond,
-	}
-	pm := New(cfg).(*csiManager)
+	pm := testManager(t, registry, 500*time.Millisecond)
 	defer pm.Shutdown()
 
 	controllerPlugin := fakePlugin(0, dynamicplugins.PluginTypeCSIController)
@@ -138,7 +128,7 @@ func TestManager_MultiplePlugins(t *testing.T) {
 		return ok
 	}, 5*time.Second, 10*time.Millisecond)
 
-	err = registry.DeregisterPlugin(controllerPlugin.Type, controllerPlugin.Name)
+	err = registry.DeregisterPlugin(controllerPlugin.Type, controllerPlugin.Name, "alloc-0")
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
@@ -151,15 +141,6 @@ func TestManager_MultiplePlugins(t *testing.T) {
 // allocations for the same plugin interact
 func TestManager_ConcurrentPlugins(t *testing.T) {
 
-	testManager := func(registry dynamicplugins.Registry) *csiManager {
-		return New(&Config{
-			Logger:                testlog.HCLogger(t),
-			DynamicRegistry:       registry,
-			UpdateNodeCSIInfoFunc: func(string, *structs.CSIInfo) {},
-			PluginResyncPeriod:    time.Hour, //  don't resync except via events
-		}).(*csiManager)
-	}
-
 	t.Run("replacement races on host restart", func(t *testing.T) {
 		plugin0 := fakePlugin(0, dynamicplugins.PluginTypeCSINode)
 		plugin1 := fakePlugin(1, dynamicplugins.PluginTypeCSINode)
@@ -167,7 +148,7 @@ func TestManager_ConcurrentPlugins(t *testing.T) {
 
 		db := &MemDB{}
 		registry := setupRegistry(db)
-		pm := testManager(registry)
+		pm := testManager(t, registry, time.Hour) // no resync except from events
 		pm.Run()
 
 		require.NoError(t, registry.RegisterPlugin(plugin0))
@@ -186,7 +167,7 @@ func TestManager_ConcurrentPlugins(t *testing.T) {
 
 		registry = setupRegistry(db)
 		defer registry.Shutdown()
-		pm = testManager(registry)
+		pm = testManager(t, registry, time.Hour)
 		defer pm.Shutdown()
 		pm.Run()
 
@@ -197,13 +178,8 @@ func TestManager_ConcurrentPlugins(t *testing.T) {
 		}, 5*time.Second, 10*time.Millisecond, "alloc-1 plugin was not active after state reload")
 
 		// RestoreTask fires for all allocations but none of them are
-		// running because we restarted the whole host
-		//
-		// TODO: csi_hooks fail in this window because we'll send to a
-		// socket no one is listening on! We won't be able to
-		// unpublish either!
-
-		// server gives us a replacement alloc
+		// running because we restarted the whole host. Server gives
+		// us a replacement alloc
 
 		require.NoError(t, registry.RegisterPlugin(plugin2))
 		require.Eventuallyf(t, func() bool {
@@ -222,7 +198,7 @@ func TestManager_ConcurrentPlugins(t *testing.T) {
 		registry := setupRegistry(db)
 		defer registry.Shutdown()
 
-		pm := testManager(registry)
+		pm := testManager(t, registry, time.Hour) // no resync except from events
 		defer pm.Shutdown()
 		pm.Run()
 
@@ -235,10 +211,8 @@ func TestManager_ConcurrentPlugins(t *testing.T) {
 				im.allocID == "alloc-1"
 		}, 5*time.Second, 10*time.Millisecond, "alloc-1 plugin did not become active plugin")
 
-		registry.DeregisterPlugin(dynamicplugins.PluginTypeCSINode, "my-plugin")
+		registry.DeregisterPlugin(dynamicplugins.PluginTypeCSINode, "my-plugin", "alloc-0")
 
-		// TODO: this currently fails because the Deregister lost the race
-		// and removes the plugin outright, leaving no running plugin
 		require.Eventuallyf(t, func() bool {
 			im, _ := pm.instances[plugin0.Type][plugin0.Name]
 			return im != nil &&
