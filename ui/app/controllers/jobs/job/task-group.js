@@ -174,12 +174,7 @@ export default class TaskGroupController extends Controller.extend(
     return {
       title: 'Task Group',
       label: name,
-      args: [
-        'jobs.job.task-group',
-        job,
-        name,
-        qpBuilder({ jobNamespace: job.get('namespace.name') || 'default' }),
-      ],
+      args: ['jobs.job.task-group', job, name],
     };
   }
 }

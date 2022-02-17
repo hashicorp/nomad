@@ -375,7 +375,7 @@ module('Acceptance | task detail (different namespace)', function (hooks) {
     await Layout.breadcrumbFor('jobs.job.index').visit();
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}?namespace=other-namespace`,
+      `/jobs/${job.id}@other-namespace`,
       'Job breadcrumb links correctly'
     );
 
@@ -383,7 +383,7 @@ module('Acceptance | task detail (different namespace)', function (hooks) {
     await Layout.breadcrumbFor('jobs.job.task-group').visit();
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}/${taskGroup}?namespace=other-namespace`,
+      `/jobs/${job.id}@other-namespace/${taskGroup}`,
       'Task Group breadcrumb links correctly'
     );
 
