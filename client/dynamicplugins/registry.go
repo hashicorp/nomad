@@ -40,14 +40,6 @@ type RegistryState struct {
 	Plugins map[string]map[string]*list.List
 }
 
-// TODO(tgross): LegacyRegistryState is the v1 state persisted in the
-// client state store. We need to do a data migration in the boltdb
-// store on restart.
-//
-// type LegacyRegistryState struct {
-// 	Plugins map[string]map[string]*PluginInfo
-// }
-
 type PluginDispenser func(info *PluginInfo) (interface{}, error)
 
 // NewRegistry takes a map of `plugintype` to PluginDispenser functions
