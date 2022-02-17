@@ -322,9 +322,9 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     });
 
     await JobDetail.visit({
-      id: job.id,
-      namespace: server.db.namespaces[1].name,
+      id: `${job.id}@${server.db.namespaces[1].name}`,
     });
+
     assert.notOk(JobDetail.execButton.isDisabled);
   });
 
