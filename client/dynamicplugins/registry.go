@@ -24,6 +24,7 @@ type Registry interface {
 
 	ListPlugins(ptype string) []*PluginInfo
 	DispensePlugin(ptype, name string) (interface{}, error)
+	PluginForAlloc(ptype, name, allocID string) (*PluginInfo, error)
 
 	PluginsUpdatedCh(ctx context.Context, ptype string) <-chan *PluginUpdateEvent
 
@@ -347,6 +348,27 @@ func (d *dynamicRegistry) DispensePlugin(ptype string, name string) (interface{}
 	}
 
 	return dispenseFunc(info.Front().Value.(*PluginInfo))
+}
+
+func (d *dynamicRegistry) PluginForAlloc(ptype, name, allocID string) (*PluginInfo, error) {
+	d.pluginsLock.Lock()
+	defer d.pluginsLock.Unlock()
+
+	pmap, ok := d.plugins[ptype]
+	if !ok {
+		return nil, fmt.Errorf("no plugins registered for type: %s", ptype)
+	}
+
+	infos, ok := pmap[name]
+	if ok {
+		for e := infos.Front(); e != nil; e = e.Next() {
+			plugin := e.Value.(*PluginInfo)
+			if plugin.AllocID == allocID {
+				return plugin, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("no plugin for that allocation")
 }
 
 // PluginsUpdatedCh returns a channel over which plugin events for the requested
