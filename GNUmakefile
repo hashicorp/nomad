@@ -18,7 +18,7 @@ endif
 # Respect $GOBIN if set in environment or via $GOENV file.
 BIN := $(shell go env GOBIN)
 ifndef BIN
-BIN := $(shell go env GOPATH)/bin
+BIN := $(GOPATH)/bin
 endif
 
 GO_TAGS ?=
