@@ -76,7 +76,7 @@ module('Acceptance | allocation detail', function (hooks) {
     await Allocation.details.visitJob();
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}@default`,
+      `/jobs/${job.id}`,
       'Job link navigates to the job'
     );
 
@@ -499,10 +499,11 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
     );
 
     await Allocation.visit({ id: allocation.id });
+
     await Allocation.preempter.visitJob();
     assert.equal(
       currentURL(),
-      `/jobs/${preempterJob.id}@default`,
+      `/jobs/${preempterJob.id}`,
       'Clicking the preempter job link navigates to the preempter job page'
     );
 

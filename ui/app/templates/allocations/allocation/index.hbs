@@ -5,11 +5,19 @@
     <div data-test-inline-error class="notification is-danger">
       <div class="columns">
         <div class="column">
-          <h3 data-test-inline-error-title class="title is-4">{{this.error.title}}</h3>
+          <h3
+            data-test-inline-error-title
+            class="title is-4"
+          >{{this.error.title}}</h3>
           <p data-test-inline-error-body>{{this.error.description}}</p>
         </div>
         <div class="column is-centered is-minimum">
-          <button data-test-inline-error-close class="button is-danger" onclick={{action this.onDismiss}} type="button">Okay</button>
+          <button
+            data-test-inline-error-close
+            class="button is-danger"
+            onclick={{action this.onDismiss}}
+            type="button"
+          >Okay</button>
         </div>
       </div>
     </div>
@@ -17,13 +25,19 @@
 
   <h1 data-test-title class="title with-headroom with-flex">
     <div>
-      Allocation {{this.model.name}}
-      <span class="bumper-left tag {{this.model.statusClass}}">{{this.model.clientStatus}}</span>
+      Allocation
+      {{this.model.name}}
+      <span
+        class="bumper-left tag {{this.model.statusClass}}"
+      >{{this.model.clientStatus}}</span>
     </div>
     <div>
       {{#if this.model.isRunning}}
         <div class="two-step-button">
-          <Exec::OpenButton @job={{this.model.job}} @allocation={{this.model}} />
+          <Exec::OpenButton
+            @job={{this.model.job}}
+            @allocation={{this.model}}
+          />
         </div>
         <TwoStepButton
           data-test-stop
@@ -33,8 +47,12 @@
           @confirmText="Yes, Stop"
           @confirmationMessage="Are you sure? This will reschedule the allocation on a different client."
           @awaitingConfirmation={{this.stopAllocation.isRunning}}
-          @disabled={{or this.stopAllocation.isRunning this.restartAllocation.isRunning}}
-          @onConfirm={{perform this.stopAllocation}} />
+          @disabled={{or
+            this.stopAllocation.isRunning
+            this.restartAllocation.isRunning
+          }}
+          @onConfirm={{perform this.stopAllocation}}
+        />
         <TwoStepButton
           data-test-restart
           @alignRight={{true}}
@@ -43,8 +61,12 @@
           @confirmText="Yes, Restart"
           @confirmationMessage="Are you sure? This will restart the allocation in-place."
           @awaitingConfirmation={{this.restartAllocation.isRunning}}
-          @disabled={{or this.stopAllocation.isRunning this.restartAllocation.isRunning}}
-          @onConfirm={{perform this.restartAllocation}} />
+          @disabled={{or
+            this.stopAllocation.isRunning
+            this.restartAllocation.isRunning
+          }}
+          @onConfirm={{perform this.restartAllocation}}
+        />
       {{/if}}
     </div>
   </h1>
@@ -55,13 +77,24 @@
   </span>
 
   <div class="boxed-section is-small">
-    <div data-test-allocation-details class="boxed-section-body inline-definitions">
+    <div
+      data-test-allocation-details
+      class="boxed-section-body inline-definitions"
+    >
       <span class="label">Allocation Details</span>
       <span class="pair job-link"><span class="term">Job</span>
-        <LinkTo @route="jobs.job" @model={{this.model.job}} @query={{hash jobNamespace=this.model.job.namespace.id}} data-test-job-link>{{this.model.job.name}}</LinkTo>
+        <LinkTo
+          @route="jobs.job"
+          @model={{this.model.job}}
+          data-test-job-link
+        >{{this.model.job.name}}</LinkTo>
       </span>
       <span class="pair node-link"><span class="term">Client</span>
-        <LinkTo @route="clients.client" @model={{this.model.node}} data-test-client-link>{{this.model.node.shortId}}</LinkTo>
+        <LinkTo
+          @route="clients.client"
+          @model={{this.model.node}}
+          data-test-client-link
+        >{{this.model.node.shortId}}</LinkTo>
       </span>
     </div>
   </div>
@@ -74,16 +107,26 @@
       {{#if this.model.isRunning}}
         <div class="columns">
           <div class="column">
-            <PrimaryMetric::Allocation @allocation={{this.model}} @metric="cpu" />
+            <PrimaryMetric::Allocation
+              @allocation={{this.model}}
+              @metric="cpu"
+            />
           </div>
           <div class="column">
-            <PrimaryMetric::Allocation @allocation={{this.model}} @metric="memory" />
+            <PrimaryMetric::Allocation
+              @allocation={{this.model}}
+              @metric="memory"
+            />
           </div>
         </div>
       {{else}}
         <div data-test-resource-error class="empty-message">
-          <h3 data-test-resource-error-headline class="empty-message-headline">Allocation isn't running</h3>
-          <p class="empty-message-body">Only running allocations utilize resources.</p>
+          <h3
+            data-test-resource-error-headline
+            class="empty-message-headline"
+          >Allocation isn't running</h3>
+          <p class="empty-message-body">Only running allocations utilize
+            resources.</p>
         </div>
       {{/if}}
     </div>
@@ -95,13 +138,17 @@
     <div class="boxed-section-head">
       Tasks
     </div>
-    <div class="boxed-section-body {{if this.sortedStates.length "is-full-bleed"}}">
+    <div
+      class="boxed-section-body {{if this.sortedStates.length 'is-full-bleed'}}"
+    >
       {{#if this.sortedStates.length}}
         <ListTable
           @source={{this.sortedStates}}
           @sortProperty={{this.sortProperty}}
           @sortDescending={{this.sortDescending}}
-          @class="is-striped" as |t|>
+          @class="is-striped"
+          as |t|
+        >
           <t.head>
             <th class="is-narrow"></th>
             <t.sort-by @prop="name">Name</t.sort-by>
@@ -116,13 +163,20 @@
             <TaskRow
               @data-test-task-row={{row.model.name}}
               @task={{row.model}}
-              @onClick={{action "taskClick" row.model.allocation row.model}} />
+              @onClick={{action "taskClick" row.model.allocation row.model}}
+            />
           </t.body>
         </ListTable>
       {{else}}
         <div data-test-empty-tasks-list class="empty-message">
-          <h3 data-test-empty-tasks-list-headline class="empty-message-headline">No Tasks</h3>
-          <p data-test-empty-tasks-list-body class="empty-message-body">Allocations will not have tasks until they are in a running state.</p>
+          <h3
+            data-test-empty-tasks-list-headline
+            class="empty-message-headline"
+          >No Tasks</h3>
+          <p
+            data-test-empty-tasks-list-body
+            class="empty-message-body"
+          >Allocations will not have tasks until they are in a running state.</p>
         </div>
       {{/if}}
     </div>
@@ -144,7 +198,11 @@
             <tr data-test-allocation-port>
               <td data-test-allocation-port-name>{{row.model.label}}</td>
               <td data-test-allocation-port-address>
-                <a href="http://{{row.model.hostIp}}:{{row.model.value}}" target="_blank" rel="noopener noreferrer">{{row.model.hostIp}}:{{row.model.value}}</a>
+                <a
+                  href="http://{{row.model.hostIp}}:{{row.model.value}}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >{{row.model.hostIp}}:{{row.model.value}}</a>
               </td>
               <td data-test-allocation-port-to>{{row.model.to}}</td>
             </tr>
@@ -173,11 +231,21 @@
             <tr data-test-service>
               <td data-test-service-name>{{row.model.name}}</td>
               <td data-test-service-port>{{row.model.portLabel}}</td>
-              <td data-test-service-tags class="is-long-text">{{join ", " row.model.tags}}</td>
+              <td data-test-service-tags class="is-long-text">{{join
+                  ", "
+                  row.model.tags
+                }}</td>
               <td data-test-service-onupdate>{{row.model.onUpdate}}</td>
-              <td data-test-service-connect>{{if row.model.connect "Yes" "No"}}</td>
+              <td data-test-service-connect>{{if
+                  row.model.connect
+                  "Yes"
+                  "No"
+                }}</td>
               <td data-test-service-upstreams>
-                {{#each row.model.connect.sidecarService.proxy.upstreams as |upstream|}}
+                {{#each
+                  row.model.connect.sidecarService.proxy.upstreams
+                  as |upstream|
+                }}
                   {{upstream.destinationName}}:{{upstream.localBindPort}}
                 {{/each}}
               </td>
@@ -207,48 +275,81 @@
           <div class="boxed-section is-small">
             <div class="boxed-section-body inline-definitions">
               <span class="pair">
-                <span data-test-allocation-status class="tag {{this.preempter.statusClass}}">
+                <span
+                  data-test-allocation-status
+                  class="tag {{this.preempter.statusClass}}"
+                >
                   {{this.preempter.clientStatus}}
                 </span>
               </span>
               <span class="pair">
-                <span class="term" data-test-allocation-name>{{this.preempter.name}}</span>
-                <LinkTo @route="allocations.allocation" @model={{this.preempter}} data-test-allocation-id>{{this.preempter.shortId}}</LinkTo>
+                <span
+                  class="term"
+                  data-test-allocation-name
+                >{{this.preempter.name}}</span>
+                <LinkTo
+                  @route="allocations.allocation"
+                  @model={{this.preempter}}
+                  data-test-allocation-id
+                >{{this.preempter.shortId}}</LinkTo>
               </span>
               <span class="pair job-link"><span class="term">Job</span>
-                <LinkTo @route="jobs.job" @model={{this.preempter.job}} @query={{hash jobNamespace=this.preempter.job.namespace.id}} data-test-job-link>{{this.preempter.job.name}}</LinkTo>
+                <LinkTo
+                  @route="jobs.job"
+                  @model={{this.preempter.job}}
+                  data-test-job-link
+                >{{this.preempter.job.name}}</LinkTo>
               </span>
               <span class="pair job-priority"><span class="term">Priority</span>
-                <span data-test-job-priority>{{this.preempter.job.priority}}</span>
+                <span
+                  data-test-job-priority
+                >{{this.preempter.job.priority}}</span>
               </span>
               <span class="pair node-link"><span class="term">Client</span>
-                <LinkTo @route="clients.client" @model={{this.preempter.node}} data-test-client-link>{{this.preempter.node.shortId}}</LinkTo>
+                <LinkTo
+                  @route="clients.client"
+                  @model={{this.preempter.node}}
+                  data-test-client-link
+                >{{this.preempter.node.shortId}}</LinkTo>
               </span>
               <span class="pair"><span class="term">Reserved CPU</span>
-                <span data-test-allocation-cpu>{{format-scheduled-hertz this.preempter.resources.cpu}}</span>
+                <span data-test-allocation-cpu>{{format-scheduled-hertz
+                    this.preempter.resources.cpu
+                  }}</span>
               </span>
               <span class="pair"><span class="term">Reserved Memory</span>
-                <span data-test-allocation-memory>{{format-scheduled-bytes this.preempter.resources.memory start="MiB"}}</span>
+                <span data-test-allocation-memory>{{format-scheduled-bytes
+                    this.preempter.resources.memory
+                    start="MiB"
+                  }}</span>
               </span>
             </div>
           </div>
         {{else}}
           <div class="empty-message">
             <h3 class="empty-message-headline">Allocation is gone</h3>
-            <p class="empty-message-body">This allocation has been stopped and garbage collected.</p>
+            <p class="empty-message-body">This allocation has been stopped and
+              garbage collected.</p>
           </div>
         {{/if}}
       </div>
     </div>
   {{/if}}
 
-  {{#if (and this.model.preemptedAllocations.isFulfilled this.model.preemptedAllocations.length)}}
+  {{#if
+    (and
+      this.model.preemptedAllocations.isFulfilled
+      this.model.preemptedAllocations.length
+    )
+  }}
     <div class="boxed-section" data-test-preemptions>
       <div class="boxed-section-head">Preempted Allocations</div>
       <div class="boxed-section-body">
         <ListTable
           @source={{this.model.preemptedAllocations}}
-          @class="allocations is-isolated" as |t|>
+          @class="allocations is-isolated"
+          as |t|
+        >
           <t.head>
             <th class="is-narrow"></th>
             <th>ID</th>
@@ -262,7 +363,11 @@
             <th>Memory</th>
           </t.head>
           <t.body as |row|>
-            <AllocationRow @allocation={{row.model}} @context="job" @data-test-allocation={{row.model.id}} />
+            <AllocationRow
+              @allocation={{row.model}}
+              @context="job"
+              @data-test-allocation={{row.model.id}}
+            />
           </t.body>
         </ListTable>
       </div>
