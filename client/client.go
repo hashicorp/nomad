@@ -2406,6 +2406,13 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 		return
 	}
 
+	// Reconnect unknown allocations
+	if update.ClientStatus == structs.AllocClientStatusUnknown && update.AllocModifyIndex > ar.Alloc().AllocModifyIndex {
+		update.ClientStatus = ar.AllocState().ClientStatus
+		update.ClientDescription = ar.AllocState().ClientDescription
+		c.AllocStateUpdated(update)
+	}
+
 	// Update local copy of alloc
 	if err := c.stateDB.PutAllocation(update); err != nil {
 		c.logger.Error("error persisting updated alloc locally", "error", err, "alloc_id", update.ID)
