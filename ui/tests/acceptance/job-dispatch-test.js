@@ -54,12 +54,12 @@ function moduleForJobDispatch(title, jobFactory) {
     });
 
     test('it passes an accessibility audit', async function (assert) {
-      await JobDispatch.visit({ id: job.id, namespace: namespace.name });
+      await JobDispatch.visit({ id: `${job.id}@${namespace.name}` });
       await a11yAudit(assert);
     });
 
     test('the dispatch button is displayed with management token', async function (assert) {
-      await JobDetail.visit({ id: job.id, namespace: namespace.name });
+      await JobDetail.visit({ id: `${job.id}@${namespace.name}` });
       assert.notOk(JobDetail.dispatchButton.isDisabled);
     });
 
@@ -82,7 +82,7 @@ function moduleForJobDispatch(title, jobFactory) {
       clientToken.policyIds = [policy.id];
       clientToken.save();
 
-      await JobDetail.visit({ id: job.id, namespace: namespace.name });
+      await JobDetail.visit({ id: `${job.id}@${namespace.name}` });
       assert.notOk(JobDetail.dispatchButton.isDisabled);
 
       // Reset clientToken policies.
@@ -93,12 +93,12 @@ function moduleForJobDispatch(title, jobFactory) {
     test('the dispatch button is disabled when not allowed', async function (assert) {
       window.localStorage.nomadTokenSecret = clientToken.secretId;
 
-      await JobDetail.visit({ id: job.id, namespace: namespace.name });
+      await JobDetail.visit({ id: `${job.id}@${namespace.name}` });
       assert.ok(JobDetail.dispatchButton.isDisabled);
     });
 
     test('all meta fields are displayed', async function (assert) {
-      await JobDispatch.visit({ id: job.id, namespace: namespace.name });
+      await JobDispatch.visit({ id: `${job.id}@${namespace.name}` });
       assert.equal(
         JobDispatch.metaFields.length,
         job.parameterizedJob.MetaOptional.length +
@@ -107,7 +107,7 @@ function moduleForJobDispatch(title, jobFactory) {
     });
 
     test('required meta fields are properly indicated', async function (assert) {
-      await JobDispatch.visit({ id: job.id, namespace: namespace.name });
+      await JobDispatch.visit({ id: `${job.id}@${namespace.name}` });
 
       JobDispatch.metaFields.forEach((f) => {
         const hasIndicator = f.label.includes(REQUIRED_INDICATOR);
@@ -136,10 +136,7 @@ function moduleForJobDispatch(title, jobFactory) {
         },
       });
 
-      await JobDispatch.visit({
-        id: jobWithoutMeta.id,
-        namespace: namespace.name,
-      });
+      await JobDispatch.visit({ id: `${jobWithoutMeta.id}@${namespace.name}` });
       assert.ok(JobDispatch.dispatchButton.isPresent);
     });
 
@@ -147,7 +144,7 @@ function moduleForJobDispatch(title, jobFactory) {
       job.parameterizedJob.Payload = 'forbidden';
       job.save();
 
-      await JobDispatch.visit({ id: job.id, namespace: namespace.name });
+      await JobDispatch.visit({ id: `${job.id}@${namespace.name}` });
 
       assert.ok(JobDispatch.payload.emptyMessage.isPresent);
       assert.notOk(JobDispatch.payload.editor.isPresent);
@@ -170,8 +167,7 @@ function moduleForJobDispatch(title, jobFactory) {
       });
 
       await JobDispatch.visit({
-        id: jobPayloadRequired.id,
-        namespace: namespace.name,
+        id: `${jobPayloadRequired.id}@${namespace.name}`,
       });
 
       let payloadTitle = JobDispatch.payload.title;
@@ -181,8 +177,7 @@ function moduleForJobDispatch(title, jobFactory) {
       );
 
       await JobDispatch.visit({
-        id: jobPayloadOptional.id,
-        namespace: namespace.name,
+        id: `${jobPayloadOptional.id}@${namespace.name}`,
       });
 
       payloadTitle = JobDispatch.payload.title;
@@ -199,7 +194,7 @@ function moduleForJobDispatch(title, jobFactory) {
         ).length;
       }
 
-      await JobDispatch.visit({ id: job.id, namespace: namespace.name });
+      await JobDispatch.visit({ id: `${job.id}@${namespace.name}` });
 
       // Fill form.
       JobDispatch.metaFields.map((f) => f.field.input('meta value'));
@@ -222,7 +217,7 @@ function moduleForJobDispatch(title, jobFactory) {
       job.parameterizedJob.Payload = 'forbidden';
       job.save();
 
-      await JobDispatch.visit({ id: job.id, namespace: namespace.name });
+      await JobDispatch.visit({ id: `${job.id}@${namespace.name}` });
 
       // Fill only optional meta params.
       JobDispatch.optionalMetaFields.map((f) => f.field.input('meta value'));
@@ -237,7 +232,7 @@ function moduleForJobDispatch(title, jobFactory) {
       job.parameterizedJob.Payload = 'required';
       job.save();
 
-      await JobDispatch.visit({ id: job.id, namespace: namespace.name });
+      await JobDispatch.visit({ id: `${job.id}@${namespace.name}` });
       await JobDispatch.dispatchButton.click();
 
       assert.ok(JobDispatch.hasError, 'Dispatch error message is shown');

@@ -25,8 +25,8 @@ module.exports = function (environment) {
 
     APP: {
       blockingQueries: true,
-      mirageScenario: 'topoMedium',
-      mirageWithNamespaces: false,
+      mirageScenario: 'smallCluster',
+      mirageWithNamespaces: true,
       mirageWithTokens: true,
       mirageWithRegions: true,
       showStorybookLink: process.env.STORYBOOK_LINK === 'true',

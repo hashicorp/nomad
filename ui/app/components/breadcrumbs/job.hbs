@@ -12,8 +12,7 @@
       <li>
         <LinkTo
           @route="jobs.job.index"
-          @model={{trigger.data.result.plainId}}
-          @query={{hash namespace=(or trigger.data.result.namespace.name "default")}}
+          @model={{trigger.data.result}}
           data-test-breadcrumb={{"jobs.job.index"}}
         >
           <dl>
@@ -30,8 +29,7 @@
     <li>
       <LinkTo
         @route="jobs.job.index"
-        @model={{this.job.plainId}}
-        @query={{hash namespace=(or this.job.namespace.name "default")}}
+        @model={{this.job}}
         data-test-breadcrumb={{"jobs.job.index"}}
         data-test-job-breadcrumb
       >

@@ -44,7 +44,10 @@
             @options={{this.optionsNamespaces}}
             @selection={{this.qpNamespace}}
             @onSelect={{action
-              (queue (action this.cacheNamespace) (action this.setFacetQueryParam "qpNamespace"))
+              (queue
+                (action this.cacheNamespace)
+                (action this.setFacetQueryParam "qpNamespace")
+              )
             }}
           />
         {{/if}}
@@ -109,13 +112,15 @@
     <ListPagination
       @source={{this.sortedJobs}}
       @size={{this.pageSize}}
-      @page={{this.currentPage}} as |p|
+      @page={{this.currentPage}}
+      as |p|
     >
       <ListTable
         @source={{p.list}}
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
-        @class="with-foot" as |t|
+        @class="with-foot"
+        as |t|
       >
         <t.head>
           <t.sort-by @prop="name">

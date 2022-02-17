@@ -34,12 +34,12 @@ module('Acceptance | volume detail', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    await VolumeDetail.visit({ id: volume.id });
+    await VolumeDetail.visit({ id: `${volume.id}@default` });
     await a11yAudit(assert);
   });
 
   test('/csi/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function (assert) {
-    await VolumeDetail.visit({ id: volume.id });
+    await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.equal(Layout.breadcrumbFor('csi.index').text, 'Storage');
     assert.equal(Layout.breadcrumbFor('csi.volumes').text, 'Volumes');
@@ -47,14 +47,14 @@ module('Acceptance | volume detail', function (hooks) {
   });
 
   test('/csi/volumes/:id should show the volume name in the title', async function (assert) {
-    await VolumeDetail.visit({ id: volume.id });
+    await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.equal(document.title, `CSI Volume ${volume.name} - Nomad`);
     assert.equal(VolumeDetail.title, volume.name);
   });
 
   test('/csi/volumes/:id should list additional details for the volume below the title', async function (assert) {
-    await VolumeDetail.visit({ id: volume.id });
+    await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.ok(
       VolumeDetail.health.includes(
@@ -75,7 +75,7 @@ module('Acceptance | volume detail', function (hooks) {
     writeAllocations.forEach((alloc) => assignWriteAlloc(volume, alloc));
     readAllocations.forEach((alloc) => assignReadAlloc(volume, alloc));
 
-    await VolumeDetail.visit({ id: volume.id });
+    await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.equal(VolumeDetail.writeAllocations.length, writeAllocations.length);
     writeAllocations
@@ -95,7 +95,7 @@ module('Acceptance | volume detail', function (hooks) {
     writeAllocations.forEach((alloc) => assignWriteAlloc(volume, alloc));
     readAllocations.forEach((alloc) => assignReadAlloc(volume, alloc));
 
-    await VolumeDetail.visit({ id: volume.id });
+    await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.equal(VolumeDetail.readAllocations.length, readAllocations.length);
     readAllocations
@@ -126,7 +126,7 @@ module('Acceptance | volume detail', function (hooks) {
       0
     );
 
-    await VolumeDetail.visit({ id: volume.id });
+    await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     VolumeDetail.writeAllocations.objectAt(0).as((allocationRow) => {
       assert.equal(
@@ -198,28 +198,28 @@ module('Acceptance | volume detail', function (hooks) {
     const allocation = server.create('allocation');
     assignWriteAlloc(volume, allocation);
 
-    await VolumeDetail.visit({ id: volume.id });
+    await VolumeDetail.visit({ id: `${volume.id}@default` });
     await VolumeDetail.writeAllocations.objectAt(0).visit();
 
     assert.equal(currentURL(), `/allocations/${allocation.id}`);
   });
 
   test('when there are no write allocations, the table presents an empty state', async function (assert) {
-    await VolumeDetail.visit({ id: volume.id });
+    await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.ok(VolumeDetail.writeTableIsEmpty);
     assert.equal(VolumeDetail.writeEmptyState.headline, 'No Write Allocations');
   });
 
   test('when there are no read allocations, the table presents an empty state', async function (assert) {
-    await VolumeDetail.visit({ id: volume.id });
+    await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.ok(VolumeDetail.readTableIsEmpty);
     assert.equal(VolumeDetail.readEmptyState.headline, 'No Read Allocations');
   });
 
   test('the constraints table shows access mode and attachment mode', async function (assert) {
-    await VolumeDetail.visit({ id: volume.id });
+    await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.equal(VolumeDetail.constraints.accessMode, volume.accessMode);
     assert.equal(
@@ -244,7 +244,7 @@ module('Acceptance | volume detail (with namespaces)', function (hooks) {
   });
 
   test('/csi/volumes/:id detail ribbon includes the namespace of the volume', async function (assert) {
-    await VolumeDetail.visit({ id: volume.id, namespace: volume.namespaceId });
+    await VolumeDetail.visit({ id: `${volume.id}@${volume.namespaceId}` });
 
     assert.ok(VolumeDetail.hasNamespace);
     assert.ok(VolumeDetail.namespace.includes(volume.namespaceId || 'default'));

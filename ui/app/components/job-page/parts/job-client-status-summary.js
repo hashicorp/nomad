@@ -24,7 +24,6 @@ export default class JobClientStatusSummary extends Component {
     this.router.transitionTo('jobs.job.clients', this.job, {
       queryParams: {
         status: JSON.stringify(statusFilter),
-        namespace: this.job.get('namespace.name'),
       },
     });
   }

@@ -11,12 +11,12 @@ export default class JobRoute extends Route {
   @service token;
 
   serialize(model) {
-    return { job_name: model.get('plainId') };
+    return { job_name: model.get('idWithNamespace') };
   }
 
-  model(params, transition) {
-    const namespace = transition.to.queryParams.namespace || 'default';
-    const name = params.job_name;
+  model(params) {
+    const [name, namespace = 'default'] = params.job_name.split('@');
+
     const fullId = JSON.stringify([name, namespace]);
 
     return this.store
