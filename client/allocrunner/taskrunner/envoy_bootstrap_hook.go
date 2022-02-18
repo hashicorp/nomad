@@ -1,15 +1,17 @@
 package taskrunner
 
 import (
-	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -261,6 +263,11 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	// it to the secrets directory like Vault tokens.
 	bootstrapFilePath := filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json")
 
+	// Write everything related to the command to enable debugging
+	bootstrapStderrPath := filepath.Join(req.TaskDir.LogDir, "envoy_bootstrap.stderr.0")
+	bootstrapEnvPath := filepath.Join(req.TaskDir.SecretsDir, ".envoy_bootstrap.env")
+	bootstrapCmdPath := filepath.Join(req.TaskDir.SecretsDir, ".envoy_bootstrap.cmd")
+
 	siToken, err := h.maybeLoadSIToken(req.Task.Name, req.TaskDir.SecretsDir)
 	if err != nil {
 		h.logger.Error("failed to generate envoy bootstrap config", "sidecar_for", service.Name)
@@ -269,16 +276,46 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	h.logger.Debug("check for SI token for task", "task", req.Task.Name, "exists", siToken != "")
 
 	bootstrap := h.newEnvoyBootstrapArgs(h.alloc.TaskGroup, service, grpcAddr, envoyAdminBind, envoyReadyBind, siToken, bootstrapFilePath)
+
+	// Create command line arguments
 	bootstrapArgs := bootstrap.args()
+
+	// Write args to file for debugging
+	argsFile, err := os.Create(bootstrapCmdPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to write bootstrap command line")
+	}
+	defer argsFile.Close()
+	if _, err := io.WriteString(argsFile, strings.Join(bootstrapArgs, " ")+"\n"); err != nil {
+		return errors.Wrap(err, "failed to encode bootstrap command line")
+	}
+
+	// Create environment
 	bootstrapEnv := bootstrap.env(os.Environ())
+
+	// Write env to file for debugging
+	envFile, err := os.Create(bootstrapEnvPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to write bootstrap environment")
+	}
+	defer envFile.Close()
+	envEnc := json.NewEncoder(envFile)
+	envEnc.SetIndent("", "    ")
+	if err := envEnc.Encode(bootstrapEnv); err != nil {
+		return errors.Wrap(err, "failed to encode bootstrap environment")
+	}
 
 	// keep track of latest error returned from exec-ing consul envoy bootstrap
 	var cmdErr error
 
 	// Since Consul services are registered asynchronously with this task
 	// hook running, retry until timeout or success.
-	if backoffErr := decay.Backoff(func() (bool, error) {
-
+	backoffOpts := decay.BackoffOptions{
+		MaxSleepTime:   h.envoyBootstrapWaitTime,
+		InitialGapSize: h.envoyBoostrapInitialGap,
+		MaxJitterSize:  h.envoyBootstrapMaxJitter,
+	}
+	backoffErr := decay.Backoff(func() (bool, error) {
 		// If hook is killed, just stop.
 		select {
 		case <-ctx.Done():
@@ -291,21 +328,23 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 		cmd.Env = bootstrapEnv
 
 		// Redirect stdout to secrets/envoy_bootstrap.json.
-		fd, fileErr := os.Create(bootstrapFilePath)
+		stdout, fileErr := os.Create(bootstrapFilePath)
 		if fileErr != nil {
 			return false, fmt.Errorf("failed to create secrets/envoy_bootstrap.json for envoy: %w", fileErr)
 		}
-		cmd.Stdout = fd
+		defer stdout.Close()
+		cmd.Stdout = stdout
 
-		// Redirect stderr into a buffer for later reading.
-		buf := bytes.NewBuffer(nil)
-		cmd.Stderr = buf
+		// Redirect stderr into another file for later debugging.
+		stderr, fileErr := os.OpenFile(bootstrapStderrPath, os.O_RDWR|os.O_CREATE, 0644)
+		if fileErr != nil {
+			return false, fmt.Errorf("failed to create alloc/logs/envoy_bootstrap.stderr.0 for envoy: %w", fileErr)
+		}
+		defer stderr.Close()
+		cmd.Stderr = stderr
 
 		// Generate bootstrap
 		cmdErr = cmd.Run()
-
-		// Close bootstrap.json regardless of any command errors.
-		_ = fd.Close()
 
 		// Command succeeded, exit.
 		if cmdErr == nil {
@@ -324,11 +363,9 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 		_ = os.Remove(bootstrapFilePath)
 
 		return true, cmdErr
-	}, decay.BackoffOptions{
-		MaxSleepTime:   h.envoyBootstrapWaitTime,
-		InitialGapSize: h.envoyBoostrapInitialGap,
-		MaxJitterSize:  h.envoyBootstrapMaxJitter,
-	}); backoffErr != nil {
+	}, backoffOpts)
+
+	if backoffErr != nil {
 		// Wrap the last error from Consul and set that as our status.
 		_, recoverable := cmdErr.(*exec.ExitError)
 		return structs.NewRecoverableError(
@@ -392,25 +429,6 @@ func (h *envoyBootstrapHook) writeConfig(filename, config string) error {
 		return err
 	}
 	return nil
-}
-
-func (h *envoyBootstrapHook) execute(cmd *exec.Cmd) (string, error) {
-	var (
-		stdout bytes.Buffer
-		stderr bytes.Buffer
-	)
-
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		_, recoverable := err.(*exec.ExitError)
-		// ExitErrors are recoverable since they indicate the
-		// command was runnable but exited with a unsuccessful
-		// error code.
-		return stderr.String(), structs.NewRecoverableError(err, recoverable)
-	}
-	return stdout.String(), nil
 }
 
 // grpcAddress determines the Consul gRPC endpoint address to use.
