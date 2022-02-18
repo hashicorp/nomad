@@ -433,6 +433,8 @@ func (h *envoyBootstrapHook) grpcAddress(env map[string]string) string {
 }
 
 func (h *envoyBootstrapHook) proxyServiceID(group string, service *structs.Service) string {
+	// Note, it is critical the ID here matches what is actually registered in Consul.
+	// See: WorkloadServices.Name in structs.go
 	return agentconsul.MakeAllocServiceID(h.alloc.ID, "group-"+group, service)
 }
 
@@ -445,40 +447,30 @@ func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
 	group string, service *structs.Service,
 	grpcAddr, envoyAdminBind, envoyReadyBind, siToken, filepath string,
 ) envoyBootstrapArgs {
-	var (
-		sidecarForID string // sidecar only
-		gateway      string // gateway only
-		proxyID      string // gateway only
-		namespace    string
-	)
 
-	namespace = h.getConsulNamespace()
-	id := h.proxyServiceID(group, service)
+	namespace := h.getConsulNamespace()
+	proxyID := h.proxyServiceID(group, service)
 
+	var gateway string
 	switch {
 	case service.Connect.HasSidecar():
-		sidecarForID = id
+		proxyID += "-sidecar-proxy"
 	case service.Connect.IsIngress():
-		proxyID = id
 		gateway = "ingress"
 	case service.Connect.IsTerminating():
-		proxyID = id
 		gateway = "terminating"
 	case service.Connect.IsMesh():
-		proxyID = id
 		gateway = "mesh"
 	}
 
 	h.logger.Info("bootstrapping envoy",
-		"sidecar_for", service.Name, "bootstrap_file", filepath,
-		"sidecar_for_id", sidecarForID, "grpc_addr", grpcAddr,
+		"namespace", namespace, "proxy_id", proxyID, "service", service.Name,
+		"gateway", gateway, "bootstrap_file", filepath, "grpc_addr", grpcAddr,
 		"admin_bind", envoyAdminBind, "ready_bind", envoyReadyBind,
-		"gateway", gateway, "proxy_id", proxyID, "namespace", namespace,
 	)
 
 	return envoyBootstrapArgs{
 		consulConfig:   h.consulConfig,
-		sidecarFor:     sidecarForID,
 		grpcAddr:       grpcAddr,
 		envoyAdminBind: envoyAdminBind,
 		envoyReadyBind: envoyReadyBind,
@@ -494,13 +486,12 @@ func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
 // configuration file for envoy.
 type envoyBootstrapArgs struct {
 	consulConfig   consulTransportConfig
-	sidecarFor     string // sidecars only
 	grpcAddr       string
 	envoyAdminBind string
 	envoyReadyBind string
 	siToken        string
 	gateway        string // gateways only
-	proxyID        string // gateways only
+	proxyID        string // gateways and sidecars
 	namespace      string
 }
 
@@ -514,19 +505,12 @@ func (e envoyBootstrapArgs) args() []string {
 		"-http-addr", e.consulConfig.HTTPAddr,
 		"-admin-bind", e.envoyAdminBind,
 		"-address", e.envoyReadyBind,
+		"-proxy-id", e.proxyID,
 		"-bootstrap",
-	}
-
-	if v := e.sidecarFor; v != "" {
-		arguments = append(arguments, "-sidecar-for", v)
 	}
 
 	if v := e.gateway; v != "" {
 		arguments = append(arguments, "-gateway", v)
-	}
-
-	if v := e.proxyID; v != "" {
-		arguments = append(arguments, "-proxy-id", v)
 	}
 
 	if v := e.siToken; v != "" {
