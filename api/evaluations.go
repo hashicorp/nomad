@@ -52,6 +52,17 @@ func (e *Evaluations) Allocations(evalID string, q *QueryOptions) ([]*Allocation
 	return resp, qm, nil
 }
 
+// History is used to retrieve a set of allocations given
+// an evaluation ID.
+func (e *Evaluations) History(evalID string, q *QueryOptions) (map[string]*Evaluation, *QueryMeta, error) {
+	var resp map[string]*Evaluation
+	qm, err := e.client.query("/v1/evaluation/"+evalID+"/history", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
+}
+
 // Evaluation is used to serialize an evaluation.
 type Evaluation struct {
 	ID                   string

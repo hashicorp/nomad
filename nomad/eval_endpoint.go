@@ -524,3 +524,57 @@ func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
 		}}
 	return e.srv.blockingRPC(&opts)
 }
+
+// History is used to list the history (previous & next) for an evaluation
+func (e *Eval) History(args *structs.EvalSpecificRequest,
+	reply *structs.EvalHistoryResponse) error {
+	if done, err := e.srv.forward("Eval.History", args, args, reply); done {
+		return err
+	}
+
+	// Check for read-job permissions
+	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityReadJob)
+	aclObj, err := e.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if !allowNsOp(aclObj, args.RequestNamespace()) {
+		return structs.ErrPermissionDenied
+	}
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// Capture the allocations
+			history, err := state.EvalHistory(ws, args.EvalID)
+			if err != nil {
+				return err
+			}
+
+			// Convert to a stub
+			// TODO: what is the stub for? I just returned a map and skipped dat part
+			if len(history) > 0 {
+				// Evaluations do not span namespaces so just check the
+				// first allocs namespace.
+				ns := history[args.EvalID].Namespace
+				if ns != args.RequestNamespace() && !allowNsOp(aclObj, ns) {
+					return structs.ErrPermissionDenied
+				}
+
+				reply.EvalHistory = history
+			}
+
+			// Use the last index that affected the evals table
+			index, err := state.Index("evals")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+
+			// Set the query response
+			e.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return e.srv.blockingRPC(&opts)
+}

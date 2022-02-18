@@ -3108,6 +3108,43 @@ func (s *StateStore) EvalsByIDPrefix(ws memdb.WatchSet, namespace, id string) (m
 	return wrap, nil
 }
 
+// EvalByID is used to lookup an eval by its ID
+func (s *StateStore) EvalHistory(ws memdb.WatchSet, id string) (history map[string]*structs.Evaluation, err error) {
+	history = make(map[string]*structs.Evaluation)
+
+	// Check if root eval exists
+	root, err := s.EvalByID(ws, id)
+	if err != nil {
+		return nil, err
+	}
+	history[id] = root
+
+	// Iterate through linked list: follow NextEval
+	previous := id
+	for {
+		eval, _ := s.EvalByID(ws, previous)
+		if eval == nil {
+			break
+		}
+		//eval := raw.(*structs.Evaluation)
+		history[eval.ID] = eval
+		previous = eval.PreviousEval
+	}
+
+	// Iterate through linked list: follow NextEval
+	next := id
+	for {
+		eval, _ := s.EvalByID(ws, next)
+		if eval == nil {
+			break
+		}
+		history[eval.ID] = eval
+		next = eval.NextEval
+	}
+
+	return history, nil
+}
+
 // evalNamespaceFilter returns a filter function that filters all evaluations
 // not in the given namespace.
 func evalNamespaceFilter(namespace string) func(interface{}) bool {

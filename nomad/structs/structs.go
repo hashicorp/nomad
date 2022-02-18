@@ -1574,6 +1574,12 @@ type EvalAllocationsResponse struct {
 	QueryMeta
 }
 
+// EvalAllocationsResponse is used to return the allocations for an evaluation
+type EvalHistoryResponse struct {
+	EvalHistory map[string]*Evaluation
+	QueryMeta
+}
+
 // PeriodicForceResponse is used to respond to a periodic job force launch
 type PeriodicForceResponse struct {
 	EvalID          string
