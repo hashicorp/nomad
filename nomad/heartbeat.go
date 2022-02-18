@@ -9,7 +9,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 
-	"fmt"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -163,9 +162,8 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 		},
 	}
 
-	if h.isDisconnected(id) {
+	if h.shouldDisconnect(id) {
 		req.Status = structs.NodeStatusDisconnected
-		h.logger.Trace(fmt.Sprintf("node disconnect: %#v", req))
 	}
 
 	var resp structs.NodeUpdateResponse
@@ -174,13 +172,13 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 	}
 }
 
-// If any of the node allocs have a MaxClientDisconnect that evaluates to the future,
-// the node should transition to NodeStatusDisconnected rather than NodeStatusDown.
-func (h *nodeHeartbeater) isDisconnected(id string) bool {
+func (h *nodeHeartbeater) shouldDisconnect(id string) bool {
 	allocs, err := h.State().AllocsByNode(nil, id)
 	if err != nil {
-		h.logger.Error("update node status unable to retrieve allocs by node", "error", err)
+		h.logger.Error("error retrieving allocs by node", "error", err)
+		return false
 	}
+
 	now := time.Now().UTC()
 	for _, alloc := range allocs {
 		if alloc.DisconnectTimeout(now).After(now) {

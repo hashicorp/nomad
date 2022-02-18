@@ -559,7 +559,8 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 func transitionedToReady(newStatus, oldStatus string) bool {
 	initToReady := oldStatus == structs.NodeStatusInit && newStatus == structs.NodeStatusReady
 	terminalToReady := oldStatus == structs.NodeStatusDown && newStatus == structs.NodeStatusReady
-	return initToReady || terminalToReady
+	disconnectedToReady := oldStatus == structs.NodeStatusDisconnected && newStatus == structs.NodeStatusReady
+	return initToReady || terminalToReady || disconnectedToReady
 }
 
 // UpdateDrain is used to update the drain mode of a client node
