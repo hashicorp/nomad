@@ -214,11 +214,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"curl": func() (cli.Command, error) {
-			return &CurlCommand{
-				Meta: meta,
-			}, nil
-		},
 		// operator debug was released in 0.12 as debug. This top-level alias preserves compatibility
 		"debug": func() (cli.Command, error) {
 			return &OperatorDebugCommand{
@@ -497,6 +492,12 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"operator": func() (cli.Command, error) {
 			return &OperatorCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"operator api": func() (cli.Command, error) {
+			return &OperatorAPICommand{
 				Meta: meta,
 			}, nil
 		},

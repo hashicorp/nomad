@@ -16,7 +16,7 @@ import (
 	"github.com/posener/complete"
 )
 
-type CurlCommand struct {
+type OperatorAPICommand struct {
 	Meta
 
 	verboseFlag bool
@@ -24,14 +24,14 @@ type CurlCommand struct {
 	body        io.Reader
 }
 
-func (*CurlCommand) Help() string {
+func (*OperatorAPICommand) Help() string {
 	helpText := `
-Usage: nomad curl [options] <path>
+Usage: nomad operator api [options] <path>
 
-  curl is a utility command for accessing Nomad's HTTP API and is inspired by
-  the popular curl command line program. Nomad's curl command populates Nomad's
-  standard environment variables into their appropriate HTTP headers. If the
-  'path' does not begin with "http" then $NOMAD_ADDR will be used. 
+  api is a utility command for accessing Nomad's HTTP API and is inspired by
+  the popular curl command line program. Nomad's operator api command populates
+  Nomad's standard environment variables into their appropriate HTTP headers.
+  If the 'path' does not begin with "http" then $NOMAD_ADDR will be used. 
 
   The 'path' can be in one of the following forms:
 
@@ -39,15 +39,15 @@ Usage: nomad curl [options] <path>
     localhost:4646/v1/allocations         <- Scheme will be inferred
     https://localhost:4646/v1/allocations <- Scheme will be https://
 
-  Note that Nomad's curl does not always match the popular curl programs
-  behavior. Instead Nomad's curl is optimized for common Nomad HTTP API
-  operations.
+  Note that this command does not always match the popular curl program's
+  behavior. Instead Nomad's operator api command is optimized for common Nomad
+  HTTP API operations.
 
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
 
-Curl Specific Options:
+Operator API Specific Options:
 
   -dryrun
     Output curl command to stdout and exit.
@@ -74,26 +74,26 @@ Curl Specific Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (*CurlCommand) Synopsis() string {
+func (*OperatorAPICommand) Synopsis() string {
 	return "Query Nomad's HTTP API like curl"
 }
 
-func (c *CurlCommand) AutocompleteFlags() complete.Flags {
+func (c *OperatorAPICommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-dryrun": complete.PredictNothing,
 		})
 }
 
-func (c *CurlCommand) AutocompleteArgs() complete.Predictor {
+func (c *OperatorAPICommand) AutocompleteArgs() complete.Predictor {
 	//TODO(schmichael) wouldn't it be cool to build path autocompletion off
 	//                 of our http mux?
 	return complete.PredictNothing
 }
 
-func (*CurlCommand) Name() string { return "curl" }
+func (*OperatorAPICommand) Name() string { return "operator api" }
 
-func (c *CurlCommand) Run(args []string) int {
+func (c *OperatorAPICommand) Run(args []string) int {
 	var dryrun bool
 	headerFlags := newHeaderFlags()
 
@@ -117,7 +117,7 @@ func (c *CurlCommand) Run(args []string) int {
 	}
 
 	if n := len(args); n > 1 {
-		c.Ui.Error(fmt.Sprintf("curl accepts exactly 1 argument, but %d arguments were found", n))
+		c.Ui.Error(fmt.Sprintf("operator api accepts exactly 1 argument, but %d arguments were found", n))
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -274,7 +274,7 @@ func setQueryParams(config *api.Config, path *url.URL) {
 
 // apiToCurl converts a Nomad HTTP API config and path to its corresponding
 // curl command or returns an error.
-func (c *CurlCommand) apiToCurl(config *api.Config, headers http.Header, path *url.URL) (string, error) {
+func (c *OperatorAPICommand) apiToCurl(config *api.Config, headers http.Header, path *url.URL) (string, error) {
 	parts := []string{"curl"}
 
 	if c.verboseFlag {
