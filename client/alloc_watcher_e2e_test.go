@@ -19,6 +19,8 @@ import (
 // TestPrevAlloc_StreamAllocDir_TLS asserts ephemeral disk migrations still
 // work when TLS is enabled.
 func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
+	testutil.Parallel(t)
+	
 	const (
 		caFn         = "../helper/tlsutil/testdata/global-ca.pem"
 		serverCertFn = "../helper/tlsutil/testdata/global-server.pem"
@@ -26,8 +28,6 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 		clientCertFn = "../helper/tlsutil/testdata/global-client.pem"
 		clientKeyFn  = "../helper/tlsutil/testdata/global-client-key.pem"
 	)
-	t.Parallel()
-	require := require.New(t)
 
 	server, cleanupS := nomad.TestServer(t, func(c *nomad.Config) {
 		c.TLSConfig = &config.TLSConfig{
@@ -92,14 +92,14 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 	allocArgs.JobID = job.ID
 	allocArgs.QueryOptions.Region = "global"
 	var allocReply structs.JobAllocationsResponse
-	require.NoError(server.RPC("Job.Allocations", allocArgs, &allocReply))
-	require.Len(allocReply.Allocations, 1)
+	require.NoError(t, server.RPC("Job.Allocations", allocArgs, &allocReply))
+	require.Len(t, allocReply.Allocations, 1)
 	origAlloc := allocReply.Allocations[0].ID
 
 	// Save a file into alloc dir
 	contents := []byte("123\n456")
 	allocFn := filepath.Join(client1.DataDir, "alloc", origAlloc, "alloc", "data", "bar")
-	require.NoError(ioutil.WriteFile(allocFn, contents, 0666))
+	require.NoError(t, ioutil.WriteFile(allocFn, contents, 0666))
 	t.Logf("[TEST] Wrote initial file: %s", allocFn)
 
 	// Migrate alloc to other node
@@ -116,7 +116,7 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 		allocArgs.JobID = job.ID
 		allocArgs.QueryOptions.Region = "global"
 		var allocReply structs.JobAllocationsResponse
-		require.NoError(server.RPC("Job.Allocations", allocArgs, &allocReply))
+		require.NoError(t, server.RPC("Job.Allocations", allocArgs, &allocReply))
 		if n := len(allocReply.Allocations); n != 2 {
 			return false, fmt.Errorf("expected 2 allocs found %d", n)
 		}

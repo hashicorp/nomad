@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -82,9 +83,8 @@ func (m *mockDriverStats) Called() int {
 // TestTaskRunner_StatsHook_PoststartExited asserts the stats hook starts and
 // stops.
 func TestTaskRunner_StatsHook_PoststartExited(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
-	require := require.New(t)
 	logger := testlog.HCLogger(t)
 	su := newMockStatsUpdater()
 	ds := new(mockDriverStats)
@@ -98,25 +98,24 @@ func TestTaskRunner_StatsHook_PoststartExited(t *testing.T) {
 	defer h.Exited(context.Background(), nil, nil)
 
 	// Run prestart
-	require.NoError(h.Poststart(context.Background(), poststartReq, nil))
+	require.NoError(t, h.Poststart(context.Background(), poststartReq, nil))
 
 	// An initial stats collection should run and call the updater
 	select {
 	case ru := <-su.Ch:
-		require.Equal(uint64(1), ru.ResourceUsage.MemoryStats.RSS)
+		require.Equal(t, uint64(1), ru.ResourceUsage.MemoryStats.RSS)
 	case <-time.After(10 * time.Second):
 		t.Fatalf("timeout waiting for initial stats collection")
 	}
 
-	require.NoError(h.Exited(context.Background(), nil, nil))
+	require.NoError(t, h.Exited(context.Background(), nil, nil))
 }
 
 // TestTaskRunner_StatsHook_Periodic asserts the stats hook collects stats on
 // an interval.
 func TestTaskRunner_StatsHook_Periodic(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
-	require := require.New(t)
 	logger := testlog.HCLogger(t)
 	su := newMockStatsUpdater()
 
@@ -131,7 +130,7 @@ func TestTaskRunner_StatsHook_Periodic(t *testing.T) {
 	defer h.Exited(context.Background(), nil, nil)
 
 	// Run prestart
-	require.NoError(h.Poststart(context.Background(), poststartReq, nil))
+	require.NoError(t, h.Poststart(context.Background(), poststartReq, nil))
 
 	// An initial stats collection should run and call the updater
 	var firstrun int64
@@ -156,7 +155,7 @@ func TestTaskRunner_StatsHook_Periodic(t *testing.T) {
 	}
 
 	// Exiting should prevent further updates
-	require.NoError(h.Exited(context.Background(), nil, nil))
+	require.NoError(t, h.Exited(context.Background(), nil, nil))
 
 	// Should *not* get another update in ~500ms (see interval above)
 	// we may get a single update due to race with exit
@@ -179,9 +178,8 @@ WAITING:
 // TestTaskRunner_StatsHook_NotImplemented asserts the stats hook stops if the
 // driver returns NotImplemented.
 func TestTaskRunner_StatsHook_NotImplemented(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
-	require := require.New(t)
 	logger := testlog.HCLogger(t)
 	su := newMockStatsUpdater()
 	ds := &mockDriverStats{
@@ -194,7 +192,7 @@ func TestTaskRunner_StatsHook_NotImplemented(t *testing.T) {
 	defer h.Exited(context.Background(), nil, nil)
 
 	// Run prestart
-	require.NoError(h.Poststart(context.Background(), poststartReq, nil))
+	require.NoError(t, h.Poststart(context.Background(), poststartReq, nil))
 
 	// An initial stats collection should run and *not* call the updater
 	select {
@@ -208,7 +206,7 @@ func TestTaskRunner_StatsHook_NotImplemented(t *testing.T) {
 // TestTaskRunner_StatsHook_Backoff asserts that stats hook does some backoff
 // even if the driver doesn't support intervals well
 func TestTaskRunner_StatsHook_Backoff(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	logger := testlog.HCLogger(t)
 	su := newMockStatsUpdater()

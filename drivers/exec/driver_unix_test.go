@@ -25,9 +25,8 @@ import (
 )
 
 func TestExecDriver_StartWaitStop(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
 	ctestutils.ExecCompatible(t)
+	testutil.Parallel(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -44,19 +43,19 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 		"command": "/bin/sleep",
 		"args":    []string{"600"},
 	}
-	require.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
+	require.NoError(t, task.EncodeConcreteDriverConfig(&taskConfig))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
 	handle, _, err := harness.StartTask(task)
 	defer harness.DestroyTask(task.ID, true)
-	require.NoError(err)
+	require.NoError(t, err)
 
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
-	require.NoError(err)
+	require.NoError(t, err)
 
-	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
+	require.NoError(t, harness.WaitUntilStarted(task.ID, 1*time.Second))
 
 	go func() {
 		harness.StopTask(task.ID, 2*time.Second, "SIGKILL")
@@ -64,9 +63,9 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 
 	select {
 	case result := <-ch:
-		require.Equal(int(unix.SIGKILL), result.Signal)
+		require.Equal(t, int(unix.SIGKILL), result.Signal)
 	case <-time.After(10 * time.Second):
-		require.Fail("timeout waiting for task to shutdown")
+		require.Fail(t, "timeout waiting for task to shutdown")
 	}
 
 	// Ensure that the task is marked as dead, but account
@@ -82,13 +81,12 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 }
 
 func TestExec_ExecTaskStreaming(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -109,10 +107,10 @@ func TestExec_ExecTaskStreaming(t *testing.T) {
 		Command: "/bin/sleep",
 		Args:    []string{"9000"},
 	}
-	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
 
 	_, _, err := harness.StartTask(task)
-	require.NoError(err)
+	require.NoError(t, err)
 	defer d.DestroyTask(task.ID, true)
 
 	dtestutil.ExecTaskStreamingConformanceTests(t, harness, task.ID)
@@ -121,10 +119,9 @@ func TestExec_ExecTaskStreaming(t *testing.T) {
 
 // Tests that a given DNSConfig properly configures dns
 func TestExec_dnsConfig(t *testing.T) {
-	t.Parallel()
-	ctestutils.RequireRoot(t)
 	ctestutils.ExecCompatible(t)
-	require := require.New(t)
+	ctestutils.RequireRoot(t)
+	testutil.Parallel(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -170,10 +167,10 @@ func TestExec_dnsConfig(t *testing.T) {
 			Command: "/bin/sleep",
 			Args:    []string{"9000"},
 		}
-		require.NoError(task.EncodeConcreteDriverConfig(&tc))
+		require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
 
 		_, _, err := harness.StartTask(task)
-		require.NoError(err)
+		require.NoError(t, err)
 		defer d.DestroyTask(task.ID, true)
 
 		dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)

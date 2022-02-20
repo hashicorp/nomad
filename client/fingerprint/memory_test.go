@@ -11,7 +11,6 @@ import (
 )
 
 func TestMemoryFingerprint(t *testing.T) {
-	require := require.New(t)
 
 	f := NewMemoryFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
@@ -21,13 +20,13 @@ func TestMemoryFingerprint(t *testing.T) {
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
-	require.NoError(err)
+	require.NoError(t, err)
 
 	assertNodeAttributeContains(t, response.Attributes, "memory.totalbytes")
-	require.NotNil(response.Resources, "expected response Resources to not be nil")
-	require.NotZero(response.Resources.MemoryMB, "expected memory to be non-zero")
-	require.NotNil(response.NodeResources, "expected response NodeResources to not be nil")
-	require.NotZero(response.NodeResources.Memory.MemoryMB, "expected memory to be non-zero")
+	require.NotNil(t, response.Resources, "expected response Resources to not be nil")
+	require.NotZero(t, response.Resources.MemoryMB, "expected memory to be non-zero")
+	require.NotNil(t, response.NodeResources, "expected response NodeResources to not be nil")
+	require.NotZero(t, response.NodeResources.Memory.MemoryMB, "expected memory to be non-zero")
 }
 
 func TestMemoryFingerprint_Override(t *testing.T) {
@@ -45,9 +44,8 @@ func TestMemoryFingerprint_Override(t *testing.T) {
 	}
 
 	assertNodeAttributeContains(t, response.Attributes, "memory.totalbytes")
-	require := require.New(t)
-	require.NotNil(response.Resources)
-	require.EqualValues(response.Resources.MemoryMB, memoryMB)
-	require.NotNil(response.NodeResources)
-	require.EqualValues(response.NodeResources.Memory.MemoryMB, memoryMB)
+	require.NotNil(t, response.Resources)
+	require.EqualValues(t, response.Resources.MemoryMB, memoryMB)
+	require.NotNil(t, response.NodeResources)
+	require.EqualValues(t, response.NodeResources.Memory.MemoryMB, memoryMB)
 }

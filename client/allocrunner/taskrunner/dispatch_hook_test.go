@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,9 +22,8 @@ var _ interfaces.TaskPrestartHook = (*dispatchHook)(nil)
 // TestTaskRunner_DispatchHook_NoPayload asserts that the hook is a noop and is
 // marked as done if there is no dispatch payload.
 func TestTaskRunner_DispatchHook_NoPayload(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
-	require := require.New(t)
 	ctx := context.Background()
 	logger := testlog.HCLogger(t)
 
@@ -34,7 +34,7 @@ func TestTaskRunner_DispatchHook_NoPayload(t *testing.T) {
 	allocDir := allocdir.NewAllocDir(logger, "nomadtest_nopayload", alloc.ID)
 	defer allocDir.Destroy()
 	taskDir := allocDir.NewTaskDir(task.Name)
-	require.NoError(taskDir.Build(false, nil))
+	require.NoError(t, taskDir.Build(false, nil))
 
 	h := newDispatchHook(alloc, logger)
 
@@ -45,21 +45,20 @@ func TestTaskRunner_DispatchHook_NoPayload(t *testing.T) {
 	resp := interfaces.TaskPrestartResponse{}
 
 	// Assert no error and Done=true as this job has no payload
-	require.NoError(h.Prestart(ctx, &req, &resp))
-	require.True(resp.Done)
+	require.NoError(t, h.Prestart(ctx, &req, &resp))
+	require.True(t, resp.Done)
 
 	// Assert payload directory is empty
 	files, err := ioutil.ReadDir(req.TaskDir.LocalDir)
-	require.NoError(err)
-	require.Empty(files)
+	require.NoError(t, err)
+	require.Empty(t, files)
 }
 
 // TestTaskRunner_DispatchHook_Ok asserts that dispatch payloads are written to
 // a file in the task dir.
 func TestTaskRunner_DispatchHook_Ok(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
-	require := require.New(t)
 	ctx := context.Background()
 	logger := testlog.HCLogger(t)
 
@@ -80,7 +79,7 @@ func TestTaskRunner_DispatchHook_Ok(t *testing.T) {
 	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatchok", alloc.ID)
 	defer allocDir.Destroy()
 	taskDir := allocDir.NewTaskDir(task.Name)
-	require.NoError(taskDir.Build(false, nil))
+	require.NoError(t, taskDir.Build(false, nil))
 
 	h := newDispatchHook(alloc, logger)
 
@@ -89,21 +88,20 @@ func TestTaskRunner_DispatchHook_Ok(t *testing.T) {
 		TaskDir: taskDir,
 	}
 	resp := interfaces.TaskPrestartResponse{}
-	require.NoError(h.Prestart(ctx, &req, &resp))
-	require.True(resp.Done)
+	require.NoError(t, h.Prestart(ctx, &req, &resp))
+	require.True(t, resp.Done)
 
 	filename := filepath.Join(req.TaskDir.LocalDir, task.DispatchPayload.File)
 	result, err := ioutil.ReadFile(filename)
-	require.NoError(err)
-	require.Equal(expected, result)
+	require.NoError(t, err)
+	require.Equal(t, expected, result)
 }
 
 // TestTaskRunner_DispatchHook_Error asserts that on an error dispatch payloads
 // are not written and Done=false.
 func TestTaskRunner_DispatchHook_Error(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
-	require := require.New(t)
 	ctx := context.Background()
 	logger := testlog.HCLogger(t)
 
@@ -125,7 +123,7 @@ func TestTaskRunner_DispatchHook_Error(t *testing.T) {
 	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatcherr", alloc.ID)
 	defer allocDir.Destroy()
 	taskDir := allocDir.NewTaskDir(task.Name)
-	require.NoError(taskDir.Build(false, nil))
+	require.NoError(t, taskDir.Build(false, nil))
 
 	h := newDispatchHook(alloc, logger)
 
@@ -136,11 +134,11 @@ func TestTaskRunner_DispatchHook_Error(t *testing.T) {
 	resp := interfaces.TaskPrestartResponse{}
 
 	// Assert an error was returned and Done=false
-	require.Error(h.Prestart(ctx, &req, &resp))
-	require.False(resp.Done)
+	require.Error(t, h.Prestart(ctx, &req, &resp))
+	require.False(t, resp.Done)
 
 	// Assert payload directory is empty
 	files, err := ioutil.ReadDir(req.TaskDir.LocalDir)
-	require.NoError(err)
-	require.Empty(files)
+	require.NoError(t, err)
+	require.Empty(t, files)
 }

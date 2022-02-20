@@ -45,7 +45,8 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, fu
 }
 
 func TestClient_StartStop(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 	if err := client.Shutdown(); err != nil {
@@ -56,8 +57,7 @@ func TestClient_StartStop(t *testing.T) {
 // Certain labels for metrics are dependant on client initial setup. This tests
 // that the client has properly initialized before we assign values to labels
 func TestClient_BaseLabels(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
+	testutil.Parallel(t)
 
 	client, cleanup := TestClient(t, nil)
 	if err := client.Shutdown(); err != nil {
@@ -70,18 +70,18 @@ func TestClient_BaseLabels(t *testing.T) {
 	client.emitStats()
 
 	baseLabels := client.baseLabels
-	assert.NotEqual(0, len(baseLabels))
+	assert.NotEqual(t, 0, len(baseLabels))
 
 	nodeID := client.Node().ID
 	for _, e := range baseLabels {
 		if e.Name == "node_id" {
-			assert.Equal(nodeID, e.Value)
+			assert.Equal(t, nodeID, e.Value)
 		}
 	}
 }
 
 func TestClient_RPC(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	_, addr, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -102,7 +102,7 @@ func TestClient_RPC(t *testing.T) {
 }
 
 func TestClient_RPC_FireRetryWatchers(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	_, addr, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -131,7 +131,7 @@ func TestClient_RPC_FireRetryWatchers(t *testing.T) {
 }
 
 func TestClient_RPC_Passthrough(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -152,7 +152,7 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 }
 
 func TestClient_Fingerprint(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
@@ -175,7 +175,7 @@ func TestClient_Fingerprint(t *testing.T) {
 // TestClient_Fingerprint_Periodic asserts that driver node attributes are
 // periodically fingerprinted.
 func TestClient_Fingerprint_Periodic(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
 		confs := []*nconfig.PluginConfig{
@@ -253,7 +253,8 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 // TestClient_MixedTLS asserts that when a server is running with TLS enabled
 // it will reject any RPC connections from clients that lack TLS. See #2525
 func TestClient_MixedTLS(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
@@ -300,7 +301,7 @@ func TestClient_MixedTLS(t *testing.T) {
 // enabled -- but their certificates are signed by different CAs -- they're
 // unable to communicate.
 func TestClient_BadTLS(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
@@ -356,7 +357,7 @@ func TestClient_BadTLS(t *testing.T) {
 }
 
 func TestClient_Register(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -389,7 +390,7 @@ func TestClient_Register(t *testing.T) {
 }
 
 func TestClient_Heartbeat(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.MinHeartbeatTTL = 50 * time.Millisecond
@@ -426,7 +427,7 @@ func TestClient_Heartbeat(t *testing.T) {
 // TestClient_UpdateAllocStatus that once running allocations send updates to
 // the server.
 func TestClient_UpdateAllocStatus(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -452,7 +453,7 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 }
 
 func TestClient_WatchAllocs(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -552,7 +553,7 @@ func waitTilNodeReady(client *Client, t *testing.T) {
 }
 
 func TestClient_SaveRestoreState(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -653,8 +654,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 }
 
 func TestClient_AddAllocError(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -687,13 +687,13 @@ func TestClient_AddAllocError(t *testing.T) {
 
 	state := s1.State()
 	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
-	require.Nil(err)
+	require.Nil(t, err)
 
 	err = state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID))
-	require.Nil(err)
+	require.Nil(t, err)
 
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc1})
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Push this alloc update to the client
 	allocUpdates := &allocUpdates{
@@ -716,20 +716,21 @@ func TestClient_AddAllocError(t *testing.T) {
 			return false, fmt.Errorf("expected alloc to be marked as invalid")
 		}
 		alloc, err := s1.State().AllocByID(nil, alloc1.ID)
-		require.Nil(err)
+		require.Nil(t, err)
 		failed := alloc.ClientStatus == structs.AllocClientStatusFailed
 		if !failed {
 			return false, fmt.Errorf("Expected failed client status, but got %v", alloc.ClientStatus)
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 
 }
 
 func TestClient_Init(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	dir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -759,7 +760,7 @@ func TestClient_Init(t *testing.T) {
 }
 
 func TestClient_BlockedAllocations(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
@@ -872,8 +873,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 }
 
 func TestClient_ValidateMigrateToken_ValidToken(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
+	testutil.Parallel(t)
 
 	c, cleanup := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
@@ -882,40 +882,37 @@ func TestClient_ValidateMigrateToken_ValidToken(t *testing.T) {
 
 	alloc := mock.Alloc()
 	validToken, err := structs.GenerateMigrateToken(alloc.ID, c.secretNodeID())
-	assert.Nil(err)
+	assert.Nil(t, err)
 
-	assert.Equal(c.ValidateMigrateToken(alloc.ID, validToken), true)
+	assert.Equal(t, c.ValidateMigrateToken(alloc.ID, validToken), true)
 }
 
 func TestClient_ValidateMigrateToken_InvalidToken(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
+	testutil.Parallel(t)
 
 	c, cleanup := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 	})
 	defer cleanup()
 
-	assert.Equal(c.ValidateMigrateToken("", ""), false)
+	assert.Equal(t, c.ValidateMigrateToken("", ""), false)
 
 	alloc := mock.Alloc()
-	assert.Equal(c.ValidateMigrateToken(alloc.ID, alloc.ID), false)
-	assert.Equal(c.ValidateMigrateToken(alloc.ID, ""), false)
+	assert.Equal(t, c.ValidateMigrateToken(alloc.ID, alloc.ID), false)
+	assert.Equal(t, c.ValidateMigrateToken(alloc.ID, ""), false)
 }
 
 func TestClient_ValidateMigrateToken_ACLDisabled(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
+	testutil.Parallel(t)
 
 	c, cleanup := TestClient(t, func(c *config.Config) {})
 	defer cleanup()
 
-	assert.Equal(c.ValidateMigrateToken("", ""), true)
+	assert.Equal(t, c.ValidateMigrateToken("", ""), true)
 }
 
 func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
+	testutil.Parallel(t)
 
 	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.Region = "global"
@@ -965,7 +962,7 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 	}
 
 	err := c1.reloadTLSConnections(newConfig)
-	assert.Nil(err)
+	assert.Nil(t, err)
 
 	// Registering a node over plaintext should fail after the node has upgraded
 	// to TLS
@@ -990,8 +987,7 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 }
 
 func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
+	testutil.Parallel(t)
 
 	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.Region = "global"
@@ -1041,7 +1037,7 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 	newConfig := &nconfig.TLSConfig{}
 
 	err := c1.reloadTLSConnections(newConfig)
-	assert.Nil(err)
+	assert.Nil(t, err)
 
 	// assert that when both nodes are in plaintext mode, a RPC request should
 	// succeed
@@ -1067,7 +1063,8 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 // TestClient_ServerList tests client methods that interact with the internal
 // nomad server list.
 func TestClient_ServerList(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	client, cleanup := TestClient(t, func(c *config.Config) {})
 	defer cleanup()
 
@@ -1090,7 +1087,8 @@ func TestClient_ServerList(t *testing.T) {
 }
 
 func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	client, cleanup := TestClient(t, func(c *config.Config) {})
 	defer cleanup()
 
@@ -1188,10 +1186,11 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 // TestClient_UpdateNodeFromFingerprintKeepsConfig asserts manually configured
 // network interfaces take precedence over fingerprinted ones.
 func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
-	t.Parallel()
 	if runtime.GOOS != "linux" {
 		t.Skip("assertions assume linux platform")
 	}
+
+	testutil.Parallel(t)
 
 	// Client without network configured updates to match fingerprint
 	client, cleanup := TestClient(t, nil)
@@ -1266,7 +1265,7 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 
 // Support multiple IP addresses (ipv4 vs. 6, e.g.) on the configured network interface
 func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	var dev string
 	switch runtime.GOOS {
@@ -1304,6 +1303,8 @@ func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
 }
 
 func TestClient_computeAllocatedDeviceStats(t *testing.T) {
+	testutil.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 	c := &Client{logger: logger}
 
@@ -1400,8 +1401,8 @@ func TestClient_computeAllocatedDeviceStats(t *testing.T) {
 }
 
 func TestClient_getAllocatedResources(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
+
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 
@@ -1416,7 +1417,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	allocStops.AllocatedResources.Shared.DiskMB = 64
 	allocStops.AllocatedResources.Tasks["web"].Cpu = structs.AllocatedCpuResources{CpuShares: 64}
 	allocStops.AllocatedResources.Tasks["web"].Memory = structs.AllocatedMemoryResources{MemoryMB: 64}
-	require.Nil(client.addAlloc(allocStops, ""))
+	require.Nil(t, client.addAlloc(allocStops, ""))
 
 	allocFails := mock.BatchAlloc()
 	allocFails.Job.TaskGroups[0].Count = 1
@@ -1429,7 +1430,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	allocFails.AllocatedResources.Shared.DiskMB = 128
 	allocFails.AllocatedResources.Tasks["web"].Cpu = structs.AllocatedCpuResources{CpuShares: 128}
 	allocFails.AllocatedResources.Tasks["web"].Memory = structs.AllocatedMemoryResources{MemoryMB: 128}
-	require.Nil(client.addAlloc(allocFails, ""))
+	require.Nil(t, client.addAlloc(allocFails, ""))
 
 	allocRuns := mock.Alloc()
 	allocRuns.Job.TaskGroups[0].Count = 1
@@ -1440,7 +1441,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	allocRuns.AllocatedResources.Shared.DiskMB = 256
 	allocRuns.AllocatedResources.Tasks["web"].Cpu = structs.AllocatedCpuResources{CpuShares: 256}
 	allocRuns.AllocatedResources.Tasks["web"].Memory = structs.AllocatedMemoryResources{MemoryMB: 256}
-	require.Nil(client.addAlloc(allocRuns, ""))
+	require.Nil(t, client.addAlloc(allocRuns, ""))
 
 	allocPends := mock.Alloc()
 	allocPends.Job.TaskGroups[0].Count = 1
@@ -1452,7 +1453,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	allocPends.AllocatedResources.Shared.DiskMB = 512
 	allocPends.AllocatedResources.Tasks["web"].Cpu = structs.AllocatedCpuResources{CpuShares: 512}
 	allocPends.AllocatedResources.Tasks["web"].Memory = structs.AllocatedMemoryResources{MemoryMB: 512}
-	require.Nil(client.addAlloc(allocPends, ""))
+	require.Nil(t, client.addAlloc(allocPends, ""))
 
 	// wait for allocStops to stop running and for allocRuns to be pending/running
 	testutil.WaitForResult(func() (bool, error) {
@@ -1486,7 +1487,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 
 	result := client.getAllocatedResources(client.config.Node)
@@ -1515,7 +1516,8 @@ func TestClient_getAllocatedResources(t *testing.T) {
 }
 
 func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 
@@ -1598,7 +1600,7 @@ func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
 
 // COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
 func TestClient_hasLocalState(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
@@ -1638,7 +1640,7 @@ func TestClient_hasLocalState(t *testing.T) {
 }
 
 func Test_verifiedTasks(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	logger := testlog.HCLogger(t)
 
 	// produce a result and check against expected tasks and/or error output

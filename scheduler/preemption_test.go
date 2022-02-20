@@ -2,18 +2,20 @@ package scheduler
 
 import (
 	"fmt"
-	"testing"
-
 	"strconv"
+	"testing"
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestResourceDistance(t *testing.T) {
+	testutil.Parallel(t)
+
 	resourceAsk := &structs.ComparableResources{
 		Flattened: structs.AllocatedTaskResources{
 			Cpu: structs.AllocatedCpuResources{
@@ -132,9 +134,8 @@ func TestResourceDistance(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
-			require := require.New(t)
 			actualDistance := fmt.Sprintf("%3.3f", basicResourceDistance(resourceAsk, tc.allocResource))
-			require.Equal(tc.expectedDistance, actualDistance)
+			require.Equal(t, tc.expectedDistance, actualDistance)
 		})
 
 	}
@@ -142,6 +143,8 @@ func TestResourceDistance(t *testing.T) {
 }
 
 func TestPreemption(t *testing.T) {
+	testutil.Parallel(t)
+
 	type testCase struct {
 		desc                 string
 		currentAllocations   []*structs.Allocation
@@ -1341,10 +1344,9 @@ func TestPreemption(t *testing.T) {
 			for _, alloc := range tc.currentAllocations {
 				alloc.NodeID = node.ID
 			}
-			require := require.New(t)
 			err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, tc.currentAllocations)
 
-			require.Nil(err)
+			require.Nil(t, err)
 			if tc.currentPreemptions != nil {
 				ctx.plan.NodePreemptions[node.ID] = tc.currentPreemptions
 			}
@@ -1367,14 +1369,14 @@ func TestPreemption(t *testing.T) {
 			binPackIter.SetTaskGroup(taskGroup)
 			option := binPackIter.Next()
 			if tc.preemptedAllocIDs == nil {
-				require.Nil(option)
+				require.Nil(t, option)
 			} else {
-				require.NotNil(option)
+				require.NotNil(t, option)
 				preemptedAllocs := option.PreemptedAllocs
-				require.Equal(len(tc.preemptedAllocIDs), len(preemptedAllocs))
+				require.Equal(t, len(tc.preemptedAllocIDs), len(preemptedAllocs))
 				for _, alloc := range preemptedAllocs {
 					_, ok := tc.preemptedAllocIDs[alloc.ID]
-					require.Truef(ok, "alloc %s was preempted unexpectedly", alloc.ID)
+					require.Truef(t, ok, "alloc %s was preempted unexpectedly", alloc.ID)
 				}
 			}
 		})
@@ -1383,6 +1385,8 @@ func TestPreemption(t *testing.T) {
 
 // TestPreemptionMultiple tests evicting multiple allocations in the same time
 func TestPreemptionMultiple(t *testing.T) {
+	testutil.Parallel(t)
+
 	// The test setup:
 	//  * a node with 4 GPUs
 	//  * a low priority job with 4 allocs, each is using 1 GPU

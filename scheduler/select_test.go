@@ -5,10 +5,13 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLimitIterator(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -53,6 +56,8 @@ func TestLimitIterator(t *testing.T) {
 }
 
 func TestLimitIterator_ScoreThreshold(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	type testCase struct {
 		desc        string
@@ -305,18 +310,19 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 			limit := NewLimitIterator(ctx, static, 1, 0, 2)
 			limit.SetLimit(2)
 			out := collectRanked(limit)
-			require := require.New(t)
-			require.Equal(tc.expectedOut, out)
+			require.Equal(t, tc.expectedOut, out)
 
 			limit.Reset()
-			require.Equal(0, limit.skippedNodeIndex)
-			require.Equal(0, len(limit.skippedNodes))
+			require.Equal(t, 0, limit.skippedNodeIndex)
+			require.Equal(t, 0, len(limit.skippedNodes))
 		})
 	}
 
 }
 
 func TestMaxScoreIterator(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{

@@ -37,7 +37,8 @@ func exitAllocRunner(runners ...AllocRunner) {
 }
 
 func TestIndexedGCAllocPQ(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	pq := NewIndexedGCAllocPQ()
 
 	ar1, cleanup1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc())
@@ -122,7 +123,8 @@ func (m *MockStatsCollector) Stats() *stats.HostStats {
 }
 
 func TestAllocGarbageCollector_MarkForCollection(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
@@ -138,7 +140,8 @@ func TestAllocGarbageCollector_MarkForCollection(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_Collect(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
@@ -164,7 +167,8 @@ func TestAllocGarbageCollector_Collect(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_CollectAll(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
@@ -184,7 +188,8 @@ func TestAllocGarbageCollector_CollectAll(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -226,7 +231,8 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) 
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -269,7 +275,8 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -308,7 +315,8 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -348,8 +356,9 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) 
 // TestAllocGarbageCollector_MakeRoomFor_MaxAllocs asserts that when making room for new
 // allocs, terminal allocs are GC'd until old_allocs + new_allocs <= limit
 func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
+	testutil.Parallel(t)
+
 	const maxAllocs = 6
-	require := require.New(t)
 
 	server, serverAddr, cleanupS := testServer(t, nil)
 	defer cleanupS()
@@ -383,8 +392,8 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 
 	upsertJobFn := func(server *nomad.Server, j *structs.Job) {
 		state := server.State()
-		require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, nextIndex(), j))
-		require.NoError(state.UpsertJobSummary(nextIndex(), mock.JobSummary(j.ID)))
+		require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, nextIndex(), j))
+		require.NoError(t, state.UpsertJobSummary(nextIndex(), mock.JobSummary(j.ID)))
 	}
 
 	// Insert the Job
@@ -392,7 +401,7 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 
 	upsertAllocFn := func(server *nomad.Server, a *structs.Allocation) {
 		state := server.State()
-		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, nextIndex(), []*structs.Allocation{a}))
+		require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, nextIndex(), []*structs.Allocation{a}))
 	}
 
 	upsertNewAllocFn := func(server *nomad.Server, j *structs.Job) *structs.Allocation {
@@ -489,12 +498,13 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 }
 
 func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -533,7 +543,8 @@ func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()

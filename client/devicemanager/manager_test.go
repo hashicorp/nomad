@@ -234,8 +234,7 @@ func nvidiaAndIntelDefaultPlugins(catalog *loader.MockCatalog) {
 
 // Test collecting statistics from all devices
 func TestManager_AllStats(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	config, _, catalog := baseTestConfig(t)
 	nvidiaAndIntelDefaultPlugins(catalog)
@@ -243,13 +242,13 @@ func TestManager_AllStats(t *testing.T) {
 	m := New(config)
 	m.Run()
 	defer m.Shutdown()
-	require.Len(m.instances, 2)
+	require.Len(t, m.instances, 2)
 
 	// Wait till we get a fingerprint result
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	<-m.WaitForFirstFingerprint(ctx)
-	require.NoError(ctx.Err())
+	require.NoError(t, ctx.Err())
 
 	// Now collect all the stats
 	var stats []*device.DeviceGroupStats
@@ -277,14 +276,13 @@ func TestManager_AllStats(t *testing.T) {
 			t.Fatalf("unexpected vendor %q", stat.Vendor)
 		}
 	}
-	require.True(nstats)
-	require.True(istats)
+	require.True(t, nstats)
+	require.True(t, istats)
 }
 
 // Test collecting statistics from a particular device
 func TestManager_DeviceStats(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	config, _, catalog := baseTestConfig(t)
 	nvidiaAndIntelDefaultPlugins(catalog)
@@ -297,7 +295,7 @@ func TestManager_DeviceStats(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	<-m.WaitForFirstFingerprint(ctx)
-	require.NoError(ctx.Err())
+	require.NoError(t, ctx.Err())
 
 	testutil.WaitForResult(func() (bool, error) {
 		stats := m.AllStats()
@@ -318,20 +316,19 @@ func TestManager_DeviceStats(t *testing.T) {
 		Name:      "1080ti",
 		DeviceIDs: []string{nvidiaDevice1ID},
 	})
-	require.NoError(err)
-	require.NotNil(stat)
+	require.NoError(t, err)
+	require.NotNil(t, stat)
 
-	require.Len(stat.InstanceStats, 1)
-	require.Contains(stat.InstanceStats, nvidiaDevice1ID)
+	require.Len(t, stat.InstanceStats, 1)
+	require.Contains(t, stat.InstanceStats, nvidiaDevice1ID)
 
 	istat := stat.InstanceStats[nvidiaDevice1ID]
-	require.EqualValues(218, *istat.Summary.IntNumeratorVal)
+	require.EqualValues(t, 218, *istat.Summary.IntNumeratorVal)
 }
 
 // Test reserving a particular device
 func TestManager_Reserve(t *testing.T) {
-	t.Parallel()
-	r := require.New(t)
+	testutil.Parallel(t)
 
 	config, _, catalog := baseTestConfig(t)
 	nvidiaAndIntelDefaultPlugins(catalog)
@@ -344,7 +341,7 @@ func TestManager_Reserve(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	<-m.WaitForFirstFingerprint(ctx)
-	r.NoError(ctx.Err())
+	require.NoError(t, ctx.Err())
 
 	cases := []struct {
 		in       *structs.AllocatedDeviceResource
@@ -409,18 +406,16 @@ func TestManager_Reserve(t *testing.T) {
 
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			r = require.New(t)
-
 			// Reserve a particular device
 			res, err := m.Reserve(c.in)
 			if !c.err {
-				r.NoError(err)
-				r.NotNil(res)
+				require.NoError(t, err)
+				require.NotNil(t, res)
 
-				r.Len(res.Envs, 1)
-				r.Equal(res.Envs["DEVICES"], c.expected)
+				require.Len(t, res.Envs, 1)
+				require.Equal(t, res.Envs["DEVICES"], c.expected)
 			} else {
-				r.Error(err)
+				require.Error(t, err)
 			}
 		})
 	}
@@ -428,8 +423,7 @@ func TestManager_Reserve(t *testing.T) {
 
 // Test that shutdown shutsdown the plugins
 func TestManager_Shutdown(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	config, _, catalog := baseTestConfig(t)
 	nvidiaAndIntelDefaultPlugins(catalog)
@@ -442,21 +436,20 @@ func TestManager_Shutdown(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	<-m.WaitForFirstFingerprint(ctx)
-	require.NoError(ctx.Err())
+	require.NoError(t, ctx.Err())
 
 	// Call shutdown and assert that we killed the plugins
 	m.Shutdown()
 
 	for _, resp := range catalog.Catalog()[base.PluginTypeDevice] {
 		pinst, _ := catalog.Dispense(resp.Name, resp.Type, &base.AgentConfig{}, config.Logger)
-		require.True(pinst.Exited())
+		require.True(t, pinst.Exited())
 	}
 }
 
 // Test that startup shutsdown previously launched plugins
 func TestManager_Run_ShutdownOld(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	config, _, catalog := baseTestConfig(t)
 	nvidiaAndIntelDefaultPlugins(catalog)
@@ -469,7 +462,7 @@ func TestManager_Run_ShutdownOld(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	<-m.WaitForFirstFingerprint(ctx)
-	require.NoError(ctx.Err())
+	require.NoError(t, ctx.Err())
 
 	// Create a new manager with the same config so that it reads the old state
 	m2 := New(config)

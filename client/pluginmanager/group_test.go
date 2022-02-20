@@ -7,12 +7,11 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPluginGroup_RegisterAndRun(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
 
 	var hasRun bool
 	var wg sync.WaitGroup
@@ -23,14 +22,13 @@ func TestPluginGroup_RegisterAndRun(t *testing.T) {
 	}}
 
 	group := New(testlog.HCLogger(t))
-	require.NoError(group.RegisterAndRun(manager))
+	require.NoError(t, group.RegisterAndRun(manager))
 	wg.Wait()
-	require.True(hasRun)
+	require.True(t, hasRun)
 }
 
 func TestPluginGroup_Shutdown(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	var stack []int
 	var stackMu sync.Mutex
@@ -52,22 +50,21 @@ func TestPluginGroup_Shutdown(t *testing.T) {
 			defer shutdownWg.Done()
 			idx := len(stack) - 1
 			val := stack[idx]
-			require.Equal(i, val)
+			require.Equal(t, i, val)
 			stack = stack[:idx]
 		}}
-		require.NoError(group.RegisterAndRun(manager))
+		require.NoError(t, group.RegisterAndRun(manager))
 		runWg.Wait()
 	}
 	group.Shutdown()
 	shutdownWg.Wait()
-	require.Empty(stack)
+	require.Empty(t, stack)
 
-	require.Error(group.RegisterAndRun(&MockPluginManager{}))
+	require.Error(t, group.RegisterAndRun(&MockPluginManager{}))
 }
 
 func TestPluginGroup_WaitForFirstFingerprint(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	managerCh := make(chan struct{})
 	manager := &MockPluginManager{
@@ -79,13 +76,13 @@ func TestPluginGroup_WaitForFirstFingerprint(t *testing.T) {
 	close(managerCh)
 
 	group := New(testlog.HCLogger(t))
-	require.NoError(group.RegisterAndRun(manager))
+	require.NoError(t, group.RegisterAndRun(manager))
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	groupCh, err := group.WaitForFirstFingerprint(ctx)
-	require.NoError(err)
+	require.NoError(t, err)
 
 	select {
 	case <-groupCh:
@@ -95,8 +92,7 @@ func TestPluginGroup_WaitForFirstFingerprint(t *testing.T) {
 }
 
 func TestPluginGroup_WaitForFirstFingerprint_Timeout(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	managerCh := make(chan struct{})
 	manager := &MockPluginManager{
@@ -105,7 +101,7 @@ func TestPluginGroup_WaitForFirstFingerprint_Timeout(t *testing.T) {
 	}
 
 	group := New(testlog.HCLogger(t))
-	require.NoError(group.RegisterAndRun(manager))
+	require.NoError(t, group.RegisterAndRun(manager))
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 	defer cancel()
@@ -117,5 +113,5 @@ func TestPluginGroup_WaitForFirstFingerprint_Timeout(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("expected groupCh to be closed due to context timeout")
 	}
-	require.NoError(err)
+	require.NoError(t, err)
 }

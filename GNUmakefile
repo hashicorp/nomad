@@ -32,7 +32,7 @@ ifndef NOMAD_NO_UI
 GO_TAGS := ui $(GO_TAGS)
 endif
 
-GO_TEST_CMD = $(if $(shell command -v gotestsum 2>/dev/null),gotestsum --,go test)
+GO_TEST_CMD := go test
 
 ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
 GOTEST_PKGS ?= "./..."
@@ -48,12 +48,6 @@ PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 LAST_RELEASE ?= v1.2.6
 
 default: help
-
-ifeq ($(CI),true)
-	$(info Running in a CI environment, verbose mode is disabled)
-else
-	VERBOSE="true"
-endif
 
 ifeq (Linux,$(THIS_OS))
 ALL_TARGETS = linux_386 \
@@ -138,6 +132,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 	go install golang.org/x/tools/cmd/stringer@v0.1.8
+	go install gophers.dev/cmds/hc-install/cmd/hc-install@v1.0.1
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -298,7 +293,8 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
 	$(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
-		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+		$(if $(ENABLE_RACE),-race) \
+		-v \
 		-cover \
 		-timeout=20m \
 		-tags "$(GO_TAGS)" \

@@ -25,7 +25,6 @@ import (
 // Nomad client is restarting and asserts failing to reattach to logmon causes
 // nomad to spawn a new logmon.
 func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
-	t.Parallel()
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -94,7 +93,6 @@ func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
 // TestTaskRunner_LogmonHook_ShutdownMidStart simulates logmon crashing while the
 // Nomad client is calling Start() and asserts that we recover and spawn a new logmon.
 func TestTaskRunner_LogmonHook_ShutdownMidStart(t *testing.T) {
-	t.Parallel()
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]

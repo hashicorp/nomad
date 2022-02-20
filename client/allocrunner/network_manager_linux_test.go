@@ -252,23 +252,22 @@ func TestNewNetworkManager(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require := require.New(t)
 			nm, err := newNetworkManager(tc.alloc, &mockDriverManager{})
 			if tc.err {
-				require.Error(err)
-				require.Contains(err.Error(), tc.errContains)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.errContains)
 			} else {
-				require.NoError(err)
+				require.NoError(t, err)
 			}
 
 			if tc.mustInit {
 				_, ok := nm.(*testutils.MockDriver)
-				require.True(ok)
+				require.True(t, ok)
 			} else if tc.err {
-				require.Nil(nm)
+				require.Nil(t, nm)
 			} else {
 				_, ok := nm.(*defaultNetworkManager)
-				require.True(ok)
+				require.True(t, ok)
 			}
 		})
 	}

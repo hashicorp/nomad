@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -88,65 +89,70 @@ func collectInstanceIDs(devices ...*structs.NodeDeviceResource) []string {
 
 // Test that asking for a device that isn't fully specified works.
 func TestDeviceAllocator_Allocate_GenericRequest(t *testing.T) {
-	require := require.New(t)
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	n := devNode()
 	d := newDeviceAllocator(ctx, n)
-	require.NotNil(d)
+	require.NotNil(t, d)
 
 	// Build the request
 	ask := deviceRequest("gpu", 1, nil, nil)
 
 	out, score, err := d.AssignDevice(ask)
-	require.NotNil(out)
-	require.Zero(score)
-	require.NoError(err)
+	require.NotNil(t, out)
+	require.Zero(t, score)
+	require.NoError(t, err)
 
 	// Check that we got the nvidia device
-	require.Len(out.DeviceIDs, 1)
-	require.Contains(collectInstanceIDs(n.NodeResources.Devices[0]), out.DeviceIDs[0])
+	require.Len(t, out.DeviceIDs, 1)
+	require.Contains(t, collectInstanceIDs(n.NodeResources.Devices[0]), out.DeviceIDs[0])
 }
 
 // Test that asking for a device that is fully specified works.
 func TestDeviceAllocator_Allocate_FullyQualifiedRequest(t *testing.T) {
-	require := require.New(t)
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	n := devNode()
 	d := newDeviceAllocator(ctx, n)
-	require.NotNil(d)
+	require.NotNil(t, d)
 
 	// Build the request
 	ask := deviceRequest("intel/fpga/F100", 1, nil, nil)
 
 	out, score, err := d.AssignDevice(ask)
-	require.NotNil(out)
-	require.Zero(score)
-	require.NoError(err)
+	require.NotNil(t, out)
+	require.Zero(t, score)
+	require.NoError(t, err)
 
 	// Check that we got the nvidia device
-	require.Len(out.DeviceIDs, 1)
-	require.Contains(collectInstanceIDs(n.NodeResources.Devices[1]), out.DeviceIDs[0])
+	require.Len(t, out.DeviceIDs, 1)
+	require.Contains(t, collectInstanceIDs(n.NodeResources.Devices[1]), out.DeviceIDs[0])
 }
 
 // Test that asking for a device with too much count doesn't place
 func TestDeviceAllocator_Allocate_NotEnoughInstances(t *testing.T) {
-	require := require.New(t)
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	n := devNode()
 	d := newDeviceAllocator(ctx, n)
-	require.NotNil(d)
+	require.NotNil(t, d)
 
 	// Build the request
 	ask := deviceRequest("gpu", 4, nil, nil)
 
 	out, _, err := d.AssignDevice(ask)
-	require.Nil(out)
-	require.Error(err)
-	require.Contains(err.Error(), "no devices match request")
+	require.Nil(t, out)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no devices match request")
 }
 
 // Test that asking for a device with constraints works
 func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
+	testutil.Parallel(t)
+
 	n := multipleNvidiaNode()
 	nvidia0 := n.NodeResources.Devices[0]
 	nvidia1 := n.NodeResources.Devices[1]
@@ -231,25 +237,24 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			require := require.New(t)
 			_, ctx := testContext(t)
 			d := newDeviceAllocator(ctx, n)
-			require.NotNil(d)
+			require.NotNil(t, d)
 
 			// Build the request
 			ask := deviceRequest(c.Name, 1, c.Constraints, nil)
 
 			out, score, err := d.AssignDevice(ask)
 			if c.NoPlacement {
-				require.Nil(out)
+				require.Nil(t, out)
 			} else {
-				require.NotNil(out)
-				require.Zero(score)
-				require.NoError(err)
+				require.NotNil(t, out)
+				require.Zero(t, score)
+				require.NoError(t, err)
 
 				// Check that we got the nvidia device
-				require.Len(out.DeviceIDs, 1)
-				require.Contains(collectInstanceIDs(c.ExpectedDevice), out.DeviceIDs[0])
+				require.Len(t, out.DeviceIDs, 1)
+				require.Contains(t, collectInstanceIDs(c.ExpectedDevice), out.DeviceIDs[0])
 			}
 		})
 	}
@@ -257,6 +262,8 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 
 // Test that asking for a device with affinities works
 func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
+	testutil.Parallel(t)
+
 	n := multipleNvidiaNode()
 	nvidia0 := n.NodeResources.Devices[0]
 	nvidia1 := n.NodeResources.Devices[1]
@@ -333,26 +340,25 @@ func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			require := require.New(t)
 			_, ctx := testContext(t)
 			d := newDeviceAllocator(ctx, n)
-			require.NotNil(d)
+			require.NotNil(t, d)
 
 			// Build the request
 			ask := deviceRequest(c.Name, 1, nil, c.Affinities)
 
 			out, score, err := d.AssignDevice(ask)
-			require.NotNil(out)
-			require.NoError(err)
+			require.NotNil(t, out)
+			require.NoError(t, err)
 			if c.ZeroScore {
-				require.Zero(score)
+				require.Zero(t, score)
 			} else {
-				require.NotZero(score)
+				require.NotZero(t, score)
 			}
 
 			// Check that we got the nvidia device
-			require.Len(out.DeviceIDs, 1)
-			require.Contains(collectInstanceIDs(c.ExpectedDevice), out.DeviceIDs[0])
+			require.Len(t, out.DeviceIDs, 1)
+			require.Contains(t, collectInstanceIDs(c.ExpectedDevice), out.DeviceIDs[0])
 		})
 	}
 }

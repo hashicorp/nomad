@@ -12,10 +12,13 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSystemSched_JobRegister(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -75,6 +78,8 @@ func TestSystemSched_JobRegister(t *testing.T) {
 }
 
 func TestSystemSched_JobRegister_StickyAllocs(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -148,6 +153,8 @@ func TestSystemSched_JobRegister_StickyAllocs(t *testing.T) {
 }
 
 func TestSystemSched_JobRegister_EphemeralDiskConstraint(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create a node
@@ -217,6 +224,8 @@ func TestSystemSched_JobRegister_EphemeralDiskConstraint(t *testing.T) {
 }
 
 func TestSystemSched_ExhaustResources(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create a node
@@ -272,20 +281,19 @@ func TestSystemSched_ExhaustResources(t *testing.T) {
 	}
 
 	// System scheduler will preempt the service job and would have placed eval1
-	require := require.New(t)
 
 	newPlan := h.Plans[1]
-	require.Len(newPlan.NodeAllocation, 1)
-	require.Len(newPlan.NodePreemptions, 1)
+	require.Len(t, newPlan.NodeAllocation, 1)
+	require.Len(t, newPlan.NodePreemptions, 1)
 
 	for _, allocList := range newPlan.NodeAllocation {
-		require.Len(allocList, 1)
-		require.Equal(job.ID, allocList[0].JobID)
+		require.Len(t, allocList, 1)
+		require.Equal(t, job.ID, allocList[0].JobID)
 	}
 
 	for _, allocList := range newPlan.NodePreemptions {
-		require.Len(allocList, 1)
-		require.Equal(svcJob.ID, allocList[0].JobID)
+		require.Len(t, allocList, 1)
+		require.Equal(t, svcJob.ID, allocList[0].JobID)
 	}
 	// Ensure that we have no queued allocations on the second eval
 	queued := h.Evals[1].QueuedAllocations["web"]
@@ -295,6 +303,8 @@ func TestSystemSched_ExhaustResources(t *testing.T) {
 }
 
 func TestSystemSched_JobRegister_Annotate(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -391,6 +401,8 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 }
 
 func TestSystemSched_JobRegister_AddNode(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -469,6 +481,8 @@ func TestSystemSched_JobRegister_AddNode(t *testing.T) {
 }
 
 func TestSystemSched_JobRegister_AllocFail(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create NO nodes
@@ -501,6 +515,8 @@ func TestSystemSched_JobRegister_AllocFail(t *testing.T) {
 }
 
 func TestSystemSched_JobModify(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -588,6 +604,8 @@ func TestSystemSched_JobModify(t *testing.T) {
 }
 
 func TestSystemSched_JobModify_Rolling(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -686,6 +704,8 @@ func TestSystemSched_JobModify_Rolling(t *testing.T) {
 }
 
 func TestSystemSched_JobModify_InPlace(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -766,6 +786,8 @@ func TestSystemSched_JobModify_InPlace(t *testing.T) {
 }
 
 func TestSystemSched_JobModify_RemoveDC(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -851,6 +873,8 @@ func TestSystemSched_JobModify_RemoveDC(t *testing.T) {
 }
 
 func TestSystemSched_JobDeregister_Purged(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -910,6 +934,8 @@ func TestSystemSched_JobDeregister_Purged(t *testing.T) {
 }
 
 func TestSystemSched_JobDeregister_Stopped(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -971,6 +997,8 @@ func TestSystemSched_JobDeregister_Stopped(t *testing.T) {
 }
 
 func TestSystemSched_NodeDown(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register a down node
@@ -1030,6 +1058,8 @@ func TestSystemSched_NodeDown(t *testing.T) {
 }
 
 func TestSystemSched_NodeDrain_Down(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register a draining node
@@ -1082,6 +1112,8 @@ func TestSystemSched_NodeDrain_Down(t *testing.T) {
 }
 
 func TestSystemSched_NodeDrain(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register a draining node
@@ -1137,6 +1169,8 @@ func TestSystemSched_NodeDrain(t *testing.T) {
 }
 
 func TestSystemSched_NodeUpdate(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register a node
@@ -1179,6 +1213,8 @@ func TestSystemSched_NodeUpdate(t *testing.T) {
 }
 
 func TestSystemSched_RetryLimit(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 	h.Planner = &RejectPlan{h}
 
@@ -1223,6 +1259,8 @@ func TestSystemSched_RetryLimit(t *testing.T) {
 // count for a task group when allocations can't be created on currently
 // available nodes because of constraint mismatches.
 func TestSystemSched_Queued_With_Constraints(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register a node
@@ -1262,6 +1300,8 @@ func TestSystemSched_Queued_With_Constraints(t *testing.T) {
 // should be that the TaskGroup constrained to the newly added node class is
 // added and that the TaskGroup constrained to the ineligible node is ignored.
 func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create two nodes
@@ -1409,6 +1449,8 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 
 // No errors reported when no available nodes prevent placement
 func TestSystemSched_ExistingAllocNoNodes(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	var node *structs.Node
@@ -1488,6 +1530,8 @@ func TestSystemSched_ExistingAllocNoNodes(t *testing.T) {
 
 // No errors reported when constraints prevent placement
 func TestSystemSched_ConstraintErrors(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	var node *structs.Node
@@ -1559,6 +1603,8 @@ func TestSystemSched_ConstraintErrors(t *testing.T) {
 }
 
 func TestSystemSched_ChainedAlloc(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -1647,6 +1693,8 @@ func TestSystemSched_ChainedAlloc(t *testing.T) {
 }
 
 func TestSystemSched_PlanWithDrainedNode(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register two nodes with two different classes
@@ -1727,6 +1775,8 @@ func TestSystemSched_PlanWithDrainedNode(t *testing.T) {
 }
 
 func TestSystemSched_QueuedAllocsMultTG(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register two nodes with two different classes
@@ -1783,6 +1833,8 @@ func TestSystemSched_QueuedAllocsMultTG(t *testing.T) {
 }
 
 func TestSystemSched_Preemption(t *testing.T) {
+	testutil.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create nodes
@@ -2066,6 +2118,8 @@ func TestSystemSched_Preemption(t *testing.T) {
 }
 
 func TestSystemSched_canHandle(t *testing.T) {
+	testutil.Parallel(t)
+
 	s := SystemScheduler{sysbatch: false}
 	t.Run("system register", func(t *testing.T) {
 		require.True(t, s.canHandle(structs.EvalTriggerJobRegister))

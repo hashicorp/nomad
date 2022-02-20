@@ -101,8 +101,8 @@ func noopUpdater(string, *structs.DriverInfo)             {}
 func noopEventHandlerFactory(string, string) EventHandler { return nil }
 
 func TestManager_Fingerprint(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
+
 	fpChan, _, mgr := testSetup(t)
 	var infos []*structs.DriverInfo
 	mgr.updater = func(d string, i *structs.DriverInfo) {
@@ -116,7 +116,7 @@ func TestManager_Fingerprint(t *testing.T) {
 		defer mgr.instancesMu.Unlock()
 		return len(mgr.instances) == 1, fmt.Errorf("manager should have registered 1 instance")
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -127,7 +127,7 @@ func TestManager_Fingerprint(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 
 	fpChan <- &drivers.Fingerprint{
@@ -141,7 +141,7 @@ func TestManager_Fingerprint(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 
 	fpChan <- &drivers.Fingerprint{
@@ -155,21 +155,21 @@ func TestManager_Fingerprint(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 
-	require.Len(infos, 3)
-	require.True(infos[0].Healthy)
-	require.True(infos[0].Detected)
-	require.False(infos[1].Healthy)
-	require.True(infos[1].Detected)
-	require.False(infos[2].Healthy)
-	require.False(infos[2].Detected)
+	require.Len(t, infos, 3)
+	require.True(t, infos[0].Healthy)
+	require.True(t, infos[0].Detected)
+	require.False(t, infos[1].Healthy)
+	require.True(t, infos[1].Detected)
+	require.False(t, infos[2].Healthy)
+	require.False(t, infos[2].Detected)
 }
 
 func TestManager_TaskEvents(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
+
 	fpChan, evChan, mgr := testSetup(t)
 	go mgr.Run()
 	defer mgr.Shutdown()
@@ -179,7 +179,7 @@ func TestManager_TaskEvents(t *testing.T) {
 		defer mgr.instancesMu.Unlock()
 		return len(mgr.instances) == 1, fmt.Errorf("manager should have registered 1 instance")
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 
 	event1 := mockTaskEvent("abc1")
@@ -199,8 +199,8 @@ func TestManager_TaskEvents(t *testing.T) {
 }
 
 func TestManager_Run_AllowedDrivers(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
+
 	fpChan, _, mgr := testSetup(t)
 	mgr.allowedDrivers = map[string]struct{}{"foo": {}}
 	go mgr.Run()
@@ -214,13 +214,13 @@ func TestManager_Run_AllowedDrivers(t *testing.T) {
 		defer mgr.instancesMu.Unlock()
 		return len(mgr.instances) == 0, fmt.Errorf("manager should have no registered instances")
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 }
 
 func TestManager_Run_BlockedDrivers(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
+
 	fpChan, _, mgr := testSetup(t)
 	mgr.blockedDrivers = map[string]struct{}{"mock": {}}
 	go mgr.Run()
@@ -234,13 +234,13 @@ func TestManager_Run_BlockedDrivers(t *testing.T) {
 		defer mgr.instancesMu.Unlock()
 		return len(mgr.instances) == 0, fmt.Errorf("manager should have no registered instances")
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 }
 
 func TestManager_Run_AllowedBlockedDrivers_Combined(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
+
 	drvs := map[string]drivers.DriverPlugin{}
 	fpChs := map[string]chan *drivers.Fingerprint{}
 	names := []string{"mock1", "mock2", "mock3", "mock4", "mock5"}
@@ -287,11 +287,11 @@ func TestManager_Run_AllowedBlockedDrivers_Combined(t *testing.T) {
 		defer mgr.instancesMu.Unlock()
 		return len(mgr.instances) < 2, fmt.Errorf("manager should have 1 registered instance, %v", len(mgr.instances))
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 	mgr.instancesMu.Lock()
-	require.Len(mgr.instances, 1)
+	require.Len(t, mgr.instances, 1)
 	_, ok := mgr.instances["mock3"]
 	mgr.instancesMu.Unlock()
-	require.True(ok)
+	require.True(t, ok)
 }

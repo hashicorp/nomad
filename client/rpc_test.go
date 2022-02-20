@@ -13,8 +13,7 @@ import (
 )
 
 func TestRpc_streamingRpcConn_badEndpoint(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	s1, cleanupS1 := nomad.TestServer(t, nil)
 	defer cleanupS1()
@@ -42,17 +41,16 @@ func TestRpc_streamingRpcConn_badEndpoint(t *testing.T) {
 
 	// Get the server
 	server := c.servers.FindServer()
-	require.NotNil(server)
+	require.NotNil(t, server)
 
 	conn, err := c.streamingRpcConn(server, "Bogus")
-	require.Nil(conn)
-	require.NotNil(err)
-	require.Contains(err.Error(), "Unknown rpc method: \"Bogus\"")
+	require.Nil(t, conn)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Unknown rpc method: \"Bogus\"")
 }
 
 func TestRpc_streamingRpcConn_badEndpoint_TLS(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
@@ -106,10 +104,10 @@ func TestRpc_streamingRpcConn_badEndpoint_TLS(t *testing.T) {
 
 	// Get the server
 	server := c.servers.FindServer()
-	require.NotNil(server)
+	require.NotNil(t, server)
 
 	conn, err := c.streamingRpcConn(server, "Bogus")
-	require.Nil(conn)
-	require.NotNil(err)
-	require.Contains(err.Error(), "Unknown rpc method: \"Bogus\"")
+	require.Nil(t, conn)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Unknown rpc method: \"Bogus\"")
 }

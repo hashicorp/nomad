@@ -9,6 +9,7 @@ import (
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/csi/fake"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,7 +26,7 @@ var fakeNodePlugin = &dynamicplugins.PluginInfo{
 }
 
 func TestCSIController_AttachVolume(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -144,7 +145,6 @@ func TestCSIController_AttachVolume(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			require := require.New(t)
 			client, cleanup := TestClient(t, nil)
 			defer cleanup()
 
@@ -159,20 +159,20 @@ func TestCSIController_AttachVolume(t *testing.T) {
 			client.dynamicRegistry.StubDispenserForType(dynamicplugins.PluginTypeCSIController, dispenserFunc)
 
 			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
-			require.Nil(err)
+			require.Nil(t, err)
 
 			var resp structs.ClientCSIControllerAttachVolumeResponse
 			err = client.ClientRPC("CSI.ControllerAttachVolume", tc.Request, &resp)
-			require.Equal(tc.ExpectedErr, err)
+			require.Equal(t, tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
-				require.Equal(tc.ExpectedResponse, &resp)
+				require.Equal(t, tc.ExpectedResponse, &resp)
 			}
 		})
 	}
 }
 
 func TestCSIController_ValidateVolume(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -247,7 +247,6 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			require := require.New(t)
 			client, cleanup := TestClient(t, nil)
 			defer cleanup()
 
@@ -262,20 +261,20 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 			client.dynamicRegistry.StubDispenserForType(dynamicplugins.PluginTypeCSIController, dispenserFunc)
 
 			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
-			require.Nil(err)
+			require.Nil(t, err)
 
 			var resp structs.ClientCSIControllerValidateVolumeResponse
 			err = client.ClientRPC("CSI.ControllerValidateVolume", tc.Request, &resp)
-			require.Equal(tc.ExpectedErr, err)
+			require.Equal(t, tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
-				require.Equal(tc.ExpectedResponse, &resp)
+				require.Equal(t, tc.ExpectedResponse, &resp)
 			}
 		})
 	}
 }
 
 func TestCSIController_DetachVolume(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -330,7 +329,6 @@ func TestCSIController_DetachVolume(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			require := require.New(t)
 			client, cleanup := TestClient(t, nil)
 			defer cleanup()
 
@@ -345,20 +343,20 @@ func TestCSIController_DetachVolume(t *testing.T) {
 			client.dynamicRegistry.StubDispenserForType(dynamicplugins.PluginTypeCSIController, dispenserFunc)
 
 			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
-			require.Nil(err)
+			require.Nil(t, err)
 
 			var resp structs.ClientCSIControllerDetachVolumeResponse
 			err = client.ClientRPC("CSI.ControllerDetachVolume", tc.Request, &resp)
-			require.Equal(tc.ExpectedErr, err)
+			require.Equal(t, tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
-				require.Equal(tc.ExpectedResponse, &resp)
+				require.Equal(t, tc.ExpectedResponse, &resp)
 			}
 		})
 	}
 }
 
 func TestCSIController_CreateVolume(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -431,7 +429,6 @@ func TestCSIController_CreateVolume(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			require := require.New(t)
 			client, cleanup := TestClient(t, nil)
 			defer cleanup()
 
@@ -447,20 +444,20 @@ func TestCSIController_CreateVolume(t *testing.T) {
 				dynamicplugins.PluginTypeCSIController, dispenserFunc)
 
 			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
-			require.Nil(err)
+			require.Nil(t, err)
 
 			var resp structs.ClientCSIControllerCreateVolumeResponse
 			err = client.ClientRPC("CSI.ControllerCreateVolume", tc.Request, &resp)
-			require.Equal(tc.ExpectedErr, err)
+			require.Equal(t, tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
-				require.Equal(tc.ExpectedResponse, &resp)
+				require.Equal(t, tc.ExpectedResponse, &resp)
 			}
 		})
 	}
 }
 
 func TestCSIController_DeleteVolume(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -495,7 +492,6 @@ func TestCSIController_DeleteVolume(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			require := require.New(t)
 			client, cleanup := TestClient(t, nil)
 			defer cleanup()
 
@@ -511,20 +507,20 @@ func TestCSIController_DeleteVolume(t *testing.T) {
 				dynamicplugins.PluginTypeCSIController, dispenserFunc)
 
 			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
-			require.Nil(err)
+			require.Nil(t, err)
 
 			var resp structs.ClientCSIControllerDeleteVolumeResponse
 			err = client.ClientRPC("CSI.ControllerDeleteVolume", tc.Request, &resp)
-			require.Equal(tc.ExpectedErr, err)
+			require.Equal(t, tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
-				require.Equal(tc.ExpectedResponse, &resp)
+				require.Equal(t, tc.ExpectedResponse, &resp)
 			}
 		})
 	}
 }
 
 func TestCSIController_ListVolumes(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -604,7 +600,6 @@ func TestCSIController_ListVolumes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			require := require.New(t)
 			client, cleanup := TestClient(t, nil)
 			defer cleanup()
 
@@ -620,19 +615,19 @@ func TestCSIController_ListVolumes(t *testing.T) {
 				dynamicplugins.PluginTypeCSIController, dispenserFunc)
 
 			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
-			require.Nil(err)
+			require.Nil(t, err)
 
 			var resp structs.ClientCSIControllerListVolumesResponse
 			err = client.ClientRPC("CSI.ControllerListVolumes", tc.Request, &resp)
-			require.Equal(tc.ExpectedErr, err)
+			require.Equal(t, tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
-				require.Equal(tc.ExpectedResponse, &resp)
+				require.Equal(t, tc.ExpectedResponse, &resp)
 			}
 		})
 	}
 }
 func TestCSIController_CreateSnapshot(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -696,7 +691,6 @@ func TestCSIController_CreateSnapshot(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			require := require.New(t)
 			client, cleanup := TestClient(t, nil)
 			defer cleanup()
 
@@ -712,20 +706,20 @@ func TestCSIController_CreateSnapshot(t *testing.T) {
 				dynamicplugins.PluginTypeCSIController, dispenserFunc)
 
 			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
-			require.Nil(err)
+			require.Nil(t, err)
 
 			var resp structs.ClientCSIControllerCreateSnapshotResponse
 			err = client.ClientRPC("CSI.ControllerCreateSnapshot", tc.Request, &resp)
-			require.Equal(tc.ExpectedErr, err)
+			require.Equal(t, tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
-				require.Equal(tc.ExpectedResponse, &resp)
+				require.Equal(t, tc.ExpectedResponse, &resp)
 			}
 		})
 	}
 }
 
 func TestCSIController_DeleteSnapshot(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -760,7 +754,6 @@ func TestCSIController_DeleteSnapshot(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			require := require.New(t)
 			client, cleanup := TestClient(t, nil)
 			defer cleanup()
 
@@ -776,20 +769,20 @@ func TestCSIController_DeleteSnapshot(t *testing.T) {
 				dynamicplugins.PluginTypeCSIController, dispenserFunc)
 
 			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
-			require.Nil(err)
+			require.Nil(t, err)
 
 			var resp structs.ClientCSIControllerDeleteSnapshotResponse
 			err = client.ClientRPC("CSI.ControllerDeleteSnapshot", tc.Request, &resp)
-			require.Equal(tc.ExpectedErr, err)
+			require.Equal(t, tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
-				require.Equal(tc.ExpectedResponse, &resp)
+				require.Equal(t, tc.ExpectedResponse, &resp)
 			}
 		})
 	}
 }
 
 func TestCSIController_ListSnapshots(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -864,7 +857,6 @@ func TestCSIController_ListSnapshots(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			require := require.New(t)
 			client, cleanup := TestClient(t, nil)
 			defer cleanup()
 
@@ -880,20 +872,20 @@ func TestCSIController_ListSnapshots(t *testing.T) {
 				dynamicplugins.PluginTypeCSIController, dispenserFunc)
 
 			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
-			require.Nil(err)
+			require.Nil(t, err)
 
 			var resp structs.ClientCSIControllerListSnapshotsResponse
 			err = client.ClientRPC("CSI.ControllerListSnapshots", tc.Request, &resp)
-			require.Equal(tc.ExpectedErr, err)
+			require.Equal(t, tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
-				require.Equal(tc.ExpectedResponse, &resp)
+				require.Equal(t, tc.ExpectedResponse, &resp)
 			}
 		})
 	}
 }
 
 func TestCSINode_DetachVolume(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -947,7 +939,6 @@ func TestCSINode_DetachVolume(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			require := require.New(t)
 			client, cleanup := TestClient(t, nil)
 			defer cleanup()
 
@@ -961,13 +952,13 @@ func TestCSINode_DetachVolume(t *testing.T) {
 			}
 			client.dynamicRegistry.StubDispenserForType(dynamicplugins.PluginTypeCSINode, dispenserFunc)
 			err := client.dynamicRegistry.RegisterPlugin(fakeNodePlugin)
-			require.Nil(err)
+			require.Nil(t, err)
 
 			var resp structs.ClientCSINodeDetachVolumeResponse
 			err = client.ClientRPC("CSI.NodeDetachVolume", tc.Request, &resp)
-			require.Equal(tc.ExpectedErr, err)
+			require.Equal(t, tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
-				require.Equal(tc.ExpectedResponse, &resp)
+				require.Equal(t, tc.ExpectedResponse, &resp)
 			}
 		})
 	}

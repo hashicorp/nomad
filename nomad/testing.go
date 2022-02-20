@@ -4,14 +4,9 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"os"
 	"sync/atomic"
 	"time"
 
-	testing "github.com/mitchellh/go-testing-interface"
-	"github.com/pkg/errors"
-
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
@@ -20,10 +15,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
+	testing "github.com/mitchellh/go-testing-interface"
+	"github.com/pkg/errors"
 )
 
 var (
-	nodeNumber uint32 = 0
+	nodeNumber int32 = 0
 )
 
 func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken, func()) {
@@ -48,26 +45,15 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	// Setup default enterprise-specific settings, including license
 	defaultEnterpriseTestConfig(config)
 
-	config.Logger = testlog.HCLogger(t)
 	config.Build = version.Version + "+unittest"
 	config.DevMode = true
 	config.EnableEventBroker = true
 	config.BootstrapExpect = 1
-	nodeNum := atomic.AddUint32(&nodeNumber, 1)
+	nodeNum := atomic.AddInt32(&nodeNumber, 1)
 	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNum)
 
 	// configure logger
-	level := hclog.Trace
-	if envLogLevel := os.Getenv("NOMAD_TEST_LOG_LEVEL"); envLogLevel != "" {
-		level = hclog.LevelFromString(envLogLevel)
-	}
-	opts := &hclog.LoggerOptions{
-		Level:           level,
-		Output:          testlog.NewPrefixWriter(t, config.NodeName+" "),
-		IncludeLocation: true,
-	}
-	config.Logger = hclog.NewInterceptLogger(opts)
-	config.LogOutput = opts.Output
+	config.Logger, config.LogOutput = testlog.HCLoggerNode(t, nodeNum)
 
 	// Tighten the Serf timing
 	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"

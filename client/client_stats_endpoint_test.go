@@ -8,26 +8,26 @@ import (
 	"github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestClientStats_Stats(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
+
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 
 	req := &nstructs.NodeSpecificRequest{}
 	var resp structs.ClientStatsResponse
-	require.Nil(client.ClientRPC("ClientStats.Stats", &req, &resp))
-	require.NotNil(resp.HostStats)
-	require.NotNil(resp.HostStats.AllocDirStats)
-	require.NotZero(resp.HostStats.Uptime)
+	require.Nil(t, client.ClientRPC("ClientStats.Stats", &req, &resp))
+	require.NotNil(t, resp.HostStats)
+	require.NotNil(t, resp.HostStats.AllocDirStats)
+	require.NotZero(t, resp.HostStats.Uptime)
 }
 
 func TestClientStats_Stats_ACL(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)
 	defer cleanupS()
@@ -43,8 +43,8 @@ func TestClientStats_Stats_ACL(t *testing.T) {
 		req := &nstructs.NodeSpecificRequest{}
 		var resp structs.ClientStatsResponse
 		err := client.ClientRPC("ClientStats.Stats", &req, &resp)
-		require.NotNil(err)
-		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
+		require.NotNil(t, err)
+		require.EqualError(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with an invalid token and expect failure
@@ -56,8 +56,8 @@ func TestClientStats_Stats_ACL(t *testing.T) {
 		var resp structs.ClientStatsResponse
 		err := client.ClientRPC("ClientStats.Stats", &req, &resp)
 
-		require.NotNil(err)
-		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
+		require.NotNil(t, err)
+		require.EqualError(t, err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with a valid token
@@ -69,8 +69,8 @@ func TestClientStats_Stats_ACL(t *testing.T) {
 		var resp structs.ClientStatsResponse
 		err := client.ClientRPC("ClientStats.Stats", &req, &resp)
 
-		require.Nil(err)
-		require.NotNil(resp.HostStats)
+		require.Nil(t, err)
+		require.NotNil(t, resp.HostStats)
 	}
 
 	// Try request with a management token
@@ -81,7 +81,7 @@ func TestClientStats_Stats_ACL(t *testing.T) {
 		var resp structs.ClientStatsResponse
 		err := client.ClientRPC("ClientStats.Stats", &req, &resp)
 
-		require.Nil(err)
-		require.NotNil(resp.HostStats)
+		require.Nil(t, err)
+		require.NotNil(t, resp.HostStats)
 	}
 }

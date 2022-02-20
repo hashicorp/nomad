@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,6 +17,8 @@ var testSchedulerConfig = &structs.SchedulerConfiguration{
 }
 
 func TestFeasibleRankIterator(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	var nodes []*structs.Node
 	for i := 0; i < 10; i++ {
@@ -32,6 +35,8 @@ func TestFeasibleRankIterator(t *testing.T) {
 }
 
 func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -137,6 +142,8 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 // reserved resources are scored equivalent to as if they had a lower amount of
 // resources.
 func TestBinPackIterator_NoExistingAlloc_MixedReserve(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -252,6 +259,8 @@ func TestBinPackIterator_NoExistingAlloc_MixedReserve(t *testing.T) {
 
 // Tests bin packing iterator with network resources at task and task group level
 func TestBinPackIterator_Network_Success(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -352,27 +361,26 @@ func TestBinPackIterator_Network_Success(t *testing.T) {
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
 	out := collectRanked(scoreNorm)
-	require := require.New(t)
 
 	// We expect both nodes to be eligible to place
-	require.Len(out, 2)
-	require.Equal(out[0], nodes[0])
-	require.Equal(out[1], nodes[1])
+	require.Len(t, out, 2)
+	require.Equal(t, out[0], nodes[0])
+	require.Equal(t, out[1], nodes[1])
 
 	// First node should have a perfect score
-	require.Equal(1.0, out[0].FinalScore)
+	require.Equal(t, 1.0, out[0].FinalScore)
 
 	if out[1].FinalScore < 0.50 || out[1].FinalScore > 0.60 {
 		t.Fatalf("Bad Score: %v", out[1].FinalScore)
 	}
 
 	// Verify network information at taskgroup level
-	require.Equal(500, out[0].AllocResources.Networks[0].MBits)
-	require.Equal(500, out[1].AllocResources.Networks[0].MBits)
+	require.Equal(t, 500, out[0].AllocResources.Networks[0].MBits)
+	require.Equal(t, 500, out[1].AllocResources.Networks[0].MBits)
 
 	// Verify network information at task level
-	require.Equal(300, out[0].TaskResources["web"].Networks[0].MBits)
-	require.Equal(300, out[1].TaskResources["web"].Networks[0].MBits)
+	require.Equal(t, 300, out[0].TaskResources["web"].Networks[0].MBits)
+	require.Equal(t, 300, out[1].TaskResources["web"].Networks[0].MBits)
 }
 
 // Tests that bin packing iterator fails due to overprovisioning of network
@@ -484,15 +492,16 @@ func TestBinPackIterator_Network_Failure(t *testing.T) {
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
 	out := collectRanked(scoreNorm)
-	require := require.New(t)
 
 	// We expect a placement failure because we need 800 mbits of network
 	// and only 300 is free
-	require.Len(out, 0)
-	require.Equal(1, ctx.metrics.DimensionExhausted["network: bandwidth exceeded"])
+	require.Len(t, out, 0)
+	require.Equal(t, 1, ctx.metrics.DimensionExhausted["network: bandwidth exceeded"])
 }
 
 func TestBinPackIterator_Network_PortCollision_Node(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	eventsCh := make(chan interface{})
 	ctx.eventsCh = eventsCh
@@ -583,6 +592,8 @@ func TestBinPackIterator_Network_PortCollision_Node(t *testing.T) {
 }
 
 func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {
+	testutil.Parallel(t)
+
 	state, ctx := testContext(t)
 	eventsCh := make(chan interface{})
 	ctx.eventsCh = eventsCh
@@ -709,6 +720,8 @@ func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {
 
 // Tests bin packing iterator with host network interpolation of task group level ports configuration
 func TestBinPackIterator_Network_Interpolation_Success(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -845,23 +858,24 @@ func TestBinPackIterator_Network_Interpolation_Success(t *testing.T) {
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
 	out := collectRanked(scoreNorm)
-	require := require.New(t)
 
 	// We expect both nodes to be eligible to place
-	require.Len(out, 2)
-	require.Equal(out[0], nodes[0])
-	require.Equal(out[1], nodes[1])
+	require.Len(t, out, 2)
+	require.Equal(t, out[0], nodes[0])
+	require.Equal(t, out[1], nodes[1])
 
 	// Verify network information at taskgroup level
-	require.Contains([]string{"public", "private"}, out[0].AllocResources.Networks[0].DynamicPorts[0].HostNetwork)
-	require.Contains([]string{"public", "private"}, out[0].AllocResources.Networks[0].DynamicPorts[1].HostNetwork)
-	require.Contains([]string{"first", "second"}, out[1].AllocResources.Networks[0].DynamicPorts[0].HostNetwork)
-	require.Contains([]string{"first", "second"}, out[1].AllocResources.Networks[0].DynamicPorts[1].HostNetwork)
+	require.Contains(t, []string{"public", "private"}, out[0].AllocResources.Networks[0].DynamicPorts[0].HostNetwork)
+	require.Contains(t, []string{"public", "private"}, out[0].AllocResources.Networks[0].DynamicPorts[1].HostNetwork)
+	require.Contains(t, []string{"first", "second"}, out[1].AllocResources.Networks[0].DynamicPorts[0].HostNetwork)
+	require.Contains(t, []string{"first", "second"}, out[1].AllocResources.Networks[0].DynamicPorts[1].HostNetwork)
 }
 
 // Tests that bin packing iterator fails due to absence of meta value
 // This test has network resources at task group
 func TestBinPackIterator_Host_Network_Interpolation_Absent_Value(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -956,13 +970,14 @@ func TestBinPackIterator_Host_Network_Interpolation_Absent_Value(t *testing.T) {
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
 	out := collectRanked(scoreNorm)
-	require := require.New(t)
-	require.Len(out, 0)
+	require.Len(t, out, 0)
 }
 
 // Tests that bin packing iterator fails due to absence of meta value
 // This test has network resources at task group
 func TestBinPackIterator_Host_Network_Interpolation_Interface_Not_Exists(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -1057,11 +1072,12 @@ func TestBinPackIterator_Host_Network_Interpolation_Interface_Not_Exists(t *test
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
 	out := collectRanked(scoreNorm)
-	require := require.New(t)
-	require.Len(out, 0)
+	require.Len(t, out, 0)
 }
 
 func TestBinPackIterator_PlannedAlloc(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -1164,6 +1180,8 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 }
 
 func TestBinPackIterator_ReservedCores(t *testing.T) {
+	testutil.Parallel(t)
+
 	state, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -1273,13 +1291,14 @@ func TestBinPackIterator_ReservedCores(t *testing.T) {
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
 	out := collectRanked(scoreNorm)
-	require := require.New(t)
-	require.Len(out, 1)
-	require.Equal(nodes[1].Node.ID, out[0].Node.ID)
-	require.Equal([]uint16{1}, out[0].TaskResources["web"].Cpu.ReservedCores)
+	require.Len(t, out, 1)
+	require.Equal(t, nodes[1].Node.ID, out[0].Node.ID)
+	require.Equal(t, []uint16{1}, out[0].TaskResources["web"].Cpu.ReservedCores)
 }
 
 func TestBinPackIterator_ExistingAlloc(t *testing.T) {
+	testutil.Parallel(t)
+
 	state, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -1395,6 +1414,8 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 }
 
 func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
+	testutil.Parallel(t)
+
 	state, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -1522,6 +1543,8 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 // request versus availability scenario. That should be covered in device
 // allocator tests.
 func TestBinPackIterator_Devices(t *testing.T) {
+	testutil.Parallel(t)
+
 	nvidiaNode := mock.NvidiaNode()
 	devs := nvidiaNode.NodeResources.Devices[0].Instances
 	nvidiaDevices := []string{devs[0].ID, devs[1].ID}
@@ -1779,7 +1802,6 @@ func TestBinPackIterator_Devices(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			require := require.New(t)
 
 			// Setup the context
 			state, ctx := testContext(t)
@@ -1798,7 +1820,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				for _, alloc := range c.ExistingAllocs {
 					alloc.NodeID = c.Node.ID
 				}
-				require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, c.ExistingAllocs))
+				require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, c.ExistingAllocs))
 			}
 
 			static := NewStaticRankIterator(ctx, []*RankedNode{{Node: c.Node}})
@@ -1813,7 +1835,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 			// Check we got the placements we are expecting
 			for tname, devices := range c.ExpectedPlacements {
 				tr, ok := out.TaskResources[tname]
-				require.True(ok)
+				require.True(t, ok)
 
 				want := len(devices)
 				got := 0
@@ -1821,26 +1843,28 @@ func TestBinPackIterator_Devices(t *testing.T) {
 					got++
 
 					expected, ok := devices[*placed.ID()]
-					require.True(ok)
-					require.Equal(expected.Count, len(placed.DeviceIDs))
+					require.True(t, ok)
+					require.Equal(t, expected.Count, len(placed.DeviceIDs))
 					for _, id := range expected.ExcludeIDs {
-						require.NotContains(placed.DeviceIDs, id)
+						require.NotContains(t, placed.DeviceIDs, id)
 					}
 				}
 
-				require.Equal(want, got)
+				require.Equal(t, want, got)
 			}
 
 			// Check potential affinity scores
 			if c.DeviceScore != 0.0 {
-				require.Len(out.Scores, 2)
-				require.Equal(c.DeviceScore, out.Scores[1])
+				require.Len(t, out.Scores, 2)
+				require.Equal(t, c.DeviceScore, out.Scores[1])
 			}
 		})
 	}
 }
 
 func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -1921,6 +1945,8 @@ func collectRanked(iter RankIterator) (out []*RankedNode) {
 }
 
 func TestNodeAntiAffinity_PenaltyNodes(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	node1 := &structs.Node{
 		ID: uuid.Generate(),
@@ -1946,17 +1972,18 @@ func TestNodeAntiAffinity_PenaltyNodes(t *testing.T) {
 
 	out := collectRanked(scoreNorm)
 
-	require := require.New(t)
-	require.Equal(2, len(out))
-	require.Equal(node1.ID, out[0].Node.ID)
-	require.Equal(-1.0, out[0].FinalScore)
+	require.Equal(t, 2, len(out))
+	require.Equal(t, node1.ID, out[0].Node.ID)
+	require.Equal(t, -1.0, out[0].FinalScore)
 
-	require.Equal(node2.ID, out[1].Node.ID)
-	require.Equal(0.0, out[1].FinalScore)
+	require.Equal(t, node2.ID, out[1].Node.ID)
+	require.Equal(t, 0.0, out[1].FinalScore)
 
 }
 
 func TestScoreNormalizationIterator(t *testing.T) {
+	testutil.Parallel(t)
+
 	// Test normalized scores when there is more than one scorer
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
@@ -2010,18 +2037,19 @@ func TestScoreNormalizationIterator(t *testing.T) {
 	scoreNorm := NewScoreNormalizationIterator(ctx, nodeReschedulePenaltyIter)
 
 	out := collectRanked(scoreNorm)
-	require := require.New(t)
 
-	require.Equal(2, len(out))
-	require.Equal(out[0], nodes[0])
+	require.Equal(t, 2, len(out))
+	require.Equal(t, out[0], nodes[0])
 	// Score should be averaged between both scorers
 	// -0.75 from job anti affinity and -1 from node rescheduling penalty
-	require.Equal(-0.875, out[0].FinalScore)
-	require.Equal(out[1], nodes[1])
-	require.Equal(out[1].FinalScore, 0.0)
+	require.Equal(t, -0.875, out[0].FinalScore)
+	require.Equal(t, out[1], nodes[1])
+	require.Equal(t, out[1].FinalScore, 0.0)
 }
 
 func TestNodeAffinityIterator(t *testing.T) {
+	testutil.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{Node: mock.Node()},
@@ -2089,9 +2117,8 @@ func TestNodeAffinityIterator(t *testing.T) {
 	// Node 3 matches one affinity (dc) with weight = 100
 	expectedScores[nodes[3].Node.ID] = 1.0 / 3.0
 
-	require := require.New(t)
 	for _, n := range out {
-		require.Equal(expectedScores[n.Node.ID], n.FinalScore)
+		require.Equal(t, expectedScores[n.Node.ID], n.FinalScore)
 	}
 
 }

@@ -19,7 +19,7 @@ import (
 )
 
 func TestTracker_Checks_Healthy(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
@@ -59,8 +59,8 @@ func TestTracker_Checks_Healthy(t *testing.T) {
 
 	// Don't reply on the first call
 	var called uint64
-	consul := consul.NewMockConsulServiceClient(t, logger)
-	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
+	consulClient.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
 		if atomic.AddUint64(&called, 1) == 1 {
 			return nil, nil
 		}
@@ -76,7 +76,7 @@ func TestTracker_Checks_Healthy(t *testing.T) {
 	defer cancelFn()
 
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consulClient,
 		time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
@@ -90,7 +90,7 @@ func TestTracker_Checks_Healthy(t *testing.T) {
 }
 
 func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	alloc := mock.LifecycleAllocWithPoststopDeploy()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
@@ -111,12 +111,12 @@ func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t, logger)
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consulClient,
 		time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
@@ -130,7 +130,7 @@ func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
 }
 
 func TestTracker_Succeeded_PostStart_Healthy(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	alloc := mock.LifecycleAllocWithPoststartDeploy()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = time.Millisecond * 1
@@ -152,12 +152,12 @@ func TestTracker_Succeeded_PostStart_Healthy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t, logger)
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consulClient,
 		alloc.Job.TaskGroups[0].Migrate.MinHealthyTime, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
@@ -171,7 +171,7 @@ func TestTracker_Succeeded_PostStart_Healthy(t *testing.T) {
 }
 
 func TestTracker_Checks_Unhealthy(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
@@ -219,8 +219,8 @@ func TestTracker_Checks_Unhealthy(t *testing.T) {
 
 	// Don't reply on the first call
 	var called uint64
-	consul := consul.NewMockConsulServiceClient(t, logger)
-	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
+	consulClient.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
 		if atomic.AddUint64(&called, 1) == 1 {
 			return nil, nil
 		}
@@ -236,7 +236,7 @@ func TestTracker_Checks_Unhealthy(t *testing.T) {
 	defer cancelFn()
 
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consulClient,
 		time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
@@ -261,7 +261,7 @@ func TestTracker_Checks_Unhealthy(t *testing.T) {
 }
 
 func TestTracker_Healthy_IfBothTasksAndConsulChecksAreHealthy(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	alloc := mock.Alloc()
 	logger := testlog.HCLogger(t)
@@ -312,7 +312,7 @@ func TestTracker_Healthy_IfBothTasksAndConsulChecksAreHealthy(t *testing.T) {
 // TestTracker_Checks_Healthy_Before_TaskHealth asserts that we mark an alloc
 // healthy, if the checks pass before task health pass
 func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
@@ -361,8 +361,8 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 
 	// Don't reply on the first call
 	var called uint64
-	consul := consul.NewMockConsulServiceClient(t, logger)
-	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
+	consulClient.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
 		if atomic.AddUint64(&called, 1) == 1 {
 			return nil, nil
 		}
@@ -378,7 +378,7 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 	defer cancelFn()
 
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consulClient,
 		time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
@@ -419,7 +419,7 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 }
 
 func TestTracker_Checks_OnUpdate(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	cases := []struct {
 		desc          string
@@ -503,8 +503,8 @@ func TestTracker_Checks_OnUpdate(t *testing.T) {
 
 			// Don't reply on the first call
 			var called uint64
-			consul := consul.NewMockConsulServiceClient(t, logger)
-			consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+			consulClient := consul.NewMockConsulServiceClient(t, logger)
+			consulClient.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
 				if atomic.AddUint64(&called, 1) == 1 {
 					return nil, nil
 				}
@@ -520,7 +520,7 @@ func TestTracker_Checks_OnUpdate(t *testing.T) {
 			defer cancelFn()
 
 			checkInterval := 10 * time.Millisecond
-			tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
+			tracker := NewTracker(ctx, logger, alloc, b.Listen(), consulClient,
 				time.Millisecond, true)
 			tracker.checkLookupInterval = checkInterval
 			tracker.Start()

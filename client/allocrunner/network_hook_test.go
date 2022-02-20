@@ -78,26 +78,25 @@ func TestNetworkHook_Prerun_Postrun(t *testing.T) {
 		t:              t,
 		expectedStatus: nil,
 	}
-	require := require.New(t)
 
 	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
 
 	logger := testlog.HCLogger(t)
 	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder.Build())
-	require.NoError(hook.Prerun())
-	require.True(setter.called)
-	require.False(destroyCalled)
-	require.NoError(hook.Postrun())
-	require.True(destroyCalled)
+	require.NoError(t, hook.Prerun())
+	require.True(t, setter.called)
+	require.False(t, destroyCalled)
+	require.NoError(t, hook.Postrun())
+	require.True(t, destroyCalled)
 
 	// reset and use host network mode
 	setter.called = false
 	destroyCalled = false
 	alloc.Job.TaskGroups[0].Networks[0].Mode = "host"
 	hook = newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder.Build())
-	require.NoError(hook.Prerun())
-	require.False(setter.called)
-	require.False(destroyCalled)
-	require.NoError(hook.Postrun())
-	require.False(destroyCalled)
+	require.NoError(t, hook.Prerun())
+	require.False(t, setter.called)
+	require.False(t, destroyCalled)
+	require.NoError(t, hook.Postrun())
+	require.False(t, destroyCalled)
 }

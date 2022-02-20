@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
@@ -32,7 +33,7 @@ import (
 // TestBoltStateDB_Upgrade_Ok asserts upgading an old state db does not error
 // during upgrade and restore.
 func TestBoltStateDB_UpgradeOld_Ok(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	dbFromTestFile := func(t *testing.T, dir, fn string) *BoltStateDB {
 

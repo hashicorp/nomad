@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
 )
@@ -32,7 +33,7 @@ func setupBoltDB(t *testing.T) (*bbolt.DB, func()) {
 
 // TestUpgrade_NeedsUpgrade_New asserts new state dbs do not need upgrading.
 func TestUpgrade_NeedsUpgrade_New(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	// Setting up a new StateDB should initialize it at the latest version.
 	db, cleanup := setupBoltStateDB(t)
@@ -47,7 +48,7 @@ func TestUpgrade_NeedsUpgrade_New(t *testing.T) {
 // TestUpgrade_NeedsUpgrade_Old asserts state dbs with just the alloctions
 // bucket *do* need upgrading.
 func TestUpgrade_NeedsUpgrade_Old(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	db, cleanup := setupBoltDB(t)
 	defer cleanup()
@@ -77,7 +78,7 @@ func TestUpgrade_NeedsUpgrade_Old(t *testing.T) {
 // NeedsUpgrade if an invalid db version is found. This is a safety measure to
 // prevent invalid and unintentional upgrades when downgrading Nomad.
 func TestUpgrade_NeedsUpgrade_Error(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	cases := [][]byte{
 		{'"', '2', '"'}, // wrong type
@@ -107,7 +108,7 @@ func TestUpgrade_NeedsUpgrade_Error(t *testing.T) {
 // TestUpgrade_DeleteInvalidAllocs asserts invalid allocations are deleted
 // during state upgades instead of failing the entire agent.
 func TestUpgrade_DeleteInvalidAllocs_NoAlloc(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	bdb, cleanup := setupBoltDB(t)
 	defer cleanup()
@@ -152,7 +153,7 @@ func TestUpgrade_DeleteInvalidAllocs_NoAlloc(t *testing.T) {
 // TestUpgrade_DeleteInvalidTaskEntries asserts invalid entries under a task
 // bucket are deleted.
 func TestUpgrade_upgradeTaskBucket_InvalidEntries(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	db, cleanup := setupBoltDB(t)
 	defer cleanup()

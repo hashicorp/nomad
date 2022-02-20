@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +25,7 @@ var (
 )
 
 func TestEnvoyVersionHook_semver(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("with v", func(t *testing.T) {
 		result, err := semver("v1.2.3")
@@ -45,7 +46,7 @@ func TestEnvoyVersionHook_semver(t *testing.T) {
 }
 
 func TestEnvoyVersionHook_taskImage(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("absent", func(t *testing.T) {
 		result := (*envoyVersionHook)(nil).taskImage(map[string]interface{}{
@@ -70,8 +71,7 @@ func TestEnvoyVersionHook_taskImage(t *testing.T) {
 }
 
 func TestEnvoyVersionHook_tweakImage(t *testing.T) {
-	t.Parallel()
-
+	testutil.Parallel(t)
 	image := envoy.ImageFormat
 
 	t.Run("legacy", func(t *testing.T) {
@@ -106,8 +106,7 @@ func TestEnvoyVersionHook_tweakImage(t *testing.T) {
 }
 
 func TestEnvoyVersionHook_interpolateImage(t *testing.T) {
-	t.Parallel()
-
+	testutil.Parallel(t)
 	hook := (*envoyVersionHook)(nil)
 
 	t.Run("default sidecar", func(t *testing.T) {
@@ -156,8 +155,7 @@ func TestEnvoyVersionHook_interpolateImage(t *testing.T) {
 }
 
 func TestEnvoyVersionHook_skip(t *testing.T) {
-	t.Parallel()
-
+	testutil.Parallel(t)
 	h := new(envoyVersionHook)
 
 	t.Run("not docker", func(t *testing.T) {
@@ -221,8 +219,7 @@ func TestEnvoyVersionHook_skip(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyVersionHook_Prestart_standard(t *testing.T) {
-	t.Parallel()
-
+	testutil.Parallel(t)
 	logger := testlog.HCLogger(t)
 
 	// Setup an Allocation
@@ -264,8 +261,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_standard(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyVersionHook_Prestart_custom(t *testing.T) {
-	t.Parallel()
-
+	testutil.Parallel(t)
 	logger := testlog.HCLogger(t)
 
 	// Setup an Allocation
@@ -308,8 +304,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_custom(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyVersionHook_Prestart_skip(t *testing.T) {
-	t.Parallel()
-
+	testutil.Parallel(t)
 	logger := testlog.HCLogger(t)
 
 	// Setup an Allocation
@@ -355,8 +350,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_skip(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyVersionHook_Prestart_fallback(t *testing.T) {
-	t.Parallel()
-
+	testutil.Parallel(t)
 	logger := testlog.HCLogger(t)
 
 	// Setup an Allocation
@@ -396,8 +390,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_fallback(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyVersionHook_Prestart_error(t *testing.T) {
-	t.Parallel()
-
+	testutil.Parallel(t)
 	logger := testlog.HCLogger(t)
 
 	// Setup an Allocation

@@ -11,12 +11,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDeviceHook_CorrectDevice(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	dm := devicemanager.NoopMockManager()
 	l := testlog.HCLogger(t)
@@ -69,13 +69,13 @@ func TestDeviceHook_CorrectDevice(t *testing.T) {
 
 	var resp interfaces.TaskPrestartResponse
 	err := h.Prestart(context.Background(), req, &resp)
-	require.NoError(err)
-	require.NotNil(resp)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 
 	expEnv := map[string]string{
 		"123": "456",
 	}
-	require.EqualValues(expEnv, resp.Env)
+	require.EqualValues(t, expEnv, resp.Env)
 
 	expMounts := []*drivers.MountConfig{
 		{
@@ -84,7 +84,7 @@ func TestDeviceHook_CorrectDevice(t *testing.T) {
 			HostPath: "bar",
 		},
 	}
-	require.EqualValues(expMounts, resp.Mounts)
+	require.EqualValues(t, expMounts, resp.Mounts)
 
 	expDevices := []*drivers.DeviceConfig{
 		{
@@ -93,12 +93,11 @@ func TestDeviceHook_CorrectDevice(t *testing.T) {
 			Permissions: "123",
 		},
 	}
-	require.EqualValues(expDevices, resp.Devices)
+	require.EqualValues(t, expDevices, resp.Devices)
 }
 
 func TestDeviceHook_IncorrectDevice(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	dm := devicemanager.NoopMockManager()
 	l := testlog.HCLogger(t)
@@ -127,5 +126,5 @@ func TestDeviceHook_IncorrectDevice(t *testing.T) {
 
 	var resp interfaces.TaskPrestartResponse
 	err := h.Prestart(context.Background(), req, &resp)
-	require.Error(err)
+	require.Error(t, err)
 }

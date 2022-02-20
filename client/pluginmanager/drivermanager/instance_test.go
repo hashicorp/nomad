@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/plugins/base"
 	dtu "github.com/hashicorp/nomad/plugins/drivers/testutils"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -43,6 +44,8 @@ func (m *mockedCatalog) resetMock() {
 }
 
 func TestInstanceManager_dispense(t *testing.T) {
+	testutil.Parallel(t)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cat := new(mockedCatalog)
 	cat.Test(t)
@@ -60,29 +63,28 @@ func TestInstanceManager_dispense(t *testing.T) {
 		eventHandlerFactory:  noopEventHandlerFactory,
 		firstFingerprintCh:   make(chan struct{}),
 	}
-	require := require.New(t)
 
 	// First test the happy path, no reattach config is stored, plugin dispenses without error
 	fetchRet = false
 	cat.On("Dispense", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	plug, err := i.dispense()
-	require.NoError(err)
+	require.NoError(t, err)
 	cat.AssertNumberOfCalls(t, "Dispense", 1)
 	cat.AssertNumberOfCalls(t, "Reattach", 0)
 
 	// Dispensing a second time should not dispense a new plugin from the catalog, but reuse the existing
 	plug2, err := i.dispense()
-	require.NoError(err)
+	require.NoError(t, err)
 	cat.AssertNumberOfCalls(t, "Dispense", 1)
 	cat.AssertNumberOfCalls(t, "Reattach", 0)
-	require.Same(plug, plug2)
+	require.Same(t, plug, plug2)
 
 	// If the plugin has exited test that the manager attempts to retry dispense
 	cat.resetMock()
 	i.plugin = nil
 	cat.On("Dispense", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(singleton.SingletonPluginExited)
 	_, err = i.dispense()
-	require.Error(err)
+	require.Error(t, err)
 	cat.AssertNumberOfCalls(t, "Dispense", 2)
 	cat.AssertNumberOfCalls(t, "Reattach", 0)
 
@@ -94,15 +96,15 @@ func TestInstanceManager_dispense(t *testing.T) {
 	cat.On("Dispense", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cat.On("Reattach", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	plug, err = i.dispense()
-	require.NoError(err)
+	require.NoError(t, err)
 	cat.AssertNumberOfCalls(t, "Dispense", 0)
 	cat.AssertNumberOfCalls(t, "Reattach", 1)
 	// Dispensing a second time should not dispense a new plugin from the catalog
 	plug2, err = i.dispense()
-	require.NoError(err)
+	require.NoError(t, err)
 	cat.AssertNumberOfCalls(t, "Dispense", 0)
 	cat.AssertNumberOfCalls(t, "Reattach", 1)
-	require.Same(plug, plug2)
+	require.Same(t, plug, plug2)
 
 	// Finally test when reattachment fails. A new plugin should be dispensed
 	cat.resetMock()
@@ -110,14 +112,14 @@ func TestInstanceManager_dispense(t *testing.T) {
 	cat.On("Dispense", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cat.On("Reattach", mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("failed to dispense"))
 	plug, err = i.dispense()
-	require.NoError(err)
+	require.NoError(t, err)
 	cat.AssertNumberOfCalls(t, "Dispense", 1)
 	cat.AssertNumberOfCalls(t, "Reattach", 1)
 	// Dispensing a second time should not dispense a new plugin from the catalog
 	plug2, err = i.dispense()
-	require.NoError(err)
+	require.NoError(t, err)
 	cat.AssertNumberOfCalls(t, "Dispense", 1)
 	cat.AssertNumberOfCalls(t, "Reattach", 1)
-	require.Same(plug, plug2)
+	require.Same(t, plug, plug2)
 
 }

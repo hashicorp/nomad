@@ -458,7 +458,6 @@ func TestPathFuncs(t *testing.T) {
 }
 
 func TestAllocDir_DetectContentType(t *testing.T) {
-	require := require.New(t)
 	inputPath := "input/"
 	var testFiles []string
 	err := filepath.Walk(inputPath, func(path string, info os.FileInfo, err error) error {
@@ -467,7 +466,7 @@ func TestAllocDir_DetectContentType(t *testing.T) {
 		}
 		return err
 	})
-	require.Nil(err)
+	require.Nil(t, err)
 
 	expectedEncodings := map[string]string{
 		"input/happy.gif": "image/gif",
@@ -481,9 +480,9 @@ func TestAllocDir_DetectContentType(t *testing.T) {
 	}
 	for _, file := range testFiles {
 		fileInfo, err := os.Stat(file)
-		require.Nil(err)
+		require.Nil(t, err)
 		res := detectContentType(fileInfo, file)
-		require.Equal(expectedEncodings[file], res, "unexpected output for %v", file)
+		require.Equal(t, expectedEncodings[file], res, "unexpected output for %v", file)
 	}
 }
 

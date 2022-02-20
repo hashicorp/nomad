@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,7 +15,7 @@ var _ structs.Recoverable = (*hookError)(nil)
 // TestHookError_Recoverable asserts that a NewHookError is recoverable if
 // passed a recoverable error.
 func TestHookError_Recoverable(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	// Create root error
 	root := errors.New("test error")
@@ -36,8 +37,8 @@ func TestHookError_Recoverable(t *testing.T) {
 // TestHookError_Unrecoverable asserts that a NewHookError is not recoverable
 // unless it is passed a recoverable error.
 func TestHookError_Unrecoverable(t *testing.T) {
-	t.Parallel()
-
+	testutil.Parallel(t)
+	 
 	// Create error
 	err := errors.New("test error")
 

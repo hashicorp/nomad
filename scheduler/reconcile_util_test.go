@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,6 +15,8 @@ import (
 // aligned.
 // Ensure no regression from: https://github.com/hashicorp/nomad/issues/3008
 func TestBitmapFrom(t *testing.T) {
+	testutil.Parallel(t)
+
 	input := map[string]*structs.Allocation{
 		"8": {
 			JobID:     "foo",
@@ -34,7 +37,7 @@ func TestBitmapFrom(t *testing.T) {
 }
 
 func TestAllocSet_filterByTainted(t *testing.T) {
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	nodes := map[string]*structs.Node{
 		"draining": {
@@ -117,15 +120,15 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 	}
 
 	untainted, migrate, lost := allocs.filterByTainted(nodes)
-	require.Len(untainted, 4)
-	require.Contains(untainted, "untainted1")
-	require.Contains(untainted, "untainted2")
-	require.Contains(untainted, "untainted3")
-	require.Contains(untainted, "untainted4")
-	require.Len(migrate, 2)
-	require.Contains(migrate, "migrating1")
-	require.Contains(migrate, "migrating2")
-	require.Len(lost, 2)
-	require.Contains(lost, "lost1")
-	require.Contains(lost, "lost2")
+	require.Len(t, untainted, 4)
+	require.Contains(t, untainted, "untainted1")
+	require.Contains(t, untainted, "untainted2")
+	require.Contains(t, untainted, "untainted3")
+	require.Contains(t, untainted, "untainted4")
+	require.Len(t, migrate, 2)
+	require.Contains(t, migrate, "migrating1")
+	require.Contains(t, migrate, "migrating2")
+	require.Len(t, lost, 2)
+	require.Contains(t, lost, "lost1")
+	require.Contains(t, lost, "lost2")
 }

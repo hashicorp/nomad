@@ -23,7 +23,7 @@ import (
 // works.
 func TestPrevAlloc_StreamAllocDir_Ok(t *testing.T) {
 	ctestutil.RequireRoot(t)
-	t.Parallel()
+
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatalf("err: %v", err)

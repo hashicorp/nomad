@@ -7,15 +7,12 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-
-	"github.com/hashicorp/nomad/helper/uuid"
-
 	"github.com/stretchr/testify/require"
-
-	"github.com/hashicorp/nomad/helper/testlog"
 )
 
 func tmpCpusetManager(t *testing.T) (manager *cpusetManager, cleanup func()) {
@@ -121,9 +118,9 @@ func TestCpusetManager_RemoveAlloc(t *testing.T) {
 	require.NoError(t, manager.Init())
 
 	// this case tests adding 2 allocs, reconciling then removing 1 alloc
-	// it requires the system to have atleast 2 cpu cores (one for each alloc)
+	// it requires the system to have at least 2 cpu cores (one for each alloc)
 	if manager.parentCpuset.Size() < 2 {
-		t.Skip("test requires atleast 2 cpu cores")
+		t.Skip("test requires at least 2 cpu cores")
 	}
 
 	alloc1 := mock.Alloc()

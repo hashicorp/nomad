@@ -34,7 +34,7 @@ func TestClientConfig(t testing.T) (*Config, func()) {
 		t.Fatalf("error creating client dir: %v", err)
 	}
 	cleanup := func() {
-		os.RemoveAll(parent)
+		_ = os.RemoveAll(parent)
 	}
 
 	allocDir := filepath.Join(parent, "allocs")

@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -84,29 +85,28 @@ func (m *mockHealthSetter) HasHealth() bool {
 // TestHealthHook_PrerunPostrun asserts a health hook does not error if it is
 // run and postrunned.
 func TestHealthHook_PrerunPostrun(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	logger := testlog.HCLogger(t)
 
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t, logger)
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
 	hs := &mockHealthSetter{}
 
-	h := newAllocHealthWatcherHook(logger, mock.Alloc(), hs, b.Listen(), consul)
+	h := newAllocHealthWatcherHook(logger, mock.Alloc(), hs, b.Listen(), consulClient)
 
 	// Assert we implemented the right interfaces
 	prerunh, ok := h.(interfaces.RunnerPrerunHook)
-	require.True(ok)
+	require.True(t, ok)
 	_, ok = h.(interfaces.RunnerUpdateHook)
-	require.True(ok)
+	require.True(t, ok)
 	postrunh, ok := h.(interfaces.RunnerPostrunHook)
-	require.True(ok)
+	require.True(t, ok)
 
 	// Prerun
-	require.NoError(prerunh.Prerun())
+	require.NoError(t, prerunh.Prerun())
 
 	// Assert isDeploy is false (other tests peek at isDeploy to determine
 	// if an Update applied)
@@ -116,13 +116,12 @@ func TestHealthHook_PrerunPostrun(t *testing.T) {
 	ahw.hookLock.Unlock()
 
 	// Postrun
-	require.NoError(postrunh.Postrun())
+	require.NoError(t, postrunh.Postrun())
 }
 
 // TestHealthHook_PrerunUpdatePostrun asserts Updates may be applied concurrently.
 func TestHealthHook_PrerunUpdatePostrun(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	alloc := mock.Alloc()
 
@@ -130,13 +129,13 @@ func TestHealthHook_PrerunUpdatePostrun(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t, logger)
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
 	hs := &mockHealthSetter{}
 
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consulClient).(*allocHealthWatcherHook)
 
 	// Prerun
-	require.NoError(h.Prerun())
+	require.NoError(t, h.Prerun())
 
 	// Update multiple times in a goroutine to mimic Client behavior
 	// (Updates are concurrent with alloc runner but are applied serially).
@@ -154,14 +153,13 @@ func TestHealthHook_PrerunUpdatePostrun(t *testing.T) {
 	}
 
 	// Postrun
-	require.NoError(h.Postrun())
+	require.NoError(t, h.Postrun())
 }
 
 // TestHealthHook_UpdatePrerunPostrun asserts that a hook may have Update
 // called before Prerun.
 func TestHealthHook_UpdatePrerunPostrun(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	alloc := mock.Alloc()
 
@@ -169,10 +167,10 @@ func TestHealthHook_UpdatePrerunPostrun(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t, logger)
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
 	hs := &mockHealthSetter{}
 
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consulClient).(*allocHealthWatcherHook)
 
 	// Set a DeploymentID to cause ClearHealth to be called
 	alloc.DeploymentID = uuid.Generate()
@@ -190,7 +188,7 @@ func TestHealthHook_UpdatePrerunPostrun(t *testing.T) {
 	}
 
 	// Prerun should be a noop
-	require.NoError(h.Prerun())
+	require.NoError(t, h.Prerun())
 
 	// Assert that the Update took affect by isDeploy being true
 	h.hookLock.Lock()
@@ -198,32 +196,30 @@ func TestHealthHook_UpdatePrerunPostrun(t *testing.T) {
 	h.hookLock.Unlock()
 
 	// Postrun
-	require.NoError(h.Postrun())
+	require.NoError(t, h.Postrun())
 }
 
 // TestHealthHook_Postrun asserts that a hook may have only Postrun called.
 func TestHealthHook_Postrun(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	logger := testlog.HCLogger(t)
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t, logger)
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
 	hs := &mockHealthSetter{}
 
-	h := newAllocHealthWatcherHook(logger, mock.Alloc(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, mock.Alloc(), hs, b.Listen(), consulClient).(*allocHealthWatcherHook)
 
 	// Postrun
-	require.NoError(h.Postrun())
+	require.NoError(t, h.Postrun())
 }
 
 // TestHealthHook_SetHealth_healthy asserts SetHealth is called when health status is
 // set. Uses task state and health checks.
 func TestHealthHook_SetHealth_healthy(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
@@ -263,8 +259,8 @@ func TestHealthHook_SetHealth_healthy(t *testing.T) {
 
 	// Don't reply on the first call
 	called := false
-	consul := consul.NewMockConsulServiceClient(t, logger)
-	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
+	consulClient.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
 		if !called {
 			called = true
 			return nil, nil
@@ -279,31 +275,30 @@ func TestHealthHook_SetHealth_healthy(t *testing.T) {
 
 	hs := newMockHealthSetter()
 
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consulClient).(*allocHealthWatcherHook)
 
 	// Prerun
-	require.NoError(h.Prerun())
+	require.NoError(t, h.Prerun())
 
 	// Wait for health to be set (healthy)
 	select {
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout waiting for health to be set")
 	case health := <-hs.healthCh:
-		require.True(health.healthy)
+		require.True(t, health.healthy)
 
 		// Healthy allocs shouldn't emit task events
 		ev := health.taskEvents[task.Name]
-		require.Nilf(ev, "%#v", health.taskEvents)
+		require.Nilf(t, ev, "%#v", health.taskEvents)
 	}
 
 	// Postrun
-	require.NoError(h.Postrun())
+	require.NoError(t, h.Postrun())
 }
 
 // TestHealthHook_SetHealth_unhealthy asserts SetHealth notices unhealthy allocs
 func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
@@ -351,8 +346,8 @@ func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
 
 	// Don't reply on the first call
 	called := false
-	consul := consul.NewMockConsulServiceClient(t, logger)
-	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
+	consulClient.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
 		if !called {
 			called = true
 			return nil, nil
@@ -367,26 +362,26 @@ func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
 
 	hs := newMockHealthSetter()
 
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consulClient).(*allocHealthWatcherHook)
 
 	// Prerun
-	require.NoError(h.Prerun())
+	require.NoError(t, h.Prerun())
 
 	// Wait to ensure we don't get a healthy status
 	select {
 	case <-time.After(2 * time.Second):
 		// great no healthy status
 	case health := <-hs.healthCh:
-		require.Fail("expected no health event", "got %v", health)
+		require.Fail(t, "expected no health event", "got %v", health)
 	}
 
 	// Postrun
-	require.NoError(h.Postrun())
+	require.NoError(t, h.Postrun())
 }
 
 // TestHealthHook_SystemNoop asserts that system jobs return the noop tracker.
 func TestHealthHook_SystemNoop(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	h := newAllocHealthWatcherHook(testlog.HCLogger(t), mock.SystemAlloc(), nil, nil, nil)
 
@@ -407,7 +402,7 @@ func TestHealthHook_SystemNoop(t *testing.T) {
 
 // TestHealthHook_BatchNoop asserts that batch jobs return the noop tracker.
 func TestHealthHook_BatchNoop(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	h := newAllocHealthWatcherHook(testlog.HCLogger(t), mock.BatchAlloc(), nil, nil, nil)
 

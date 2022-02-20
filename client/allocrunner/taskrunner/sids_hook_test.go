@@ -46,8 +46,7 @@ func sidecar(task string) (string, structs.TaskKind) {
 }
 
 func TestSIDSHook_recoverToken(t *testing.T) {
-	t.Parallel()
-	r := require.New(t)
+	testutil.Parallel(t)
 
 	secrets := tmpDir(t)
 	defer cleanupDir(t, secrets)
@@ -63,16 +62,15 @@ func TestSIDSHook_recoverToken(t *testing.T) {
 
 	expected := uuid.Generate()
 	err := h.writeToken(secrets, expected)
-	r.NoError(err)
+	require.NoError(t, err)
 
 	token, err := h.recoverToken(secrets)
-	r.NoError(err)
-	r.Equal(expected, token)
+	require.NoError(t, err)
+	require.Equal(t, expected, token)
 }
 
 func TestSIDSHook_recoverToken_empty(t *testing.T) {
-	t.Parallel()
-	r := require.New(t)
+	testutil.Parallel(t)
 
 	secrets := tmpDir(t)
 	defer cleanupDir(t, secrets)
@@ -87,11 +85,13 @@ func TestSIDSHook_recoverToken_empty(t *testing.T) {
 	})
 
 	token, err := h.recoverToken(secrets)
-	r.NoError(err)
-	r.Empty(token)
+	require.NoError(t, err)
+	require.Empty(t, token)
 }
 
 func TestSIDSHook_recoverToken_unReadable(t *testing.T) {
+	testutil.Parallel(t)
+
 	// This test fails when running as root because the test case for checking
 	// the error condition when the file is unreadable fails (root can read the
 	// file even though the permissions are set to 0200).
@@ -99,14 +99,11 @@ func TestSIDSHook_recoverToken_unReadable(t *testing.T) {
 		t.Skip("test only works as non-root")
 	}
 
-	t.Parallel()
-	r := require.New(t)
-
 	secrets := tmpDir(t)
 	defer cleanupDir(t, secrets)
 
 	err := os.Chmod(secrets, 0000)
-	r.NoError(err)
+	require.NoError(t, err)
 
 	taskName, taskKind := sidecar("foo")
 	h := newSIDSHook(sidsHookConfig{
@@ -118,12 +115,11 @@ func TestSIDSHook_recoverToken_unReadable(t *testing.T) {
 	})
 
 	_, err = h.recoverToken(secrets)
-	r.Error(err)
+	require.Error(t, err)
 }
 
 func TestSIDSHook_writeToken(t *testing.T) {
-	t.Parallel()
-	r := require.New(t)
+	testutil.Parallel(t)
 
 	secrets := tmpDir(t)
 	defer cleanupDir(t, secrets)
@@ -131,14 +127,16 @@ func TestSIDSHook_writeToken(t *testing.T) {
 	id := uuid.Generate()
 	h := new(sidsHook)
 	err := h.writeToken(secrets, id)
-	r.NoError(err)
+	require.NoError(t, err)
 
 	content, err := ioutil.ReadFile(filepath.Join(secrets, sidsTokenFile))
-	r.NoError(err)
-	r.Equal(id, string(content))
+	require.NoError(t, err)
+	require.Equal(t, id, string(content))
 }
 
 func TestSIDSHook_writeToken_unWritable(t *testing.T) {
+	testutil.Parallel(t)
+
 	// This test fails when running as root because the test case for checking
 	// the error condition when the file is unreadable fails (root can read the
 	// file even though the permissions are set to 0200).
@@ -146,24 +144,20 @@ func TestSIDSHook_writeToken_unWritable(t *testing.T) {
 		t.Skip("test only works as non-root")
 	}
 
-	t.Parallel()
-	r := require.New(t)
-
 	secrets := tmpDir(t)
 	defer cleanupDir(t, secrets)
 
 	err := os.Chmod(secrets, 0000)
-	r.NoError(err)
+	require.NoError(t, err)
 
 	id := uuid.Generate()
 	h := new(sidsHook)
 	err = h.writeToken(secrets, id)
-	r.Error(err)
+	require.Error(t, err)
 }
 
 func Test_SIDSHook_writeToken_nonExistent(t *testing.T) {
-	t.Parallel()
-	r := require.New(t)
+	testutil.Parallel(t)
 
 	base := tmpDir(t)
 	defer cleanupDir(t, base)
@@ -172,12 +166,11 @@ func Test_SIDSHook_writeToken_nonExistent(t *testing.T) {
 	id := uuid.Generate()
 	h := new(sidsHook)
 	err := h.writeToken(secrets, id)
-	r.Error(err)
+	require.Error(t, err)
 }
 
 func TestSIDSHook_deriveSIToken(t *testing.T) {
-	t.Parallel()
-	r := require.New(t)
+	testutil.Parallel(t)
 
 	taskName, taskKind := sidecar("task1")
 	h := newSIDSHook(sidsHookConfig{
@@ -192,13 +185,12 @@ func TestSIDSHook_deriveSIToken(t *testing.T) {
 
 	ctx := context.Background()
 	token, err := h.deriveSIToken(ctx)
-	r.NoError(err)
-	r.True(helper.IsUUID(token), "token: %q", token)
+	require.NoError(t, err)
+	require.True(t, helper.IsUUID(token), "token: %q", token)
 }
 
 func TestSIDSHook_deriveSIToken_timeout(t *testing.T) {
-	t.Parallel()
-	r := require.New(t)
+	testutil.Parallel(t)
 
 	siClient := consulapi.NewMockServiceIdentitiesClient()
 	siClient.DeriveTokenFn = func(allocation *structs.Allocation, strings []string) (m map[string]string, err error) {
@@ -223,11 +215,11 @@ func TestSIDSHook_deriveSIToken_timeout(t *testing.T) {
 
 	ctx := context.Background()
 	_, err := h.deriveSIToken(ctx)
-	r.EqualError(err, "context deadline exceeded")
+	require.EqualError(t, err, "context deadline exceeded")
 }
 
 func TestSIDSHook_computeBackoff(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	try := func(i int, exp time.Duration) {
 		result := computeBackoff(i)
@@ -243,26 +235,26 @@ func TestSIDSHook_computeBackoff(t *testing.T) {
 }
 
 func TestSIDSHook_backoff(t *testing.T) {
-	t.Parallel()
-	r := require.New(t)
+	testutil.Parallel(t)
 
 	ctx := context.Background()
 	stop := !backoff(ctx, 0)
-	r.False(stop)
+	require.False(t, stop)
 }
 
 func TestSIDSHook_backoffKilled(t *testing.T) {
-	t.Parallel()
-	r := require.New(t)
+	testutil.Parallel(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1)
 	defer cancel()
 
 	stop := !backoff(ctx, 1000)
-	r.True(stop)
+	require.True(t, stop)
 }
 
 func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
+	testutil.Parallel(t)
+
 	// Normally this test would live in test_runner_test.go, but since it requires
 	// root and the check for root doesn't like Windows, we put this file in here
 	// for now.
@@ -273,9 +265,6 @@ func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
 	if unix.Geteuid() == 0 {
 		t.Skip("test only works as non-root")
 	}
-
-	t.Parallel()
-	r := require.New(t)
 
 	alloc := mock.BatchConnectAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -292,7 +281,7 @@ func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
 	defer cleanupDir(t, secrets)
 	trConfig.TaskDir.SecretsDir = secrets
 	err := ioutil.WriteFile(filepath.Join(secrets, sidsTokenFile), nil, 0400)
-	r.NoError(err)
+	require.NoError(t, err)
 
 	// set a consul token for the nomad client, which is what triggers the
 	// SIDS hook to be applied
@@ -307,7 +296,7 @@ func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
 
 	// start the task runner
 	tr, err := NewTaskRunner(trConfig)
-	r.NoError(err)
+	require.NoError(t, err)
 	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 	useMockEnvoyBootstrapHook(tr) // mock the envoy bootstrap
 
@@ -317,18 +306,18 @@ func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
 	select {
 	case <-tr.WaitCh():
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
-		r.Fail("timed out waiting for task runner")
+		require.Fail(t, "timed out waiting for task runner")
 	}
 
 	// assert task exited un-successfully
 	finalState := tr.TaskState()
-	r.Equal(structs.TaskStateDead, finalState.State)
-	r.True(finalState.Failed) // should have failed to write SI token
-	r.Contains(finalState.Events[2].DisplayMessage, "failed to write SI token")
+	require.Equal(t, structs.TaskStateDead, finalState.State)
+	require.True(t, finalState.Failed) // should have failed to write SI token
+	require.Contains(t, finalState.Events[2].DisplayMessage, "failed to write SI token")
 
 	// assert the token is *not* on disk, as secrets dir was un-writable
 	tokenPath := filepath.Join(trConfig.TaskDir.SecretsDir, sidsTokenFile)
 	token, err := ioutil.ReadFile(tokenPath)
-	r.NoError(err)
-	r.Empty(token)
+	require.NoError(t, err)
+	require.Empty(t, token)
 }

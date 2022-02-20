@@ -6,11 +6,12 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	taskEnv := taskenv.NewEmptyBuilder().Build()
 	conf := config.DefaultConfig()
@@ -35,7 +36,7 @@ func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 }
 
 func TestTaskRunner_Validate_ServiceName(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	builder := taskenv.NewEmptyBuilder()
 	conf := config.DefaultConfig()

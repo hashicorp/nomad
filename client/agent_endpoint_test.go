@@ -24,8 +24,7 @@ import (
 )
 
 func TestMonitor_Monitor(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	// start server and client
 	s, cleanupS := nomad.TestServer(t, nil)
@@ -43,7 +42,7 @@ func TestMonitor_Monitor(t *testing.T) {
 	}
 
 	handler, err := c.StreamingRpcHandler("Agent.Monitor")
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// create pipe
 	p1, p2 := net.Pipe()
@@ -73,7 +72,7 @@ func TestMonitor_Monitor(t *testing.T) {
 
 	// send request
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-	require.Nil(encoder.Encode(req))
+	require.Nil(t, encoder.Encode(req))
 
 	timeout := time.After(5 * time.Second)
 	expected := "[DEBUG]"
@@ -97,7 +96,7 @@ OUTER:
 
 			received += string(frame.Data)
 			if strings.Contains(received, expected) {
-				require.Nil(p2.Close())
+				require.Nil(t, p2.Close())
 				break OUTER
 			}
 		}
@@ -105,8 +104,7 @@ OUTER:
 }
 
 func TestMonitor_Monitor_ACL(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	// start server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
@@ -159,7 +157,7 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 			}
 
 			handler, err := c.StreamingRpcHandler("Agent.Monitor")
-			require.Nil(err)
+			require.Nil(t, err)
 
 			// create pipe
 			p1, p2 := net.Pipe()
@@ -189,7 +187,7 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 
 			// send request
 			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-			require.Nil(encoder.Encode(req))
+			require.Nil(t, encoder.Encode(req))
 
 			timeout := time.After(5 * time.Second)
 		OUTER:
@@ -217,8 +215,7 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 
 // Test that by default with no acl, endpoint is disabled
 func TestAgentProfile_DefaultDisabled(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	// start server and client
 	s1, cleanup := nomad.TestServer(t, nil)
@@ -239,12 +236,11 @@ func TestAgentProfile_DefaultDisabled(t *testing.T) {
 	reply := structs.AgentPprofResponse{}
 
 	err := c.ClientRPC("Agent.Profile", &req, &reply)
-	require.EqualError(err, structs.ErrPermissionDenied.Error())
+	require.EqualError(t, err, structs.ErrPermissionDenied.Error())
 }
 
 func TestAgentProfile(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	// start server and client
 	s1, cleanup := nomad.TestServer(t, nil)
@@ -268,10 +264,10 @@ func TestAgentProfile(t *testing.T) {
 		reply := structs.AgentPprofResponse{}
 
 		err := c.ClientRPC("Agent.Profile", &req, &reply)
-		require.NoError(err)
+		require.NoError(t, err)
 
-		require.NotNil(reply.Payload)
-		require.Equal(c.NodeID(), reply.AgentID)
+		require.NotNil(t, reply.Payload)
+		require.Equal(t, c.NodeID(), reply.AgentID)
 	}
 
 	// Unknown profile request
@@ -285,13 +281,12 @@ func TestAgentProfile(t *testing.T) {
 		reply := structs.AgentPprofResponse{}
 
 		err := c.ClientRPC("Agent.Profile", &req, &reply)
-		require.EqualError(err, "RPC Error:: 404,Pprof profile not found profile: unknown")
+		require.EqualError(t, err, "RPC Error:: 404,Pprof profile not found profile: unknown")
 	}
 }
 
 func TestAgentProfile_ACL(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	testutil.Parallel(t)
 
 	// start server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
@@ -345,17 +340,17 @@ func TestAgentProfile_ACL(t *testing.T) {
 
 			err := c.ClientRPC("Agent.Profile", req, reply)
 			if tc.authErr {
-				require.EqualError(err, structs.ErrPermissionDenied.Error())
+				require.EqualError(t, err, structs.ErrPermissionDenied.Error())
 			} else {
-				require.NoError(err)
-				require.NotNil(reply.Payload)
+				require.NoError(t, err)
+				require.NotNil(t, reply.Payload)
 			}
 		})
 	}
 }
 
 func TestAgentHost(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	// start server and client
 	s1, cleanup := nomad.TestServer(t, nil)
@@ -380,7 +375,7 @@ func TestAgentHost(t *testing.T) {
 }
 
 func TestAgentHost_ACL(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
 	defer cleanupS()
