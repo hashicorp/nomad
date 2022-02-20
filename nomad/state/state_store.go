@@ -3650,16 +3650,43 @@ func (s *StateStore) AllocsByJob(ws memdb.WatchSet, namespace, jobID string, any
 
 	// Get the job
 	var job *structs.Job
-	rawJob, err := txn.First("jobs", "id", namespace, jobID)
-	if err != nil {
-		return nil, err
-	}
-	if rawJob != nil {
-		job = rawJob.(*structs.Job)
+	job_namespace := namespace
+
+	if job_namespace == "*" {
+		iter, err := txn.Get("namespaces", "id")
+		if err != nil {
+			return nil, err
+		}
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			namespace := raw.(*structs.Namespace)
+			rawJob, err := txn.First("jobs", "id", namespace.Name, jobID)
+			if err != nil {
+				return nil, err
+			}
+			if rawJob != nil {
+				if job != nil {
+					return nil, fmt.Errorf("job %s exist on multiple namespaces", jobID)
+				}
+				job = rawJob.(*structs.Job)
+				job_namespace = namespace.Name
+			}
+		}
+	} else {
+		rawJob, err := txn.First("jobs", "id", job_namespace, jobID)
+		if err != nil {
+			return nil, err
+		}
+		if rawJob != nil {
+			job = rawJob.(*structs.Job)
+		}
 	}
 
 	// Get an iterator over the node allocations
-	iter, err := txn.Get("allocs", "job", namespace, jobID)
+	iter, err := txn.Get("allocs", "job", job_namespace, jobID)
 	if err != nil {
 		return nil, err
 	}
