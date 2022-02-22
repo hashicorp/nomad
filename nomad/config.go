@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"os"
@@ -26,23 +25,6 @@ const (
 	DefaultDC       = "dc1"
 	DefaultSerfPort = 4648
 )
-
-// These are the protocol versions that Nomad can understand
-const (
-	ProtocolVersionMin uint8 = 1
-	ProtocolVersionMax       = 1
-)
-
-// ProtocolVersionMap is the mapping of Nomad protocol versions
-// to Serf protocol versions. We mask the Serf protocols using
-// our own protocol version.
-var protocolVersionMap map[uint8]uint8
-
-func init() {
-	protocolVersionMap = map[uint8]uint8{
-		1: 4,
-	}
-}
 
 func DefaultRPCAddr() *net.TCPAddr {
 	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 4647}
@@ -92,10 +74,6 @@ type Config struct {
 
 	// Logger is the logger used by the server.
 	Logger log.InterceptLogger
-
-	// ProtocolVersion is the protocol version to speak. This must be between
-	// ProtocolVersionMin and ProtocolVersionMax.
-	ProtocolVersion uint8
 
 	// RPCAddr is the RPC address used by Nomad. This should be reachable
 	// by the other servers and clients
@@ -370,18 +348,6 @@ type Config struct {
 	DeploymentQueryRateLimit float64
 }
 
-// CheckVersion is used to check if the ProtocolVersion is valid
-func (c *Config) CheckVersion() error {
-	if c.ProtocolVersion < ProtocolVersionMin {
-		return fmt.Errorf("Protocol version '%d' too low. Must be in range: [%d, %d]",
-			c.ProtocolVersion, ProtocolVersionMin, ProtocolVersionMax)
-	} else if c.ProtocolVersion > ProtocolVersionMax {
-		return fmt.Errorf("Protocol version '%d' too high. Must be in range: [%d, %d]",
-			c.ProtocolVersion, ProtocolVersionMin, ProtocolVersionMax)
-	}
-	return nil
-}
-
 // DefaultConfig returns the default configuration. Only used as the basis for
 // merging agent or test parameters.
 func DefaultConfig() *Config {
@@ -396,7 +362,6 @@ func DefaultConfig() *Config {
 		Datacenter:                       DefaultDC,
 		NodeName:                         hostname,
 		NodeID:                           uuid.Generate(),
-		ProtocolVersion:                  ProtocolVersionMax,
 		RaftConfig:                       raft.DefaultConfig(),
 		RaftTimeout:                      10 * time.Second,
 		LogOutput:                        os.Stderr,

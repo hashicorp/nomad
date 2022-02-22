@@ -74,7 +74,7 @@ TRY:
 	}
 
 	// Make the request.
-	rpcErr := c.connPool.RPC(c.Region(), server.Addr, c.RPCMajorVersion(), method, args, reply)
+	rpcErr := c.connPool.RPC(c.Region(), server.Addr, method, args, reply)
 
 	if rpcErr == nil {
 		c.fireRpcRetryWatcher()
@@ -427,7 +427,7 @@ func resolveServer(s string) (net.Addr, error) {
 // a potential error.
 func (c *Client) Ping(srv net.Addr) error {
 	var reply struct{}
-	err := c.connPool.RPC(c.Region(), srv, c.RPCMajorVersion(), "Status.Ping", struct{}{}, &reply)
+	err := c.connPool.RPC(c.Region(), srv, "Status.Ping", struct{}{}, &reply)
 	return err
 }
 

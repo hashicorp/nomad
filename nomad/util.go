@@ -30,21 +30,19 @@ func ensurePath(path string, dir bool) error {
 
 // serverParts is used to return the parts of a server role
 type serverParts struct {
-	Name         string
-	ID           string
-	Region       string
-	Datacenter   string
-	Port         int
-	Bootstrap    bool
-	Expect       int
-	MajorVersion int
-	MinorVersion int
-	Build        version.Version
-	RaftVersion  int
-	Addr         net.Addr
-	RPCAddr      net.Addr
-	Status       serf.MemberStatus
-	NonVoter     bool
+	Name        string
+	ID          string
+	Region      string
+	Datacenter  string
+	Port        int
+	Bootstrap   bool
+	Expect      int
+	Build       version.Version
+	RaftVersion int
+	Addr        net.Addr
+	RPCAddr     net.Addr
+	Status      serf.MemberStatus
+	NonVoter    bool
 }
 
 func (s *serverParts) String() string {
@@ -100,21 +98,6 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		return false, nil
 	}
 
-	// The "vsn" tag was Version, which is now the MajorVersion number.
-	majorVersionStr := m.Tags["vsn"]
-	majorVersion, err := strconv.Atoi(majorVersionStr)
-	if err != nil {
-		return false, nil
-	}
-
-	// To keep some semblance of convention, "mvn" is now the "Minor
-	// Version Number."
-	minorVersionStr := m.Tags["mvn"]
-	minorVersion, err := strconv.Atoi(minorVersionStr)
-	if err != nil {
-		minorVersion = 0
-	}
-
 	raftVsn := 0
 	raftVsnString, ok := m.Tags["raft_vsn"]
 	if ok {
@@ -130,21 +113,19 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 	addr := &net.TCPAddr{IP: m.Addr, Port: port}
 	rpcAddr := &net.TCPAddr{IP: rpcIP, Port: port}
 	parts := &serverParts{
-		Name:         m.Name,
-		ID:           id,
-		Region:       region,
-		Datacenter:   datacenter,
-		Port:         port,
-		Bootstrap:    bootstrap,
-		Expect:       expect,
-		Addr:         addr,
-		RPCAddr:      rpcAddr,
-		MajorVersion: majorVersion,
-		MinorVersion: minorVersion,
-		Build:        *buildVersion,
-		RaftVersion:  raftVsn,
-		Status:       m.Status,
-		NonVoter:     nonVoter,
+		Name:        m.Name,
+		ID:          id,
+		Region:      region,
+		Datacenter:  datacenter,
+		Port:        port,
+		Bootstrap:   bootstrap,
+		Expect:      expect,
+		Addr:        addr,
+		RPCAddr:     rpcAddr,
+		Build:       *buildVersion,
+		RaftVersion: raftVsn,
+		Status:      m.Status,
+		NonVoter:    nonVoter,
 	}
 	return true, parts
 }

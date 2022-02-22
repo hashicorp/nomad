@@ -644,7 +644,7 @@ func (r *rpcHandler) forwardLeader(server *serverParts, method string, args inte
 	if server == nil {
 		return structs.ErrNoLeader
 	}
-	return r.connPool.RPC(r.config.Region, server.Addr, server.MajorVersion, method, args, reply)
+	return r.connPool.RPC(r.config.Region, server.Addr, method, args, reply)
 }
 
 // forwardServer is used to forward an RPC call to a particular server
@@ -653,7 +653,7 @@ func (r *rpcHandler) forwardServer(server *serverParts, method string, args inte
 	if server == nil {
 		return errors.New("must be given a valid server address")
 	}
-	return r.connPool.RPC(r.config.Region, server.Addr, server.MajorVersion, method, args, reply)
+	return r.connPool.RPC(r.config.Region, server.Addr, method, args, reply)
 }
 
 func (r *rpcHandler) findRegionServer(region string) (*serverParts, error) {
@@ -680,7 +680,7 @@ func (r *rpcHandler) forwardRegion(region, method string, args interface{}, repl
 
 	// Forward to remote Nomad
 	metrics.IncrCounter([]string{"nomad", "rpc", "cross-region", region}, 1)
-	return r.connPool.RPC(region, server.Addr, server.MajorVersion, method, args, reply)
+	return r.connPool.RPC(region, server.Addr, method, args, reply)
 }
 
 func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
@@ -708,7 +708,7 @@ func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
 // initial handshake, returning the connection or an error. It is the callers
 // responsibility to close the connection if there is no returned error.
 func (r *rpcHandler) streamingRpc(server *serverParts, method string) (net.Conn, error) {
-	c, err := r.connPool.StreamingRPC(r.config.Region, server.Addr, server.MajorVersion)
+	c, err := r.connPool.StreamingRPC(r.config.Region, server.Addr)
 	if err != nil {
 		return nil, err
 	}

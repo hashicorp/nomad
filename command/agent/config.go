@@ -367,7 +367,9 @@ type ServerConfig struct {
 
 	// ProtocolVersion is the protocol version to speak. This must be between
 	// ProtocolVersionMin and ProtocolVersionMax.
-	ProtocolVersion int `hcl:"protocol_version"`
+	//
+	// Deprecated: This has never been used and will emit a warning if nonzero.
+	ProtocolVersion int `hcl:"protocol_version" json:"-"`
 
 	// RaftProtocol is the Raft protocol version to speak. This must be from [1-3].
 	RaftProtocol int `hcl:"raft_protocol"`

@@ -191,9 +191,6 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if agentConfig.Server.DataDir != "" {
 		conf.DataDir = agentConfig.Server.DataDir
 	}
-	if agentConfig.Server.ProtocolVersion != 0 {
-		conf.ProtocolVersion = uint8(agentConfig.Server.ProtocolVersion)
-	}
 	if agentConfig.Server.RaftProtocol != 0 {
 		conf.RaftConfig.ProtocolVersion = raft.ProtocolVersion(agentConfig.Server.RaftProtocol)
 	}

@@ -123,21 +123,6 @@ const (
 	// methods directly that require an FSM MessageType
 	MsgTypeTestSetup MessageType = IgnoreUnknownTypeFlag
 
-	// ApiMajorVersion is returned as part of the Status.Version request.
-	// It should be incremented anytime the APIs are changed in a way
-	// that would break clients for sane client versioning.
-	ApiMajorVersion = 1
-
-	// ApiMinorVersion is returned as part of the Status.Version request.
-	// It should be incremented anytime the APIs are changed to allow
-	// for sane client versioning. Minor changes should be compatible
-	// within the major version.
-	ApiMinorVersion = 1
-
-	ProtocolVersion = "protocol"
-	APIMajorVersion = "api.major"
-	APIMinorVersion = "api.minor"
-
 	GetterModeAny  = "any"
 	GetterModeFile = "file"
 	GetterModeDir  = "dir"

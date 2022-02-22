@@ -188,8 +188,7 @@ func (s *Server) serverWithNodeConn(nodeID, region string) (*serverParts, error)
 
 		// Make the RPC
 		var resp structs.NodeConnQueryResponse
-		err := s.connPool.RPC(s.config.Region, server.Addr, server.MajorVersion,
-			"Status.HasNodeConn", &req, &resp)
+		err := s.connPool.RPC(s.config.Region, server.Addr, "Status.HasNodeConn", &req, &resp)
 		if err != nil {
 			multierror.Append(&rpcErr, fmt.Errorf("failed querying server %q: %v", server.Addr.String(), err))
 			continue
