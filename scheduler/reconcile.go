@@ -1021,6 +1021,7 @@ func (a *allocReconciler) computeStopByReconnecting(untainted, reconnecting, sto
 			if remove == 0 {
 				return remove
 			}
+			continue
 		}
 
 		// Compare reconnecting to untainted and decide which to keep.
