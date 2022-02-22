@@ -1,0 +1,7 @@
+```release-note:bug
+csi: Fixed a bug where allocations with volume claims would fail their first placement after a reschedule
+```
+
+```release-note:bug
+csi: Fixed a bug where allocations with volume claims would fail to restore after a client restart
+```
