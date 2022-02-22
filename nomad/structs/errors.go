@@ -68,8 +68,10 @@ var (
 	ErrDeploymentTerminalNoSetHealth = errors.New(errDeploymentTerminalNoSetHealth)
 	ErrDeploymentRunningNoUnblock    = errors.New(errDeploymentRunningNoUnblock)
 
-	ErrCSIClientRPCIgnorable = errors.New("CSI client error (ignorable)")
-	ErrCSIClientRPCRetryable = errors.New("CSI client error (retryable)")
+	ErrCSIClientRPCIgnorable  = errors.New("CSI client error (ignorable)")
+	ErrCSIClientRPCRetryable  = errors.New("CSI client error (retryable)")
+	ErrCSIVolumeMaxClaims     = errors.New("volume max claims reached")
+	ErrCSIVolumeUnschedulable = errors.New("volume is currently unschedulable")
 )
 
 // IsErrNoLeader returns whether the error is due to there being no leader.
