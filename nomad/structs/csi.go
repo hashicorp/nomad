@@ -407,8 +407,8 @@ func (v *CSIVolume) WriteSchedulable() bool {
 	return false
 }
 
-// WriteFreeClaims determines if there are any free write claims available
-func (v *CSIVolume) WriteFreeClaims() bool {
+// HasFreeWriteClaims determines if there are any free write claims available
+func (v *CSIVolume) HasFreeWriteClaims() bool {
 	switch v.AccessMode {
 	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter:
 		return len(v.WriteClaims) == 0
@@ -560,7 +560,7 @@ func (v *CSIVolume) claimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
 		return fmt.Errorf("unschedulable")
 	}
 
-	if !v.WriteFreeClaims() {
+	if !v.HasFreeWriteClaims() {
 		// Check the blocking allocations to see if they belong to this job
 		for _, a := range v.WriteAllocs {
 			if a != nil && (a.Namespace != alloc.Namespace || a.JobID != alloc.JobID) {
