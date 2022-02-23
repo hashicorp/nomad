@@ -321,7 +321,7 @@ func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 			if !vol.WriteSchedulable() {
 				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoWriteTemplate, vol.ID)
 			}
-			if !vol.WriteFreeClaims() {
+			if !vol.HasFreeWriteClaims() {
 				for id := range vol.WriteAllocs {
 					a, err := c.ctx.State().AllocByID(ws, id)
 					// the alloc for this blocking claim has been

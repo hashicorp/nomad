@@ -371,6 +371,9 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 	return &stub
 }
 
+// ReadSchedulable determines if the volume is potentially schedulable
+// for reads, considering only the volume capabilities and plugin
+// health
 func (v *CSIVolume) ReadSchedulable() bool {
 	if !v.Schedulable {
 		return false
@@ -379,8 +382,9 @@ func (v *CSIVolume) ReadSchedulable() bool {
 	return v.ResourceExhausted == time.Time{}
 }
 
-// WriteSchedulable determines if the volume is schedulable for writes,
-// considering only volume capabilities and plugin health
+// WriteSchedulable determines if the volume is potentially
+// schedulable for writes, considering only volume capabilities and
+// plugin health
 func (v *CSIVolume) WriteSchedulable() bool {
 	if !v.Schedulable {
 		return false
@@ -407,8 +411,8 @@ func (v *CSIVolume) WriteSchedulable() bool {
 	return false
 }
 
-// WriteFreeClaims determines if there are any free write claims available
-func (v *CSIVolume) WriteFreeClaims() bool {
+// HasFreeWriteClaims determines if there are any free write claims available
+func (v *CSIVolume) HasFreeWriteClaims() bool {
 	switch v.AccessMode {
 	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter:
 		return len(v.WriteClaims) == 0
@@ -531,7 +535,7 @@ func (v *CSIVolume) claimRead(claim *CSIVolumeClaim, alloc *Allocation) error {
 	}
 
 	if !v.ReadSchedulable() {
-		return fmt.Errorf("unschedulable")
+		return ErrCSIVolumeUnschedulable
 	}
 
 	// Allocations are copy on write, so we want to keep the id but don't need the
@@ -557,14 +561,14 @@ func (v *CSIVolume) claimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
 	}
 
 	if !v.WriteSchedulable() {
-		return fmt.Errorf("unschedulable")
+		return ErrCSIVolumeUnschedulable
 	}
 
-	if !v.WriteFreeClaims() {
+	if !v.HasFreeWriteClaims() {
 		// Check the blocking allocations to see if they belong to this job
 		for _, a := range v.WriteAllocs {
 			if a != nil && (a.Namespace != alloc.Namespace || a.JobID != alloc.JobID) {
-				return fmt.Errorf("volume max claim reached")
+				return ErrCSIVolumeMaxClaims
 			}
 		}
 	}
