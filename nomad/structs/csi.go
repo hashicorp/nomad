@@ -422,24 +422,13 @@ func (v *CSIVolume) HasFreeWriteClaims() bool {
 		// which is checked in WriteSchedulable
 		return true
 	case CSIVolumeAccessModeUnknown:
-		// this volume was created but not yet claimed, so we check what it's
-		// capable of, not what it's been assigned
-		if len(v.RequestedCapabilities) == 0 {
-			// COMPAT: a volume that was registered before 1.1.0 and has not
-			// had a change in claims could have no requested caps. It will
-			// get corrected on the first claim.
-			return true
-		}
-		for _, cap := range v.RequestedCapabilities {
-			switch cap.AccessMode {
-			case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter:
-				return len(v.WriteClaims) == 0
-			case CSIVolumeAccessModeMultiNodeMultiWriter:
-				return true
-			}
-		}
+		// This volume was created but not yet claimed, so its
+		// capabilities have been checked in WriteSchedulable
+		return true
+	default:
+		// Reader modes never have free write claims
+		return false
 	}
-	return false
 }
 
 // InUse tests whether any allocations are actively using the volume
