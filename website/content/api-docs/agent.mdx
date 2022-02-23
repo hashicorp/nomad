@@ -838,9 +838,7 @@ This endpoint accepts no additional parameters.
 
 ```shell-session
 $ curl \
-    --request PUT \
-    --data @payload.json \
-    https://localhost:4646/v1/jobs
+    https://localhost:4646/v1/agent/schedulers/config
 ```
 
 ### Sample Response
@@ -892,6 +890,7 @@ The table below shows this endpoint's support for
     "_core"
   ],
   "num_schedulers": 12
+  "server_id": "server1.global"
 }
 ```
 
@@ -901,7 +900,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request PUT \
     --data @payload.json \
-    https://localhost:4646/v1/jobs
+    https://localhost:4646/v1/agent/schedulers/config
 ```
 
 ### Sample Response
