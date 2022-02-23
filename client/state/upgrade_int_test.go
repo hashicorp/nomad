@@ -1,6 +1,7 @@
 package state_test
 
 import (
+	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/boltdb/bolt"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	clientconfig "github.com/hashicorp/nomad/client/config"
@@ -32,40 +34,49 @@ import (
 func TestBoltStateDB_UpgradeOld_Ok(t *testing.T) {
 	t.Parallel()
 
-	files, err := filepath.Glob("testdata/*.db*")
-	require.NoError(t, err)
+	dbFromTestFile := func(t *testing.T, dir, fn string) *BoltStateDB {
 
-	for _, fn := range files {
+		var src io.ReadCloser
+		src, err := os.Open(fn)
+		require.NoError(t, err)
+		defer src.Close()
+
+		// testdata may be gzip'd; decode on copy
+		if strings.HasSuffix(fn, ".gz") {
+			src, err = gzip.NewReader(src)
+			require.NoError(t, err)
+		}
+
+		dst, err := os.Create(filepath.Join(dir, "state.db"))
+		require.NoError(t, err)
+
+		// Copy test files before testing them for safety
+		_, err = io.Copy(dst, src)
+		require.NoError(t, err)
+
+		require.NoError(t, src.Close())
+
+		dbI, err := NewBoltStateDB(testlog.HCLogger(t), dir)
+		require.NoError(t, err)
+
+		db := dbI.(*BoltStateDB)
+		return db
+	}
+
+	pre09files := []string{
+		"testdata/state-0.7.1.db.gz",
+		"testdata/state-0.8.6-empty.db.gz",
+		"testdata/state-0.8.6-no-deploy.db.gz"}
+
+	for _, fn := range pre09files {
 		t.Run(fn, func(t *testing.T) {
+
 			dir, err := ioutil.TempDir("", "nomadtest")
 			require.NoError(t, err)
 			defer os.RemoveAll(dir)
 
-			var src io.ReadCloser
-			src, err = os.Open(fn)
-			require.NoError(t, err)
-			defer src.Close()
-
-			// testdata may be gzip'd; decode on copy
-			if strings.HasSuffix(fn, ".gz") {
-				src, err = gzip.NewReader(src)
-				require.NoError(t, err)
-			}
-
-			dst, err := os.Create(filepath.Join(dir, "state.db"))
-			require.NoError(t, err)
-
-			// Copy test files before testing them for safety
-			_, err = io.Copy(dst, src)
-			require.NoError(t, err)
-
-			require.NoError(t, src.Close())
-
-			dbI, err := NewBoltStateDB(testlog.HCLogger(t), dir)
-			require.NoError(t, err)
-			defer dbI.Close()
-
-			db := dbI.(*BoltStateDB)
+			db := dbFromTestFile(t, dir, fn)
+			defer db.Close()
 
 			// Simply opening old files should *not* alter them
 			require.NoError(t, db.DB().View(func(tx *boltdd.Tx) error {
@@ -76,16 +87,18 @@ func TestBoltStateDB_UpgradeOld_Ok(t *testing.T) {
 				return nil
 			}))
 
-			needsUpgrade, err := NeedsUpgrade(db.DB().BoltDB())
+			to09, to12, err := NeedsUpgrade(db.DB().BoltDB())
 			require.NoError(t, err)
-			require.True(t, needsUpgrade)
+			require.True(t, to09)
+			require.True(t, to12)
 
-			// Attept the upgrade
+			// Attempt the upgrade
 			require.NoError(t, db.Upgrade())
 
-			needsUpgrade, err = NeedsUpgrade(db.DB().BoltDB())
+			to09, to12, err = NeedsUpgrade(db.DB().BoltDB())
 			require.NoError(t, err)
-			require.False(t, needsUpgrade)
+			require.False(t, to09)
+			require.False(t, to12)
 
 			// Ensure Allocations can be restored and
 			// NewAR/AR.Restore do not error.
@@ -109,9 +122,59 @@ func TestBoltStateDB_UpgradeOld_Ok(t *testing.T) {
 			}
 			require.NoError(t, db.PutDevicePluginState(ps))
 
+			registry, err := db.GetDynamicPluginRegistryState()
+			require.Nil(t, registry)
+
+			require.NoError(t, err)
 			require.NoError(t, db.Close())
 		})
 	}
+
+	t.Run("testdata/state-1.2.6.db.gz", func(t *testing.T) {
+		fn := "testdata/state-1.2.6.db.gz"
+		dir, err := ioutil.TempDir("", "nomadtest")
+		require.NoError(t, err)
+		defer os.RemoveAll(dir)
+
+		db := dbFromTestFile(t, dir, fn)
+		defer db.Close()
+
+		// Simply opening old files should *not* alter them
+		db.DB().BoltDB().View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte("meta"))
+			if b == nil {
+				return fmt.Errorf("meta bucket should exist")
+			}
+			v := b.Get([]byte("version"))
+			if len(v) == 0 {
+				return fmt.Errorf("meta version is missing")
+			}
+			if !bytes.Equal(v, []byte{'2'}) {
+				return fmt.Errorf("meta version should not have changed")
+			}
+			return nil
+		})
+
+		to09, to12, err := NeedsUpgrade(db.DB().BoltDB())
+		require.NoError(t, err)
+		require.False(t, to09)
+		require.True(t, to12)
+
+		// Attempt the upgrade
+		require.NoError(t, db.Upgrade())
+
+		to09, to12, err = NeedsUpgrade(db.DB().BoltDB())
+		require.NoError(t, err)
+		require.False(t, to09)
+		require.False(t, to12)
+
+		registry, err := db.GetDynamicPluginRegistryState()
+		require.NoError(t, err)
+		require.NotNil(t, registry)
+		require.Len(t, registry.Plugins["csi-node"], 2)
+
+		require.NoError(t, db.Close())
+	})
 }
 
 // checkUpgradedAlloc creates and restores an AllocRunner from an upgraded

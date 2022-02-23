@@ -25,6 +25,32 @@ In Nomad 1.3.0, the default raft protocol version has been updated to
 server will automatically upgrade that server's raft protocol. See the
 [Upgrading to Raft Protocol 3] guide.
 
+#### Client State Store
+
+The client state store will be automatically migrated to a new schema
+version when upgrading a client.
+
+Downgrading to a previous version of the client after upgrading it to
+Nomad 1.3 is not supported. To downgrade safely, users should drain
+all tasks from the Nomad client and erase its data directory.
+
+#### CSI Plugins
+
+The client filesystem layout for CSI plugins has been updated to
+correctly handle the lifecycle of multiple allocations serving the
+same plugin. Running plugin tasks will not be updated after upgrading
+the client, but it is recommended to redeploy CSI plugin jobs after
+upgrading the cluster.
+
+The directory for plugin control sockets will be mounted from a new
+per-allocation directory in the client data dir. This will still be
+bind-mounted to `csi_plugin.mount_config` as in versions of Nomad
+prior to 1.3.0.
+
+The volume staging directory for new CSI plugin tasks will now be
+mounted to the task's `NOMAD_TASK_DIR` instead of the
+`csi_plugin.mount_config`.
+
 ## Nomad 1.2.6, 1.1.12, and 1.0.18
 
 #### ACL requirement for the job parse endpoint

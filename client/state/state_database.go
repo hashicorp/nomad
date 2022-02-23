@@ -52,7 +52,7 @@ var (
 	// metaVersion is the value of the state schema version to detect when
 	// an upgrade is needed. It skips the usual boltdd/msgpack backend to
 	// be as portable and futureproof as possible.
-	metaVersion = []byte{'2'}
+	metaVersion = []byte{'3'}
 
 	// metaUpgradedKey is the key that stores the timestamp of the last
 	// time the schema was upgraded.
@@ -90,9 +90,9 @@ var (
 	// stored at
 	managerPluginStateKey = []byte("plugin_state")
 
-	// dynamicPluginBucket is the bucket name containing all dynamic plugin
+	// dynamicPluginBucketName is the bucket name containing all dynamic plugin
 	// registry data. each dynamic plugin registry will have its own subbucket.
-	dynamicPluginBucket = []byte("dynamicplugins")
+	dynamicPluginBucketName = []byte("dynamicplugins")
 
 	// registryStateKey is the key at which dynamic plugin registry state is stored
 	registryStateKey = []byte("registry_state")
@@ -677,7 +677,7 @@ func (s *BoltStateDB) GetDriverPluginState() (*driverstate.PluginState, error) {
 func (s *BoltStateDB) PutDynamicPluginRegistryState(ps *dynamicplugins.RegistryState) error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
 		// Retrieve the root dynamic plugin manager bucket
-		dynamicBkt, err := tx.CreateBucketIfNotExists(dynamicPluginBucket)
+		dynamicBkt, err := tx.CreateBucketIfNotExists(dynamicPluginBucketName)
 		if err != nil {
 			return err
 		}
@@ -691,7 +691,7 @@ func (s *BoltStateDB) GetDynamicPluginRegistryState() (*dynamicplugins.RegistryS
 	var ps *dynamicplugins.RegistryState
 
 	err := s.db.View(func(tx *boltdd.Tx) error {
-		dynamicBkt := tx.Bucket(dynamicPluginBucket)
+		dynamicBkt := tx.Bucket(dynamicPluginBucketName)
 		if dynamicBkt == nil {
 			// No state, return
 			return nil
@@ -742,11 +742,11 @@ func (s *BoltStateDB) updateWithOptions(opts []WriteOption, updateFn func(tx *bo
 // 0.9 schema. Creates a backup before upgrading.
 func (s *BoltStateDB) Upgrade() error {
 	// Check to see if the underlying DB needs upgrading.
-	upgrade, err := NeedsUpgrade(s.db.BoltDB())
+	upgrade09, upgrade13, err := NeedsUpgrade(s.db.BoltDB())
 	if err != nil {
 		return err
 	}
-	if !upgrade {
+	if !upgrade09 && !upgrade13 {
 		// No upgrade needed!
 		return nil
 	}
@@ -759,8 +759,16 @@ func (s *BoltStateDB) Upgrade() error {
 
 	// Perform the upgrade
 	if err := s.db.Update(func(tx *boltdd.Tx) error {
-		if err := UpgradeAllocs(s.logger, tx); err != nil {
-			return err
+
+		if upgrade09 {
+			if err := UpgradeAllocs(s.logger, tx); err != nil {
+				return err
+			}
+		}
+		if upgrade13 {
+			if err := UpgradeDynamicPluginRegistry(s.logger, tx); err != nil {
+				return err
+			}
 		}
 
 		// Add standard metadata
@@ -773,6 +781,7 @@ func (s *BoltStateDB) Upgrade() error {
 		if err != nil {
 			return err
 		}
+
 		return bkt.Put(metaUpgradedKey, time.Now().Format(time.RFC3339))
 	}); err != nil {
 		return err

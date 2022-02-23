@@ -38,9 +38,10 @@ func TestUpgrade_NeedsUpgrade_New(t *testing.T) {
 	db, cleanup := setupBoltStateDB(t)
 	defer cleanup()
 
-	up, err := NeedsUpgrade(db.DB().BoltDB())
+	to09, to12, err := NeedsUpgrade(db.DB().BoltDB())
 	require.NoError(t, err)
-	require.False(t, up)
+	require.False(t, to09)
+	require.False(t, to12)
 }
 
 // TestUpgrade_NeedsUpgrade_Old asserts state dbs with just the alloctions
@@ -58,16 +59,18 @@ func TestUpgrade_NeedsUpgrade_Old(t *testing.T) {
 		return err
 	}))
 
-	up, err := NeedsUpgrade(db)
+	to09, to12, err := NeedsUpgrade(db)
 	require.NoError(t, err)
-	require.True(t, up)
+	require.True(t, to09)
+	require.True(t, to12)
 
 	// Adding meta should mark it as upgraded
 	require.NoError(t, db.Update(addMeta))
 
-	up, err = NeedsUpgrade(db)
+	to09, to12, err = NeedsUpgrade(db)
 	require.NoError(t, err)
-	require.False(t, up)
+	require.False(t, to09)
+	require.False(t, to12)
 }
 
 // TestUpgrade_NeedsUpgrade_Error asserts that an error is returned from
@@ -79,7 +82,7 @@ func TestUpgrade_NeedsUpgrade_Error(t *testing.T) {
 	cases := [][]byte{
 		{'"', '2', '"'}, // wrong type
 		{'1'},           // wrong version (never existed)
-		{'3'},           // wrong version (future)
+		{'4'},           // wrong version (future)
 	}
 
 	for _, tc := range cases {
@@ -95,7 +98,7 @@ func TestUpgrade_NeedsUpgrade_Error(t *testing.T) {
 				return bkt.Put(metaVersionKey, tc)
 			}))
 
-			_, err := NeedsUpgrade(db)
+			_, _, err := NeedsUpgrade(db)
 			require.Error(t, err)
 		})
 	}
