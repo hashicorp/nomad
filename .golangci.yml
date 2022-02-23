@@ -60,6 +60,7 @@ linters-settings:
     list-type: blacklist
     packages:
       - github.com/hashicorp/consul/command/flags
+      - github.com/boltdb/bolt
   gocritic:
     disabled-checks:
       - commentFormatting
