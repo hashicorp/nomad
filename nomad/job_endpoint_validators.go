@@ -1,6 +1,8 @@
 package nomad
 
 import (
+	"strings"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/pkg/errors"
 )
@@ -20,16 +22,28 @@ func (c jobNamespaceConstraintCheckHook) Validate(job *structs.Job) (warnings []
 		return nil, err
 	}
 	if ns == nil {
-		return nil, errors.Errorf("requested namespace %s does not exist", job.Namespace)
+		return nil, errors.Errorf("job %q is in nonexistent namespace %q", job.ID, job.Namespace)
 	}
 
+	var disallowedDrivers []string
 	for _, tg := range job.TaskGroups {
 		for _, t := range tg.Tasks {
 			if !taskValidateDriver(t, ns) {
-				return nil, errors.Errorf(
-					"used task driver '%s' in %s[%s] is not allowed in namespace %s",
-					t.Driver, tg.Name, t.Name, ns.Name)
+				disallowedDrivers = append(disallowedDrivers, t.Driver)
 			}
+		}
+	}
+	if len(disallowedDrivers) > 0 {
+		if len(disallowedDrivers) == 1 {
+			return nil, errors.Errorf(
+				"used task driver '%s' is not allowed in namespace %s", disallowedDrivers[0], ns.Name)
+
+		} else {
+			for i := 0; i < len(disallowedDrivers); i++ {
+				disallowedDrivers[i] = "'" + disallowedDrivers[i] + "'"
+			}
+			return nil, errors.Errorf(
+				"used task drivers %s are not allowed in namespace %s", strings.Join(disallowedDrivers, ", "), ns.Name)
 		}
 	}
 	return nil, nil

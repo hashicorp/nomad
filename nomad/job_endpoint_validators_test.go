@@ -47,7 +47,7 @@ func TestJobNamespaceConstraintCheckHook_taskValidateDriver(t *testing.T) {
 			false,
 		},
 		{
-			"disable takes precedence over enable", // TODO: Wanted?
+			"disable takes precedence over enable",
 			"docker",
 			&structs.Namespace{
 				Capabilities: &structs.NamespaceCapabilities{
