@@ -243,9 +243,11 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	// Create an initial volume claim request; we expect it to fail
 	// because there's no such volume yet.
 	claimReq := &structs.CSIVolumeClaimRequest{
-		VolumeID:     id0,
-		AllocationID: alloc.ID,
-		Claim:        structs.CSIVolumeClaimWrite,
+		VolumeID:       id0,
+		AllocationID:   alloc.ID,
+		Claim:          structs.CSIVolumeClaimWrite,
+		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: structs.DefaultNamespace,
