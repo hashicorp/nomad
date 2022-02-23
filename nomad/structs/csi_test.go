@@ -57,7 +57,7 @@ func TestCSIVolumeClaim(t *testing.T) {
 	claim.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
 	claim.Mode = CSIVolumeClaimWrite
 	claim.AllocationID = alloc2.ID
-	require.EqualError(t, vol.Claim(claim, alloc2), "unschedulable")
+	require.EqualError(t, vol.Claim(claim, alloc2), ErrCSIVolumeUnschedulable.Error())
 	require.True(t, vol.ReadSchedulable())
 	require.False(t, vol.WriteSchedulable())
 	require.False(t, vol.HasFreeWriteClaims())
@@ -138,7 +138,7 @@ func TestCSIVolumeClaim(t *testing.T) {
 	// store) and then ensure we cannot claim another write
 	vol.WriteAllocs[alloc2.ID] = alloc2
 	claim.Mode = CSIVolumeClaimWrite
-	require.EqualError(t, vol.Claim(claim, alloc3), "volume max claim reached")
+	require.EqualError(t, vol.Claim(claim, alloc3), ErrCSIVolumeMaxClaims.Error())
 
 	// release the write claim but ensure it doesn't free up write claims
 	// until after we've unpublished
@@ -235,7 +235,7 @@ func TestCSIVolumeClaim_CompatOldClaims(t *testing.T) {
 	// store) and then ensure we cannot claim another write
 	vol.WriteAllocs[alloc2.ID] = alloc2
 	claim.AllocationID = alloc3.ID
-	require.EqualError(t, vol.Claim(claim, alloc3), "volume max claim reached")
+	require.EqualError(t, vol.Claim(claim, alloc3), ErrCSIVolumeMaxClaims.Error())
 
 	// release the write claim but ensure it doesn't free up write claims
 	// until after we've unpublished
@@ -339,7 +339,7 @@ func TestCSIVolumeClaim_CompatNewClaimsOK(t *testing.T) {
 	// store) and then ensure we cannot claim another write
 	vol.WriteAllocs[alloc2.ID] = alloc2
 	claim.AllocationID = alloc3.ID
-	require.EqualError(t, vol.Claim(claim, alloc3), "volume max claim reached")
+	require.EqualError(t, vol.Claim(claim, alloc3), ErrCSIVolumeMaxClaims.Error())
 
 	// release the write claim but ensure it doesn't free up write claims
 	// until after we've unpublished
@@ -424,7 +424,7 @@ func TestCSIVolumeClaim_CompatNewClaimsNoUpgrade(t *testing.T) {
 	claim.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
 	claim.Mode = CSIVolumeClaimWrite
 	claim.AllocationID = alloc2.ID
-	require.EqualError(t, vol.Claim(claim, alloc2), "unschedulable")
+	require.EqualError(t, vol.Claim(claim, alloc2), ErrCSIVolumeUnschedulable.Error())
 	require.True(t, vol.ReadSchedulable())
 	require.False(t, vol.WriteSchedulable())
 	require.False(t, vol.HasFreeWriteClaims())
@@ -459,7 +459,7 @@ func TestCSIVolumeClaim_CompatNewClaimsNoUpgrade(t *testing.T) {
 	claim.Mode = CSIVolumeClaimWrite
 	claim.State = CSIVolumeClaimStateTaken
 	claim.AllocationID = alloc2.ID
-	require.EqualError(t, vol.Claim(claim, alloc2), "unschedulable")
+	require.EqualError(t, vol.Claim(claim, alloc2), ErrCSIVolumeUnschedulable.Error())
 	require.Len(t, vol.ReadClaims, 0)
 	require.Len(t, vol.WriteClaims, 0)
 	require.Equal(t, CSIVolumeAccessModeUnknown, vol.AccessMode)
