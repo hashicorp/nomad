@@ -411,6 +411,26 @@ func (v *CSIVolume) WriteSchedulable() bool {
 	return false
 }
 
+// HasFreeReadClaims determines if there are any free read claims available
+func (v *CSIVolume) HasFreeReadClaims() bool {
+	switch v.AccessMode {
+	case CSIVolumeAccessModeSingleNodeReader:
+		return len(v.ReadClaims) == 0
+	case CSIVolumeAccessModeSingleNodeWriter:
+		return len(v.ReadClaims) == 0 && len(v.WriteClaims) == 0
+	case CSIVolumeAccessModeUnknown:
+		// This volume was created but not yet claimed, so its
+		// capabilities have been checked in ReadSchedulable
+		return true
+	default:
+		// For multi-node AccessModes, the CSI spec doesn't allow for
+		// setting a max number of readers we track node resource
+		// exhaustion through v.ResourceExhausted which is checked in
+		// ReadSchedulable
+		return true
+	}
+}
+
 // HasFreeWriteClaims determines if there are any free write claims available
 func (v *CSIVolume) HasFreeWriteClaims() bool {
 	switch v.AccessMode {
@@ -525,6 +545,10 @@ func (v *CSIVolume) claimRead(claim *CSIVolumeClaim, alloc *Allocation) error {
 
 	if !v.ReadSchedulable() {
 		return ErrCSIVolumeUnschedulable
+	}
+
+	if !v.HasFreeReadClaims() {
+		return ErrCSIVolumeMaxClaims
 	}
 
 	// Allocations are copy on write, so we want to keep the id but don't need the
