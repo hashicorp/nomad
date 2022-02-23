@@ -2773,7 +2773,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	iter, err = state.CSIVolumesByPluginID(ws, ns, "", "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
-	require.False(t, vs[0].WriteFreeClaims())
+	require.False(t, vs[0].HasFreeWriteClaims())
 
 	claim0.Mode = u
 	err = state.CSIVolumeClaim(2, ns, vol0, claim0)
