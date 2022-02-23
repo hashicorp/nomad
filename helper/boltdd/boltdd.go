@@ -1,5 +1,5 @@
-// BOLTdd contains a wrapper around BoltDB to deduplicate writes and encode
-// values using mgspack.  (dd stands for DeDuplicate)
+// Package boltdd contains a wrapper around BBoltDB to deduplicate writes and encode
+// values using mgspack.  (dd stands for de-duplicate)
 package boltdd
 
 import (
@@ -8,9 +8,9 @@ import (
 	"os"
 	"sync"
 
-	"github.com/boltdb/bolt"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"go.etcd.io/bbolt"
 	"golang.org/x/crypto/blake2b"
 )
 
@@ -37,19 +37,19 @@ func IsErrNotFound(e error) bool {
 	return ok
 }
 
-// DB wraps an underlying bolt.DB to create write deduplicating buckets and
+// DB wraps an underlying bolt.DB to create write de-duplicating buckets and
 // msgpack encoded values.
 type DB struct {
 	rootBuckets     map[string]*bucketMeta
 	rootBucketsLock sync.Mutex
 
-	bdb *bolt.DB
+	boltDB *bbolt.DB
 }
 
-// Open a bolt.DB and wrap it in a write-deduplicating msgpack-encoding
+// Open a bolt.DB and wrap it in a write-de-duplicating msgpack-encoding
 // implementation.
-func Open(path string, mode os.FileMode, options *bolt.Options) (*DB, error) {
-	bdb, err := bolt.Open(path, mode, options)
+func Open(path string, mode os.FileMode, options *bbolt.Options) (*DB, error) {
+	bdb, err := bbolt.Open(path, mode, options)
 	if err != nil {
 		return nil, err
 	}
@@ -57,15 +57,15 @@ func Open(path string, mode os.FileMode, options *bolt.Options) (*DB, error) {
 	return New(bdb), nil
 }
 
-// New deduplicating wrapper for the given boltdb.
-func New(bdb *bolt.DB) *DB {
+// New de-duplicating wrapper for the given bboltdb.
+func New(bdb *bbolt.DB) *DB {
 	return &DB{
 		rootBuckets: make(map[string]*bucketMeta),
-		bdb:         bdb,
+		boltDB:      bdb,
 	}
 }
 
-func (db *DB) bucket(btx *bolt.Tx, name []byte) *Bucket {
+func (db *DB) bucket(btx *bbolt.Tx, name []byte) *Bucket {
 	bb := btx.Bucket(name)
 	if bb == nil {
 		return nil
@@ -87,7 +87,7 @@ func (db *DB) bucket(btx *bolt.Tx, name []byte) *Bucket {
 	return newBucket(b, bb)
 }
 
-func (db *DB) createBucket(btx *bolt.Tx, name []byte) (*Bucket, error) {
+func (db *DB) createBucket(btx *bbolt.Tx, name []byte) (*Bucket, error) {
 	bb, err := btx.CreateBucket(name)
 	if err != nil {
 		return nil, err
@@ -99,7 +99,7 @@ func (db *DB) createBucket(btx *bolt.Tx, name []byte) (*Bucket, error) {
 	// While creating a bucket on a closed db would error, we must recheck
 	// after acquiring the lock to avoid races.
 	if db.isClosed() {
-		return nil, bolt.ErrDatabaseNotOpen
+		return nil, bbolt.ErrDatabaseNotOpen
 	}
 
 	// Always create a new Bucket since CreateBucket above fails if the
@@ -110,7 +110,7 @@ func (db *DB) createBucket(btx *bolt.Tx, name []byte) (*Bucket, error) {
 	return newBucket(b, bb), nil
 }
 
-func (db *DB) createBucketIfNotExists(btx *bolt.Tx, name []byte) (*Bucket, error) {
+func (db *DB) createBucketIfNotExists(btx *bbolt.Tx, name []byte) (*Bucket, error) {
 	bb, err := btx.CreateBucketIfNotExists(name)
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func (db *DB) createBucketIfNotExists(btx *bolt.Tx, name []byte) (*Bucket, error
 	// While creating a bucket on a closed db would error, we must recheck
 	// after acquiring the lock to avoid races.
 	if db.isClosed() {
-		return nil, bolt.ErrDatabaseNotOpen
+		return nil, bbolt.ErrDatabaseNotOpen
 	}
 
 	b, ok := db.rootBuckets[string(name)]
@@ -135,21 +135,21 @@ func (db *DB) createBucketIfNotExists(btx *bolt.Tx, name []byte) (*Bucket, error
 }
 
 func (db *DB) Update(fn func(*Tx) error) error {
-	return db.bdb.Update(func(btx *bolt.Tx) error {
+	return db.boltDB.Update(func(btx *bbolt.Tx) error {
 		tx := newTx(db, btx)
 		return fn(tx)
 	})
 }
 
 func (db *DB) Batch(fn func(*Tx) error) error {
-	return db.bdb.Batch(func(btx *bolt.Tx) error {
+	return db.boltDB.Batch(func(btx *bbolt.Tx) error {
 		tx := newTx(db, btx)
 		return fn(tx)
 	})
 }
 
 func (db *DB) View(fn func(*Tx) error) error {
-	return db.bdb.View(func(btx *bolt.Tx) error {
+	return db.boltDB.View(func(btx *bbolt.Tx) error {
 		tx := newTx(db, btx)
 		return fn(tx)
 	})
@@ -167,20 +167,20 @@ func (db *DB) Close() error {
 	db.rootBucketsLock.Lock()
 	db.rootBuckets = nil
 	db.rootBucketsLock.Unlock()
-	return db.bdb.Close()
+	return db.boltDB.Close()
 }
 
 // BoltDB returns the underlying bolt.DB.
-func (db *DB) BoltDB() *bolt.DB {
-	return db.bdb
+func (db *DB) BoltDB() *bbolt.DB {
+	return db.boltDB
 }
 
 type Tx struct {
 	db  *DB
-	btx *bolt.Tx
+	btx *bbolt.Tx
 }
 
-func newTx(db *DB, btx *bolt.Tx) *Tx {
+func newTx(db *DB, btx *bbolt.Tx) *Tx {
 	return &Tx{
 		db:  db,
 		btx: btx,
@@ -208,7 +208,7 @@ func (tx *Tx) Writable() bool {
 }
 
 // BoltTx returns the underlying bolt.Tx.
-func (tx *Tx) BoltTx() *bolt.Tx {
+func (tx *Tx) BoltTx() *bbolt.Tx {
 	return tx.btx
 }
 
@@ -290,12 +290,12 @@ func (bm *bucketMeta) getOrCreateBucket(name []byte) *bucketMeta {
 
 type Bucket struct {
 	bm         *bucketMeta
-	boltBucket *bolt.Bucket
+	boltBucket *bbolt.Bucket
 }
 
 // newBucket creates a new view into a bucket backed by a boltdb
 // transaction.
-func newBucket(b *bucketMeta, bb *bolt.Bucket) *Bucket {
+func newBucket(b *bucketMeta, bb *bbolt.Bucket) *Bucket {
 	return &Bucket{
 		bm:         b,
 		boltBucket: bb,
@@ -408,7 +408,7 @@ func (b *Bucket) CreateBucketIfNotExists(name []byte) (*Bucket, error) {
 func (b *Bucket) DeleteBucket(name []byte) error {
 	// Delete the bucket from the underlying boltdb
 	err := b.boltBucket.DeleteBucket(name)
-	if err == bolt.ErrBucketNotFound {
+	if err == bbolt.ErrBucketNotFound {
 		err = nil
 	}
 
@@ -419,6 +419,6 @@ func (b *Bucket) DeleteBucket(name []byte) error {
 
 // BoltBucket returns the internal bolt.Bucket for this Bucket. Only valid
 // for the duration of the current transaction.
-func (b *Bucket) BoltBucket() *bolt.Bucket {
+func (b *Bucket) BoltBucket() *bbolt.Bucket {
 	return b.boltBucket
 }

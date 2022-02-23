@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/boltdb/bolt"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
+	"go.etcd.io/bbolt"
 )
 
 type testingT interface {
@@ -66,12 +66,12 @@ func TestDB_Close(t *testing.T) {
 	require.Equal(t, db.Update(func(tx *Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("foo"))
 		return err
-	}), bolt.ErrDatabaseNotOpen)
+	}), bbolt.ErrDatabaseNotOpen)
 
 	require.Equal(t, db.Update(func(tx *Tx) error {
 		_, err := tx.CreateBucket([]byte("foo"))
 		return err
-	}), bolt.ErrDatabaseNotOpen)
+	}), bbolt.ErrDatabaseNotOpen)
 }
 
 func TestBucket_Create(t *testing.T) {

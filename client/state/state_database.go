@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/boltdb/bolt"
-
 	hclog "github.com/hashicorp/go-hclog"
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
@@ -15,6 +13,7 @@ import (
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"go.etcd.io/bbolt"
 )
 
 /*
@@ -139,11 +138,11 @@ func NewBoltStateDB(logger hclog.Logger, stateDir string) (StateDB, error) {
 	firstRun := fi == nil
 
 	// Timeout to force failure when accessing a data dir that is already in use
-	timeout := &bolt.Options{Timeout: 5 * time.Second}
+	timeout := &bbolt.Options{Timeout: 5 * time.Second}
 
 	// Create or open the boltdb state database
 	db, err := boltdd.Open(fn, 0600, timeout)
-	if err == bolt.ErrTimeout {
+	if err == bbolt.ErrTimeout {
 		return nil, fmt.Errorf("timed out while opening database, is another Nomad process accessing data_dir %s?", stateDir)
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to create state database: %v", err)
