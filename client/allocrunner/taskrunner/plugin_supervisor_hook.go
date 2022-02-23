@@ -192,7 +192,8 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 			"CSI_ENDPOINT": h.socketPath}
 	default:
 		resp.Env = map[string]string{
-			"CSI_ENDPOINT": filepath.Join(h.task.CSIPluginConfig.MountDir, "csi.sock")}
+			"CSI_ENDPOINT": filepath.Join(
+				h.task.CSIPluginConfig.MountDir, structs.CSISocketName)}
 	}
 
 	mounts := ensureMountpointInserted(h.runner.hookResources.getMounts(), configMount)
