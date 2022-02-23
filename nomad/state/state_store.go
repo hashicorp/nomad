@@ -1420,7 +1420,9 @@ func (s *StateStore) deleteJobFromPlugins(index uint64, txn Txn, job *structs.Jo
 				return fmt.Errorf("error getting plugin: %s, %v", x.pluginID, err)
 			}
 			if plug == nil {
-				return fmt.Errorf("plugin missing: %s %v", x.pluginID, err)
+				// plugin was never successfully registered or has been
+				// GC'd out from under us
+				continue
 			}
 			// only copy once, so we update the same plugin on each alloc
 			plugins[x.pluginID] = plug.Copy()
@@ -1444,8 +1446,10 @@ func (s *StateStore) deleteJobFromPlugins(index uint64, txn Txn, job *structs.Jo
 		}
 	}
 
-	if err = txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
+	if len(plugins) > 0 {
+		if err = txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
 	}
 
 	return nil
