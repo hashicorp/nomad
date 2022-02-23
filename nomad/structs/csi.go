@@ -554,12 +554,7 @@ func (v *CSIVolume) claimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
 	}
 
 	if !v.HasFreeWriteClaims() {
-		// Check the blocking allocations to see if they belong to this job
-		for _, a := range v.WriteAllocs {
-			if a != nil && (a.Namespace != alloc.Namespace || a.JobID != alloc.JobID) {
-				return ErrCSIVolumeMaxClaims
-			}
-		}
+		return ErrCSIVolumeMaxClaims
 	}
 
 	// Allocations are copy on write, so we want to keep the id but don't need the
