@@ -5016,8 +5016,8 @@ func (n *Namespace) Copy() *Namespace {
 	if n.Capabilities != nil {
 		c := new(NamespaceCapabilities)
 		*c = *n.Capabilities
-		copy(c.EnabledTaskDrivers, n.Capabilities.EnabledTaskDrivers)
-		copy(c.DisabledTaskDrivers, n.Capabilities.DisabledTaskDrivers)
+		c.EnabledTaskDrivers = helper.CopySliceString(n.Capabilities.EnabledTaskDrivers)
+		c.DisabledTaskDrivers = helper.CopySliceString(n.Capabilities.DisabledTaskDrivers)
 		nc.Capabilities = c
 	}
 	copy(nc.Hash, n.Hash)

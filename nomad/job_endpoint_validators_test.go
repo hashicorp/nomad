@@ -3,7 +3,9 @@ package nomad
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -80,4 +82,36 @@ func TestJobNamespaceConstraintCheckHook_taskValidateDriver(t *testing.T) {
 		var task = &structs.Task{Driver: c.driver}
 		require.Equal(t, c.result, taskValidateDriver(task, c.ns), c.description)
 	}
+}
+
+func TestJobNamespaceConstraintCheckHook_validate(t *testing.T) {
+	t.Parallel()
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a namespace
+	ns := mock.Namespace()
+	ns.Name = "default" // fix the name
+	ns.Capabilities = &structs.NamespaceCapabilities{
+		EnabledTaskDrivers:  []string{"docker", "qemu"},
+		DisabledTaskDrivers: []string{"exec", "raw_exec"},
+	}
+	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns})
+
+	hook := jobNamespaceConstraintCheckHook{srv: s1}
+	job := mock.LifecycleJob()
+	job.TaskGroups[0].Tasks[0].Driver = "docker"
+	job.TaskGroups[0].Tasks[1].Driver = "qemu"
+	job.TaskGroups[0].Tasks[2].Driver = "docker"
+	_, err := hook.Validate(job)
+	require.Nil(t, err)
+
+	job.TaskGroups[0].Tasks[2].Driver = "raw_exec"
+	_, err = hook.Validate(job)
+	require.Equal(t, err.Error(), "used task driver \"raw_exec\" is not allowed in namespace \"default\"")
+
+	job.TaskGroups[0].Tasks[1].Driver = "exec"
+	_, err = hook.Validate(job)
+	require.Equal(t, err.Error(), "used task drivers [\"exec\" \"raw_exec\"] are not allowed in namespace \"default\"")
 }
