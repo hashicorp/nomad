@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-secure-stdlib/listenerutil"
 	sockaddr "github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/go-sockaddr/template"
 	client "github.com/hashicorp/nomad/client/config"
@@ -1213,7 +1214,7 @@ func (c *Config) Merge(b *Config) *Config {
 // initialized and have reasonable defaults.
 func (c *Config) normalizeAddrs() error {
 	if c.BindAddr != "" {
-		ipStr, err := parseSingleIPTemplate(c.BindAddr)
+		ipStr, err := listenerutil.ParseSingleIPTemplate(c.BindAddr)
 		if err != nil {
 			return fmt.Errorf("Bind address resolution failed: %v", err)
 		}
@@ -1308,25 +1309,6 @@ func parseSingleInterfaceTemplate(tpl string) (string, error) {
 	return out, nil
 }
 
-// parseSingleIPTemplate is used as a helper function to parse out a single IP
-// address from a config parameter.
-func parseSingleIPTemplate(ipTmpl string) (string, error) {
-	out, err := template.Parse(ipTmpl)
-	if err != nil {
-		return "", fmt.Errorf("Unable to parse address template %q: %v", ipTmpl, err)
-	}
-
-	ips := strings.Split(out, " ")
-	switch len(ips) {
-	case 0:
-		return "", errors.New("No addresses found, please configure one.")
-	case 1:
-		return ips[0], nil
-	default:
-		return "", fmt.Errorf("Multiple addresses found (%q), please configure one.", out)
-	}
-}
-
 // parseMultipleIPTemplate is used as a helper function to parse out a multiple IP
 // addresses from a config parameter.
 func parseMultipleIPTemplate(ipTmpl string) ([]string, error) {
@@ -1350,7 +1332,7 @@ func normalizeBind(addr, bind string) (string, error) {
 	if addr == "" {
 		return bind, nil
 	}
-	return parseSingleIPTemplate(addr)
+	return listenerutil.ParseSingleIPTemplate(addr)
 }
 
 // normalizeMultipleBind returns normalized bind addresses.
@@ -1376,7 +1358,7 @@ func normalizeMultipleBind(addr, bind string) ([]string, error) {
 //
 // Loopback is only considered a valid advertise address in dev mode.
 func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string, error) {
-	addr, err := parseSingleIPTemplate(addr)
+	addr, err := listenerutil.ParseSingleIPTemplate(addr)
 	if err != nil {
 		return "", fmt.Errorf("Error parsing advertise address template: %v", err)
 	}
@@ -1417,7 +1399,7 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 	}
 
 	// Bind is not localhost but not a valid advertise IP, use first private IP
-	addr, err = parseSingleIPTemplate("{{ GetPrivateIP }}")
+	addr, err = listenerutil.ParseSingleIPTemplate("{{ GetPrivateIP }}")
 	if err != nil {
 		return "", fmt.Errorf("Unable to parse default advertise address: %v", err)
 	}
