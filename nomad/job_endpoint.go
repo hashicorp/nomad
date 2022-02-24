@@ -70,6 +70,7 @@ func NewJobEndpoints(s *Server) *Job {
 		validators: []jobValidator{
 			jobConnectHook{},
 			jobExposeCheckHook{},
+			jobNamespaceConstraintCheckHook{srv: s},
 			jobValidate{},
 			&memoryOversubscriptionValidate{srv: s},
 		},
