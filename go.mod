@@ -78,7 +78,7 @@ require (
 	github.com/hashicorp/nomad/api v0.0.0-20200529203653-c4416b26d3eb
 	github.com/hashicorp/raft v1.3.5
 	github.com/hashicorp/raft-boltdb/v2 v2.2.0
-	github.com/hashicorp/serf v0.9.5
+	github.com/hashicorp/serf v0.9.7
 	github.com/hashicorp/vault/api v1.0.5-0.20200805123347-1ef507638af6
 	github.com/hashicorp/vault/sdk v0.2.0
 	github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d
@@ -86,7 +86,7 @@ require (
 	github.com/kr/pretty v0.3.0
 	github.com/kr/text v0.2.0
 	github.com/mattn/go-colorable v0.1.9
-	github.com/miekg/dns v1.1.26
+	github.com/miekg/dns v1.1.41
 	github.com/mitchellh/cli v1.1.2
 	github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286
 	github.com/mitchellh/copystructure v1.2.0
@@ -205,7 +205,7 @@ require (
 	github.com/hashicorp/go-secure-stdlib/reloadutil v0.1.1 // indirect
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.1 // indirect
 	github.com/hashicorp/go-secure-stdlib/tlsutil v0.1.1 // indirect
-	github.com/hashicorp/mdns v1.0.1 // indirect
+	github.com/hashicorp/mdns v1.0.4 // indirect
 	github.com/hashicorp/vic v1.5.1-0.20190403131502-bbfe86ec9443 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
