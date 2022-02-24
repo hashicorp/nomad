@@ -511,16 +511,16 @@ executors:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
       - image: docker.mirror.hashicorp.services/golang:1.17.5
-    resource_class: medium
+    resource_class: large
     environment:
       <<: *common_envs
       GOPATH: /go
 
   go-machine:
-    working_directory: ~/go/src/github.com/hashicorp/nomad
+    working_directory: /mnt/ramdisk
     machine:
       image: *go_machine_image
-      resource_class: medium
+      resource_class: large
     environment: &machine_env
       <<: *common_envs
       GOLANG_VERSION: 1.17.5
