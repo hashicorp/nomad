@@ -545,11 +545,20 @@ func structsCSIInfoToApi(info *structs.CSIInfo) *api.CSIInfo {
 	}
 
 	if info.ControllerInfo != nil {
+		ci := info.ControllerInfo
 		out.ControllerInfo = &api.CSIControllerInfo{
-			SupportsReadOnlyAttach:           info.ControllerInfo.SupportsReadOnlyAttach,
-			SupportsAttachDetach:             info.ControllerInfo.SupportsAttachDetach,
-			SupportsListVolumes:              info.ControllerInfo.SupportsListVolumes,
-			SupportsListVolumesAttachedNodes: info.ControllerInfo.SupportsListVolumesAttachedNodes,
+			SupportsCreateDelete:             ci.SupportsCreateDelete,
+			SupportsAttachDetach:             ci.SupportsAttachDetach,
+			SupportsListVolumes:              ci.SupportsListVolumes,
+			SupportsGetCapacity:              ci.SupportsGetCapacity,
+			SupportsCreateDeleteSnapshot:     ci.SupportsCreateDeleteSnapshot,
+			SupportsListSnapshots:            ci.SupportsListSnapshots,
+			SupportsClone:                    ci.SupportsClone,
+			SupportsReadOnlyAttach:           ci.SupportsReadOnlyAttach,
+			SupportsExpand:                   ci.SupportsExpand,
+			SupportsListVolumesAttachedNodes: ci.SupportsListVolumesAttachedNodes,
+			SupportsCondition:                ci.SupportsCondition,
+			SupportsGet:                      ci.SupportsGet,
 		}
 	}
 
@@ -558,6 +567,9 @@ func structsCSIInfoToApi(info *structs.CSIInfo) *api.CSIInfo {
 			ID:                      info.NodeInfo.ID,
 			MaxVolumes:              info.NodeInfo.MaxVolumes,
 			RequiresNodeStageVolume: info.NodeInfo.RequiresNodeStageVolume,
+			SupportsStats:           info.NodeInfo.SupportsStats,
+			SupportsExpand:          info.NodeInfo.SupportsExpand,
+			SupportsCondition:       info.NodeInfo.SupportsCondition,
 		}
 
 		if info.NodeInfo.AccessibleTopology != nil {
