@@ -1,11 +1,13 @@
 package config
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	consul "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/go-secure-stdlib/listenerutil"
 	"github.com/hashicorp/nomad/helper"
 )
 
@@ -251,7 +253,11 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 	// http.Transport.
 	config := consul.DefaultConfig()
 	if c.Addr != "" {
-		config.Address = c.Addr
+		ipStr, err := listenerutil.ParseSingleIPTemplate(c.Addr)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse address template %q: %v", c.Addr, err)
+		}
+		config.Address = ipStr
 	}
 	if c.Token != "" {
 		config.Token = c.Token
