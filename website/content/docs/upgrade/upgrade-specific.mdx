@@ -55,7 +55,9 @@ mounted to the task's `NOMAD_TASK_DIR` instead of the
 
 The server raft database in `raft.db` will be automatically migrated to a new
 underlying implementation provided by `go.etcd.io/bbolt`. Downgrading to a previous
-version of the server after upgrading it to Nomad 1.3 is not supported.
+version of the server after upgrading it to Nomad 1.3 is not supported. Like with
+any Nomad upgrade it is recommended to take a snapshot of your database prior to
+upgrading in case a downgrade becomes necessary.
 
 The new database implementation enables a new server configuration option for
 controlling the underlying freelist-sync behavior. Clusters experiencing extreme
