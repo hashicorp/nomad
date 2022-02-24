@@ -59,6 +59,9 @@ Operator API Specific Options:
     if the -token flag is explicitly used, the token will also be included in
     the output.
 
+  -filter <query>
+    Specifies an expression used to filter query results.
+
   -H <Header>
     Adds an additional HTTP header to the request. May be specified more than
     once. These headers take precedent over automatically ones such as
@@ -95,11 +98,13 @@ func (*OperatorAPICommand) Name() string { return "operator api" }
 
 func (c *OperatorAPICommand) Run(args []string) int {
 	var dryrun bool
+	var filter string
 	headerFlags := newHeaderFlags()
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&dryrun, "dryrun", false, "")
+	flags.StringVar(&filter, "filter", "", "")
 	flags.BoolVar(&c.verboseFlag, "verbose", false, "")
 	flags.StringVar(&c.method, "X", "", "")
 	flags.Var(headerFlags, "H", "")
@@ -158,6 +163,13 @@ func (c *OperatorAPICommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error turning path into URL: %v", err))
 		return 2
+	}
+
+	// Set Filter query param
+	if filter != "" {
+		q := path.Query()
+		q.Set("filter", filter)
+		path.RawQuery = q.Encode()
 	}
 
 	if dryrun {
