@@ -51,6 +51,28 @@ The volume staging directory for new CSI plugin tasks will now be
 mounted to the task's `NOMAD_TASK_DIR` instead of the
 `csi_plugin.mount_config`.
 
+#### Server Raft Database
+
+The server raft database in `raft.db` will be automatically migrated to a new
+underlying implementation provided by `go.etcd.io/bbolt`. Downgrading to a previous
+version of the server after upgrading it to Nomad 1.3 is not supported. Like with
+any Nomad upgrade it is recommended to take a snapshot of your database prior to
+upgrading in case a downgrade becomes necessary.
+
+The new database implementation enables a new server configuration option for
+controlling the underlying freelist-sync behavior. Clusters experiencing extreme
+disk IO on servers may want to consider disabling freelist-sync to reduce load.
+The tradeoff is longer server startup times, as the database must be completely
+scanned to re-build the freelist from scratch.
+
+```hcl
+server {
+  raft_boltdb {
+    no_freelist_sync = true
+  }
+}
+```
+
 ## Nomad 1.2.6, 1.1.12, and 1.0.18
 
 #### ACL requirement for the job parse endpoint

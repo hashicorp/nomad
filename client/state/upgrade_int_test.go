@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boltdb/bolt"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	clientconfig "github.com/hashicorp/nomad/client/config"
@@ -27,6 +26,7 @@ import (
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.etcd.io/bbolt"
 )
 
 // TestBoltStateDB_Upgrade_Ok asserts upgading an old state db does not error
@@ -140,7 +140,7 @@ func TestBoltStateDB_UpgradeOld_Ok(t *testing.T) {
 		defer db.Close()
 
 		// Simply opening old files should *not* alter them
-		db.DB().BoltDB().View(func(tx *bolt.Tx) error {
+		db.DB().BoltDB().View(func(tx *bbolt.Tx) error {
 			b := tx.Bucket([]byte("meta"))
 			if b == nil {
 				return fmt.Errorf("meta bucket should exist")

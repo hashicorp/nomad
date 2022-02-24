@@ -7,18 +7,18 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/boltdb/bolt"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/require"
+	"go.etcd.io/bbolt"
 )
 
-func setupBoltDB(t *testing.T) (*bolt.DB, func()) {
+func setupBoltDB(t *testing.T) (*bbolt.DB, func()) {
 	dir, err := ioutil.TempDir("", "nomadtest")
 	require.NoError(t, err)
 
-	db, err := bolt.Open(filepath.Join(dir, "state.db"), 0666, nil)
+	db, err := bbolt.Open(filepath.Join(dir, "state.db"), 0666, nil)
 	if err != nil {
 		os.RemoveAll(dir)
 		require.NoError(t, err)
@@ -54,7 +54,7 @@ func TestUpgrade_NeedsUpgrade_Old(t *testing.T) {
 
 	// Create the allocations bucket which exists in both the old and 0.9
 	// schemas
-	require.NoError(t, db.Update(func(tx *bolt.Tx) error {
+	require.NoError(t, db.Update(func(tx *bbolt.Tx) error {
 		_, err := tx.CreateBucket(allocationsBucketName)
 		return err
 	}))
@@ -91,7 +91,7 @@ func TestUpgrade_NeedsUpgrade_Error(t *testing.T) {
 			db, cleanup := setupBoltDB(t)
 			defer cleanup()
 
-			require.NoError(t, db.Update(func(tx *bolt.Tx) error {
+			require.NoError(t, db.Update(func(tx *bbolt.Tx) error {
 				bkt, err := tx.CreateBucketIfNotExists(metaBucketName)
 				require.NoError(t, err)
 
@@ -160,7 +160,7 @@ func TestUpgrade_upgradeTaskBucket_InvalidEntries(t *testing.T) {
 	taskName := []byte("fake-task")
 
 	// Insert unexpected bucket, unexpected key, and missing simple-all
-	require.NoError(t, db.Update(func(tx *bolt.Tx) error {
+	require.NoError(t, db.Update(func(tx *bbolt.Tx) error {
 		bkt, err := tx.CreateBucket(taskName)
 		if err != nil {
 			return err
@@ -174,7 +174,7 @@ func TestUpgrade_upgradeTaskBucket_InvalidEntries(t *testing.T) {
 		return bkt.Put([]byte("unexepectedKey"), []byte{'x'})
 	}))
 
-	require.NoError(t, db.Update(func(tx *bolt.Tx) error {
+	require.NoError(t, db.Update(func(tx *bbolt.Tx) error {
 		bkt := tx.Bucket(taskName)
 
 		// upgradeTaskBucket should fail

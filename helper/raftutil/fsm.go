@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
+	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 )
 
 var ErrNoMoreLogs = fmt.Errorf("no more logs")

@@ -6,20 +6,20 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/boltdb/bolt"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"go.etcd.io/bbolt"
 )
 
 // NeedsUpgrade returns true if the BoltDB needs upgrading or false if it is
 // already up to date.
-func NeedsUpgrade(bdb *bolt.DB) (upgradeTo09, upgradeTo13 bool, err error) {
+func NeedsUpgrade(bdb *bbolt.DB) (upgradeTo09, upgradeTo13 bool, err error) {
 	upgradeTo09 = true
 	upgradeTo13 = true
-	err = bdb.View(func(tx *bolt.Tx) error {
+	err = bdb.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(metaBucketName)
 		if b == nil {
 			// No meta bucket; upgrade
@@ -53,7 +53,7 @@ func NeedsUpgrade(bdb *bolt.DB) (upgradeTo09, upgradeTo13 bool, err error) {
 
 // addMeta adds version metadata to BoltDB to mark it as upgraded and
 // should be run at the end of the upgrade transaction.
-func addMeta(tx *bolt.Tx) error {
+func addMeta(tx *bbolt.Tx) error {
 	// Create the meta bucket if it doesn't exist
 	bkt, err := tx.CreateBucketIfNotExists(metaBucketName)
 	if err != nil {
@@ -64,13 +64,13 @@ func addMeta(tx *bolt.Tx) error {
 
 // backupDB backs up the existing state database prior to upgrade overwriting
 // previous backups.
-func backupDB(bdb *bolt.DB, dst string) error {
+func backupDB(bdb *bbolt.DB, dst string) error {
 	fd, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
 
-	return bdb.View(func(tx *bolt.Tx) error {
+	return bdb.View(func(tx *bbolt.Tx) error {
 		if _, err := tx.WriteTo(fd); err != nil {
 			fd.Close()
 			return err
@@ -145,7 +145,7 @@ func UpgradeAllocs(logger hclog.Logger, tx *boltdd.Tx) error {
 }
 
 // upgradeAllocBucket upgrades an alloc bucket.
-func upgradeAllocBucket(logger hclog.Logger, tx *boltdd.Tx, bkt *bolt.Bucket, allocID string) error {
+func upgradeAllocBucket(logger hclog.Logger, tx *boltdd.Tx, bkt *bbolt.Bucket, allocID string) error {
 	allocFound := false
 	taskBuckets := [][]byte{}
 	cur := bkt.Cursor()
@@ -253,7 +253,7 @@ func upgradeAllocBucket(logger hclog.Logger, tx *boltdd.Tx, bkt *bolt.Bucket, al
 
 // upgradeTaskBucket iterates over keys in a task bucket, deleting invalid keys
 // and returning the 0.8 version of the state.
-func upgradeTaskBucket(logger hclog.Logger, bkt *bolt.Bucket) (*taskRunnerState08, error) {
+func upgradeTaskBucket(logger hclog.Logger, bkt *bbolt.Bucket) (*taskRunnerState08, error) {
 	simpleFound := false
 	var trState taskRunnerState08
 

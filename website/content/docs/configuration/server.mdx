@@ -156,6 +156,13 @@ server {
   disallow this server from making any scheduling decisions. This defaults to
   the number of CPU cores.
 
+- `raft_boltdb` - This is a nested object that allows configuring options for
+  Raft's BoltDB based log store.
+    - `no_freelist_sync` - Setting this to `true` will disable syncing the BoltDB
+    freelist to disk within the `raft.db` file. Not syncing the freelist to disk
+    will reduce disk IO required for write operations at the expense of longer
+    server startup times.
+
 - `raft_protocol` `(int: 3)` - Specifies the Raft protocol version to use when
   communicating with other Nomad servers. This affects available Autopilot
   features and is typically not required as the agent internally knows the
