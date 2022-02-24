@@ -105,9 +105,105 @@ func (c *PluginStatusCommand) csiFormatPlugin(plug *api.CSIPlugin) (string, erro
 		return formatKV(output), nil
 	}
 
+	full := []string{formatKV(output)}
+
+	if c.verbose {
+		controllerCaps := c.formatControllerCaps(plug.Controllers)
+		if controllerCaps != "" {
+			full = append(full, c.Colorize().Color("\n[bold]Controller Capabilities[reset]"))
+			full = append(full, controllerCaps)
+		}
+		nodeCaps := c.formatNodeCaps(plug.Nodes)
+		if nodeCaps != "" {
+			full = append(full, c.Colorize().Color("\n[bold]Node Capabilities[reset]"))
+			full = append(full, nodeCaps)
+		}
+	}
+
 	// Format the allocs
 	banner := c.Colorize().Color("\n[bold]Allocations[reset]")
 	allocs := formatAllocListStubs(plug.Allocations, c.verbose, c.length)
-	full := []string{formatKV(output), banner, allocs}
+	full = append(full, banner)
+	full = append(full, allocs)
 	return strings.Join(full, "\n"), nil
+}
+
+func (c *PluginStatusCommand) formatControllerCaps(controllers map[string]*api.CSIInfo) string {
+	caps := []string{}
+	for _, controller := range controllers {
+		switch info := controller.ControllerInfo; {
+		case info.SupportsCreateDelete:
+			caps = append(caps, "CREATE_DELETE_VOLUME")
+			fallthrough
+		case info.SupportsAttachDetach:
+			caps = append(caps, "CONTROLLER_ATTACH_DETACH")
+			fallthrough
+		case info.SupportsListVolumes:
+			caps = append(caps, "LIST_VOLUMES")
+			fallthrough
+		case info.SupportsGetCapacity:
+			caps = append(caps, "GET_CAPACITY")
+			fallthrough
+		case info.SupportsCreateDeleteSnapshot:
+			caps = append(caps, "CREATE_DELETE_SNAPSHOT")
+			fallthrough
+		case info.SupportsListSnapshots:
+			caps = append(caps, "CREATE_LIST_SNAPSHOTS")
+			fallthrough
+		case info.SupportsClone:
+			caps = append(caps, "CLONE_VOLUME")
+			fallthrough
+		case info.SupportsReadOnlyAttach:
+			caps = append(caps, "ATTACH_READONLY")
+			fallthrough
+		case info.SupportsExpand:
+			caps = append(caps, "EXPAND_VOLUME")
+			fallthrough
+		case info.SupportsListVolumesAttachedNodes:
+			caps = append(caps, "LIST_VOLUMES_PUBLISHED_NODES")
+			fallthrough
+		case info.SupportsCondition:
+			caps = append(caps, "VOLUME_CONDITION")
+			fallthrough
+		case info.SupportsGet:
+			caps = append(caps, "GET_VOLUME")
+			fallthrough
+		default:
+		}
+		break
+	}
+
+	if len(caps) == 0 {
+		return ""
+	}
+
+	return strings.Join(caps, "\n\t")
+}
+
+func (c *PluginStatusCommand) formatNodeCaps(nodes map[string]*api.CSIInfo) string {
+	caps := []string{}
+	for _, node := range nodes {
+		switch info := node.NodeInfo; {
+		case info.RequiresNodeStageVolume:
+			caps = append(caps, "STAGE_UNSTAGE_VOLUME")
+			fallthrough
+		case info.SupportsStats:
+			caps = append(caps, "GET_VOLUME_STATS")
+			fallthrough
+		case info.SupportsExpand:
+			caps = append(caps, "EXPAND_VOLUME")
+			fallthrough
+		case info.SupportsCondition:
+			caps = append(caps, "VOLUME_CONDITION")
+			fallthrough
+		default:
+		}
+		break
+	}
+
+	if len(caps) == 0 {
+		return ""
+	}
+
+	return "  " + strings.Join(caps, "\n  ")
 }
