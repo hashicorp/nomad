@@ -21,6 +21,30 @@ const (
 	DefaultDequeueTimeout = time.Second
 )
 
+// EvalPaginationIterator is a wrapper over a go-memdb iterator that implements
+// the paginator Iterator interface.
+type EvalPaginationIterator struct {
+	iter          memdb.ResultIterator
+	byCreateIndex bool
+}
+
+func (it EvalPaginationIterator) Next() (string, interface{}) {
+	raw := it.iter.Next()
+	if raw == nil {
+		return "", nil
+	}
+
+	eval := raw.(*structs.Evaluation)
+	token := eval.ID
+
+	// prefix the pagination token by CreateIndex to keep it properly sorted.
+	if it.byCreateIndex {
+		token = fmt.Sprintf("%v-%v", eval.CreateIndex, eval.ID)
+	}
+
+	return token, eval
+}
+
 // Eval endpoint is used for eval interactions
 type Eval struct {
 	srv    *Server
@@ -414,13 +438,17 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 			// Scan all the evaluations
 			var err error
 			var iter memdb.ResultIterator
+			var evalIter EvalPaginationIterator
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = store.EvalsByIDPrefix(ws, namespace, prefix)
+				evalIter.byCreateIndex = false
 			} else if namespace != structs.AllNamespacesSentinel {
 				iter, err = store.EvalsByNamespaceOrdered(ws, namespace, args.Ascending)
+				evalIter.byCreateIndex = true
 			} else {
 				iter, err = store.Evals(ws, args.Ascending)
+				evalIter.byCreateIndex = true
 			}
 			if err != nil {
 				return err
@@ -432,9 +460,10 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 				}
 				return false
 			})
+			evalIter.iter = iter
 
 			var evals []*structs.Evaluation
-			paginator, err := state.NewPaginator(iter, args.QueryOptions,
+			paginator, err := state.NewPaginator(evalIter, args.QueryOptions,
 				func(raw interface{}) error {
 					eval := raw.(*structs.Evaluation)
 					evals = append(evals, eval)
