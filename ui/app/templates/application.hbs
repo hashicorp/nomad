@@ -4,9 +4,7 @@
   separator=" - "
 }}
 <SvgPatterns />
-{{#unless this.error}}
-  {{outlet}}
-{{else}}
+{{#if this.error}}
   <div class="error-container">
     <div data-test-error class="error-message">
       {{#if this.isNoLeader}}
@@ -60,4 +58,6 @@
       >Go to Clients</LinkTo>
     </div>
   </div>
-{{/unless}}
+{{else}}
+  {{outlet}}
+{{/if}}
