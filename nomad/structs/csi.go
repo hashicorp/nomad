@@ -246,9 +246,19 @@ type CSIVolume struct {
 	// Name is a display name for the volume, not required to be unique
 	Name string
 	// ExternalID identifies the volume for the CSI interface, may be URL unsafe
-	ExternalID     string
-	Namespace      string
-	Topologies     []*CSITopology
+	ExternalID string
+	Namespace  string
+
+	// RequestedTopologies are the topologies submitted as options to
+	// the storage provider at the time the volume was created. After
+	// volumes are created, this field is ignored.
+	RequestedTopologies *CSITopologyRequest
+
+	// Topologies are the topologies returned by the storage provider,
+	// based on the RequestedTopologies and what the storage provider
+	// could support. This value cannot be set by the user.
+	Topologies []*CSITopology
+
 	AccessMode     CSIVolumeAccessMode     // *current* access mode
 	AttachmentMode CSIVolumeAttachmentMode // *current* attachment mode
 	MountOptions   *CSIMountOptions
@@ -679,20 +689,18 @@ func (v *CSIVolume) Validate() error {
 	if len(v.RequestedCapabilities) == 0 {
 		errs = append(errs, "must include at least one capability block")
 	}
-
-	// TODO: Volume Topologies are optional - We should check to see if the plugin
-	//       the volume is being registered with requires them.
-	// var ok bool
-	// for _, t := range v.Topologies {
-	// 	if t != nil && len(t.Segments) > 0 {
-	// 		ok = true
-	// 		break
-	// 	}
-	// }
-	// if !ok {
-	// 	errs = append(errs, "missing topology")
-	// }
-
+	if v.RequestedTopologies != nil {
+		for _, t := range v.RequestedTopologies.Required {
+			if t != nil && len(t.Segments) == 0 {
+				errs = append(errs, "required topology is missing segments field")
+			}
+		}
+		for _, t := range v.RequestedTopologies.Preferred {
+			if t != nil && len(t.Segments) == 0 {
+				errs = append(errs, "preferred topology is missing segments field")
+			}
+		}
+	}
 	if len(errs) > 0 {
 		return fmt.Errorf("validation: %s", strings.Join(errs, ", "))
 	}
@@ -835,9 +843,6 @@ type CSIVolumeExternalStub struct {
 	VolumeContext map[string]string
 	CloneID       string
 	SnapshotID    string
-
-	// TODO: topology support
-	// AccessibleTopology []*Topology
 
 	PublishedExternalNodeIDs []string
 	IsAbnormal               bool

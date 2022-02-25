@@ -554,6 +554,21 @@ func TestVolume_Copy(t *testing.T) {
 
 }
 
+func TestCSIVolume_Validate(t *testing.T) {
+	vol := &CSIVolume{
+		ID:         "test",
+		PluginID:   "test",
+		SnapshotID: "test-snapshot",
+		CloneID:    "test-clone",
+		RequestedTopologies: &CSITopologyRequest{
+			Required: []*CSITopology{{}, {}},
+		},
+	}
+	err := vol.Validate()
+	require.EqualError(t, err, "validation: missing namespace, only one of snapshot_id and clone_id is allowed, must include at least one capability block, required topology is missing segments field, required topology is missing segments field")
+
+}
+
 func TestCSIPluginJobs(t *testing.T) {
 	plug := NewCSIPlugin("foo", 1000)
 	controller := &Job{
