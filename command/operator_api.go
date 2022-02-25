@@ -106,7 +106,7 @@ func (c *OperatorAPICommand) Run(args []string) int {
 	flags.BoolVar(&dryrun, "dryrun", false, "")
 	flags.StringVar(&filter, "filter", "", "")
 	flags.BoolVar(&c.verboseFlag, "verbose", false, "")
-	flags.StringVar(&c.method, "X", "", "")
+	flags.StringVar(&c.method, "X", "GET", "")
 	flags.Var(headerFlags, "H", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -145,8 +145,6 @@ func (c *OperatorAPICommand) Run(args []string) int {
 		if c.method == "" {
 			c.method = "POST"
 		}
-	} else {
-		c.method = "GET"
 	}
 
 	config := c.clientConfig()
@@ -339,7 +337,7 @@ func (c *OperatorAPICommand) apiToCurl(config *api.Config, headers http.Header, 
 	// environment variable.
 	if headers.Get("X-Nomad-Token") == "" {
 		if c.Meta.token != "" {
-			parts = append(parts, fmt.Sprintf(`-H "X-Nomad-Token: %s"`, c.Meta.token))
+			parts = append(parts, fmt.Sprintf(`-H 'X-Nomad-Token: %s'`, c.Meta.token))
 		} else if v := os.Getenv("NOMAD_TOKEN"); v != "" {
 			parts = append(parts, `-H "X-Nomad-Token: ${NOMAD_TOKEN}"`)
 		}
@@ -443,6 +441,6 @@ func (h *headerFlags) Set(v string) error {
 		return fmt.Errorf("Headers must be in the form 'Key: Value' but found: %q", v)
 	}
 
-	h.headers.Add(parts[0], parts[1])
+	h.headers.Add(parts[0], strings.TrimSpace(parts[1]))
 	return nil
 }
