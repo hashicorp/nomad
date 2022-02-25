@@ -116,9 +116,12 @@ testing.
     reachable by all the nodes from which end users are going to use the Nomad
     CLI tools.
 
-  - `rpc` - The address advertised to Nomad client nodes. This allows
-    advertising a different RPC address than is used by Nomad Servers such that
-    the clients can connect to the Nomad servers if they are behind a NAT.
+  - `rpc` - The address used to advertise to Nomad clients for connecting to Nomad
+    servers for RPC. This allows Nomad clients to connect to Nomad servers from
+    behind a NAT gateway. This address much be reachable by all Nomad client nodes.
+    When set, the Nomad servers will use the `advertise.serf` address for RPC
+    connections amongst themselves. Setting this value on a Nomad client has no
+    effect.
 
   - `serf` - The address advertised for the gossip layer. This address must be
     reachable from all server nodes. It is not required that clients can reach
