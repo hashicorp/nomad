@@ -27,6 +27,7 @@ const (
 	FilterConstraintCSIVolumeGCdAllocationTemplate = "CSI volume %s has exhausted its available writer claims and is claimed by a garbage collected allocation %s; waiting for claim to be released"
 	FilterConstraintDrivers                        = "missing drivers"
 	FilterConstraintDevices                        = "missing devices"
+	FilterConstraintsCSIPluginTopology             = "did not meet topology requirement"
 )
 
 var (
@@ -311,6 +312,22 @@ func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 		}
 		if pluginCount[vol.PluginID] >= plugin.NodeInfo.MaxVolumes {
 			return false, fmt.Sprintf(FilterConstraintCSIPluginMaxVolumesTemplate, vol.PluginID, n.ID)
+		}
+
+		// CSI spec: "If requisite is specified, the provisioned
+		// volume MUST be accessible from at least one of the
+		// requisite topologies."
+		if len(vol.Topologies) > 0 {
+			var ok bool
+			for _, requiredTopo := range vol.Topologies {
+				if requiredTopo.Equal(plugin.NodeInfo.AccessibleTopology) {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				return false, FilterConstraintsCSIPluginTopology
+			}
 		}
 
 		if req.ReadOnly {
