@@ -5569,7 +5569,8 @@ func TestTaskEventPopulate(t *testing.T) {
 		{NewTaskEvent(TaskSignaling).SetTaskSignal(os.Interrupt).SetTaskSignalReason("process interrupted"), "Task being sent signal interrupt: process interrupted"},
 		{NewTaskEvent(TaskRestartSignal), "Task signaled to restart"},
 		{NewTaskEvent(TaskRestartSignal).SetRestartReason("Chaos Monkey restarted it"), "Chaos Monkey restarted it"},
-		{NewTaskEvent(TaskDriverMessage).SetDriverMessage("YOLO"), "YOLO"},
+		{NewTaskEvent(TaskClientReconnected), "Client reconnected"},
+		{NewTaskEvent(TaskLeaderDead), "Leader Task in Group dead"},
 		{NewTaskEvent("Unknown Type, No message"), ""},
 		{NewTaskEvent("Unknown Type").SetMessage("Hello world"), "Hello world"},
 	}

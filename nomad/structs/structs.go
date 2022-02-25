@@ -7871,6 +7871,9 @@ const (
 
 	// TaskPluginHealthy indicates that a plugin managed by Nomad became healthy
 	TaskPluginHealthy = "Plugin became healthy"
+
+	// TaskClientReconnected indicates that the client running the task disconnected.
+	TaskClientReconnected = "Reconnected"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -8082,6 +8085,8 @@ func (e *TaskEvent) PopulateEventDisplayMessage() {
 		desc = "Leader Task in Group dead"
 	case TaskMainDead:
 		desc = "Main tasks in the group died"
+	case TaskClientReconnected:
+		desc = "Client reconnected"
 	default:
 		desc = e.Message
 	}
