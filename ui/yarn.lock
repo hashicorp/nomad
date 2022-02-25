@@ -8803,7 +8803,7 @@ ember-cli-babel@^6.0.0-beta.4, ember-cli-babel@^6.16.0, ember-cli-babel@^6.18.0,
     ember-cli-version-checker "^2.1.2"
     semver "^5.5.0"
 
-ember-cli-babel@^7.0.0, ember-cli-babel@^7.1.2, ember-cli-babel@^7.1.3, ember-cli-babel@^7.10.0, ember-cli-babel@^7.11.1, ember-cli-babel@^7.13.0, ember-cli-babel@^7.19.0, ember-cli-babel@^7.21.0, ember-cli-babel@^7.22.1, ember-cli-babel@^7.23.0, ember-cli-babel@^7.5.0:
+ember-cli-babel@^7.0.0, ember-cli-babel@^7.1.2, ember-cli-babel@^7.1.3, ember-cli-babel@^7.10.0, ember-cli-babel@^7.13.0, ember-cli-babel@^7.19.0, ember-cli-babel@^7.21.0, ember-cli-babel@^7.22.1, ember-cli-babel@^7.23.0, ember-cli-babel@^7.5.0:
   version "7.23.1"
   resolved "https://registry.yarnpkg.com/ember-cli-babel/-/ember-cli-babel-7.23.1.tgz#d1517228ede08a5d4b045c78a7429728e956b30b"
   integrity sha512-qYggmt3hRs6QJ6cRkww3ahMpyP8IEV2KFrIRO/Z6hu9MkE/8Y28Xd5NjQl6fPV3oLoG0vwuHzhNe3Jr7Wec8zw==
@@ -8835,7 +8835,7 @@ ember-cli-babel@^7.0.0, ember-cli-babel@^7.1.2, ember-cli-babel@^7.1.3, ember-cl
     rimraf "^3.0.1"
     semver "^5.5.0"
 
-ember-cli-babel@^7.13.2, ember-cli-babel@^7.26.11, ember-cli-babel@^7.26.5, ember-cli-babel@^7.7.3:
+ember-cli-babel@^7.13.2, ember-cli-babel@^7.26.11, ember-cli-babel@^7.26.3, ember-cli-babel@^7.26.5, ember-cli-babel@^7.7.3:
   version "7.26.11"
   resolved "https://registry.yarnpkg.com/ember-cli-babel/-/ember-cli-babel-7.26.11.tgz#50da0fe4dcd99aada499843940fec75076249a9f"
   integrity sha512-JJYeYjiz/JTn34q7F5DSOjkkZqy8qwFOOxXfE6pe9yEJqWGu4qErKxlz8I22JoVEQ/aBUO+OcKTpmctvykM9YA==
@@ -9467,14 +9467,14 @@ ember-compatibility-helpers@^1.1.2:
     fs-extra "^9.1.0"
     semver "^5.4.1"
 
-ember-composable-helpers@^4.4.1:
-  version "4.4.1"
-  resolved "https://registry.yarnpkg.com/ember-composable-helpers/-/ember-composable-helpers-4.4.1.tgz#968f0ef72731cc300b377c552f36f20881911472"
-  integrity sha512-MVx4KGFL6JzsYfCf9OqLCCnr7DN5tG2jFW9EvosvfgCL7gRdNxLqewR4PWPYA882wetmJ9zvcIEUJhFzZ4deaw==
+ember-composable-helpers@^5.0.0:
+  version "5.0.0"
+  resolved "https://registry.yarnpkg.com/ember-composable-helpers/-/ember-composable-helpers-5.0.0.tgz#055bab3a3e234ab2917499b1465e968c253ca885"
+  integrity sha512-gyUrjiSju4QwNrsCLbBpP0FL6VDFZaELNW7Kbcp60xXhjvNjncYgzm4zzYXhT+i1lLA6WEgRZ3lOGgyBORYD0w==
   dependencies:
     "@babel/core" "^7.0.0"
     broccoli-funnel "2.0.1"
-    ember-cli-babel "^7.11.1"
+    ember-cli-babel "^7.26.3"
     resolve "^1.10.0"
 
 ember-concurrency-decorators@^2.0.0:
