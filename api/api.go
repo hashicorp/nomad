@@ -65,6 +65,10 @@ type QueryOptions struct {
 	// AuthToken is the secret ID of an ACL token
 	AuthToken string
 
+	// Filter specifies the go-bexpr filter expression to be used for
+	// filtering the data prior to returning a response
+	Filter string
+
 	// PerPage is the number of entries to be returned in queries that support
 	// paginated lists.
 	PerPage int32
@@ -74,6 +78,11 @@ type QueryOptions struct {
 	// the ID of the next object after the last one seen in the
 	// previous response.
 	NextToken string
+
+	// Ascending is used to have results sorted in ascending chronological order.
+	//
+	// Currently only supported by evaluations.List and deployments.list endpoints.
+	Ascending bool
 
 	// ctx is an optional context pass through to the underlying HTTP
 	// request layer. Use Context() and WithContext() to manage this.
@@ -581,11 +590,17 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	if q.Prefix != "" {
 		r.params.Set("prefix", q.Prefix)
 	}
+	if q.Filter != "" {
+		r.params.Set("filter", q.Filter)
+	}
 	if q.PerPage != 0 {
 		r.params.Set("per_page", fmt.Sprint(q.PerPage))
 	}
 	if q.NextToken != "" {
 		r.params.Set("next_token", q.NextToken)
+	}
+	if q.Ascending {
+		r.params.Set("ascending", "true")
 	}
 	for k, v := range q.Params {
 		r.params.Set(k, v)

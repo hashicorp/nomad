@@ -78,8 +78,8 @@ func (tc *CSIControllerPluginEBSTest) AfterAll(f *framework.F) {
 
 	// Stop all jobs in test
 	for _, id := range tc.testJobIDs {
-		out, err := e2e.Command("nomad", "job", "stop", "-purge", id)
-		f.Assert().NoError(err, out)
+		err := e2e.StopJob(id, "-purge")
+		f.Assert().NoError(err)
 	}
 	tc.testJobIDs = []string{}
 
@@ -94,8 +94,8 @@ func (tc *CSIControllerPluginEBSTest) AfterAll(f *framework.F) {
 
 	// Deregister all plugin jobs in test
 	for _, id := range tc.pluginJobIDs {
-		out, err := e2e.Command("nomad", "job", "stop", "-purge", id)
-		f.Assert().NoError(err, out)
+		err := e2e.StopJob(id, "-purge")
+		f.Assert().NoError(err)
 	}
 	tc.pluginJobIDs = []string{}
 
@@ -130,7 +130,7 @@ func (tc *CSIControllerPluginEBSTest) TestVolumeClaim(f *framework.F) {
 	// Shutdown (and purge) the writer so we can run a reader.
 	// we could mount the EBS volume with multi-attach, but we
 	// want this test to exercise the unpublish workflow.
-	_, err = e2e.Command("nomad", "job", "stop", "-purge", writeJobID)
+	err = e2e.StopJob(writeJobID, "-purge")
 	f.NoError(err)
 
 	// wait for the volume unpublish workflow to complete

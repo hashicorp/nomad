@@ -7,6 +7,7 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -196,12 +197,14 @@ func (q *PlanQueue) Stats() *QueueStats {
 
 // EmitStats is used to export metrics about the broker while enabled
 func (q *PlanQueue) EmitStats(period time.Duration, stopCh <-chan struct{}) {
+	timer, stop := helper.NewSafeTimer(period)
+	defer stop()
+
 	for {
 		select {
-		case <-time.After(period):
+		case <-timer.C:
 			stats := q.Stats()
 			metrics.SetGauge([]string{"nomad", "plan", "queue_depth"}, float32(stats.Depth))
-
 		case <-stopCh:
 			return
 		}

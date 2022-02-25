@@ -1,0 +1,3 @@
+```release-note:improvement
+consul: add go-sockaddr templating support to nomad consul address
+```

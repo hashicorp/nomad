@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-secure-stdlib/listenerutil"
 	sockaddr "github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/go-sockaddr/template"
 	client "github.com/hashicorp/nomad/client/config"
@@ -367,7 +368,9 @@ type ServerConfig struct {
 
 	// ProtocolVersion is the protocol version to speak. This must be between
 	// ProtocolVersionMin and ProtocolVersionMax.
-	ProtocolVersion int `hcl:"protocol_version"`
+	//
+	// Deprecated: This has never been used and will emit a warning if nonzero.
+	ProtocolVersion int `hcl:"protocol_version" json:"-"`
 
 	// RaftProtocol is the Raft protocol version to speak. This must be from [1-3].
 	RaftProtocol int `hcl:"raft_protocol"`
@@ -514,11 +517,26 @@ type ServerConfig struct {
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 
+	// Search configures UI search features.
 	Search *Search `hcl:"search"`
 
 	// DeploymentQueryRateLimit is in queries per second and is used by the
 	// DeploymentWatcher to throttle the amount of simultaneously deployments
 	DeploymentQueryRateLimit float64 `hcl:"deploy_query_rate_limit"`
+
+	// RaftBoltConfig configures boltdb as used by raft.
+	RaftBoltConfig *RaftBoltConfig `hcl:"raft_boltdb"`
+}
+
+// RaftBoltConfig is used in servers to configure parameters of the boltdb
+// used for raft consensus.
+type RaftBoltConfig struct {
+	// NoFreelistSync toggles whether the underlying raft storage should sync its
+	// freelist to disk within the bolt .db file. When disabled, IO performance
+	// will be improved but at the expense of longer startup times.
+	//
+	// Default: false.
+	NoFreelistSync bool `hcl:"no_freelist_sync"`
 }
 
 // Search is used in servers to configure search API options.
@@ -953,6 +971,7 @@ func DefaultConfig() *Config {
 			Enabled:           false,
 			EnableEventBroker: helper.BoolToPtr(true),
 			EventBufferSize:   helper.IntToPtr(100),
+			RaftProtocol:      3,
 			StartJoin:         []string{},
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
@@ -1212,7 +1231,7 @@ func (c *Config) Merge(b *Config) *Config {
 // initialized and have reasonable defaults.
 func (c *Config) normalizeAddrs() error {
 	if c.BindAddr != "" {
-		ipStr, err := parseSingleIPTemplate(c.BindAddr)
+		ipStr, err := listenerutil.ParseSingleIPTemplate(c.BindAddr)
 		if err != nil {
 			return fmt.Errorf("Bind address resolution failed: %v", err)
 		}
@@ -1307,25 +1326,6 @@ func parseSingleInterfaceTemplate(tpl string) (string, error) {
 	return out, nil
 }
 
-// parseSingleIPTemplate is used as a helper function to parse out a single IP
-// address from a config parameter.
-func parseSingleIPTemplate(ipTmpl string) (string, error) {
-	out, err := template.Parse(ipTmpl)
-	if err != nil {
-		return "", fmt.Errorf("Unable to parse address template %q: %v", ipTmpl, err)
-	}
-
-	ips := strings.Split(out, " ")
-	switch len(ips) {
-	case 0:
-		return "", errors.New("No addresses found, please configure one.")
-	case 1:
-		return ips[0], nil
-	default:
-		return "", fmt.Errorf("Multiple addresses found (%q), please configure one.", out)
-	}
-}
-
 // parseMultipleIPTemplate is used as a helper function to parse out a multiple IP
 // addresses from a config parameter.
 func parseMultipleIPTemplate(ipTmpl string) ([]string, error) {
@@ -1349,7 +1349,7 @@ func normalizeBind(addr, bind string) (string, error) {
 	if addr == "" {
 		return bind, nil
 	}
-	return parseSingleIPTemplate(addr)
+	return listenerutil.ParseSingleIPTemplate(addr)
 }
 
 // normalizeMultipleBind returns normalized bind addresses.
@@ -1375,7 +1375,7 @@ func normalizeMultipleBind(addr, bind string) ([]string, error) {
 //
 // Loopback is only considered a valid advertise address in dev mode.
 func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string, error) {
-	addr, err := parseSingleIPTemplate(addr)
+	addr, err := listenerutil.ParseSingleIPTemplate(addr)
 	if err != nil {
 		return "", fmt.Errorf("Error parsing advertise address template: %v", err)
 	}
@@ -1416,7 +1416,7 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 	}
 
 	// Bind is not localhost but not a valid advertise IP, use first private IP
-	addr, err = parseSingleIPTemplate("{{ GetPrivateIP }}")
+	addr, err = listenerutil.ParseSingleIPTemplate("{{ GetPrivateIP }}")
 	if err != nil {
 		return "", fmt.Errorf("Unable to parse default advertise address: %v", err)
 	}
@@ -1596,6 +1596,12 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		}
 	}
 
+	if b.RaftBoltConfig != nil {
+		result.RaftBoltConfig = &RaftBoltConfig{
+			NoFreelistSync: b.RaftBoltConfig.NoFreelistSync,
+		}
+	}
+
 	// Add the schedulers
 	result.EnabledSchedulers = append(result.EnabledSchedulers, b.EnabledSchedulers...)
 
@@ -1660,6 +1666,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.Reserved = &reserved
 	} else if b.Reserved != nil {
 		result.Reserved = result.Reserved.Merge(b.Reserved)
+	}
+	if b.ReserveableCores != "" {
+		result.ReserveableCores = b.ReserveableCores
 	}
 	if b.GCInterval != 0 {
 		result.GCInterval = b.GCInterval

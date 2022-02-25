@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -24,6 +25,9 @@ const (
 type Eval struct {
 	srv    *Server
 	logger log.Logger
+
+	// ctx provides context regarding the underlying connection
+	ctx *RPCContext
 }
 
 // GetEval is used to request information about a specific evaluation
@@ -82,6 +86,13 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 // Dequeue is used to dequeue a pending evaluation
 func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	reply *structs.EvalDequeueResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Dequeue", args, args, reply); done {
 		return err
 	}
@@ -167,6 +178,13 @@ func (e *Eval) getWaitIndex(namespace, job string, evalModifyIndex uint64) (uint
 // Ack is used to acknowledge completion of a dequeued evaluation
 func (e *Eval) Ack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Ack", args, args, reply); done {
 		return err
 	}
@@ -182,6 +200,13 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 // Nack is used to negative acknowledge completion of a dequeued evaluation.
 func (e *Eval) Nack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Nack", args, args, reply); done {
 		return err
 	}
@@ -197,6 +222,13 @@ func (e *Eval) Nack(args *structs.EvalAckRequest,
 // Update is used to perform an update of an Eval if it is outstanding.
 func (e *Eval) Update(args *structs.EvalUpdateRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Update", args, args, reply); done {
 		return err
 	}
@@ -227,6 +259,13 @@ func (e *Eval) Update(args *structs.EvalUpdateRequest,
 // Create is used to make a new evaluation
 func (e *Eval) Create(args *structs.EvalUpdateRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Create", args, args, reply); done {
 		return err
 	}
@@ -272,6 +311,12 @@ func (e *Eval) Create(args *structs.EvalUpdateRequest,
 // Reblock is used to reinsert an existing blocked evaluation into the blocked
 // evaluation tracker.
 func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericResponse) error {
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Reblock", args, args, reply); done {
 		return err
 	}
@@ -314,6 +359,13 @@ func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericRe
 // Reap is used to cleanup dead evaluations and allocations
 func (e *Eval) Reap(args *structs.EvalDeleteRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Reap", args, args, reply); done {
 		return err
 	}
@@ -331,18 +383,27 @@ func (e *Eval) Reap(args *structs.EvalDeleteRequest,
 }
 
 // List is used to get a list of the evaluations in the system
-func (e *Eval) List(args *structs.EvalListRequest,
-	reply *structs.EvalListResponse) error {
+func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListResponse) error {
 	if done, err := e.srv.forward("Eval.List", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "list"}, time.Now())
 
+	namespace := args.RequestNamespace()
+
 	// Check for read-job permissions
 	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
+	}
+
+	if args.Filter != "" {
+		// Check for incompatible filtering.
+		hasLegacyFilter := args.FilterJobID != "" || args.FilterEvalStatus != ""
+		if hasLegacyFilter {
+			return structs.ErrIncompatibleFiltering
+		}
 	}
 
 	// Setup the blocking query
@@ -353,12 +414,13 @@ func (e *Eval) List(args *structs.EvalListRequest,
 			// Scan all the evaluations
 			var err error
 			var iter memdb.ResultIterator
-			if args.RequestNamespace() == structs.AllNamespacesSentinel {
-				iter, err = store.Evals(ws)
-			} else if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = store.EvalsByIDPrefix(ws, args.RequestNamespace(), prefix)
+
+			if prefix := args.QueryOptions.Prefix; prefix != "" {
+				iter, err = store.EvalsByIDPrefix(ws, namespace, prefix)
+			} else if namespace != structs.AllNamespacesSentinel {
+				iter, err = store.EvalsByNamespaceOrdered(ws, namespace, args.Ascending)
 			} else {
-				iter, err = store.EvalsByNamespace(ws, args.RequestNamespace())
+				iter, err = store.Evals(ws, args.Ascending)
 			}
 			if err != nil {
 				return err
@@ -372,13 +434,23 @@ func (e *Eval) List(args *structs.EvalListRequest,
 			})
 
 			var evals []*structs.Evaluation
-			paginator := state.NewPaginator(iter, args.QueryOptions,
-				func(raw interface{}) {
+			paginator, err := state.NewPaginator(iter, args.QueryOptions,
+				func(raw interface{}) error {
 					eval := raw.(*structs.Evaluation)
 					evals = append(evals, eval)
+					return nil
 				})
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to create result paginator: %v", err)
+			}
 
-			nextToken := paginator.Page()
+			nextToken, err := paginator.Page()
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to read result page: %v", err)
+			}
+
 			reply.QueryMeta.NextToken = nextToken
 			reply.Evaluations = evals
 

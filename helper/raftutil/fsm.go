@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
+	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 )
 
 var ErrNoMoreLogs = fmt.Errorf("no more logs")
@@ -192,8 +192,8 @@ func StateAsMap(state *state.StateStore) map[string][]interface{} {
 		"Allocs":           toArray(state.Allocs(nil)),
 		"CSIPlugins":       toArray(state.CSIPlugins(nil)),
 		"CSIVolumes":       toArray(state.CSIVolumes(nil)),
-		"Deployments":      toArray(state.Deployments(nil)),
-		"Evals":            toArray(state.Evals(nil)),
+		"Deployments":      toArray(state.Deployments(nil, false)),
+		"Evals":            toArray(state.Evals(nil, false)),
 		"Indexes":          toArray(state.Indexes()),
 		"JobSummaries":     toArray(state.JobSummaries(nil)),
 		"JobVersions":      toArray(state.JobVersions(nil)),

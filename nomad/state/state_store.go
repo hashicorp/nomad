@@ -32,6 +32,14 @@ const (
 	NodeRegisterEventReregistered = "Node re-registered"
 )
 
+// terminate appends the go-memdb terminator character to s.
+//
+// We can then use the result for exact matches during prefix
+// scans over compound indexes that start with s.
+func terminate(s string) string {
+	return s + "\x00"
+}
+
 // IndexEntry is used with the "index" table
 // for managing the latest Raft index affecting a table.
 type IndexEntry struct {
@@ -536,17 +544,25 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 	return nil
 }
 
-func (s *StateStore) Deployments(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) Deployments(ws memdb.WatchSet, ascending bool) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	// Walk the entire deployments table
-	iter, err := txn.Get("deployment", "id")
+	var it memdb.ResultIterator
+	var err error
+
+	if ascending {
+		it, err = txn.Get("deployment", "create")
+	} else {
+		it, err = txn.GetReverse("deployment", "create")
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	ws.Add(iter.WatchCh())
-	return iter, nil
+	ws.Add(it.WatchCh())
+
+	return it, nil
 }
 
 func (s *StateStore) DeploymentsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
@@ -560,6 +576,30 @@ func (s *StateStore) DeploymentsByNamespace(ws memdb.WatchSet, namespace string)
 
 	ws.Add(iter.WatchCh())
 	return iter, nil
+}
+
+func (s *StateStore) DeploymentsByNamespaceOrdered(ws memdb.WatchSet, namespace string, ascending bool) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	var (
+		it    memdb.ResultIterator
+		err   error
+		exact = terminate(namespace)
+	)
+
+	if ascending {
+		it, err = txn.Get("deployment", "namespace_create_prefix", exact)
+	} else {
+		it, err = txn.GetReverse("deployment", "namespace_create_prefix", exact)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(it.WatchCh())
+
+	return it, nil
 }
 
 func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, namespace, deploymentID string) (memdb.ResultIterator, error) {
@@ -853,7 +893,7 @@ func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
 	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
-	if err := upsertNodeCSIPlugins(txn, node, index); err != nil {
+	if err := upsertCSIPluginsForNode(txn, node, index); err != nil {
 		return fmt.Errorf("csi plugin update failed: %v", err)
 	}
 
@@ -1178,11 +1218,11 @@ func appendNodeEvents(index uint64, node *structs.Node, events []*structs.NodeEv
 	}
 }
 
-// upsertNodeCSIPlugins indexes csi plugins for volume retrieval, with health. It's called
+// upsertCSIPluginsForNode indexes csi plugins for volume retrieval, with health. It's called
 // on upsertNodeEvents, so that event driven health changes are updated
-func upsertNodeCSIPlugins(txn *txn, node *structs.Node, index uint64) error {
+func upsertCSIPluginsForNode(txn *txn, node *structs.Node, index uint64) error {
 
-	loop := func(info *structs.CSIInfo) error {
+	upsertFn := func(info *structs.CSIInfo) error {
 		raw, err := txn.First("csi_plugins", "id", info.PluginID)
 		if err != nil {
 			return fmt.Errorf("csi_plugin lookup error: %s %v", info.PluginID, err)
@@ -1226,7 +1266,7 @@ func upsertNodeCSIPlugins(txn *txn, node *structs.Node, index uint64) error {
 	inUseNode := map[string]struct{}{}
 
 	for _, info := range node.CSIControllerPlugins {
-		err := loop(info)
+		err := upsertFn(info)
 		if err != nil {
 			return err
 		}
@@ -1234,7 +1274,7 @@ func upsertNodeCSIPlugins(txn *txn, node *structs.Node, index uint64) error {
 	}
 
 	for _, info := range node.CSINodePlugins {
-		err := loop(info)
+		err := upsertFn(info)
 		if err != nil {
 			return err
 		}
@@ -1420,7 +1460,9 @@ func (s *StateStore) deleteJobFromPlugins(index uint64, txn Txn, job *structs.Jo
 				return fmt.Errorf("error getting plugin: %s, %v", x.pluginID, err)
 			}
 			if plug == nil {
-				return fmt.Errorf("plugin missing: %s %v", x.pluginID, err)
+				// plugin was never successfully registered or has been
+				// GC'd out from under us
+				continue
 			}
 			// only copy once, so we update the same plugin on each alloc
 			plugins[x.pluginID] = plug.Copy()
@@ -1444,8 +1486,10 @@ func (s *StateStore) deleteJobFromPlugins(index uint64, txn Txn, job *structs.Jo
 		}
 	}
 
-	if err = txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
+	if len(plugins) > 0 {
+		if err = txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
 	}
 
 	return nil
@@ -3112,35 +3156,68 @@ func (s *StateStore) EvalsByJob(ws memdb.WatchSet, namespace, jobID string) ([]*
 	return out, nil
 }
 
-// Evals returns an iterator over all the evaluations
-func (s *StateStore) Evals(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+// Evals returns an iterator over all the evaluations in ascending or descending
+// order of CreationIndex as determined by the ascending parameter.
+func (s *StateStore) Evals(ws memdb.WatchSet, ascending bool) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	// Walk the entire table
-	iter, err := txn.Get("evals", "id")
+	var it memdb.ResultIterator
+	var err error
+
+	if ascending {
+		it, err = txn.Get("evals", "create")
+	} else {
+		it, err = txn.GetReverse("evals", "create")
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	ws.Add(iter.WatchCh())
+	ws.Add(it.WatchCh())
 
-	return iter, nil
+	return it, nil
 }
 
-// EvalsByNamespace returns an iterator over all the evaluations in the given
-// namespace
+// EvalsByNamespace returns an iterator over all evaluations in no particular
+// order.
+//
+// todo(shoenig): can this be removed?
 func (s *StateStore) EvalsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	// Walk the entire table
-	iter, err := txn.Get("evals", "namespace", namespace)
+	it, err := txn.Get("evals", "namespace", namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	ws.Add(iter.WatchCh())
+	ws.Add(it.WatchCh())
 
-	return iter, nil
+	return it, nil
+}
+
+func (s *StateStore) EvalsByNamespaceOrdered(ws memdb.WatchSet, namespace string, ascending bool) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	var (
+		it    memdb.ResultIterator
+		err   error
+		exact = terminate(namespace)
+	)
+
+	if ascending {
+		it, err = txn.Get("evals", "namespace_create_prefix", exact)
+	} else {
+		it, err = txn.GetReverse("evals", "namespace_create_prefix", exact)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(it.WatchCh())
+
+	return it, nil
 }
 
 // UpdateAllocsFromClient is used to update an allocation based on input
@@ -3228,7 +3305,7 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 		return err
 	}
 
-	if err := s.updatePluginWithAlloc(index, copyAlloc, txn); err != nil {
+	if err := s.updatePluginForTerminalAlloc(index, copyAlloc, txn); err != nil {
 		return err
 	}
 
@@ -3337,7 +3414,7 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			return err
 		}
 
-		if err := s.updatePluginWithAlloc(index, alloc, txn); err != nil {
+		if err := s.updatePluginForTerminalAlloc(index, alloc, txn); err != nil {
 			return err
 		}
 
@@ -4782,7 +4859,7 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 func (s *StateStore) updateJobCSIPlugins(index uint64, job, prev *structs.Job, txn *txn) error {
 	plugIns := make(map[string]*structs.CSIPlugin)
 
-	loop := func(job *structs.Job, delete bool) error {
+	upsertFn := func(job *structs.Job, delete bool) error {
 		for _, tg := range job.TaskGroups {
 			for _, t := range tg.Tasks {
 				if t.CSIPluginConfig == nil {
@@ -4816,13 +4893,13 @@ func (s *StateStore) updateJobCSIPlugins(index uint64, job, prev *structs.Job, t
 	}
 
 	if prev != nil {
-		err := loop(prev, true)
+		err := upsertFn(prev, true)
 		if err != nil {
 			return err
 		}
 	}
 
-	err := loop(job, false)
+	err := upsertFn(job, false)
 	if err != nil {
 		return err
 	}
@@ -5067,10 +5144,11 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	return nil
 }
 
-// updatePluginWithAlloc updates the CSI plugins for an alloc when the
+// updatePluginForTerminalAlloc updates the CSI plugins for an alloc when the
 // allocation is updated or inserted with a terminal server status.
-func (s *StateStore) updatePluginWithAlloc(index uint64, alloc *structs.Allocation,
+func (s *StateStore) updatePluginForTerminalAlloc(index uint64, alloc *structs.Allocation,
 	txn *txn) error {
+
 	if !alloc.ServerTerminalStatus() {
 		return nil
 	}
@@ -5126,7 +5204,9 @@ func (s *StateStore) updatePluginWithJobSummary(index uint64, summary *structs.J
 				plug = plug.Copy()
 			}
 
-			plug.UpdateExpectedWithJob(alloc.Job, summary, alloc.ServerTerminalStatus())
+			plug.UpdateExpectedWithJob(alloc.Job, summary,
+				alloc.Job.Status == structs.JobStatusDead)
+
 			err = updateOrGCPlugin(index, txn, plug)
 			if err != nil {
 				return err

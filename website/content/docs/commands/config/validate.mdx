@@ -1,0 +1,51 @@
+---
+layout: docs
+page_title: 'Commands: config validate'
+description: |
+  The config validate command is used to validate Nomad configuration files.
+---
+
+# Command: config validate
+
+The `config validate` command performs validation on a set of Nomad
+configuration files. This is useful to test the Nomad configuration
+without starting the agent.
+
+## Usage
+
+```plaintext
+nomad config validate <config_path> [<config_path...>]
+```
+
+The `config validate` command requires a path to either a single
+configuration file or a directory of configuration files to use for
+configuring the Nomad agent. This option can be specified multiple
+times. If multiple config files are passed, the values from each will
+be merged together. During merging, values from files found later in
+the list are merged over values from previously parsed files.
+
+This command cannot operate on partial configuration fragments since
+those won't pass the full agent validation. This command does not
+require an ACL token.
+
+Returns 0 if the configuration is valid, or 1 if there are problems.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Examples
+
+Validate a configuration file:
+
+```shell-session
+$ nomad config validate ./nomad.hcl
+Configuration is valid!
+```
+
+Validate a directory of configuration files:
+
+```shell-session
+$ nomad config validate /etc/nomad.d
+Configuration is valid!
+```

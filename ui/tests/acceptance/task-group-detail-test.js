@@ -104,7 +104,7 @@ module('Acceptance | task group detail', function (hooks) {
       totalMemoryMaxAddendum = ` (${formatScheduledBytes(
         totalMemoryMax,
         'MiB'
-      )} Max)`;
+      )}Max)`;
     }
 
     assert.equal(
@@ -232,25 +232,23 @@ module('Acceptance | task group detail', function (hooks) {
     window.localStorage.nomadTokenSecret = clientToken.secretId;
 
     await TaskGroup.visit({
-      id: job.id,
+      id: `${job.id}@${SCALE_AND_WRITE_NAMESPACE}`,
       name: scalingGroup.name,
-      namespace: SCALE_AND_WRITE_NAMESPACE,
     });
 
     assert.equal(
-      currentURL(),
-      `/jobs/${job.id}/scaling?namespace=${SCALE_AND_WRITE_NAMESPACE}`
+      decodeURIComponent(currentURL()),
+      `/jobs/${job.id}@${SCALE_AND_WRITE_NAMESPACE}/scaling`
     );
     assert.notOk(TaskGroup.countStepper.increment.isDisabled);
 
     await TaskGroup.visit({
-      id: job2.id,
+      id: `${job2.id}@${secondNamespace.name}`,
       name: scalingGroup2.name,
-      namespace: secondNamespace.name,
     });
     assert.equal(
-      currentURL(),
-      `/jobs/${job2.id}/scaling?namespace=${READ_ONLY_NAMESPACE}`
+      decodeURIComponent(currentURL()),
+      `/jobs/${job2.id}@${READ_ONLY_NAMESPACE}/scaling`
     );
     assert.ok(TaskGroup.countStepper.increment.isDisabled);
   });

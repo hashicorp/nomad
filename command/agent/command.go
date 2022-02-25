@@ -294,14 +294,14 @@ func (c *Command) readConfig() *Config {
 
 	config.Server.DefaultSchedulerConfig.Canonicalize()
 
-	if !c.isValidConfig(config, cmdConfig) {
+	if !c.IsValidConfig(config, cmdConfig) {
 		return nil
 	}
 
 	return config
 }
 
-func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
+func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
@@ -432,6 +432,12 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 		if config.Server.Enabled && config.Server.BootstrapExpect == 1 {
 			c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
 		}
+	}
+
+	// ProtocolVersion has never been used. Warn if it is set as someone
+	// has probably made a mistake.
+	if config.Server.ProtocolVersion != 0 {
+		c.agent.logger.Warn("Please remove deprecated protocol_version field from config.")
 	}
 
 	return true

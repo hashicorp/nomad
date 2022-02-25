@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"os"
 	"time"
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
@@ -88,6 +89,7 @@ type CSINodeClient interface {
 }
 
 type client struct {
+	addr             string
 	conn             *grpc.ClientConn
 	identityClient   csipbv1.IdentityClient
 	controllerClient CSIControllerClient
@@ -102,30 +104,59 @@ func (c *client) Close() error {
 	return nil
 }
 
-func NewClient(addr string, logger hclog.Logger) (CSIPlugin, error) {
-	if addr == "" {
-		return nil, fmt.Errorf("address is empty")
-	}
-
-	conn, err := newGrpcConn(addr, logger)
-	if err != nil {
-		return nil, err
-	}
-
+func NewClient(addr string, logger hclog.Logger) CSIPlugin {
 	return &client{
-		conn:             conn,
-		identityClient:   csipbv1.NewIdentityClient(conn),
-		controllerClient: csipbv1.NewControllerClient(conn),
-		nodeClient:       csipbv1.NewNodeClient(conn),
-		logger:           logger,
-	}, nil
+		addr:   addr,
+		logger: logger,
+	}
+}
+
+func (c *client) ensureConnected(ctx context.Context) error {
+	if c == nil {
+		return fmt.Errorf("client not initialized")
+	}
+	if c.conn != nil {
+		return nil
+	}
+	if c.addr == "" {
+		return fmt.Errorf("address is empty")
+	}
+	var conn *grpc.ClientConn
+	var err error
+	t := time.NewTimer(0)
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timeout while connecting to gRPC socket: %v", err)
+		case <-t.C:
+			_, err = os.Stat(c.addr)
+			if err != nil {
+				err = fmt.Errorf("failed to stat socket: %v", err)
+				t.Reset(5 * time.Second)
+				continue
+			}
+			conn, err = newGrpcConn(c.addr, c.logger)
+			if err != nil {
+				err = fmt.Errorf("failed to create gRPC connection: %v", err)
+				t.Reset(time.Second * 5)
+				continue
+			}
+			c.conn = conn
+			c.identityClient = csipbv1.NewIdentityClient(conn)
+			c.controllerClient = csipbv1.NewControllerClient(conn)
+			c.nodeClient = csipbv1.NewNodeClient(conn)
+			return nil
+		}
+	}
 }
 
 func newGrpcConn(addr string, logger hclog.Logger) (*grpc.ClientConn, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	// after DialContext returns w/ initial connection, closing this
+	// context is a no-op
+	connectCtx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	defer cancel()
 	conn, err := grpc.DialContext(
-		ctx,
+		connectCtx,
 		addr,
 		grpc.WithBlock(),
 		grpc.WithInsecure(),
@@ -146,10 +177,14 @@ func newGrpcConn(addr string, logger hclog.Logger) (*grpc.ClientConn, error) {
 // PluginInfo describes the type and version of a plugin as required by the nomad
 // base.BasePlugin interface.
 func (c *client) PluginInfo() (*base.PluginInfoResponse, error) {
-	// note: no grpc retries needed here, as this is called in
-	// fingerprinting and will get retried by the caller.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
+	if err := c.ensureConnected(ctx); err != nil {
+		return nil, err
+	}
+
+	// note: no grpc retries needed here, as this is called in
+	// fingerprinting and will get retried by the caller.
 	name, version, err := c.PluginGetInfo(ctx)
 	if err != nil {
 		return nil, err
@@ -176,6 +211,10 @@ func (c *client) SetConfig(_ *base.Config) error {
 }
 
 func (c *client) PluginProbe(ctx context.Context) (bool, error) {
+	if err := c.ensureConnected(ctx); err != nil {
+		return false, err
+	}
+
 	// note: no grpc retries should be done here
 	req, err := c.identityClient.Probe(ctx, &csipbv1.ProbeRequest{})
 	if err != nil {
@@ -198,11 +237,8 @@ func (c *client) PluginProbe(ctx context.Context) (bool, error) {
 }
 
 func (c *client) PluginGetInfo(ctx context.Context) (string, string, error) {
-	if c == nil {
-		return "", "", fmt.Errorf("Client not initialized")
-	}
-	if c.identityClient == nil {
-		return "", "", fmt.Errorf("Client not initialized")
+	if err := c.ensureConnected(ctx); err != nil {
+		return "", "", err
 	}
 
 	resp, err := c.identityClient.GetPluginInfo(ctx, &csipbv1.GetPluginInfoRequest{})
@@ -220,11 +256,8 @@ func (c *client) PluginGetInfo(ctx context.Context) (string, string, error) {
 }
 
 func (c *client) PluginGetCapabilities(ctx context.Context) (*PluginCapabilitySet, error) {
-	if c == nil {
-		return nil, fmt.Errorf("Client not initialized")
-	}
-	if c.identityClient == nil {
-		return nil, fmt.Errorf("Client not initialized")
+	if err := c.ensureConnected(ctx); err != nil {
+		return nil, err
 	}
 
 	// note: no grpc retries needed here, as this is called in
@@ -243,11 +276,8 @@ func (c *client) PluginGetCapabilities(ctx context.Context) (*PluginCapabilitySe
 //
 
 func (c *client) ControllerGetCapabilities(ctx context.Context) (*ControllerCapabilitySet, error) {
-	if c == nil {
-		return nil, fmt.Errorf("Client not initialized")
-	}
-	if c.controllerClient == nil {
-		return nil, fmt.Errorf("controllerClient not initialized")
+	if err := c.ensureConnected(ctx); err != nil {
+		return nil, err
 	}
 
 	// note: no grpc retries needed here, as this is called in
@@ -262,11 +292,8 @@ func (c *client) ControllerGetCapabilities(ctx context.Context) (*ControllerCapa
 }
 
 func (c *client) ControllerPublishVolume(ctx context.Context, req *ControllerPublishVolumeRequest, opts ...grpc.CallOption) (*ControllerPublishVolumeResponse, error) {
-	if c == nil {
-		return nil, fmt.Errorf("Client not initialized")
-	}
-	if c.controllerClient == nil {
-		return nil, fmt.Errorf("controllerClient not initialized")
+	if err := c.ensureConnected(ctx); err != nil {
+		return nil, err
 	}
 
 	err := req.Validate()
@@ -304,11 +331,8 @@ func (c *client) ControllerPublishVolume(ctx context.Context, req *ControllerPub
 }
 
 func (c *client) ControllerUnpublishVolume(ctx context.Context, req *ControllerUnpublishVolumeRequest, opts ...grpc.CallOption) (*ControllerUnpublishVolumeResponse, error) {
-	if c == nil {
-		return nil, fmt.Errorf("Client not initialized")
-	}
-	if c.controllerClient == nil {
-		return nil, fmt.Errorf("controllerClient not initialized")
+	if err := c.ensureConnected(ctx); err != nil {
+		return nil, err
 	}
 	err := req.Validate()
 	if err != nil {
@@ -337,13 +361,9 @@ func (c *client) ControllerUnpublishVolume(ctx context.Context, req *ControllerU
 }
 
 func (c *client) ControllerValidateCapabilities(ctx context.Context, req *ControllerValidateVolumeRequest, opts ...grpc.CallOption) error {
-	if c == nil {
-		return fmt.Errorf("Client not initialized")
+	if err := c.ensureConnected(ctx); err != nil {
+		return err
 	}
-	if c.controllerClient == nil {
-		return fmt.Errorf("controllerClient not initialized")
-	}
-
 	if req.ExternalID == "" {
 		return fmt.Errorf("missing volume ID")
 	}
@@ -390,6 +410,10 @@ func (c *client) ControllerValidateCapabilities(ctx context.Context, req *Contro
 }
 
 func (c *client) ControllerCreateVolume(ctx context.Context, req *ControllerCreateVolumeRequest, opts ...grpc.CallOption) (*ControllerCreateVolumeResponse, error) {
+	if err := c.ensureConnected(ctx); err != nil {
+		return nil, err
+	}
+
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -433,6 +457,10 @@ func (c *client) ControllerCreateVolume(ctx context.Context, req *ControllerCrea
 }
 
 func (c *client) ControllerListVolumes(ctx context.Context, req *ControllerListVolumesRequest, opts ...grpc.CallOption) (*ControllerListVolumesResponse, error) {
+	if err := c.ensureConnected(ctx); err != nil {
+		return nil, err
+	}
+
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -455,6 +483,10 @@ func (c *client) ControllerListVolumes(ctx context.Context, req *ControllerListV
 }
 
 func (c *client) ControllerDeleteVolume(ctx context.Context, req *ControllerDeleteVolumeRequest, opts ...grpc.CallOption) error {
+	if err := c.ensureConnected(ctx); err != nil {
+		return err
+	}
+
 	err := req.Validate()
 	if err != nil {
 		return err
@@ -552,6 +584,10 @@ NEXT_CAP:
 }
 
 func (c *client) ControllerCreateSnapshot(ctx context.Context, req *ControllerCreateSnapshotRequest, opts ...grpc.CallOption) (*ControllerCreateSnapshotResponse, error) {
+	if err := c.ensureConnected(ctx); err != nil {
+		return nil, err
+	}
+
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -596,6 +632,10 @@ func (c *client) ControllerCreateSnapshot(ctx context.Context, req *ControllerCr
 }
 
 func (c *client) ControllerDeleteSnapshot(ctx context.Context, req *ControllerDeleteSnapshotRequest, opts ...grpc.CallOption) error {
+	if err := c.ensureConnected(ctx); err != nil {
+		return err
+	}
+
 	err := req.Validate()
 	if err != nil {
 		return err
@@ -626,6 +666,10 @@ func (c *client) ControllerDeleteSnapshot(ctx context.Context, req *ControllerDe
 }
 
 func (c *client) ControllerListSnapshots(ctx context.Context, req *ControllerListSnapshotsRequest, opts ...grpc.CallOption) (*ControllerListSnapshotsResponse, error) {
+	if err := c.ensureConnected(ctx); err != nil {
+		return nil, err
+	}
+
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -657,11 +701,8 @@ func (c *client) ControllerListSnapshots(ctx context.Context, req *ControllerLis
 //
 
 func (c *client) NodeGetCapabilities(ctx context.Context) (*NodeCapabilitySet, error) {
-	if c == nil {
-		return nil, fmt.Errorf("Client not initialized")
-	}
-	if c.nodeClient == nil {
-		return nil, fmt.Errorf("Client not initialized")
+	if err := c.ensureConnected(ctx); err != nil {
+		return nil, err
 	}
 
 	// note: no grpc retries needed here, as this is called in
@@ -675,11 +716,8 @@ func (c *client) NodeGetCapabilities(ctx context.Context) (*NodeCapabilitySet, e
 }
 
 func (c *client) NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error) {
-	if c == nil {
-		return nil, fmt.Errorf("Client not initialized")
-	}
-	if c.nodeClient == nil {
-		return nil, fmt.Errorf("Client not initialized")
+	if err := c.ensureConnected(ctx); err != nil {
+		return nil, err
 	}
 
 	result := &NodeGetInfoResponse{}
@@ -706,11 +744,8 @@ func (c *client) NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error) 
 }
 
 func (c *client) NodeStageVolume(ctx context.Context, req *NodeStageVolumeRequest, opts ...grpc.CallOption) error {
-	if c == nil {
-		return fmt.Errorf("Client not initialized")
-	}
-	if c.nodeClient == nil {
-		return fmt.Errorf("Client not initialized")
+	if err := c.ensureConnected(ctx); err != nil {
+		return err
 	}
 	err := req.Validate()
 	if err != nil {
@@ -741,11 +776,8 @@ func (c *client) NodeStageVolume(ctx context.Context, req *NodeStageVolumeReques
 }
 
 func (c *client) NodeUnstageVolume(ctx context.Context, volumeID string, stagingTargetPath string, opts ...grpc.CallOption) error {
-	if c == nil {
-		return fmt.Errorf("Client not initialized")
-	}
-	if c.nodeClient == nil {
-		return fmt.Errorf("Client not initialized")
+	if err := c.ensureConnected(ctx); err != nil {
+		return err
 	}
 	// These errors should not be returned during production use but exist as aids
 	// during Nomad development
@@ -779,13 +811,9 @@ func (c *client) NodeUnstageVolume(ctx context.Context, volumeID string, staging
 }
 
 func (c *client) NodePublishVolume(ctx context.Context, req *NodePublishVolumeRequest, opts ...grpc.CallOption) error {
-	if c == nil {
-		return fmt.Errorf("Client not initialized")
+	if err := c.ensureConnected(ctx); err != nil {
+		return err
 	}
-	if c.nodeClient == nil {
-		return fmt.Errorf("Client not initialized")
-	}
-
 	if err := req.Validate(); err != nil {
 		return fmt.Errorf("validation error: %v", err)
 	}
@@ -813,13 +841,9 @@ func (c *client) NodePublishVolume(ctx context.Context, req *NodePublishVolumeRe
 }
 
 func (c *client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath string, opts ...grpc.CallOption) error {
-	if c == nil {
-		return fmt.Errorf("Client not initialized")
+	if err := c.ensureConnected(ctx); err != nil {
+		return err
 	}
-	if c.nodeClient == nil {
-		return fmt.Errorf("Client not initialized")
-	}
-
 	// These errors should not be returned during production use but exist as aids
 	// during Nomad development
 	if volumeID == "" {

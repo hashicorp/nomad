@@ -715,6 +715,122 @@ func TestEvalEndpoint_List(t *testing.T) {
 	if len(resp2.Evaluations) != 1 {
 		t.Fatalf("bad: %#v", resp2.Evaluations)
 	}
+}
+
+func TestEvalEndpoint_List_order(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create register requests
+	uuid1 := uuid.Generate()
+	eval1 := mock.Eval()
+	eval1.ID = uuid1
+
+	uuid2 := uuid.Generate()
+	eval2 := mock.Eval()
+	eval2.ID = uuid2
+
+	uuid3 := uuid.Generate()
+	eval3 := mock.Eval()
+	eval3.ID = uuid3
+
+	err := s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
+	require.NoError(t, err)
+
+	err = s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval2})
+	require.NoError(t, err)
+
+	err = s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1002, []*structs.Evaluation{eval3})
+	require.NoError(t, err)
+
+	// update eval2 again so we can later assert create index order did not change
+	err = s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1003, []*structs.Evaluation{eval2})
+	require.NoError(t, err)
+
+	t.Run("descending", func(t *testing.T) {
+		// Lookup the evaluations in reverse chronological order
+		get := &structs.EvalListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: "*",
+				Ascending: false,
+			},
+		}
+
+		var resp structs.EvalListResponse
+		err = msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1003), resp.Index)
+		require.Len(t, resp.Evaluations, 3)
+
+		// Assert returned order is by CreateIndex (descending)
+		require.Equal(t, uint64(1002), resp.Evaluations[0].CreateIndex)
+		require.Equal(t, uuid3, resp.Evaluations[0].ID)
+
+		require.Equal(t, uint64(1001), resp.Evaluations[1].CreateIndex)
+		require.Equal(t, uuid2, resp.Evaluations[1].ID)
+
+		require.Equal(t, uint64(1000), resp.Evaluations[2].CreateIndex)
+		require.Equal(t, uuid1, resp.Evaluations[2].ID)
+	})
+
+	t.Run("ascending", func(t *testing.T) {
+		// Lookup the evaluations in reverse chronological order (newest first)
+		get := &structs.EvalListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: "*",
+				Ascending: true,
+			},
+		}
+
+		var resp structs.EvalListResponse
+		err = msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1003), resp.Index)
+		require.Len(t, resp.Evaluations, 3)
+
+		// Assert returned order is by CreateIndex (ascending)
+		require.Equal(t, uint64(1000), resp.Evaluations[0].CreateIndex)
+		require.Equal(t, uuid1, resp.Evaluations[0].ID)
+
+		require.Equal(t, uint64(1001), resp.Evaluations[1].CreateIndex)
+		require.Equal(t, uuid2, resp.Evaluations[1].ID)
+
+		require.Equal(t, uint64(1002), resp.Evaluations[2].CreateIndex)
+		require.Equal(t, uuid3, resp.Evaluations[2].ID)
+	})
+
+	t.Run("descending", func(t *testing.T) {
+		// Lookup the evaluations in chronological order (oldest first)
+		get := &structs.EvalListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: "*",
+				Ascending: false,
+			},
+		}
+
+		var resp structs.EvalListResponse
+		err = msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1003), resp.Index)
+		require.Len(t, resp.Evaluations, 3)
+
+		// Assert returned order is by CreateIndex (descending)
+		require.Equal(t, uint64(1002), resp.Evaluations[0].CreateIndex)
+		require.Equal(t, uuid3, resp.Evaluations[0].ID)
+
+		require.Equal(t, uint64(1001), resp.Evaluations[1].CreateIndex)
+		require.Equal(t, uuid2, resp.Evaluations[1].ID)
+
+		require.Equal(t, uint64(1000), resp.Evaluations[2].CreateIndex)
+		require.Equal(t, uuid1, resp.Evaluations[2].ID)
+	})
 
 }
 
@@ -895,26 +1011,28 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 
 	// create a set of evals and field values to filter on. these are
 	// in the order that the state store will return them from the
-	// iterator (sorted by key), for ease of writing tests
+	// iterator (sorted by create index), for ease of writing tests
 	mocks := []struct {
 		id        string
 		namespace string
 		jobID     string
 		status    string
 	}{
-		{id: "aaaa1111-3350-4b4b-d185-0e1992ed43e9", jobID: "example"},
-		{id: "aaaaaa22-3350-4b4b-d185-0e1992ed43e9", jobID: "example"},
-		{id: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9", namespace: "non-default"},
-		{id: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9", jobID: "example", status: "blocked"},
-		{id: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9"},
-		{id: "aaaaaacc-3350-4b4b-d185-0e1992ed43e9"},
-		{id: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9", jobID: "example"},
-		{id: "aaaaaaee-3350-4b4b-d185-0e1992ed43e9", jobID: "example"},
-		{id: "aaaaaaff-3350-4b4b-d185-0e1992ed43e9"},
+		{id: "aaaa1111-3350-4b4b-d185-0e1992ed43e9", jobID: "example"},                    // 0
+		{id: "aaaaaa22-3350-4b4b-d185-0e1992ed43e9", jobID: "example"},                    // 1
+		{id: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9", namespace: "non-default"},            // 2
+		{id: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9", jobID: "example", status: "blocked"}, // 3
+		{id: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9"},                                      // 4
+		{id: "aaaaaacc-3350-4b4b-d185-0e1992ed43e9"},                                      // 5
+		{id: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9", jobID: "example"},                    // 6
+		{id: "aaaaaaee-3350-4b4b-d185-0e1992ed43e9", jobID: "example"},                    // 7
+		{id: "aaaaaaff-3350-4b4b-d185-0e1992ed43e9"},                                      // 8
 	}
 
-	mockEvals := []*structs.Evaluation{}
-	for _, m := range mocks {
+	state := s1.fsm.State()
+
+	var evals []*structs.Evaluation
+	for i, m := range mocks {
 		eval := mock.Eval()
 		eval.ID = m.id
 		if m.namespace != "" { // defaults to "default"
@@ -926,14 +1044,13 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		if m.status != "" { // defaults to "pending"
 			eval.Status = m.status
 		}
-		mockEvals = append(mockEvals, eval)
+		evals = append(evals, eval)
+		index := 1000 + uint64(i)
+		require.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, index, []*structs.Evaluation{eval}))
 	}
 
-	state := s1.fsm.State()
-	require.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1000, mockEvals))
-
 	aclToken := mock.CreatePolicyAndToken(t, state, 1100, "test-valid-read",
-		mock.NamespacePolicy(structs.DefaultNamespace, "read", nil)).
+		mock.NamespacePolicy("*", "read", nil)).
 		SecretID
 
 	cases := []struct {
@@ -943,18 +1060,20 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		nextToken         string
 		filterJobID       string
 		filterStatus      string
+		filter            string
 		pageSize          int32
 		expectedNextToken string
 		expectedIDs       []string
+		expectedError     string
 	}{
 		{
-			name:              "test01 size-2 page-1 default NS",
-			pageSize:          2,
-			expectedNextToken: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
+			name:     "test01 size-2 page-1 default NS",
+			pageSize: 2,
+			expectedIDs: []string{ // first two items
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
 			},
+			expectedNextToken: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9", // next one in default namespace
 		},
 		{
 			name:              "test02 size-2 page-1 default NS with prefix",
@@ -1025,8 +1144,8 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			},
 		},
 		{
-			name:              "test08 size-2 page-2 filter skip nextToken",
-			pageSize:          3, // reads off the end
+			name:              "test08 size-2 page-2 filter skip nextToken", //
+			pageSize:          3,                                            // reads off the end
 			filterJobID:       "example",
 			filterStatus:      "pending",
 			nextToken:         "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
@@ -1077,6 +1196,52 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			nextToken:   "aaaaaa11-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{},
 		},
+		{
+			name:        "test14 go-bexpr filter",
+			filter:      `Status == "blocked"`,
+			nextToken:   "",
+			expectedIDs: []string{"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"},
+		},
+		{
+			name:              "test15 go-bexpr filter with pagination",
+			filter:            `JobID == "example"`,
+			pageSize:          2,
+			expectedNextToken: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:      "test16 go-bexpr filter namespace",
+			namespace: "non-default",
+			filter:    `ID contains "aaa"`,
+			expectedIDs: []string{
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:        "test17 go-bexpr wrong namespace",
+			namespace:   "default",
+			filter:      `Namespace == "non-default"`,
+			expectedIDs: []string{},
+		},
+		{
+			name:          "test18 incompatible filtering",
+			filter:        `JobID == "example"`,
+			filterStatus:  "complete",
+			expectedError: structs.ErrIncompatibleFiltering.Error(),
+		},
+		{
+			name:          "test19 go-bexpr invalid expression",
+			filter:        `NotValid`,
+			expectedError: "failed to read filter expression",
+		},
+		{
+			name:          "test20 go-bexpr invalid field",
+			filter:        `InvalidField == "value"`,
+			expectedError: "error finding value in datum",
+		},
 	}
 
 	for _, tc := range cases {
@@ -1090,11 +1255,21 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 					Prefix:    tc.prefix,
 					PerPage:   tc.pageSize,
 					NextToken: tc.nextToken,
+					Filter:    tc.filter,
+					Ascending: true, // counting up is easier to think about
 				},
 			}
 			req.AuthToken = aclToken
 			var resp structs.EvalListResponse
-			require.NoError(t, msgpackrpc.CallWithCodec(codec, "Eval.List", req, &resp))
+			err := msgpackrpc.CallWithCodec(codec, "Eval.List", req, &resp)
+			if tc.expectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedError)
+				return
+			}
+
 			gotIDs := []string{}
 			for _, eval := range resp.Evaluations {
 				gotIDs = append(gotIDs, eval.ID)

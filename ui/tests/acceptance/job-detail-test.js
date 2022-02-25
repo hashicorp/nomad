@@ -251,13 +251,16 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     const namespace = server.db.namespaces.find(job.namespaceId);
-    await JobDetail.visit({ id: job.id, namespace: namespace.name });
+    await JobDetail.visit({ id: `${job.id}@${namespace.name}` });
     await a11yAudit(assert);
   });
 
   test('when there are namespaces, the job detail page states the namespace for the job', async function (assert) {
     const namespace = server.db.namespaces.find(job.namespaceId);
-    await JobDetail.visit({ id: job.id, namespace: namespace.name });
+
+    await JobDetail.visit({
+      id: `${job.id}@${namespace.name}`,
+    });
 
     assert.ok(
       JobDetail.statFor('namespace').text,
@@ -301,7 +304,8 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     assert.notOk(JobDetail.execButton.isDisabled);
 
     const secondNamespace = server.db.namespaces[1];
-    await JobDetail.visit({ id: job2.id, namespace: secondNamespace.name });
+    await JobDetail.visit({ id: `${job2.id}@${secondNamespace.name}` });
+
     assert.ok(JobDetail.execButton.isDisabled);
   });
 
@@ -322,9 +326,9 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     });
 
     await JobDetail.visit({
-      id: job.id,
-      namespace: server.db.namespaces[1].name,
+      id: `${job.id}@${server.db.namespaces[1].name}`,
     });
+
     assert.notOk(JobDetail.execButton.isDisabled);
   });
 
@@ -338,14 +342,13 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     });
 
     await JobDetail.visit({
-      id: job.id,
-      namespace: server.db.namespaces[1].name,
+      id: `${job.id}@${server.db.namespaces[1].name}`,
     });
+
     assert.notOk(JobDetail.metaTable, 'Meta table not present');
 
     await JobDetail.visit({
-      id: jobWithMeta.id,
-      namespace: server.db.namespaces[1].name,
+      id: `${jobWithMeta.id}@${server.db.namespaces[1].name}`,
     });
     assert.ok(JobDetail.metaTable, 'Meta table is present');
   });
@@ -361,7 +364,8 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
       },
     });
 
-    await JobDetail.visit({ id: jobFromPack.id, namespace });
+    await JobDetail.visit({ id: `${jobFromPack.id}@${namespace}` });
+
     assert.ok(JobDetail.packTag, 'Pack tag is present');
     assert.equal(
       JobDetail.packStatFor('name').text,
@@ -388,8 +392,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
     window.localStorage.nomadTokenSecret = managementToken.secretId;
     await JobDetail.visit({
-      id: job.id,
-      namespace: server.db.namespaces[1].name,
+      id: `${job.id}@${server.db.namespaces[1].name}`,
     });
 
     const groupsWithRecommendations = job.taskGroups.filter((group) =>
@@ -439,8 +442,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
   test('resource recommendations are not fetched when the feature doesn’t exist', async function (assert) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
     await JobDetail.visit({
-      id: job.id,
-      namespace: server.db.namespaces[1].name,
+      id: `${job.id}@${server.db.namespaces[1].name}`,
     });
 
     assert.equal(JobDetail.recommendations.length, 0);
@@ -518,10 +520,10 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     clientToken.save();
     window.localStorage.nomadTokenSecret = clientToken.secretId;
 
-    await JobDetail.visit({ id: job.id, namespace: namespace.name });
+    await JobDetail.visit({ id: `${job.id}@${namespace.name}` });
     assert.notOk(JobDetail.incrementButton.isDisabled);
 
-    await JobDetail.visit({ id: job2.id, namespace: secondNamespace.name });
+    await JobDetail.visit({ id: `${job2.id}@${secondNamespace.name}` });
     assert.ok(JobDetail.incrementButton.isDisabled);
   });
 });

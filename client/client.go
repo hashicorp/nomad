@@ -390,11 +390,11 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c.dynamicRegistry =
 		dynamicplugins.NewRegistry(c.stateDB, map[string]dynamicplugins.PluginDispenser{
 			dynamicplugins.PluginTypeCSIController: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
-				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "controller"))
+				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "controller")), nil
 			},
 			dynamicplugins.PluginTypeCSINode: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
-				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "client"))
-			}, // TODO(tgross): refactor these dispenser constructors into csimanager to tidy it up
+				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "client")), nil
+			},
 		})
 
 	// Setup the clients RPC server
@@ -747,18 +747,6 @@ func (c *Client) NodeID() string {
 // secretNodeID returns the secret node ID for the given client
 func (c *Client) secretNodeID() string {
 	return c.config.Node.SecretID
-}
-
-// RPCMajorVersion returns the structs.ApiMajorVersion supported by the
-// client.
-func (c *Client) RPCMajorVersion() int {
-	return structs.ApiMajorVersion
-}
-
-// RPCMinorVersion returns the structs.ApiMinorVersion supported by the
-// client.
-func (c *Client) RPCMinorVersion() int {
-	return structs.ApiMinorVersion
 }
 
 // Shutdown is used to tear down the client
@@ -2773,7 +2761,7 @@ DISCOLOOP:
 				continue
 			}
 			var peers []string
-			if err := c.connPool.RPC(region, addr, c.RPCMajorVersion(), "Status.Peers", rpcargs, &peers); err != nil {
+			if err := c.connPool.RPC(region, addr, "Status.Peers", rpcargs, &peers); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}

@@ -56,10 +56,10 @@ func validateTask(task *structs.Task, taskEnv *taskenv.TaskEnv, conf *config.Con
 	}
 
 	// Validate the Service names once they're interpolated
-	for i, service := range task.Services {
+	for _, service := range task.Services {
 		name := taskEnv.ReplaceEnv(service.Name)
 		if err := service.ValidateName(name); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("service (%d) failed validation: %v", i, err))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("service (%s) failed validation: %v", name, err))
 		}
 	}
 

@@ -122,7 +122,8 @@ func (iter *StaticIterator) SetNodes(nodes []*structs.Node) {
 // is applied in-place
 func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 	// shuffle with the Fisher-Yates algorithm
-	shuffleNodes(nodes)
+	idx, _ := ctx.State().LatestIndex()
+	shuffleNodes(ctx.Plan(), idx, nodes)
 
 	// Create a static iterator
 	return NewStaticIterator(ctx, nodes)
@@ -320,7 +321,7 @@ func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 			if !vol.WriteSchedulable() {
 				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoWriteTemplate, vol.ID)
 			}
-			if !vol.WriteFreeClaims() {
+			if !vol.HasFreeWriteClaims() {
 				for id := range vol.WriteAllocs {
 					a, err := c.ctx.State().AllocByID(ws, id)
 					// the alloc for this blocking claim has been

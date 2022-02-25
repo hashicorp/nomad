@@ -77,6 +77,14 @@ func TestEvaluations_List(t *testing.T) {
 	if len(result) != 1 {
 		t.Fatalf("expected no evals after last one but got %v", result[0])
 	}
+
+	// Query evaluations using a filter.
+	results, _, err = e.List(&QueryOptions{
+		Filter: `TriggeredBy == "job-register"`,
+	})
+	if len(result) != 1 {
+		t.Fatalf("expected 1 eval, got %d", len(result))
+	}
 }
 
 func TestEvaluations_PrefixList(t *testing.T) {

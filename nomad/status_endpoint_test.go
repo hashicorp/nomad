@@ -13,38 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStatusVersion(t *testing.T) {
-	t.Parallel()
-
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-
-	arg := &structs.GenericRequest{
-		QueryOptions: structs.QueryOptions{
-			Region:     "global",
-			AllowStale: true,
-		},
-	}
-	var out structs.VersionResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Status.Version", arg, &out); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if out.Build == "" {
-		t.Fatalf("bad: %#v", out)
-	}
-	if out.Versions[structs.ProtocolVersion] != ProtocolVersionMax {
-		t.Fatalf("bad: %#v", out)
-	}
-	if out.Versions[structs.APIMajorVersion] != structs.ApiMajorVersion {
-		t.Fatalf("bad: %#v", out)
-	}
-	if out.Versions[structs.APIMinorVersion] != structs.ApiMinorVersion {
-		t.Fatalf("bad: %#v", out)
-	}
-}
-
 func TestStatusPing(t *testing.T) {
 	t.Parallel()
 

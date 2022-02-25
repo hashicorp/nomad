@@ -23,6 +23,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/rs/cors"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -262,6 +263,31 @@ func (s *HTTPServer) Shutdown() {
 		s.listener.Close()
 		<-s.listenerCh // block until http.Serve has returned.
 	}
+}
+
+// ResolveToken extracts the ACL token secret ID from the request and
+// translates it into an ACL object. Returns nil if ACLs are disabled.
+func (s *HTTPServer) ResolveToken(req *http.Request) (*acl.ACL, error) {
+	var secret string
+	s.parseToken(req, &secret)
+
+	var aclObj *acl.ACL
+	var err error
+
+	if srv := s.agent.Server(); srv != nil {
+		aclObj, err = srv.ResolveToken(secret)
+	} else {
+		// Not a Server, so use the Client for token resolution. Note
+		// this gets forwarded to a server with AllowStale = true if
+		// the local ACL cache TTL has expired (30s by default)
+		aclObj, err = s.agent.Client().ResolveToken(secret)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ACL token: %v", err)
+	}
+
+	return aclObj, nil
 }
 
 // registerHandlers is used to attach our handlers to the mux
@@ -511,6 +537,9 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 				} else if strings.HasSuffix(errMsg, structs.ErrJobRegistrationDisabled.Error()) {
 					errMsg = structs.ErrJobRegistrationDisabled.Error()
 					code = 403
+				} else if strings.HasSuffix(errMsg, structs.ErrIncompatibleFiltering.Error()) {
+					errMsg = structs.ErrIncompatibleFiltering.Error()
+					code = 400
 				}
 			}
 
@@ -758,6 +787,8 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *strin
 	parsePrefix(req, b)
 	parseNamespace(req, &b.Namespace)
 	parsePagination(req, b)
+	parseFilter(req, b)
+	parseAscending(req, b)
 	return parseWait(resp, req, b)
 }
 
@@ -773,6 +804,20 @@ func parsePagination(req *http.Request, b *structs.QueryOptions) {
 	}
 
 	b.NextToken = query.Get("next_token")
+}
+
+// parseFilter parses the filter query parameter for QueryOptions
+func parseFilter(req *http.Request, b *structs.QueryOptions) {
+	query := req.URL.Query()
+	if filter := query.Get("filter"); filter != "" {
+		b.Filter = filter
+	}
+}
+
+// parseAscending parses the ascending query parameter for QueryOptions
+func parseAscending(req *http.Request, b *structs.QueryOptions) {
+	query := req.URL.Query()
+	b.Ascending = query.Get("ascending") == "true"
 }
 
 // parseWriteRequest is a convenience method for endpoints that need to parse a

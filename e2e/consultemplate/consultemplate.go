@@ -46,7 +46,7 @@ func (tc *ConsulTemplateTest) AfterEach(f *framework.F) {
 	}
 
 	for _, id := range tc.jobIDs {
-		_, err := e2eutil.Command("nomad", "job", "stop", "-purge", id)
+		err := e2eutil.StopJob(id, "-purge")
 		f.Assert().NoError(err, "could not clean up job", id)
 	}
 	tc.jobIDs = []string{}

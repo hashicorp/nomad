@@ -398,7 +398,7 @@ func TestIsValidConfig(t *testing.T) {
 			mui := cli.NewMockUi()
 			cmd := &Command{Ui: mui}
 			config := DefaultConfig().Merge(&tc.conf)
-			result := cmd.isValidConfig(config, DefaultConfig())
+			result := cmd.IsValidConfig(config, DefaultConfig())
 			if tc.err == "" {
 				// No error expected
 				assert.True(t, result, mui.ErrorWriter.String())

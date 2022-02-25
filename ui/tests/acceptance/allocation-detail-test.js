@@ -499,6 +499,7 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
     );
 
     await Allocation.visit({ id: allocation.id });
+
     await Allocation.preempter.visitJob();
     assert.equal(
       currentURL(),

@@ -19,6 +19,7 @@ const (
 	errUnknownNomadVersion        = "Unable to determine Nomad version"
 	errNodeLacksRpc               = "Node does not support RPC; requires 0.8 or later"
 	errMissingAllocID             = "Missing allocation ID"
+	errIncompatibleFiltering      = "Filter expression cannot be used with other filter parameters"
 
 	// Prefix based errors that are used to check if the error is of a given
 	// type. These errors should be created with the associated constructor.
@@ -53,6 +54,7 @@ var (
 	ErrUnknownNomadVersion        = errors.New(errUnknownNomadVersion)
 	ErrNodeLacksRpc               = errors.New(errNodeLacksRpc)
 	ErrMissingAllocID             = errors.New(errMissingAllocID)
+	ErrIncompatibleFiltering      = errors.New(errIncompatibleFiltering)
 
 	ErrUnknownNode = errors.New(ErrUnknownNodePrefix)
 
@@ -66,8 +68,10 @@ var (
 	ErrDeploymentTerminalNoSetHealth = errors.New(errDeploymentTerminalNoSetHealth)
 	ErrDeploymentRunningNoUnblock    = errors.New(errDeploymentRunningNoUnblock)
 
-	ErrCSIClientRPCIgnorable = errors.New("CSI client error (ignorable)")
-	ErrCSIClientRPCRetryable = errors.New("CSI client error (retryable)")
+	ErrCSIClientRPCIgnorable  = errors.New("CSI client error (ignorable)")
+	ErrCSIClientRPCRetryable  = errors.New("CSI client error (retryable)")
+	ErrCSIVolumeMaxClaims     = errors.New("volume max claims reached")
+	ErrCSIVolumeUnschedulable = errors.New("volume is currently unschedulable")
 )
 
 // IsErrNoLeader returns whether the error is due to there being no leader.

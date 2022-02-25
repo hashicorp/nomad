@@ -191,9 +191,6 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if agentConfig.Server.DataDir != "" {
 		conf.DataDir = agentConfig.Server.DataDir
 	}
-	if agentConfig.Server.ProtocolVersion != 0 {
-		conf.ProtocolVersion = uint8(agentConfig.Server.ProtocolVersion)
-	}
 	if agentConfig.Server.RaftProtocol != 0 {
 		conf.RaftConfig.ProtocolVersion = raft.ProtocolVersion(agentConfig.Server.RaftProtocol)
 	}
@@ -445,6 +442,11 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 			LimitResults:  search.LimitResults,
 			MinTermLength: search.MinTermLength,
 		}
+	}
+
+	// Set the raft bolt parameters
+	if bolt := agentConfig.Server.RaftBoltConfig; bolt != nil {
+		conf.RaftBoltNoFreelistSync = bolt.NoFreelistSync
 	}
 
 	return conf, nil

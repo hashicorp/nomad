@@ -107,6 +107,9 @@ type State interface {
 
 	// CSIVolumeByID fetch CSI volumes, containing controller jobs
 	CSIVolumesByNodeID(memdb.WatchSet, string, string) (memdb.ResultIterator, error)
+
+	// LatestIndex returns the greatest index value for all indexes.
+	LatestIndex() (uint64, error)
 }
 
 // Planner interface is used to submit a task allocation plan.

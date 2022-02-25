@@ -1,0 +1,3 @@
+```release-note:improvement
+scheduler: Seed node shuffling with the evaluation ID to make the order reproducible
+```

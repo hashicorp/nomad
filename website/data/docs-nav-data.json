@@ -316,6 +316,19 @@
         ]
       },
       {
+        "title": "config",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "commands/config"
+          },
+          {
+            "title": "validate",
+            "path": "commands/config/validate"
+          }
+        ]
+      },
+      {
         "title": "deployment",
         "routes": [
           {

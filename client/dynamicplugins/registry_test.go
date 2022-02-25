@@ -2,6 +2,7 @@ package dynamicplugins
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -132,11 +133,12 @@ func TestDynamicRegistry_DeregisterPlugin_SendsUpdateEvents(t *testing.T) {
 	err := r.RegisterPlugin(&PluginInfo{
 		Type:           "csi",
 		Name:           "my-plugin",
+		AllocID:        "alloc-0",
 		ConnectionInfo: &PluginConnectionInfo{},
 	})
 	require.NoError(t, err)
 
-	err = r.DeregisterPlugin("csi", "my-plugin")
+	err = r.DeregisterPlugin("csi", "my-plugin", "alloc-0")
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
@@ -178,6 +180,7 @@ func TestDynamicRegistry_IsolatePluginTypes(t *testing.T) {
 	err := r.RegisterPlugin(&PluginInfo{
 		Type:           PluginTypeCSIController,
 		Name:           "my-plugin",
+		AllocID:        "alloc-0",
 		ConnectionInfo: &PluginConnectionInfo{},
 	})
 	require.NoError(t, err)
@@ -185,14 +188,15 @@ func TestDynamicRegistry_IsolatePluginTypes(t *testing.T) {
 	err = r.RegisterPlugin(&PluginInfo{
 		Type:           PluginTypeCSINode,
 		Name:           "my-plugin",
+		AllocID:        "alloc-1",
 		ConnectionInfo: &PluginConnectionInfo{},
 	})
 	require.NoError(t, err)
 
-	err = r.DeregisterPlugin(PluginTypeCSIController, "my-plugin")
+	err = r.DeregisterPlugin(PluginTypeCSIController, "my-plugin", "alloc-0")
 	require.NoError(t, err)
-	require.Equal(t, len(r.ListPlugins(PluginTypeCSINode)), 1)
-	require.Equal(t, len(r.ListPlugins(PluginTypeCSIController)), 0)
+	require.Equal(t, 1, len(r.ListPlugins(PluginTypeCSINode)))
+	require.Equal(t, 0, len(r.ListPlugins(PluginTypeCSIController)))
 }
 
 func TestDynamicRegistry_StateStore(t *testing.T) {
@@ -219,6 +223,120 @@ func TestDynamicRegistry_StateStore(t *testing.T) {
 	result, err = newR.DispensePlugin("csi", "my-plugin")
 	require.NotNil(t, result)
 	require.NoError(t, err)
+}
+
+func TestDynamicRegistry_ConcurrentAllocs(t *testing.T) {
+
+	t.Parallel()
+	dispenseFn := func(i *PluginInfo) (interface{}, error) {
+		return i, nil
+	}
+
+	newPlugin := func(idx int) *PluginInfo {
+		id := fmt.Sprintf("alloc-%d", idx)
+		return &PluginInfo{
+			Name:    "my-plugin",
+			Type:    PluginTypeCSINode,
+			Version: fmt.Sprintf("v%d", idx),
+			ConnectionInfo: &PluginConnectionInfo{
+				SocketPath: "/var/data/alloc/" + id + "/csi.sock"},
+			AllocID: id,
+		}
+	}
+
+	dispensePlugin := func(t *testing.T, reg Registry) *PluginInfo {
+		result, err := reg.DispensePlugin(PluginTypeCSINode, "my-plugin")
+		require.NotNil(t, result)
+		require.NoError(t, err)
+		plugin := result.(*PluginInfo)
+		return plugin
+	}
+
+	t.Run("restore races on client restart", func(t *testing.T) {
+		plugin0 := newPlugin(0)
+		plugin1 := newPlugin(1)
+
+		memdb := &MemDB{}
+		oldR := NewRegistry(memdb, map[string]PluginDispenser{PluginTypeCSINode: dispenseFn})
+
+		// add a plugin and a new alloc running the same plugin
+		// (without stopping the old one)
+		require.NoError(t, oldR.RegisterPlugin(plugin0))
+		require.NoError(t, oldR.RegisterPlugin(plugin1))
+		plugin := dispensePlugin(t, oldR)
+		require.Equal(t, "alloc-1", plugin.AllocID)
+
+		// client restarts and we load state from disk.
+		// most recently inserted plugin is current
+
+		newR := NewRegistry(memdb, map[string]PluginDispenser{PluginTypeCSINode: dispenseFn})
+		plugin = dispensePlugin(t, oldR)
+		require.Equal(t, "/var/data/alloc/alloc-1/csi.sock", plugin.ConnectionInfo.SocketPath)
+		require.Equal(t, "alloc-1", plugin.AllocID)
+
+		// RestoreTask fires for all allocations, which runs the
+		// plugin_supervisor_hook. But there's a race and the allocations
+		// in this scenario are Restored in the opposite order they were
+		// created
+
+		require.NoError(t, newR.RegisterPlugin(plugin0))
+		plugin = dispensePlugin(t, newR)
+		require.Equal(t, "/var/data/alloc/alloc-1/csi.sock", plugin.ConnectionInfo.SocketPath)
+		require.Equal(t, "alloc-1", plugin.AllocID)
+	})
+
+	t.Run("replacement races on host restart", func(t *testing.T) {
+		plugin0 := newPlugin(0)
+		plugin1 := newPlugin(1)
+		plugin2 := newPlugin(2)
+
+		memdb := &MemDB{}
+		oldR := NewRegistry(memdb, map[string]PluginDispenser{PluginTypeCSINode: dispenseFn})
+
+		// add a plugin and a new alloc running the same plugin
+		// (without stopping the old one)
+		require.NoError(t, oldR.RegisterPlugin(plugin0))
+		require.NoError(t, oldR.RegisterPlugin(plugin1))
+		plugin := dispensePlugin(t, oldR)
+		require.Equal(t, "alloc-1", plugin.AllocID)
+
+		// client restarts and we load state from disk.
+		// most recently inserted plugin is current
+
+		newR := NewRegistry(memdb, map[string]PluginDispenser{PluginTypeCSINode: dispenseFn})
+		plugin = dispensePlugin(t, oldR)
+		require.Equal(t, "/var/data/alloc/alloc-1/csi.sock", plugin.ConnectionInfo.SocketPath)
+		require.Equal(t, "alloc-1", plugin.AllocID)
+
+		// RestoreTask fires for all allocations but none of them are
+		// running because we restarted the whole host. Server gives
+		// us a replacement alloc
+
+		require.NoError(t, newR.RegisterPlugin(plugin2))
+		plugin = dispensePlugin(t, newR)
+		require.Equal(t, "/var/data/alloc/alloc-2/csi.sock", plugin.ConnectionInfo.SocketPath)
+		require.Equal(t, "alloc-2", plugin.AllocID)
+	})
+
+	t.Run("interleaved register and deregister", func(t *testing.T) {
+		plugin0 := newPlugin(0)
+		plugin1 := newPlugin(1)
+
+		memdb := &MemDB{}
+		reg := NewRegistry(memdb, map[string]PluginDispenser{PluginTypeCSINode: dispenseFn})
+
+		require.NoError(t, reg.RegisterPlugin(plugin0))
+
+		// replacement is registered before old plugin deregisters
+		require.NoError(t, reg.RegisterPlugin(plugin1))
+		plugin := dispensePlugin(t, reg)
+		require.Equal(t, "alloc-1", plugin.AllocID)
+
+		reg.DeregisterPlugin(PluginTypeCSINode, "my-plugin", "alloc-0")
+		plugin = dispensePlugin(t, reg)
+		require.Equal(t, "alloc-1", plugin.AllocID)
+	})
+
 }
 
 // MemDB implements a StateDB that stores data in memory and should only be

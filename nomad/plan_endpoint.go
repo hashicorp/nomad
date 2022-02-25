@@ -14,10 +14,19 @@ import (
 type Plan struct {
 	srv    *Server
 	logger log.Logger
+
+	// ctx provides context regarding the underlying connection
+	ctx *RPCContext
 }
 
 // Submit is used to submit a plan to the leader
 func (p *Plan) Submit(args *structs.PlanRequest, reply *structs.PlanResponse) error {
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(p.srv, p.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := p.srv.forward("Plan.Submit", args, args, reply); done {
 		return err
 	}

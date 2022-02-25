@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
@@ -140,10 +139,17 @@ func (w *drainingJobWatcher) deregisterJob(jobID, namespace string) {
 
 // watch is the long lived watching routine that detects job drain changes.
 func (w *drainingJobWatcher) watch() {
+	timer, stop := helper.NewSafeTimer(stateReadErrorDelay)
+	defer stop()
+
 	waitIndex := uint64(1)
+
 	for {
+		timer.Reset(stateReadErrorDelay)
+
 		w.logger.Trace("getting job allocs at index", "index", waitIndex)
 		jobAllocs, index, err := w.getJobAllocs(w.getQueryCtx(), waitIndex)
+
 		if err != nil {
 			if err == context.Canceled {
 				// Determine if it is a cancel or a shutdown
@@ -164,7 +170,7 @@ func (w *drainingJobWatcher) watch() {
 			case <-w.ctx.Done():
 				w.logger.Trace("shutting down")
 				return
-			case <-time.After(stateReadErrorDelay):
+			case <-timer.C:
 				continue
 			}
 		}

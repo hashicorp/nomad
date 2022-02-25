@@ -17,7 +17,6 @@ import (
 	"math"
 	"net"
 	"os"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -25,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/hashicorp/cronexpr"
@@ -122,21 +122,6 @@ const (
 	// MsgTypeTestSetup is used during testing when calling state store
 	// methods directly that require an FSM MessageType
 	MsgTypeTestSetup MessageType = IgnoreUnknownTypeFlag
-
-	// ApiMajorVersion is returned as part of the Status.Version request.
-	// It should be incremented anytime the APIs are changed in a way
-	// that would break clients for sane client versioning.
-	ApiMajorVersion = 1
-
-	// ApiMinorVersion is returned as part of the Status.Version request.
-	// It should be incremented anytime the APIs are changed to allow
-	// for sane client versioning. Minor changes should be compatible
-	// within the major version.
-	ApiMinorVersion = 1
-
-	ProtocolVersion = "protocol"
-	APIMajorVersion = "api.major"
-	APIMinorVersion = "api.minor"
 
 	GetterModeAny  = "any"
 	GetterModeFile = "file"
@@ -274,6 +259,10 @@ type QueryOptions struct {
 	// AuthToken is secret portion of the ACL token used for the request
 	AuthToken string
 
+	// Filter specifies the go-bexpr filter expression to be used for
+	// filtering the data prior to returning a response
+	Filter string
+
 	// PerPage is the number of entries to be returned in queries that support
 	// paginated lists.
 	PerPage int32
@@ -283,6 +272,9 @@ type QueryOptions struct {
 	// the ID of the next object after the last one seen in the
 	// previous response.
 	NextToken string
+
+	// Ascending is used to have results sorted in ascending chronological order.
+	Ascending bool
 
 	InternalRpcInfo
 }
@@ -4968,6 +4960,9 @@ type Namespace struct {
 	// against.
 	Quota string
 
+	// Capabilities is the set of capabilities allowed for this namespace
+	Capabilities *NamespaceCapabilities
+
 	// Hash is the hash of the namespace which is used to efficiently replicate
 	// cross-regions.
 	Hash []byte
@@ -4975,6 +4970,13 @@ type Namespace struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// NamespaceCapabilities represents a set of capabilities allowed for this
+// namespace, to be checked at job submission time.
+type NamespaceCapabilities struct {
+	EnabledTaskDrivers  []string
+	DisabledTaskDrivers []string
 }
 
 func (n *Namespace) Validate() error {
@@ -5005,6 +5007,14 @@ func (n *Namespace) SetHash() []byte {
 	_, _ = hash.Write([]byte(n.Name))
 	_, _ = hash.Write([]byte(n.Description))
 	_, _ = hash.Write([]byte(n.Quota))
+	if n.Capabilities != nil {
+		for _, driver := range n.Capabilities.EnabledTaskDrivers {
+			_, _ = hash.Write([]byte(driver))
+		}
+		for _, driver := range n.Capabilities.DisabledTaskDrivers {
+			_, _ = hash.Write([]byte(driver))
+		}
+	}
 
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
@@ -5018,6 +5028,13 @@ func (n *Namespace) Copy() *Namespace {
 	nc := new(Namespace)
 	*nc = *n
 	nc.Hash = make([]byte, len(n.Hash))
+	if n.Capabilities != nil {
+		c := new(NamespaceCapabilities)
+		*c = *n.Capabilities
+		c.EnabledTaskDrivers = helper.CopySliceString(n.Capabilities.EnabledTaskDrivers)
+		c.DisabledTaskDrivers = helper.CopySliceString(n.Capabilities.DisabledTaskDrivers)
+		nc.Capabilities = c
+	}
 	copy(nc.Hash, n.Hash)
 	return nc
 }
@@ -5316,7 +5333,7 @@ func (d *DispatchPayloadConfig) Copy() *DispatchPayloadConfig {
 
 func (d *DispatchPayloadConfig) Validate() error {
 	// Verify the destination doesn't escape
-	escaped, err := PathEscapesAllocDir("task/local/", d.File)
+	escaped, err := escapingfs.PathEscapesAllocViaRelative("task/local/", d.File)
 	if err != nil {
 		return fmt.Errorf("invalid destination path: %v", err)
 	} else if escaped {
@@ -7535,7 +7552,7 @@ func (t *Template) Validate() error {
 	}
 
 	// Verify the destination doesn't escape
-	escaped, err := PathEscapesAllocDir("task", t.DestPath)
+	escaped, err := escapingfs.PathEscapesAllocViaRelative("task", t.DestPath)
 	if err != nil {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
 	} else if escaped {
@@ -7769,9 +7786,9 @@ func (ts *TaskState) Copy() *TaskState {
 	return newTS
 }
 
-// Successful returns whether a task finished successfully. This doesn't really
-// have meaning on a non-batch allocation because a service and system
-// allocation should not finish.
+// Successful returns whether a task finished successfully. Only meaningful for
+// for batch allocations or ephemeral (non-sidecar) lifecycle tasks part of a
+// service or system allocation.
 func (ts *TaskState) Successful() bool {
 	return ts.State == TaskStateDead && !ts.Failed
 }
@@ -8333,31 +8350,6 @@ func (ta *TaskArtifact) Hash() string {
 	return base64.RawStdEncoding.EncodeToString(h.Sum(nil))
 }
 
-// PathEscapesAllocDir returns if the given path escapes the allocation
-// directory.
-//
-// The prefix is to joined to the path (e.g. "task/local"), and this function
-// checks if path escapes the alloc dir, NOT the prefix directory within the alloc dir.
-// With prefix="task/local", it will return false for "../secret", but
-// true for "../../../../../../root" path; only the latter escapes the alloc dir
-func PathEscapesAllocDir(prefix, path string) (bool, error) {
-	// Verify the destination doesn't escape the tasks directory
-	alloc, err := filepath.Abs(filepath.Join("/", "alloc-dir/", "alloc-id/"))
-	if err != nil {
-		return false, err
-	}
-	abs, err := filepath.Abs(filepath.Join(alloc, prefix, path))
-	if err != nil {
-		return false, err
-	}
-	rel, err := filepath.Rel(alloc, abs)
-	if err != nil {
-		return false, err
-	}
-
-	return strings.HasPrefix(rel, ".."), nil
-}
-
 func (ta *TaskArtifact) Validate() error {
 	// Verify the source
 	var mErr multierror.Error
@@ -8376,7 +8368,7 @@ func (ta *TaskArtifact) Validate() error {
 			ta.GetterMode, GetterModeAny, GetterModeFile, GetterModeDir))
 	}
 
-	escaped, err := PathEscapesAllocDir("task", ta.RelativeDest)
+	escaped, err := escapingfs.PathEscapesAllocViaRelative("task", ta.RelativeDest)
 	if err != nil {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
 	} else if escaped {

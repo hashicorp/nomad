@@ -125,7 +125,14 @@ func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state Sta
 }
 
 // Process is used to handle a single evaluation
-func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
+func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("processing eval %q panicked scheduler - please report this as a bug! - %v", eval.ID, r)
+		}
+	}()
+
 	// Store the evaluation
 	s.eval = eval
 
@@ -412,22 +419,16 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		return nil
 	}
 
-	// Record the number of allocations that needs to be placed per Task Group
-	for _, place := range results.place {
-		s.queuedAllocs[place.taskGroup.Name] += 1
-	}
-	for _, destructive := range results.destructiveUpdate {
-		s.queuedAllocs[destructive.placeTaskGroup.Name] += 1
-	}
-
 	// Compute the placements
 	place := make([]placementResult, 0, len(results.place))
 	for _, p := range results.place {
+		s.queuedAllocs[p.taskGroup.Name] += 1
 		place = append(place, p)
 	}
 
 	destructive := make([]placementResult, 0, len(results.destructiveUpdate))
 	for _, p := range results.destructiveUpdate {
+		s.queuedAllocs[p.placeTaskGroup.Name] += 1
 		destructive = append(destructive, p)
 	}
 	return s.computePlacements(destructive, place)

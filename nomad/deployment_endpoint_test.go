@@ -8,6 +8,7 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -1031,6 +1032,95 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	assert.Len(resp.Deployments, 2, "Deployments")
 }
 
+func TestDeploymentEndpoint_List_order(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create register requests
+	uuid1 := uuid.Generate()
+	dep1 := mock.Deployment()
+	dep1.ID = uuid1
+
+	uuid2 := uuid.Generate()
+	dep2 := mock.Deployment()
+	dep2.ID = uuid2
+
+	uuid3 := uuid.Generate()
+	dep3 := mock.Deployment()
+	dep3.ID = uuid3
+
+	err := s1.fsm.State().UpsertDeployment(1000, dep1)
+	require.NoError(t, err)
+
+	err = s1.fsm.State().UpsertDeployment(1001, dep2)
+	require.NoError(t, err)
+
+	err = s1.fsm.State().UpsertDeployment(1002, dep3)
+	require.NoError(t, err)
+
+	// update dep2 again so we can later assert create index order did not change
+	err = s1.fsm.State().UpsertDeployment(1003, dep2)
+	require.NoError(t, err)
+
+	t.Run("ascending", func(t *testing.T) {
+		// Lookup the deployments in chronological order (oldest first)
+		get := &structs.DeploymentListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: "*",
+				Ascending: true,
+			},
+		}
+
+		var resp structs.DeploymentListResponse
+		err = msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1003), resp.Index)
+		require.Len(t, resp.Deployments, 3)
+
+		// Assert returned order is by CreateIndex (ascending)
+		require.Equal(t, uint64(1000), resp.Deployments[0].CreateIndex)
+		require.Equal(t, uuid1, resp.Deployments[0].ID)
+
+		require.Equal(t, uint64(1001), resp.Deployments[1].CreateIndex)
+		require.Equal(t, uuid2, resp.Deployments[1].ID)
+
+		require.Equal(t, uint64(1002), resp.Deployments[2].CreateIndex)
+		require.Equal(t, uuid3, resp.Deployments[2].ID)
+	})
+
+	t.Run("descending", func(t *testing.T) {
+		// Lookup the deployments in reverse chronological order (newest first)
+		get := &structs.DeploymentListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: "*",
+				Ascending: false,
+			},
+		}
+
+		var resp structs.DeploymentListResponse
+		err = msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1003), resp.Index)
+		require.Len(t, resp.Deployments, 3)
+
+		// Assert returned order is by CreateIndex (descending)
+		require.Equal(t, uint64(1002), resp.Deployments[0].CreateIndex)
+		require.Equal(t, uuid3, resp.Deployments[0].ID)
+
+		require.Equal(t, uint64(1001), resp.Deployments[1].CreateIndex)
+		require.Equal(t, uuid2, resp.Deployments[1].ID)
+
+		require.Equal(t, uint64(1000), resp.Deployments[2].CreateIndex)
+		require.Equal(t, uuid1, resp.Deployments[2].ID)
+	})
+}
+
 func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 	t.Parallel()
 
@@ -1174,23 +1264,23 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 		jobID     string
 		status    string
 	}{
-		{id: "aaaa1111-3350-4b4b-d185-0e1992ed43e9"},
-		{id: "aaaaaa22-3350-4b4b-d185-0e1992ed43e9"},
-		{id: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9", namespace: "non-default"},
-		{id: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"},
-		{id: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9"},
-		{id: "aaaaaacc-3350-4b4b-d185-0e1992ed43e9"},
-		{id: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9"},
+		{id: "aaaa1111-3350-4b4b-d185-0e1992ed43e9"},                           // 0
+		{id: "aaaaaa22-3350-4b4b-d185-0e1992ed43e9"},                           // 1
+		{id: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9", namespace: "non-default"}, // 2
+		{id: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"},                           // 3
+		{id: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9"},                           // 4
+		{id: "aaaaaacc-3350-4b4b-d185-0e1992ed43e9"},                           // 5
+		{id: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9"},                           // 6
 	}
 
 	state := s1.fsm.State()
-	index := uint64(1000)
 
-	for _, m := range mocks {
-		index++
+	for i, m := range mocks {
+		index := 1000 + uint64(i)
 		deployment := mock.Deployment()
 		deployment.Status = structs.DeploymentStatusCancelled
 		deployment.ID = m.id
+		deployment.CreateIndex = index
 		if m.namespace != "" { // defaults to "default"
 			deployment.Namespace = m.namespace
 		}
@@ -1198,17 +1288,19 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 	}
 
 	aclToken := mock.CreatePolicyAndToken(t, state, 1100, "test-valid-read",
-		mock.NamespacePolicy(structs.DefaultNamespace, "read", nil)).
+		mock.NamespacePolicy("*", "read", nil)).
 		SecretID
 
 	cases := []struct {
 		name              string
 		namespace         string
 		prefix            string
+		filter            string
 		nextToken         string
 		pageSize          int32
 		expectedNextToken string
 		expectedIDs       []string
+		expectedError     string
 	}{
 		{
 			name:              "test01 size-2 page-1 default NS",
@@ -1251,11 +1343,56 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 			},
 		},
 		{
-			name:        "test5 no valid results with filters and prefix",
+			name:        "test05 no valid results with filters and prefix",
 			prefix:      "cccc",
 			pageSize:    2,
 			nextToken:   "",
 			expectedIDs: []string{},
+		},
+		{
+			name:      "test06 go-bexpr filter",
+			namespace: "*",
+			filter:    `ID matches "^a+[123]"`,
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test07 go-bexpr filter with pagination",
+			namespace:         "*",
+			filter:            `ID matches "^a+[123]"`,
+			pageSize:          2,
+			expectedNextToken: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:      "test08 go-bexpr filter in namespace",
+			namespace: "non-default",
+			filter:    `Status == "cancelled"`,
+			expectedIDs: []string{
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:        "test09 go-bexpr wrong namespace",
+			namespace:   "default",
+			filter:      `Namespace == "non-default"`,
+			expectedIDs: []string{},
+		},
+		{
+			name:          "test10 go-bexpr invalid expression",
+			filter:        `NotValid`,
+			expectedError: "failed to read filter expression",
+		},
+		{
+			name:          "test11 go-bexpr invalid field",
+			filter:        `InvalidField == "value"`,
+			expectedError: "error finding value in datum",
 		},
 	}
 
@@ -1266,13 +1403,23 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 					Region:    "global",
 					Namespace: tc.namespace,
 					Prefix:    tc.prefix,
+					Filter:    tc.filter,
 					PerPage:   tc.pageSize,
 					NextToken: tc.nextToken,
+					Ascending: true, // counting up is easier to think about
 				},
 			}
 			req.AuthToken = aclToken
 			var resp structs.DeploymentListResponse
-			require.NoError(t, msgpackrpc.CallWithCodec(codec, "Deployment.List", req, &resp))
+			err := msgpackrpc.CallWithCodec(codec, "Deployment.List", req, &resp)
+			if tc.expectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedError)
+				return
+			}
+
 			gotIDs := []string{}
 			for _, deployment := range resp.Deployments {
 				gotIDs = append(gotIDs, deployment.ID)
