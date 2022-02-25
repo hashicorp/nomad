@@ -1568,3 +1568,220 @@ func TestAllocRunner_PersistState_Destroyed(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, ts)
 }
+
+func TestAllocRunner_Reconnect(t *testing.T) {
+	t.Parallel()
+
+	type tcase struct {
+		clientStatus string
+	}
+	tcases := []tcase{
+		{
+			structs.AllocClientStatusRunning,
+		},
+		{
+			structs.AllocClientStatusComplete,
+		},
+		{
+			structs.AllocClientStatusFailed,
+		},
+		{
+			structs.AllocClientStatusPending,
+		},
+	}
+
+	for _, tc := range tcases {
+		t.Run(tc.clientStatus, func(t *testing.T) {
+			// create a running alloc
+			current := mock.BatchAlloc()
+
+			// Ensure task takes some time
+			task := current.Job.TaskGroups[0].Tasks[0]
+			task.Driver = "mock_driver"
+			task.Config["run_for"] = "30s"
+
+			conf, cleanup := testAllocRunnerConfig(t, current)
+			defer cleanup()
+
+			ar, err := NewAllocRunner(conf)
+			require.NoError(t, err)
+			defer destroy(ar)
+
+			go ar.Run()
+
+			updater := conf.StateUpdater.(*MockStateUpdater)
+			var last *structs.Allocation
+			testutil.WaitForResult(func() (result bool, err error) {
+				result = false
+				last = updater.Last()
+				if last == nil {
+					return
+				}
+
+				if last.ClientStatus != structs.AllocClientStatusRunning {
+					return
+				}
+
+				result = true
+				return
+			}, func(err error) {
+				require.NoError(t, err)
+			})
+
+			// if we are trying to test a status other than running, update the status manually.
+			if tc.clientStatus != last.ClientStatus {
+				update := ar.alloc.Copy()
+				update.ClientStatus = tc.clientStatus
+
+				ar.Update(update)
+
+				testutil.WaitForResult(func() (result bool, err error) {
+					result = false
+					last = updater.Last()
+					if last == nil {
+						return
+					}
+
+					// Check the status is what we want.
+					if last.ClientStatus != tc.clientStatus {
+						return
+					}
+
+					result = true
+					return
+				}, func(e error) {
+					require.NoError(t, err, "update ClientStatus failed")
+				})
+			}
+
+			// create a reconnecting alloc from the server.
+			reconnecting := current.Copy()
+			reconnecting.ClientStatus = structs.AllocClientStatusUnknown
+			reconnecting.AllocModifyIndex = current.AllocModifyIndex + 10
+
+			// If testing failed we have to create an event that results in the task failing.
+			if tc.clientStatus == structs.AllocClientStatusFailed {
+				for _, taskRunner := range ar.tasks {
+					taskRunner.AppendEvent(structs.NewTaskEvent(structs.TaskStateDead).SetFailsTask())
+				}
+			}
+
+			// if testing pending we manipulate the state so that it appears the alloc never ran.
+			if tc.clientStatus == structs.AllocClientStatusPending {
+				for _, taskRunner := range ar.tasks {
+					taskRunner.UpdateState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskStatePending))
+				}
+			}
+
+			ar.Reconnect(reconnecting)
+
+			require.Equal(t, tc.clientStatus, ar.alloc.ClientStatus)
+			require.Equal(t, ar.alloc.AllocModifyIndex, reconnecting.AllocModifyIndex)
+
+			// Make sure events were or were not appended
+			if tc.clientStatus == structs.AllocClientStatusRunning {
+				found := false
+				states := ar.TaskRunnerTaskStates()
+				for _, s := range states {
+					for _, e := range s.Events {
+						if e.Type == structs.TaskClientReconnected {
+							found = true
+							break
+						}
+					}
+				}
+				require.True(t, found, "no reconnect event found")
+			} else {
+				states := ar.TaskRunnerTaskStates()
+				for _, s := range states {
+					for _, e := range s.Events {
+						require.NotEqual(t, structs.TaskClientReconnected, e.Type, "found invalid reconnect event")
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestAllocRunner_MaybeHasPendingReconnect(t *testing.T) {
+	t.Parallel()
+
+	type tcase struct {
+		name      string
+		timestamp int64
+		expected  bool
+	}
+	tcases := []tcase{
+		{
+			"no event",
+			0,
+			false,
+		},
+		{
+			"should guard now",
+			time.Now().UnixNano(),
+			true,
+		},
+		{
+			"should guard 3 seconds",
+			time.Now().Add(-(3 * time.Second)).UnixNano(),
+			true,
+		},
+		{
+			"should not guard 5 seconds",
+			time.Now().Add(-(6 * time.Second)).UnixNano(),
+			false,
+		},
+	}
+
+	for _, tc := range tcases {
+		t.Run(tc.name, func(t *testing.T) {
+			// create a running alloc
+			current := mock.BatchAlloc()
+
+			// Ensure task takes some time
+			task := current.Job.TaskGroups[0].Tasks[0]
+			task.Driver = "mock_driver"
+			task.Config["run_for"] = "30s"
+
+			conf, cleanup := testAllocRunnerConfig(t, current)
+			defer cleanup()
+
+			ar, err := NewAllocRunner(conf)
+			require.NoError(t, err)
+			defer destroy(ar)
+
+			go ar.Run()
+
+			updater := conf.StateUpdater.(*MockStateUpdater)
+			var last *structs.Allocation
+			testutil.WaitForResult(func() (result bool, err error) {
+				result = false
+				last = updater.Last()
+				if last == nil {
+					return
+				}
+
+				if last.ClientStatus != structs.AllocClientStatusRunning {
+					return
+				}
+
+				result = true
+				return
+			}, func(err error) {
+				require.NoError(t, err)
+			})
+
+			// Append the reconnect task event with the timestamp
+			if tc.timestamp > 0 {
+				event := structs.NewTaskEvent(structs.TaskClientReconnected)
+				event.Time = tc.timestamp
+				for _, tr := range ar.tasks {
+					tr.AppendEvent(event)
+				}
+			}
+
+			require.Equal(t, tc.expected, ar.hasPendingReconnect())
+		})
+	}
+}

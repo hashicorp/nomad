@@ -1233,6 +1233,84 @@ func (ar *allocRunner) Signal(taskName, signal string) error {
 	return err.ErrorOrNil()
 }
 
+// Reconnect synchronizes client state between an incoming unknown allocation and
+// the current allocRunner and appends a reconnect event to each task if alloc is running.
+func (ar *allocRunner) Reconnect(update *structs.Allocation) {
+	// Guard against the server sending update requests faster than the state
+	// gets propagated back to them.
+	if ar.hasPendingReconnect() {
+		ar.logger.Trace("skipping due to recent reconnect")
+		return
+	}
+
+	ar.maybeAppendReconnectEvent()
+
+	// Populate the alloc with updated events.
+	clientAlloc := ar.clientAlloc(ar.TaskRunnerTaskStates())
+
+	// Sync the incoming server state with the actual client state including the newly minted event.
+	update.ClientStatus = clientAlloc.ClientStatus
+	update.ClientDescription = clientAlloc.ClientDescription
+	update.TaskStates = clientAlloc.TaskStates
+
+	// Update the local copy of alloc.
+	if err := ar.stateDB.PutAllocation(update); err != nil {
+		ar.logger.Error("error reconnecting alloc when persisting updated alloc locally", "error", err, "alloc_id", update.ID)
+		return
+	}
+
+	// Sync the alloc runner. Important for ensuring the AllocModifyIndex is propagated.
+	// Do not call setAlloc on TaskRunners. That will restart the alloc.
+	ar.setAlloc(update)
+
+	// Update the server.
+	ar.stateUpdater.AllocStateUpdated(update)
+}
+
+// hasPendingReconnect checks the current alloc TaskRunnerTaskStates to see if a recent
+// reconnect event was appended. This is useful for allowing the client state to
+// have time to propagate to the servers before attempting another reconnect.
+func (ar *allocRunner) hasPendingReconnect() bool {
+	now := time.Now()
+
+	for _, taskState := range ar.TaskRunnerTaskStates() {
+		for _, taskEvent := range taskState.Events {
+			if taskEvent.Type != structs.TaskClientReconnected {
+				continue
+			}
+
+			if now.Sub(time.Unix(0, taskEvent.Time)) < (5 * time.Second) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// maybeAppendReconnectEvent appends a reconnect event if the computed client status is running.
+func (ar *allocRunner) maybeAppendReconnectEvent() {
+	clientStatus, _ := getClientStatus(ar.TaskRunnerTaskStates())
+
+	if clientStatus != structs.AllocClientStatusRunning {
+		return
+	}
+
+	event := structs.NewTaskEvent(structs.TaskClientReconnected)
+	for _, tr := range ar.tasks {
+		tr.AppendEvent(event)
+	}
+}
+
+// TaskRunnerTaskStates creates a map of task states by taskName.
+func (ar *allocRunner) TaskRunnerTaskStates() map[string]*structs.TaskState {
+	states := make(map[string]*structs.TaskState, len(ar.tasks))
+	for taskName, tr := range ar.tasks {
+		states[taskName] = tr.TaskState()
+	}
+	return states
+}
+
 func (ar *allocRunner) GetTaskExecHandler(taskName string) drivermanager.TaskExecHandler {
 	tr, ok := ar.tasks[taskName]
 	if !ok {
