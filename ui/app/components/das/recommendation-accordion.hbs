@@ -11,7 +11,7 @@
         <Das::RecommendationCard
           @summary={{@summary}}
           @proceed={{this.proceed}}
-          @onCollapse={{action (mut a.isOpen) false}}
+          @onCollapse={{a.close}}
           @skipReset=true
         />
       </div>
