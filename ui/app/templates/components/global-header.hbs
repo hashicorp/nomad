@@ -13,6 +13,7 @@
     </LinkTo>
   </div>
   {{#if this.system.fuzzySearchEnabled}}
+    {{! template-lint-disable simple-unless }}
     {{#unless (media "isMobile")}}
       <GlobalSearch::Control />
     {{/unless}}
