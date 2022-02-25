@@ -222,7 +222,8 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     await render(commonTemplate);
 
     await startJob();
-    expectError(assert, 'Could Not Start Job');
+
+    await expectError(assert, 'Could Not Start Job');
   });
 
   test('Each job row includes the submitted time', async function (assert) {
