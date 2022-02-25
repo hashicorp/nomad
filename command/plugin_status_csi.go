@@ -118,6 +118,12 @@ func (c *PluginStatusCommand) csiFormatPlugin(plug *api.CSIPlugin) (string, erro
 			full = append(full, c.Colorize().Color("\n[bold]Node Capabilities[reset]"))
 			full = append(full, nodeCaps)
 		}
+		topos := c.formatTopology(plug.Nodes)
+		if topos != "" {
+			full = append(full, c.Colorize().Color("\n[bold]Accessible Topologies[reset]"))
+			full = append(full, topos)
+		}
+
 	}
 
 	// Format the allocs
@@ -183,6 +189,10 @@ func (c *PluginStatusCommand) formatControllerCaps(controllers map[string]*api.C
 func (c *PluginStatusCommand) formatNodeCaps(nodes map[string]*api.CSIInfo) string {
 	caps := []string{}
 	for _, node := range nodes {
+		// TODO: move this up to top-level k/v?
+		if node.RequiresTopologies {
+			caps = append(caps, "VOLUME_ACCESSIBILITY_CONSTRAINTS")
+		}
 		switch info := node.NodeInfo; {
 		case info.RequiresNodeStageVolume:
 			caps = append(caps, "STAGE_UNSTAGE_VOLUME")
@@ -206,4 +216,22 @@ func (c *PluginStatusCommand) formatNodeCaps(nodes map[string]*api.CSIInfo) stri
 	}
 
 	return "  " + strings.Join(sort.StringSlice(caps), "\n  ")
+}
+
+func (c *PluginStatusCommand) formatTopology(nodes map[string]*api.CSIInfo) string {
+	rows := []string{"Node ID|Accessible Topology"}
+	for nodeID, node := range nodes {
+		if node.NodeInfo.AccessibleTopology != nil {
+			segments := node.NodeInfo.AccessibleTopology.Segments
+			segmentPairs := make([]string, 0, len(segments))
+			for k, v := range segments {
+				segmentPairs = append(segmentPairs, fmt.Sprintf("%s=%s", k, v))
+			}
+			rows = append(rows, fmt.Sprintf("%s|%s", nodeID[:8], strings.Join(segmentPairs, ",")))
+		}
+	}
+	if len(rows) == 1 {
+		return ""
+	}
+	return formatList(rows)
 }

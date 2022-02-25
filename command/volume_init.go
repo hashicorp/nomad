@@ -150,6 +150,16 @@ mount_options {
   mount_flags = ["ro"]
 }
 
+# Optional: specify one or more locations where the volume must be accessible
+# from. Refer to the plugin documentation for what segment values are supported.
+required_topology {
+  segments {rack = "R1", zone = "us-east-1a"}
+}
+
+required_topology {
+  segments {rack = "R2", zone = "us-east-1b"}
+}
+
 # Optional: provide any secrets specified by the plugin.
 secrets {
   example_secret = "xyzzy"
@@ -201,6 +211,14 @@ var defaultJsonVolumeSpec = strings.TrimSpace(`
       ]
     }
   ],
+  "require_topologies": [
+    {
+      "segments": {"rack": "R1", "zone": "us-east-1a"}
+    },
+    {
+      "segments": {"rack": "R2", "zone": "us-east-1b"}
+    }
+  ]
   "parameters": [
     {
       "skuname": "Premium_LRS"
