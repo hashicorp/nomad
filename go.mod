@@ -44,7 +44,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.1-0.20200228141219-3ce3d519df39
 	github.com/hashicorp/consul v1.7.8
 	github.com/hashicorp/consul-template v0.25.2
-	github.com/hashicorp/consul/api v1.9.1
+	github.com/hashicorp/consul/api v1.12.0
 	github.com/hashicorp/consul/sdk v0.8.0
 	github.com/hashicorp/cronexpr v1.1.1
 	github.com/hashicorp/go-bexpr v0.1.11
