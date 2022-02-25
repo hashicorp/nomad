@@ -9,6 +9,7 @@ import (
 	humanize "github.com/dustin/go-humanize"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/pkg/errors"
 	"github.com/posener/complete"
 )
@@ -36,7 +37,9 @@ List Options:
   -plugin: Display only snapshots managed by a particular plugin. By default
    this command will query all plugins for their snapshots.
 
-  -secrets: A set of key/value secrets to be used when listing snapshots.
+  -secret
+    Secrets to pass to the plugin to list snapshots. Accepts multiple
+    flags in the form -secret key=value
 `
 	return strings.TrimSpace(helpText)
 }
@@ -70,13 +73,13 @@ func (c *VolumeSnapshotListCommand) Name() string { return "volume snapshot list
 func (c *VolumeSnapshotListCommand) Run(args []string) int {
 	var pluginID string
 	var verbose bool
-	var secrets string
+	var secretsArgs flaghelper.StringFlag
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&pluginID, "plugin", "", "")
 	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.StringVar(&secrets, "secrets", "", "")
+	flags.Var(&secretsArgs, "secret", "secrets for snapshot, ex. -secret key=value")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
@@ -122,10 +125,22 @@ func (c *VolumeSnapshotListCommand) Run(args []string) int {
 		pluginID = plugs[0].ID
 	}
 
-	q := &api.QueryOptions{PerPage: 30} // TODO: tune page size
+	secrets := api.CSISecrets{}
+	for _, kv := range secretsArgs {
+		s := strings.Split(kv, "=")
+		if len(s) == 2 {
+			secrets[s[0]] = s[1]
+		}
+	}
+
+	req := &api.CSISnapshotListRequest{
+		PluginID:     pluginID,
+		Secrets:      secrets,
+		QueryOptions: api.QueryOptions{PerPage: 30},
+	}
 
 	for {
-		resp, _, err := client.CSIVolumes().ListSnapshots(pluginID, secrets, q)
+		resp, _, err := client.CSIVolumes().ListSnapshotsOpts(req)
 		if err != nil && !errors.Is(err, io.EOF) {
 			c.Ui.Error(fmt.Sprintf(
 				"Error querying CSI external snapshots for plugin %q: %s", pluginID, err))
@@ -138,8 +153,8 @@ func (c *VolumeSnapshotListCommand) Run(args []string) int {
 		}
 
 		c.Ui.Output(csiFormatSnapshots(resp.Snapshots, verbose))
-		q.NextToken = resp.NextToken
-		if q.NextToken == "" {
+		req.NextToken = resp.NextToken
+		if req.NextToken == "" {
 			break
 		}
 		// we can't know the shape of arbitrarily-sized lists of snapshots,
