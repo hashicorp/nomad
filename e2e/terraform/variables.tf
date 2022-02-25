@@ -10,7 +10,7 @@ variable "region" {
 
 variable "availability_zone" {
   description = "The AWS availability zone to deploy to."
-  default     = "us-east-1a"
+  default     = "us-east-1b"
 }
 
 variable "instance_type" {
