@@ -19,7 +19,12 @@
   {{/if}}
   <div class="navbar-end">
     {{#if this.config.APP.showStorybookLink}}
-      <a href="/storybook/" class="navbar-item">
+      <a
+        href="/storybook/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="navbar-item"
+      >
         Storybook
       </a>
     {{/if}}
@@ -27,6 +32,8 @@
       <a
         data-test-header-consul-link
         href={{this.system.agent.config.UI.Consul.BaseUIURL}}
+        target="_blank"
+        rel="noopener noreferrer"
         class="navbar-item"
       >
         Consul
@@ -36,12 +43,19 @@
       <a
         data-test-header-vault-link
         href={{this.system.agent.config.UI.Vault.BaseUIURL}}
+        target="_blank"
+        rel="noopener noreferrer"
         class="navbar-item"
       >
         Vault
       </a>
     {{/if}}
-    <a href="https://nomadproject.io/docs" class="navbar-item">
+    <a
+      href="https://nomadproject.io/docs"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="navbar-item"
+    >
       Documentation
     </a>
     <LinkTo @route="settings.tokens" class="navbar-item">
