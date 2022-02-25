@@ -275,9 +275,10 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 		ID:        id0,
 		Namespace: structs.DefaultNamespace,
 		PluginID:  "minnie",
-		Topologies: []*structs.CSITopology{{
-			Segments: map[string]string{"foo": "bar"},
-		}},
+		RequestedTopologies: &structs.CSITopologyRequest{
+			Required: []*structs.CSITopology{
+				{Segments: map[string]string{"foo": "bar"}}},
+		},
 		Secrets: structs.CSISecrets{"mysecret": "secretvalue"},
 		RequestedCapabilities: []*structs.CSIVolumeCapability{{
 			AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
@@ -754,6 +755,9 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 		ExternalVolumeID: "vol-12345",
 		CapacityBytes:    42,
 		VolumeContext:    map[string]string{"plugincontext": "bar"},
+		Topologies: []*structs.CSITopology{
+			{Segments: map[string]string{"rack": "R1"}},
+		},
 	}
 
 	client, cleanup := client.TestClientWithRPCs(t,
@@ -829,6 +833,10 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 			},
 		},
+		Topologies: []*structs.CSITopology{
+			{Segments: map[string]string{"rack": "R1"}},
+			{Segments: map[string]string{"zone": "Z2"}},
+		},
 	}}
 
 	// Create the create request
@@ -872,6 +880,7 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	require.Equal(t, int64(42), vol.Capacity)
 	require.Equal(t, "bar", vol.Context["plugincontext"])
 	require.Equal(t, "", vol.Context["mycontext"])
+	require.Equal(t, map[string]string{"rack": "R1"}, vol.Topologies[0].Segments)
 }
 
 func TestCSIVolumeEndpoint_Delete(t *testing.T) {

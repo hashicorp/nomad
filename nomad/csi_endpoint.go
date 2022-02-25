@@ -301,6 +301,14 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		if err := v.controllerValidateVolume(args, vol, plugin); err != nil {
 			return err
 		}
+
+		// The topologies for the volume have already been set when it was
+		// created, so we accept the user's description of that topology
+		if vol.Topologies == nil || len(vol.Topologies) == 0 {
+			if vol.RequestedTopologies != nil {
+				vol.Topologies = vol.RequestedTopologies.Required
+			}
+		}
 	}
 
 	resp, index, err := v.srv.raftApply(structs.CSIVolumeRegisterRequestType, args)
@@ -898,15 +906,16 @@ func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 
 	method := "ClientCSI.ControllerCreateVolume"
 	cReq := &cstructs.ClientCSIControllerCreateVolumeRequest{
-		Name:               vol.Name,
-		VolumeCapabilities: vol.RequestedCapabilities,
-		MountOptions:       vol.MountOptions,
-		Parameters:         vol.Parameters,
-		Secrets:            vol.Secrets,
-		CapacityMin:        vol.RequestedCapacityMin,
-		CapacityMax:        vol.RequestedCapacityMax,
-		SnapshotID:         vol.SnapshotID,
-		CloneID:            vol.CloneID,
+		Name:                vol.Name,
+		VolumeCapabilities:  vol.RequestedCapabilities,
+		MountOptions:        vol.MountOptions,
+		Parameters:          vol.Parameters,
+		Secrets:             vol.Secrets,
+		CapacityMin:         vol.RequestedCapacityMin,
+		CapacityMax:         vol.RequestedCapacityMax,
+		SnapshotID:          vol.SnapshotID,
+		CloneID:             vol.CloneID,
+		RequestedTopologies: vol.RequestedTopologies,
 	}
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerCreateVolumeResponse{}
@@ -918,6 +927,7 @@ func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 	vol.ExternalID = cResp.ExternalVolumeID
 	vol.Capacity = cResp.CapacityBytes
 	vol.Context = cResp.VolumeContext
+	vol.Topologies = cResp.Topologies
 	return nil
 }
 
