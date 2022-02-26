@@ -329,10 +329,6 @@
         ]
       },
       {
-        "title": "curl",
-        "path": "commands/curl"
-      },
-      {
         "title": "deployment",
         "routes": [
           {
@@ -540,6 +536,10 @@
           {
             "title": "Overview",
             "path": "commands/operator"
+          },
+          {
+            "title": "api",
+            "path": "commands/operator/api"
           },
           {
             "title": "autopilot get-config",
