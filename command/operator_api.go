@@ -29,7 +29,7 @@ func (*OperatorAPICommand) Help() string {
 Usage: nomad operator api [options] <path>
 
   api is a utility command for accessing Nomad's HTTP API and is inspired by
-  the popular curl command line program. Nomad's operator api command populates
+  the popular curl command line tool. Nomad's operator api command populates
   Nomad's standard environment variables into their appropriate HTTP headers.
   If the 'path' does not begin with "http" then $NOMAD_ADDR will be used. 
 
@@ -50,7 +50,7 @@ General Options:
 Operator API Specific Options:
 
   -dryrun
-    Output curl command to stdout and exit.
+    Output equivalent curl command to stdout and exit.
     HTTP Basic Auth will never be output. If the $NOMAD_HTTP_AUTH environment
     variable is set, it will be referenced in the appropriate curl flag in the
     output.
@@ -64,7 +64,7 @@ Operator API Specific Options:
 
   -H <Header>
     Adds an additional HTTP header to the request. May be specified more than
-    once. These headers take precedent over automatically ones such as
+    once. These headers take precedence over automatically set ones such as
     X-Nomad-Token.
 
   -verbose
@@ -78,7 +78,7 @@ Operator API Specific Options:
 }
 
 func (*OperatorAPICommand) Synopsis() string {
-	return "Query Nomad's HTTP API like curl"
+	return "Query Nomad's HTTP API"
 }
 
 func (c *OperatorAPICommand) AutocompleteFlags() complete.Flags {
