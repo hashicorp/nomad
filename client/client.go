@@ -156,7 +156,7 @@ type AllocRunner interface {
 
 	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
 	RestartAll(taskEvent *structs.TaskEvent) error
-	Reconnect(update *structs.Allocation)
+	Reconnect()
 
 	GetTaskExecHandler(taskName string) drivermanager.TaskExecHandler
 	GetTaskDriverCapabilities(taskName string) (*drivers.Capabilities, error)
@@ -2406,7 +2406,7 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 
 	// Reconnect unknown allocations
 	if update.ClientStatus == structs.AllocClientStatusUnknown && update.AllocModifyIndex > ar.Alloc().AllocModifyIndex {
-		ar.Reconnect(update)
+		ar.Reconnect()
 		return
 	}
 
