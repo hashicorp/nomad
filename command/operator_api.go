@@ -160,7 +160,7 @@ func (c *OperatorAPICommand) Run(args []string) int {
 	path, err := pathToURL(config, args[0])
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error turning path into URL: %v", err))
-		return 2
+		return 1
 	}
 
 	// Set Filter query param
@@ -174,7 +174,7 @@ func (c *OperatorAPICommand) Run(args []string) int {
 		out, err := c.apiToCurl(config, headerFlags.headers, path)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error creating curl command: %v", err))
-			return 3
+			return 1
 		}
 		c.Ui.Output(out)
 		return 0
@@ -190,7 +190,7 @@ func (c *OperatorAPICommand) Run(args []string) int {
 
 	if err := api.ConfigureTLS(client, config.TLSConfig); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error configuring TLS: %v", err))
-		return 4
+		return 1
 	}
 
 	setQueryParams(config, path)
@@ -200,7 +200,7 @@ func (c *OperatorAPICommand) Run(args []string) int {
 	req, err := http.NewRequest(c.method, path.String(), c.body)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error making request: %v", err))
-		return 5
+		return 1
 	}
 
 	// Set headers from command line
@@ -232,7 +232,7 @@ func (c *OperatorAPICommand) Run(args []string) int {
 	resp, err := client.Do(req)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error performing request: %v", err))
-		return 6
+		return 1
 	}
 	defer resp.Body.Close()
 
@@ -246,7 +246,7 @@ func (c *OperatorAPICommand) Run(args []string) int {
 	n, err := io.Copy(os.Stdout, resp.Body)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error reading response after %d bytes: %v", n, err))
-		return 7
+		return 1
 	}
 
 	if len(resp.Trailer) > 0 {
