@@ -64,5 +64,10 @@ capabilities {
   enabled_task_drivers  = ["docker", "exec"]
   disabled_task_drivers = ["raw_exec"]
 }
+
+meta {
+  owner = "John Doe"
+  contact_mail = "john@mycompany.com
+}
 $ nomad namespace apply namespace.json
 ```

@@ -216,6 +216,7 @@ func parseNamespaceSpecImpl(result *api.Namespace, list *ast.ObjectList) error {
 	}
 
 	delete(m, "capabilities")
+	delete(m, "meta")
 
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, result); err != nil {
@@ -235,6 +236,18 @@ func parseNamespaceSpecImpl(result *api.Namespace, list *ast.ObjectList) error {
 			}
 			result.Capabilities = opts
 			break
+		}
+	}
+
+	if metaO := list.Filter("meta"); len(metaO.Items) > 0 {
+		for _, o := range metaO.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return err
+			}
+			if err := mapstructure.WeakDecode(m, &result.Meta); err != nil {
+				return err
+			}
 		}
 	}
 
