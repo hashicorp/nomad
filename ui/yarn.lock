@@ -107,7 +107,7 @@
     semver "^5.4.1"
     source-map "^0.5.0"
 
-"@babel/core@^7.12.0", "@babel/core@^7.12.9", "@babel/core@^7.3.4":
+"@babel/core@^7.12.0", "@babel/core@^7.12.9", "@babel/core@^7.13.10", "@babel/core@^7.3.4":
   version "7.17.5"
   resolved "https://registry.yarnpkg.com/@babel/core/-/core-7.17.5.tgz#6cd2e836058c28f06a4ca8ee7ed955bbf37c8225"
   integrity sha512-/BBMw4EvjmyquN5O+t5eh0+YqB3XXJkYD2cjKpYtWOfFy4lQ4UozNSmxAcWT8r2XtZs0ewG+zrfsqeR15i1ajA==
@@ -9195,13 +9195,15 @@ ember-cli-sri@^2.1.1:
   dependencies:
     broccoli-sri-hash "^2.1.0"
 
-ember-cli-string-helpers@^1.5.0:
-  version "1.10.0"
-  resolved "https://registry.yarnpkg.com/ember-cli-string-helpers/-/ember-cli-string-helpers-1.10.0.tgz#6ee6c18d15759acb0905aa0153fe9e031a382fa4"
-  integrity sha512-z2eNT7BsTNSxp3qNrv7KAxjPwdLC1kIYCck9CERg0RM5vBGy2vK6ozZE3U6nWrtth1xO4PrYkgISwhSgN8NMeg==
+ember-cli-string-helpers@^6.1.0:
+  version "6.1.0"
+  resolved "https://registry.yarnpkg.com/ember-cli-string-helpers/-/ember-cli-string-helpers-6.1.0.tgz#aeb96112bb91c540b869ed8b9c680f7fd5859cb6"
+  integrity sha512-Lw8B6MJx2n8CNF2TSIKs+hWLw0FqSYjr2/NRPyquyYA05qsl137WJSYW3ZqTsLgoinHat0DGF2qaCXocLhLmyA==
   dependencies:
-    broccoli-funnel "^1.0.1"
-    ember-cli-babel "^6.6.0"
+    "@babel/core" "^7.13.10"
+    broccoli-funnel "^3.0.3"
+    ember-cli-babel "^7.7.3"
+    resolve "^1.20.0"
 
 ember-cli-string-utils@^1.0.0, ember-cli-string-utils@^1.1.0:
   version "1.1.0"
