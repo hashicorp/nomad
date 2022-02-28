@@ -16,11 +16,21 @@ export default function DocsLayout(props) {
   )
 }
 
-const { getStaticPaths, getStaticProps } = getStaticGenerationFunctions({
-  strategy: 'fs',
-  localContentDir: CONTENT_DIR,
-  navDataFile: NAV_DATA_FILE,
-  product: productSlug,
-})
+const { getStaticPaths, getStaticProps } = getStaticGenerationFunctions(
+  process.env.ENABLE_VERSIONED_DOCS === 'true'
+    ? {
+        strategy: 'remote',
+        basePath: basePath,
+        fallback: 'blocking',
+        revalidate: 360, // 1 hour
+        product: productSlug,
+      }
+    : {
+        strategy: 'fs',
+        localContentDir: CONTENT_DIR,
+        navDataFile: NAV_DATA_FILE,
+        product: productSlug,
+      }
+)
 
 export { getStaticPaths, getStaticProps }
