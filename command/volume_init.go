@@ -133,7 +133,7 @@ capacity_max = "20G"
 # capabilities to validate. Registering an existing volume will record but
 # ignore these fields.
 capability {
-  access_mode = "single-node-writer"
+  access_mode     = "single-node-writer"
   attachment_mode = "file-system"
 }
 
@@ -152,12 +152,14 @@ mount_options {
 
 # Optional: specify one or more locations where the volume must be accessible
 # from. Refer to the plugin documentation for what segment values are supported.
-required_topology {
-  segments {rack = "R1", zone = "us-east-1a"}
-}
-
-required_topology {
-  segments {rack = "R2", zone = "us-east-1b"}
+topology_request {
+  preferred {
+    topology { segments { rack = "R1" } }
+  }
+  required {
+    topology { segments { rack = "R1" } }
+    topology { segments { rack = "R2", zone = "us-east-1a" } }
+  }
 }
 
 # Optional: provide any secrets specified by the plugin.
@@ -211,14 +213,34 @@ var defaultJsonVolumeSpec = strings.TrimSpace(`
       ]
     }
   ],
-  "require_topologies": [
-    {
-      "segments": {"rack": "R1", "zone": "us-east-1a"}
-    },
-    {
-      "segments": {"rack": "R2", "zone": "us-east-1b"}
-    }
-  ]
+  "topology_request": {
+    "preferred": [
+      {
+        "topology": {
+          "segments": {
+            "rack": "R1"
+          }
+        }
+      }
+    ],
+    "required": [
+      {
+        "topology": {
+          "segments": {
+            "rack": "R1"
+          }
+        }
+      },
+      {
+        "topology": {
+          "segments": {
+            "rack": "R2",
+            "zone": "us-east-1a"
+          }
+        }
+      }
+    ]
+  },
   "parameters": [
     {
       "skuname": "Premium_LRS"
