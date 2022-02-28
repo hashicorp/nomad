@@ -244,6 +244,12 @@ func (h *taskHandle) run() {
 	} else if container.State.OOMKilled {
 		oom = true
 		werr = fmt.Errorf("OOM Killed")
+	} else if container.State.ExitCode == 137 {
+		// With cgroups.v2 it seems the cgroup OOM killer is not observed by docker
+		// container status. So just fudge the connection for now.
+		// [Mon Mar 21 19:48:21 2022] Memory cgroup out of memory: Killed process 92768 (sh) [...]
+		oom = true
+		werr = fmt.Errorf("OOM Killed (137)")
 	}
 
 	// Shutdown stats collection

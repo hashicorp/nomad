@@ -94,6 +94,29 @@ be removed in future releases.
 
 The previous `Protocol` value can be viewed using the `-verbose` flag.
 
+#### Linux Control Groups Version 2
+
+Starting with Nomad 1.3.0, Linux systems configured to use [cgroups v2][cgroups2] are
+now supported. A Nomad client will only activate its v2 control groups manager if the
+system is configured with the cgroups2 controller mounted at `/sys/fs/cgroup`. This implies
+Nomad will continue to fallback to the v1 control groups manager on systems
+configured to run in hybrid mode, where the cgroups2 controller is typically mounted
+at `/sys/fs/cgroup/unified`. Systems that do not support cgroups v2 are not affected. A
+new client attribute `unique.cgroup.version` indicates which version of control groups
+Nomad is using.
+
+When cgroups v2 are in use, Nomad uses `nomad.slice` as the [default parent][cgroup_parent] for cgroups
+created on behalf of tasks. The cgroup created for a task is named in the form `<allocID>-<task>.scope`.
+These cgroups are created by Nomad before a task starts. External task drivers that support
+containerization should be updated to make use of the new cgroup locations.
+
+```
+➜ tree -d /sys/fs/cgroup/nomad.slice
+/sys/fs/cgroup/nomad.slice
+├── 8b8da4cf-8ebf-b578-0bcf-77190749abf3.redis.scope
+└── a8c8e495-83c8-311b-4657-e6e3127e98bc.example.scope
+```
+
 ## Nomad 1.2.6, 1.1.12, and 1.0.18
 
 #### ACL requirement for the job parse endpoint
@@ -1262,6 +1285,8 @@ state. Once that is done the client can be killed, the `data_dir` should be
 deleted and then Nomad 0.3.0 can be launched.
 
 [api_jobs_parse]: /api-docs/jobs#parse-job
+[cgroups2]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
+[cgroup_parent]: /docs/configuration/client#cgroup_parent
 [dangling-containers]: /docs/drivers/docker#dangling-containers
 [drain-api]: /api-docs/nodes#drain-node
 [drain-cli]: /docs/commands/node/drain

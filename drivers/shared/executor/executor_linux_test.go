@@ -14,6 +14,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -80,6 +81,12 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 		Resources: &drivers.Resources{
 			NomadResources: alloc.AllocatedResources.Tasks[task.Name],
 		},
+	}
+
+	if cgutil.UseV2 {
+		cmd.Resources.LinuxResources = &drivers.LinuxResources{
+			CpusetCgroupPath: filepath.Join(cgutil.CgroupRoot, "testing.scope", cgutil.CgroupScope(alloc.ID, task.Name)),
+		}
 	}
 
 	testCmd := &testExecCmd{
@@ -164,8 +171,10 @@ func TestExecutor_Isolation_PID_and_IPC_hostMode(t *testing.T) {
 
 func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	ci.Parallel(t)
-	r := require.New(t)
 	testutil.ExecCompatible(t)
+	testutil.CgroupsCompatibleV1(t) // todo(shoenig): hard codes cgroups v1 lookup
+
+	r := require.New(t)
 
 	testExecCmd := testExecutorCommandWithChroot(t)
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -256,8 +265,9 @@ passwd`
 // hierarchy created for this process
 func TestExecutor_CgroupPaths(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 	testutil.ExecCompatible(t)
+
+	require := require.New(t)
 
 	testExecCmd := testExecutorCommandWithChroot(t)
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -280,27 +290,33 @@ func TestExecutor_CgroupPaths(t *testing.T) {
 
 	tu.WaitForResult(func() (bool, error) {
 		output := strings.TrimSpace(testExecCmd.stdout.String())
-		// Verify that we got some cgroups
-		if !strings.Contains(output, ":devices:") {
-			return false, fmt.Errorf("was expected cgroup files but found:\n%v", output)
-		}
-		lines := strings.Split(output, "\n")
-		for _, line := range lines {
-			// Every cgroup entry should be /nomad/$ALLOC_ID
-			if line == "" {
-				continue
+		switch cgutil.UseV2 {
+		case true:
+			isScope := strings.HasSuffix(output, ".scope")
+			require.True(isScope)
+		case false:
+			// Verify that we got some cgroups
+			if !strings.Contains(output, ":devices:") {
+				return false, fmt.Errorf("was expected cgroup files but found:\n%v", output)
 			}
+			lines := strings.Split(output, "\n")
+			for _, line := range lines {
+				// Every cgroup entry should be /nomad/$ALLOC_ID
+				if line == "" {
+					continue
+				}
 
-			// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
-			// don't isolate it by default.
-			// :: filters out odd empty cgroup found in latest Ubuntu lines, e.g. 0::/user.slice/user-1000.slice/session-17.scope
-			// that is also not used for isolation
-			if strings.Contains(line, ":rdma:") || strings.Contains(line, "::") {
-				continue
-			}
+				// Skip rdma & misc subsystem; rdma was added in most recent kernels and libcontainer/docker
+				// don't isolate it by default.
+				// :: filters out odd empty cgroup found in latest Ubuntu lines, e.g. 0::/user.slice/user-1000.slice/session-17.scope
+				// that is also not used for isolation
+				if strings.Contains(line, ":rdma:") || strings.Contains(line, ":misc:") || strings.Contains(line, "::") {
+					continue
+				}
+				if !strings.Contains(line, ":/nomad/") {
+					return false, fmt.Errorf("Not a member of the alloc's cgroup: expected=...:/nomad/... -- found=%q", line)
+				}
 
-			if !strings.Contains(line, ":/nomad/") {
-				return false, fmt.Errorf("Not a member of the alloc's cgroup: expected=...:/nomad/... -- found=%q", line)
 			}
 		}
 		return true, nil
@@ -311,8 +327,9 @@ func TestExecutor_CgroupPaths(t *testing.T) {
 // are destroyed on shutdown
 func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 	testutil.ExecCompatible(t)
+
+	require := require.New(t)
 
 	testExecCmd := testExecutorCommandWithChroot(t)
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -336,28 +353,34 @@ func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 	var cgroupsPaths string
 	tu.WaitForResult(func() (bool, error) {
 		output := strings.TrimSpace(testExecCmd.stdout.String())
-		// Verify that we got some cgroups
-		if !strings.Contains(output, ":devices:") {
-			return false, fmt.Errorf("was expected cgroup files but found:\n%v", output)
+
+		switch cgutil.UseV2 {
+		case true:
+			isScope := strings.HasSuffix(output, ".scope")
+			require.True(isScope)
+		case false:
+			// Verify that we got some cgroups
+			if !strings.Contains(output, ":devices:") {
+				return false, fmt.Errorf("was expected cgroup files but found:\n%v", output)
+			}
+			lines := strings.Split(output, "\n")
+			for _, line := range lines {
+				// Every cgroup entry should be /nomad/$ALLOC_ID
+				if line == "" {
+					continue
+				}
+
+				// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
+				// don't isolate it by default.
+				if strings.Contains(line, ":rdma:") || strings.Contains(line, "::") {
+					continue
+				}
+
+				if !strings.Contains(line, ":/nomad/") {
+					return false, fmt.Errorf("Not a member of the alloc's cgroup: expected=...:/nomad/... -- found=%q", line)
+				}
+			}
 		}
-		lines := strings.Split(output, "\n")
-		for _, line := range lines {
-			// Every cgroup entry should be /nomad/$ALLOC_ID
-			if line == "" {
-				continue
-			}
-
-			// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
-			// don't isolate it by default.
-			if strings.Contains(line, ":rdma:") || strings.Contains(line, "::") {
-				continue
-			}
-
-			if !strings.Contains(line, ":/nomad/") {
-				return false, fmt.Errorf("Not a member of the alloc's cgroup: expected=...:/nomad/... -- found=%q", line)
-			}
-		}
-
 		cgroupsPaths = output
 		return true, nil
 	}, func(err error) { t.Error(err) })
@@ -383,7 +406,7 @@ func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 			continue
 		}
 
-		p, err := getCgroupPathHelper(subsystem, cgroup)
+		p, err := cgutil.GetCgroupPathHelperV1(subsystem, cgroup)
 		require.NoError(err)
 		require.Falsef(cgroups.PathExists(p), "cgroup for %s %s still exists", subsystem, cgroup)
 	}
@@ -433,8 +456,10 @@ func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
 // Exec Launch looks for the binary only inside the chroot
 func TestExecutor_EscapeContainer(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 	testutil.ExecCompatible(t)
+	testutil.CgroupsCompatibleV1(t) // todo(shoenig) kills the terminal, probably defaulting to /
+
+	require := require.New(t)
 
 	testExecCmd := testExecutorCommandWithChroot(t)
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir

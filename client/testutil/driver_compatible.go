@@ -5,18 +5,18 @@ import (
 	"runtime"
 	"syscall"
 	"testing"
-
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 )
 
-// RequireRoot skips tests unless running on a Unix as root.
+// RequireRoot skips tests unless:
+// - running as root
 func RequireRoot(t *testing.T) {
 	if syscall.Geteuid() != 0 {
-		t.Skip("Must run as root on Unix")
+		t.Skip("Test requires root")
 	}
 }
 
-// RequireConsul skips tests unless a Consul binary is available on $PATH.
+// RequireConsul skips tests unless:
+// - "consul" executable is detected on $PATH
 func RequireConsul(t *testing.T) {
 	_, err := exec.Command("consul", "version").CombinedOutput()
 	if err != nil {
@@ -24,7 +24,8 @@ func RequireConsul(t *testing.T) {
 	}
 }
 
-// RequireVault skips tests unless a Vault binary is available on $PATH.
+// RequireVault skips tests unless:
+// - "vault" executable is detected on $PATH
 func RequireVault(t *testing.T) {
 	_, err := exec.Command("vault", "version").CombinedOutput()
 	if err != nil {
@@ -32,19 +33,41 @@ func RequireVault(t *testing.T) {
 	}
 }
 
+// RequireLinux skips tests unless:
+// - running on Linux
+func RequireLinux(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Test requires Linux")
+	}
+}
+
+// ExecCompatible skips tests unless:
+// - running as root
+// - running on Linux
 func ExecCompatible(t *testing.T) {
 	if runtime.GOOS != "linux" || syscall.Geteuid() != 0 {
-		t.Skip("Test only available running as root on linux")
+		t.Skip("Test requires root on Linux")
 	}
-	CgroupCompatible(t)
 }
 
+// JavaCompatible skips tests unless:
+// - "java" executable is detected on $PATH
+// - running as root
+// - running on Linux
 func JavaCompatible(t *testing.T) {
-	if runtime.GOOS == "linux" && syscall.Geteuid() != 0 {
-		t.Skip("Test only available when running as root on linux")
+	_, err := exec.Command("java", "-version").CombinedOutput()
+	if err != nil {
+		t.Skipf("Test requires Java: %v", err)
+	}
+
+	if runtime.GOOS != "linux" || syscall.Geteuid() != 0 {
+		t.Skip("Test requires root on Linux")
 	}
 }
 
+// QemuCompatible skips tests unless:
+// - "qemu-system-x86_64" executable is detected on $PATH (!windows)
+// - "qemu-img" executable is detected on on $PATH (windows)
 func QemuCompatible(t *testing.T) {
 	// Check if qemu exists
 	bin := "qemu-system-x86_64"
@@ -53,23 +76,19 @@ func QemuCompatible(t *testing.T) {
 	}
 	_, err := exec.Command(bin, "--version").CombinedOutput()
 	if err != nil {
-		t.Skip("Must have Qemu installed for Qemu specific tests to run")
+		t.Skipf("Test requires QEMU (%s)", bin)
 	}
 }
 
-func CgroupCompatible(t *testing.T) {
-	mount, err := cgutil.FindCgroupMountpointDir()
-	if err != nil || mount == "" {
-		t.Skipf("Failed to find cgroup mount: %v %v", mount, err)
-	}
-}
-
+// MountCompatible skips tests unless:
+// - not running as windows
+// - running as root
 func MountCompatible(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("Windows does not support mount")
+		t.Skip("Test requires not using Windows")
 	}
 
 	if syscall.Geteuid() != 0 {
-		t.Skip("Must be root to run test")
+		t.Skip("Test requires root")
 	}
 }

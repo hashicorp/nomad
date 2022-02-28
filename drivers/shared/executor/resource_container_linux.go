@@ -30,6 +30,7 @@ func (rc *resourceContainerContext) isEmpty() bool {
 	return rc.groups == nil
 }
 
+// todo(shoenig) cgroups.v2 #12351
 func (rc *resourceContainerContext) getAllPidsByCgroup() (map[int]*nomadPid, error) {
 	nPids := map[int]*nomadPid{}
 

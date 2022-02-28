@@ -207,7 +207,7 @@ func TestParse(t *testing.T) {
 
 func TestCPUSet_String(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	cases := []struct {
 		cpuset   CPUSet
 		expected string
@@ -221,4 +221,17 @@ func TestCPUSet_String(t *testing.T) {
 	for _, c := range cases {
 		require.Equal(t, c.expected, c.cpuset.String())
 	}
+}
+
+func TestCPUSet_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	original := New(1, 2, 3, 4, 5)
+	copied := original.Copy()
+	require.True(t, original.Equals(copied))
+
+	delete(copied.cpus, 3)
+	require.False(t, original.Equals(copied))
+	require.True(t, original.Equals(New(1, 2, 3, 4, 5)))
+	require.True(t, copied.Equals(New(1, 2, 4, 5)))
 }

@@ -96,7 +96,7 @@ jobs:
           - client/devicemanager
           - client/dynamicplugins
           - client/fingerprint
-          # - client/lib/...
+          - client/lib/...
           - client/logmon
           - client/pluginmanager
           - client/state
@@ -105,8 +105,8 @@ jobs:
           - client/taskenv
           - command
           - command/agent
-          # - drivers/docker
-          # - drivers/exec
+          - drivers/docker
+          - drivers/exec
           - drivers/java
           - drivers/rawexec
           - helper/...

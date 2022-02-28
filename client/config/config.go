@@ -774,7 +774,7 @@ func DefaultConfig() *Config {
 		CNIConfigDir:       "/opt/cni/config",
 		CNIInterfacePrefix: "eth",
 		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
-		CgroupParent:       cgutil.DefaultCgroupParent,
+		CgroupParent:       cgutil.GetCgroupParent(""),
 		MaxDynamicPort:     structs.DefaultMinDynamicPort,
 		MinDynamicPort:     structs.DefaultMaxDynamicPort,
 	}

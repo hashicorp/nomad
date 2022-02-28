@@ -704,7 +704,7 @@ func TestConfig_DriverConfig_PullActivityTimeout(t *testing.T) {
 
 func TestConfig_DriverConfig_AllowRuntimes(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	cases := []struct {
 		name     string
 		config   string
