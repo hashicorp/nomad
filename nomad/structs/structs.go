@@ -105,6 +105,9 @@ const (
 	OneTimeTokenUpsertRequestType                MessageType = 44
 	OneTimeTokenDeleteRequestType                MessageType = 45
 	OneTimeTokenExpireRequestType                MessageType = 46
+	ServiceRegistrationUpsertRequestType         MessageType = 47
+	ServiceRegistrationDeleteByIDRequestType     MessageType = 48
+	ServiceRegistrationDeleteByNodeIDRequestType MessageType = 49
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
