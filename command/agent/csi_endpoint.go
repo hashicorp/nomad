@@ -136,7 +136,6 @@ func (s *HTTPServer) csiVolumeGet(id string, resp http.ResponseWriter, req *http
 	// remove sensitive fields, as our redaction mechanism doesn't
 	// help serializing here
 	vol.Secrets = nil
-	vol.MountOptions = nil
 
 	return vol, nil
 }
@@ -761,11 +760,14 @@ func structsCSIMountOptionsToApi(opts *structs.CSIMountOptions) *api.CSIMountOpt
 	if opts == nil {
 		return nil
 	}
-
-	return &api.CSIMountOptions{
-		FSType:     opts.FSType,
-		MountFlags: opts.MountFlags,
+	apiOpts := &api.CSIMountOptions{
+		FSType: opts.FSType,
 	}
+	if len(opts.MountFlags) > 0 {
+		apiOpts.MountFlags = []string{"[REDACTED]"}
+	}
+
+	return apiOpts
 }
 
 func structsCSISecretsToApi(secrets structs.CSISecrets) api.CSISecrets {
