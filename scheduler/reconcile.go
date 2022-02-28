@@ -145,8 +145,8 @@ type delayedRescheduleInfo struct {
 }
 
 func (r *reconcileResults) GoString() string {
-	base := fmt.Sprintf("Total changes: (place %d) (destructive %d) (inplace %d) (stop %d)",
-		len(r.place), len(r.destructiveUpdate), len(r.inplaceUpdate), len(r.stop))
+	base := fmt.Sprintf("Total changes: (place %d) (destructive %d) (inplace %d) (stop %d) (disconnect %d) (reconnect %d)",
+		len(r.place), len(r.destructiveUpdate), len(r.inplaceUpdate), len(r.stop), len(r.disconnectUpdates), len(r.reconnectUpdates))
 
 	if r.deployment != nil {
 		base += fmt.Sprintf("\nCreated Deployment: %q", r.deployment.ID)
@@ -1265,6 +1265,8 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 			evals = append(evals, eval)
 			allocIDToFollowupEvalID[timeoutInfo.allocID] = eval.ID
 		}
+
+		emitRescheduleInfo(timeoutInfo.alloc, eval)
 
 		// Create updates that will be applied to the allocs to mark the FollowupEvalID
 		// and the unknown ClientStatus.
