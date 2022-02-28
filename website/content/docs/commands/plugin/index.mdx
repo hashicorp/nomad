@@ -8,7 +8,9 @@ description: |
 
 # Command: plugin
 
-The `plugin` command is used to interact with plugins.
+The `plugin` command is used to interact with external plugins that
+can be registered by Nomad jobs. Currently Nomad supports [Container
+Storage Interface (CSI)][csi] plugins.
 
 ## Usage
 
@@ -19,4 +21,5 @@ subcommands are available:
 
 - [`plugin status`][status] - Display status information about a plugin
 
+[csi]: https://github.com/container-storage-interface/spec
 [status]: /docs/commands/plugin/status 'Display status information about a plugin'
