@@ -189,3 +189,12 @@ func (r *StateRestore) NamespaceRestore(ns *structs.Namespace) error {
 	}
 	return nil
 }
+
+// ServiceRegistrationRestore is used to restore a single service registration
+// into the service_registrations table.
+func (r *StateRestore) ServiceRegistrationRestore(service *structs.ServiceRegistration) error {
+	if err := r.txn.Insert(TableServiceRegistrations, service); err != nil {
+		return fmt.Errorf("service registration insert failed: %v", err)
+	}
+	return nil
+}
