@@ -160,16 +160,16 @@ func (c *VolumeStatusCommand) csiFormatVolumes(vols []*api.CSIVolumeListStub) (s
 		return out, nil
 	}
 
-	return csiFormatSortedVolumes(vols, c.length)
+	return csiFormatSortedVolumes(vols)
 }
 
 // Format the volumes, assumes that we're already sorted by volume ID
-func csiFormatSortedVolumes(vols []*api.CSIVolumeListStub, length int) (string, error) {
+func csiFormatSortedVolumes(vols []*api.CSIVolumeListStub) (string, error) {
 	rows := make([]string, len(vols)+1)
 	rows[0] = "ID|Name|Plugin ID|Schedulable|Access Mode"
 	for i, v := range vols {
 		rows[i+1] = fmt.Sprintf("%s|%s|%s|%t|%s",
-			limit(v.ID, length),
+			v.ID,
 			v.Name,
 			v.PluginID,
 			v.Schedulable,
