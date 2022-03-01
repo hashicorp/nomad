@@ -239,15 +239,15 @@ func (q *QueryOptions) SetHeadersFromCSISecrets(secrets CSISecrets) {
 	q.Headers["X-Nomad-CSI-Secrets"] = strings.Join(pairs, ",")
 }
 
-func (q *WriteOptions) SetHeadersFromCSISecrets(secrets CSISecrets) {
+func (w *WriteOptions) SetHeadersFromCSISecrets(secrets CSISecrets) {
 	pairs := []string{}
 	for k, v := range secrets {
 		pairs = append(pairs, fmt.Sprintf("%v=%v", k, v))
 	}
-	if q.Headers == nil {
-		q.Headers = map[string]string{}
+	if w.Headers == nil {
+		w.Headers = map[string]string{}
 	}
-	q.Headers["X-Nomad-CSI-Secrets"] = strings.Join(pairs, ",")
+	w.Headers["X-Nomad-CSI-Secrets"] = strings.Join(pairs, ",")
 }
 
 // CSIVolume is used for serialization, see also nomad/structs/csi.go

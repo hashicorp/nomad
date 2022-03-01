@@ -35,8 +35,8 @@ Nomad.
   there is an exact match based on the provided plugin, then that specific
   plugin will be queried. Otherwise, a list of matching plugins will be
   displayed.
-- `-secret`: Secrets to pass to the plugin to delete the
-  snapshot. Accepts multiple flags in the form `-secret key=value`
+- `-secret`: Secrets to pass to the plugin to list snapshots. Accepts
+  multiple flags in the form `-secret key=value`
 
 When ACLs are enabled, this command requires a token with the
 `csi-list-volumes` capability for the plugin's namespace.
