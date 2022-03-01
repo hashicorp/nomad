@@ -207,8 +207,8 @@ func (h *csiPluginSupervisorHook) setSocketHook() {
 		string(h.task.CSIPluginConfig.Type), h.task.CSIPluginConfig.ID, h.alloc.ID)
 	if pluginInfo != nil && pluginInfo.ConnectionInfo.SocketPath != "" {
 		h.socketPath = pluginInfo.ConnectionInfo.SocketPath
+		return
 	}
-
 	h.socketPath = filepath.Join(h.socketMountPoint, structs.CSISocketName)
 }
 
