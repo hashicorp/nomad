@@ -11,6 +11,13 @@
           @selection={{this.status}}
           @onSelect={{action this.setStatus}}
         />
+        <SingleSelectDropdown
+          data-test-evaluation-status-facet
+          @label="Triggered By"
+          @options={{this.optionsTriggeredBy}}
+          @selection={{this.triggeredBy}}
+          @onSelect={{action this.setQueryParam "triggeredBy"}}
+        />
       </div>
     </div>
     {{#if @model.length}}

@@ -16,14 +16,18 @@ export default class EvaluationsIndexRoute extends Route {
     status: {
       refreshModel: true,
     },
+    triggeredBy: {
+      refreshModel: true,
+    },
   };
 
-  model({ pageSize, status, nextToken }) {
+  model({ pageSize, status, nextToken, triggeredBy }) {
     return this.store.query('evaluation', {
       namespace: ALL_NAMESPACE_WILDCARD,
       per_page: pageSize,
       next_token: nextToken,
       status,
+      triggeredBy,
     });
   }
 }
