@@ -189,7 +189,6 @@ func (c *PluginStatusCommand) formatControllerCaps(controllers map[string]*api.C
 func (c *PluginStatusCommand) formatNodeCaps(nodes map[string]*api.CSIInfo) string {
 	caps := []string{}
 	for _, node := range nodes {
-		// TODO: move this up to top-level k/v?
 		if node.RequiresTopologies {
 			caps = append(caps, "VOLUME_ACCESSIBILITY_CONSTRAINTS")
 		}

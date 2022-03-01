@@ -130,6 +130,8 @@ func csiDecodeVolume(input *ast.File) (*api.CSIVolume, error) {
 			if !ok {
 				break
 			}
+
+			// topology_request -> required|preferred -> []topology -> []segments (kv)
 			decoded := map[string][]map[string][]map[string][]map[string]string{}
 			if err := hcl.DecodeObject(&decoded, ot.List); err != nil {
 				return nil, err
