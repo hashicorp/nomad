@@ -18,6 +18,13 @@
           @selection={{this.triggeredBy}}
           @onSelect={{action this.setQueryParam "triggeredBy"}}
         />
+        <SingleSelectDropdown
+          data-test-evaluation-namespace-facet
+          @label="Namespace"
+          @options={{this.optionsNamespaces}}
+          @selection={{this.namespace}}
+          @onSelect={{action this.setQueryParam "namespace"}}
+        />
       </div>
     </div>
     {{#if @model.length}}

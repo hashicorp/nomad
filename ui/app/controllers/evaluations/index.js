@@ -28,7 +28,7 @@ export default class EvaluationsController extends Controller {
     },
   });
 
-  queryParams = ['nextToken', 'currentEval', 'pageSize', 'status'];
+  queryParams = ['nextToken', 'currentEval', 'pageSize', 'status', 'namespace'];
   @tracked currentEval = null;
 
   @action
@@ -118,11 +118,27 @@ export default class EvaluationsController extends Controller {
     ];
   }
 
+  get optionsNamespaces() {
+    const namespaces = this.store.peekAll('namespace').map((namespace) => ({
+      key: namespace.name,
+      label: namespace.name,
+    }));
+
+    // Create default namespace selection
+    namespaces.unshift({
+      key: null,
+      label: 'All (*)',
+    });
+
+    return namespaces;
+  }
+
   @tracked pageSize = this.userSettings.pageSize;
   @tracked nextToken = null;
   @tracked previousTokens = [];
   @tracked status = null;
   @tracked triggeredBy = null;
+  @tracked namespace = '*';
 
   @action
   onChange(newPageSize) {
