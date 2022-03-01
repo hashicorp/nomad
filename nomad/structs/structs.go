@@ -10548,14 +10548,6 @@ type Evaluation struct {
 	ModifyTime int64
 }
 
-// GetID implements the IDGetter interface, required for pagination
-func (e *Evaluation) GetID() string {
-	if e == nil {
-		return ""
-	}
-	return e.ID
-}
-
 // TerminalStatus returns if the current status is terminal and
 // will no longer transition.
 func (e *Evaluation) TerminalStatus() bool {

@@ -1,12 +1,11 @@
 package api
 
 import (
-	"reflect"
 	"sort"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEvaluations_List(t *testing.T) {
@@ -17,41 +16,27 @@ func TestEvaluations_List(t *testing.T) {
 
 	// Listing when nothing exists returns empty
 	result, qm, err := e.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
-	if n := len(result); n != 0 {
-		t.Fatalf("expected 0 evaluations, got: %d", n)
-	}
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), qm.LastIndex, "bad index")
+	require.Equal(t, 0, len(result), "expected 0 evaluations")
 
 	// Register a job. This will create an evaluation.
 	jobs := c.Jobs()
 	job := testJob()
 	resp, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Check the evaluations again
 	result, qm, err = e.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.NoError(t, err)
 	assertQueryMeta(t, qm)
 
 	// if the eval fails fast there can be more than 1
 	// but they are in order of most recent first, so look at the last one
-	if len(result) == 0 {
-		t.Fatalf("expected eval (%s), got none", resp.EvalID)
-	}
+	require.Greater(t, len(result), 0, "expected eval (%s), got none", resp.EvalID)
 	idx := len(result) - 1
-	if result[idx].ID != resp.EvalID {
-		t.Fatalf("expected eval (%s), got: %#v", resp.EvalID, result[idx])
-	}
+	require.Equal(t, resp.EvalID, result[idx].ID, "expected eval (%s), got: %#v", resp.EvalID, result[idx])
 
 	// wait until the 2nd eval shows up before we try paging
 	results := []*Evaluation{}
@@ -65,26 +50,26 @@ func TestEvaluations_List(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	})
 
-	// Check the evaluations again with paging; note that while this
-	// package sorts by timestamp, the actual HTTP API sorts by ID
-	// so we need to use that for the NextToken
-	ids := []string{results[0].ID, results[1].ID}
-	sort.Strings(ids)
-	result, qm, err = e.List(&QueryOptions{PerPage: int32(1), NextToken: ids[1]})
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if len(result) != 1 {
-		t.Fatalf("expected no evals after last one but got %v", result[0])
-	}
+	// query first page
+	result, qm, err = e.List(&QueryOptions{
+		PerPage: int32(1),
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(result), "expected no evals after last one but got %d: %#v", len(result), result)
+
+	// query second page
+	result, qm, err = e.List(&QueryOptions{
+		PerPage:   int32(1),
+		NextToken: qm.NextToken,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(result), "expected no evals after last one but got %d: %#v", len(result), result)
 
 	// Query evaluations using a filter.
 	results, _, err = e.List(&QueryOptions{
 		Filter: `TriggeredBy == "job-register"`,
 	})
-	if len(result) != 1 {
-		t.Fatalf("expected 1 eval, got %d", len(result))
-	}
+	require.Equal(t, 1, len(result), "expected 1 eval, got %d", len(result))
 }
 
 func TestEvaluations_PrefixList(t *testing.T) {
@@ -95,36 +80,25 @@ func TestEvaluations_PrefixList(t *testing.T) {
 
 	// Listing when nothing exists returns empty
 	result, qm, err := e.PrefixList("abcdef")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
-	if n := len(result); n != 0 {
-		t.Fatalf("expected 0 evaluations, got: %d", n)
-	}
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), qm.LastIndex, "bad index")
+	require.Equal(t, 0, len(result), "expected 0 evaluations")
 
 	// Register a job. This will create an evaluation.
 	jobs := c.Jobs()
 	job := testJob()
 	resp, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Check the evaluations again
 	result, qm, err = e.PrefixList(resp.EvalID[:4])
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.NoError(t, err)
 	assertQueryMeta(t, qm)
 
 	// Check if we have the right list
-	if len(result) != 1 || result[0].ID != resp.EvalID {
-		t.Fatalf("bad: %#v", result)
-	}
+	require.Equal(t, 1, len(result))
+	require.Equal(t, resp.EvalID, result[0].ID)
 }
 
 func TestEvaluations_Info(t *testing.T) {
@@ -135,30 +109,23 @@ func TestEvaluations_Info(t *testing.T) {
 
 	// Querying a nonexistent evaluation returns error
 	_, _, err := e.Info("8E231CF4-CA48-43FF-B694-5801E69E22FA", nil)
-	if err == nil || !strings.Contains(err.Error(), "not found") {
-		t.Fatalf("expected not found error, got: %s", err)
-	}
+	require.Error(t, err)
 
 	// Register a job. Creates a new evaluation.
 	jobs := c.Jobs()
 	job := testJob()
 	resp, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Try looking up by the new eval ID
 	result, qm, err := e.Info(resp.EvalID, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.NoError(t, err)
 	assertQueryMeta(t, qm)
 
 	// Check that we got the right result
-	if result == nil || result.ID != resp.EvalID {
-		t.Fatalf("expected eval %q, got: %#v", resp.EvalID, result)
-	}
+	require.NotNil(t, result)
+	require.Equal(t, resp.EvalID, result.ID)
 }
 
 func TestEvaluations_Allocations(t *testing.T) {
@@ -169,15 +136,9 @@ func TestEvaluations_Allocations(t *testing.T) {
 
 	// Returns empty if no allocations
 	allocs, qm, err := e.Allocations("8E231CF4-CA48-43FF-B694-5801E69E22FA", nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
-	if n := len(allocs); n != 0 {
-		t.Fatalf("expected 0 allocs, got: %d", n)
-	}
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), qm.LastIndex, "bad index")
+	require.Equal(t, 0, len(allocs), "expected 0 evaluations")
 }
 
 func TestEvaluations_Sort(t *testing.T) {
@@ -194,7 +155,5 @@ func TestEvaluations_Sort(t *testing.T) {
 		{CreateIndex: 2},
 		{CreateIndex: 1},
 	}
-	if !reflect.DeepEqual(evals, expect) {
-		t.Fatalf("\n\n%#v\n\n%#v", evals, expect)
-	}
+	require.Equal(t, expect, evals)
 }

@@ -320,9 +320,16 @@ func deploymentSchema() *memdb.TableSchema {
 			"create": {
 				Name:         "create",
 				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.UintFieldIndex{
-					Field: "CreateIndex",
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.UintFieldIndex{
+							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
 				},
 			},
 
@@ -346,7 +353,7 @@ func deploymentSchema() *memdb.TableSchema {
 			"namespace_create": {
 				Name:         "namespace_create",
 				AllowMissing: false,
-				Unique:       false,
+				Unique:       true,
 				Indexer: &memdb.CompoundIndex{
 					AllowMissing: false,
 					Indexes: []memdb.Indexer{
@@ -355,6 +362,9 @@ func deploymentSchema() *memdb.TableSchema {
 						},
 						&memdb.UintFieldIndex{
 							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
 						},
 					},
 				},
@@ -438,9 +448,16 @@ func evalTableSchema() *memdb.TableSchema {
 			"create": {
 				Name:         "create",
 				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.UintFieldIndex{
-					Field: "CreateIndex",
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.UintFieldIndex{
+							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
 				},
 			},
 
@@ -486,7 +503,7 @@ func evalTableSchema() *memdb.TableSchema {
 			"namespace_create": {
 				Name:         "namespace_create",
 				AllowMissing: false,
-				Unique:       false,
+				Unique:       true,
 				Indexer: &memdb.CompoundIndex{
 					AllowMissing: false,
 					Indexes: []memdb.Indexer{
@@ -495,6 +512,9 @@ func evalTableSchema() *memdb.TableSchema {
 						},
 						&memdb.UintFieldIndex{
 							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
 						},
 					},
 				},
