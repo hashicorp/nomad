@@ -38,6 +38,10 @@
             "path": "autoscaling/agent/policy_eval"
           },
           {
+            "title": "source",
+            "path": "autoscaling/agent/source"
+          },
+          {
             "title": "strategy",
             "path": "autoscaling/agent/strategy"
           },
