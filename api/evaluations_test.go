@@ -65,17 +65,27 @@ func TestEvaluations_List(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	})
 
-	// Check the evaluations again with paging; note that while this
-	// package sorts by timestamp, the actual HTTP API sorts by ID
-	// so we need to use that for the NextToken
-	ids := []string{results[0].ID, results[1].ID}
-	sort.Strings(ids)
-	result, qm, err = e.List(&QueryOptions{PerPage: int32(1), NextToken: ids[1]})
+	// query first page
+	result, qm, err = e.List(&QueryOptions{
+		PerPage: int32(1),
+	})
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	if len(result) != 1 {
-		t.Fatalf("expected no evals after last one but got %v", result[0])
+		t.Fatalf("expected no evals after last one but got %d: %#v", len(result), result)
+	}
+
+	// query second page
+	result, qm, err = e.List(&QueryOptions{
+		PerPage:   int32(1),
+		NextToken: qm.NextToken,
+	})
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected no evals after last one but got %d: %#v", len(result), result)
 	}
 
 	// Query evaluations using a filter.
