@@ -508,6 +508,13 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 		ModifyIndex:         vol.ModifyIndex,
 	}
 
+	if vol.RequestedTopologies != nil {
+		out.RequestedTopologies = &api.CSITopologyRequest{
+			Preferred: structsCSITopolgiesToApi(vol.RequestedTopologies.Preferred),
+			Required:  structsCSITopolgiesToApi(vol.RequestedTopologies.Required),
+		}
+	}
+
 	// WriteAllocs and ReadAllocs will only ever contain the Allocation ID,
 	// with a null value for the Allocation; these IDs are mapped to
 	// allocation stubs in the Allocations field. This indirection is so the
@@ -725,9 +732,11 @@ func structsTaskEventToApi(te *structs.TaskEvent) *api.TaskEvent {
 func structsCSITopolgiesToApi(tops []*structs.CSITopology) []*api.CSITopology {
 	out := make([]*api.CSITopology, 0, len(tops))
 	for _, t := range tops {
-		out = append(out, &api.CSITopology{
-			Segments: t.Segments,
-		})
+		if t != nil {
+			out = append(out, &api.CSITopology{
+				Segments: t.Segments,
+			})
+		}
 	}
 
 	return out

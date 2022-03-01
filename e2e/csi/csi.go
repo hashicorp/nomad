@@ -226,9 +226,13 @@ func volumeRegister(volID, volFilePath, createOrRegister string) error {
 	}
 
 	// hack off the first line to replace with our unique ID
-	var re = regexp.MustCompile(`(?m)^id ".*"`)
-	volspec := re.ReplaceAllString(string(content),
-		fmt.Sprintf("id = \"%s\"", volID))
+	var idRegex = regexp.MustCompile(`(?m)^id ".*"`)
+	volspec := idRegex.ReplaceAllString(string(content),
+		fmt.Sprintf("id = %q", volID))
+
+	var nameRegex = regexp.MustCompile(`(?m)^name ".*"`)
+	volspec = nameRegex.ReplaceAllString(volspec,
+		fmt.Sprintf("name = %q", volID))
 
 	go func() {
 		defer stdin.Close()

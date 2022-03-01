@@ -252,11 +252,21 @@ func (w *WriteOptions) SetHeadersFromCSISecrets(secrets CSISecrets) {
 
 // CSIVolume is used for serialization, see also nomad/structs/csi.go
 type CSIVolume struct {
-	ID             string
-	Name           string
-	ExternalID     string `mapstructure:"external_id" hcl:"external_id"`
-	Namespace      string
-	Topologies     []*CSITopology
+	ID         string
+	Name       string
+	ExternalID string `mapstructure:"external_id" hcl:"external_id"`
+	Namespace  string
+
+	// RequestedTopologies are the topologies submitted as options to
+	// the storage provider at the time the volume was created. After
+	// volumes are created, this field is ignored.
+	RequestedTopologies *CSITopologyRequest `hcl:"topology_request"`
+
+	// Topologies are the topologies returned by the storage provider,
+	// based on the RequestedTopologies and what the storage provider
+	// could support. This value cannot be set by the user.
+	Topologies []*CSITopology
+
 	AccessMode     CSIVolumeAccessMode     `hcl:"access_mode"`
 	AttachmentMode CSIVolumeAttachmentMode `hcl:"attachment_mode"`
 	MountOptions   *CSIMountOptions        `hcl:"mount_options"`

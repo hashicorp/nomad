@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -240,6 +241,8 @@ func TestCSIVolumeChecker(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 		mock.Node(),
+		mock.Node(),
+		mock.Node(),
 	}
 
 	// Register running plugins on some nodes
@@ -254,28 +257,69 @@ func TestCSIVolumeChecker(t *testing.T) {
 		"foo": {
 			PluginID: "foo",
 			Healthy:  true,
-			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
+			NodeInfo: &structs.CSINodeInfo{
+				MaxVolumes: 1,
+				AccessibleTopology: &structs.CSITopology{
+					Segments: map[string]string{"rack": "R1"},
+				},
+			},
 		},
 	}
 	nodes[1].CSINodePlugins = map[string]*structs.CSIInfo{
 		"foo": {
 			PluginID: "foo",
 			Healthy:  false,
-			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
+			NodeInfo: &structs.CSINodeInfo{
+				MaxVolumes: 1,
+				AccessibleTopology: &structs.CSITopology{
+					Segments: map[string]string{"rack": "R1"},
+				},
+			},
 		},
 	}
 	nodes[2].CSINodePlugins = map[string]*structs.CSIInfo{
 		"bar": {
 			PluginID: "bar",
 			Healthy:  true,
-			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
+			NodeInfo: &structs.CSINodeInfo{
+				MaxVolumes: 1,
+				AccessibleTopology: &structs.CSITopology{
+					Segments: map[string]string{"rack": "R1"},
+				},
+			},
 		},
 	}
 	nodes[4].CSINodePlugins = map[string]*structs.CSIInfo{
 		"foo": {
 			PluginID: "foo",
 			Healthy:  true,
-			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
+			NodeInfo: &structs.CSINodeInfo{
+				MaxVolumes: 1,
+				AccessibleTopology: &structs.CSITopology{
+					Segments: map[string]string{"rack": "R1"},
+				},
+			},
+		},
+	}
+	nodes[5].CSINodePlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID: "foo",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{
+				MaxVolumes: 1,
+				AccessibleTopology: &structs.CSITopology{
+					Segments: map[string]string{"rack": "R4"},
+				},
+			},
+		},
+	}
+	nodes[6].CSINodePlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID: "foo",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{
+				MaxVolumes: 1,
+			},
 		},
 	}
 
@@ -294,6 +338,10 @@ func TestCSIVolumeChecker(t *testing.T) {
 	vol.Namespace = structs.DefaultNamespace
 	vol.AccessMode = structs.CSIVolumeAccessModeMultiNodeMultiWriter
 	vol.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	vol.Topologies = []*structs.CSITopology{
+		{Segments: map[string]string{"rack": "R1"}},
+		{Segments: map[string]string{"rack": "R2"}},
+	}
 	err := state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
 	require.NoError(t, err)
 	index++
@@ -361,52 +409,70 @@ func TestCSIVolumeChecker(t *testing.T) {
 	checker.SetNamespace(structs.DefaultNamespace)
 
 	cases := []struct {
+		Name             string
 		Node             *structs.Node
 		RequestedVolumes map[string]*structs.VolumeRequest
 		Result           bool
 	}{
-		{ // Get it
+		{
+			Name:             "ok",
 			Node:             nodes[0],
 			RequestedVolumes: volumes,
 			Result:           true,
 		},
-		{ // Unhealthy
+		{
+			Name:             "unhealthy node",
 			Node:             nodes[1],
 			RequestedVolumes: volumes,
 			Result:           false,
 		},
-		{ // Wrong id
+		{
+			Name:             "wrong id",
 			Node:             nodes[2],
 			RequestedVolumes: volumes,
 			Result:           false,
 		},
-		{ // No Volumes requested or available
+		{
+			Name:             "no volumes requested or available",
 			Node:             nodes[3],
 			RequestedVolumes: noVolumes,
 			Result:           true,
 		},
-		{ // No Volumes requested, some available
+		{
+			Name:             "no volumes requested, some available",
 			Node:             nodes[0],
 			RequestedVolumes: noVolumes,
 			Result:           true,
 		},
-		{ // Volumes requested, none available
+		{
+			Name:             "volumes requested, none available",
 			Node:             nodes[3],
 			RequestedVolumes: volumes,
 			Result:           false,
 		},
-		{ // Volumes requested, MaxVolumes exceeded
+		{
+			Name:             "volumes requested, max volumes exceeded",
 			Node:             nodes[4],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{
+			Name:             "no matching topology",
+			Node:             nodes[5],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{
+			Name:             "nil topology",
+			Node:             nodes[6],
 			RequestedVolumes: volumes,
 			Result:           false,
 		},
 	}
 
-	for i, c := range cases {
+	for _, c := range cases {
 		checker.SetVolumes(alloc.Name, c.RequestedVolumes)
-		if act := checker.Feasible(c.Node); act != c.Result {
-			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
-		}
+		assert.Equal(t, c.Result, checker.Feasible(c.Node), c.Name)
 	}
 
 	// add a missing volume

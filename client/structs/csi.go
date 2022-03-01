@@ -211,17 +211,16 @@ type ClientCSIControllerDetachVolumeResponse struct{}
 // Nomad client to tell a CSI controller plugin on that client to perform
 // CreateVolume
 type ClientCSIControllerCreateVolumeRequest struct {
-	Name               string
-	VolumeCapabilities []*structs.CSIVolumeCapability
-	MountOptions       *structs.CSIMountOptions
-	Parameters         map[string]string
-	Secrets            structs.CSISecrets
-	CapacityMin        int64
-	CapacityMax        int64
-	SnapshotID         string
-	CloneID            string
-	// TODO: topology is not yet supported
-	// TopologyRequirement
+	Name                string
+	VolumeCapabilities  []*structs.CSIVolumeCapability
+	MountOptions        *structs.CSIMountOptions
+	Parameters          map[string]string
+	Secrets             structs.CSISecrets
+	CapacityMin         int64
+	CapacityMax         int64
+	SnapshotID          string
+	CloneID             string
+	RequestedTopologies *structs.CSITopologyRequest
 
 	CSIControllerQuery
 }
@@ -237,8 +236,10 @@ func (req *ClientCSIControllerCreateVolumeRequest) ToCSIRequest() (*csi.Controll
 			CloneID:    req.CloneID,
 			SnapshotID: req.SnapshotID,
 		},
-		// TODO: topology is not yet supported
-		AccessibilityRequirements: &csi.TopologyRequirement{},
+		AccessibilityRequirements: &csi.TopologyRequirement{
+			Requisite: []*csi.Topology{},
+			Preferred: []*csi.Topology{},
+		},
 	}
 
 	// The CSI spec requires that at least one of the fields in CapacityRange
@@ -258,6 +259,21 @@ func (req *ClientCSIControllerCreateVolumeRequest) ToCSIRequest() (*csi.Controll
 		}
 		creq.VolumeCapabilities = append(creq.VolumeCapabilities, ccap)
 	}
+
+	if req.RequestedTopologies != nil {
+		for _, topo := range req.RequestedTopologies.Required {
+			creq.AccessibilityRequirements.Requisite = append(
+				creq.AccessibilityRequirements.Requisite, &csi.Topology{
+					Segments: topo.Segments,
+				})
+		}
+		for _, topo := range req.RequestedTopologies.Preferred {
+			creq.AccessibilityRequirements.Preferred = append(
+				creq.AccessibilityRequirements.Preferred, &csi.Topology{
+					Segments: topo.Segments,
+				})
+		}
+	}
 	return creq, nil
 }
 
@@ -265,9 +281,7 @@ type ClientCSIControllerCreateVolumeResponse struct {
 	ExternalVolumeID string
 	CapacityBytes    int64
 	VolumeContext    map[string]string
-
-	// TODO: topology is not yet supported
-	// AccessibleTopology []*Topology
+	Topologies       []*structs.CSITopology
 }
 
 // ClientCSIControllerDeleteVolumeRequest the RPC made from the server to a
