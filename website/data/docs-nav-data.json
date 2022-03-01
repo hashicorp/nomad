@@ -1562,7 +1562,7 @@
           },
           {
             "title": "source",
-            "path": "autoscaling/agent/source"
+            "href": "/tools/autoscaling/agent/source"
           },
           {
             "title": "strategy",
