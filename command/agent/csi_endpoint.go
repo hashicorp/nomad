@@ -304,13 +304,9 @@ func (s *HTTPServer) csiSnapshotDelete(resp http.ResponseWriter, req *http.Reque
 	query := req.URL.Query()
 	snap.PluginID = query.Get("plugin_id")
 	snap.ID = query.Get("snapshot_id")
-	secrets := query["secret"]
-	for _, raw := range secrets {
-		secret := strings.Split(raw, "=")
-		if len(secret) == 2 {
-			snap.Secrets[secret[0]] = secret[1]
-		}
-	}
+
+	secrets := parseCSISecrets(req)
+	snap.Secrets = secrets
 
 	args.Snapshots = []*structs.CSISnapshot{snap}
 
@@ -332,19 +328,9 @@ func (s *HTTPServer) csiSnapshotList(resp http.ResponseWriter, req *http.Request
 
 	query := req.URL.Query()
 	args.PluginID = query.Get("plugin_id")
-	querySecrets := query["secrets"]
 
-	// Parse comma separated secrets only when provided
-	if len(querySecrets) >= 1 {
-		secrets := strings.Split(querySecrets[0], ",")
-		args.Secrets = make(structs.CSISecrets)
-		for _, raw := range secrets {
-			secret := strings.Split(raw, "=")
-			if len(secret) == 2 {
-				args.Secrets[secret[0]] = secret[1]
-			}
-		}
-	}
+	secrets := parseCSISecrets(req)
+	args.Secrets = secrets
 
 	var out structs.CSISnapshotListResponse
 	if err := s.agent.RPC("CSIVolume.ListSnapshots", &args, &out); err != nil {
@@ -417,6 +403,28 @@ func (s *HTTPServer) CSIPluginSpecificRequest(resp http.ResponseWriter, req *htt
 	}
 
 	return structsCSIPluginToApi(out.Plugin), nil
+}
+
+// parseCSISecrets extracts a map of k/v pairs from the CSI secrets
+// header. Silently ignores invalid secrets
+func parseCSISecrets(req *http.Request) structs.CSISecrets {
+	secretsHeader := req.Header.Get("X-Nomad-CSI-Secrets")
+	if secretsHeader == "" {
+		return nil
+	}
+
+	secrets := map[string]string{}
+	secretkvs := strings.Split(secretsHeader, ",")
+	for _, secretkv := range secretkvs {
+		kv := strings.Split(secretkv, "=")
+		if len(kv) == 2 {
+			secrets[kv[0]] = kv[1]
+		}
+	}
+	if len(secrets) == 0 {
+		return nil
+	}
+	return structs.CSISecrets(secrets)
 }
 
 // structsCSIPluginToApi converts CSIPlugin, setting Expected the count of known plugin
