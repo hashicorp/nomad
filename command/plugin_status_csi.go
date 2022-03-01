@@ -148,7 +148,7 @@ func (c *PluginStatusCommand) formatControllerCaps(controllers map[string]*api.C
 			caps = append(caps, "CREATE_DELETE_SNAPSHOT")
 			fallthrough
 		case info.SupportsListSnapshots:
-			caps = append(caps, "CREATE_LIST_SNAPSHOTS")
+			caps = append(caps, "LIST_SNAPSHOTS")
 			fallthrough
 		case info.SupportsClone:
 			caps = append(caps, "CLONE_VOLUME")
@@ -177,7 +177,7 @@ func (c *PluginStatusCommand) formatControllerCaps(controllers map[string]*api.C
 		return ""
 	}
 
-	return strings.Join(caps, "\n\t")
+	return "  " + strings.Join(sort.StringSlice(caps), "\n  ")
 }
 
 func (c *PluginStatusCommand) formatNodeCaps(nodes map[string]*api.CSIInfo) string {
@@ -205,5 +205,5 @@ func (c *PluginStatusCommand) formatNodeCaps(nodes map[string]*api.CSIInfo) stri
 		return ""
 	}
 
-	return "  " + strings.Join(caps, "\n  ")
+	return "  " + strings.Join(sort.StringSlice(caps), "\n  ")
 }
