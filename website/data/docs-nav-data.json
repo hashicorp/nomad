@@ -538,6 +538,10 @@
             "path": "commands/operator"
           },
           {
+            "title": "api",
+            "path": "commands/operator/api"
+          },
+          {
             "title": "autopilot get-config",
             "path": "commands/operator/autopilot-get-config"
           },

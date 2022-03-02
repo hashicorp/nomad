@@ -1,0 +1,95 @@
+---
+layout: docs
+page_title: 'Commands: operator api'
+description: |
+  operator api is a utility command for accessing Nomad's HTTP API similar to
+  the popular open source program curl.
+---
+
+# Command: operator api
+
+The `operator api` command allows easy access to Nomad's HTTP API similar to
+the popular [curl] program. Nomad's `operator api` command reads [environment
+variables][envvars] to dramatically ease HTTP API access compared to trying to
+manually write the same command with the third party `curl` command.
+
+For example for the following environment:
+
+```
+NOMAD_TOKEN=d4434353-c797-19e4-a14d-4068241f86a4
+NOMAD_CACERT=$HOME/.nomad/ca.pem
+NOMAD_CLIENT_CERT=$HOME/.nomad/cli.pem
+NOMAD_CLIENT_KEY=$HOME/.nomad/client-key.pem
+NOMAD_TLS_SERVER_NAME=client.global.nomad
+NOMAD_ADDR=https://remote.client123.internal:4646
+```
+
+Accessing Nomad's [`/v1/jobs`][jobs] HTTP endpoint with `nomad operator
+api` would require:
+
+```
+nomad operator api /v1/jobs
+```
+
+Performing the same request using the external `curl` tool would require:
+
+```
+curl \
+  --cacert "$HOME/.nomad/ca.pem" \
+  --cert "$HOME/.nomad/client.pem" \
+  --key "$HOME/.nomad/client-key.pem" \
+  --connect-to "client.global.nomad:4646:remote.client123.internal:4646" \
+  -H "X-Nomad-Token: ${NOMAD_TOKEN}" \
+  https://client.global.nomad:4646/v1/jobs
+```
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Operator API Options
+
+- `-dryrun`: output a curl command instead of performing the HTTP request
+  immediately. Note that you do *not* need the 3rd party `curl` command
+  installed to use `operator api`. The `curl` output from `-dryrun` is intended
+  for use in scripts or running in locations without a Nomad binary present.
+
+- `-filter`: Specifies an expression used to filter query results.
+
+- `-H`: Adds an additional HTTP header to the request. May be specified more
+  than once. These headers take precedence over automatically set ones such as
+  X-Nomad-Token.
+
+- `-verbose`: Output extra information to stderr similar to curl's --verbose
+  flag.
+
+- `-X`: HTTP method of request. If there is data piped to stdin, then the
+  method defaults to POST. Otherwise the method defaults to GET.
+
+## Examples
+
+```shell-session
+$ nomad operator api -verbose /v1/agent/members?pretty
+> GET http://127.0.0.1:4646/v1/agent/members?pretty=
+* Sending request and receiving response...
+< HTTP/1.1 200 OK
+< Date: Wed, 02 Mar 2022 01:10:59 GMT
+< Content-Type: application/json
+< Vary: Accept-Encoding
+{
+    "Members": [
+...
+
+
+$ nomad operator api -region eu-west -filter 'Status == "completed"' -dryrun /v1/evaluations
+curl \
+  -X GET \
+    http://127.0.0.1:4646/v1/evaluations?filter=.Status+%3D%3D+%22completed%22&region=eu-west
+```
+
+
+
+
+[curl]: https://curl.se/
+[envvars]: /docs/commands#environment-variables
+[jobs]: /api-docs/jobs
