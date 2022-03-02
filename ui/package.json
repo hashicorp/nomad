@@ -103,7 +103,7 @@
     "ember-render-helpers": "^0.2.0",
     "ember-resolver": "^8.0.3",
     "ember-responsive": "^4.0.2",
-    "ember-sinon": "^4.0.0",
+    "ember-sinon": "^5.0.0",
     "ember-source": "~3.24.0",
     "ember-template-lint": "^2.15.0",
     "ember-test-selectors": "^5.0.0",
