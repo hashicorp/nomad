@@ -54,6 +54,7 @@ const (
 	CSIVolumeSnapshot                    SnapshotType = 18
 	ScalingEventsSnapshot                SnapshotType = 19
 	EventSinkSnapshot                    SnapshotType = 20
+	ServiceRegistrationSnapshot          SnapshotType = 21
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
 )
@@ -1663,6 +1664,22 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 		// COMPAT(1.0): Allow 1.0-beta clusterers to gracefully handle
 		case EventSinkSnapshot:
 			return nil
+
+		case ServiceRegistrationSnapshot:
+
+			// Create a new ServiceRegistration object, so we can decode the
+			// message into it.
+			serviceRegistration := new(structs.ServiceRegistration)
+
+			if err := dec.Decode(serviceRegistration); err != nil {
+				return err
+			}
+
+			// Perform the restoration.
+			if err := restore.ServiceRegistrationRestore(serviceRegistration); err != nil {
+				return err
+			}
+
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
