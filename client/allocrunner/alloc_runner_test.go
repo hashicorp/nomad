@@ -1641,10 +1641,6 @@ func TestAllocRunner_Reconnect(t *testing.T) {
 
 			require.Equal(t, tc.clientStatus, ar.AllocState().ClientStatus)
 
-			// Make sure the runner alloc's indexes are not the same as the original.
-			require.NotEqual(t, original.AllocModifyIndex, ar.Alloc().AllocModifyIndex)
-			require.NotEqual(t, original.ModifyIndex, ar.Alloc().ModifyIndex)
-			require.NotEqual(t, original.ModifyTime, ar.Alloc().ModifyTime)
 
 			// Make sure the runner's alloc indexes match the update.
 			require.Equal(t, update.AllocModifyIndex, ar.Alloc().AllocModifyIndex)
