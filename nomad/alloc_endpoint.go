@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -32,7 +34,9 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "list"}, time.Now())
 
-	if args.RequestNamespace() == structs.AllNamespacesSentinel {
+	namespace := args.RequestNamespace()
+
+	if namespace == structs.AllNamespacesSentinel {
 		return a.listAllNamespaces(args, reply)
 	}
 
@@ -40,7 +44,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	aclObj, err := a.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -52,26 +56,46 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 			// Capture all the allocations
 			var err error
 			var iter memdb.ResultIterator
+			var opts paginator.StructsTokenizerOptions
 
 			prefix := args.QueryOptions.Prefix
 			if prefix != "" {
-				iter, err = state.AllocsByIDPrefix(ws, args.RequestNamespace(), prefix)
+				iter, err = state.AllocsByIDPrefix(ws, namespace, prefix)
+				opts = paginator.StructsTokenizerOptions{
+					WithID: true,
+				}
 			} else {
-				iter, err = state.AllocsByNamespace(ws, args.RequestNamespace())
+				iter, err = state.AllocsByNamespaceOrdered(ws, namespace, args.Ascending)
+				opts = paginator.StructsTokenizerOptions{
+					WithCreateIndex: true,
+					WithID:          true,
+				}
 			}
 			if err != nil {
 				return err
 			}
 
+			tokenizer := paginator.NewStructsTokenizer(iter, opts)
+
 			var allocs []*structs.AllocListStub
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				alloc := raw.(*structs.Allocation)
-				allocs = append(allocs, alloc.Stub(args.Fields))
+			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
+				func(raw interface{}) error {
+					alloc := raw.(*structs.Allocation)
+					allocs = append(allocs, alloc.Stub(args.Fields))
+					return nil
+				})
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
+
+			nextToken, err := paginator.Page()
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to read result page: %v", err)
+			}
+
+			reply.QueryMeta.NextToken = nextToken
 			reply.Allocations = allocs
 
 			// Use the last index that affected the jobs table
@@ -114,25 +138,52 @@ func (a *Alloc) listAllNamespaces(args *structs.AllocListRequest, reply *structs
 			} else if err != nil {
 				return err
 			} else {
-				var iter memdb.ResultIterator
 				var err error
+				var iter memdb.ResultIterator
+				var opts paginator.StructsTokenizerOptions
+
 				if prefix != "" {
 					iter, err = state.AllocsByIDPrefixAllNSs(ws, prefix)
+					opts = paginator.StructsTokenizerOptions{
+						WithID: true,
+					}
 				} else {
-					iter, err = state.Allocs(ws)
+					iter, err = state.Allocs(ws, args.Ascending)
+					opts = paginator.StructsTokenizerOptions{
+						WithCreateIndex: true,
+						WithID:          true,
+					}
 				}
 				if err != nil {
 					return err
 				}
 
-				var allocs []*structs.AllocListStub
-				for raw := iter.Next(); raw != nil; raw = iter.Next() {
-					alloc := raw.(*structs.Allocation)
-					if allowedNSes != nil && !allowedNSes[alloc.Namespace] {
-						continue
-					}
-					allocs = append(allocs, alloc.Stub(args.Fields))
+				tokenizer := paginator.NewStructsTokenizer(iter, opts)
+				filters := []paginator.Filter{
+					paginator.NamespaceFilter{
+						AllowableNamespaces: allowedNSes,
+					},
 				}
+
+				var allocs []*structs.AllocListStub
+				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+					func(raw interface{}) error {
+						alloc := raw.(*structs.Allocation)
+						allocs = append(allocs, alloc.Stub(args.Fields))
+						return nil
+					})
+				if err != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to create result paginator: %v", err)
+				}
+
+				nextToken, err := paginator.Page()
+				if err != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to read result page: %v", err)
+				}
+
+				reply.QueryMeta.NextToken = nextToken
 				reply.Allocations = allocs
 			}
 

@@ -3764,19 +3764,50 @@ func (s *StateStore) AllocsByDeployment(ws memdb.WatchSet, deploymentID string) 
 	return out, nil
 }
 
-// Allocs returns an iterator over all the evaluations
-func (s *StateStore) Allocs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+// Allocs returns an iterator over all the evaluations.
+func (s *StateStore) Allocs(ws memdb.WatchSet, ascending bool) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	// Walk the entire table
-	iter, err := txn.Get("allocs", "id")
+	var it memdb.ResultIterator
+	var err error
+
+	if ascending {
+		it, err = txn.Get("allocs", "create")
+	} else {
+		it, err = txn.GetReverse("allocs", "create")
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	ws.Add(iter.WatchCh())
+	ws.Add(it.WatchCh())
 
-	return iter, nil
+	return it, nil
+}
+
+func (s *StateStore) AllocsByNamespaceOrdered(ws memdb.WatchSet, namespace string, ascending bool) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	var (
+		it    memdb.ResultIterator
+		err   error
+		exact = terminate(namespace)
+	)
+
+	if ascending {
+		it, err = txn.Get("allocs", "namespace_create_prefix", exact)
+	} else {
+		it, err = txn.GetReverse("allocs", "namespace_create_prefix", exact)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(it.WatchCh())
+
+	return it, nil
 }
 
 // AllocsByNamespace returns an iterator over all the allocations in the

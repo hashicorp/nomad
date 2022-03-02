@@ -9482,6 +9482,33 @@ type Allocation struct {
 	ModifyTime int64
 }
 
+// GetID implements the IDGetter interface, required for pagination.
+func (a *Allocation) GetID() string {
+	if a == nil {
+		return ""
+	}
+	return a.ID
+}
+
+// GetNamespace implements the NamespaceGetter interface, required for
+// pagination and filtering namespaces in endpoints that support glob namespace
+// requests using tokens with limited access.
+func (a *Allocation) GetNamespace() string {
+	if a == nil {
+		return ""
+	}
+	return a.Namespace
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (a *Allocation) GetCreateIndex() uint64 {
+	if a == nil {
+		return 0
+	}
+	return a.CreateIndex
+}
+
 // ConsulNamespace returns the Consul namespace of the task group associated
 // with this allocation.
 func (a *Allocation) ConsulNamespace() string {

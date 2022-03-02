@@ -5424,7 +5424,7 @@ func TestStateStore_Allocs(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.Allocs(ws)
+	iter, err := state.Allocs(ws, false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -5472,7 +5472,7 @@ func TestStateStore_Allocs_PrevAlloc(t *testing.T) {
 	require.Nil(err)
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.Allocs(ws)
+	iter, err := state.Allocs(ws, false)
 	require.Nil(err)
 
 	var out []*structs.Allocation
