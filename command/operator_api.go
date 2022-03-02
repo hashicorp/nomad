@@ -71,7 +71,8 @@ Operator API Specific Options:
     Output extra information to stderr similar to curl's --verbose flag.
 
   -X <HTTP Method>
-    HTTP method of request. Defaults to GET.
+    HTTP method of request. If there is data piped to stdin, then the method
+    defaults to POST. Otherwise the method defaults to GET.
 `
 
 	return strings.TrimSpace(helpText)
@@ -106,7 +107,7 @@ func (c *OperatorAPICommand) Run(args []string) int {
 	flags.BoolVar(&dryrun, "dryrun", false, "")
 	flags.StringVar(&filter, "filter", "", "")
 	flags.BoolVar(&c.verboseFlag, "verbose", false, "")
-	flags.StringVar(&c.method, "X", "GET", "")
+	flags.StringVar(&c.method, "X", "", "")
 	flags.Var(headerFlags, "H", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -145,6 +146,8 @@ func (c *OperatorAPICommand) Run(args []string) int {
 		if c.method == "" {
 			c.method = "POST"
 		}
+	} else if c.method == "" {
+		c.method = "GET"
 	}
 
 	config := c.clientConfig()
