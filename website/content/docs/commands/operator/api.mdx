@@ -43,11 +43,29 @@ curl \
   https://client.global.nomad:4646/v1/jobs
 ```
 
-The `-dryrun` flag for `nomad operator api` will output a curl command instead
-of performing the HTTP request immediately. Note that you do *not* need the 3rd
-party `curl` command installed to use `operator api`. The `curl` output from
-`-dryrun` is intended for use in scripts or running in locations without a
-Nomad binary present.
+## General Options
+
+@include 'general_options.mdx'
+
+## Operator API Options
+
+- `-dryrun`: output a curl command instead of performing the HTTP request
+  immediately. Note that you do *not* need the 3rd party `curl` command
+  installed to use `operator api`. The `curl` output from `-dryrun` is intended
+  for use in scripts or running in locations without a Nomad binary present.
+
+- `-filter`: Specifies an expression used to filter query results.
+
+- `-H`: Adds an additional HTTP header to the request. May be specified more
+  than once. These headers take precedence over automatically set ones such as
+  X-Nomad-Token.
+
+- `-verbose`: Output extra information to stderr similar to curl's --verbose
+  flag.
+
+- `-X`: HTTP method of request. If there is data piped to stdin, then the
+  method defaults to POST. Otherwise the method defaults to GET.
+
 
 [curl]: https://curl.se/
 [envvars]: /docs/commands#environment-variables
