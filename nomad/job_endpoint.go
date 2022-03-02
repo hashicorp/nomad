@@ -3,6 +3,7 @@ package nomad
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 )
@@ -1339,14 +1341,16 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
 
-	if args.RequestNamespace() == structs.AllNamespacesSentinel {
+	namespace := args.RequestNamespace()
+
+	if namespace == structs.AllNamespacesSentinel {
 		return j.listAllNamespaces(args, reply)
 	}
 
 	// Check for list-job permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListJobs) {
+	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListJobs) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1358,28 +1362,51 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 			// Capture all the jobs
 			var err error
 			var iter memdb.ResultIterator
+			var opts paginator.StructsTokenizerOptions
+
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.JobsByIDPrefix(ws, args.RequestNamespace(), prefix)
+				iter, err = state.JobsByIDPrefix(ws, namespace, prefix)
+				opts = paginator.StructsTokenizerOptions{
+					WithID:        true,
+					WithNamespace: true,
+				}
 			} else {
-				iter, err = state.JobsByNamespace(ws, args.RequestNamespace())
+				iter, err = state.JobsByNamespace(ws, namespace)
+				opts = paginator.StructsTokenizerOptions{
+					WithNamespace: true,
+					WithID:        true,
+				}
 			}
 			if err != nil {
 				return err
 			}
 
+			tokenizer := paginator.NewStructsTokenizer(iter, opts)
+
 			var jobs []*structs.JobListStub
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				job := raw.(*structs.Job)
-				summary, err := state.JobSummaryByID(ws, args.RequestNamespace(), job.ID)
-				if err != nil {
-					return fmt.Errorf("unable to look up summary for job: %v", job.ID)
-				}
-				jobs = append(jobs, job.Stub(summary))
+			args.QueryOptions.Ascending = true
+			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
+				func(raw interface{}) error {
+					job := raw.(*structs.Job)
+					summary, err := state.JobSummaryByID(ws, namespace, job.ID)
+					if err != nil {
+						return fmt.Errorf("unable to look up summary for job: %v", job.ID)
+					}
+					jobs = append(jobs, job.Stub(summary))
+					return nil
+				})
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
+
+			nextToken, err := paginator.Page()
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to read result page: %v", err)
+			}
+
+			reply.QueryMeta.NextToken = nextToken
 			reply.Jobs = jobs
 
 			// Use the last index that affected the jobs table or summary
@@ -1422,7 +1449,7 @@ func (j *Job) listAllNamespaces(args *structs.JobListRequest, reply *structs.Job
 			if err == structs.ErrPermissionDenied {
 				// return empty jobs if token isn't authorized for any
 				// namespace, matching other endpoints
-				reply.Jobs = []*structs.JobListStub{}
+				reply.Jobs = make([]*structs.JobListStub, 0)
 				return nil
 			} else if err != nil {
 				return err
@@ -1430,33 +1457,54 @@ func (j *Job) listAllNamespaces(args *structs.JobListRequest, reply *structs.Job
 
 			// Capture all the jobs
 			iter, err := state.Jobs(ws)
-
 			if err != nil {
 				return err
 			}
 
-			var jobs []*structs.JobListStub
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				job := raw.(*structs.Job)
-				if allowedNSes != nil && !allowedNSes[job.Namespace] {
-					// not permitted to this name namespace
-					continue
-				}
-				if prefix != "" && !strings.HasPrefix(job.ID, prefix) {
-					continue
-				}
-				summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
-				if err != nil {
-					return fmt.Errorf("unable to look up summary for job: %v", job.ID)
-				}
+			tokenizer := paginator.NewStructsTokenizer(iter, paginator.StructsTokenizerOptions{
+				WithNamespace: true,
+				WithID:        true,
+			})
+			jobFilter := paginator.GenericFilter{
+				Allow: func(raw interface{}) (bool, error) {
+					job := raw.(*structs.Job)
 
-				stub := job.Stub(summary)
-				jobs = append(jobs, stub)
+					if allowedNSes != nil && !allowedNSes[job.Namespace] {
+						// not permitted to this name namespace
+						return false, nil
+					}
+					if prefix != "" && !strings.HasPrefix(job.ID, prefix) {
+						return false, nil
+					}
+
+					return true, nil
+				},
 			}
+			filters := []paginator.Filter{jobFilter}
+
+			var jobs []*structs.JobListStub
+			paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+				func(raw interface{}) error {
+					job := raw.(*structs.Job)
+					summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
+					if err != nil {
+						return fmt.Errorf("unable to look up summary for job: %v", job.ID)
+					}
+					jobs = append(jobs, job.Stub(summary))
+					return nil
+				})
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to create result paginator: %v", err)
+			}
+
+			nextToken, err := paginator.Page()
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to read result page: %v", err)
+			}
+
+			reply.QueryMeta.NextToken = nextToken
 			reply.Jobs = jobs
 
 			// Use the last index that affected the jobs table or summary

@@ -4188,6 +4188,33 @@ func (j *Job) NamespacedID() NamespacedID {
 	}
 }
 
+// GetID implements the IDGetter interface, required for pagination.
+func (j *Job) GetID() string {
+	if j == nil {
+		return ""
+	}
+	return j.ID
+}
+
+// GetNamespace implements the NamespaceGetter interface, required for
+// pagination and filtering namespaces in endpoints that support glob namespace
+// requests using tokens with limited access.
+func (j *Job) GetNamespace() string {
+	if j == nil {
+		return ""
+	}
+	return j.Namespace
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (j *Job) GetCreateIndex() uint64 {
+	if j == nil {
+		return 0
+	}
+	return j.CreateIndex
+}
+
 // Canonicalize is used to canonicalize fields in the Job. This should be
 // called when registering a Job.
 func (j *Job) Canonicalize() {
