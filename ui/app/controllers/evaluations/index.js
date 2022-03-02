@@ -8,6 +8,8 @@ import { useMachine } from 'ember-statecharts';
 import { use } from 'ember-usable';
 import evaluationsMachine from '../../machines/evaluations';
 
+const ALL_NAMESPACE_WILDCARD = '*';
+
 export default class EvaluationsController extends Controller {
   @service store;
   @service userSettings;
@@ -28,7 +30,13 @@ export default class EvaluationsController extends Controller {
     },
   });
 
-  queryParams = ['nextToken', 'currentEval', 'pageSize', 'status', 'namespace'];
+  queryParams = [
+    'nextToken',
+    'currentEval',
+    'pageSize',
+    'status',
+    'qpNamespace',
+  ];
   @tracked currentEval = null;
 
   @action
@@ -126,7 +134,7 @@ export default class EvaluationsController extends Controller {
 
     // Create default namespace selection
     namespaces.unshift({
-      key: null,
+      key: ALL_NAMESPACE_WILDCARD,
       label: 'All (*)',
     });
 
@@ -138,7 +146,7 @@ export default class EvaluationsController extends Controller {
   @tracked previousTokens = [];
   @tracked status = null;
   @tracked triggeredBy = null;
-  @tracked namespace = '*';
+  @tracked qpNamespace = ALL_NAMESPACE_WILDCARD;
 
   @action
   onChange(newPageSize) {

@@ -1,8 +1,6 @@
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 
-const ALL_NAMESPACE_WILDCARD = '*';
-
 export default class EvaluationsIndexRoute extends Route {
   @service store;
 
@@ -19,14 +17,15 @@ export default class EvaluationsIndexRoute extends Route {
     triggeredBy: {
       refreshModel: true,
     },
-    namespace: {
+    qpNamespace: {
       refreshModel: true,
     },
   };
 
-  model({ pageSize, status, namespace, nextToken, triggeredBy }) {
+  model({ pageSize, status, qpNamespace: namespace, nextToken, triggeredBy }) {
+    this.store.findAll('namespace');
     return this.store.query('evaluation', {
-      namespace: namespace ?? ALL_NAMESPACE_WILDCARD,
+      namespace,
       per_page: pageSize,
       next_token: nextToken,
       status,
