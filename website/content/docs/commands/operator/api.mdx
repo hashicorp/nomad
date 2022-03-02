@@ -66,6 +66,29 @@ curl \
 - `-X`: HTTP method of request. If there is data piped to stdin, then the
   method defaults to POST. Otherwise the method defaults to GET.
 
+## Examples
+
+```shell-session
+$ nomad operator api -verbose /v1/agent/members?pretty
+> GET http://127.0.0.1:4646/v1/agent/members?pretty=
+* Sending request and receiving response...
+< HTTP/1.1 200 OK
+< Date: Wed, 02 Mar 2022 01:10:59 GMT
+< Content-Type: application/json
+< Vary: Accept-Encoding
+{
+    "Members": [
+...
+
+
+$ nomad operator api -region eu-west -filter '.Status == "completed"' -dryrun /v1/evaluations
+curl \
+  -X GET \
+    http://127.0.0.1:4646/v1/evaluations?filter=.Status+%3D%3D+%22completed%22&region=eu-west
+```
+
+
+
 
 [curl]: https://curl.se/
 [envvars]: /docs/commands#environment-variables
