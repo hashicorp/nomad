@@ -1,4 +1,4 @@
-package state
+package paginator
 
 import (
 	"fmt"
@@ -7,20 +7,19 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Iterator is the interface that must be implemented to use the Paginator.
+// Iterator is the interface that must be implemented to suply data to the
+// Paginator.
 type Iterator interface {
-	// Next returns the next element to be considered for pagination along with
-	// a token string used to uniquely identify elements in the iteration.
+	// Next returns the next element to be considered for pagination.
 	// The page will end if nil is returned.
-	// Tokens should have a stable order and the order must match the paginator
-	// ascending property.
-	Next() (string, interface{})
+	Next() interface{}
 }
 
-// Paginator is an iterator over a memdb.ResultIterator that returns
-// only the expected number of pages.
+// Paginator wraps an iterator and returns only the expected number of pages.
 type Paginator struct {
 	iter           Iterator
+	tokenizer      Tokenizer
+	filters        []Filter
 	perPage        int32
 	itemCount      int32
 	seekingToken   string
@@ -29,17 +28,16 @@ type Paginator struct {
 	nextTokenFound bool
 	pageErr        error
 
-	// filterEvaluator is used to filter results using go-bexpr. It's nil if
-	// no filter expression is defined.
-	filterEvaluator *bexpr.Evaluator
-
 	// appendFunc is the function the caller should use to append raw
 	// entries to the results set. The object is guaranteed to be
 	// non-nil.
 	appendFunc func(interface{}) error
 }
 
-func NewPaginator(iter Iterator, opts structs.QueryOptions, appendFunc func(interface{}) error) (*Paginator, error) {
+// NewPaginator returns a new Paginator.
+func NewPaginator(iter Iterator, tokenizer Tokenizer, filters []Filter,
+	opts structs.QueryOptions, appendFunc func(interface{}) error) (*Paginator, error) {
+
 	var evaluator *bexpr.Evaluator
 	var err error
 
@@ -48,21 +46,23 @@ func NewPaginator(iter Iterator, opts structs.QueryOptions, appendFunc func(inte
 		if err != nil {
 			return nil, fmt.Errorf("failed to read filter expression: %v", err)
 		}
+		filters = append(filters, evaluator)
 	}
 
 	return &Paginator{
-		iter:            iter,
-		perPage:         opts.PerPage,
-		seekingToken:    opts.NextToken,
-		ascending:       opts.Ascending,
-		nextTokenFound:  opts.NextToken == "",
-		filterEvaluator: evaluator,
-		appendFunc:      appendFunc,
+		iter:           iter,
+		tokenizer:      tokenizer,
+		filters:        filters,
+		perPage:        opts.PerPage,
+		seekingToken:   opts.NextToken,
+		ascending:      opts.Ascending,
+		nextTokenFound: opts.NextToken == "",
+		appendFunc:     appendFunc,
 	}, nil
 }
 
 // Page populates a page by running the append function
-// over all results. Returns the next token
+// over all results. Returns the next token.
 func (p *Paginator) Page() (string, error) {
 DONE:
 	for {
@@ -84,11 +84,12 @@ DONE:
 }
 
 func (p *Paginator) next() (interface{}, paginatorState) {
-	token, raw := p.iter.Next()
+	raw := p.iter.Next()
 	if raw == nil {
 		p.nextToken = ""
 		return nil, paginatorComplete
 	}
+	token := p.tokenizer.GetToken(raw)
 
 	// have we found the token we're seeking (if any)?
 	p.nextToken = token
@@ -104,14 +105,14 @@ func (p *Paginator) next() (interface{}, paginatorState) {
 		return nil, paginatorSkip
 	}
 
-	// apply filter if defined
-	if p.filterEvaluator != nil {
-		match, err := p.filterEvaluator.Evaluate(raw)
+	// apply filters if defined
+	for _, f := range p.filters {
+		allow, err := f.Evaluate(raw)
 		if err != nil {
 			p.pageErr = err
 			return nil, paginatorComplete
 		}
-		if !match {
+		if !allow {
 			return nil, paginatorSkip
 		}
 	}

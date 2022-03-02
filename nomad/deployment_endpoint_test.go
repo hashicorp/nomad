@@ -1312,7 +1312,7 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 		{
 			name:              "test01 size-2 page-1 default NS",
 			pageSize:          2,
-			expectedNextToken: "1003-aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
@@ -1331,8 +1331,8 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 		{
 			name:              "test03 size-2 page-2 default NS",
 			pageSize:          2,
-			nextToken:         "1003-aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1005-aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1005.aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
@@ -1353,8 +1353,8 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 			name:              "test05 size-2 page-2 all namespaces",
 			namespace:         "*",
 			pageSize:          2,
-			nextToken:         "1002-aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1004-aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1002.aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1004.aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
@@ -1382,7 +1382,7 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 			namespace:         "*",
 			filter:            `ID matches "^a+[123]"`,
 			pageSize:          2,
-			expectedNextToken: "1002-aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1002.aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
@@ -1415,8 +1415,8 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 		{
 			name:              "test13 non-lexicographic order",
 			pageSize:          1,
-			nextToken:         "1007-00000111-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1009-bbbb1111-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1007.00000111-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1009.bbbb1111-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"00000111-3350-4b4b-d185-0e1992ed43e9",
 			},
@@ -1424,7 +1424,7 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 		{
 			name:      "test14 missing index",
 			pageSize:  1,
-			nextToken: "1008-e9522802-0cd8-4b1d-9c9e-ab3d97938371",
+			nextToken: "1008.e9522802-0cd8-4b1d-9c9e-ab3d97938371",
 			expectedIDs: []string{
 				"bbbb1111-3350-4b4b-d185-0e1992ed43e9",
 			},

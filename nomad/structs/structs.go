@@ -9057,6 +9057,15 @@ func (d *Deployment) GetID() string {
 	return d.ID
 }
 
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (d *Deployment) GetCreateIndex() uint64 {
+	if d == nil {
+		return 0
+	}
+	return d.CreateIndex
+}
+
 // HasPlacedCanaries returns whether the deployment has placed canaries
 func (d *Deployment) HasPlacedCanaries() bool {
 	if d == nil || len(d.TaskGroups) == 0 {
@@ -10546,6 +10555,23 @@ type Evaluation struct {
 
 	CreateTime int64
 	ModifyTime int64
+}
+
+// GetID implements the IDGetter interface, required for pagination.
+func (e *Evaluation) GetID() string {
+	if e == nil {
+		return ""
+	}
+	return e.ID
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (e *Evaluation) GetCreateIndex() uint64 {
+	if e == nil {
+		return 0
+	}
+	return e.CreateIndex
 }
 
 // TerminalStatus returns if the current status is terminal and

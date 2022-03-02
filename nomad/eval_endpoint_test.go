@@ -1084,7 +1084,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
 			},
-			expectedNextToken: "1003-aaaaaaaa-3350-4b4b-d185-0e1992ed43e9", // next one in default namespace
+			expectedNextToken: "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9", // next one in default namespace
 		},
 		{
 			name:              "test02 size-2 page-1 default NS with prefix",
@@ -1099,8 +1099,8 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		{
 			name:              "test03 size-2 page-2 default NS",
 			pageSize:          2,
-			nextToken:         "1003-aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1005-aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1005.aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
@@ -1123,7 +1123,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			filterJobID:  "example",
 			filterStatus: "pending",
 			// aaaaaaaa, bb, and cc are filtered by status
-			expectedNextToken: "1006-aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1006.aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
@@ -1159,7 +1159,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			pageSize:          3,                                            // reads off the end
 			filterJobID:       "example",
 			filterStatus:      "pending",
-			nextToken:         "1003-aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
 			expectedNextToken: "",
 			expectedIDs: []string{
 				"aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
@@ -1183,8 +1183,8 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			name:              "test10 size-2 page-2 all namespaces",
 			namespace:         "*",
 			pageSize:          2,
-			nextToken:         "1002-aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1004-aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1002.aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1004.aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
@@ -1228,7 +1228,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			name:              "test16 go-bexpr filter with pagination",
 			filter:            `JobID == "example"`,
 			pageSize:          2,
-			expectedNextToken: "1003-aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
@@ -1267,8 +1267,8 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		{
 			name:              "test22 non-lexicographic order",
 			pageSize:          1,
-			nextToken:         "1009-00000111-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1010-00000222-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1009.00000111-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1010.00000222-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"00000111-3350-4b4b-d185-0e1992ed43e9",
 			},
@@ -1276,8 +1276,8 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		{
 			name:              "test23 same index",
 			pageSize:          1,
-			nextToken:         "1010-00000222-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1010-00000333-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1010.00000222-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1010.00000333-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"00000222-3350-4b4b-d185-0e1992ed43e9",
 			},
@@ -1285,7 +1285,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		{
 			name:      "test24 missing index",
 			pageSize:  1,
-			nextToken: "1011-e9522802-0cd8-4b1d-9c9e-ab3d97938371",
+			nextToken: "1011.e9522802-0cd8-4b1d-9c9e-ab3d97938371",
 			expectedIDs: []string{
 				"bbbb1111-3350-4b4b-d185-0e1992ed43e9",
 			},

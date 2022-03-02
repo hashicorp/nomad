@@ -10,32 +10,9 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
-
-// DeploymentPaginationIterator is a wrapper over a go-memdb iterator that
-// implements the paginator Iterator interface.
-type DeploymentPaginationIterator struct {
-	iter          memdb.ResultIterator
-	byCreateIndex bool
-}
-
-func (it DeploymentPaginationIterator) Next() (string, interface{}) {
-	raw := it.iter.Next()
-	if raw == nil {
-		return "", nil
-	}
-
-	d := raw.(*structs.Deployment)
-	token := d.ID
-
-	// prefix the pagination token by CreateIndex to keep it properly sorted.
-	if it.byCreateIndex {
-		token = fmt.Sprintf("%v-%v", d.CreateIndex, d.ID)
-	}
-
-	return token, d
-}
 
 // Deployment endpoint is used for manipulating deployments
 type Deployment struct {
@@ -433,26 +410,34 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 			// Capture all the deployments
 			var err error
 			var iter memdb.ResultIterator
-			var deploymentIter DeploymentPaginationIterator
+			var opts paginator.StructsTokenizerOptions
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = store.DeploymentsByIDPrefix(ws, namespace, prefix)
-				deploymentIter.byCreateIndex = false
+				opts = paginator.StructsTokenizerOptions{
+					WithID: true,
+				}
 			} else if namespace != structs.AllNamespacesSentinel {
 				iter, err = store.DeploymentsByNamespaceOrdered(ws, namespace, args.Ascending)
-				deploymentIter.byCreateIndex = true
+				opts = paginator.StructsTokenizerOptions{
+					WithCreateIndex: true,
+					WithID:          true,
+				}
 			} else {
 				iter, err = store.Deployments(ws, args.Ascending)
-				deploymentIter.byCreateIndex = true
+				opts = paginator.StructsTokenizerOptions{
+					WithCreateIndex: true,
+					WithID:          true,
+				}
 			}
 			if err != nil {
 				return err
 			}
 
-			deploymentIter.iter = iter
+			tokenizer := paginator.NewStructsTokenizer(iter, opts)
 
 			var deploys []*structs.Deployment
-			paginator, err := state.NewPaginator(deploymentIter, args.QueryOptions,
+			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
 				func(raw interface{}) error {
 					deploy := raw.(*structs.Deployment)
 					deploys = append(deploys, deploy)
