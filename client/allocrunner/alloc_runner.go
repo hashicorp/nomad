@@ -777,6 +777,17 @@ func (ar *allocRunner) NetworkStatus() *structs.AllocNetworkStatus {
 	return ar.state.NetworkStatus.Copy()
 }
 
+// setIndexes is a helper for forcing a set of server side indexes
+// on the alloc runner. This is used during reconnect when the task
+// has been marked unknown by the server.
+func (ar *allocRunner) setIndexes(update *structs.Allocation) {
+	ar.allocLock.Lock()
+	defer ar.allocLock.Unlock()
+	ar.alloc.AllocModifyIndex = update.AllocModifyIndex
+	ar.alloc.ModifyIndex = update.ModifyIndex
+	ar.alloc.ModifyTime = update.ModifyTime
+}
+
 // AllocState returns a copy of allocation state including a snapshot of task
 // states.
 func (ar *allocRunner) AllocState() *state.State {
@@ -1231,6 +1242,43 @@ func (ar *allocRunner) Signal(taskName, signal string) error {
 	}
 
 	return err.ErrorOrNil()
+}
+
+// Reconnect logs a reconnect event for each task in the allocation and syncs the current alloc state with the server.
+func (ar *allocRunner) Reconnect(update *structs.Allocation) (err error) {
+	ar.logger.Trace("reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex)
+
+	event := structs.NewTaskEvent(structs.TaskClientReconnected)
+	for _, tr := range ar.tasks {
+		tr.AppendEvent(event)
+	}
+
+	// Update the client alloc with the server client side indexes.
+	ar.setIndexes(update)
+
+	// Calculate alloc state to get the final state with the new events.
+	// Cannot rely on AllocStates as it won't recompute TaskStates once they are set.
+	states := make(map[string]*structs.TaskState, len(ar.tasks))
+	for name, tr := range ar.tasks {
+		states[name] = tr.TaskState()
+	}
+
+	// Build the client allocation
+	alloc := ar.clientAlloc(states)
+
+	// Update the client state store.
+	err = ar.stateUpdater.PutAllocation(alloc)
+	if err != nil {
+		return
+	}
+
+	// Update the server.
+	ar.stateUpdater.AllocStateUpdated(alloc)
+
+	// Broadcast client alloc to listeners.
+	err = ar.allocBroadcaster.Send(alloc)
+
+	return
 }
 
 func (ar *allocRunner) GetTaskExecHandler(taskName string) drivermanager.TaskExecHandler {
