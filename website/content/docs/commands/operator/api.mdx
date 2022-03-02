@@ -81,7 +81,7 @@ $ nomad operator api -verbose /v1/agent/members?pretty
 ...
 
 
-$ nomad operator api -region eu-west -filter '.Status == "completed"' -dryrun /v1/evaluations
+$ nomad operator api -region eu-west -filter 'Status == "completed"' -dryrun /v1/evaluations
 curl \
   -X GET \
     http://127.0.0.1:4646/v1/evaluations?filter=.Status+%3D%3D+%22completed%22&region=eu-west
