@@ -419,9 +419,9 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		s.ctx.Plan().AppendAlloc(update, nil)
 	}
 
-	// Handle reconnect updates
+	// Log reconnect updates. They will be pulled by the client when it reconnects.
 	for _, update := range results.reconnectUpdates {
-		s.ctx.Plan().AppendAlloc(update, nil)
+		s.logger.Trace("reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex)
 	}
 
 	// Nothing remaining to do if placement is not required
