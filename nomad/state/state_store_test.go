@@ -7500,7 +7500,7 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 		t.Fatalf("expected error")
 	}
 
-	iter, err := state.ACLTokens(nil)
+	iter, err := state.ACLTokens(nil, false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -7594,7 +7594,7 @@ func TestStateStore_UpsertACLTokens(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, tk2, out)
 
-	iter, err := state.ACLTokens(ws)
+	iter, err := state.ACLTokens(ws, false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -7661,7 +7661,7 @@ func TestStateStore_DeleteACLTokens(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 
-	iter, err := state.ACLTokens(ws)
+	iter, err := state.ACLTokens(ws, false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

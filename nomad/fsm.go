@@ -2306,7 +2306,7 @@ func (s *nomadSnapshot) persistACLTokens(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the policies
 	ws := memdb.NewWatchSet()
-	tokens, err := s.snap.ACLTokens(ws)
+	tokens, err := s.snap.ACLTokens(ws, false)
 	if err != nil {
 		return err
 	}

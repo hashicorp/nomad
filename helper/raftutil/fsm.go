@@ -188,7 +188,7 @@ func (f *FSMHelper) StateAsMap() map[string][]interface{} {
 func StateAsMap(state *state.StateStore) map[string][]interface{} {
 	result := map[string][]interface{}{
 		"ACLPolicies":      toArray(state.ACLPolicies(nil)),
-		"ACLTokens":        toArray(state.ACLTokens(nil)),
+		"ACLTokens":        toArray(state.ACLTokens(nil, false)),
 		"Allocs":           toArray(state.Allocs(nil)),
 		"CSIPlugins":       toArray(state.CSIPlugins(nil)),
 		"CSIVolumes":       toArray(state.CSIVolumes(nil)),

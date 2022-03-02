@@ -728,6 +728,21 @@ func aclTokenTableSchema() *memdb.TableSchema {
 					Field: "AccessorID",
 				},
 			},
+			"create": {
+				Name:         "create",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.UintFieldIndex{
+							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "AccessorID",
+						},
+					},
+				},
+			},
 			"secret": {
 				Name:         "secret",
 				AllowMissing: false,

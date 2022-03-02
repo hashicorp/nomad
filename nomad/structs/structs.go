@@ -11344,6 +11344,23 @@ type ACLToken struct {
 	ModifyIndex uint64
 }
 
+// GetID implements the IDGetter interface, required for pagination.
+func (a *ACLToken) GetID() string {
+	if a == nil {
+		return ""
+	}
+	return a.AccessorID
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (a *ACLToken) GetCreateIndex() uint64 {
+	if a == nil {
+		return 0
+	}
+	return a.CreateIndex
+}
+
 func (a *ACLToken) Copy() *ACLToken {
 	c := new(ACLToken)
 	*c = *a
