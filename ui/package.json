@@ -72,7 +72,7 @@
     "ember-cli-funnel": "^0.6.1",
     "ember-cli-htmlbars": "^5.3.1",
     "ember-cli-inject-live-reload": "^2.0.2",
-    "ember-cli-mirage": "^1.1.2",
+    "ember-cli-mirage": "2.2.0",
     "ember-cli-moment-shim": "^3.8.0",
     "ember-cli-page-object": "^1.17.9",
     "ember-cli-sass": "^10.0.0",
