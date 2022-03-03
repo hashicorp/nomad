@@ -95,6 +95,30 @@ job "docs" {
   specified, the Nomad client will stop them after this duration. The
   Nomad client process must be running for this to occur.
 
+- `max_client_disconnect` `(string: "")` - Specifies a duration
+  during which a Nomad client that reconnects after failing it's
+  [`heartbeat_grace`] window with the servers will attempt to reconnect
+  allocations based on this task group. By default, allocations running
+  on a client that fails to heartbeat to a server within the
+  [`heartbeat_grace`] window will be marked "lost" and Nomad will schedule
+  replacement allocations. However, these allocations will continue to run
+  on the disconnected client. If the client reconnects and the allocations
+  have not been rescheduled elsewhere, the allocations, which may still be
+  healthy, will restart because they have been marked "lost". An operator may
+  instead desire that these allocations reconnect without a restart once the
+  client reconnects. When specified, the Nomad server will mark these allocations
+  as "unknown" rather than "lost". Replacement allocations will be scheduled
+  according to the allocations' reschedule policy until the disconnected client
+  reconnects. Once the disconnected client reconnects, Nomad will compare the
+  "unknown" allocations with their replacements and keep the one with the best
+  node score. If the duration expires before the client reconnects, the allocations
+  will be marked "lost" and Nomad will schedule replacement allocations if necessary.
+  This is useful for edge deployments, or scenarios when operators want zero on-client
+  downtime due to node connectivity issues. This setting can be thought of as q
+  complementary opposite of `stop_after_client_disconnect`. Clients that contain
+  "unknown" allocations will transition to "disconnected" rather than "down" until
+  the last `max_client_disconnect` duration has expired.
+
 - `task` <code>([Task][]: &lt;required&gt;)</code> - Specifies one or more tasks to run
   within this group. This can be specified multiple times, to add a task as part
   of the group.
