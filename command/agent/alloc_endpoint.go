@@ -86,6 +86,8 @@ func (s *HTTPServer) AllocSpecificRequest(resp http.ResponseWriter, req *http.Re
 	switch tokens[1] {
 	case "stop":
 		return s.allocStop(allocID, resp, req)
+	case "services":
+		return s.allocServiceRegistrations(resp, req, allocID)
 	}
 
 	return nil, CodedError(404, resourceNotFoundErr)
@@ -165,6 +167,39 @@ func (s *HTTPServer) allocStop(allocID string, resp http.ResponseWriter, req *ht
 
 	setIndex(resp, out.Index)
 	return &out, nil
+}
+
+// allocServiceRegistrations returns a list of all service registrations
+// assigned to the job identifier. It is callable via the
+// /v1/allocation/:alloc_id/services HTTP API and uses the
+// structs.AllocServiceRegistrationsRPCMethod RPC method.
+func (s *HTTPServer) allocServiceRegistrations(
+	resp http.ResponseWriter, req *http.Request, allocID string) (interface{}, error) {
+
+	// The endpoint only supports GET requests.
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	// Set up the request args and parse this to ensure the query options are
+	// set.
+	args := structs.AllocServiceRegistrationsRequest{AllocID: allocID}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	// Perform the RPC request.
+	var reply structs.AllocServiceRegistrationsResponse
+	if err := s.agent.RPC(structs.AllocServiceRegistrationsRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &reply.QueryMeta)
+
+	if reply.Services == nil {
+		return nil, CodedError(http.StatusNotFound, allocNotFoundErr)
+	}
+	return reply.Services, nil
 }
 
 func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
