@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	e2e "github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -226,13 +227,15 @@ func volumeRegister(volID, volFilePath, createOrRegister string) error {
 	}
 
 	// hack off the first line to replace with our unique ID
-	var idRegex = regexp.MustCompile(`(?m)^id ".*"`)
+	var idRegex = regexp.MustCompile(`(?m)^id[\s]+= ".*"`)
 	volspec := idRegex.ReplaceAllString(string(content),
 		fmt.Sprintf("id = %q", volID))
 
-	var nameRegex = regexp.MustCompile(`(?m)^name ".*"`)
+	// the EBS plugin uses the name as an idempotency token across the
+	// whole AWS account, so it has to be globally unique
+	var nameRegex = regexp.MustCompile(`(?m)^name[\s]+= ".*"`)
 	volspec = nameRegex.ReplaceAllString(volspec,
-		fmt.Sprintf("name = %q", volID))
+		fmt.Sprintf("name = %q", uuid.Generate()))
 
 	go func() {
 		defer stdin.Close()
