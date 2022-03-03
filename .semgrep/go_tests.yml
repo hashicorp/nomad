@@ -13,6 +13,7 @@ rules:
     # TODO(luiz): figure out how to do a 'delete line' fix.
     fix: " "
     paths:
+      exclude: ["*"]
       include:
         - "*_test.go"
 
@@ -43,6 +44,7 @@ rules:
     severity: "WARNING"
     fix: "assert.$FUNC($T, $...ARGS)"
     paths:
+      exclude: ["*"]
       include:
         - "*_test.go"
   - id: "tests-no-assert-without-t-nested"
@@ -64,6 +66,7 @@ rules:
     severity: "WARNING"
     fix: "assert.$FUNC($T, $...ARGS)"
     paths:
+      exclude: ["*"]
       include:
         - "*_test.go"
   - id: "tests-no-require-without-t"
@@ -91,6 +94,7 @@ rules:
     severity: "WARNING"
     fix: "require.$FUNC($T, $...ARGS)"
     paths:
+      exclude: ["*"]
       include:
         - "*_test.go"
   - id: "tests-no-require-without-t-nested"
@@ -112,5 +116,6 @@ rules:
     severity: "WARNING"
     fix: "require.$FUNC($T, $...ARGS)"
     paths:
+      exclude: ["*"]
       include:
         - "*_test.go"
