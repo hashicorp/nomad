@@ -130,6 +130,9 @@ func (v *CSIVolumes) DeleteSnapshot(snap *CSISnapshot, w *WriteOptions) error {
 	qp := url.Values{}
 	qp.Set("snapshot_id", snap.ID)
 	qp.Set("plugin_id", snap.PluginID)
+	if w == nil {
+		w = &WriteOptions{}
+	}
 	w.SetHeadersFromCSISecrets(snap.Secrets)
 	_, err := v.client.delete("/v1/volumes/snapshot?"+qp.Encode(), nil, w)
 	return err
