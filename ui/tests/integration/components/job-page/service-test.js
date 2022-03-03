@@ -27,7 +27,6 @@ module('Integration | Component | job-page/service', function (hooks) {
   });
 
   hooks.afterEach(function () {
-    Job.removeContext();
     this.server.shutdown();
     window.localStorage.clear();
   });
