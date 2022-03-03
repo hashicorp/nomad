@@ -2,12 +2,17 @@ import Component from '@ember/component';
 import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { lazyClick } from '../helpers/lazy-click';
-import { classNames, tagName } from '@ember-decorators/component';
+import {
+  classNames,
+  tagName,
+  attributeBindings,
+} from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 @classic
 @tagName('tr')
 @classNames('job-row', 'is-interactive')
+@attributeBindings('data-test-job-row')
 export default class JobRow extends Component {
   @service router;
   @service store;

@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import { classNames } from '@ember-decorators/component';
+import { classNames, attributeBindings } from '@ember-decorators/component';
 import { task } from 'ember-concurrency';
 import { action, set } from '@ember/object';
 import { inject as service } from '@ember/service';
@@ -9,6 +9,7 @@ const SLASH_KEY = '/';
 const MAXIMUM_RESULTS = 10;
 
 @classNames('global-search-container')
+@attributeBindings('data-test-search-parent')
 export default class GlobalSearchControl extends Component {
   @service router;
   @service token;
