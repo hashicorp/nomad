@@ -4,7 +4,9 @@ import ApplicationSerializer from 'nomad-ui/serializers/application';
 
 import Model from '@ember-data/model';
 import { attr } from '@ember-data/model';
+import classic from 'ember-classic-decorator';
 
+@classic
 class TestSerializer extends ApplicationSerializer {
   arrayNullOverrides = ['Things'];
 
