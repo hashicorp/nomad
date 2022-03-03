@@ -145,7 +145,6 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	// Create the volume
 	vols := []*structs.CSIVolume{{
 		ID:             id0,
-		Namespace:      "notTheNamespace",
 		PluginID:       "minnie",
 		AccessMode:     structs.CSIVolumeAccessModeSingleNodeReader, // legacy field ignored
 		AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,  // legacy field ignored

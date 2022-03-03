@@ -2684,6 +2684,10 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	v0.Schedulable = true
 	v0.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	v0.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	v0.RequestedCapabilities = []*structs.CSIVolumeCapability{{
+		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+	}}
 
 	index++
 	v1 := structs.NewCSIVolume("foo", index)
@@ -2693,6 +2697,10 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	v1.Schedulable = true
 	v1.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	v1.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	v1.RequestedCapabilities = []*structs.CSIVolumeCapability{{
+		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+	}}
 
 	index++
 	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{v0, v1})
