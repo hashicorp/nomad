@@ -2,11 +2,6 @@
 client {
   enabled = true
 
-  options {
-    "driver.raw_exec.enable"    = "1"
-    "docker.privileged.enabled" = "true"
-  }
-
   meta {
     "rack" = "r1"
   }
@@ -30,6 +25,22 @@ plugin "nomad-driver-ecs" {
     enabled = true
     cluster = "nomad-rtd-e2e"
     region  = "us-east-1"
+  }
+}
+
+plugin "raw_exec" {
+  config {
+    enabled = true
+  }
+}
+
+plugin "docker" {
+  config {
+    allow_privileged = true
+
+    volumes {
+      enabled = true
+    }
   }
 }
 
