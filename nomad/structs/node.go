@@ -62,6 +62,19 @@ func (t *CSITopology) Equal(o *CSITopology) bool {
 	return helper.CompareMapStringString(t.Segments, o.Segments)
 }
 
+func (t *CSITopology) MatchFound(o []*CSITopology) bool {
+	if t == nil || o == nil || len(o) == 0 {
+		return false
+	}
+
+	for _, other := range o {
+		if t.Equal(other) {
+			return true
+		}
+	}
+	return false
+}
+
 // CSITopologyRequest are the topologies submitted as options to the
 // storage provider at the time the volume was created. The storage
 // provider will return a single topology.
