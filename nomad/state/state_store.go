@@ -1919,8 +1919,13 @@ func (s *StateStore) JobByIDTxn(ws memdb.WatchSet, namespace, id string, txn Txn
 	return nil, nil
 }
 
-// JobsByIDPrefix is used to lookup a job by prefix
+// JobsByIDPrefix is used to lookup a job by prefix. If querying all namespaces
+// the prefix will not be filtered by an index.
 func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
+	if namespace == structs.AllNamespacesSentinel {
+		return s.jobsByIDPrefixAllNamespaces(ws, id)
+	}
+
 	txn := s.db.ReadTxn()
 
 	iter, err := txn.Get("jobs", "id_prefix", namespace, id)
@@ -1931,6 +1936,30 @@ func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string) (me
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
+}
+
+func (s *StateStore) jobsByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	// Walk the entire jobs table
+	iter, err := txn.Get("jobs", "id")
+
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	// Filter the iterator by ID prefix
+	f := func(raw interface{}) bool {
+		job, ok := raw.(*structs.Job)
+		if !ok {
+			return true
+		}
+		return !strings.HasPrefix(job.ID, prefix)
+	}
+	wrap := memdb.NewFilterIterator(iter, f)
+	return wrap, nil
 }
 
 // JobVersionsByID returns all the tracked versions of a job.

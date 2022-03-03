@@ -1342,16 +1342,28 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
 
 	namespace := args.RequestNamespace()
-
-	if namespace == structs.AllNamespacesSentinel {
-		return j.listAllNamespaces(args, reply)
-	}
+	var allow func(string) bool
 
 	// Check for list-job permissions
-	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+	aclObj, err := j.srv.ResolveToken(args.AuthToken)
+
+	switch {
+	case err != nil:
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListJobs) {
+	case aclObj == nil:
+		allow = func(string) bool {
+			return true
+		}
+	case namespace == structs.AllNamespacesSentinel:
+		allow = func(ns string) bool {
+			return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListJobs)
+		}
+	case !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListJobs):
 		return structs.ErrPermissionDenied
+	default:
+		allow = func(string) bool {
+			return true
+		}
 	}
 
 	// Setup the blocking query
@@ -1362,150 +1374,66 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 			// Capture all the jobs
 			var err error
 			var iter memdb.ResultIterator
-			var opts paginator.StructsTokenizerOptions
 
-			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.JobsByIDPrefix(ws, namespace, prefix)
-				opts = paginator.StructsTokenizerOptions{
-					WithID:        true,
-					WithNamespace: true,
-				}
-			} else {
-				iter, err = state.JobsByNamespace(ws, namespace)
-				opts = paginator.StructsTokenizerOptions{
-					WithNamespace: true,
-					WithID:        true,
-				}
-			}
-			if err != nil {
-				return err
-			}
-
-			tokenizer := paginator.NewStructsTokenizer(iter, opts)
-
-			var jobs []*structs.JobListStub
-			args.QueryOptions.Ascending = true
-			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
-				func(raw interface{}) error {
-					job := raw.(*structs.Job)
-					summary, err := state.JobSummaryByID(ws, namespace, job.ID)
-					if err != nil {
-						return fmt.Errorf("unable to look up summary for job: %v", job.ID)
-					}
-					jobs = append(jobs, job.Stub(summary))
-					return nil
-				})
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to create result paginator: %v", err)
-			}
-
-			nextToken, err := paginator.Page()
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to read result page: %v", err)
-			}
-
-			reply.QueryMeta.NextToken = nextToken
-			reply.Jobs = jobs
-
-			// Use the last index that affected the jobs table or summary
-			jindex, err := state.Index("jobs")
-			if err != nil {
-				return err
-			}
-			sindex, err := state.Index("job_summary")
-			if err != nil {
-				return err
-			}
-			reply.Index = helper.Uint64Max(jindex, sindex)
-
-			// Set the query response
-			j.srv.setQueryMeta(&reply.QueryMeta)
-			return nil
-		}}
-	return j.srv.blockingRPC(&opts)
-}
-
-// listAllNamespaces lists all jobs across all namespaces
-func (j *Job) listAllNamespaces(args *structs.JobListRequest, reply *structs.JobListResponse) error {
-	// Check for list-job permissions
-	aclObj, err := j.srv.ResolveToken(args.AuthToken)
-	if err != nil {
-		return err
-	}
-	prefix := args.QueryOptions.Prefix
-	allow := func(ns string) bool {
-		return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListJobs)
-	}
-
-	// Setup the blocking query
-	opts := blockingOptions{
-		queryOpts: &args.QueryOptions,
-		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// check if user has permission to all namespaces
-			allowedNSes, err := allowedNSes(aclObj, state, allow)
+			allowableNamespaces, err := allowedNSes(aclObj, state, allow)
 			if err == structs.ErrPermissionDenied {
 				// return empty jobs if token isn't authorized for any
 				// namespace, matching other endpoints
 				reply.Jobs = make([]*structs.JobListStub, 0)
-				return nil
 			} else if err != nil {
 				return err
+			} else {
+				if prefix := args.QueryOptions.Prefix; prefix != "" {
+					iter, err = state.JobsByIDPrefix(ws, namespace, prefix)
+				} else if namespace != structs.AllNamespacesSentinel {
+					iter, err = state.JobsByNamespace(ws, namespace)
+				} else {
+					iter, err = state.Jobs(ws)
+				}
+				if err != nil {
+					return err
+				}
+
+				tokenizer := paginator.NewStructsTokenizer(
+					iter,
+					paginator.StructsTokenizerOptions{
+						WithNamespace: true,
+						WithID:        true,
+					},
+				)
+				filters := []paginator.Filter{
+					paginator.NamespaceFilter{
+						AllowableNamespaces: allowableNamespaces,
+					},
+				}
+
+				var jobs []*structs.JobListStub
+				args.QueryOptions.Ascending = true
+				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+					func(raw interface{}) error {
+						job := raw.(*structs.Job)
+						summary, err := state.JobSummaryByID(ws, namespace, job.ID)
+						if err != nil {
+							return fmt.Errorf("unable to look up summary for job: %v", job.ID)
+						}
+						jobs = append(jobs, job.Stub(summary))
+						return nil
+					})
+				if err != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to create result paginator: %v", err)
+				}
+
+				nextToken, err := paginator.Page()
+				if err != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to read result page: %v", err)
+				}
+
+				reply.QueryMeta.NextToken = nextToken
+				reply.Jobs = jobs
 			}
-
-			// Capture all the jobs
-			iter, err := state.Jobs(ws)
-			if err != nil {
-				return err
-			}
-
-			tokenizer := paginator.NewStructsTokenizer(iter, paginator.StructsTokenizerOptions{
-				WithNamespace: true,
-				WithID:        true,
-			})
-			jobFilter := paginator.GenericFilter{
-				Allow: func(raw interface{}) (bool, error) {
-					job := raw.(*structs.Job)
-
-					if allowedNSes != nil && !allowedNSes[job.Namespace] {
-						// not permitted to this name namespace
-						return false, nil
-					}
-					if prefix != "" && !strings.HasPrefix(job.ID, prefix) {
-						return false, nil
-					}
-
-					return true, nil
-				},
-			}
-			filters := []paginator.Filter{jobFilter}
-
-			var jobs []*structs.JobListStub
-			paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
-				func(raw interface{}) error {
-					job := raw.(*structs.Job)
-					summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
-					if err != nil {
-						return fmt.Errorf("unable to look up summary for job: %v", job.ID)
-					}
-					jobs = append(jobs, job.Stub(summary))
-					return nil
-				})
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to create result paginator: %v", err)
-			}
-
-			nextToken, err := paginator.Page()
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to read result page: %v", err)
-			}
-
-			reply.QueryMeta.NextToken = nextToken
-			reply.Jobs = jobs
 
 			// Use the last index that affected the jobs table or summary
 			jindex, err := state.Index("jobs")
@@ -1523,7 +1451,6 @@ func (j *Job) listAllNamespaces(args *structs.JobListRequest, reply *structs.Job
 			return nil
 		}}
 	return j.srv.blockingRPC(&opts)
-
 }
 
 // Allocations is used to list the allocations for a job
