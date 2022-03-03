@@ -1084,7 +1084,6 @@ func TestACLEndpoint_ListTokens_PaginationFiltering(t *testing.T) {
 					Filter:    tc.filter,
 					PerPage:   tc.pageSize,
 					NextToken: tc.nextToken,
-					Ascending: true, // counting up is easier to think about
 				},
 			}
 			req.AuthToken = bootstrapToken
@@ -1146,12 +1145,11 @@ func TestACLEndpoint_ListTokens_Order(t *testing.T) {
 	err = s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1003, []*structs.ACLToken{token2})
 	require.NoError(t, err)
 
-	t.Run("ascending", func(t *testing.T) {
-		// Lookup the jobs in chronological order (oldest first)
+	t.Run("default", func(t *testing.T) {
+		// Lookup the tokens in the default order (oldest first)
 		get := &structs.ACLTokenListRequest{
 			QueryOptions: structs.QueryOptions{
-				Region:    "global",
-				Ascending: true,
+				Region: "global",
 			},
 		}
 		get.AuthToken = bootstrapToken
@@ -1173,12 +1171,12 @@ func TestACLEndpoint_ListTokens_Order(t *testing.T) {
 		require.Equal(t, uuid3, resp.Tokens[2].AccessorID)
 	})
 
-	t.Run("descending", func(t *testing.T) {
-		// Lookup the jobs in reverse chronological order (newest first)
+	t.Run("reverse", func(t *testing.T) {
+		// Lookup the tokens in reverse order (newest first)
 		get := &structs.ACLTokenListRequest{
 			QueryOptions: structs.QueryOptions{
-				Region:    "global",
-				Ascending: false,
+				Region:  "global",
+				Reverse: true,
 			},
 		}
 		get.AuthToken = bootstrapToken

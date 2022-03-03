@@ -24,7 +24,7 @@ type Paginator struct {
 	itemCount      int32
 	seekingToken   string
 	nextToken      string
-	ascending      bool
+	reverse        bool
 	nextTokenFound bool
 	pageErr        error
 
@@ -55,7 +55,7 @@ func NewPaginator(iter Iterator, tokenizer Tokenizer, filters []Filter,
 		filters:        filters,
 		perPage:        opts.PerPage,
 		seekingToken:   opts.NextToken,
-		ascending:      opts.Ascending,
+		reverse:        opts.Reverse,
 		nextTokenFound: opts.NextToken == "",
 		appendFunc:     appendFunc,
 	}, nil
@@ -95,10 +95,11 @@ func (p *Paginator) next() (interface{}, paginatorState) {
 	p.nextToken = token
 
 	var passedToken bool
-	if p.ascending {
-		passedToken = token < p.seekingToken
-	} else {
+
+	if p.reverse {
 		passedToken = token > p.seekingToken
+	} else {
+		passedToken = token < p.seekingToken
 	}
 
 	if !p.nextTokenFound && passedToken {

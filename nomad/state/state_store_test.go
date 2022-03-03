@@ -670,7 +670,7 @@ func TestStateStore_Deployments(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	it, err := state.Deployments(ws, true)
+	it, err := state.Deployments(ws, false)
 	require.NoError(t, err)
 
 	var out []*structs.Deployment

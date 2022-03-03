@@ -62,7 +62,6 @@ func TestPaginator(t *testing.T) {
 			opts := structs.QueryOptions{
 				PerPage:   tc.perPage,
 				NextToken: tc.nextToken,
-				Ascending: true,
 			}
 
 			results := []string{}

@@ -1409,7 +1409,6 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 				}
 
 				var jobs []*structs.JobListStub
-				args.QueryOptions.Ascending = true
 				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
 					func(raw interface{}) error {
 						job := raw.(*structs.Job)

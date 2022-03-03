@@ -273,8 +273,8 @@ type QueryOptions struct {
 	// previous response.
 	NextToken string
 
-	// Ascending is used to have results sorted in ascending chronological order.
-	Ascending bool
+	// Reverse is used to reverse the default order of list results.
+	Reverse bool
 
 	InternalRpcInfo
 }

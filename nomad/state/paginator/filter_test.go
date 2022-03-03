@@ -24,8 +24,7 @@ func TestGenericFilter(t *testing.T) {
 	iter := newTestIterator(ids)
 	tokenizer := testTokenizer{}
 	opts := structs.QueryOptions{
-		PerPage:   3,
-		Ascending: true,
+		PerPage: 3,
 	}
 	results := []string{}
 	paginator, err := NewPaginator(iter, tokenizer, filters, opts,
@@ -84,8 +83,7 @@ func TestNamespaceFilter(t *testing.T) {
 			iter := newTestIteratorWithMocks(mocks)
 			tokenizer := testTokenizer{}
 			opts := structs.QueryOptions{
-				PerPage:   int32(len(mocks)),
-				Ascending: true,
+				PerPage: int32(len(mocks)),
 			}
 
 			results := []string{}

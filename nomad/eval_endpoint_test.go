@@ -751,40 +751,12 @@ func TestEvalEndpoint_List_order(t *testing.T) {
 	err = s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1003, []*structs.Evaluation{eval2})
 	require.NoError(t, err)
 
-	t.Run("descending", func(t *testing.T) {
-		// Lookup the evaluations in reverse chronological order
+	t.Run("default", func(t *testing.T) {
+		// Lookup the evaluations in the default order (oldest first)
 		get := &structs.EvalListRequest{
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
-				Ascending: false,
-			},
-		}
-
-		var resp structs.EvalListResponse
-		err = msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
-		require.NoError(t, err)
-		require.Equal(t, uint64(1003), resp.Index)
-		require.Len(t, resp.Evaluations, 3)
-
-		// Assert returned order is by CreateIndex (descending)
-		require.Equal(t, uint64(1002), resp.Evaluations[0].CreateIndex)
-		require.Equal(t, uuid3, resp.Evaluations[0].ID)
-
-		require.Equal(t, uint64(1001), resp.Evaluations[1].CreateIndex)
-		require.Equal(t, uuid2, resp.Evaluations[1].ID)
-
-		require.Equal(t, uint64(1000), resp.Evaluations[2].CreateIndex)
-		require.Equal(t, uuid1, resp.Evaluations[2].ID)
-	})
-
-	t.Run("ascending", func(t *testing.T) {
-		// Lookup the evaluations in reverse chronological order (newest first)
-		get := &structs.EvalListRequest{
-			QueryOptions: structs.QueryOptions{
-				Region:    "global",
-				Namespace: "*",
-				Ascending: true,
 			},
 		}
 
@@ -805,13 +777,13 @@ func TestEvalEndpoint_List_order(t *testing.T) {
 		require.Equal(t, uuid3, resp.Evaluations[2].ID)
 	})
 
-	t.Run("descending", func(t *testing.T) {
-		// Lookup the evaluations in chronological order (oldest first)
+	t.Run("reverse", func(t *testing.T) {
+		// Lookup the evaluations in reverse order (newest first)
 		get := &structs.EvalListRequest{
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
-				Ascending: false,
+				Reverse:   true,
 			},
 		}
 
@@ -831,7 +803,6 @@ func TestEvalEndpoint_List_order(t *testing.T) {
 		require.Equal(t, uint64(1000), resp.Evaluations[2].CreateIndex)
 		require.Equal(t, uuid1, resp.Evaluations[2].ID)
 	})
-
 }
 
 func TestEvalEndpoint_ListAllNamespaces(t *testing.T) {
@@ -1304,7 +1275,6 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 					PerPage:   tc.pageSize,
 					NextToken: tc.nextToken,
 					Filter:    tc.filter,
-					Ascending: true, // counting up is easier to think about
 				},
 			}
 			req.AuthToken = aclToken

@@ -418,13 +418,13 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 					WithID: true,
 				}
 			} else if namespace != structs.AllNamespacesSentinel {
-				iter, err = store.DeploymentsByNamespaceOrdered(ws, namespace, args.Ascending)
+				iter, err = store.DeploymentsByNamespaceOrdered(ws, namespace, args.Reverse)
 				opts = paginator.StructsTokenizerOptions{
 					WithCreateIndex: true,
 					WithID:          true,
 				}
 			} else {
-				iter, err = store.Deployments(ws, args.Ascending)
+				iter, err = store.Deployments(ws, args.Reverse)
 				opts = paginator.StructsTokenizerOptions{
 					WithCreateIndex: true,
 					WithID:          true,

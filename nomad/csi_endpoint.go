@@ -173,7 +173,6 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			// Collect results, filter by ACL access
 			vs := []*structs.CSIVolListStub{}
 
-			args.QueryOptions.Ascending = true
 			paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
 				func(raw interface{}) error {
 					vol := raw.(*structs.CSIVolume)

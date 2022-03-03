@@ -674,7 +674,7 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 					WithID: true,
 				}
 			} else {
-				iter, err = state.ACLTokens(ws, args.Ascending)
+				iter, err = state.ACLTokens(ws, args.Reverse)
 				opts = paginator.StructsTokenizerOptions{
 					WithCreateIndex: true,
 					WithID:          true,

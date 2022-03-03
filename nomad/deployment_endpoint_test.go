@@ -1066,13 +1066,12 @@ func TestDeploymentEndpoint_List_order(t *testing.T) {
 	err = s1.fsm.State().UpsertDeployment(1003, dep2)
 	require.NoError(t, err)
 
-	t.Run("ascending", func(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
 		// Lookup the deployments in chronological order (oldest first)
 		get := &structs.DeploymentListRequest{
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
-				Ascending: true,
 			},
 		}
 
@@ -1093,13 +1092,13 @@ func TestDeploymentEndpoint_List_order(t *testing.T) {
 		require.Equal(t, uuid3, resp.Deployments[2].ID)
 	})
 
-	t.Run("descending", func(t *testing.T) {
+	t.Run("reverse", func(t *testing.T) {
 		// Lookup the deployments in reverse chronological order (newest first)
 		get := &structs.DeploymentListRequest{
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
-				Ascending: false,
+				Reverse:   true,
 			},
 		}
 
@@ -1441,7 +1440,6 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 					Filter:    tc.filter,
 					PerPage:   tc.pageSize,
 					NextToken: tc.nextToken,
-					Ascending: true, // counting up is easier to think about
 				},
 			}
 			req.AuthToken = aclToken

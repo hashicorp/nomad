@@ -84,13 +84,13 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 						WithID: true,
 					}
 				} else if namespace != structs.AllNamespacesSentinel {
-					iter, err = state.AllocsByNamespaceOrdered(ws, namespace, args.Ascending)
+					iter, err = state.AllocsByNamespaceOrdered(ws, namespace, args.Reverse)
 					opts = paginator.StructsTokenizerOptions{
 						WithCreateIndex: true,
 						WithID:          true,
 					}
 				} else {
-					iter, err = state.Allocs(ws, args.Ascending)
+					iter, err = state.Allocs(ws, args.Reverse)
 					opts = paginator.StructsTokenizerOptions{
 						WithCreateIndex: true,
 						WithID:          true,

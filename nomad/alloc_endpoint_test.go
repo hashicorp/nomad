@@ -287,7 +287,6 @@ func TestAllocEndpoint_List_PaginationFiltering(t *testing.T) {
 					PerPage:   tc.pageSize,
 					NextToken: tc.nextToken,
 					Filter:    tc.filter,
-					Ascending: true,
 				},
 				Fields: &structs.AllocStubFields{
 					Resources:  false,
@@ -347,13 +346,12 @@ func TestAllocEndpoint_List_order(t *testing.T) {
 	err = s1.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{alloc2})
 	require.NoError(t, err)
 
-	t.Run("ascending", func(t *testing.T) {
-		// Lookup the allocations in reverse chronological order (newest first)
+	t.Run("default", func(t *testing.T) {
+		// Lookup the allocations in the default order (oldest first)
 		get := &structs.AllocListRequest{
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
-				Ascending: true,
 			},
 		}
 
@@ -374,13 +372,13 @@ func TestAllocEndpoint_List_order(t *testing.T) {
 		require.Equal(t, uuid3, resp.Allocations[2].ID)
 	})
 
-	t.Run("descending", func(t *testing.T) {
-		// Lookup the allocations in reverse chronological order
+	t.Run("reverse", func(t *testing.T) {
+		// Lookup the allocations in reverse order (newest first)
 		get := &structs.AllocListRequest{
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
-				Ascending: false,
+				Reverse:   true,
 			},
 		}
 

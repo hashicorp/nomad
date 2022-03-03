@@ -423,13 +423,13 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 					WithID: true,
 				}
 			} else if namespace != structs.AllNamespacesSentinel {
-				iter, err = store.EvalsByNamespaceOrdered(ws, namespace, args.Ascending)
+				iter, err = store.EvalsByNamespaceOrdered(ws, namespace, args.Reverse)
 				opts = paginator.StructsTokenizerOptions{
 					WithCreateIndex: true,
 					WithID:          true,
 				}
 			} else {
-				iter, err = store.Evals(ws, args.Ascending)
+				iter, err = store.Evals(ws, args.Reverse)
 				opts = paginator.StructsTokenizerOptions{
 					WithCreateIndex: true,
 					WithID:          true,
