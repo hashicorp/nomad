@@ -2217,3 +2217,65 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 		}}
 	return j.srv.blockingRPC(&opts)
 }
+
+// GetServiceRegistrations returns a list of service registrations which belong
+// to the passed job ID.
+func (j *Job) GetServiceRegistrations(
+	args *structs.JobServiceRegistrationsRequest,
+	reply *structs.JobServiceRegistrationsResponse) error {
+
+	if done, err := j.srv.forward(structs.JobServiceRegistrationsRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "get_service_registrations"}, time.Now())
+
+	// If ACLs are enabled, ensure the caller has the read-job namespace
+	// capability.
+	aclObj, err := j.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if aclObj != nil {
+		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+			return structs.ErrPermissionDenied
+		}
+	}
+
+	// Set up the blocking query.
+	return j.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			job, err := stateStore.JobByID(ws, args.RequestNamespace(), args.JobID)
+			if err != nil {
+				return err
+			}
+
+			// Guard against the job not-existing. Do not create an empty list
+			// to allow the API to determine whether the job was found or not.
+			if job == nil {
+				return nil
+			}
+
+			// Perform the state query to get an iterator.
+			iter, err := stateStore.GetServiceRegistrationsByJobID(ws, args.RequestNamespace(), args.JobID)
+			if err != nil {
+				return err
+			}
+
+			// Set up our output after we have checked the error.
+			services := make([]*structs.ServiceRegistration, 0)
+
+			// Iterate the iterator, appending all service registrations
+			// returned to the reply.
+			for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				services = append(services, raw.(*structs.ServiceRegistration))
+			}
+			reply.Services = services
+
+			// Use the index table to populate the query meta as we have no way
+			// of tracking the max index on deletes.
+			return j.srv.setReplyQueryMeta(stateStore, state.TableServiceRegistrations, &reply.QueryMeta)
+		},
+	})
+}
