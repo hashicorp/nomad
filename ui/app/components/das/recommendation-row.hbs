@@ -1,5 +1,5 @@
 {{#if @summary.taskGroup.allocations.length}}
-  {{!-- Prevent storing aggregate diffs until allocation count is known --}}
+  {{! Prevent storing aggregate diffs until allocation count is known }}
   <tr
     class="recommendation-row"
     ...attributes
@@ -8,12 +8,13 @@
   >
     <td>
       <div data-test-slug>
-        <span class='job'>{{@summary.taskGroup.job.name}}</span>
+        <span class="job">{{@summary.taskGroup.job.name}}</span>
         /
-        <span class='task-group'>{{@summary.taskGroup.name}}</span>
+        <span class="task-group">{{@summary.taskGroup.name}}</span>
       </div>
-      <div class='namespace'>
-        Namespace: <span data-test-namespace>{{@summary.jobNamespace}}</span>
+      <div class="namespace">
+        Namespace:
+        <span data-test-namespace>{{@summary.jobNamespace}}</span>
       </div>
     </td>
     <td data-test-date>
@@ -25,13 +26,13 @@
     <td data-test-cpu>
       {{#if this.cpu.delta}}
         {{this.cpu.signedDiff}}
-        <span class='percent'>{{this.cpu.percentDiff}}</span>
+        <span class="percent">{{this.cpu.percentDiff}}</span>
       {{/if}}
     </td>
     <td data-test-memory>
       {{#if this.memory.delta}}
         {{this.memory.signedDiff}}
-        <span class='percent'>{{this.memory.percentDiff}}</span>
+        <span class="percent">{{this.memory.percentDiff}}</span>
       {{/if}}
     </td>
     <td data-test-aggregate-cpu>

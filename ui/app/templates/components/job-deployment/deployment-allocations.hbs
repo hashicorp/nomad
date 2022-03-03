@@ -3,9 +3,7 @@
     Allocations
   </div>
   <div class="boxed-section-body is-full-bleed">
-    <ListTable
-      @source={{@deployment.allocations}}
-      @class="allocations" as |t|>
+    <ListTable @source={{@deployment.allocations}} @class="allocations" as |t|>
       <t.head>
         <th class="is-narrow"></th>
         <th>ID</th>
@@ -20,7 +18,11 @@
         <th>Memory</th>
       </t.head>
       <t.body as |row|>
-        <AllocationRow data-test-deployment-allocation @allocation={{row.model}} @context="job" />
+        <AllocationRow
+          data-test-deployment-allocation
+          @allocation={{row.model}}
+          @context="job"
+        />
       </t.body>
     </ListTable>
   </div>
