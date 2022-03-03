@@ -2356,3 +2356,7 @@ func TestJobs_ScaleStatus(t *testing.T) {
 	// Check that the result is what we expect
 	require.Equal(groupCount, result.TaskGroups[groupName].Desired)
 }
+
+func TestJobs_Services(t *testing.T) {
+	// TODO(jrasell) add tests once registration process is in place.
+}

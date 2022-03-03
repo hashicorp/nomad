@@ -147,6 +147,14 @@ func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal st
 	return err
 }
 
+// Services is used to return a list of service registrations associated to the
+// specified allocID.
+func (a *Allocations) Services(allocID string, q *QueryOptions) ([]*ServiceRegistration, *QueryMeta, error) {
+	var resp []*ServiceRegistration
+	qm, err := a.client.query("/v1/allocation/"+allocID+"/services", &resp, q)
+	return resp, qm, err
+}
+
 // Allocation is used for serialization of allocations.
 type Allocation struct {
 	ID                    string

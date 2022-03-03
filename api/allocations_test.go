@@ -396,3 +396,7 @@ func TestAllocations_ShouldMigrate(t *testing.T) {
 	require.False(t, DesiredTransition{}.ShouldMigrate())
 	require.False(t, DesiredTransition{Migrate: boolToPtr(false)}.ShouldMigrate())
 }
+
+func TestAllocations_Services(t *testing.T) {
+	// TODO(jrasell) add tests once registration process is in place.
+}
