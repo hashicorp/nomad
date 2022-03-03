@@ -2265,8 +2265,13 @@ func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, prefix, 
 }
 
 // CSIVolumesByIDPrefix supports search. Caller should snapshot if it wants to
-// also denormalize the plugins.
+// also denormalize the plugins. If using a prefix with the wildcard namespace,
+// the results will not use the index prefix.
 func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID string) (memdb.ResultIterator, error) {
+	if namespace == structs.AllNamespacesSentinel {
+		return s.csiVolumeByIDPrefixAllNamespaces(ws, volumeID)
+	}
+
 	txn := s.db.ReadTxn()
 
 	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, volumeID)
@@ -2277,6 +2282,30 @@ func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
+}
+
+func (s *StateStore) csiVolumeByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	// Walk the entire csi_volumes table
+	iter, err := txn.Get("csi_volumes", "id")
+
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	// Filter the iterator by ID prefix
+	f := func(raw interface{}) bool {
+		v, ok := raw.(*structs.CSIVolume)
+		if !ok {
+			return false
+		}
+		return !strings.HasPrefix(v.ID, prefix)
+	}
+	wrap := memdb.NewFilterIterator(iter, f)
+	return wrap, nil
 }
 
 // CSIVolumesByNodeID looks up CSIVolumes in use on a node. Caller should

@@ -736,6 +736,22 @@ func TestCSIVolumeEndpoint_ListAllNamespaces(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint64(1001), resp.Index)
 	require.Len(t, resp.Volumes, len(vols))
+
+	// Lookup volumes in all namespaces with prefix
+	get = &structs.CSIVolumeListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Prefix:    id0[:4],
+			Namespace: "*",
+		},
+	}
+	var resp2 structs.CSIVolumeListResponse
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.List", get, &resp2)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1001), resp.Index)
+	require.Len(t, resp2.Volumes, 1)
+	require.Equal(t, vols[0].ID, resp2.Volumes[0].ID)
+	require.Equal(t, structs.DefaultNamespace, resp2.Volumes[0].Namespace)
 }
 
 func TestCSIVolumeEndpoint_Create(t *testing.T) {
