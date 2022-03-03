@@ -475,10 +475,11 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 	allocCount := len(vol.ReadAllocs) + len(vol.WriteAllocs)
 
 	out := &api.CSIVolume{
-		ID:             vol.ID,
-		Name:           vol.Name,
-		ExternalID:     vol.ExternalID,
-		Namespace:      vol.Namespace,
+		ID:         vol.ID,
+		Name:       vol.Name,
+		ExternalID: vol.ExternalID,
+		Namespace:  vol.Namespace,
+
 		Topologies:     structsCSITopolgiesToApi(vol.Topologies),
 		AccessMode:     structsCSIAccessModeToApi(vol.AccessMode),
 		AttachmentMode: structsCSIAttachmentModeToApi(vol.AttachmentMode),
@@ -486,6 +487,13 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 		Secrets:        structsCSISecretsToApi(vol.Secrets),
 		Parameters:     vol.Parameters,
 		Context:        vol.Context,
+		Capacity:       vol.Capacity,
+
+		RequestedCapacityMin:  vol.RequestedCapacityMin,
+		RequestedCapacityMax:  vol.RequestedCapacityMax,
+		RequestedCapabilities: structsCSICapabilityToApi(vol.RequestedCapabilities),
+		CloneID:               vol.CloneID,
+		SnapshotID:            vol.SnapshotID,
 
 		// Allocations is the collapsed list of both read and write allocs
 		Allocations: make([]*api.AllocationListStub, 0, allocCount),
@@ -770,6 +778,18 @@ func structsCSIAttachmentModeToApi(mode structs.CSIVolumeAttachmentMode) api.CSI
 	default:
 	}
 	return api.CSIVolumeAttachmentModeUnknown
+}
+
+// structsCSICapabilityToApi converts capabilities, part of structsCSIVolumeToApi
+func structsCSICapabilityToApi(caps []*structs.CSIVolumeCapability) []*api.CSIVolumeCapability {
+	out := make([]*api.CSIVolumeCapability, len(caps))
+	for i, cap := range caps {
+		out[i] = &api.CSIVolumeCapability{
+			AccessMode:     api.CSIVolumeAccessMode(cap.AccessMode),
+			AttachmentMode: api.CSIVolumeAttachmentMode(cap.AttachmentMode),
+		}
+	}
+	return out
 }
 
 // structsCSIMountOptionsToApi converts mount options, part of structsCSIVolumeToApi
