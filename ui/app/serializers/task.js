@@ -1,5 +1,7 @@
 import ApplicationSerializer from './application';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class Task extends ApplicationSerializer {
   normalize(typeHash, hash) {
     // Lift the reserved resource numbers out of the Resources object
