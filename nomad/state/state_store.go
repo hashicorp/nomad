@@ -2143,8 +2143,8 @@ func (s *StateStore) JobSummaryByPrefix(ws memdb.WatchSet, namespace, id string)
 	return iter, nil
 }
 
-// CSIVolumeRegister adds a volume to the server store, failing if it already exists
-func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolume) error {
+// UpsertCSIVolume inserts a volume in the state store.
+func (s *StateStore) UpsertCSIVolume(index uint64, volumes []*structs.CSIVolume) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 

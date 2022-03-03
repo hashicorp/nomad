@@ -479,7 +479,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 			Segments: map[string]string{"foo": "bar"},
 		}},
 	}}
-	err = state.CSIVolumeRegister(1002, vols)
+	err = state.UpsertCSIVolume(1002, vols)
 	require.NoError(t, err)
 
 	// Upsert the job and alloc

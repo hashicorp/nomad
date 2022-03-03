@@ -245,7 +245,7 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 	v.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	v.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 	v.PluginID = "bar"
-	err := state.CSIVolumeRegister(999, []*structs.CSIVolume{v})
+	err := state.UpsertCSIVolume(999, []*structs.CSIVolume{v})
 	require.NoError(t, err)
 
 	// Create a node with healthy fingerprints for both controller and node plugins

@@ -2695,18 +2695,18 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	v1.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 
 	index++
-	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v0, v1})
+	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{v0, v1})
 	require.NoError(t, err)
 
 	// volume registration is idempotent, unless identies are changed
 	index++
-	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v0, v1})
+	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{v0, v1})
 	require.NoError(t, err)
 
 	index++
 	v2 := v0.Copy()
 	v2.PluginID = "new-id"
-	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v2})
+	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{v2})
 	require.Error(t, err, fmt.Sprintf("volume exists: %s", v0.ID))
 
 	ws := memdb.NewWatchSet()
@@ -2786,7 +2786,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 
 	// registration is an error when the volume is in use
 	index++
-	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v0})
+	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{v0})
 	require.Error(t, err, "volume re-registered while in use")
 	// as is deregistration
 	index++
@@ -3126,7 +3126,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			Namespace: structs.DefaultNamespace,
 			PluginID:  plugID,
 		}
-		err = store.CSIVolumeRegister(nextIndex(store), []*structs.CSIVolume{vol})
+		err = store.UpsertCSIVolume(nextIndex(store), []*structs.CSIVolume{vol})
 		require.NoError(t, err)
 
 		err = store.DeleteJob(nextIndex(store), structs.DefaultNamespace, controllerJobID)
