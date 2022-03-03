@@ -3607,6 +3607,10 @@ func allocNamespaceFilter(namespace string) func(interface{}) bool {
 			return true
 		}
 
+		if namespace == structs.AllNamespacesSentinel {
+			return false
+		}
+
 		return alloc.Namespace != namespace
 	}
 }

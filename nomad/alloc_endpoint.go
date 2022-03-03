@@ -35,17 +35,28 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "list"}, time.Now())
 
 	namespace := args.RequestNamespace()
-
-	if namespace == structs.AllNamespacesSentinel {
-		return a.listAllNamespaces(args, reply)
-	}
+	var allow func(string) bool
 
 	// Check namespace read-job permissions
 	aclObj, err := a.srv.ResolveToken(args.AuthToken)
-	if err != nil {
+
+	switch {
+	case err != nil:
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
+	case aclObj == nil:
+		allow = func(string) bool {
+			return true
+		}
+	case namespace == structs.AllNamespacesSentinel:
+		allow = func(ns string) bool {
+			return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
+		}
+	case !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob):
 		return structs.ErrPermissionDenied
+	default:
+		allow = func(string) bool {
+			return true
+		}
 	}
 
 	// Setup the blocking query
@@ -53,99 +64,30 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Capture all the allocations
+			// Scan all the allocations
 			var err error
 			var iter memdb.ResultIterator
 			var opts paginator.StructsTokenizerOptions
 
-			prefix := args.QueryOptions.Prefix
-			if prefix != "" {
-				iter, err = state.AllocsByIDPrefix(ws, namespace, prefix)
-				opts = paginator.StructsTokenizerOptions{
-					WithID: true,
-				}
-			} else {
-				iter, err = state.AllocsByNamespaceOrdered(ws, namespace, args.Ascending)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
-			}
-			if err != nil {
-				return err
-			}
-
-			tokenizer := paginator.NewStructsTokenizer(iter, opts)
-
-			var allocs []*structs.AllocListStub
-			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
-				func(raw interface{}) error {
-					alloc := raw.(*structs.Allocation)
-					allocs = append(allocs, alloc.Stub(args.Fields))
-					return nil
-				})
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to create result paginator: %v", err)
-			}
-
-			nextToken, err := paginator.Page()
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to read result page: %v", err)
-			}
-
-			reply.QueryMeta.NextToken = nextToken
-			reply.Allocations = allocs
-
-			// Use the last index that affected the jobs table
-			index, err := state.Index("allocs")
-			if err != nil {
-				return err
-			}
-			reply.Index = index
-
-			// Set the query response
-			a.srv.setQueryMeta(&reply.QueryMeta)
-			return nil
-		}}
-	return a.srv.blockingRPC(&opts)
-}
-
-// listAllNamespaces lists all allocations across all namespaces
-func (a *Alloc) listAllNamespaces(args *structs.AllocListRequest, reply *structs.AllocListResponse) error {
-	// Check for read-job permissions
-	aclObj, err := a.srv.ResolveToken(args.AuthToken)
-	if err != nil {
-		return err
-	}
-	prefix := args.QueryOptions.Prefix
-	allow := func(ns string) bool {
-		return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
-	}
-
-	// Setup the blocking query
-	opts := blockingOptions{
-		queryOpts: &args.QueryOptions,
-		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// get list of accessible namespaces
-			allowedNSes, err := allowedNSes(aclObj, state, allow)
+			allowableNamespaces, err := allowedNSes(aclObj, state, allow)
 			if err == structs.ErrPermissionDenied {
-				// return empty allocations if token isn't authorized for any
+				// return empty allocation if token is not authorized for any
 				// namespace, matching other endpoints
-				reply.Allocations = []*structs.AllocListStub{}
+				reply.Allocations = make([]*structs.AllocListStub, 0)
 			} else if err != nil {
 				return err
 			} else {
-				var err error
-				var iter memdb.ResultIterator
-				var opts paginator.StructsTokenizerOptions
-
-				if prefix != "" {
-					iter, err = state.AllocsByIDPrefixAllNSs(ws, prefix)
+				if prefix := args.QueryOptions.Prefix; prefix != "" {
+					iter, err = state.AllocsByIDPrefix(ws, namespace, prefix)
 					opts = paginator.StructsTokenizerOptions{
 						WithID: true,
+					}
+				} else if namespace != structs.AllNamespacesSentinel {
+					iter, err = state.AllocsByNamespaceOrdered(ws, namespace, args.Ascending)
+					opts = paginator.StructsTokenizerOptions{
+						WithCreateIndex: true,
+						WithID:          true,
 					}
 				} else {
 					iter, err = state.Allocs(ws, args.Ascending)
@@ -161,15 +103,15 @@ func (a *Alloc) listAllNamespaces(args *structs.AllocListRequest, reply *structs
 				tokenizer := paginator.NewStructsTokenizer(iter, opts)
 				filters := []paginator.Filter{
 					paginator.NamespaceFilter{
-						AllowableNamespaces: allowedNSes,
+						AllowableNamespaces: allowableNamespaces,
 					},
 				}
 
-				var allocs []*structs.AllocListStub
+				var stubs []*structs.AllocListStub
 				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
 					func(raw interface{}) error {
-						alloc := raw.(*structs.Allocation)
-						allocs = append(allocs, alloc.Stub(args.Fields))
+						allocation := raw.(*structs.Allocation)
+						stubs = append(stubs, allocation.Stub(args.Fields))
 						return nil
 					})
 				if err != nil {
@@ -184,10 +126,10 @@ func (a *Alloc) listAllNamespaces(args *structs.AllocListRequest, reply *structs
 				}
 
 				reply.QueryMeta.NextToken = nextToken
-				reply.Allocations = allocs
+				reply.Allocations = stubs
 			}
 
-			// Use the last index that affected the jobs table
+			// Use the last index that affected the allocs table
 			index, err := state.Index("allocs")
 			if err != nil {
 				return err
