@@ -1,0 +1,3 @@
+```release-note:bug
+api: Apply prefix filter when querying CSI volumes in all namespaces
+```
