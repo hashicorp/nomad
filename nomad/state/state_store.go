@@ -2265,8 +2265,8 @@ func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, prefix, 
 }
 
 // CSIVolumesByIDPrefix supports search. Caller should snapshot if it wants to
-// also denormalize the plugins. If using a prefix, the results will not use an
-// index.
+// also denormalize the plugins. If using a prefix with the wildcard namespace,
+// the results will not use the index prefix.
 func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID string) (memdb.ResultIterator, error) {
 	if namespace == structs.AllNamespacesSentinel {
 		return s.csiVolumeByIDPrefixAllNamespaces(ws, volumeID)
