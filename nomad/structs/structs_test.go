@@ -403,6 +403,7 @@ func testJob() *Job {
 					"elb_check_interval": "30s",
 					"elb_check_min":      "3",
 				},
+				MaxClientDisconnect: helper.TimeToPtr(1 * time.Hour),
 			},
 		},
 		Meta: map[string]string{
@@ -5036,6 +5037,51 @@ func TestAllocation_WaitClientStop(t *testing.T) {
 	}
 }
 
+func TestAllocation_DisconnectTimeout(t *testing.T) {
+	type testCase struct {
+		desc          string
+		maxDisconnect *time.Duration
+	}
+
+	testCases := []testCase{
+		{
+			desc:          "no max_client_disconnect",
+			maxDisconnect: nil,
+		},
+		{
+			desc:          "has max_client_disconnect",
+			maxDisconnect: helper.TimeToPtr(30 * time.Second),
+		},
+		{
+			desc:          "zero max_client_disconnect",
+			maxDisconnect: helper.TimeToPtr(0 * time.Second),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			j := testJob()
+			a := &Allocation{
+				Job: j,
+			}
+
+			j.TaskGroups[0].MaxClientDisconnect = tc.maxDisconnect
+			a.TaskGroup = j.TaskGroups[0].Name
+
+			now := time.Now()
+
+			reschedTime := a.DisconnectTimeout(now)
+
+			if tc.maxDisconnect == nil {
+				require.Equal(t, now, reschedTime, "expected to be now")
+			} else {
+				difference := reschedTime.Sub(now)
+				require.Equal(t, *tc.maxDisconnect, difference, "expected durations to be equal")
+			}
+
+		})
+	}
+}
+
 func TestAllocation_Canonicalize_Old(t *testing.T) {
 	alloc := MockAlloc()
 	alloc.AllocatedResources = nil
@@ -5203,6 +5249,23 @@ func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
 	// Modify the job to a batch job with a valid stop_after_client_disconnect value
 	job.Type = JobTypeBatch
 	job.TaskGroups[0].StopAfterClientDisconnect = &stop
+	err = job.Validate()
+	require.NoError(t, err)
+}
+
+func TestJobConfig_Validate_MaxClientDisconnect(t *testing.T) {
+	// Set up a job with an invalid max_client_disconnect value
+	job := testJob()
+	timeout := -1 * time.Minute
+	job.TaskGroups[0].MaxClientDisconnect = &timeout
+
+	err := job.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "max_client_disconnect cannot be negative")
+
+	// Modify the job with a valid max_client_disconnect value
+	timeout = 1 * time.Minute
+	job.TaskGroups[0].MaxClientDisconnect = &timeout
 	err = job.Validate()
 	require.NoError(t, err)
 }
