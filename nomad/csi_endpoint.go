@@ -1294,10 +1294,20 @@ func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIP
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Query all plugins
-			iter, err := state.CSIPlugins(ws)
-			if err != nil {
-				return err
+
+			var iter memdb.ResultIterator
+			var err error
+			if args.Prefix != "" {
+				iter, err = state.CSIPluginsByIDPrefix(ws, args.Prefix)
+				if err != nil {
+					return err
+				}
+			} else {
+				// Query all plugins
+				iter, err = state.CSIPlugins(ws)
+				if err != nil {
+					return err
+				}
 			}
 
 			// Collect results
