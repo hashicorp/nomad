@@ -1156,6 +1156,9 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 		"Node.UpdateAlloc": &structs.AllocUpdateRequest{
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		},
+		"ServiceRegistration.Upsert": &structs.ServiceRegistrationUpsertRequest{
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		},
 	}
 
 	// When VerifyServerHostname is enabled:

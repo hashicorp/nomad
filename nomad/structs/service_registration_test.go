@@ -381,3 +381,13 @@ func TestServiceRegistration_Equal(t *testing.T) {
 		})
 	}
 }
+
+func TestServiceRegistrationListRequest_StaleReadSupport(t *testing.T) {
+	req := &ServiceRegistrationListRequest{}
+	require.True(t, req.IsRead())
+}
+
+func TestServiceRegistrationByNameRequest_StaleReadSupport(t *testing.T) {
+	req := &ServiceRegistrationByNameRequest{}
+	require.True(t, req.IsRead())
+}

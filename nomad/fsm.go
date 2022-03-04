@@ -307,6 +307,12 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyOneTimeTokenDelete(msgType, buf[1:], log.Index)
 	case structs.OneTimeTokenExpireRequestType:
 		return n.applyOneTimeTokenExpire(msgType, buf[1:], log.Index)
+	case structs.ServiceRegistrationUpsertRequestType:
+		return n.applyUpsertServiceRegistrations(msgType, buf[1:], log.Index)
+	case structs.ServiceRegistrationDeleteByIDRequestType:
+		return n.applyDeleteServiceRegistrationByID(msgType, buf[1:], log.Index)
+	case structs.ServiceRegistrationDeleteByNodeIDRequestType:
+		return n.applyDeleteServiceRegistrationByNodeID(msgType, buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -1888,6 +1894,51 @@ func (n *nomadFSM) applyUpsertScalingEvent(buf []byte, index uint64) interface{}
 
 	if err := n.state.UpsertScalingEvent(index, &req); err != nil {
 		n.logger.Error("UpsertScalingEvent failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyUpsertServiceRegistrations(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_service_registration_upsert"}, time.Now())
+	var req structs.ServiceRegistrationUpsertRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertServiceRegistrations(msgType, index, req.Services); err != nil {
+		n.logger.Error("UpsertServiceRegistrations failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyDeleteServiceRegistrationByID(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_service_registration_delete_id"}, time.Now())
+	var req structs.ServiceRegistrationDeleteByIDRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteServiceRegistrationByID(msgType, index, req.RequestNamespace(), req.ID); err != nil {
+		n.logger.Error("DeleteServiceRegistrationByID failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyDeleteServiceRegistrationByNodeID(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_service_registration_delete_node_id"}, time.Now())
+	var req structs.ServiceRegistrationDeleteByNodeIDRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteServiceRegistrationByNodeID(msgType, index, req.NodeID); err != nil {
+		n.logger.Error("DeleteServiceRegistrationByNodeID failed", "error", err)
 		return err
 	}
 
