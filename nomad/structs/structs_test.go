@@ -415,6 +415,7 @@ func testJob() *Job {
 					"elb_check_interval": "30s",
 					"elb_check_min":      "3",
 				},
+				MaxClientDisconnect: helper.TimeToPtr(1 * time.Hour),
 			},
 		},
 		Meta: map[string]string{
