@@ -61,7 +61,11 @@ func (c *NamespaceApplyCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *NamespaceApplyCommand) AutocompleteArgs() complete.Predictor {
-	return NamespacePredictor(c.Meta.Client, nil)
+	return complete.PredictOr(
+		NamespacePredictor(c.Meta.Client, nil),
+		complete.PredictFiles("*.hcl"),
+		complete.PredictFiles("*.json"),
+	)
 }
 
 func (c *NamespaceApplyCommand) Synopsis() string {
