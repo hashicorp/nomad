@@ -37,6 +37,29 @@ func (c *PluginStatusCommand) csiStatus(client *api.Client, id string) int {
 		return 0
 	}
 
+	// filter by plugin if a plugin ID was passed
+	plugs, _, err := client.CSIPlugins().List(&api.QueryOptions{Prefix: id})
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying CSI plugins: %s", err))
+		return 1
+	}
+	if len(plugs) == 0 {
+		c.Ui.Error(fmt.Sprintf("No plugins(s) with prefix or ID %q found", id))
+		return 1
+	}
+	if len(plugs) > 1 {
+		if id != plugs[0].ID {
+			out, err := c.csiFormatPlugins(plugs)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
+				return 1
+			}
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple plugins\n\n%s", out))
+			return 1
+		}
+	}
+	id = plugs[0].ID
+
 	// Lookup matched a single plugin
 	plug, _, err := client.CSIPlugins().Info(id, nil)
 	if err != nil {
