@@ -1,0 +1,7 @@
+```release-note:improvement
+raft: The default raft protocol version is now 3.
+```
+
+```release-note:deprecation
+Raft protocol version 2 is deprecated and will be removed in Nomad 1.4.0.
+```

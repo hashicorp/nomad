@@ -37,6 +37,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 		logger: testlog.HCLogger(t),
 	}
 
+	vol, _ = srv.State().CSIVolumeDenormalize(nil, vol.Copy())
 	err := w.volumeReapImpl(vol)
 	require.NoError(err)
 
@@ -48,6 +49,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 			State:  structs.CSIVolumeClaimStateNodeDetached,
 		},
 	}
+	vol, _ = srv.State().CSIVolumeDenormalize(nil, vol.Copy())
 	err = w.volumeReapImpl(vol)
 	require.NoError(err)
 	require.Len(vol.PastClaims, 1)
@@ -59,6 +61,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 			Mode:   structs.CSIVolumeClaimGC,
 		},
 	}
+	vol, _ = srv.State().CSIVolumeDenormalize(nil, vol.Copy())
 	err = w.volumeReapImpl(vol)
 	require.NoError(err)
 	require.Len(vol.PastClaims, 2) // alloc claim + GC claim
@@ -71,7 +74,37 @@ func TestVolumeWatch_Reap(t *testing.T) {
 			Mode:   structs.CSIVolumeClaimRead,
 		},
 	}
+	vol, _ = srv.State().CSIVolumeDenormalize(nil, vol.Copy())
 	err = w.volumeReapImpl(vol)
 	require.NoError(err)
 	require.Len(vol.PastClaims, 2) // alloc claim + GC claim
+}
+
+func TestVolumeReapBadState(t *testing.T) {
+
+	store := state.TestStateStore(t)
+	err := state.TestBadCSIState(t, store)
+	require.NoError(t, err)
+	srv := &MockRPCServer{
+		state: store,
+	}
+
+	vol, err := srv.state.CSIVolumeByID(nil,
+		structs.DefaultNamespace, "csi-volume-nfs0")
+	require.NoError(t, err)
+	srv.state.CSIVolumeDenormalize(nil, vol)
+
+	ctx, exitFn := context.WithCancel(context.Background())
+	w := &volumeWatcher{
+		v:      vol,
+		rpc:    srv,
+		state:  srv.State(),
+		ctx:    ctx,
+		exitFn: exitFn,
+		logger: testlog.HCLogger(t),
+	}
+
+	err = w.volumeReapImpl(vol)
+	require.NoError(t, err)
+	require.Equal(t, 2, srv.countCSIUnpublish)
 }

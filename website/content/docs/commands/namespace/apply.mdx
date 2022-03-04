@@ -15,11 +15,15 @@ when introduced in Nomad 0.7.
 ## Usage
 
 ```plaintext
-nomad namespace apply [options] <namespace>
+nomad namespace apply [options] <input>
 ```
 
-The `namespace apply` command requires the name of the namespace to be created
-or updated.
+Apply is used to create or update a namespace. The specification file
+will be read from stdin by specifying "-", otherwise a path to the file is
+expected.
+
+Instead of a file, you may instead pass the namespace name to create
+or update as the only argument.
 
 If ACLs are enabled, this command requires a management ACL token.
 
@@ -32,6 +36,8 @@ If ACLs are enabled, this command requires a management ACL token.
 - `-quota` : An optional quota to apply to the namespace.
 
 - `-description` : An optional human readable description for the namespace.
+
+- `json` : Parse the input as a JSON namespace specification.
 
 ## Examples
 
@@ -46,4 +52,17 @@ Remove a quota from a namespace:
 
 ```shell-session
 $ nomad namespace apply -quota= api-prod
+```
+
+Create a namespace from a file:
+```shell-session
+$ cat namespace.json
+name        = "dev"
+description = "Namespace for developers"
+
+capabilities {
+  enabled_task_drivers  = ["docker", "exec"]
+  disabled_task_drivers = ["raw_exec"]
+}
+$ nomad namespace apply namespace.json
 ```

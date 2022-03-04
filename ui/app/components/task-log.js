@@ -58,21 +58,23 @@ export default class TaskLog extends Component {
     // If the log request can't settle in one second, the client
     // must be unavailable and the server should be used instead
 
-    const aborter = window.AbortController ? new AbortController() : new MockAbortController();
+    const aborter = window.AbortController
+      ? new AbortController()
+      : new MockAbortController();
     const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
 
     // Capture the state of useServer at logger create time to avoid a race
     // between the stdout logger and stderr logger running at once.
     const useServer = this.useServer;
-    return url =>
+    return (url) =>
       RSVP.race([
         this.token.authorizedRequest(url, { signal: aborter.signal }),
         timeout(timing),
       ]).then(
-        response => {
+        (response) => {
           return response;
         },
-        error => {
+        (error) => {
           aborter.abort();
           if (useServer) {
             this.set('noConnection', true);

@@ -60,14 +60,14 @@ linters-settings:
     list-type: blacklist
     packages:
       - github.com/hashicorp/consul/command/flags
+      - github.com/boltdb/bolt
   gocritic:
     disabled-checks:
       - commentFormatting
       - deprecatedComment
   staticcheck:
-    # Only enable a single check to start.
     # I(jrasell) will work on enabling additional checks when possible.
-    checks: ["ST1020"]
+    checks: ["ST1020", "ST1016"]
 
 issues:
   exclude:

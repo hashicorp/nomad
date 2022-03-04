@@ -11,14 +11,16 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/pkg/ioutils"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 	"github.com/mitchellh/copystructure"
@@ -59,24 +61,7 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	var secret string
-	s.parseToken(req, &secret)
-
-	var aclObj *acl.ACL
-	var err error
-
-	// Get the member as a server
-	var member serf.Member
-	if srv := s.agent.Server(); srv != nil {
-		member = srv.LocalMember()
-		aclObj, err = srv.ResolveToken(secret)
-	} else {
-		// Not a Server, so use the Client for token resolution. Note
-		// this gets forwarded to a server with AllowStale = true if
-		// the local ACL cache TTL has expired (30s by default)
-		aclObj, err = s.agent.Client().ResolveToken(secret)
-	}
-
+	aclObj, err := s.ResolveToken(req)
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +69,12 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 	// Check agent read permissions
 	if aclObj != nil && !aclObj.AllowAgentRead() {
 		return nil, structs.ErrPermissionDenied
+	}
+
+	// Get the member as a server
+	var member serf.Member
+	if srv := s.agent.Server(); srv != nil {
+		member = srv.LocalMember()
 	}
 
 	self := agentSelf{
@@ -364,7 +355,7 @@ func (s *HTTPServer) agentPprof(reqType pprof.ReqType, resp http.ResponseWriter,
 
 	// Parse query param int values
 	// Errors are dropped here and default to their zero values.
-	// This is to mimick the functionality that net/pprof implements.
+	// This is to mimic the functionality that net/pprof implements.
 	seconds, _ := strconv.Atoi(req.URL.Query().Get("seconds"))
 	debug, _ := strconv.Atoi(req.URL.Query().Get("debug"))
 	gc, _ := strconv.Atoi(req.URL.Query().Get("gc"))
@@ -668,25 +659,17 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	var secret string
-	s.parseToken(req, &secret)
-
-	// Check agent read permissions
-	var aclObj *acl.ACL
-	var enableDebug bool
-	var err error
-	if srv := s.agent.Server(); srv != nil {
-		aclObj, err = srv.ResolveToken(secret)
-		enableDebug = srv.GetConfig().EnableDebug
-	} else {
-		// Not a Server, so use the Client for token resolution. Note
-		// this gets forwarded to a server with AllowStale = true if
-		// the local ACL cache TTL has expired (30s by default)
-		aclObj, err = s.agent.Client().ResolveToken(secret)
-		enableDebug = s.agent.Client().GetConfig().EnableDebug
-	}
+	aclObj, err := s.ResolveToken(req)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check agent read permissions
+	var enableDebug bool
+	if srv := s.agent.Server(); srv != nil {
+		enableDebug = srv.GetConfig().EnableDebug
+	} else {
+		enableDebug = s.agent.Client().GetConfig().EnableDebug
 	}
 
 	if (aclObj != nil && !aclObj.AllowAgentRead()) ||
@@ -743,4 +726,130 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 	}
 
 	return reply, rpcErr
+}
+
+// AgentSchedulerWorkerInfoRequest is used to query the running state of the
+// agent's scheduler workers.
+func (s *HTTPServer) AgentSchedulerWorkerInfoRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	srv := s.agent.Server()
+	if srv == nil {
+		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)
+	}
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	var secret string
+	s.parseToken(req, &secret)
+
+	// Check agent read permissions
+	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
+		return nil, CodedError(http.StatusInternalServerError, err.Error())
+	} else if aclObj != nil && !aclObj.AllowAgentRead() {
+		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
+	}
+
+	schedulersInfo := srv.GetSchedulerWorkersInfo()
+	response := &api.AgentSchedulerWorkersInfo{
+		ServerID:   srv.LocalMember().Name,
+		Schedulers: make([]api.AgentSchedulerWorkerInfo, len(schedulersInfo)),
+	}
+
+	for i, workerInfo := range schedulersInfo {
+		response.Schedulers[i] = api.AgentSchedulerWorkerInfo{
+			ID:                workerInfo.ID,
+			EnabledSchedulers: make([]string, len(workerInfo.EnabledSchedulers)),
+			Started:           workerInfo.Started.UTC().Format(time.RFC3339Nano),
+			Status:            workerInfo.Status,
+			WorkloadStatus:    workerInfo.WorkloadStatus,
+		}
+		copy(response.Schedulers[i].EnabledSchedulers, workerInfo.EnabledSchedulers)
+	}
+
+	return response, nil
+}
+
+// AgentSchedulerWorkerConfigRequest is used to query the count (and state eventually)
+// of the scheduler workers running in a Nomad server agent.
+// This endpoint can also be used to update the count of running workers for a
+// given agent.
+func (s *HTTPServer) AgentSchedulerWorkerConfigRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if s.agent.Server() == nil {
+		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)
+	}
+	switch req.Method {
+	case http.MethodPut, http.MethodPost:
+		return s.updateScheduleWorkersConfig(resp, req)
+	case http.MethodGet:
+		return s.getScheduleWorkersConfig(resp, req)
+	default:
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) getScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	srv := s.agent.Server()
+	if srv == nil {
+		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)
+	}
+
+	var secret string
+	s.parseToken(req, &secret)
+
+	// Check agent read permissions
+	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
+		return nil, CodedError(http.StatusInternalServerError, err.Error())
+	} else if aclObj != nil && !aclObj.AllowAgentRead() {
+		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
+	}
+
+	config := srv.GetSchedulerWorkerConfig()
+	response := &api.AgentSchedulerWorkerConfigResponse{
+		ServerID:          srv.LocalMember().Name,
+		NumSchedulers:     config.NumSchedulers,
+		EnabledSchedulers: config.EnabledSchedulers,
+	}
+
+	return response, nil
+}
+
+func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	srv := s.agent.Server()
+	if srv == nil {
+		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)
+	}
+
+	var secret string
+	s.parseToken(req, &secret)
+
+	// Check agent write permissions
+	if aclObj, err := srv.ResolveToken(secret); err != nil {
+		return nil, CodedError(http.StatusInternalServerError, err.Error())
+	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
+	}
+
+	var args api.AgentSchedulerWorkerConfigRequest
+
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Invalid request: %s", err.Error()))
+	}
+	// the server_id provided in the payload is ignored to allow the
+	// response to be roundtripped right into a PUT.
+	newArgs := nomad.SchedulerWorkerPoolArgs{
+		NumSchedulers:     args.NumSchedulers,
+		EnabledSchedulers: args.EnabledSchedulers,
+	}
+	if newArgs.IsInvalid() {
+		return nil, CodedError(http.StatusBadRequest, "Invalid request")
+	}
+	reply := srv.SetSchedulerWorkerConfig(newArgs)
+
+	response := &api.AgentSchedulerWorkerConfigResponse{
+		ServerID:          srv.LocalMember().Name,
+		NumSchedulers:     reply.NumSchedulers,
+		EnabledSchedulers: reply.EnabledSchedulers,
+	}
+
+	return response, nil
 }

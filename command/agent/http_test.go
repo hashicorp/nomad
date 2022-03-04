@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -67,6 +68,24 @@ func BenchmarkHTTPRequests(b *testing.B) {
 			s.Server.wrap(handler)(resp, req)
 		}
 	})
+}
+
+func TestMultipleInterfaces(t *testing.T) {
+	httpIps := []string{"127.0.0.1", "127.0.0.2"}
+
+	s := makeHTTPServer(t, func(c *Config) {
+		c.Addresses.HTTP = strings.Join(httpIps, " ")
+		c.ACL.Enabled = true
+	})
+	defer s.Shutdown()
+
+	httpPort := s.ports[0]
+	for _, ip := range httpIps {
+		resp, err := http.Get(fmt.Sprintf("http://%s:%d/", ip, httpPort))
+
+		assert.Nil(t, err)
+		assert.Equal(t, resp.StatusCode, 200)
+	}
 }
 
 // TestRootFallthrough tests rootFallthrough handler to
@@ -945,8 +964,8 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 			t.Parallel()
 
 			conf := &Config{
-				normalizedAddrs: &Addresses{
-					HTTP: "localhost:0", // port is never used
+				normalizedAddrs: &NormalizedAddrs{
+					HTTP: []string{"localhost:0"}, // port is never used
 				},
 				TLSConfig: &config.TLSConfig{
 					EnableHTTP: tc.tls,
@@ -964,7 +983,7 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 				config:     conf,
 			}
 
-			srv, err := NewHTTPServer(agent, conf)
+			srv, err := NewHTTPServers(agent, conf)
 			require.Error(t, err)
 			require.Nil(t, srv)
 			require.Contains(t, err.Error(), tc.expectedErr)
@@ -1297,6 +1316,57 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 	}
 }
 
+func TestHTTPServer_ResolveToken(t *testing.T) {
+	t.Parallel()
+
+	// Setup two servers, one with ACL enabled and another with ACL disabled.
+	noACLServer := makeHTTPServer(t, func(c *Config) {
+		c.ACL = &ACLConfig{Enabled: false}
+	})
+	defer noACLServer.Shutdown()
+
+	ACLServer := makeHTTPServer(t, func(c *Config) {
+		c.ACL = &ACLConfig{Enabled: true}
+	})
+	defer ACLServer.Shutdown()
+
+	// Register sample token.
+	state := ACLServer.Agent.server.State()
+	token := mock.CreatePolicyAndToken(t, state, 1000, "node", mock.NodePolicy(acl.PolicyWrite))
+
+	// Tests cases.
+	t.Run("acl disabled", func(t *testing.T) {
+		req := &http.Request{Body: http.NoBody}
+		got, err := noACLServer.Server.ResolveToken(req)
+		require.NoError(t, err)
+		require.Nil(t, got)
+	})
+
+	t.Run("token not found", func(t *testing.T) {
+		req := &http.Request{
+			Body:   http.NoBody,
+			Header: make(map[string][]string),
+		}
+		setToken(req, mock.ACLToken())
+		got, err := ACLServer.Server.ResolveToken(req)
+		require.Nil(t, got)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "ACL token not found")
+	})
+
+	t.Run("set token", func(t *testing.T) {
+		req := &http.Request{
+			Body:   http.NoBody,
+			Header: make(map[string][]string),
+		}
+		setToken(req, token)
+		got, err := ACLServer.Server.ResolveToken(req)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.True(t, got.AllowNodeWrite())
+	})
+}
+
 func Test_IsAPIClientError(t *testing.T) {
 	trueCases := []int{400, 403, 404, 499}
 	for _, c := range trueCases {
@@ -1390,6 +1460,12 @@ func httpACLTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 
 func setToken(req *http.Request, token *structs.ACLToken) {
 	req.Header.Set("X-Nomad-Token", token.SecretID)
+}
+
+func setNamespace(req *http.Request, ns string) {
+	q := req.URL.Query()
+	q.Add("namespace", ns)
+	req.URL.RawQuery = q.Encode()
 }
 
 func encodeReq(obj interface{}) io.ReadCloser {

@@ -60,8 +60,8 @@ func (old *UIConfig) Copy() *UIConfig {
 
 // Merge returns a new UI configuration by merging another UI
 // configuration into this one
-func (this *UIConfig) Merge(other *UIConfig) *UIConfig {
-	result := this.Copy()
+func (old *UIConfig) Merge(other *UIConfig) *UIConfig {
+	result := old.Copy()
 	if other == nil {
 		return result
 	}
@@ -86,8 +86,8 @@ func (old *ConsulUIConfig) Copy() *ConsulUIConfig {
 
 // Merge returns a new Consul UI configuration by merging another Consul UI
 // configuration into this one
-func (this *ConsulUIConfig) Merge(other *ConsulUIConfig) *ConsulUIConfig {
-	result := this.Copy()
+func (old *ConsulUIConfig) Merge(other *ConsulUIConfig) *ConsulUIConfig {
+	result := old.Copy()
 	if result == nil {
 		result = &ConsulUIConfig{}
 	}
@@ -114,8 +114,8 @@ func (old *VaultUIConfig) Copy() *VaultUIConfig {
 
 // Merge returns a new Vault UI configuration by merging another Vault UI
 // configuration into this one
-func (this *VaultUIConfig) Merge(other *VaultUIConfig) *VaultUIConfig {
-	result := this.Copy()
+func (old *VaultUIConfig) Merge(other *VaultUIConfig) *VaultUIConfig {
+	result := old.Copy()
 	if result == nil {
 		result = &VaultUIConfig{}
 	}

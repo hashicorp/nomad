@@ -17,13 +17,15 @@ import (
 	"math"
 	"net"
 	"os"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/nomad/helper/escapingfs"
+	"golang.org/x/crypto/blake2b"
 
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
@@ -41,7 +43,6 @@ import (
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
-	"golang.org/x/crypto/blake2b"
 )
 
 var (
@@ -121,21 +122,6 @@ const (
 	// MsgTypeTestSetup is used during testing when calling state store
 	// methods directly that require an FSM MessageType
 	MsgTypeTestSetup MessageType = IgnoreUnknownTypeFlag
-
-	// ApiMajorVersion is returned as part of the Status.Version request.
-	// It should be incremented anytime the APIs are changed in a way
-	// that would break clients for sane client versioning.
-	ApiMajorVersion = 1
-
-	// ApiMinorVersion is returned as part of the Status.Version request.
-	// It should be incremented anytime the APIs are changed to allow
-	// for sane client versioning. Minor changes should be compatible
-	// within the major version.
-	ApiMinorVersion = 1
-
-	ProtocolVersion = "protocol"
-	APIMajorVersion = "api.major"
-	APIMinorVersion = "api.minor"
 
 	GetterModeAny  = "any"
 	GetterModeFile = "file"
@@ -273,6 +259,10 @@ type QueryOptions struct {
 	// AuthToken is secret portion of the ACL token used for the request
 	AuthToken string
 
+	// Filter specifies the go-bexpr filter expression to be used for
+	// filtering the data prior to returning a response
+	Filter string
+
 	// PerPage is the number of entries to be returned in queries that support
 	// paginated lists.
 	PerPage int32
@@ -282,6 +272,9 @@ type QueryOptions struct {
 	// the ID of the next object after the last one seen in the
 	// previous response.
 	NextToken string
+
+	// Ascending is used to have results sorted in ascending chronological order.
+	Ascending bool
 
 	InternalRpcInfo
 }
@@ -2026,20 +2019,20 @@ func (n *Node) Copy() *Node {
 	nn := new(Node)
 	*nn = *n
 	nn.Attributes = helper.CopyMapStringString(nn.Attributes)
-	nn.Resources = nn.Resources.Copy()
-	nn.Reserved = nn.Reserved.Copy()
 	nn.NodeResources = nn.NodeResources.Copy()
 	nn.ReservedResources = nn.ReservedResources.Copy()
+	nn.Resources = nn.Resources.Copy()
+	nn.Reserved = nn.Reserved.Copy()
 	nn.Links = helper.CopyMapStringString(nn.Links)
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
-	nn.Events = copyNodeEvents(n.Events)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
-	nn.LastDrain = nn.LastDrain.Copy()
+	nn.Events = copyNodeEvents(n.Events)
+	nn.Drivers = copyNodeDrivers(n.Drivers)
 	nn.CSIControllerPlugins = copyNodeCSI(nn.CSIControllerPlugins)
 	nn.CSINodePlugins = copyNodeCSI(nn.CSINodePlugins)
-	nn.Drivers = copyNodeDrivers(n.Drivers)
 	nn.HostVolumes = copyNodeHostVolumes(n.HostVolumes)
 	nn.HostNetworks = copyNodeHostNetworks(n.HostNetworks)
+	nn.LastDrain = nn.LastDrain.Copy()
 	return nn
 }
 
@@ -2514,6 +2507,22 @@ func (n *NodeNetworkResource) Equals(o *NodeNetworkResource) bool {
 	return reflect.DeepEqual(n, o)
 }
 
+func (n *NodeNetworkResource) Copy() *NodeNetworkResource {
+	if n == nil {
+		return nil
+	}
+
+	c := new(NodeNetworkResource)
+	*c = *n
+
+	if n.Addresses != nil {
+		c.Addresses = make([]NodeNetworkAddress, len(n.Addresses))
+		copy(c.Addresses, n.Addresses)
+	}
+
+	return c
+}
+
 func (n *NodeNetworkResource) HasAlias(alias string) bool {
 	for _, addr := range n.Addresses {
 		if addr.Alias == alias {
@@ -2610,23 +2619,23 @@ type NetworkResource struct {
 	DynamicPorts  []Port     // Host Dynamically assigned ports
 }
 
-func (nr *NetworkResource) Hash() uint32 {
+func (n *NetworkResource) Hash() uint32 {
 	var data []byte
-	data = append(data, []byte(fmt.Sprintf("%s%s%s%s%s%d", nr.Mode, nr.Device, nr.CIDR, nr.IP, nr.Hostname, nr.MBits))...)
+	data = append(data, []byte(fmt.Sprintf("%s%s%s%s%s%d", n.Mode, n.Device, n.CIDR, n.IP, n.Hostname, n.MBits))...)
 
-	for i, port := range nr.ReservedPorts {
+	for i, port := range n.ReservedPorts {
 		data = append(data, []byte(fmt.Sprintf("r%d%s%d%d", i, port.Label, port.Value, port.To))...)
 	}
 
-	for i, port := range nr.DynamicPorts {
+	for i, port := range n.DynamicPorts {
 		data = append(data, []byte(fmt.Sprintf("d%d%s%d%d", i, port.Label, port.Value, port.To))...)
 	}
 
 	return crc32.ChecksumIEEE(data)
 }
 
-func (nr *NetworkResource) Equals(other *NetworkResource) bool {
-	return nr.Hash() == other.Hash()
+func (n *NetworkResource) Equals(other *NetworkResource) bool {
+	return n.Hash() == other.Hash()
 }
 
 func (n *NetworkResource) Canonicalize() {
@@ -2658,6 +2667,7 @@ func (n *NetworkResource) Copy() *NetworkResource {
 	}
 	newR := new(NetworkResource)
 	*newR = *n
+	newR.DNS = n.DNS.Copy()
 	if n.ReservedPorts != nil {
 		newR.ReservedPorts = make([]Port, len(n.ReservedPorts))
 		copy(newR.ReservedPorts, n.ReservedPorts)
@@ -2875,9 +2885,15 @@ func (n *NodeResources) Copy() *NodeResources {
 
 	newN := new(NodeResources)
 	*newN = *n
-
-	// Copy the networks
+	newN.Cpu = n.Cpu.Copy()
 	newN.Networks = n.Networks.Copy()
+
+	if n.NodeNetworks != nil {
+		newN.NodeNetworks = make([]*NodeNetworkResource, len(n.NodeNetworks))
+		for i, nn := range n.NodeNetworks {
+			newN.NodeNetworks[i] = nn.Copy()
+		}
+	}
 
 	// Copy the devices
 	if n.Devices != nil {
@@ -3063,6 +3079,16 @@ type NodeCpuResources struct {
 	ReservableCpuCores []uint16
 }
 
+func (n NodeCpuResources) Copy() NodeCpuResources {
+	newN := n
+	if n.ReservableCpuCores != nil {
+		newN.ReservableCpuCores = make([]uint16, len(n.ReservableCpuCores))
+		copy(newN.ReservableCpuCores, n.ReservableCpuCores)
+	}
+
+	return newN
+}
+
 func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
 	if o == nil {
 		return
@@ -3183,12 +3209,12 @@ type DeviceIdTuple struct {
 	Name   string
 }
 
-func (d *DeviceIdTuple) String() string {
-	if d == nil {
+func (id *DeviceIdTuple) String() string {
+	if id == nil {
 		return ""
 	}
 
-	return fmt.Sprintf("%s/%s/%s", d.Vendor, d.Type, d.Name)
+	return fmt.Sprintf("%s/%s/%s", id.Vendor, id.Type, id.Name)
 }
 
 // Matches returns if this Device ID is a superset of the passed ID.
@@ -4726,7 +4752,7 @@ type TaskGroupSummary struct {
 
 const (
 	// Checks uses any registered health check state in combination with task
-	// states to determine if a allocation is healthy.
+	// states to determine if an allocation is healthy.
 	UpdateStrategyHealthCheck_Checks = "checks"
 
 	// TaskStates uses the task states of an allocation to determine if the
@@ -4935,6 +4961,9 @@ type Namespace struct {
 	// against.
 	Quota string
 
+	// Capabilities is the set of capabilities allowed for this namespace
+	Capabilities *NamespaceCapabilities
+
 	// Hash is the hash of the namespace which is used to efficiently replicate
 	// cross-regions.
 	Hash []byte
@@ -4942,6 +4971,13 @@ type Namespace struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// NamespaceCapabilities represents a set of capabilities allowed for this
+// namespace, to be checked at job submission time.
+type NamespaceCapabilities struct {
+	EnabledTaskDrivers  []string
+	DisabledTaskDrivers []string
 }
 
 func (n *Namespace) Validate() error {
@@ -4972,6 +5008,14 @@ func (n *Namespace) SetHash() []byte {
 	_, _ = hash.Write([]byte(n.Name))
 	_, _ = hash.Write([]byte(n.Description))
 	_, _ = hash.Write([]byte(n.Quota))
+	if n.Capabilities != nil {
+		for _, driver := range n.Capabilities.EnabledTaskDrivers {
+			_, _ = hash.Write([]byte(driver))
+		}
+		for _, driver := range n.Capabilities.DisabledTaskDrivers {
+			_, _ = hash.Write([]byte(driver))
+		}
+	}
 
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
@@ -4985,6 +5029,13 @@ func (n *Namespace) Copy() *Namespace {
 	nc := new(Namespace)
 	*nc = *n
 	nc.Hash = make([]byte, len(n.Hash))
+	if n.Capabilities != nil {
+		c := new(NamespaceCapabilities)
+		*c = *n.Capabilities
+		c.EnabledTaskDrivers = helper.CopySliceString(n.Capabilities.EnabledTaskDrivers)
+		c.DisabledTaskDrivers = helper.CopySliceString(n.Capabilities.DisabledTaskDrivers)
+		nc.Capabilities = c
+	}
 	copy(nc.Hash, n.Hash)
 	return nc
 }
@@ -5283,7 +5334,7 @@ func (d *DispatchPayloadConfig) Copy() *DispatchPayloadConfig {
 
 func (d *DispatchPayloadConfig) Validate() error {
 	// Verify the destination doesn't escape
-	escaped, err := PathEscapesAllocDir("task/local/", d.File)
+	escaped, err := escapingfs.PathEscapesAllocViaRelative("task/local/", d.File)
 	if err != nil {
 		return fmt.Errorf("invalid destination path: %v", err)
 	} else if escaped {
@@ -7454,6 +7505,9 @@ type Template struct {
 	// acquired.
 	// COMPAT(0.12) VaultGrace has been ignored by Vault since Vault v0.5.
 	VaultGrace time.Duration
+
+	// WaitConfig is used to override the global WaitConfig on a per-template basis
+	Wait *WaitConfig
 }
 
 // DefaultTemplate returns a default template.
@@ -7469,9 +7523,14 @@ func (t *Template) Copy() *Template {
 	if t == nil {
 		return nil
 	}
-	copy := new(Template)
-	*copy = *t
-	return copy
+	nt := new(Template)
+	*nt = *t
+
+	if t.Wait != nil {
+		nt.Wait = t.Wait.Copy()
+	}
+
+	return nt
 }
 
 func (t *Template) Canonicalize() {
@@ -7494,7 +7553,7 @@ func (t *Template) Validate() error {
 	}
 
 	// Verify the destination doesn't escape
-	escaped, err := PathEscapesAllocDir("task", t.DestPath)
+	escaped, err := escapingfs.PathEscapesAllocViaRelative("task", t.DestPath)
 	if err != nil {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
 	} else if escaped {
@@ -7527,6 +7586,10 @@ func (t *Template) Validate() error {
 		}
 	}
 
+	if err = t.Wait.Validate(); err != nil {
+		_ = multierror.Append(&mErr, err)
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -7544,6 +7607,71 @@ func (t *Template) Warnings() error {
 // DiffID fulfills the DiffableWithID interface.
 func (t *Template) DiffID() string {
 	return t.DestPath
+}
+
+// WaitConfig is the Min/Max duration used by the Consul Template Watcher. Consul
+// Template relies on pointer based business logic. This struct uses pointers so
+// that we tell the different between zero values and unset values.
+type WaitConfig struct {
+	Min *time.Duration
+	Max *time.Duration
+}
+
+// Copy returns a deep copy of this configuration.
+func (wc *WaitConfig) Copy() *WaitConfig {
+	if wc == nil {
+		return nil
+	}
+
+	nwc := new(WaitConfig)
+
+	if wc.Min != nil {
+		nwc.Min = &*wc.Min
+	}
+
+	if wc.Max != nil {
+		nwc.Max = &*wc.Max
+	}
+
+	return nwc
+}
+
+func (wc *WaitConfig) Equals(o *WaitConfig) bool {
+	if wc.Min == nil && o.Min != nil {
+		return false
+	}
+
+	if wc.Max == nil && o.Max != nil {
+		return false
+	}
+
+	if wc.Min != nil && (o.Min == nil || *wc.Min != *o.Min) {
+		return false
+	}
+
+	if wc.Max != nil && (o.Max == nil || *wc.Max != *o.Max) {
+		return false
+	}
+
+	return true
+}
+
+// Validate that the min is not greater than the max
+func (wc *WaitConfig) Validate() error {
+	if wc == nil {
+		return nil
+	}
+
+	// If either one is nil, they aren't comparable, so they can't be invalid.
+	if wc.Min == nil || wc.Max == nil {
+		return nil
+	}
+
+	if *wc.Min > *wc.Max {
+		return fmt.Errorf("wait min %s is greater than max %s", wc.Min, wc.Max)
+	}
+
+	return nil
 }
 
 // AllocState records a single event that changes the state of the whole allocation
@@ -7659,9 +7787,9 @@ func (ts *TaskState) Copy() *TaskState {
 	return newTS
 }
 
-// Successful returns whether a task finished successfully. This doesn't really
-// have meaning on a non-batch allocation because a service and system
-// allocation should not finish.
+// Successful returns whether a task finished successfully. Only meaningful for
+// for batch allocations or ephemeral (non-sidecar) lifecycle tasks part of a
+// service or system allocation.
 func (ts *TaskState) Successful() bool {
 	return ts.State == TaskStateDead && !ts.Failed
 }
@@ -7853,98 +7981,98 @@ type TaskEvent struct {
 	GenericSource string
 }
 
-func (event *TaskEvent) PopulateEventDisplayMessage() {
+func (e *TaskEvent) PopulateEventDisplayMessage() {
 	// Build up the description based on the event type.
-	if event == nil { //TODO(preetha) needs investigation alloc_runner's Run method sends a nil event when sigterming nomad. Why?
+	if e == nil { //TODO(preetha) needs investigation alloc_runner's Run method sends a nil event when sigterming nomad. Why?
 		return
 	}
 
-	if event.DisplayMessage != "" {
+	if e.DisplayMessage != "" {
 		return
 	}
 
 	var desc string
-	switch event.Type {
+	switch e.Type {
 	case TaskSetup:
-		desc = event.Message
+		desc = e.Message
 	case TaskStarted:
 		desc = "Task started by client"
 	case TaskReceived:
 		desc = "Task received by client"
 	case TaskFailedValidation:
-		if event.ValidationError != "" {
-			desc = event.ValidationError
+		if e.ValidationError != "" {
+			desc = e.ValidationError
 		} else {
 			desc = "Validation of task failed"
 		}
 	case TaskSetupFailure:
-		if event.SetupError != "" {
-			desc = event.SetupError
+		if e.SetupError != "" {
+			desc = e.SetupError
 		} else {
 			desc = "Task setup failed"
 		}
 	case TaskDriverFailure:
-		if event.DriverError != "" {
-			desc = event.DriverError
+		if e.DriverError != "" {
+			desc = e.DriverError
 		} else {
 			desc = "Failed to start task"
 		}
 	case TaskDownloadingArtifacts:
 		desc = "Client is downloading artifacts"
 	case TaskArtifactDownloadFailed:
-		if event.DownloadError != "" {
-			desc = event.DownloadError
+		if e.DownloadError != "" {
+			desc = e.DownloadError
 		} else {
 			desc = "Failed to download artifacts"
 		}
 	case TaskKilling:
-		if event.KillReason != "" {
-			desc = event.KillReason
-		} else if event.KillTimeout != 0 {
-			desc = fmt.Sprintf("Sent interrupt. Waiting %v before force killing", event.KillTimeout)
+		if e.KillReason != "" {
+			desc = e.KillReason
+		} else if e.KillTimeout != 0 {
+			desc = fmt.Sprintf("Sent interrupt. Waiting %v before force killing", e.KillTimeout)
 		} else {
 			desc = "Sent interrupt"
 		}
 	case TaskKilled:
-		if event.KillError != "" {
-			desc = event.KillError
+		if e.KillError != "" {
+			desc = e.KillError
 		} else {
 			desc = "Task successfully killed"
 		}
 	case TaskTerminated:
 		var parts []string
-		parts = append(parts, fmt.Sprintf("Exit Code: %d", event.ExitCode))
+		parts = append(parts, fmt.Sprintf("Exit Code: %d", e.ExitCode))
 
-		if event.Signal != 0 {
-			parts = append(parts, fmt.Sprintf("Signal: %d", event.Signal))
+		if e.Signal != 0 {
+			parts = append(parts, fmt.Sprintf("Signal: %d", e.Signal))
 		}
 
-		if event.Message != "" {
-			parts = append(parts, fmt.Sprintf("Exit Message: %q", event.Message))
+		if e.Message != "" {
+			parts = append(parts, fmt.Sprintf("Exit Message: %q", e.Message))
 		}
 		desc = strings.Join(parts, ", ")
 	case TaskRestarting:
-		in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
-		if event.RestartReason != "" && event.RestartReason != ReasonWithinPolicy {
-			desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
+		in := fmt.Sprintf("Task restarting in %v", time.Duration(e.StartDelay))
+		if e.RestartReason != "" && e.RestartReason != ReasonWithinPolicy {
+			desc = fmt.Sprintf("%s - %s", e.RestartReason, in)
 		} else {
 			desc = in
 		}
 	case TaskNotRestarting:
-		if event.RestartReason != "" {
-			desc = event.RestartReason
+		if e.RestartReason != "" {
+			desc = e.RestartReason
 		} else {
 			desc = "Task exceeded restart policy"
 		}
 	case TaskSiblingFailed:
-		if event.FailedSibling != "" {
-			desc = fmt.Sprintf("Task's sibling %q failed", event.FailedSibling)
+		if e.FailedSibling != "" {
+			desc = fmt.Sprintf("Task's sibling %q failed", e.FailedSibling)
 		} else {
 			desc = "Task's sibling failed"
 		}
 	case TaskSignaling:
-		sig := event.TaskSignal
-		reason := event.TaskSignalReason
+		sig := e.TaskSignal
+		reason := e.TaskSignalReason
 
 		if sig == "" && reason == "" {
 			desc = "Task being sent a signal"
@@ -7956,47 +8084,47 @@ func (event *TaskEvent) PopulateEventDisplayMessage() {
 			desc = fmt.Sprintf("Task being sent signal %v: %v", sig, reason)
 		}
 	case TaskRestartSignal:
-		if event.RestartReason != "" {
-			desc = event.RestartReason
+		if e.RestartReason != "" {
+			desc = e.RestartReason
 		} else {
 			desc = "Task signaled to restart"
 		}
 	case TaskDriverMessage:
-		desc = event.DriverMessage
+		desc = e.DriverMessage
 	case TaskLeaderDead:
 		desc = "Leader Task in Group dead"
 	case TaskMainDead:
 		desc = "Main tasks in the group died"
 	default:
-		desc = event.Message
+		desc = e.Message
 	}
 
-	event.DisplayMessage = desc
+	e.DisplayMessage = desc
 }
 
-func (te *TaskEvent) GoString() string {
-	return fmt.Sprintf("%v - %v", te.Time, te.Type)
+func (e *TaskEvent) GoString() string {
+	return fmt.Sprintf("%v - %v", e.Time, e.Type)
 }
 
 // SetDisplayMessage sets the display message of TaskEvent
-func (te *TaskEvent) SetDisplayMessage(msg string) *TaskEvent {
-	te.DisplayMessage = msg
-	return te
+func (e *TaskEvent) SetDisplayMessage(msg string) *TaskEvent {
+	e.DisplayMessage = msg
+	return e
 }
 
 // SetMessage sets the message of TaskEvent
-func (te *TaskEvent) SetMessage(msg string) *TaskEvent {
-	te.Message = msg
-	te.Details["message"] = msg
-	return te
+func (e *TaskEvent) SetMessage(msg string) *TaskEvent {
+	e.Message = msg
+	e.Details["message"] = msg
+	return e
 }
 
-func (te *TaskEvent) Copy() *TaskEvent {
-	if te == nil {
+func (e *TaskEvent) Copy() *TaskEvent {
+	if e == nil {
 		return nil
 	}
 	copy := new(TaskEvent)
-	*copy = *te
+	*copy = *e
 	return copy
 }
 
@@ -8223,31 +8351,6 @@ func (ta *TaskArtifact) Hash() string {
 	return base64.RawStdEncoding.EncodeToString(h.Sum(nil))
 }
 
-// PathEscapesAllocDir returns if the given path escapes the allocation
-// directory.
-//
-// The prefix is to joined to the path (e.g. "task/local"), and this function
-// checks if path escapes the alloc dir, NOT the prefix directory within the alloc dir.
-// With prefix="task/local", it will return false for "../secret", but
-// true for "../../../../../../root" path; only the latter escapes the alloc dir
-func PathEscapesAllocDir(prefix, path string) (bool, error) {
-	// Verify the destination doesn't escape the tasks directory
-	alloc, err := filepath.Abs(filepath.Join("/", "alloc-dir/", "alloc-id/"))
-	if err != nil {
-		return false, err
-	}
-	abs, err := filepath.Abs(filepath.Join(alloc, prefix, path))
-	if err != nil {
-		return false, err
-	}
-	rel, err := filepath.Rel(alloc, abs)
-	if err != nil {
-		return false, err
-	}
-
-	return strings.HasPrefix(rel, ".."), nil
-}
-
 func (ta *TaskArtifact) Validate() error {
 	// Verify the source
 	var mErr multierror.Error
@@ -8266,7 +8369,7 @@ func (ta *TaskArtifact) Validate() error {
 			ta.GetterMode, GetterModeAny, GetterModeFile, GetterModeDir))
 	}
 
-	escaped, err := PathEscapesAllocDir("task", ta.RelativeDest)
+	escaped, err := escapingfs.PathEscapesAllocViaRelative("task", ta.RelativeDest)
 	if err != nil {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid destination path: %v", err))
 	} else if escaped {
@@ -9499,7 +9602,6 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, fail
 		return false
 	}
 	attempts := reschedulePolicy.Attempts
-	interval := reschedulePolicy.Interval
 	enabled := attempts > 0 || reschedulePolicy.Unlimited
 	if !enabled {
 		return false
@@ -9511,15 +9613,32 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, fail
 	if (a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0) && attempts > 0 {
 		return true
 	}
+	attempted, _ := a.rescheduleInfo(reschedulePolicy, failTime)
+	return attempted < attempts
+}
+
+func (a *Allocation) rescheduleInfo(reschedulePolicy *ReschedulePolicy, failTime time.Time) (int, int) {
+	if reschedulePolicy == nil {
+		return 0, 0
+	}
+	attempts := reschedulePolicy.Attempts
+	interval := reschedulePolicy.Interval
+
 	attempted := 0
-	for j := len(a.RescheduleTracker.Events) - 1; j >= 0; j-- {
-		lastAttempt := a.RescheduleTracker.Events[j].RescheduleTime
-		timeDiff := failTime.UTC().UnixNano() - lastAttempt
-		if timeDiff < interval.Nanoseconds() {
-			attempted += 1
+	if a.RescheduleTracker != nil && attempts > 0 {
+		for j := len(a.RescheduleTracker.Events) - 1; j >= 0; j-- {
+			lastAttempt := a.RescheduleTracker.Events[j].RescheduleTime
+			timeDiff := failTime.UTC().UnixNano() - lastAttempt
+			if timeDiff < interval.Nanoseconds() {
+				attempted += 1
+			}
 		}
 	}
-	return attempted < attempts
+	return attempted, attempts
+}
+
+func (a *Allocation) RescheduleInfo() (int, int) {
+	return a.rescheduleInfo(a.ReschedulePolicy(), a.LastEventTime())
 }
 
 // LastEventTime is the time of the last task event in the allocation.
@@ -9573,15 +9692,8 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	rescheduleEligible := reschedulePolicy.Unlimited || (reschedulePolicy.Attempts > 0 && a.RescheduleTracker == nil)
 	if reschedulePolicy.Attempts > 0 && a.RescheduleTracker != nil && a.RescheduleTracker.Events != nil {
 		// Check for eligibility based on the interval if max attempts is set
-		attempted := 0
-		for j := len(a.RescheduleTracker.Events) - 1; j >= 0; j-- {
-			lastAttempt := a.RescheduleTracker.Events[j].RescheduleTime
-			timeDiff := failTime.UTC().UnixNano() - lastAttempt
-			if timeDiff < reschedulePolicy.Interval.Nanoseconds() {
-				attempted += 1
-			}
-		}
-		rescheduleEligible = attempted < reschedulePolicy.Attempts && nextDelay < reschedulePolicy.Interval
+		attempted, attempts := a.rescheduleInfo(reschedulePolicy, failTime)
+		rescheduleEligible = attempted < attempts && nextDelay < reschedulePolicy.Interval
 	}
 	return nextRescheduleTime, rescheduleEligible
 }
@@ -10437,14 +10549,6 @@ type Evaluation struct {
 	ModifyTime int64
 }
 
-// GetID implements the IDGetter interface, required for pagination
-func (e *Evaluation) GetID() string {
-	if e == nil {
-		return ""
-	}
-	return e.ID
-}
-
 // TerminalStatus returns if the current status is terminal and
 // will no longer transition.
 func (e *Evaluation) TerminalStatus() bool {
@@ -10684,7 +10788,9 @@ type Plan struct {
 
 func (p *Plan) GoString() string {
 	out := fmt.Sprintf("(eval %s", p.EvalID[:8])
-	out += fmt.Sprintf(", job %s", p.Job.ID)
+	if p.Job != nil {
+		out += fmt.Sprintf(", job %s", p.Job.ID)
+	}
 	if p.Deployment != nil {
 		out += fmt.Sprintf(", deploy %s", p.Deployment.ID[:8])
 	}
@@ -11096,7 +11202,7 @@ type ACLPolicy struct {
 }
 
 // SetHash is used to compute and set the hash of the ACL policy
-func (c *ACLPolicy) SetHash() []byte {
+func (a *ACLPolicy) SetHash() []byte {
 	// Initialize a 256bit Blake2 hash (32 bytes)
 	hash, err := blake2b.New256(nil)
 	if err != nil {
@@ -11104,15 +11210,15 @@ func (c *ACLPolicy) SetHash() []byte {
 	}
 
 	// Write all the user set fields
-	_, _ = hash.Write([]byte(c.Name))
-	_, _ = hash.Write([]byte(c.Description))
-	_, _ = hash.Write([]byte(c.Rules))
+	_, _ = hash.Write([]byte(a.Name))
+	_, _ = hash.Write([]byte(a.Description))
+	_, _ = hash.Write([]byte(a.Rules))
 
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
 
 	// Set and return the hash
-	c.Hash = hashVal
+	a.Hash = hashVal
 	return hashVal
 }
 

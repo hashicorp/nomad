@@ -7,6 +7,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper"
 )
 
 // checkConsulTLSSkipVerify logs if Consul does not support TLSSkipVerify on
@@ -20,6 +21,10 @@ func checkConsulTLSSkipVerify(ctx context.Context, logger log.Logger, client Age
 	defer close(done)
 
 	i := uint64(0)
+
+	timer, stop := helper.NewSafeTimer(limit)
+	defer stop()
+
 	for {
 		self, err := client.Self()
 		if err == nil {
@@ -39,10 +44,12 @@ func checkConsulTLSSkipVerify(ctx context.Context, logger log.Logger, client Age
 			i++
 		}
 
+		timer.Reset(backoff)
+
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(backoff):
+		case <-timer.C:
 		}
 	}
 }

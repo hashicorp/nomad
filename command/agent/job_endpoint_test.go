@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -51,13 +52,13 @@ func TestHTTP_JobsList(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -109,13 +110,13 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -155,9 +156,9 @@ func TestHTTP_JobsList_AllNamespaces_OSS(t *testing.T) {
 		require.NoError(t, err)
 
 		// Check for the index
-		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
-		require.Equal(t, "true", respW.HeaderMap.Get("X-Nomad-KnownLeader"), "missing known leader")
-		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-LastContact"), "missing last contact")
+		require.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"), "missing index")
+		require.Equal(t, "true", respW.Result().Header.Get("X-Nomad-KnownLeader"), "missing known leader")
+		require.NotEmpty(t, respW.Result().Header.Get("X-Nomad-LastContact"), "missing last contact")
 
 		// Check the job
 		j := obj.([]*structs.JobListStub)
@@ -198,7 +199,7 @@ func TestHTTP_JobsRegister(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -248,7 +249,7 @@ func TestHTTP_JobsRegister_IgnoresParentID(t *testing.T) {
 		require.NotEmpty(t, reg.EvalID)
 
 		// Check for the index
-		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-Index"))
+		require.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"))
 
 		// Check the job is registered
 		getReq := structs.JobSpecificRequest{
@@ -349,7 +350,7 @@ func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -407,6 +408,128 @@ func TestHTTP_JobsParse(t *testing.T) {
 		}
 	})
 }
+
+func TestHTTP_JobsParse_ACL(t *testing.T) {
+	t.Parallel()
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// ACL tokens used in tests.
+		nodeToken := mock.CreatePolicyAndToken(
+			t, state, 1000, "node",
+			mock.NodePolicy(acl.PolicyWrite),
+		)
+		parseJobDevToken := mock.CreatePolicyAndToken(
+			t, state, 1002, "parse-job-dev",
+			mock.NamespacePolicy("dev", "", []string{"parse-job"}),
+		)
+		readNsDevToken := mock.CreatePolicyAndToken(
+			t, state, 1004, "read-dev",
+			mock.NamespacePolicy("dev", "read", nil),
+		)
+		parseJobDefaultToken := mock.CreatePolicyAndToken(
+			t, state, 1006, "parse-job-default",
+			mock.NamespacePolicy("default", "", []string{"parse-job"}),
+		)
+		submitJobDefaultToken := mock.CreatePolicyAndToken(
+			t, state, 1008, "submit-job-default",
+			mock.NamespacePolicy("default", "", []string{"submit-job"}),
+		)
+		readNsDefaultToken := mock.CreatePolicyAndToken(
+			t, state, 1010, "read-default",
+			mock.NamespacePolicy("default", "read", nil),
+		)
+
+		testCases := []struct {
+			name        string
+			token       *structs.ACLToken
+			namespace   string
+			expectError bool
+		}{
+			{
+				name:        "missing ACL token",
+				token:       nil,
+				expectError: true,
+			},
+			{
+				name:        "wrong permissions",
+				token:       nodeToken,
+				expectError: true,
+			},
+			{
+				name:        "wrong namespace",
+				token:       readNsDevToken,
+				expectError: true,
+			},
+			{
+				name:        "wrong namespace capability",
+				token:       parseJobDevToken,
+				expectError: true,
+			},
+			{
+				name:        "default namespace read",
+				token:       readNsDefaultToken,
+				expectError: false,
+			},
+			{
+				name:        "non-default namespace read",
+				token:       readNsDevToken,
+				namespace:   "dev",
+				expectError: false,
+			},
+			{
+				name:        "default namespace parse-job capability",
+				token:       parseJobDefaultToken,
+				expectError: false,
+			},
+			{
+				name:        "default namespace submit-job capability",
+				token:       submitJobDefaultToken,
+				expectError: false,
+			},
+			{
+				name:        "non-default namespace capability",
+				token:       parseJobDevToken,
+				namespace:   "dev",
+				expectError: false,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				buf := encodeReq(api.JobsParseRequest{JobHCL: mock.HCL()})
+				req, err := http.NewRequest("POST", "/v1/jobs/parse", buf)
+				require.NoError(t, err)
+
+				if tc.namespace != "" {
+					setNamespace(req, tc.namespace)
+				}
+
+				if tc.token != nil {
+					setToken(req, tc.token)
+				}
+
+				respW := httptest.NewRecorder()
+				obj, err := s.Server.JobsParseRequest(respW, req)
+
+				if tc.expectError {
+					require.Error(t, err)
+					require.Equal(t, structs.ErrPermissionDenied.Error(), err.Error())
+				} else {
+					require.NoError(t, err)
+					require.NotNil(t, obj)
+
+					job := obj.(*api.Job)
+					expected := mock.Job()
+					require.Equal(t, expected.Name, *job.Name)
+					require.ElementsMatch(t, expected.Datacenters, job.Datacenters)
+				}
+			})
+		}
+	})
+}
+
 func TestHTTP_JobQuery(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -438,13 +561,13 @@ func TestHTTP_JobQuery(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -487,13 +610,13 @@ func TestHTTP_JobQuery_Payload(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -574,7 +697,7 @@ func TestHTTP_JobUpdate(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -771,7 +894,7 @@ func TestHTTP_JobUpdateRegion(t *testing.T) {
 				require.NotEmpty(t, dereg.EvalID)
 
 				// Check for the index
-				require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
+				require.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"), "missing index")
 
 				// Check the job is registered
 				getReq := structs.JobSpecificRequest{
@@ -828,7 +951,7 @@ func TestHTTP_JobDelete(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -871,7 +994,7 @@ func TestHTTP_JobDelete(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -1141,7 +1264,7 @@ func TestHTTP_JobForceEvaluate(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 	})
@@ -1192,7 +1315,7 @@ func TestHTTP_JobEvaluate_ForceReschedule(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 	})
@@ -1237,13 +1360,13 @@ func TestHTTP_JobEvaluations(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 	})
@@ -1302,13 +1425,13 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		assert.Equal(t, expectedDisplayMsg, displayMsg)
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 	})
@@ -1352,9 +1475,9 @@ func TestHTTP_JobDeployments(t *testing.T) {
 		assert.Len(deploys, 1, "deployments")
 		assert.Equal(d.ID, deploys[0].ID, "deployment id")
 
-		assert.NotZero(respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
-		assert.Equal("true", respW.HeaderMap.Get("X-Nomad-KnownLeader"), "missing known leader")
-		assert.NotZero(respW.HeaderMap.Get("X-Nomad-LastContact"), "missing last contact")
+		assert.NotZero(respW.Result().Header.Get("X-Nomad-Index"), "missing index")
+		assert.Equal("true", respW.Result().Header.Get("X-Nomad-KnownLeader"), "missing known leader")
+		assert.NotZero(respW.Result().Header.Get("X-Nomad-LastContact"), "missing last contact")
 	})
 }
 
@@ -1395,9 +1518,9 @@ func TestHTTP_JobDeployment(t *testing.T) {
 		assert.NotNil(out, "deployment")
 		assert.Equal(d.ID, out.ID, "deployment id")
 
-		assert.NotZero(respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
-		assert.Equal("true", respW.HeaderMap.Get("X-Nomad-KnownLeader"), "missing known leader")
-		assert.NotZero(respW.HeaderMap.Get("X-Nomad-LastContact"), "missing last contact")
+		assert.NotZero(respW.Result().Header.Get("X-Nomad-Index"), "missing index")
+		assert.Equal("true", respW.Result().Header.Get("X-Nomad-KnownLeader"), "missing known leader")
+		assert.NotZero(respW.Result().Header.Get("X-Nomad-LastContact"), "missing last contact")
 	})
 }
 
@@ -1467,13 +1590,13 @@ func TestHTTP_JobVersions(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 	})
@@ -1510,7 +1633,7 @@ func TestHTTP_PeriodicForce(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -1745,7 +1868,7 @@ func TestHTTP_JobRevert(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 	})
@@ -1803,7 +1926,7 @@ func TestHTTP_JobStable(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Result().Header.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 	})
@@ -2498,6 +2621,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LeftDelim:    helper.StringToPtr("abc"),
 								RightDelim:   helper.StringToPtr("def"),
 								Envvars:      helper.BoolToPtr(true),
+								Wait: &api.WaitConfig{
+									Min: helper.TimeToPtr(5 * time.Second),
+									Max: helper.TimeToPtr(10 * time.Second),
+								},
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
@@ -2891,6 +3018,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LeftDelim:    "abc",
 								RightDelim:   "def",
 								Envvars:      true,
+								Wait: &structs.WaitConfig{
+									Min: helper.TimeToPtr(5 * time.Second),
+									Max: helper.TimeToPtr(10 * time.Second),
+								},
 							},
 						},
 						DispatchPayload: &structs.DispatchPayloadConfig{

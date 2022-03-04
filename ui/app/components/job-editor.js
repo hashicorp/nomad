@@ -25,7 +25,10 @@ export default class JobEditor extends Component {
   set context(value) {
     const allowedValues = ['new', 'edit'];
 
-    assert(`context must be one of: ${allowedValues.join(', ')}`, allowedValues.includes(value));
+    assert(
+      `context must be one of: ${allowedValues.join(', ')}`,
+      allowedValues.includes(value)
+    );
 
     this.set('_context', value);
   }
@@ -45,7 +48,7 @@ export default class JobEditor extends Component {
     return this.planOutput ? 'plan' : 'editor';
   }
 
-  @(task(function*() {
+  @(task(function* () {
     this.reset();
 
     try {
@@ -68,7 +71,7 @@ export default class JobEditor extends Component {
   }).drop())
   plan;
 
-  @task(function*() {
+  @task(function* () {
     try {
       if (this.context === 'new') {
         yield this.job.run();

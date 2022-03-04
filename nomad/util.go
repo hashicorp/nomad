@@ -30,21 +30,19 @@ func ensurePath(path string, dir bool) error {
 
 // serverParts is used to return the parts of a server role
 type serverParts struct {
-	Name         string
-	ID           string
-	Region       string
-	Datacenter   string
-	Port         int
-	Bootstrap    bool
-	Expect       int
-	MajorVersion int
-	MinorVersion int
-	Build        version.Version
-	RaftVersion  int
-	Addr         net.Addr
-	RPCAddr      net.Addr
-	Status       serf.MemberStatus
-	NonVoter     bool
+	Name        string
+	ID          string
+	Region      string
+	Datacenter  string
+	Port        int
+	Bootstrap   bool
+	Expect      int
+	Build       version.Version
+	RaftVersion int
+	Addr        net.Addr
+	RPCAddr     net.Addr
+	Status      serf.MemberStatus
+	NonVoter    bool
 }
 
 func (s *serverParts) String() string {
@@ -100,21 +98,6 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		return false, nil
 	}
 
-	// The "vsn" tag was Version, which is now the MajorVersion number.
-	majorVersionStr := m.Tags["vsn"]
-	majorVersion, err := strconv.Atoi(majorVersionStr)
-	if err != nil {
-		return false, nil
-	}
-
-	// To keep some semblance of convention, "mvn" is now the "Minor
-	// Version Number."
-	minorVersionStr := m.Tags["mvn"]
-	minorVersion, err := strconv.Atoi(minorVersionStr)
-	if err != nil {
-		minorVersion = 0
-	}
-
 	raftVsn := 0
 	raftVsnString, ok := m.Tags["raft_vsn"]
 	if ok {
@@ -130,21 +113,19 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 	addr := &net.TCPAddr{IP: m.Addr, Port: port}
 	rpcAddr := &net.TCPAddr{IP: rpcIP, Port: port}
 	parts := &serverParts{
-		Name:         m.Name,
-		ID:           id,
-		Region:       region,
-		Datacenter:   datacenter,
-		Port:         port,
-		Bootstrap:    bootstrap,
-		Expect:       expect,
-		Addr:         addr,
-		RPCAddr:      rpcAddr,
-		MajorVersion: majorVersion,
-		MinorVersion: minorVersion,
-		Build:        *buildVersion,
-		RaftVersion:  raftVsn,
-		Status:       m.Status,
-		NonVoter:     nonVoter,
+		Name:        m.Name,
+		ID:          id,
+		Region:      region,
+		Datacenter:  datacenter,
+		Port:        port,
+		Bootstrap:   bootstrap,
+		Expect:      expect,
+		Addr:        addr,
+		RPCAddr:     rpcAddr,
+		Build:       *buildVersion,
+		RaftVersion: raftVsn,
+		Status:      m.Status,
+		NonVoter:    nonVoter,
 	}
 	return true, parts
 }
@@ -300,4 +281,66 @@ func getAlloc(state AllocGetter, allocID string) (*structs.Allocation, error) {
 	}
 
 	return alloc, nil
+}
+
+// tlsCertificateLevel represents a role level for mTLS certificates.
+type tlsCertificateLevel int8
+
+const (
+	tlsCertificateLevelServer tlsCertificateLevel = iota
+	tlsCertificateLevelClient
+)
+
+// validateTLSCertificateLevel checks if the provided RPC connection was
+// initiated with a certificate that matches the given TLS role level.
+//
+// - tlsCertificateLevelServer requires a server certificate.
+// - tlsCertificateLevelServer requires a client or server certificate.
+func validateTLSCertificateLevel(srv *Server, ctx *RPCContext, lvl tlsCertificateLevel) error {
+	switch lvl {
+	case tlsCertificateLevelClient:
+		err := validateLocalClientTLSCertificate(srv, ctx)
+		if err != nil {
+			return validateLocalServerTLSCertificate(srv, ctx)
+		}
+		return nil
+	case tlsCertificateLevelServer:
+		return validateLocalServerTLSCertificate(srv, ctx)
+	}
+
+	return fmt.Errorf("invalid TLS certificate level %v", lvl)
+}
+
+// validateLocalClientTLSCertificate checks if the provided RPC connection was
+// initiated by a client in the same region as the target server.
+func validateLocalClientTLSCertificate(srv *Server, ctx *RPCContext) error {
+	expected := fmt.Sprintf("client.%s.nomad", srv.Region())
+
+	err := validateTLSCertificate(srv, ctx, expected)
+	if err != nil {
+		return fmt.Errorf("invalid client connection in region %s: %v", srv.Region(), err)
+	}
+	return nil
+}
+
+// validateLocalServerTLSCertificate checks if the provided RPC connection was
+// initiated by a server in the same region as the target server.
+func validateLocalServerTLSCertificate(srv *Server, ctx *RPCContext) error {
+	expected := fmt.Sprintf("server.%s.nomad", srv.Region())
+
+	err := validateTLSCertificate(srv, ctx, expected)
+	if err != nil {
+		return fmt.Errorf("invalid server connection in region %s: %v", srv.Region(), err)
+	}
+	return nil
+}
+
+// validateTLSCertificate checks if the RPC connection mTLS certificates are
+// valid for the given name.
+func validateTLSCertificate(srv *Server, ctx *RPCContext, name string) error {
+	if srv.config.TLSConfig == nil || !srv.config.TLSConfig.VerifyServerHostname {
+		return nil
+	}
+
+	return ctx.ValidateCertificateForName(name)
 }

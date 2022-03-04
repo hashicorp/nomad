@@ -104,6 +104,13 @@ func (vw *volumeWatcher) isRunning() bool {
 // Each pass steps the volume's claims through the various states of reaping
 // until the volume has no more claims eligible to be reaped.
 func (vw *volumeWatcher) watch() {
+	// always denormalize the volume and call reap when we first start
+	// the watcher so that we ensure we don't drop events that
+	// happened during leadership transitions and didn't get completed
+	// by the prior leader
+	vol := vw.getVolume(vw.v)
+	vw.volumeReap(vol)
+
 	for {
 		select {
 		// TODO(tgross): currently server->client RPC have no cancellation
@@ -170,17 +177,10 @@ func (vw *volumeWatcher) isUnclaimed(vol *structs.CSIVolume) bool {
 	return len(vol.ReadClaims) == 0 && len(vol.WriteClaims) == 0 && len(vol.PastClaims) == 0
 }
 
+// volumeReapImpl unpublished all the volume's PastClaims. PastClaims
+// will be populated from nil or terminal allocs when we call
+// CSIVolumeDenormalize(), so this assumes we've done so in the caller
 func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
-
-	// PastClaims written by a volume GC core job will have no allocation,
-	// so we need to find out which allocs are eligible for cleanup.
-	for _, claim := range vol.PastClaims {
-		if claim.AllocationID == "" {
-			vol = vw.collectPastClaims(vol)
-			break // only need to collect once
-		}
-	}
-
 	var result *multierror.Error
 	for _, claim := range vol.PastClaims {
 		err := vw.unpublish(vol, claim)
@@ -188,9 +188,7 @@ func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
 			result = multierror.Append(result, err)
 		}
 	}
-
 	return result.ErrorOrNil()
-
 }
 
 func (vw *volumeWatcher) collectPastClaims(vol *structs.CSIVolume) *structs.CSIVolume {

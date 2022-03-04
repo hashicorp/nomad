@@ -20,6 +20,9 @@ import (
 type Alloc struct {
 	srv    *Server
 	logger log.Logger
+
+	// ctx provides context regarding the underlying connection
+	ctx *RPCContext
 }
 
 // List is used to list the allocations in the system
@@ -219,6 +222,13 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 // GetAllocs is used to lookup a set of allocations
 func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	reply *structs.AllocsGetResponse) error {
+
+	// Ensure the connection was initiated by a client if TLS is used.
+	err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelClient)
+	if err != nil {
+		return err
+	}
+
 	if done, err := a.srv.forward("Alloc.GetAllocs", args, args, reply); done {
 		return err
 	}

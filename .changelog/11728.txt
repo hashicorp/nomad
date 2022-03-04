@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed host network reserved port fingerprinting
+```

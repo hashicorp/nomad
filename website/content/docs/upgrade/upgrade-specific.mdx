@@ -13,6 +13,78 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.3.0
+
+#### Raft Protocol Version 2 Deprecation
+
+Raft protocol version 2 will be removed from Nomad in the next major
+release of Nomad, 1.4.0.
+
+In Nomad 1.3.0, the default raft protocol version has been updated to
+3. If the [`raft_protocol_version`] is not explicitly set, upgrading a
+server will automatically upgrade that server's raft protocol. See the
+[Upgrading to Raft Protocol 3] guide.
+
+#### Client State Store
+
+The client state store will be automatically migrated to a new schema
+version when upgrading a client.
+
+Downgrading to a previous version of the client after upgrading it to
+Nomad 1.3 is not supported. To downgrade safely, users should drain
+all tasks from the Nomad client and erase its data directory.
+
+#### CSI Plugins
+
+The client filesystem layout for CSI plugins has been updated to
+correctly handle the lifecycle of multiple allocations serving the
+same plugin. Running plugin tasks will not be updated after upgrading
+the client, but it is recommended to redeploy CSI plugin jobs after
+upgrading the cluster.
+
+The directory for plugin control sockets will be mounted from a new
+per-allocation directory in the client data dir. This will still be
+bind-mounted to `csi_plugin.mount_config` as in versions of Nomad
+prior to 1.3.0.
+
+The volume staging directory for new CSI plugin tasks will now be
+mounted to the task's `NOMAD_TASK_DIR` instead of the
+`csi_plugin.mount_config`.
+
+#### Server Raft Database
+
+The server raft database in `raft.db` will be automatically migrated to a new
+underlying implementation provided by `go.etcd.io/bbolt`. Downgrading to a previous
+version of the server after upgrading it to Nomad 1.3 is not supported. Like with
+any Nomad upgrade it is recommended to take a snapshot of your database prior to
+upgrading in case a downgrade becomes necessary.
+
+The new database implementation enables a new server configuration option for
+controlling the underlying freelist-sync behavior. Clusters experiencing extreme
+disk IO on servers may want to consider disabling freelist-sync to reduce load.
+The tradeoff is longer server startup times, as the database must be completely
+scanned to re-build the freelist from scratch.
+
+```hcl
+server {
+  raft_boltdb {
+    no_freelist_sync = true
+  }
+}
+```
+
+## Nomad 1.2.6, 1.1.12, and 1.0.18
+
+#### ACL requirement for the job parse endpoint
+
+Nomad 1.2.6, 1.1.12, and 1.0.18 require ACL authentication for the
+[job parse][api_jobs_parse] API endpoint. The `parse-job` capability has been
+created to allow access to this endpoint. The `submit-job`, `read`, and `write`
+policies include this capability.
+
+
+The capability must be enabled for the namespace used in the API request.
+
 ## Nomad 1.2.4
 
 #### `nomad eval status -json` deprecated
@@ -46,7 +118,21 @@ API call to an endpoint that requires `node:read` ACL permission. Tokens used
 to access the Nomad UI will need to be updated to include this permission in
 order to access a job details page.
 
-This was an unintended change and will be fixed in a future release.
+This was an unintended change fixed in Nomad 1.2.4.
+
+#### HCLv2 Job Specification Parsing
+
+In previous versions of Nomad, when rendering a job specification using override
+variables, a warning would be returned if a variable within an override file
+was declared that was not found within the job specification. This behaviour
+differed from passing variables via the `-var` flag, which would always cause an
+error in the same situation.
+
+Nomad 1.2.0 fixed the behaviour consistency to always return an error by default,
+where an override variable was specified which was not a known variable within the
+job specification. In order to mitigate this change for users who wish to only
+be warned when this situation arises, the `-hcl-strict=false` flag can be
+specified.
 
 ## Nomad 1.0.11 and 1.1.5 Enterprise
 
@@ -945,7 +1031,7 @@ will be interpolated properly. Please see the
 ### Raft Protocol Version Compatibility
 
 When upgrading to Nomad 0.8.0 from a version lower than 0.7.0, users will need
-to set the [`raft_protocol`](/docs/configuration/server#raft_protocol) option in
+to set the [`raft_protocol`] option in
 their `server` stanza to 1 in order to maintain backwards compatibility with the
 old servers during the upgrade. After the servers have been migrated to version
 0.8.0, `raft_protocol` can be moved up to 2 and the servers restarted to match
@@ -982,40 +1068,6 @@ In order to enable all
 [Autopilot](https://learn.hashicorp.com/tutorials/nomad/autopilot) features, all
 servers in a Nomad cluster must be running with Raft protocol version 3 or
 later.
-
-#### Upgrading to Raft Protocol 3
-
-This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and
-higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all
-servers in order to work. See [Raft Protocol Version
-Compatibility](/docs/upgrade/upgrade-specific#raft-protocol-version-compatibility)
-for more details. Also the format of `peers.json` used for outage recovery is
-different when running with the latest Raft protocol. See [Manual Recovery Using
-peers.json](https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson)
-for a description of the required format.
-
-Please note that the Raft protocol is different from Nomad's internal protocol
-as shown in commands like `nomad server members`. To see the version of the Raft
-protocol in use on each server, use the `nomad operator raft list-peers`
-command.
-
-The easiest way to upgrade servers is to have each server leave the cluster,
-upgrade its `raft_protocol` version in the `server` stanza, and then add it
-back. Make sure the new server joins successfully and that the cluster is stable
-before rolling the upgrade forward to the next server. It's also possible to
-stand up a new set of servers, and then slowly stand down each of the older
-servers in a similar fashion.
-
-When using Raft protocol version 3, servers are identified by their `node-id`
-instead of their IP address when Nomad makes changes to its internal Raft quorum
-configuration. This means that once a cluster has been upgraded with servers all
-running Raft protocol version 3, it will no longer allow servers running any
-older Raft protocol versions to be added. If running a single Nomad server,
-restarting it in-place will result in that server not being able to elect itself
-as a leader. To avoid this, either set the Raft protocol back to 2, or use
-[Manual Recovery Using
-peers.json](https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson)
-to map the server to its node ID in the Raft quorum configuration.
 
 ### Node Draining Improvements
 
@@ -1188,6 +1240,7 @@ draining the node so no tasks are running on it. This can be verified by running
 state. Once that is done the client can be killed, the `data_dir` should be
 deleted and then Nomad 0.3.0 can be launched.
 
+[api_jobs_parse]: /api-docs/jobs#parse-job
 [dangling-containers]: /docs/drivers/docker#dangling-containers
 [drain-api]: /api-docs/nodes#drain-node
 [drain-cli]: /docs/commands/node/drain
@@ -1210,6 +1263,8 @@ deleted and then Nomad 0.3.0 can be launched.
 [preemption]: /docs/internals/scheduling/preemption
 [proxy_concurrency]: /docs/job-specification/sidecar_task#proxy_concurrency
 [`sidecar_task.config`]: /docs/job-specification/sidecar_task#config
+[raft protocol version]: /docs/configuration/server#raft_protocol
+[`raft protocol`]: /docs/configuration/server#raft_protocol
 [reserved]: /docs/configuration/client#reserved-parameters
 [task-config]: /docs/job-specification/task#config
 [tls-guide]: https://learn.hashicorp.com/tutorials/nomad/security-enable-tls
@@ -1234,3 +1289,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [cap_add_exec]: /docs/drivers/exec#cap_add
 [cap_drop_exec]: /docs/drivers/exec#cap_drop
 [`log_file`]: /docs/configuration#log_file
+[Upgrading to Raft Protocol 3]: /docs/upgrade#upgrading-to-raft-protocol-3

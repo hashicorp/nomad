@@ -1708,7 +1708,7 @@ func (n *nomadFSM) failLeakedDeployments(state *state.StateStore) error {
 	// Scan for deployments that are referencing a job that no longer exists.
 	// This could happen if multiple deployments were created for a given job
 	// and thus the older deployment leaks and then the job is removed.
-	iter, err := state.Deployments(nil)
+	iter, err := state.Deployments(nil, false)
 	if err != nil {
 		return fmt.Errorf("failed to query deployments: %v", err)
 	}
@@ -1801,7 +1801,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		// Ignore eval event creation during snapshot restore
 		snap.UpsertEvals(structs.IgnoreUnknownTypeFlag, 100, []*structs.Evaluation{eval})
 		// Create the scheduler and run it
-		sched, err := scheduler.NewScheduler(eval.Type, n.logger, snap, planner)
+		sched, err := scheduler.NewScheduler(eval.Type, n.logger, nil, snap, planner)
 		if err != nil {
 			return err
 		}
@@ -2071,7 +2071,7 @@ func (s *nomadSnapshot) persistEvals(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the evaluations
 	ws := memdb.NewWatchSet()
-	evals, err := s.snap.Evals(ws)
+	evals, err := s.snap.Evals(ws, false)
 	if err != nil {
 		return err
 	}
@@ -2250,7 +2250,7 @@ func (s *nomadSnapshot) persistDeployments(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the jobs
 	ws := memdb.NewWatchSet()
-	deployments, err := s.snap.Deployments(ws)
+	deployments, err := s.snap.Deployments(ws, false)
 	if err != nil {
 		return err
 	}

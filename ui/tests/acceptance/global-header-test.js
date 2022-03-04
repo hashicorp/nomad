@@ -5,11 +5,11 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Layout from 'nomad-ui/tests/pages/layout';
 
-module('Acceptance | global header', function(hooks) {
+module('Acceptance | global header', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  test('it diplays no links', async function(assert) {
+  test('it diplays no links', async function (assert) {
     server.create('agent');
 
     await visit('/');
@@ -18,7 +18,7 @@ module('Acceptance | global header', function(hooks) {
     assert.false(Layout.navbar.end.vaultLink.isVisible);
   });
 
-  test('it diplays both links', async function(assert) {
+  test('it diplays both links', async function (assert) {
     server.create('agent', 'withConsulLink', 'withVaultLink');
 
     await visit('/');
@@ -27,7 +27,7 @@ module('Acceptance | global header', function(hooks) {
     assert.true(Layout.navbar.end.vaultLink.isVisible);
   });
 
-  test('it diplays Consul link', async function(assert) {
+  test('it diplays Consul link', async function (assert) {
     server.create('agent', 'withConsulLink');
 
     await visit('/');
@@ -37,7 +37,7 @@ module('Acceptance | global header', function(hooks) {
     assert.equal(Layout.navbar.end.consulLink.link, 'http://localhost:8500/ui');
   });
 
-  test('it diplays Vault link', async function(assert) {
+  test('it diplays Vault link', async function (assert) {
     server.create('agent', 'withVaultLink');
 
     await visit('/');

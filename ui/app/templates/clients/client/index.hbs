@@ -5,12 +5,23 @@
     <div data-test-eligibility-error class="columns">
       <div class="column">
         <div class="notification is-danger">
-          <h3 data-test-title class="title is-4">Eligibility Error</h3>
-          <p data-test-message>{{this.eligibilityError}}</p>
+          <h3 data-test-title class="title is-4">
+            Eligibility Error
+          </h3>
+          <p data-test-message>
+            {{this.eligibilityError}}
+          </p>
         </div>
       </div>
       <div class="column is-centered is-minimum">
-        <button data-test-dismiss class="button is-danger" onclick={{action (mut this.eligibilityError) ""}} type="button">Okay</button>
+        <button
+          data-test-dismiss
+          class="button is-danger"
+          onclick={{action (mut this.eligibilityError) ""}}
+          type="button"
+        >
+          Okay
+        </button>
       </div>
     </div>
   {{/if}}
@@ -18,12 +29,23 @@
     <div data-test-stop-drain-error class="columns">
       <div class="column">
         <div class="notification is-danger">
-          <h3 data-test-title class="title is-4">Stop Drain Error</h3>
-          <p data-test-message>{{this.stopDrainError}}</p>
+          <h3 data-test-title class="title is-4">
+            Stop Drain Error
+          </h3>
+          <p data-test-message>
+            {{this.stopDrainError}}
+          </p>
         </div>
       </div>
       <div class="column is-centered is-minimum">
-        <button data-test-dismiss class="button is-danger" onclick={{action (mut this.stopDrainError) ""}} type="button">Okay</button>
+        <button
+          data-test-dismiss
+          class="button is-danger"
+          onclick={{action (mut this.stopDrainError) ""}}
+          type="button"
+        >
+          Okay
+        </button>
       </div>
     </div>
   {{/if}}
@@ -31,12 +53,23 @@
     <div data-test-drain-error class="columns">
       <div class="column">
         <div class="notification is-danger">
-          <h3 data-test-title class="title is-4">Drain Error</h3>
-          <p data-test-message>{{this.drainError}}</p>
+          <h3 data-test-title class="title is-4">
+            Drain Error
+          </h3>
+          <p data-test-message>
+            {{this.drainError}}
+          </p>
         </div>
       </div>
       <div class="column is-centered is-minimum">
-        <button data-test-dismiss class="button is-danger" onclick={{action (mut this.drainError) ""}} type="button">Okay</button>
+        <button
+          data-test-dismiss
+          class="button is-danger"
+          onclick={{action (mut this.drainError) ""}}
+          type="button"
+        >
+          Okay
+        </button>
       </div>
     </div>
   {{/if}}
@@ -44,11 +77,22 @@
     <div class="notification is-info">
       <div data-test-drain-stopped-notification class="columns">
         <div class="column">
-          <h3 data-test-title class="title is-4">Drain Stopped</h3>
-          <p data-test-message>The drain has been stopped and the node has been set to ineligible.</p>
+          <h3 data-test-title class="title is-4">
+            Drain Stopped
+          </h3>
+          <p data-test-message>
+            The drain has been stopped and the node has been set to ineligible.
+          </p>
         </div>
         <div class="column is-centered is-minimum">
-          <button data-test-dismiss class="button is-info" onclick={{action (mut this.showDrainStoppedNotification) false}} type="button">Okay</button>
+          <button
+            data-test-dismiss
+            class="button is-info"
+            onclick={{action (mut this.showDrainStoppedNotification) false}}
+            type="button"
+          >
+            Okay
+          </button>
         </div>
       </div>
     </div>
@@ -57,11 +101,22 @@
     <div class="notification is-info">
       <div data-test-drain-updated-notification class="columns">
         <div class="column">
-          <h3 data-test-title class="title is-4">Drain Updated</h3>
-          <p data-test-message>The new drain specification has been applied.</p>
+          <h3 data-test-title class="title is-4">
+            Drain Updated
+          </h3>
+          <p data-test-message>
+            The new drain specification has been applied.
+          </p>
         </div>
         <div class="column is-centered is-minimum">
-          <button data-test-dismiss class="button is-info" onclick={{action (mut this.showDrainUpdateNotification) false}} type="button">Okay</button>
+          <button
+            data-test-dismiss
+            class="button is-info"
+            onclick={{action (mut this.showDrainUpdateNotification) false}}
+            type="button"
+          >
+            Okay
+          </button>
         </div>
       </div>
     </div>
@@ -70,11 +125,22 @@
     <div class="notification is-info">
       <div data-test-drain-complete-notification class="columns">
         <div class="column">
-          <h3 data-test-title class="title is-4">Drain Complete</h3>
-          <p data-test-message>Allocations have been drained and the node has been set to ineligible.</p>
+          <h3 data-test-title class="title is-4">
+            Drain Complete
+          </h3>
+          <p data-test-message>
+            Allocations have been drained and the node has been set to ineligible.
+          </p>
         </div>
         <div class="column is-centered is-minimum">
-          <button data-test-dimiss class="button is-info" onclick={{action (mut this.showDrainNotification) false}} type="button">Okay</button>
+          <button
+            data-test-dimiss
+            class="button is-info"
+            onclick={{action (mut this.showDrainNotification) false}}
+            type="button"
+          >
+            Okay
+          </button>
         </div>
       </div>
     </div>
@@ -82,7 +148,10 @@
   <div class="toolbar">
     <div class="toolbar-item is-top-aligned is-minimum">
       <span class="title">
-        <span data-test-node-status="{{this.model.compositeStatus}}" class="node-status-light {{this.model.compositeStatus}}">
+        <span
+          data-test-node-status="{{this.model.compositeStatus}}"
+          class="node-status-light {{this.model.compositeStatus}}"
+        >
           {{x-icon this.model.compositeStatusIcon}}
         </span>
       </span>
@@ -96,15 +165,27 @@
           <Toggle
             data-test-eligibility-toggle
             @isActive={{this.model.isEligible}}
-            @isDisabled={{or this.setEligibility.isRunning this.model.isDraining (cannot "write client")}}
-            @onToggle={{perform this.setEligibility (not this.model.isEligible)}}>
+            @isDisabled={{or
+              this.setEligibility.isRunning
+              this.model.isDraining
+              (cannot "write client")
+            }}
+            @onToggle={{perform this.setEligibility (not this.model.isEligible)
+            }}
+          >
             Eligible
           </Toggle>
-          <span class="tooltip" aria-label="Only eligible clients can receive allocations">
+          <span
+            class="tooltip"
+            aria-label="Only eligible clients can receive allocations"
+          >
             {{x-icon "info-circle-outline" class="is-faded"}}
           </span>
         </label>
-        <span data-test-node-id class="tag is-hollow is-small no-text-transform">
+        <span
+          data-test-node-id
+          class="tag is-hollow is-small no-text-transform"
+        >
           {{this.model.id}}
           <CopyButton @clipboardText={{this.model.id}} />
         </span>
@@ -119,7 +200,8 @@
           @confirmText="Yes, Stop"
           @confirmationMessage="Are you sure you want to stop this drain?"
           @awaitingConfirmation={{this.stopDrain.isRunning}}
-          @onConfirm={{perform this.stopDrain}} />
+          @onConfirm={{perform this.stopDrain}}
+        />
       {{/if}}
     </div>
     <div class="toolbar-item is-right-aligned is-top-aligned">
@@ -127,83 +209,135 @@
         @client={{this.model}}
         @isDisabled={{cannot "write client"}}
         @onDrain={{action "drainNotify"}}
-        @onError={{action "setDrainError"}} />
+        @onError={{action "setDrainError"}}
+      />
     </div>
   </div>
-
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
-      <span class="label">Client Details</span>
+      <span class="label">
+        Client Details
+      </span>
       <span class="pair" data-test-status-definition>
-        <span class="term">Status</span>
-        <span class="status-text node-{{this.model.status}}">{{this.model.status}}</span>
+        <span class="term">
+          Status
+        </span>
+        <span class="status-text node-{{this.model.status}}">
+          {{this.model.status}}
+        </span>
       </span>
       <span class="pair" data-test-address-definition>
-        <span class="term">Address</span>
+        <span class="term">
+          Address
+        </span>
         {{this.model.httpAddr}}
       </span>
       <span class="pair" data-test-datacenter-definition>
-        <span class="term">Datacenter</span>
+        <span class="term">
+          Datacenter
+        </span>
         {{this.model.datacenter}}
       </span>
       {{#if this.model.nodeClass}}
         <span class="pair" data-test-node-class>
-          <span class="term">Class</span>
+          <span class="term">
+            Class
+          </span>
           {{this.model.nodeClass}}
         </span>
       {{/if}}
       <span class="pair" data-test-driver-health>
-        <span class="term">Drivers</span>
+        <span class="term">
+          Drivers
+        </span>
         {{#if this.model.unhealthyDrivers.length}}
           {{x-icon "alert-triangle" class="is-text is-warning"}}
-          {{this.model.unhealthyDrivers.length}} of {{this.model.detectedDrivers.length}} {{pluralize "driver" this.model.detectedDrivers.length}} unhealthy
+          {{this.model.unhealthyDrivers.length}}
+          of
+          {{this.model.detectedDrivers.length}}
+          {{pluralize "driver" this.model.detectedDrivers.length}}
+          unhealthy
         {{else}}
           All healthy
         {{/if}}
       </span>
     </div>
   </div>
-
   {{#if this.model.drainStrategy}}
     <div data-test-drain-details class="boxed-section is-info">
       <div class="boxed-section-head">
-        <div class="boxed-section-row">Drain Strategy</div>
+        <div class="boxed-section-row">
+          Drain Strategy
+        </div>
         <div class="boxed-section-row">
           <div class="inline-definitions is-small">
             {{#unless this.model.drainStrategy.hasNoDeadline}}
               <span class="pair">
-                <span class="term">Duration</span>
+                <span class="term">
+                  Duration
+                </span>
                 {{#if this.model.drainStrategy.isForced}}
-                  <span data-test-duration>--</span>
+                  <span data-test-duration>
+                    --
+                  </span>
                 {{else}}
-                  <span data-test-duration class="tooltip" aria-label={{format-duration this.model.drainStrategy.deadline}}>
+                  <span
+                    data-test-duration
+                    class="tooltip"
+                    aria-label={{format-duration
+                      this.model.drainStrategy.deadline
+                    }}
+                  >
                     {{format-duration this.model.drainStrategy.deadline}}
                   </span>
                 {{/if}}
               </span>
             {{/unless}}
             <span class="pair">
-              <span class="term">{{if this.model.drainStrategy.hasNoDeadline "Deadline" "Remaining"}}</span>
+              <span class="term">
+                {{if
+                  this.model.drainStrategy.hasNoDeadline
+                  "Deadline"
+                  "Remaining"
+                }}
+              </span>
               {{#if this.model.drainStrategy.hasNoDeadline}}
-                <span data-test-deadline>No deadline</span>
+                <span data-test-deadline>
+                  No deadline
+                </span>
               {{else if this.model.drainStrategy.isForced}}
-                <span data-test-deadline>--</span>
+                <span data-test-deadline>
+                  --
+                </span>
               {{else}}
-                <span data-test-deadline class="tooltip" aria-label={{format-ts this.model.drainStrategy.forceDeadline}}>
-                  {{moment-from-now this.model.drainStrategy.forceDeadline interval=1000 hideAffix=true}}
+                <span
+                  data-test-deadline
+                  class="tooltip"
+                  aria-label={{format-ts this.model.drainStrategy.forceDeadline
+                  }}
+                >
+                  {{moment-from-now
+                    this.model.drainStrategy.forceDeadline
+                    interval=1000
+                    hideAffix=true
+                  }}
                 </span>
               {{/if}}
             </span>
             <span data-test-force-drain-text class="pair">
-              <span class="term">Force Drain</span>
+              <span class="term">
+                Force Drain
+              </span>
               {{#if this.model.drainStrategy.isForced}}
-                {{x-icon "alert-triangle" class="is-text is-warning"}} Yes
+                {{x-icon "alert-triangle" class="is-text is-warning"}}Yes
               {{else}}
                 No
               {{/if}}
             </span>
             <span data-test-drain-system-jobs-text class="pair">
-              <span class="term">Drain System Jobs</span>
+              <span class="term">
+                Drain System Jobs
+              </span>
               {{if this.model.drainStrategy.ignoreSystemJobs "No" "Yes"}}
             </span>
           </div>
@@ -216,13 +350,15 @@
                   idleButton="is-warning"
                   confirmationMessage="inherit-color"
                   cancelButton="is-danger is-important"
-                  confirmButton="is-warning"}}
+                  confirmButton="is-warning"
+                }}
                 @idleText="Force Drain"
                 @cancelText="Cancel"
                 @confirmText="Yes, Force Drain"
                 @confirmationMessage="Are you sure you want to force drain?"
                 @awaitingConfirmation={{this.forceDrain.isRunning}}
-                @onConfirm={{perform this.forceDrain}} />
+                @onConfirm={{perform this.forceDrain}}
+              />
             </div>
           {{/unless}}
         </div>
@@ -232,40 +368,65 @@
           <div class="column nowrap is-minimum">
             <div class="metric-group">
               <div class="metric is-primary">
-                <h3 class="label">Complete</h3>
-                <p data-test-complete-count class="value">{{this.model.completeAllocations.length}}</p>
+                <h3 class="label">
+                  Complete
+                </h3>
+                <p data-test-complete-count class="value">
+                  {{this.model.completeAllocations.length}}
+                </p>
               </div>
             </div>
             <div class="metric-group">
               <div class="metric">
-                <h3 class="label">Migrating</h3>
-                <p data-test-migrating-count class="value">{{this.model.migratingAllocations.length}}</p>
+                <h3 class="label">
+                  Migrating
+                </h3>
+                <p data-test-migrating-count class="value">
+                  {{this.model.migratingAllocations.length}}
+                </p>
               </div>
             </div>
             <div class="metric-group">
               <div class="metric">
-                <h3 class="label">Remaining</h3>
-                <p data-test-remaining-count class="value">{{this.model.runningAllocations.length}}</p>
+                <h3 class="label">
+                  Remaining
+                </h3>
+                <p data-test-remaining-count class="value">
+                  {{this.model.runningAllocations.length}}
+                </p>
               </div>
             </div>
           </div>
           <div class="column">
-            <h3 class="title is-4">Status</h3>
+            <h3 class="title is-4">
+              Status
+            </h3>
             {{#if this.model.lastMigrateTime}}
-              <p data-test-status>{{moment-to-now this.model.lastMigrateTime interval=1000 hideAffix=true}} since an allocation was successfully migrated.</p>
+              <p data-test-status>
+                {{moment-to-now
+                  this.model.lastMigrateTime
+                  interval=1000
+                  hideAffix=true
+                }}
+                since an allocation was successfully migrated.
+              </p>
             {{else}}
-              <p data-test-status>No allocations migrated.</p>
+              <p data-test-status>
+                No allocations migrated.
+              </p>
             {{/if}}
           </div>
         </div>
       </div>
     </div>
   {{/if}}
-
   <div class="boxed-section">
     <div class="boxed-section-head is-hollow">
       Host Resource Utilization
-      <span class="tooltip multiline pad-left" aria-label="All allocation and system processes aggregated">
+      <span
+        class="tooltip multiline pad-left"
+        aria-label="All allocation and system processes aggregated"
+      >
         {{x-icon "info-circle-outline" class="is-faded"}}
       </span>
     </div>
@@ -280,17 +441,29 @@
       </div>
     </div>
   </div>
-
   <div class="boxed-section">
     <div class="boxed-section-head">
       <div>
         Allocations
-        <button role="button" class="badge is-white" onclick={{action "setPreemptionFilter" false}} data-test-filter-all type="button">
+        <button
+          role="button"
+          class="badge is-white"
+          onclick={{action "setPreemptionFilter" false}}
+          data-test-filter-all
+          type="button"
+        >
           {{this.model.allocations.length}}
         </button>
         {{#if this.preemptions.length}}
-          <button role="button" class="badge is-warning" onclick={{action "setPreemptionFilter" true}} data-test-filter-preemptions type="button">
-            {{this.preemptions.length}} {{pluralize "preemption" this.preemptions.length}}
+          <button
+            role="button"
+            class="badge is-warning"
+            onclick={{action "setPreemptionFilter" true}}
+            data-test-filter-preemptions
+            type="button"
+          >
+            {{this.preemptions.length}}
+            {{pluralize "preemption" this.preemptions.length}}
           </button>
         {{/if}}
       </div>
@@ -325,44 +498,76 @@
         />
       </div>
     </div>
-    <div class="boxed-section-body {{if this.sortedAllocations.length "is-full-bleed"}}">
+    <div
+      class="boxed-section-body
+        {{if this.sortedAllocations.length "is-full-bleed"}}"
+    >
       {{#if this.sortedAllocations.length}}
         <ListPagination
           @source={{this.sortedAllocations}}
           @size={{this.pageSize}}
-          @page={{this.currentPage}} as |p|>
+          @page={{this.currentPage}} as |p|
+        >
           <ListTable
             @source={{p.list}}
             @sortProperty={{this.sortProperty}}
             @sortDescending={{this.sortDescending}}
-            @class="with-foot" as |t|>
+            @class="with-foot" as |t|
+          >
             <t.head>
               <th class="is-narrow"></th>
-              <t.sort-by @prop="shortId">ID</t.sort-by>
-              <t.sort-by @prop="createIndex" @title="Create Index">Created</t.sort-by>
-              <t.sort-by @prop="modifyIndex" @title="Modify Index">Modified</t.sort-by>
-              <t.sort-by @prop="statusIndex">Status</t.sort-by>
-              <t.sort-by @prop="job.name">Job</t.sort-by>
-              <t.sort-by @prop="jobVersion">Version</t.sort-by>
-              <th>Volume</th>
-              <th>CPU</th>
-              <th>Memory</th>
+              <t.sort-by @prop="shortId">
+                ID
+              </t.sort-by>
+              <t.sort-by @prop="createIndex" @title="Create Index">
+                Created
+              </t.sort-by>
+              <t.sort-by @prop="modifyIndex" @title="Modify Index">
+                Modified
+              </t.sort-by>
+              <t.sort-by @prop="statusIndex">
+                Status
+              </t.sort-by>
+              <t.sort-by @prop="job.name">
+                Job
+              </t.sort-by>
+              <t.sort-by @prop="jobVersion">
+                Version
+              </t.sort-by>
+              <th>
+                Volume
+              </th>
+              <th>
+                CPU
+              </th>
+              <th>
+                Memory
+              </th>
             </t.head>
             <t.body as |row|>
               <AllocationRow
                 @allocation={{row.model}}
                 @context="node"
                 @onClick={{action "gotoAllocation" row.model}}
-                @data-test-allocation={{row.model.id}} />
+                @data-test-allocation={{row.model.id}}
+              />
             </t.body>
           </ListTable>
           <div class="table-foot">
             <nav class="pagination">
               <div class="pagination-numbers">
-                {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedAllocations.length}}
+                {{p.startsAt}}
+                –
+                {{p.endsAt}}
+                of
+                {{this.sortedAllocations.length}}
               </div>
-              <p.prev @class="pagination-previous"> &lt; </p.prev>
-              <p.next @class="pagination-next"> &gt; </p.next>
+              <p.prev @class="pagination-previous">
+                <
+              </p.prev>
+              <p.next @class="pagination-next">
+                >
+              </p.next>
               <ul class="pagination-list"></ul>
             </nav>
           </div>
@@ -370,15 +575,35 @@
       {{else}}
         <div data-test-empty-allocations-list class="empty-message">
           {{#if (eq this.visibleAllocations.length 0)}}
-            <h3 data-test-empty-allocations-list-headline class="empty-message-headline">No Allocations</h3>
+            <h3
+              data-test-empty-allocations-list-headline
+              class="empty-message-headline"
+            >
+              No Allocations
+            </h3>
             <p data-test-empty-allocations-list-body class="empty-message-body">
               The node doesn't have any allocations.
             </p>
           {{else if this.searchTerm}}
-            <h3 data-test-empty-allocations-list-headline class="empty-message-headline">No Matches</h3>
-            <p class="empty-message-body">No allocations match the term <strong>{{this.searchTerm}}</strong></p>
+            <h3
+              data-test-empty-allocations-list-headline
+              class="empty-message-headline"
+            >
+              No Matches
+            </h3>
+            <p class="empty-message-body">
+              No allocations match the term
+              <strong>
+                {{this.searchTerm}}
+              </strong>
+            </p>
           {{else if (eq this.sortedAllocations.length 0)}}
-            <h3 data-test-empty-allocations-list-headline class="empty-message-headline">No Matches</h3>
+            <h3
+              data-test-empty-allocations-list-headline
+              class="empty-message-headline"
+            >
+              No Matches
+            </h3>
             <p class="empty-message-body">
               No allocations match your current filter selection.
             </p>
@@ -387,7 +612,6 @@
       {{/if}}
     </div>
   </div>
-
   <div data-test-client-events class="boxed-section">
     <div class="boxed-section-head">
       Client Events
@@ -395,22 +619,36 @@
     <div class="boxed-section-body is-full-bleed">
       <ListTable @source={{this.sortedEvents}} @class="is-striped" as |t|>
         <t.head>
-          <th class="is-2">Time</th>
-          <th class="is-2">Subsystem</th>
-          <th>Message</th>
+          <th class="is-2">
+            Time
+          </th>
+          <th class="is-2">
+            Subsystem
+          </th>
+          <th>
+            Message
+          </th>
         </t.head>
         <t.body as |row|>
           <tr data-test-client-event>
-            <td data-test-client-event-time>{{format-ts row.model.time}}</td>
-            <td data-test-client-event-subsystem>{{row.model.subsystem}}</td>
+            <td data-test-client-event-time>
+              {{format-ts row.model.time}}
+            </td>
+            <td data-test-client-event-subsystem>
+              {{row.model.subsystem}}
+            </td>
             <td data-test-client-event-message>
               {{#if row.model.message}}
                 {{#if row.model.driver}}
-                  <span class="badge is-secondary is-small">{{row.model.driver}}</span>
+                  <span class="badge is-secondary is-small">
+                    {{row.model.driver}}
+                  </span>
                 {{/if}}
                 {{row.model.message}}
               {{else}}
-                <em>No message</em>
+                <em>
+                  No message
+                </em>
               {{/if}}
             </td>
           </tr>
@@ -418,41 +656,65 @@
       </ListTable>
     </div>
   </div>
-
   {{#if this.sortedHostVolumes.length}}
     <div data-test-client-host-volumes class="boxed-section">
       <div class="boxed-section-head">
         Host Volumes
       </div>
       <div class="boxed-section-body is-full-bleed">
-        <ListTable @source={{this.sortedHostVolumes}} @class="is-striped" as |t|>
+        <ListTable
+          @source={{this.sortedHostVolumes}}
+          @class="is-striped" as |t|
+        >
           <t.head>
-            <th>Name</th>
-            <th>Source</th>
-            <th>Permissions</th>
+            <th>
+              Name
+            </th>
+            <th>
+              Source
+            </th>
+            <th>
+              Permissions
+            </th>
           </t.head>
           <t.body as |row|>
             <tr data-test-client-host-volume>
-              <td data-test-name>{{row.model.name}}</td>
-              <td data-test-path><code>{{row.model.path}}</code></td>
-              <td data-test-permissions>{{if row.model.readOnly "Read" "Read/Write"}}</td>
+              <td data-test-name>
+                {{row.model.name}}
+              </td>
+              <td data-test-path>
+                <code>
+                  {{row.model.path}}
+                </code>
+              </td>
+              <td data-test-permissions>
+                {{if row.model.readOnly "Read" "Read/Write"}}
+              </td>
             </tr>
           </t.body>
         </ListTable>
       </div>
     </div>
   {{/if}}
-
   <div data-test-driver-status class="boxed-section">
     <div class="boxed-section-head">
       Driver Status
     </div>
     <div class="boxed-section-body">
       <ListAccordion @source={{this.sortedDrivers}} @key="name" as |a|>
-        <a.head @buttonLabel="details" @isExpandable={{a.item.detected}}>
-          <div class="columns inline-definitions {{unless a.item.detected "is-faded"}}">
+        <a.head
+          @buttonLabel="details"
+          @buttonType={{"client-detail"}}
+          @isExpandable={{a.item.detected}}
+        >
+          <div
+            class="columns inline-definitions
+              {{unless a.item.detected "is-faded"}}"
+          >
             <div class="column is-1">
-              <span data-test-name>{{a.item.name}}</span>
+              <span data-test-name>
+                {{a.item.name}}
+              </span>
             </div>
             <div class="column is-2">
               {{#if a.item.detected}}
@@ -464,13 +726,23 @@
             </div>
             <div class="column">
               <span class="pair">
-                <span class="term">Detected</span>
-                <span data-test-detected>{{if a.item.detected "Yes" "No"}}</span>
+                <span class="term">
+                  Detected
+                </span>
+                <span data-test-detected>
+                  {{if a.item.detected "Yes" "No"}}
+                </span>
               </span>
               <span class="is-pulled-right">
                 <span class="pair">
-                  <span class="term">Last Updated</span>
-                  <span data-test-last-updated class="tooltip" aria-label="{{format-ts a.item.updateTime}}">
+                  <span class="term">
+                    Last Updated
+                  </span>
+                  <span
+                    data-test-last-updated
+                    class="tooltip"
+                    aria-label="{{format-ts a.item.updateTime}}"
+                  >
                     {{moment-from-now a.item.updateTime interval=1000}}
                   </span>
                 </span>
@@ -479,21 +751,27 @@
           </div>
         </a.head>
         <a.body>
-          <p data-test-health-description class="message">{{a.item.healthDescription}}</p>
+          <p data-test-health-description class="message">
+            {{a.item.healthDescription}}
+          </p>
           <div data-test-driver-attributes class="boxed-section">
             <div class="boxed-section-head">
-               {{capitalize a.item.name}} Attributes
+              {{capitalize a.item.name}}
+              Attributes
             </div>
             {{#if a.item.attributes.structured}}
               <div class="boxed-section-body is-full-bleed">
                 <AttributesTable
                   @attributePairs={{a.item.attributesShort}}
-                  @class="attributes-table" />
+                  @class="attributes-table"
+                />
               </div>
             {{else}}
               <div class="boxed-section-body">
                 <div class="empty-message">
-                  <h3 class="empty-message-headline">No Driver Attributes</h3>
+                  <h3 class="empty-message-headline">
+                    No Driver Attributes
+                  </h3>
                 </div>
               </div>
             {{/if}}
@@ -502,7 +780,6 @@
       </ListAccordion>
     </div>
   </div>
-
   <div class="boxed-section">
     <div class="boxed-section-head">
       Attributes
@@ -511,27 +788,33 @@
       <AttributesTable
         data-test-attributes
         @attributePairs={{this.model.attributes.structured}}
-        @class="attributes-table" />
+        @class="attributes-table"
+      />
     </div>
+  </div>
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Meta
     </div>
-    <div class="boxed-section">
-      <div class="boxed-section-head">
-        Meta
+    {{#if this.model.meta.structured}}
+      <div class="boxed-section-body is-full-bleed">
+        <AttributesTable
+          data-test-meta
+          @attributePairs={{this.model.meta.structured}}
+          @class="attributes-table"
+        />
       </div>
-      {{#if this.model.meta.structured}}
-        <div class="boxed-section-body is-full-bleed">
-          <AttributesTable
-            data-test-meta
-            @attributePairs={{this.model.meta.structured}}
-            @class="attributes-table" />
+    {{else}}
+      <div class="boxed-section-body">
+        <div data-test-empty-meta-message class="empty-message">
+          <h3 class="empty-message-headline">
+            No Meta Attributes
+          </h3>
+          <p class="empty-message-body">
+            This client is configured with no meta attributes.
+          </p>
         </div>
-      {{else}}
-        <div class="boxed-section-body">
-          <div data-test-empty-meta-message class="empty-message">
-            <h3 class="empty-message-headline">No Meta Attributes</h3>
-            <p class="empty-message-body">This client is configured with no meta attributes.</p>
-          </div>
-        </div>
-      {{/if}}
+      </div>
+    {{/if}}
   </div>
 </section>

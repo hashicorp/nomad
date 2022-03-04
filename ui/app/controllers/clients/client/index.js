@@ -10,11 +10,17 @@ import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
-import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
+import {
+  serialize,
+  deserializedQueryParam as selection,
+} from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 
 @classic
-export default class ClientController extends Controller.extend(Sortable, Searchable) {
+export default class ClientController extends Controller.extend(
+  Sortable,
+  Searchable
+) {
   queryParams = [
     {
       currentPage: 'page',
@@ -66,18 +72,32 @@ export default class ClientController extends Controller.extend(Sortable, Search
     return this.onlyPreemptions ? this.preemptions : this.model.allocations;
   }
 
-  @computed('visibleAllocations.[]', 'selectionNamespace', 'selectionJob', 'selectionStatus')
+  @computed(
+    'visibleAllocations.[]',
+    'selectionNamespace',
+    'selectionJob',
+    'selectionStatus'
+  )
   get filteredAllocations() {
     const { selectionNamespace, selectionJob, selectionStatus } = this;
 
-    return this.visibleAllocations.filter(alloc => {
-      if (selectionNamespace.length && !selectionNamespace.includes(alloc.get('namespace'))) {
+    return this.visibleAllocations.filter((alloc) => {
+      if (
+        selectionNamespace.length &&
+        !selectionNamespace.includes(alloc.get('namespace'))
+      ) {
         return false;
       }
-      if (selectionJob.length && !selectionJob.includes(alloc.get('plainJobId'))) {
+      if (
+        selectionJob.length &&
+        !selectionJob.includes(alloc.get('plainJobId'))
+      ) {
         return false;
       }
-      if (selectionStatus.length && !selectionStatus.includes(alloc.clientStatus)) {
+      if (
+        selectionStatus.length &&
+        !selectionStatus.includes(alloc.clientStatus)
+      ) {
         return false;
       }
       return true;
@@ -106,9 +126,7 @@ export default class ClientController extends Controller.extend(Sortable, Search
 
   @computed('model.events.@each.time')
   get sortedEvents() {
-    return this.get('model.events')
-      .sortBy('time')
-      .reverse();
+    return this.get('model.events').sortBy('time').reverse();
   }
 
   @computed('model.drivers.@each.name')
@@ -121,7 +139,7 @@ export default class ClientController extends Controller.extend(Sortable, Search
     return this.model.hostVolumes.sortBy('name');
   }
 
-  @(task(function*(value) {
+  @(task(function* (value) {
     try {
       yield value ? this.model.setEligible() : this.model.setIneligible();
     } catch (err) {
@@ -131,7 +149,7 @@ export default class ClientController extends Controller.extend(Sortable, Search
   }).drop())
   setEligibility;
 
-  @(task(function*() {
+  @(task(function* () {
     try {
       this.set('flagAsDraining', false);
       yield this.model.cancelDrain();
@@ -144,7 +162,7 @@ export default class ClientController extends Controller.extend(Sortable, Search
   }).drop())
   stopDrain;
 
-  @(task(function*() {
+  @(task(function* () {
     try {
       yield this.model.forceDrain({
         IgnoreSystemJobs: this.model.drainStrategy.ignoreSystemJobs,
@@ -203,7 +221,7 @@ export default class ClientController extends Controller.extend(Sortable, Search
     const jobs = Array.from(
       new Set(
         this.model.allocations
-          .filter(a => ns.length === 0 || ns.includes(a.namespace))
+          .filter((a) => ns.length === 0 || ns.includes(a.namespace))
           .mapBy('plainJobId')
       )
     ).compact();
@@ -214,20 +232,25 @@ export default class ClientController extends Controller.extend(Sortable, Search
       this.set('qpJob', serialize(intersection(jobs, this.selectionJob)));
     });
 
-    return jobs.sort().map(job => ({ key: job, label: job }));
+    return jobs.sort().map((job) => ({ key: job, label: job }));
   }
 
   @computed('model.allocations.[]', 'selectionNamespace')
   get optionsNamespace() {
-    const ns = Array.from(new Set(this.model.allocations.mapBy('namespace'))).compact();
+    const ns = Array.from(
+      new Set(this.model.allocations.mapBy('namespace'))
+    ).compact();
 
     // Update query param when the list of namespaces changes.
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpNamespace', serialize(intersection(ns, this.selectionNamespace)));
+      this.set(
+        'qpNamespace',
+        serialize(intersection(ns, this.selectionNamespace))
+      );
     });
 
-    return ns.sort().map(n => ({ key: n, label: n }));
+    return ns.sort().map((n) => ({ key: n, label: n }));
   }
 
   setFacetQueryParam(queryParam, selection) {

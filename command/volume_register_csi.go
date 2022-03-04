@@ -48,6 +48,7 @@ func csiDecodeVolume(input *ast.File) (*api.CSIVolume, error) {
 	delete(m, "mount_options")
 	delete(m, "capacity_max")
 	delete(m, "capacity_min")
+	delete(m, "topology_request")
 	delete(m, "type")
 
 	// Decode the rest
@@ -113,6 +114,48 @@ func csiDecodeVolume(input *ast.File) (*api.CSIVolume, error) {
 			}
 			vol.MountOptions = opts
 			break
+		}
+	}
+
+	requestedTopos := list.Filter("topology_request")
+	if len(requestedTopos.Items) > 0 {
+
+		vol.RequestedTopologies = &api.CSITopologyRequest{}
+
+		for _, o := range requestedTopos.Elem().Items {
+			if err := helper.CheckHCLKeys(o.Val, []string{"preferred", "required"}); err != nil {
+				return nil, err
+			}
+			ot, ok := o.Val.(*ast.ObjectType)
+			if !ok {
+				break
+			}
+
+			// topology_request -> required|preferred -> []topology -> []segments (kv)
+			decoded := map[string][]map[string][]map[string][]map[string]string{}
+			if err := hcl.DecodeObject(&decoded, ot.List); err != nil {
+				return nil, err
+			}
+
+			getTopologies := func(topKey string) []*api.CSITopology {
+				for _, topo := range decoded[topKey] {
+					var topos []*api.CSITopology
+					for _, segments := range topo["topology"] {
+						for _, segment := range segments["segments"] {
+							if len(segment) > 0 {
+								topos = append(topos, &api.CSITopology{Segments: segment})
+							}
+						}
+					}
+					if len(topos) > 0 {
+						return topos
+					}
+				}
+				return nil
+			}
+
+			vol.RequestedTopologies.Required = getTopologies("required")
+			vol.RequestedTopologies.Preferred = getTopologies("preferred")
 		}
 	}
 

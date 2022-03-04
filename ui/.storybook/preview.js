@@ -10,7 +10,7 @@ addParameters({
   },
 });
 
-addDecorator(storyFn => {
+addDecorator((storyFn) => {
   let { template, context } = storyFn();
 
   let wrapperElementStyle = {

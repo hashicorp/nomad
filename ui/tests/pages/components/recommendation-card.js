@@ -1,4 +1,10 @@
-import { attribute, collection, hasClass, isPresent, text } from 'ember-cli-page-object';
+import {
+  attribute,
+  collection,
+  hasClass,
+  isPresent,
+  text,
+} from 'ember-cli-page-object';
 import { getter } from 'ember-cli-page-object/macros';
 
 import toggle from 'nomad-ui/tests/pages/components/toggle';
@@ -67,7 +73,7 @@ function totalsTableCell(scope) {
     scope,
     isIncrease: hasClass('increase'),
     isDecrease: hasClass('decrease'),
-    isNeutral: getter(function() {
+    isNeutral: getter(function () {
       return !this.isIncrease && !this.isDecrease;
     }),
   };

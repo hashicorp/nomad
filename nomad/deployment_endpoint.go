@@ -2,21 +2,48 @@ package nomad
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// DeploymentPaginationIterator is a wrapper over a go-memdb iterator that
+// implements the paginator Iterator interface.
+type DeploymentPaginationIterator struct {
+	iter          memdb.ResultIterator
+	byCreateIndex bool
+}
+
+func (it DeploymentPaginationIterator) Next() (string, interface{}) {
+	raw := it.iter.Next()
+	if raw == nil {
+		return "", nil
+	}
+
+	d := raw.(*structs.Deployment)
+	token := d.ID
+
+	// prefix the pagination token by CreateIndex to keep it properly sorted.
+	if it.byCreateIndex {
+		token = fmt.Sprintf("%v-%v", d.CreateIndex, d.ID)
+	}
+
+	return token, d
+}
+
 // Deployment endpoint is used for manipulating deployments
 type Deployment struct {
 	srv    *Server
 	logger log.Logger
+
+	// ctx provides context regarding the underlying connection
+	ctx *RPCContext
 }
 
 // GetDeployment is used to request information about a specific deployment
@@ -388,11 +415,13 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "list"}, time.Now())
 
+	namespace := args.RequestNamespace()
+
 	// Check namespace read-job permissions against request namespace since
 	// results are filtered by request namespace.
 	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -400,32 +429,51 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// Capture all the deployments
 			var err error
 			var iter memdb.ResultIterator
+			var deploymentIter DeploymentPaginationIterator
+
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.DeploymentsByIDPrefix(ws, args.RequestNamespace(), prefix)
+				iter, err = store.DeploymentsByIDPrefix(ws, namespace, prefix)
+				deploymentIter.byCreateIndex = false
+			} else if namespace != structs.AllNamespacesSentinel {
+				iter, err = store.DeploymentsByNamespaceOrdered(ws, namespace, args.Ascending)
+				deploymentIter.byCreateIndex = true
 			} else {
-				iter, err = state.DeploymentsByNamespace(ws, args.RequestNamespace())
+				iter, err = store.Deployments(ws, args.Ascending)
+				deploymentIter.byCreateIndex = true
 			}
 			if err != nil {
 				return err
 			}
 
+			deploymentIter.iter = iter
+
 			var deploys []*structs.Deployment
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				deploy := raw.(*structs.Deployment)
-				deploys = append(deploys, deploy)
+			paginator, err := state.NewPaginator(deploymentIter, args.QueryOptions,
+				func(raw interface{}) error {
+					deploy := raw.(*structs.Deployment)
+					deploys = append(deploys, deploy)
+					return nil
+				})
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
+
+			nextToken, err := paginator.Page()
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to read result page: %v", err)
+			}
+
+			reply.QueryMeta.NextToken = nextToken
 			reply.Deployments = deploys
 
 			// Use the last index that affected the deployment table
-			index, err := state.Index("deployment")
+			index, err := store.Index("deployment")
 			if err != nil {
 				return err
 			}
@@ -499,6 +547,13 @@ func (d *Deployment) Allocations(args *structs.DeploymentSpecificRequest, reply 
 // Reap is used to cleanup terminal deployments
 func (d *Deployment) Reap(args *structs.DeploymentDeleteRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(d.srv, d.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := d.srv.forward("Deployment.Reap", args, args, reply); done {
 		return err
 	}

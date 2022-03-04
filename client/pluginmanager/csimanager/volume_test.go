@@ -279,6 +279,7 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
+
 	t.Parallel()
 
 	cases := []struct {
@@ -397,7 +398,6 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			if tc.ExpectedVolumeCapability != nil {
 				require.Equal(t, tc.ExpectedVolumeCapability, csiFake.PrevVolumeCapability)
 			}
-
 		})
 	}
 }

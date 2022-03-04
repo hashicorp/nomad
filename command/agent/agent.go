@@ -192,9 +192,6 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if agentConfig.Server.DataDir != "" {
 		conf.DataDir = agentConfig.Server.DataDir
 	}
-	if agentConfig.Server.ProtocolVersion != 0 {
-		conf.ProtocolVersion = uint8(agentConfig.Server.ProtocolVersion)
-	}
 	if agentConfig.Server.RaftProtocol != 0 {
 		conf.RaftConfig.ProtocolVersion = raft.ProtocolVersion(agentConfig.Server.RaftProtocol)
 	}
@@ -405,7 +402,6 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
 	conf.DisableDispatchedJobSummaryMetrics = agentConfig.Telemetry.DisableDispatchedJobSummaryMetrics
 
-	// Parse Limits timeout from a string into durations
 	if d, err := time.ParseDuration(agentConfig.Limits.RPCHandshakeTimeout); err != nil {
 		return nil, fmt.Errorf("error parsing rpc_handshake_timeout: %v", err)
 	} else if d < 0 {
@@ -447,6 +443,11 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 			LimitResults:  search.LimitResults,
 			MinTermLength: search.MinTermLength,
 		}
+	}
+
+	// Set the raft bolt parameters
+	if bolt := agentConfig.Server.RaftBoltConfig; bolt != nil {
+		conf.RaftBoltNoFreelistSync = bolt.NoFreelistSync
 	}
 
 	return conf, nil
@@ -546,7 +547,7 @@ func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 // Config. There may be missing fields that must be set by the agent. To do this
 // call finalizeServerConfig
 func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
-	// Setup the configuration
+	// Set up the configuration
 	conf := agentConfig.ClientConfig
 	if conf == nil {
 		conf = clientconfig.DefaultConfig()
@@ -596,12 +597,10 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.MaxDynamicPort = agentConfig.Client.MaxDynamicPort
 	conf.MinDynamicPort = agentConfig.Client.MinDynamicPort
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
-	if agentConfig.Client.TemplateConfig.FunctionBlacklist != nil {
-		conf.TemplateConfig.FunctionDenylist = agentConfig.Client.TemplateConfig.FunctionBlacklist
-	} else {
-		conf.TemplateConfig.FunctionDenylist = agentConfig.Client.TemplateConfig.FunctionDenylist
+
+	if agentConfig.Client.TemplateConfig != nil {
+		conf.TemplateConfig = agentConfig.Client.TemplateConfig.Copy()
 	}
-	conf.TemplateConfig.DisableSandbox = agentConfig.Client.TemplateConfig.DisableSandbox
 
 	hvMap := make(map[string]*structs.ClientHostVolumeConfig, len(agentConfig.Client.HostVolumes))
 	for _, v := range agentConfig.Client.HostVolumes {
@@ -936,7 +935,7 @@ func (a *Agent) setupClient() error {
 // If no HTTP health check can be supported nil is returned.
 func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	// Resolve the http check address
-	httpCheckAddr := a.config.normalizedAddrs.HTTP
+	httpCheckAddr := a.config.normalizedAddrs.HTTP[0]
 	if *a.config.Consul.ChecksUseAdvertise {
 		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 	}

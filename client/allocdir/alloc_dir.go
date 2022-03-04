@@ -6,17 +6,17 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
-
-	"net/http"
-	"strings"
 
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hpcloud/tail/watch"
 	tomb "gopkg.in/tomb.v1"
@@ -350,7 +350,7 @@ func (d *AllocDir) Build() error {
 
 // List returns the list of files at a path relative to the alloc dir
 func (d *AllocDir) List(path string) ([]*cstructs.AllocFileInfo, error) {
-	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
+	if escapes, err := escapingfs.PathEscapesAllocDir(d.AllocDir, "", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
@@ -376,7 +376,7 @@ func (d *AllocDir) List(path string) ([]*cstructs.AllocFileInfo, error) {
 
 // Stat returns information about the file at a path relative to the alloc dir
 func (d *AllocDir) Stat(path string) (*cstructs.AllocFileInfo, error) {
-	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
+	if escapes, err := escapingfs.PathEscapesAllocDir(d.AllocDir, "", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
@@ -426,7 +426,7 @@ func detectContentType(fileInfo os.FileInfo, path string) string {
 
 // ReadAt returns a reader for a file at the path relative to the alloc dir
 func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
-	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
+	if escapes, err := escapingfs.PathEscapesAllocDir(d.AllocDir, "", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
@@ -457,7 +457,7 @@ func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 // BlockUntilExists blocks until the passed file relative the allocation
 // directory exists. The block can be cancelled with the passed context.
 func (d *AllocDir) BlockUntilExists(ctx context.Context, path string) (chan error, error) {
-	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
+	if escapes, err := escapingfs.PathEscapesAllocDir(d.AllocDir, "", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
@@ -483,7 +483,7 @@ func (d *AllocDir) BlockUntilExists(ctx context.Context, path string) (chan erro
 // allocation directory. The offset should be the last read offset. The context is
 // used to clean up the watch.
 func (d *AllocDir) ChangeEvents(ctx context.Context, path string, curOffset int64) (*watch.FileChanges, error) {
-	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
+	if escapes, err := escapingfs.PathEscapesAllocDir(d.AllocDir, "", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")

@@ -14,7 +14,10 @@ export default class Volume extends Model {
 
   @computed('writeAllocations.[]', 'readAllocations.[]')
   get allocations() {
-    return [...this.writeAllocations.toArray(), ...this.readAllocations.toArray()];
+    return [
+      ...this.writeAllocations.toArray(),
+      ...this.readAllocations.toArray(),
+    ];
   }
 
   @attr('number') currentWriters;
@@ -36,6 +39,13 @@ export default class Volume extends Model {
   @attr('boolean') controllerRequired;
   @attr('number') controllersHealthy;
   @attr('number') controllersExpected;
+
+  @computed('plainId')
+  get idWithNamespace() {
+    // does this handle default namespace -- I think the backend handles this for us
+    // but the client would always need to recreate that logic
+    return `${this.plainId}@${this.belongsTo('namespace').id()}`;
+  }
 
   @computed('controllersHealthy', 'controllersExpected')
   get controllersHealthyProportion() {

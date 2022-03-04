@@ -1,0 +1,7 @@
+```release-note:improvement
+api: CSI secrets for list and delete snapshots are now passed in HTTP headers
+```
+
+```release-note:improvement
+cli: CSI secrets argument for `volume snapshot list` has been made consistent with `volume snapshot delete`
+```

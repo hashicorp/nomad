@@ -9,7 +9,7 @@ import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
 
 const TwoStepButton = create(twoStepButton());
 
-module('Integration | Component | two step button', function(hooks) {
+module('Integration | Component | two step button', function (hooks) {
   setupRenderingTest(hooks);
 
   const commonProperties = () => ({
@@ -35,22 +35,33 @@ module('Integration | Component | two step button', function(hooks) {
       @onCancel={{onCancel}} />
   `;
 
-  test('presents as a button in the idle state', async function(assert) {
+  test('presents as a button in the idle state', async function (assert) {
+    assert.expect(6);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
 
     assert.ok(find('[data-test-idle-button]'), 'Idle button is rendered');
-    assert.equal(TwoStepButton.idleText, props.idleText, 'Button is labeled correctly');
+    assert.equal(
+      TwoStepButton.idleText,
+      props.idleText,
+      'Button is labeled correctly'
+    );
 
     assert.notOk(find('[data-test-cancel-button]'), 'No cancel button yet');
     assert.notOk(find('[data-test-confirm-button]'), 'No confirm button yet');
-    assert.notOk(find('[data-test-confirmation-message]'), 'No confirmation message yet');
+    assert.notOk(
+      find('[data-test-confirmation-message]'),
+      'No confirmation message yet'
+    );
 
     await componentA11yAudit(this.element, assert);
   });
 
-  test('clicking the idle state button transitions into the promptForConfirmation state', async function(assert) {
+  test('clicking the idle state button transitions into the promptForConfirmation state', async function (assert) {
+    assert.expect(7);
+
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -58,10 +69,18 @@ module('Integration | Component | two step button', function(hooks) {
     await TwoStepButton.idle();
 
     assert.ok(find('[data-test-cancel-button]'), 'Cancel button is rendered');
-    assert.equal(TwoStepButton.cancelText, props.cancelText, 'Button is labeled correctly');
+    assert.equal(
+      TwoStepButton.cancelText,
+      props.cancelText,
+      'Button is labeled correctly'
+    );
 
     assert.ok(find('[data-test-confirm-button]'), 'Confirm button is rendered');
-    assert.equal(TwoStepButton.confirmText, props.confirmText, 'Button is labeled correctly');
+    assert.equal(
+      TwoStepButton.confirmText,
+      props.confirmText,
+      'Button is labeled correctly'
+    );
 
     assert.equal(
       TwoStepButton.confirmationMessage,
@@ -73,7 +92,7 @@ module('Integration | Component | two step button', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('canceling in the promptForConfirmation state calls the onCancel hook and resets to the idle state', async function(assert) {
+  test('canceling in the promptForConfirmation state calls the onCancel hook and resets to the idle state', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -86,7 +105,7 @@ module('Integration | Component | two step button', function(hooks) {
     assert.ok(find('[data-test-idle-button]'), 'Idle button is back');
   });
 
-  test('confirming the promptForConfirmation state calls the onConfirm hook and resets to the idle state', async function(assert) {
+  test('confirming the promptForConfirmation state calls the onConfirm hook and resets to the idle state', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -99,7 +118,9 @@ module('Integration | Component | two step button', function(hooks) {
     assert.ok(find('[data-test-idle-button]'), 'Idle button is back');
   });
 
-  test('when awaitingConfirmation is true, the cancel and submit buttons are disabled and the submit button is loading', async function(assert) {
+  test('when awaitingConfirmation is true, the cancel and submit buttons are disabled and the submit button is loading', async function (assert) {
+    assert.expect(4);
+
     const props = commonProperties();
     props.awaitingConfirmation = true;
     this.setProperties(props);
@@ -108,13 +129,19 @@ module('Integration | Component | two step button', function(hooks) {
     await TwoStepButton.idle();
 
     assert.ok(TwoStepButton.cancelIsDisabled, 'The cancel button is disabled');
-    assert.ok(TwoStepButton.confirmIsDisabled, 'The confirm button is disabled');
-    assert.ok(TwoStepButton.isRunning, 'The confirm button is in a loading state');
+    assert.ok(
+      TwoStepButton.confirmIsDisabled,
+      'The confirm button is disabled'
+    );
+    assert.ok(
+      TwoStepButton.isRunning,
+      'The confirm button is in a loading state'
+    );
 
     await componentA11yAudit(this.element, assert);
   });
 
-  test('when in the prompt state, clicking outside will reset state back to idle', async function(assert) {
+  test('when in the prompt state, clicking outside will reset state back to idle', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -128,7 +155,7 @@ module('Integration | Component | two step button', function(hooks) {
     assert.ok(find('[data-test-idle-button]'), 'Back in the idle state');
   });
 
-  test('when in the prompt state, clicking inside will not reset state back to idle', async function(assert) {
+  test('when in the prompt state, clicking inside will not reset state back to idle', async function (assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -142,7 +169,7 @@ module('Integration | Component | two step button', function(hooks) {
     assert.notOk(find('[data-test-idle-button]'), 'Still in the prompt state');
   });
 
-  test('when awaitingConfirmation is true, clicking outside does nothing', async function(assert) {
+  test('when awaitingConfirmation is true, clicking outside does nothing', async function (assert) {
     const props = commonProperties();
     props.awaitingConfirmation = true;
     this.setProperties(props);
@@ -157,7 +184,9 @@ module('Integration | Component | two step button', function(hooks) {
     assert.notOk(find('[data-test-idle-button]'), 'Still in the prompt state');
   });
 
-  test('when disabled is true, the idle button is disabled', async function(assert) {
+  test('when disabled is true, the idle button is disabled', async function (assert) {
+    assert.expect(3);
+
     const props = commonProperties();
     props.disabled = true;
     this.setProperties(props);
@@ -166,7 +195,10 @@ module('Integration | Component | two step button', function(hooks) {
     assert.ok(TwoStepButton.isDisabled, 'The idle button is disabled');
 
     await TwoStepButton.idle();
-    assert.ok(find('[data-test-idle-button]'), 'Still in the idle state after clicking');
+    assert.ok(
+      find('[data-test-idle-button]'),
+      'Still in the idle state after clicking'
+    );
 
     await componentA11yAudit(this.element, assert);
   });

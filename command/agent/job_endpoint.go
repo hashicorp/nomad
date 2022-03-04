@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
+	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
@@ -703,6 +704,25 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
+	var namespace string
+	parseNamespace(req, &namespace)
+
+	aclObj, err := s.ResolveToken(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check job parse permissions
+	if aclObj != nil {
+		hasParseJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityParseJob)
+		hasSubmitJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilitySubmitJob)
+
+		allowed := hasParseJob || hasSubmitJob
+		if !allowed {
+			return nil, structs.ErrPermissionDenied
+		}
+	}
+
 	args := &api.JobsParseRequest{}
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
@@ -712,7 +732,6 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	}
 
 	var jobStruct *api.Job
-	var err error
 	if args.HCLv1 {
 		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
 	} else {
@@ -1159,6 +1178,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 					RightDelim:   *template.RightDelim,
 					Envvars:      *template.Envvars,
 					VaultGrace:   *template.VaultGrace,
+					Wait:         ApiWaitConfigToStructsWaitConfig(template.Wait),
 				})
 		}
 	}
@@ -1174,6 +1194,19 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			Hook:    apiTask.Lifecycle.Hook,
 			Sidecar: apiTask.Lifecycle.Sidecar,
 		}
+	}
+}
+
+// ApiWaitConfigToStructsWaitConfig is a copy and type conversion between the API
+// representation of a WaitConfig from a struct representation of a WaitConfig.
+func ApiWaitConfigToStructsWaitConfig(waitConfig *api.WaitConfig) *structs.WaitConfig {
+	if waitConfig == nil {
+		return nil
+	}
+
+	return &structs.WaitConfig{
+		Min: &*waitConfig.Min,
+		Max: &*waitConfig.Max,
 	}
 }
 

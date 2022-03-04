@@ -8,6 +8,19 @@ GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 
+ifneq (MSYS_NT,$(THIS_OS))
+# GOPATH supports PATH style multi-paths; assume the first entry is favorable.
+# Necessary because new Circle images override GOPATH with multiple values.
+# See: https://discuss.circleci.com/t/gopath-is-set-to-multiple-directories/7174
+GOPATH := $(shell go env GOPATH | cut -d: -f1)
+endif
+
+# Respect $GOBIN if set in environment or via $GOENV file.
+BIN := $(shell go env GOBIN)
+ifndef BIN
+BIN := $(GOPATH)/bin
+endif
+
 GO_TAGS ?=
 
 ifeq ($(CI),true)
@@ -32,7 +45,7 @@ PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 # LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
 # published release, but backport branches should point to the parent tag (e.g. 1.0.8 in release-1.0.9 after 1.1.0 is cut).
-LAST_RELEASE ?= v1.2.3
+LAST_RELEASE ?= v1.2.6
 
 default: help
 
@@ -124,6 +137,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
+	go install golang.org/x/tools/cmd/stringer@v0.1.8
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -143,7 +157,7 @@ $(git-dir)/hooks/%: dev/hooks/%
 .PHONY: check
 check: ## Lint the source code
 	@echo "==> Linting source code..."
-	@golangci-lint run -j 1
+	@golangci-lint run
 
 	@echo "==> Linting hclog statements..."
 	@hclogvet .
@@ -240,21 +254,20 @@ tidy:
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
-dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
 dev: hclfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad
-	@rm -f $(GOPATH)/bin/nomad
+	@rm -f $(BIN)/nomad
 	@if [ -d vendor ]; then echo -e "==> WARNING: Found vendor directory.  This may cause build errors, consider running 'rm -r vendor' or 'make clean' to remove.\n"; fi
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
 		GO_TAGS="$(GO_TAGS) $(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
-	@mkdir -p $(GOPATH)/bin
+	@mkdir -p $(BIN)
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
-	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
+	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(BIN)
 
 .PHONY: prerelease
 prerelease: GO_TAGS=ui codegen_generated release
@@ -287,7 +300,7 @@ test-nomad: dev ## Run Nomad test suites
 	$(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
-		-timeout=15m \
+		-timeout=20m \
 		-tags "$(GO_TAGS)" \
 		$(GOTEST_PKGS) $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
@@ -296,11 +309,11 @@ test-nomad: dev ## Run Nomad test suites
 
 .PHONY: test-nomad-module
 test-nomad-module: dev ## Run Nomad test suites on a sub-module
-	@echo "==> Running Nomad test suites on sub-module:"
+	@echo "==> Running Nomad test suites on sub-module $(GOTEST_MOD)"
 	@cd $(GOTEST_MOD) && $(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
-		-timeout=15m \
+		-timeout=20m \
 		-tags "$(GO_TAGS)" \
 		./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
@@ -334,7 +347,7 @@ clean: ## Remove build artifacts
 	@rm -rf "$(PROJECT_ROOT)/bin/"
 	@rm -rf "$(PROJECT_ROOT)/pkg/"
 	@rm -rf "$(PROJECT_ROOT)/vendor/"
-	@rm -f "$(GOPATH)/bin/nomad"
+	@rm -f "$(BIN)/nomad"
 
 .PHONY: testcluster
 testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if necessary.

@@ -1,11 +1,11 @@
 package state
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -19,6 +19,7 @@ func TestPaginator(t *testing.T) {
 		nextToken         string
 		expected          []string
 		expectedNextToken string
+		expectedError     string
 	}{
 		{
 			name:              "size-3 page-1",
@@ -47,6 +48,10 @@ func TestPaginator(t *testing.T) {
 			expected:          []string{},
 			expectedNextToken: "",
 		},
+		{
+			name:          "error during append",
+			expectedError: "failed to append",
+		},
 	}
 
 	for _, tc := range cases {
@@ -55,19 +60,33 @@ func TestPaginator(t *testing.T) {
 			iter := newTestIterator(ids)
 			results := []string{}
 
-			paginator := NewPaginator(iter,
+			paginator, err := NewPaginator(iter,
 				structs.QueryOptions{
-					PerPage: tc.perPage, NextToken: tc.nextToken,
+					PerPage:   tc.perPage,
+					NextToken: tc.nextToken,
+					Ascending: true,
 				},
-				func(raw interface{}) {
+				func(raw interface{}) error {
+					if tc.expectedError != "" {
+						return errors.New(tc.expectedError)
+					}
+
 					result := raw.(*mockObject)
-					results = append(results, result.GetID())
+					results = append(results, result.id)
+					return nil
 				},
 			)
+			require.NoError(t, err)
 
-			nextToken := paginator.Page()
-			require.Equal(t, tc.expected, results)
-			require.Equal(t, tc.expectedNextToken, nextToken)
+			nextToken, err := paginator.Page()
+			if tc.expectedError == "" {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, results)
+				require.Equal(t, tc.expectedNextToken, nextToken)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedError)
+			}
 		})
 	}
 
@@ -78,32 +97,27 @@ func TestPaginator(t *testing.T) {
 // implements memdb.ResultIterator interface
 type testResultIterator struct {
 	results chan interface{}
-	idx     int
 }
 
-func (i testResultIterator) Next() interface{} {
+func (i testResultIterator) Next() (string, interface{}) {
 	select {
-	case result := <-i.results:
-		return result
-	default:
-		return nil
-	}
-}
+	case raw := <-i.results:
+		if raw == nil {
+			return "", nil
+		}
 
-// not used, but required to implement memdb.ResultIterator
-func (i testResultIterator) WatchCh() <-chan struct{} {
-	return make(<-chan struct{})
+		m := raw.(*mockObject)
+		return m.id, m
+	default:
+		return "", nil
+	}
 }
 
 type mockObject struct {
 	id string
 }
 
-func (m *mockObject) GetID() string {
-	return m.id
-}
-
-func newTestIterator(ids []string) memdb.ResultIterator {
+func newTestIterator(ids []string) testResultIterator {
 	iter := testResultIterator{results: make(chan interface{}, 20)}
 	for _, id := range ids {
 		iter.results <- &mockObject{id: id}

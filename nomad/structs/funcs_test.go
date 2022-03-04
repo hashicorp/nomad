@@ -880,3 +880,42 @@ func TestMergeMultierrorWarnings(t *testing.T) {
 
 	require.Equal(t, "2 warning(s):\n\n* foo\n* bar", str)
 }
+
+// TestParsePortRanges asserts ParsePortRanges errors on invalid port ranges.
+func TestParsePortRanges(t *testing.T) {
+	cases := []struct {
+		name string
+		spec string
+		err  string
+	}{
+		{
+			name: "UnmatchedDash",
+			spec: "-1",
+			err:  `strconv.ParseUint: parsing "": invalid syntax`,
+		},
+		{
+			name: "Zero",
+			spec: "0",
+			err:  "port must be > 0",
+		},
+		{
+			name: "TooBig",
+			spec: fmt.Sprintf("1-%d", MaxValidPort+1),
+			err:  "port must be < 65536 but found 65537",
+		},
+		{
+			name: "WayTooBig",           // would OOM if not caught early enough
+			spec: "9223372036854775807", // (2**63)-1
+			err:  "port must be < 65536 but found 9223372036854775807",
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			results, err := ParsePortRanges(tc.spec)
+			require.Nil(t, results)
+			require.EqualError(t, err, tc.err)
+		})
+	}
+}

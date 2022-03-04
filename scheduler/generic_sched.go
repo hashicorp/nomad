@@ -76,10 +76,11 @@ func (s *SetStatusError) Error() string {
 // most workloads. It also supports a 'batch' mode to optimize for fast decision
 // making at the cost of quality.
 type GenericScheduler struct {
-	logger  log.Logger
-	state   State
-	planner Planner
-	batch   bool
+	logger   log.Logger
+	eventsCh chan<- interface{}
+	state    State
+	planner  Planner
+	batch    bool
 
 	eval       *structs.Evaluation
 	job        *structs.Job
@@ -100,29 +101,38 @@ type GenericScheduler struct {
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
-func NewServiceScheduler(logger log.Logger, state State, planner Planner) Scheduler {
+func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) Scheduler {
 	s := &GenericScheduler{
-		logger:  logger.Named("service_sched"),
-		state:   state,
-		planner: planner,
-		batch:   false,
+		logger:   logger.Named("service_sched"),
+		eventsCh: eventsCh,
+		state:    state,
+		planner:  planner,
+		batch:    false,
 	}
 	return s
 }
 
 // NewBatchScheduler is a factory function to instantiate a new batch scheduler
-func NewBatchScheduler(logger log.Logger, state State, planner Planner) Scheduler {
+func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) Scheduler {
 	s := &GenericScheduler{
-		logger:  logger.Named("batch_sched"),
-		state:   state,
-		planner: planner,
-		batch:   true,
+		logger:   logger.Named("batch_sched"),
+		eventsCh: eventsCh,
+		state:    state,
+		planner:  planner,
+		batch:    true,
 	}
 	return s
 }
 
 // Process is used to handle a single evaluation
-func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
+func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("processing eval %q panicked scheduler - please report this as a bug! - %v", eval.ID, r)
+		}
+	}()
+
 	// Store the evaluation
 	s.eval = eval
 
@@ -245,7 +255,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	s.failedTGAllocs = nil
 
 	// Create an evaluation context
-	s.ctx = NewEvalContext(s.state, s.plan, s.logger)
+	s.ctx = NewEvalContext(s.eventsCh, s.state, s.plan, s.logger)
 
 	// Construct the placement stack
 	s.stack = NewGenericStack(s.batch, s.ctx)
@@ -409,22 +419,16 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		return nil
 	}
 
-	// Record the number of allocations that needs to be placed per Task Group
-	for _, place := range results.place {
-		s.queuedAllocs[place.taskGroup.Name] += 1
-	}
-	for _, destructive := range results.destructiveUpdate {
-		s.queuedAllocs[destructive.placeTaskGroup.Name] += 1
-	}
-
 	// Compute the placements
 	place := make([]placementResult, 0, len(results.place))
 	for _, p := range results.place {
+		s.queuedAllocs[p.taskGroup.Name] += 1
 		place = append(place, p)
 	}
 
 	destructive := make([]placementResult, 0, len(results.destructiveUpdate))
 	for _, p := range results.destructiveUpdate {
+		s.queuedAllocs[p.placeTaskGroup.Name] += 1
 		destructive = append(destructive, p)
 	}
 	return s.computePlacements(destructive, place)

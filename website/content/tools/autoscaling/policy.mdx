@@ -40,6 +40,14 @@ horizontal application scaling or horizontal cluster scaling.
   omitted the configuration value [default_evaluation_interval][eval_interval_agent]
   from the agent will be used.
 
+- `on_check_error` - Defines how to handle errors during check evaluation.
+  Possible values are `"fail"` or `"ignore"`. If set to `"fail"` the policy
+  evaluation will stop if any [`check`](#check) returns an error and no
+  scaling action will take place. If set to `"ignore"` any errors returned by a
+  `check` will be ignored when computing the scaling action. This value may be
+  overridden individually by setting [`on_error`](#on_error). Defaults to
+  `"ignore"`.
+
 - `target` - Defines where the autoscaling target is running. Detailed information
   on the configuration options can be found on the [Target Plugins][target_plugin_docs]
   page.
@@ -58,6 +66,13 @@ horizontal application scaling or horizontal cluster scaling.
 
 - `query_window` - Defines how far back to query the APM for metrics. It should
   be provided as a duration (e.g.: `"5s"`, `"1m"`). Defaults to `1m`.
+
+- `on_error` - Defines how to handle errors during the `check` evaluation.
+  Possible values are `"fail"` or `"ignore"`. If set to `"fail"` the policy
+  evaluation will stop in case an error occurs and not scaling action will take
+  place. If set to `"ignore"` the result of this `check` will not be taken into
+  considation when computing the scaling action. If not set the value of
+  [`on_check_error`](#on_check_error) will be used.
 
 - `strategy` - The strategy to use, and it's configuration when calculating the
   desired state based on the current count and the metric returned by the APM.

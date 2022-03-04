@@ -216,6 +216,12 @@ func (c *CSI) ControllerCreateVolume(req *structs.ClientCSIControllerCreateVolum
 	resp.CapacityBytes = cresp.Volume.CapacityBytes
 	resp.VolumeContext = cresp.Volume.VolumeContext
 
+	resp.Topologies = make([]*nstructs.CSITopology, len(cresp.Volume.AccessibleTopology))
+	for _, topo := range cresp.Volume.AccessibleTopology {
+		resp.Topologies = append(resp.Topologies,
+			&nstructs.CSITopology{Segments: topo.Segments})
+	}
+
 	return nil
 }
 

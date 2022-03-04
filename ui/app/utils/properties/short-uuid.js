@@ -6,7 +6,7 @@ import { computed } from '@ember/object';
 // ex. id: 123456-7890-abcd-efghijk
 //     short: shortUUIDProperty('id') // 123456
 export default function shortUUIDProperty(uuidKey) {
-  return computed(uuidKey, function() {
+  return computed(uuidKey, function () {
     return this.get(uuidKey).split('-')[0];
   });
 }

@@ -22,6 +22,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
   requestFrame = true;
 
   didReceiveAttrs() {
+    super.didReceiveAttrs();
     if (!this.logger) {
       return;
     }
@@ -58,7 +59,10 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     if (this.requestFrame) {
       window.requestAnimationFrame(() => {
         // If the scroll position is close enough to the bottom, autoscroll to the bottom
-        this.set('follow', cli.scrollHeight - cli.scrollTop - cli.clientHeight < 20);
+        this.set(
+          'follow',
+          cli.scrollHeight - cli.scrollTop - cli.clientHeight < 20
+        );
         this.requestFrame = true;
       });
     }
@@ -79,6 +83,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
   }
 
   didInsertElement() {
+    super.didInsertElement(...arguments);
     this.fillAvailableHeight();
 
     this.set('_scrollHandler', this.scrollHandler.bind(this));
@@ -89,6 +94,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
   }
 
   willDestroyElement() {
+    super.willDestroyElement(...arguments);
     this.element.removeEventListener('scroll', this._scrollHandler);
     document.removeEventListener('keydown', this._keyDownHandler);
   }
@@ -102,10 +108,12 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     // of having the log window fill available height is worth the hack.
     const margins = 30; // Account for padding and margin on either side of the CLI
     const cliWindow = this.element;
-    cliWindow.style.height = `${window.innerHeight - cliWindow.offsetTop - margins}px`;
+    cliWindow.style.height = `${
+      window.innerHeight - cliWindow.offsetTop - margins
+    }px`;
   }
 
-  @task(function*() {
+  @task(function* () {
     yield this.get('logger.gotoHead').perform();
     run.scheduleOnce('afterRender', this, this.scrollToTop);
   })
@@ -115,7 +123,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     this.element.scrollTop = 0;
   }
 
-  @task(function*() {
+  @task(function* () {
     yield this.get('logger.gotoTail').perform();
   })
   tail;
@@ -126,7 +134,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     }
   }
 
-  @task(function*() {
+  @task(function* () {
     // Follow the log if the scroll position is near the bottom of the cli window
     this.logger.on('tick', this, 'scheduleScrollSynchronization');
 
@@ -140,6 +148,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
   }
 
   willDestroy() {
+    super.willDestroy(...arguments);
     this.logger.stop();
   }
 }

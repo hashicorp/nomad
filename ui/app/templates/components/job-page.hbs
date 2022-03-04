@@ -1,0 +1,33 @@
+{{yield
+  (hash
+    data=(hash)
+    fns=(hash setError=this.setError)
+    ui=(hash
+      Body=(component "job-page/parts/body" job=@job)
+      Error=(component
+        "job-page/parts/error"
+        errorMessage=this.errorMessage
+        onDismiss=this.clearErrorMessage
+      )
+      Title=(component
+        "job-page/parts/title" job=@job handleError=this.handleError
+      )
+      StatsBox=(component "job-page/parts/stats-box" job=@job)
+      Summary=(component "job-page/parts/summary" job=@job)
+      PlacementFailures=(component "job-page/parts/placement-failures" job=@job)
+      LatestDeployment=(component
+        "job-page/parts/latest-deployment" job=@job handleError=this.handleError
+      )
+      TaskGroups=(component "job-page/parts/task-groups" job=@job)
+      RecentAllocations=(component "job-page/parts/recent-allocations" job=@job)
+      Meta=(component "job-page/parts/meta" job=@job)
+      DasRecommendations=(component
+        "job-page/parts/das-recommendations" job=@job
+      )
+      JobClientStatusSummary=(component
+        "job-page/parts/job-client-status-summary" job=@job
+      )
+      Children=(component "job-page/parts/children" job=@job)
+    )
+  )
+}}

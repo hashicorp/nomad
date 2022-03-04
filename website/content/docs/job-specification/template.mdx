@@ -92,13 +92,29 @@ refer to the [Learn Go Template Syntax][gt_learn] Learn guide.
   One of `source` or `data` must be specified, but not both. This source can
   optionally be fetched using an [`artifact`][artifact] resource. This template
   must exist on the machine prior to starting the task; it is not possible to
-  reference a template inside of a Docker container, for example.
+  reference a template inside a Docker container, for example.
 
 - `splay` `(string: "5s")` - Specifies a random amount of time to wait between
   0 ms and the given splay value before invoking the change mode. This is
   specified using a label suffix like "30s" or "1h", and is often used to
   prevent a thundering herd problem where all task instances restart at the same
   time.
+
+- `wait` `(Code: nil)` - Defines the minimum and maximum amount of time to wait
+  for the Consul cluster to reach a consistent state before rendering a template.
+  This is useful to enable in systems where network connectivity to Consul is degraded,
+  because it will reduce the number of times a template is rendered. This setting
+  can be overridden by the [`client.template.wait_bounds`]. If the template
+  configuration has a `min` lower than `client.template.wait_bounds.min` or a `max`
+  greater than `client.template.wait_bounds.max`, the client's bounds will be enforced,
+  and the template `wait` will be adjusted before being sent to `consul-template`.
+
+  ```hcl
+  wait {
+    min     = "5s"
+    max     = "10s"
+  }
+  ```
 
 - `vault_grace` `(string: "15s")` - [Deprecated](https://github.com/hashicorp/consul-template/issues/1268)
 
@@ -483,3 +499,4 @@ options](/docs/configuration/client#options):
 [go-envparse]: https://github.com/hashicorp/go-envparse#readme 'The go-envparse Readme'
 [task working directory]: /docs/runtime/environment#task-directories 'Task Directories'
 [filesystem internals]: /docs/internals/filesystem#templates-artifacts-and-dispatch-payloads
+[`client.template.wait_bounds`]: /doc/configuration/client#wait_bounds

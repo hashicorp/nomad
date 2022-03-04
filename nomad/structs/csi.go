@@ -185,17 +185,17 @@ func (o *CSIMountOptions) Merge(p *CSIMountOptions) {
 var _ fmt.Stringer = &CSIMountOptions{}
 var _ fmt.GoStringer = &CSIMountOptions{}
 
-func (v *CSIMountOptions) String() string {
+func (o *CSIMountOptions) String() string {
 	mountFlagsString := "nil"
-	if len(v.MountFlags) != 0 {
+	if len(o.MountFlags) != 0 {
 		mountFlagsString = "[REDACTED]"
 	}
 
-	return fmt.Sprintf("csi.CSIOptions(FSType: %s, MountFlags: %s)", v.FSType, mountFlagsString)
+	return fmt.Sprintf("csi.CSIOptions(FSType: %s, MountFlags: %s)", o.FSType, mountFlagsString)
 }
 
-func (v *CSIMountOptions) GoString() string {
-	return v.String()
+func (o *CSIMountOptions) GoString() string {
+	return o.String()
 }
 
 // CSISecrets contain optional additional configuration that can be used
@@ -246,9 +246,19 @@ type CSIVolume struct {
 	// Name is a display name for the volume, not required to be unique
 	Name string
 	// ExternalID identifies the volume for the CSI interface, may be URL unsafe
-	ExternalID     string
-	Namespace      string
-	Topologies     []*CSITopology
+	ExternalID string
+	Namespace  string
+
+	// RequestedTopologies are the topologies submitted as options to
+	// the storage provider at the time the volume was created. After
+	// volumes are created, this field is ignored.
+	RequestedTopologies *CSITopologyRequest
+
+	// Topologies are the topologies returned by the storage provider,
+	// based on the RequestedTopologies and what the storage provider
+	// could support. This value cannot be set by the user.
+	Topologies []*CSITopology
+
 	AccessMode     CSIVolumeAccessMode     // *current* access mode
 	AttachmentMode CSIVolumeAttachmentMode // *current* attachment mode
 	MountOptions   *CSIMountOptions
@@ -371,6 +381,9 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 	return &stub
 }
 
+// ReadSchedulable determines if the volume is potentially schedulable
+// for reads, considering only the volume capabilities and plugin
+// health
 func (v *CSIVolume) ReadSchedulable() bool {
 	if !v.Schedulable {
 		return false
@@ -379,8 +392,9 @@ func (v *CSIVolume) ReadSchedulable() bool {
 	return v.ResourceExhausted == time.Time{}
 }
 
-// WriteSchedulable determines if the volume is schedulable for writes,
-// considering only volume capabilities and plugin health
+// WriteSchedulable determines if the volume is potentially
+// schedulable for writes, considering only volume capabilities and
+// plugin health
 func (v *CSIVolume) WriteSchedulable() bool {
 	if !v.Schedulable {
 		return false
@@ -407,8 +421,28 @@ func (v *CSIVolume) WriteSchedulable() bool {
 	return false
 }
 
-// WriteFreeClaims determines if there are any free write claims available
-func (v *CSIVolume) WriteFreeClaims() bool {
+// HasFreeReadClaims determines if there are any free read claims available
+func (v *CSIVolume) HasFreeReadClaims() bool {
+	switch v.AccessMode {
+	case CSIVolumeAccessModeSingleNodeReader:
+		return len(v.ReadClaims) == 0
+	case CSIVolumeAccessModeSingleNodeWriter:
+		return len(v.ReadClaims) == 0 && len(v.WriteClaims) == 0
+	case CSIVolumeAccessModeUnknown:
+		// This volume was created but not yet claimed, so its
+		// capabilities have been checked in ReadSchedulable
+		return true
+	default:
+		// For multi-node AccessModes, the CSI spec doesn't allow for
+		// setting a max number of readers we track node resource
+		// exhaustion through v.ResourceExhausted which is checked in
+		// ReadSchedulable
+		return true
+	}
+}
+
+// HasFreeWriteClaims determines if there are any free write claims available
+func (v *CSIVolume) HasFreeWriteClaims() bool {
 	switch v.AccessMode {
 	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter:
 		return len(v.WriteClaims) == 0
@@ -418,24 +452,13 @@ func (v *CSIVolume) WriteFreeClaims() bool {
 		// which is checked in WriteSchedulable
 		return true
 	case CSIVolumeAccessModeUnknown:
-		// this volume was created but not yet claimed, so we check what it's
-		// capable of, not what it's been assigned
-		if len(v.RequestedCapabilities) == 0 {
-			// COMPAT: a volume that was registered before 1.1.0 and has not
-			// had a change in claims could have no requested caps. It will
-			// get corrected on the first claim.
-			return true
-		}
-		for _, cap := range v.RequestedCapabilities {
-			switch cap.AccessMode {
-			case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter:
-				return len(v.WriteClaims) == 0
-			case CSIVolumeAccessModeMultiNodeMultiWriter:
-				return true
-			}
-		}
+		// This volume was created but not yet claimed, so its
+		// capabilities have been checked in WriteSchedulable
+		return true
+	default:
+		// Reader modes never have free write claims
+		return false
 	}
-	return false
 }
 
 // InUse tests whether any allocations are actively using the volume
@@ -531,7 +554,11 @@ func (v *CSIVolume) claimRead(claim *CSIVolumeClaim, alloc *Allocation) error {
 	}
 
 	if !v.ReadSchedulable() {
-		return fmt.Errorf("unschedulable")
+		return ErrCSIVolumeUnschedulable
+	}
+
+	if !v.HasFreeReadClaims() {
+		return ErrCSIVolumeMaxClaims
 	}
 
 	// Allocations are copy on write, so we want to keep the id but don't need the
@@ -557,16 +584,11 @@ func (v *CSIVolume) claimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
 	}
 
 	if !v.WriteSchedulable() {
-		return fmt.Errorf("unschedulable")
+		return ErrCSIVolumeUnschedulable
 	}
 
-	if !v.WriteFreeClaims() {
-		// Check the blocking allocations to see if they belong to this job
-		for _, a := range v.WriteAllocs {
-			if a != nil && (a.Namespace != alloc.Namespace || a.JobID != alloc.JobID) {
-				return fmt.Errorf("volume max claim reached")
-			}
-		}
+	if !v.HasFreeWriteClaims() {
+		return ErrCSIVolumeMaxClaims
 	}
 
 	// Allocations are copy on write, so we want to keep the id but don't need the
@@ -667,20 +689,18 @@ func (v *CSIVolume) Validate() error {
 	if len(v.RequestedCapabilities) == 0 {
 		errs = append(errs, "must include at least one capability block")
 	}
-
-	// TODO: Volume Topologies are optional - We should check to see if the plugin
-	//       the volume is being registered with requires them.
-	// var ok bool
-	// for _, t := range v.Topologies {
-	// 	if t != nil && len(t.Segments) > 0 {
-	// 		ok = true
-	// 		break
-	// 	}
-	// }
-	// if !ok {
-	// 	errs = append(errs, "missing topology")
-	// }
-
+	if v.RequestedTopologies != nil {
+		for _, t := range v.RequestedTopologies.Required {
+			if t != nil && len(t.Segments) == 0 {
+				errs = append(errs, "required topology is missing segments field")
+			}
+		}
+		for _, t := range v.RequestedTopologies.Preferred {
+			if t != nil && len(t.Segments) == 0 {
+				errs = append(errs, "preferred topology is missing segments field")
+			}
+		}
+	}
 	if len(errs) > 0 {
 		return fmt.Errorf("validation: %s", strings.Join(errs, ", "))
 	}
@@ -823,9 +843,6 @@ type CSIVolumeExternalStub struct {
 	VolumeContext map[string]string
 	CloneID       string
 	SnapshotID    string
-
-	// TODO: topology support
-	// AccessibleTopology []*Topology
 
 	PublishedExternalNodeIDs []string
 	IsAbnormal               bool

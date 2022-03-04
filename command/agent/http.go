@@ -14,14 +14,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NYTimes/gziphandler"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/rs/cors"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -34,6 +36,10 @@ const (
 	// ErrEntOnly is the error returned if accessing an enterprise only
 	// endpoint
 	ErrEntOnly = "Nomad Enterprise only endpoint"
+
+	// ErrServerOnly is the error text returned if accessing a server only
+	// endpoint
+	ErrServerOnly = "Server only endpoint"
 
 	// ContextKeyReqID is a unique ID for a given request
 	ContextKeyReqID = "requestID"
@@ -75,64 +81,18 @@ type HTTPServer struct {
 	wsUpgrader *websocket.Upgrader
 }
 
-// NewHTTPServer starts new HTTP server over the agent
-func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
-	// Start the listener
-	lnAddr, err := net.ResolveTCPAddr("tcp", config.normalizedAddrs.HTTP)
-	if err != nil {
-		return nil, err
-	}
-	ln, err := config.Listener("tcp", lnAddr.IP.String(), lnAddr.Port)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start HTTP listener: %v", err)
-	}
-
-	// If TLS is enabled, wrap the listener with a TLS listener
-	if config.TLSConfig.EnableHTTP {
-		tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, config.TLSConfig.VerifyHTTPSClient, true)
-		if err != nil {
-			return nil, err
-		}
-
-		tlsConfig, err := tlsConf.IncomingTLSConfig()
-		if err != nil {
-			return nil, err
-		}
-		ln = tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, tlsConfig)
-	}
-
-	// Create the mux
-	mux := http.NewServeMux()
-
-	wsUpgrader := &websocket.Upgrader{
-		ReadBufferSize:  2048,
-		WriteBufferSize: 2048,
-	}
-
-	// Create the server
-	srv := &HTTPServer{
-		agent:      agent,
-		mux:        mux,
-		listener:   ln,
-		listenerCh: make(chan struct{}),
-		logger:     agent.httpLogger,
-		Addr:       ln.Addr().String(),
-		wsUpgrader: wsUpgrader,
-	}
-	srv.registerHandlers(config.EnableDebug)
-
-	// Handle requests with gzip compression
-	gzip, err := gziphandler.GzipHandlerWithOpts(gziphandler.MinSize(0))
-	if err != nil {
-		return nil, err
-	}
+// NewHTTPServers starts an HTTP server for every address.http configured in
+// the agent.
+func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
+	var srvs []*HTTPServer
+	var serverInitializationErrors error
 
 	// Get connection handshake timeout limit
 	handshakeTimeout, err := time.ParseDuration(config.Limits.HTTPSHandshakeTimeout)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing https_handshake_timeout: %v", err)
+		return srvs, fmt.Errorf("error parsing https_handshake_timeout: %v", err)
 	} else if handshakeTimeout < 0 {
-		return nil, fmt.Errorf("https_handshake_timeout must be >= 0")
+		return srvs, fmt.Errorf("https_handshake_timeout must be >= 0")
 	}
 
 	// Get max connection limit
@@ -141,23 +101,80 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 		maxConns = *mc
 	}
 	if maxConns < 0 {
-		return nil, fmt.Errorf("http_max_conns_per_client must be >= 0")
+		return srvs, fmt.Errorf("http_max_conns_per_client must be >= 0")
 	}
 
-	// Create HTTP server with timeouts
-	httpServer := http.Server{
-		Addr:      srv.Addr,
-		Handler:   gzip(mux),
-		ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
-		ErrorLog:  newHTTPServerLogger(srv.logger),
+	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, config.TLSConfig.VerifyHTTPSClient, true)
+	if err != nil && config.TLSConfig.EnableHTTP {
+		return srvs, fmt.Errorf("failed to initialize HTTP server TLS configuration: %s", err)
 	}
 
-	go func() {
-		defer close(srv.listenerCh)
-		httpServer.Serve(ln)
-	}()
+	wsUpgrader := &websocket.Upgrader{
+		ReadBufferSize:  2048,
+		WriteBufferSize: 2048,
+	}
 
-	return srv, nil
+	// Start the listener
+	for _, addr := range config.normalizedAddrs.HTTP {
+		// Create the mux
+		mux := http.NewServeMux()
+
+		lnAddr, err := net.ResolveTCPAddr("tcp", addr)
+		if err != nil {
+			serverInitializationErrors = multierror.Append(serverInitializationErrors, err)
+			continue
+		}
+		ln, err := config.Listener("tcp", lnAddr.IP.String(), lnAddr.Port)
+		if err != nil {
+			serverInitializationErrors = multierror.Append(serverInitializationErrors, fmt.Errorf("failed to start HTTP listener: %v", err))
+			continue
+		}
+
+		// If TLS is enabled, wrap the listener with a TLS listener
+		if config.TLSConfig.EnableHTTP {
+			tlsConfig, err := tlsConf.IncomingTLSConfig()
+			if err != nil {
+				serverInitializationErrors = multierror.Append(serverInitializationErrors, err)
+				continue
+			}
+			ln = tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, tlsConfig)
+		}
+
+		// Create the server
+		srv := &HTTPServer{
+			agent:      agent,
+			mux:        mux,
+			listener:   ln,
+			listenerCh: make(chan struct{}),
+			logger:     agent.httpLogger,
+			Addr:       ln.Addr().String(),
+			wsUpgrader: wsUpgrader,
+		}
+		srv.registerHandlers(config.EnableDebug)
+
+		// Create HTTP server with timeouts
+		httpServer := http.Server{
+			Addr:      srv.Addr,
+			Handler:   handlers.CompressHandler(mux),
+			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
+			ErrorLog:  newHTTPServerLogger(srv.logger),
+		}
+
+		go func() {
+			defer close(srv.listenerCh)
+			httpServer.Serve(ln)
+		}()
+
+		srvs = append(srvs, srv)
+	}
+
+	if serverInitializationErrors != nil {
+		for _, srv := range srvs {
+			srv.Shutdown()
+		}
+	}
+
+	return srvs, serverInitializationErrors
 }
 
 // makeConnState returns a ConnState func for use in an http.Server. If
@@ -248,8 +265,33 @@ func (s *HTTPServer) Shutdown() {
 	}
 }
 
+// ResolveToken extracts the ACL token secret ID from the request and
+// translates it into an ACL object. Returns nil if ACLs are disabled.
+func (s *HTTPServer) ResolveToken(req *http.Request) (*acl.ACL, error) {
+	var secret string
+	s.parseToken(req, &secret)
+
+	var aclObj *acl.ACL
+	var err error
+
+	if srv := s.agent.Server(); srv != nil {
+		aclObj, err = srv.ResolveToken(secret)
+	} else {
+		// Not a Server, so use the Client for token resolution. Note
+		// this gets forwarded to a server with AllowStale = true if
+		// the local ACL cache TTL has expired (30s by default)
+		aclObj, err = s.agent.Client().ResolveToken(secret)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ACL token: %v", err)
+	}
+
+	return aclObj, nil
+}
+
 // registerHandlers is used to attach our handlers to the mux
-func (s *HTTPServer) registerHandlers(enableDebug bool) {
+func (s HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/jobs", s.wrap(s.JobsRequest))
 	s.mux.HandleFunc("/v1/jobs/parse", s.wrap(s.JobsParseRequest))
 	s.mux.HandleFunc("/v1/job/", s.wrap(s.JobSpecificRequest))
@@ -293,6 +335,8 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/agent/members", s.wrap(s.AgentMembersRequest))
 	s.mux.HandleFunc("/v1/agent/force-leave", s.wrap(s.AgentForceLeaveRequest))
 	s.mux.HandleFunc("/v1/agent/servers", s.wrap(s.AgentServersRequest))
+	s.mux.HandleFunc("/v1/agent/schedulers", s.wrap(s.AgentSchedulerWorkerInfoRequest))
+	s.mux.HandleFunc("/v1/agent/schedulers/config", s.wrap(s.AgentSchedulerWorkerConfigRequest))
 	s.mux.HandleFunc("/v1/agent/keyring/", s.wrap(s.KeyringOperationRequest))
 	s.mux.HandleFunc("/v1/agent/health", s.wrap(s.HealthRequest))
 	s.mux.HandleFunc("/v1/agent/host", s.wrap(s.AgentHostRequest))
@@ -493,6 +537,9 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 				} else if strings.HasSuffix(errMsg, structs.ErrJobRegistrationDisabled.Error()) {
 					errMsg = structs.ErrJobRegistrationDisabled.Error()
 					code = 403
+				} else if strings.HasSuffix(errMsg, structs.ErrIncompatibleFiltering.Error()) {
+					errMsg = structs.ErrIncompatibleFiltering.Error()
+					code = 400
 				}
 			}
 
@@ -740,6 +787,8 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *strin
 	parsePrefix(req, b)
 	parseNamespace(req, &b.Namespace)
 	parsePagination(req, b)
+	parseFilter(req, b)
+	parseAscending(req, b)
 	return parseWait(resp, req, b)
 }
 
@@ -748,13 +797,27 @@ func parsePagination(req *http.Request, b *structs.QueryOptions) {
 	query := req.URL.Query()
 	rawPerPage := query.Get("per_page")
 	if rawPerPage != "" {
-		perPage, err := strconv.Atoi(rawPerPage)
+		perPage, err := strconv.ParseInt(rawPerPage, 10, 32)
 		if err == nil {
 			b.PerPage = int32(perPage)
 		}
 	}
 
 	b.NextToken = query.Get("next_token")
+}
+
+// parseFilter parses the filter query parameter for QueryOptions
+func parseFilter(req *http.Request, b *structs.QueryOptions) {
+	query := req.URL.Query()
+	if filter := query.Get("filter"); filter != "" {
+		b.Filter = filter
+	}
+}
+
+// parseAscending parses the ascending query parameter for QueryOptions
+func parseAscending(req *http.Request, b *structs.QueryOptions) {
+	query := req.URL.Query()
+	b.Ascending = query.Get("ascending") == "true"
 }
 
 // parseWriteRequest is a convenience method for endpoints that need to parse a

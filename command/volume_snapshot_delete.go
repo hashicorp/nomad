@@ -30,7 +30,7 @@ General Options:
 Snapshot Options:
 
   -secret
-    Secrets to pass to the plugin to create the snapshot. Accepts multiple
+    Secrets to pass to the plugin to delete the snapshot. Accepts multiple
     flags in the form -secret key=value
 
 `

@@ -3,7 +3,6 @@ package taskrunner
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -72,7 +71,15 @@ func (tr *TaskRunner) initHooks() {
 
 	// If the task has a CSI stanza, add the hook.
 	if task.CSIPluginConfig != nil {
-		tr.runnerHooks = append(tr.runnerHooks, newCSIPluginSupervisorHook(filepath.Join(tr.clientConfig.StateDir, "csi"), tr, tr, hookLogger))
+		tr.runnerHooks = append(tr.runnerHooks, newCSIPluginSupervisorHook(
+			&csiPluginSupervisorHookConfig{
+				clientStateDirPath: tr.clientConfig.StateDir,
+				events:             tr,
+				runner:             tr,
+				lifecycle:          tr,
+				capabilities:       tr.driverCapabilities,
+				logger:             hookLogger,
+			}))
 	}
 
 	// If Vault is enabled, add the hook
@@ -190,6 +197,11 @@ func (tr *TaskRunner) prestart() error {
 		}()
 	}
 
+	// use a join context to allow any blocking pre-start hooks
+	// to be canceled by either killCtx or shutdownCtx
+	joinedCtx, joinedCancel := joincontext.Join(tr.killCtx, tr.shutdownCtx)
+	defer joinedCancel()
+
 	for _, hook := range tr.runnerHooks {
 		pre, ok := hook.(interfaces.TaskPrestartHook)
 		if !ok {
@@ -235,9 +247,6 @@ func (tr *TaskRunner) prestart() error {
 		}
 
 		// Run the prestart hook
-		// use a joint context to allow any blocking pre-start hooks
-		// to be canceled by either killCtx or shutdownCtx
-		joinedCtx, _ := joincontext.Join(tr.killCtx, tr.shutdownCtx)
 		var resp interfaces.TaskPrestartResponse
 		if err := pre.Prestart(joinedCtx, &req, &resp); err != nil {
 			tr.emitHookError(err, name)

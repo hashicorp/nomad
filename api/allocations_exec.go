@@ -13,6 +13,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	// heartbeatInterval is the amount of time to wait between sending heartbeats
+	// during an exec streaming operation
+	heartbeatInterval = 10 * time.Second
+)
+
 type execSession struct {
 	client  *Client
 	alloc   *Allocation
@@ -177,15 +183,19 @@ func (s *execSession) startTransmit(ctx context.Context, conn *websocket.Conn) <
 
 	// send a heartbeat every 10 seconds
 	go func() {
+		t := time.NewTimer(heartbeatInterval)
+		defer t.Stop()
+
 		for {
+			t.Reset(heartbeatInterval)
+
 			select {
 			case <-ctx.Done():
 				return
-			// heartbeat message
-			case <-time.After(10 * time.Second):
+			case <-t.C:
+				// heartbeat message
 				send(&execStreamingInputHeartbeat)
 			}
-
 		}
 	}()
 

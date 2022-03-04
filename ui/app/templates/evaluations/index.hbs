@@ -1,0 +1,138 @@
+{{page-title "Evaluations"}}
+<section class="section">
+  <div class="toolbar">
+    <div class="toolbar-item is-right-aligned">
+      <SingleSelectDropdown
+        data-test-evaluation-status-facet
+        @label="Status"
+        @options={{this.optionsEvaluationsStatus}}
+        @selection={{this.status}}
+        @onSelect={{action this.setStatus}}
+      />
+    </div>
+  </div>
+  {{#if @model.length}}
+    <ListTable data-test-eval-table @source={{@model}} as |t|>
+      <t.head>
+        <th>
+          Evaluation ID
+        </th>
+        <th>
+          Resource
+        </th>
+        <th>
+          Priority
+        </th>
+        <th>
+          Created
+        </th>
+        <th>
+          Triggered By
+        </th>
+        <th>
+          Status
+        </th>
+        <th>
+          Placement Failures
+        </th>
+      </t.head>
+      <t.body as |row|>
+        <tr data-test-evaluation="{{row.model.shortId}}">
+          <td data-test-id>
+            {{row.model.shortId}}
+          </td>
+          <td data-test-id>
+            {{#if row.model.hasJob}}
+              <LinkTo
+                data-test-evaluation-resource
+                @model={{row.model.plainJobId}}
+                @route="jobs.job"
+                @query={{hash namespace=row.model.namespace}}
+              >
+                {{row.model.plainJobId}}
+              </LinkTo>
+            {{else}}
+              <LinkTo
+                data-test-evaluation-resource
+                @model={{row.model.nodeId}}
+                @route="clients.client"
+              >
+                {{row.model.shortNodeId}}
+              </LinkTo>
+            {{/if}}
+          </td>
+          <td data-test-priority>
+            {{row.model.priority}}
+          </td>
+          <td data-test-create-time>
+            {{format-month-ts row.model.createTime}}
+          </td>
+          <td data-test-triggered-by>
+            {{row.model.triggeredBy}}
+          </td>
+          <td data-test-status class="is-one-line">
+            <StatusCell @status={{row.model.status}} />
+          </td>
+          <td data-test-blocked>
+            {{#if (eq row.model.status "blocked")}}
+              N/A - In Progress
+            {{else if row.model.hasPlacementFailures}}
+              True
+            {{else}}
+              False
+            {{/if}}
+          </td>
+        </tr>
+      </t.body>
+    </ListTable>
+    <div class="table-foot with-padding">
+      <PageSizeSelect data-test-per-page @onChange={{this.onChange}} />
+      <div>
+        <button class="button" data-test-eval-refresh type="button" {{on "click" this.refresh}}>
+          {{x-icon "refresh-default" class="is-text"}}
+          Refresh
+        </button>
+        <button
+          data-test-eval-pagination-prev
+          type="button"
+          class="button is-text is-borderless"
+          disabled={{this.shouldDisablePrev}}
+          {{on "click" (fn this.onPrev this.lastToken)}}
+        >
+          {{x-icon "chevron-left" class="is-large"}}
+        </button>
+        <button
+          data-test-eval-pagination-next
+          type="button"
+          class="button is-text is-borderless"
+          disabled={{this.shouldDisableNext}}
+          {{on "click" (fn this.onNext @model.meta.nextToken)}}
+        >
+          {{x-icon "chevron-right" class="is-large"}}
+        </button>
+      </div>
+    </div>
+  {{else}}
+    <div class="boxed-section-body">
+      <div class="empty-message" data-test-empty-evaluations-list>
+        <h3 class="empty-message-headline" data-test-empty-evalations-list-headline>
+          No Matches
+        </h3>
+        <p class="empty-message-body">
+          {{#if this.status}}
+            <span data-test-no-eval-match>
+              No evaluations match the status
+              <strong>
+                {{this.status}}
+              </strong>
+            </span>
+          {{else}}
+            <span data-test-no-eval>
+              There are no evaluations
+            </span>
+          {{/if}}
+        </p>
+      </div>
+    </div>
+  {{/if}}
+</section>

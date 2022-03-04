@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -506,8 +507,17 @@ func TestShuffleNodes(t *testing.T) {
 	}
 	orig := make([]*structs.Node, len(nodes))
 	copy(orig, nodes)
-	shuffleNodes(nodes)
+	eval := mock.Eval() // will have random EvalID
+	plan := eval.MakePlan(mock.Job())
+	shuffleNodes(plan, 1000, nodes)
 	require.False(t, reflect.DeepEqual(nodes, orig))
+
+	nodes2 := make([]*structs.Node, len(nodes))
+	copy(nodes2, orig)
+	shuffleNodes(plan, 1000, nodes2)
+
+	require.True(t, reflect.DeepEqual(nodes, nodes2))
+
 }
 
 func TestTaskUpdatedAffinity(t *testing.T) {
@@ -753,6 +763,29 @@ func TestTasksUpdated(t *testing.T) {
 	j21.TaskGroups[0].Tasks[0].Resources.Cores = 4
 	require.True(t, tasksUpdated(j20, j21, name))
 
+	// Compare identical Template wait configs
+	j22 := mock.Job()
+	j22.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
+		{
+			Wait: &structs.WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(5 * time.Second),
+			},
+		},
+	}
+	j23 := mock.Job()
+	j23.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
+		{
+			Wait: &structs.WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(5 * time.Second),
+			},
+		},
+	}
+	require.False(t, tasksUpdated(j22, j23, name))
+	// Compare changed Template wait configs
+	j23.TaskGroups[0].Tasks[0].Templates[0].Wait.Max = helper.TimeToPtr(10 * time.Second)
+	require.True(t, tasksUpdated(j22, j23, name))
 }
 
 func TestTasksUpdated_connectServiceUpdated(t *testing.T) {

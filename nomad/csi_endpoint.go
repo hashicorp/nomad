@@ -23,9 +23,9 @@ type CSIVolume struct {
 
 // QueryACLObj looks up the ACL token in the request and returns the acl.ACL object
 // - fallback to node secret ids
-func (srv *Server) QueryACLObj(args *structs.QueryOptions, allowNodeAccess bool) (*acl.ACL, error) {
+func (s *Server) QueryACLObj(args *structs.QueryOptions, allowNodeAccess bool) (*acl.ACL, error) {
 	// Lookup the token
-	aclObj, err := srv.ResolveToken(args.AuthToken)
+	aclObj, err := s.ResolveToken(args.AuthToken)
 	if err != nil {
 		// If ResolveToken had an unexpected error return that
 		if !structs.IsErrTokenNotFound(err) {
@@ -41,7 +41,7 @@ func (srv *Server) QueryACLObj(args *structs.QueryOptions, allowNodeAccess bool)
 		ws := memdb.NewWatchSet()
 		// Attempt to lookup AuthToken as a Node.SecretID since nodes may call
 		// call this endpoint and don't have an ACL token.
-		node, stateErr := srv.fsm.State().NodeBySecretID(ws, args.AuthToken)
+		node, stateErr := s.fsm.State().NodeBySecretID(ws, args.AuthToken)
 		if stateErr != nil {
 			// Return the original ResolveToken error with this err
 			var merr multierror.Error
@@ -60,13 +60,13 @@ func (srv *Server) QueryACLObj(args *structs.QueryOptions, allowNodeAccess bool)
 }
 
 // WriteACLObj calls QueryACLObj for a WriteRequest
-func (srv *Server) WriteACLObj(args *structs.WriteRequest, allowNodeAccess bool) (*acl.ACL, error) {
+func (s *Server) WriteACLObj(args *structs.WriteRequest, allowNodeAccess bool) (*acl.ACL, error) {
 	opts := &structs.QueryOptions{
 		Region:    args.RequestRegion(),
 		Namespace: args.RequestNamespace(),
 		AuthToken: args.AuthToken,
 	}
-	return srv.QueryACLObj(opts, allowNodeAccess)
+	return s.QueryACLObj(opts, allowNodeAccess)
 }
 
 const (
@@ -75,17 +75,17 @@ const (
 )
 
 // replySetIndex sets the reply with the last index that modified the table
-func (srv *Server) replySetIndex(table string, reply *structs.QueryMeta) error {
-	s := srv.fsm.State()
+func (s *Server) replySetIndex(table string, reply *structs.QueryMeta) error {
+	fmsState := s.fsm.State()
 
-	index, err := s.Index(table)
+	index, err := fmsState.Index(table)
 	if err != nil {
 		return err
 	}
 	reply.Index = index
 
 	// Set the query response
-	srv.setQueryMeta(reply)
+	s.setQueryMeta(reply)
 	return nil
 }
 
@@ -129,8 +129,12 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 				iter, err = snap.CSIVolumesByNodeID(ws, prefix, args.NodeID)
 			} else if args.PluginID != "" {
 				iter, err = snap.CSIVolumesByPluginID(ws, ns, prefix, args.PluginID)
-			} else {
+			} else if prefix != "" {
+				iter, err = snap.CSIVolumesByIDPrefix(ws, ns, prefix)
+			} else if ns != structs.AllNamespacesSentinel {
 				iter, err = snap.CSIVolumesByNamespace(ws, ns, prefix)
+			} else {
+				iter, err = snap.CSIVolumes(ws)
 			}
 
 			if err != nil {
@@ -155,7 +159,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 
 				// Remove by Namespace, since CSIVolumesByNodeID hasn't used
 				// the Namespace yet
-				if vol.Namespace != ns {
+				if ns != structs.AllNamespacesSentinel && vol.Namespace != ns {
 					continue
 				}
 
@@ -298,6 +302,14 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		}
 		if err := v.controllerValidateVolume(args, vol, plugin); err != nil {
 			return err
+		}
+
+		// The topologies for the volume have already been set when it was
+		// created, so we accept the user's description of that topology
+		if vol.Topologies == nil || len(vol.Topologies) == 0 {
+			if vol.RequestedTopologies != nil {
+				vol.Topologies = vol.RequestedTopologies.Required
+			}
 		}
 	}
 
@@ -613,39 +625,25 @@ func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.C
 		return v.checkpointClaim(vol, claim)
 	}
 
-	// The RPC sent from the 'nomad node detach' command won't have an
+	// The RPC sent from the 'nomad node detach' command or GC won't have an
 	// allocation ID set so we try to unpublish every terminal or invalid
-	// alloc on the node
-	allocIDs := []string{}
+	// alloc on the node, all of which will be in PastClaims after denormalizing
 	state := v.srv.fsm.State()
 	vol, err := state.CSIVolumeDenormalize(memdb.NewWatchSet(), vol)
 	if err != nil {
 		return err
 	}
-	for allocID, alloc := range vol.ReadAllocs {
-		if alloc == nil {
-			rclaim, ok := vol.ReadClaims[allocID]
-			if ok && rclaim.NodeID == claim.NodeID {
-				allocIDs = append(allocIDs, allocID)
-			}
-		} else if alloc.NodeID == claim.NodeID && alloc.TerminalStatus() {
-			allocIDs = append(allocIDs, allocID)
+
+	claimsToUnpublish := []*structs.CSIVolumeClaim{}
+	for _, pastClaim := range vol.PastClaims {
+		if claim.NodeID == pastClaim.NodeID {
+			claimsToUnpublish = append(claimsToUnpublish, pastClaim)
 		}
 	}
-	for allocID, alloc := range vol.WriteAllocs {
-		if alloc == nil {
-			wclaim, ok := vol.WriteClaims[allocID]
-			if ok && wclaim.NodeID == claim.NodeID {
-				allocIDs = append(allocIDs, allocID)
-			}
-		} else if alloc.NodeID == claim.NodeID && alloc.TerminalStatus() {
-			allocIDs = append(allocIDs, allocID)
-		}
-	}
+
 	var merr multierror.Error
-	for _, allocID := range allocIDs {
-		claim.AllocationID = allocID
-		err := v.nodeUnpublishVolumeImpl(vol, claim)
+	for _, pastClaim := range claimsToUnpublish {
+		err := v.nodeUnpublishVolumeImpl(vol, pastClaim)
 		if err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
@@ -666,8 +664,8 @@ func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *struc
 		ExternalID:     vol.RemoteID(),
 		AllocID:        claim.AllocationID,
 		NodeID:         claim.NodeID,
-		AttachmentMode: vol.AttachmentMode,
-		AccessMode:     vol.AccessMode,
+		AttachmentMode: claim.AttachmentMode,
+		AccessMode:     claim.AccessMode,
 		ReadOnly:       claim.Mode == structs.CSIVolumeClaimRead,
 	}
 	err := v.srv.RPC("ClientCSI.NodeDetachVolume",
@@ -910,15 +908,16 @@ func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 
 	method := "ClientCSI.ControllerCreateVolume"
 	cReq := &cstructs.ClientCSIControllerCreateVolumeRequest{
-		Name:               vol.Name,
-		VolumeCapabilities: vol.RequestedCapabilities,
-		MountOptions:       vol.MountOptions,
-		Parameters:         vol.Parameters,
-		Secrets:            vol.Secrets,
-		CapacityMin:        vol.RequestedCapacityMin,
-		CapacityMax:        vol.RequestedCapacityMax,
-		SnapshotID:         vol.SnapshotID,
-		CloneID:            vol.CloneID,
+		Name:                vol.Name,
+		VolumeCapabilities:  vol.RequestedCapabilities,
+		MountOptions:        vol.MountOptions,
+		Parameters:          vol.Parameters,
+		Secrets:             vol.Secrets,
+		CapacityMin:         vol.RequestedCapacityMin,
+		CapacityMax:         vol.RequestedCapacityMax,
+		SnapshotID:          vol.SnapshotID,
+		CloneID:             vol.CloneID,
+		RequestedTopologies: vol.RequestedTopologies,
 	}
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerCreateVolumeResponse{}
@@ -930,6 +929,7 @@ func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 	vol.ExternalID = cResp.ExternalVolumeID
 	vol.Capacity = cResp.CapacityBytes
 	vol.Context = cResp.VolumeContext
+	vol.Topologies = cResp.Topologies
 	return nil
 }
 

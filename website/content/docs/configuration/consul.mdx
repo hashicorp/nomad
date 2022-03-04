@@ -44,6 +44,7 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
   Consul agent, given in the format `host:port`. Supports Unix sockets with the
   format: `unix:///tmp/consul/consul.sock`. Will default to the
   `CONSUL_HTTP_ADDR` environment variable if set.
+  The value supports [go-sockaddr/template format][go-sockaddr/template].
 
 - `allow_unauthenticated` `(bool: true)` - Specifies if users submitting jobs to
   the Nomad server should be required to provide their own Consul token, proving
@@ -68,7 +69,11 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
   Consul communication. If this is set then you need to also set `key_file`.
 
 - `checks_use_advertise` `(bool: false)` - Specifies if Consul health checks
-  should bind to the advertise address. By default, this is the bind address.
+  should bind to the advertise address. By default, this is the first [HTTP
+  address](https://www.nomadproject.io/docs/configuration#http). If no
+  [HTTP address](https://www.nomadproject.io/docs/configuration#http) is
+  specified, it will fall back to the
+  [bind_addr](https://www.nomadproject.io/docs/configuration#bind_addr).
 
 - `client_auto_join` `(bool: true)` - Specifies if the Nomad clients should
   automatically discover servers in the same region by searching for the Consul
@@ -221,3 +226,4 @@ namespace "nomad-ns" {
 
 [consul]: https://www.consul.io/ 'Consul by HashiCorp'
 [bootstrap]: https://learn.hashicorp.com/tutorials/nomad/clustering 'Automatic Bootstrapping'
+[go-sockaddr/template]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template

@@ -54,6 +54,10 @@ type serviceHook struct {
 	// fields required in other lifecycle funcs
 	initialRegistration bool
 
+	// deregistered tracks whether deregister() has previously been called, so
+	// we do not call this multiple times for a single task when not needed.
+	deregistered bool
+
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
 	mu sync.Mutex
@@ -95,6 +99,9 @@ func (h *serviceHook) Poststart(ctx context.Context, req *interfaces.TaskPoststa
 	h.driverNet = req.DriverNetwork
 	h.taskEnv = req.TaskEnv
 	h.initialRegistration = true
+
+	// Ensure deregistered is unset.
+	h.deregistered = false
 
 	// Create task services struct with request's driver metadata
 	workloadServices := h.getWorkloadServices()
@@ -171,11 +178,12 @@ func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *in
 
 // deregister services from Consul.
 func (h *serviceHook) deregister() {
-	if len(h.services) > 0 {
+	if len(h.services) > 0 && !h.deregistered {
 		workloadServices := h.getWorkloadServices()
 		h.consulServices.RemoveWorkload(workloadServices)
 	}
 	h.initialRegistration = false
+	h.deregistered = true
 }
 
 func (h *serviceHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {

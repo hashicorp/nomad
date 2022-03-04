@@ -4,9 +4,9 @@ import { TextEncoderLite } from 'text-encoder-lite';
 import base64js from 'base64-js';
 
 const Encoder = new TextEncoderLite('utf-8');
-const encode = str => base64js.fromByteArray(Encoder.encode(str));
+const encode = (str) => base64js.fromByteArray(Encoder.encode(str));
 
-module('Unit | Util | stream-frames', function() {
+module('Unit | Util | stream-frames', function () {
   const { btoa } = window;
   const decodeTestCases = [
     {
@@ -46,8 +46,8 @@ module('Unit | Util | stream-frames', function() {
     },
   ];
 
-  decodeTestCases.forEach(testCase => {
-    test(`decode: ${testCase.name}`, function(assert) {
+  decodeTestCases.forEach((testCase) => {
+    test(`decode: ${testCase.name}`, function (assert) {
       assert.deepEqual(decode(testCase.in), testCase.out);
     });
   });

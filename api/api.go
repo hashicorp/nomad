@@ -62,8 +62,15 @@ type QueryOptions struct {
 	// Set HTTP parameters on the query.
 	Params map[string]string
 
+	// Set HTTP headers on the query.
+	Headers map[string]string
+
 	// AuthToken is the secret ID of an ACL token
 	AuthToken string
+
+	// Filter specifies the go-bexpr filter expression to be used for
+	// filtering the data prior to returning a response
+	Filter string
 
 	// PerPage is the number of entries to be returned in queries that support
 	// paginated lists.
@@ -74,6 +81,11 @@ type QueryOptions struct {
 	// the ID of the next object after the last one seen in the
 	// previous response.
 	NextToken string
+
+	// Ascending is used to have results sorted in ascending chronological order.
+	//
+	// Currently only supported by evaluations.List and deployments.list endpoints.
+	Ascending bool
 
 	// ctx is an optional context pass through to the underlying HTTP
 	// request layer. Use Context() and WithContext() to manage this.
@@ -91,6 +103,9 @@ type WriteOptions struct {
 
 	// AuthToken is the secret ID of an ACL token
 	AuthToken string
+
+	// Set HTTP headers on the query.
+	Headers map[string]string
 
 	// ctx is an optional context pass through to the underlying HTTP
 	// request layer. Use Context() and WithContext() to manage this.
@@ -581,16 +596,26 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	if q.Prefix != "" {
 		r.params.Set("prefix", q.Prefix)
 	}
+	if q.Filter != "" {
+		r.params.Set("filter", q.Filter)
+	}
 	if q.PerPage != 0 {
 		r.params.Set("per_page", fmt.Sprint(q.PerPage))
 	}
 	if q.NextToken != "" {
 		r.params.Set("next_token", q.NextToken)
 	}
+	if q.Ascending {
+		r.params.Set("ascending", "true")
+	}
 	for k, v := range q.Params {
 		r.params.Set(k, v)
 	}
 	r.ctx = q.Context()
+
+	for k, v := range q.Headers {
+		r.header.Set(k, v)
+	}
 }
 
 // durToMsec converts a duration to a millisecond specified string
@@ -617,6 +642,10 @@ func (r *request) setWriteOptions(q *WriteOptions) {
 		r.params.Set("idempotency_token", q.IdempotencyToken)
 	}
 	r.ctx = q.Context()
+
+	for k, v := range q.Headers {
+		r.header.Set(k, v)
+	}
 }
 
 // toHTTP converts the request to an HTTP request
@@ -741,33 +770,45 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 	if err != nil {
 		return 0, nil, err
 	}
+
 	start := time.Now()
 	resp, err := c.httpClient.Do(req)
 	diff := time.Since(start)
 
 	// If the response is compressed, we swap the body's reader.
-	if resp != nil && resp.Header != nil {
-		var reader io.ReadCloser
-		switch resp.Header.Get("Content-Encoding") {
-		case "gzip":
-			greader, err := gzip.NewReader(resp.Body)
-			if err != nil {
-				return 0, nil, err
-			}
-
-			// The gzip reader doesn't close the wrapped reader so we use
-			// multiCloser.
-			reader = &multiCloser{
-				reader:       greader,
-				inorderClose: []io.Closer{greader, resp.Body},
-			}
-		default:
-			reader = resp.Body
-		}
-		resp.Body = reader
+	if zipErr := c.autoUnzip(resp); zipErr != nil {
+		return 0, nil, zipErr
 	}
 
 	return diff, resp, err
+}
+
+// autoUnzip modifies resp in-place, wrapping the response body with a gzip
+// reader if the Content-Encoding of the response is "gzip".
+func (*Client) autoUnzip(resp *http.Response) error {
+	if resp == nil || resp.Header == nil {
+		return nil
+	}
+
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		zReader, err := gzip.NewReader(resp.Body)
+		if err == io.EOF {
+			// zero length response, do not wrap
+			return nil
+		} else if err != nil {
+			// some other error (e.g. corrupt)
+			return err
+		}
+
+		// The gzip reader does not close an underlying reader, so use a
+		// multiCloser to make sure response body does get closed.
+		resp.Body = &multiCloser{
+			reader:       zReader,
+			inorderClose: []io.Closer{zReader, resp.Body},
+		}
+	}
+
+	return nil
 }
 
 // rawQuery makes a GET request to the specified endpoint but returns just the

@@ -315,7 +315,7 @@ config {
   that exist inside the allocation working directory. You can allow mounting
   host paths outside of the [allocation working directory] on individual clients
   by setting the `docker.volumes.enabled` option to `true` in the client's
-  configuration. We recommend using [`mounts`](#mounts) if you wish to have more
+  configuration. We recommend using [`mount`](#mount) if you wish to have more
   control over volume definitions.
 
   ```hcl
@@ -836,6 +836,12 @@ plugin "docker" {
   from the Docker engine during an image pull within this timeframe, Nomad will
   timeout the request that initiated the pull command. (Minimum of `1m`)
 
+- `pids_limit` - Defaults to unlimited (`0`). An integer value that specifies
+  the pid limit for all the Docker containers running on that Nomad client. You
+  can override this limit by setting [`pids_limit`] in your task config. If
+  this value is greater than `0`, your task `pids_limit` must be less than or
+  equal to the value defined here.
+
 - `allow_caps` - A list of allowed Linux capabilities. Defaults to
 
 ```hcl
@@ -1167,3 +1173,4 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [allow_caps]: /docs/drivers/docker#allow_caps
 [Connect]: /docs/job-specification/connect
 [`bridge`]: docs/job-specification/network#bridge
+[`pids_limit`]: /docs/drivers/docker#pids_limit

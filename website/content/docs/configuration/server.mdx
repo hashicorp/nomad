@@ -40,11 +40,11 @@ server {
   `1` does not provide any fault tolerance and is not recommended for production
   use cases.
 
-- `data_dir` `(string: "[data_dir]/server")` - Specifies the directory to use -
-  for server-specific data, including the replicated log. By default, this is -
-  the top-level [data_dir](/docs/configuration#data_dir)
-  suffixed with "server", like `"/opt/nomad/server"`. This must be an absolute
-  path.
+- `data_dir` `(string: "[data_dir]/server")` - Specifies the directory to use
+  for server-specific data, including the replicated log. By default, this is
+  the top-level [data_dir](/docs/configuration#data_dir) suffixed with "server",
+  like `"/opt/nomad/server"`. The top-level option must be set, even when
+  setting this value. This must be an absolute path.
 
 - `enabled` `(bool: false)` - Specifies if this agent should run in server mode.
   All other server options depend on this value being set.
@@ -156,12 +156,14 @@ server {
   disallow this server from making any scheduling decisions. This defaults to
   the number of CPU cores.
 
-- `protocol_version` `(int: 1)` - Specifies the Nomad protocol version to use
-  when communicating with other Nomad servers. This value is typically not
-  required as the agent internally knows the latest version, but may be useful
-  in some upgrade scenarios.
+- `raft_boltdb` - This is a nested object that allows configuring options for
+  Raft's BoltDB based log store.
+    - `no_freelist_sync` - Setting this to `true` will disable syncing the BoltDB
+    freelist to disk within the `raft.db` file. Not syncing the freelist to disk
+    will reduce disk IO required for write operations at the expense of longer
+    server startup times.
 
-- `raft_protocol` `(int: 2)` - Specifies the Raft protocol version to use when
+- `raft_protocol` `(int: 3)` - Specifies the Raft protocol version to use when
   communicating with other Nomad servers. This affects available Autopilot
   features and is typically not required as the agent internally knows the
   latest version, but may be useful in some upgrade scenarios.

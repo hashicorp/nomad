@@ -62,6 +62,14 @@ func (t *CSITopology) Equal(o *CSITopology) bool {
 	return helper.CompareMapStringString(t.Segments, o.Segments)
 }
 
+// CSITopologyRequest are the topologies submitted as options to the
+// storage provider at the time the volume was created. The storage
+// provider will return a single topology.
+type CSITopologyRequest struct {
+	Required  []*CSITopology
+	Preferred []*CSITopology
+}
+
 // CSINodeInfo is the fingerprinted data from a CSI Plugin that is specific to
 // the Node API.
 type CSINodeInfo struct {

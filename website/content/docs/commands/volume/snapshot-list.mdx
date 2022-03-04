@@ -27,7 +27,7 @@ Nomad.
 
 @include 'general_options.mdx'
 
-## List Options
+## Snapshot List Options
 
 - `-plugin`: Display only snapshots managed by a particular [CSI
   plugin][csi_plugin]. By default the `snapshot list` command will query all
@@ -35,8 +35,8 @@ Nomad.
   there is an exact match based on the provided plugin, then that specific
   plugin will be queried. Otherwise, a list of matching plugins will be
   displayed.
-- `-secrets`: A list of comma separated secret key/value pairs to be passed 
-  to the CSI driver.
+- `-secret`: Secrets to pass to the plugin to list snapshots. Accepts
+  multiple flags in the form `-secret key=value`
 
 When ACLs are enabled, this command requires a token with the
 `csi-list-volumes` capability for the plugin's namespace.
@@ -54,7 +54,7 @@ snap-67890   vol-fedcba   50GiB  2021-01-04T15:45:00Z  true
 
 List volume snapshots with two secret key/value pairs:
 ```shell-session
-$ nomad volume snapshot list -secrets key1=value1,key2=val2
+$ nomad volume snapshot list -secret key1=value1 -secret key2=val2
 Snapshot ID  External ID  Size   Creation Time         Ready?
 snap-12345   vol-abcdef   50GiB  2021-01-03T12:15:02Z  true
 ```

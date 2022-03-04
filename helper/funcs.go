@@ -83,7 +83,12 @@ func Int8ToPtr(i int8) *int8 {
 	return &i
 }
 
-// Int64ToPtr returns the pointer to an int
+// Int32ToPtr returns the pointer to an int32
+func Int32ToPtr(i int32) *int32 {
+	return &i
+}
+
+// Int64ToPtr returns the pointer to an int64
 func Int64ToPtr(i int64) *int64 {
 	return &i
 }
@@ -571,4 +576,31 @@ func PathEscapesSandbox(sandboxDir, path string) bool {
 		return true
 	}
 	return false
+}
+
+// StopFunc is used to stop a time.Timer created with NewSafeTimer
+type StopFunc func()
+
+// NewSafeTimer creates a time.Timer but does not panic if duration is <= 0.
+//
+// Using a time.Timer is recommended instead of time.After when it is necessary
+// to avoid leaking goroutines (e.g. in a select inside a loop).
+//
+// Returns the time.Timer and also a StopFunc, forcing the caller to deal
+// with stopping the time.Timer to avoid leaking a goroutine.
+func NewSafeTimer(duration time.Duration) (*time.Timer, StopFunc) {
+	if duration <= 0 {
+		// Avoid panic by using the smallest positive value. This is close enough
+		// to the behavior of time.After(0), which this helper is intended to
+		// replace.
+		// https://go.dev/play/p/EIkm9MsPbHY
+		duration = 1
+	}
+
+	t := time.NewTimer(duration)
+	cancel := func() {
+		t.Stop()
+	}
+
+	return t, cancel
 }

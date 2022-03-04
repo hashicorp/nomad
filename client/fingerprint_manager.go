@@ -68,16 +68,16 @@ func (fm *FingerprintManager) getNode() *structs.Node {
 // identifying allowlisted and denylisted fingerprints/drivers. Then, for
 // those which require periotic checking, it starts a periodic process for
 // each.
-func (fp *FingerprintManager) Run() error {
+func (fm *FingerprintManager) Run() error {
 	// First, set up all fingerprints
-	cfg := fp.getConfig()
+	cfg := fm.getConfig()
 	// COMPAT(1.0) using inclusive language, whitelist is kept for backward compatibility.
 	allowlistFingerprints := cfg.ReadStringListToMap("fingerprint.allowlist", "fingerprint.whitelist")
 	allowlistFingerprintsEnabled := len(allowlistFingerprints) > 0
 	// COMPAT(1.0) using inclusive language, blacklist is kept for backward compatibility.
 	denylistFingerprints := cfg.ReadStringListToMap("fingerprint.denylist", "fingerprint.blacklist")
 
-	fp.logger.Debug("built-in fingerprints", "fingerprinters", fingerprint.BuiltinFingerprints())
+	fm.logger.Debug("built-in fingerprints", "fingerprinters", fingerprint.BuiltinFingerprints())
 
 	var availableFingerprints []string
 	var skippedFingerprints []string
@@ -96,12 +96,12 @@ func (fp *FingerprintManager) Run() error {
 		availableFingerprints = append(availableFingerprints, name)
 	}
 
-	if err := fp.setupFingerprinters(availableFingerprints); err != nil {
+	if err := fm.setupFingerprinters(availableFingerprints); err != nil {
 		return err
 	}
 
 	if len(skippedFingerprints) != 0 {
-		fp.logger.Debug("fingerprint modules skipped due to allow/denylist",
+		fm.logger.Debug("fingerprint modules skipped due to allow/denylist",
 			"skipped_fingerprinters", skippedFingerprints)
 	}
 

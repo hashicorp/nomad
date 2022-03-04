@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
@@ -371,6 +372,49 @@ job "example" {
 	require.Equal(t, "id:1", out.TaskGroups[0].Tasks[0].Env["ID"])
 	require.Equal(t, "id:2", out.TaskGroups[1].Tasks[0].Env["ID"])
 	require.Equal(t, "3", out.TaskGroups[2].Tasks[0].Meta["VERSION"])
+}
+
+func TestParse_InvalidHCL(t *testing.T) {
+	t.Run("invalid body", func(t *testing.T) {
+		hcl := `invalid{hcl`
+
+		_, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			ArgVars: []string{},
+			AllowFS: true,
+		})
+		require.Error(t, err)
+	})
+
+	t.Run("invalid vars file", func(t *testing.T) {
+		tmp, err := ioutil.TempFile("", "nomad-jobspec2-")
+		require.NoError(t, err)
+		defer os.Remove(tmp.Name())
+
+		vars := `invalid{hcl`
+		_, err = tmp.Write([]byte(vars))
+		require.NoError(t, err)
+
+		hcl := `
+variables {
+  region_var = "default"
+}
+job "example" {
+  datacenters = [for s in ["dc1", "dc2"] : upper(s)]
+  region      = var.region_var
+}
+`
+
+		_, err = ParseWithConfig(&ParseConfig{
+			Path:     "input.hcl",
+			Body:     []byte(hcl),
+			VarFiles: []string{tmp.Name()},
+			ArgVars:  []string{},
+			AllowFS:  true,
+		})
+		require.Error(t, err)
+	})
 }
 
 func TestParse_InvalidScalingSyntax(t *testing.T) {
@@ -949,4 +993,23 @@ func TestParseServiceCheck(t *testing.T) {
 	}
 
 	require.Equal(t, expectedJob, parsedJob)
+}
+
+func TestWaitConfig(t *testing.T) {
+	hclBytes, err := os.ReadFile("test-fixtures/template-wait-config.hcl")
+	require.NoError(t, err)
+
+	job, err := ParseWithConfig(&ParseConfig{
+		Path:    "test-fixtures/template-wait-config.hcl",
+		Body:    hclBytes,
+		AllowFS: false,
+	})
+
+	require.NoError(t, err)
+
+	tmpl := job.TaskGroups[0].Tasks[0].Templates[0]
+	require.NotNil(t, tmpl)
+	require.NotNil(t, tmpl.Wait)
+	require.Equal(t, 5*time.Second, *tmpl.Wait.Min)
+	require.Equal(t, 60*time.Second, *tmpl.Wait.Max)
 }

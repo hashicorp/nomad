@@ -34,24 +34,24 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
     const data = copy(this.data, true);
     const sum = data.mapBy('value').reduce(sumAggregate, 0);
 
-    return data.map(({ label, value, className, layers, legendLink, help }, index) => ({
-      label,
-      value,
-      className,
-      layers,
-      legendLink,
-      help,
-      index,
-      percent: value / sum,
-      offset:
-        data
-          .slice(0, index)
-          .mapBy('value')
-          .reduce(sumAggregate, 0) / sum,
-    }));
+    return data.map(
+      ({ label, value, className, layers, legendLink, help }, index) => ({
+        label,
+        value,
+        className,
+        layers,
+        legendLink,
+        help,
+        index,
+        percent: value / sum,
+        offset:
+          data.slice(0, index).mapBy('value').reduce(sumAggregate, 0) / sum,
+      })
+    );
   }
 
   didInsertElement() {
+    super.didInsertElement(...arguments);
     const svg = this.element.querySelector('svg');
     const chart = d3.select(svg);
     const maskId = `dist-mask-${guidFor(this)}`;
@@ -74,6 +74,7 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
   }
 
   didUpdateAttrs() {
+    super.didUpdateAttrs();
     this.renderChart();
   }
 

@@ -5,8 +5,8 @@
 // A complete polyfill exists if this becomes problematic:
 // https://github.com/inexorabletash/text-encoding
 export default window.TextDecoder ||
-  function() {
-    this.decode = function(value) {
+  function () {
+    this.decode = function (value) {
       let text = '';
       for (let i = 3; i < value.byteLength; i++) {
         text += String.fromCharCode(value[i]);
