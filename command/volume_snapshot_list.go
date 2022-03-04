@@ -22,8 +22,9 @@ func (c *VolumeSnapshotListCommand) Help() string {
 	helpText := `
 Usage: nomad volume snapshot list [-plugin plugin_id]
 
-  Display a list of CSI volume snapshots along with their
-  source volume ID as known to the external storage provider.
+  Display a list of CSI volume snapshots for a plugin along
+  with their source volume ID as known to the external
+  storage provider.
 
   When ACLs are enabled, this command requires a token with the
   'csi-list-volumes' capability for the plugin's namespace.
@@ -34,8 +35,8 @@ General Options:
 
 List Options:
 
-  -plugin: Display only snapshots managed by a particular plugin. By default
-   this command will query all plugins for their snapshots.
+  -plugin: Display only snapshots managed by a particular plugin. This
+    parameter is required.
 
   -secret
     Secrets to pass to the plugin to list snapshots. Accepts multiple
@@ -45,7 +46,7 @@ List Options:
 }
 
 func (c *VolumeSnapshotListCommand) Synopsis() string {
-	return "Display a list of volume snapshots"
+	return "Display a list of volume snapshots for plugin"
 }
 
 func (c *VolumeSnapshotListCommand) AutocompleteFlags() complete.Flags {
@@ -100,15 +101,17 @@ func (c *VolumeSnapshotListCommand) Run(args []string) int {
 		return 1
 	}
 
-	// filter by plugin if a plugin ID was passed
-	if pluginID != "" {
-		plugs, _, err := client.CSIPlugins().List(&api.QueryOptions{Prefix: pluginID})
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying CSI plugins: %s", err))
-			return 1
-		}
-
-		if len(plugs) > 1 {
+	plugs, _, err := client.CSIPlugins().List(&api.QueryOptions{Prefix: pluginID})
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying CSI plugins: %s", err))
+		return 1
+	}
+	if len(plugs) == 0 {
+		c.Ui.Error(fmt.Sprintf("No plugins(s) with prefix or ID %q found", pluginID))
+		return 1
+	}
+	if len(plugs) > 1 {
+		if pluginID != plugs[0].ID {
 			out, err := c.csiFormatPlugins(plugs)
 			if err != nil {
 				c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
@@ -117,13 +120,8 @@ func (c *VolumeSnapshotListCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf("Prefix matched multiple plugins\n\n%s", out))
 			return 1
 		}
-		if len(plugs) == 0 {
-			c.Ui.Error(fmt.Sprintf("No plugins(s) with prefix or ID %q found", pluginID))
-			return 1
-		}
-
-		pluginID = plugs[0].ID
 	}
+	pluginID = plugs[0].ID
 
 	secrets := api.CSISecrets{}
 	for _, kv := range secretsArgs {
