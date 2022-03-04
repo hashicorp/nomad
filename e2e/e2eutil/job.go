@@ -211,7 +211,8 @@ func StopJob(jobID string, args ...string) error {
 		// expect that the monitor fails and exits with status code one because
 		// technically the deployment has failed. Overwrite the error to be
 		// nil.
-		if strings.Contains(err.Error(), "Description = Cancelled because job is stopped") {
+		if strings.Contains(err.Error(), "Description = Cancelled because job is stopped") ||
+			strings.Contains(err.Error(), "Description = Failed due to progress deadline") {
 			err = nil
 		}
 	}
