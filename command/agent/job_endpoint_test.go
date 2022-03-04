@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -2242,6 +2243,114 @@ func TestJobs_NamespaceForJob(t *testing.T) {
 			require.Equal(t, tc.expected,
 				namespaceForJob(tc.job.Namespace, tc.queryNamespace, tc.apiNamespace),
 			)
+		})
+	}
+}
+
+func TestHTTPServer_jobServiceRegistrations(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		testFn func(srv *TestAgent)
+		name   string
+	}{
+		{
+			testFn: func(s *TestAgent) {
+
+				// Grab the state, so we can manipulate it and test against it.
+				testState := s.Agent.server.State()
+
+				// Generate a job and upsert this.
+				job := mock.Job()
+				require.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, 10, job))
+
+				// Generate a service registration, assigned the jobID to the
+				// mocked jobID, and upsert this.
+				serviceReg := mock.ServiceRegistrations()[0]
+				serviceReg.JobID = job.ID
+				require.NoError(t, testState.UpsertServiceRegistrations(
+					structs.MsgTypeTestSetup, 20, []*structs.ServiceRegistration{serviceReg}))
+
+				// Build the HTTP request.
+				path := fmt.Sprintf("/v1/job/%s/services", job.ID)
+				req, err := http.NewRequest(http.MethodGet, path, nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := s.Server.JobSpecificRequest(respW, req)
+				require.NoError(t, err)
+
+				// Check the response.
+				require.Equal(t, "20", respW.Header().Get("X-Nomad-Index"))
+				require.ElementsMatch(t, []*structs.ServiceRegistration{serviceReg},
+					obj.([]*structs.ServiceRegistration))
+			},
+			name: "job has registrations",
+		},
+		{
+			testFn: func(s *TestAgent) {
+
+				// Grab the state, so we can manipulate it and test against it.
+				testState := s.Agent.server.State()
+
+				// Generate a job and upsert this.
+				job := mock.Job()
+				require.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, 10, job))
+
+				// Build the HTTP request.
+				path := fmt.Sprintf("/v1/job/%s/services", job.ID)
+				req, err := http.NewRequest(http.MethodGet, path, nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := s.Server.JobSpecificRequest(respW, req)
+				require.NoError(t, err)
+
+				// Check the response.
+				require.Equal(t, "1", respW.Header().Get("X-Nomad-Index"))
+				require.ElementsMatch(t, []*structs.ServiceRegistration{}, obj.([]*structs.ServiceRegistration))
+			},
+			name: "job without registrations",
+		},
+		{
+			testFn: func(s *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodGet, "/v1/job/example/services", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := s.Server.JobSpecificRequest(respW, req)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "job not found")
+				require.Nil(t, obj)
+			},
+			name: "job not found",
+		},
+		{
+			testFn: func(s *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodHead, "/v1/job/example/services", nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := s.Server.JobSpecificRequest(respW, req)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "Invalid method")
+				require.Nil(t, obj)
+			},
+			name: "incorrect method",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpTest(t, nil, tc.testFn)
 		})
 	}
 }
