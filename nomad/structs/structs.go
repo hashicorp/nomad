@@ -1253,7 +1253,6 @@ type GenericResponse struct {
 // VersionResponse is used for the Status.Version response
 type VersionResponse struct {
 	Build    string
-	Revision string
 	Versions map[string]int
 	QueryMeta
 }
