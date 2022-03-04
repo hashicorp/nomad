@@ -5052,6 +5052,10 @@ func TestAllocation_DisconnectTimeout(t *testing.T) {
 			desc:          "has max_client_disconnect",
 			maxDisconnect: helper.TimeToPtr(30 * time.Second),
 		},
+		{
+			desc:          "zero max_client_disconnect",
+			maxDisconnect: helper.TimeToPtr(0 * time.Second),
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -5257,7 +5261,7 @@ func TestJobConfig_Validate_MaxClientDisconnect(t *testing.T) {
 
 	err := job.Validate()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "max_client_disconnect must be a positive value")
+	require.Contains(t, err.Error(), "max_client_disconnect cannot be negative")
 
 	// Modify the job with a valid max_client_disconnect value
 	timeout = 1 * time.Minute

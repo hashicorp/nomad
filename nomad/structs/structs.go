@@ -6213,7 +6213,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	}
 
 	if tg.MaxClientDisconnect != nil && *tg.MaxClientDisconnect < 0 {
-		mErr.Errors = append(mErr.Errors, errors.New("max_client_disconnect must be a positive value"))
+		mErr.Errors = append(mErr.Errors, errors.New("max_client_disconnect cannot be negative"))
 	}
 
 	for idx, constr := range tg.Constraints {
