@@ -164,6 +164,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.EnableDebug = agentConfig.EnableDebug
 
 	conf.Build = agentConfig.Version.VersionNumber()
+	conf.Revision = agentConfig.Version.Revision
 	if agentConfig.Region != "" {
 		conf.Region = agentConfig.Region
 	}

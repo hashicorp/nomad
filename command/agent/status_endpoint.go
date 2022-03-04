@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/version"
 )
 
 func (s *HTTPServer) StatusLeaderRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -42,12 +41,4 @@ func (s *HTTPServer) StatusPeersRequest(resp http.ResponseWriter, req *http.Requ
 		peers = make([]string, 0)
 	}
 	return peers, nil
-}
-
-func (s *HTTPServer) StatusVersionRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
-		return nil, CodedError(405, ErrInvalidMethod)
-	}
-
-	return version.GetVersion().FullVersionNumber(true), nil
 }

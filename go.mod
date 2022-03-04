@@ -66,7 +66,7 @@ require (
 	github.com/hashicorp/go-sockaddr v1.0.2
 	github.com/hashicorp/go-syslog v1.0.0
 	github.com/hashicorp/go-uuid v1.0.2
-	github.com/hashicorp/go-version v1.3.0
+	github.com/hashicorp/go-version v1.4.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 	github.com/hashicorp/hcl/v2 v2.9.2-0.20210407182552-eb14f8319bdc
@@ -177,6 +177,7 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v0.6.2 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-ole/go-ole v1.2.4 // indirect
+	github.com/go-test/deep v1.0.3
 	github.com/godbus/dbus/v5 v5.0.3 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect

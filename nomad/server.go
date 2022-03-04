@@ -1383,6 +1383,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.Tags["vsn"] = fmt.Sprintf("%d", structs.ApiMajorVersion)
 	conf.Tags["mvn"] = fmt.Sprintf("%d", structs.ApiMinorVersion)
 	conf.Tags["build"] = s.config.Build
+	conf.Tags["revision"] = s.config.Revision
 	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
 	conf.Tags["id"] = s.config.NodeID
 	conf.Tags["rpc_addr"] = s.clientRpcAdvertise.(*net.TCPAddr).IP.String()         // Address that clients will use to RPC to servers

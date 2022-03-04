@@ -26,6 +26,7 @@ func (s *Status) Version(args *structs.GenericRequest, reply *structs.VersionRes
 
 	conf := s.srv.config
 	reply.Build = conf.Build
+	reply.Revision = conf.Revision
 	reply.Versions = map[string]int{
 		structs.ProtocolVersion: int(conf.ProtocolVersion),
 		structs.APIMajorVersion: structs.ApiMajorVersion,
