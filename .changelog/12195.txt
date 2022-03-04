@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where creating snapshots required a plugin ID instead of falling back to the volume's plugin ID
+```

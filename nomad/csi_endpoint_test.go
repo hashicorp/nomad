@@ -1199,7 +1199,6 @@ func TestCSIVolumeEndpoint_CreateSnapshot(t *testing.T) {
 			SourceVolumeID: "test-volume0",
 			Secrets:        structs.CSISecrets{"mysecret": "secretvalue"},
 			Parameters:     map[string]string{"myparam": "paramvalue"},
-			PluginID:       "minnie",
 		}},
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
