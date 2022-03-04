@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 
@@ -41,6 +42,12 @@ List Options:
   -secret
     Secrets to pass to the plugin to list snapshots. Accepts multiple
     flags in the form -secret key=value
+
+  -per-page
+    How many results to show per page. Defaults to 30.
+
+  -page-token
+    Where to start pagination.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -75,12 +82,16 @@ func (c *VolumeSnapshotListCommand) Run(args []string) int {
 	var pluginID string
 	var verbose bool
 	var secretsArgs flaghelper.StringFlag
+	var perPage int
+	var pageToken string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&pluginID, "plugin", "", "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.Var(&secretsArgs, "secret", "secrets for snapshot, ex. -secret key=value")
+	flags.IntVar(&perPage, "per-page", 30, "")
+	flags.StringVar(&pageToken, "page-token", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
@@ -132,32 +143,33 @@ func (c *VolumeSnapshotListCommand) Run(args []string) int {
 	}
 
 	req := &api.CSISnapshotListRequest{
-		PluginID:     pluginID,
-		Secrets:      secrets,
-		QueryOptions: api.QueryOptions{PerPage: 30},
+		PluginID: pluginID,
+		Secrets:  secrets,
+		QueryOptions: api.QueryOptions{
+			PerPage:   int32(perPage),
+			NextToken: pageToken,
+			Params:    map[string]string{},
+		},
 	}
 
-	for {
-		resp, _, err := client.CSIVolumes().ListSnapshotsOpts(req)
-		if err != nil && !errors.Is(err, io.EOF) {
-			c.Ui.Error(fmt.Sprintf(
-				"Error querying CSI external snapshots for plugin %q: %s", pluginID, err))
-			return 1
-		}
-		if resp == nil || len(resp.Snapshots) == 0 {
-			// several plugins return EOF once you hit the end of the page,
-			// rather than an empty list
-			break
-		}
+	resp, _, err := client.CSIVolumes().ListSnapshotsOpts(req)
+	if err != nil && !errors.Is(err, io.EOF) {
+		c.Ui.Error(fmt.Sprintf(
+			"Error querying CSI external snapshots for plugin %q: %s", pluginID, err))
+		return 1
+	}
+	if resp == nil || len(resp.Snapshots) == 0 {
+		// several plugins return EOF once you hit the end of the page,
+		// rather than an empty list
+		return 0
+	}
 
-		c.Ui.Output(csiFormatSnapshots(resp.Snapshots, verbose))
-		req.NextToken = resp.NextToken
-		if req.NextToken == "" {
-			break
-		}
-		// we can't know the shape of arbitrarily-sized lists of snapshots,
-		// so break after each page
-		c.Ui.Output("...")
+	c.Ui.Output(csiFormatSnapshots(resp.Snapshots, verbose))
+
+	if resp.NextToken != "" {
+		c.Ui.Output(fmt.Sprintf(`
+Results have been paginated. To get the next page run:
+%s -page-token %s`, argsWithoutPageToken(os.Args), resp.NextToken))
 	}
 
 	return 0

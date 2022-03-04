@@ -36,6 +36,8 @@ Nomad.
   matching plugins will be displayed.
 - `-secret`: Secrets to pass to the plugin to list snapshots. Accepts
   multiple flags in the form `-secret key=value`
+- `-per-page`: How many results to show per page.
+- `-page-token`: Where to start pagination.
 
 When ACLs are enabled, this command requires a token with the
 `csi-list-volumes` capability for the plugin's namespace.
