@@ -1033,6 +1033,8 @@ func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
 			float32(tgSummary.Starting), labels)
 		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
 			float32(tgSummary.Lost), labels)
+		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "unknown"},
+			float32(tgSummary.Unknown), labels)
 	}
 }
 
