@@ -215,7 +215,17 @@ func waitForPluginStatusCompare(pluginID string, compare func(got string) (bool,
 // cleanup.
 func volumeRegister(volID, volFilePath, createOrRegister string) error {
 
-	cmd := exec.Command("nomad", "volume", createOrRegister, "-")
+	// a CSI RPC to create a volume can take a long time because we
+	// have to wait on the AWS API to provision a disk, but a register
+	// should not because it only has to check the API for compatibility
+	timeout := time.Second * 30
+	if createOrRegister == "create" {
+		timeout = time.Minute * 2
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "nomad", "volume", createOrRegister, "-")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("could not open stdin?: %w", err)

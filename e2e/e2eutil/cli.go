@@ -1,16 +1,20 @@
 package e2eutil
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // Command sends a command line argument to Nomad and returns the unbuffered
 // stdout as a string (or, if there's an error, the stderr)
 func Command(cmd string, args ...string) (string, error) {
-	bytes, err := exec.Command(cmd, args...).CombinedOutput()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	bytes, err := exec.CommandContext(ctx, cmd, args...).CombinedOutput()
 	out := string(bytes)
 	if err != nil {
 		return out, fmt.Errorf("command %v %v failed: %v\nOutput: %v", cmd, args, err, out)
