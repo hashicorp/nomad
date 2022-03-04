@@ -6,12 +6,6 @@ client {
   options {
     # Allow jobs to run as root
     "user.denylist" = ""
-
-    # Allow rawexec jobs
-    "driver.raw_exec.enable" = "1"
-
-    # Allow privileged docker jobs
-    "docker.privileged.enabled" = "true"
   }
 
   host_volume "shared_data" {
@@ -32,6 +26,22 @@ plugin "nomad-driver-ecs" {
     enabled = true
     cluster = "nomad-rtd-e2e"
     region  = "us-east-1"
+  }
+}
+
+plugin "raw_exec" {
+  config {
+    enabled = true
+  }
+}
+
+plugin "docker" {
+  config {
+    allow_privileged = true
+
+    volumes {
+      enabled = true
+    }
   }
 }
 
