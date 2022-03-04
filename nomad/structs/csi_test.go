@@ -624,7 +624,7 @@ func TestCSIVolume_Merge(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid topology requirement update",
+			name: "invalid topology requirement added",
 			v: &CSIVolume{
 				Topologies: []*CSITopology{
 					{Segments: map[string]string{"rack": "R1"}},
@@ -638,20 +638,15 @@ func TestCSIVolume_Merge(t *testing.T) {
 					},
 				},
 			},
-			expected: "volume topology requirement update was not compatible with existing topology",
+			expected: "volume topology request update was not compatible with existing topology",
 			expectFn: func(t *testing.T, v *CSIVolume) {
 				require.Len(t, v.Topologies, 1)
 				require.Equal(t, "R1", v.Topologies[0].Segments["rack"])
 			},
 		},
 		{
-			name: "invalid topology preference update",
+			name: "invalid topology preference removed",
 			v: &CSIVolume{
-				Topologies: []*CSITopology{
-					{Segments: map[string]string{"rack": "R1"}},
-				},
-			},
-			update: &CSIVolume{
 				Topologies: []*CSITopology{
 					{Segments: map[string]string{"rack": "R1"}},
 				},
@@ -662,7 +657,17 @@ func TestCSIVolume_Merge(t *testing.T) {
 					},
 				},
 			},
-			expected: "volume topology preference update was not compatible with existing topology",
+			update: &CSIVolume{
+				Topologies: []*CSITopology{
+					{Segments: map[string]string{"rack": "R1"}},
+				},
+				RequestedTopologies: &CSITopologyRequest{
+					Preferred: []*CSITopology{
+						{Segments: map[string]string{"rack": "R3"}},
+					},
+				},
+			},
+			expected: "volume topology request update was not compatible with existing topology",
 		},
 		{
 			name: "valid update",
@@ -677,6 +682,14 @@ func TestCSIVolume_Merge(t *testing.T) {
 					FSType:     "ext4",
 					MountFlags: []string{"noatime"},
 				},
+				RequestedTopologies: &CSITopologyRequest{
+					Required: []*CSITopology{
+						{Segments: map[string]string{"rack": "R1"}},
+					},
+					Preferred: []*CSITopology{
+						{Segments: map[string]string{"rack": "R2"}},
+					},
+				},
 			},
 			update: &CSIVolume{
 				Topologies: []*CSITopology{
@@ -690,7 +703,6 @@ func TestCSIVolume_Merge(t *testing.T) {
 				RequestedTopologies: &CSITopologyRequest{
 					Required: []*CSITopology{
 						{Segments: map[string]string{"rack": "R1"}},
-						{Segments: map[string]string{"rack": "R2"}},
 					},
 					Preferred: []*CSITopology{
 						{Segments: map[string]string{"rack": "R2"}},

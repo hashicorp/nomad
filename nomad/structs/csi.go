@@ -795,32 +795,9 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 	// topologies are immutable, so topology request changes must be
 	// compatible with the existing topology, if any
 	if len(v.Topologies) > 0 {
-		if other.RequestedTopologies == nil {
-			if v.RequestedTopologies != nil {
-				errs = multierror.Append(errs, errors.New(
-					"volume topology request update was not compatible with existing topology"))
-			}
-		} else {
-			var err error
-			for _, otherTopo := range other.RequestedTopologies.Required {
-				if !otherTopo.MatchFound(v.Topologies) {
-					err = errors.New(
-						"volume topology requirement update was not compatible with existing topology")
-					break
-				}
-			}
-			for _, otherTopo := range other.RequestedTopologies.Preferred {
-				if !otherTopo.MatchFound(v.Topologies) {
-					err = errors.New(
-						"volume topology preference update was not compatible with existing topology")
-					break
-				}
-			}
-			if err != nil {
-				errs = multierror.Append(errs, err)
-			} else {
-				v.RequestedTopologies = other.RequestedTopologies
-			}
+		if !v.RequestedTopologies.Equal(other.RequestedTopologies) {
+			errs = multierror.Append(errs, errors.New(
+				"volume topology request update was not compatible with existing topology"))
 		}
 	}
 

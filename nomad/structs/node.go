@@ -83,6 +83,29 @@ type CSITopologyRequest struct {
 	Preferred []*CSITopology
 }
 
+func (tr *CSITopologyRequest) Equal(o *CSITopologyRequest) bool {
+	if tr == nil && o == nil {
+		return true
+	}
+	if tr == nil && o != nil || tr != nil && o == nil {
+		return false
+	}
+	if len(tr.Required) != len(o.Required) || len(tr.Preferred) != len(o.Preferred) {
+		return false
+	}
+	for i, topo := range tr.Required {
+		if !topo.Equal(o.Required[i]) {
+			return false
+		}
+	}
+	for i, topo := range tr.Preferred {
+		if !topo.Equal(o.Preferred[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 // CSINodeInfo is the fingerprinted data from a CSI Plugin that is specific to
 // the Node API.
 type CSINodeInfo struct {
