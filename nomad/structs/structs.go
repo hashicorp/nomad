@@ -6227,6 +6227,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 		ntg.StopAfterClientDisconnect = tg.StopAfterClientDisconnect
 	}
 
+	if tg.MaxClientDisconnect != nil {
+		ntg.MaxClientDisconnect = tg.MaxClientDisconnect
+	}
+
 	return ntg
 }
 
@@ -6288,6 +6292,10 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	if len(tg.Tasks) == 0 {
 		// could be a lone consul gateway inserted by the connect mutator
 		mErr.Errors = append(mErr.Errors, errors.New("Missing tasks for task group"))
+	}
+
+	if tg.MaxClientDisconnect != nil && *tg.MaxClientDisconnect < 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("max_client_disconnect cannot be negative"))
 	}
 
 	for idx, constr := range tg.Constraints {

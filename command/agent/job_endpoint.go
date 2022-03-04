@@ -1012,6 +1012,10 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		tg.StopAfterClientDisconnect = taskGroup.StopAfterClientDisconnect
 	}
 
+	if taskGroup.MaxClientDisconnect != nil {
+		tg.MaxClientDisconnect = taskGroup.MaxClientDisconnect
+	}
+
 	if taskGroup.ReschedulePolicy != nil {
 		tg.ReschedulePolicy = &structs.ReschedulePolicy{
 			Attempts:      *taskGroup.ReschedulePolicy.Attempts,
