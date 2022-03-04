@@ -84,14 +84,12 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 
 	if len(ns.Meta) > 0 {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Metadata[reset]"))
-		var keys []string
+		var meta []string
 		for k := range ns.Meta {
-			keys = append(keys, k)
+			meta = append(meta, fmt.Sprintf("%s|%s", k, ns.Meta[k]))
 		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			c.Ui.Output(fmt.Sprintf("%s:\x1f%s", k, ns.Meta[k]))
-		}
+		sort.Strings(meta)
+		c.Ui.Output(formatKV(meta))
 	}
 
 	if ns.Quota != "" {
