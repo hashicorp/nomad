@@ -41,14 +41,12 @@ type StructsTokenizerOptions struct {
 // formats of pagination tokens based on common fields found in the structs
 // package.
 type StructsTokenizer struct {
-	iter Iterator
 	opts StructsTokenizerOptions
 }
 
 // NewStructsTokenizer returns a new StructsTokenizer.
 func NewStructsTokenizer(it Iterator, opts StructsTokenizerOptions) StructsTokenizer {
 	return StructsTokenizer{
-		iter: it,
 		opts: opts,
 	}
 }
