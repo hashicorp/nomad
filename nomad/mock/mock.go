@@ -2246,8 +2246,10 @@ func AllocNetworkStatus() *structs.AllocNetworkStatus {
 }
 
 func Namespace() *structs.Namespace {
+	uuid := uuid.Generate()
 	ns := &structs.Namespace{
-		Name:        fmt.Sprintf("team-%s", uuid.Generate()),
+		Name:        fmt.Sprintf("team-%s", uuid),
+		Meta:        map[string]string{"team": uuid},
 		Description: "test namespace",
 		CreateIndex: 100,
 		ModifyIndex: 200,
