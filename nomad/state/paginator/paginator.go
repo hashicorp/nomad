@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Iterator is the interface that must be implemented to suply data to the
+// Iterator is the interface that must be implemented to supply data to the
 // Paginator.
 type Iterator interface {
 	// Next returns the next element to be considered for pagination.
