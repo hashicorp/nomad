@@ -342,7 +342,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 		{Segments: map[string]string{"rack": "R1"}},
 		{Segments: map[string]string{"rack": "R2"}},
 	}
-	err := state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	err := state.UpsertCSIVolume(index, []*structs.CSIVolume{vol})
 	require.NoError(t, err)
 	index++
 
@@ -353,14 +353,14 @@ func TestCSIVolumeChecker(t *testing.T) {
 	vol2.Namespace = structs.DefaultNamespace
 	vol2.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	vol2.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
-	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol2})
+	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{vol2})
 	require.NoError(t, err)
 	index++
 
 	vid3 := "volume-id[0]"
 	vol3 := vol.Copy()
 	vol3.ID = vid3
-	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol3})
+	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{vol3})
 	require.NoError(t, err)
 	index++
 

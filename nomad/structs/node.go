@@ -62,12 +62,48 @@ func (t *CSITopology) Equal(o *CSITopology) bool {
 	return helper.CompareMapStringString(t.Segments, o.Segments)
 }
 
+func (t *CSITopology) MatchFound(o []*CSITopology) bool {
+	if t == nil || o == nil || len(o) == 0 {
+		return false
+	}
+
+	for _, other := range o {
+		if t.Equal(other) {
+			return true
+		}
+	}
+	return false
+}
+
 // CSITopologyRequest are the topologies submitted as options to the
 // storage provider at the time the volume was created. The storage
 // provider will return a single topology.
 type CSITopologyRequest struct {
 	Required  []*CSITopology
 	Preferred []*CSITopology
+}
+
+func (tr *CSITopologyRequest) Equal(o *CSITopologyRequest) bool {
+	if tr == nil && o == nil {
+		return true
+	}
+	if tr == nil && o != nil || tr != nil && o == nil {
+		return false
+	}
+	if len(tr.Required) != len(o.Required) || len(tr.Preferred) != len(o.Preferred) {
+		return false
+	}
+	for i, topo := range tr.Required {
+		if !topo.Equal(o.Required[i]) {
+			return false
+		}
+	}
+	for i, topo := range tr.Preferred {
+		if !topo.Equal(o.Preferred[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // CSINodeInfo is the fingerprinted data from a CSI Plugin that is specific to

@@ -240,6 +240,7 @@ func (v *CSIVolume) pluginValidateVolume(req *structs.CSIVolumeRegisterRequest, 
 
 	vol.Provider = plugin.Provider
 	vol.ProviderVersion = plugin.Version
+
 	return plugin, nil
 }
 
@@ -265,7 +266,15 @@ func (v *CSIVolume) controllerValidateVolume(req *structs.CSIVolumeRegisterReque
 	return v.srv.RPC(method, cReq, cResp)
 }
 
-// Register registers a new volume
+// Register registers a new volume or updates an existing volume. Note
+// that most user-defined CSIVolume fields are immutable once the
+// volume has been created.
+//
+// If the user needs to change fields because they've misconfigured
+// the registration of the external volume, we expect that claims
+// won't work either, and the user can deregister the volume and try
+// again with the right settings. This lets us be as strict with
+// validation here as the CreateVolume CSI RPC is expected to be.
 func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *structs.CSIVolumeRegisterResponse) error {
 	if done, err := v.srv.forward("CSIVolume.Register", args, args, reply); done {
 		return err
@@ -291,9 +300,48 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 	// We also validate that the plugin exists for each plugin, and validate the
 	// capabilities when the plugin has a controller.
 	for _, vol := range args.Volumes {
-		vol.Namespace = args.RequestNamespace()
+
+		snap, err := v.srv.State().Snapshot()
+		if err != nil {
+			return err
+		}
+		// TODO: allow volume spec file to set namespace
+		// https://github.com/hashicorp/nomad/issues/11196
+		if vol.Namespace == "" {
+			vol.Namespace = args.RequestNamespace()
+		}
 		if err = vol.Validate(); err != nil {
 			return err
+		}
+
+		ws := memdb.NewWatchSet()
+		existingVol, err := snap.CSIVolumeByID(ws, vol.Namespace, vol.ID)
+		if err != nil {
+			return err
+		}
+
+		// CSIVolume has many user-defined fields which are immutable
+		// once set, and many fields that are controlled by Nomad and
+		// are not user-settable. We merge onto a copy of the existing
+		// volume to allow a user to submit a volume spec for `volume
+		// create` and reuse it for updates in `volume register`
+		// without having to manually remove the fields unused by
+		// register (and similar use cases with API consumers such as
+		// Terraform).
+		if existingVol != nil {
+			existingVol = existingVol.Copy()
+			err = existingVol.Merge(vol)
+			if err != nil {
+				return err
+			}
+			*vol = *existingVol
+		} else if vol.Topologies == nil || len(vol.Topologies) == 0 {
+			// The topologies for the volume have already been set
+			// when it was created, so for newly register volumes
+			// we accept the user's description of that topology
+			if vol.RequestedTopologies != nil {
+				vol.Topologies = vol.RequestedTopologies.Required
+			}
 		}
 
 		plugin, err := v.pluginValidateVolume(args, vol)
@@ -302,14 +350,6 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		}
 		if err := v.controllerValidateVolume(args, vol, plugin); err != nil {
 			return err
-		}
-
-		// The topologies for the volume have already been set when it was
-		// created, so we accept the user's description of that topology
-		if vol.Topologies == nil || len(vol.Topologies) == 0 {
-			if vol.RequestedTopologies != nil {
-				vol.Topologies = vol.RequestedTopologies.Required
-			}
 		}
 	}
 

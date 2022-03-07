@@ -2143,8 +2143,8 @@ func (s *StateStore) JobSummaryByPrefix(ws memdb.WatchSet, namespace, id string)
 	return iter, nil
 }
 
-// CSIVolumeRegister adds a volume to the server store, failing if it already exists
-func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolume) error {
+// UpsertCSIVolume inserts a volume in the state store.
+func (s *StateStore) UpsertCSIVolume(index uint64, volumes []*structs.CSIVolume) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
@@ -2155,7 +2155,6 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 			return fmt.Errorf("volume %s is in nonexistent namespace %s", v.ID, v.Namespace)
 		}
 
-		// Check for volume existence
 		obj, err := txn.First("csi_volumes", "id", v.Namespace, v.ID)
 		if err != nil {
 			return fmt.Errorf("volume existence check error: %v", err)
@@ -2164,17 +2163,20 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 			// Allow some properties of a volume to be updated in place, but
 			// prevent accidentally overwriting important properties, or
 			// overwriting a volume in use
-			old, ok := obj.(*structs.CSIVolume)
-			if ok &&
-				old.InUse() ||
-				old.ExternalID != v.ExternalID ||
+			old := obj.(*structs.CSIVolume)
+			if old.ExternalID != v.ExternalID ||
 				old.PluginID != v.PluginID ||
 				old.Provider != v.Provider {
-				return fmt.Errorf("volume exists: %s", v.ID)
+				return fmt.Errorf("volume identity cannot be updated: %s", v.ID)
 			}
-		}
+			s.CSIVolumeDenormalize(nil, old.Copy())
+			if old.InUse() {
+				return fmt.Errorf("volume cannot be updated while in use")
+			}
 
-		if v.CreateIndex == 0 {
+			v.CreateIndex = old.CreateIndex
+			v.ModifyIndex = index
+		} else {
 			v.CreateIndex = index
 			v.ModifyIndex = index
 		}

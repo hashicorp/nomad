@@ -45,7 +45,7 @@ func TestCSIVolumeEndpoint_Get(t *testing.T) {
 			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		}},
 	}}
-	err := state.CSIVolumeRegister(999, vols)
+	err := state.UpsertCSIVolume(999, vols)
 	require.NoError(t, err)
 
 	// Create the register request
@@ -95,7 +95,7 @@ func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
 			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		}},
 	}}
-	err := state.CSIVolumeRegister(999, vols)
+	err := state.UpsertCSIVolume(999, vols)
 	require.NoError(t, err)
 
 	// Create the register request
@@ -145,7 +145,6 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	// Create the volume
 	vols := []*structs.CSIVolume{{
 		ID:             id0,
-		Namespace:      "notTheNamespace",
 		PluginID:       "minnie",
 		AccessMode:     structs.CSIVolumeAccessModeSingleNodeReader, // legacy field ignored
 		AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,  // legacy field ignored
@@ -286,7 +285,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 		}},
 	}}
 	index++
-	err = state.CSIVolumeRegister(index, vols)
+	err = state.UpsertCSIVolume(index, vols)
 	require.NoError(t, err)
 
 	// Verify that the volume exists, and is healthy
@@ -425,7 +424,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		}},
 	}}
-	err = state.CSIVolumeRegister(1003, vols)
+	err = state.UpsertCSIVolume(1003, vols)
 	require.NoError(t, err)
 
 	alloc := mock.BatchAlloc()
@@ -535,7 +534,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			}
 
 			index++
-			err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+			err = state.UpsertCSIVolume(index, []*structs.CSIVolume{vol})
 			require.NoError(t, err)
 
 			// setup: create an alloc that will claim our volume
@@ -642,7 +641,7 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		}},
 	}}
-	err = state.CSIVolumeRegister(1002, vols)
+	err = state.UpsertCSIVolume(1002, vols)
 	require.NoError(t, err)
 
 	// Query everything in the namespace
@@ -721,7 +720,7 @@ func TestCSIVolumeEndpoint_ListAllNamespaces(t *testing.T) {
 		}},
 	},
 	}
-	err = state.CSIVolumeRegister(1001, vols)
+	err = state.UpsertCSIVolume(1001, vols)
 	require.NoError(t, err)
 
 	// Lookup volumes in all namespaces
@@ -972,7 +971,7 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 		Secrets:   structs.CSISecrets{"mysecret": "secretvalue"},
 	}}
 	index++
-	err = state.CSIVolumeRegister(index, vols)
+	err = state.UpsertCSIVolume(index, vols)
 	require.NoError(t, err)
 
 	// Delete volumes
@@ -1191,7 +1190,7 @@ func TestCSIVolumeEndpoint_CreateSnapshot(t *testing.T) {
 		ExternalID:     "vol-12345",
 	}}
 	index++
-	require.NoError(t, state.CSIVolumeRegister(index, vols))
+	require.NoError(t, state.UpsertCSIVolume(index, vols))
 
 	// Create the snapshot request
 	req1 := &structs.CSISnapshotCreateRequest{
@@ -1665,7 +1664,7 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 			ControllerRequired: false,
 		},
 	}
-	err = state.CSIVolumeRegister(1002, vols)
+	err = state.UpsertCSIVolume(1002, vols)
 	require.NoError(t, err)
 
 	// has controller

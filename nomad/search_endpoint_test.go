@@ -728,7 +728,7 @@ func TestSearch_PrefixSearch_CSIVolume(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	id := uuid.Generate()
-	err := s.fsm.State().CSIVolumeRegister(1000, []*structs.CSIVolume{{
+	err := s.fsm.State().UpsertCSIVolume(1000, []*structs.CSIVolume{{
 		ID:        id,
 		Namespace: structs.DefaultNamespace,
 		PluginID:  "glade",
@@ -1348,7 +1348,7 @@ func TestSearch_FuzzySearch_CSIVolume(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	id := uuid.Generate()
-	err := s.fsm.State().CSIVolumeRegister(1000, []*structs.CSIVolume{{
+	err := s.fsm.State().UpsertCSIVolume(1000, []*structs.CSIVolume{{
 		ID:        id,
 		Namespace: structs.DefaultNamespace,
 		PluginID:  "glade",

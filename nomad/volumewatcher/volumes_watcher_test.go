@@ -32,7 +32,7 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 	vol := testVolume(plugin, alloc, node.ID)
 
 	index++
-	err := srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	err := srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
 	require.NoError(err)
 
 	claim := &structs.CSIVolumeClaim{
@@ -78,7 +78,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 	watcher.SetEnabled(true, srv.State(), "")
 
 	index++
-	err = srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	err = srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
 	require.NoError(err)
 
 	// we should get or start up a watcher when we get an update for
@@ -167,7 +167,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	// register a volume
 	vol := testVolume(plugin, alloc1, node.ID)
 	index++
-	err = srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	err = srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
 	require.NoError(err)
 
 	// assert we get a watcher; there are no claims so it should immediately stop
@@ -254,7 +254,7 @@ func TestVolumeWatch_RegisterDeregister(t *testing.T) {
 	// register a volume without claims
 	vol := mock.CSIVolume(plugin)
 	index++
-	err := srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	err := srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
 	require.NoError(err)
 
 	// watcher should be started but immediately stopped

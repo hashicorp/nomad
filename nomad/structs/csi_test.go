@@ -569,6 +569,175 @@ func TestCSIVolume_Validate(t *testing.T) {
 
 }
 
+func TestCSIVolume_Merge(t *testing.T) {
+
+	testCases := []struct {
+		name     string
+		v        *CSIVolume
+		update   *CSIVolume
+		expected string
+		expectFn func(t *testing.T, v *CSIVolume)
+	}{
+		{
+			name: "invalid capacity update",
+			v:    &CSIVolume{Capacity: 100},
+			update: &CSIVolume{
+				RequestedCapacityMax: 300, RequestedCapacityMin: 200},
+			expected: "volume requested capacity update was not compatible with existing capacity",
+			expectFn: func(t *testing.T, v *CSIVolume) {
+				require.NotEqual(t, 300, v.RequestedCapacityMax)
+				require.NotEqual(t, 200, v.RequestedCapacityMin)
+			},
+		},
+		{
+			name: "invalid capability update",
+			v: &CSIVolume{
+				AccessMode:     CSIVolumeAccessModeMultiNodeReader,
+				AttachmentMode: CSIVolumeAttachmentModeFilesystem,
+			},
+			update: &CSIVolume{
+				RequestedCapabilities: []*CSIVolumeCapability{
+					{
+						AccessMode:     CSIVolumeAccessModeSingleNodeWriter,
+						AttachmentMode: CSIVolumeAttachmentModeFilesystem,
+					},
+				},
+			},
+			expected: "volume requested capabilities update was not compatible with existing capability in use",
+		},
+		{
+			name: "invalid topology update - removed",
+			v: &CSIVolume{
+				RequestedTopologies: &CSITopologyRequest{
+					Required: []*CSITopology{
+						{Segments: map[string]string{"rack": "R1"}},
+					},
+				},
+				Topologies: []*CSITopology{
+					{Segments: map[string]string{"rack": "R1"}},
+				},
+			},
+			update:   &CSIVolume{},
+			expected: "volume topology request update was not compatible with existing topology",
+			expectFn: func(t *testing.T, v *CSIVolume) {
+				require.Len(t, v.Topologies, 1)
+			},
+		},
+		{
+			name: "invalid topology requirement added",
+			v: &CSIVolume{
+				Topologies: []*CSITopology{
+					{Segments: map[string]string{"rack": "R1"}},
+				},
+			},
+			update: &CSIVolume{
+				RequestedTopologies: &CSITopologyRequest{
+					Required: []*CSITopology{
+						{Segments: map[string]string{"rack": "R1"}},
+						{Segments: map[string]string{"rack": "R3"}},
+					},
+				},
+			},
+			expected: "volume topology request update was not compatible with existing topology",
+			expectFn: func(t *testing.T, v *CSIVolume) {
+				require.Len(t, v.Topologies, 1)
+				require.Equal(t, "R1", v.Topologies[0].Segments["rack"])
+			},
+		},
+		{
+			name: "invalid topology preference removed",
+			v: &CSIVolume{
+				Topologies: []*CSITopology{
+					{Segments: map[string]string{"rack": "R1"}},
+				},
+				RequestedTopologies: &CSITopologyRequest{
+					Preferred: []*CSITopology{
+						{Segments: map[string]string{"rack": "R1"}},
+						{Segments: map[string]string{"rack": "R3"}},
+					},
+				},
+			},
+			update: &CSIVolume{
+				Topologies: []*CSITopology{
+					{Segments: map[string]string{"rack": "R1"}},
+				},
+				RequestedTopologies: &CSITopologyRequest{
+					Preferred: []*CSITopology{
+						{Segments: map[string]string{"rack": "R3"}},
+					},
+				},
+			},
+			expected: "volume topology request update was not compatible with existing topology",
+		},
+		{
+			name: "valid update",
+			v: &CSIVolume{
+				Topologies: []*CSITopology{
+					{Segments: map[string]string{"rack": "R1"}},
+					{Segments: map[string]string{"rack": "R2"}},
+				},
+				AccessMode:     CSIVolumeAccessModeMultiNodeReader,
+				AttachmentMode: CSIVolumeAttachmentModeFilesystem,
+				MountOptions: &CSIMountOptions{
+					FSType:     "ext4",
+					MountFlags: []string{"noatime"},
+				},
+				RequestedTopologies: &CSITopologyRequest{
+					Required: []*CSITopology{
+						{Segments: map[string]string{"rack": "R1"}},
+					},
+					Preferred: []*CSITopology{
+						{Segments: map[string]string{"rack": "R2"}},
+					},
+				},
+			},
+			update: &CSIVolume{
+				Topologies: []*CSITopology{
+					{Segments: map[string]string{"rack": "R1"}},
+					{Segments: map[string]string{"rack": "R2"}},
+				},
+				MountOptions: &CSIMountOptions{
+					FSType:     "ext4",
+					MountFlags: []string{"noatime"},
+				},
+				RequestedTopologies: &CSITopologyRequest{
+					Required: []*CSITopology{
+						{Segments: map[string]string{"rack": "R1"}},
+					},
+					Preferred: []*CSITopology{
+						{Segments: map[string]string{"rack": "R2"}},
+					},
+				},
+				RequestedCapabilities: []*CSIVolumeCapability{
+					{
+						AccessMode:     CSIVolumeAccessModeMultiNodeReader,
+						AttachmentMode: CSIVolumeAttachmentModeFilesystem,
+					},
+					{
+						AccessMode:     CSIVolumeAccessModeMultiNodeReader,
+						AttachmentMode: CSIVolumeAttachmentModeFilesystem,
+					},
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		tc = tc
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.v.Merge(tc.update)
+			if tc.expected == "" {
+				require.NoError(t, err)
+			} else {
+				if tc.expectFn != nil {
+					tc.expectFn(t, tc.v)
+				}
+				require.Error(t, err, tc.expected)
+				require.Contains(t, err.Error(), tc.expected)
+			}
+		})
+	}
+}
+
 func TestCSIPluginJobs(t *testing.T) {
 	plug := NewCSIPlugin("foo", 1000)
 	controller := &Job{
