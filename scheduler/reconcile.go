@@ -78,6 +78,10 @@ type allocReconciler struct {
 	evalID       string
 	evalPriority int
 
+	// supportsDisconnectedClients indicates whether all servers meet the required
+	// minimum version to allow application of max_client_disconnect configuration.
+	supportsDisconnectedClients bool
+
 	// now is the time used when determining rescheduling eligibility
 	// defaults to time.Now, and overridden in unit tests
 	now time.Time
@@ -171,19 +175,20 @@ func (r *reconcileResults) Changes() int {
 func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch bool,
 	jobID string, job *structs.Job, deployment *structs.Deployment,
 	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node, evalID string,
-	evalPriority int) *allocReconciler {
+	evalPriority int, supportsDisconnectedClients bool) *allocReconciler {
 	return &allocReconciler{
-		logger:         logger.Named("reconciler"),
-		allocUpdateFn:  allocUpdateFn,
-		batch:          batch,
-		jobID:          jobID,
-		job:            job,
-		deployment:     deployment.Copy(),
-		existingAllocs: existingAllocs,
-		taintedNodes:   taintedNodes,
-		evalID:         evalID,
-		evalPriority:   evalPriority,
-		now:            time.Now(),
+		logger:                      logger.Named("reconciler"),
+		allocUpdateFn:               allocUpdateFn,
+		batch:                       batch,
+		jobID:                       jobID,
+		job:                         job,
+		deployment:                  deployment.Copy(),
+		existingAllocs:              existingAllocs,
+		taintedNodes:                taintedNodes,
+		evalID:                      evalID,
+		evalPriority:                evalPriority,
+		supportsDisconnectedClients: supportsDisconnectedClients,
+		now:                         time.Now(),
 		result: &reconcileResults{
 			attributeUpdates:     make(map[string]*structs.Allocation),
 			disconnectUpdates:    make(map[string]*structs.Allocation),
@@ -339,7 +344,7 @@ func (a *allocReconciler) handleStop(m allocMatrix) {
 // filterAndStopAll stops all allocations in an allocSet. This is useful in when
 // stopping an entire job or task group.
 func (a *allocReconciler) filterAndStopAll(set allocSet) uint64 {
-	untainted, migrate, lost, disconnecting, reconnecting := set.filterByTainted(a.taintedNodes)
+	untainted, migrate, lost, disconnecting, reconnecting := set.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients)
 	a.markStop(untainted, "", allocNotNeeded)
 	a.markStop(migrate, "", allocNotNeeded)
 	a.markStop(lost, structs.AllocClientStatusLost, allocLost)
@@ -401,7 +406,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	canaries, all := a.cancelUnneededCanaries(all, desiredChanges)
 
 	// Determine what set of allocations are on tainted nodes
-	untainted, migrate, lost, disconnecting, reconnecting := all.filterByTainted(a.taintedNodes)
+	untainted, migrate, lost, disconnecting, reconnecting := all.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients)
 
 	// Determine what set of terminal allocations need to be rescheduled
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, a.now, a.evalID, a.deployment)
@@ -604,7 +609,7 @@ func (a *allocReconciler) cancelUnneededCanaries(all allocSet, desiredChanges *s
 		}
 
 		canaries = all.fromKeys(canaryIDs)
-		untainted, migrate, lost, _, _ := canaries.filterByTainted(a.taintedNodes)
+		untainted, migrate, lost, _, _ := canaries.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients)
 		a.markStop(migrate, "", allocMigrating)
 		a.markStop(lost, structs.AllocClientStatusLost, allocLost)
 
