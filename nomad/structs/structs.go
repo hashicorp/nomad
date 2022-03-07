@@ -4963,6 +4963,9 @@ type Namespace struct {
 	// Capabilities is the set of capabilities allowed for this namespace
 	Capabilities *NamespaceCapabilities
 
+	// Meta is the set of metadata key/value pairs that attached to the namespace
+	Meta map[string]string
+
 	// Hash is the hash of the namespace which is used to efficiently replicate
 	// cross-regions.
 	Hash []byte
@@ -5016,6 +5019,18 @@ func (n *Namespace) SetHash() []byte {
 		}
 	}
 
+	// sort keys to ensure hash stability when meta is stored later
+	var keys []string
+	for k := range n.Meta {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		_, _ = hash.Write([]byte(k))
+		_, _ = hash.Write([]byte(n.Meta[k]))
+	}
+
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
 
@@ -5034,6 +5049,12 @@ func (n *Namespace) Copy() *Namespace {
 		c.EnabledTaskDrivers = helper.CopySliceString(n.Capabilities.EnabledTaskDrivers)
 		c.DisabledTaskDrivers = helper.CopySliceString(n.Capabilities.DisabledTaskDrivers)
 		nc.Capabilities = c
+	}
+	if n.Meta != nil {
+		nc.Meta = make(map[string]string, len(n.Meta))
+		for k, v := range n.Meta {
+			nc.Meta[k] = v
+		}
 	}
 	copy(nc.Hash, n.Hash)
 	return nc

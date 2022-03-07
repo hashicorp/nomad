@@ -71,6 +71,7 @@ type Namespace struct {
 	Description  string
 	Quota        string
 	Capabilities *NamespaceCapabilities `hcl:"capabilities,block"`
+	Meta         map[string]string
 	CreateIndex  uint64
 	ModifyIndex  uint64
 }
