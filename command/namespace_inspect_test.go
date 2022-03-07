@@ -1,6 +1,3 @@
-//go:build ent
-// +build ent
-
 package command
 
 import (

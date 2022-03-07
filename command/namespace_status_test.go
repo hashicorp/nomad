@@ -1,6 +1,3 @@
-//go:build ent
-// +build ent
-
 package command
 
 import (
@@ -76,6 +73,10 @@ func TestNamespaceStatusCommand_Good_Quota(t *testing.T) {
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
+
+	if !srv.Enterprise {
+		t.Skip("Skipping enterprise-only quota test")
+	}
 
 	ui := cli.NewMockUi()
 	cmd := &NamespaceStatusCommand{Meta: Meta{Ui: ui}}
