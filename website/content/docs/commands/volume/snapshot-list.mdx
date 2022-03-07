@@ -30,11 +30,10 @@ Nomad.
 ## Snapshot List Options
 
 - `-plugin`: Display only snapshots managed by a particular [CSI
-  plugin][csi_plugin]. By default the `snapshot list` command will query all
-  plugins for their snapshots. This flag accepts a plugin ID or prefix. If
-  there is an exact match based on the provided plugin, then that specific
-  plugin will be queried. Otherwise, a list of matching plugins will be
-  displayed.
+  plugin][csi_plugin]. This flag is required and accepts a plugin ID
+  or prefix. If there is an exact match based on the provided plugin,
+  then that specific plugin will be queried. Otherwise, a list of
+  matching plugins will be displayed.
 - `-secret`: Secrets to pass to the plugin to list snapshots. Accepts
   multiple flags in the form `-secret key=value`
 
@@ -54,7 +53,7 @@ snap-67890   vol-fedcba   50GiB  2021-01-04T15:45:00Z  true
 
 List volume snapshots with two secret key/value pairs:
 ```shell-session
-$ nomad volume snapshot list -secret key1=value1 -secret key2=val2
+$ nomad volume snapshot list -plugin aws-ebs0 -secret key1=value1 -secret key2=val2
 Snapshot ID  External ID  Size   Creation Time         Ready?
 snap-12345   vol-abcdef   50GiB  2021-01-03T12:15:02Z  true
 ```
