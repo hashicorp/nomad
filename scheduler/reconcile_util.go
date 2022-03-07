@@ -215,7 +215,7 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 // 3. Those that exist on lost nodes
 // 4. Those that are on nodes that are disconnected, but have not had their ClientState set to unknown
 // 5. Those that have had their ClientState set to unknown, but their node has reconnected.
-func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untainted, migrate, lost, disconnecting, reconnecting allocSet) {
+func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, supportsDisconnectedClients bool) (untainted, migrate, lost, disconnecting, reconnecting allocSet) {
 	untainted = make(map[string]*structs.Allocation)
 	migrate = make(map[string]*structs.Allocation)
 	lost = make(map[string]*structs.Allocation)
@@ -238,7 +238,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untain
 		taintedNode, ok := taintedNodes[alloc.NodeID]
 		if !ok {
 			// Filter allocs on a node that is now re-connected to be resumed.
-			if alloc.ClientStatus == structs.AllocClientStatusUnknown {
+			if supportsDisconnectedClients && alloc.ClientStatus == structs.AllocClientStatusUnknown {
 				reconnecting[alloc.ID] = alloc
 				continue
 			}
@@ -253,7 +253,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untain
 			switch taintedNode.Status {
 			case structs.NodeStatusDisconnected:
 				// Filter running allocs on a node that is disconnected to be marked as unknown.
-				if alloc.ClientStatus == structs.AllocClientStatusRunning {
+				if supportsDisconnectedClients && alloc.ClientStatus == structs.AllocClientStatusRunning {
 					disconnecting[alloc.ID] = alloc
 					continue
 				}
@@ -264,7 +264,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node) (untain
 				}
 			case structs.NodeStatusReady:
 				// Filter unknown allocs on a node that is connected to reconnect.
-				if alloc.ClientStatus == structs.AllocClientStatusUnknown {
+				if supportsDisconnectedClients && alloc.ClientStatus == structs.AllocClientStatusUnknown {
 					reconnecting[alloc.ID] = alloc
 					continue
 				}

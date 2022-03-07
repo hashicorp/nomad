@@ -11,6 +11,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -578,6 +579,13 @@ func (w *Worker) invokeScheduler(snap *state.StateSnapshot, eval *structs.Evalua
 		return fmt.Errorf("failed to process evaluation: %v", err)
 	}
 	return nil
+}
+
+// ServersMeetMinimumVersion allows implementations of the Scheduler interface in
+// other packages to perform server version checks without direct references to
+// the Nomad server.
+func (w *Worker) ServersMeetMinimumVersion(minVersion *version.Version, checkFailedServers bool) bool {
+	return ServersMeetMinimumVersion(w.srv.Members(), minVersion, checkFailedServers)
 }
 
 // SubmitPlan is used to submit a plan for consideration. This allows
