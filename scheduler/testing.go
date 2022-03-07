@@ -20,6 +20,10 @@ type RejectPlan struct {
 	Harness *Harness
 }
 
+func (r *RejectPlan) ServersMeetMinimumVersion(minVersion *version.Version, checkFailedServers bool) bool {
+	return r.Harness.serversMeetMinimumVersion
+}
+
 func (r *RejectPlan) SubmitPlan(*structs.Plan) (*structs.PlanResult, State, error) {
 	result := new(structs.PlanResult)
 	result.RefreshIndex = r.Harness.NextIndex()
