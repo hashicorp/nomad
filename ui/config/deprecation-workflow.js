@@ -17,7 +17,7 @@ self.deprecationWorkflow.config = {
       matchId: 'ember-glimmer.link-to.positional-arguments',
     },
     {
-      handler: 'throw',
+      handler: 'silence',
       matchId: 'implicit-injections',
     },
   ],
