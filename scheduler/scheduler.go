@@ -6,6 +6,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -132,4 +133,9 @@ type Planner interface {
 	// evaluation must exist in a blocked state prior to this being called such
 	// that on leader changes, the evaluation will be reblocked properly.
 	ReblockEval(*structs.Evaluation) error
+
+	// ServersMeetMinimumVersion returns whether the Nomad servers are at least on the
+	// given Nomad version. The checkFailedServers parameter specifies whether version
+	// for the failed servers should be verified.
+	ServersMeetMinimumVersion(minVersion *version.Version, checkFailedServers bool) bool
 }

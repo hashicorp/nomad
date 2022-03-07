@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -55,16 +56,18 @@ type Harness struct {
 	nextIndex     uint64
 	nextIndexLock sync.Mutex
 
-	optimizePlan bool
+	optimizePlan              bool
+	serversMeetMinimumVersion bool
 }
 
 // NewHarness is used to make a new testing harness
 func NewHarness(t testing.TB) *Harness {
 	state := state.TestStateStore(t)
 	h := &Harness{
-		t:         t,
-		State:     state,
-		nextIndex: 1,
+		t:                         t,
+		State:                     state,
+		nextIndex:                 1,
+		serversMeetMinimumVersion: true,
 	}
 	return h
 }
@@ -241,6 +244,10 @@ func (h *Harness) ReblockEval(eval *structs.Evaluation) error {
 
 	h.ReblockEvals = append(h.ReblockEvals, eval)
 	return nil
+}
+
+func (h *Harness) ServersMeetMinimumVersion(_ *version.Version, _ bool) bool {
+	return h.serversMeetMinimumVersion
 }
 
 // NextIndex returns the next index
