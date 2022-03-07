@@ -14,6 +14,7 @@ import classic from 'ember-classic-decorator';
 export default class ApplicationController extends Controller {
   @service config;
   @service system;
+  @service token;
 
   queryParams = [
     {
