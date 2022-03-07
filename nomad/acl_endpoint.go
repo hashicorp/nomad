@@ -654,6 +654,7 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 	}
 
 	// Setup the blocking query
+	sort := state.SortOption(args.Reverse)
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
@@ -674,7 +675,7 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 					WithID: true,
 				}
 			} else {
-				iter, err = state.ACLTokens(ws, args.Reverse)
+				iter, err = state.ACLTokens(ws, sort)
 				opts = paginator.StructsTokenizerOptions{
 					WithCreateIndex: true,
 					WithID:          true,

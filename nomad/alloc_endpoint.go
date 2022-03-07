@@ -60,6 +60,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	}
 
 	// Setup the blocking query
+	sort := state.SortOption(args.Reverse)
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
@@ -84,13 +85,13 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 						WithID: true,
 					}
 				} else if namespace != structs.AllNamespacesSentinel {
-					iter, err = state.AllocsByNamespaceOrdered(ws, namespace, args.Reverse)
+					iter, err = state.AllocsByNamespaceOrdered(ws, namespace, sort)
 					opts = paginator.StructsTokenizerOptions{
 						WithCreateIndex: true,
 						WithID:          true,
 					}
 				} else {
-					iter, err = state.Allocs(ws, args.Reverse)
+					iter, err = state.Allocs(ws, sort)
 					opts = paginator.StructsTokenizerOptions{
 						WithCreateIndex: true,
 						WithID:          true,

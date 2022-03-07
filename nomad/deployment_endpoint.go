@@ -403,6 +403,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 	}
 
 	// Setup the blocking query
+	sort := state.SortOption(args.Reverse)
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
@@ -418,13 +419,13 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 					WithID: true,
 				}
 			} else if namespace != structs.AllNamespacesSentinel {
-				iter, err = store.DeploymentsByNamespaceOrdered(ws, namespace, args.Reverse)
+				iter, err = store.DeploymentsByNamespaceOrdered(ws, namespace, sort)
 				opts = paginator.StructsTokenizerOptions{
 					WithCreateIndex: true,
 					WithID:          true,
 				}
 			} else {
-				iter, err = store.Deployments(ws, args.Reverse)
+				iter, err = store.Deployments(ws, sort)
 				opts = paginator.StructsTokenizerOptions{
 					WithCreateIndex: true,
 					WithID:          true,

@@ -408,6 +408,7 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 	}
 
 	// Setup the blocking query
+	sort := state.SortOption(args.Reverse)
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
@@ -423,13 +424,13 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 					WithID: true,
 				}
 			} else if namespace != structs.AllNamespacesSentinel {
-				iter, err = store.EvalsByNamespaceOrdered(ws, namespace, args.Reverse)
+				iter, err = store.EvalsByNamespaceOrdered(ws, namespace, sort)
 				opts = paginator.StructsTokenizerOptions{
 					WithCreateIndex: true,
 					WithID:          true,
 				}
 			} else {
-				iter, err = store.Evals(ws, args.Reverse)
+				iter, err = store.Evals(ws, sort)
 				opts = paginator.StructsTokenizerOptions{
 					WithCreateIndex: true,
 					WithID:          true,
