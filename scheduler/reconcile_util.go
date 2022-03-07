@@ -219,11 +219,8 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 	untainted = make(map[string]*structs.Allocation)
 	migrate = make(map[string]*structs.Allocation)
 	lost = make(map[string]*structs.Allocation)
-
-	if supportsDisconnectedClients {
-		disconnecting = make(map[string]*structs.Allocation)
-		reconnecting = make(map[string]*structs.Allocation)
-	}
+	disconnecting = make(map[string]*structs.Allocation)
+	reconnecting = make(map[string]*structs.Allocation)
 
 	for _, alloc := range a {
 		// Terminal allocs are always untainted as they should never be migrated
