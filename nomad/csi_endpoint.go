@@ -135,7 +135,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			} else if prefix != "" {
 				iter, err = snap.CSIVolumesByIDPrefix(ws, ns, prefix, sort)
 			} else if ns != structs.AllNamespacesSentinel {
-				iter, err = snap.CSIVolumesByNamespace(ws, ns, prefix)
+				iter, err = snap.CSIVolumesByNamespace(ws, ns, prefix, sort)
 			} else {
 				iter, err = snap.CSIVolumes(ws)
 			}

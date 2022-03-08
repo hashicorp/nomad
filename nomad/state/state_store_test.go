@@ -2710,7 +2710,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Error(t, err, fmt.Sprintf("volume exists: %s", v0.ID))
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.CSIVolumesByNamespace(ws, ns, "")
+	iter, err := state.CSIVolumesByNamespace(ws, ns, "", SortDefault)
 	require.NoError(t, err)
 
 	slurp := func(iter memdb.ResultIterator) (vs []*structs.CSIVolume) {
@@ -2826,7 +2826,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Equal(t, 0, len(vs))
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByNamespace(ws, ns, "")
+	iter, err = state.CSIVolumesByNamespace(ws, ns, "", SortDefault)
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
@@ -2836,6 +2836,10 @@ func TestStateStore_CSIVolumeList(t *testing.T) {
 	state := testStateStore(t)
 	index := uint64(1000)
 	ns := structs.DefaultNamespace
+	otherNS := "other"
+
+	err := state.UpsertNamespaces(999, []*structs.Namespace{{Name: otherNS}})
+	require.NoError(t, err)
 
 	slurp := func(iter memdb.ResultIterator) (vs []*structs.CSIVolume) {
 		for {
@@ -2870,7 +2874,12 @@ func TestStateStore_CSIVolumeList(t *testing.T) {
 	v3.Namespace = ns
 	index++
 
-	err := state.CSIVolumeRegister(index, []*structs.CSIVolume{v0, v1, v2, v3})
+	v4 := structs.NewCSIVolume("yyz", index)
+	v4.PluginID = "pluto"
+	v4.Namespace = otherNS
+	index++
+
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v0, v1, v2, v3, v4})
 	require.NoError(t, err)
 
 	cases := []struct {
@@ -2919,6 +2928,18 @@ func TestStateStore_CSIVolumeList(t *testing.T) {
 			namespace: "*",
 			expected:  []string{"baz", "bar"},
 		},
+		{
+			name:      "namespace default order",
+			sort:      SortDefault,
+			namespace: "default",
+			expected:  []string{"bar", "baz", "foo", "zzz"},
+		},
+		{
+			name:      "namespace reverse order",
+			sort:      SortReverse,
+			namespace: "default",
+			expected:  []string{"zzz", "foo", "baz", "bar"},
+		},
 	}
 
 	for _, tc := range cases {
@@ -2938,6 +2959,8 @@ func TestStateStore_CSIVolumeList(t *testing.T) {
 				iter, err = state.CSIVolumesByPluginID(ws, ns, "", "minnie", tc.sort)
 			case tc.prefix != "":
 				iter, err = state.CSIVolumesByIDPrefix(ws, ns, tc.prefix, tc.sort)
+			case ns != structs.AllNamespacesSentinel:
+				iter, err = state.CSIVolumesByNamespace(ws, ns, tc.prefix, tc.sort)
 			}
 			require.NoError(t, err)
 

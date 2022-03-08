@@ -2420,10 +2420,18 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, prefix, nodeID string
 }
 
 // CSIVolumesByNamespace looks up the entire csi_volumes table
-func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace, prefix string) (memdb.ResultIterator, error) {
+func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace, prefix string, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, prefix)
+	var iter memdb.ResultIterator
+	var err error
+
+	switch sort {
+	case SortReverse:
+		iter, err = txn.GetReverse("csi_volumes", "id_prefix", namespace, prefix)
+	default:
+		iter, err = txn.Get("csi_volumes", "id_prefix", namespace, prefix)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %v", err)
 	}
