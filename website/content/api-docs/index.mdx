@@ -557,17 +557,18 @@ using the `per_page` query parameter with a positive integer value.
 If more data is available past the page requested, the response will contain an
 HTTP header named `X-Nomad-Nexttoken` with the value of the next item to be
 retrieved. This value can then be set as a query parameter called `next_token`
-in follow-up request to retrieve the next page.
+in a follow-up request to retrieve the next page.
 
 When the last page is reached, the `X-Nomad-Nexttoken` HTTP header will not
-be present in the response, indicating that there is no more data to request.
+be present in the response, indicating that there is nothing more to return.
 
 ## Ordering
 
-Results are often returned by sorted by their internal key order. Some
-list endpoints allow returning the data sorted by their Raft `CreateIndex`,
-which roughly corelates to their creation order. The order may be reversed
-using the `reverse` query parameter.
+List results are usually returned in ascending order by their internal key,
+such as their `ID`. Some endpoints may return data sorted by their
+`CreateIndex` value, which roughly corelates to their creation order. The
+result order may be reversed using the `reverse=true` query parameter when
+supported by the endpoint.
 
 ## Blocking Queries
 
