@@ -36,6 +36,8 @@ export default class EvaluationsController extends Controller {
     'pageSize',
     'status',
     'qpNamespace',
+    'type',
+    'searchTerm',
   ];
   @tracked currentEval = null;
 
@@ -141,12 +143,22 @@ export default class EvaluationsController extends Controller {
     return namespaces;
   }
 
+  get optionsType() {
+    return [
+      { key: null, label: 'All' },
+      { key: 'client', label: 'Client' },
+      { key: 'no client', label: 'No Client' },
+    ];
+  }
+
   @tracked pageSize = this.userSettings.pageSize;
   @tracked nextToken = null;
   @tracked previousTokens = [];
   @tracked status = null;
   @tracked triggeredBy = null;
   @tracked qpNamespace = ALL_NAMESPACE_WILDCARD;
+  @tracked type = null;
+  @tracked searchTerm = null;
 
   @action
   onChange(newPageSize) {
@@ -185,6 +197,13 @@ export default class EvaluationsController extends Controller {
     this[qp] = selection;
   }
 
+  @action
+  toggle() {
+    this._resetTokens();
+    this.shouldOnlyDisplayClientEvals = !this.shouldOnlyDisplayClientEvals;
+  }
+
+  @action
   _resetTokens() {
     this.nextToken = null;
     this.previousTokens = [];

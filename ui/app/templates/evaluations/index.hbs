@@ -3,6 +3,14 @@
 <section class="section">
   <div class="table-container">
     <div class="toolbar">
+      <div class="toolbar-item">
+        <SearchBox
+          data-test-evaluations-search
+          @searchTerm={{mut this.searchTerm}}
+          @onChange={{action this._resetTokens}}
+          @placeholder="Search evaluations..."
+        />
+      </div>
       <div class="toolbar-item is-right-aligned">
         <SingleSelectDropdown
           data-test-evaluation-status-facet
@@ -24,6 +32,13 @@
           @options={{this.optionsNamespaces}}
           @selection={{this.qpNamespace}}
           @onSelect={{action this.setQueryParam "qpNamespace"}}
+        />
+        <SingleSelectDropdown
+          data-test-evaluation-type-facet
+          @label="Type"
+          @options={{this.optionsType}}
+          @selection={{this.type}}
+          @onSelect={{action this.setQueryParam "type"}}
         />
       </div>
     </div>
