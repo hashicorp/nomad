@@ -87,6 +87,7 @@ jobs:
           go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
           go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
           go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
       
       - name: Build generate-all
         run: make generate-all
@@ -158,6 +159,7 @@ jobs:
           go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
           go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
           go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
       
       - name: Build generate-all
         run: make generate-all
@@ -264,6 +266,7 @@ jobs:
           go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
           go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
           go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
       
       - name: Build generate-all
         run: make generate-all
