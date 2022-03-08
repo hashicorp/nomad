@@ -7736,36 +7736,54 @@ func TestStateStore_ACLTokenByAccessorIDPrefix(t *testing.T) {
 	for _, prefix := range prefixes {
 		tk := mock.ACLToken()
 		tk.AccessorID = prefix + tk.AccessorID[4:]
-		if err := state.UpsertACLTokens(structs.MsgTypeTestSetup, baseIndex, []*structs.ACLToken{tk}); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		err := state.UpsertACLTokens(structs.MsgTypeTestSetup, baseIndex, []*structs.ACLToken{tk})
+		require.NoError(t, err)
 		baseIndex++
 	}
 
-	// Scan by prefix
-	iter, err := state.ACLTokenByAccessorIDPrefix(nil, "aa")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Ensure we see both tokens
-	count := 0
-	out := []string{}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
+	gatherTokens := func(iter memdb.ResultIterator) []*structs.ACLToken {
+		var tokens []*structs.ACLToken
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			tokens = append(tokens, raw.(*structs.ACLToken))
 		}
-		count++
-		out = append(out, raw.(*structs.ACLToken).AccessorID[:4])
+		return tokens
 	}
-	if count != 2 {
-		t.Fatalf("bad: %d %v", count, out)
-	}
-	sort.Strings(out)
 
-	expect := []string{"aaaa", "aabb"}
-	assert.Equal(t, expect, out)
+	t.Run("scan by prefix", func(t *testing.T) {
+		iter, err := state.ACLTokenByAccessorIDPrefix(nil, "aa", SortDefault)
+		require.NoError(t, err)
+
+		// Ensure we see both tokens
+		out := gatherTokens(iter)
+		require.Len(t, out, 2)
+
+		got := []string{}
+		for _, t := range out {
+			got = append(got, t.AccessorID[:4])
+		}
+		expect := []string{"aaaa", "aabb"}
+		require.Equal(t, expect, got)
+	})
+
+	t.Run("reverse order", func(t *testing.T) {
+		iter, err := state.ACLTokenByAccessorIDPrefix(nil, "aa", SortReverse)
+		require.NoError(t, err)
+
+		// Ensure we see both tokens
+		out := gatherTokens(iter)
+		require.Len(t, out, 2)
+
+		got := []string{}
+		for _, t := range out {
+			got = append(got, t.AccessorID[:4])
+		}
+		expect := []string{"aabb", "aaaa"}
+		require.Equal(t, expect, got)
+	})
 }
 
 func TestStateStore_ACLTokensByGlobal(t *testing.T) {
@@ -7773,32 +7791,51 @@ func TestStateStore_ACLTokensByGlobal(t *testing.T) {
 
 	state := testStateStore(t)
 	tk1 := mock.ACLToken()
+	tk1.AccessorID = "aaaa" + tk1.AccessorID[4:]
+
 	tk2 := mock.ACLToken()
+	tk2.AccessorID = "aabb" + tk2.AccessorID[4:]
+
 	tk3 := mock.ACLToken()
-	tk4 := mock.ACLToken()
+	tk3.AccessorID = "bbbb" + tk3.AccessorID[4:]
 	tk3.Global = true
 
-	if err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{tk1, tk2, tk3, tk4}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	tk4 := mock.ACLToken()
+	tk4.AccessorID = "ffff" + tk4.AccessorID[4:]
 
-	iter, err := state.ACLTokensByGlobal(nil, true)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{tk1, tk2, tk3, tk4})
+	require.NoError(t, err)
 
-	// Ensure we see the one global policies
-	count := 0
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
+	gatherTokens := func(iter memdb.ResultIterator) []*structs.ACLToken {
+		var tokens []*structs.ACLToken
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			tokens = append(tokens, raw.(*structs.ACLToken))
 		}
-		count++
+		return tokens
 	}
-	if count != 1 {
-		t.Fatalf("bad: %d", count)
-	}
+
+	t.Run("only global tokens", func(t *testing.T) {
+		iter, err := state.ACLTokensByGlobal(nil, true, SortDefault)
+		require.NoError(t, err)
+
+		got := gatherTokens(iter)
+		require.Len(t, got, 1)
+		require.Equal(t, tk3.AccessorID, got[0].AccessorID)
+	})
+
+	t.Run("reverse order", func(t *testing.T) {
+		iter, err := state.ACLTokensByGlobal(nil, false, SortReverse)
+		require.NoError(t, err)
+
+		expected := []*structs.ACLToken{tk4, tk2, tk1}
+		got := gatherTokens(iter)
+		require.Len(t, got, 3)
+		require.Equal(t, expected, got)
+	})
 }
 
 func TestStateStore_OneTimeTokens(t *testing.T) {

@@ -665,12 +665,12 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 			var opts paginator.StructsTokenizerOptions
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.ACLTokenByAccessorIDPrefix(ws, prefix)
+				iter, err = state.ACLTokenByAccessorIDPrefix(ws, prefix, sort)
 				opts = paginator.StructsTokenizerOptions{
 					WithID: true,
 				}
 			} else if args.GlobalOnly {
-				iter, err = state.ACLTokensByGlobal(ws, true)
+				iter, err = state.ACLTokensByGlobal(ws, true, sort)
 				opts = paginator.StructsTokenizerOptions{
 					WithID: true,
 				}

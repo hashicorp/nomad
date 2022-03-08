@@ -5543,13 +5543,22 @@ func (s *StateStore) ACLTokenBySecretID(ws memdb.WatchSet, secretID string) (*st
 }
 
 // ACLTokenByAccessorIDPrefix is used to lookup tokens by prefix
-func (s *StateStore) ACLTokenByAccessorIDPrefix(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+func (s *StateStore) ACLTokenByAccessorIDPrefix(ws memdb.WatchSet, prefix string, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get("acl_token", "id_prefix", prefix)
+	var iter memdb.ResultIterator
+	var err error
+
+	switch sort {
+	case SortReverse:
+		iter, err = txn.GetReverse("acl_token", "id_prefix", prefix)
+	default:
+		iter, err = txn.Get("acl_token", "id_prefix", prefix)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("acl token lookup failed: %v", err)
 	}
+
 	ws.Add(iter.WatchCh())
 	return iter, nil
 }
@@ -5576,14 +5585,23 @@ func (s *StateStore) ACLTokens(ws memdb.WatchSet, sort SortOption) (memdb.Result
 }
 
 // ACLTokensByGlobal returns an iterator over all the tokens filtered by global value
-func (s *StateStore) ACLTokensByGlobal(ws memdb.WatchSet, globalVal bool) (memdb.ResultIterator, error) {
+func (s *StateStore) ACLTokensByGlobal(ws memdb.WatchSet, globalVal bool, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
+	var iter memdb.ResultIterator
+	var err error
+
 	// Walk the entire table
-	iter, err := txn.Get("acl_token", "global", globalVal)
+	switch sort {
+	case SortReverse:
+		iter, err = txn.GetReverse("acl_token", "global", globalVal)
+	default:
+		iter, err = txn.Get("acl_token", "global", globalVal)
+	}
 	if err != nil {
 		return nil, err
 	}
+
 	ws.Add(iter.WatchCh())
 	return iter, nil
 }
