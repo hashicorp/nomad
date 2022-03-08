@@ -379,3 +379,12 @@ ui-screenshots:
 ui-screenshots-local:
 	@echo "==> Collecting UI screenshots (local)..."
 	@cd scripts/screenshots/src && SCREENSHOTS_DIR="../screenshots" node index.js
+
+version:
+ifneq (,$(wildcard version/version_ent.go))
+	@$(CURDIR)/scripts/version.sh version/version_ent.go
+else
+	@$(CURDIR)/scripts/version.sh version/version.go
+endif
+
+.PHONY: version
