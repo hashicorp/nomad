@@ -1936,14 +1936,22 @@ func (s *StateStore) JobByIDTxn(ws memdb.WatchSet, namespace, id string, txn Txn
 
 // JobsByIDPrefix is used to lookup a job by prefix. If querying all namespaces
 // the prefix will not be filtered by an index.
-func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
+func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string, sort SortOption) (memdb.ResultIterator, error) {
 	if namespace == structs.AllNamespacesSentinel {
-		return s.jobsByIDPrefixAllNamespaces(ws, id)
+		return s.jobsByIDPrefixAllNamespaces(ws, id, sort)
 	}
 
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get("jobs", "id_prefix", namespace, id)
+	var iter memdb.ResultIterator
+	var err error
+
+	switch sort {
+	case SortReverse:
+		iter, err = txn.GetReverse("jobs", "id_prefix", namespace, id)
+	default:
+		iter, err = txn.Get("jobs", "id_prefix", namespace, id)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("job lookup failed: %v", err)
 	}
@@ -1953,12 +1961,19 @@ func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string) (me
 	return iter, nil
 }
 
-func (s *StateStore) jobsByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+func (s *StateStore) jobsByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix string, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	// Walk the entire jobs table
-	iter, err := txn.Get("jobs", "id")
+	var iter memdb.ResultIterator
+	var err error
 
+	// Walk the entire jobs table
+	switch sort {
+	case SortReverse:
+		iter, err = txn.GetReverse("jobs", "id")
+	default:
+		iter, err = txn.Get("jobs", "id")
+	}
 	if err != nil {
 		return nil, err
 	}

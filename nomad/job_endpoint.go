@@ -1367,6 +1367,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 	}
 
 	// Setup the blocking query
+	sort := state.SortOption(args.Reverse)
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
@@ -1385,7 +1386,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 				return err
 			} else {
 				if prefix := args.QueryOptions.Prefix; prefix != "" {
-					iter, err = state.JobsByIDPrefix(ws, namespace, prefix)
+					iter, err = state.JobsByIDPrefix(ws, namespace, prefix, sort)
 				} else if namespace != structs.AllNamespacesSentinel {
 					iter, err = state.JobsByNamespace(ws, namespace)
 				} else {
@@ -1900,7 +1901,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	// Avoid creating new dispatched jobs for retry requests, by using the idempotency token
 	if args.IdempotencyToken != "" {
 		// Fetch all jobs that match the parameterized job ID prefix
-		iter, err := snap.JobsByIDPrefix(ws, parameterizedJob.Namespace, parameterizedJob.ID)
+		iter, err := snap.JobsByIDPrefix(ws, parameterizedJob.Namespace, parameterizedJob.ID, state.SortDefault)
 		if err != nil {
 			errMsg := "failed to retrieve jobs for idempotency check"
 			j.logger.Error(errMsg, "error", err)

@@ -13,6 +13,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -105,14 +106,14 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 
 // RunningChildren checks whether the passed job has any running children.
 func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
-	state, err := s.fsm.State().Snapshot()
+	store, err := s.fsm.State().Snapshot()
 	if err != nil {
 		return false, err
 	}
 
 	ws := memdb.NewWatchSet()
 	prefix := fmt.Sprintf("%s%s", job.ID, structs.PeriodicLaunchSuffix)
-	iter, err := state.JobsByIDPrefix(ws, job.Namespace, prefix)
+	iter, err := store.JobsByIDPrefix(ws, job.Namespace, prefix, state.SortDefault)
 	if err != nil {
 		return false, err
 	}
@@ -127,7 +128,7 @@ func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 		}
 
 		// Get the childs evaluations.
-		evals, err := state.EvalsByJob(ws, child.Namespace, child.ID)
+		evals, err := store.EvalsByJob(ws, child.Namespace, child.ID)
 		if err != nil {
 			return false, err
 		}
@@ -138,7 +139,7 @@ func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 				return true, nil
 			}
 
-			allocs, err := state.AllocsByEval(ws, eval.ID)
+			allocs, err := store.AllocsByEval(ws, eval.ID)
 			if err != nil {
 				return false, err
 			}

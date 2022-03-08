@@ -2090,19 +2090,11 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 	t.Parallel()
 
 	state := testStateStore(t)
-	job := mock.Job()
 
+	job := mock.Job()
 	job.ID = "redis"
 	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	ws := memdb.NewWatchSet()
-	iter, err := state.JobsByIDPrefix(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	gatherJobs := func(iter memdb.ResultIterator) []*structs.Job {
 		var jobs []*structs.Job
@@ -2116,58 +2108,61 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 		return jobs
 	}
 
-	jobs := gatherJobs(iter)
-	if len(jobs) != 1 {
-		t.Fatalf("err: %v", err)
-	}
+	t.Run("one job", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.JobsByIDPrefix(ws, job.Namespace, job.ID, SortDefault)
+		require.NoError(t, err)
 
-	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "re")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+		jobs := gatherJobs(iter)
+		require.Len(t, jobs, 1)
 
-	jobs = gatherJobs(iter)
-	if len(jobs) != 1 {
-		t.Fatalf("err: %v", err)
-	}
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+		iter, err = state.JobsByIDPrefix(ws, job.Namespace, "re", SortDefault)
+		require.NoError(t, err)
+
+		jobs = gatherJobs(iter)
+		require.Len(t, jobs, 1)
+		require.False(t, watchFired(ws))
+	})
 
 	job = mock.Job()
 	job.ID = "riak"
 	err = state.UpsertJob(structs.MsgTypeTestSetup, 1001, job)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
-	if !watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	t.Run("multiple jobs", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.JobsByIDPrefix(ws, job.Namespace, "r", SortDefault)
+		require.NoError(t, err)
 
-	ws = memdb.NewWatchSet()
-	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "r")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+		jobs := gatherJobs(iter)
+		require.Len(t, jobs, 2)
 
-	jobs = gatherJobs(iter)
-	if len(jobs) != 2 {
-		t.Fatalf("err: %v", err)
-	}
+		iter, err = state.JobsByIDPrefix(ws, job.Namespace, "ri", SortDefault)
+		require.NoError(t, err)
 
-	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "ri")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+		jobs = gatherJobs(iter)
+		require.Len(t, jobs, 1)
+		require.False(t, watchFired(ws))
+	})
 
-	jobs = gatherJobs(iter)
-	if len(jobs) != 1 {
-		t.Fatalf("err: %v", err)
-	}
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	t.Run("reverse order", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.JobsByIDPrefix(ws, job.Namespace, "r", SortReverse)
+		require.NoError(t, err)
+
+		expect := []string{
+			"riak",
+			"redis",
+		}
+
+		got := []string{}
+		for _, j := range gatherJobs(iter) {
+			got = append(got, j.ID)
+		}
+
+		require.Equal(t, expect, got)
+		require.False(t, watchFired(ws))
+	})
 }
 
 func TestStateStore_JobsByPeriodic(t *testing.T) {
