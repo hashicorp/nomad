@@ -1,5 +1,7 @@
 import ApplicationSerializer from './application';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class JobScale extends ApplicationSerializer {
   mapToArray = [{ beforeName: 'TaskGroups', afterName: 'TaskGroupScales' }];
 

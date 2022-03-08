@@ -11,5 +11,14 @@ self.deprecationWorkflow.config = {
     },
     { handler: 'throw', matchId: 'ember-cli-page-object.is-property' },
     { handler: 'throw', matchId: 'ember-views.partial' },
+    { handler: 'silence', matchId: 'ember-string.prototype-extensions' },
+    {
+      handler: 'silence',
+      matchId: 'ember-glimmer.link-to.positional-arguments',
+    },
+    {
+      handler: 'silence',
+      matchId: 'implicit-injections',
+    },
   ],
 };

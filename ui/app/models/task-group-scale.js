@@ -1,4 +1,4 @@
-import { computed } from '@ember/object';
+import { reads } from '@ember/object/computed';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { attr } from '@ember-data/model';
 import {
@@ -19,6 +19,6 @@ export default class TaskGroupScale extends Fragment {
 
   @fragmentArray('scale-event') events;
 
-  @computed.reads('events.length')
+  @reads('events.length')
   isVisible;
 }

@@ -174,14 +174,10 @@ module('Acceptance | clients list', function (hooks) {
 
     await ClientsList.sortBy('compositeStatus');
 
-    assert.deepEqual(ClientsList.nodes.mapBy('compositeStatus.text'), [
-      'ready',
-      'initializing',
-      'ineligible',
-      'draining',
-      'down',
-      'down',
-    ]);
+    assert.deepEqual(
+      ClientsList.nodes.map((n) => n.compositeStatus.text),
+      ['ready', 'initializing', 'ineligible', 'draining', 'down', 'down']
+    );
 
     // Simulate a client state change arriving through polling
     let readyClient = this.owner
@@ -192,14 +188,10 @@ module('Acceptance | clients list', function (hooks) {
 
     await settled();
 
-    assert.deepEqual(ClientsList.nodes.mapBy('compositeStatus.text'), [
-      'initializing',
-      'ineligible',
-      'ineligible',
-      'draining',
-      'down',
-      'down',
-    ]);
+    assert.deepEqual(
+      ClientsList.nodes.map((n) => n.compositeStatus.text),
+      ['initializing', 'ineligible', 'ineligible', 'draining', 'down', 'down']
+    );
   });
 
   test('each client should link to the client detail page', async function (assert) {

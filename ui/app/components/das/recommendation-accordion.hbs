@@ -1,18 +1,19 @@
 {{#if this.show}}
   <ListAccordion
     data-test-recommendation-accordion
-    class="recommendation-accordion boxed-section {{if this.closing "closing"}}"
+    class="recommendation-accordion boxed-section {{if this.closing 'closing'}}"
     @source={{array @summary}}
     @key="id"
     {{did-insert this.inserted}}
-  as |a|>
+    as |a|
+  >
     {{#if a.isOpen}}
       <div class="animation-container" style={{this.animationContainerStyle}}>
         <Das::RecommendationCard
           @summary={{@summary}}
           @proceed={{this.proceed}}
-          @onCollapse={{action (mut a.isOpen) false}}
-          @skipReset=true
+          @onCollapse={{a.close}}
+          @skipReset={{true}}
         />
       </div>
     {{else}}

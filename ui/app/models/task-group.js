@@ -41,7 +41,7 @@ export default class TaskGroup extends Fragment {
     return this.tasks.mapBy('driver').uniq();
   }
 
-  @computed('job.allocations.@each.taskGroup', 'name')
+  @computed('job.allocations.{@each.taskGroup,isFulfilled}', 'name')
   get allocations() {
     return maybe(this.get('job.allocations')).filterBy(
       'taskGroupName',

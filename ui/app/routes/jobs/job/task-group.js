@@ -8,8 +8,11 @@ import {
 } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyError from 'nomad-ui/utils/notify-error';
+import { inject as service } from '@ember/service';
 
 export default class TaskGroupRoute extends Route.extend(WithWatchers) {
+  @service store;
+
   model({ name }) {
     const job = this.modelFor('jobs.job');
 

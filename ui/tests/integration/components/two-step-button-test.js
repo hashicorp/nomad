@@ -185,7 +185,7 @@ module('Integration | Component | two step button', function (hooks) {
   });
 
   test('when disabled is true, the idle button is disabled', async function (assert) {
-    assert.expect(3);
+    assert.expect(2);
 
     const props = commonProperties();
     props.disabled = true;
@@ -193,12 +193,6 @@ module('Integration | Component | two step button', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(TwoStepButton.isDisabled, 'The idle button is disabled');
-
-    await TwoStepButton.idle();
-    assert.ok(
-      find('[data-test-idle-button]'),
-      'Still in the idle state after clicking'
-    );
 
     await componentA11yAudit(this.element, assert);
   });

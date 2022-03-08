@@ -1,6 +1,8 @@
 import { set, get } from '@ember/object';
 import ApplicationSerializer from './application';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class VolumeSerializer extends ApplicationSerializer {
   attrs = {
     externalId: 'ExternalID',

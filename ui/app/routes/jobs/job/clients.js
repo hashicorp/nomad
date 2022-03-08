@@ -10,6 +10,7 @@ import { collect } from '@ember/object/computed';
 
 export default class ClientsRoute extends Route.extend(WithWatchers) {
   @service can;
+  @service store;
 
   beforeModel() {
     if (this.can.cannot('read client')) {
