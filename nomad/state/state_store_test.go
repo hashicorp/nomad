@@ -5379,15 +5379,7 @@ func TestStateStore_AllocsByIDPrefix(t *testing.T) {
 	}
 
 	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, allocs)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	ws := memdb.NewWatchSet()
-	iter, err := state.AllocsByIDPrefix(ws, structs.DefaultNamespace, "aaaa")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	gatherAllocs := func(iter memdb.ResultIterator) []*structs.Allocation {
 		var allocs []*structs.Allocation
@@ -5401,32 +5393,61 @@ func TestStateStore_AllocsByIDPrefix(t *testing.T) {
 		return allocs
 	}
 
-	out := gatherAllocs(iter)
-	if len(out) != 5 {
-		t.Fatalf("bad: expected five allocations, got: %#v", out)
-	}
+	t.Run("allocs by prefix", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.AllocsByIDPrefix(ws, structs.DefaultNamespace, "aaaa", SortDefault)
+		require.NoError(t, err)
 
-	sort.Sort(AllocIDSort(allocs))
+		out := gatherAllocs(iter)
+		require.Len(t, out, 5, "expected five allocations")
 
-	for index, alloc := range out {
-		if ids[index] != alloc.ID {
-			t.Fatalf("bad: got unexpected id: %s", alloc.ID)
+		got := []string{}
+		for _, a := range out {
+			got = append(got, a.ID)
 		}
-	}
+		expected := []string{
+			"aaaaaaaa-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaaab-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaabb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaabbb-7bfb-395d-eb95-0685af2176b2",
+			"aaaabbbb-7bfb-395d-eb95-0685af2176b2",
+		}
+		require.Equal(t, expected, got)
+		require.False(t, watchFired(ws))
+	})
 
-	iter, err = state.AllocsByIDPrefix(ws, structs.DefaultNamespace, "b-a7bfb")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	t.Run("invalid prefix", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.AllocsByIDPrefix(ws, structs.DefaultNamespace, "b-a7bfb", SortDefault)
+		require.NoError(t, err)
 
-	out = gatherAllocs(iter)
-	if len(out) != 0 {
-		t.Fatalf("bad: unexpected zero allocations, got: %#v", out)
-	}
+		out := gatherAllocs(iter)
+		require.Len(t, out, 0)
+		require.False(t, watchFired(ws))
+	})
 
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	t.Run("reverse", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.AllocsByIDPrefix(ws, structs.DefaultNamespace, "aaaa", SortReverse)
+		require.NoError(t, err)
+
+		out := gatherAllocs(iter)
+		require.Len(t, out, 5, "expected five allocations")
+
+		got := []string{}
+		for _, a := range out {
+			got = append(got, a.ID)
+		}
+		expected := []string{
+			"aaaabbbb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaabbb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaabb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaaab-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaaaa-7bfb-395d-eb95-0685af2176b2",
+		}
+		require.Equal(t, expected, got)
+		require.False(t, watchFired(ws))
+	})
 }
 
 func TestStateStore_Allocs(t *testing.T) {

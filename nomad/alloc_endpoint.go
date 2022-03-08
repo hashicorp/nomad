@@ -80,7 +80,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 				return err
 			} else {
 				if prefix := args.QueryOptions.Prefix; prefix != "" {
-					iter, err = state.AllocsByIDPrefix(ws, namespace, prefix)
+					iter, err = state.AllocsByIDPrefix(ws, namespace, prefix, sort)
 					opts = paginator.StructsTokenizerOptions{
 						WithID: true,
 					}

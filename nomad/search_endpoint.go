@@ -362,7 +362,7 @@ func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix
 	case structs.Evals:
 		return store.EvalsByIDPrefix(ws, namespace, prefix, state.SortDefault)
 	case structs.Allocs:
-		return store.AllocsByIDPrefix(ws, namespace, prefix)
+		return store.AllocsByIDPrefix(ws, namespace, prefix, state.SortDefault)
 	case structs.Nodes:
 		return store.NodesByIDPrefix(ws, prefix)
 	case structs.Deployments:
