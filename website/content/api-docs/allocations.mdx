@@ -43,6 +43,11 @@ The table below shows this endpoint's support for
   a large number of allocations may set `task_states=false` to significantly
   reduce the size of the response.
 
+- `reverse` `(bool: false)` - Specifies the list of returned allocations should
+  be sorted in the reverse order. By default allocations are returned sorted in
+  chronological order (older evaluations first), or in lexicographical order by
+  their ID if the `prefix` query parameter is used.
+
 ### Sample Request
 
 ```shell-session
