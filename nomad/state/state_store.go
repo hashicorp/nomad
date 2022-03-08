@@ -2287,10 +2287,18 @@ func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*st
 
 // CSIVolumesByPluginID looks up csi_volumes by pluginID. Caller should
 // snapshot if it wants to also denormalize the plugins.
-func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, prefix, pluginID string) (memdb.ResultIterator, error) {
+func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, prefix, pluginID string, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get("csi_volumes", "plugin_id", pluginID)
+	var iter memdb.ResultIterator
+	var err error
+
+	switch sort {
+	case SortReverse:
+		iter, err = txn.GetReverse("csi_volumes", "plugin_id", pluginID)
+	default:
+		iter, err = txn.Get("csi_volumes", "plugin_id", pluginID)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %v", err)
 	}

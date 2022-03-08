@@ -113,6 +113,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 	defer metrics.MeasureSince([]string{"nomad", "volume", "list"}, time.Now())
 
 	ns := args.RequestNamespace()
+	sort := state.SortOption(args.Reverse)
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
@@ -130,7 +131,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			if args.NodeID != "" {
 				iter, err = snap.CSIVolumesByNodeID(ws, prefix, args.NodeID)
 			} else if args.PluginID != "" {
-				iter, err = snap.CSIVolumesByPluginID(ws, ns, prefix, args.PluginID)
+				iter, err = snap.CSIVolumesByPluginID(ws, ns, prefix, args.PluginID, sort)
 			} else if prefix != "" {
 				iter, err = snap.CSIVolumesByIDPrefix(ws, ns, prefix)
 			} else if ns != structs.AllNamespacesSentinel {
