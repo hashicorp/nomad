@@ -5,6 +5,7 @@ client {
 
   meta {
     "rack" = "r1"
+    "carbon_score" = "39392"
   }
 }
 
