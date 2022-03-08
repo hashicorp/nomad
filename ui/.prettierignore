@@ -11,14 +11,6 @@
 /node_modules/
 
 # misc
-<<<<<<<< HEAD:ui/.prettierignore
-========
-/.env*
-/.pnp*
-/.sass-cache
-/.eslintcache
-/connect.lock
->>>>>>>> b10c57ffd (v3.20.2...v3.24.0):ui/.gitignore
 /coverage/
 !.*
 .eslintcache
