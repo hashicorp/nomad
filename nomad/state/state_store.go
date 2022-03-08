@@ -617,11 +617,19 @@ func (s *StateStore) DeploymentsByNamespaceOrdered(ws memdb.WatchSet, namespace 
 	return it, nil
 }
 
-func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, namespace, deploymentID string) (memdb.ResultIterator, error) {
+func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, namespace, deploymentID string, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
+	var iter memdb.ResultIterator
+	var err error
+
 	// Walk the entire deployments table
-	iter, err := txn.Get("deployment", "id_prefix", deploymentID)
+	switch sort {
+	case SortReverse:
+		iter, err = txn.GetReverse("deployment", "id_prefix", deploymentID)
+	default:
+		iter, err = txn.Get("deployment", "id_prefix", deploymentID)
+	}
 	if err != nil {
 		return nil, err
 	}

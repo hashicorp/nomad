@@ -694,16 +694,7 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 
 	deploy.ID = "11111111-662e-d0ab-d1c9-3e434af7bdb4"
 	err := state.UpsertDeployment(1000, deploy)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Create a watchset so we can test that getters don't cause it to fire
-	ws := memdb.NewWatchSet()
-	iter, err := state.DeploymentsByIDPrefix(ws, deploy.Namespace, deploy.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	gatherDeploys := func(iter memdb.ResultIterator) []*structs.Deployment {
 		var deploys []*structs.Deployment
@@ -718,60 +709,67 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 		return deploys
 	}
 
-	deploys := gatherDeploys(iter)
-	if len(deploys) != 1 {
-		t.Fatalf("err: %v", err)
-	}
+	t.Run("first deployment", func(t *testing.T) {
+		// Create a watchset so we can test that getters don't cause it to fire
+		ws := memdb.NewWatchSet()
+		iter, err := state.DeploymentsByIDPrefix(ws, deploy.Namespace, deploy.ID, SortDefault)
+		require.NoError(t, err)
 
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+		deploys := gatherDeploys(iter)
+		require.Len(t, deploys, 1)
+		require.False(t, watchFired(ws))
+	})
 
-	iter, err = state.DeploymentsByIDPrefix(ws, deploy.Namespace, "11")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	t.Run("using prefix", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.DeploymentsByIDPrefix(ws, deploy.Namespace, "11", SortDefault)
+		require.NoError(t, err)
 
-	deploys = gatherDeploys(iter)
-	if len(deploys) != 1 {
-		t.Fatalf("err: %v", err)
-	}
+		deploys := gatherDeploys(iter)
+		require.Len(t, deploys, 1)
+		require.False(t, watchFired(ws))
+	})
 
 	deploy = mock.Deployment()
 	deploy.ID = "11222222-662e-d0ab-d1c9-3e434af7bdb4"
 	err = state.UpsertDeployment(1001, deploy)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
-	if !watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	t.Run("more than one", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.DeploymentsByIDPrefix(ws, deploy.Namespace, "11", SortDefault)
+		require.NoError(t, err)
 
-	ws = memdb.NewWatchSet()
-	iter, err = state.DeploymentsByIDPrefix(ws, deploy.Namespace, "11")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+		deploys := gatherDeploys(iter)
+		require.Len(t, deploys, 2)
+	})
 
-	deploys = gatherDeploys(iter)
-	if len(deploys) != 2 {
-		t.Fatalf("err: %v", err)
-	}
+	t.Run("filter to one", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.DeploymentsByIDPrefix(ws, deploy.Namespace, "1111", SortDefault)
+		require.NoError(t, err)
 
-	iter, err = state.DeploymentsByIDPrefix(ws, deploy.Namespace, "1111")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+		deploys := gatherDeploys(iter)
+		require.Len(t, deploys, 1)
+		require.False(t, watchFired(ws))
+	})
 
-	deploys = gatherDeploys(iter)
-	if len(deploys) != 1 {
-		t.Fatalf("err: %v", err)
-	}
+	t.Run("reverse order", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.DeploymentsByIDPrefix(ws, deploy.Namespace, "11", SortReverse)
+		require.NoError(t, err)
 
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+		got := []string{}
+		for _, d := range gatherDeploys(iter) {
+			got = append(got, d.ID)
+		}
+		expected := []string{
+			"11222222-662e-d0ab-d1c9-3e434af7bdb4",
+			"11111111-662e-d0ab-d1c9-3e434af7bdb4",
+		}
+		require.Equal(t, expected, got)
+		require.False(t, watchFired(ws))
+	})
 }
 
 func TestStateStore_UpsertNode_Node(t *testing.T) {
