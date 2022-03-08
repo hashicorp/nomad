@@ -3874,12 +3874,6 @@ func TestStateStore_EvalsByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	ws := memdb.NewWatchSet()
-	iter, err := state.EvalsByIDPrefix(ws, structs.DefaultNamespace, "aaaa")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
 	gatherEvals := func(iter memdb.ResultIterator) []*structs.Evaluation {
 		var evals []*structs.Evaluation
 		for {
@@ -3892,32 +3886,57 @@ func TestStateStore_EvalsByIDPrefix(t *testing.T) {
 		return evals
 	}
 
-	out := gatherEvals(iter)
-	if len(out) != 5 {
-		t.Fatalf("bad: expected five evaluations, got: %#v", out)
-	}
+	t.Run("list by prefix", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.EvalsByIDPrefix(ws, structs.DefaultNamespace, "aaaa", SortDefault)
+		require.NoError(t, err)
 
-	sort.Sort(EvalIDSort(evals))
-
-	for index, eval := range out {
-		if ids[index] != eval.ID {
-			t.Fatalf("bad: got unexpected id: %s", eval.ID)
+		got := []string{}
+		for _, e := range gatherEvals(iter) {
+			got = append(got, e.ID)
 		}
-	}
 
-	iter, err = state.EvalsByIDPrefix(ws, structs.DefaultNamespace, "b-a7bfb")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+		expected := []string{
+			"aaaaaaaa-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaaab-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaabb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaabbb-7bfb-395d-eb95-0685af2176b2",
+			"aaaabbbb-7bfb-395d-eb95-0685af2176b2",
+		}
+		require.Len(t, got, 5, "expected five evaluations")
+		require.Equal(t, expected, got) // Must be in this order.
+	})
 
-	out = gatherEvals(iter)
-	if len(out) != 0 {
-		t.Fatalf("bad: unexpected zero evaluations, got: %#v", out)
-	}
+	t.Run("invalid prefix", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.EvalsByIDPrefix(ws, structs.DefaultNamespace, "b-a7bfb", SortDefault)
+		require.NoError(t, err)
 
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+		out := gatherEvals(iter)
+		require.Len(t, out, 0, "expected zero evaluations")
+		require.False(t, watchFired(ws))
+	})
+
+	t.Run("reverse order", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.EvalsByIDPrefix(ws, structs.DefaultNamespace, "aaaa", SortReverse)
+		require.NoError(t, err)
+
+		got := []string{}
+		for _, e := range gatherEvals(iter) {
+			got = append(got, e.ID)
+		}
+
+		expected := []string{
+			"aaaabbbb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaabbb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaabb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaaab-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaaaa-7bfb-395d-eb95-0685af2176b2",
+		}
+		require.Len(t, got, 5, "expected five evaluations")
+		require.Equal(t, expected, got) // Must be in this order.
+	})
 }
 
 func TestStateStore_UpdateAllocsFromClient(t *testing.T) {

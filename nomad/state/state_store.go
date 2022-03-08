@@ -3171,11 +3171,19 @@ func (s *StateStore) EvalByID(ws memdb.WatchSet, id string) (*structs.Evaluation
 
 // EvalsByIDPrefix is used to lookup evaluations by prefix in a particular
 // namespace
-func (s *StateStore) EvalsByIDPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
+func (s *StateStore) EvalsByIDPrefix(ws memdb.WatchSet, namespace, id string, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
+	var iter memdb.ResultIterator
+	var err error
+
 	// Get an iterator over all evals by the id prefix
-	iter, err := txn.Get("evals", "id_prefix", id)
+	switch sort {
+	case SortReverse:
+		iter, err = txn.GetReverse("evals", "id_prefix", id)
+	default:
+		iter, err = txn.Get("evals", "id_prefix", id)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("eval lookup failed: %v", err)
 	}

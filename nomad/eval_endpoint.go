@@ -419,7 +419,7 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 			var opts paginator.StructsTokenizerOptions
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = store.EvalsByIDPrefix(ws, namespace, prefix)
+				iter, err = store.EvalsByIDPrefix(ws, namespace, prefix, sort)
 				opts = paginator.StructsTokenizerOptions{
 					WithID: true,
 				}
