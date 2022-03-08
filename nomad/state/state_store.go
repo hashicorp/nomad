@@ -2319,14 +2319,22 @@ func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, prefix, 
 // CSIVolumesByIDPrefix supports search. Caller should snapshot if it wants to
 // also denormalize the plugins. If using a prefix with the wildcard namespace,
 // the results will not use the index prefix.
-func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID string) (memdb.ResultIterator, error) {
+func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID string, sort SortOption) (memdb.ResultIterator, error) {
 	if namespace == structs.AllNamespacesSentinel {
-		return s.csiVolumeByIDPrefixAllNamespaces(ws, volumeID)
+		return s.csiVolumeByIDPrefixAllNamespaces(ws, volumeID, sort)
 	}
 
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, volumeID)
+	var iter memdb.ResultIterator
+	var err error
+
+	switch sort {
+	case SortReverse:
+		iter, err = txn.GetReverse("csi_volumes", "id_prefix", namespace, volumeID)
+	default:
+		iter, err = txn.Get("csi_volumes", "id_prefix", namespace, volumeID)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -2336,12 +2344,19 @@ func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID
 	return iter, nil
 }
 
-func (s *StateStore) csiVolumeByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+func (s *StateStore) csiVolumeByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix string, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	// Walk the entire csi_volumes table
-	iter, err := txn.Get("csi_volumes", "id")
+	var iter memdb.ResultIterator
+	var err error
 
+	// Walk the entire csi_volumes table
+	switch sort {
+	case SortReverse:
+		iter, err = txn.GetReverse("csi_volumes", "id")
+	default:
+		iter, err = txn.Get("csi_volumes", "id")
+	}
 	if err != nil {
 		return nil, err
 	}

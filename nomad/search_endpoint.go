@@ -372,7 +372,7 @@ func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix
 	case structs.ScalingPolicies:
 		return store.ScalingPoliciesByIDPrefix(ws, namespace, prefix)
 	case structs.Volumes:
-		return store.CSIVolumesByIDPrefix(ws, namespace, prefix)
+		return store.CSIVolumesByIDPrefix(ws, namespace, prefix, state.SortDefault)
 	case structs.Namespaces:
 		iter, err := store.NamespacesByNamePrefix(ws, prefix)
 		if err != nil {

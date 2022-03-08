@@ -2832,7 +2832,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Equal(t, 1, len(vs))
 }
 
-func TestStateStore_CSIVolumeByPluginID(t *testing.T) {
+func TestStateStore_CSIVolumeList(t *testing.T) {
 	state := testStateStore(t)
 	index := uint64(1000)
 	ns := structs.DefaultNamespace
@@ -2874,27 +2874,71 @@ func TestStateStore_CSIVolumeByPluginID(t *testing.T) {
 	require.NoError(t, err)
 
 	cases := []struct {
-		name     string
-		sort     SortOption
-		expected []string
+		name      string
+		sort      SortOption
+		pluginID  string
+		prefix    string
+		namespace string
+		expected  []string
 	}{
 		{
-			name:     "default oder",
+			name:     "plugin id default order",
 			sort:     SortDefault,
+			pluginID: "minnie",
 			expected: []string{"bar", "baz", "foo"},
 		},
 		{
-			name:     "reverse order",
+			name:     "plugin id reverse order",
 			sort:     SortReverse,
+			pluginID: "minnie",
 			expected: []string{"foo", "baz", "bar"},
+		},
+		{
+			name:     "prefix default order",
+			sort:     SortDefault,
+			prefix:   "ba",
+			expected: []string{"bar", "baz"},
+		},
+		{
+			name:     "prefix reverse order",
+			sort:     SortReverse,
+			prefix:   "ba",
+			expected: []string{"baz", "bar"},
+		},
+		{
+			name:      "prefix default order all ns",
+			sort:      SortDefault,
+			prefix:    "ba",
+			namespace: "*",
+			expected:  []string{"bar", "baz"},
+		},
+		{
+			name:      "prefix reverse order all ns",
+			sort:      SortReverse,
+			prefix:    "ba",
+			namespace: "*",
+			expected:  []string{"baz", "bar"},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ws := memdb.NewWatchSet()
-			iter, err := state.CSIVolumesByPluginID(
-				ws, structs.DefaultNamespace, "", "minnie", tc.sort)
+
+			ns := tc.namespace
+			if ns == "" {
+				ns = structs.DefaultNamespace
+			}
+
+			var iter memdb.ResultIterator
+			var err error
+
+			switch {
+			case tc.pluginID != "":
+				iter, err = state.CSIVolumesByPluginID(ws, ns, "", "minnie", tc.sort)
+			case tc.prefix != "":
+				iter, err = state.CSIVolumesByIDPrefix(ws, ns, tc.prefix, tc.sort)
+			}
 			require.NoError(t, err)
 
 			got := []string{}
