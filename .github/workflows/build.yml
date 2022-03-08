@@ -188,7 +188,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
-          CGO_ENABLED: 0
+          CGO_ENABLED: 1
         run: |
           mkdir -p dist out
           go build -o dist/ \
@@ -295,7 +295,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           GO_TAGS: "${{ env.GO_TAGS }} netcgo"
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
-          CGO_ENABLED: 0
+          CGO_ENABLED: 1
 
         run: |
           mkdir -p dist out
