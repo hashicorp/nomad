@@ -96,7 +96,7 @@
     "ember-moment": "^9.0.1",
     "ember-named-blocks-polyfill": "^0.2.4",
     "ember-overridable-computed": "^1.0.0",
-    "ember-page-title": "^6.2.2",
+    "ember-page-title": "^7.0.0",
     "ember-power-select": "^4.1.7",
     "ember-qunit": "^5.1.5",
     "ember-render-helpers": "^0.2.0",
