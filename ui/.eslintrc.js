@@ -46,6 +46,7 @@ module.exports = {
         './config/**/*.js',
         './lib/*/index.js',
         './server/**/*.js',
+        './tests/.eslintrc.js',
       ],
       parserOptions: {
         sourceType: 'script',
