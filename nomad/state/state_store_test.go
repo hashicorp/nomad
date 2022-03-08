@@ -2940,6 +2940,19 @@ func TestStateStore_CSIVolumeList(t *testing.T) {
 			namespace: "default",
 			expected:  []string{"zzz", "foo", "baz", "bar"},
 		},
+		// When looking for all volumes, results are sorted by namespace/ID.
+		{
+			name:      "all default order",
+			sort:      SortDefault,
+			namespace: "*",
+			expected:  []string{"bar", "baz", "foo", "zzz", "yyz"},
+		},
+		{
+			name:      "all reverse order",
+			sort:      SortReverse,
+			namespace: "*",
+			expected:  []string{"yyz", "zzz", "foo", "baz", "bar"},
+		},
 	}
 
 	for _, tc := range cases {
@@ -2961,6 +2974,8 @@ func TestStateStore_CSIVolumeList(t *testing.T) {
 				iter, err = state.CSIVolumesByIDPrefix(ws, ns, tc.prefix, tc.sort)
 			case ns != structs.AllNamespacesSentinel:
 				iter, err = state.CSIVolumesByNamespace(ws, ns, tc.prefix, tc.sort)
+			default:
+				iter, err = state.CSIVolumes(ws, tc.sort)
 			}
 			require.NoError(t, err)
 

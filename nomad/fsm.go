@@ -2488,7 +2488,7 @@ func (s *nomadSnapshot) persistCSIVolumes(sink raft.SnapshotSink,
 
 	// Get all the CSI volumes
 	ws := memdb.NewWatchSet()
-	volumes, err := s.snap.CSIVolumes(ws)
+	volumes, err := s.snap.CSIVolumes(ws, state.SortDefault)
 	if err != nil {
 		return err
 	}

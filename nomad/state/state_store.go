@@ -2249,11 +2249,19 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 
 // CSIVolumes returns the unfiltered list of all volumes. Caller should
 // snapshot if it wants to also denormalize the plugins.
-func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) CSIVolumes(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 	defer txn.Abort()
 
-	iter, err := txn.Get("csi_volumes", "id")
+	var iter memdb.ResultIterator
+	var err error
+
+	switch sort {
+	case SortReverse:
+		iter, err = txn.GetReverse("csi_volumes", "id")
+	default:
+		iter, err = txn.Get("csi_volumes", "id")
+	}
 	if err != nil {
 		return nil, fmt.Errorf("csi_volumes lookup failed: %v", err)
 	}

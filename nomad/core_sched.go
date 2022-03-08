@@ -751,7 +751,7 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 
 	ws := memdb.NewWatchSet()
 
-	iter, err := c.snap.CSIVolumes(ws)
+	iter, err := c.snap.CSIVolumes(ws, state.SortDefault)
 	if err != nil {
 		return err
 	}

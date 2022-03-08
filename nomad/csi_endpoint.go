@@ -129,6 +129,8 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			prefix := args.Prefix
 
 			if args.NodeID != "" {
+				// CSIVolumesByNodeID ranges over a map, so result order is
+				// not defined.
 				iter, err = snap.CSIVolumesByNodeID(ws, prefix, args.NodeID)
 			} else if args.PluginID != "" {
 				iter, err = snap.CSIVolumesByPluginID(ws, ns, prefix, args.PluginID, sort)
@@ -137,7 +139,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			} else if ns != structs.AllNamespacesSentinel {
 				iter, err = snap.CSIVolumesByNamespace(ws, ns, prefix, sort)
 			} else {
-				iter, err = snap.CSIVolumes(ws)
+				iter, err = snap.CSIVolumes(ws, sort)
 			}
 			if err != nil {
 				return err

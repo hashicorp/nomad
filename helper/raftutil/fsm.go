@@ -191,7 +191,7 @@ func StateAsMap(store *state.StateStore) map[string][]interface{} {
 		"ACLTokens":        toArray(store.ACLTokens(nil, state.SortDefault)),
 		"Allocs":           toArray(store.Allocs(nil, state.SortDefault)),
 		"CSIPlugins":       toArray(store.CSIPlugins(nil)),
-		"CSIVolumes":       toArray(store.CSIVolumes(nil)),
+		"CSIVolumes":       toArray(store.CSIVolumes(nil, state.SortDefault)),
 		"Deployments":      toArray(store.Deployments(nil, state.SortDefault)),
 		"Evals":            toArray(store.Evals(nil, state.SortDefault)),
 		"Indexes":          toArray(store.Indexes()),
