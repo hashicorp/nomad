@@ -1,0 +1,354 @@
+name: build
+
+on:  
+  push:
+    # Sequence of patterns matched against refs/heads
+    branches:
+      # Push events on main branch
+      # - main
+      # Push events to branches matching refs/heads/release/**
+      # - 'release/**'
+      - 'release/1.1.x'
+
+env:
+  PKG_NAME: "nomad"
+  GO_TAGS: "ui"
+
+jobs:
+  get-product-version:
+    runs-on: ubuntu-latest
+    outputs:
+      product-version: ${{ steps.get-product-version.outputs.product-version }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: get product version
+        id: get-product-version
+        run: |
+          make version
+          echo "::set-output name=product-version::$(make version)"
+  
+  generate-metadata-file:
+    needs: get-product-version
+    runs-on: ubuntu-latest
+    outputs:
+      filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
+    steps:
+      - name: 'Checkout directory'
+        uses: actions/checkout@v2
+      - name: Generate metadata file
+        id: generate-metadata-file
+        uses: hashicorp/actions-generate-metadata@v1
+        with:
+          version: ${{ needs.get-product-version.outputs.product-version }}
+          product: ${{ env.PKG_NAME }}
+          repositoryOwner: "hashicorp"
+      - uses: actions/upload-artifact@v2
+        with:
+          name: metadata.json
+          path: ${{ steps.generate-metadata-file.outputs.filepath }}
+  
+  set-ld-flags:
+    needs: get-product-version
+    runs-on: ubuntu-latest
+    outputs:
+      ldflags: ${{ steps.generate-ld-flags.outputs.ldflags }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: 'Generate ld flags'
+        id: generate-ld-flags
+        run: |
+          project="$(go list -m)"
+          sha="$(git rev-parse --short HEAD)"
+          echo "::set-output name=ldflags::"-s -w -X \'$project/version.Name=${{ env.PKG_NAME }}\' \
+          -X \'$project/version.GitCommit=$sha\' \
+          -X \'$project/version.GitDescribe=v$(make version base=1)\'""
+  
+  build-other:
+    needs: get-product-version
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [ windows ]
+        goarch: [ "386", "amd64" ]
+        go: [ "1.17.7" ]
+      fail-fast: true
+
+    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+    
+      - name: Install project dependencies
+        run: |
+          go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
+          go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
+          go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+          go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+          go install golang.org/x/tools/cmd/stringer@v0.1.8
+      
+      - name: Build generate-all
+        run: make generate-all
+      
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+          cache: 'yarn'
+          cache-dependency-path: 'ui/yarn.lock'
+      
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+      
+      - name: UI Build
+        run: |
+          cd ui
+          yarn install --network-timeout 300000
+          yarn --verbose run build
+          cd ..
+      
+      - name: Build static assets
+        run: make static-assets  
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p dist out
+          go build -o dist/ \
+          -ldflags "${{ env.LD_FLAGS }}" \
+          -tags "${{ env.GO_TAGS }}"
+          zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+   
+  build-linux:
+    needs: get-product-version
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [ linux ]
+        goarch: [ "arm", "arm64", "386", "amd64" ]
+        go: [ "1.17.7" ]
+        include:
+          - goos: linux
+            goarch: s390x
+            go: "1.17.7"
+      fail-fast: true
+    
+    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+      
+      - name: Install project dependencies
+        run: |
+          go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
+          go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
+          go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+          go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+          go install golang.org/x/tools/cmd/stringer@v0.1.8
+      
+      - name: Build generate-all
+        run: make generate-all
+      
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+          cache: 'yarn'
+          cache-dependency-path: 'ui/yarn.lock'
+      
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+      
+      - name: UI Build
+        run: |
+          cd ui
+          yarn install --network-timeout 300000
+          yarn --verbose run build
+          cd ..
+
+      - name: Build static assets
+        run: make static-assets
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p dist out
+          go build -o dist/ \
+          -ldflags "${{ env.LD_FLAGS }}" \
+          -tags "${{ env.GO_TAGS }}"
+          zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+
+
+      - name: Package
+        if: ${{ matrix.goos == 'linux' }}
+        uses: hashicorp/actions-packaging-linux@v1
+        with:
+          name: ${{ github.event.repository.name }}
+          description: "Nomad is an easy-to-use, flexible, and performant workload orchestrator that can deploy a mix of microservice, batch, containerized, and non-containerized applications."
+          arch: ${{ matrix.goarch }}
+          version: ${{ needs.get-product-version.outputs.product-version }}
+          maintainer: "HashiCorp"
+          homepage: "https://github.com/hashicorp/nomad"
+          license: "MPL-2.0"
+          binary: "dist/${{ env.PKG_NAME }}"
+          deb_depends: "openssl"
+          rpm_depends: "openssl"
+          config_dir: ".release/linux/package/"
+          preinstall: ".release/linux/preinst"
+          postremove: ".release/linux/postrm"
+
+      - name: Set Package Names
+        if: ${{ matrix.goos == 'linux' }}
+        run: |
+          echo "RPM_PACKAGE=$(basename out/*.rpm)" >> $GITHUB_ENV
+          echo "DEB_PACKAGE=$(basename out/*.deb)" >> $GITHUB_ENV
+
+      - uses: actions/upload-artifact@v2
+        if: ${{ matrix.goos == 'linux' }}
+        with:
+          name: ${{ env.RPM_PACKAGE }}
+          path: out/${{ env.RPM_PACKAGE }}
+
+      - uses: actions/upload-artifact@v2
+        if: ${{ matrix.goos == 'linux' }}
+        with:
+          name: ${{ env.DEB_PACKAGE }}
+          path: out/${{ env.DEB_PACKAGE }}
+
+  build-darwin:
+    needs: get-product-version
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        goos: [ darwin ]
+        goarch: [ "amd64" ]
+        go: [ "1.17" ]
+      fail-fast: true
+
+    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+      
+      - name: Install project dependencies
+        run: |
+          go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
+          go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
+          go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+          go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+          go install golang.org/x/tools/cmd/stringer@v0.1.8
+      
+      - name: Build generate-all
+        run: make generate-all
+      
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+          cache: 'yarn'
+          cache-dependency-path: 'ui/yarn.lock'
+      
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+      
+      - name: UI Build
+        run: |
+          cd ui
+          yarn install --network-timeout 300000
+          yarn --verbose run build
+          cd ..
+      
+      - name: Build static assets
+        run: make static-assets
+      
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GO_TAGS: "${{ env.GO_TAGS }} netcgo"
+          LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
+          CGO_ENABLED: 0
+
+        run: |
+          mkdir -p dist out
+          go build -o dist/ \
+          -ldflags "${{ env.LD_FLAGS }}" \
+          -tags "${{ env.GO_TAGS }}"
+          zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+
+  # This placed here for when the Nomad team is ready to build docker images. 
+  # Please refer to the Dockerfile that has been placed at the root of this repository to ensure functionality. 
+  # The Nomad team will need to create a docker repo and the RDX team has instructions handy on how to get this set up. 
+
+  # build-docker-default:
+  #   name: Docker ${{ matrix.arch }} default release build
+  #   needs:
+  #     - get-product-version
+  #     - build
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       arch: ["arm", "arm64", "386", "amd64"]
+  #   env:
+  #     repo: ${{github.event.repository.name}}
+  #     version: ${{needs.get-product-version.outputs.product-version}}
+
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Docker Build (Action)
+  #       uses: hashicorp/actions-docker-build@v1
+  #       with:
+  #         # Add smoke test here. Below is a sample smoke test that runs the built image
+  #         # and validates the version. 
+  #         smoke_test: |
+  #           TEST_VERSION="$(docker run "${IMAGE_NAME}" | awk '/CLI version/{print $3}')"
+  #           if [ "${TEST_VERSION}" != "${version}" ]; then
+  #             echo "Test FAILED"
+  #             exit 1
+  #           fi
+  #           echo "Test PASSED"               
+  #         version: ${{env.version}}
+  #         target: release-default
+  #         arch: ${{matrix.arch}}
+  #         tags: |
+  #           docker.io/hashicorp/${{env.repo}}:${{env.version}}
+  #           986891699432.dkr.ecr.us-east-1.amazonaws.com/hashicorp/${{env.repo}}:${{env.version}}
