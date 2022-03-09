@@ -197,7 +197,6 @@ jobs:
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
-          CC: ${{ env.CC }}
           GOARCH: ${{ matrix.goarch }}
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
           CGO_ENABLED: 1
