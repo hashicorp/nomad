@@ -2542,6 +2542,14 @@
     ember-cli-version-checker "^5.1.2"
     semver "^7.3.5"
 
+"@embroider/addon-shim@^1.0.0", "@embroider/addon-shim@^1.2.0":
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/@embroider/addon-shim/-/addon-shim-1.5.0.tgz#639b8b394336a5ae26dd3e24ffc3d34d864ac5ce"
+  integrity sha512-5zgwA/wTYjgn2Oo6hKRQhF/5Gnwb+hGhj/WXhZQa5yA7fRRdBV1tVMS7b7SLawZcmOhuWkyPwFdgsYtGBvDB0w==
+  dependencies:
+    "@embroider/shared-internals" "^1.5.0"
+    semver "^7.3.5"
+
 "@embroider/core@0.36.0":
   version "0.36.0"
   resolved "https://registry.yarnpkg.com/@embroider/core/-/core-0.36.0.tgz#fbbd60d29c3fcbe02b4e3e63e6043a43de2b9ce3"
@@ -2647,6 +2655,20 @@
     resolve "^1.20.0"
     semver "^7.3.2"
 
+"@embroider/macros@^1.2.0":
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/@embroider/macros/-/macros-1.5.0.tgz#8c67666359e7814d91cdeac2fd96c896080473b3"
+  integrity sha512-QqNsWmIJ8LvwWg+YAfB+nfcRZ49hAJNTJAKt2IDpgZDKa/FYj/Mp75UWfJ1BJvB3KUq50OQCOv4TZ3ZcU9h/TQ==
+  dependencies:
+    "@embroider/shared-internals" "1.5.0"
+    assert-never "^1.2.1"
+    babel-import-util "^1.1.0"
+    ember-cli-babel "^7.26.6"
+    find-up "^5.0.0"
+    lodash "^4.17.21"
+    resolve "^1.20.0"
+    semver "^7.3.2"
+
 "@embroider/shared-internals@0.40.0":
   version "0.40.0"
   resolved "https://registry.yarnpkg.com/@embroider/shared-internals/-/shared-internals-0.40.0.tgz#2f768c60f4f35ba5f9228f046f70324851e8bfe2"
@@ -2690,6 +2712,19 @@
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/@embroider/shared-internals/-/shared-internals-1.2.0.tgz#edb3ca7e8528be713dab01818e8caad2dc937fba"
   integrity sha512-11RfGuXxT+m2xPcpny/ENHjw53CuKPcrx7222LFQ53+I09hLxsvPCsH8be5E99LePDA46YGX41vxOxxfowD4OQ==
+  dependencies:
+    babel-import-util "^1.1.0"
+    ember-rfc176-data "^0.3.17"
+    fs-extra "^9.1.0"
+    lodash "^4.17.21"
+    resolve-package-path "^4.0.1"
+    semver "^7.3.5"
+    typescript-memoize "^1.0.1"
+
+"@embroider/shared-internals@1.5.0", "@embroider/shared-internals@^1.5.0":
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/@embroider/shared-internals/-/shared-internals-1.5.0.tgz#d3883f13571be36fcdbc59c65c785db7b6d8186e"
+  integrity sha512-kdR7Fh2YdzsNofJO+DJxLfrlMbW4/NNf78aMXgE21z/tg9GO5W2mKlI1DzsO2JlO5yfZdiYfqb9C9vSLJEx14A==
   dependencies:
     babel-import-util "^1.1.0"
     ember-rfc176-data "^0.3.17"
@@ -2974,7 +3009,7 @@
     "@handlebars/parser" "^1.1.0"
     simple-html-tokenizer "^0.5.10"
 
-"@glimmer/tracking@^1.0.2", "@glimmer/tracking@^1.0.4":
+"@glimmer/tracking@^1.0.0", "@glimmer/tracking@^1.0.2", "@glimmer/tracking@^1.0.4":
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/@glimmer/tracking/-/tracking-1.0.4.tgz#f1bc1412fe5e2236d0f8d502994a8f88af1bbb21"
   integrity sha512-F+oT8I55ba2puSGIzInmVrv/8QA2PcK1VD+GWgFMhF6WC97D+uZX7BFg+a3s/2N4FVBq5KHE+QxZzgazM151Yw==
@@ -8935,6 +8970,15 @@ ember-cli@~3.28.5:
     workerpool "^6.1.4"
     yam "^1.0.0"
 
+ember-click-outside@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/ember-click-outside/-/ember-click-outside-3.0.0.tgz#a7271345c5960b5dfe1e45a7f7245d1cf8f383dc"
+  integrity sha512-X2hLE9Set/tQ9KAEUxfGzCTUgJu/g2sKG+t2ghk/EDz8zF+Y/DPtlxeyZTR6NEPsUbzu3Pqe9gWJUxwaiXC0wg==
+  dependencies:
+    ember-cli-babel "^7.26.6"
+    ember-cli-htmlbars "^5.7.1"
+    ember-modifier "^2.1.0 || ^3.0.0"
+
 ember-compatibility-helpers@^1.1.2, ember-compatibility-helpers@^1.2.5:
   version "1.2.6"
   resolved "https://registry.yarnpkg.com/ember-compatibility-helpers/-/ember-compatibility-helpers-1.2.6.tgz#603579ab2fb14be567ef944da3fc2d355f779cd8"
@@ -9189,7 +9233,7 @@ ember-modifier-manager-polyfill@^1.2.0:
     ember-cli-version-checker "^2.1.2"
     ember-compatibility-helpers "^1.2.0"
 
-ember-modifier@^3.0.0, ember-modifier@^3.1.0:
+"ember-modifier@^2.1.0 || ^3.0.0", ember-modifier@^3.0.0, ember-modifier@^3.1.0:
   version "3.1.0"
   resolved "https://registry.yarnpkg.com/ember-modifier/-/ember-modifier-3.1.0.tgz#ba5b0941302accd787ed3dcfc8d20400b77ffc41"
   integrity sha512-G5Lj9jVFsD2sVJcRNQfaGKG1p81wT4LGfClBhCuB4TgwP1NGJKdqI+Q8BW2MptONxQt/71UjjUH0YK7Gm9eahg==
@@ -9285,6 +9329,15 @@ ember-resolver@^8.0.3:
     ember-cli-version-checker "^5.1.2"
     resolve "^1.20.0"
 
+ember-resources@^4.0.0:
+  version "4.4.0"
+  resolved "https://registry.yarnpkg.com/ember-resources/-/ember-resources-4.4.0.tgz#a3b85a0269c3523ba32a2a5ab15472c8e90a6a41"
+  integrity sha512-bMk3qdD7sgG33VY3Znri6z2p/XneITuT02zgFROS9flvUE124rnW/m9ND/fySt5EOE8URhS3IZ6MImIgI1dyCg==
+  dependencies:
+    "@ember/test-waiters" "^3.0.0"
+    "@embroider/addon-shim" "^1.2.0"
+    "@embroider/macros" "^1.2.0"
+
 ember-responsive@^4.0.2:
   version "4.0.2"
   resolved "https://registry.yarnpkg.com/ember-responsive/-/ember-responsive-4.0.2.tgz#271fb0e619f492493a3332d96332d3684d70cb58"
@@ -9360,6 +9413,17 @@ ember-source@~3.28.8:
     semver "^7.3.4"
     silent-error "^1.1.1"
 
+ember-stargate@^0.4.1:
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/ember-stargate/-/ember-stargate-0.4.1.tgz#04ee5595569d77d9f2882636c78aa978b874ac62"
+  integrity sha512-tw+H5nC29psfIBSfsYwhYZ9BqaRf50baO3isKal3UrEELTAblkjPiA1zuls2VV9+s5cUnqU2ygwW0zKEXNi1zQ==
+  dependencies:
+    "@ember/render-modifiers" "^2.0.0"
+    "@embroider/addon-shim" "^1.0.0"
+    "@glimmer/component" "^1.0.4"
+    ember-resources "^4.0.0"
+    tracked-maps-and-sets "^3.0.1"
+
 ember-style-modifier@^0.7.0:
   version "0.7.0"
   resolved "https://registry.yarnpkg.com/ember-style-modifier/-/ember-style-modifier-0.7.0.tgz#85b3dfd7e4bc2bd546df595f2dab4fb141cf7d87"
@@ -9422,6 +9486,14 @@ ember-text-measurer@^0.6.0:
   dependencies:
     ember-cli-babel "^7.19.0"
     ember-cli-htmlbars "^4.3.1"
+
+ember-tracked-storage-polyfill@1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/ember-tracked-storage-polyfill/-/ember-tracked-storage-polyfill-1.0.0.tgz#84d307a1e4badc5f84dca681db2cfea9bdee8a77"
+  integrity sha512-eL7lZat68E6P/D7b9UoTB5bB5Oh/0aju0Z7PCMi3aTwhaydRaxloE7TGrTRYU+NdJuyNVZXeGyxFxn2frvd3TA==
+  dependencies:
+    ember-cli-babel "^7.26.3"
+    ember-cli-htmlbars "^5.7.1"
 
 "ember-truth-helpers@^2.1.0 || ^3.0.0", ember-truth-helpers@^3.0.0:
   version "3.0.0"
@@ -17660,6 +17732,16 @@ tr46@~0.0.3:
   version "0.0.3"
   resolved "https://registry.yarnpkg.com/tr46/-/tr46-0.0.3.tgz#8184fd347dac9cdc185992f3a6622e14b9d9ab6a"
   integrity sha1-gYT9NH2snNwYWZLzpmIuFLnZq2o=
+
+tracked-maps-and-sets@^3.0.1:
+  version "3.0.2"
+  resolved "https://registry.yarnpkg.com/tracked-maps-and-sets/-/tracked-maps-and-sets-3.0.2.tgz#6ea1b9f2a367d24f2e9905b74b24437fbce76ea6"
+  integrity sha512-UIRcWsX1kDOcC/Q2R58weYWlw01EnmWWBwUv3okWS+zMBvsgIfYoO6veHhuNE3hgzWCEImNp46QS5CyKnw5QUA==
+  dependencies:
+    "@glimmer/tracking" "^1.0.0"
+    ember-cli-babel "^7.26.6"
+    ember-cli-typescript "^4.2.1"
+    ember-tracked-storage-polyfill "1.0.0"
 
 tree-sync@^1.2.2:
   version "1.4.0"
