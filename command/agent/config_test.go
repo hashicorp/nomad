@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/require"
+	"path"
 )
 
 var (
@@ -1473,6 +1474,115 @@ func TestParseMultipleIPTemplates(t *testing.T) {
 			out, err := parseMultipleIPTemplate(tc.tmpl)
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedOut, out)
+		})
+	}
+}
+
+func TestParse_CarbonConfig(t *testing.T) {
+	testCases := []struct {
+		file     string
+		valid    bool
+		expected *client.CarbonConfig
+	}{
+		{
+			file:  "client_carbon_aws.hcl",
+			valid: true,
+			expected: &client.CarbonConfig{
+				ProviderKey: client.AWS,
+				Region:      "us-east-1",
+				AWSConfig: &client.AWSConfig{
+					AccessKeyID:     "access-key-id",
+					SecretAccessKey: "secret-access-key",
+					SessionToken:    "session-token",
+				},
+			},
+		},
+		{
+			file:     "client_carbon_aws_invalid.hcl",
+			valid:    false,
+			expected: nil,
+		},
+		{
+			file:  "client_carbon_gcp.hcl",
+			valid: true,
+			expected: &client.CarbonConfig{
+				ProviderKey: client.GCP,
+				Region:      "us-east-1",
+				GCPConfig: &client.GCPConfig{
+					ServiceAccountKey: "service-account-key",
+				},
+			},
+		},
+		{
+			file:     "client_carbon_gcp_invalid.hcl",
+			valid:    false,
+			expected: nil,
+		},
+		{
+			file:  "client_carbon_azure.hcl",
+			valid: true,
+			expected: &client.CarbonConfig{
+				ProviderKey: client.AZ,
+				Region:      "us-east-1",
+				AzureConfig: &client.AzureConfig{
+					ClientID:     "client-id",
+					ClientSecret: "client-secret",
+					TenantID:     "tenant-id",
+				},
+			},
+		},
+		{
+			file:     "client_carbon_azure_invalid.hcl",
+			valid:    false,
+			expected: nil,
+		},
+		{
+			file:  "client_carbon_carbon_intensity.hcl",
+			valid: true,
+			expected: &client.CarbonConfig{
+				ProviderKey: client.CI,
+				Region:      "us-east-1",
+				CarbonIntensityConfig: &client.CarbonIntensityConfig{
+					APIUrl: "https://api.carbonintensity.org.uk/intensity",
+				},
+			},
+		},
+		{
+			file:     "client_carbon_carbon_intensity_invalid.hcl",
+			valid:    false,
+			expected: nil,
+		},
+		{
+			file:  "client_carbon_electricity_map.hcl",
+			valid: true,
+			expected: &client.CarbonConfig{
+				ProviderKey: client.EM,
+				Region:      "us-east-1",
+				ElectricityMapsConfig: &client.ElectricityMapsConfig{
+					APIKey: "key",
+					APIUrl: "https://api.electricitymap.org/v3",
+				},
+			},
+		},
+		{
+			file:     "client_carbon_electricity_map_invalid.hcl",
+			valid:    false,
+			expected: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.file, func(t *testing.T) {
+			parsed, err := LoadConfig(path.Join("./test-resources", tc.file))
+			require.NoError(t, err)
+
+			err = tc.expected.Validate()
+			if !tc.valid {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, parsed.Client.CarbonConfig)
+			}
 		})
 	}
 }

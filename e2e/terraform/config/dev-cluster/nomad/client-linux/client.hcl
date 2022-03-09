@@ -11,6 +11,11 @@ client {
   host_volume "shared_data" {
     path = "/srv/data"
   }
+
+  carbon {
+    provider = "aws"
+    region = "us-east-1"
+  }
 }
 
 plugin "nomad-driver-podman" {

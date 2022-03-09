@@ -320,6 +320,10 @@ type ClientConfig struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	// CarbonConfig calculates the carbon intensity for the client so that the
+	// scheduler can shift workloads based on carbon impact.
+	CarbonConfig *client.CarbonConfig `hcl:"carbon"`
 }
 
 // ACLConfig is configuration specific to the ACL system

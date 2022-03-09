@@ -127,6 +127,8 @@ require (
 	oss.indeed.com/go/libtime v1.5.0
 )
 
+require github.com/thegreenwebfoundation/grid-intensity-go v0.0.0-20201207153737-bbae1f9977a6
+
 require (
 	cloud.google.com/go v0.97.0 // indirect
 	cloud.google.com/go/storage v1.18.2 // indirect
