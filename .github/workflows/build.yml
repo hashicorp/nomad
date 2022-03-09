@@ -186,11 +186,11 @@ jobs:
       - name: Set gcc
         run: |
           if [ "${{ matrix.goarch }}" == "arm" ]; then
-          sudo apt-get install -y arm-linux-gnueabihf-gcc
-            echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          sudo apt-get install -y gcc-arm-linux-gnueabihf
+            echo "CC=gcc-arm-linux-gnueabihf" >> $GITHUB_ENV
           elif [ "${{ matrix.goarch }}" == "arm64" ]; then
-          sudo apt-get install -y aarch64-linux-gnu-gcc
-            echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+            echo "CC=gcc-aarch64-linux-gnu" >> $GITHUB_ENV
           fi
 
       - name: Build
