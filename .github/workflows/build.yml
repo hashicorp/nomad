@@ -64,7 +64,7 @@ jobs:
           -X \'$project/version.GitDescribe=v$(make version base=1)\'""
   
   build-other:
-    needs: get-product-version
+    needs: [ get-product-version, set-ld-flags ]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -132,17 +132,13 @@ jobs:
           path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
    
   build-linux:
-    needs: get-product-version
+    needs: [ get-product-version, set-ld-flags ]
     runs-on: ubuntu-latest
     strategy:
       matrix:
         goos: [ linux ]
         goarch: [ "arm", "arm64", "386", "amd64" ]
         go: [ "1.17.7" ]
-        include:
-          - goos: linux
-            goarch: s390x
-            go: "1.17.7"
       fail-fast: true
     
     name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
@@ -186,6 +182,13 @@ jobs:
 
       - name: Build static assets
         run: make static-assets
+
+      - name: Set gcc
+          if [ "${{ matrix.goarch }} == "arm" ]; then
+          echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          elif [ "${{ matrix.goarch }} == "arm64" ]; then
+          echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          fi
 
       - name: Build
         env:
@@ -243,7 +246,7 @@ jobs:
           path: out/${{ env.DEB_PACKAGE }}
 
   build-darwin:
-    needs: get-product-version
+    needs: [ get-product-version, set-ld-flags ]
     runs-on: macos-latest
     strategy:
       matrix:
