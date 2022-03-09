@@ -1478,16 +1478,16 @@ func TestParseMultipleIPTemplates(t *testing.T) {
 	}
 }
 
-func TestParse_CarbonConfig(t *testing.T) {
+func TestParse_EnergyConfig(t *testing.T) {
 	testCases := []struct {
 		file     string
 		valid    bool
-		expected *client.CarbonConfig
+		expected *client.EnergyConfig
 	}{
 		{
-			file:  "client_carbon_aws.hcl",
+			file:  "client_energy_aws.hcl",
 			valid: true,
-			expected: &client.CarbonConfig{
+			expected: &client.EnergyConfig{
 				ProviderKey: client.AWS,
 				Region:      "us-east-1",
 				AWSConfig: &client.AWSConfig{
@@ -1498,14 +1498,14 @@ func TestParse_CarbonConfig(t *testing.T) {
 			},
 		},
 		{
-			file:     "client_carbon_aws_invalid.hcl",
+			file:     "client_energy_aws_invalid.hcl",
 			valid:    false,
 			expected: nil,
 		},
 		{
-			file:  "client_carbon_gcp.hcl",
+			file:  "client_energy_gcp.hcl",
 			valid: true,
-			expected: &client.CarbonConfig{
+			expected: &client.EnergyConfig{
 				ProviderKey: client.GCP,
 				Region:      "us-east-1",
 				GCPConfig: &client.GCPConfig{
@@ -1514,14 +1514,14 @@ func TestParse_CarbonConfig(t *testing.T) {
 			},
 		},
 		{
-			file:     "client_carbon_gcp_invalid.hcl",
+			file:     "client_energy_gcp_invalid.hcl",
 			valid:    false,
 			expected: nil,
 		},
 		{
-			file:  "client_carbon_azure.hcl",
+			file:  "client_energy_azure.hcl",
 			valid: true,
-			expected: &client.CarbonConfig{
+			expected: &client.EnergyConfig{
 				ProviderKey: client.AZ,
 				Region:      "us-east-1",
 				AzureConfig: &client.AzureConfig{
@@ -1532,40 +1532,40 @@ func TestParse_CarbonConfig(t *testing.T) {
 			},
 		},
 		{
-			file:     "client_carbon_azure_invalid.hcl",
+			file:     "client_energy_azure_invalid.hcl",
 			valid:    false,
 			expected: nil,
 		},
 		{
-			file:  "client_carbon_carbon_intensity.hcl",
+			file:  "client_energy_carbon_intensity.hcl",
 			valid: true,
-			expected: &client.CarbonConfig{
+			expected: &client.EnergyConfig{
 				ProviderKey: client.CI,
-				Region:      "us-east-1",
+				Region:      "UK",
 				CarbonIntensityConfig: &client.CarbonIntensityConfig{
 					APIUrl: "https://api.carbonintensity.org.uk/intensity",
 				},
 			},
 		},
 		{
-			file:     "client_carbon_carbon_intensity_invalid.hcl",
+			file:     "client_energy_carbon_intensity_invalid.hcl",
 			valid:    false,
 			expected: nil,
 		},
 		{
-			file:  "client_carbon_electricity_map.hcl",
+			file:  "client_energy_electricity_map.hcl",
 			valid: true,
-			expected: &client.CarbonConfig{
+			expected: &client.EnergyConfig{
 				ProviderKey: client.EM,
 				Region:      "us-east-1",
-				ElectricityMapsConfig: &client.ElectricityMapsConfig{
+				ElectricityMapConfig: &client.ElectricityMapConfig{
 					APIKey: "key",
 					APIUrl: "https://api.electricitymap.org/v3",
 				},
 			},
 		},
 		{
-			file:     "client_carbon_electricity_map_invalid.hcl",
+			file:     "client_energy_electricity_map_invalid.hcl",
 			valid:    false,
 			expected: nil,
 		},
@@ -1581,7 +1581,7 @@ func TestParse_CarbonConfig(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tc.expected, parsed.Client.CarbonConfig)
+				require.Equal(t, tc.expected, parsed.Client.EnergyConfig)
 			}
 		})
 	}

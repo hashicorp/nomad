@@ -480,14 +480,17 @@ func (a *Agent) finalizeServerConfig(c *nomad.Config) {
 // clientConfig is used to generate a new client configuration struct for
 // initializing a Nomad client.
 func (a *Agent) clientConfig() (*clientconfig.Config, error) {
+	a.logger.Trace("agent.energy_config", a.config.Client.EnergyConfig)
 	c, err := convertClientConfig(a.config)
 	if err != nil {
 		return nil, err
 	}
 
+	a.logger.Trace("client.energy_config", c.EnergyConfig)
 	if err := a.finalizeClientConfig(c); err != nil {
 		return nil, err
 	}
+	a.logger.Trace("client.final.energy_config", c.EnergyConfig)
 
 	return c, nil
 }
@@ -537,6 +540,13 @@ func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 		a.logger.Warn(`Nomad client ignores consul related configuration in client options.
 		Please refer to the guide https://www.nomadproject.io/docs/agent/configuration/consul.html
 		to configure Nomad to work with Consul.`)
+	}
+
+	if c.EnergyConfig != nil {
+		err := c.EnergyConfig.Finalize()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -702,6 +712,10 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 			return nil, fmt.Errorf("failed to parse 'reservable_cores': %v", err)
 		}
 		conf.ReservableCores = cores.ToSlice()
+	}
+
+	if agentConfig.Client.EnergyConfig != nil {
+		conf.EnergyConfig = agentConfig.Client.EnergyConfig
 	}
 
 	return conf, nil

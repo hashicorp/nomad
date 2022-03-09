@@ -279,6 +279,10 @@ type Config struct {
 
 	// ReservableCores if set overrides the set of reservable cores reported in fingerprinting.
 	ReservableCores []uint16
+
+	// EnergyConfig calculates the carbon intensity for the client so that the
+	// scheduler can shift workloads based on carbon impact.
+	EnergyConfig *EnergyConfig
 }
 
 // ClientTemplateConfig is configuration on the client specific to template
@@ -740,6 +744,7 @@ func (c *Config) Copy() *Config {
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
 	nc.TemplateConfig = c.TemplateConfig.Copy()
+	nc.EnergyConfig = c.EnergyConfig.Copy()
 	if c.ReservableCores != nil {
 		nc.ReservableCores = make([]uint16, len(c.ReservableCores))
 		copy(nc.ReservableCores, c.ReservableCores)

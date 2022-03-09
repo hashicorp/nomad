@@ -321,9 +321,9 @@ type ClientConfig struct {
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 
-	// CarbonConfig calculates the carbon intensity for the client so that the
+	// EnergyConfig calculates the carbon intensity for the client so that the
 	// scheduler can shift workloads based on carbon impact.
-	CarbonConfig *client.CarbonConfig `hcl:"carbon"`
+	EnergyConfig *client.EnergyConfig `hcl:"energy"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -1767,6 +1767,11 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.BindWildcardDefaultHostNetwork {
 		result.BindWildcardDefaultHostNetwork = true
 	}
+
+	if b.EnergyConfig != nil {
+		result.EnergyConfig = b.EnergyConfig
+	}
+
 	return &result
 }
 

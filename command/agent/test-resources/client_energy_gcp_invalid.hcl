@@ -1,12 +1,12 @@
 client {
   enabled = true
 
-  carbon {
+  energy {
     provider = "gcp"
     region   = "us-east-1"
 
     gcp {
-      service_account_key = "service-account-key"
+      service_account_key = ""
     }
   }
 }

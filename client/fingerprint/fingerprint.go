@@ -33,6 +33,7 @@ var (
 		"consul":  NewConsulFingerprint,
 		"cni":     NewCNIFingerprint,
 		"cpu":     NewCPUFingerprint,
+		"energy":  NewEnergyFingerprint,
 		"host":    NewHostFingerprint,
 		"memory":  NewMemoryFingerprint,
 		"network": NewNetworkFingerprint,

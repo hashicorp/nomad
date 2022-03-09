@@ -12,9 +12,9 @@ client {
     path = "/srv/data"
   }
 
-  carbon {
+  energy {
     provider = "carbon-intensity"
-    region = "UK"
+    region   = "UK"
 
     carbon_intensity {
       api_url = "https://api.carbonintensity.org.uk/intensity"

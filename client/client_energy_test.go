@@ -10,7 +10,7 @@ import (
 func TestClient_Carbon_CarbonIntensityProvider(t *testing.T) {
 	t.Parallel()
 
-	carbonConfig := config.CarbonConfig{
+	energyConfig := config.EnergyConfig{
 		Region:      "UK",
 		ProviderKey: config.CI,
 		CarbonIntensityConfig: &config.CarbonIntensityConfig{
@@ -18,10 +18,10 @@ func TestClient_Carbon_CarbonIntensityProvider(t *testing.T) {
 		},
 	}
 
-	err := carbonConfig.Finalize()
+	err := energyConfig.Finalize()
 	require.NoError(t, err)
 
-	provider := *carbonConfig.Provider
+	provider := *energyConfig.ScoreProvider
 	score, err := provider.GetCarbonIntensity(context.Background())
 	require.NoError(t, err)
 	require.NotEqual(t, 0, score)

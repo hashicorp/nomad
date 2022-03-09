@@ -1,7 +1,7 @@
 client {
   enabled = true
 
-  carbon {
+  energy {
     provider = "azure"
     region   = "us-east-1"
 
