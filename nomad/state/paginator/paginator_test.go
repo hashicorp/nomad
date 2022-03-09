@@ -1,4 +1,4 @@
-package state
+package paginator
 
 import (
 	"errors"
@@ -58,14 +58,14 @@ func TestPaginator(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			iter := newTestIterator(ids)
-			results := []string{}
+			tokenizer := testTokenizer{}
+			opts := structs.QueryOptions{
+				PerPage:   tc.perPage,
+				NextToken: tc.nextToken,
+			}
 
-			paginator, err := NewPaginator(iter,
-				structs.QueryOptions{
-					PerPage:   tc.perPage,
-					NextToken: tc.nextToken,
-					Ascending: true,
-				},
+			results := []string{}
+			paginator, err := NewPaginator(iter, tokenizer, nil, opts,
 				func(raw interface{}) error {
 					if tc.expectedError != "" {
 						return errors.New(tc.expectedError)
@@ -94,27 +94,32 @@ func TestPaginator(t *testing.T) {
 
 // helpers for pagination tests
 
-// implements memdb.ResultIterator interface
+// implements Iterator interface
 type testResultIterator struct {
 	results chan interface{}
 }
 
-func (i testResultIterator) Next() (string, interface{}) {
+func (i testResultIterator) Next() interface{} {
 	select {
 	case raw := <-i.results:
 		if raw == nil {
-			return "", nil
+			return nil
 		}
 
 		m := raw.(*mockObject)
-		return m.id, m
+		return m
 	default:
-		return "", nil
+		return nil
 	}
 }
 
 type mockObject struct {
-	id string
+	id        string
+	namespace string
+}
+
+func (m *mockObject) GetNamespace() string {
+	return m.namespace
 }
 
 func newTestIterator(ids []string) testResultIterator {
@@ -123,4 +128,19 @@ func newTestIterator(ids []string) testResultIterator {
 		iter.results <- &mockObject{id: id}
 	}
 	return iter
+}
+
+func newTestIteratorWithMocks(mocks []*mockObject) testResultIterator {
+	iter := testResultIterator{results: make(chan interface{}, 20)}
+	for _, m := range mocks {
+		iter.results <- m
+	}
+	return iter
+}
+
+// implements Tokenizer interface
+type testTokenizer struct{}
+
+func (t testTokenizer) GetToken(raw interface{}) string {
+	return raw.(*mockObject).id
 }

@@ -273,8 +273,8 @@ type QueryOptions struct {
 	// previous response.
 	NextToken string
 
-	// Ascending is used to have results sorted in ascending chronological order.
-	Ascending bool
+	// Reverse is used to reverse the default order of list results.
+	Reverse bool
 
 	InternalRpcInfo
 }
@@ -4186,6 +4186,33 @@ func (j *Job) NamespacedID() NamespacedID {
 		ID:        j.ID,
 		Namespace: j.Namespace,
 	}
+}
+
+// GetID implements the IDGetter interface, required for pagination.
+func (j *Job) GetID() string {
+	if j == nil {
+		return ""
+	}
+	return j.ID
+}
+
+// GetNamespace implements the NamespaceGetter interface, required for
+// pagination and filtering namespaces in endpoints that support glob namespace
+// requests using tokens with limited access.
+func (j *Job) GetNamespace() string {
+	if j == nil {
+		return ""
+	}
+	return j.Namespace
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (j *Job) GetCreateIndex() uint64 {
+	if j == nil {
+		return 0
+	}
+	return j.CreateIndex
 }
 
 // Canonicalize is used to canonicalize fields in the Job. This should be
@@ -9078,6 +9105,15 @@ func (d *Deployment) GetID() string {
 	return d.ID
 }
 
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (d *Deployment) GetCreateIndex() uint64 {
+	if d == nil {
+		return 0
+	}
+	return d.CreateIndex
+}
+
 // HasPlacedCanaries returns whether the deployment has placed canaries
 func (d *Deployment) HasPlacedCanaries() bool {
 	if d == nil || len(d.TaskGroups) == 0 {
@@ -9465,6 +9501,33 @@ type Allocation struct {
 
 	// ModifyTime is the time the allocation was last updated.
 	ModifyTime int64
+}
+
+// GetID implements the IDGetter interface, required for pagination.
+func (a *Allocation) GetID() string {
+	if a == nil {
+		return ""
+	}
+	return a.ID
+}
+
+// GetNamespace implements the NamespaceGetter interface, required for
+// pagination and filtering namespaces in endpoints that support glob namespace
+// requests using tokens with limited access.
+func (a *Allocation) GetNamespace() string {
+	if a == nil {
+		return ""
+	}
+	return a.Namespace
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (a *Allocation) GetCreateIndex() uint64 {
+	if a == nil {
+		return 0
+	}
+	return a.CreateIndex
 }
 
 // ConsulNamespace returns the Consul namespace of the task group associated
@@ -10569,6 +10632,23 @@ type Evaluation struct {
 	ModifyTime int64
 }
 
+// GetID implements the IDGetter interface, required for pagination.
+func (e *Evaluation) GetID() string {
+	if e == nil {
+		return ""
+	}
+	return e.ID
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (e *Evaluation) GetCreateIndex() uint64 {
+	if e == nil {
+		return 0
+	}
+	return e.CreateIndex
+}
+
 // TerminalStatus returns if the current status is terminal and
 // will no longer transition.
 func (e *Evaluation) TerminalStatus() bool {
@@ -11337,6 +11417,23 @@ type ACLToken struct {
 	CreateTime  time.Time // Time of creation
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// GetID implements the IDGetter interface, required for pagination.
+func (a *ACLToken) GetID() string {
+	if a == nil {
+		return ""
+	}
+	return a.AccessorID
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (a *ACLToken) GetCreateIndex() uint64 {
+	if a == nil {
+		return 0
+	}
+	return a.CreateIndex
 }
 
 func (a *ACLToken) Copy() *ACLToken {

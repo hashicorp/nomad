@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 )
@@ -20,30 +21,6 @@ const (
 	// DefaultDequeueTimeout is used if no dequeue timeout is provided
 	DefaultDequeueTimeout = time.Second
 )
-
-// EvalPaginationIterator is a wrapper over a go-memdb iterator that implements
-// the paginator Iterator interface.
-type EvalPaginationIterator struct {
-	iter          memdb.ResultIterator
-	byCreateIndex bool
-}
-
-func (it EvalPaginationIterator) Next() (string, interface{}) {
-	raw := it.iter.Next()
-	if raw == nil {
-		return "", nil
-	}
-
-	eval := raw.(*structs.Evaluation)
-	token := eval.ID
-
-	// prefix the pagination token by CreateIndex to keep it properly sorted.
-	if it.byCreateIndex {
-		token = fmt.Sprintf("%v-%v", eval.CreateIndex, eval.ID)
-	}
-
-	return token, eval
-}
 
 // Eval endpoint is used for eval interactions
 type Eval struct {
@@ -431,6 +408,7 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 	}
 
 	// Setup the blocking query
+	sort := state.SortOption(args.Reverse)
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
@@ -438,17 +416,25 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 			// Scan all the evaluations
 			var err error
 			var iter memdb.ResultIterator
-			var evalIter EvalPaginationIterator
+			var opts paginator.StructsTokenizerOptions
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = store.EvalsByIDPrefix(ws, namespace, prefix)
-				evalIter.byCreateIndex = false
+				opts = paginator.StructsTokenizerOptions{
+					WithID: true,
+				}
 			} else if namespace != structs.AllNamespacesSentinel {
-				iter, err = store.EvalsByNamespaceOrdered(ws, namespace, args.Ascending)
-				evalIter.byCreateIndex = true
+				iter, err = store.EvalsByNamespaceOrdered(ws, namespace, sort)
+				opts = paginator.StructsTokenizerOptions{
+					WithCreateIndex: true,
+					WithID:          true,
+				}
 			} else {
-				iter, err = store.Evals(ws, args.Ascending)
-				evalIter.byCreateIndex = true
+				iter, err = store.Evals(ws, sort)
+				opts = paginator.StructsTokenizerOptions{
+					WithCreateIndex: true,
+					WithID:          true,
+				}
 			}
 			if err != nil {
 				return err
@@ -460,10 +446,11 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 				}
 				return false
 			})
-			evalIter.iter = iter
+
+			tokenizer := paginator.NewStructsTokenizer(iter, opts)
 
 			var evals []*structs.Evaluation
-			paginator, err := state.NewPaginator(evalIter, args.QueryOptions,
+			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
 				func(raw interface{}) error {
 					eval := raw.(*structs.Evaluation)
 					evals = append(evals, eval)

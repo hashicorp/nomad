@@ -670,7 +670,7 @@ func TestStateStore_Deployments(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	it, err := state.Deployments(ws, true)
+	it, err := state.Deployments(ws, SortDefault)
 	require.NoError(t, err)
 
 	var out []*structs.Deployment
@@ -5432,7 +5432,7 @@ func TestStateStore_Allocs(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.Allocs(ws)
+	iter, err := state.Allocs(ws, SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -5480,7 +5480,7 @@ func TestStateStore_Allocs_PrevAlloc(t *testing.T) {
 	require.Nil(err)
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.Allocs(ws)
+	iter, err := state.Allocs(ws, SortDefault)
 	require.Nil(err)
 
 	var out []*structs.Allocation
@@ -7508,7 +7508,7 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 		t.Fatalf("expected error")
 	}
 
-	iter, err := state.ACLTokens(nil)
+	iter, err := state.ACLTokens(nil, SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -7602,7 +7602,7 @@ func TestStateStore_UpsertACLTokens(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, tk2, out)
 
-	iter, err := state.ACLTokens(ws)
+	iter, err := state.ACLTokens(ws, SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -7669,7 +7669,7 @@ func TestStateStore_DeleteACLTokens(t *testing.T) {
 		t.Fatalf("bad: %#v", out)
 	}
 
-	iter, err := state.ACLTokens(ws)
+	iter, err := state.ACLTokens(ws, SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

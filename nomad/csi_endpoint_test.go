@@ -753,6 +753,200 @@ func TestCSIVolumeEndpoint_ListAllNamespaces(t *testing.T) {
 	require.Equal(t, structs.DefaultNamespace, resp2.Volumes[0].Namespace)
 }
 
+func TestCSIVolumeEndpoint_List_PaginationFiltering(t *testing.T) {
+	t.Parallel()
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	nonDefaultNS := "non-default"
+
+	// create a set of volumes. these are in the order that the state store
+	// will return them from the iterator (sorted by create index), for ease of
+	// writing tests
+	mocks := []struct {
+		id        string
+		namespace string
+	}{
+		{id: "vol-01"},                          // 0
+		{id: "vol-02"},                          // 1
+		{id: "vol-03", namespace: nonDefaultNS}, // 2
+		{id: "vol-04"},                          // 3
+		{id: "vol-05"},                          // 4
+		{id: "vol-06"},                          // 5
+		{id: "vol-07"},                          // 6
+		{id: "vol-08"},                          // 7
+		{},                                      // 9, missing volume
+		{id: "vol-10"},                          // 10
+	}
+
+	state := s1.fsm.State()
+	plugin := mock.CSIPlugin()
+
+	// Create namespaces.
+	err := state.UpsertNamespaces(999, []*structs.Namespace{{Name: nonDefaultNS}})
+	require.NoError(t, err)
+
+	for i, m := range mocks {
+		if m.id == "" {
+			continue
+		}
+
+		volume := mock.CSIVolume(plugin)
+		volume.ID = m.id
+		if m.namespace != "" { // defaults to "default"
+			volume.Namespace = m.namespace
+		}
+		index := 1000 + uint64(i)
+		require.NoError(t, state.CSIVolumeRegister(index, []*structs.CSIVolume{volume}))
+	}
+
+	cases := []struct {
+		name              string
+		namespace         string
+		prefix            string
+		filter            string
+		nextToken         string
+		pageSize          int32
+		expectedNextToken string
+		expectedIDs       []string
+		expectedError     string
+	}{
+		{
+			name:              "test01 size-2 page-1 default NS",
+			pageSize:          2,
+			expectedNextToken: "default.vol-04",
+			expectedIDs: []string{
+				"vol-01",
+				"vol-02",
+			},
+		},
+		{
+			name:              "test02 size-2 page-1 default NS with prefix",
+			prefix:            "vol",
+			pageSize:          2,
+			expectedNextToken: "default.vol-04",
+			expectedIDs: []string{
+				"vol-01",
+				"vol-02",
+			},
+		},
+		{
+			name:              "test03 size-2 page-2 default NS",
+			pageSize:          2,
+			nextToken:         "default.vol-04",
+			expectedNextToken: "default.vol-06",
+			expectedIDs: []string{
+				"vol-04",
+				"vol-05",
+			},
+		},
+		{
+			name:              "test04 size-2 page-2 default NS with prefix",
+			prefix:            "vol",
+			pageSize:          2,
+			nextToken:         "default.vol-04",
+			expectedNextToken: "default.vol-06",
+			expectedIDs: []string{
+				"vol-04",
+				"vol-05",
+			},
+		},
+		{
+			name:        "test05 no valid results with filters and prefix",
+			prefix:      "cccc",
+			pageSize:    2,
+			nextToken:   "",
+			expectedIDs: []string{},
+		},
+		{
+			name:      "test06 go-bexpr filter",
+			namespace: "*",
+			filter:    `ID matches "^vol-0[123]"`,
+			expectedIDs: []string{
+				"vol-01",
+				"vol-02",
+				"vol-03",
+			},
+		},
+		{
+			name:              "test07 go-bexpr filter with pagination",
+			namespace:         "*",
+			filter:            `ID matches "^vol-0[123]"`,
+			pageSize:          2,
+			expectedNextToken: "non-default.vol-03",
+			expectedIDs: []string{
+				"vol-01",
+				"vol-02",
+			},
+		},
+		{
+			name:      "test08 go-bexpr filter in namespace",
+			namespace: "non-default",
+			filter:    `Provider == "com.hashicorp:mock"`,
+			expectedIDs: []string{
+				"vol-03",
+			},
+		},
+		{
+			name:        "test09 go-bexpr wrong namespace",
+			namespace:   "default",
+			filter:      `Namespace == "non-default"`,
+			expectedIDs: []string{},
+		},
+		{
+			name:          "test10 go-bexpr invalid expression",
+			filter:        `NotValid`,
+			expectedError: "failed to read filter expression",
+		},
+		{
+			name:          "test11 go-bexpr invalid field",
+			filter:        `InvalidField == "value"`,
+			expectedError: "error finding value in datum",
+		},
+		{
+			name:      "test14 missing volume",
+			pageSize:  1,
+			nextToken: "default.vol-09",
+			expectedIDs: []string{
+				"vol-10",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.CSIVolumeListRequest{
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Namespace: tc.namespace,
+					Prefix:    tc.prefix,
+					Filter:    tc.filter,
+					PerPage:   tc.pageSize,
+					NextToken: tc.nextToken,
+				},
+			}
+			var resp structs.CSIVolumeListResponse
+			err := msgpackrpc.CallWithCodec(codec, "CSIVolume.List", req, &resp)
+			if tc.expectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedError)
+				return
+			}
+
+			gotIDs := []string{}
+			for _, deployment := range resp.Volumes {
+				gotIDs = append(gotIDs, deployment.ID)
+			}
+			require.Equal(t, tc.expectedIDs, gotIDs, "unexpected page of volumes")
+			require.Equal(t, tc.expectedNextToken, resp.QueryMeta.NextToken, "unexpected NextToken")
+		})
+	}
+}
+
 func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	t.Parallel()
 	var err error

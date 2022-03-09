@@ -751,40 +751,12 @@ func TestEvalEndpoint_List_order(t *testing.T) {
 	err = s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1003, []*structs.Evaluation{eval2})
 	require.NoError(t, err)
 
-	t.Run("descending", func(t *testing.T) {
-		// Lookup the evaluations in reverse chronological order
+	t.Run("default", func(t *testing.T) {
+		// Lookup the evaluations in the default order (oldest first)
 		get := &structs.EvalListRequest{
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
-				Ascending: false,
-			},
-		}
-
-		var resp structs.EvalListResponse
-		err = msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
-		require.NoError(t, err)
-		require.Equal(t, uint64(1003), resp.Index)
-		require.Len(t, resp.Evaluations, 3)
-
-		// Assert returned order is by CreateIndex (descending)
-		require.Equal(t, uint64(1002), resp.Evaluations[0].CreateIndex)
-		require.Equal(t, uuid3, resp.Evaluations[0].ID)
-
-		require.Equal(t, uint64(1001), resp.Evaluations[1].CreateIndex)
-		require.Equal(t, uuid2, resp.Evaluations[1].ID)
-
-		require.Equal(t, uint64(1000), resp.Evaluations[2].CreateIndex)
-		require.Equal(t, uuid1, resp.Evaluations[2].ID)
-	})
-
-	t.Run("ascending", func(t *testing.T) {
-		// Lookup the evaluations in reverse chronological order (newest first)
-		get := &structs.EvalListRequest{
-			QueryOptions: structs.QueryOptions{
-				Region:    "global",
-				Namespace: "*",
-				Ascending: true,
 			},
 		}
 
@@ -805,13 +777,13 @@ func TestEvalEndpoint_List_order(t *testing.T) {
 		require.Equal(t, uuid3, resp.Evaluations[2].ID)
 	})
 
-	t.Run("descending", func(t *testing.T) {
-		// Lookup the evaluations in chronological order (oldest first)
+	t.Run("reverse", func(t *testing.T) {
+		// Lookup the evaluations in reverse order (newest first)
 		get := &structs.EvalListRequest{
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
-				Ascending: false,
+				Reverse:   true,
 			},
 		}
 
@@ -831,7 +803,6 @@ func TestEvalEndpoint_List_order(t *testing.T) {
 		require.Equal(t, uint64(1000), resp.Evaluations[2].CreateIndex)
 		require.Equal(t, uuid1, resp.Evaluations[2].ID)
 	})
-
 }
 
 func TestEvalEndpoint_ListAllNamespaces(t *testing.T) {
@@ -1084,7 +1055,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
 			},
-			expectedNextToken: "1003-aaaaaaaa-3350-4b4b-d185-0e1992ed43e9", // next one in default namespace
+			expectedNextToken: "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9", // next one in default namespace
 		},
 		{
 			name:              "test02 size-2 page-1 default NS with prefix",
@@ -1099,8 +1070,8 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		{
 			name:              "test03 size-2 page-2 default NS",
 			pageSize:          2,
-			nextToken:         "1003-aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1005-aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1005.aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
@@ -1123,7 +1094,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			filterJobID:  "example",
 			filterStatus: "pending",
 			// aaaaaaaa, bb, and cc are filtered by status
-			expectedNextToken: "1006-aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1006.aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
@@ -1159,7 +1130,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			pageSize:          3,                                            // reads off the end
 			filterJobID:       "example",
 			filterStatus:      "pending",
-			nextToken:         "1003-aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
 			expectedNextToken: "",
 			expectedIDs: []string{
 				"aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
@@ -1183,8 +1154,8 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			name:              "test10 size-2 page-2 all namespaces",
 			namespace:         "*",
 			pageSize:          2,
-			nextToken:         "1002-aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1004-aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1002.aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1004.aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
@@ -1228,7 +1199,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			name:              "test16 go-bexpr filter with pagination",
 			filter:            `JobID == "example"`,
 			pageSize:          2,
-			expectedNextToken: "1003-aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
@@ -1267,8 +1238,8 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		{
 			name:              "test22 non-lexicographic order",
 			pageSize:          1,
-			nextToken:         "1009-00000111-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1010-00000222-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1009.00000111-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1010.00000222-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"00000111-3350-4b4b-d185-0e1992ed43e9",
 			},
@@ -1276,8 +1247,8 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		{
 			name:              "test23 same index",
 			pageSize:          1,
-			nextToken:         "1010-00000222-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1010-00000333-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1010.00000222-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1010.00000333-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"00000222-3350-4b4b-d185-0e1992ed43e9",
 			},
@@ -1285,7 +1256,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		{
 			name:      "test24 missing index",
 			pageSize:  1,
-			nextToken: "1011-e9522802-0cd8-4b1d-9c9e-ab3d97938371",
+			nextToken: "1011.e9522802-0cd8-4b1d-9c9e-ab3d97938371",
 			expectedIDs: []string{
 				"bbbb1111-3350-4b4b-d185-0e1992ed43e9",
 			},
@@ -1304,7 +1275,6 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 					PerPage:   tc.pageSize,
 					NextToken: tc.nextToken,
 					Filter:    tc.filter,
-					Ascending: true, // counting up is easier to think about
 				},
 			}
 			req.AuthToken = aclToken

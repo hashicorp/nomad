@@ -22,6 +22,19 @@ import (
 // This can be a read or write transaction.
 type Txn = *txn
 
+// SortOption represents how results can be sorted.
+type SortOption bool
+
+const (
+	// SortDefault indicates that the result should be returned using the
+	// default go-memdb ResultIterator order.
+	SortDefault SortOption = false
+
+	// SortReverse indicates that the result should be returned using the
+	// reversed go-memdb ResultIterator order.
+	SortReverse SortOption = true
+)
+
 const (
 	// NodeRegisterEventReregistered is the message used when the node becomes
 	// reregistered.
@@ -544,16 +557,17 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 	return nil
 }
 
-func (s *StateStore) Deployments(ws memdb.WatchSet, ascending bool) (memdb.ResultIterator, error) {
+func (s *StateStore) Deployments(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	var it memdb.ResultIterator
 	var err error
 
-	if ascending {
-		it, err = txn.Get("deployment", "create")
-	} else {
+	switch sort {
+	case SortReverse:
 		it, err = txn.GetReverse("deployment", "create")
+	default:
+		it, err = txn.Get("deployment", "create")
 	}
 
 	if err != nil {
@@ -578,7 +592,7 @@ func (s *StateStore) DeploymentsByNamespace(ws memdb.WatchSet, namespace string)
 	return iter, nil
 }
 
-func (s *StateStore) DeploymentsByNamespaceOrdered(ws memdb.WatchSet, namespace string, ascending bool) (memdb.ResultIterator, error) {
+func (s *StateStore) DeploymentsByNamespaceOrdered(ws memdb.WatchSet, namespace string, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	var (
@@ -587,10 +601,11 @@ func (s *StateStore) DeploymentsByNamespaceOrdered(ws memdb.WatchSet, namespace 
 		exact = terminate(namespace)
 	)
 
-	if ascending {
-		it, err = txn.Get("deployment", "namespace_create_prefix", exact)
-	} else {
+	switch sort {
+	case SortReverse:
 		it, err = txn.GetReverse("deployment", "namespace_create_prefix", exact)
+	default:
+		it, err = txn.Get("deployment", "namespace_create_prefix", exact)
 	}
 
 	if err != nil {
@@ -1919,8 +1934,13 @@ func (s *StateStore) JobByIDTxn(ws memdb.WatchSet, namespace, id string, txn Txn
 	return nil, nil
 }
 
-// JobsByIDPrefix is used to lookup a job by prefix
+// JobsByIDPrefix is used to lookup a job by prefix. If querying all namespaces
+// the prefix will not be filtered by an index.
 func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
+	if namespace == structs.AllNamespacesSentinel {
+		return s.jobsByIDPrefixAllNamespaces(ws, id)
+	}
+
 	txn := s.db.ReadTxn()
 
 	iter, err := txn.Get("jobs", "id_prefix", namespace, id)
@@ -1931,6 +1951,30 @@ func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string) (me
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
+}
+
+func (s *StateStore) jobsByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	// Walk the entire jobs table
+	iter, err := txn.Get("jobs", "id")
+
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	// Filter the iterator by ID prefix
+	f := func(raw interface{}) bool {
+		job, ok := raw.(*structs.Job)
+		if !ok {
+			return true
+		}
+		return !strings.HasPrefix(job.ID, prefix)
+	}
+	wrap := memdb.NewFilterIterator(iter, f)
+	return wrap, nil
 }
 
 // JobVersionsByID returns all the tracked versions of a job.
@@ -3188,17 +3232,18 @@ func (s *StateStore) EvalsByJob(ws memdb.WatchSet, namespace, jobID string) ([]*
 }
 
 // Evals returns an iterator over all the evaluations in ascending or descending
-// order of CreationIndex as determined by the ascending parameter.
-func (s *StateStore) Evals(ws memdb.WatchSet, ascending bool) (memdb.ResultIterator, error) {
+// order of CreationIndex as determined by the reverse parameter.
+func (s *StateStore) Evals(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	var it memdb.ResultIterator
 	var err error
 
-	if ascending {
-		it, err = txn.Get("evals", "create")
-	} else {
+	switch sort {
+	case SortReverse:
 		it, err = txn.GetReverse("evals", "create")
+	default:
+		it, err = txn.Get("evals", "create")
 	}
 
 	if err != nil {
@@ -3227,7 +3272,7 @@ func (s *StateStore) EvalsByNamespace(ws memdb.WatchSet, namespace string) (memd
 	return it, nil
 }
 
-func (s *StateStore) EvalsByNamespaceOrdered(ws memdb.WatchSet, namespace string, ascending bool) (memdb.ResultIterator, error) {
+func (s *StateStore) EvalsByNamespaceOrdered(ws memdb.WatchSet, namespace string, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	var (
@@ -3236,10 +3281,11 @@ func (s *StateStore) EvalsByNamespaceOrdered(ws memdb.WatchSet, namespace string
 		exact = terminate(namespace)
 	)
 
-	if ascending {
-		it, err = txn.Get("evals", "namespace_create_prefix", exact)
-	} else {
+	switch sort {
+	case SortReverse:
 		it, err = txn.GetReverse("evals", "namespace_create_prefix", exact)
+	default:
+		it, err = txn.Get("evals", "namespace_create_prefix", exact)
 	}
 
 	if err != nil {
@@ -3609,6 +3655,10 @@ func allocNamespaceFilter(namespace string) func(interface{}) bool {
 			return true
 		}
 
+		if namespace == structs.AllNamespacesSentinel {
+			return false
+		}
+
 		return alloc.Namespace != namespace
 	}
 }
@@ -3766,19 +3816,52 @@ func (s *StateStore) AllocsByDeployment(ws memdb.WatchSet, deploymentID string) 
 	return out, nil
 }
 
-// Allocs returns an iterator over all the evaluations
-func (s *StateStore) Allocs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+// Allocs returns an iterator over all the evaluations.
+func (s *StateStore) Allocs(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	// Walk the entire table
-	iter, err := txn.Get("allocs", "id")
+	var it memdb.ResultIterator
+	var err error
+
+	switch sort {
+	case SortReverse:
+		it, err = txn.GetReverse("allocs", "create")
+	default:
+		it, err = txn.Get("allocs", "create")
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	ws.Add(iter.WatchCh())
+	ws.Add(it.WatchCh())
 
-	return iter, nil
+	return it, nil
+}
+
+func (s *StateStore) AllocsByNamespaceOrdered(ws memdb.WatchSet, namespace string, sort SortOption) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	var (
+		it    memdb.ResultIterator
+		err   error
+		exact = terminate(namespace)
+	)
+
+	switch sort {
+	case SortReverse:
+		it, err = txn.GetReverse("allocs", "namespace_create_prefix", exact)
+	default:
+		it, err = txn.Get("allocs", "namespace_create_prefix", exact)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(it.WatchCh())
+
+	return it, nil
 }
 
 // AllocsByNamespace returns an iterator over all the allocations in the
@@ -5464,14 +5547,22 @@ func (s *StateStore) ACLTokenByAccessorIDPrefix(ws memdb.WatchSet, prefix string
 }
 
 // ACLTokens returns an iterator over all the tokens
-func (s *StateStore) ACLTokens(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) ACLTokens(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	// Walk the entire table
-	iter, err := txn.Get("acl_token", "id")
+	var iter memdb.ResultIterator
+	var err error
+
+	switch sort {
+	case SortReverse:
+		iter, err = txn.GetReverse("acl_token", "create")
+	default:
+		iter, err = txn.Get("acl_token", "create")
+	}
 	if err != nil {
 		return nil, err
 	}
+
 	ws.Add(iter.WatchCh())
 	return iter, nil
 }

@@ -394,42 +394,42 @@ func wildcard(namespace string) bool {
 	return namespace == structs.AllNamespacesSentinel
 }
 
-func getFuzzyResourceIterator(context structs.Context, aclObj *acl.ACL, namespace string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
+func getFuzzyResourceIterator(context structs.Context, aclObj *acl.ACL, namespace string, ws memdb.WatchSet, store *state.StateStore) (memdb.ResultIterator, error) {
 	switch context {
 	case structs.Jobs:
 		if wildcard(namespace) {
-			iter, err := state.Jobs(ws)
+			iter, err := store.Jobs(ws)
 			return nsCapIterFilter(iter, err, aclObj)
 		}
-		return state.JobsByNamespace(ws, namespace)
+		return store.JobsByNamespace(ws, namespace)
 
 	case structs.Allocs:
 		if wildcard(namespace) {
-			iter, err := state.Allocs(ws)
+			iter, err := store.Allocs(ws, state.SortDefault)
 			return nsCapIterFilter(iter, err, aclObj)
 		}
-		return state.AllocsByNamespace(ws, namespace)
+		return store.AllocsByNamespace(ws, namespace)
 
 	case structs.Nodes:
 		if wildcard(namespace) {
-			iter, err := state.Nodes(ws)
+			iter, err := store.Nodes(ws)
 			return nsCapIterFilter(iter, err, aclObj)
 		}
-		return state.Nodes(ws)
+		return store.Nodes(ws)
 
 	case structs.Plugins:
 		if wildcard(namespace) {
-			iter, err := state.CSIPlugins(ws)
+			iter, err := store.CSIPlugins(ws)
 			return nsCapIterFilter(iter, err, aclObj)
 		}
-		return state.CSIPlugins(ws)
+		return store.CSIPlugins(ws)
 
 	case structs.Namespaces:
-		iter, err := state.Namespaces(ws)
+		iter, err := store.Namespaces(ws)
 		return nsCapIterFilter(iter, err, aclObj)
 
 	default:
-		return getEnterpriseFuzzyResourceIter(context, aclObj, namespace, ws, state)
+		return getEnterpriseFuzzyResourceIter(context, aclObj, namespace, ws, store)
 	}
 }
 

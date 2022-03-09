@@ -931,9 +931,9 @@ func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
 	}
 
 	// Wait for the two allocations to be placed
-	state := s1.State()
+	store := s1.State()
 	testutil.WaitForResult(func() (bool, error) {
-		iter, err := state.Allocs(nil)
+		iter, err := store.Allocs(nil, state.SortDefault)
 		if err != nil {
 			return false, err
 		}
@@ -974,11 +974,11 @@ func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
 	errCh := make(chan error, 2)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go allocPromoter(errCh, ctx, state, codec, n1.ID, s1.logger)
-	go allocPromoter(errCh, ctx, state, codec, n2.ID, s1.logger)
+	go allocPromoter(errCh, ctx, store, codec, n1.ID, s1.logger)
+	go allocPromoter(errCh, ctx, store, codec, n2.ID, s1.logger)
 
 	testutil.WaitForResult(func() (bool, error) {
-		allocs, err := state.AllocsByNode(nil, n2.ID)
+		allocs, err := store.AllocsByNode(nil, n2.ID)
 		if err != nil {
 			return false, err
 		}
@@ -992,7 +992,7 @@ func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
 		if err := checkAllocPromoter(errCh); err != nil {
 			return false, err
 		}
-		node, err := state.NodeByID(nil, n1.ID)
+		node, err := store.NodeByID(nil, n1.ID)
 		if err != nil {
 			return false, err
 		}
@@ -1002,7 +1002,7 @@ func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
 	})
 
 	// Check we got the right events
-	node, err := state.NodeByID(nil, n1.ID)
+	node, err := store.NodeByID(nil, n1.ID)
 	require.NoError(err)
 	// sometimes test gets a duplicate node drain complete event
 	require.GreaterOrEqualf(len(node.Events), 3, "unexpected number of events: %v", node.Events)

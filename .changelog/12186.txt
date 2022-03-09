@@ -1,0 +1,7 @@
+```release-note:improvement
+api: Add support for filtering, sorting, and pagination to the ACL tokens and allocations list endpoint
+```
+
+```release-note:improvement
+api: Add support for filtering and pagination to the jobs and volumes list endpoint
+```

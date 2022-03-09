@@ -530,7 +530,7 @@ func allocTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "allocs",
 		Indexes: map[string]*memdb.IndexSchema{
-			// Primary index is a UUID
+			// id index is used for direct lookup of allocation by ID.
 			"id": {
 				Name:         "id",
 				AllowMissing: false,
@@ -540,12 +540,57 @@ func allocTableSchema() *memdb.TableSchema {
 				},
 			},
 
+			// create index is used for listing allocations, ordering them by
+			// creation chronology. (Use a reverse iterator for newest first).
+			"create": {
+				Name:         "create",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.UintFieldIndex{
+							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
+				},
+			},
+
+			// namespace is used to lookup evaluations by namespace.
+			// todo(shoenig): i think we can deprecate this and other like it
 			"namespace": {
 				Name:         "namespace",
 				AllowMissing: false,
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "Namespace",
+				},
+			},
+
+			// namespace_create index is used to lookup evaluations by namespace
+			// in their original chronological order based on CreateIndex.
+			//
+			// Use a prefix iterator (namespace_prefix) on a Namespace to iterate
+			// those evaluations in order of CreateIndex.
+			"namespace_create": {
+				Name:         "namespace_create",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					AllowMissing: false,
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.UintFieldIndex{
+							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
 				},
 			},
 
@@ -726,6 +771,21 @@ func aclTokenTableSchema() *memdb.TableSchema {
 				Unique:       true,
 				Indexer: &memdb.UUIDFieldIndex{
 					Field: "AccessorID",
+				},
+			},
+			"create": {
+				Name:         "create",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.UintFieldIndex{
+							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "AccessorID",
+						},
+					},
 				},
 			},
 			"secret": {

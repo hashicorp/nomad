@@ -919,6 +919,286 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 	assert.Equal(t, 2, len(resp3.Tokens))
 }
 
+func TestACLEndpoint_ListTokens_PaginationFiltering(t *testing.T) {
+	t.Parallel()
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.ACLEnabled = true
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// create a set of ACL tokens. these are in the order that the state store
+	// will return them from the iterator (sorted by key) for ease of writing
+	// tests
+	mocks := []struct {
+		ids []string
+		typ string
+	}{
+		{ids: []string{"aaaa1111-3350-4b4b-d185-0e1992ed43e9"}, typ: "management"}, // 0
+		{ids: []string{"aaaaaa22-3350-4b4b-d185-0e1992ed43e9"}},                    // 1
+		{ids: []string{"aaaaaa33-3350-4b4b-d185-0e1992ed43e9"}},                    // 2
+		{ids: []string{"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"}},                    // 3
+		{ids: []string{"aaaaaabb-3350-4b4b-d185-0e1992ed43e9"}},                    // 4
+		{ids: []string{"aaaaaacc-3350-4b4b-d185-0e1992ed43e9"}},                    // 5
+		{ids: []string{"aaaaaadd-3350-4b4b-d185-0e1992ed43e9"}},                    // 6
+		{ids: []string{"00000111-3350-4b4b-d185-0e1992ed43e9"}},                    // 7
+		{ids: []string{ // 8
+			"00000222-3350-4b4b-d185-0e1992ed43e9",
+			"00000333-3350-4b4b-d185-0e1992ed43e9",
+		}},
+		{}, // 9, index missing
+		{ids: []string{"bbbb1111-3350-4b4b-d185-0e1992ed43e9"}}, // 10
+	}
+
+	state := s1.fsm.State()
+
+	var bootstrapToken string
+	for i, m := range mocks {
+		tokensInTx := []*structs.ACLToken{}
+		for _, id := range m.ids {
+			token := mock.ACLToken()
+			token.AccessorID = id
+			token.Type = m.typ
+			tokensInTx = append(tokensInTx, token)
+		}
+		index := 1000 + uint64(i)
+
+		// bootstrap cluster with the first token
+		if i == 0 {
+			token := tokensInTx[0]
+			bootstrapToken = token.SecretID
+			err := s1.State().BootstrapACLTokens(structs.MsgTypeTestSetup, index, 0, token)
+			require.NoError(t, err)
+
+			err = state.UpsertACLTokens(structs.MsgTypeTestSetup, index, tokensInTx[1:])
+			require.NoError(t, err)
+		} else {
+			err := state.UpsertACLTokens(structs.MsgTypeTestSetup, index, tokensInTx)
+			require.NoError(t, err)
+		}
+	}
+
+	cases := []struct {
+		name              string
+		prefix            string
+		filter            string
+		nextToken         string
+		pageSize          int32
+		expectedNextToken string
+		expectedIDs       []string
+		expectedError     string
+	}{
+		{
+			name:              "test01 size-2 page-1",
+			pageSize:          2,
+			expectedNextToken: "1002.aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test02 size-2 page-1 with prefix",
+			prefix:            "aaaa",
+			pageSize:          2,
+			expectedNextToken: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test03 size-2 page-2 default NS",
+			pageSize:          2,
+			nextToken:         "1002.aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1004.aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:   "test04 go-bexpr filter",
+			filter: `AccessorID matches "^a+[123]"`,
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test05 go-bexpr filter with pagination",
+			filter:            `AccessorID matches "^a+[123]"`,
+			pageSize:          2,
+			expectedNextToken: "1002.aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:          "test06 go-bexpr invalid expression",
+			filter:        `NotValid`,
+			expectedError: "failed to read filter expression",
+		},
+		{
+			name:          "test07 go-bexpr invalid field",
+			filter:        `InvalidField == "value"`,
+			expectedError: "error finding value in datum",
+		},
+		{
+			name:              "test08 non-lexicographic order",
+			pageSize:          1,
+			nextToken:         "1007.00000111-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1008.00000222-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"00000111-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test09 same index",
+			pageSize:          1,
+			nextToken:         "1008.00000222-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1008.00000333-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"00000222-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:      "test10 missing index",
+			pageSize:  1,
+			nextToken: "1009.e9522802-0cd8-4b1d-9c9e-ab3d97938371",
+			expectedIDs: []string{
+				"bbbb1111-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.ACLTokenListRequest{
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Prefix:    tc.prefix,
+					Filter:    tc.filter,
+					PerPage:   tc.pageSize,
+					NextToken: tc.nextToken,
+				},
+			}
+			req.AuthToken = bootstrapToken
+			var resp structs.ACLTokenListResponse
+			err := msgpackrpc.CallWithCodec(codec, "ACL.ListTokens", req, &resp)
+			if tc.expectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedError)
+				return
+			}
+
+			gotIDs := []string{}
+			for _, token := range resp.Tokens {
+				gotIDs = append(gotIDs, token.AccessorID)
+			}
+			require.Equal(t, tc.expectedIDs, gotIDs, "unexpected page of tokens")
+			require.Equal(t, tc.expectedNextToken, resp.QueryMeta.NextToken, "unexpected NextToken")
+		})
+	}
+}
+
+func TestACLEndpoint_ListTokens_Order(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.ACLEnabled = true
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create register requests
+	uuid1 := uuid.Generate()
+	token1 := mock.ACLManagementToken()
+	token1.AccessorID = uuid1
+
+	uuid2 := uuid.Generate()
+	token2 := mock.ACLToken()
+	token2.AccessorID = uuid2
+
+	uuid3 := uuid.Generate()
+	token3 := mock.ACLToken()
+	token3.AccessorID = uuid3
+
+	// bootstrap cluster with the first token
+	bootstrapToken := token1.SecretID
+	err := s1.State().BootstrapACLTokens(structs.MsgTypeTestSetup, 1000, 0, token1)
+	require.NoError(t, err)
+
+	err = s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1001, []*structs.ACLToken{token2})
+	require.NoError(t, err)
+
+	err = s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1002, []*structs.ACLToken{token3})
+	require.NoError(t, err)
+
+	// update token2 again so we can later assert create index order did not change
+	err = s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1003, []*structs.ACLToken{token2})
+	require.NoError(t, err)
+
+	t.Run("default", func(t *testing.T) {
+		// Lookup the tokens in the default order (oldest first)
+		get := &structs.ACLTokenListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region: "global",
+			},
+		}
+		get.AuthToken = bootstrapToken
+
+		var resp structs.ACLTokenListResponse
+		err = msgpackrpc.CallWithCodec(codec, "ACL.ListTokens", get, &resp)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1003), resp.Index)
+		require.Len(t, resp.Tokens, 3)
+
+		// Assert returned order is by CreateIndex (ascending)
+		require.Equal(t, uint64(1000), resp.Tokens[0].CreateIndex)
+		require.Equal(t, uuid1, resp.Tokens[0].AccessorID)
+
+		require.Equal(t, uint64(1001), resp.Tokens[1].CreateIndex)
+		require.Equal(t, uuid2, resp.Tokens[1].AccessorID)
+
+		require.Equal(t, uint64(1002), resp.Tokens[2].CreateIndex)
+		require.Equal(t, uuid3, resp.Tokens[2].AccessorID)
+	})
+
+	t.Run("reverse", func(t *testing.T) {
+		// Lookup the tokens in reverse order (newest first)
+		get := &structs.ACLTokenListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region:  "global",
+				Reverse: true,
+			},
+		}
+		get.AuthToken = bootstrapToken
+
+		var resp structs.ACLTokenListResponse
+		err = msgpackrpc.CallWithCodec(codec, "ACL.ListTokens", get, &resp)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1003), resp.Index)
+		require.Len(t, resp.Tokens, 3)
+
+		// Assert returned order is by CreateIndex (descending)
+		require.Equal(t, uint64(1002), resp.Tokens[0].CreateIndex)
+		require.Equal(t, uuid3, resp.Tokens[0].AccessorID)
+
+		require.Equal(t, uint64(1001), resp.Tokens[1].CreateIndex)
+		require.Equal(t, uuid2, resp.Tokens[1].AccessorID)
+
+		require.Equal(t, uint64(1000), resp.Tokens[2].CreateIndex)
+		require.Equal(t, uuid1, resp.Tokens[2].AccessorID)
+	})
+}
+
 func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
 	t.Parallel()
 

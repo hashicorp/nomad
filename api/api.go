@@ -82,10 +82,10 @@ type QueryOptions struct {
 	// previous response.
 	NextToken string
 
-	// Ascending is used to have results sorted in ascending chronological order.
+	// Reverse is used to reverse the default order of list results.
 	//
-	// Currently only supported by evaluations.List and deployments.list endpoints.
-	Ascending bool
+	// Currently only supported by specific endpoints.
+	Reverse bool
 
 	// ctx is an optional context pass through to the underlying HTTP
 	// request layer. Use Context() and WithContext() to manage this.
@@ -605,8 +605,8 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	if q.NextToken != "" {
 		r.params.Set("next_token", q.NextToken)
 	}
-	if q.Ascending {
-		r.params.Set("ascending", "true")
+	if q.Reverse {
+		r.params.Set("reverse", "true")
 	}
 	for k, v := range q.Params {
 		r.params.Set(k, v)

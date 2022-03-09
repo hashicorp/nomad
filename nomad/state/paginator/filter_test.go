@@ -1,14 +1,108 @@
-package state
+package paginator
 
 import (
 	"testing"
 	"time"
 
 	"github.com/hashicorp/go-bexpr"
-	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
+
+func TestGenericFilter(t *testing.T) {
+	t.Parallel()
+	ids := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+
+	filters := []Filter{GenericFilter{
+		Allow: func(raw interface{}) (bool, error) {
+			result := raw.(*mockObject)
+			return result.id > "5", nil
+		},
+	}}
+	iter := newTestIterator(ids)
+	tokenizer := testTokenizer{}
+	opts := structs.QueryOptions{
+		PerPage: 3,
+	}
+	results := []string{}
+	paginator, err := NewPaginator(iter, tokenizer, filters, opts,
+		func(raw interface{}) error {
+			result := raw.(*mockObject)
+			results = append(results, result.id)
+			return nil
+		},
+	)
+	require.NoError(t, err)
+
+	nextToken, err := paginator.Page()
+	require.NoError(t, err)
+
+	expected := []string{"6", "7", "8"}
+	require.Equal(t, "9", nextToken)
+	require.Equal(t, expected, results)
+}
+
+func TestNamespaceFilter(t *testing.T) {
+	t.Parallel()
+
+	mocks := []*mockObject{
+		{namespace: "default"},
+		{namespace: "dev"},
+		{namespace: "qa"},
+		{namespace: "region-1"},
+	}
+
+	cases := []struct {
+		name      string
+		allowable map[string]bool
+		expected  []string
+	}{
+		{
+			name:     "nil map",
+			expected: []string{"default", "dev", "qa", "region-1"},
+		},
+		{
+			name:      "allow default",
+			allowable: map[string]bool{"default": true},
+			expected:  []string{"default"},
+		},
+		{
+			name:      "allow multiple",
+			allowable: map[string]bool{"default": true, "dev": false, "qa": true},
+			expected:  []string{"default", "qa"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			filters := []Filter{NamespaceFilter{
+				AllowableNamespaces: tc.allowable,
+			}}
+			iter := newTestIteratorWithMocks(mocks)
+			tokenizer := testTokenizer{}
+			opts := structs.QueryOptions{
+				PerPage: int32(len(mocks)),
+			}
+
+			results := []string{}
+			paginator, err := NewPaginator(iter, tokenizer, filters, opts,
+				func(raw interface{}) error {
+					result := raw.(*mockObject)
+					results = append(results, result.namespace)
+					return nil
+				},
+			)
+			require.NoError(t, err)
+
+			nextToken, err := paginator.Page()
+			require.NoError(t, err)
+			require.Equal(t, "", nextToken)
+			require.Equal(t, tc.expected, results)
+		})
+	}
+}
 
 func BenchmarkEvalListFilter(b *testing.B) {
 	const evalCount = 100_000
@@ -76,9 +170,10 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
-			evalIter := evalPaginationIterator{iter}
+			tokenizer := NewStructsTokenizer(iter, StructsTokenizerOptions{WithID: true})
+
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(evalIter, opts, func(raw interface{}) error {
+			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
 				return nil
@@ -100,9 +195,10 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.Evals(nil, false)
-			evalIter := evalPaginationIterator{iter}
+			tokenizer := NewStructsTokenizer(iter, StructsTokenizerOptions{WithID: true})
+
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(evalIter, opts, func(raw interface{}) error {
+			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
 				return nil
@@ -137,9 +233,10 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
-			evalIter := evalPaginationIterator{iter}
+			tokenizer := NewStructsTokenizer(iter, StructsTokenizerOptions{WithID: true})
+
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(evalIter, opts, func(raw interface{}) error {
+			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
 				return nil
@@ -175,9 +272,10 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.Evals(nil, false)
-			evalIter := evalPaginationIterator{iter}
+			tokenizer := NewStructsTokenizer(iter, StructsTokenizerOptions{WithID: true})
+
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(evalIter, opts, func(raw interface{}) error {
+			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
 				return nil
@@ -193,12 +291,12 @@ func BenchmarkEvalListFilter(b *testing.B) {
 // -----------------
 // BENCHMARK HELPER FUNCTIONS
 
-func setupPopulatedState(b *testing.B, evalCount int) *StateStore {
+func setupPopulatedState(b *testing.B, evalCount int) *state.StateStore {
 	evals := generateEvals(evalCount)
 
 	index := uint64(0)
 	var err error
-	state := TestStateStore(b)
+	state := state.TestStateStore(b)
 	for _, eval := range evals {
 		index++
 		err = state.UpsertEvals(
@@ -234,18 +332,4 @@ func generateEval(i int, ns string) *structs.Evaluation {
 		CreateTime: now,
 		ModifyTime: now,
 	}
-}
-
-type evalPaginationIterator struct {
-	iter memdb.ResultIterator
-}
-
-func (it evalPaginationIterator) Next() (string, interface{}) {
-	raw := it.iter.Next()
-	if raw == nil {
-		return "", nil
-	}
-
-	eval := raw.(*structs.Evaluation)
-	return eval.ID, eval
 }

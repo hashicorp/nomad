@@ -545,7 +545,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
 	// Iterate over the deployments
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.Deployments(ws, false)
+	iter, err := c.snap.Deployments(ws, state.SortDefault)
 	if err != nil {
 		return err
 	}

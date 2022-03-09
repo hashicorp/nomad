@@ -318,6 +318,32 @@ type CSIVolume struct {
 	ModifyIndex uint64
 }
 
+// GetID implements the IDGetter interface, required for pagination.
+func (v *CSIVolume) GetID() string {
+	if v == nil {
+		return ""
+	}
+	return v.ID
+}
+
+// GetNamespace implements the NamespaceGetter interface, required for
+// pagination.
+func (v *CSIVolume) GetNamespace() string {
+	if v == nil {
+		return ""
+	}
+	return v.Namespace
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (v *CSIVolume) GetCreateIndex() uint64 {
+	if v == nil {
+		return 0
+	}
+	return v.CreateIndex
+}
+
 // CSIVolListStub is partial representation of a CSI Volume for inclusion in lists
 type CSIVolListStub struct {
 	ID                  string

@@ -185,28 +185,28 @@ func (f *FSMHelper) StateAsMap() map[string][]interface{} {
 }
 
 // StateAsMap returns a json-able representation of the state
-func StateAsMap(state *state.StateStore) map[string][]interface{} {
+func StateAsMap(store *state.StateStore) map[string][]interface{} {
 	result := map[string][]interface{}{
-		"ACLPolicies":      toArray(state.ACLPolicies(nil)),
-		"ACLTokens":        toArray(state.ACLTokens(nil)),
-		"Allocs":           toArray(state.Allocs(nil)),
-		"CSIPlugins":       toArray(state.CSIPlugins(nil)),
-		"CSIVolumes":       toArray(state.CSIVolumes(nil)),
-		"Deployments":      toArray(state.Deployments(nil, false)),
-		"Evals":            toArray(state.Evals(nil, false)),
-		"Indexes":          toArray(state.Indexes()),
-		"JobSummaries":     toArray(state.JobSummaries(nil)),
-		"JobVersions":      toArray(state.JobVersions(nil)),
-		"Jobs":             toArray(state.Jobs(nil)),
-		"Nodes":            toArray(state.Nodes(nil)),
-		"PeriodicLaunches": toArray(state.PeriodicLaunches(nil)),
-		"SITokenAccessors": toArray(state.SITokenAccessors(nil)),
-		"ScalingEvents":    toArray(state.ScalingEvents(nil)),
-		"ScalingPolicies":  toArray(state.ScalingPolicies(nil)),
-		"VaultAccessors":   toArray(state.VaultAccessors(nil)),
+		"ACLPolicies":      toArray(store.ACLPolicies(nil)),
+		"ACLTokens":        toArray(store.ACLTokens(nil, state.SortDefault)),
+		"Allocs":           toArray(store.Allocs(nil, state.SortDefault)),
+		"CSIPlugins":       toArray(store.CSIPlugins(nil)),
+		"CSIVolumes":       toArray(store.CSIVolumes(nil)),
+		"Deployments":      toArray(store.Deployments(nil, state.SortDefault)),
+		"Evals":            toArray(store.Evals(nil, state.SortDefault)),
+		"Indexes":          toArray(store.Indexes()),
+		"JobSummaries":     toArray(store.JobSummaries(nil)),
+		"JobVersions":      toArray(store.JobVersions(nil)),
+		"Jobs":             toArray(store.Jobs(nil)),
+		"Nodes":            toArray(store.Nodes(nil)),
+		"PeriodicLaunches": toArray(store.PeriodicLaunches(nil)),
+		"SITokenAccessors": toArray(store.SITokenAccessors(nil)),
+		"ScalingEvents":    toArray(store.ScalingEvents(nil)),
+		"ScalingPolicies":  toArray(store.ScalingPolicies(nil)),
+		"VaultAccessors":   toArray(store.VaultAccessors(nil)),
 	}
 
-	insertEnterpriseState(result, state)
+	insertEnterpriseState(result, store)
 
 	return result
 

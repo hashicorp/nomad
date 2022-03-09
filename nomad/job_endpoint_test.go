@@ -5151,6 +5151,184 @@ func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
+	t.Parallel()
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// create a set of jobs. these are in the order that the state store will
+	// return them from the iterator (sorted by key) for ease of writing tests
+	mocks := []struct {
+		name      string
+		namespace string
+		status    string
+	}{
+		{name: "job-01"}, // 0
+		{name: "job-02"}, // 1
+		{name: "job-03", namespace: "non-default"}, // 2
+		{name: "job-04"}, // 3
+		{name: "job-05", status: structs.JobStatusRunning}, // 4
+		{name: "job-06", status: structs.JobStatusRunning}, // 5
+		{},                                   // 6, missing job
+		{name: "job-08"},                     // 7
+		{name: "job-03", namespace: "other"}, // 8, same name but in another namespace
+	}
+
+	state := s1.fsm.State()
+	require.NoError(t, state.UpsertNamespaces(999, []*structs.Namespace{{Name: "non-default"}, {Name: "other"}}))
+
+	for i, m := range mocks {
+		if m.name == "" {
+			continue
+		}
+
+		index := 1000 + uint64(i)
+		job := mock.Job()
+		job.ID = m.name
+		job.Name = m.name
+		job.Status = m.status
+		if m.namespace != "" { // defaults to "default"
+			job.Namespace = m.namespace
+		}
+		job.CreateIndex = index
+		require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, job))
+	}
+
+	aclToken := mock.CreatePolicyAndToken(t, state, 1100, "test-valid-read",
+		mock.NamespacePolicy("*", "read", nil)).
+		SecretID
+
+	cases := []struct {
+		name              string
+		namespace         string
+		prefix            string
+		filter            string
+		nextToken         string
+		pageSize          int32
+		expectedNextToken string
+		expectedIDs       []string
+		expectedError     string
+	}{
+		{
+			name:              "test01 size-2 page-1 default NS",
+			pageSize:          2,
+			expectedNextToken: "default.job-04",
+			expectedIDs:       []string{"job-01", "job-02"},
+		},
+		{
+			name:              "test02 size-2 page-1 default NS with prefix",
+			prefix:            "job",
+			pageSize:          2,
+			expectedNextToken: "default.job-04",
+			expectedIDs:       []string{"job-01", "job-02"},
+		},
+		{
+			name:              "test03 size-2 page-2 default NS",
+			pageSize:          2,
+			nextToken:         "default.job-04",
+			expectedNextToken: "default.job-06",
+			expectedIDs:       []string{"job-04", "job-05"},
+		},
+		{
+			name:              "test04 size-2 page-2 default NS with prefix",
+			prefix:            "job",
+			pageSize:          2,
+			nextToken:         "default.job-04",
+			expectedNextToken: "default.job-06",
+			expectedIDs:       []string{"job-04", "job-05"},
+		},
+		{
+			name:        "test05 no valid results with filters and prefix",
+			prefix:      "not-job",
+			pageSize:    2,
+			nextToken:   "",
+			expectedIDs: []string{},
+		},
+		{
+			name:        "test06 go-bexpr filter",
+			namespace:   "*",
+			filter:      `Name matches "job-0[123]"`,
+			expectedIDs: []string{"job-01", "job-02", "job-03", "job-03"},
+		},
+		{
+			name:              "test07 go-bexpr filter with pagination",
+			namespace:         "*",
+			filter:            `Name matches "job-0[123]"`,
+			pageSize:          2,
+			expectedNextToken: "non-default.job-03",
+			expectedIDs:       []string{"job-01", "job-02"},
+		},
+		{
+			name:        "test08 go-bexpr filter in namespace",
+			namespace:   "non-default",
+			filter:      `Status == "pending"`,
+			expectedIDs: []string{"job-03"},
+		},
+		{
+			name:          "test09 go-bexpr invalid expression",
+			filter:        `NotValid`,
+			expectedError: "failed to read filter expression",
+		},
+		{
+			name:          "test10 go-bexpr invalid field",
+			filter:        `InvalidField == "value"`,
+			expectedError: "error finding value in datum",
+		},
+		{
+			name:      "test11 missing index",
+			pageSize:  1,
+			nextToken: "default.job-07",
+			expectedIDs: []string{
+				"job-08",
+			},
+		},
+		{
+			name:              "test12 same name but different NS",
+			namespace:         "*",
+			pageSize:          1,
+			filter:            `Name == "job-03"`,
+			expectedNextToken: "other.job-03",
+			expectedIDs: []string{
+				"job-03",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.JobListRequest{
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Namespace: tc.namespace,
+					Prefix:    tc.prefix,
+					Filter:    tc.filter,
+					PerPage:   tc.pageSize,
+					NextToken: tc.nextToken,
+				},
+			}
+			req.AuthToken = aclToken
+			var resp structs.JobListResponse
+			err := msgpackrpc.CallWithCodec(codec, "Job.List", req, &resp)
+			if tc.expectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedError)
+				return
+			}
+
+			gotIDs := []string{}
+			for _, job := range resp.Jobs {
+				gotIDs = append(gotIDs, job.ID)
+			}
+			require.Equal(t, tc.expectedIDs, gotIDs, "unexpected page of jobs")
+			require.Equal(t, tc.expectedNextToken, resp.QueryMeta.NextToken, "unexpected NextToken")
+		})
+	}
+}
+
 func TestJobEndpoint_Allocations(t *testing.T) {
 	t.Parallel()
 

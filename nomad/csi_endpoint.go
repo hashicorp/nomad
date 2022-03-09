@@ -3,6 +3,7 @@ package nomad
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -136,40 +138,65 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			} else {
 				iter, err = snap.CSIVolumes(ws)
 			}
-
 			if err != nil {
 				return err
 			}
 
+			tokenizer := paginator.NewStructsTokenizer(
+				iter,
+				paginator.StructsTokenizerOptions{
+					WithNamespace: true,
+					WithID:        true,
+				},
+			)
+			volFilter := paginator.GenericFilter{
+				Allow: func(raw interface{}) (bool, error) {
+					vol := raw.(*structs.CSIVolume)
+
+					// Remove (possibly again) by PluginID to handle passing both
+					// NodeID and PluginID
+					if args.PluginID != "" && args.PluginID != vol.PluginID {
+						return false, nil
+					}
+
+					// Remove by Namespace, since CSIVolumesByNodeID hasn't used
+					// the Namespace yet
+					if ns != structs.AllNamespacesSentinel && vol.Namespace != ns {
+						return false, nil
+					}
+
+					return true, nil
+				},
+			}
+			filters := []paginator.Filter{volFilter}
+
 			// Collect results, filter by ACL access
 			vs := []*structs.CSIVolListStub{}
 
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				vol := raw.(*structs.CSIVolume)
+			paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+				func(raw interface{}) error {
+					vol := raw.(*structs.CSIVolume)
 
-				// Remove (possibly again) by PluginID to handle passing both
-				// NodeID and PluginID
-				if args.PluginID != "" && args.PluginID != vol.PluginID {
-					continue
-				}
+					vol, err := snap.CSIVolumeDenormalizePlugins(ws, vol.Copy())
+					if err != nil {
+						return err
+					}
 
-				// Remove by Namespace, since CSIVolumesByNodeID hasn't used
-				// the Namespace yet
-				if ns != structs.AllNamespacesSentinel && vol.Namespace != ns {
-					continue
-				}
-
-				vol, err := snap.CSIVolumeDenormalizePlugins(ws, vol.Copy())
-				if err != nil {
-					return err
-				}
-
-				vs = append(vs, vol.Stub())
+					vs = append(vs, vol.Stub())
+					return nil
+				})
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
+
+			nextToken, err := paginator.Page()
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to read result page: %v", err)
+			}
+
+			reply.QueryMeta.NextToken = nextToken
 			reply.Volumes = vs
 			return v.srv.replySetIndex(csiVolumeTable, &reply.QueryMeta)
 		}}
