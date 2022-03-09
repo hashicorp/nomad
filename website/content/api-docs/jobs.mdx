@@ -32,6 +32,10 @@ The table below shows this endpoint's support for
 - `namespace` `(string: "default")` - Specifies the target namespace. Specifying
   `*` would return all jobs across all the authorized namespaces.
 
+- `reverse` `(bool: false)` - Specifies the list of returned jobs should be
+  be sorted in the reverse order. By default jobs are returned sorted in
+  lexicographical order by their namespace and ID.
+
 ### Sample Request
 
 ```shell-session
