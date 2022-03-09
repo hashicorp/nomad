@@ -184,6 +184,7 @@ jobs:
         run: make static-assets
 
       - name: Set gcc
+        run: |
           if [ "${{ matrix.goarch }} == "arm" ]; then
           echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
           elif [ "${{ matrix.goarch }} == "arm64" ]; then
