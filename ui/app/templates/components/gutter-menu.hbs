@@ -1,4 +1,7 @@
-<div data-test-gutter-menu class="page-column is-left {{if this.isOpen "is-open"}}">
+<div
+  data-test-gutter-menu
+  class="page-column is-left {{if this.isOpen "is-open"}}"
+>
   <div class="gutter {{if this.isOpen "is-open"}}">
     <header class="collapsed-menu {{if this.isOpen "is-open"}}">
       <span
@@ -34,13 +37,21 @@
       </p>
       <ul class="menu-list">
         <li>
-          <LinkTo @route="jobs" @activeClass="is-active" data-test-gutter-link="jobs">
+          <LinkTo
+            @route="jobs"
+            @activeClass="is-active"
+            data-test-gutter-link="jobs"
+          >
             Jobs
           </LinkTo>
         </li>
         {{#if (can "accept recommendation")}}
           <li>
-            <LinkTo @route="optimize" @activeClass="is-active" data-test-gutter-link="optimize">
+            <LinkTo
+              @route="optimize"
+              @activeClass="is-active"
+              data-test-gutter-link="optimize"
+            >
               Optimize
             </LinkTo>
           </li>
@@ -51,7 +62,11 @@
       </p>
       <ul class="menu-list">
         <li>
-          <LinkTo @route="csi" @activeClass="is-active" data-test-gutter-link="storage">
+          <LinkTo
+            @route="csi"
+            @activeClass="is-active"
+            data-test-gutter-link="storage"
+          >
             Storage
             <span class="tag is-small">
               Beta
@@ -64,17 +79,29 @@
       </p>
       <ul class="menu-list">
         <li>
-          <LinkTo @route="clients" @activeClass="is-active" data-test-gutter-link="clients">
+          <LinkTo
+            @route="clients"
+            @activeClass="is-active"
+            data-test-gutter-link="clients"
+          >
             Clients
           </LinkTo>
         </li>
         <li>
-          <LinkTo @route="servers" @activeClass="is-active" data-test-gutter-link="servers">
+          <LinkTo
+            @route="servers"
+            @activeClass="is-active"
+            data-test-gutter-link="servers"
+          >
             Servers
           </LinkTo>
         </li>
         <li>
-          <LinkTo @route="topology" @activeClass="is-active" data-test-gutter-link="topology">
+          <LinkTo
+            @route="topology"
+            @activeClass="is-active"
+            data-test-gutter-link="topology"
+          >
             Topology
           </LinkTo>
         </li>
@@ -84,7 +111,11 @@
       </p>
       <ul class="menu-list">
         <li>
-          <LinkTo @route="evaluations" @activeClass="is-active" data-test-gutter-link="evaluations">
+          <LinkTo
+            @route="evaluations"
+            @activeClass="is-active"
+            data-test-gutter-link="evaluations"
+          >
             Evaluations
           </LinkTo>
         </li>
