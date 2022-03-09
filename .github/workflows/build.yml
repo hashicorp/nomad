@@ -64,7 +64,7 @@ jobs:
           -X \'$project/version.GitDescribe=v$(make version base=1)\'""
   
   build-other:
-    needs: get-product-version
+    needs: [ get-product-version, set-ld-flags ]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -128,7 +128,7 @@ jobs:
           path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
    
   build-linux:
-    needs: get-product-version
+    needs: [ get-product-version, set-ld-flags ]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -231,7 +231,7 @@ jobs:
           path: out/${{ env.DEB_PACKAGE }}
 
   build-darwin:
-    needs: get-product-version
+    needs: [ get-product-version, set-ld-flags ]
     runs-on: macos-latest
     strategy:
       matrix:
