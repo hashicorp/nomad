@@ -2,7 +2,7 @@
 # the stack.  This allows for more than one environment per account.
 #  - This name can only contain alphanumeric characters.  If it is not provided 
 #    here, it will be requested interactively.
-name = "nomad-mikael"
+name = "nomad-mikael-2"
 
 # `key_name` (required) -  The name of the AWS SSH keys to be loaded on the
 # instance at provisioning.  
