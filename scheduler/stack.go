@@ -59,6 +59,7 @@ type GenericStack struct {
 	distinctHostsConstraint    *DistinctHostsIterator
 	distinctPropertyConstraint *DistinctPropertyIterator
 	binPack                    *BinPackIterator
+	carbon                     *CarbonScoreIterator
 	jobAntiAff                 *JobAntiAffinityIterator
 	nodeReschedulingPenalty    *NodeReschedulingPenaltyIterator
 	limit                      *LimitIterator
@@ -410,9 +411,12 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	_, schedConfig, _ := ctx.State().SchedulerConfig()
 	s.binPack = NewBinPackIterator(ctx, rankSource, false, 0, schedConfig)
 
+	//TODO(carbon) is this the right place?
+	s.carbon = NewCarbonScoreIterator(ctx, s.binPack)
+
 	// Apply the job anti-affinity iterator. This is to avoid placing
 	// multiple allocations on the same node for this job.
-	s.jobAntiAff = NewJobAntiAffinityIterator(ctx, s.binPack, "")
+	s.jobAntiAff = NewJobAntiAffinityIterator(ctx, s.carbon, "")
 
 	// Apply node rescheduling penalty. This tries to avoid placing on a
 	// node where the allocation failed previously
