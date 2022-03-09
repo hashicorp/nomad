@@ -185,7 +185,7 @@ jobs:
 
       - name: Set gcc
         run: |
-          apt-get update
+          sudo apt-get update
           if [ "${{ matrix.goarch }}" == "arm" ]; then
           sudo apt-get install -y gcc-arm-linux-gnueabihf
             echo "CC=gcc-arm-linux-gnueabihf" >> $GITHUB_ENV
