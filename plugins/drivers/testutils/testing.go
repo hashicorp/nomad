@@ -75,6 +75,41 @@ func (h *DriverHarness) Kill() {
 	h.server.Stop()
 }
 
+// tinyChroot is useful for testing, where we do not use anything other than
+// trivial /bin commands like sleep and sh.
+//
+// Note that you cannot chroot a symlink.
+var tinyChroot = map[string]string{
+	// destination: /bin
+	"/usr/bin/sleep": "/bin/sleep",
+	"/usr/bin/dash":  "/bin/sh",
+	"/usr/bin/bash":  "/bin/bash",
+	"/usr/bin/cat":   "/bin/cat",
+
+	// destination: /usr/bin
+	"/usr/bin/stty":   "/usr/bin/stty",
+	"/usr/bin/head":   "/usr/bin/head",
+	"/usr/bin/mktemp": "/usr/bin/mktemp",
+	"/usr/bin/echo":   "/usr/bin/echo",
+	"/usr/bin/touch":  "/usr/bin/touch",
+	"/usr/bin/stat":   "/usr/bin/stat",
+
+	// destination: /etc/
+	"/etc/ld.so.cache":  "/etc/ld.so.cache",
+	"/etc/ld.so.conf":   "/etc/ld.so.conf",
+	"/etc/ld.so.conf.d": "/etc/ld.so.conf.d",
+	"/etc/passwd":       "/etc/passwd",
+	"/etc/resolv.conf":  "/etc/resolv.conf",
+
+	// others
+	"/lib":                 "/lib",
+	"/lib32":               "/lib32",
+	"/lib64":               "/lib64",
+	"/usr/lib/jvm":         "/usr/lib/jvm",
+	"/run/resolvconf":      "/run/resolvconf",
+	"/run/systemd/resolve": "/run/systemd/resolve",
+}
+
 // MkAllocDir creates a temporary directory and allocdir structure.
 // If enableLogs is set to true a logmon instance will be started to write logs
 // to the LogDir of the task
@@ -95,7 +130,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 	require.NoError(h.t, err)
 
 	fsi := caps.FSIsolation
-	require.NoError(h.t, taskDir.Build(fsi == drivers.FSIsolationChroot, config.DefaultChrootEnv))
+	require.NoError(h.t, taskDir.Build(fsi == drivers.FSIsolationChroot, tinyChroot))
 
 	task := &structs.Task{
 		Name: t.Name,
