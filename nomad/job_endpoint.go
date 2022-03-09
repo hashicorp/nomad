@@ -1388,7 +1388,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 				if prefix := args.QueryOptions.Prefix; prefix != "" {
 					iter, err = state.JobsByIDPrefix(ws, namespace, prefix, sort)
 				} else if namespace != structs.AllNamespacesSentinel {
-					iter, err = state.JobsByNamespace(ws, namespace)
+					iter, err = state.JobsByNamespace(ws, namespace, sort)
 				} else {
 					iter, err = state.Jobs(ws)
 				}

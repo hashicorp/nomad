@@ -2091,15 +2091,24 @@ func (s *StateStore) Jobs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 }
 
 // JobsByNamespace returns an iterator over all the jobs for the given namespace
-func (s *StateStore) JobsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+func (s *StateStore) JobsByNamespace(ws memdb.WatchSet, namespace string, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
-	return s.jobsByNamespaceImpl(ws, namespace, txn)
+	return s.jobsByNamespaceImpl(ws, namespace, txn, sort)
 }
 
 // jobsByNamespaceImpl returns an iterator over all the jobs for the given namespace
-func (s *StateStore) jobsByNamespaceImpl(ws memdb.WatchSet, namespace string, txn *txn) (memdb.ResultIterator, error) {
+func (s *StateStore) jobsByNamespaceImpl(ws memdb.WatchSet, namespace string, txn *txn, sort SortOption) (memdb.ResultIterator, error) {
+
+	var iter memdb.ResultIterator
+	var err error
+
 	// Walk the entire jobs table
-	iter, err := txn.Get("jobs", "id_prefix", namespace, "")
+	switch sort {
+	case SortReverse:
+		iter, err = txn.GetReverse("jobs", "id_prefix", namespace, "")
+	default:
+		iter, err = txn.Get("jobs", "id_prefix", namespace, "")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -6170,7 +6179,7 @@ func (s *StateStore) DeleteNamespaces(index uint64, names []string) error {
 		}
 
 		// Ensure that the namespace doesn't have any non-terminal jobs
-		iter, err := s.jobsByNamespaceImpl(nil, name, txn)
+		iter, err := s.jobsByNamespaceImpl(nil, name, txn, SortDefault)
 		if err != nil {
 			return err
 		}

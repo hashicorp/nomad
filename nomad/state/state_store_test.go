@@ -2165,6 +2165,82 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 	})
 }
 
+func TestStateStore_JobsByNamespace(t *testing.T) {
+	t.Parallel()
+
+	state := testStateStore(t)
+	index := uint64(1000)
+
+	for i := 1; i <= 3; i++ {
+		job := mock.Job()
+		job.ID = fmt.Sprintf("job-%d", i)
+		job.Namespace = structs.DefaultNamespace
+		require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, job))
+		index++
+	}
+
+	// Create job in another namespace.
+	otherNS := "other"
+	require.NoError(t, state.UpsertNamespaces(999, []*structs.Namespace{{Name: otherNS}}))
+
+	job := mock.Job()
+	job.ID = "job-other"
+	job.Namespace = otherNS
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, job))
+	index++
+
+	gatherJobs := func(iter memdb.ResultIterator) []*structs.Job {
+		var jobs []*structs.Job
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			jobs = append(jobs, raw.(*structs.Job))
+		}
+		return jobs
+	}
+
+	cases := []struct {
+		name      string
+		namespace string
+		sort      SortOption
+		expected  []string
+	}{
+		{
+			name:      "default namespace",
+			namespace: "default",
+			expected:  []string{"job-1", "job-2", "job-3"},
+		},
+		{
+			name:      "other namespace",
+			namespace: "other",
+			expected:  []string{"job-other"},
+		},
+		{
+			name:      "default namespace reverse",
+			namespace: "default",
+			sort:      SortReverse,
+			expected:  []string{"job-3", "job-2", "job-1"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ws := memdb.NewWatchSet()
+			iter, err := state.JobsByNamespace(ws, tc.namespace, tc.sort)
+			require.NoError(t, err)
+
+			got := []string{}
+			for _, j := range gatherJobs(iter) {
+				got = append(got, j.ID)
+			}
+			require.Equal(t, tc.expected, got)
+			require.False(t, watchFired(ws))
+		})
+	}
+}
+
 func TestStateStore_JobsByPeriodic(t *testing.T) {
 	t.Parallel()
 
