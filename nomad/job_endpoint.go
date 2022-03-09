@@ -1412,8 +1412,8 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
 					func(raw interface{}) error {
 						job := raw.(*structs.Job)
-						summary, err := state.JobSummaryByID(ws, namespace, job.ID)
-						if err != nil {
+						summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
+						if err != nil || summary == nil {
 							return fmt.Errorf("unable to look up summary for job: %v", job.ID)
 						}
 						jobs = append(jobs, job.Stub(summary))
