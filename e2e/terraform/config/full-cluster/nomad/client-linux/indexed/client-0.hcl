@@ -4,7 +4,6 @@ client {
 
   meta {
     "rack" = "r1"
-    "carbon_score" = "19392"
   }
 
   host_volume "shared_data" {

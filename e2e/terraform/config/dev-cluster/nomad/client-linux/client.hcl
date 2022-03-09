@@ -13,8 +13,12 @@ client {
   }
 
   carbon {
-    provider = "aws"
-    region = "us-east-1"
+    provider = "carbon-intensity"
+    region = "UK"
+
+    carbon_intensity {
+      api_url = "https://api.carbonintensity.org.uk/intensity"
+    }
   }
 }
 

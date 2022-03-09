@@ -3,7 +3,7 @@ client {
 
   carbon {
     provider = "gcp"
-    region = "us-east-1"
+    region   = "us-east-1"
 
     gcp {
       service_account_key = "service-account-key"

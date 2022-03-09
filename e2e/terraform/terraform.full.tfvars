@@ -12,7 +12,7 @@ tls                              = true
 
 # required to avoid picking up defaults from terraform.tfvars file
 nomad_version      = "" # default version for deployment
-nomad_local_binary = "../../bin/nomad" # overrides nomad_version if set
+nomad_local_binary = "" # overrides nomad_version if set
 
 # The nightly E2E runner will set a nomad_sha flag; this should not be used
 # outside of the nightly E2E runner and will usually fail because the build
