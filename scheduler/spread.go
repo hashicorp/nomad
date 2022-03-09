@@ -181,8 +181,8 @@ func (iter *SpreadIterator) Next() *RankedNode {
 		}
 
 		if totalSpreadScore != 0.0 {
-			option.Scores = append(option.Scores, totalSpreadScore)
-			iter.ctx.Metrics().ScoreNode(option.Node, "allocation-spread", totalSpreadScore)
+			option.Scores[structs.ScoringAllocSpread] = totalSpreadScore
+			iter.ctx.Metrics().ScoreNode(option.Node, structs.ScoringAllocSpread, totalSpreadScore)
 		}
 		return option
 	}

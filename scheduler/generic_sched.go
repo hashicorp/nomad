@@ -559,7 +559,8 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			s.ctx.Metrics().NodesAvailable = byDC
 
 			// Compute top K scoring node metadata
-			s.ctx.Metrics().PopulateScoreMetaData()
+			_, schedConfig, _ := s.ctx.State().SchedulerConfig()
+			s.ctx.Metrics().PopulateScoreMetaData(schedConfig)
 
 			// Restore stack job now that placement is done, to use plan job version
 			if downgradedJob != nil {

@@ -357,7 +357,7 @@ func formatAllocMetrics(metrics *api.AllocationMetric, scores bool, prefix strin
 	// Print scores
 	if scores {
 		if len(metrics.ScoreMetaData) > 0 {
-			scoreOutput := make([]string, len(metrics.ScoreMetaData)+1)
+			scoreOutput := make([]string, 0, len(metrics.ScoreMetaData)+2)
 
 			// Find all possible scores and build header row.
 			allScores := make(map[string]struct{})
@@ -372,19 +372,34 @@ func formatAllocMetrics(metrics *api.AllocationMetric, scores bool, prefix strin
 				scores = append(scores, score)
 			}
 			sort.Strings(scores)
-			scoreOutput[0] = fmt.Sprintf("Node|%s|final score", strings.Join(scores, "|"))
+
+			if len(metrics.Weights) > 0 {
+				weights := make([]string, 0, len(scores))
+				for _, s := range scores {
+					if w, ok := metrics.Weights[s]; ok {
+						weights = append(weights, fmt.Sprintf("%.3g", w))
+					} else {
+						weights = append(weights, "1")
+					}
+				}
+				scoreOutput = append(scoreOutput, fmt.Sprintf(
+					"Weights:|%s|final ", strings.Join(weights, "|")))
+			}
+			scoreOutput = append(scoreOutput, fmt.Sprintf(
+				"Node|%s|score", strings.Join(scores, "|")))
 
 			// Build row for each score.
-			for i, scoreMeta := range metrics.ScoreMetaData {
-				scoreOutput[i+1] = fmt.Sprintf("%v|", scoreMeta.NodeID)
+			for _, scoreMeta := range metrics.ScoreMetaData {
+				line := fmt.Sprintf("%v|", scoreMeta.NodeID[:8])
 				for _, scorerName := range scores {
 					scoreVal := scoreMeta.Scores[scorerName]
-					scoreOutput[i+1] += fmt.Sprintf("%.3g|", scoreVal)
+					line += fmt.Sprintf("%.3g|", scoreVal)
 				}
-				scoreOutput[i+1] += fmt.Sprintf("%.3g", scoreMeta.NormScore)
+				line += fmt.Sprintf("%.3g", scoreMeta.NormScore)
+				scoreOutput = append(scoreOutput, line)
 			}
-
 			out += formatList(scoreOutput)
+
 		} else {
 			// Backwards compatibility for old allocs
 			for name, score := range metrics.Scores {

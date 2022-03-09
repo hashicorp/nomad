@@ -320,6 +320,9 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		nodeByID[node.ID] = node
 	}
 
+	//FIXME(carbon) this is a silly place to do this
+	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
+
 	// track node filtering, to only report an error if all nodes have been filtered
 	var filteredMetrics map[string]*structs.AllocMetric
 
@@ -386,7 +389,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			s.ctx.Metrics().NodesAvailable = s.nodesByDC
 
 			// Compute top K scoring node metadata
-			s.ctx.Metrics().PopulateScoreMetaData()
+			s.ctx.Metrics().PopulateScoreMetaData(schedConfig)
 
 			// Lazy initialize the failed map
 			if s.failedTGAllocs == nil {
@@ -407,7 +410,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		s.ctx.Metrics().NodesAvailable = s.nodesByDC
 
 		// Compute top K scoring node metadata
-		s.ctx.Metrics().PopulateScoreMetaData()
+		s.ctx.Metrics().PopulateScoreMetaData(schedConfig)
 
 		// Set fields based on if we found an allocation option
 		resources := &structs.AllocatedResources{

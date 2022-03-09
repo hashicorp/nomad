@@ -5,7 +5,6 @@ import (
 	"math"
 
 	"github.com/hashicorp/nomad/lib/cpuset"
-
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -21,7 +20,7 @@ const (
 type RankedNode struct {
 	Node           *structs.Node
 	FinalScore     float64
-	Scores         []float64
+	Scores         map[string]float64
 	TaskResources  map[string]*structs.AllocatedTaskResources
 	TaskLifecycles map[string]*structs.TaskLifecycleConfig
 	AllocResources *structs.AllocatedSharedResources
@@ -33,6 +32,13 @@ type RankedNode struct {
 	// PreemptedAllocs is used by the BinpackIterator to identify allocs
 	// that should be preempted in order to make the placement
 	PreemptedAllocs []*structs.Allocation
+}
+
+func NewRankedNode(n *structs.Node) *RankedNode {
+	return &RankedNode{
+		Node:   n,
+		Scores: make(map[string]float64, 20),
+	}
 }
 
 func (r *RankedNode) GoString() string {
@@ -96,10 +102,7 @@ func (iter *FeasibleRankIterator) Next() *RankedNode {
 	if option == nil {
 		return nil
 	}
-	ranked := &RankedNode{
-		Node: option,
-	}
-	return ranked
+	return NewRankedNode(option)
 }
 
 func (iter *FeasibleRankIterator) Reset() {
@@ -536,14 +539,14 @@ OUTER:
 		// Score the fit normally otherwise
 		fitness := iter.scoreFit(option.Node, util)
 		normalizedFit := fitness / binPackingMaxFitScore
-		option.Scores = append(option.Scores, normalizedFit)
-		iter.ctx.Metrics().ScoreNode(option.Node, "binpack", normalizedFit)
+		option.Scores[structs.ScoringBinpack] = normalizedFit
+		iter.ctx.Metrics().ScoreNode(option.Node, structs.ScoringBinpack, normalizedFit)
 
 		// Score the device affinity
 		if totalDeviceAffinityWeight != 0 {
 			sumMatchingAffinities /= totalDeviceAffinityWeight
-			option.Scores = append(option.Scores, sumMatchingAffinities)
-			iter.ctx.Metrics().ScoreNode(option.Node, "devices", sumMatchingAffinities)
+			option.Scores[structs.ScoringDevices] = sumMatchingAffinities
+			iter.ctx.Metrics().ScoreNode(option.Node, structs.ScoringDevices, sumMatchingAffinities)
 		}
 
 		return option
@@ -611,10 +614,10 @@ func (iter *JobAntiAffinityIterator) Next() *RankedNode {
 		// TODO(preetha): Figure out if batch jobs need a different scoring penalty where collisions matter less
 		if collisions > 0 {
 			scorePenalty := -1 * float64(collisions+1) / float64(iter.desiredCount)
-			option.Scores = append(option.Scores, scorePenalty)
-			iter.ctx.Metrics().ScoreNode(option.Node, "job-anti-affinity", scorePenalty)
+			option.Scores[structs.ScoringJobAA] = scorePenalty
+			iter.ctx.Metrics().ScoreNode(option.Node, structs.ScoringJobAA, scorePenalty)
 		} else {
-			iter.ctx.Metrics().ScoreNode(option.Node, "job-anti-affinity", 0)
+			iter.ctx.Metrics().ScoreNode(option.Node, structs.ScoringJobAA, 0)
 		}
 		return option
 	}
@@ -655,10 +658,10 @@ func (iter *NodeReschedulingPenaltyIterator) Next() *RankedNode {
 
 	_, ok := iter.penaltyNodes[option.Node.ID]
 	if ok {
-		option.Scores = append(option.Scores, -1)
-		iter.ctx.Metrics().ScoreNode(option.Node, "node-reschedule-penalty", -1)
+		option.Scores[structs.ScoringNodeResched] = -1
+		iter.ctx.Metrics().ScoreNode(option.Node, structs.ScoringNodeResched, -1)
 	} else {
-		iter.ctx.Metrics().ScoreNode(option.Node, "node-reschedule-penalty", 0)
+		iter.ctx.Metrics().ScoreNode(option.Node, structs.ScoringNodeResched, 0)
 	}
 
 	return option
@@ -725,7 +728,7 @@ func (iter *NodeAffinityIterator) Next() *RankedNode {
 		return nil
 	}
 	if !iter.hasAffinities() {
-		iter.ctx.Metrics().ScoreNode(option.Node, "node-affinity", 0)
+		iter.ctx.Metrics().ScoreNode(option.Node, structs.ScoringNodeAffinity, 0)
 		return option
 	}
 	// TODO(preetha): we should calculate normalized weights once and reuse it here
@@ -742,8 +745,8 @@ func (iter *NodeAffinityIterator) Next() *RankedNode {
 	}
 	normScore := totalAffinityScore / sumWeight
 	if totalAffinityScore != 0.0 {
-		option.Scores = append(option.Scores, normScore)
-		iter.ctx.Metrics().ScoreNode(option.Node, "node-affinity", normScore)
+		option.Scores[structs.ScoringNodeAffinity] = normScore
+		iter.ctx.Metrics().ScoreNode(option.Node, structs.ScoringNodeAffinity, normScore)
 	}
 	return option
 }
@@ -762,16 +765,19 @@ func matchesAffinity(ctx Context, affinity *structs.Affinity, option *structs.No
 // iterators and combine them into one final score. The current implementation
 // averages the scores together.
 type ScoreNormalizationIterator struct {
-	ctx    Context
-	source RankIterator
+	ctx     Context
+	source  RankIterator
+	weights map[string]float64 // maps score -> weight
 }
 
 // NewScoreNormalizationIterator is used to create a ScoreNormalizationIterator that
 // averages scores from various iterators into a final score.
-func NewScoreNormalizationIterator(ctx Context, source RankIterator) *ScoreNormalizationIterator {
+func NewScoreNormalizationIterator(ctx Context, source RankIterator, schedConfig *structs.SchedulerConfiguration) *ScoreNormalizationIterator {
 	return &ScoreNormalizationIterator{
-		ctx:    ctx,
-		source: source}
+		ctx:     ctx,
+		source:  source,
+		weights: schedConfig.ScoringWeights,
+	}
 }
 
 func (iter *ScoreNormalizationIterator) Reset() {
@@ -785,7 +791,12 @@ func (iter *ScoreNormalizationIterator) Next() *RankedNode {
 	}
 	numScorers := len(option.Scores)
 	sum := 0.0
-	for _, score := range option.Scores {
+	iter.ctx.Logger().Named("norm").Info("----> 1", "num", numScorers, "sum", sum)
+	for k, score := range option.Scores {
+		iter.ctx.Logger().Named("norm").Info("----> 2", "num", numScorers, "sum", sum, "k", k, "score", score, "weight", iter.weights[k])
+		if weight, ok := iter.weights[k]; ok {
+			score *= weight
+		}
 		sum += score
 	}
 	option.FinalScore = sum / float64(numScorers)
@@ -823,8 +834,8 @@ func (iter *PreemptionScoringIterator) Next() *RankedNode {
 	netPriority := netPriority(option.PreemptedAllocs)
 	// preemption score is inversely proportional to netPriority
 	preemptionScore := preemptionScore(netPriority)
-	option.Scores = append(option.Scores, preemptionScore)
-	iter.ctx.Metrics().ScoreNode(option.Node, "preemption", preemptionScore)
+	option.Scores[structs.ScoringPreemption] = preemptionScore
+	iter.ctx.Metrics().ScoreNode(option.Node, structs.ScoringPreemption, preemptionScore)
 
 	return option
 }

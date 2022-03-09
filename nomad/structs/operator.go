@@ -138,6 +138,16 @@ const (
 	// SchedulerAlgorithmSpread indicates that the scheduler should spread
 	// allocations as evenly as possible over the available hardware.
 	SchedulerAlgorithmSpread SchedulerAlgorithm = "spread"
+
+	// Scoring algorithm consts for use in SchedulerConfiguration.ScoringWeights
+	ScoringBinpack      = "binpack"
+	ScoringDevices      = "devices"
+	ScoringCarbon       = "carbon"
+	ScoringJobAA        = "job-anti-affinity"
+	ScoringNodeAffinity = "node-affinity"
+	ScoringPreemption   = "preemption"
+	ScoringAllocSpread  = "allocation-spread"
+	ScoringNodeResched  = "node-reschedule-penalty"
 )
 
 // SchedulerConfiguration is the config for controlling scheduler behavior
@@ -155,6 +165,16 @@ type SchedulerConfiguration struct {
 	// RejectJobRegistration disables new job registrations except with a
 	// management ACL token
 	RejectJobRegistration bool `hcl:"reject_job_registration"`
+
+	// CarbonDefaultScore specifies the default carbon score a node will be
+	// given if it does not register a score. The higher the score, the
+	// less likely it will be assigned work.
+	CarbonDefaultScore float64 `hcl:"carbon_default_score"`
+
+	// ScoringWeights allows adjusting weights on a per-score basis.
+	//
+	// Defaults to 1. Scores are normalized to -1 to 1 before weighting.
+	ScoringWeights map[string]float64 `hcl:"scoring_weights"`
 
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64

@@ -134,6 +134,16 @@ type SchedulerConfiguration struct {
 	// management ACL token
 	RejectJobRegistration bool
 
+	// CarbonDefaultScore specifies the default carbon score a node will be
+	// given if it does not register a score. The higher the score, the
+	// less likely it will be assigned work.
+	CarbonDefaultScore float64
+
+	// ScoringWeights allows adjusting weights on a per-score basis.
+	//
+	// Defaults to 1. Scores are normalized to -1 to 1 before weighting.
+	ScoringWeights map[string]float64
+
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
 	ModifyIndex uint64

@@ -200,6 +200,7 @@ type AllocationMetric struct {
 	Scores            map[string]float64
 	AllocationTime    time.Duration
 	CoalescedFailures int
+	Weights           map[string]float64
 	ScoreMetaData     []*NodeScoreMeta
 }
 

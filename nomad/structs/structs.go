@@ -10125,6 +10125,9 @@ type AllocMetric struct {
 	// This is to prevent creating many failed allocations for a
 	// single task group.
 	CoalescedFailures int
+
+	// Weights used in scoring
+	Weights map[string]float64
 }
 
 func (a *AllocMetric) Copy() *AllocMetric {
@@ -10247,10 +10250,12 @@ func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {
 // PopulateScoreMetaData populates a map of scorer to scoring metadata
 // The map is populated by popping elements from a heap of top K scores
 // maintained per scorer
-func (a *AllocMetric) PopulateScoreMetaData() {
+func (a *AllocMetric) PopulateScoreMetaData(schedConfig *SchedulerConfiguration) {
 	if a.topScores == nil {
 		return
 	}
+
+	a.Weights = schedConfig.ScoringWeights
 
 	if a.ScoreMetaData == nil {
 		a.ScoreMetaData = make([]*NodeScoreMeta, a.topScores.Len())

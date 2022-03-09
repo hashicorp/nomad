@@ -266,7 +266,10 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 			SystemSchedulerEnabled:   conf.PreemptionConfig.SystemSchedulerEnabled,
 			SysBatchSchedulerEnabled: conf.PreemptionConfig.SysBatchSchedulerEnabled,
 			BatchSchedulerEnabled:    conf.PreemptionConfig.BatchSchedulerEnabled,
-			ServiceSchedulerEnabled:  conf.PreemptionConfig.ServiceSchedulerEnabled},
+			ServiceSchedulerEnabled:  conf.PreemptionConfig.ServiceSchedulerEnabled,
+		},
+		CarbonDefaultScore: conf.CarbonDefaultScore,
+		ScoringWeights:     conf.ScoringWeights,
 	}
 
 	if err := args.Config.Validate(); err != nil {

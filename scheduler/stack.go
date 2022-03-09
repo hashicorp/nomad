@@ -59,7 +59,7 @@ type GenericStack struct {
 	distinctHostsConstraint    *DistinctHostsIterator
 	distinctPropertyConstraint *DistinctPropertyIterator
 	binPack                    *BinPackIterator
-	carbon                     *CarbonScoreIterator
+	carbon                     RankIterator
 	jobAntiAff                 *JobAntiAffinityIterator
 	nodeReschedulingPenalty    *NodeReschedulingPenaltyIterator
 	limit                      *LimitIterator
@@ -287,7 +287,7 @@ func NewSystemStack(sysbatch bool, ctx Context) *SystemStack {
 	s.binPack = NewBinPackIterator(ctx, rankSource, enablePreemption, 0, schedConfig)
 
 	// Apply score normalization
-	s.scoreNorm = NewScoreNormalizationIterator(ctx, s.binPack)
+	s.scoreNorm = NewScoreNormalizationIterator(ctx, s.binPack, schedConfig)
 	return s
 }
 
@@ -412,7 +412,7 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	s.binPack = NewBinPackIterator(ctx, rankSource, false, 0, schedConfig)
 
 	//TODO(carbon) is this the right place?
-	s.carbon = NewCarbonScoreIterator(ctx, s.binPack)
+	s.carbon = NewCarbonScoreIterator(ctx, s.binPack, schedConfig)
 
 	// Apply the job anti-affinity iterator. This is to avoid placing
 	// multiple allocations on the same node for this job.
@@ -432,7 +432,7 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	preemptionScorer := NewPreemptionScoringIterator(ctx, s.spread)
 
 	// Normalizes scores by averaging them across various scorers
-	s.scoreNorm = NewScoreNormalizationIterator(ctx, preemptionScorer)
+	s.scoreNorm = NewScoreNormalizationIterator(ctx, preemptionScorer, schedConfig)
 
 	// Apply a limit function. This is to avoid scanning *every* possible node.
 	s.limit = NewLimitIterator(ctx, s.scoreNorm, 2, skipScoreThreshold, maxSkip)
