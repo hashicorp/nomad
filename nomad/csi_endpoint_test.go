@@ -799,7 +799,7 @@ func TestCSIVolumeEndpoint_List_PaginationFiltering(t *testing.T) {
 			volume.Namespace = m.namespace
 		}
 		index := 1000 + uint64(i)
-		require.NoError(t, state.CSIVolumeRegister(index, []*structs.CSIVolume{volume}))
+		require.NoError(t, state.UpsertCSIVolume(index, []*structs.CSIVolume{volume}))
 	}
 
 	cases := []struct {
