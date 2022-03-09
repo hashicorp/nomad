@@ -9,9 +9,12 @@ import (
 
 // Iterator is the interface that must be implemented to use the Paginator.
 type Iterator interface {
-	// Next returns the next element to be considered for pagination.
+	// Next returns the next element to be considered for pagination along with
+	// a token string used to uniquely identify elements in the iteration.
 	// The page will end if nil is returned.
-	Next() interface{}
+	// Tokens should have a stable order and the order must match the paginator
+	// ascending property.
+	Next() (string, interface{})
 }
 
 // Paginator is an iterator over a memdb.ResultIterator that returns
@@ -22,6 +25,7 @@ type Paginator struct {
 	itemCount      int32
 	seekingToken   string
 	nextToken      string
+	ascending      bool
 	nextTokenFound bool
 	pageErr        error
 
@@ -50,6 +54,7 @@ func NewPaginator(iter Iterator, opts structs.QueryOptions, appendFunc func(inte
 		iter:            iter,
 		perPage:         opts.PerPage,
 		seekingToken:    opts.NextToken,
+		ascending:       opts.Ascending,
 		nextTokenFound:  opts.NextToken == "",
 		filterEvaluator: evaluator,
 		appendFunc:      appendFunc,
@@ -79,16 +84,23 @@ DONE:
 }
 
 func (p *Paginator) next() (interface{}, paginatorState) {
-	raw := p.iter.Next()
+	token, raw := p.iter.Next()
 	if raw == nil {
 		p.nextToken = ""
 		return nil, paginatorComplete
 	}
 
 	// have we found the token we're seeking (if any)?
-	id := raw.(IDGetter).GetID()
-	p.nextToken = id
-	if !p.nextTokenFound && id < p.seekingToken {
+	p.nextToken = token
+
+	var passedToken bool
+	if p.ascending {
+		passedToken = token < p.seekingToken
+	} else {
+		passedToken = token > p.seekingToken
+	}
+
+	if !p.nextTokenFound && passedToken {
 		return nil, paginatorSkip
 	}
 
@@ -113,12 +125,6 @@ func (p *Paginator) next() (interface{}, paginatorState) {
 	}
 
 	return raw, paginatorInclude
-}
-
-// IDGetter must be implemented for the results of any iterator we
-// want to paginate
-type IDGetter interface {
-	GetID() string
 }
 
 type paginatorState int

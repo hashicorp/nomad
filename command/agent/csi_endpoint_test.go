@@ -44,6 +44,29 @@ func TestHTTP_CSIEndpointPlugin(t *testing.T) {
 	})
 }
 
+func TestHTTP_CSIParseSecrets(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		val    string
+		expect structs.CSISecrets
+	}{
+		{"", nil},
+		{"one", nil},
+		{"one,two", nil},
+		{"one,two=value_two",
+			structs.CSISecrets(map[string]string{"two": "value_two"})},
+		{"one=value_one,one=overwrite",
+			structs.CSISecrets(map[string]string{"one": "overwrite"})},
+		{"one=value_one,two=value_two",
+			structs.CSISecrets(map[string]string{"one": "value_one", "two": "value_two"})},
+	}
+	for _, tc := range testCases {
+		req, _ := http.NewRequest("GET", "/v1/plugin/csi/foo", nil)
+		req.Header.Add("X-Nomad-CSI-Secrets", tc.val)
+		require.Equal(t, tc.expect, parseCSISecrets(req), tc.val)
+	}
+}
+
 func TestHTTP_CSIEndpointUtils(t *testing.T) {
 	secrets := structsCSISecretsToApi(structs.CSISecrets{
 		"foo": "bar",

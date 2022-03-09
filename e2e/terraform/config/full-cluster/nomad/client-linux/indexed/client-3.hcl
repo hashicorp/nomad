@@ -3,13 +3,24 @@ datacenter = "dc2"
 client {
   enabled = true
 
-  options {
-    "driver.raw_exec.enable"    = "1"
-    "docker.privileged.enabled" = "true"
-  }
-
   meta {
     "rack" = "r2"
+  }
+}
+
+plugin "raw_exec" {
+  config {
+    enabled = true
+  }
+}
+
+plugin "docker" {
+  config {
+    allow_privileged = true
+
+    volumes {
+      enabled = true
+    }
   }
 }
 

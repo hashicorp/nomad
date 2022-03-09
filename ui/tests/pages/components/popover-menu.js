@@ -19,10 +19,10 @@ export default (scope) => ({
 
   toggle: clickable('[data-test-popover-trigger]'),
   focus: focusable('[data-test-popover-trigger]'),
-  downArrow: triggerable('keydown', '[data-test-popover-trigger]', {
+  downArrow: triggerable('keyup', '[data-test-popover-trigger]', {
     eventProperties: { keyCode: ARROW_DOWN },
   }),
-  focusNext: triggerable('keydown', '[data-test-popover-trigger]', {
+  focusNext: triggerable('keyup', '[data-test-popover-trigger]', {
     eventProperties: { keyCode: TAB },
   }),
   esc: triggerable('keydown', '[data-test-popover-trigger]', {

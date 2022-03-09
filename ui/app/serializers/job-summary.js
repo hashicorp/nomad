@@ -1,6 +1,8 @@
 import { get } from '@ember/object';
 import ApplicationSerializer from './application';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class JobSummary extends ApplicationSerializer {
   normalize(modelClass, hash) {
     hash.PlainJobId = hash.JobID;

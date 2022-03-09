@@ -1,0 +1,3 @@
+```release-note:improvement
+csi: Add pagination parameters to `volume snapshot list` command
+```

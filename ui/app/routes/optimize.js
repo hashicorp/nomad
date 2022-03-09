@@ -8,6 +8,7 @@ import RSVP from 'rsvp';
 @classic
 export default class OptimizeRoute extends Route {
   @service can;
+  @service store;
 
   beforeModel() {
     if (this.can.cannot('accept recommendation')) {

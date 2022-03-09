@@ -305,7 +305,7 @@ func TestBadCSIState(t testing.TB, store *StateStore) error {
 	}
 	vol = vol.Copy() // canonicalize
 
-	err = store.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	err = store.UpsertCSIVolume(index, []*structs.CSIVolume{vol})
 	if err != nil {
 		return err
 	}

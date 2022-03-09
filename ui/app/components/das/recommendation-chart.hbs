@@ -31,7 +31,13 @@
     </text>
 
     {{#if this.center}}
-      <line class="center" x1={{this.center.x1}} y1={{this.center.y1}} x2={{this.center.x2}} y2={{this.center.y2}} />
+      <line
+        class="center"
+        x1={{this.center.x1}}
+        y1={{this.center.y1}}
+        x2={{this.center.x2}}
+        y2={{this.center.y2}}
+      ></line>
     {{/if}}
 
     {{#each this.statsShapes as |shapes|}}
@@ -55,7 +61,7 @@
         height={{shapes.rect.height}}
         {{on "mouseenter" (fn this.setActiveLegendRow shapes.text.label)}}
         {{on "mouseleave" this.unsetActiveLegendRow}}
-      />
+      ></rect>
 
       <line
         class="stat {{shapes.class}}"
@@ -65,7 +71,7 @@
         y2={{shapes.line.y2}}
         {{on "mouseenter" (fn this.setActiveLegendRow shapes.text.label)}}
         {{on "mouseleave" this.unsetActiveLegendRow}}
-      />
+      ></line>
     {{/each}}
 
     {{#unless @disabled}}
@@ -77,24 +83,24 @@
           y={{this.deltaRect.y}}
           width={{this.deltaRect.width}}
           height={{this.deltaRect.height}}
-        />
+        ></rect>
 
         <polygon
           class="delta"
           style={{this.deltaTriangle.style}}
           points={{this.deltaTriangle.points}}
-        />
+        ></polygon>
 
         <line
           class="changes delta"
           style={{this.deltaLines.delta.style}}
-          x1=0
+          x1={{0}}
           y1={{this.edgeTickY1}}
-          x2=0
+          x2={{0}}
           y2={{this.edgeTickY2}}
           {{on "mouseenter" (fn this.setActiveLegendRow "New")}}
           {{on "mouseleave" this.unsetActiveLegendRow}}
-        />
+        ></line>
 
         <line
           class="changes"
@@ -104,7 +110,7 @@
           y2={{this.edgeTickY2}}
           {{on "mouseenter" (fn this.setActiveLegendRow "Current")}}
           {{on "mouseleave" this.unsetActiveLegendRow}}
-        />
+        ></line>
 
         <text
           class="changes"
@@ -138,10 +144,19 @@
       {{/if}}
     {{/unless}}
 
-    <line class="zero" x1={{this.gutterWidthLeft}} y1={{this.edgeTickY1}} x2={{this.gutterWidthLeft}} y2={{this.edgeTickY2}} />
+    <line
+      class="zero"
+      x1={{this.gutterWidthLeft}}
+      y1={{this.edgeTickY1}}
+      x2={{this.gutterWidthLeft}}
+      y2={{this.edgeTickY2}}
+    ></line>
   </svg>
 
-  <div class="chart-tooltip {{if this.showLegend "active" "inactive"}}" style={{this.tooltipStyle}}>
+  <div
+    class="chart-tooltip {{if this.showLegend 'active' 'inactive'}}"
+    style={{this.tooltipStyle}}
+  >
     <ol>
       {{#each this.sortedStats as |stat|}}
         <li class={{if (eq this.activeLegendRow stat.label) "active"}}>

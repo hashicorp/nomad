@@ -3,11 +3,6 @@ datacenter = "dc2"
 client {
   enabled = true
 
-  options {
-    "driver.raw_exec.enable"    = "1"
-    "docker.privileged.enabled" = "true"
-  }
-
   meta {
     "rack" = "r1"
   }
@@ -16,6 +11,22 @@ client {
 plugin_dir = "/opt/nomad/plugins"
 plugin "nomad-driver-podman" {
   config {
+    volumes {
+      enabled = true
+    }
+  }
+}
+
+plugin "raw_exec" {
+  config {
+    enabled = true
+  }
+}
+
+plugin "docker" {
+  config {
+    allow_privileged = true
+
     volumes {
       enabled = true
     }

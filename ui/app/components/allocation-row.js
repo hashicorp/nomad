@@ -4,16 +4,25 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
 import { alias } from '@ember/object/computed';
-import { run } from '@ember/runloop';
+import { scheduleOnce } from '@ember/runloop';
 import { task, timeout } from 'ember-concurrency';
 import { lazyClick } from '../helpers/lazy-click';
 import AllocationStatsTracker from 'nomad-ui/utils/classes/allocation-stats-tracker';
 import classic from 'ember-classic-decorator';
-import { classNames, tagName } from '@ember-decorators/component';
+import {
+  classNames,
+  tagName,
+  attributeBindings,
+} from '@ember-decorators/component';
 
 @classic
 @tagName('tr')
 @classNames('allocation-row', 'is-interactive')
+@attributeBindings(
+  'data-test-allocation',
+  'data-test-write-allocation',
+  'data-test-read-allocation'
+)
 export default class AllocationRow extends Component {
   @service store;
   @service token;
@@ -56,7 +65,7 @@ export default class AllocationRow extends Component {
     const allocation = this.allocation;
 
     if (allocation) {
-      run.scheduleOnce('afterRender', this, qualifyAllocation);
+      scheduleOnce('afterRender', this, qualifyAllocation);
     } else {
       this.fetchStats.cancelAll();
     }

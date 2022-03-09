@@ -2143,8 +2143,8 @@ func (s *StateStore) JobSummaryByPrefix(ws memdb.WatchSet, namespace, id string)
 	return iter, nil
 }
 
-// CSIVolumeRegister adds a volume to the server store, failing if it already exists
-func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolume) error {
+// UpsertCSIVolume inserts a volume in the state store.
+func (s *StateStore) UpsertCSIVolume(index uint64, volumes []*structs.CSIVolume) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
@@ -2155,7 +2155,6 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 			return fmt.Errorf("volume %s is in nonexistent namespace %s", v.ID, v.Namespace)
 		}
 
-		// Check for volume existence
 		obj, err := txn.First("csi_volumes", "id", v.Namespace, v.ID)
 		if err != nil {
 			return fmt.Errorf("volume existence check error: %v", err)
@@ -2164,17 +2163,20 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 			// Allow some properties of a volume to be updated in place, but
 			// prevent accidentally overwriting important properties, or
 			// overwriting a volume in use
-			old, ok := obj.(*structs.CSIVolume)
-			if ok &&
-				old.InUse() ||
-				old.ExternalID != v.ExternalID ||
+			old := obj.(*structs.CSIVolume)
+			if old.ExternalID != v.ExternalID ||
 				old.PluginID != v.PluginID ||
 				old.Provider != v.Provider {
-				return fmt.Errorf("volume exists: %s", v.ID)
+				return fmt.Errorf("volume identity cannot be updated: %s", v.ID)
 			}
-		}
+			s.CSIVolumeDenormalize(nil, old.Copy())
+			if old.InUse() {
+				return fmt.Errorf("volume cannot be updated while in use")
+			}
 
-		if v.CreateIndex == 0 {
+			v.CreateIndex = old.CreateIndex
+			v.ModifyIndex = index
+		} else {
 			v.CreateIndex = index
 			v.ModifyIndex = index
 		}
@@ -2265,8 +2267,13 @@ func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, prefix, 
 }
 
 // CSIVolumesByIDPrefix supports search. Caller should snapshot if it wants to
-// also denormalize the plugins.
+// also denormalize the plugins. If using a prefix with the wildcard namespace,
+// the results will not use the index prefix.
 func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID string) (memdb.ResultIterator, error) {
+	if namespace == structs.AllNamespacesSentinel {
+		return s.csiVolumeByIDPrefixAllNamespaces(ws, volumeID)
+	}
+
 	txn := s.db.ReadTxn()
 
 	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, volumeID)
@@ -2277,6 +2284,30 @@ func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
+}
+
+func (s *StateStore) csiVolumeByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	// Walk the entire csi_volumes table
+	iter, err := txn.Get("csi_volumes", "id")
+
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	// Filter the iterator by ID prefix
+	f := func(raw interface{}) bool {
+		v, ok := raw.(*structs.CSIVolume)
+		if !ok {
+			return false
+		}
+		return !strings.HasPrefix(v.ID, prefix)
+	}
+	wrap := memdb.NewFilterIterator(iter, f)
+	return wrap, nil
 }
 
 // CSIVolumesByNodeID looks up CSIVolumes in use on a node. Caller should
@@ -2667,7 +2698,7 @@ func (s *StateStore) CSIPluginByID(ws memdb.WatchSet, id string) (*structs.CSIPl
 // CSIPluginByIDTxn returns a named CSIPlugin
 func (s *StateStore) CSIPluginByIDTxn(txn Txn, ws memdb.WatchSet, id string) (*structs.CSIPlugin, error) {
 
-	watchCh, obj, err := txn.FirstWatch("csi_plugins", "id_prefix", id)
+	watchCh, obj, err := txn.FirstWatch("csi_plugins", "id", id)
 	if err != nil {
 		return nil, fmt.Errorf("csi_plugin lookup failed: %s %v", id, err)
 	}

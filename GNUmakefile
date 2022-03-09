@@ -300,7 +300,7 @@ test-nomad: dev ## Run Nomad test suites
 	$(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
-		-timeout=15m \
+		-timeout=20m \
 		-tags "$(GO_TAGS)" \
 		$(GOTEST_PKGS) $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
@@ -313,7 +313,7 @@ test-nomad-module: dev ## Run Nomad test suites on a sub-module
 	@cd $(GOTEST_MOD) && $(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
-		-timeout=15m \
+		-timeout=20m \
 		-tags "$(GO_TAGS)" \
 		./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \

@@ -496,6 +496,12 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"operator api": func() (cli.Command, error) {
+			return &OperatorAPICommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"operator autopilot": func() (cli.Command, error) {
 			return &OperatorAutopilotCommand{
 				Meta: meta,
@@ -851,6 +857,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"volume delete": func() (cli.Command, error) {
 			return &VolumeDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume snapshot": func() (cli.Command, error) {
+			return &VolumeSnapshotCommand{
 				Meta: meta,
 			}, nil
 		},

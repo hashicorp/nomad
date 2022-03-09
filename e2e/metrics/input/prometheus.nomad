@@ -51,11 +51,18 @@ scrape_configs:
       regex: '(.*)http(.*)'
       action: keep
 
+    scheme: https
+    tls_config:
+        ca_file: '/etc/nomad.d/tls/ca.crt'
+        cert_file: '/etc/nomad.d/tls/agent.crt'
+        key_file: '/etc/nomad.d/tls/agent.key'
+
     scrape_interval: 5s
     metrics_path: /v1/metrics
     params:
       format: ['prometheus']
 EOH
+
       }
 
       driver = "docker"
@@ -66,6 +73,17 @@ EOH
         volumes = [
           "local/prometheus.yml:/etc/prometheus/prometheus.yml",
         ]
+
+        # TODO: https://github.com/hashicorp/nomad/issues/11484
+        # This is very much not how we should do this, because it
+        # exposes the client's mTLS cert to the task and lets the
+        # prometheus masquerade as the client.
+        mount {
+          type     = "bind"
+          target   = "/etc/nomad.d/tls"
+          source   = "/etc/nomad.d/tls"
+          readonly = true
+        }
 
         ports = ["prometheus_ui"]
       }

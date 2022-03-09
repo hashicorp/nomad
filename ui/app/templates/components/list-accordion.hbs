@@ -1,5 +1,5 @@
 {{#each this.decoratedSource as |item|}}
-  {{yield (hash
+{{yield (hash
     head=(component "list-accordion/accordion-head"
       isOpen=item.isOpen
       onOpen=(action (queue
@@ -14,5 +14,6 @@
     body=(component "list-accordion/accordion-body" isOpen=item.isOpen)
     item=item.item
     isOpen=item.isOpen
+    close=(fn (mut item.isOpen) false)
   )}}
 {{/each}}

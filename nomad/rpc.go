@@ -7,20 +7,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	golog "log"
 	"math/rand"
 	"net"
 	"net/rpc"
 	"strings"
 	"time"
 
-	golog "log"
-
 	metrics "github.com/armon/go-metrics"
+	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-
-	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/state"

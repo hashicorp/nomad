@@ -7,7 +7,7 @@ if (process.env.USE_MIRAGE) {
 }
 
 module.exports = function (environment) {
-  var ENV = {
+  let ENV = {
     modulePrefix: 'nomad-ui',
     environment: environment,
     rootURL: '/ui/',

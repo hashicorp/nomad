@@ -62,6 +62,9 @@ type QueryOptions struct {
 	// Set HTTP parameters on the query.
 	Params map[string]string
 
+	// Set HTTP headers on the query.
+	Headers map[string]string
+
 	// AuthToken is the secret ID of an ACL token
 	AuthToken string
 
@@ -100,6 +103,9 @@ type WriteOptions struct {
 
 	// AuthToken is the secret ID of an ACL token
 	AuthToken string
+
+	// Set HTTP headers on the query.
+	Headers map[string]string
 
 	// ctx is an optional context pass through to the underlying HTTP
 	// request layer. Use Context() and WithContext() to manage this.
@@ -606,6 +612,10 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 		r.params.Set(k, v)
 	}
 	r.ctx = q.Context()
+
+	for k, v := range q.Headers {
+		r.header.Set(k, v)
+	}
 }
 
 // durToMsec converts a duration to a millisecond specified string
@@ -632,6 +642,10 @@ func (r *request) setWriteOptions(q *WriteOptions) {
 		r.params.Set("idempotency_token", q.IdempotencyToken)
 	}
 	r.ctx = q.Context()
+
+	for k, v := range q.Headers {
+		r.header.Set(k, v)
+	}
 }
 
 // toHTTP converts the request to an HTTP request

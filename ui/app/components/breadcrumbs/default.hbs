@@ -1,5 +1,9 @@
+{{! template-lint-disable no-unknown-arguments-for-builtin-components }}
 <li data-test-breadcrumb-default>
-  <LinkTo @params={{@crumb.args}} data-test-breadcrumb={{@crumb.args.firstObject}}>
+  <LinkTo
+    @params={{@crumb.args}}
+    data-test-breadcrumb={{@crumb.args.firstObject}}
+  >
     {{#if @crumb.title}}
       <dl>
         <dt>

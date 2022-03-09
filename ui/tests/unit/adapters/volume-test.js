@@ -1,4 +1,4 @@
-import { run } from '@ember/runloop';
+import { next } from '@ember/runloop';
 import { settled } from '@ember/test-helpers';
 import { setupTest } from 'ember-qunit';
 import { module, test } from 'qunit';
@@ -139,7 +139,7 @@ module('Unit | Adapter | Volume', function (hooks) {
     assert.equal(xhr.status, 0, 'Request is still pending');
 
     // Schedule the cancelation before waiting
-    run.next(() => {
+    next(() => {
       controller.abort();
     });
 

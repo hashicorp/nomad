@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-bexpr"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -75,8 +76,9 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
+			evalIter := evalPaginationIterator{iter}
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, opts, func(raw interface{}) error {
+			paginator, err := NewPaginator(evalIter, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
 				return nil
@@ -98,8 +100,9 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.Evals(nil, false)
+			evalIter := evalPaginationIterator{iter}
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, opts, func(raw interface{}) error {
+			paginator, err := NewPaginator(evalIter, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
 				return nil
@@ -134,8 +137,9 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
+			evalIter := evalPaginationIterator{iter}
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, opts, func(raw interface{}) error {
+			paginator, err := NewPaginator(evalIter, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
 				return nil
@@ -171,8 +175,9 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.Evals(nil, false)
+			evalIter := evalPaginationIterator{iter}
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, opts, func(raw interface{}) error {
+			paginator, err := NewPaginator(evalIter, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
 				return nil
@@ -229,4 +234,18 @@ func generateEval(i int, ns string) *structs.Evaluation {
 		CreateTime: now,
 		ModifyTime: now,
 	}
+}
+
+type evalPaginationIterator struct {
+	iter memdb.ResultIterator
+}
+
+func (it evalPaginationIterator) Next() (string, interface{}) {
+	raw := it.iter.Next()
+	if raw == nil {
+		return "", nil
+	}
+
+	eval := raw.(*structs.Evaluation)
+	return eval.ID, eval
 }

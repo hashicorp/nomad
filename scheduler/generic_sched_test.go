@@ -6133,7 +6133,7 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 	// once its been fixed
 	shared.AccessMode = structs.CSIVolumeAccessModeMultiNodeReader
 
-	require.NoError(h.State.CSIVolumeRegister(
+	require.NoError(h.State.UpsertCSIVolume(
 		h.NextIndex(), []*structs.CSIVolume{shared, vol0, vol1, vol2}))
 
 	// Create a job that uses both
@@ -6226,7 +6226,7 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 	vol4.ID = "volume-unique[3]"
 	vol5 := vol0.Copy()
 	vol5.ID = "volume-unique[4]"
-	require.NoError(h.State.CSIVolumeRegister(
+	require.NoError(h.State.UpsertCSIVolume(
 		h.NextIndex(), []*structs.CSIVolume{vol4, vol5}))
 
 	// Process again with failure fixed. It should create a new plan

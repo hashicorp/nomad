@@ -27,7 +27,6 @@ module('Integration | Component | job-page/service', function (hooks) {
   });
 
   hooks.afterEach(function () {
-    Job.removeContext();
     this.server.shutdown();
     window.localStorage.clear();
   });
@@ -125,7 +124,8 @@ module('Integration | Component | job-page/service', function (hooks) {
     await render(commonTemplate);
 
     await startJob();
-    expectError(assert, 'Could Not Start Job');
+
+    await expectError(assert, 'Could Not Start Job');
   });
 
   test('Recent allocations shows allocations in the job context', async function (assert) {

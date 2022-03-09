@@ -1,7 +1,7 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
-import { run } from '@ember/runloop';
+import { schedule, next } from '@ember/runloop';
 import d3 from 'd3-selection';
 import d3Scale from 'd3-scale';
 import d3Axis from 'd3-axis';
@@ -235,7 +235,7 @@ export default class LineChart extends Component {
       const mouseX = d3.pointer(ev, this)[0];
       chart.latestMouseX = mouseX;
       updateActiveDatum(mouseX);
-      run.schedule('afterRender', chart, () => (chart.isActive = true));
+      schedule('afterRender', chart, () => (chart.isActive = true));
     });
 
     canvas.on('mousemove', function (ev) {
@@ -245,7 +245,7 @@ export default class LineChart extends Component {
     });
 
     canvas.on('mouseleave', () => {
-      run.schedule('afterRender', this, () => (this.isActive = false));
+      schedule('afterRender', this, () => (this.isActive = false));
       this.activeDatum = null;
       this.activeData = [];
     });
@@ -338,7 +338,7 @@ export default class LineChart extends Component {
     // svg elements
     this.mountD3Elements();
 
-    run.next(() => {
+    next(() => {
       // Since each axis depends on the dimension of the other
       // axis, the axes themselves are recomputed and need to
       // be re-rendered.

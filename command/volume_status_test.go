@@ -46,7 +46,7 @@ func TestCSIVolumeStatusCommand_AutocompleteArgs(t *testing.T) {
 		PluginID:  "glade",
 	}
 
-	require.NoError(t, state.CSIVolumeRegister(1000, []*structs.CSIVolume{vol}))
+	require.NoError(t, state.UpsertCSIVolume(1000, []*structs.CSIVolume{vol}))
 
 	prefix := vol.ID[:len(vol.ID)-5]
 	args := complete.Args{Last: prefix}
