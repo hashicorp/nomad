@@ -18,9 +18,9 @@
       <TwoStepButton
         data-test-stop
         @alignRight={{true}}
-        @idleText="Stop"
+        @idleText="Stop Job"
         @cancelText="Cancel"
-        @confirmText="Yes, Stop"
+        @confirmText="Yes, Stop the job"
         @confirmationMessage="Are you sure you want to stop this job?"
         @awaitingConfirmation={{this.stopJob.isRunning}}
         @onConfirm={{perform this.stopJob}} />
