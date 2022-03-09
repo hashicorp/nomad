@@ -1390,7 +1390,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 				} else if namespace != structs.AllNamespacesSentinel {
 					iter, err = state.JobsByNamespace(ws, namespace, sort)
 				} else {
-					iter, err = state.Jobs(ws)
+					iter, err = state.Jobs(ws, sort)
 				}
 				if err != nil {
 					return err

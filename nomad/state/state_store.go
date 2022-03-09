@@ -2076,11 +2076,19 @@ func (s *StateStore) JobVersions(ws memdb.WatchSet) (memdb.ResultIterator, error
 }
 
 // Jobs returns an iterator over all the jobs
-func (s *StateStore) Jobs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) Jobs(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
+	var iter memdb.ResultIterator
+	var err error
+
 	// Walk the entire jobs table
-	iter, err := txn.Get("jobs", "id")
+	switch sort {
+	case SortReverse:
+		iter, err = txn.GetReverse("jobs", "id")
+	default:
+		iter, err = txn.Get("jobs", "id")
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -2013,35 +2013,46 @@ func TestStateStore_Jobs(t *testing.T) {
 		jobs = append(jobs, job)
 
 		err := state.UpsertJob(structs.MsgTypeTestSetup, 1000+uint64(i), job)
-		if err != nil {
-			t.Fatalf("err: %v", err)
+		require.NoError(t, err)
+	}
+
+	gatherJobs := func(iter memdb.ResultIterator) []*structs.Job {
+		var jobs []*structs.Job
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			jobs = append(jobs, raw.(*structs.Job))
 		}
+		return jobs
 	}
 
-	ws := memdb.NewWatchSet()
-	iter, err := state.Jobs(ws)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	t.Run("default order", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.Jobs(ws, SortDefault)
+		require.NoError(t, err)
 
-	var out []*structs.Job
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		out = append(out, raw.(*structs.Job))
-	}
+		out := gatherJobs(iter)
+		sort.Sort(JobIDSort(jobs))
+		sort.Sort(JobIDSort(out))
 
-	sort.Sort(JobIDSort(jobs))
-	sort.Sort(JobIDSort(out))
+		require.Equal(t, jobs, out)
+		require.False(t, watchFired(ws))
+	})
 
-	if !reflect.DeepEqual(jobs, out) {
-		t.Fatalf("bad: %#v %#v", jobs, out)
-	}
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	t.Run("reverse order", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.Jobs(ws, SortDefault)
+		require.NoError(t, err)
+
+		out := gatherJobs(iter)
+		sort.Sort(sort.Reverse(JobIDSort(jobs)))
+		sort.Sort(sort.Reverse(JobIDSort(out)))
+
+		require.Equal(t, jobs, out)
+		require.False(t, watchFired(ws))
+	})
 }
 
 func TestStateStore_JobVersions(t *testing.T) {
