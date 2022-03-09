@@ -9,22 +9,22 @@ cd /ops
 
 CONFIGDIR=/ops/shared/config
 
-CONSULVERSION=consul_1.10.5+ent
+CONSULVERSION=consul_1.11.4
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
 
-CONSULTEMPLATEVERSION=0.27.2
+CONSULTEMPLATEVERSION=0.28.0
 CONSULTEMPLATEDOWNLOAD=https://releases.hashicorp.com/consul-template/${CONSULTEMPLATEVERSION}/consul-template_${CONSULTEMPLATEVERSION}_linux_amd64.zip
 CONSULTEMPLATECONFIGDIR=/etc/consul-template.d
 CONSULTEMPLATEDIR=/opt/consul-template
 
-NOMADVERSION=nomad_1.2.0+ent
+NOMADVERSION=nomad_1.2.4
 NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
 
-VAULTVERSION=vault_1.9.1+ent
+VAULTVERSION=vault_1.9.4
 VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
 VAULTCONFIGDIR=/etc/vault.d
 VAULTDIR=/opt/vault
