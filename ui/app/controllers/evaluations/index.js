@@ -2,6 +2,7 @@ import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
+import d3 from 'd3';
 import { matchesState, useMachine } from 'ember-statecharts';
 import { use } from 'ember-usable';
 import evaluationsMachine from '../../machines/evaluations';
@@ -115,86 +116,39 @@ export default class EvaluationsController extends Controller {
       ModifyIndex: 55,
       RelatedEvals: [
         {
-          CreateIndex: 82,
-          CreateTime: 1646071501471847000,
-          ID: 'eef1147c-3396-928d-b0f3-ce411bd5d550',
-          JobID: 'system-job',
-          ModifyIndex: 88,
-          ModifyTime: 1646071501474137000,
-          Namespace: 'default',
-          NodeID: '462aad3f-bfa5-00be-d1d4-aa713adb4dbe',
-          NodeModifyIndex: 81,
-          Priority: 50,
-          QueuedAllocations: {
-            cache: 0,
+          'a9125398-1ef6-480a-80e5-ebfb4a74aeb8': {
+            ID: 'a9125398-1ef6-480a-80e5-ebfb4a74aeb8',
+            NextEval: '',
+            PreviousEval: '04928ead-9b3d-40a7-b45d-d90d2afd2d8d',
+            BlockedEval: '',
           },
-          SnapshotIndex: 82,
-          Status: 'complete',
-          TriggeredBy: 'node-update',
-          Type: 'system',
         },
         {
-          CreateIndex: 82,
-          CreateTime: 1646071501471847000,
-          DeploymentID: '61adb5d0-4bb2-fe37-f504-21e23377e291',
-          ID: '55d51a54-f7af-f978-2390-c5688a17fba8',
-          JobID: 'example2',
-          ModifyIndex: 90,
-          ModifyTime: 1646071501476093000,
-          Namespace: 'default',
-          NodeID: '462aad3f-bfa5-00be-d1d4-aa713adb4dbe',
-          NodeModifyIndex: 81,
-          Priority: 50,
-          QueuedAllocations: {
-            cache: 0,
+          '04928ead-9b3d-40a7-b45d-d90d2afd2d8d': {
+            ID: '04928ead-9b3d-40a7-b45d-d90d2afd2d8d',
+            NextEval: '',
+            PreviousEval: this.currentEval,
+            BlockedEval: 'a9125398-1ef6-480a-80e5-ebfb4a74aeb8',
           },
-          SnapshotIndex: 89,
-          Status: 'complete',
-          TriggeredBy: 'node-update',
-          Type: 'service',
-        },
-        {
-          CreateIndex: 82,
-          CreateTime: 1646071501471847000,
-          DeploymentID: 'c60e9405-86ff-5de6-9d3e-ab4ab2409d28',
-          ID: '2b33210a-9471-b523-0ae4-e8fcc9d094fe',
-          JobID: 'example',
-          ModifyIndex: 86,
-          ModifyTime: 1646071501473893000,
-          Namespace: 'default',
-          NodeID: '462aad3f-bfa5-00be-d1d4-aa713adb4dbe',
-          NodeModifyIndex: 81,
-          Priority: 50,
-          QueuedAllocations: {
-            cache: 0,
-          },
-          SnapshotIndex: 84,
-          Status: 'complete',
-          TriggeredBy: 'node-update',
-          Type: 'service',
-        },
-        {
-          CreateIndex: 43,
-          CreateTime: 1646071122930603000,
-          DeploymentID: '61adb5d0-4bb2-fe37-f504-21e23377e291',
-          ID: 'f8915b6d-294b-a60d-172d-f0b5d4e6df1a',
-          JobID: 'example2',
-          ModifyIndex: 46,
-          ModifyTime: 1646071122936311000,
-          Namespace: 'default',
-          NodeID: '462aad3f-bfa5-00be-d1d4-aa713adb4dbe',
-          NodeModifyIndex: 42,
-          Priority: 50,
-          QueuedAllocations: {
-            cache: 0,
-          },
-          SnapshotIndex: 45,
-          Status: 'complete',
-          TriggeredBy: 'node-update',
-          Type: 'service',
         },
       ],
     };
+  }
+
+  get hierarchy() {
+    const { RelatedEvals: data } = this.currentEvalDetail;
+
+    return d3
+      .stratify()
+      .id((d) => d.id)
+      .parentId((d) => d.PreviousEval)([...data, this.currentEvalDetail]);
+  }
+
+  get descendentsMap() {
+    return this.hierarchy
+      .descendants()
+      .map((d) => d.children)
+      .compact();
   }
 
   @tracked pageSize = this.userSettings.pageSize;
