@@ -40,6 +40,7 @@
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "^7.4.3",
     "@ember/optional-features": "2.0.0",
+    "@ember/render-modifiers": "^2.0.4",
     "@ember/test-helpers": "^2.6.0",
     "@glimmer/component": "^1.0.4",
     "@glimmer/tracking": "^1.0.4",
@@ -168,6 +169,7 @@
   },
   "dependencies": {
     "codemirror": "^5.56.0",
+    "curved-arrows": "^0.1.0",
     "d3": "^7.3.0",
     "lru_map": "^0.4.1",
     "no-case": "^3.0.4",
