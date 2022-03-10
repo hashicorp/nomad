@@ -185,6 +185,7 @@ jobs:
 
       - name: Install Linux build utilties
         run: |
+          sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y \
             binutils-aarch64-linux-gnu \
