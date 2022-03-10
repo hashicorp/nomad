@@ -170,19 +170,21 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 
 	h.setSocketHook()
 
-	switch h.caps.FSIsolation {
-	case drivers.FSIsolationNone:
-		// Plugin tasks with no filesystem isolation won't have the
-		// plugin dir bind-mounted to their alloc dir, but we can
-		// provide them the path to the socket. These Nomad-only
-		// plugins will need to be aware of the csi directory layout
-		// in the client data dir
-		resp.Env = map[string]string{
-			"CSI_ENDPOINT": h.socketPath}
-	default:
-		resp.Env = map[string]string{
-			"CSI_ENDPOINT": filepath.Join(
-				h.task.CSIPluginConfig.MountDir, structs.CSISocketName)}
+	if _, ok := h.task.Env["CSI_ENDPOINT"]; !ok {
+		switch h.caps.FSIsolation {
+		case drivers.FSIsolationNone:
+			// Plugin tasks with no filesystem isolation won't have the
+			// plugin dir bind-mounted to their alloc dir, but we can
+			// provide them the path to the socket. These Nomad-only
+			// plugins will need to be aware of the csi directory layout
+			// in the client data dir
+			resp.Env = map[string]string{
+				"CSI_ENDPOINT": h.socketPath}
+		default:
+			resp.Env = map[string]string{
+				"CSI_ENDPOINT": filepath.Join(
+					h.task.CSIPluginConfig.MountDir, structs.CSISocketName)}
+		}
 	}
 
 	mounts := ensureMountpointInserted(h.runner.hookResources.getMounts(), configMount)
