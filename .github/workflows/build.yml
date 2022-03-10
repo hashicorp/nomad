@@ -183,24 +183,39 @@ jobs:
       - name: Build static assets
         run: make static-assets
 
-      - name: Install ARM build utilties
+      - name: Install Linux build utilties
         run: |
           sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
           sudo apt-get install -y \
-              binutils-aarch64-linux-gnu \
-              binutils-arm-linux-gnueabihf \
-              gcc-multilib \
-              g++-multilib \
-              gcc-aarch64-linux-gnu \
-              gcc-arm-linux-gnueabihf \
-              gcc-multilib-arm-linux-gnueabihf
+            build-essential \
+            git \
+            libc6-dev-i386 \
+            libpcre3-dev \
+            linux-libc-dev:i386 \
+            pkg-config \
+            zip \
+            curl \
+            jq \
+            tree \
+            unzip \
+            wget
+          sudo apt-get install -y \
+            binutils-aarch64-linux-gnu \
+            binutils-arm-linux-gnueabihf \
+            gcc-aarch64-linux-gnu \
+            gcc-arm-linux-gnueabihf \
+            gcc-multilib-arm-linux-gnueabihf
+          sudo apt-get upgrade -y
 
       - name: Set gcc
         run: |
           if [ "${{ matrix.goarch }}" == "arm" ]; then
-            echo "CC=gcc-arm-linux-gnueabihf" >> $GITHUB_ENV
+            echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
           elif [ "${{ matrix.goarch }}" == "arm64" ]; then
-            echo "CC=gcc-aarch64-linux-gnu" >> $GITHUB_ENV
+            echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           fi
 
       - name: Build
