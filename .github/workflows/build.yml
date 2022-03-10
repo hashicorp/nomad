@@ -64,7 +64,7 @@ jobs:
           -X \'$project/version.GitDescribe=v$(make version base=1)\'""
   
   build-other:
-    needs: get-product-version
+    needs: [ get-product-version, set-ld-flags ]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -88,6 +88,7 @@ jobs:
           go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
           go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
           go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+          go install golang.org/x/tools/cmd/stringer@v0.1.8
       
       - name: Build generate-all
         run: make generate-all
@@ -131,17 +132,13 @@ jobs:
           path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
    
   build-linux:
-    needs: get-product-version
+    needs: [ get-product-version, set-ld-flags ]
     runs-on: ubuntu-latest
     strategy:
       matrix:
         goos: [ linux ]
         goarch: [ "arm", "arm64", "386", "amd64" ]
         go: [ "1.17.7" ]
-        include:
-          - goos: linux
-            goarch: s390x
-            go: "1.17.7"
       fail-fast: true
     
     name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
@@ -160,6 +157,7 @@ jobs:
           go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
           go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
           go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+          go install golang.org/x/tools/cmd/stringer@v0.1.8
       
       - name: Build generate-all
         run: make generate-all
@@ -185,9 +183,45 @@ jobs:
       - name: Build static assets
         run: make static-assets
 
+      - name: Install Linux build utilties
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            git \
+            libc6-dev-i386 \
+            libpcre3-dev \
+            linux-libc-dev:i386 \
+            pkg-config \
+            zip \
+            curl \
+            jq \
+            tree \
+            unzip \
+            wget
+          sudo apt-get install -y \
+            binutils-aarch64-linux-gnu \
+            binutils-arm-linux-gnueabihf \
+            gcc-aarch64-linux-gnu \
+            gcc-arm-linux-gnueabihf \
+            gcc-multilib-arm-linux-gnueabihf
+          sudo apt-get upgrade -y
+
+      - name: Set gcc
+        run: |
+          if [ "${{ matrix.goarch }}" == "arm" ]; then
+            echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          elif [ "${{ matrix.goarch }}" == "arm64" ]; then
+            echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          fi
+
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
+          CC: ${{ env.CC }}
           GOARCH: ${{ matrix.goarch }}
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
           CGO_ENABLED: 1
@@ -241,7 +275,7 @@ jobs:
           path: out/${{ env.DEB_PACKAGE }}
 
   build-darwin:
-    needs: get-product-version
+    needs: [ get-product-version, set-ld-flags ]
     runs-on: macos-latest
     strategy:
       matrix:
@@ -267,6 +301,8 @@ jobs:
           go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
           go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
           go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+          go install golang.org/x/tools/cmd/stringer@v0.1.8
+          go install github.com/a8m/tree/cmd/tree@latest
       
       - name: Build generate-all
         run: make generate-all
@@ -298,7 +334,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           GO_TAGS: "${{ env.GO_TAGS }} netcgo"
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
-          CGO_ENABLED: 1
+          CGO_ENABLED: 0
 
         run: |
           mkdir -p dist out
