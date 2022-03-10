@@ -209,8 +209,13 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
+- `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
+  enabled, this value must match a namespace that the token is allowed to
+  access. This is specified as a query string parameter.
+
 - `JobHCL` `(string: <required>)` - Specifies the HCL definition of the job
   encoded in a JSON string.
+
 - `Canonicalize` `(bool: false)` - Flag to enable setting any unset fields to
   their default values.
 
