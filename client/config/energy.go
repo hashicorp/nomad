@@ -4,14 +4,27 @@ import (
 	"context"
 	"fmt"
 
+	"encoding/json"
 	"github.com/hashicorp/go-multierror"
-	grid "github.com/thegreenwebfoundation/grid-intensity-go"
-	ci "github.com/thegreenwebfoundation/grid-intensity-go/carbonintensity"
+	// grid "github.com/thegreenwebfoundation/grid-intensity-go"
+	"github.com/thegreenwebfoundation/grid-intensity-go/carbonintensity"
+	"math"
+	"net/http"
+	"sort"
+	"time"
 )
 
 // EnergyScoreProvider is the strategy that returns energy scores for the node.
 type EnergyScoreProvider interface {
-	GetCarbonIntensity(ctx context.Context) (float64, error)
+	GetCarbonIntensity(ctx context.Context) (int, error)
+}
+
+func normalize(min, max, rawScore float64) int {
+	scoreRange := math.Abs(max - min)
+	adjustedScore := rawScore - min
+
+	normalizedScore := adjustedScore / scoreRange
+	return int(math.Abs(normalizedScore * 100))
 }
 
 const (
@@ -181,7 +194,7 @@ type awsProvider struct {
 	config *EnergyConfig
 }
 
-func (aws *awsProvider) GetCarbonIntensity(ctx context.Context) (float64, error) {
+func (aws *awsProvider) GetCarbonIntensity(ctx context.Context) (int, error) {
 	return 0, nil
 }
 
@@ -222,7 +235,7 @@ func newGCPProvider(config *EnergyConfig) (EnergyScoreProvider, error) {
 	}, nil
 }
 
-func (gcp *gcpProvider) GetCarbonIntensity(ctx context.Context) (float64, error) {
+func (gcp *gcpProvider) GetCarbonIntensity(ctx context.Context) (int, error) {
 	return 0, nil
 }
 
@@ -275,13 +288,12 @@ func newAzureProvider(config *EnergyConfig) (EnergyScoreProvider, error) {
 	}, nil
 }
 
-func (az *azureProvider) GetCarbonIntensity(ctx context.Context) (float64, error) {
+func (az *azureProvider) GetCarbonIntensity(ctx context.Context) (int, error) {
 	return 0, nil
 }
 
 type ciProvider struct {
-	config   *EnergyConfig
-	provider grid.Provider
+	config *EnergyConfig
 }
 
 type CarbonIntensityConfig struct {
@@ -312,19 +324,72 @@ func (ci *CarbonIntensityConfig) Validate() error {
 }
 
 func newCIProvider(config *EnergyConfig) (EnergyScoreProvider, error) {
-	provider, err := ci.New(ci.WithAPIURL(config.CarbonIntensityConfig.APIUrl))
-	if err != nil {
-		return nil, err
-	}
-
 	return &ciProvider{
 		config,
-		provider,
 	}, nil
 }
 
-func (ci *ciProvider) GetCarbonIntensity(ctx context.Context) (float64, error) {
-	return ci.provider.GetCarbonIntensity(ctx, ci.config.Region)
+type ApiClient struct {
+	client *http.Client
+	apiURL string
+}
+
+func (ci *ciProvider) GetCarbonIntensity(ctx context.Context) (int, error) {
+	if ci.config.Region != "UK" {
+		return 0, carbonintensity.ErrOnlyUK
+	}
+
+	a := &ApiClient{}
+
+	if a.client == nil {
+		a.client = &http.Client{
+			Timeout: 5 * time.Second,
+		}
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	a.apiURL = fmt.Sprintf("%s/%s/fw24h", ci.config.CarbonIntensityConfig.APIUrl, now)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", a.apiURL, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("%s - %s: %w", resp.Status, err, carbonintensity.ErrReceivedNon200Status)
+	}
+
+	respObj := &carbonintensity.CarbonIntensityResponse{}
+
+	err = json.NewDecoder(resp.Body).Decode(respObj)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(respObj.Data) == 0 {
+		return 0, carbonintensity.ErrNoResponse
+	}
+
+	currentScore := respObj.Data[0].Intensity.Forecast
+
+	sort.Slice(respObj.Data, func(i, j int) bool {
+		iIntensity := *respObj.Data[i].Intensity
+		jIntensity := *respObj.Data[j].Intensity
+		return iIntensity.Forecast > jIntensity.Forecast
+	})
+
+	min := respObj.Data[len(respObj.Data)-1].Intensity.Forecast
+	max := respObj.Data[0].Intensity.Forecast
+
+	normalized := normalize(min, max, currentScore)
+
+	return normalized, nil
 }
 
 type emProvider struct {
@@ -371,6 +436,6 @@ func newEMProvider(config *EnergyConfig) (EnergyScoreProvider, error) {
 	}, nil
 }
 
-func (em *emProvider) GetCarbonIntensity(ctx context.Context) (float64, error) {
+func (em *emProvider) GetCarbonIntensity(ctx context.Context) (int, error) {
 	return 0, nil
 }

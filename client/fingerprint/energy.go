@@ -6,7 +6,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/config"
-	"math"
 	"strconv"
 )
 
@@ -52,7 +51,7 @@ func (f *EnergyFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 	}
 
 	f.logger.Trace("energy.carbon_score", carbonScore)
-	resp.AddAttribute(carbonScoreAttr, strconv.Itoa(int(math.Round(carbonScore))))
+	resp.AddAttribute(carbonScoreAttr, strconv.Itoa(carbonScore))
 
 	resp.Detected = true
 
