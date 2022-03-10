@@ -1,0 +1,15 @@
+.sidebar {
+  position: absolute;
+  background: #ffffff;
+  padding: 24px;
+  right: 0%;
+  height: fit-content;
+  transform: translateX(100%);
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+  box-shadow: 6px 6px rgba(0, 0, 0, 0.06), 0px 12px 16px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+  &.pib {
+    transform: translateX(0%);
+  }
+}
