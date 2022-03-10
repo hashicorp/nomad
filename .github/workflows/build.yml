@@ -183,32 +183,15 @@ jobs:
       - name: Build static assets
         run: make static-assets
 
-      # - name: Install Linux build utilties
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y software-properties-common
-      #     sudo dpkg --add-architecture i386
-      #     sudo apt-get update
-      #     sudo apt-get install -y \
-      #       build-essential \
-      #       git \
-      #       libc6-dev-i386 \
-      #       libpcre3-dev \
-      #       linux-libc-dev:i386 \
-      #       pkg-config \
-      #       zip \
-      #       curl \
-      #       jq \
-      #       tree \
-      #       unzip \
-      #       wget
-      #     sudo apt-get install -y \
-      #       binutils-aarch64-linux-gnu \
-      #       binutils-arm-linux-gnueabihf \
-      #       gcc-aarch64-linux-gnu \
-      #       gcc-arm-linux-gnueabihf \
-      #       gcc-multilib-arm-linux-gnueabihf
-      #     sudo apt-get upgrade -y
+      - name: Install Linux build utilties
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            binutils-aarch64-linux-gnu \
+            binutils-arm-linux-gnueabihf \
+            gcc-aarch64-linux-gnu \
+            gcc-arm-linux-gnueabihf \
+            gcc-multilib-arm-linux-gnueabihf
 
       - name: Set gcc
         run: |
