@@ -190,6 +190,7 @@ jobs:
               binutils-aarch64-linux-gnu \
               binutils-arm-linux-gnueabihf \
               gcc-multilib \
+              g++-multilib \
               gcc-aarch64-linux-gnu \
               gcc-arm-linux-gnueabihf \
               gcc-multilib-arm-linux-gnueabihf
