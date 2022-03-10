@@ -183,19 +183,16 @@ jobs:
       - name: Build static assets
         run: make static-assets
 
-      - name: Install ARM and Windows build utilties
+      - name: Install ARM build utilties
         run: |
           sudo apt-get update
           sudo apt-get install -y \
               binutils-aarch64-linux-gnu \
               binutils-arm-linux-gnueabihf \
+              gcc-multilib \
               gcc-aarch64-linux-gnu \
               gcc-arm-linux-gnueabihf \
               gcc-multilib-arm-linux-gnueabihf
-
-          sudo apt-get install -y \
-              binutils-mingw-w64 \
-              gcc-mingw-w64
 
       - name: Set gcc
         run: |
