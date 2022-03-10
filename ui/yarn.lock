@@ -2492,7 +2492,7 @@
     mkdirp "^1.0.4"
     silent-error "^1.1.1"
 
-"@ember/render-modifiers@^2.0.0":
+"@ember/render-modifiers@^2.0.0", "@ember/render-modifiers@^2.0.4":
   version "2.0.4"
   resolved "https://registry.yarnpkg.com/@ember/render-modifiers/-/render-modifiers-2.0.4.tgz#0ac7af647cb736076dbfcd54ca71e090cd329d71"
   integrity sha512-Zh/fo5VUmVzYHkHVvzWVjJ1RjFUxA2jH0zCp2+DQa80Bf3DUXauiEByxU22UkN4LFT55DBFttC0xCQSJG3WTsg==
@@ -7700,6 +7700,11 @@ ctype@0.5.3:
   version "0.5.3"
   resolved "https://registry.yarnpkg.com/ctype/-/ctype-0.5.3.tgz#82c18c2461f74114ef16c135224ad0b9144ca12f"
   integrity sha1-gsGMJGH3QRTvFsE1IkrQuRRMoS8=
+
+curved-arrows@^0.1.0:
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/curved-arrows/-/curved-arrows-0.1.0.tgz#824709316a856e28970c1f577803093a57475bb0"
+  integrity sha512-FchrDNr8b3ijJOycRM3iT0tc7d5NJSJ5e1fPZibTv73N2yXcgIbSi858R+QfCPRbrjqSWXnR8OaUUu9w+TxTRg==
 
 cyclist@^1.0.1:
   version "1.0.1"
