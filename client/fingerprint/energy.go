@@ -35,13 +35,13 @@ func (f *EnergyFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 	f.clearEnergyAttributes(resp)
 
 	if f.energyConfig == nil {
-		f.logger.Trace("no energy configuration detected")
+		f.logger.Debug("no energy configuration detected")
 		return nil
 	}
 
 	provider := *f.energyConfig.ScoreProvider
 	if provider == nil {
-		f.logger.Trace("no energy provider configured")
+		f.logger.Debug("no energy provider configured")
 		return nil
 	}
 
@@ -50,7 +50,7 @@ func (f *EnergyFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 		return err
 	}
 
-	f.logger.Trace("energy.carbon_score", carbonScore)
+	f.logger.Debug("energy.carbon_score", carbonScore)
 	resp.AddAttribute(carbonScoreAttr, strconv.Itoa(carbonScore))
 
 	resp.Detected = true
