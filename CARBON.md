@@ -5,9 +5,31 @@ the compute it manages. In particular it takes the carbon impact of nodes into
 account when scheduling: prioritizing the use of of lower-carbon-producing
 compute.
 
+## Example
+
+```
+$ nomad agent -dev -config carbon.hcl  # see below for hcl
+
+# In another terminal
+$ nomad init
+$ nomad run example.nomad
+$ nomad alloc status -verbose <alloc id here>
+ID                  = 144a2dfc-45de-6e2f-74f0-7cc885c2c846
+Eval ID             = d04918d7-02f0-6f64-f46f-0995fa012c2e
+Name                = example.cache[0]
+...
+
+Placement Metrics
+Weights:  0.5      1.5     2                  1              1                        final
+Node      binpack  carbon  job-anti-affinity  node-affinity  node-reschedule-penalty  score
+84176148  0.0391   -0.5    0                  0              0                        -0.365
+```
+
 ## Changes
 
 ### Scheduling
+
+**Carbon scoring is DISABLED by default. Use the HCL or JSON below to enable.**
 
 A new Carbon Scoring algorithm has been added to the scheduler. When enabled
 the higher a node's carbon score, the less likely it will receive work.
