@@ -183,21 +183,32 @@ jobs:
       - name: Build static assets
         run: make static-assets
 
-      - name: Set gcc
+      - name: Install ARM and Windows build utilties
         run: |
           sudo apt-get update
-          sudo apt-get install gcc-multilib
+          sudo apt-get install -y \
+              binutils-aarch64-linux-gnu \
+              binutils-arm-linux-gnueabihf \
+              gcc-aarch64-linux-gnu \
+              gcc-arm-linux-gnueabihf \
+              gcc-multilib-arm-linux-gnueabihf
+
+          sudo apt-get install -y \
+              binutils-mingw-w64 \
+              gcc-mingw-w64
+
+      - name: Set gcc
+        run: |
           if [ "${{ matrix.goarch }}" == "arm" ]; then
-          sudo apt-get install -y gcc-arm-linux-gnueabihf
             echo "CC=gcc-arm-linux-gnueabihf" >> $GITHUB_ENV
           elif [ "${{ matrix.goarch }}" == "arm64" ]; then
-          sudo apt-get install -y gcc-aarch64-linux-gnu
             echo "CC=gcc-aarch64-linux-gnu" >> $GITHUB_ENV
           fi
 
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
+          CC: ${{ env.CC }}
           GOARCH: ${{ matrix.goarch }}
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
           CGO_ENABLED: 1
