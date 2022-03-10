@@ -1,0 +1,10 @@
+<Providers::ActorsRelationships as |actors|>
+  <div
+    data-eval={{@eval.id}}
+    ...attributes
+    {{did-insert (fn actors.fns.registerEval @eval)}}
+    {{will-destroy (fn actors.fns.unregisterEval @eval)}}
+  >
+    {{@eval.id}}
+  </div>
+</Providers::ActorsRelationships>
