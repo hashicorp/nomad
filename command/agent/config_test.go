@@ -1569,6 +1569,29 @@ func TestParse_EnergyConfig(t *testing.T) {
 			valid:    false,
 			expected: nil,
 		},
+		{
+			file:  "client_energy_climatiq.hcl",
+			valid: true,
+			expected: &client.EnergyConfig{
+				ProviderKey: client.CQ,
+				Region:      "us-east-1",
+				ClimatiqConfig: &client.ClimatiqConfig{
+					APIKey: "api-key",
+					APIUrl: "https://beta3.api.climatiq.io/compute/{provider}/cpu",
+					CloudProviders: []client.CloudProviderConfig{
+						{
+							Name:    "aws",
+							Regions: []string{"us-east-1", "us-west-2"},
+						},
+					},
+				},
+			},
+		},
+		{
+			file:     "client_energy_climatiq_invalid.hcl",
+			valid:    false,
+			expected: nil,
+		},
 	}
 
 	for _, tc := range testCases {

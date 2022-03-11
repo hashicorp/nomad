@@ -17,6 +17,7 @@ import (
 // EnergyScoreProvider is the strategy that returns energy scores for the node.
 type EnergyScoreProvider interface {
 	GetCarbonIntensity(ctx context.Context) (int, error)
+	RecommendRegion() (string, error)
 }
 
 func normalize(min, max, rawScore float64) int {
@@ -33,6 +34,7 @@ const (
 	AZ  = "azure"
 	EM  = "electricity-map"
 	CI  = "carbon-intensity"
+	CQ  = "climatiq"
 )
 
 // EnergyConfig represents the possible configurations for energy scoring
@@ -46,6 +48,7 @@ type EnergyConfig struct {
 	AzureConfig           *AzureConfig           `hcl:"azure"`
 	CarbonIntensityConfig *CarbonIntensityConfig `hcl:"carbon_intensity"`
 	ElectricityMapConfig  *ElectricityMapConfig  `hcl:"electricity_map"`
+	ClimatiqConfig        *ClimatiqConfig        `hcl:"climatiq_config"`
 }
 
 func (ec *EnergyConfig) Copy() *EnergyConfig {
@@ -78,6 +81,10 @@ func (ec *EnergyConfig) Copy() *EnergyConfig {
 		nec.ElectricityMapConfig = ec.ElectricityMapConfig.Copy()
 	}
 
+	if ec.ClimatiqConfig != nil {
+		nec.ClimatiqConfig = ec.ClimatiqConfig.Copy()
+	}
+
 	// set the ScoreProvider instance by calling finalize
 	_ = nec.Finalize()
 
@@ -100,6 +107,8 @@ func (ec *EnergyConfig) Validate() (err error) {
 		err = ec.CarbonIntensityConfig.Validate()
 	case EM:
 		err = ec.ElectricityMapConfig.Validate()
+	case CQ:
+		err = ec.ClimatiqConfig.Validate()
 	default:
 		err = fmt.Errorf("invalid energy config: provider %s not recognized", ec.ProviderKey)
 	}
@@ -129,6 +138,8 @@ func (ec *EnergyConfig) Finalize() (err error) {
 		factoryFn = newCIProvider
 	case EM:
 		factoryFn = newEMProvider
+	case CQ:
+		factoryFn = newClimatiqProvider
 	}
 
 	if factoryFn == nil {
@@ -198,6 +209,10 @@ func (aws *awsProvider) GetCarbonIntensity(ctx context.Context) (int, error) {
 	return 0, nil
 }
 
+func (aws *awsProvider) RecommendRegion() (string, error) {
+	return "", nil
+}
+
 type gcpProvider struct {
 	config *EnergyConfig
 }
@@ -237,6 +252,10 @@ func newGCPProvider(config *EnergyConfig) (EnergyScoreProvider, error) {
 
 func (gcp *gcpProvider) GetCarbonIntensity(ctx context.Context) (int, error) {
 	return 0, nil
+}
+
+func (gcp *gcpProvider) RecommendRegion() (string, error) {
+	return "", nil
 }
 
 type azureProvider struct {
@@ -292,6 +311,10 @@ func (az *azureProvider) GetCarbonIntensity(ctx context.Context) (int, error) {
 	return 0, nil
 }
 
+func (az *azureProvider) RecommendRegion() (string, error) {
+	return "", nil
+}
+
 type ciProvider struct {
 	config *EnergyConfig
 }
@@ -300,23 +323,23 @@ type CarbonIntensityConfig struct {
 	APIUrl string `hcl:"api_url"`
 }
 
-func (ci *CarbonIntensityConfig) Copy() *CarbonIntensityConfig {
-	if ci == nil {
+func (cl *CarbonIntensityConfig) Copy() *CarbonIntensityConfig {
+	if cl == nil {
 		return nil
 	}
 
 	n := new(CarbonIntensityConfig)
-	*n = *ci
+	*n = *cl
 
 	return n
 }
 
-func (ci *CarbonIntensityConfig) Validate() error {
-	if ci == nil {
+func (cl *CarbonIntensityConfig) Validate() error {
+	if cl == nil {
 		return fmt.Errorf("invalid energy config: Carbon Intensity specified but not configured")
 	}
 
-	if ci.APIUrl == "" {
+	if cl.APIUrl == "" {
 		return fmt.Errorf("invalid energy config: api_url required")
 	}
 
@@ -392,6 +415,10 @@ func (ci *ciProvider) GetCarbonIntensity(ctx context.Context) (int, error) {
 	return normalized, nil
 }
 
+func (ci *ciProvider) RecommendRegion() (string, error) {
+	return "", nil
+}
+
 type emProvider struct {
 	config *ElectricityMapConfig
 }
@@ -438,4 +465,8 @@ func newEMProvider(config *EnergyConfig) (EnergyScoreProvider, error) {
 
 func (em *emProvider) GetCarbonIntensity(ctx context.Context) (int, error) {
 	return 0, nil
+}
+
+func (em *emProvider) RecommendRegion() (string, error) {
+	return "", nil
 }
