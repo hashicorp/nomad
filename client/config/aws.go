@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	//"github.com/aws/aws-sdk-go/service/costexplorer"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"github.com/hashicorp/nomad/helper"
 	"time"
@@ -37,9 +36,9 @@ func GetFoo() error {
 		return err
 	}
 
-	cwSvc := cloudwatch.New(sess)
+	svc := cloudwatch.New(sess)
 
-	metricResult, err := cwSvc.GetMetricData(&cloudwatch.GetMetricDataInput{
+	metricResult, err := svc.GetMetricData(&cloudwatch.GetMetricDataInput{
 		StartTime: &startTime,
 		EndTime:   &endTime,
 		ScanBy:    helper.StringToPtr("TimestampAscending"),
