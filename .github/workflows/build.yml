@@ -310,7 +310,7 @@ jobs:
           go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
           go install github.com/bufbuild/buf/cmd/buf@v0.36.0
           go install golang.org/x/tools/cmd/stringer@v0.1.8
-          go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
+          go install github.com/a8m/tree/cmd/tree@fce18e2
       
       - name: Build generate-all
         run: make generate-all
