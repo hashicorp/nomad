@@ -59,7 +59,8 @@ jobs:
         with:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
-    set-ld-flags:
+    
+  set-ld-flags:
       needs: get-product-version
       runs-on: ubuntu-latest
       outputs:
