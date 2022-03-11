@@ -70,7 +70,7 @@ jobs:
       matrix:
         goos: [ windows ]
         goarch: [ "386", "amd64" ]
-        go: [ "1.17.7" ]
+        go: [ "1.15.15" ]
       fail-fast: true
 
     name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
@@ -138,7 +138,7 @@ jobs:
       matrix:
         goos: [ linux ]
         goarch: [ "arm", "arm64", "386", "amd64" ]
-        go: [ "1.17.7" ]
+        go: [ "1.15.15" ]
       fail-fast: true
     
     name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
@@ -281,7 +281,7 @@ jobs:
       matrix:
         goos: [ darwin ]
         goarch: [ "amd64" ]
-        go: [ "1.17" ]
+        go: [ "1.15.15" ]
       fail-fast: true
 
     name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
