@@ -12,7 +12,7 @@ on:
 
 env:
   PKG_NAME: "nomad"
-  GO_TAGS: "ui"
+  GO_TAGS: "ui, codegen_generated"
 
 jobs:
   get-go-version:
