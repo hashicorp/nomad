@@ -63,6 +63,24 @@ func RemoveAllocs(allocs []*Allocation, remove []*Allocation) []*Allocation {
 	return r
 }
 
+func AllocSubset(allocs []*Allocation, subset []*Allocation) bool {
+	if len(subset) == 0 {
+		return true
+	}
+	// Convert allocs into a map
+	allocMap := make(map[string]struct{})
+	for _, alloc := range allocs {
+		allocMap[alloc.ID] = struct{}{}
+	}
+
+	for _, alloc := range subset {
+		if _, ok := allocMap[alloc.ID]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // FilterTerminalAllocs filters out all allocations in a terminal state and
 // returns the latest terminal allocations
 func FilterTerminalAllocs(allocs []*Allocation) ([]*Allocation, map[string]*Allocation) {
