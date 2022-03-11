@@ -15,6 +15,20 @@ env:
   GO_TAGS: "ui"
 
 jobs:
+  get-go-version:
+    name: "Determine Go toolchain version"
+    runs-on: ubuntu-latest
+    outputs:
+      go-version: ${{ steps.get-go-version.outputs.go-version }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Determine Go version
+        id: get-go-version
+        # We use .go-version as our source of truth for current Go
+        # version, because "goenv" can react to it automatically.
+        run: |
+          echo "Building with Go $(cat .go-version)"
+          echo "::set-output name=go-version::$(cat .go-version)"
   get-product-version:
     runs-on: ubuntu-latest
     outputs:
@@ -26,14 +40,13 @@ jobs:
         run: |
           make version
           echo "::set-output name=product-version::$(make version)"
-  
   generate-metadata-file:
     needs: get-product-version
     runs-on: ubuntu-latest
     outputs:
       filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
     steps:
-      - name: 'Checkout directory'
+      - name: "Checkout directory"
         uses: actions/checkout@v2
       - name: Generate metadata file
         id: generate-metadata-file
@@ -46,49 +59,49 @@ jobs:
         with:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
-  
-  set-ld-flags:
-    needs: get-product-version
-    runs-on: ubuntu-latest
-    outputs:
-      ldflags: ${{ steps.generate-ld-flags.outputs.ldflags }}
-    steps:
-      - uses: actions/checkout@v2
-      - name: 'Generate ld flags'
-        id: generate-ld-flags
-        run: |
-          project="$(go list -m)"
-          sha="$(git rev-parse --short HEAD)"
-          echo "::set-output name=ldflags::"-s -w -X \'$project/version.Name=${{ env.PKG_NAME }}\' \
-          -X \'$project/version.GitCommit=$sha\' \
-          -X \'$project/version.GitDescribe=v$(make version base=1)\'""
-  
+    set-ld-flags:
+      needs: get-product-version
+      runs-on: ubuntu-latest
+      outputs:
+        ldflags: ${{ steps.generate-ld-flags.outputs.ldflags }}
+      steps:
+        - uses: actions/checkout@v2
+        - name: 'Generate ld flags'
+          id: generate-ld-flags
+          run: |
+            project="$(go list -m)"
+            sha="$(git rev-parse --short HEAD)"
+            echo "::set-output name=ldflags::"-s -w -X \'$project/version.Name=${{ env.PKG_NAME }}\' \
+            -X \'$project/version.GitCommit=$sha\' \
+            -X \'$project/version.GitDescribe=v$(make version base=1)\'""  
+
   build-other:
-    needs: [ get-product-version, set-ld-flags ]
+    needs: [ get-go-version, get-product-version, set-ld-flags ]
     runs-on: ubuntu-latest
     strategy:
       matrix:
         goos: [ windows ]
         goarch: [ "386", "amd64" ]
-        go: [ "1.15.15" ]
       fail-fast: true
 
-    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+
     steps:
       - uses: actions/checkout@v2
+
       - name: Setup go
         uses: actions/setup-go@v2
         with:
-          go-version: ${{ matrix.go }}
-    
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
+      
       - name: Install project dependencies
         run: |
-          go get github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
-          go get github.com/hashicorp/go-bindata/go-bindata@bf7910a
-          go get github.com/golang/protobuf/protoc-gen-go@v1.3.4
-          go get github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
-          go get github.com/bufbuild/buf/cmd/buf@v0.36.0
-          go get golang.org/x/tools/cmd/stringer@v0.1.8
+          go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
+          go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
+          go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+          go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+          go install golang.org/x/tools/cmd/stringer@v0.1.8
       
       - name: Build generate-all
         run: make generate-all
@@ -112,7 +125,7 @@ jobs:
           cd ..
       
       - name: Build static assets
-        run: make static-assets  
+        run: make static-assets
 
       - name: Build
         env:
@@ -121,7 +134,7 @@ jobs:
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
           CGO_ENABLED: 0
         run: |
-          mkdir -p dist out
+          mkdir dist out
           go build -o dist/ \
           -ldflags "${{ env.LD_FLAGS }}" \
           -tags "${{ env.GO_TAGS }}"
@@ -130,34 +143,34 @@ jobs:
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
           path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-   
+
   build-linux:
-    needs: [ get-product-version, set-ld-flags ]
+    needs: [ get-go-version, get-product-version, set-ld-flags ]
     runs-on: ubuntu-latest
     strategy:
       matrix:
         goos: [ linux ]
         goarch: [ "arm", "arm64", "386", "amd64" ]
-        go: [ "1.15.15" ]
       fail-fast: true
-    
-    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
     steps:
       - uses: actions/checkout@v2
+
       - name: Setup go
         uses: actions/setup-go@v2
         with:
-          go-version: ${{ matrix.go }}
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
       
       - name: Install project dependencies
         run: |
-          go get github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
-          go get github.com/hashicorp/go-bindata/go-bindata@bf7910a
-          go get github.com/golang/protobuf/protoc-gen-go@v1.3.4
-          go get github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
-          go get github.com/bufbuild/buf/cmd/buf@v0.36.0
-          go get golang.org/x/tools/cmd/stringer@v0.1.8
+          go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
+          go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
+          go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+          go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+          go install golang.org/x/tools/cmd/stringer@v0.1.8
       
       - name: Build generate-all
         run: make generate-all
@@ -224,19 +237,17 @@ jobs:
           CC: ${{ env.CC }}
           GOARCH: ${{ matrix.goarch }}
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
-          CGO_ENABLED: 1
+          CGO_ENABLED: 0
         run: |
-          mkdir -p dist out
+          mkdir dist out
           go build -o dist/ \
           -ldflags "${{ env.LD_FLAGS }}" \
           -tags "${{ env.GO_TAGS }}"
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
-
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
           path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-
 
       - name: Package
         if: ${{ matrix.goos == 'linux' }}
@@ -261,7 +272,6 @@ jobs:
         run: |
           echo "RPM_PACKAGE=$(basename out/*.rpm)" >> $GITHUB_ENV
           echo "DEB_PACKAGE=$(basename out/*.deb)" >> $GITHUB_ENV
-
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
@@ -275,16 +285,15 @@ jobs:
           path: out/${{ env.DEB_PACKAGE }}
 
   build-darwin:
-    needs: [ get-product-version, set-ld-flags ]
+    needs: [ get-go-version, get-product-version, set-ld-flags ]
     runs-on: macos-latest
     strategy:
       matrix:
         goos: [ darwin ]
         goarch: [ "amd64" ]
-        go: [ "1.15.15" ]
       fail-fast: true
 
-    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
     steps:
       - uses: actions/checkout@v2
@@ -292,17 +301,17 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@v2
         with:
-          go-version: ${{ matrix.go }}
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
       
       - name: Install project dependencies
         run: |
-          go get github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
-          go get github.com/hashicorp/go-bindata/go-bindata@bf7910a
-          go get github.com/golang/protobuf/protoc-gen-go@v1.3.4
-          go get github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
-          go get github.com/bufbuild/buf/cmd/buf@v0.36.0
-          go get golang.org/x/tools/cmd/stringer@v0.1.8
-          go get github.com/a8m/tree/cmd/tree@latest
+          go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
+          go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
+          go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+          go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+          go install golang.org/x/tools/cmd/stringer@v0.1.8
+          go install github.com/a8m/tree/cmd/tree@latest
       
       - name: Build generate-all
         run: make generate-all
@@ -327,7 +336,7 @@ jobs:
       
       - name: Build static assets
         run: make static-assets
-      
+
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
@@ -335,14 +344,12 @@ jobs:
           GO_TAGS: "${{ env.GO_TAGS }} netcgo"
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
           CGO_ENABLED: 0
-
         run: |
-          mkdir -p dist out
+          mkdir dist out
           go build -o dist/ \
           -ldflags "${{ env.LD_FLAGS }}" \
           -tags "${{ env.GO_TAGS }}"
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
-
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
