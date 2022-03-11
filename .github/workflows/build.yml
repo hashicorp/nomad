@@ -97,12 +97,12 @@ jobs:
       
       - name: Install project dependencies
         run: |
-          go get github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
-          go get github.com/hashicorp/go-bindata/go-bindata@bf7910a
-          go get github.com/golang/protobuf/protoc-gen-go@v1.3.4
-          go get github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
-          go get github.com/bufbuild/buf/cmd/buf@v0.36.0
-          go get golang.org/x/tools/cmd/stringer@v0.1.8
+          go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
+          go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
+          go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+          go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+          go install golang.org/x/tools/cmd/stringer@v0.1.8
       
       - name: Build generate-all
         run: make generate-all
@@ -166,12 +166,12 @@ jobs:
       
       - name: Install project dependencies
         run: |
-          go get github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
-          go get github.com/hashicorp/go-bindata/go-bindata@bf7910a
-          go get github.com/golang/protobuf/protoc-gen-go@v1.3.4
-          go get github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
-          go get github.com/bufbuild/buf/cmd/buf@v0.36.0
-          go get golang.org/x/tools/cmd/stringer@v0.1.8
+          go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
+          go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
+          go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+          go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+          go install golang.org/x/tools/cmd/stringer@v0.1.8
       
       - name: Build generate-all
         run: make generate-all
@@ -306,13 +306,13 @@ jobs:
       
       - name: Install project dependencies
         run: |
-          go get github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
-          go get github.com/hashicorp/go-bindata/go-bindata@bf7910a
-          go get github.com/golang/protobuf/protoc-gen-go@v1.3.4
-          go get github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
-          go get github.com/bufbuild/buf/cmd/buf@v0.36.0
-          go get golang.org/x/tools/cmd/stringer@v0.1.8
-          go get github.com/a8m/tree/cmd/tree@latest
+          go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
+          go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
+          go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+          go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+          go install golang.org/x/tools/cmd/stringer@v0.1.8
+          go install github.com/a8m/tree/cmd/tree@latest
       
       - name: Build generate-all
         run: make generate-all
