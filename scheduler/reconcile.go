@@ -1053,15 +1053,18 @@ func (a *allocReconciler) computeStopByReconnecting(untainted, reconnecting, sto
 				continue
 			}
 
+			statusDescription := allocNotNeeded
 			if untaintedMaxScoreMeta.NormScore > reconnectingMaxScoreMeta.NormScore {
 				stopAlloc = reconnectingAlloc
 				deleteSet = reconnecting
+			} else {
+				statusDescription = allocReconnected
 			}
 
 			stop[stopAlloc.ID] = stopAlloc
 			a.result.stop = append(a.result.stop, allocStopResult{
 				alloc:             stopAlloc,
-				statusDescription: allocNotNeeded,
+				statusDescription: statusDescription,
 			})
 			delete(deleteSet, stopAlloc.ID)
 
