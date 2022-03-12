@@ -694,16 +694,7 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 
 	deploy.ID = "11111111-662e-d0ab-d1c9-3e434af7bdb4"
 	err := state.UpsertDeployment(1000, deploy)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Create a watchset so we can test that getters don't cause it to fire
-	ws := memdb.NewWatchSet()
-	iter, err := state.DeploymentsByIDPrefix(ws, deploy.Namespace, deploy.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	gatherDeploys := func(iter memdb.ResultIterator) []*structs.Deployment {
 		var deploys []*structs.Deployment
@@ -718,60 +709,67 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 		return deploys
 	}
 
-	deploys := gatherDeploys(iter)
-	if len(deploys) != 1 {
-		t.Fatalf("err: %v", err)
-	}
+	t.Run("first deployment", func(t *testing.T) {
+		// Create a watchset so we can test that getters don't cause it to fire
+		ws := memdb.NewWatchSet()
+		iter, err := state.DeploymentsByIDPrefix(ws, deploy.Namespace, deploy.ID, SortDefault)
+		require.NoError(t, err)
 
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+		deploys := gatherDeploys(iter)
+		require.Len(t, deploys, 1)
+		require.False(t, watchFired(ws))
+	})
 
-	iter, err = state.DeploymentsByIDPrefix(ws, deploy.Namespace, "11")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	t.Run("using prefix", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.DeploymentsByIDPrefix(ws, deploy.Namespace, "11", SortDefault)
+		require.NoError(t, err)
 
-	deploys = gatherDeploys(iter)
-	if len(deploys) != 1 {
-		t.Fatalf("err: %v", err)
-	}
+		deploys := gatherDeploys(iter)
+		require.Len(t, deploys, 1)
+		require.False(t, watchFired(ws))
+	})
 
 	deploy = mock.Deployment()
 	deploy.ID = "11222222-662e-d0ab-d1c9-3e434af7bdb4"
 	err = state.UpsertDeployment(1001, deploy)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
-	if !watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	t.Run("more than one", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.DeploymentsByIDPrefix(ws, deploy.Namespace, "11", SortDefault)
+		require.NoError(t, err)
 
-	ws = memdb.NewWatchSet()
-	iter, err = state.DeploymentsByIDPrefix(ws, deploy.Namespace, "11")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+		deploys := gatherDeploys(iter)
+		require.Len(t, deploys, 2)
+	})
 
-	deploys = gatherDeploys(iter)
-	if len(deploys) != 2 {
-		t.Fatalf("err: %v", err)
-	}
+	t.Run("filter to one", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.DeploymentsByIDPrefix(ws, deploy.Namespace, "1111", SortDefault)
+		require.NoError(t, err)
 
-	iter, err = state.DeploymentsByIDPrefix(ws, deploy.Namespace, "1111")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+		deploys := gatherDeploys(iter)
+		require.Len(t, deploys, 1)
+		require.False(t, watchFired(ws))
+	})
 
-	deploys = gatherDeploys(iter)
-	if len(deploys) != 1 {
-		t.Fatalf("err: %v", err)
-	}
+	t.Run("reverse order", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.DeploymentsByIDPrefix(ws, deploy.Namespace, "11", SortReverse)
+		require.NoError(t, err)
 
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+		got := []string{}
+		for _, d := range gatherDeploys(iter) {
+			got = append(got, d.ID)
+		}
+		expected := []string{
+			"11222222-662e-d0ab-d1c9-3e434af7bdb4",
+			"11111111-662e-d0ab-d1c9-3e434af7bdb4",
+		}
+		require.Equal(t, expected, got)
+		require.False(t, watchFired(ws))
+	})
 }
 
 func TestStateStore_UpsertNode_Node(t *testing.T) {
@@ -3874,12 +3872,6 @@ func TestStateStore_EvalsByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	ws := memdb.NewWatchSet()
-	iter, err := state.EvalsByIDPrefix(ws, structs.DefaultNamespace, "aaaa")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
 	gatherEvals := func(iter memdb.ResultIterator) []*structs.Evaluation {
 		var evals []*structs.Evaluation
 		for {
@@ -3892,32 +3884,57 @@ func TestStateStore_EvalsByIDPrefix(t *testing.T) {
 		return evals
 	}
 
-	out := gatherEvals(iter)
-	if len(out) != 5 {
-		t.Fatalf("bad: expected five evaluations, got: %#v", out)
-	}
+	t.Run("list by prefix", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.EvalsByIDPrefix(ws, structs.DefaultNamespace, "aaaa", SortDefault)
+		require.NoError(t, err)
 
-	sort.Sort(EvalIDSort(evals))
-
-	for index, eval := range out {
-		if ids[index] != eval.ID {
-			t.Fatalf("bad: got unexpected id: %s", eval.ID)
+		got := []string{}
+		for _, e := range gatherEvals(iter) {
+			got = append(got, e.ID)
 		}
-	}
 
-	iter, err = state.EvalsByIDPrefix(ws, structs.DefaultNamespace, "b-a7bfb")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+		expected := []string{
+			"aaaaaaaa-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaaab-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaabb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaabbb-7bfb-395d-eb95-0685af2176b2",
+			"aaaabbbb-7bfb-395d-eb95-0685af2176b2",
+		}
+		require.Len(t, got, 5, "expected five evaluations")
+		require.Equal(t, expected, got) // Must be in this order.
+	})
 
-	out = gatherEvals(iter)
-	if len(out) != 0 {
-		t.Fatalf("bad: unexpected zero evaluations, got: %#v", out)
-	}
+	t.Run("invalid prefix", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.EvalsByIDPrefix(ws, structs.DefaultNamespace, "b-a7bfb", SortDefault)
+		require.NoError(t, err)
 
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+		out := gatherEvals(iter)
+		require.Len(t, out, 0, "expected zero evaluations")
+		require.False(t, watchFired(ws))
+	})
+
+	t.Run("reverse order", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.EvalsByIDPrefix(ws, structs.DefaultNamespace, "aaaa", SortReverse)
+		require.NoError(t, err)
+
+		got := []string{}
+		for _, e := range gatherEvals(iter) {
+			got = append(got, e.ID)
+		}
+
+		expected := []string{
+			"aaaabbbb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaabbb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaabb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaaab-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaaaa-7bfb-395d-eb95-0685af2176b2",
+		}
+		require.Len(t, got, 5, "expected five evaluations")
+		require.Equal(t, expected, got) // Must be in this order.
+	})
 }
 
 func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
@@ -5362,15 +5379,7 @@ func TestStateStore_AllocsByIDPrefix(t *testing.T) {
 	}
 
 	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, allocs)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	ws := memdb.NewWatchSet()
-	iter, err := state.AllocsByIDPrefix(ws, structs.DefaultNamespace, "aaaa")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	gatherAllocs := func(iter memdb.ResultIterator) []*structs.Allocation {
 		var allocs []*structs.Allocation
@@ -5384,32 +5393,61 @@ func TestStateStore_AllocsByIDPrefix(t *testing.T) {
 		return allocs
 	}
 
-	out := gatherAllocs(iter)
-	if len(out) != 5 {
-		t.Fatalf("bad: expected five allocations, got: %#v", out)
-	}
+	t.Run("allocs by prefix", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.AllocsByIDPrefix(ws, structs.DefaultNamespace, "aaaa", SortDefault)
+		require.NoError(t, err)
 
-	sort.Sort(AllocIDSort(allocs))
+		out := gatherAllocs(iter)
+		require.Len(t, out, 5, "expected five allocations")
 
-	for index, alloc := range out {
-		if ids[index] != alloc.ID {
-			t.Fatalf("bad: got unexpected id: %s", alloc.ID)
+		got := []string{}
+		for _, a := range out {
+			got = append(got, a.ID)
 		}
-	}
+		expected := []string{
+			"aaaaaaaa-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaaab-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaabb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaabbb-7bfb-395d-eb95-0685af2176b2",
+			"aaaabbbb-7bfb-395d-eb95-0685af2176b2",
+		}
+		require.Equal(t, expected, got)
+		require.False(t, watchFired(ws))
+	})
 
-	iter, err = state.AllocsByIDPrefix(ws, structs.DefaultNamespace, "b-a7bfb")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	t.Run("invalid prefix", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.AllocsByIDPrefix(ws, structs.DefaultNamespace, "b-a7bfb", SortDefault)
+		require.NoError(t, err)
 
-	out = gatherAllocs(iter)
-	if len(out) != 0 {
-		t.Fatalf("bad: unexpected zero allocations, got: %#v", out)
-	}
+		out := gatherAllocs(iter)
+		require.Len(t, out, 0)
+		require.False(t, watchFired(ws))
+	})
 
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	t.Run("reverse", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		iter, err := state.AllocsByIDPrefix(ws, structs.DefaultNamespace, "aaaa", SortReverse)
+		require.NoError(t, err)
+
+		out := gatherAllocs(iter)
+		require.Len(t, out, 5, "expected five allocations")
+
+		got := []string{}
+		for _, a := range out {
+			got = append(got, a.ID)
+		}
+		expected := []string{
+			"aaaabbbb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaabbb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaabb-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaaab-7bfb-395d-eb95-0685af2176b2",
+			"aaaaaaaa-7bfb-395d-eb95-0685af2176b2",
+		}
+		require.Equal(t, expected, got)
+		require.False(t, watchFired(ws))
+	})
 }
 
 func TestStateStore_Allocs(t *testing.T) {
@@ -7717,36 +7755,54 @@ func TestStateStore_ACLTokenByAccessorIDPrefix(t *testing.T) {
 	for _, prefix := range prefixes {
 		tk := mock.ACLToken()
 		tk.AccessorID = prefix + tk.AccessorID[4:]
-		if err := state.UpsertACLTokens(structs.MsgTypeTestSetup, baseIndex, []*structs.ACLToken{tk}); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		err := state.UpsertACLTokens(structs.MsgTypeTestSetup, baseIndex, []*structs.ACLToken{tk})
+		require.NoError(t, err)
 		baseIndex++
 	}
 
-	// Scan by prefix
-	iter, err := state.ACLTokenByAccessorIDPrefix(nil, "aa")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Ensure we see both tokens
-	count := 0
-	out := []string{}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
+	gatherTokens := func(iter memdb.ResultIterator) []*structs.ACLToken {
+		var tokens []*structs.ACLToken
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			tokens = append(tokens, raw.(*structs.ACLToken))
 		}
-		count++
-		out = append(out, raw.(*structs.ACLToken).AccessorID[:4])
+		return tokens
 	}
-	if count != 2 {
-		t.Fatalf("bad: %d %v", count, out)
-	}
-	sort.Strings(out)
 
-	expect := []string{"aaaa", "aabb"}
-	assert.Equal(t, expect, out)
+	t.Run("scan by prefix", func(t *testing.T) {
+		iter, err := state.ACLTokenByAccessorIDPrefix(nil, "aa", SortDefault)
+		require.NoError(t, err)
+
+		// Ensure we see both tokens
+		out := gatherTokens(iter)
+		require.Len(t, out, 2)
+
+		got := []string{}
+		for _, t := range out {
+			got = append(got, t.AccessorID[:4])
+		}
+		expect := []string{"aaaa", "aabb"}
+		require.Equal(t, expect, got)
+	})
+
+	t.Run("reverse order", func(t *testing.T) {
+		iter, err := state.ACLTokenByAccessorIDPrefix(nil, "aa", SortReverse)
+		require.NoError(t, err)
+
+		// Ensure we see both tokens
+		out := gatherTokens(iter)
+		require.Len(t, out, 2)
+
+		got := []string{}
+		for _, t := range out {
+			got = append(got, t.AccessorID[:4])
+		}
+		expect := []string{"aabb", "aaaa"}
+		require.Equal(t, expect, got)
+	})
 }
 
 func TestStateStore_ACLTokensByGlobal(t *testing.T) {
@@ -7754,32 +7810,51 @@ func TestStateStore_ACLTokensByGlobal(t *testing.T) {
 
 	state := testStateStore(t)
 	tk1 := mock.ACLToken()
+	tk1.AccessorID = "aaaa" + tk1.AccessorID[4:]
+
 	tk2 := mock.ACLToken()
+	tk2.AccessorID = "aabb" + tk2.AccessorID[4:]
+
 	tk3 := mock.ACLToken()
-	tk4 := mock.ACLToken()
+	tk3.AccessorID = "bbbb" + tk3.AccessorID[4:]
 	tk3.Global = true
 
-	if err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{tk1, tk2, tk3, tk4}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	tk4 := mock.ACLToken()
+	tk4.AccessorID = "ffff" + tk4.AccessorID[4:]
 
-	iter, err := state.ACLTokensByGlobal(nil, true)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{tk1, tk2, tk3, tk4})
+	require.NoError(t, err)
 
-	// Ensure we see the one global policies
-	count := 0
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
+	gatherTokens := func(iter memdb.ResultIterator) []*structs.ACLToken {
+		var tokens []*structs.ACLToken
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			tokens = append(tokens, raw.(*structs.ACLToken))
 		}
-		count++
+		return tokens
 	}
-	if count != 1 {
-		t.Fatalf("bad: %d", count)
-	}
+
+	t.Run("only global tokens", func(t *testing.T) {
+		iter, err := state.ACLTokensByGlobal(nil, true, SortDefault)
+		require.NoError(t, err)
+
+		got := gatherTokens(iter)
+		require.Len(t, got, 1)
+		require.Equal(t, tk3.AccessorID, got[0].AccessorID)
+	})
+
+	t.Run("reverse order", func(t *testing.T) {
+		iter, err := state.ACLTokensByGlobal(nil, false, SortReverse)
+		require.NoError(t, err)
+
+		expected := []*structs.ACLToken{tk4, tk2, tk1}
+		got := gatherTokens(iter)
+		require.Len(t, got, 3)
+		require.Equal(t, expected, got)
+	})
 }
 
 func TestStateStore_OneTimeTokens(t *testing.T) {

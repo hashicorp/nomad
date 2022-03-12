@@ -414,7 +414,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 			var opts paginator.StructsTokenizerOptions
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = store.DeploymentsByIDPrefix(ws, namespace, prefix)
+				iter, err = store.DeploymentsByIDPrefix(ws, namespace, prefix, sort)
 				opts = paginator.StructsTokenizerOptions{
 					WithID: true,
 				}

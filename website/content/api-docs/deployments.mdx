@@ -50,9 +50,10 @@ The table below shows this endpoint's support for
   results. Consider using pagination or a query parameter to reduce resource
   used to serve the request.
 
-- `ascending` `(bool: false)` - Specifies the list of returned deployments should
-  be sorted in chronological order (oldest evaluations first). By default deployments
-  are returned sorted in reverse chronological order (newest deployments first).
+- `reverse` `(bool: false)` - Specifies the list of returned deployments should
+  be sorted in the reverse order. By default deployments are returned sorted in
+  chronological order (older deployments first), or in lexicographical order
+  by their ID if the `prefix` query parameter is used.
 
 ### Sample Request
 

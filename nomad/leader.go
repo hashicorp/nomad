@@ -1524,13 +1524,13 @@ ERR_WAIT:
 // diffACLTokens is used to perform a two-way diff between the local
 // tokens and the remote tokens to determine which tokens need to
 // be deleted or updated.
-func diffACLTokens(state *state.StateStore, minIndex uint64, remoteList []*structs.ACLTokenListStub) (delete []string, update []string) {
+func diffACLTokens(store *state.StateStore, minIndex uint64, remoteList []*structs.ACLTokenListStub) (delete []string, update []string) {
 	// Construct a set of the local and remote policies
 	local := make(map[string][]byte)
 	remote := make(map[string]struct{})
 
 	// Add all the local global tokens
-	iter, err := state.ACLTokensByGlobal(nil, true)
+	iter, err := store.ACLTokensByGlobal(nil, true, state.SortDefault)
 	if err != nil {
 		panic("failed to iterate local tokens")
 	}
