@@ -1,6 +1,8 @@
 package structs
 
 import (
+	"errors"
+	"github.com/hashicorp/go-multierror"
 	"testing"
 	"time"
 
@@ -1471,4 +1473,82 @@ func TestConsulMeshGateway_Validate(t *testing.T) {
 		err := (&ConsulMeshGateway{Mode: "local"}).Validate()
 		require.NoError(t, err)
 	})
+}
+
+func TestService_validateNomadService(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		inputService         *Service
+		inputErr             *multierror.Error
+		expectedOutputErrors []error
+		name                 string
+	}{
+		{
+			inputService: &Service{
+				Name:      "webapp",
+				PortLabel: "http",
+				Namespace: "default",
+				Provider:  "nomad",
+			},
+			inputErr:             &multierror.Error{},
+			expectedOutputErrors: []error{},
+			name:                 "valid service",
+		},
+		{
+			inputService: &Service{
+				Name:      "webapp",
+				PortLabel: "http",
+				Namespace: "default",
+				Provider:  "nomad",
+				Checks: []*ServiceCheck{
+					{Name: "some-check"},
+				},
+			},
+			inputErr:             &multierror.Error{},
+			expectedOutputErrors: []error{errors.New("Service with provider nomad cannot include Check blocks")},
+			name:                 "invalid service due to checks",
+		},
+		{
+			inputService: &Service{
+				Name:      "webapp",
+				PortLabel: "http",
+				Namespace: "default",
+				Provider:  "nomad",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			inputErr:             &multierror.Error{},
+			expectedOutputErrors: []error{errors.New("Service with provider nomad cannot include Connect blocks")},
+			name:                 "invalid service due to connect",
+		},
+		{
+			inputService: &Service{
+				Name:      "webapp",
+				PortLabel: "http",
+				Namespace: "default",
+				Provider:  "nomad",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+				Checks: []*ServiceCheck{
+					{Name: "some-check"},
+				},
+			},
+			inputErr: &multierror.Error{},
+			expectedOutputErrors: []error{
+				errors.New("Service with provider nomad cannot include Check blocks"),
+				errors.New("Service with provider nomad cannot include Connect blocks"),
+			},
+			name: "invalid service due to checks and connect",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.inputService.validateNomadService(tc.inputErr)
+			require.ElementsMatch(t, tc.expectedOutputErrors, tc.inputErr.Errors)
+		})
+	}
 }

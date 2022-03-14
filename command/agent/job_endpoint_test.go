@@ -2902,6 +2902,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Services: []*structs.Service{
 					{
 						Name:              "groupserviceA",
+						Provider:          "consul",
 						Tags:              []string{"a", "b"},
 						CanaryTags:        []string{"d", "e"},
 						EnableTagOverride: true,
@@ -2993,6 +2994,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Services: []*structs.Service{
 							{
 								Name:              "serviceA",
+								Provider:          "consul",
 								Tags:              []string{"1", "2"},
 								CanaryTags:        []string{"3", "4"},
 								EnableTagOverride: true,
