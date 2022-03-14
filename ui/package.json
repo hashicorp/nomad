@@ -97,6 +97,7 @@
     "ember-modifier": "^3.1.0",
     "ember-moment": "^9.0.1",
     "ember-named-blocks-polyfill": "^0.2.4",
+    "ember-on-resize-modifier": "^1.0.0",
     "ember-overridable-computed": "^1.0.0",
     "ember-page-title": "^6.2.2",
     "ember-power-select": "^4.1.7",

@@ -76,19 +76,30 @@
         </div>
       </div>
       {{! Start Related Evaluation}}
-      <div class="bg-white h-96 w-96 shadow-sm p-8 flex space-x-24">
-        <div class="flex space-x-24">
-          <div class="flex flex-col">
-            <EvaluationSidebar::EvaluationActor @eval={{@data.hierarchy}} />
-          </div>
-          {{log evaluation}}
-          {{#each @data.descendentsMap as |evals|}}
-            <div class="flex flex-col space-y-4">
-              {{#each evals as |eval|}}
-                <EvaluationSidebar::EvaluationActor @eval={{eval}} />
-              {{/each}}
+      <div
+        class="absolute inset-0 flex justify-center items-center"
+        {{on-resize @fns.handleResize}}
+      >
+        {{#if (and this.width this.height)}}
+          <svg
+            width={{this.width}}
+            height={{this.height}}
+            class="absolute inset-0 z-10"
+          ></svg>
+        {{/if}}
+        <div class="bg-white h-96 w-96 shadow-sm p-8 flex space-x-24">
+          <div class="flex space-x-24">
+            <div class="flex flex-col">
+              <EvaluationSidebar::EvaluationActor @eval={{@data.hierarchy}} />
             </div>
-          {{/each}}
+            {{#each @data.descendentsMap as |evals|}}
+              <div class="flex flex-col space-y-4">
+                {{#each evals as |eval|}}
+                  <EvaluationSidebar::EvaluationActor @eval={{eval}} />
+                {{/each}}
+              </div>
+            {{/each}}
+          </div>
         </div>
       </div>
       {{! End Related Evaluations}}
