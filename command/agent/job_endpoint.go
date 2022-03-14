@@ -1372,6 +1372,7 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			Meta:              helper.CopyMapStringString(s.Meta),
 			CanaryMeta:        helper.CopyMapStringString(s.CanaryMeta),
 			OnUpdate:          s.OnUpdate,
+			Provider:          s.Provider,
 		}
 
 		if l := len(s.Checks); l != 0 {

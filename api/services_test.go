@@ -21,6 +21,7 @@ func TestService_Canonicalize(t *testing.T) {
 	require.Equal(t, fmt.Sprintf("%s-%s-%s", *j.Name, *tg.Name, task.Name), s.Name)
 	require.Equal(t, "auto", s.AddressMode)
 	require.Equal(t, OnUpdateRequireHealthy, s.OnUpdate)
+	require.Equal(t, ServiceProviderConsul, s.Provider)
 }
 
 func TestServiceCheck_Canonicalize(t *testing.T) {

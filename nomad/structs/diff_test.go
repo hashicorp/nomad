@@ -2873,6 +2873,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								New:  "",
 							},
 							{
+								Type: DiffTypeNone,
+								Name: "Provider",
+								Old:  "",
+								New:  "",
+							},
+							{
 								Type: DiffTypeEdited,
 								Name: "TaskName",
 								Old:  "task1",
@@ -5602,6 +5608,10 @@ func TestTaskDiff(t *testing.T) {
 								New:  "bar",
 							},
 							{
+								Type: DiffTypeNone,
+								Name: "Provider",
+							},
+							{
 								Type: DiffTypeAdded,
 								Name: "TaskName",
 								Old:  "",
@@ -5744,6 +5754,10 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "PortLabel",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Provider",
 							},
 							{
 								Type: DiffTypeNone,
@@ -6263,6 +6277,10 @@ func TestTaskDiff(t *testing.T) {
 								Name: "PortLabel",
 								Old:  "",
 								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Provider",
 							},
 							{
 								Type: DiffTypeNone,
@@ -7349,6 +7367,10 @@ func TestServicesDiff(t *testing.T) {
 						},
 						{
 							Type: DiffTypeNone,
+							Name: "Provider",
+						},
+						{
+							Type: DiffTypeNone,
 							Name: "TaskName",
 						},
 					},
@@ -7434,6 +7456,10 @@ func TestServicesDiff(t *testing.T) {
 						},
 						{
 							Type: DiffTypeNone,
+							Name: "Provider",
+						},
+						{
+							Type: DiffTypeNone,
 							Name: "TaskName",
 						},
 					},
@@ -7490,6 +7516,10 @@ func TestServicesDiff(t *testing.T) {
 							Type: DiffTypeAdded,
 							Name: "PortLabel",
 							New:  "https",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Provider",
 						},
 						{
 							Type: DiffTypeNone,
@@ -7556,6 +7586,9 @@ func TestServicesDiff(t *testing.T) {
 							Name: "PortLabel",
 							Old:  "http",
 							New:  "https-redirect",
+						}, {
+							Type: DiffTypeNone,
+							Name: "Provider",
 						},
 						{
 							Type: DiffTypeNone,
@@ -7629,6 +7662,10 @@ func TestServicesDiff(t *testing.T) {
 						},
 						{
 							Type: DiffTypeNone,
+							Name: "Provider",
+						},
+						{
+							Type: DiffTypeNone,
 							Name: "TaskName",
 						},
 					},
@@ -7649,6 +7686,72 @@ func TestServicesDiff(t *testing.T) {
 									New:  "prod",
 								},
 							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:       "Service with different provider",
+			Contextual: true,
+			Old: []*Service{
+				{
+					Name:      "webapp",
+					Provider:  "nomad",
+					PortLabel: "http",
+				},
+			},
+			New: []*Service{
+				{
+					Name:      "webapp",
+					Provider:  "consul",
+					PortLabel: "http",
+				},
+			},
+			Expected: []*ObjectDiff{
+				{
+					Type: DiffTypeEdited,
+					Name: "Service",
+					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "AddressMode",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "EnableTagOverride",
+							Old:  "false",
+							New:  "false",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Name",
+							Old:  "webapp",
+							New:  "webapp",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Namespace",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "OnUpdate",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "PortLabel",
+							Old:  "http",
+							New:  "http",
+						},
+						{
+							Type: DiffTypeEdited,
+							Name: "Provider",
+							Old:  "nomad",
+							New:  "consul",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "TaskName",
 						},
 					},
 				},
