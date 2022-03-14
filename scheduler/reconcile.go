@@ -415,7 +415,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	lostLater := lost.delayByStopAfterClientDisconnect()
 	lostLaterEvals := a.createLostLaterEvals(lostLater, all, tg.Name)
 
-	// Find delays for any disconnecting allocs that have resume_after_client_reconnect,
+	// Find delays for any disconnecting allocs that have max_client_reconnect,
 	// create followup evals, and update the ClientStatus to unknown.
 	timeoutLaterEvals := a.createTimeoutLaterEvals(disconnecting, tg.Name)
 	// Merge disconnecting with the stop_after_client_disconnect set into the
