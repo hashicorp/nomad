@@ -3,8 +3,7 @@ schema = "1"
 project "nomad" {
   team = "nomad"
   slack {
-    // TODO: ask nomad team which feed channel would be best -- perhaps #proj-nomad-releases?
-    // TODO: add promote-dev-docker + security-scan-container workflows later
+    // TODO: update to #proj-nomad-releases
     notification_channel = "C01A3A54G0L"
   }
   github {
@@ -174,7 +173,7 @@ event "promote-production" {
 }
 
 event "promote-production-packaging" {
-  depends = ["promote-production-docker"]
+  depends = ["promote-production"]
   action "promote-production-packaging" {
     organization = "hashicorp"
     repository = "crt-workflows-common"

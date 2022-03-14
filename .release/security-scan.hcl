@@ -10,7 +10,7 @@ container {
 binary {
 	go_modules = false
 	osv        = false
-	nvd        = true
+	nvd        = false
 
 	secrets {
 		all = true

@@ -15,6 +15,19 @@ env:
   GO_TAGS: "ui"
 
 jobs:
+  get-go-version:
+    runs-on: ubuntu-latest
+    outputs:
+      go-version: ${{ steps.get-go-version.outputs.go-version }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Determine Go version
+        id: get-go-version
+        # We use .go-version as our source of truth for current Go
+        # version, because "goenv" can react to it automatically.
+        run: |
+          echo "Building with Go $(cat .go-version)"
+          echo "::set-output name=go-version::$(cat .go-version)"
   get-product-version:
     runs-on: ubuntu-latest
     outputs:
@@ -26,7 +39,6 @@ jobs:
         run: |
           make version
           echo "::set-output name=product-version::$(make version)"
-  
   generate-metadata-file:
     needs: get-product-version
     runs-on: ubuntu-latest
@@ -45,8 +57,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: metadata.json
-          path: ${{ steps.generate-metadata-file.outputs.filepath }}
-  
+          path: ${{ steps.generate-metadata-file.outputs.filepath }}  
   set-ld-flags:
     needs: get-product-version
     runs-on: ubuntu-latest
@@ -64,22 +75,21 @@ jobs:
           -X \'$project/version.GitDescribe=v$(make version base=1)\'""
   
   build-other:
-    needs: [ get-product-version, set-ld-flags ]
+    needs: [ get-go-version, get-product-version, set-ld-flags ]
     runs-on: ubuntu-latest
     strategy:
       matrix:
         goos: [ windows ]
         goarch: [ "386", "amd64" ]
-        go: [ "1.17.7" ]
       fail-fast: true
 
-    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
     steps:
       - uses: actions/checkout@v2
       - name: Setup go
         uses: actions/setup-go@v2
         with:
-          go-version: ${{ matrix.go }}
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
     
       - name: Install project dependencies
         run: |
@@ -132,23 +142,22 @@ jobs:
           path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
    
   build-linux:
-    needs: [ get-product-version, set-ld-flags ]
+    needs: [ get-go-version, get-product-version, set-ld-flags ]
     runs-on: ubuntu-latest
     strategy:
       matrix:
         goos: [ linux ]
         goarch: [ "arm", "arm64", "386", "amd64" ]
-        go: [ "1.17.7" ]
       fail-fast: true
     
-    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
     steps:
       - uses: actions/checkout@v2
       - name: Setup go
         uses: actions/setup-go@v2
         with:
-          go-version: ${{ matrix.go }}
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
       
       - name: Install project dependencies
         run: |
@@ -231,7 +240,6 @@ jobs:
           -ldflags "${{ env.LD_FLAGS }}" \
           -tags "${{ env.GO_TAGS }}"
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
-
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
@@ -275,16 +283,15 @@ jobs:
           path: out/${{ env.DEB_PACKAGE }}
 
   build-darwin:
-    needs: [ get-product-version, set-ld-flags ]
+    needs: [ get-go-version, get-product-version, set-ld-flags ]
     runs-on: macos-latest
     strategy:
       matrix:
         goos: [ darwin ]
         goarch: [ "amd64" ]
-        go: [ "1.17" ]
       fail-fast: true
 
-    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
     steps:
       - uses: actions/checkout@v2
@@ -292,7 +299,7 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@v2
         with:
-          go-version: ${{ matrix.go }}
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
       
       - name: Install project dependencies
         run: |
@@ -334,14 +341,12 @@ jobs:
           GO_TAGS: "${{ env.GO_TAGS }} netcgo"
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
           CGO_ENABLED: 0
-
         run: |
           mkdir -p dist out
           go build -o dist/ \
           -ldflags "${{ env.LD_FLAGS }}" \
           -tags "${{ env.GO_TAGS }}"
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
-
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
