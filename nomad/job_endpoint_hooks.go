@@ -23,6 +23,17 @@ var (
 		RTarget: ">= 0.6.1",
 		Operand: structs.ConstraintSemver,
 	}
+
+	// nativeServiceDiscoveryConstraint is the constraint injected into task
+	// groups that utilise Nomad's native service discovery feature. This is
+	// needed, as operators can disable the client functionality, and therefore
+	// we need to ensure task groups are placed where they can run
+	// successfully.
+	nativeServiceDiscoveryConstraint = &structs.Constraint{
+		LTarget: "${attr.nomad.service_discovery}",
+		RTarget: "true",
+		Operand: "=",
+	}
 )
 
 type admissionController interface {
@@ -120,8 +131,11 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	// Get the required signals
 	signals := j.RequiredSignals()
 
+	// Identify which task groups are utilising Nomad native service discovery.
+	nativeServiceDisco := j.RequiredNativeServiceDiscovery()
+
 	// Hot path
-	if len(signals) == 0 && len(policies) == 0 {
+	if len(signals) == 0 && len(policies) == 0 && len(nativeServiceDisco) == 0 {
 		return j, nil, nil
 	}
 
@@ -168,6 +182,25 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 
 		if !found {
 			tg.Constraints = append(tg.Constraints, sigConstraint)
+		}
+	}
+
+	// Add the Nomad service discovery constraints.
+	for _, tg := range j.TaskGroups {
+		if ok := nativeServiceDisco[tg.Name]; !ok {
+			continue
+		}
+
+		found := false
+		for _, c := range tg.Constraints {
+			if c.Equals(nativeServiceDiscoveryConstraint) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			tg.Constraints = append(tg.Constraints, nativeServiceDiscoveryConstraint)
 		}
 	}
 

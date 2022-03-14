@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNomadFingerprint(t *testing.T) {
@@ -20,6 +21,7 @@ func TestNomadFingerprint(t *testing.T) {
 			Revision: r,
 			Version:  v,
 		},
+		NomadServiceDiscovery: true,
 	}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -52,4 +54,7 @@ func TestNomadFingerprint(t *testing.T) {
 	if response.Attributes["nomad.advertise.address"] != h {
 		t.Fatalf("incorrect advertise address")
 	}
+
+	serviceDisco := response.Attributes["nomad.service_discovery"]
+	require.Equal(t, "true", serviceDisco, "service_discovery attr incorrect")
 }
