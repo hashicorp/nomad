@@ -742,6 +742,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										PortLabel:   "db",
 										AddressMode: "auto",
 										OnUpdate:    "require_healthy",
+										Provider:    "consul",
 										Checks: []ServiceCheck{
 											{
 												Name:     "alive",

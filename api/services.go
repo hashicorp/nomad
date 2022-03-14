@@ -116,12 +116,21 @@ type Service struct {
 	CanaryMeta        map[string]string `hcl:"canary_meta,block"`
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
 	OnUpdate          string            `mapstructure:"on_update" hcl:"on_update,optional"`
+
+	// Provider defines which backend system provides the service registration
+	// mechanism for this service. This supports either structs.ProviderConsul
+	// or structs.ProviderNomad and defaults for the former.
+	Provider string `hcl:"provider,optional"`
 }
 
 const (
 	OnUpdateRequireHealthy = "require_healthy"
 	OnUpdateIgnoreWarn     = "ignore_warnings"
 	OnUpdateIgnore         = "ignore"
+
+	// ServiceProviderConsul is the default provider for services when no
+	// parameter is set.
+	ServiceProviderConsul = "consul"
 )
 
 // Canonicalize the Service by ensuring its name and address mode are set. Task
@@ -143,6 +152,11 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	// Default to OnUpdateRequireHealthy
 	if s.OnUpdate == "" {
 		s.OnUpdate = OnUpdateRequireHealthy
+	}
+
+	// Default the service provider.
+	if s.Provider == "" {
+		s.Provider = ServiceProviderConsul
 	}
 
 	s.Connect.Canonicalize()
