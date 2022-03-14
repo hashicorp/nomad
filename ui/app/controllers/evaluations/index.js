@@ -200,6 +200,7 @@ export default class EvaluationsController extends Controller {
 
   @action
   handleResize({ contentRect: { width, height } }) {
+    if (width === this.width || height === this.height) return;
     this.height = height;
     this.width = width;
   }
