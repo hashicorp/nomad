@@ -1,0 +1,3 @@
+```release-note:improvement
+server: Transfer Raft leadership in case the Nomad server fails to establish leadership
+```
