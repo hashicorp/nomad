@@ -75,6 +75,23 @@
           </div>
         </div>
       </div>
+      {{! Start Related Evaluation}}
+      <div class="bg-white h-96 w-96 shadow-sm p-8 flex space-x-24">
+        <div class="flex space-x-24">
+          <div class="flex flex-col">
+            <EvaluationSidebar::EvaluationActor @eval={{@data.hierarchy}} />
+          </div>
+          {{log evaluation}}
+          {{#each @data.descendentsMap as |evals|}}
+            <div class="flex flex-col space-y-4">
+              {{#each evals as |eval|}}
+                <EvaluationSidebar::EvaluationActor @eval={{eval}} />
+              {{/each}}
+            </div>
+          {{/each}}
+        </div>
+      </div>
+      {{! End Related Evaluations}}
       <div
         class="boxed-section
           {{if evaluation.failedTGAllocs "is-warning" "is-primary"}}"

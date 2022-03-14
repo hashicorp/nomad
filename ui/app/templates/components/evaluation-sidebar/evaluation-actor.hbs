@@ -2,8 +2,8 @@
   <div
     data-eval={{@eval.id}}
     ...attributes
-    {{did-insert (fn actors.fns.registerEval @eval)}}
-    {{will-destroy (fn actors.fns.unregisterEval @eval)}}
+    {{did-insert (fn actors.fns.registerActor @eval)}}
+    {{will-destroy (fn actors.fns.deregisterActor @eval)}}
   >
     {{@eval.id}}
   </div>
