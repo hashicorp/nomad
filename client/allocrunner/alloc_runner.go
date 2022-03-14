@@ -1265,6 +1265,7 @@ func (ar *allocRunner) Reconnect(update *structs.Allocation) (err error) {
 
 	// Build the client allocation
 	alloc := ar.clientAlloc(states)
+	alloc.DesiredStatus = update.DesiredStatus
 
 	// Update the client state store.
 	err = ar.stateUpdater.PutAllocation(alloc)
