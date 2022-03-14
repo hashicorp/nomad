@@ -704,6 +704,10 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		conf.ReservableCores = cores.ToSlice()
 	}
 
+	if agentConfig.Client.NomadServiceDiscovery != nil {
+		conf.NomadServiceDiscovery = *agentConfig.Client.NomadServiceDiscovery
+	}
+
 	return conf, nil
 }
 
