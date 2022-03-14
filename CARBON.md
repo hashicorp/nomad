@@ -1,5 +1,7 @@
 # Carbon-aware Nomad Experiment
 
+README for branch: https://github.com/hashicorp/nomad/blob/h-carbon-meta/
+
 This branch is an experiment to enable Nomad to minimize the climate impact of
 the compute it manages. In particular it takes the carbon impact of nodes into
 account when scheduling: prioritizing the use of of lower-carbon-producing
