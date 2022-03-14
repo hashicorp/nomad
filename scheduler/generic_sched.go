@@ -25,6 +25,10 @@ const (
 	// allocNotNeeded is the status used when a job no longer requires an allocation
 	allocNotNeeded = "alloc not needed due to job update"
 
+	// allocReconnected is the status to use when a replacement allocation is stopped
+	// because a disconnected node reconnects.
+	allocReconnected = "alloc not needed due to disconnected client reconnect"
+
 	// allocMigrating is the status used when we must migrate an allocation
 	allocMigrating = "alloc is being migrated"
 
