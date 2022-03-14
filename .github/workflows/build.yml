@@ -8,11 +8,11 @@ on:
       # - main
       # Push events to branches matching refs/heads/release/**
       # - 'release/**'
-      - 'release/1.0.x'
+      - 'darwin-test'
 
 env:
   PKG_NAME: "nomad"
-  GO_TAGS: "ui" 
+  GO_TAGS: "ui codegen_generated release" 
 
 jobs:
   get-go-version:
@@ -131,7 +131,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
-          CGO_ENABLED: 0
+          CGO_ENABLED: 1
         run: |
           mkdir -p dist out
           go build -o dist/ \
@@ -285,7 +285,7 @@ jobs:
 
   build-darwin:
     needs: [ get-go-version, get-product-version, set-ld-flags ]
-    runs-on: macos-latest
+    runs-on: macos-10.15
     strategy:
       matrix:
         goos: [ darwin ]
@@ -300,7 +300,7 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@v2
         with:
-          go-version: ${{ needs.get-go-version.outputs.go-version }}
+          go-version: 1.16.12
       
       - name: Install project dependencies
         run: |
@@ -310,8 +310,7 @@ jobs:
           go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
           go install github.com/bufbuild/buf/cmd/buf@v0.36.0
           go install golang.org/x/tools/cmd/stringer@v0.1.8
-          go install github.com/a8m/tree/cmd/tree@fce18e2
-      
+          
       - name: Build generate-all
         run: make generate-all
       
@@ -340,7 +339,7 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          GO_TAGS: "${{ env.GO_TAGS }} netcgo"
+          GO_TAGS: "${{ env.GO_TAGS }}"
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
           CGO_ENABLED: 0
         run: |
