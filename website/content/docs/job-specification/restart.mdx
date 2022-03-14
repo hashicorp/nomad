@@ -28,7 +28,7 @@ job "docs" {
 ```
 
 If specified at the group level, the configuration is inherited by all
-tasks in the group, including and [sidecar tasks][sidecar_task]. If
+tasks in the group, including any [sidecar tasks][sidecar_task]. If
 also present on the task, the policy is merged with the restart policy
 from the encapsulating task group.
 
@@ -166,5 +166,5 @@ restart {
 }
 ```
 
-[sidecar_task]: docs/job-specification/sidecar_task
+[sidecar_task]: /docs/job-specification/sidecar_task
 [`reschedule`]: /docs/job-specification/reschedule
