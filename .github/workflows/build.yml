@@ -12,7 +12,7 @@ on:
 
 env:
   PKG_NAME: "nomad"
-  GO_TAGS: "ui" 
+  GO_TAGS: "ui codegen_generated release" 
 
 jobs:
   get-go-version:
@@ -131,7 +131,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
-          CGO_ENABLED: 0
+          CGO_ENABLED: 1
         run: |
           mkdir -p dist out
           go build -o dist/ \
@@ -284,15 +284,16 @@ jobs:
           path: out/${{ env.DEB_PACKAGE }}
 
   build-darwin:
-    needs: [ get-go-version, get-product-version, set-ld-flags ]
-    runs-on: macos-latest
+    needs: [ get-product-version, set-ld-flags ]
+    runs-on: macos-10.15
     strategy:
       matrix:
         goos: [ darwin ]
         goarch: [ "amd64" ]
+        go: [ "1.16.12" ]
       fail-fast: true
 
-    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
     steps:
       - uses: actions/checkout@v2
@@ -300,7 +301,7 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@v2
         with:
-          go-version: ${{ needs.get-go-version.outputs.go-version }}
+          go-version: ${{ matrix.go }}
       
       - name: Install project dependencies
         run: |
