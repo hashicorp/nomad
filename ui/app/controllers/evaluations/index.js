@@ -11,6 +11,9 @@ export default class EvaluationsController extends Controller {
   @service store;
   @service userSettings;
 
+  @tracked width = null;
+  @tracked height = null;
+
   @matchesState({ sidebar: 'open' })
   isSideBarOpen;
 
@@ -193,6 +196,12 @@ export default class EvaluationsController extends Controller {
   setStatus(selection) {
     this._resetTokens();
     this.status = selection;
+  }
+
+  @action
+  handleResize({ contentRect: { width, height } }) {
+    this.height = height;
+    this.width = width;
   }
 
   _resetTokens() {

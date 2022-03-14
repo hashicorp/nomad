@@ -9441,6 +9441,16 @@ ember-named-blocks-polyfill@^0.2.4:
     ember-cli-babel "^7.19.0"
     ember-cli-version-checker "^5.1.1"
 
+ember-on-resize-modifier@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/ember-on-resize-modifier/-/ember-on-resize-modifier-1.0.0.tgz#b4e12dc023b4d608d7b0f4fa0100722fb860cdd4"
+  integrity sha512-awmjTV8xIZ0Qc5X+46iYL4NT3f4NahNq+3XJ3Fn7zo8D4QuMzMOM91HqvtFQBWddD8o0v7qZNzW++HXAYAPXkg==
+  dependencies:
+    ember-cli-babel "^7.26.6"
+    ember-cli-htmlbars "^5.7.1"
+    ember-modifier "^3.0.0"
+    ember-resize-observer-service "^1.0.0"
+
 ember-overridable-computed@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/ember-overridable-computed/-/ember-overridable-computed-1.0.0.tgz#4fb4a5acc9ec9ed7421586a5a8b4014f5bdb04f7"
@@ -9494,6 +9504,14 @@ ember-render-helpers@^0.2.0:
   dependencies:
     ember-cli-babel "^7.23.0"
     ember-cli-typescript "^4.0.0"
+
+ember-resize-observer-service@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/ember-resize-observer-service/-/ember-resize-observer-service-1.0.0.tgz#6d28e33cf06ddc60e83111069c41796d6739142e"
+  integrity sha512-KmKNerMJUIJgOjr/AOM+fTa3nhbLLrLLTAw2mZuHhRCF1xEivvvF3ivE9Lst2tVgwi4IgI5Q/4t6AMea/dZpAA==
+  dependencies:
+    ember-cli-babel "^7.26.6"
+    ember-cli-htmlbars "^5.7.1"
 
 ember-resolver@^8.0.3:
   version "8.0.3"
