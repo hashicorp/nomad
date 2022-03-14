@@ -8,7 +8,7 @@ on:
       # - main
       # Push events to branches matching refs/heads/release/**
       # - 'release/**'
-      - 'release/1.1.x'
+      - 'crt/1.1.x'
 
 env:
   PKG_NAME: "nomad"
