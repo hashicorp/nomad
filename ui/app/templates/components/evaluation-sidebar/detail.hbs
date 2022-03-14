@@ -80,12 +80,19 @@
         class="absolute inset-0 flex justify-center items-center"
         {{on-resize @fns.handleResize}}
       >
-        {{#if (and this.width this.height)}}
-          <svg
-            width={{this.width}}
-            height={{this.height}}
-            class="absolute inset-0 z-10"
-          ></svg>
+        {{#if (and @data.width @data.height)}}
+          <Providers::ActorsRelationships as |actors|>
+            <svg
+              width={{@data.width}}
+              height={{@data.height}}
+              class="absolute inset-0 z-10"
+              {{did-update actors.fns.recalcCurves @data.width}}
+            >
+              {{#each actors.data.relationships as |d|}}
+                <path d={{d}} stroke="black" strokeWidth="3" fill="none"></path>
+              {{/each}}
+            </svg>
+          </Providers::ActorsRelationships>
         {{/if}}
         <div class="bg-white h-96 w-96 shadow-sm p-8 flex space-x-24">
           <div class="flex space-x-24">
