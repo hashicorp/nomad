@@ -90,7 +90,7 @@ export default class EvaluationsController extends Controller {
 
   get currentEvalDetail() {
     return {
-      ID: this.currentEval,
+      id: this.currentEval,
       Priority: 50,
       Type: 'service',
       TriggeredBy: 'job-register',
@@ -116,20 +116,28 @@ export default class EvaluationsController extends Controller {
       ModifyIndex: 55,
       RelatedEvals: [
         {
-          'a9125398-1ef6-480a-80e5-ebfb4a74aeb8': {
-            ID: 'a9125398-1ef6-480a-80e5-ebfb4a74aeb8',
-            NextEval: '',
-            PreviousEval: '04928ead-9b3d-40a7-b45d-d90d2afd2d8d',
-            BlockedEval: '',
-          },
+          id: '1',
+          prevEval: '0',
+          nextEval: '2',
+          blockedEval: '3',
         },
         {
-          '04928ead-9b3d-40a7-b45d-d90d2afd2d8d': {
-            ID: '04928ead-9b3d-40a7-b45d-d90d2afd2d8d',
-            NextEval: '',
-            PreviousEval: this.currentEval,
-            BlockedEval: 'a9125398-1ef6-480a-80e5-ebfb4a74aeb8',
-          },
+          id: '2',
+          prevEval: '1',
+          nextEval: '',
+          blockedEval: '',
+        },
+        {
+          id: '3',
+          prevEval: '1',
+          nextEval: '',
+          blockedEval: '',
+        },
+        {
+          id: '0',
+          prevEval: '',
+          nextEval: '1',
+          blockedEval: '',
         },
       ],
     };
@@ -141,7 +149,7 @@ export default class EvaluationsController extends Controller {
     return d3
       .stratify()
       .id((d) => d.id)
-      .parentId((d) => d.PreviousEval)([...data, this.currentEvalDetail]);
+      .parentId((d) => d.prevEval)(data);
   }
 
   get descendentsMap() {
