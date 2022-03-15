@@ -1,3 +1,0 @@
-acl {
-  enabled = true
-}
