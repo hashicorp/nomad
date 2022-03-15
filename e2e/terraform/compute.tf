@@ -1,5 +1,5 @@
 locals {
-  ami_prefix = "nomad-e2e-v2"
+  ami_prefix = "nomad-e2e-v3"
 }
 
 resource "aws_instance" "server" {
@@ -15,7 +15,6 @@ resource "aws_instance" "server" {
   tags = {
     Name           = "${local.random_name}-server-${count.index}"
     ConsulAutoJoin = "auto-join-${local.random_name}"
-    SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
   }
 }
@@ -33,7 +32,6 @@ resource "aws_instance" "client_ubuntu_bionic_amd64" {
   tags = {
     Name           = "${local.random_name}-client-ubuntu-bionic-amd64-${count.index}"
     ConsulAutoJoin = "auto-join-${local.random_name}"
-    SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
   }
 }
@@ -53,7 +51,6 @@ resource "aws_instance" "client_windows_2016_amd64" {
   tags = {
     Name           = "${local.random_name}-client-windows-2016-${count.index}"
     ConsulAutoJoin = "auto-join-${local.random_name}"
-    SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
   }
 }
