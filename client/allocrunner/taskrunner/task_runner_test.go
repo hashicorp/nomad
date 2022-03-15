@@ -24,6 +24,7 @@ import (
 	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	cstate "github.com/hashicorp/nomad/client/state"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -109,7 +110,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		Task:                  thisTask,
 		TaskDir:               taskDir,
 		Logger:                clientConf.Logger,
-		Consul:                consulapi.NewMockConsulServiceClient(t, logger),
+		Consul:                regMock.NewServiceRegistrationHandler(logger),
 		ConsulSI:              consulapi.NewMockServiceIdentitiesClient(),
 		Vault:                 vaultclient.NewMockVaultClient(),
 		StateDB:               cstate.NoopDB{},
@@ -939,7 +940,7 @@ func TestTaskRunner_ShutdownDelay(t *testing.T) {
 	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
-	mockConsul := conf.Consul.(*consulapi.MockConsulServiceClient)
+	mockConsul := conf.Consul.(*regMock.ServiceRegistrationHandler)
 
 	// Wait for the task to start
 	testWaitForTaskToStart(t, tr)
@@ -1027,7 +1028,7 @@ func TestTaskRunner_NoShutdownDelay(t *testing.T) {
 	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
-	mockConsul := conf.Consul.(*consulapi.MockConsulServiceClient)
+	mockConsul := conf.Consul.(*regMock.ServiceRegistrationHandler)
 
 	testWaitForTaskToStart(t, tr)
 
@@ -2479,7 +2480,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	state := tr.TaskState()
 	require.Equal(t, structs.TaskStateDead, state.State)
 
-	consul := conf.Consul.(*consulapi.MockConsulServiceClient)
+	consul := conf.Consul.(*regMock.ServiceRegistrationHandler)
 	consulOps := consul.GetOps()
 	require.Len(t, consulOps, 4)
 

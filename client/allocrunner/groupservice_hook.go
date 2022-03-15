@@ -7,7 +7,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -27,7 +27,7 @@ type groupServiceHook struct {
 	allocID             string
 	group               string
 	restarter           agentconsul.WorkloadRestarter
-	consulClient        consul.ConsulServiceAPI
+	consulClient        serviceregistration.Handler
 	consulNamespace     string
 	prerun              bool
 	deregistered        bool
@@ -51,7 +51,7 @@ type groupServiceHook struct {
 
 type groupServiceHookConfig struct {
 	alloc               *structs.Allocation
-	consul              consul.ConsulServiceAPI
+	consul              serviceregistration.Handler
 	consulNamespace     string
 	restarter           agentconsul.WorkloadRestarter
 	taskEnvBuilder      *taskenv.Builder
@@ -217,7 +217,7 @@ func (h *groupServiceHook) deregister() {
 	}
 }
 
-func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
+func (h *groupServiceHook) getWorkloadServices() *serviceregistration.WorkloadServices {
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnvBuilder.Build(), h.services)
 
@@ -227,15 +227,15 @@ func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 	}
 
 	// Create task services struct with request's driver metadata
-	return &agentconsul.WorkloadServices{
-		AllocID:         h.allocID,
-		Group:           h.group,
-		ConsulNamespace: h.consulNamespace,
-		Restarter:       h.restarter,
-		Services:        interpolatedServices,
-		Networks:        h.networks,
-		NetworkStatus:   netStatus,
-		Ports:           h.ports,
-		Canary:          h.canary,
+	return &serviceregistration.WorkloadServices{
+		AllocID:       h.allocID,
+		Group:         h.group,
+		Namespace:     h.consulNamespace,
+		Restarter:     h.restarter,
+		Services:      interpolatedServices,
+		Networks:      h.networks,
+		NetworkStatus: netStatus,
+		Ports:         h.ports,
+		Canary:        h.canary,
 	}
 }

@@ -11,9 +11,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/client/allochealth"
 	"github.com/hashicorp/nomad/client/allocwatcher"
-	cconsul "github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
-	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -577,9 +577,9 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	})
 
 	// Get consul client operations
-	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
+	consulClient := conf.Consul.(*regMock.ServiceRegistrationHandler)
 	consulOpts := consulClient.GetOps()
-	var groupRemoveOp cconsul.MockConsulOp
+	var groupRemoveOp regMock.Operation
 	for _, op := range consulOpts {
 		// Grab the first deregistration request
 		if op.Op == "remove" && op.Name == "group-web" {
@@ -1030,12 +1030,12 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	defer cleanup()
 
 	// Only return the check as healthy after a duration
-	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
-	consulClient.AllocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
-		return &consul.AllocRegistration{
-			Tasks: map[string]*consul.ServiceRegistrations{
+	consulClient := conf.Consul.(*regMock.ServiceRegistrationHandler)
+	consulClient.AllocRegistrationsFn = func(allocID string) (*serviceregistration.AllocRegistration, error) {
+		return &serviceregistration.AllocRegistration{
+			Tasks: map[string]*serviceregistration.ServiceRegistrations{
 				task.Name: {
-					Services: map[string]*consul.ServiceRegistration{
+					Services: map[string]*serviceregistration.ServiceRegistration{
 						"123": {
 							Service: &api.AgentService{Service: "fakeservice"},
 							Checks:  []*api.AgentCheck{checkUnhealthy},
@@ -1352,12 +1352,12 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	conf, cleanup := testAllocRunnerConfig(t, alloc)
 	defer cleanup()
 
-	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
-	consulClient.AllocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
-		return &consul.AllocRegistration{
-			Tasks: map[string]*consul.ServiceRegistrations{
+	consulClient := conf.Consul.(*regMock.ServiceRegistrationHandler)
+	consulClient.AllocRegistrationsFn = func(allocID string) (*serviceregistration.AllocRegistration, error) {
+		return &serviceregistration.AllocRegistration{
+			Tasks: map[string]*serviceregistration.ServiceRegistrations{
 				task.Name: {
-					Services: map[string]*consul.ServiceRegistration{
+					Services: map[string]*serviceregistration.ServiceRegistration{
 						"123": {
 							Service: &api.AgentService{Service: "fakeservice"},
 							Checks:  []*api.AgentCheck{checkHealthy},

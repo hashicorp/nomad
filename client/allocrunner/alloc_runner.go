@@ -22,6 +22,7 @@ import (
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -63,7 +64,7 @@ type allocRunner struct {
 
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
-	consulClient consul.ConsulServiceAPI
+	consulClient serviceregistration.Handler
 
 	// consulProxiesClient is the client used by the envoy version hook for
 	// looking up supported envoy versions of the consul agent.

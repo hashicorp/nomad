@@ -39,6 +39,7 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/servers"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -227,7 +228,7 @@ type Client struct {
 
 	// consulService is Nomad's custom Consul client for managing services
 	// and checks.
-	consulService consulApi.ConsulServiceAPI
+	consulService serviceregistration.Handler
 
 	// consulProxies is Nomad's custom Consul client for looking up supported
 	// envoy versions
@@ -322,7 +323,7 @@ var (
 // registered via https://golang.org/pkg/net/rpc/#Server.RegisterName in place
 // of the client's normal RPC handlers. This allows server tests to override
 // the behavior of the client.
-func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxies consulApi.SupportedProxiesAPI, consulService consulApi.ConsulServiceAPI, rpcs map[string]interface{}) (*Client, error) {
+func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxies consulApi.SupportedProxiesAPI, consulService serviceregistration.Handler, rpcs map[string]interface{}) (*Client, error) {
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {

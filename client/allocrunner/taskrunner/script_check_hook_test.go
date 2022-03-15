@@ -10,7 +10,8 @@ import (
 	"github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -226,7 +227,7 @@ func TestScript_Exec_Codes(t *testing.T) {
 func TestScript_TaskEnvInterpolation(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
-	consulClient := consul.NewMockConsulServiceClient(t, logger)
+	consulClient := regMock.NewServiceRegistrationHandler(logger)
 	exec, cancel := newBlockingScriptExec()
 	defer cancel()
 
@@ -262,7 +263,7 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 	scHook.driverExec = exec
 
 	expectedSvc := svcHook.getWorkloadServices().Services[0]
-	expected := agentconsul.MakeCheckID(agentconsul.MakeAllocServiceID(
+	expected := agentconsul.MakeCheckID(serviceregistration.MakeAllocServiceID(
 		alloc.ID, task.Name, expectedSvc), expectedSvc.Checks[0])
 
 	actual := scHook.newScriptChecks()
@@ -278,7 +279,7 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 	svcHook.taskEnv = env
 
 	expectedSvc = svcHook.getWorkloadServices().Services[0]
-	expected = agentconsul.MakeCheckID(agentconsul.MakeAllocServiceID(
+	expected = agentconsul.MakeCheckID(serviceregistration.MakeAllocServiceID(
 		alloc.ID, task.Name, expectedSvc), expectedSvc.Checks[0])
 
 	actual = scHook.newScriptChecks()

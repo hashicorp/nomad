@@ -8,9 +8,9 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -39,9 +39,9 @@ func TestTracker_Checks_Healthy(t *testing.T) {
 		Name:   task.Services[0].Checks[0].Name,
 		Status: consulapi.HealthPassing,
 	}
-	taskRegs := map[string]*agentconsul.ServiceRegistrations{
+	taskRegs := map[string]*serviceregistration.ServiceRegistrations{
 		task.Name: {
-			Services: map[string]*agentconsul.ServiceRegistration{
+			Services: map[string]*serviceregistration.ServiceRegistration{
 				task.Services[0].Name: {
 					Service: &consulapi.AgentService{
 						ID:      "foo",
@@ -59,13 +59,13 @@ func TestTracker_Checks_Healthy(t *testing.T) {
 
 	// Don't reply on the first call
 	var called uint64
-	consul := consul.NewMockConsulServiceClient(t, logger)
-	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+	consul := regMock.NewServiceRegistrationHandler(logger)
+	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
 		if atomic.AddUint64(&called, 1) == 1 {
 			return nil, nil
 		}
 
-		reg := &agentconsul.AllocRegistration{
+		reg := &serviceregistration.AllocRegistration{
 			Tasks: taskRegs,
 		}
 
@@ -111,7 +111,7 @@ func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t, logger)
+	consul := regMock.NewServiceRegistrationHandler(logger)
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
@@ -152,7 +152,7 @@ func TestTracker_Succeeded_PostStart_Healthy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t, logger)
+	consul := regMock.NewServiceRegistrationHandler(logger)
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
@@ -199,9 +199,9 @@ func TestTracker_Checks_Unhealthy(t *testing.T) {
 		Name:   task.Services[0].Checks[1].Name,
 		Status: consulapi.HealthCritical,
 	}
-	taskRegs := map[string]*agentconsul.ServiceRegistrations{
+	taskRegs := map[string]*serviceregistration.ServiceRegistrations{
 		task.Name: {
-			Services: map[string]*agentconsul.ServiceRegistration{
+			Services: map[string]*serviceregistration.ServiceRegistration{
 				task.Services[0].Name: {
 					Service: &consulapi.AgentService{
 						ID:      "foo",
@@ -219,13 +219,13 @@ func TestTracker_Checks_Unhealthy(t *testing.T) {
 
 	// Don't reply on the first call
 	var called uint64
-	consul := consul.NewMockConsulServiceClient(t, logger)
-	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+	consul := regMock.NewServiceRegistrationHandler(logger)
+	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
 		if atomic.AddUint64(&called, 1) == 1 {
 			return nil, nil
 		}
 
-		reg := &agentconsul.AllocRegistration{
+		reg := &serviceregistration.AllocRegistration{
 			Tasks: taskRegs,
 		}
 
@@ -341,9 +341,9 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 		Name:   task.Services[0].Checks[0].Name,
 		Status: consulapi.HealthPassing,
 	}
-	taskRegs := map[string]*agentconsul.ServiceRegistrations{
+	taskRegs := map[string]*serviceregistration.ServiceRegistrations{
 		task.Name: {
-			Services: map[string]*agentconsul.ServiceRegistration{
+			Services: map[string]*serviceregistration.ServiceRegistration{
 				task.Services[0].Name: {
 					Service: &consulapi.AgentService{
 						ID:      "foo",
@@ -361,13 +361,13 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 
 	// Don't reply on the first call
 	var called uint64
-	consul := consul.NewMockConsulServiceClient(t, logger)
-	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+	consul := regMock.NewServiceRegistrationHandler(logger)
+	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
 		if atomic.AddUint64(&called, 1) == 1 {
 			return nil, nil
 		}
 
-		reg := &agentconsul.AllocRegistration{
+		reg := &serviceregistration.AllocRegistration{
 			Tasks: taskRegs,
 		}
 
@@ -480,9 +480,9 @@ func TestTracker_Checks_OnUpdate(t *testing.T) {
 				Name:   task.Services[0].Checks[0].Name,
 				Status: tc.consulResp,
 			}
-			taskRegs := map[string]*agentconsul.ServiceRegistrations{
+			taskRegs := map[string]*serviceregistration.ServiceRegistrations{
 				task.Name: {
-					Services: map[string]*agentconsul.ServiceRegistration{
+					Services: map[string]*serviceregistration.ServiceRegistration{
 						task.Services[0].Name: {
 							Service: &consulapi.AgentService{
 								ID:      "foo",
@@ -503,13 +503,13 @@ func TestTracker_Checks_OnUpdate(t *testing.T) {
 
 			// Don't reply on the first call
 			var called uint64
-			consul := consul.NewMockConsulServiceClient(t, logger)
-			consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+			consul := regMock.NewServiceRegistrationHandler(logger)
+			consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
 				if atomic.AddUint64(&called, 1) == 1 {
 					return nil, nil
 				}
 
-				reg := &agentconsul.AllocRegistration{
+				reg := &serviceregistration.AllocRegistration{
 					Tasks: taskRegs,
 				}
 

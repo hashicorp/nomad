@@ -9,7 +9,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allochealth"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -33,7 +33,7 @@ type allocHealthWatcherHook struct {
 	healthSetter healthSetter
 
 	// consul client used to monitor health checks
-	consul consul.ConsulServiceAPI
+	consul serviceregistration.Handler
 
 	// listener is given to trackers to listen for alloc updates and closed
 	// when the alloc is destroyed.
@@ -68,7 +68,7 @@ type allocHealthWatcherHook struct {
 }
 
 func newAllocHealthWatcherHook(logger log.Logger, alloc *structs.Allocation, hs healthSetter,
-	listener *cstructs.AllocListener, consul consul.ConsulServiceAPI) interfaces.RunnerHook {
+	listener *cstructs.AllocListener, consul serviceregistration.Handler) interfaces.RunnerHook {
 
 	// Neither deployments nor migrations care about the health of
 	// non-service jobs so never watch their health

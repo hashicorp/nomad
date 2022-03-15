@@ -17,8 +17,8 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	ifs "github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/taskenv"
-	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -451,9 +451,9 @@ func (h *envoyBootstrapHook) grpcAddress(env map[string]string) string {
 }
 
 func (h *envoyBootstrapHook) proxyServiceID(group string, service *structs.Service) string {
-	// Note, it is critical the ID here matches what is actually registered in Consul.
-	// See: WorkloadServices.Name in structs.go
-	return agentconsul.MakeAllocServiceID(h.alloc.ID, "group-"+group, service)
+	// Note, it is critical the ID here matches what is actually registered in
+	// Consul. See: WorkloadServices.Name in serviceregistration/workload.go.
+	return serviceregistration.MakeAllocServiceID(h.alloc.ID, "group-"+group, service)
 }
 
 // newEnvoyBootstrapArgs is used to prepare for the invocation of the

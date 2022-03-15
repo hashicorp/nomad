@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -62,7 +63,7 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, fu
 		Logger:             clientConf.Logger,
 		ClientConfig:       clientConf,
 		StateDB:            state.NoopDB{},
-		Consul:             consul.NewMockConsulServiceClient(t, clientConf.Logger),
+		Consul:             mock.NewServiceRegistrationHandler(clientConf.Logger),
 		ConsulSI:           consul.NewMockServiceIdentitiesClient(),
 		Vault:              vaultclient.NewMockVaultClient(),
 		StateUpdater:       &MockStateUpdater{},
