@@ -47,6 +47,14 @@ const (
 	// taskHandleVersion is the version of task handle which this driver sets
 	// and understands how to decode driver state
 	taskHandleVersion = 1
+
+	// defaultNetworkDevice is the QEMU network interface type to use if not
+	// specified in the job
+	defaultNetworkDevice = "virtio-net"
+
+	// defaultQemuArchitecture is the QEMU emulated architecture to use if not
+	// specified in the job
+	defaultQemuArchitecture = "x86_64"
 )
 
 var (
@@ -91,11 +99,35 @@ var (
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a taskConfig within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"architecture": hclspec.NewDefault(
+			hclspec.NewAttr("architecture", "string", false),
+			hclspec.NewLiteral(`"x86_64"`),
+		),
 		"image_path":        hclspec.NewAttr("image_path", "string", true),
 		"accelerator":       hclspec.NewAttr("accelerator", "string", false),
 		"graceful_shutdown": hclspec.NewAttr("graceful_shutdown", "bool", false),
 		"args":              hclspec.NewAttr("args", "list(string)", false),
+		"ports":             hclspec.NewAttr("ports", "list(string)", false),
+		"network_device":    hclspec.NewAttr("network_device", "string", false),
 		"port_map":          hclspec.NewAttr("port_map", "list(map(number))", false),
+		"vnc": hclspec.NewDefault(hclspec.NewBlock("vnc", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"enabled": hclspec.NewDefault(
+				hclspec.NewAttr("enabled", "bool", false),
+				hclspec.NewLiteral("false"),
+			),
+			"ip": hclspec.NewDefault(
+				hclspec.NewAttr("ip", "string", false),
+				hclspec.NewLiteral(`"127.0.0.1"`),
+			),
+			"display": hclspec.NewDefault(
+				hclspec.NewAttr("display", "number", false),
+				hclspec.NewLiteral("1"),
+			),
+		})), hclspec.NewLiteral(`{ 
+			enabled = false
+			ip = "127.0.0.1"
+			display = 1
+		}`)),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -116,11 +148,22 @@ var (
 
 // TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
+	Architecture     string             `codec:"architecture"`
 	ImagePath        string             `codec:"image_path"`
 	Accelerator      string             `codec:"accelerator"`
-	Args             []string           `codec:"args"`     // extra arguments to qemu executable
-	PortMap          hclutils.MapStrInt `codec:"port_map"` // A map of host port and the port name defined in the image manifest file
+	Args             []string           `codec:"args"`           // extra arguments to qemu executable
+	Ports            []string           `codec:"ports"`          // lists of portnames defined at the group level
+	PortMap          hclutils.MapStrInt `codec:"port_map"`       // DEPRECATED: A map of host port and the port name defined in the image manifest file
+	NetworkDevice    string             `codec:"network_device"` // Qemu virtual nic device name
 	GracefulShutdown bool               `codec:"graceful_shutdown"`
+	VncConfig        *VncConfig         `codec:"vnc"`
+}
+
+// VncConfig contains the optional information for configuring the VNC server
+type VncConfig struct {
+	Enabled       bool   `codec:"enabled"`
+	DisplayIP     string `codec:"ip"`
+	DisplayNumber int    `codec:"display"`
 }
 
 // TaskState is the state which is encoded in the handle returned in StartTask.
@@ -409,19 +452,30 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 	mem := fmt.Sprintf("%dM", mb)
 
-	absPath, err := GetAbsolutePath("qemu-system-x86_64")
+	// Bring in architecture, use default if unset.
+	qemuBinary := "qemu-system-" + defaultQemuArchitecture
+	if driverConfig.Architecture != "" {
+		qemuBinary = "qemu-system-" + driverConfig.Architecture
+	}
+
+	absPath, err := GetAbsolutePath(qemuBinary)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	args := []string{
 		absPath,
-		"-machine", "type=pc,accel=" + accelerator,
+	}
+
+	// TODO: the default -machine flag becomes problematic once we add
+	// architectures.  -cv
+	args = append(args,
+		"-machine", "type=pc,accel="+accelerator,
 		"-name", vmID,
 		"-m", mem,
-		"-drive", "file=" + vmPath,
+		"-drive", "file="+vmPath,
 		"-nographic",
-	}
+	)
 
 	var netdevArgs []string
 	if cfg.DNS != nil {
@@ -467,32 +521,79 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	// the outside world to be able to reach it. VMs ran without port mappings can
 	// still reach out to the world, but without port mappings it is effectively
 	// firewalled
-	protocols := []string{"udp", "tcp"}
-	if len(cfg.Resources.NomadResources.Networks) > 0 {
-		// Loop through the port map and construct the hostfwd string, to map
-		// reserved ports to the ports listenting in the VM
-		// Ex: hostfwd=tcp::22000-:22,hostfwd=tcp::80-:8080
-		taskPorts := cfg.Resources.NomadResources.Networks[0].PortLabels()
-		for label, guest := range driverConfig.PortMap {
-			host, ok := taskPorts[label]
-			if !ok {
-				return nil, nil, fmt.Errorf("Unknown port label %q", label)
-			}
+	ports := newPublishedPorts(d.logger)
 
-			for _, p := range protocols {
-				netdevArgs = append(netdevArgs, fmt.Sprintf("hostfwd=%s::%d-:%d", p, host, guest))
+	// --- NEW HOTNESS ---
+	switch {
+	case cfg.Resources.Ports != nil && len(driverConfig.Ports) > 0:
+		for _, port := range driverConfig.Ports {
+			if mapping, ok := cfg.Resources.Ports.Get(port); ok {
+				hostIP := mapping.HostIP
+				hostPort := mapping.Value
+				if cfg.NetworkIsolation != nil && cfg.NetworkIsolation.Mode == drivers.NetIsolationModeGroup {
+					hostIP = "0.0.0.0"
+					hostPort = mapping.To
+				}
+				ports.add(mapping.Label, hostIP, hostPort, mapping.To)
+			} else {
+				return nil, nil, fmt.Errorf("Port %q not found, check network stanza", port)
 			}
 		}
+	case len(cfg.Resources.NomadResources.Networks) > 0:
+		network := cfg.Resources.NomadResources.Networks[0]
 
-		if len(netdevArgs) != 0 {
-			args = append(args,
-				"-netdev",
-				fmt.Sprintf("user,id=user.0,%s", strings.Join(netdevArgs, ",")),
-				"-device", "virtio-net,netdev=user.0",
-			)
+		for _, port := range network.ReservedPorts {
+			ports.addMapped(port.Label, network.IP, port.Value, driverConfig.PortMap)
+		}
+
+		for _, port := range network.DynamicPorts {
+			ports.addMapped(port.Label, network.IP, port.Value, driverConfig.PortMap)
+		}
+
+	default:
+		if len(driverConfig.PortMap) > 0 {
+			if cfg.Resources.Ports != nil {
+				return nil, nil, fmt.Errorf("'port_map' cannot map group network ports, use 'ports' instead")
+			}
+			return nil, nil, fmt.Errorf("Trying to map ports but no network interface is available")
 		}
 	}
 
+	d.logger.Debug("built port mapping argument", "netdevArgs", ports.toString())
+	netdevArgs = ports.toStringArray()
+
+	// Handle VNC arguments
+	if driverConfig.VncConfig != nil && driverConfig.VncConfig.Enabled {
+		args = append(args,
+			"-vnc",
+			fmt.Sprintf("%s:%d", driverConfig.VncConfig.DisplayIP, driverConfig.VncConfig.DisplayNumber),
+		)
+	}
+
+	// Bring in network device, use default if unset.
+	networkDevice := defaultNetworkDevice
+	if driverConfig.NetworkDevice != "" {
+		networkDevice = driverConfig.NetworkDevice
+	}
+
+	// // Create mount arguments for task, secrets, and alloc
+	// localDir := filepath.Join(cfg.AllocDir, cfg.Name, "local")
+	// allocDir := filepath.Join(cfg.AllocDir, "alloc")
+	// secretsDir := filepath.Join(cfg.AllocDir, "secrets")
+
+	// args = append(args,
+	// 	"-virtfs", "local,id=fs0,mount_tag=local,security_model=none,path="+localDir,
+	// 	"-virtfs", "local,id=fs1,mount_tag=alloc,security_model=none,path="+allocDir,
+	// 	"-virtfs", "local,id=fs2,mount_tag=secrets,security_model=none,path="+secretsDir,
+	// )
+
+	if len(netdevArgs) != 0 {
+		args = append(args,
+			"-netdev",
+			fmt.Sprintf("user,id=user.0,%s", strings.Join(netdevArgs, ",")),
+			"-device", networkDevice+",netdev=user.0",
+		)
+	}
 	// If using KVM, add optimization args
 	if accelerator == "kvm" {
 		if runtime.GOOS == "windows" {
