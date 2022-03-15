@@ -5,7 +5,7 @@ variable "build_sha" {
 
 locals {
   timestamp = regex_replace(timestamp(), "[- TZ:]", "")
-  version   = "v2"
+  version   = "v3"
 }
 
 source "amazon-ebs" "latest_windows_2016" {
@@ -42,17 +42,9 @@ build {
       "windows-2016-amd64/fix-tls.ps1",
       "windows-2016-amd64/install-nuget.ps1",
       "windows-2016-amd64/install-docker.ps1",
-      "windows-2016-amd64/install-consul.ps1"
+      "windows-2016-amd64/install-consul.ps1",
+      "windows-2016-amd64/install-nomad.ps1"
     ]
-  }
-
-  provisioner "file" {
-    destination = "/opt/provision.ps1"
-    source      = "./windows-2016-amd64/provision.ps1"
-  }
-
-  provisioner "powershell" {
-    inline = ["/opt/provision.ps1 -nomad_version 0.12.7 -nostart"]
   }
 
   # this restart is required for adding the "containers feature", but we can
