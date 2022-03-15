@@ -53,23 +53,39 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Look for the job
-			out, err := state.EvalByID(ws, args.EvalID)
+			var related []*structs.EvaluationStub
+
+			// Look for the eval
+			eval, err := state.EvalByID(ws, args.EvalID)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to lookup eval: %v", err)
 			}
 
-			// Setup the output
-			reply.Eval = out
-			if out != nil {
+			if eval != nil {
 				// Re-check namespace in case it differs from request.
-				if !allowNsOp(aclObj, out.Namespace) {
+				if !allowNsOp(aclObj, eval.Namespace) {
 					return structs.ErrPermissionDenied
 				}
 
-				reply.Index = out.ModifyIndex
+				// Lookup related evals if requested.
+				if args.IncludeRelated {
+					related, err = state.EvalsRelatedToID(ws, eval.ID)
+					if err != nil {
+						return fmt.Errorf("failed to lookup related evals: %v", err)
+					}
+
+					// Use a copy to avoid modifying the original eval.
+					eval = eval.Copy()
+					eval.RelatedEvals = related
+				}
+			}
+
+			// Setup the output.
+			reply.Eval = eval
+			if eval != nil {
+				reply.Index = eval.ModifyIndex
 			} else {
-				// Use the last index that affected the nodes table
+				// Use the last index that affected the evals table
 				index, err := state.Index("evals")
 				if err != nil {
 					return err

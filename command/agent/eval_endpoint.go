@@ -80,6 +80,9 @@ func (s *HTTPServer) evalQuery(resp http.ResponseWriter, req *http.Request, eval
 		return nil, nil
 	}
 
+	query := req.URL.Query()
+	args.IncludeRelated = query.Get("related") == "true"
+
 	var out structs.SingleEvalResponse
 	if err := s.agent.RPC("Eval.GetEval", &args, &out); err != nil {
 		return nil, err
