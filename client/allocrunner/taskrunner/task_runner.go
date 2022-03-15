@@ -25,6 +25,7 @@ import (
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -166,7 +167,7 @@ type TaskRunner struct {
 
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
-	consulServiceClient consul.ConsulServiceAPI
+	consulServiceClient serviceregistration.Handler
 
 	// consulProxiesClient is the client used by the envoy version hook for
 	// asking consul what version of envoy nomad should inject into the connect
@@ -248,7 +249,7 @@ type Config struct {
 	Logger       log.Logger
 
 	// Consul is the client to use for managing Consul service registrations
-	Consul consul.ConsulServiceAPI
+	Consul serviceregistration.Handler
 
 	// ConsulProxies is the client to use for looking up supported envoy versions
 	// from Consul.

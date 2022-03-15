@@ -8,7 +8,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	ctestutil "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/consul"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
@@ -35,7 +35,7 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 		PortLabel: "9999",
 	}}
 	logger := testlog.HCLogger(t)
-	consulClient := consul.NewMockConsulServiceClient(t, logger)
+	consulClient := regMock.NewServiceRegistrationHandler(logger)
 
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:          alloc,
@@ -71,7 +71,7 @@ func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
 	alloc.Job.TaskGroups[0].ShutdownDelay = helper.TimeToPtr(10 * time.Second)
 
 	logger := testlog.HCLogger(t)
-	consulClient := consul.NewMockConsulServiceClient(t, logger)
+	consulClient := regMock.NewServiceRegistrationHandler(logger)
 
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:          alloc,
@@ -106,7 +106,7 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 
 	alloc := mock.ConnectAlloc()
 	logger := testlog.HCLogger(t)
-	consulClient := consul.NewMockConsulServiceClient(t, logger)
+	consulClient := regMock.NewServiceRegistrationHandler(logger)
 
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:          alloc,
@@ -152,7 +152,7 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 	}
 	logger := testlog.HCLogger(t)
 
-	consulClient := consul.NewMockConsulServiceClient(t, logger)
+	consulClient := regMock.NewServiceRegistrationHandler(logger)
 
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:          alloc,
@@ -196,7 +196,7 @@ func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
 	}
 	logger := testlog.HCLogger(t)
 
-	consulClient := consul.NewMockConsulServiceClient(t, logger)
+	consulClient := regMock.NewServiceRegistrationHandler(logger)
 
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:          alloc,

@@ -14,10 +14,10 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	clientconfig "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	. "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/helper/boltdd"
@@ -206,7 +206,7 @@ func checkUpgradedAlloc(t *testing.T, path string, db StateDB, alloc *structs.Al
 		Logger:            clientConf.Logger,
 		ClientConfig:      clientConf,
 		StateDB:           db,
-		Consul:            consul.NewMockConsulServiceClient(t, clientConf.Logger),
+		Consul:            regMock.NewServiceRegistrationHandler(clientConf.Logger),
 		Vault:             vaultclient.NewMockVaultClient(),
 		StateUpdater:      &allocrunner.MockStateUpdater{},
 		PrevAllocWatcher:  allocwatcher.NoopPrevAlloc{},

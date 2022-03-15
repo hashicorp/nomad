@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -393,7 +394,7 @@ func TestServiceRegistration_CheckOnUpdate(t *testing.T) {
 	sc := NewServiceClient(mockAgent, namespacesClient, logger, true)
 
 	allocID := uuid.Generate()
-	ws := &WorkloadServices{
+	ws := &serviceregistration.WorkloadServices{
 		AllocID:   allocID,
 		Task:      "taskname",
 		Restarter: &restartRecorder{},
@@ -444,7 +445,7 @@ func TestServiceRegistration_CheckOnUpdate(t *testing.T) {
 	}
 
 	// Update
-	wsUpdate := new(WorkloadServices)
+	wsUpdate := new(serviceregistration.WorkloadServices)
 	*wsUpdate = *ws
 	wsUpdate.Services[0].Checks[0].OnUpdate = structs.OnUpdateRequireHealthy
 

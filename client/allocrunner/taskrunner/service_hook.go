@@ -8,7 +8,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -24,7 +24,7 @@ var _ interfaces.TaskUpdateHook = &serviceHook{}
 type serviceHookConfig struct {
 	alloc           *structs.Allocation
 	task            *structs.Task
-	consulServices  consul.ConsulServiceAPI
+	consulServices  serviceregistration.Handler
 	consulNamespace string
 
 	// Restarter is a subset of the TaskLifecycle interface
@@ -37,7 +37,7 @@ type serviceHook struct {
 	allocID         string
 	taskName        string
 	consulNamespace string
-	consulServices  consul.ConsulServiceAPI
+	consulServices  serviceregistration.Handler
 	restarter       agentconsul.WorkloadRestarter
 	logger          log.Logger
 
@@ -193,21 +193,21 @@ func (h *serviceHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest,
 	return nil
 }
 
-func (h *serviceHook) getWorkloadServices() *agentconsul.WorkloadServices {
+func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadServices {
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, h.services)
 
 	// Create task services struct with request's driver metadata
-	return &agentconsul.WorkloadServices{
-		AllocID:         h.allocID,
-		Task:            h.taskName,
-		ConsulNamespace: h.consulNamespace,
-		Restarter:       h.restarter,
-		Services:        interpolatedServices,
-		DriverExec:      h.driverExec,
-		DriverNetwork:   h.driverNet,
-		Networks:        h.networks,
-		Canary:          h.canary,
-		Ports:           h.ports,
+	return &serviceregistration.WorkloadServices{
+		AllocID:       h.allocID,
+		Task:          h.taskName,
+		Namespace:     h.consulNamespace,
+		Restarter:     h.restarter,
+		Services:      interpolatedServices,
+		DriverExec:    h.driverExec,
+		DriverNetwork: h.driverNet,
+		Networks:      h.networks,
+		Canary:        h.canary,
+		Ports:         h.ports,
 	}
 }
