@@ -4,16 +4,17 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 )
 
 func TestAgentInfoCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &AgentInfoCommand{}
 }
 
 func TestAgentInfoCommand_Run(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -27,7 +28,7 @@ func TestAgentInfoCommand_Run(t *testing.T) {
 }
 
 func TestAgentInfoCommand_Run_JSON(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -44,7 +45,7 @@ func TestAgentInfoCommand_Run_JSON(t *testing.T) {
 }
 
 func TestAgentInfoCommand_Run_Gotemplate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -61,7 +62,7 @@ func TestAgentInfoCommand_Run_Gotemplate(t *testing.T) {
 }
 
 func TestAgentInfoCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
 

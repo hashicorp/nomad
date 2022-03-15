@@ -3,10 +3,13 @@ package consul
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/hashicorp/nomad/ci"
 )
 
 func TestConsulSupportsTLSSkipVerify(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	assertSupport := func(expected bool, blob string) {
 		self := map[string]map[string]interface{}{}
 		if err := json.Unmarshal([]byte("{"+blob+"}"), &self); err != nil {

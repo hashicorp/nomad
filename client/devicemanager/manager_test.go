@@ -9,6 +9,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
@@ -234,7 +235,7 @@ func nvidiaAndIntelDefaultPlugins(catalog *loader.MockCatalog) {
 
 // Test collecting statistics from all devices
 func TestManager_AllStats(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	config, _, catalog := baseTestConfig(t)
@@ -283,7 +284,7 @@ func TestManager_AllStats(t *testing.T) {
 
 // Test collecting statistics from a particular device
 func TestManager_DeviceStats(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	config, _, catalog := baseTestConfig(t)
@@ -330,7 +331,7 @@ func TestManager_DeviceStats(t *testing.T) {
 
 // Test reserving a particular device
 func TestManager_Reserve(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	config, _, catalog := baseTestConfig(t)
@@ -428,7 +429,7 @@ func TestManager_Reserve(t *testing.T) {
 
 // Test that shutdown shutsdown the plugins
 func TestManager_Shutdown(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	config, _, catalog := baseTestConfig(t)
@@ -455,7 +456,7 @@ func TestManager_Shutdown(t *testing.T) {
 
 // Test that startup shutsdown previously launched plugins
 func TestManager_Run_ShutdownOld(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	config, _, catalog := baseTestConfig(t)

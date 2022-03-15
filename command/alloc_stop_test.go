@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
@@ -12,7 +13,7 @@ import (
 )
 
 func TestAllocStopCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &AllocStopCommand{}
 }
 
@@ -51,6 +52,8 @@ func TestAllocStop_Fails(t *testing.T) {
 }
 
 func TestAllocStop_Run(t *testing.T) {
+	ci.Parallel(t)
+
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 

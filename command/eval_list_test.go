@@ -4,10 +4,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestEvalList_ArgsWithoutPageToken(t *testing.T) {
+	ci.Parallel(t)
 
 	cases := []struct {
 		cli      string

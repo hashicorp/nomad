@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -44,6 +45,8 @@ func assertDrainingNode(t *testing.T, dn *drainingNode, isDone bool, remaining, 
 }
 
 func TestDrainingNode_Table(t *testing.T) {
+	ci.Parallel(t)
+	
 	cases := []struct {
 		name      string
 		isDone    bool
@@ -206,7 +209,7 @@ func TestDrainingNode_Table(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+			ci.Parallel(t)
 			dn := testDrainingNode(t)
 			tc.setup(t, dn)
 			assertDrainingNode(t, dn, tc.isDone, tc.remaining, tc.running)

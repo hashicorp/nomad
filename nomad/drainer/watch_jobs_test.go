@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -47,6 +48,8 @@ func testDrainingJobWatcher(t *testing.T, state *state.StateStore) (*drainingJob
 // TestDrainingJobWatcher_Interface is a compile-time assertion that we
 // implement the intended interface.
 func TestDrainingJobWatcher_Interface(t *testing.T) {
+	ci.Parallel(t)
+
 	w, cancel := testDrainingJobWatcher(t, state.TestStateStore(t))
 	cancel()
 	var _ DrainingJobWatcher = w
@@ -99,7 +102,7 @@ func assertJobWatcherOps(t *testing.T, jw DrainingJobWatcher, drained, migrated 
 // TestDrainingJobWatcher_DrainJobs asserts DrainingJobWatcher batches
 // allocation changes from multiple jobs.
 func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := state.TestStateStore(t)
@@ -326,6 +329,8 @@ type handleTaskGroupTestCase struct {
 }
 
 func TestHandeTaskGroup_Table(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []handleTaskGroupTestCase{
 		{
 			// All allocs on draining node
@@ -543,7 +548,8 @@ func TestHandeTaskGroup_Table(t *testing.T) {
 }
 
 func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
-	t.Parallel()
+	ci.Parallel(t)
+	
 	require := require.New(t)
 	assert := assert.New(t)
 
@@ -599,7 +605,7 @@ func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
 }
 
 func TestHandleTaskGroup_Migrations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Create a draining node
@@ -668,7 +674,7 @@ func TestHandleTaskGroup_Migrations(t *testing.T) {
 // This test asserts that handle task group works when an allocation is on a
 // garbage collected node
 func TestHandleTaskGroup_GarbageCollectedNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Create a draining node

@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -42,7 +43,7 @@ func newEnabledRawExecDriver(t *testing.T) *Driver {
 }
 
 func TestRawExecDriver_SetConfig(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -80,7 +81,7 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 }
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	fingerprintTest := func(config *Config, expected *drivers.Fingerprint) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -142,7 +143,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 }
 
 func TestRawExecDriver_StartWait(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
@@ -184,7 +185,7 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 }
 
 func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
@@ -267,7 +268,7 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
@@ -320,8 +321,8 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 // processes cleanup of the children would not be possible. Thus the test
 // asserts that the processes get killed properly when using cgroups.
 func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
+	ci.Parallel(t)
 	ctestutil.ExecCompatible(t)
-	t.Parallel()
 	require := require.New(t)
 	pidFile := "pid"
 
@@ -412,7 +413,7 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 }
 
 func TestRawExecDriver_Exec(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
@@ -467,6 +468,8 @@ func TestRawExecDriver_Exec(t *testing.T) {
 }
 
 func TestConfig_ParseAllHCL(t *testing.T) {
+	ci.Parallel(t)
+
 	cfgStr := `
 config {
   command = "/bin/bash"
@@ -485,7 +488,7 @@ config {
 }
 
 func TestRawExecDriver_Disabled(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)

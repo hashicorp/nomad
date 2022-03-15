@@ -6,11 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 )
 
 func TestConfigValidateCommand_FailWithEmptyDir(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fh, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -28,7 +29,7 @@ func TestConfigValidateCommand_FailWithEmptyDir(t *testing.T) {
 }
 
 func TestConfigValidateCommand_SucceedWithMinimalConfigFile(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fh, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -55,7 +56,7 @@ func TestConfigValidateCommand_SucceedWithMinimalConfigFile(t *testing.T) {
 }
 
 func TestConfigValidateCommand_FailOnParseBadConfigFile(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fh, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -79,7 +80,7 @@ func TestConfigValidateCommand_FailOnParseBadConfigFile(t *testing.T) {
 }
 
 func TestConfigValidateCommand_FailOnValidateParsableConfigFile(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fh, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)

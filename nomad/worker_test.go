@@ -10,6 +10,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -64,7 +65,7 @@ func NewTestWorker(shutdownCtx context.Context, srv *Server) *Worker {
 }
 
 func TestWorker_dequeueEvaluation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -102,7 +103,7 @@ func TestWorker_dequeueEvaluation(t *testing.T) {
 // Test that the worker picks up the correct wait index when there are multiple
 // evals for the same job.
 func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -172,7 +173,7 @@ func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
 }
 
 func TestWorker_dequeueEvaluation_paused(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -221,7 +222,7 @@ func TestWorker_dequeueEvaluation_paused(t *testing.T) {
 }
 
 func TestWorker_dequeueEvaluation_shutdown(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -252,7 +253,7 @@ func TestWorker_dequeueEvaluation_shutdown(t *testing.T) {
 }
 
 func TestWorker_Shutdown(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -276,7 +277,7 @@ func TestWorker_Shutdown(t *testing.T) {
 }
 
 func TestWorker_Shutdown_paused(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -303,7 +304,7 @@ func TestWorker_Shutdown_paused(t *testing.T) {
 }
 
 func TestWorker_sendAck(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -352,7 +353,7 @@ func TestWorker_sendAck(t *testing.T) {
 }
 
 func TestWorker_waitForIndex(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -392,7 +393,7 @@ func TestWorker_waitForIndex(t *testing.T) {
 }
 
 func TestWorker_invokeScheduler(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -413,7 +414,7 @@ func TestWorker_invokeScheduler(t *testing.T) {
 }
 
 func TestWorker_SubmitPlan(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -482,7 +483,7 @@ func TestWorker_SubmitPlan(t *testing.T) {
 }
 
 func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -535,7 +536,7 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 }
 
 func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -609,7 +610,7 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 }
 
 func TestWorker_UpdateEval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -660,7 +661,7 @@ func TestWorker_UpdateEval(t *testing.T) {
 }
 
 func TestWorker_CreateEval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -712,7 +713,7 @@ func TestWorker_CreateEval(t *testing.T) {
 }
 
 func TestWorker_ReblockEval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -805,7 +806,7 @@ func TestWorker_ReblockEval(t *testing.T) {
 }
 
 func TestWorker_Info(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -830,7 +831,7 @@ const (
 )
 
 func TestWorker_SetPause(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 	srv := &Server{
 		logger:      logger,
@@ -869,7 +870,7 @@ func TestWorker_SetPause(t *testing.T) {
 }
 
 func TestWorker_SetPause_OutOfOrderEvents(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 	srv := &Server{
 		logger:      logger,

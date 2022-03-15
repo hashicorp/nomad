@@ -10,14 +10,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
-	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testStateStore(t *testing.T) *StateStore {
@@ -25,7 +25,7 @@ func testStateStore(t *testing.T) *StateStore {
 }
 
 func TestStateStore_Blocking_Error(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	expected := fmt.Errorf("test error")
 	errFn := func(memdb.WatchSet, *StateStore) (interface{}, uint64, error) {
@@ -39,7 +39,7 @@ func TestStateStore_Blocking_Error(t *testing.T) {
 }
 
 func TestStateStore_Blocking_Timeout(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	noopFn := func(memdb.WatchSet, *StateStore) (interface{}, uint64, error) {
 		return nil, 5, nil
@@ -57,7 +57,7 @@ func TestStateStore_Blocking_Timeout(t *testing.T) {
 }
 
 func TestStateStore_Blocking_MinQuery(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	node := mock.Node()
 	count := 0
@@ -99,7 +99,7 @@ func TestStateStore_Blocking_MinQuery(t *testing.T) {
 // 1) The job is denormalized
 // 2) Allocations are created
 func TestStateStore_UpsertPlanResults_AllocationsCreated_Denormalized(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -154,7 +154,7 @@ func TestStateStore_UpsertPlanResults_AllocationsCreated_Denormalized(t *testing
 // 2) Allocations are denormalized and updated with the diff
 // That stopped allocs Job is unmodified
 func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -249,7 +249,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 // This test checks that the deployment is created and allocations count towards
 // the deployment
 func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -356,7 +356,7 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 // 1) Preempted allocations in plan results are updated
 // 2) Evals are inserted for preempted jobs
 func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -437,7 +437,7 @@ func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
 
 // This test checks that deployment updates are applied correctly
 func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	state := testStateStore(t)
 
 	// Create a job that applies to all
@@ -520,7 +520,7 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 }
 
 func TestStateStore_UpsertDeployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	deployment := mock.Deployment()
@@ -565,7 +565,7 @@ func TestStateStore_UpsertDeployment(t *testing.T) {
 
 // Tests that deployments of older create index and same job id are not returned
 func TestStateStore_OldDeployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -603,7 +603,7 @@ func TestStateStore_OldDeployment(t *testing.T) {
 }
 
 func TestStateStore_DeleteDeployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	d1 := mock.Deployment()
@@ -656,7 +656,7 @@ func TestStateStore_DeleteDeployment(t *testing.T) {
 }
 
 func TestStateStore_Deployments(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var deployments []*structs.Deployment
@@ -687,7 +687,7 @@ func TestStateStore_Deployments(t *testing.T) {
 }
 
 func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	deploy := mock.Deployment()
@@ -773,7 +773,7 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 }
 
 func TestStateStore_UpsertNode_Node(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 	state := testStateStore(t)
@@ -817,7 +817,7 @@ func TestStateStore_UpsertNode_Node(t *testing.T) {
 }
 
 func TestStateStore_DeleteNode_Node(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -862,7 +862,7 @@ func TestStateStore_DeleteNode_Node(t *testing.T) {
 }
 
 func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -900,7 +900,7 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 }
 
 func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -962,7 +962,7 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 }
 
 func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -1007,7 +1007,7 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 }
 
 func TestStateStore_AddSingleNodeEvent(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -1051,7 +1051,7 @@ func TestStateStore_AddSingleNodeEvent(t *testing.T) {
 // To prevent stale node events from accumulating, we limit the number of
 // stored node events to 10.
 func TestStateStore_NodeEvents_RetentionWindow(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -1100,7 +1100,7 @@ func TestStateStore_NodeEvents_RetentionWindow(t *testing.T) {
 }
 
 func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -1154,7 +1154,7 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 }
 
 func TestStateStore_UpdateNodeEligibility(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -1210,7 +1210,7 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 }
 
 func TestStateStore_Nodes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var nodes []*structs.Node
@@ -1254,7 +1254,7 @@ func TestStateStore_Nodes(t *testing.T) {
 }
 
 func TestStateStore_NodesByIDPrefix(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	node := mock.Node()
@@ -1342,7 +1342,7 @@ func TestStateStore_NodesByIDPrefix(t *testing.T) {
 }
 
 func TestStateStore_UpsertJob_Job(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -1422,7 +1422,7 @@ func TestStateStore_UpsertJob_Job(t *testing.T) {
 }
 
 func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -1527,7 +1527,7 @@ func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 }
 
 func TestStateStore_UpdateUpsertJob_PeriodicJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.PeriodicJob()
@@ -1583,7 +1583,7 @@ func TestStateStore_UpdateUpsertJob_PeriodicJob(t *testing.T) {
 }
 
 func TestStateStore_UpsertJob_BadNamespace(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	assert := assert.New(t)
 	state := testStateStore(t)
@@ -1602,7 +1602,7 @@ func TestStateStore_UpsertJob_BadNamespace(t *testing.T) {
 // Upsert a job that is the child of a parent job and ensures its summary gets
 // updated.
 func TestStateStore_UpsertJob_ChildJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -1647,7 +1647,7 @@ func TestStateStore_UpsertJob_ChildJob(t *testing.T) {
 }
 
 func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -1738,7 +1738,7 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 }
 
 func TestStateStore_DeleteJob_Job(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -1819,7 +1819,7 @@ func TestStateStore_DeleteJob_Job(t *testing.T) {
 }
 
 func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -1890,7 +1890,7 @@ func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
 }
 
 func TestStateStore_DeleteJob_MultipleVersions(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	assert := assert.New(t)
@@ -1947,7 +1947,7 @@ func TestStateStore_DeleteJob_MultipleVersions(t *testing.T) {
 }
 
 func TestStateStore_DeleteJob_ChildJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -2001,7 +2001,7 @@ func TestStateStore_DeleteJob_ChildJob(t *testing.T) {
 }
 
 func TestStateStore_Jobs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var jobs []*structs.Job
@@ -2043,7 +2043,7 @@ func TestStateStore_Jobs(t *testing.T) {
 }
 
 func TestStateStore_JobVersions(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var jobs []*structs.Job
@@ -2085,7 +2085,7 @@ func TestStateStore_JobVersions(t *testing.T) {
 }
 
 func TestStateStore_JobsByIDPrefix(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -2169,7 +2169,7 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 }
 
 func TestStateStore_JobsByPeriodic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var periodic, nonPeriodic []*structs.Job
@@ -2241,7 +2241,7 @@ func TestStateStore_JobsByPeriodic(t *testing.T) {
 }
 
 func TestStateStore_JobsByScheduler(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var serviceJobs []*structs.Job
@@ -2315,7 +2315,7 @@ func TestStateStore_JobsByScheduler(t *testing.T) {
 }
 
 func TestStateStore_JobsByGC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	gc, nonGc := make(map[string]struct{}), make(map[string]struct{})
@@ -2389,7 +2389,7 @@ func TestStateStore_JobsByGC(t *testing.T) {
 }
 
 func TestStateStore_UpsertPeriodicLaunch(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -2444,7 +2444,7 @@ func TestStateStore_UpsertPeriodicLaunch(t *testing.T) {
 }
 
 func TestStateStore_UpdateUpsertPeriodicLaunch(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -2509,7 +2509,7 @@ func TestStateStore_UpdateUpsertPeriodicLaunch(t *testing.T) {
 }
 
 func TestStateStore_DeletePeriodicLaunch(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -2563,7 +2563,7 @@ func TestStateStore_DeletePeriodicLaunch(t *testing.T) {
 }
 
 func TestStateStore_PeriodicLaunches(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var launches []*structs.PeriodicLaunch
@@ -2839,7 +2839,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 }
 
 func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	store := testStateStore(t)
 	plugID := "foo"
@@ -3209,7 +3209,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 }
 
 func TestStateStore_Indexes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	node := mock.Node()
@@ -3254,7 +3254,7 @@ func TestStateStore_Indexes(t *testing.T) {
 }
 
 func TestStateStore_LatestIndex(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -3278,7 +3278,7 @@ func TestStateStore_LatestIndex(t *testing.T) {
 }
 
 func TestStateStore_UpsertEvals_Eval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	eval := mock.Eval()
@@ -3322,7 +3322,7 @@ func TestStateStore_UpsertEvals_Eval(t *testing.T) {
 }
 
 func TestStateStore_UpsertEvals_CancelBlocked(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -3401,7 +3401,7 @@ func TestStateStore_UpsertEvals_CancelBlocked(t *testing.T) {
 }
 
 func TestStateStore_Update_UpsertEvals_Eval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	eval := mock.Eval()
@@ -3468,7 +3468,7 @@ func TestStateStore_Update_UpsertEvals_Eval(t *testing.T) {
 }
 
 func TestStateStore_UpsertEvals_Eval_ChildJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -3559,7 +3559,7 @@ func TestStateStore_UpsertEvals_Eval_ChildJob(t *testing.T) {
 }
 
 func TestStateStore_DeleteEval_Eval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	eval1 := mock.Eval()
@@ -3693,7 +3693,7 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 }
 
 func TestStateStore_DeleteEval_ChildJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -3764,7 +3764,7 @@ func TestStateStore_DeleteEval_ChildJob(t *testing.T) {
 }
 
 func TestStateStore_EvalsByJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -3802,7 +3802,7 @@ func TestStateStore_EvalsByJob(t *testing.T) {
 }
 
 func TestStateStore_Evals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var evals []*structs.Evaluation
@@ -3845,7 +3845,7 @@ func TestStateStore_Evals(t *testing.T) {
 }
 
 func TestStateStore_EvalsByIDPrefix(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var evals []*structs.Evaluation
@@ -3938,7 +3938,7 @@ func TestStateStore_EvalsByIDPrefix(t *testing.T) {
 }
 
 func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	parent := mock.Job()
@@ -4028,7 +4028,7 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 }
 
 func TestStateStore_UpdateAllocsFromClient_ChildJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc1 := mock.Alloc()
@@ -4164,7 +4164,7 @@ func TestStateStore_UpdateAllocsFromClient_ChildJob(t *testing.T) {
 }
 
 func TestStateStore_UpdateMultipleAllocsFromClient(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -4235,7 +4235,7 @@ func TestStateStore_UpdateMultipleAllocsFromClient(t *testing.T) {
 }
 
 func TestStateStore_UpdateAllocsFromClient_Deployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -4279,7 +4279,7 @@ func TestStateStore_UpdateAllocsFromClient_Deployment(t *testing.T) {
 
 // This tests that the deployment state is merged correctly
 func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -4320,7 +4320,7 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 }
 
 func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -4395,7 +4395,7 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 }
 
 func TestStateStore_UpsertAlloc_Deployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -4449,7 +4449,7 @@ func TestStateStore_UpsertAlloc_Deployment(t *testing.T) {
 // Testing to ensure we keep issue
 // https://github.com/hashicorp/nomad/issues/2583 fixed
 func TestStateStore_UpsertAlloc_No_Job(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -4462,7 +4462,7 @@ func TestStateStore_UpsertAlloc_No_Job(t *testing.T) {
 }
 
 func TestStateStore_UpsertAlloc_ChildJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -4505,7 +4505,7 @@ func TestStateStore_UpsertAlloc_ChildJob(t *testing.T) {
 }
 
 func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -4606,7 +4606,7 @@ func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 // This test ensures that the state store will mark the clients status as lost
 // when set rather than preferring the existing status.
 func TestStateStore_UpdateAlloc_Lost(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -4643,7 +4643,7 @@ func TestStateStore_UpdateAlloc_Lost(t *testing.T) {
 // associated with it. This will happen when a job is stopped by an user which
 // has non-terminal allocations on clients
 func TestStateStore_UpdateAlloc_NoJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -4687,7 +4687,7 @@ func TestStateStore_UpdateAlloc_NoJob(t *testing.T) {
 }
 
 func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -4755,7 +4755,7 @@ func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
 }
 
 func TestStateStore_JobSummary(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -4879,7 +4879,7 @@ func TestStateStore_JobSummary(t *testing.T) {
 }
 
 func TestStateStore_ReconcileJobSummary(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -4970,7 +4970,7 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 }
 
 func TestStateStore_ReconcileParentJobSummary(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -5060,7 +5060,7 @@ func TestStateStore_ReconcileParentJobSummary(t *testing.T) {
 }
 
 func TestStateStore_UpdateAlloc_JobNotPresent(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -5111,7 +5111,7 @@ func TestStateStore_UpdateAlloc_JobNotPresent(t *testing.T) {
 }
 
 func TestStateStore_EvictAlloc_Alloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -5150,7 +5150,7 @@ func TestStateStore_EvictAlloc_Alloc(t *testing.T) {
 }
 
 func TestStateStore_AllocsByNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var allocs []*structs.Allocation
@@ -5189,7 +5189,7 @@ func TestStateStore_AllocsByNode(t *testing.T) {
 }
 
 func TestStateStore_AllocsByNodeTerminal(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var allocs, term, nonterm []*structs.Allocation
@@ -5248,7 +5248,7 @@ func TestStateStore_AllocsByNodeTerminal(t *testing.T) {
 }
 
 func TestStateStore_AllocsByJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var allocs []*structs.Allocation
@@ -5287,7 +5287,7 @@ func TestStateStore_AllocsByJob(t *testing.T) {
 }
 
 func TestStateStore_AllocsForRegisteredJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var allocs []*structs.Allocation
@@ -5352,7 +5352,7 @@ func TestStateStore_AllocsForRegisteredJob(t *testing.T) {
 }
 
 func TestStateStore_AllocsByIDPrefix(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var allocs []*structs.Allocation
@@ -5451,7 +5451,7 @@ func TestStateStore_AllocsByIDPrefix(t *testing.T) {
 }
 
 func TestStateStore_Allocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var allocs []*structs.Allocation
@@ -5497,7 +5497,7 @@ func TestStateStore_Allocs(t *testing.T) {
 }
 
 func TestStateStore_Allocs_PrevAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	var allocs []*structs.Allocation
@@ -5551,7 +5551,7 @@ func TestStateStore_Allocs_PrevAlloc(t *testing.T) {
 }
 
 func TestStateStore_SetJobStatus_ForceStatus(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	index := uint64(0)
 	state := testStateStore(t)
@@ -5587,7 +5587,7 @@ func TestStateStore_SetJobStatus_ForceStatus(t *testing.T) {
 }
 
 func TestStateStore_SetJobStatus_NoOp(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	index := uint64(0)
 	state := testStateStore(t)
@@ -5618,7 +5618,7 @@ func TestStateStore_SetJobStatus_NoOp(t *testing.T) {
 }
 
 func TestStateStore_SetJobStatus(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	txn := state.db.WriteTxn(uint64(0))
@@ -5653,7 +5653,7 @@ func TestStateStore_SetJobStatus(t *testing.T) {
 }
 
 func TestStateStore_GetJobStatus_NoEvalsOrAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	job := mock.Job()
 	state := testStateStore(t)
@@ -5669,7 +5669,7 @@ func TestStateStore_GetJobStatus_NoEvalsOrAllocs(t *testing.T) {
 }
 
 func TestStateStore_GetJobStatus_NoEvalsOrAllocs_Periodic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	job := mock.PeriodicJob()
 	state := testStateStore(t)
@@ -5685,7 +5685,7 @@ func TestStateStore_GetJobStatus_NoEvalsOrAllocs_Periodic(t *testing.T) {
 }
 
 func TestStateStore_GetJobStatus_NoEvalsOrAllocs_EvalDelete(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	job := mock.Job()
 	state := testStateStore(t)
@@ -5701,7 +5701,7 @@ func TestStateStore_GetJobStatus_NoEvalsOrAllocs_EvalDelete(t *testing.T) {
 }
 
 func TestStateStore_GetJobStatus_DeadEvalsAndAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -5735,7 +5735,7 @@ func TestStateStore_GetJobStatus_DeadEvalsAndAllocs(t *testing.T) {
 }
 
 func TestStateStore_GetJobStatus_RunningAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -5761,7 +5761,7 @@ func TestStateStore_GetJobStatus_RunningAlloc(t *testing.T) {
 }
 
 func TestStateStore_GetJobStatus_PeriodicJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.PeriodicJob()
@@ -5789,7 +5789,7 @@ func TestStateStore_GetJobStatus_PeriodicJob(t *testing.T) {
 }
 
 func TestStateStore_GetJobStatus_ParameterizedJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -5818,7 +5818,7 @@ func TestStateStore_GetJobStatus_ParameterizedJob(t *testing.T) {
 }
 
 func TestStateStore_SetJobStatus_PendingEval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -5845,7 +5845,7 @@ func TestStateStore_SetJobStatus_PendingEval(t *testing.T) {
 // TestStateStore_SetJobStatus_SystemJob asserts that system jobs are still
 // considered running until explicitly stopped.
 func TestStateStore_SetJobStatus_SystemJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.SystemJob()
@@ -5882,7 +5882,7 @@ func TestStateStore_SetJobStatus_SystemJob(t *testing.T) {
 }
 
 func TestStateJobSummary_UpdateJobCount(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -6013,7 +6013,7 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 }
 
 func TestJobSummary_UpdateClientStatus(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -6089,7 +6089,7 @@ func TestJobSummary_UpdateClientStatus(t *testing.T) {
 
 // Test that nonexistent deployment can't be updated
 func TestStateStore_UpsertDeploymentStatusUpdate_Nonexistent(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6108,7 +6108,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Nonexistent(t *testing.T) {
 
 // Test that terminal deployment can't be updated
 func TestStateStore_UpsertDeploymentStatusUpdate_Terminal(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6136,7 +6136,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Terminal(t *testing.T) {
 // Test that a non terminal deployment is updated and that a job and eval are
 // created.
 func TestStateStore_UpsertDeploymentStatusUpdate_NonTerminal(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6198,7 +6198,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_NonTerminal(t *testing.T) {
 // Test that when a deployment is updated to successful the job is updated to
 // stable
 func TestStateStore_UpsertDeploymentStatusUpdate_Successful(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6255,7 +6255,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Successful(t *testing.T) {
 }
 
 func TestStateStore_UpdateJobStability(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6291,7 +6291,7 @@ func TestStateStore_UpdateJobStability(t *testing.T) {
 
 // Test that nonexistent deployment can't be promoted
 func TestStateStore_UpsertDeploymentPromotion_Nonexistent(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6310,7 +6310,7 @@ func TestStateStore_UpsertDeploymentPromotion_Nonexistent(t *testing.T) {
 
 // Test that terminal deployment can't be updated
 func TestStateStore_UpsertDeploymentPromotion_Terminal(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6337,7 +6337,7 @@ func TestStateStore_UpsertDeploymentPromotion_Terminal(t *testing.T) {
 
 // Test promoting unhealthy canaries in a deployment.
 func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	require := require.New(t)
@@ -6386,7 +6386,7 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 
 // Test promoting a deployment with no canaries
 func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	require := require.New(t)
@@ -6415,7 +6415,7 @@ func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
 
 // Test promoting all canaries in a deployment.
 func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6514,7 +6514,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 
 // Test promoting a subset of canaries in a deployment.
 func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -6617,7 +6617,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 
 // Test that allocation health can't be set against a nonexistent deployment
 func TestStateStore_UpsertDeploymentAllocHealth_Nonexistent(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6636,7 +6636,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_Nonexistent(t *testing.T) {
 
 // Test that allocation health can't be set against a terminal deployment
 func TestStateStore_UpsertDeploymentAllocHealth_Terminal(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6663,7 +6663,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_Terminal(t *testing.T) {
 
 // Test that allocation health can't be set against a nonexistent alloc
 func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_Nonexistent(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6688,7 +6688,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_Nonexistent(t *testing.
 
 // Test that a deployments PlacedCanaries is properly updated
 func TestStateStore_UpsertDeploymentAlloc_Canaries(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6758,7 +6758,7 @@ func TestStateStore_UpsertDeploymentAlloc_Canaries(t *testing.T) {
 }
 
 func TestStateStore_UpsertDeploymentAlloc_NoCanaries(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6792,7 +6792,7 @@ func TestStateStore_UpsertDeploymentAlloc_NoCanaries(t *testing.T) {
 // Test that allocation health can't be set for an alloc with mismatched
 // deployment ids
 func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_MismatchDeployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6828,7 +6828,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_MismatchDeployment(t *t
 
 // Test that allocation health is properly set
 func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -6936,7 +6936,7 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 }
 
 func TestStateStore_UpsertVaultAccessors(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	a := mock.VaultAccessor()
@@ -7017,7 +7017,7 @@ func TestStateStore_UpsertVaultAccessors(t *testing.T) {
 }
 
 func TestStateStore_DeleteVaultAccessors(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	a1 := mock.VaultAccessor()
@@ -7073,7 +7073,7 @@ func TestStateStore_DeleteVaultAccessors(t *testing.T) {
 }
 
 func TestStateStore_VaultAccessorsByAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -7121,7 +7121,7 @@ func TestStateStore_VaultAccessorsByAlloc(t *testing.T) {
 }
 
 func TestStateStore_VaultAccessorsByNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	node := mock.Node()
@@ -7169,7 +7169,7 @@ func TestStateStore_VaultAccessorsByNode(t *testing.T) {
 }
 
 func TestStateStore_UpsertSITokenAccessors(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	state := testStateStore(t)
@@ -7222,7 +7222,7 @@ func TestStateStore_UpsertSITokenAccessors(t *testing.T) {
 }
 
 func TestStateStore_DeleteSITokenAccessors(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	state := testStateStore(t)
@@ -7263,7 +7263,7 @@ func TestStateStore_DeleteSITokenAccessors(t *testing.T) {
 }
 
 func TestStateStore_SITokenAccessorsByAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	state := testStateStore(t)
@@ -7301,7 +7301,7 @@ func TestStateStore_SITokenAccessorsByAlloc(t *testing.T) {
 }
 
 func TestStateStore_SITokenAccessorsByNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	state := testStateStore(t)
@@ -7340,7 +7340,7 @@ func TestStateStore_SITokenAccessorsByNode(t *testing.T) {
 }
 
 func TestStateStore_UpsertACLPolicy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	policy := mock.ACLPolicy()
@@ -7402,7 +7402,7 @@ func TestStateStore_UpsertACLPolicy(t *testing.T) {
 }
 
 func TestStateStore_DeleteACLPolicy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	policy := mock.ACLPolicy()
@@ -7469,7 +7469,7 @@ func TestStateStore_DeleteACLPolicy(t *testing.T) {
 }
 
 func TestStateStore_ACLPolicyByNamePrefix(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	names := []string{
@@ -7518,7 +7518,7 @@ func TestStateStore_ACLPolicyByNamePrefix(t *testing.T) {
 }
 
 func TestStateStore_BootstrapACLTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	tk1 := mock.ACLToken()
@@ -7602,7 +7602,7 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 }
 
 func TestStateStore_UpsertACLTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	tk1 := mock.ACLToken()
@@ -7672,7 +7672,7 @@ func TestStateStore_UpsertACLTokens(t *testing.T) {
 }
 
 func TestStateStore_DeleteACLTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	tk1 := mock.ACLToken()
@@ -7739,7 +7739,7 @@ func TestStateStore_DeleteACLTokens(t *testing.T) {
 }
 
 func TestStateStore_ACLTokenByAccessorIDPrefix(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	prefixes := []string{
@@ -7806,7 +7806,7 @@ func TestStateStore_ACLTokenByAccessorIDPrefix(t *testing.T) {
 }
 
 func TestStateStore_ACLTokensByGlobal(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	tk1 := mock.ACLToken()
@@ -7858,7 +7858,7 @@ func TestStateStore_ACLTokensByGlobal(t *testing.T) {
 }
 
 func TestStateStore_OneTimeTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	index := uint64(100)
 	state := testStateStore(t)
 
@@ -8009,7 +8009,7 @@ func TestStateStore_ClusterMetadata(t *testing.T) {
 }
 
 func TestStateStore_UpsertScalingPolicy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -8092,7 +8092,7 @@ func TestStateStore_UpsertScalingPolicy(t *testing.T) {
 }
 
 func TestStateStore_UpsertScalingPolicy_Namespace(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	otherNamespace := "not-default-namespace"
@@ -8142,7 +8142,7 @@ func TestStateStore_UpsertScalingPolicy_Namespace(t *testing.T) {
 }
 
 func TestStateStore_UpsertScalingPolicy_Namespace_PrefixBug(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	ns1 := "name"
@@ -8197,7 +8197,7 @@ func TestStateStore_UpsertScalingPolicy_Namespace_PrefixBug(t *testing.T) {
 // Subsequent updates of the job should preserve the ID for the scaling policy
 // associated with a given target.
 func TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 
@@ -8242,7 +8242,7 @@ func TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex(t *testing.T) {
 // Updating the scaling policy for a job should update the index table and fire the watch.
 // This test is the converse of TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex
 func TestStateStore_UpsertJob_UpdateScalingPolicy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 
@@ -8286,7 +8286,7 @@ func TestStateStore_UpsertJob_UpdateScalingPolicy(t *testing.T) {
 }
 
 func TestStateStore_DeleteScalingPolicies(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 
@@ -8341,7 +8341,7 @@ func TestStateStore_DeleteScalingPolicies(t *testing.T) {
 }
 
 func TestStateStore_StopJob_DeleteScalingPolicies(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 
@@ -8388,7 +8388,7 @@ func TestStateStore_StopJob_DeleteScalingPolicies(t *testing.T) {
 }
 
 func TestStateStore_UnstopJob_UpsertScalingPolicies(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 
@@ -8431,7 +8431,7 @@ func TestStateStore_UnstopJob_UpsertScalingPolicies(t *testing.T) {
 }
 
 func TestStateStore_DeleteJob_DeleteScalingPolicies(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 
@@ -8462,7 +8462,7 @@ func TestStateStore_DeleteJob_DeleteScalingPolicies(t *testing.T) {
 }
 
 func TestStateStore_DeleteJob_DeleteScalingPoliciesPrefixBug(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 
@@ -8496,7 +8496,7 @@ func TestStateStore_DeleteJob_DeleteScalingPoliciesPrefixBug(t *testing.T) {
 // will not cause the scaling_policy table index to increase, on either job
 // registration or deletion.
 func TestStateStore_DeleteJob_ScalingPolicyIndexNoop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 
@@ -8524,7 +8524,7 @@ func TestStateStore_DeleteJob_ScalingPolicyIndexNoop(t *testing.T) {
 }
 
 func TestStateStore_ScalingPoliciesByType(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 
@@ -8581,7 +8581,7 @@ func TestStateStore_ScalingPoliciesByType(t *testing.T) {
 }
 
 func TestStateStore_ScalingPoliciesByTypePrefix(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 
@@ -8654,7 +8654,7 @@ func TestStateStore_ScalingPoliciesByTypePrefix(t *testing.T) {
 }
 
 func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 
@@ -8718,7 +8718,7 @@ func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
 }
 
 func TestStateStore_ScalingPoliciesByJob_PrefixBug(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 
@@ -8757,7 +8757,7 @@ func TestStateStore_ScalingPoliciesByJob_PrefixBug(t *testing.T) {
 }
 
 func TestStateStore_ScalingPolicyByTargetAndType(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 
@@ -8799,7 +8799,7 @@ func TestStateStore_ScalingPolicyByTargetAndType(t *testing.T) {
 }
 
 func TestStateStore_UpsertScalingEvent(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -8868,7 +8868,7 @@ func TestStateStore_UpsertScalingEvent(t *testing.T) {
 }
 
 func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -8935,7 +8935,7 @@ func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
 }
 
 func TestStateStore_Abandon(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s := testStateStore(t)
 	abandonCh := s.AbandonCh()
@@ -8949,7 +8949,7 @@ func TestStateStore_Abandon(t *testing.T) {
 
 // Verifies that an error is returned when an allocation doesn't exist in the state store.
 func TestStateSnapshot_DenormalizeAllocationDiffSlice_AllocDoesNotExist(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -8977,7 +8977,7 @@ func TestStateSnapshot_DenormalizeAllocationDiffSlice_AllocDoesNotExist(t *testi
 // TestStateStore_SnapshotMinIndex_OK asserts StateStore.SnapshotMinIndex blocks
 // until the StateStore's latest index is >= the requested index.
 func TestStateStore_SnapshotMinIndex_OK(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s := testStateStore(t)
 	index, err := s.LatestIndex()
@@ -9054,7 +9054,7 @@ func TestStateStore_SnapshotMinIndex_OK(t *testing.T) {
 // TestStateStore_SnapshotMinIndex_Timeout asserts StateStore.SnapshotMinIndex
 // returns an error if the desired index is not reached within the deadline.
 func TestStateStore_SnapshotMinIndex_Timeout(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s := testStateStore(t)
 	index, err := s.LatestIndex()

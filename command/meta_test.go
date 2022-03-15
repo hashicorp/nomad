@@ -8,12 +8,13 @@ import (
 	"testing"
 
 	"github.com/creack/pty"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMeta_FlagSet(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	cases := []struct {
 		Flags    FlagSetFlags
 		Expected []string
@@ -61,6 +62,8 @@ func TestMeta_FlagSet(t *testing.T) {
 }
 
 func TestMeta_Colorize(t *testing.T) {
+	ci.Parallel(t)
+
 	type testCaseSetupFn func(*testing.T, *Meta)
 
 	cases := []struct {

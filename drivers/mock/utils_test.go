@@ -4,10 +4,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestParseDuration(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("valid case", func(t *testing.T) {
 		v, err := parseDuration("10m")
 		require.NoError(t, err)

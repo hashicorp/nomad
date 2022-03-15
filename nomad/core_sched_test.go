@@ -7,6 +7,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -17,7 +18,7 @@ import (
 )
 
 func TestCoreScheduler_EvalGC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -111,7 +112,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 
 // Tests GC behavior on allocations being rescheduled
 func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -216,7 +217,7 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 
 // Tests GC behavior on stopped job with reschedulable allocs
 func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -292,7 +293,7 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 
 // An EvalGC should never reap a batch job that has not been stopped
 func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -396,7 +397,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 
 // An EvalGC should reap allocations from jobs with an older modify index
 func TestCoreScheduler_EvalGC_Batch_OldVersion(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -519,7 +520,7 @@ func TestCoreScheduler_EvalGC_Batch_OldVersion(t *testing.T) {
 
 // An EvalGC should  reap a batch job that has been stopped
 func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -616,7 +617,7 @@ func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
 }
 
 func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -733,7 +734,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 }
 
 func TestCoreScheduler_EvalGC_Force(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	for _, withAcl := range []bool{false, true} {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
 			require := require.New(t)
@@ -817,7 +818,7 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 }
 
 func TestCoreScheduler_NodeGC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	for _, withAcl := range []bool{false, true} {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
 			var server *Server
@@ -874,7 +875,7 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 }
 
 func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -930,7 +931,7 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 }
 
 func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -988,7 +989,7 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 }
 
 func TestCoreScheduler_NodeGC_Force(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1032,7 +1033,7 @@ func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 }
 
 func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1156,7 +1157,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 }
 
 func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1302,7 +1303,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 // This test ensures that batch jobs are GC'd in one shot, meaning it all
 // allocs/evals and job or nothing
 func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1415,7 +1416,7 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 
 // This test ensures that stopped jobs are GCd
 func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1516,7 +1517,7 @@ func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 }
 
 func TestCoreScheduler_JobGC_Force(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	for _, withAcl := range []bool{false, true} {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
 			var server *Server
@@ -1588,7 +1589,7 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 
 // This test ensures parameterized jobs only get gc'd when stopped
 func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1668,7 +1669,7 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 
 // This test ensures periodic jobs don't get GCd until they are stopped
 func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1742,7 +1743,7 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 }
 
 func TestCoreScheduler_DeploymentGC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1793,7 +1794,7 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 }
 
 func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	for _, withAcl := range []bool{false, true} {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
 			var server *Server
@@ -1839,7 +1840,7 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 }
 
 func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1882,7 +1883,7 @@ func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 }
 
 func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1919,7 +1920,7 @@ func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 }
 
 func TestCoreScheduler_PartitionJobReap(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -2197,7 +2198,7 @@ func TestAllocation_GCEligible(t *testing.T) {
 }
 
 func TestCoreScheduler_CSIPluginGC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, cleanupSRV := TestServer(t, nil)
 	defer cleanupSRV()
@@ -2251,7 +2252,7 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 }
 
 func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	srv, shutdown := TestServer(t, func(c *Config) {
@@ -2402,7 +2403,7 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 }
 
 func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	srv, shutdown := TestServer(t, func(c *Config) {
@@ -2442,7 +2443,7 @@ func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
 }
 
 func TestCoreScheduler_FailLoop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	srv, cleanupSrv := TestServer(t, func(c *Config) {

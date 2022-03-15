@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -14,7 +15,7 @@ import (
 )
 
 func TestHTTP_CSIEndpointPlugin(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		server := s.Agent.Server()
 		cleanup := state.CreateTestCSIPlugin(server.State(), "foo")
@@ -45,7 +46,7 @@ func TestHTTP_CSIEndpointPlugin(t *testing.T) {
 }
 
 func TestHTTP_CSIParseSecrets(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testCases := []struct {
 		val    string
 		expect structs.CSISecrets
@@ -82,7 +83,7 @@ func TestHTTP_CSIEndpointUtils(t *testing.T) {
 }
 
 func TestHTTP_CSIEndpointRegisterVolume(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		server := s.Agent.Server()
 		cleanup := state.CreateTestCSIPluginNodeOnly(server.State(), "foo")
@@ -124,7 +125,7 @@ func TestHTTP_CSIEndpointRegisterVolume(t *testing.T) {
 }
 
 func TestHTTP_CSIEndpointCreateVolume(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		server := s.Agent.Server()
 		cleanup := state.CreateTestCSIPlugin(server.State(), "foo")
@@ -156,7 +157,7 @@ func TestHTTP_CSIEndpointCreateVolume(t *testing.T) {
 }
 
 func TestHTTP_CSIEndpointSnapshot(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		server := s.Agent.Server()
 		cleanup := state.CreateTestCSIPlugin(server.State(), "foo")
@@ -181,7 +182,7 @@ func TestHTTP_CSIEndpointSnapshot(t *testing.T) {
 // TestHTTP_CSIEndpoint_Cast is a smoke test for converting from structs to
 // API structs
 func TestHTTP_CSIEndpoint_Cast(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	plugin := mock.CSIPlugin()
 	plugin.Nodes["node1"] = &structs.CSIInfo{

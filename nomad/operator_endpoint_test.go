@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/snapshot"
@@ -30,7 +31,7 @@ import (
 )
 
 func TestOperator_RaftGetConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -74,7 +75,7 @@ func TestOperator_RaftGetConfiguration(t *testing.T) {
 }
 
 func TestOperator_RaftGetConfiguration_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -138,7 +139,7 @@ func TestOperator_RaftGetConfiguration_ACL(t *testing.T) {
 }
 
 func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = raft.ProtocolVersion(2)
@@ -200,7 +201,7 @@ func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
 }
 
 func TestOperator_RaftRemovePeerByAddress_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = raft.ProtocolVersion(2)
@@ -255,7 +256,7 @@ func TestOperator_RaftRemovePeerByAddress_ACL(t *testing.T) {
 }
 
 func TestOperator_RaftRemovePeerByID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
@@ -317,7 +318,7 @@ func TestOperator_RaftRemovePeerByID(t *testing.T) {
 }
 
 func TestOperator_RaftRemovePeerByID_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
@@ -371,7 +372,7 @@ func TestOperator_RaftRemovePeerByID_ACL(t *testing.T) {
 }
 
 func TestOperator_SchedulerGetConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Build = "0.9.0+unittest"
@@ -395,7 +396,7 @@ func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 }
 
 func TestOperator_SchedulerSetConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Build = "0.9.0+unittest"
@@ -437,7 +438,7 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 }
 
 func TestOperator_SchedulerGetConfiguration_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
@@ -484,7 +485,7 @@ func TestOperator_SchedulerGetConfiguration_ACL(t *testing.T) {
 }
 
 func TestOperator_SchedulerSetConfiguration_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
@@ -535,7 +536,7 @@ func TestOperator_SchedulerSetConfiguration_ACL(t *testing.T) {
 }
 
 func TestOperator_SnapshotSave(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	////// Nomad clusters topology - not specific to test
 	dir, err := ioutil.TempDir("", "nomadtest-operator-")
@@ -642,7 +643,7 @@ func TestOperator_SnapshotSave(t *testing.T) {
 }
 
 func TestOperator_SnapshotSave_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	////// Nomad clusters topology - not specific to test
 	dir, err := ioutil.TempDir("", "nomadtest-operator-")
@@ -718,6 +719,8 @@ func TestOperator_SnapshotSave_ACL(t *testing.T) {
 }
 
 func TestOperator_SnapshotRestore(t *testing.T) {
+	ci.Parallel(t)
+
 	targets := []string{"leader", "non_leader", "remote_region"}
 
 	for _, c := range targets {
@@ -881,7 +884,7 @@ func testRestoreSnapshot(t *testing.T, req *structs.SnapshotRestoreRequest, snap
 }
 
 func TestOperator_SnapshotRestore_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	dir, err := ioutil.TempDir("", "nomadtest-operator-")
 	require.NoError(t, err)

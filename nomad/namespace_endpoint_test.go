@@ -7,6 +7,7 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -15,8 +16,8 @@ import (
 )
 
 func TestNamespaceEndpoint_GetNamespace(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -44,8 +45,8 @@ func TestNamespaceEndpoint_GetNamespace(t *testing.T) {
 }
 
 func TestNamespaceEndpoint_GetNamespace_ACL(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -105,8 +106,8 @@ func TestNamespaceEndpoint_GetNamespace_ACL(t *testing.T) {
 }
 
 func TestNamespaceEndpoint_GetNamespace_Blocking(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	state := s1.fsm.State()
@@ -164,8 +165,8 @@ func TestNamespaceEndpoint_GetNamespace_Blocking(t *testing.T) {
 }
 
 func TestNamespaceEndpoint_GetNamespaces(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -190,8 +191,8 @@ func TestNamespaceEndpoint_GetNamespaces(t *testing.T) {
 }
 
 func TestNamespaceEndpoint_GetNamespaces_ACL(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -239,8 +240,8 @@ func TestNamespaceEndpoint_GetNamespaces_ACL(t *testing.T) {
 }
 
 func TestNamespaceEndpoint_GetNamespaces_Blocking(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	state := s1.fsm.State()
@@ -298,8 +299,8 @@ func TestNamespaceEndpoint_GetNamespaces_Blocking(t *testing.T) {
 }
 
 func TestNamespaceEndpoint_List(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -336,8 +337,8 @@ func TestNamespaceEndpoint_List(t *testing.T) {
 }
 
 func TestNamespaceEndpoint_List_ACL(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -410,8 +411,8 @@ func TestNamespaceEndpoint_List_ACL(t *testing.T) {
 }
 
 func TestNamespaceEndpoint_List_Blocking(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	state := s1.fsm.State()
@@ -460,8 +461,8 @@ func TestNamespaceEndpoint_List_Blocking(t *testing.T) {
 }
 
 func TestNamespaceEndpoint_DeleteNamespaces(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -483,8 +484,8 @@ func TestNamespaceEndpoint_DeleteNamespaces(t *testing.T) {
 }
 
 func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Local(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -513,8 +514,8 @@ func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Local(t *testing.T) {
 }
 
 func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Federated_ACL(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.Region = "region1"
 		c.AuthoritativeRegion = "region1"
@@ -574,8 +575,8 @@ func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Federated_ACL(t *testing
 }
 
 func TestNamespaceEndpoint_DeleteNamespaces_ACL(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -649,8 +650,8 @@ func TestNamespaceEndpoint_DeleteNamespaces_ACL(t *testing.T) {
 }
 
 func TestNamespaceEndpoint_DeleteNamespaces_Default(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -666,8 +667,8 @@ func TestNamespaceEndpoint_DeleteNamespaces_Default(t *testing.T) {
 }
 
 func TestNamespaceEndpoint_UpsertNamespaces(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -697,8 +698,8 @@ func TestNamespaceEndpoint_UpsertNamespaces(t *testing.T) {
 }
 
 func TestNamespaceEndpoint_UpsertNamespaces_ACL(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)

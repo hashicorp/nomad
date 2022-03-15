@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
@@ -90,6 +91,7 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 }
 
 func TestExecutor_configureNamespaces(t *testing.T) {
+	ci.Parallel(t)
 	t.Run("host host", func(t *testing.T) {
 		require.Equal(t, lconfigs.Namespaces{
 			{Type: lconfigs.NEWNS},
@@ -120,7 +122,7 @@ func TestExecutor_configureNamespaces(t *testing.T) {
 }
 
 func TestExecutor_Isolation_PID_and_IPC_hostMode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 	testutil.ExecCompatible(t)
 
@@ -161,7 +163,7 @@ func TestExecutor_Isolation_PID_and_IPC_hostMode(t *testing.T) {
 }
 
 func TestExecutor_IsolationAndConstraints(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 	testutil.ExecCompatible(t)
 
@@ -253,7 +255,7 @@ passwd`
 // TestExecutor_CgroupPaths asserts that process starts with independent cgroups
 // hierarchy created for this process
 func TestExecutor_CgroupPaths(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	testutil.ExecCompatible(t)
 
@@ -308,7 +310,7 @@ func TestExecutor_CgroupPaths(t *testing.T) {
 // TestExecutor_CgroupPaths asserts that all cgroups created for a task
 // are destroyed on shutdown
 func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	testutil.ExecCompatible(t)
 
@@ -388,7 +390,7 @@ func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 }
 
 func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Create a temp dir
@@ -430,7 +432,7 @@ func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
 
 // Exec Launch looks for the binary only inside the chroot
 func TestExecutor_EscapeContainer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	testutil.ExecCompatible(t)
 
@@ -468,7 +470,7 @@ func TestExecutor_EscapeContainer(t *testing.T) {
 // TestExecutor_DoesNotInheritOomScoreAdj asserts that the exec processes do not
 // inherit the oom_score_adj value of Nomad agent/executor process
 func TestExecutor_DoesNotInheritOomScoreAdj(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.ExecCompatible(t)
 
 	oomPath := "/proc/self/oom_score_adj"
@@ -522,7 +524,7 @@ func TestExecutor_DoesNotInheritOomScoreAdj(t *testing.T) {
 }
 
 func TestExecutor_Capabilities(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.ExecCompatible(t)
 
 	cases := []struct {
@@ -602,7 +604,7 @@ CapAmb: 0000000000000000`,
 }
 
 func TestExecutor_ClientCleanup(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.ExecCompatible(t)
 	require := require.New(t)
 
@@ -647,6 +649,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 }
 
 func TestExecutor_cmdDevices(t *testing.T) {
+	ci.Parallel(t)
 	input := []*drivers.DeviceConfig{
 		{
 			HostPath:    "/dev/null",
@@ -680,6 +683,7 @@ func TestExecutor_cmdDevices(t *testing.T) {
 }
 
 func TestExecutor_cmdMounts(t *testing.T) {
+	ci.Parallel(t)
 	input := []*drivers.MountConfig{
 		{
 			HostPath: "/host/path-ro",
@@ -716,7 +720,7 @@ func TestExecutor_cmdMounts(t *testing.T) {
 // TestUniversalExecutor_NoCgroup asserts that commands are executed in the
 // same cgroup as parent process
 func TestUniversalExecutor_NoCgroup(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.ExecCompatible(t)
 
 	expectedBytes, err := ioutil.ReadFile("/proc/self/cgroup")

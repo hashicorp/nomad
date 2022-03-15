@@ -5,17 +5,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
 )
 
 func TestServerMembersCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &ServerMembersCommand{}
 }
 
 func TestServerMembersCommand_Run(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -47,7 +48,7 @@ func TestServerMembersCommand_Run(t *testing.T) {
 }
 
 func TestMembersCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &ServerMembersCommand{Meta: Meta{Ui: ui}}
 
@@ -72,7 +73,7 @@ func TestMembersCommand_Fails(t *testing.T) {
 // Tests that a single server region that left should still
 // not return an error and list other members in other regions
 func TestServerMembersCommand_MultiRegion_Leave(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	config1 := func(c *agent.Config) {
 		c.Region = "r1"

@@ -5,11 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 // TestCSIVolumeClaim ensures that a volume claim workflows work as expected.
 func TestCSIVolumeClaim(t *testing.T) {
+	ci.Parallel(t)
+
 	vol := NewCSIVolume("vol0", 0)
 	vol.Schedulable = true
 	vol.AccessMode = CSIVolumeAccessModeUnknown
@@ -187,6 +190,8 @@ func TestCSIVolumeClaim(t *testing.T) {
 //
 // COMPAT(1.3.0): safe to remove this test, but not the code, for 1.3.0
 func TestCSIVolumeClaim_CompatOldClaims(t *testing.T) {
+	ci.Parallel(t)
+
 	vol := NewCSIVolume("vol0", 0)
 	vol.Schedulable = true
 	vol.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
@@ -283,6 +288,8 @@ func TestCSIVolumeClaim_CompatOldClaims(t *testing.T) {
 //
 // COMPAT(1.3.0): safe to remove this test, but not the code, for 1.3.0
 func TestCSIVolumeClaim_CompatNewClaimsOK(t *testing.T) {
+	ci.Parallel(t)
+
 	vol := NewCSIVolume("vol0", 0)
 	vol.Schedulable = true
 	vol.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
@@ -388,6 +395,8 @@ func TestCSIVolumeClaim_CompatNewClaimsOK(t *testing.T) {
 //
 // COMPAT(1.3.0): safe to remove this test, but not the code, for 1.3.0
 func TestCSIVolumeClaim_CompatNewClaimsNoUpgrade(t *testing.T) {
+	ci.Parallel(t)
+
 	vol := NewCSIVolume("vol0", 0)
 	vol.Schedulable = true
 	vol.AccessMode = CSIVolumeAccessModeMultiNodeReader
@@ -471,6 +480,7 @@ func TestCSIVolumeClaim_CompatNewClaimsNoUpgrade(t *testing.T) {
 }
 
 func TestVolume_Copy(t *testing.T) {
+	ci.Parallel(t)
 
 	a1 := MockAlloc()
 	a2 := MockAlloc()
@@ -555,6 +565,8 @@ func TestVolume_Copy(t *testing.T) {
 }
 
 func TestCSIVolume_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	vol := &CSIVolume{
 		ID:         "test",
 		PluginID:   "test",
@@ -570,6 +582,7 @@ func TestCSIVolume_Validate(t *testing.T) {
 }
 
 func TestCSIVolume_Merge(t *testing.T) {
+	ci.Parallel(t)
 
 	testCases := []struct {
 		name     string
@@ -739,6 +752,8 @@ func TestCSIVolume_Merge(t *testing.T) {
 }
 
 func TestCSIPluginJobs(t *testing.T) {
+	ci.Parallel(t)
+
 	plug := NewCSIPlugin("foo", 1000)
 	controller := &Job{
 		ID:   "job",
@@ -789,6 +804,8 @@ func TestCSIPluginJobs(t *testing.T) {
 }
 
 func TestCSIPluginCleanup(t *testing.T) {
+	ci.Parallel(t)
+
 	plug := NewCSIPlugin("foo", 1000)
 	plug.AddPlugin("n0", &CSIInfo{
 		PluginID:                 "foo",
@@ -824,6 +841,8 @@ func TestCSIPluginCleanup(t *testing.T) {
 }
 
 func TestDeleteNodeForType_Controller(t *testing.T) {
+	ci.Parallel(t)
+
 	info := &CSIInfo{
 		PluginID:                 "foo",
 		AllocID:                  "a0",
@@ -847,6 +866,8 @@ func TestDeleteNodeForType_Controller(t *testing.T) {
 }
 
 func TestDeleteNodeForType_NilController(t *testing.T) {
+	ci.Parallel(t)
+
 	plug := NewCSIPlugin("foo", 1000)
 
 	plug.Controllers["n0"] = nil
@@ -861,6 +882,8 @@ func TestDeleteNodeForType_NilController(t *testing.T) {
 }
 
 func TestDeleteNodeForType_Node(t *testing.T) {
+	ci.Parallel(t)
+
 	info := &CSIInfo{
 		PluginID:                 "foo",
 		AllocID:                  "a0",
@@ -884,6 +907,8 @@ func TestDeleteNodeForType_Node(t *testing.T) {
 }
 
 func TestDeleteNodeForType_NilNode(t *testing.T) {
+	ci.Parallel(t)
+
 	plug := NewCSIPlugin("foo", 1000)
 
 	plug.Nodes["n0"] = nil
@@ -898,6 +923,8 @@ func TestDeleteNodeForType_NilNode(t *testing.T) {
 }
 
 func TestDeleteNodeForType_Monolith(t *testing.T) {
+	ci.Parallel(t)
+
 	controllerInfo := &CSIInfo{
 		PluginID:                 "foo",
 		AllocID:                  "a0",
@@ -940,6 +967,8 @@ func TestDeleteNodeForType_Monolith(t *testing.T) {
 }
 
 func TestDeleteNodeForType_Monolith_NilController(t *testing.T) {
+	ci.Parallel(t)
+
 	plug := NewCSIPlugin("foo", 1000)
 
 	plug.Controllers["n0"] = nil
@@ -972,6 +1001,8 @@ func TestDeleteNodeForType_Monolith_NilController(t *testing.T) {
 }
 
 func TestDeleteNodeForType_Monolith_NilNode(t *testing.T) {
+	ci.Parallel(t)
+	
 	plug := NewCSIPlugin("foo", 1000)
 
 	plug.Nodes["n0"] = nil

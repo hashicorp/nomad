@@ -4,13 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/stretchr/testify/require"
 )
 
 // TestLimits_Defaults asserts the default limits are valid.
 func TestLimits_Defaults(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	l := DefaultLimits()
 	d, err := time.ParseDuration(l.HTTPSHandshakeTimeout)
@@ -24,7 +25,7 @@ func TestLimits_Defaults(t *testing.T) {
 
 // TestLimits_Copy asserts Limits structs are deep copied.
 func TestLimits_Copy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	o := DefaultLimits()
 	c := o.Copy()
@@ -52,7 +53,7 @@ func TestLimits_Copy(t *testing.T) {
 // TestLimits_Merge asserts non-zero fields from the method argument take
 // precedence over the existing limits.
 func TestLimits_Merge(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	l := Limits{}
 	o := DefaultLimits()

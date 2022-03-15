@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"golang.org/x/sys/unix"
 )
 
@@ -49,9 +50,11 @@ func isMount(path string) error {
 // TestLinuxRootSecretDir asserts secret dir creation and removal are
 // idempotent.
 func TestLinuxRootSecretDir(t *testing.T) {
+	ci.Parallel(t)
 	if unix.Geteuid() != 0 {
 		t.Skip("Must be run as root")
 	}
+
 	tmpdir, err := ioutil.TempDir("", "nomadtest-rootsecretdir")
 	if err != nil {
 		t.Fatalf("unable to create tempdir for test: %v", err)
@@ -109,9 +112,11 @@ func TestLinuxRootSecretDir(t *testing.T) {
 // TestLinuxUnprivilegedSecretDir asserts secret dir creation and removal are
 // idempotent.
 func TestLinuxUnprivilegedSecretDir(t *testing.T) {
+	ci.Parallel(t)
 	if unix.Geteuid() == 0 {
 		t.Skip("Must not be run as root")
 	}
+
 	tmpdir, err := ioutil.TempDir("", "nomadtest-secretdir")
 	if err != nil {
 		t.Fatalf("unable to create tempdir for test: %s", err)

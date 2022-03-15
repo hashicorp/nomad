@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -13,7 +14,7 @@ import (
 // TestPrevAlloc_GroupPrevAllocWatcher_Block asserts that when there are
 // prevAllocs is set a groupPrevAllocWatcher will block on them
 func TestPrevAlloc_GroupPrevAllocWatcher_Block(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	conf, cleanup := newConfig(t)
 
 	defer cleanup()
@@ -80,7 +81,8 @@ func TestPrevAlloc_GroupPrevAllocWatcher_Block(t *testing.T) {
 // multiple prevAllocs is set a groupPrevAllocWatcher will block until all
 // are complete
 func TestPrevAlloc_GroupPrevAllocWatcher_BlockMulti(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	conf1, cleanup1 := newConfig(t)
 	defer cleanup1()
 	conf1.Alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{

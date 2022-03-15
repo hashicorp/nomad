@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -46,7 +47,7 @@ func setupBoltDB(t testingT) (*DB, func()) {
 }
 
 func TestDB_Open(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	db, cleanup := setupBoltDB(t)
@@ -56,7 +57,7 @@ func TestDB_Open(t *testing.T) {
 }
 
 func TestDB_Close(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	db, cleanup := setupBoltDB(t)
 	defer cleanup()
@@ -75,7 +76,7 @@ func TestDB_Close(t *testing.T) {
 }
 
 func TestBucket_Create(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	db, cleanup := setupBoltDB(t)
@@ -112,7 +113,7 @@ func TestBucket_Create(t *testing.T) {
 }
 
 func TestBucket_DedupeWrites(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	db, cleanup := setupBoltDB(t)
@@ -166,7 +167,7 @@ func TestBucket_DedupeWrites(t *testing.T) {
 }
 
 func TestBucket_Delete(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	db, cleanup := setupBoltDB(t)
