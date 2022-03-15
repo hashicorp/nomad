@@ -126,6 +126,10 @@ func TestAllocEndpoint_List_PaginationFiltering(t *testing.T) {
 
 	state := s1.fsm.State()
 
+	require.NoError(t, state.UpsertNamespaces(1099, []*structs.Namespace{
+		{Name: "non-default"},
+	}))
+
 	var allocs []*structs.Allocation
 	for i, m := range mocks {
 		allocsInTx := []*structs.Allocation{}
@@ -145,10 +149,6 @@ func TestAllocEndpoint_List_PaginationFiltering(t *testing.T) {
 		index := 1000 + uint64(i)
 		require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, allocsInTx))
 	}
-
-	require.NoError(t, state.UpsertNamespaces(1099, []*structs.Namespace{
-		{Name: "non-default"},
-	}))
 
 	aclToken := mock.CreatePolicyAndToken(t,
 		state, 1100, "test-valid-read",
