@@ -5,15 +5,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTP_ScalingPoliciesList(t *testing.T) {
+	ci.Parallel(t)
 	require := require.New(t)
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
 			// Create the job
@@ -52,8 +52,8 @@ func TestHTTP_ScalingPoliciesList(t *testing.T) {
 }
 
 func TestHTTP_ScalingPoliciesList_Filter(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		var job *structs.Job
 		for i := 0; i < 3; i++ {
@@ -100,7 +100,7 @@ func TestHTTP_ScalingPoliciesList_Filter(t *testing.T) {
 }
 
 func TestHTTP_ScalingPolicyGet(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job

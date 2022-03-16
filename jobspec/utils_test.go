@@ -3,13 +3,14 @@ package jobspec
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 // TestFlattenMapSlice asserts flattenMapSlice recursively flattens a slice of maps into a
 // single map.
 func TestFlattenMapSlice(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	input := map[string]interface{}{
 		"foo": 123,

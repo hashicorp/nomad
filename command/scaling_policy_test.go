@@ -3,10 +3,13 @@ package command
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_formatScalingPolicyTarget(t *testing.T) {
+	ci.Parallel(t)
+
 	testCases := []struct {
 		inputMap       map[string]string
 		expectedOutput string

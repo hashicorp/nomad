@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ import (
 )
 
 func TestHTTP_NodesList(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
 			// Create the node
@@ -62,7 +63,7 @@ func TestHTTP_NodesList(t *testing.T) {
 }
 
 func TestHTTP_NodesPrefixList(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		ids := []string{
 			"12345678-abcd-efab-cdef-123456789abc",
@@ -119,7 +120,7 @@ func TestHTTP_NodesPrefixList(t *testing.T) {
 }
 
 func TestHTTP_NodeForceEval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the node
 		node := mock.Node()
@@ -171,7 +172,7 @@ func TestHTTP_NodeForceEval(t *testing.T) {
 }
 
 func TestHTTP_NodeAllocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		node := mock.Node()
@@ -240,7 +241,7 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 }
 
 func TestHTTP_NodeDrain(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the node
@@ -336,7 +337,7 @@ func TestHTTP_NodeDrain(t *testing.T) {
 }
 
 func TestHTTP_NodeEligible(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the node
@@ -390,7 +391,7 @@ func TestHTTP_NodeEligible(t *testing.T) {
 }
 
 func TestHTTP_NodePurge(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the node
 		node := mock.Node()
@@ -455,7 +456,7 @@ func TestHTTP_NodePurge(t *testing.T) {
 }
 
 func TestHTTP_NodeQuery(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		node := mock.Node()

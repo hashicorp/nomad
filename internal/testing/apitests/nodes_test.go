@@ -3,13 +3,14 @@ package apitests
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNodes_GC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -21,7 +22,7 @@ func TestNodes_GC(t *testing.T) {
 }
 
 func TestNodes_GcAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()

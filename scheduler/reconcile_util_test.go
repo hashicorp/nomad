@@ -3,6 +3,7 @@ package scheduler
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -14,6 +15,8 @@ import (
 // aligned.
 // Ensure no regression from: https://github.com/hashicorp/nomad/issues/3008
 func TestBitmapFrom(t *testing.T) {
+	ci.Parallel(t)
+
 	input := map[string]*structs.Allocation{
 		"8": {
 			JobID:     "foo",
@@ -34,6 +37,8 @@ func TestBitmapFrom(t *testing.T) {
 }
 
 func TestAllocSet_filterByTainted(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	nodes := map[string]*structs.Node{

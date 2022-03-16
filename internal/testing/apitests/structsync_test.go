@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
@@ -16,6 +17,8 @@ import (
 // such dependency without affecting api clients.
 
 func TestDefaultResourcesAreInSync(t *testing.T) {
+	ci.Parallel(t)
+
 	apiR := api.DefaultResources()
 	structsR := structs.DefaultResources()
 
@@ -28,6 +31,8 @@ func TestDefaultResourcesAreInSync(t *testing.T) {
 }
 
 func TestMinResourcesAreInSync(t *testing.T) {
+	ci.Parallel(t)
+
 	apiR := api.MinResources()
 	structsR := structs.MinResources()
 
@@ -40,6 +45,8 @@ func TestMinResourcesAreInSync(t *testing.T) {
 }
 
 func TestNewDefaultRescheulePolicyInSync(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		typ      string
 		expected structs.ReschedulePolicy
@@ -62,6 +69,8 @@ func TestNewDefaultRescheulePolicyInSync(t *testing.T) {
 }
 
 func TestNewDefaultRestartPolicyInSync(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		typ      string
 		expected structs.RestartPolicy

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -12,7 +13,7 @@ import (
 )
 
 func TestDeploymentEventFromChanges(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 

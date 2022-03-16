@@ -4,16 +4,16 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/hashicorp/nomad/api"
 )
 
 func TestRecommendationListCommand_Run(t *testing.T) {
+	ci.Parallel(t)
 	require := require.New(t)
-	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -74,6 +74,8 @@ func TestRecommendationListCommand_Run(t *testing.T) {
 }
 
 func TestRecommendationListCommand_Sort(t *testing.T) {
+	ci.Parallel(t)
+
 	testCases := []struct {
 		inputRecommendationList []*api.Recommendation
 		expectedOutputList      []*api.Recommendation

@@ -6,13 +6,14 @@ import (
 	"testing"
 
 	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/serf/serf"
 	"github.com/stretchr/testify/require"
 )
 
 func TestIsNomadServer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	m := serf.Member{
 		Name:   "foo",
 		Addr:   net.IP([]byte{127, 0, 0, 1}),
@@ -88,7 +89,7 @@ func TestIsNomadServer(t *testing.T) {
 }
 
 func TestServersMeetMinimumVersionExcludingFailed(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		members  []serf.Member
@@ -157,7 +158,7 @@ func TestServersMeetMinimumVersionExcludingFailed(t *testing.T) {
 }
 
 func TestServersMeetMinimumVersionIncludingFailed(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		members  []serf.Member
@@ -211,7 +212,7 @@ func makeMember(version string, status serf.MemberStatus) serf.Member {
 }
 
 func TestShuffleStrings(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Generate input
 	inp := make([]string, 10)
 	for idx := range inp {
@@ -247,7 +248,7 @@ func Test_partitionAll(t *testing.T) {
 }
 
 func TestMaxUint64(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	if maxUint64(1, 2) != 2 {
 		t.Fatalf("bad")
 	}

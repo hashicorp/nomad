@@ -10,6 +10,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -33,7 +34,7 @@ func (m *mockEmitter) EmitEvent(ev *structs.TaskEvent) {
 // TestTaskRunner_ArtifactHook_Recoverable asserts that failures to download
 // artifacts are a recoverable error.
 func TestTaskRunner_ArtifactHook_Recoverable(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	me := &mockEmitter{}
 	artifactHook := newArtifactHook(me, testlog.HCLogger(t))
@@ -66,7 +67,7 @@ func TestTaskRunner_ArtifactHook_Recoverable(t *testing.T) {
 // already downloaded artifacts when subsequent artifacts fail and cause a
 // restart.
 func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	me := &mockEmitter{}
 	artifactHook := newArtifactHook(me, testlog.HCLogger(t))

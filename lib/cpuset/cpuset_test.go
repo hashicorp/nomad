@@ -3,16 +3,21 @@ package cpuset
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCPUSet_Size(t *testing.T) {
+	ci.Parallel(t)
+
 	set := New(0, 1, 2, 3)
 	require.Equal(t, 4, set.Size())
 	require.Equal(t, 0, New().Size())
 }
 
 func TestCPUSet_ToSlice(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		desc string
 		in   CPUSet
@@ -41,6 +46,8 @@ func TestCPUSet_ToSlice(t *testing.T) {
 }
 
 func TestCPUSet_Equals(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		a           CPUSet
 		b           CPUSet
@@ -64,6 +71,8 @@ func TestCPUSet_Equals(t *testing.T) {
 }
 
 func TestCPUSet_Union(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		a        CPUSet
 		b        CPUSet
@@ -87,6 +96,8 @@ func TestCPUSet_Union(t *testing.T) {
 }
 
 func TestCPUSet_Difference(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		a        CPUSet
 		b        CPUSet
@@ -109,6 +120,8 @@ func TestCPUSet_Difference(t *testing.T) {
 }
 
 func TestCPUSet_IsSubsetOf(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		a        CPUSet
 		b        CPUSet
@@ -128,6 +141,8 @@ func TestCPUSet_IsSubsetOf(t *testing.T) {
 }
 
 func TestCPUSet_IsSupersetOf(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		a          CPUSet
 		b          CPUSet
@@ -147,6 +162,8 @@ func TestCPUSet_IsSupersetOf(t *testing.T) {
 }
 
 func TestCPUSet_ContainsAny(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		a           CPUSet
 		b           CPUSet
@@ -166,6 +183,8 @@ func TestCPUSet_ContainsAny(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		cpuset   string
 		expected CPUSet
@@ -187,6 +206,8 @@ func TestParse(t *testing.T) {
 }
 
 func TestCPUSet_String(t *testing.T) {
+	ci.Parallel(t)
+	
 	cases := []struct {
 		cpuset   CPUSet
 		expected string

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/hcldec"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"
@@ -38,7 +39,7 @@ func testSpecConversions(t *testing.T, cases []testConversions) {
 }
 
 func TestDec_Convert_Object(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tests := []testConversions{
 		{
@@ -98,7 +99,7 @@ func TestDec_Convert_Object(t *testing.T) {
 }
 
 func TestDec_Convert_Array(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tests := []testConversions{
 		{
@@ -148,7 +149,7 @@ func TestDec_Convert_Array(t *testing.T) {
 }
 
 func TestDec_Convert_Attr(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tests := []testConversions{
 		{
@@ -206,7 +207,7 @@ func TestDec_Convert_Attr(t *testing.T) {
 }
 
 func TestDec_Convert_Block(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tests := []testConversions{
 		{
@@ -283,7 +284,7 @@ func TestDec_Convert_Block(t *testing.T) {
 }
 
 func TestDec_Convert_BlockAttrs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tests := []testConversions{
 		{
@@ -321,7 +322,7 @@ func TestDec_Convert_BlockAttrs(t *testing.T) {
 }
 
 func TestDec_Convert_BlockList(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tests := []testConversions{
 		{
@@ -380,7 +381,7 @@ func TestDec_Convert_BlockList(t *testing.T) {
 }
 
 func TestDec_Convert_BlockSet(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tests := []testConversions{
 		{
@@ -439,7 +440,7 @@ func TestDec_Convert_BlockSet(t *testing.T) {
 }
 
 func TestDec_Convert_BlockMap(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tests := []testConversions{
 		{
@@ -514,7 +515,7 @@ func TestDec_Convert_BlockMap(t *testing.T) {
 }
 
 func TestDec_Convert_Default(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tests := []testConversions{
 		{
@@ -558,7 +559,7 @@ func TestDec_Convert_Default(t *testing.T) {
 }
 
 func TestDec_Convert_Literal(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tests := []testConversions{
 		{

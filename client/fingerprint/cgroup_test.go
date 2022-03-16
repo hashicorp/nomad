@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -41,6 +42,8 @@ func (m *MountPointDetectorEmptyMountPoint) MountPoint() (string, error) {
 }
 
 func TestCGroupFingerprint(t *testing.T) {
+	ci.Parallel(t)
+
 	{
 		f := &CGroupFingerprint{
 			logger:             testlog.HCLogger(t),

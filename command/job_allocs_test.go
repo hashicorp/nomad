@@ -3,21 +3,21 @@ package command
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/nomad/structs"
-
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/require"
 )
 
 func TestJobAllocsCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &JobAllocsCommand{}
 }
 
 func TestJobAllocsCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -50,7 +50,7 @@ func TestJobAllocsCommand_Fails(t *testing.T) {
 }
 
 func TestJobAllocsCommand_Run(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -93,7 +93,7 @@ func TestJobAllocsCommand_Run(t *testing.T) {
 }
 
 func TestJobAllocsCommand_Template(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -152,7 +152,7 @@ func TestJobAllocsCommand_Template(t *testing.T) {
 }
 
 func TestJobAllocsCommand_AutocompleteArgs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 

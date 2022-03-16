@@ -6,19 +6,19 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAllocEndpoint_List(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -77,7 +77,7 @@ func TestAllocEndpoint_List(t *testing.T) {
 }
 
 func TestAllocEndpoint_List_Fields(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -178,7 +178,7 @@ func TestAllocEndpoint_List_Fields(t *testing.T) {
 }
 
 func TestAllocEndpoint_List_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -235,7 +235,7 @@ func TestAllocEndpoint_List_ACL(t *testing.T) {
 }
 
 func TestAllocEndpoint_List_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -313,7 +313,7 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 // TestAllocEndpoint_List_AllNamespaces_OSS asserts that server
 // returns all allocations across namespaces.
 func TestAllocEndpoint_List_AllNamespaces_OSS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -392,7 +392,7 @@ func TestAllocEndpoint_List_AllNamespaces_OSS(t *testing.T) {
 }
 
 func TestAllocEndpoint_GetAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -433,7 +433,7 @@ func TestAllocEndpoint_GetAlloc(t *testing.T) {
 }
 
 func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -544,7 +544,7 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 }
 
 func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -600,7 +600,7 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 }
 
 func TestAllocEndpoint_GetAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -648,7 +648,7 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 }
 
 func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -704,7 +704,7 @@ func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 }
 
 func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, nil)
@@ -788,7 +788,7 @@ func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
 }
 
 func TestAllocEndpoint_Stop_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, nil)
@@ -850,7 +850,7 @@ func TestAllocEndpoint_Stop_ACL(t *testing.T) {
 }
 
 func TestAllocEndpoint_List_AllNamespaces_ACL_OSS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()

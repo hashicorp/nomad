@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/flatmap"
 	"github.com/kr/pretty"
@@ -21,7 +22,7 @@ import (
 )
 
 func TestHelpers_FormatKV(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	in := []string{"alpha|beta", "charlie|delta", "echo|"}
 	out := formatKV(in)
 
@@ -35,7 +36,7 @@ func TestHelpers_FormatKV(t *testing.T) {
 }
 
 func TestHelpers_FormatList(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	in := []string{"alpha|beta||delta"}
 	out := formatList(in)
 
@@ -47,7 +48,7 @@ func TestHelpers_FormatList(t *testing.T) {
 }
 
 func TestHelpers_NodeID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, _ := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -64,7 +65,7 @@ func TestHelpers_NodeID(t *testing.T) {
 }
 
 func TestHelpers_LineLimitReader_NoTimeLimit(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	helloString := `hello
 world
 this
@@ -166,7 +167,7 @@ func (t *testReadCloser) Close() error {
 }
 
 func TestHelpers_LineLimitReader_TimeLimit(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Create the test reader
 	in := &testReadCloser{data: make(chan []byte)}
 
@@ -256,7 +257,7 @@ var (
 
 // Test APIJob with local jobfile
 func TestJobGetter_LocalFile(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fh, err := ioutil.TempFile("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -283,7 +284,7 @@ func TestJobGetter_LocalFile(t *testing.T) {
 // TestJobGetter_LocalFile_InvalidHCL2 asserts that a custom message is emited
 // if the file is a valid HCL1 but not HCL2
 func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		name              string
@@ -331,7 +332,7 @@ func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
 // TestJobGetter_HCL2_Variables asserts variable arguments from CLI
 // and varfiles are both honored
 func TestJobGetter_HCL2_Variables(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	hcl := `
 variables {
@@ -376,7 +377,7 @@ job "example" {
 }
 
 func TestJobGetter_HCL2_Variables_StrictFalse(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	hcl := `
 variables {
@@ -396,7 +397,7 @@ job "example" {
 
 	// Both the CLI and var file contain variables that are not used with the
 	// template and therefore would error, if hcl2-strict was true.
-	cliArgs := []string{`var2=from-cli`,`unsedVar1=from-cli`}
+	cliArgs := []string{`var2=from-cli`, `unsedVar1=from-cli`}
 	fileVars := `
 var3 = "from-varfile"
 unsedVar2 = "from-varfile"
@@ -428,7 +429,7 @@ unsedVar2 = "from-varfile"
 
 // Test StructJob with jobfile from HTTP Server
 func TestJobGetter_HTTPServer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, job)
 	})
@@ -493,7 +494,7 @@ func TestPrettyTimeDiff(t *testing.T) {
 
 // TestUiErrorWriter asserts that writer buffers and
 func TestUiErrorWriter(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	var outBuf, errBuf bytes.Buffer
 	ui := &cli.BasicUi{

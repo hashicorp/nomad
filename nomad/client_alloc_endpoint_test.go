@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -25,7 +26,7 @@ import (
 )
 
 func TestClientAllocations_GarbageCollectAll_Local(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -65,7 +66,7 @@ func TestClientAllocations_GarbageCollectAll_Local(t *testing.T) {
 }
 
 func TestClientAllocations_GarbageCollectAll_Local_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server
@@ -125,7 +126,7 @@ func TestClientAllocations_GarbageCollectAll_Local_ACL(t *testing.T) {
 }
 
 func TestClientAllocations_GarbageCollectAll_NoNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -148,7 +149,7 @@ func TestClientAllocations_GarbageCollectAll_NoNode(t *testing.T) {
 }
 
 func TestClientAllocations_GarbageCollectAll_OldNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and fake an old client
@@ -181,7 +182,7 @@ func TestClientAllocations_GarbageCollectAll_OldNode(t *testing.T) {
 }
 
 func TestClientAllocations_GarbageCollectAll_Remote(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -241,7 +242,7 @@ func TestClientAllocations_GarbageCollectAll_Remote(t *testing.T) {
 }
 
 func TestClientAllocations_GarbageCollect_OldNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and fake an old client
@@ -281,7 +282,7 @@ func TestClientAllocations_GarbageCollect_OldNode(t *testing.T) {
 }
 
 func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -363,7 +364,7 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 }
 
 func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Start a server
 	s, root, cleanupS := TestACLServer(t, nil)
@@ -429,7 +430,7 @@ func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 }
 
 func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -532,7 +533,7 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 }
 
 func TestClientAllocations_Stats_OldNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and fake an old client
@@ -571,7 +572,7 @@ func TestClientAllocations_Stats_OldNode(t *testing.T) {
 }
 
 func TestClientAllocations_Stats_Local(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -653,7 +654,7 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 }
 
 func TestClientAllocations_Stats_Local_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Start a server
 	s, root, cleanupS := TestACLServer(t, nil)
@@ -719,7 +720,7 @@ func TestClientAllocations_Stats_Local_ACL(t *testing.T) {
 }
 
 func TestClientAllocations_Stats_Remote(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -810,7 +811,7 @@ func TestClientAllocations_Stats_Remote(t *testing.T) {
 }
 
 func TestClientAllocations_Restart_Local(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -916,7 +917,7 @@ func TestClientAllocations_Restart_Local(t *testing.T) {
 }
 
 func TestClientAllocations_Restart_Remote(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -1009,6 +1010,8 @@ func TestClientAllocations_Restart_Remote(t *testing.T) {
 }
 
 func TestClientAllocations_Restart_ACL(t *testing.T) {
+	ci.Parallel(t)
+
 	// Start a server
 	s, root, cleanupS := TestACLServer(t, nil)
 	defer cleanupS()
@@ -1075,7 +1078,7 @@ func TestClientAllocations_Restart_ACL(t *testing.T) {
 // TestAlloc_ExecStreaming asserts that exec task requests are forwarded
 // to appropriate server or remote regions
 func TestAlloc_ExecStreaming(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	////// Nomad clusters topology - not specific to test
 	localServer, cleanupLS := TestServer(t, func(c *Config) {
