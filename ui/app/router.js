@@ -75,7 +75,9 @@ Router.map(function () {
   });
 
   // if we don't include function() the outlet won't render
-  this.route('evaluations', function () {});
+  this.route('evaluations', function () {
+    this.route('evaluation', { path: '/:evaluation_id' });
+  });
 
   this.route('not-found', { path: '/*' });
 });

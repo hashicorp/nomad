@@ -1,0 +1,7 @@
+<Breadcrumb @crumb={{this.breadcrumb}} />{{outlet}}
+<h1>Related Evals</h1>
+<ul>
+{{#each model.relatedEvals as |e|}}
+  <li>{{e.evalId}}</li>
+{{/each}}
+</ul>

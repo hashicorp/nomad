@@ -39,7 +39,7 @@
       <t.body as |row|>
         <tr data-test-evaluation="{{row.model.shortId}}">
           <td data-test-id>
-            {{row.model.shortId}}
+            <LinkTo @model={{row.model}} @route="evaluations.evaluation">{{row.model.shortId}}</LinkTo>
           </td>
           <td data-test-id>
             {{#if row.model.hasJob}}
