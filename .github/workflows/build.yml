@@ -133,11 +133,11 @@ jobs:
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
           CGO_ENABLED: 1
         run: |
-          mkdir -p dist out
-          go build -o dist/ \
+          mkdir -p dest out
+          go build -o dest/ \
           -ldflags "${{ env.LD_FLAGS }}" \
           -tags "${{ env.GO_TAGS }}"
-          zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
+          zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dest/
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
@@ -238,11 +238,11 @@ jobs:
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
           CGO_ENABLED: 1
         run: |
-          mkdir -p dist out
-          go build -o dist/ \
+          mkdir -p dest out
+          go build -o dest/ \
           -ldflags "${{ env.LD_FLAGS }}" \
           -tags "${{ env.GO_TAGS }}"
-          zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
+          zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dest/
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
@@ -259,7 +259,7 @@ jobs:
           maintainer: "HashiCorp"
           homepage: "https://github.com/hashicorp/nomad"
           license: "MPL-2.0"
-          binary: "dist/${{ env.PKG_NAME }}"
+          binary: "dest/${{ env.PKG_NAME }}"
           deb_depends: "openssl"
           rpm_depends: "openssl"
           config_dir: ".release/linux/package/"
@@ -345,11 +345,11 @@ jobs:
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
           CGO_ENABLED: 0
         run: |
-          mkdir -p dist out
-          go build -o dist/ \
+          mkdir -p dest out
+          go build -o dest/ \
           -ldflags "${{ env.LD_FLAGS }}" \
           -tags "${{ env.GO_TAGS }}"
-          zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
+          zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dest/
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
