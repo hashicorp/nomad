@@ -9,11 +9,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestTimeTable(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	tt := NewTimeTable(time.Second, time.Minute)
 
 	index := tt.NearestIndex(time.Now())
@@ -90,7 +91,7 @@ func TestTimeTable(t *testing.T) {
 }
 
 func TestTimeTable_SerializeDeserialize(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	tt := NewTimeTable(time.Second, time.Minute)
 
 	// Witness some data
@@ -132,7 +133,7 @@ func TestTimeTable_SerializeDeserialize(t *testing.T) {
 }
 
 func TestTimeTable_Overflow(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	tt := NewTimeTable(time.Second, 3*time.Second)
 
 	// Witness some data

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -31,7 +32,7 @@ func tmpDir(t *testing.T) string {
 }
 
 func TestServer_RPC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -43,7 +44,7 @@ func TestServer_RPC(t *testing.T) {
 }
 
 func TestServer_RPC_TLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
@@ -109,7 +110,7 @@ func TestServer_RPC_TLS(t *testing.T) {
 }
 
 func TestServer_RPC_MixedTLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
@@ -178,7 +179,7 @@ func TestServer_RPC_MixedTLS(t *testing.T) {
 }
 
 func TestServer_Regions(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Make the servers
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -211,7 +212,7 @@ func TestServer_Regions(t *testing.T) {
 }
 
 func TestServer_Reload_Vault(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "global"
@@ -243,7 +244,7 @@ func connectionReset(msg string) bool {
 // Tests that the server will successfully reload its network connections,
 // upgrading from plaintext to TLS if the server's TLS configuration changes.
 func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -292,7 +293,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 // Tests that the server will successfully reload its network connections,
 // downgrading from TLS to plaintext if the server's TLS configuration changes.
 func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -339,7 +340,7 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
 // Tests that the server will successfully reload its network connections,
 // downgrading only RPC connections
 func TestServer_Reload_TLSConnections_TLSToPlaintext_OnlyRPC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -393,7 +394,7 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_OnlyRPC(t *testing.T) {
 // Tests that the server will successfully reload its network connections,
 // upgrading only RPC connections
 func TestServer_Reload_TLSConnections_PlaintextToTLS_OnlyRPC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -449,7 +450,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS_OnlyRPC(t *testing.T) {
 // Test that Raft connections are reloaded as expected when a Nomad server is
 // upgraded from plaintext to TLS
 func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -529,7 +530,7 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 }
 
 func TestServer_InvalidSchedulers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Set the config to not have the core scheduler
@@ -553,7 +554,7 @@ func TestServer_InvalidSchedulers(t *testing.T) {
 }
 
 func TestServer_RPCNameAndRegionValidation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	for _, tc := range []struct {
 		name     string
 		region   string
@@ -580,7 +581,7 @@ func TestServer_RPCNameAndRegionValidation(t *testing.T) {
 }
 
 func TestServer_ReloadSchedulers_NumSchedulers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 8
@@ -598,7 +599,7 @@ func TestServer_ReloadSchedulers_NumSchedulers(t *testing.T) {
 }
 
 func TestServer_ReloadSchedulers_EnabledSchedulers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.EnabledSchedulers = []string{structs.JobTypeCore, structs.JobTypeSystem}
@@ -618,7 +619,7 @@ func TestServer_ReloadSchedulers_EnabledSchedulers(t *testing.T) {
 }
 
 func TestServer_ReloadSchedulers_InvalidSchedulers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Set the config to not have the core scheduler
 	config := DefaultConfig()

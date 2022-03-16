@@ -11,6 +11,7 @@ import (
 	codec "github.com/hashicorp/go-msgpack/codec"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -22,7 +23,7 @@ import (
 )
 
 func TestClientFS_List_Local(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -106,7 +107,7 @@ func TestClientFS_List_Local(t *testing.T) {
 }
 
 func TestClientFS_List_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Start a server
 	s, root, cleanupS := TestACLServer(t, nil)
@@ -173,7 +174,7 @@ func TestClientFS_List_ACL(t *testing.T) {
 }
 
 func TestClientFS_List_Remote(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -267,7 +268,7 @@ func TestClientFS_List_Remote(t *testing.T) {
 }
 
 func TestClientFS_Stat_OldNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server
@@ -298,7 +299,7 @@ func TestClientFS_Stat_OldNode(t *testing.T) {
 }
 
 func TestClientFS_Stat_Local(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -382,7 +383,7 @@ func TestClientFS_Stat_Local(t *testing.T) {
 }
 
 func TestClientFS_Stat_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Start a server
 	s, root, cleanupS := TestACLServer(t, nil)
@@ -449,7 +450,7 @@ func TestClientFS_Stat_ACL(t *testing.T) {
 }
 
 func TestClientFS_Stat_Remote(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -543,7 +544,7 @@ func TestClientFS_Stat_Remote(t *testing.T) {
 }
 
 func TestClientFS_Streaming_NoAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -614,7 +615,7 @@ OUTER:
 }
 
 func TestClientFS_Streaming_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Start a server
 	s, root, cleanupS := TestACLServer(t, nil)
@@ -730,7 +731,7 @@ func TestClientFS_Streaming_ACL(t *testing.T) {
 }
 
 func TestClientFS_Streaming_Local(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -862,7 +863,7 @@ OUTER:
 }
 
 func TestClientFS_Streaming_Local_Follow(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -1000,7 +1001,7 @@ OUTER:
 }
 
 func TestClientFS_Streaming_Remote_Server(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -1148,7 +1149,7 @@ OUTER:
 }
 
 func TestClientFS_Streaming_Remote_Region(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -1292,7 +1293,7 @@ OUTER:
 }
 
 func TestClientFS_Logs_NoAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -1363,7 +1364,7 @@ OUTER:
 }
 
 func TestClientFS_Logs_OldNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server
@@ -1443,7 +1444,7 @@ OUTER:
 }
 
 func TestClientFS_Logs_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Start a server
 	s, root, cleanupS := TestACLServer(t, nil)
@@ -1559,7 +1560,7 @@ func TestClientFS_Logs_ACL(t *testing.T) {
 }
 
 func TestClientFS_Logs_Local(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -1692,7 +1693,7 @@ OUTER:
 }
 
 func TestClientFS_Logs_Local_Follow(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -1831,7 +1832,7 @@ OUTER:
 }
 
 func TestClientFS_Logs_Remote_Server(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -1980,7 +1981,7 @@ OUTER:
 }
 
 func TestClientFS_Logs_Remote_Region(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client

@@ -3,12 +3,15 @@ package docker
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConfig_ParseHCL(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name string
 
@@ -46,6 +49,8 @@ func TestConfig_ParseHCL(t *testing.T) {
 }
 
 func TestConfig_ParseJSON(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		input    string
@@ -113,6 +118,8 @@ func TestConfig_ParseJSON(t *testing.T) {
 }
 
 func TestConfig_PortMap_Deserialization(t *testing.T) {
+	ci.Parallel(t)
+
 	parser := hclutils.NewConfigParser(taskConfigSpec)
 
 	expectedMap := map[string]int{
@@ -185,6 +192,8 @@ config {
 }
 
 func TestConfig_ParseAllHCL(t *testing.T) {
+	ci.Parallel(t)
+
 	cfgStr := `
 config {
   image = "redis:3.2"
@@ -493,6 +502,8 @@ config {
 // TestConfig_DriverConfig_GC asserts that gc is parsed
 // and populated with defaults as expected
 func TestConfig_DriverConfig_GC(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		config   string
@@ -598,6 +609,8 @@ func TestConfig_DriverConfig_GC(t *testing.T) {
 }
 
 func TestConfig_InternalCapabilities(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		config   string
@@ -632,6 +645,8 @@ func TestConfig_InternalCapabilities(t *testing.T) {
 }
 
 func TestConfig_DriverConfig_InfraImagePullTimeout(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		config   string
@@ -659,6 +674,8 @@ func TestConfig_DriverConfig_InfraImagePullTimeout(t *testing.T) {
 }
 
 func TestConfig_DriverConfig_PullActivityTimeout(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		config   string
@@ -686,6 +703,8 @@ func TestConfig_DriverConfig_PullActivityTimeout(t *testing.T) {
 }
 
 func TestConfig_DriverConfig_AllowRuntimes(t *testing.T) {
+	ci.Parallel(t)
+	
 	cases := []struct {
 		name     string
 		config   string

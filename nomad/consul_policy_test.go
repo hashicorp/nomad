@@ -4,12 +4,13 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConsulPolicy_ParseConsulPolicy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	try := func(t *testing.T, text string, expPolicy *ConsulPolicy, expErr string) {
 		policy, err := parseConsulPolicy(text)
@@ -103,7 +104,7 @@ namespace "foo" {
 }
 
 func TestConsulACLsAPI_allowsServiceWrite(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	try := func(t *testing.T, matches bool, namespace, task string, cp *ConsulPolicy, exp bool) {
 		// If matches is false, the implication is that the consul acl token is in
@@ -342,6 +343,8 @@ func TestConsulACLsAPI_allowsServiceWrite(t *testing.T) {
 }
 
 func TestConsulPolicy_isManagementToken(t *testing.T) {
+	ci.Parallel(t)
+
 	aclsAPI := new(consulACLsAPI)
 
 	t.Run("nil", func(t *testing.T) {
@@ -394,6 +397,8 @@ func TestConsulPolicy_isManagementToken(t *testing.T) {
 }
 
 func TestConsulPolicy_namespaceCheck(t *testing.T) {
+	ci.Parallel(t)
+
 	withoutNS := &api.ACLToken{Namespace: ""}
 	withDefault := &api.ACLToken{Namespace: "default"}
 	withOther := &api.ACLToken{Namespace: "other"}
@@ -455,6 +460,8 @@ func TestConsulPolicy_namespaceCheck(t *testing.T) {
 }
 
 func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
+	ci.Parallel(t)
+	
 	t.Run("empty", func(t *testing.T) {
 		require.False(t, new(ConsulPolicy).allowsKeystoreRead(true, "default"))
 	})

@@ -9,12 +9,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestAzureFingerprint_nonAzure(t *testing.T) {
+	ci.Parallel(t)
+
 	os.Setenv("AZURE_ENV_URL", "http://127.0.0.1/metadata/instance/")
 	f := NewEnvAzureFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
@@ -211,9 +214,13 @@ const AZURE_routes = `
 `
 
 func TestFingerprint_AzureWithExternalIp(t *testing.T) {
+	ci.Parallel(t)
+
 	testFingerprint_Azure(t, true)
 }
 
 func TestFingerprint_AzureWithoutExternalIp(t *testing.T) {
+	ci.Parallel(t)
+
 	testFingerprint_Azure(t, false)
 }

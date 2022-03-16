@@ -8,11 +8,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/stretchr/testify/require"
 )
 
 func TestBridgeFingerprint_detect(t *testing.T) {
+	ci.Parallel(t)
+
 	f := &BridgeFingerprint{logger: testlog.HCLogger(t)}
 	require.NoError(t, f.detect("ip_tables"))
 
@@ -73,6 +76,8 @@ kernel/net/bridge/bridgeRHEL.ko.xz: kernel/net/802/stp.ko.xz kernel/net/llc/llc.
 )
 
 func TestBridgeFingerprint_search(t *testing.T) {
+	ci.Parallel(t)
+
 	f := &BridgeFingerprint{logger: testlog.HCLogger(t)}
 
 	t.Run("dynamic loaded module", func(t *testing.T) {

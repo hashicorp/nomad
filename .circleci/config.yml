@@ -9,7 +9,6 @@ references:
 
   # common references
   common_envs: &common_envs
-    GOMAXPROCS: 1
     NOMAD_SLOW_TEST: 1
     GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
@@ -520,7 +519,7 @@ executors:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
       image: *go_machine_image
-      resource_class: medium
+      resource_class: large
     environment: &machine_env
       <<: *common_envs
       GOLANG_VERSION: 1.17.5

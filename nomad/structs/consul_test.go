@@ -3,10 +3,13 @@ package structs
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConsul_Copy(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("nil", func(t *testing.T) {
 		result := (*Consul)(nil).Copy()
 		require.Nil(t, result)
@@ -21,6 +24,8 @@ func TestConsul_Copy(t *testing.T) {
 }
 
 func TestConsul_Equals(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("nil and nil", func(t *testing.T) {
 		result := (*Consul)(nil).Equals((*Consul)(nil))
 		require.True(t, result)
@@ -43,6 +48,8 @@ func TestConsul_Equals(t *testing.T) {
 }
 
 func TestConsul_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("empty ns", func(t *testing.T) {
 		result := (&Consul{Namespace: ""}).Validate()
 		require.Nil(t, result)

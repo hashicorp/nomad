@@ -4,13 +4,13 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPaginator(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ids := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
 
 	cases := []struct {

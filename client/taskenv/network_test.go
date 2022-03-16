@@ -3,11 +3,14 @@ package taskenv
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_InterpolateNetworks(t *testing.T) {
+	ci.Parallel(t)
+
 	testCases := []struct {
 		inputTaskEnv           *TaskEnv
 		inputNetworks          structs.Networks

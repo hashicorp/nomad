@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
@@ -15,7 +16,7 @@ import (
 )
 
 func TestOperatorSnapshotRestore_Works(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tmpDir, err := ioutil.TempDir("", "nomad-tempdir")
 	require.NoError(t, err)
@@ -77,7 +78,7 @@ job "snapshot-test-job" {
 }
 
 func TestOperatorSnapshotRestore_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	ui := cli.NewMockUi()
 	cmd := &OperatorSnapshotRestoreCommand{Meta: Meta{Ui: ui}}

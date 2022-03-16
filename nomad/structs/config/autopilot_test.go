@@ -4,9 +4,13 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/nomad/ci"
 )
 
 func TestAutopilotConfig_Merge(t *testing.T) {
+	ci.Parallel(t)
+
 	trueValue, falseValue := true, false
 
 	c1 := &AutopilotConfig{

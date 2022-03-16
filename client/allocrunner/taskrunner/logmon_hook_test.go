@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -24,7 +25,7 @@ var _ interfaces.TaskStopHook = (*logmonHook)(nil)
 // TestTaskRunner_LogmonHook_LoadReattach unit tests loading logmon reattach
 // config from persisted hook state.
 func TestTaskRunner_LogmonHook_LoadReattach(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// No hook data should return nothing
 	cfg, err := reattachConfigFromHookData(nil)
@@ -60,7 +61,7 @@ func TestTaskRunner_LogmonHook_LoadReattach(t *testing.T) {
 // first time Prestart is called, reattached to on subsequent restarts, and
 // killed on Stop.
 func TestTaskRunner_LogmonHook_StartStop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]

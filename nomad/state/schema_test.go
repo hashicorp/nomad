@@ -4,11 +4,14 @@ import (
 	"testing"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStateStoreSchema(t *testing.T) {
+	ci.Parallel(t)
+
 	schema := stateStoreSchema()
 	_, err := memdb.NewMemDB(schema)
 	if err != nil {
@@ -17,6 +20,8 @@ func TestStateStoreSchema(t *testing.T) {
 }
 
 func TestState_singleRecord(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	const (
@@ -87,6 +92,8 @@ func TestState_singleRecord(t *testing.T) {
 }
 
 func TestState_ScalingPolicyTargetFieldIndex_FromObject(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	policy := mock.ScalingPolicy()

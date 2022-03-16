@@ -3,16 +3,16 @@ package command
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
-
-	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
 )
 
 func TestScalingPolicyListCommand_Run(t *testing.T) {
+	ci.Parallel(t)
 	require := require.New(t)
-	t.Parallel()
 	srv, client, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 

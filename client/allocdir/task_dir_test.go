@@ -6,11 +6,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 )
 
 // Test that building a chroot will skip nonexistent directories.
 func TestTaskDir_EmbedNonexistent(t *testing.T) {
+	ci.Parallel(t)
+
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
@@ -33,6 +36,8 @@ func TestTaskDir_EmbedNonexistent(t *testing.T) {
 
 // Test that building a chroot copies files from the host into the task dir.
 func TestTaskDir_EmbedDirs(t *testing.T) {
+	ci.Parallel(t)
+
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
@@ -87,6 +92,7 @@ func TestTaskDir_EmbedDirs(t *testing.T) {
 
 // Test that task dirs for image based isolation don't require root.
 func TestTaskDir_NonRoot_Image(t *testing.T) {
+	ci.Parallel(t)
 	if os.Geteuid() == 0 {
 		t.Skip("test should be run as non-root user")
 	}
@@ -110,9 +116,11 @@ func TestTaskDir_NonRoot_Image(t *testing.T) {
 
 // Test that task dirs with no isolation don't require root.
 func TestTaskDir_NonRoot(t *testing.T) {
+	ci.Parallel(t)
 	if os.Geteuid() == 0 {
 		t.Skip("test should be run as non-root user")
 	}
+
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
@@ -134,5 +142,4 @@ func TestTaskDir_NonRoot(t *testing.T) {
 	if _, err = os.Stat(td.SharedTaskDir); !os.IsNotExist(err) {
 		t.Fatalf("Expected a NotExist error for shared alloc dir in task dir: %q", td.SharedTaskDir)
 	}
-
 }

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	cni "github.com/containerd/go-cni"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,8 @@ import (
 // TestCNI_cniToAllocNet_Fallback asserts if a CNI plugin result lacks an IP on
 // its sandbox interface, the first IP found is used.
 func TestCNI_cniToAllocNet_Fallback(t *testing.T) {
+	ci.Parallel(t)
+
 	// Calico's CNI plugin v3.12.3 has been observed to return the
 	// following:
 	cniResult := &cni.CNIResult{
@@ -47,6 +50,8 @@ func TestCNI_cniToAllocNet_Fallback(t *testing.T) {
 // result lacks any IP addresses. This has not been observed, but Nomad still
 // must guard against invalid results from external plugins.
 func TestCNI_cniToAllocNet_Invalid(t *testing.T) {
+	ci.Parallel(t)
+
 	cniResult := &cni.CNIResult{
 		Interfaces: map[string]*cni.Config{
 			"eth0": {},

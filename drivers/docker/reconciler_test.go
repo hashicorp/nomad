@@ -7,6 +7,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -31,6 +32,8 @@ func fakeContainerList(t *testing.T) (nomadContainer, nonNomadContainer docker.A
 }
 
 func Test_HasMount(t *testing.T) {
+	ci.Parallel(t)
+
 	nomadContainer, nonNomadContainer := fakeContainerList(t)
 
 	require.True(t, hasMount(nomadContainer, "/alloc"))
@@ -45,6 +48,8 @@ func Test_HasMount(t *testing.T) {
 }
 
 func Test_HasNomadName(t *testing.T) {
+	ci.Parallel(t)
+
 	nomadContainer, nonNomadContainer := fakeContainerList(t)
 
 	require.True(t, hasNomadName(nomadContainer))
@@ -54,6 +59,7 @@ func Test_HasNomadName(t *testing.T) {
 // TestDanglingContainerRemoval asserts containers without corresponding tasks
 // are removed after the creation grace period.
 func TestDanglingContainerRemoval(t *testing.T) {
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	// start two containers: one tracked nomad container, and one unrelated container
@@ -157,6 +163,7 @@ func TestDanglingContainerRemoval(t *testing.T) {
 // TestDanglingContainerRemoval_Stopped asserts stopped containers without
 // corresponding tasks are not removed even if after creation grace period.
 func TestDanglingContainerRemoval_Stopped(t *testing.T) {
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	_, cfg, ports := dockerTask(t)

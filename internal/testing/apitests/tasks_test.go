@@ -5,12 +5,15 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 )
 
 // Verifies that reschedule policy is merged correctly
 func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
+	ci.Parallel(t)
+
 	type testCase struct {
 		desc                 string
 		jobReschedulePolicy  *api.ReschedulePolicy

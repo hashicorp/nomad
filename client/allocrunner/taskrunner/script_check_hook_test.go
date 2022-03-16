@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -63,6 +64,8 @@ type heartbeat struct {
 // TestScript_Exec_Cancel asserts cancelling a script check shortcircuits
 // any running scripts.
 func TestScript_Exec_Cancel(t *testing.T) {
+	ci.Parallel(t)
+
 	exec, cancel := newBlockingScriptExec()
 	defer cancel()
 
@@ -89,7 +92,7 @@ func TestScript_Exec_Cancel(t *testing.T) {
 // TestScript_Exec_TimeoutBasic asserts a script will be killed when the
 // timeout is reached.
 func TestScript_Exec_TimeoutBasic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	exec, cancel := newBlockingScriptExec()
 	defer cancel()
 
@@ -130,7 +133,7 @@ func TestScript_Exec_TimeoutBasic(t *testing.T) {
 // the timeout is reached and always set a critical status regardless of what
 // Exec returns.
 func TestScript_Exec_TimeoutCritical(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 	hb := newFakeHeartbeater()
 	script := newScriptMock(hb, sleeperExec{}, logger, time.Hour, time.Nanosecond)
@@ -151,6 +154,8 @@ func TestScript_Exec_TimeoutCritical(t *testing.T) {
 // TestScript_Exec_Shutdown asserts a script will be executed once more
 // when told to shutdown.
 func TestScript_Exec_Shutdown(t *testing.T) {
+	ci.Parallel(t)
+
 	shutdown := make(chan struct{})
 	exec := newSimpleExec(0, nil)
 	logger := testlog.HCLogger(t)
@@ -180,6 +185,7 @@ func TestScript_Exec_Shutdown(t *testing.T) {
 // TestScript_Exec_Codes asserts script exit codes are translated to their
 // corresponding Consul health check status.
 func TestScript_Exec_Codes(t *testing.T) {
+	ci.Parallel(t)
 
 	exec := newScriptedExec([]execResult{
 		{[]byte("output"), 1, nil},
@@ -224,6 +230,7 @@ func TestScript_Exec_Codes(t *testing.T) {
 // TestScript_TaskEnvInterpolation asserts that script check hooks are
 // interpolated in the same way that services are
 func TestScript_TaskEnvInterpolation(t *testing.T) {
+	ci.Parallel(t)
 
 	logger := testlog.HCLogger(t)
 	consulClient := consul.NewMockConsulServiceClient(t, logger)
@@ -288,6 +295,8 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 }
 
 func TestScript_associated(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("neither set", func(t *testing.T) {
 		require.False(t, new(scriptCheckHook).associated("task1", "", ""))
 	})

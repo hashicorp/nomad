@@ -3,6 +3,8 @@ package command
 import (
 	"strings"
 	"testing"
+
+	"github.com/hashicorp/nomad/ci"
 )
 
 type testData struct {
@@ -24,7 +26,7 @@ var (
 )
 
 func TestDataFormat(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	for k, v := range testFormat {
 		fm, err := DataFormat(k, v)
 		if err != nil {
@@ -43,7 +45,7 @@ func TestDataFormat(t *testing.T) {
 }
 
 func TestInvalidJSONTemplate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Invalid template {{.foo}}
 	fm, err := DataFormat("template", "{{.foo}}")
 	if err != nil {

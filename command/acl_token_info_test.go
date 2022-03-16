@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -14,10 +15,10 @@ import (
 )
 
 func TestACLTokenInfoCommand_ViaEnvVar(t *testing.T) {
+	ci.Parallel(t)
 	defer os.Setenv("NOMAD_TOKEN", os.Getenv("NOMAD_TOKEN"))
 
 	assert := assert.New(t)
-	t.Parallel()
 	config := func(c *agent.Config) {
 		c.ACL.Enabled = true
 	}

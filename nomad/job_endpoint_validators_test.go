@@ -3,6 +3,7 @@ package nomad
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -10,13 +11,13 @@ import (
 )
 
 func TestJobNamespaceConstraintCheckHook_Name(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require.Equal(t, "namespace-constraint-check", new(jobNamespaceConstraintCheckHook).Name())
 }
 
 func TestJobNamespaceConstraintCheckHook_taskValidateDriver(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		description string
@@ -85,7 +86,7 @@ func TestJobNamespaceConstraintCheckHook_taskValidateDriver(t *testing.T) {
 }
 
 func TestJobNamespaceConstraintCheckHook_validate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)

@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStructsTokenizer(t *testing.T) {
+	ci.Parallel(t)
+
 	j := mock.Job()
 
 	cases := []struct {

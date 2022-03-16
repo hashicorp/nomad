@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -12,7 +13,7 @@ import (
 // TestInterpolateServices asserts that all service
 // and check fields are properly interpolated.
 func TestInterpolateServices(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	services := []*structs.Service{
 		{
@@ -107,7 +108,7 @@ var testEnv = NewTaskEnv(
 	nil, nil, "", "")
 
 func TestInterpolate_interpolateMapStringSliceString(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		require.Nil(t, interpolateMapStringSliceString(testEnv, nil))
@@ -125,7 +126,7 @@ func TestInterpolate_interpolateMapStringSliceString(t *testing.T) {
 }
 
 func TestInterpolate_interpolateMapStringString(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		require.Nil(t, interpolateMapStringString(testEnv, nil))
@@ -143,7 +144,7 @@ func TestInterpolate_interpolateMapStringString(t *testing.T) {
 }
 
 func TestInterpolate_interpolateMapStringInterface(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		require.Nil(t, interpolateMapStringInterface(testEnv, nil))
@@ -161,7 +162,7 @@ func TestInterpolate_interpolateMapStringInterface(t *testing.T) {
 }
 
 func TestInterpolate_interpolateConnect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	e := map[string]string{
 		"tag1":              "_tag1",

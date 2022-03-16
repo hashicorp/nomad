@@ -3,11 +3,12 @@ package executor
 import (
 	"testing"
 
-	ps "github.com/mitchellh/go-ps"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/mitchellh/go-ps"
 )
 
 func TestScanPids(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	p1 := NewFakeProcess(2, 5)
 	p2 := NewFakeProcess(10, 2)
 	p3 := NewFakeProcess(15, 6)

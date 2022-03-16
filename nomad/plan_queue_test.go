@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -17,7 +18,7 @@ func testPlanQueue(t *testing.T) *PlanQueue {
 }
 
 func TestPlanQueue_Enqueue_Dequeue(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	pq := testPlanQueue(t)
 	if pq.Enabled() {
 		t.Fatalf("should not be enabled")
@@ -84,7 +85,7 @@ func TestPlanQueue_Enqueue_Dequeue(t *testing.T) {
 }
 
 func TestPlanQueue_Enqueue_Disable(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	pq := testPlanQueue(t)
 
 	// Enqueue
@@ -115,7 +116,7 @@ func TestPlanQueue_Enqueue_Disable(t *testing.T) {
 }
 
 func TestPlanQueue_Dequeue_Timeout(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	pq := testPlanQueue(t)
 	pq.SetEnabled(true)
 
@@ -137,7 +138,7 @@ func TestPlanQueue_Dequeue_Timeout(t *testing.T) {
 
 // Ensure higher priority dequeued first
 func TestPlanQueue_Dequeue_Priority(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	pq := testPlanQueue(t)
 	pq.SetEnabled(true)
 
@@ -171,7 +172,7 @@ func TestPlanQueue_Dequeue_Priority(t *testing.T) {
 
 // Ensure FIFO at fixed priority
 func TestPlanQueue_Dequeue_FIFO(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	pq := testPlanQueue(t)
 	pq.SetEnabled(true)
 

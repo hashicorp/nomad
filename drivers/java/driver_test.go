@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
@@ -33,10 +34,8 @@ func javaCompatible(t *testing.T) {
 }
 
 func TestJavaDriver_Fingerprint(t *testing.T) {
+	ci.Parallel(t)
 	javaCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -58,10 +57,8 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 }
 
 func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
+	ci.Parallel(t)
 	javaCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -101,10 +98,8 @@ func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 }
 
 func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
+	ci.Parallel(t)
 	javaCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -165,10 +160,8 @@ func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
 }
 
 func TestJavaDriver_Class_Start_Wait(t *testing.T) {
+	ci.Parallel(t)
 	javaCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -207,6 +200,8 @@ func TestJavaDriver_Class_Start_Wait(t *testing.T) {
 }
 
 func TestJavaCmdArgs(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		cfg      TaskConfig
@@ -256,10 +251,8 @@ func TestJavaCmdArgs(t *testing.T) {
 }
 
 func TestJavaDriver_ExecTaskStreaming(t *testing.T) {
+	ci.Parallel(t)
 	javaCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -335,6 +328,8 @@ func copyFile(src, dst string, t *testing.T) {
 }
 
 func TestConfig_ParseAllHCL(t *testing.T) {
+	ci.Parallel(t)
+
 	cfgStr := `
 config {
   class = "java.main"
@@ -360,7 +355,7 @@ config {
 
 // Tests that a given DNSConfig properly configures dns
 func Test_dnsConfig(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ctestutil.RequireRoot(t)
 	javaCompatible(t)
 	require := require.New(t)
@@ -415,6 +410,8 @@ func Test_dnsConfig(t *testing.T) {
 }
 
 func TestDriver_Config_validate(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("pid/ipc", func(t *testing.T) {
 		for _, tc := range []struct {
 			pidMode, ipcMode string
@@ -455,6 +452,8 @@ func TestDriver_Config_validate(t *testing.T) {
 }
 
 func TestDriver_TaskConfig_validate(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("pid/ipc", func(t *testing.T) {
 		for _, tc := range []struct {
 			pidMode, ipcMode string

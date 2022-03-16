@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
 
 func TestOperatorSnapshotInspect_Works(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	snapPath := generateSnapshotFile(t, nil)
 
@@ -33,10 +34,10 @@ func TestOperatorSnapshotInspect_Works(t *testing.T) {
 	} {
 		require.Contains(t, output, key)
 	}
-
 }
+
 func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tmpDir, err := ioutil.TempDir("", "nomad-clitests-")
 	require.NoError(t, err)
@@ -65,11 +66,9 @@ func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
 		require.NotZero(t, code)
 		require.Contains(t, ui.ErrorWriter.String(), "Error verifying snapshot")
 	})
-
 }
 
 func generateSnapshotFile(t *testing.T, prepare func(srv *agent.TestAgent, client *api.Client, url string)) string {
-
 	tmpDir, err := ioutil.TempDir("", "nomad-tempdir")
 	require.NoError(t, err)
 

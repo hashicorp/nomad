@@ -9,6 +9,7 @@ import (
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	fake "github.com/hashicorp/nomad/plugins/csi/testing"
 	"github.com/stretchr/testify/require"
@@ -41,6 +42,8 @@ func newTestClient(t *testing.T) (*fake.IdentityClient, *fake.ControllerClient, 
 }
 
 func TestClient_RPC_PluginProbe(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name             string
 		ResponseErr      error
@@ -99,6 +102,8 @@ func TestClient_RPC_PluginProbe(t *testing.T) {
 }
 
 func TestClient_RPC_PluginInfo(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name                    string
 		ResponseErr             error
@@ -152,6 +157,8 @@ func TestClient_RPC_PluginInfo(t *testing.T) {
 }
 
 func TestClient_RPC_PluginGetCapabilities(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name             string
 		ResponseErr      error
@@ -215,6 +222,8 @@ func TestClient_RPC_PluginGetCapabilities(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerGetCapabilities(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name             string
 		ResponseErr      error
@@ -313,6 +322,8 @@ func TestClient_RPC_ControllerGetCapabilities(t *testing.T) {
 }
 
 func TestClient_RPC_NodeGetCapabilities(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name             string
 		ResponseErr      error
@@ -371,6 +382,8 @@ func TestClient_RPC_NodeGetCapabilities(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name             string
 		Request          *ControllerPublishVolumeRequest
@@ -436,6 +449,8 @@ func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerUnpublishVolume(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name             string
 		Request          *ControllerUnpublishVolumeRequest
@@ -482,6 +497,7 @@ func TestClient_RPC_ControllerUnpublishVolume(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name        string
@@ -706,6 +722,7 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerCreateVolume(t *testing.T) {
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name          string
@@ -833,6 +850,7 @@ func TestClient_RPC_ControllerCreateVolume(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerDeleteVolume(t *testing.T) {
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name        string
@@ -875,6 +893,7 @@ func TestClient_RPC_ControllerDeleteVolume(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerListVolume(t *testing.T) {
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name        string
@@ -969,6 +988,7 @@ func TestClient_RPC_ControllerListVolume(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerCreateSnapshot(t *testing.T) {
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name        string
@@ -1030,6 +1050,7 @@ func TestClient_RPC_ControllerCreateSnapshot(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerDeleteSnapshot(t *testing.T) {
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name        string
@@ -1072,6 +1093,7 @@ func TestClient_RPC_ControllerDeleteSnapshot(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerListSnapshots(t *testing.T) {
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name        string
@@ -1136,6 +1158,8 @@ func TestClient_RPC_ControllerListSnapshots(t *testing.T) {
 }
 
 func TestClient_RPC_NodeStageVolume(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name        string
 		ResponseErr error
@@ -1177,6 +1201,8 @@ func TestClient_RPC_NodeStageVolume(t *testing.T) {
 }
 
 func TestClient_RPC_NodeUnstageVolume(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name        string
 		ResponseErr error
@@ -1214,6 +1240,8 @@ func TestClient_RPC_NodeUnstageVolume(t *testing.T) {
 }
 
 func TestClient_RPC_NodePublishVolume(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name        string
 		Request     *NodePublishVolumeRequest
@@ -1269,6 +1297,8 @@ func TestClient_RPC_NodePublishVolume(t *testing.T) {
 	}
 }
 func TestClient_RPC_NodeUnpublishVolume(t *testing.T) {
+	ci.Parallel(t)
+	
 	cases := []struct {
 		Name        string
 		ExternalID  string

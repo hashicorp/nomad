@@ -15,6 +15,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	consultest "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	clienttest "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
@@ -74,7 +75,7 @@ func newClientAgentConfigFunc(region string, nodeClass string, srvRPCAddr string
 }
 
 func TestDebug_NodeClass(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
@@ -124,7 +125,7 @@ func TestDebug_NodeClass(t *testing.T) {
 }
 
 func TestDebug_ClientToServer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
@@ -173,6 +174,8 @@ func TestDebug_ClientToServer(t *testing.T) {
 }
 
 func TestDebug_MultiRegion(t *testing.T) {
+	ci.Parallel(t)
+
 	region1 := "region1"
 	region2 := "region2"
 
@@ -269,7 +272,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 }
 
 func TestDebug_SingleServer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, _, url := testServer(t, false, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -303,7 +306,7 @@ func TestDebug_SingleServer(t *testing.T) {
 }
 
 func TestDebug_Failures(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, _, url := testServer(t, false, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -356,7 +359,7 @@ func TestDebug_Failures(t *testing.T) {
 }
 
 func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
@@ -407,7 +410,7 @@ func buildPathSlice(path string, files []string) []string {
 }
 
 func TestDebug_CapturedFiles(t *testing.T) {
-	// t.Parallel()
+	// ci.Parallel(t)
 	srv, _, url := testServer(t, true, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
@@ -517,7 +520,7 @@ func TestDebug_CapturedFiles(t *testing.T) {
 }
 
 func TestDebug_ExistingOutput(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
@@ -534,7 +537,7 @@ func TestDebug_ExistingOutput(t *testing.T) {
 }
 
 func TestDebug_Fail_Pprof(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Setup agent config with debug endpoints disabled
 	agentConfFunc := func(c *agent.Config) {
@@ -562,7 +565,7 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 }
 
 func TestDebug_StringToSlice(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		input    string
@@ -581,7 +584,7 @@ func TestDebug_StringToSlice(t *testing.T) {
 }
 
 func TestDebug_External(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// address calculation honors CONSUL_HTTP_SSL
 	// ssl: true - Correct alignment
@@ -623,7 +626,7 @@ func TestDebug_External(t *testing.T) {
 }
 
 func TestDebug_WriteBytes_Nil(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	var testDir, testFile, testPath string
 	var testBytes []byte
@@ -646,7 +649,7 @@ func TestDebug_WriteBytes_Nil(t *testing.T) {
 }
 
 func TestDebug_WriteBytes_PathEscapesSandbox(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	var testDir, testFile string
 	var testBytes []byte
@@ -669,7 +672,7 @@ func TestDebug_WriteBytes_PathEscapesSandbox(t *testing.T) {
 }
 
 func TestDebug_CollectConsul(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	if testing.Short() {
 		t.Skip("-short set; skipping")
 	}
@@ -724,7 +727,7 @@ func TestDebug_CollectConsul(t *testing.T) {
 }
 
 func TestDebug_CollectVault(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	if testing.Short() {
 		t.Skip("-short set; skipping")
 	}
@@ -768,6 +771,8 @@ func TestDebug_CollectVault(t *testing.T) {
 // TestDebug_RedirectError asserts that redirect errors are detected so they
 // can be translated into more understandable output.
 func TestDebug_RedirectError(t *testing.T) {
+	ci.Parallel(t)
+
 	// Create a test server that always returns the error many versions of
 	// Nomad return instead of a 404 for unknown paths.
 	// 1st request redirects to /ui/
@@ -798,6 +803,8 @@ func TestDebug_RedirectError(t *testing.T) {
 // complete a debug run have their query options configured with the
 // -stale flag
 func TestDebug_StaleLeadership(t *testing.T) {
+	ci.Parallel(t)
+
 	srv, _, url := testServerWithoutLeader(t, false, nil)
 	addrServer := srv.HTTPAddr()
 
@@ -854,6 +861,8 @@ type testOutput struct {
 }
 
 func TestDebug_EventStream_TopicsFromString(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name      string
 		topicList string
@@ -914,6 +923,8 @@ func TestDebug_EventStream_TopicsFromString(t *testing.T) {
 }
 
 func TestDebug_EventStream(t *testing.T) {
+	ci.Parallel(t)
+
 	// TODO dmay: specify output directory to allow inspection of eventstream.json
 	// TODO dmay: require specific events in the eventstream.json file(s)
 	// TODO dmay: scenario where no events are expected, verify "No events captured"

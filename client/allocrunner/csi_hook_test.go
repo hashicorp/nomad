@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
@@ -29,6 +30,7 @@ var _ interfaces.RunnerPostrunHook = (*csiHook)(nil)
 // var _ interfaces.RunnerUpdateHook = (*csiHook)(nil)
 
 func TestCSIHook(t *testing.T) {
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	logger := testlog.HCLogger(t)
