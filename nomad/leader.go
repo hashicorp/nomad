@@ -123,20 +123,23 @@ func (s *Server) monitorLeadership() {
 func (s *Server) leadershipTransfer() error {
 	retryCount := 3
 	for i := 0; i < retryCount; i++ {
-		future := s.raft.LeadershipTransfer()
-		if err := future.Error(); err != nil {
-			s.logger.Error("failed to transfer leadership attempt, will retry",
-				"attempt", i,
-				"retry_limit", retryCount,
-				"error", err,
-			)
-		} else {
-			s.logger.Info("successfully transferred leadership",
-				"attempt", i,
-				"retry_limit", retryCount,
-			)
+		err := s.raft.LeadershipTransfer().Error()
+		if err == nil {
+			s.logger.Info("successfully transferred leadership")
 			return nil
 		}
+
+		// Don't retry if the Raft version doesn't support leadership transfer
+		// since this will never succeed.
+		if err == raft.ErrUnsupportedProtocol {
+			return fmt.Errorf("leadership transfer not supported with Raft version lower than 3")
+		}
+
+		s.logger.Error("failed to transfer leadership attempt, will retry",
+			"attempt", i,
+			"retry_limit", retryCount,
+			"error", err,
+		)
 	}
 	return fmt.Errorf("failed to transfer leadership in %d attempts", retryCount)
 }
