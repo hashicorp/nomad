@@ -686,6 +686,81 @@ func TestStateStore_Deployments(t *testing.T) {
 	require.False(t, watchFired(ws))
 }
 
+func TestStateStore_Deployments_Namespace(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	ns1 := mock.Namespace()
+	ns1.Name = "namespaced"
+	deploy1 := mock.Deployment()
+	deploy2 := mock.Deployment()
+	deploy1.Namespace = ns1.Name
+	deploy2.Namespace = ns1.Name
+
+	ns2 := mock.Namespace()
+	ns2.Name = "new-namespace"
+	deploy3 := mock.Deployment()
+	deploy4 := mock.Deployment()
+	deploy3.Namespace = ns2.Name
+	deploy4.Namespace = ns2.Name
+
+	require.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
+
+	// Create watchsets so we can test that update fires the watch
+	watches := []memdb.WatchSet{memdb.NewWatchSet(), memdb.NewWatchSet()}
+	_, err := state.DeploymentsByNamespace(watches[0], ns1.Name)
+	require.NoError(t, err)
+	_, err = state.DeploymentsByNamespace(watches[1], ns2.Name)
+	require.NoError(t, err)
+
+	require.NoError(t, state.UpsertDeployment(1001, deploy1))
+	require.NoError(t, state.UpsertDeployment(1002, deploy2))
+	require.NoError(t, state.UpsertDeployment(1003, deploy3))
+	require.NoError(t, state.UpsertDeployment(1004, deploy4))
+	require.True(t, watchFired(watches[0]))
+	require.True(t, watchFired(watches[1]))
+
+	ws := memdb.NewWatchSet()
+	iter1, err := state.DeploymentsByNamespace(ws, ns1.Name)
+	require.NoError(t, err)
+	iter2, err := state.DeploymentsByNamespace(ws, ns2.Name)
+	require.NoError(t, err)
+
+	var out1 []*structs.Deployment
+	for {
+		raw := iter1.Next()
+		if raw == nil {
+			break
+		}
+		out1 = append(out1, raw.(*structs.Deployment))
+	}
+
+	var out2 []*structs.Deployment
+	for {
+		raw := iter2.Next()
+		if raw == nil {
+			break
+		}
+		out2 = append(out2, raw.(*structs.Deployment))
+	}
+
+	require.Len(t, out1, 2)
+	require.Len(t, out2, 2)
+
+	for _, deploy := range out1 {
+		require.Equal(t, ns1.Name, deploy.Namespace)
+	}
+	for _, deploy := range out2 {
+		require.Equal(t, ns2.Name, deploy.Namespace)
+	}
+
+	index, err := state.Index("deployment")
+	require.NoError(t, err)
+	require.EqualValues(t, 1004, index)
+	require.False(t, watchFired(ws))
+}
+
 func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 	ci.Parallel(t)
 
@@ -769,6 +844,313 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 		}
 		require.Equal(t, expected, got)
 		require.False(t, watchFired(ws))
+	})
+}
+
+func TestStateStore_DeploymentsByIDPrefix_Namespaces(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	deploy1 := mock.Deployment()
+	deploy1.ID = "aabbbbbb-7bfb-395d-eb95-0685af2176b2"
+	deploy2 := mock.Deployment()
+	deploy2.ID = "aabbcbbb-7bfb-395d-eb95-0685af2176b2"
+	sharedPrefix := "aabb"
+
+	ns1 := mock.Namespace()
+	ns1.Name = "namespace1"
+	ns2 := mock.Namespace()
+	ns2.Name = "namespace2"
+	deploy1.Namespace = ns1.Name
+	deploy2.Namespace = ns2.Name
+
+	require.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
+	require.NoError(t, state.UpsertDeployment(1000, deploy1))
+	require.NoError(t, state.UpsertDeployment(1001, deploy2))
+
+	gatherDeploys := func(iter memdb.ResultIterator) []*structs.Deployment {
+		var deploys []*structs.Deployment
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			deploy := raw.(*structs.Deployment)
+			deploys = append(deploys, deploy)
+		}
+		return deploys
+	}
+
+	ws := memdb.NewWatchSet()
+	iter1, err := state.DeploymentsByIDPrefix(ws, ns1.Name, sharedPrefix, SortDefault)
+	require.NoError(t, err)
+	iter2, err := state.DeploymentsByIDPrefix(ws, ns2.Name, sharedPrefix, SortDefault)
+	require.NoError(t, err)
+
+	deploysNs1 := gatherDeploys(iter1)
+	deploysNs2 := gatherDeploys(iter2)
+	require.Len(t, deploysNs1, 1)
+	require.Len(t, deploysNs2, 1)
+
+	iter1, err = state.DeploymentsByIDPrefix(ws, ns1.Name, deploy1.ID[:8], SortDefault)
+	require.NoError(t, err)
+
+	deploysNs1 = gatherDeploys(iter1)
+	require.Len(t, deploysNs1, 1)
+	require.False(t, watchFired(ws))
+}
+
+func TestStateStore_UpsertNamespaces(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+
+	// Create a watchset so we can test that upsert fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NamespaceByName(ws, ns1.Name)
+	require.NoError(t, err)
+
+	require.NoError(t, state.UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2}))
+	require.True(t, watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NamespaceByName(ws, ns1.Name)
+	require.NoError(t, err)
+	require.Equal(t, ns1, out)
+
+	out, err = state.NamespaceByName(ws, ns2.Name)
+	require.NoError(t, err)
+	require.Equal(t, ns2, out)
+
+	index, err := state.Index(TableNamespaces)
+	require.NoError(t, err)
+	require.EqualValues(t, 1000, index)
+	require.False(t, watchFired(ws))
+}
+
+func TestStateStore_DeleteNamespaces(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+
+	require.NoError(t, state.UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2}))
+
+	// Create a watchset so we can test that delete fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NamespaceByName(ws, ns1.Name)
+	require.NoError(t, err)
+
+	require.NoError(t, state.DeleteNamespaces(1001, []string{ns1.Name, ns2.Name}))
+	require.True(t, watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NamespaceByName(ws, ns1.Name)
+	require.NoError(t, err)
+	require.Nil(t, out)
+
+	out, err = state.NamespaceByName(ws, ns2.Name)
+	require.NoError(t, err)
+	require.Nil(t, out)
+
+	index, err := state.Index(TableNamespaces)
+	require.NoError(t, err)
+	require.EqualValues(t, 1001, index)
+	require.False(t, watchFired(ws))
+}
+
+func TestStateStore_DeleteNamespaces_Default(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	ns := mock.Namespace()
+	ns.Name = structs.DefaultNamespace
+	require.NoError(t, state.UpsertNamespaces(1000, []*structs.Namespace{ns}))
+
+	err := state.DeleteNamespaces(1002, []string{ns.Name})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "can not be deleted")
+}
+
+func TestStateStore_DeleteNamespaces_NonTerminalJobs(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	ns := mock.Namespace()
+	require.NoError(t, state.UpsertNamespaces(1000, []*structs.Namespace{ns}))
+
+	job := mock.Job()
+	job.Namespace = ns.Name
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, job))
+
+	// Create a watchset so we can test that delete fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+
+	err = state.DeleteNamespaces(1002, []string{ns.Name})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "one non-terminal")
+	require.False(t, watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+
+	index, err := state.Index(TableNamespaces)
+	require.NoError(t, err)
+	require.EqualValues(t, 1000, index)
+	require.False(t, watchFired(ws))
+}
+
+func TestStateStore_Namespaces(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	var namespaces []*structs.Namespace
+
+	for i := 0; i < 10; i++ {
+		ns := mock.Namespace()
+		namespaces = append(namespaces, ns)
+	}
+
+	require.NoError(t, state.UpsertNamespaces(1000, namespaces))
+
+	// Create a watchset so we can test that getters don't cause it to fire
+	ws := memdb.NewWatchSet()
+	iter, err := state.Namespaces(ws)
+	require.NoError(t, err)
+
+	var out []*structs.Namespace
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		ns := raw.(*structs.Namespace)
+		if ns.Name == structs.DefaultNamespace {
+			continue
+		}
+		out = append(out, ns)
+	}
+
+	namespaceSort(namespaces)
+	namespaceSort(out)
+	require.Equal(t, namespaces, out)
+	require.False(t, watchFired(ws))
+}
+
+func TestStateStore_NamespaceNames(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	var namespaces []*structs.Namespace
+	expectedNames := []string{structs.DefaultNamespace}
+
+	for i := 0; i < 10; i++ {
+		ns := mock.Namespace()
+		namespaces = append(namespaces, ns)
+		expectedNames = append(expectedNames, ns.Name)
+	}
+
+	err := state.UpsertNamespaces(1000, namespaces)
+	require.NoError(t, err)
+
+	found, err := state.NamespaceNames()
+	require.NoError(t, err)
+
+	sort.Strings(expectedNames)
+	sort.Strings(found)
+
+	require.Equal(t, expectedNames, found)
+}
+
+func TestStateStore_NamespaceByNamePrefix(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	ns := mock.Namespace()
+
+	ns.Name = "foobar"
+	require.NoError(t, state.UpsertNamespaces(1000, []*structs.Namespace{ns}))
+
+	// Create a watchset so we can test that getters don't cause it to fire
+	ws := memdb.NewWatchSet()
+	iter, err := state.NamespacesByNamePrefix(ws, ns.Name)
+	require.NoError(t, err)
+
+	gatherNamespaces := func(iter memdb.ResultIterator) []*structs.Namespace {
+		var namespaces []*structs.Namespace
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			ns := raw.(*structs.Namespace)
+			namespaces = append(namespaces, ns)
+		}
+		return namespaces
+	}
+
+	namespaces := gatherNamespaces(iter)
+	require.Len(t, namespaces, 1)
+	require.False(t, watchFired(ws))
+
+	iter, err = state.NamespacesByNamePrefix(ws, "foo")
+	require.NoError(t, err)
+
+	namespaces = gatherNamespaces(iter)
+	require.Len(t, namespaces, 1)
+
+	ns = mock.Namespace()
+	ns.Name = "foozip"
+	err = state.UpsertNamespaces(1001, []*structs.Namespace{ns})
+	require.NoError(t, err)
+	require.True(t, watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	iter, err = state.NamespacesByNamePrefix(ws, "foo")
+	require.NoError(t, err)
+
+	namespaces = gatherNamespaces(iter)
+	require.Len(t, namespaces, 2)
+
+	iter, err = state.NamespacesByNamePrefix(ws, "foob")
+	require.NoError(t, err)
+
+	namespaces = gatherNamespaces(iter)
+	require.Len(t, namespaces, 1)
+	require.False(t, watchFired(ws))
+}
+
+func TestStateStore_RestoreNamespace(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	ns := mock.Namespace()
+
+	restore, err := state.Restore()
+	require.NoError(t, err)
+
+	require.NoError(t, restore.NamespaceRestore(ns))
+	restore.Commit()
+
+	ws := memdb.NewWatchSet()
+	out, err := state.NamespaceByName(ws, ns.Name)
+	require.NoError(t, err)
+	require.Equal(t, out, ns)
+}
+
+// namespaceSort is used to sort namespaces by name
+func namespaceSort(namespaces []*structs.Namespace) {
+	sort.Slice(namespaces, func(i, j int) bool {
+		return namespaces[i].Name < namespaces[j].Name
 	})
 }
 
@@ -2168,6 +2550,163 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 	}
 }
 
+func TestStateStore_JobsByIDPrefix_Namespaces(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	job1 := mock.Job()
+	job2 := mock.Job()
+
+	ns1 := mock.Namespace()
+	ns1.Name = "namespace1"
+	ns2 := mock.Namespace()
+	ns2.Name = "namespace2"
+
+	jobID := "redis"
+	job1.ID = jobID
+	job2.ID = jobID
+	job1.Namespace = ns1.Name
+	job2.Namespace = ns2.Name
+
+	require.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2))
+
+	gatherJobs := func(iter memdb.ResultIterator) []*structs.Job {
+		var jobs []*structs.Job
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			jobs = append(jobs, raw.(*structs.Job))
+		}
+		return jobs
+	}
+
+	// Try full match
+	ws := memdb.NewWatchSet()
+	iter1, err := state.JobsByIDPrefix(ws, ns1.Name, jobID)
+	require.NoError(t, err)
+	iter2, err := state.JobsByIDPrefix(ws, ns2.Name, jobID)
+	require.NoError(t, err)
+
+	jobsNs1 := gatherJobs(iter1)
+	require.Len(t, jobsNs1, 1)
+
+	jobsNs2 := gatherJobs(iter2)
+	require.Len(t, jobsNs2, 1)
+
+	// Try prefix
+	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "re")
+	require.NoError(t, err)
+	iter2, err = state.JobsByIDPrefix(ws, ns2.Name, "re")
+	require.NoError(t, err)
+
+	jobsNs1 = gatherJobs(iter1)
+	jobsNs2 = gatherJobs(iter2)
+	require.Len(t, jobsNs1, 1)
+	require.Len(t, jobsNs2, 1)
+
+	job3 := mock.Job()
+	job3.ID = "riak"
+	job3.Namespace = ns1.Name
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1003, job3))
+	require.True(t, watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "r")
+	require.NoError(t, err)
+	iter2, err = state.JobsByIDPrefix(ws, ns2.Name, "r")
+	require.NoError(t, err)
+
+	jobsNs1 = gatherJobs(iter1)
+	jobsNs2 = gatherJobs(iter2)
+	require.Len(t, jobsNs1, 2)
+	require.Len(t, jobsNs2, 1)
+
+	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "ri")
+	require.NoError(t, err)
+
+	jobsNs1 = gatherJobs(iter1)
+	require.Len(t, jobsNs1, 1)
+	require.False(t, watchFired(ws))
+}
+
+func TestStateStore_JobsByNamespace(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	ns1 := mock.Namespace()
+	ns1.Name = "new"
+	job1 := mock.Job()
+	job2 := mock.Job()
+	job1.Namespace = ns1.Name
+	job2.Namespace = ns1.Name
+
+	ns2 := mock.Namespace()
+	ns2.Name = "new-namespace"
+	job3 := mock.Job()
+	job4 := mock.Job()
+	job3.Namespace = ns2.Name
+	job4.Namespace = ns2.Name
+
+	require.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
+
+	// Create watchsets so we can test that update fires the watch
+	watches := []memdb.WatchSet{memdb.NewWatchSet(), memdb.NewWatchSet()}
+	_, err := state.JobsByNamespace(watches[0], ns1.Name)
+	require.NoError(t, err)
+	_, err = state.JobsByNamespace(watches[1], ns2.Name)
+	require.NoError(t, err)
+
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, job1))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1002, job2))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1003, job3))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1004, job4))
+	require.True(t, watchFired(watches[0]))
+	require.True(t, watchFired(watches[1]))
+
+	ws := memdb.NewWatchSet()
+	iter1, err := state.JobsByNamespace(ws, ns1.Name)
+	require.NoError(t, err)
+	iter2, err := state.JobsByNamespace(ws, ns2.Name)
+	require.NoError(t, err)
+
+	var out1 []*structs.Job
+	for {
+		raw := iter1.Next()
+		if raw == nil {
+			break
+		}
+		out1 = append(out1, raw.(*structs.Job))
+	}
+
+	var out2 []*structs.Job
+	for {
+		raw := iter2.Next()
+		if raw == nil {
+			break
+		}
+		out2 = append(out2, raw.(*structs.Job))
+	}
+
+	require.Len(t, out1, 2)
+	require.Len(t, out2, 2)
+
+	for _, job := range out1 {
+		require.Equal(t, ns1.Name, job.Namespace)
+	}
+	for _, job := range out2 {
+		require.Equal(t, ns2.Name, job.Namespace)
+	}
+
+	index, err := state.Index("jobs")
+	require.NoError(t, err)
+	require.EqualValues(t, 1004, index)
+	require.False(t, watchFired(ws))
+}
+
 func TestStateStore_JobsByPeriodic(t *testing.T) {
 	ci.Parallel(t)
 
@@ -3400,6 +3939,77 @@ func TestStateStore_UpsertEvals_CancelBlocked(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpsertEvals_Namespace(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	ns1 := mock.Namespace()
+	ns1.Name = "new"
+	eval1 := mock.Eval()
+	eval2 := mock.Eval()
+	eval1.Namespace = ns1.Name
+	eval2.Namespace = ns1.Name
+
+	ns2 := mock.Namespace()
+	ns2.Name = "new-namespace"
+	eval3 := mock.Eval()
+	eval4 := mock.Eval()
+	eval3.Namespace = ns2.Name
+	eval4.Namespace = ns2.Name
+
+	require.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
+
+	// Create watchsets so we can test that update fires the watch
+	watches := []memdb.WatchSet{memdb.NewWatchSet(), memdb.NewWatchSet()}
+	_, err := state.EvalsByNamespace(watches[0], ns1.Name)
+	require.NoError(t, err)
+	_, err = state.EvalsByNamespace(watches[1], ns2.Name)
+	require.NoError(t, err)
+
+	require.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval1, eval2, eval3, eval4}))
+	require.True(t, watchFired(watches[0]))
+	require.True(t, watchFired(watches[1]))
+
+	ws := memdb.NewWatchSet()
+	iter1, err := state.EvalsByNamespace(ws, ns1.Name)
+	require.NoError(t, err)
+	iter2, err := state.EvalsByNamespace(ws, ns2.Name)
+	require.NoError(t, err)
+
+	var out1 []*structs.Evaluation
+	for {
+		raw := iter1.Next()
+		if raw == nil {
+			break
+		}
+		out1 = append(out1, raw.(*structs.Evaluation))
+	}
+
+	var out2 []*structs.Evaluation
+	for {
+		raw := iter2.Next()
+		if raw == nil {
+			break
+		}
+		out2 = append(out2, raw.(*structs.Evaluation))
+	}
+
+	require.Len(t, out1, 2)
+	require.Len(t, out2, 2)
+
+	for _, eval := range out1 {
+		require.Equal(t, ns1.Name, eval.Namespace)
+	}
+	for _, eval := range out2 {
+		require.Equal(t, ns2.Name, eval.Namespace)
+	}
+
+	index, err := state.Index("evals")
+	require.NoError(t, err)
+	require.EqualValues(t, 1001, index)
+	require.False(t, watchFired(ws))
+}
+
 func TestStateStore_Update_UpsertEvals_Eval(t *testing.T) {
 	ci.Parallel(t)
 
@@ -3937,6 +4547,57 @@ func TestStateStore_EvalsByIDPrefix(t *testing.T) {
 	})
 }
 
+func TestStateStore_EvalsByIDPrefix_Namespaces(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	eval1 := mock.Eval()
+	eval1.ID = "aabbbbbb-7bfb-395d-eb95-0685af2176b2"
+	eval2 := mock.Eval()
+	eval2.ID = "aabbcbbb-7bfb-395d-eb95-0685af2176b2"
+	sharedPrefix := "aabb"
+
+	ns1 := mock.Namespace()
+	ns1.Name = "namespace1"
+	ns2 := mock.Namespace()
+	ns2.Name = "namespace2"
+	eval1.Namespace = ns1.Name
+	eval2.Namespace = ns2.Name
+
+	require.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
+	require.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2}))
+
+	gatherEvals := func(iter memdb.ResultIterator) []*structs.Evaluation {
+		var evals []*structs.Evaluation
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			evals = append(evals, raw.(*structs.Evaluation))
+		}
+		return evals
+	}
+
+	ws := memdb.NewWatchSet()
+	iter1, err := state.EvalsByIDPrefix(ws, ns1.Name, sharedPrefix, SortDefault)
+	require.NoError(t, err)
+	iter2, err := state.EvalsByIDPrefix(ws, ns2.Name, sharedPrefix, SortDefault)
+	require.NoError(t, err)
+
+	evalsNs1 := gatherEvals(iter1)
+	evalsNs2 := gatherEvals(iter2)
+	require.Len(t, evalsNs1, 1)
+	require.Len(t, evalsNs2, 1)
+
+	iter1, err = state.EvalsByIDPrefix(ws, ns1.Name, eval1.ID[:8], SortDefault)
+	require.NoError(t, err)
+
+	evalsNs1 = gatherEvals(iter1)
+	require.Len(t, evalsNs1, 1)
+	require.False(t, watchFired(ws))
+}
+
 func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	ci.Parallel(t)
 
@@ -4444,6 +5105,84 @@ func TestStateStore_UpsertAlloc_Deployment(t *testing.T) {
 	require.NotNil(dstate)
 	require.Equal(1, dstate.PlacedAllocs)
 	require.True(now.Add(pdeadline).Equal(dstate.RequireProgressBy))
+}
+
+func TestStateStore_UpsertAlloc_AllocsByNamespace(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	ns1 := mock.Namespace()
+	ns1.Name = "namespaced"
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc1.Namespace = ns1.Name
+	alloc1.Job.Namespace = ns1.Name
+	alloc2.Namespace = ns1.Name
+	alloc2.Job.Namespace = ns1.Name
+
+	ns2 := mock.Namespace()
+	ns2.Name = "new-namespace"
+	alloc3 := mock.Alloc()
+	alloc4 := mock.Alloc()
+	alloc3.Namespace = ns2.Name
+	alloc3.Job.Namespace = ns2.Name
+	alloc4.Namespace = ns2.Name
+	alloc4.Job.Namespace = ns2.Name
+
+	require.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc1.Job))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, alloc3.Job))
+
+	// Create watchsets so we can test that update fires the watch
+	watches := []memdb.WatchSet{memdb.NewWatchSet(), memdb.NewWatchSet()}
+	_, err := state.AllocsByNamespace(watches[0], ns1.Name)
+	require.NoError(t, err)
+	_, err = state.AllocsByNamespace(watches[1], ns2.Name)
+	require.NoError(t, err)
+
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc1, alloc2, alloc3, alloc4}))
+	require.True(t, watchFired(watches[0]))
+	require.True(t, watchFired(watches[1]))
+
+	ws := memdb.NewWatchSet()
+	iter1, err := state.AllocsByNamespace(ws, ns1.Name)
+	require.NoError(t, err)
+	iter2, err := state.AllocsByNamespace(ws, ns2.Name)
+	require.NoError(t, err)
+
+	var out1 []*structs.Allocation
+	for {
+		raw := iter1.Next()
+		if raw == nil {
+			break
+		}
+		out1 = append(out1, raw.(*structs.Allocation))
+	}
+
+	var out2 []*structs.Allocation
+	for {
+		raw := iter2.Next()
+		if raw == nil {
+			break
+		}
+		out2 = append(out2, raw.(*structs.Allocation))
+	}
+
+	require.Len(t, out1, 2)
+	require.Len(t, out2, 2)
+
+	for _, alloc := range out1 {
+		require.Equal(t, ns1.Name, alloc.Namespace)
+	}
+	for _, alloc := range out2 {
+		require.Equal(t, ns2.Name, alloc.Namespace)
+	}
+
+	index, err := state.Index("allocs")
+	require.NoError(t, err)
+	require.EqualValues(t, 1001, index)
+	require.False(t, watchFired(ws))
 }
 
 // Testing to ensure we keep issue
@@ -5448,6 +6187,59 @@ func TestStateStore_AllocsByIDPrefix(t *testing.T) {
 		require.Equal(t, expected, got)
 		require.False(t, watchFired(ws))
 	})
+}
+
+func TestStateStore_AllocsByIDPrefix_Namespaces(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	alloc1 := mock.Alloc()
+	alloc1.ID = "aabbbbbb-7bfb-395d-eb95-0685af2176b2"
+	alloc2 := mock.Alloc()
+	alloc2.ID = "aabbcbbb-7bfb-395d-eb95-0685af2176b2"
+	sharedPrefix := "aabb"
+
+	ns1 := mock.Namespace()
+	ns1.Name = "namespace1"
+	ns2 := mock.Namespace()
+	ns2.Name = "namespace2"
+
+	alloc1.Namespace = ns1.Name
+	alloc2.Namespace = ns2.Name
+
+	require.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
+
+	gatherAllocs := func(iter memdb.ResultIterator) []*structs.Allocation {
+		var allocs []*structs.Allocation
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			alloc := raw.(*structs.Allocation)
+			allocs = append(allocs, alloc)
+		}
+		return allocs
+	}
+
+	ws := memdb.NewWatchSet()
+	iter1, err := state.AllocsByIDPrefix(ws, ns1.Name, sharedPrefix, SortDefault)
+	require.NoError(t, err)
+	iter2, err := state.AllocsByIDPrefix(ws, ns2.Name, sharedPrefix, SortDefault)
+	require.NoError(t, err)
+
+	allocsNs1 := gatherAllocs(iter1)
+	allocsNs2 := gatherAllocs(iter2)
+	require.Len(t, allocsNs1, 1)
+	require.Len(t, allocsNs2, 1)
+
+	iter1, err = state.AllocsByIDPrefix(ws, ns1.Name, alloc1.ID[:8], SortDefault)
+	require.NoError(t, err)
+
+	allocsNs1 = gatherAllocs(iter1)
+	require.Len(t, allocsNs1, 1)
+	require.False(t, watchFired(ws))
 }
 
 func TestStateStore_Allocs(t *testing.T) {
