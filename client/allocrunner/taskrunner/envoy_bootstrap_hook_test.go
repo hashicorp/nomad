@@ -15,6 +15,7 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -51,7 +52,7 @@ func writeTmp(t *testing.T, s string, fm os.FileMode) string {
 }
 
 func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// This test fails when running as root because the test case for checking
 	// the error condition when the file is unreadable fails (root can read the
@@ -92,7 +93,7 @@ func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 }
 
 func TestEnvoyBootstrapHook_decodeTriState(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require.Equal(t, "", decodeTriState(nil))
 	require.Equal(t, "true", decodeTriState(helper.BoolToPtr(true)))
@@ -116,7 +117,7 @@ var (
 )
 
 func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("excluding SI token", func(t *testing.T) {
 		ebArgs := envoyBootstrapArgs{
@@ -225,7 +226,7 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 }
 
 func TestEnvoyBootstrapHook_envoyBootstrapEnv(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	environment := []string{"foo=bar", "baz=1"}
 
@@ -289,7 +290,7 @@ type envoyConfig struct {
 // TestEnvoyBootstrapHook_with_SI_token asserts the bootstrap file written for
 // Envoy contains a Consul SI token.
 func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
 	testConsul := getTestConsul(t)
@@ -390,7 +391,7 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 // creates Envoy's bootstrap.json configuration based on Connect proxy sidecars
 // registered for the task.
 func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
 	testConsul := getTestConsul(t)
@@ -485,7 +486,7 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
 	testConsul := getTestConsul(t)
@@ -568,7 +569,7 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 // TestTaskRunner_EnvoyBootstrapHook_Noop asserts that the Envoy bootstrap hook
 // is a noop for non-Connect proxy sidecar / gateway tasks.
 func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
 	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap")
@@ -606,7 +607,7 @@ func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
 // bootstrap hook returns a Recoverable error if the bootstrap command runs but
 // fails.
 func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
 	testConsul := getTestConsul(t)
@@ -684,7 +685,7 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyBootstrapHook_retryTimeout(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
 	testConsul := getTestConsul(t)
@@ -811,6 +812,8 @@ func TestTaskRunner_EnvoyBootstrapHook_extractNameAndKind(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyBootstrapHook_grpcAddress(t *testing.T) {
+	ci.Parallel(t)
+
 	bridgeH := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(
 		mock.ConnectIngressGatewayAlloc("bridge"),
 		new(config.ConsulConfig),
@@ -840,6 +843,8 @@ func TestTaskRunner_EnvoyBootstrapHook_grpcAddress(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyBootstrapHook_isConnectKind(t *testing.T) {
+	ci.Parallel(t)
+
 	require.True(t, isConnectKind(structs.ConnectProxyPrefix))
 	require.True(t, isConnectKind(structs.ConnectIngressPrefix))
 	require.True(t, isConnectKind(structs.ConnectTerminatingPrefix))

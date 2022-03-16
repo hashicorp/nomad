@@ -1,8 +1,14 @@
 package config
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/hashicorp/nomad/ci"
+)
 
 func TestConfigRead(t *testing.T) {
+	ci.Parallel(t)
+
 	config := Config{}
 
 	actual := config.Read("cake")
@@ -19,6 +25,8 @@ func TestConfigRead(t *testing.T) {
 }
 
 func TestConfigReadDefault(t *testing.T) {
+	ci.Parallel(t)
+
 	config := Config{}
 
 	expected := "vanilla"

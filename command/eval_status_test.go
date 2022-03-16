@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
@@ -12,12 +13,12 @@ import (
 )
 
 func TestEvalStatusCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &EvalStatusCommand{}
 }
 
 func TestEvalStatusCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -62,8 +63,8 @@ func TestEvalStatusCommand_Fails(t *testing.T) {
 }
 
 func TestEvalStatusCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()

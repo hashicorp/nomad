@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
@@ -27,7 +28,7 @@ import (
 )
 
 func TestMonitor_Monitor_Remote_Client(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// start server and client
@@ -124,7 +125,7 @@ OUTER:
 }
 
 func TestMonitor_Monitor_RemoteServer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	foreignRegion := "foo"
 
 	// start servers
@@ -325,7 +326,7 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 }
 
 func TestMonitor_MonitorServer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// start server
@@ -419,7 +420,7 @@ OUTER:
 }
 
 func TestMonitor_Monitor_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// start server
@@ -524,7 +525,7 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 }
 
 func TestAgentProfile_RemoteClient(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// start server and client
@@ -648,7 +649,7 @@ func TestAgentProfile_RemoteRegion(t *testing.T) {
 }
 
 func TestAgentProfile_Server(t *testing.T) {
-
+	ci.Parallel(t)
 	// start servers
 	s1, cleanup := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
@@ -750,7 +751,7 @@ func TestAgentProfile_Server(t *testing.T) {
 }
 
 func TestAgentProfile_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// start server
@@ -809,7 +810,7 @@ func TestAgentProfile_ACL(t *testing.T) {
 }
 
 func TestAgentHost_Server(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// start servers
 	s1, cleanup := TestServer(t, func(c *Config) {
@@ -932,7 +933,7 @@ func TestAgentHost_Server(t *testing.T) {
 }
 
 func TestAgentHost_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// start server
 	s, root, cleanupS := TestACLServer(t, nil)
@@ -989,7 +990,7 @@ func TestAgentHost_ACL(t *testing.T) {
 }
 
 func TestAgentHost_ACLDebugRequired(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// start server
 	s, cleanupS := TestServer(t, func(c *Config) {

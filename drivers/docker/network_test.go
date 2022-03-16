@@ -1,14 +1,16 @@
 package docker
 
 import (
-	"github.com/hashicorp/nomad/plugins/drivers"
 	"testing"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDriver_createSandboxContainerConfig(t *testing.T) {
+	ci.Parallel(t)
 	testCases := []struct {
 		inputAllocID              string
 		inputNetworkCreateRequest *drivers.NetworkCreateRequest

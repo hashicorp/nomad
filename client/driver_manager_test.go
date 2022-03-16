@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
@@ -16,7 +17,7 @@ import (
 // TestDriverManager_Fingerprint_Run asserts that node is populated with
 // driver fingerprints
 func TestDriverManager_Fingerprint_Run(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testClient, cleanup := TestClient(t, nil)
 	defer cleanup()
@@ -54,7 +55,7 @@ func TestDriverManager_Fingerprint_Run(t *testing.T) {
 // TestDriverManager_Fingerprint_Run asserts that node is populated with
 // driver fingerprints and it's updated periodically
 func TestDriverManager_Fingerprint_Periodic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		pluginConfig := []*nconfig.PluginConfig{
@@ -124,7 +125,7 @@ func TestDriverManager_Fingerprint_Periodic(t *testing.T) {
 // TestDriverManager_NodeAttributes_Run asserts that node attributes are populated
 // in addition to node.Drivers until we fully deprecate it
 func TestDriverManager_NodeAttributes_Run(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{

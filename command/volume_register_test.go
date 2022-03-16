@@ -5,11 +5,12 @@ import (
 
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestVolumeDispatchParse(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		hcl string
@@ -43,7 +44,7 @@ rando = "bar"
 }
 
 func TestCSIVolumeDecode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		name     string

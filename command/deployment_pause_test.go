@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -11,12 +12,12 @@ import (
 )
 
 func TestDeploymentPauseCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &DeploymentPauseCommand{}
 }
 
 func TestDeploymentPauseCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &DeploymentPauseCommand{Meta: Meta{Ui: ui}}
 
@@ -39,8 +40,8 @@ func TestDeploymentPauseCommand_Fails(t *testing.T) {
 }
 
 func TestDeploymentPauseCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()

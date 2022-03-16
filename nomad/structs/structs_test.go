@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 
 	"github.com/kr/pretty"
@@ -18,6 +19,8 @@ import (
 )
 
 func TestJob_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	j := &Job{}
 	err := j.Validate()
 	requireErrors(t, err,
@@ -97,6 +100,8 @@ func TestJob_Validate(t *testing.T) {
 }
 
 func TestJob_ValidateScaling(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	p := &ScalingPolicy{
@@ -141,6 +146,8 @@ func TestJob_ValidateScaling(t *testing.T) {
 }
 
 func TestJob_ValidateNullChar(t *testing.T) {
+	ci.Parallel(t)
+
 	assert := assert.New(t)
 
 	// job id should not allow null characters
@@ -165,6 +172,8 @@ func TestJob_ValidateNullChar(t *testing.T) {
 }
 
 func TestJob_Warnings(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name     string
 		Job      *Job
@@ -269,6 +278,8 @@ func TestJob_Warnings(t *testing.T) {
 }
 
 func TestJob_SpecChanged(t *testing.T) {
+	ci.Parallel(t)
+
 	// Get a base test job
 	base := testJob()
 
@@ -411,6 +422,8 @@ func testJob() *Job {
 }
 
 func TestJob_Copy(t *testing.T) {
+	ci.Parallel(t)
+
 	j := testJob()
 	c := j.Copy()
 	if !reflect.DeepEqual(j, c) {
@@ -419,6 +432,8 @@ func TestJob_Copy(t *testing.T) {
 }
 
 func TestJob_IsPeriodic(t *testing.T) {
+	ci.Parallel(t)
+
 	j := &Job{
 		Type: JobTypeService,
 		Periodic: &PeriodicConfig{
@@ -438,6 +453,8 @@ func TestJob_IsPeriodic(t *testing.T) {
 }
 
 func TestJob_IsPeriodicActive(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		job    *Job
 		active bool
@@ -548,6 +565,8 @@ func TestJob_SystemJob_Validate(t *testing.T) {
 }
 
 func TestJob_VaultPolicies(t *testing.T) {
+	ci.Parallel(t)
+
 	j0 := &Job{}
 	e0 := make(map[string]map[string]*Vault, 0)
 
@@ -631,7 +650,7 @@ func TestJob_VaultPolicies(t *testing.T) {
 }
 
 func TestJob_ConnectTasks(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	j0 := &Job{
@@ -696,6 +715,8 @@ func TestJob_ConnectTasks(t *testing.T) {
 }
 
 func TestJob_RequiredSignals(t *testing.T) {
+	ci.Parallel(t)
+
 	j0 := &Job{}
 	e0 := make(map[string]map[string][]string, 0)
 
@@ -808,6 +829,8 @@ func TestJob_RequiredSignals(t *testing.T) {
 
 // test new Equal comparisons for components of Jobs
 func TestJob_PartEqual(t *testing.T) {
+	ci.Parallel(t)
+
 	ns := &Networks{}
 	require.True(t, ns.Equals(&Networks{}))
 
@@ -853,7 +876,7 @@ func TestJob_PartEqual(t *testing.T) {
 }
 
 func TestTask_UsesConnect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("normal task", func(t *testing.T) {
 		task := testJob().TaskGroups[0].Tasks[0]
@@ -899,7 +922,7 @@ func TestTask_UsesConnect(t *testing.T) {
 }
 
 func TestTaskGroup_UsesConnect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	try := func(t *testing.T, tg *TaskGroup, exp bool) {
 		result := tg.UsesConnect()
@@ -947,6 +970,8 @@ func TestTaskGroup_UsesConnect(t *testing.T) {
 }
 
 func TestTaskGroup_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	j := testJob()
 	tg := &TaskGroup{
 		Count: -1,
@@ -1227,6 +1252,8 @@ func TestTaskGroup_Validate(t *testing.T) {
 }
 
 func TestTaskGroupNetwork_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		TG          *TaskGroup
 		ErrContains string
@@ -1488,6 +1515,8 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 }
 
 func TestTask_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	task := &Task{}
 	ephemeralDisk := DefaultEphemeralDisk()
 	err := task.Validate(ephemeralDisk, JobTypeBatch, nil, nil)
@@ -1533,6 +1562,8 @@ func TestTask_Validate(t *testing.T) {
 }
 
 func TestTask_Validate_Resources(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name string
 		res  *Resources
@@ -1627,6 +1658,8 @@ func TestTask_Validate_Resources(t *testing.T) {
 }
 
 func TestNetworkResource_Copy(t *testing.T) {
+	ci.Parallel(t)
+
 	testCases := []struct {
 		inputNetworkResource *NetworkResource
 		name                 string
@@ -1686,6 +1719,8 @@ func TestNetworkResource_Copy(t *testing.T) {
 }
 
 func TestTask_Validate_Services(t *testing.T) {
+	ci.Parallel(t)
+
 	s1 := &Service{
 		Name:      "service-name",
 		PortLabel: "bar",
@@ -1784,6 +1819,8 @@ func TestTask_Validate_Services(t *testing.T) {
 }
 
 func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
+	ci.Parallel(t)
+
 	ephemeralDisk := DefaultEphemeralDisk()
 	getTask := func(s *Service) *Task {
 		task := &Task{
@@ -1845,6 +1882,8 @@ func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
 }
 
 func TestTask_Validate_Service_AddressMode_Bad(t *testing.T) {
+	ci.Parallel(t)
+
 	ephemeralDisk := DefaultEphemeralDisk()
 	getTask := func(s *Service) *Task {
 		return &Task{
@@ -1898,6 +1937,7 @@ func TestTask_Validate_Service_AddressMode_Bad(t *testing.T) {
 }
 
 func TestTask_Validate_Service_Check(t *testing.T) {
+	ci.Parallel(t)
 
 	invalidCheck := ServiceCheck{
 		Name:     "check-name",
@@ -2005,6 +2045,8 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 // TestTask_Validate_Service_Check_AddressMode asserts that checks do not
 // inherit address mode but do inherit ports.
 func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
+	ci.Parallel(t)
+
 	getTask := func(s *Service) (*Task, *TaskGroup) {
 		return &Task{
 				Services: []*Service{s},
@@ -2183,7 +2225,7 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 }
 
 func TestTask_Validate_Service_Check_GRPC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Bad (no port)
 	invalidGRPC := &ServiceCheck{
 		Type:     ServiceCheckGRPC,
@@ -2209,7 +2251,7 @@ func TestTask_Validate_Service_Check_GRPC(t *testing.T) {
 }
 
 func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	invalidCheckRestart := &CheckRestart{
 		Limit: -1,
 		Grace: -1,
@@ -2228,6 +2270,8 @@ func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {
 }
 
 func TestTask_Validate_ConnectProxyKind(t *testing.T) {
+	ci.Parallel(t)
+
 	ephemeralDisk := DefaultEphemeralDisk()
 	getTask := func(kind TaskKind, leader bool) *Task {
 		task := &Task{
@@ -2335,6 +2379,8 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 
 }
 func TestTask_Validate_LogConfig(t *testing.T) {
+	ci.Parallel(t)
+
 	task := &Task{
 		LogConfig: DefaultLogConfig(),
 	}
@@ -2347,6 +2393,8 @@ func TestTask_Validate_LogConfig(t *testing.T) {
 }
 
 func TestLogConfig_Equals(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("both nil", func(t *testing.T) {
 		a := (*LogConfig)(nil)
 		b := (*LogConfig)(nil)
@@ -2379,6 +2427,8 @@ func TestLogConfig_Equals(t *testing.T) {
 }
 
 func TestTask_Validate_CSIPluginConfig(t *testing.T) {
+	ci.Parallel(t)
+
 	table := []struct {
 		name          string
 		pc            *TaskCSIPluginConfig
@@ -2425,6 +2475,7 @@ func TestTask_Validate_CSIPluginConfig(t *testing.T) {
 }
 
 func TestTask_Validate_Template(t *testing.T) {
+	ci.Parallel(t)
 
 	bad := &Template{}
 	task := &Task{
@@ -2470,6 +2521,8 @@ func TestTask_Validate_Template(t *testing.T) {
 }
 
 func TestTemplate_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Tmpl         *Template
 		Fail         bool
@@ -2573,6 +2626,8 @@ func TestTemplate_Validate(t *testing.T) {
 }
 
 func TestConstraint_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	c := &Constraint{}
 	err := c.Validate()
 	require.Error(t, err, "Missing constraint operand")
@@ -2645,6 +2700,8 @@ func TestConstraint_Validate(t *testing.T) {
 }
 
 func TestAffinity_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	type tc struct {
 		affinity *Affinity
 		err      error
@@ -2731,6 +2788,8 @@ func TestAffinity_Validate(t *testing.T) {
 }
 
 func TestUpdateStrategy_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	u := &UpdateStrategy{
 		MaxParallel:      -1,
 		HealthCheck:      "foo",
@@ -2755,6 +2814,8 @@ func TestUpdateStrategy_Validate(t *testing.T) {
 }
 
 func TestResource_NetIndex(t *testing.T) {
+	ci.Parallel(t)
+
 	r := &Resources{
 		Networks: []*NetworkResource{
 			{Device: "eth0"},
@@ -2774,6 +2835,8 @@ func TestResource_NetIndex(t *testing.T) {
 }
 
 func TestResource_Add(t *testing.T) {
+	ci.Parallel(t)
+
 	r1 := &Resources{
 		CPU:      2000,
 		MemoryMB: 2048,
@@ -2820,6 +2883,8 @@ func TestResource_Add(t *testing.T) {
 }
 
 func TestResource_Add_Network(t *testing.T) {
+	ci.Parallel(t)
+
 	r1 := &Resources{}
 	r2 := &Resources{
 		Networks: []*NetworkResource{
@@ -2856,6 +2921,8 @@ func TestResource_Add_Network(t *testing.T) {
 }
 
 func TestComparableResources_Subtract(t *testing.T) {
+	ci.Parallel(t)
+
 	r1 := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
@@ -2931,6 +2998,8 @@ func TestComparableResources_Subtract(t *testing.T) {
 }
 
 func TestMemoryResources_Add(t *testing.T) {
+	ci.Parallel(t)
+
 	r := &AllocatedMemoryResources{}
 
 	// adding plain no max
@@ -2954,6 +3023,8 @@ func TestMemoryResources_Add(t *testing.T) {
 }
 
 func TestNodeNetworkResource_Copy(t *testing.T) {
+	ci.Parallel(t)
+
 	netResource := &NodeNetworkResource{
 		Mode:       "host",
 		Device:     "eth0",
@@ -2984,6 +3055,8 @@ func TestNodeNetworkResource_Copy(t *testing.T) {
 }
 
 func TestEncodeDecode(t *testing.T) {
+	ci.Parallel(t)
+
 	type FooRequest struct {
 		Foo string
 		Bar int
@@ -3028,6 +3101,8 @@ func BenchmarkEncodeDecode(b *testing.B) {
 }
 
 func TestInvalidServiceCheck(t *testing.T) {
+	ci.Parallel(t)
+
 	s := Service{
 		Name:      "service-name",
 		PortLabel: "bar",
@@ -3138,6 +3213,8 @@ func TestInvalidServiceCheck(t *testing.T) {
 }
 
 func TestDistinctCheckID(t *testing.T) {
+	ci.Parallel(t)
+
 	c1 := ServiceCheck{
 		Name:     "web-health",
 		Type:     "http",
@@ -3172,6 +3249,8 @@ func TestDistinctCheckID(t *testing.T) {
 }
 
 func TestService_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
 	job := "example"
 	taskGroup := "cache"
 	task := "redis"
@@ -3206,6 +3285,8 @@ func TestService_Canonicalize(t *testing.T) {
 }
 
 func TestService_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	s := Service{
 		Name: "testservice",
 	}
@@ -3231,6 +3312,8 @@ func TestService_Validate(t *testing.T) {
 }
 
 func TestService_Equals(t *testing.T) {
+	ci.Parallel(t)
+
 	s := Service{
 		Name: "testservice",
 	}
@@ -3276,6 +3359,8 @@ func TestService_Equals(t *testing.T) {
 }
 
 func TestJob_ExpandServiceNames(t *testing.T) {
+	ci.Parallel(t)
+
 	j := &Job{
 		Name: "my-job",
 		TaskGroups: []*TaskGroup{
@@ -3321,6 +3406,8 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 }
 
 func TestJob_CombinedTaskMeta(t *testing.T) {
+	ci.Parallel(t)
+
 	j := &Job{
 		Meta: map[string]string{
 			"job_test":   "job",
@@ -3366,6 +3453,8 @@ func TestJob_CombinedTaskMeta(t *testing.T) {
 }
 
 func TestPeriodicConfig_EnabledInvalid(t *testing.T) {
+	ci.Parallel(t)
+
 	// Create a config that is enabled but with no interval specified.
 	p := &PeriodicConfig{Enabled: true}
 	if err := p.Validate(); err == nil {
@@ -3392,6 +3481,8 @@ func TestPeriodicConfig_EnabledInvalid(t *testing.T) {
 }
 
 func TestPeriodicConfig_InvalidCron(t *testing.T) {
+	ci.Parallel(t)
+
 	specs := []string{"foo", "* *", "@foo"}
 	for _, spec := range specs {
 		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
@@ -3403,6 +3494,8 @@ func TestPeriodicConfig_InvalidCron(t *testing.T) {
 }
 
 func TestPeriodicConfig_ValidCron(t *testing.T) {
+	ci.Parallel(t)
+
 	specs := []string{"0 0 29 2 *", "@hourly", "0 0-15 * * *"}
 	for _, spec := range specs {
 		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
@@ -3414,6 +3507,8 @@ func TestPeriodicConfig_ValidCron(t *testing.T) {
 }
 
 func TestPeriodicConfig_NextCron(t *testing.T) {
+	ci.Parallel(t)
+
 	from := time.Date(2009, time.November, 10, 23, 22, 30, 0, time.UTC)
 
 	cases := []struct {
@@ -3454,6 +3549,8 @@ func TestPeriodicConfig_NextCron(t *testing.T) {
 }
 
 func TestPeriodicConfig_ValidTimeZone(t *testing.T) {
+	ci.Parallel(t)
+
 	zones := []string{"Africa/Abidjan", "America/Chicago", "Europe/Minsk", "UTC"}
 	for _, zone := range zones {
 		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: "0 0 29 2 * 1980", TimeZone: zone}
@@ -3465,6 +3562,8 @@ func TestPeriodicConfig_ValidTimeZone(t *testing.T) {
 }
 
 func TestPeriodicConfig_DST(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// On Sun, Mar 12, 2:00 am 2017: +1 hour UTC
@@ -3494,6 +3593,8 @@ func TestPeriodicConfig_DST(t *testing.T) {
 }
 
 func TestTaskLifecycleConfig_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	testCases := []struct {
 		name string
 		tlc  *TaskLifecycleConfig
@@ -3539,6 +3640,8 @@ func TestTaskLifecycleConfig_Validate(t *testing.T) {
 }
 
 func TestRestartPolicy_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	// Policy with acceptable restart options passes
 	p := &RestartPolicy{
 		Mode:     RestartPolicyModeFail,
@@ -3593,6 +3696,8 @@ func TestRestartPolicy_Validate(t *testing.T) {
 }
 
 func TestReschedulePolicy_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	type testCase struct {
 		desc             string
 		ReschedulePolicy *ReschedulePolicy
@@ -3784,6 +3889,8 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 }
 
 func TestAllocation_Index(t *testing.T) {
+	ci.Parallel(t)
+
 	a1 := Allocation{
 		Name:      "example.cache[1]",
 		TaskGroup: "cache",
@@ -3803,6 +3910,8 @@ func TestAllocation_Index(t *testing.T) {
 }
 
 func TestTaskArtifact_Validate_Source(t *testing.T) {
+	ci.Parallel(t)
+
 	valid := &TaskArtifact{GetterSource: "google.com"}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -3810,6 +3919,8 @@ func TestTaskArtifact_Validate_Source(t *testing.T) {
 }
 
 func TestTaskArtifact_Validate_Dest(t *testing.T) {
+	ci.Parallel(t)
+
 	valid := &TaskArtifact{GetterSource: "google.com"}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -3834,7 +3945,7 @@ func TestTaskArtifact_Validate_Dest(t *testing.T) {
 // TestTaskArtifact_Hash asserts an artifact's hash changes when any of the
 // fields change.
 func TestTaskArtifact_Hash(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []TaskArtifact{
 		{},
@@ -3919,6 +4030,8 @@ func TestTaskArtifact_Hash(t *testing.T) {
 }
 
 func TestAllocation_ShouldMigrate(t *testing.T) {
+	ci.Parallel(t)
+
 	alloc := Allocation{
 		PreviousAllocation: "123",
 		TaskGroup:          "foo",
@@ -4014,6 +4127,8 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 }
 
 func TestTaskArtifact_Validate_Checksum(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Input *TaskArtifact
 		Err   bool
@@ -4066,7 +4181,7 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 }
 
 func TestPlan_NormalizeAllocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	plan := &Plan{
 		NodeUpdate:      make(map[string][]*Allocation),
 		NodePreemptions: make(map[string][]*Allocation),
@@ -4097,7 +4212,7 @@ func TestPlan_NormalizeAllocations(t *testing.T) {
 }
 
 func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	plan := &Plan{
 		NodeUpdate: make(map[string][]*Allocation),
 	}
@@ -4126,7 +4241,7 @@ func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 }
 
 func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	plan := &Plan{
 		NodePreemptions: make(map[string][]*Allocation),
 	}
@@ -4151,7 +4266,7 @@ func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 }
 
 func TestAllocation_MsgPackTags(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	planType := reflect.TypeOf(Allocation{})
 
 	msgPackTags, _ := planType.FieldByName("_struct")
@@ -4160,7 +4275,7 @@ func TestAllocation_MsgPackTags(t *testing.T) {
 }
 
 func TestEvaluation_MsgPackTags(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	planType := reflect.TypeOf(Evaluation{})
 
 	msgPackTags, _ := planType.FieldByName("_struct")
@@ -4169,6 +4284,8 @@ func TestEvaluation_MsgPackTags(t *testing.T) {
 }
 
 func TestAllocation_Terminated(t *testing.T) {
+	ci.Parallel(t)
+
 	type desiredState struct {
 		ClientStatus  string
 		DesiredStatus string
@@ -4208,6 +4325,8 @@ func TestAllocation_Terminated(t *testing.T) {
 }
 
 func TestAllocation_ShouldReschedule(t *testing.T) {
+	ci.Parallel(t)
+
 	type testCase struct {
 		Desc               string
 		FailTime           time.Time
@@ -4344,6 +4463,8 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 }
 
 func TestAllocation_LastEventTime(t *testing.T) {
+	ci.Parallel(t)
+
 	type testCase struct {
 		desc                  string
 		taskState             map[string]*TaskState
@@ -4406,6 +4527,8 @@ func TestAllocation_LastEventTime(t *testing.T) {
 }
 
 func TestAllocation_NextDelay(t *testing.T) {
+	ci.Parallel(t)
+
 	type testCase struct {
 		desc                       string
 		reschedulePolicy           *ReschedulePolicy
@@ -4889,6 +5012,8 @@ func TestAllocation_NextDelay(t *testing.T) {
 }
 
 func TestAllocation_WaitClientStop(t *testing.T) {
+	ci.Parallel(t)
+
 	type testCase struct {
 		desc                   string
 		stop                   time.Duration
@@ -4948,6 +5073,8 @@ func TestAllocation_WaitClientStop(t *testing.T) {
 }
 
 func TestAllocation_Canonicalize_Old(t *testing.T) {
+	ci.Parallel(t)
+
 	alloc := MockAlloc()
 	alloc.AllocatedResources = nil
 	alloc.TaskResources = map[string]*Resources{
@@ -5001,6 +5128,8 @@ func TestAllocation_Canonicalize_Old(t *testing.T) {
 // TestAllocation_Canonicalize_New asserts that an alloc with latest
 // schema isn't modified with Canonicalize
 func TestAllocation_Canonicalize_New(t *testing.T) {
+	ci.Parallel(t)
+
 	alloc := MockAlloc()
 	copy := alloc.Copy()
 
@@ -5009,6 +5138,8 @@ func TestAllocation_Canonicalize_New(t *testing.T) {
 }
 
 func TestRescheduleTracker_Copy(t *testing.T) {
+	ci.Parallel(t)
+
 	type testCase struct {
 		original *RescheduleTracker
 		expected *RescheduleTracker
@@ -5036,6 +5167,8 @@ func TestRescheduleTracker_Copy(t *testing.T) {
 }
 
 func TestVault_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	v := &Vault{
 		Env:        true,
 		ChangeMode: VaultChangeModeNoop,
@@ -5062,6 +5195,8 @@ func TestVault_Validate(t *testing.T) {
 }
 
 func TestParameterizedJobConfig_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	d := &ParameterizedJobConfig{
 		Payload: "foo",
 	}
@@ -5080,6 +5215,8 @@ func TestParameterizedJobConfig_Validate(t *testing.T) {
 }
 
 func TestParameterizedJobConfig_Validate_NonBatch(t *testing.T) {
+	ci.Parallel(t)
+
 	job := testJob()
 	job.ParameterizedJob = &ParameterizedJobConfig{
 		Payload: DispatchPayloadOptional,
@@ -5092,6 +5229,8 @@ func TestParameterizedJobConfig_Validate_NonBatch(t *testing.T) {
 }
 
 func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
+	ci.Parallel(t)
+
 	// Setup a system Job with stop_after_client_disconnect set, which is invalid
 	job := testJob()
 	job.Type = JobTypeSystem
@@ -5119,6 +5258,8 @@ func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
 }
 
 func TestParameterizedJobConfig_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
 	d := &ParameterizedJobConfig{}
 	d.Canonicalize()
 	if d.Payload != DispatchPayloadOptional {
@@ -5127,6 +5268,8 @@ func TestParameterizedJobConfig_Canonicalize(t *testing.T) {
 }
 
 func TestDispatchPayloadConfig_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	d := &DispatchPayloadConfig{
 		File: "foo",
 	}
@@ -5150,6 +5293,8 @@ func TestDispatchPayloadConfig_Validate(t *testing.T) {
 }
 
 func TestScalingPolicy_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		input    *ScalingPolicy
@@ -5178,6 +5323,8 @@ func TestScalingPolicy_Canonicalize(t *testing.T) {
 }
 
 func TestScalingPolicy_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	type testCase struct {
 		name        string
 		input       *ScalingPolicy
@@ -5315,6 +5462,8 @@ func TestScalingPolicy_Validate(t *testing.T) {
 }
 
 func TestIsRecoverable(t *testing.T) {
+	ci.Parallel(t)
+
 	if IsRecoverable(nil) {
 		t.Errorf("nil should not be recoverable")
 	}
@@ -5333,6 +5482,8 @@ func TestIsRecoverable(t *testing.T) {
 }
 
 func TestACLTokenValidate(t *testing.T) {
+	ci.Parallel(t)
+
 	tk := &ACLToken{}
 
 	// Missing a type
@@ -5378,6 +5529,8 @@ func TestACLTokenValidate(t *testing.T) {
 }
 
 func TestACLTokenPolicySubset(t *testing.T) {
+	ci.Parallel(t)
+
 	tk := &ACLToken{
 		Type:     ACLClientToken,
 		Policies: []string{"foo", "bar", "baz"},
@@ -5403,6 +5556,8 @@ func TestACLTokenPolicySubset(t *testing.T) {
 }
 
 func TestACLTokenSetHash(t *testing.T) {
+	ci.Parallel(t)
+
 	tk := &ACLToken{
 		Name:     "foo",
 		Type:     ACLClientToken,
@@ -5423,6 +5578,8 @@ func TestACLTokenSetHash(t *testing.T) {
 }
 
 func TestACLPolicySetHash(t *testing.T) {
+	ci.Parallel(t)
+
 	ap := &ACLPolicy{
 		Name:        "foo",
 		Description: "great policy",
@@ -5442,6 +5599,8 @@ func TestACLPolicySetHash(t *testing.T) {
 }
 
 func TestTaskEventPopulate(t *testing.T) {
+	ci.Parallel(t)
+
 	prepopulatedEvent := NewTaskEvent(TaskSetup)
 	prepopulatedEvent.DisplayMessage = "Hola"
 	testcases := []struct {
@@ -5494,6 +5653,8 @@ func TestTaskEventPopulate(t *testing.T) {
 }
 
 func TestNetworkResourcesEquals(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	var networkResourcesTest = []struct {
 		input    []*NetworkResource
@@ -5653,7 +5814,7 @@ func TestNetworkResourcesEquals(t *testing.T) {
 }
 
 func TestNode_Canonicalize(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Make sure the eligiblity is set properly
@@ -5673,7 +5834,7 @@ func TestNode_Canonicalize(t *testing.T) {
 }
 
 func TestNode_Copy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	node := &Node{
@@ -5784,6 +5945,8 @@ func TestNode_Copy(t *testing.T) {
 }
 
 func TestNode_Sanitize(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	testCases := []*Node{
@@ -5809,6 +5972,8 @@ func TestNode_Sanitize(t *testing.T) {
 }
 
 func TestSpread_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	type tc struct {
 		spread *Spread
 		err    error
@@ -5924,6 +6089,8 @@ func TestSpread_Validate(t *testing.T) {
 }
 
 func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	cases := []struct {
 		Input  string
@@ -5970,6 +6137,8 @@ func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
 }
 
 func TestMultiregion_CopyCanonicalize(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	emptyOld := &Multiregion{}
@@ -6011,6 +6180,8 @@ func TestMultiregion_CopyCanonicalize(t *testing.T) {
 }
 
 func TestNodeResources_Copy(t *testing.T) {
+	ci.Parallel(t)
+
 	orig := &NodeResources{
 		Cpu: NodeCpuResources{
 			CpuShares:          int64(32000),
@@ -6057,6 +6228,8 @@ func TestNodeResources_Copy(t *testing.T) {
 }
 
 func TestNodeResources_Merge(t *testing.T) {
+	ci.Parallel(t)
+
 	res := &NodeResources{
 		Cpu: NodeCpuResources{
 			CpuShares:     int64(32000),
@@ -6105,6 +6278,8 @@ func TestNodeResources_Merge(t *testing.T) {
 }
 
 func TestAllocatedResources_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := map[string]struct {
 		input    *AllocatedResources
 		expected *AllocatedResources
@@ -6205,6 +6380,8 @@ func TestAllocatedResources_Canonicalize(t *testing.T) {
 }
 
 func TestAllocatedSharedResources_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
 	a := &AllocatedSharedResources{
 		Networks: []*NetworkResource{
 			{
@@ -6245,6 +6422,8 @@ func TestAllocatedSharedResources_Canonicalize(t *testing.T) {
 }
 
 func TestTaskGroup_validateScriptChecksInGroupServices(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("service task not set", func(t *testing.T) {
 		tg := &TaskGroup{
 			Name: "group1",
@@ -6311,6 +6490,8 @@ func TestTaskGroup_validateScriptChecksInGroupServices(t *testing.T) {
 }
 
 func TestComparableResources_Superset(t *testing.T) {
+	ci.Parallel(t)
+
 	base := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{

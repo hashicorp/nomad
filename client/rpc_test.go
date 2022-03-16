@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestRpc_streamingRpcConn_badEndpoint(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := nomad.TestServer(t, nil)
@@ -51,7 +52,7 @@ func TestRpc_streamingRpcConn_badEndpoint(t *testing.T) {
 }
 
 func TestRpc_streamingRpcConn_badEndpoint_TLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	const (

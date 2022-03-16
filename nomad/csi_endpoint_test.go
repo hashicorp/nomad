@@ -8,6 +8,7 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client"
 	cconfig "github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -20,7 +21,7 @@ import (
 )
 
 func TestCSIVolumeEndpoint_Get(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -66,7 +67,7 @@ func TestCSIVolumeEndpoint_Get(t *testing.T) {
 }
 
 func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -117,7 +118,7 @@ func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
 }
 
 func TestCSIVolumeEndpoint_Register(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -218,7 +219,7 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 // are honored only if the volume exists, the mode is permitted, and the volume
 // is schedulable according to its count of claims.
 func TestCSIVolumeEndpoint_Claim(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -373,7 +374,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 // TestCSIVolumeEndpoint_ClaimWithController exercises the VolumeClaim RPC
 // when a controller is required.
 func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -459,7 +460,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 }
 
 func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, shutdown := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
 	defer shutdown()
 	testutil.WaitForLeader(t, srv.RPC)
@@ -591,7 +592,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 }
 
 func TestCSIVolumeEndpoint_List(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -673,7 +674,7 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 }
 
 func TestCSIVolumeEndpoint_ListAllNamespaces(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -755,7 +756,7 @@ func TestCSIVolumeEndpoint_ListAllNamespaces(t *testing.T) {
 }
 
 func TestCSIVolumeEndpoint_Create(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var err error
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -892,7 +893,7 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 }
 
 func TestCSIVolumeEndpoint_Delete(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var err error
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -1006,7 +1007,7 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 }
 
 func TestCSIVolumeEndpoint_ListExternal(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var err error
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -1111,7 +1112,7 @@ func TestCSIVolumeEndpoint_ListExternal(t *testing.T) {
 }
 
 func TestCSIVolumeEndpoint_CreateSnapshot(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var err error
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -1212,7 +1213,7 @@ func TestCSIVolumeEndpoint_CreateSnapshot(t *testing.T) {
 }
 
 func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var err error
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -1292,7 +1293,7 @@ func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
 }
 
 func TestCSIVolumeEndpoint_ListSnapshots(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var err error
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -1388,7 +1389,7 @@ func TestCSIVolumeEndpoint_ListSnapshots(t *testing.T) {
 }
 
 func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -1460,7 +1461,7 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 }
 
 func TestCSIPluginEndpoint_RegisterViaJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, shutdown := TestServer(t, nil)
 	defer shutdown()
 	testutil.WaitForLeader(t, srv.RPC)
@@ -1537,7 +1538,7 @@ func TestCSIPluginEndpoint_RegisterViaJob(t *testing.T) {
 }
 
 func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -1618,6 +1619,8 @@ func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
 }
 
 func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
+	ci.Parallel(t)
+
 	srv, shutdown := TestServer(t, func(c *Config) {})
 	defer shutdown()
 	testutil.WaitForLeader(t, srv.RPC)

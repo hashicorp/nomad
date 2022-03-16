@@ -3,6 +3,7 @@ package scheduler
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -26,6 +27,8 @@ func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
 }
 
 func TestEvalContext_ProposedAlloc(t *testing.T) {
+	ci.Parallel(t)
+
 	state, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -155,7 +158,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 // See https://github.com/hashicorp/nomad/issues/6787
 //
 func TestEvalContext_ProposedAlloc_EvictPreempt(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	state, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -260,6 +263,8 @@ func TestEvalContext_ProposedAlloc_EvictPreempt(t *testing.T) {
 }
 
 func TestEvalEligibility_JobStatus(t *testing.T) {
+	ci.Parallel(t)
+
 	e := NewEvalEligibility()
 	cc := "v1:100"
 
@@ -281,6 +286,8 @@ func TestEvalEligibility_JobStatus(t *testing.T) {
 }
 
 func TestEvalEligibility_TaskGroupStatus(t *testing.T) {
+	ci.Parallel(t)
+
 	e := NewEvalEligibility()
 	cc := "v1:100"
 	tg := "foo"
@@ -303,6 +310,8 @@ func TestEvalEligibility_TaskGroupStatus(t *testing.T) {
 }
 
 func TestEvalEligibility_SetJob(t *testing.T) {
+	ci.Parallel(t)
+
 	e := NewEvalEligibility()
 	ne1 := &structs.Constraint{
 		LTarget: "${attr.kernel.name}",
@@ -348,6 +357,8 @@ func TestEvalEligibility_SetJob(t *testing.T) {
 }
 
 func TestEvalEligibility_GetClasses(t *testing.T) {
+	ci.Parallel(t)
+
 	e := NewEvalEligibility()
 	e.SetJobEligibility(true, "v1:1")
 	e.SetJobEligibility(false, "v1:2")
@@ -371,6 +382,8 @@ func TestEvalEligibility_GetClasses(t *testing.T) {
 	require.Equal(t, expClasses, actClasses)
 }
 func TestEvalEligibility_GetClasses_JobEligible_TaskGroupIneligible(t *testing.T) {
+	ci.Parallel(t)
+
 	e := NewEvalEligibility()
 	e.SetJobEligibility(true, "v1:1")
 	e.SetTaskGroupEligibility(false, "foo", "v1:1")
@@ -394,6 +407,8 @@ func TestEvalEligibility_GetClasses_JobEligible_TaskGroupIneligible(t *testing.T
 }
 
 func TestPortCollisionEvent_Copy(t *testing.T) {
+	ci.Parallel(t)
+
 	ev := &PortCollisionEvent{
 		Reason: "original",
 		Node:   mock.Node(),
@@ -424,6 +439,8 @@ func TestPortCollisionEvent_Copy(t *testing.T) {
 }
 
 func TestPortCollisionEvent_Sanitize(t *testing.T) {
+	ci.Parallel(t)
+
 	ev := &PortCollisionEvent{
 		Reason: "original",
 		Node:   mock.Node(),

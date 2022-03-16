@@ -1,13 +1,13 @@
 package nomad
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
-	"fmt"
-
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/consul/sdk/testutil/retry"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -67,7 +67,7 @@ func wantRaft(servers []*Server) error {
 }
 
 func TestAutopilot_CleanupDeadServer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	for i := 1; i <= 3; i++ {
 		testCleanupDeadServer(t, i)
 	}
@@ -126,7 +126,7 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 }
 
 func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	conf := func(c *Config) {
 		c.BootstrapExpect = 5
@@ -173,7 +173,7 @@ func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 }
 
 func TestAutopilot_RollingUpdate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	conf := func(c *Config) {
 		c.BootstrapExpect = 3
@@ -250,7 +250,7 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 
 func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
 	t.Skip("TestAutopilot_CleanupDeadServer is very flaky, removing it for now")
-	t.Parallel()
+	ci.Parallel(t)
 
 	conf := func(c *Config) {
 		c.BootstrapExpect = 3
@@ -299,7 +299,7 @@ func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
 }
 
 func TestAutopilot_PromoteNonVoter(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3

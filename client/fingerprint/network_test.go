@@ -7,6 +7,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -182,6 +183,8 @@ func (n *NetworkInterfaceDetectorMultipleInterfaces) Addrs(intf *net.Interface) 
 }
 
 func TestNetworkFingerprint_basic(t *testing.T) {
+	ci.Parallel(t)
+
 	if v := os.Getenv(skipOnlineTestsEnvVar); v != "" {
 		t.Skipf("Environment variable %+q not empty, skipping test", skipOnlineTestsEnvVar)
 	}
@@ -237,6 +240,8 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 }
 
 func TestNetworkFingerprint_default_device_absent(t *testing.T) {
+	ci.Parallel(t)
+
 	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorOnlyLo{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -260,6 +265,8 @@ func TestNetworkFingerprint_default_device_absent(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_default_device(t *testing.T) {
+	ci.Parallel(t)
+
 	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorOnlyLo{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -311,6 +318,8 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_LinkLocal_Allowed(t *testing.T) {
+	ci.Parallel(t)
+
 	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -358,6 +367,8 @@ func TestNetworkFingerPrint_LinkLocal_Allowed(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_LinkLocal_Allowed_MixedIntf(t *testing.T) {
+	ci.Parallel(t)
+
 	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -412,6 +423,8 @@ func TestNetworkFingerPrint_LinkLocal_Allowed_MixedIntf(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_LinkLocal_Disallowed(t *testing.T) {
+	ci.Parallel(t)
+
 	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -441,6 +454,8 @@ func TestNetworkFingerPrint_LinkLocal_Disallowed(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_MultipleAliases(t *testing.T) {
+	ci.Parallel(t)
+
 	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -488,6 +503,8 @@ func TestNetworkFingerPrint_MultipleAliases(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_HostNetworkReservedPorts(t *testing.T) {
+	ci.Parallel(t)
+
 	testCases := []struct {
 		name         string
 		hostNetworks map[string]*structs.ClientHostNetworkConfig

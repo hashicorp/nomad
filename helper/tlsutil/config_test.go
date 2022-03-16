@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/yamux"
 	"github.com/stretchr/testify/assert"
@@ -27,6 +28,8 @@ const (
 )
 
 func TestConfig_AppendCA_None(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	conf := &Config{}
@@ -37,6 +40,8 @@ func TestConfig_AppendCA_None(t *testing.T) {
 }
 
 func TestConfig_AppendCA_Valid(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	conf := &Config{
@@ -49,6 +54,8 @@ func TestConfig_AppendCA_Valid(t *testing.T) {
 }
 
 func TestConfig_AppendCA_Valid_MultipleCerts(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	certs := `
@@ -102,6 +109,8 @@ TttDu+g2VdbcBwVDZ49X2Md6OY2N3G8Irdlj+n+mCQJaHwVt52DRzz0=
 // TestConfig_AppendCA_Valid_Whitespace asserts that a PEM file containing
 // trailing whitespace is valid.
 func TestConfig_AppendCA_Valid_Whitespace(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	const cacertWhitespace = "./testdata/ca-whitespace.pem"
@@ -117,6 +126,8 @@ func TestConfig_AppendCA_Valid_Whitespace(t *testing.T) {
 // TestConfig_AppendCA_Invalid_MultipleCerts_Whitespace asserts that a PEM file
 // containing non-PEM data between certificate blocks is still valid.
 func TestConfig_AppendCA_Valid_MultipleCerts_ExtraData(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	certs := `
@@ -176,6 +187,8 @@ TttDu+g2VdbcBwVDZ49X2Md6OY2N3G8Irdlj+n+mCQJaHwVt52DRzz0=
 // TestConfig_AppendCA_Invalid_MultipleCerts asserts only the valid certificate
 // is returned.
 func TestConfig_AppendCA_Invalid_MultipleCerts(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	certs := `
@@ -214,6 +227,8 @@ Invalid
 }
 
 func TestConfig_AppendCA_Invalid(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	{
 		conf := &Config{
@@ -245,6 +260,8 @@ func TestConfig_AppendCA_Invalid(t *testing.T) {
 }
 
 func TestConfig_CACertificate_Valid(t *testing.T) {
+	ci.Parallel(t)
+
 	conf := &Config{
 		CAFile: cacert,
 	}
@@ -259,6 +276,8 @@ func TestConfig_CACertificate_Valid(t *testing.T) {
 }
 
 func TestConfig_LoadKeyPair_None(t *testing.T) {
+	ci.Parallel(t)
+
 	conf := &Config{
 		KeyLoader: &config.KeyLoader{},
 	}
@@ -272,6 +291,8 @@ func TestConfig_LoadKeyPair_None(t *testing.T) {
 }
 
 func TestConfig_LoadKeyPair_Valid(t *testing.T) {
+	ci.Parallel(t)
+
 	conf := &Config{
 		CertFile:  foocert,
 		KeyFile:   fookey,
@@ -287,6 +308,8 @@ func TestConfig_LoadKeyPair_Valid(t *testing.T) {
 }
 
 func TestConfig_OutgoingTLS_MissingCA(t *testing.T) {
+	ci.Parallel(t)
+
 	conf := &Config{
 		VerifyOutgoing: true,
 	}
@@ -300,6 +323,8 @@ func TestConfig_OutgoingTLS_MissingCA(t *testing.T) {
 }
 
 func TestConfig_OutgoingTLS_OnlyCA(t *testing.T) {
+	ci.Parallel(t)
+
 	conf := &Config{
 		CAFile: cacert,
 	}
@@ -313,6 +338,8 @@ func TestConfig_OutgoingTLS_OnlyCA(t *testing.T) {
 }
 
 func TestConfig_OutgoingTLS_VerifyOutgoing(t *testing.T) {
+	ci.Parallel(t)
+
 	conf := &Config{
 		VerifyOutgoing: true,
 		CAFile:         cacert,
@@ -333,6 +360,8 @@ func TestConfig_OutgoingTLS_VerifyOutgoing(t *testing.T) {
 }
 
 func TestConfig_OutgoingTLS_VerifyHostname(t *testing.T) {
+	ci.Parallel(t)
+
 	conf := &Config{
 		VerifyServerHostname: true,
 		CAFile:               cacert,
@@ -353,6 +382,8 @@ func TestConfig_OutgoingTLS_VerifyHostname(t *testing.T) {
 }
 
 func TestConfig_OutgoingTLS_WithKeyPair(t *testing.T) {
+	ci.Parallel(t)
+
 	assert := assert.New(t)
 
 	conf := &Config{
@@ -375,6 +406,8 @@ func TestConfig_OutgoingTLS_WithKeyPair(t *testing.T) {
 }
 
 func TestConfig_OutgoingTLS_PreferServerCipherSuites(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	{
@@ -399,6 +432,8 @@ func TestConfig_OutgoingTLS_PreferServerCipherSuites(t *testing.T) {
 }
 
 func TestConfig_OutgoingTLS_TLSCipherSuites(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	{
@@ -466,6 +501,8 @@ func startTLSServer(config *Config) (net.Conn, chan error) {
 
 // TODO sign the certificates for "server.regionFoo.nomad
 func TestConfig_outgoingWrapper_OK(t *testing.T) {
+	ci.Parallel(t)
+
 	config := &Config{
 		CAFile:               cacert,
 		CertFile:             foocert,
@@ -501,6 +538,7 @@ func TestConfig_outgoingWrapper_OK(t *testing.T) {
 }
 
 func TestConfig_outgoingWrapper_BadCert(t *testing.T) {
+	ci.Parallel(t)
 	// TODO this test is currently hanging, need to investigate more.
 	t.SkipNow()
 	config := &Config{
@@ -536,6 +574,8 @@ func TestConfig_outgoingWrapper_BadCert(t *testing.T) {
 }
 
 func TestConfig_wrapTLS_OK(t *testing.T) {
+	ci.Parallel(t)
+
 	config := &Config{
 		CAFile:         cacert,
 		CertFile:       foocert,
@@ -567,6 +607,8 @@ func TestConfig_wrapTLS_OK(t *testing.T) {
 }
 
 func TestConfig_wrapTLS_BadCert(t *testing.T) {
+	ci.Parallel(t)
+
 	serverConfig := &Config{
 		CAFile:    cacert,
 		CertFile:  badcert,
@@ -604,6 +646,8 @@ func TestConfig_wrapTLS_BadCert(t *testing.T) {
 }
 
 func TestConfig_IncomingTLS(t *testing.T) {
+	ci.Parallel(t)
+
 	assert := assert.New(t)
 
 	conf := &Config{
@@ -634,6 +678,8 @@ func TestConfig_IncomingTLS(t *testing.T) {
 }
 
 func TestConfig_IncomingTLS_MissingCA(t *testing.T) {
+	ci.Parallel(t)
+
 	conf := &Config{
 		VerifyIncoming: true,
 		CertFile:       foocert,
@@ -647,6 +693,8 @@ func TestConfig_IncomingTLS_MissingCA(t *testing.T) {
 }
 
 func TestConfig_IncomingTLS_MissingKey(t *testing.T) {
+	ci.Parallel(t)
+
 	conf := &Config{
 		VerifyIncoming: true,
 		CAFile:         cacert,
@@ -658,6 +706,8 @@ func TestConfig_IncomingTLS_MissingKey(t *testing.T) {
 }
 
 func TestConfig_IncomingTLS_NoVerify(t *testing.T) {
+	ci.Parallel(t)
+
 	conf := &Config{}
 	tlsC, err := conf.IncomingTLSConfig()
 	if err != nil {
@@ -678,6 +728,8 @@ func TestConfig_IncomingTLS_NoVerify(t *testing.T) {
 }
 
 func TestConfig_IncomingTLS_PreferServerCipherSuites(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	{
@@ -697,6 +749,8 @@ func TestConfig_IncomingTLS_PreferServerCipherSuites(t *testing.T) {
 }
 
 func TestConfig_IncomingTLS_TLSCipherSuites(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	{
@@ -725,6 +779,8 @@ func TestConfig_IncomingTLS_TLSCipherSuites(t *testing.T) {
 // This test relies on the fact that the specified certificate has an ECDSA
 // signature algorithm
 func TestConfig_ParseCiphers_Valid(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	tlsConfig := &config.TLSConfig{
@@ -780,6 +836,8 @@ func TestConfig_ParseCiphers_Valid(t *testing.T) {
 // This test relies on the fact that the specified certificate has an ECDSA
 // signature algorithm
 func TestConfig_ParseCiphers_Default(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	expectedCiphers := []uint16{
@@ -808,6 +866,8 @@ func TestConfig_ParseCiphers_Default(t *testing.T) {
 // This test relies on the fact that the specified certificate has an ECDSA
 // signature algorithm
 func TestConfig_ParseCiphers_Invalid(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	invalidCiphers := []string{
@@ -832,6 +892,8 @@ func TestConfig_ParseCiphers_Invalid(t *testing.T) {
 // This test relies on the fact that the specified certificate has an ECDSA
 // signature algorithm
 func TestConfig_ParseCiphers_SupportedSignature(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Supported signature
@@ -862,6 +924,8 @@ func TestConfig_ParseCiphers_SupportedSignature(t *testing.T) {
 }
 
 func TestConfig_ParseMinVersion_Valid(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	validVersions := []string{"tls10",
@@ -883,6 +947,8 @@ func TestConfig_ParseMinVersion_Valid(t *testing.T) {
 }
 
 func TestConfig_ParseMinVersion_Invalid(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	invalidVersions := []string{"tls13",
@@ -898,6 +964,8 @@ func TestConfig_ParseMinVersion_Invalid(t *testing.T) {
 }
 
 func TestConfig_NewTLSConfiguration(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	conf := &config.TLSConfig{
@@ -920,6 +988,8 @@ func TestConfig_NewTLSConfiguration(t *testing.T) {
 }
 
 func TestConfig_ShouldReloadRPCConnections(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	type shouldReloadTestInput struct {

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/freeport"
 	tu "github.com/hashicorp/nomad/testutil"
@@ -16,6 +17,8 @@ import (
 )
 
 func TestDockerDriver_authFromHelper(t *testing.T) {
+	ci.Parallel(t)
+
 	dir, err := ioutil.TempDir("", "test-docker-driver_authfromhelper")
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
@@ -46,9 +49,8 @@ func TestDockerDriver_authFromHelper(t *testing.T) {
 }
 
 func TestDockerDriver_PidsLimit(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
+
 	testutil.DockerCompatible(t)
 	require := require.New(t)
 

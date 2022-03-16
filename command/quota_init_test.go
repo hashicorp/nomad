@@ -5,17 +5,18 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
 
 func TestQuotaInitCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &QuotaInitCommand{}
 }
 
 func TestQuotaInitCommand_Run_HCL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &QuotaInitCommand{Meta: Meta{Ui: ui}}
 
@@ -64,7 +65,7 @@ func TestQuotaInitCommand_Run_HCL(t *testing.T) {
 }
 
 func TestQuotaInitCommand_Run_JSON(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &QuotaInitCommand{Meta: Meta{Ui: ui}}
 

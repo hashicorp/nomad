@@ -3,6 +3,7 @@ package command
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
@@ -10,7 +11,7 @@ import (
 var _ cli.Command = &OperatorMetricsCommand{}
 
 func TestCommand_Metrics_Cases(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
