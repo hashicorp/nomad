@@ -53,10 +53,11 @@ mounted to the task's `NOMAD_TASK_DIR` instead of the
 
 #### Raft leadership transfer on error
 
-Starting with Nomad 1.3.0, when a Nomad leader fails to establish leadership it
-will attempted to gracefully transfer leadership to another eligible server in
-the cluster. This operation is only supported when using Raft Protocol Version
-3.
+Starting with Nomad 1.3.0, when a Nomad server is elected the Raft leader but
+fails to complete the process to start acting as the Nomad leader it will
+attempt to gracefully transfer its Raft leadership status to another eligible
+server in the cluster. This operation is only supported when using Raft
+Protocol Version 3.
 
 #### Server Raft Database
 
