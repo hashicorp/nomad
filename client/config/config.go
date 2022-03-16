@@ -64,6 +64,8 @@ var (
 	}
 
 	DefaultTemplateMaxStale = 5 * time.Second
+
+	DefaultTemplateFunctionDenylist = []string{"plugin", "writeToFile"}
 )
 
 // RPCHandler can be provided to the Client if there is a local server
@@ -358,7 +360,13 @@ func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 
 	nc := new(ClientTemplateConfig)
 	*nc = *c
-	nc.FunctionDenylist = helper.CopySliceString(nc.FunctionDenylist)
+
+	if len(c.FunctionDenylist) > 0 {
+		nc.FunctionDenylist = helper.CopySliceString(nc.FunctionDenylist)
+	} else if c.FunctionDenylist != nil {
+		// Explicitly no functions denied (which is different than nil)
+		nc.FunctionDenylist = []string{}
+	}
 
 	if c.BlockQueryWaitTime != nil {
 		nc.BlockQueryWaitTime = &*c.BlockQueryWaitTime
@@ -416,6 +424,9 @@ func (c *ClientTemplateConfig) Merge(b *ClientTemplateConfig) *ClientTemplateCon
 				result.FunctionBlacklist = append(result.FunctionBlacklist, fn)
 			}
 		}
+	} else if b.FunctionBlacklist != nil {
+		// No funcs denied
+		result.FunctionBlacklist = []string{}
 	}
 
 	if len(b.FunctionDenylist) > 0 {
@@ -424,6 +435,9 @@ func (c *ClientTemplateConfig) Merge(b *ClientTemplateConfig) *ClientTemplateCon
 				result.FunctionDenylist = append(result.FunctionDenylist, fn)
 			}
 		}
+	} else if b.FunctionDenylist != nil {
+		// No funcs denied
+		result.FunctionDenylist = []string{}
 	}
 
 	if b.MaxStale != nil {
@@ -455,8 +469,8 @@ func (c *ClientTemplateConfig) IsEmpty() bool {
 	}
 
 	return !c.DisableSandbox &&
-		len(c.FunctionDenylist) == 0 &&
-		len(c.FunctionBlacklist) == 0 &&
+		c.FunctionDenylist == nil &&
+		c.FunctionBlacklist == nil &&
 		c.BlockQueryWaitTime == nil &&
 		c.BlockQueryWaitTimeHCL == "" &&
 		c.MaxStale == nil &&
@@ -770,7 +784,7 @@ func DefaultConfig() *Config {
 		NoHostUUID:              true,
 		DisableRemoteExec:       false,
 		TemplateConfig: &ClientTemplateConfig{
-			FunctionDenylist: []string{"plugin"},
+			FunctionDenylist: DefaultTemplateFunctionDenylist,
 			DisableSandbox:   false,
 		},
 		RPCHoldTimeout:     5 * time.Second,

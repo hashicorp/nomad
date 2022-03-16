@@ -1,14 +1,17 @@
 package template
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -55,7 +58,7 @@ type MockTaskHooks struct {
 	UnblockCh chan struct{}
 
 	KillEvent *structs.TaskEvent
-	KillCh    chan struct{}
+	KillCh    chan *structs.TaskEvent
 
 	Events      []*structs.TaskEvent
 	EmitEventCh chan *structs.TaskEvent
@@ -69,7 +72,7 @@ func NewMockTaskHooks() *MockTaskHooks {
 		UnblockCh:   make(chan struct{}, 1),
 		RestartCh:   make(chan struct{}, 1),
 		SignalCh:    make(chan struct{}, 1),
-		KillCh:      make(chan struct{}, 1),
+		KillCh:      make(chan *structs.TaskEvent, 1),
 		EmitEventCh: make(chan *structs.TaskEvent, 1),
 	}
 }
@@ -97,7 +100,7 @@ func (m *MockTaskHooks) Signal(event *structs.TaskEvent, s string) error {
 func (m *MockTaskHooks) Kill(ctx context.Context, event *structs.TaskEvent) error {
 	m.KillEvent = event
 	select {
-	case m.KillCh <- struct{}{}:
+	case m.KillCh <- event:
 	default:
 	}
 	return nil
@@ -145,7 +148,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 		config: &config.Config{
 			Region: region,
 			TemplateConfig: &config.ClientTemplateConfig{
-				FunctionDenylist: []string{"plugin"},
+				FunctionDenylist: config.DefaultTemplateFunctionDenylist,
 				DisableSandbox:   false,
 				ConsulRetry:      &config.RetryConfig{Backoff: helper.TimeToPtr(10 * time.Millisecond)},
 			}},
@@ -2156,4 +2159,101 @@ func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 		require.Equal(t, 5*time.Second, *k.Wait.Min)
 		require.Equal(t, 10*time.Second, *k.Wait.Max)
 	}
+}
+
+// TestTaskTemplateManager_writeToFile_Disabled asserts the consul-template function
+// writeToFile is disabled by default.
+func TestTaskTemplateManager_writeToFile_Disabled(t *testing.T) {
+	ci.Parallel(t)
+
+	file := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: `Testing writeToFile...
+{{ "if i exist writeToFile is enabled" | writeToFile "/tmp/NOMAD-TEST-SHOULD-NOT-EXIST" "" "" "0644" }}
+...done
+`,
+		DestPath:   file,
+		ChangeMode: structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	require.NoError(t, harness.startWithErr(), "couldn't setup initial harness")
+	defer harness.stop()
+
+	// Using writeToFile should cause a kill
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		t.Fatalf("Task unblock should have not have been called")
+	case <-harness.mockHooks.EmitEventCh:
+		t.Fatalf("Task event should not have been emitted")
+	case e := <-harness.mockHooks.KillCh:
+		require.Contains(t, e.DisplayMessage, "writeToFile: function is disabled")
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// Check the file is not there
+	path := filepath.Join(harness.taskDir, file)
+	_, err := ioutil.ReadFile(path)
+	require.Error(t, err)
+}
+
+// TestTaskTemplateManager_writeToFile asserts the consul-template function
+// writeToFile can be enabled.
+func TestTaskTemplateManager_writeToFile(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("username and group lookup assume linux platform")
+	}
+
+	ci.Parallel(t)
+
+	cu, err := user.Current()
+	require.NoError(t, err)
+
+	cg, err := user.LookupGroupId(cu.Gid)
+	require.NoError(t, err)
+
+	file := "my.tmpl"
+	template := &structs.Template{
+		// EmbeddedTmpl set below as it needs the taskDir
+		DestPath:   file,
+		ChangeMode: structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+
+	// Add template now that we know the taskDir
+	harness.templates[0].EmbeddedTmpl = fmt.Sprintf(`Testing writeToFile...
+{{ "hello" | writeToFile "%s" "`+cu.Username+`" "`+cg.Name+`" "0644" }}
+...done
+`, filepath.Join(harness.taskDir, "writetofile.out"))
+
+	// Enable all funcs
+	harness.config.TemplateConfig.FunctionDenylist = []string{}
+
+	require.NoError(t, harness.startWithErr(), "couldn't setup initial harness")
+	defer harness.stop()
+
+	// Using writeToFile should cause a kill
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-harness.mockHooks.EmitEventCh:
+		t.Fatalf("Task event should not have been emitted")
+	case e := <-harness.mockHooks.KillCh:
+		t.Fatalf("Task should not have been killed: %v", e.DisplayMessage)
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// Check the templated file is there
+	path := filepath.Join(harness.taskDir, file)
+	r, err := ioutil.ReadFile(path)
+	require.NoError(t, err)
+	require.True(t, bytes.HasSuffix(r, []byte("...done\n")), string(r))
+
+	// Check that writeToFile was allowed
+	path = filepath.Join(harness.taskDir, "writetofile.out")
+	r, err = ioutil.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "hello", string(r))
 }

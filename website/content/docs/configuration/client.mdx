@@ -348,10 +348,10 @@ see the [drivers documentation](/docs/drivers).
 
 ### `template` Parameters
 
-- `function_denylist` `([]string: ["plugin"])` - Specifies a list of template
-  rendering functions that should be disallowed in job specs. By default the
-  `plugin` function is disallowed as it allows running arbitrary commands on
-  the host as root (unless Nomad is configured to run as a non-root user).
+- `function_denylist` `([]string: ["plugin", "writeToFile"])` - Specifies a
+  list of template rendering functions that should be disallowed in job specs.
+  By default the `plugin` and "writeToFile" functions are disallowed as they
+  allow unrestricted root access to the host.
 
 - `disable_file_sandbox` `(bool: false)` - Allows templates access to arbitrary
   files on the client host via the `file` function. By default, templates can
