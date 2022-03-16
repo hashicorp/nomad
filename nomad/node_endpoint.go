@@ -1170,6 +1170,38 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			}
 			evals = append(evals, eval)
 		}
+
+		//// Add an evaluation if this is a reconnecting allocation that has failed on the client while disconnected.
+		//if alloc.ClientStatus == structs.AllocClientStatusUnknown && allocToUpdate.TerminalStatus() && alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
+		//	eval := &structs.Evaluation{
+		//		ID:          uuid.Generate(),
+		//		Namespace:   alloc.Namespace,
+		//		TriggeredBy: structs.EvalTriggerReconnectFailed,
+		//		JobID:       alloc.JobID,
+		//		Type:        job.Type,
+		//		Priority:    job.Priority,
+		//		Status:      structs.EvalStatusPending,
+		//		CreateTime:  now.UTC().UnixNano(),
+		//		ModifyTime:  now.UTC().UnixNano(),
+		//	}
+		//	evals = append(evals, eval)
+		//}
+
+		// Add an evaluation if this is a reconnecting allocation that is healthy trigger an eval to stop the replacement allocations..
+		if alloc.ClientStatus == structs.AllocClientStatusUnknown && !allocToUpdate.TerminalStatus() && alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
+			eval := &structs.Evaluation{
+				ID:          uuid.Generate(),
+				Namespace:   alloc.Namespace,
+				TriggeredBy: structs.EvalTriggerReconnectSucceeded,
+				JobID:       alloc.JobID,
+				Type:        job.Type,
+				Priority:    job.Priority,
+				Status:      structs.EvalStatusPending,
+				CreateTime:  now.UTC().UnixNano(),
+				ModifyTime:  now.UTC().UnixNano(),
+			}
+			evals = append(evals, eval)
+		}
 	}
 
 	// Add this to the batch

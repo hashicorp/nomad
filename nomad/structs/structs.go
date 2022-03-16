@@ -10416,6 +10416,7 @@ const (
 	EvalTriggerPreemption           = "preemption"
 	EvalTriggerScaling              = "job-scaling"
 	EvalTriggerMaxDisconnectTimeout = "max-disconnect-timeout"
+	EvalTriggerReconnectFailed      = "reconnect-failed"
 )
 
 const (

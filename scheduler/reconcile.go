@@ -496,7 +496,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	a.createDeployment(tg.Name, tg.Update, existingDeployment, dstate, all, destructive)
 
 	deploymentComplete := a.isDeploymentComplete(groupName, destructive, inplace,
-		migrate, rescheduleNow, dstate, place, rescheduleLater, requiresCanaries)
+		migrate, rescheduleNow, place, rescheduleLater, requiresCanaries)
 
 	return deploymentComplete
 }
@@ -863,7 +863,7 @@ func (a *allocReconciler) createDeployment(groupName string, strategy *structs.U
 }
 
 func (a *allocReconciler) isDeploymentComplete(groupName string, destructive, inplace, migrate, rescheduleNow allocSet,
-	dstate *structs.DeploymentState, place []allocPlaceResult, rescheduleLater []*delayedRescheduleInfo, requiresCanaries bool) bool {
+	place []allocPlaceResult, rescheduleLater []*delayedRescheduleInfo, requiresCanaries bool) bool {
 
 	complete := len(destructive)+len(inplace)+len(place)+len(migrate)+len(rescheduleNow)+len(rescheduleLater) == 0 &&
 		!requiresCanaries
@@ -873,8 +873,7 @@ func (a *allocReconciler) isDeploymentComplete(groupName string, destructive, in
 	}
 
 	// Final check to see if the deployment is complete is to ensure everything is healthy
-	var ok bool
-	if dstate, ok = a.deployment.TaskGroups[groupName]; ok {
+	if dstate, ok := a.deployment.TaskGroups[groupName]; ok {
 		if dstate.HealthyAllocs < helper.IntMax(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
 			(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
 			complete = false
