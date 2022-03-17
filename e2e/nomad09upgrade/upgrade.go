@@ -13,6 +13,7 @@ import (
 	"time"
 
 	getter "github.com/hashicorp/go-getter"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/execagent"
 	"github.com/hashicorp/nomad/e2e/framework"
