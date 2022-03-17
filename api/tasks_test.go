@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestTaskGroup_NewTaskGroup(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	grp := NewTaskGroup("grp1", 2)
 	expect := &TaskGroup{
 		Name:  stringToPtr("grp1"),
@@ -23,7 +24,7 @@ func TestTaskGroup_NewTaskGroup(t *testing.T) {
 }
 
 func TestTaskGroup_Constrain(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	grp := NewTaskGroup("grp1", 1)
 
 	// Add a constraint to the group
@@ -57,7 +58,7 @@ func TestTaskGroup_Constrain(t *testing.T) {
 }
 
 func TestTaskGroup_AddAffinity(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	grp := NewTaskGroup("grp1", 1)
 
 	// Add an affinity to the group
@@ -93,7 +94,7 @@ func TestTaskGroup_AddAffinity(t *testing.T) {
 }
 
 func TestTaskGroup_SetMeta(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	grp := NewTaskGroup("grp1", 1)
 
 	// Initializes an empty map
@@ -116,7 +117,7 @@ func TestTaskGroup_SetMeta(t *testing.T) {
 }
 
 func TestTaskGroup_AddSpread(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	grp := NewTaskGroup("grp1", 1)
 
 	// Create and add spread
@@ -167,7 +168,7 @@ func TestTaskGroup_AddSpread(t *testing.T) {
 }
 
 func TestTaskGroup_AddTask(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	grp := NewTaskGroup("grp1", 1)
 
 	// Add the task to the task group
@@ -199,7 +200,7 @@ func TestTaskGroup_AddTask(t *testing.T) {
 }
 
 func TestTask_NewTask(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	task := NewTask("task1", "exec")
 	expect := &Task{
 		Name:   "task1",
@@ -211,7 +212,7 @@ func TestTask_NewTask(t *testing.T) {
 }
 
 func TestTask_SetConfig(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	task := NewTask("task1", "exec")
 
 	// Initializes an empty map
@@ -234,7 +235,7 @@ func TestTask_SetConfig(t *testing.T) {
 }
 
 func TestTask_SetMeta(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	task := NewTask("task1", "exec")
 
 	// Initializes an empty map
@@ -257,7 +258,7 @@ func TestTask_SetMeta(t *testing.T) {
 }
 
 func TestTask_Require(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	task := NewTask("task1", "exec")
 
 	// Create some require resources
@@ -285,7 +286,7 @@ func TestTask_Require(t *testing.T) {
 }
 
 func TestTask_Constrain(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	task := NewTask("task1", "exec")
 
 	// Add a constraint to the task
@@ -319,7 +320,7 @@ func TestTask_Constrain(t *testing.T) {
 }
 
 func TestTask_AddAffinity(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	task := NewTask("task1", "exec")
 
 	// Add an affinity to the task
@@ -354,7 +355,7 @@ func TestTask_AddAffinity(t *testing.T) {
 }
 
 func TestTask_Artifact(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	a := TaskArtifact{
 		GetterSource:  stringToPtr("http://localhost/foo.txt"),
 		GetterMode:    stringToPtr("file"),
@@ -369,7 +370,7 @@ func TestTask_Artifact(t *testing.T) {
 }
 
 func TestTask_VolumeMount(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	vm := &VolumeMount{}
 	vm.Canonicalize()
 	require.NotNil(t, vm.PropagationMode)
@@ -377,6 +378,7 @@ func TestTask_VolumeMount(t *testing.T) {
 }
 
 func TestTask_Canonicalize_TaskLifecycle(t *testing.T) {
+	testutil.Parallel(t)
 	testCases := []struct {
 		name     string
 		expected *TaskLifecycle
@@ -407,6 +409,7 @@ func TestTask_Canonicalize_TaskLifecycle(t *testing.T) {
 }
 
 func TestTask_Template_WaitConfig_Canonicalize_and_Copy(t *testing.T) {
+	testutil.Parallel(t)
 	taskWithWait := func(wc *WaitConfig) *Task {
 		return &Task{
 			Templates: []*Template{
@@ -493,6 +496,7 @@ func TestTask_Template_WaitConfig_Canonicalize_and_Copy(t *testing.T) {
 
 // Ensures no regression on https://github.com/hashicorp/nomad/issues/3132
 func TestTaskGroup_Canonicalize_Update(t *testing.T) {
+	testutil.Parallel(t)
 	// Job with an Empty() Update
 	job := &Job{
 		ID: stringToPtr("test"),
@@ -518,6 +522,7 @@ func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 }
 
 func TestTaskGroup_Canonicalize_Scaling(t *testing.T) {
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	job := &Job{
@@ -574,6 +579,7 @@ func TestTaskGroup_Canonicalize_Scaling(t *testing.T) {
 }
 
 func TestTaskGroup_Merge_Update(t *testing.T) {
+	testutil.Parallel(t)
 	job := &Job{
 		ID:     stringToPtr("test"),
 		Update: &UpdateStrategy{},
@@ -606,6 +612,7 @@ func TestTaskGroup_Merge_Update(t *testing.T) {
 
 // Verifies that migrate strategy is merged correctly
 func TestTaskGroup_Canonicalize_MigrateStrategy(t *testing.T) {
+	testutil.Parallel(t)
 	type testCase struct {
 		desc        string
 		jobType     string
@@ -758,6 +765,7 @@ func TestTaskGroup_Canonicalize_MigrateStrategy(t *testing.T) {
 
 // TestSpread_Canonicalize asserts that the spread stanza is canonicalized correctly
 func TestSpread_Canonicalize(t *testing.T) {
+	testutil.Parallel(t)
 	job := &Job{
 		ID:   stringToPtr("test"),
 		Type: stringToPtr("batch"),
@@ -810,6 +818,7 @@ func TestSpread_Canonicalize(t *testing.T) {
 }
 
 func Test_NewDefaultReschedulePolicy(t *testing.T) {
+	testutil.Parallel(t)
 	testCases := []struct {
 		desc         string
 		inputJobType string
@@ -874,6 +883,7 @@ func Test_NewDefaultReschedulePolicy(t *testing.T) {
 }
 
 func TestTaskGroup_Canonicalize_Consul(t *testing.T) {
+	testutil.Parallel(t)
 	t.Run("override job consul in group", func(t *testing.T) {
 		job := &Job{
 			ID:              stringToPtr("job"),

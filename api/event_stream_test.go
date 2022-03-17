@@ -12,7 +12,7 @@ import (
 )
 
 func TestEvent_Stream(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -50,7 +50,7 @@ func TestEvent_Stream(t *testing.T) {
 }
 
 func TestEvent_Stream_Err_InvalidQueryParam(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -79,7 +79,7 @@ func TestEvent_Stream_Err_InvalidQueryParam(t *testing.T) {
 }
 
 func TestEvent_Stream_CloseCtx(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -116,7 +116,7 @@ func TestEvent_Stream_CloseCtx(t *testing.T) {
 }
 
 func TestEventStream_PayloadValue(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
@@ -175,7 +175,7 @@ func TestEventStream_PayloadValue(t *testing.T) {
 }
 
 func TestEventStream_PayloadValueHelpers(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	testCases := []struct {
 		desc     string

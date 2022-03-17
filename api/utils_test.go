@@ -3,10 +3,12 @@ package api
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFormatRoundedFloat(t *testing.T) {
+	testutil.Parallel(t)
 	cases := []struct {
 		input    float64
 		expected string

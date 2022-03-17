@@ -3,10 +3,12 @@ package api
 import (
 	"reflect"
 	"testing"
+
+	"github.com/hashicorp/nomad/api/internal/testutil"
 )
 
 func TestCompose_Constraints(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c := NewConstraint("kernel.name", "=", "darwin")
 	expect := &Constraint{
 		LTarget: "kernel.name",
