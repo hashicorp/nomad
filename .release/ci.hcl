@@ -3,13 +3,13 @@ schema = "1"
 project "nomad" {
   team = "nomad"
   slack {
-    // TODO: update to #proj-nomad-releases
+    // TODO: change to #proj-nomad-releases
     notification_channel = "C01A3A54G0L"
   }
   github {
     organization = "hashicorp"
     repository = "nomad"
-    release_branches = ["crt/1.0.x"]
+    release_branches = ["crt/1.1.x"]
   }
 }
 
@@ -68,8 +68,21 @@ event "notarize-darwin-amd64" {
   }
 }
 
-event "notarize-windows-386" {
+event "notarize-darwin-arm64" {
   depends = ["notarize-darwin-amd64"]
+  action "notarize-darwin-arm64" {
+    organization = "hashicorp"
+    repository = "crt-workflows-common"
+    workflow = "notarize-darwin-arm64"
+  }
+
+  notification {
+    on = "fail"
+  }
+}
+
+event "notarize-windows-386" {
+  depends = ["notarize-darwin-arm64"]
   action "notarize-windows-386" {
     organization = "hashicorp"
     repository = "crt-workflows-common"
