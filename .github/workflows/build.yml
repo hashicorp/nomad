@@ -1,6 +1,6 @@
 name: build
 
-on:  
+on: 
   push:
     # Sequence of patterns matched against refs/heads
     branches:
@@ -57,7 +57,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: metadata.json
-          path: ${{ steps.generate-metadata-file.outputs.filepath }}  
+          path: ${{ steps.generate-metadata-file.outputs.filepath }}
   set-ld-flags:
     needs: get-product-version
     runs-on: ubuntu-latest
@@ -91,17 +91,8 @@ jobs:
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
     
-      - name: Install project dependencies
-        run: |
-          go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
-          go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
-          go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
-          go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
-          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
-          go install golang.org/x/tools/cmd/stringer@v0.1.8
-      
-      - name: Build generate-all
-        run: make generate-all
+      - name: Build dependencies
+        run: make deps
       
       - name: Setup node and yarn
         uses: actions/setup-node@v2
@@ -109,7 +100,7 @@ jobs:
           node-version: '14'
           cache: 'yarn'
           cache-dependency-path: 'ui/yarn.lock'
-      
+
       - name: Install Yarn
         run: |
           npm install -g yarn
@@ -121,15 +112,15 @@ jobs:
           yarn --verbose run build
           cd ..
       
-      - name: Build static assets
-        run: make static-assets  
-
+      - name: Build prerelease
+        run: make prerelease
+      
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
-          CGO_ENABLED: 0
+          CGO_ENABLED: 1
         run: |
           mkdir -p dist out
           go build -o dist/ \
@@ -159,17 +150,8 @@ jobs:
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
       
-      - name: Install project dependencies
-        run: |
-          go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
-          go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
-          go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
-          go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
-          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
-          go install golang.org/x/tools/cmd/stringer@v0.1.8
-      
-      - name: Build generate-all
-        run: make generate-all
+      - name: Build dependencies
+        run: make deps
       
       - name: Setup node and yarn
         uses: actions/setup-node@v2
@@ -177,7 +159,7 @@ jobs:
           node-version: '14'
           cache: 'yarn'
           cache-dependency-path: 'ui/yarn.lock'
-      
+
       - name: Install Yarn
         run: |
           npm install -g yarn
@@ -188,10 +170,10 @@ jobs:
           yarn install --network-timeout 300000
           yarn --verbose run build
           cd ..
-
-      - name: Build static assets
-        run: make static-assets
-
+      
+      - name: Build prerelease
+        run: make prerelease
+      
       - name: Install Linux build utilties
         run: |
           sudo apt-get update
@@ -199,18 +181,9 @@ jobs:
           sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential \
-            git \
             libc6-dev-i386 \
             libpcre3-dev \
-            linux-libc-dev:i386 \
-            pkg-config \
-            zip \
-            curl \
-            jq \
-            tree \
-            unzip \
-            wget
+            linux-libc-dev:i386 
           sudo apt-get install -y \
             binutils-aarch64-linux-gnu \
             binutils-arm-linux-gnueabihf \
@@ -245,12 +218,11 @@ jobs:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
           path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
 
-
       - name: Package
         if: ${{ matrix.goos == 'linux' }}
         uses: hashicorp/actions-packaging-linux@v1
         with:
-          name: ${{ github.event.repository.name }}
+          name: ${{ env.PKG_NAME }}
           description: "Nomad is an easy-to-use, flexible, and performant workload orchestrator that can deploy a mix of microservice, batch, containerized, and non-containerized applications."
           arch: ${{ matrix.goarch }}
           version: ${{ needs.get-product-version.outputs.product-version }}
@@ -288,7 +260,7 @@ jobs:
     strategy:
       matrix:
         goos: [ darwin ]
-        goarch: [ "amd64" ]
+        goarch: [ "arm64", "amd64" ]
       fail-fast: true
 
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
@@ -301,17 +273,8 @@ jobs:
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
       
-      - name: Install project dependencies
-        run: |
-          go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
-          go install github.com/hashicorp/go-bindata/go-bindata@bf7910a
-          go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
-          go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
-          go install github.com/bufbuild/buf/cmd/buf@v0.36.0
-          go install golang.org/x/tools/cmd/stringer@v0.1.8
-      
-      - name: Build generate-all
-        run: make generate-all
+      - name: Build dependencies
+        run: make deps
       
       - name: Setup node and yarn
         uses: actions/setup-node@v2
@@ -319,7 +282,7 @@ jobs:
           node-version: '14'
           cache: 'yarn'
           cache-dependency-path: 'ui/yarn.lock'
-      
+
       - name: Install Yarn
         run: |
           npm install -g yarn
@@ -331,8 +294,8 @@ jobs:
           yarn --verbose run build
           cd ..
       
-      - name: Build static assets
-        run: make static-assets
+      - name: Build prerelease
+        run: make prerelease
       
       - name: Build
         env:
@@ -340,7 +303,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           GO_TAGS: "${{ env.GO_TAGS }} netcgo"
           LD_FLAGS: ${{ needs.set-ld-flags.outputs.ldflags }}
-          CGO_ENABLED: 0
+          CGO_ENABLED: 1
         run: |
           mkdir -p dist out
           go build -o dist/ \
@@ -353,8 +316,7 @@ jobs:
           path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
 
   # This placed here for when the Nomad team is ready to build docker images. 
-  # Please refer to the Dockerfile that has been placed at the root of this repository to ensure functionality. 
-  # The Nomad team will need to create a docker repo and the RDX team has instructions handy on how to get this set up. 
+  # Please reach out the RDX team for assistance or refer to the CRT Self-Serve Onboarding doc. 
 
   # build-docker-default:
   #   name: Docker ${{ matrix.arch }} default release build
