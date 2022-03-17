@@ -81,6 +81,19 @@ server {
 }
 ```
 
+#### Changes to the `nomad server members` command
+
+The standard output of the `nomad server members` command replaces the previous
+`Protocol` column that indicated the Serf protocol version with a new column
+named `Raft Version` which outputs the Raft protocol version defined in each
+server.
+
+The `-detailed` flag is now called `-verbose` and outputs the standard values
+in addition to extra information. The previous name is still supported but may
+be removed in future releases.
+
+The previous `Protocol` value can be viewed using the `-verbose` flag.
+
 ## Nomad 1.2.6, 1.1.12, and 1.0.18
 
 #### ACL requirement for the job parse endpoint
