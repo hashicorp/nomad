@@ -11,7 +11,7 @@ After=network-online.target
 #After=consul.service
 
 [Service]
-EnvironmentFile=/etc/nomad.d/nomad.env
+EnvironmentFile=-/etc/nomad.d/nomad.env
 ExecReload=/bin/kill -HUP $MAINPID
 ExecStart=/usr/bin/nomad agent -config /etc/nomad.d/%i.hcl
 KillMode=process
