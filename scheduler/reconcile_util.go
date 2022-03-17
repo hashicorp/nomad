@@ -208,6 +208,52 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 	return from
 }
 
+type replacementMap struct {
+	entries map[string][]*structs.Allocation
+}
+
+func newReplacementMap(set allocSet) *replacementMap {
+	rm := &replacementMap{
+		entries: make(map[string][]*structs.Allocation, len(set)),
+	}
+
+	if len(set) == 0 {
+		return rm
+	}
+
+	for _, alloc := range set {
+		if allocs, ok := rm.entries[alloc.Name]; ok {
+			allocs = append(allocs, alloc)
+		} else {
+			rm.entries[alloc.Name] = []*structs.Allocation{alloc}
+		}
+	}
+
+	for allocName, allocs := range rm.entries {
+		if len(allocs) > 2 {
+			fmt.Printf("unexpected replacement confg: alloc %s has %d entries\n", allocName, len(allocs))
+			delete(rm.entries, allocName)
+		}
+		if len(allocs) < 2 {
+			delete(rm.entries, allocName)
+		}
+	}
+
+	return rm
+}
+
+func (rm replacementMap) getOriginal(allocName string) *structs.Allocation {
+	items := rm.entries[allocName]
+
+	if items[0].PreviousAllocation == items[1].ID {
+		return items[1]
+	} else if items[1].PreviousAllocation == items[0].ID {
+		return items[0]
+	}
+
+	return nil
+}
+
 // filterByTainted takes a set of tainted nodes and filters the allocation set
 // into 5 groups:
 // 1. Those that exist on untainted nodes
@@ -215,12 +261,17 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 // 3. Those that exist on lost nodes
 // 4. Those that are on nodes that are disconnected, but have not had their ClientState set to unknown
 // 5. Those that have had their ClientState set to unknown, but their node has reconnected.
-func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, supportsDisconnectedClients bool) (untainted, migrate, lost, disconnecting, reconnecting allocSet) {
+func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, supportsDisconnectedClients bool, triggeredBy string) (untainted, migrate, lost, disconnecting, reconnecting allocSet) {
 	untainted = make(map[string]*structs.Allocation)
 	migrate = make(map[string]*structs.Allocation)
 	lost = make(map[string]*structs.Allocation)
 	disconnecting = make(map[string]*structs.Allocation)
 	reconnecting = make(map[string]*structs.Allocation)
+	replacements := newReplacementMap(nil)
+	// If triggered by a reconnect event, build a map of reconnecting allocs to the alloc that replaced them.
+	if triggeredBy == structs.EvalTriggerReconnect {
+		replacements = newReplacementMap(a)
+	}
 
 	for _, alloc := range a {
 		// Terminal allocs are always untainted as they should never be migrated
@@ -238,9 +289,12 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 		taintedNode, ok := taintedNodes[alloc.NodeID]
 		if !ok {
 			// Filter allocs on a node that is now re-connected to be resumed.
-			if supportsDisconnectedClients && alloc.ClientStatus == structs.AllocClientStatusUnknown {
-				reconnecting[alloc.ID] = alloc
-				continue
+			if supportsDisconnectedClients && triggeredBy == structs.EvalTriggerReconnect {
+				original := replacements.getOriginal(alloc.Name)
+				if original != nil {
+					reconnecting[original.ID] = original
+					continue
+				}
 			}
 
 			// Otherwise, Node is untainted so alloc is untainted
@@ -264,9 +318,12 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 				}
 			case structs.NodeStatusReady:
 				// Filter unknown allocs on a node that is connected to reconnect.
-				if supportsDisconnectedClients && alloc.ClientStatus == structs.AllocClientStatusUnknown {
-					reconnecting[alloc.ID] = alloc
-					continue
+				if supportsDisconnectedClients && triggeredBy == structs.EvalTriggerReconnect {
+					original := replacements.getOriginal(alloc.Name)
+					if original != nil {
+						reconnecting[original.ID] = original
+						continue
+					}
 				}
 			default:
 			}
@@ -280,7 +337,6 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 
 		// All other allocs are untainted
 		untainted[alloc.ID] = alloc
-
 	}
 
 	return

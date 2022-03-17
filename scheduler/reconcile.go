@@ -73,10 +73,11 @@ type allocReconciler struct {
 	// existingAllocs is non-terminal existing allocations
 	existingAllocs []*structs.Allocation
 
-	// evalID and evalPriority is the ID and Priority of the evaluation that
-	// triggered the reconciler.
-	evalID       string
-	evalPriority int
+	// evalID, evalPriority, evalTriggeredBy are the ID, Priority, and event type
+	// of the evaluation that triggered the reconciler.
+	evalID          string
+	evalPriority    int
+	evalTriggeredBy string
 
 	// supportsDisconnectedClients indicates whether all servers meet the required
 	// minimum version to allow application of max_client_disconnect configuration.
@@ -175,7 +176,7 @@ func (r *reconcileResults) Changes() int {
 func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch bool,
 	jobID string, job *structs.Job, deployment *structs.Deployment,
 	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node, evalID string,
-	evalPriority int, supportsDisconnectedClients bool) *allocReconciler {
+	evalPriority int, evalTriggeredBy string, supportsDisconnectedClients bool) *allocReconciler {
 	return &allocReconciler{
 		logger:                      logger.Named("reconciler"),
 		allocUpdateFn:               allocUpdateFn,
@@ -187,6 +188,7 @@ func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch 
 		taintedNodes:                taintedNodes,
 		evalID:                      evalID,
 		evalPriority:                evalPriority,
+		evalTriggeredBy:             evalTriggeredBy,
 		supportsDisconnectedClients: supportsDisconnectedClients,
 		now:                         time.Now(),
 		result: &reconcileResults{
@@ -344,7 +346,7 @@ func (a *allocReconciler) handleStop(m allocMatrix) {
 // filterAndStopAll stops all allocations in an allocSet. This is useful in when
 // stopping an entire job or task group.
 func (a *allocReconciler) filterAndStopAll(set allocSet) uint64 {
-	untainted, migrate, lost, disconnecting, reconnecting := set.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients)
+	untainted, migrate, lost, disconnecting, reconnecting := set.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.evalTriggeredBy)
 	a.markStop(untainted, "", allocNotNeeded)
 	a.markStop(migrate, "", allocNotNeeded)
 	a.markStop(lost, structs.AllocClientStatusLost, allocLost)
@@ -406,7 +408,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	canaries, all := a.cancelUnneededCanaries(all, desiredChanges)
 
 	// Determine what set of allocations are on tainted nodes
-	untainted, migrate, lost, disconnecting, reconnecting := all.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients)
+	untainted, migrate, lost, disconnecting, reconnecting := all.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.evalTriggeredBy)
 
 	// Determine what set of terminal allocations need to be rescheduled
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, a.now, a.evalID, a.deployment)
@@ -415,9 +417,10 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	lostLater := lost.delayByStopAfterClientDisconnect()
 	lostLaterEvals := a.createLostLaterEvals(lostLater, all, tg.Name)
 
-	// Find delays for any disconnecting allocs that have resume_after_client_reconnect,
+	// Find delays for any disconnecting allocs that have max_client_reconnect,
 	// create followup evals, and update the ClientStatus to unknown.
 	timeoutLaterEvals := a.createTimeoutLaterEvals(disconnecting, tg.Name)
+
 	// Merge disconnecting with the stop_after_client_disconnect set into the
 	// lostLaterEvals so that computeStop can add them to the stop set.
 	lostLaterEvals = helper.MergeMapStringString(lostLaterEvals, timeoutLaterEvals)
@@ -474,7 +477,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// * There is not a corresponding reconnecting alloc.
 	var place []allocPlaceResult
 	if len(lostLater) == 0 {
-		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, reconnecting, isCanarying)
+		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, disconnecting, reconnecting, isCanarying)
 		if !existingDeployment {
 			dstate.DesiredTotal += len(place)
 		}
@@ -609,7 +612,7 @@ func (a *allocReconciler) cancelUnneededCanaries(all allocSet, desiredChanges *s
 		}
 
 		canaries = all.fromKeys(canaryIDs)
-		untainted, migrate, lost, _, _ := canaries.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients)
+		untainted, migrate, lost, _, _ := canaries.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.evalTriggeredBy)
 		a.markStop(migrate, "", allocMigrating)
 		a.markStop(lost, structs.AllocClientStatusLost, allocLost)
 
@@ -669,7 +672,7 @@ func (a *allocReconciler) computeUnderProvisionedBy(group *structs.TaskGroup, un
 //
 // Placements will meet or exceed group count.
 func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
-	nameIndex *allocNameIndex, untainted, migrate, reschedule, lost, reconnecting allocSet,
+	nameIndex *allocNameIndex, untainted, migrate, reschedule, lost, disconnecting, reconnecting allocSet,
 	isCanarying bool) []allocPlaceResult {
 
 	// Add rescheduled placement results
@@ -688,9 +691,31 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 		})
 	}
 
-	// Add replacements for lost allocs up to group.Count
+	// Add replacements for disconnected ad lost allocs up to group.Count
 	existing := len(untainted) + len(migrate) + len(reschedule) + len(reconnecting)
 
+	// Add replacements for disconnecting
+	for _, alloc := range disconnecting {
+		if existing >= group.Count {
+			// Reached desired count, do not replace remaining disconnecting allocs
+			break
+		}
+
+		existing++
+		place = append(place, allocPlaceResult{
+			name:          alloc.Name,
+			taskGroup:     group,
+			previousAlloc: alloc,
+			reschedule:    true,
+			canary:        alloc.DeploymentStatus.IsCanary(),
+
+			downgradeNonCanary: isCanarying && !alloc.DeploymentStatus.IsCanary(),
+			minJobVersion:      alloc.Job.Version,
+			lost:               false,
+		})
+	}
+
+	// Add replacements for disconnecting
 	for _, alloc := range lost {
 		if existing >= group.Count {
 			// Reached desired count, do not replace remaining lost
@@ -1030,7 +1055,7 @@ func (a *allocReconciler) computeStopByReconnecting(untainted, reconnecting, sto
 
 		// Compare reconnecting to untainted and decide which to keep.
 		for _, untaintedAlloc := range untainted {
-			// If not a match by name go to next
+			// If not a match by name and previous alloc continue
 			if reconnectingAlloc.Name != untaintedAlloc.Name {
 				continue
 			}
