@@ -828,7 +828,8 @@ type EvalDeleteRequest struct {
 
 // EvalSpecificRequest is used when we just need to specify a target evaluation
 type EvalSpecificRequest struct {
-	EvalID string
+	EvalID         string
+	IncludeRelated bool
 	QueryOptions
 }
 
@@ -10586,6 +10587,10 @@ type Evaluation struct {
 	// to constraints or lacking resources.
 	BlockedEval string
 
+	// RelatedEvals is a list of all the evaluations that are related (next,
+	// previous, or blocked) to this one. It may be nil if not requested.
+	RelatedEvals []*EvaluationStub
+
 	// FailedTGAllocs are task groups which have allocations that could not be
 	// made, but the metrics are persisted so that the user can use the feedback
 	// to determine the cause.
@@ -10632,6 +10637,27 @@ type Evaluation struct {
 	ModifyTime int64
 }
 
+type EvaluationStub struct {
+	ID                string
+	Namespace         string
+	Priority          int
+	Type              string
+	TriggeredBy       string
+	JobID             string
+	NodeID            string
+	DeploymentID      string
+	Status            string
+	StatusDescription string
+	WaitUntil         time.Time
+	NextEval          string
+	PreviousEval      string
+	BlockedEval       string
+	CreateIndex       uint64
+	ModifyIndex       uint64
+	CreateTime        int64
+	ModifyTime        int64
+}
+
 // GetID implements the IDGetter interface, required for pagination.
 func (e *Evaluation) GetID() string {
 	if e == nil {
@@ -10662,6 +10688,50 @@ func (e *Evaluation) TerminalStatus() bool {
 
 func (e *Evaluation) GoString() string {
 	return fmt.Sprintf("<Eval %q JobID: %q Namespace: %q>", e.ID, e.JobID, e.Namespace)
+}
+
+func (e *Evaluation) RelatedIDs() []string {
+	if e == nil {
+		return nil
+	}
+
+	ids := []string{e.NextEval, e.PreviousEval, e.BlockedEval}
+	related := make([]string, 0, len(ids))
+
+	for _, id := range ids {
+		if id != "" {
+			related = append(related, id)
+		}
+	}
+
+	return related
+}
+
+func (e *Evaluation) Stub() *EvaluationStub {
+	if e == nil {
+		return nil
+	}
+
+	return &EvaluationStub{
+		ID:                e.ID,
+		Namespace:         e.Namespace,
+		Priority:          e.Priority,
+		Type:              e.Type,
+		TriggeredBy:       e.TriggeredBy,
+		JobID:             e.JobID,
+		NodeID:            e.NodeID,
+		DeploymentID:      e.DeploymentID,
+		Status:            e.Status,
+		StatusDescription: e.StatusDescription,
+		WaitUntil:         e.WaitUntil,
+		NextEval:          e.NextEval,
+		PreviousEval:      e.PreviousEval,
+		BlockedEval:       e.BlockedEval,
+		CreateIndex:       e.CreateIndex,
+		ModifyIndex:       e.ModifyIndex,
+		CreateTime:        e.CreateTime,
+		ModifyTime:        e.ModifyTime,
+	}
 }
 
 func (e *Evaluation) Copy() *Evaluation {

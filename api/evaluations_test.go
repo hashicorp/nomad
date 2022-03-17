@@ -126,6 +126,25 @@ func TestEvaluations_Info(t *testing.T) {
 	// Check that we got the right result
 	require.NotNil(t, result)
 	require.Equal(t, resp.EvalID, result.ID)
+
+	// Register the job again to get a related eval
+	resp, wm, err = jobs.Register(job, nil)
+	evals, _, err := e.List(nil)
+	require.NoError(t, err)
+
+	// Find an eval that should have related evals
+	for _, eval := range evals {
+		if eval.NextEval != "" || eval.PreviousEval != "" || eval.BlockedEval != "" {
+			result, qm, err := e.Info(eval.ID, &QueryOptions{
+				Params: map[string]string{
+					"related": "true",
+				},
+			})
+			require.NoError(t, err)
+			assertQueryMeta(t, qm)
+			require.NotNil(t, result.RelatedEvals)
+		}
+	}
 }
 
 func TestEvaluations_Allocations(t *testing.T) {

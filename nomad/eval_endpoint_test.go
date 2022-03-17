@@ -30,36 +30,60 @@ func TestEvalEndpoint_GetEval(t *testing.T) {
 
 	// Create the register request
 	eval1 := mock.Eval()
-	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
+	eval2 := mock.Eval()
 
-	// Lookup the eval
-	get := &structs.EvalSpecificRequest{
-		EvalID:       eval1.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
-	}
-	var resp structs.SingleEvalResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp.Index != 1000 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 1000)
-	}
+	// Link the evals
+	eval1.NextEval = eval2.ID
+	eval2.PreviousEval = eval1.ID
 
-	if !reflect.DeepEqual(eval1, resp.Eval) {
-		t.Fatalf("bad: %#v %#v", eval1, resp.Eval)
-	}
+	err := s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
+	require.NoError(t, err)
 
-	// Lookup non-existing node
-	get.EvalID = uuid.Generate()
-	if err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp.Index != 1000 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 1000)
-	}
-	if resp.Eval != nil {
-		t.Fatalf("unexpected eval")
-	}
+	t.Run("lookup eval", func(t *testing.T) {
+		get := &structs.EvalSpecificRequest{
+			EvalID:       eval1.ID,
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		var resp structs.SingleEvalResponse
+		err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp)
+		require.NoError(t, err)
+		require.EqualValues(t, 1000, resp.Index, "bad index")
+		require.Equal(t, eval1, resp.Eval)
+	})
+
+	t.Run("lookup non-existing eval", func(t *testing.T) {
+		get := &structs.EvalSpecificRequest{
+			EvalID:       uuid.Generate(),
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		var resp structs.SingleEvalResponse
+		err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp)
+		require.NoError(t, err)
+		require.EqualValues(t, 1000, resp.Index, "bad index")
+		require.Nil(t, resp.Eval, "unexpected eval")
+	})
+
+	t.Run("lookup related evals", func(t *testing.T) {
+		get := &structs.EvalSpecificRequest{
+			EvalID:         eval1.ID,
+			QueryOptions:   structs.QueryOptions{Region: "global"},
+			IncludeRelated: true,
+		}
+		var resp structs.SingleEvalResponse
+		err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp)
+		require.NoError(t, err)
+		require.EqualValues(t, 1000, resp.Index, "bad index")
+		require.Equal(t, eval1.ID, resp.Eval.ID)
+
+		// Make sure we didn't modify the eval on a read request.
+		require.Nil(t, eval1.RelatedEvals)
+
+		// Check for the related evals
+		expected := []*structs.EvaluationStub{
+			eval2.Stub(),
+		}
+		require.Equal(t, expected, resp.Eval.RelatedEvals)
+	})
 }
 
 func TestEvalEndpoint_GetEval_ACL(t *testing.T) {

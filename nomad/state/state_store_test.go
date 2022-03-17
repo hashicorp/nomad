@@ -4598,6 +4598,125 @@ func TestStateStore_EvalsByIDPrefix_Namespaces(t *testing.T) {
 	require.False(t, watchFired(ws))
 }
 
+func TestStateStore_EvalsRelatedToID(t *testing.T) {
+	t.Parallel()
+
+	state := testStateStore(t)
+
+	// Create sample evals.
+	e1 := mock.Eval()
+	e2 := mock.Eval()
+	e3 := mock.Eval()
+	e4 := mock.Eval()
+	e5 := mock.Eval()
+	e6 := mock.Eval()
+
+	// Link evals.
+	// This is not accurate for a real scenario, but it's helpful for testing
+	// the general approach.
+	//
+	//   e1 -> e2 -> e3 -> e5
+	//               └─-> e4 (blocked) -> e6
+	e1.NextEval = e2.ID
+	e2.PreviousEval = e1.ID
+
+	e2.NextEval = e3.ID
+	e3.PreviousEval = e2.ID
+
+	e3.BlockedEval = e4.ID
+	e4.PreviousEval = e3.ID
+
+	e3.NextEval = e5.ID
+	e5.PreviousEval = e3.ID
+
+	e4.NextEval = e6.ID
+	e6.PreviousEval = e4.ID
+
+	// Create eval not in chain.
+	e7 := mock.Eval()
+
+	// Create eval with GC'ed related eval.
+	e8 := mock.Eval()
+	e8.NextEval = uuid.Generate()
+
+	err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{e1, e2, e3, e4, e5, e6, e7, e8})
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name     string
+		id       string
+		expected []string
+	}{
+		{
+			name: "linear history",
+			id:   e1.ID,
+			expected: []string{
+				e2.ID,
+				e3.ID,
+				e4.ID,
+				e5.ID,
+				e6.ID,
+			},
+		},
+		{
+			name: "linear history from middle",
+			id:   e4.ID,
+			expected: []string{
+				e1.ID,
+				e2.ID,
+				e3.ID,
+				e5.ID,
+				e6.ID,
+			},
+		},
+		{
+			name:     "eval not in chain",
+			id:       e7.ID,
+			expected: []string{},
+		},
+		{
+			name:     "eval with gc",
+			id:       e8.ID,
+			expected: []string{},
+		},
+		{
+			name:     "non-existing eval",
+			id:       uuid.Generate(),
+			expected: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ws := memdb.NewWatchSet()
+			related, err := state.EvalsRelatedToID(ws, tc.id)
+			require.NoError(t, err)
+
+			got := []string{}
+			for _, e := range related {
+				got = append(got, e.ID)
+			}
+			require.ElementsMatch(t, tc.expected, got)
+		})
+	}
+
+	t.Run("blocking query", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		_, err := state.EvalsRelatedToID(ws, e2.ID)
+		require.NoError(t, err)
+
+		// Update an eval off the chain and make sure watchset doesn't fire.
+		e7.Status = structs.EvalStatusComplete
+		state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{e7})
+		require.False(t, watchFired(ws))
+
+		// Update an eval in the chain and make sure watchset does fire.
+		e3.Status = structs.EvalStatusComplete
+		state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{e3})
+		require.True(t, watchFired(ws))
+	})
+}
+
 func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	ci.Parallel(t)
 

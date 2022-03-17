@@ -3177,6 +3177,55 @@ func (s *StateStore) EvalByID(ws memdb.WatchSet, id string) (*structs.Evaluation
 	return nil, nil
 }
 
+// EvalsRelatedToID is used to retrieve the evals that are related (next,
+// previous, or blocked) to the provided eval ID.
+func (s *StateStore) EvalsRelatedToID(ws memdb.WatchSet, id string) ([]*structs.EvaluationStub, error) {
+	txn := s.db.ReadTxn()
+
+	raw, err := txn.First("evals", "id", id)
+	if err != nil {
+		return nil, fmt.Errorf("eval lookup failed: %v", err)
+	}
+	if raw == nil {
+		return nil, nil
+	}
+	eval := raw.(*structs.Evaluation)
+
+	relatedEvals := []*structs.EvaluationStub{}
+	todo := eval.RelatedIDs()
+	done := map[string]bool{
+		eval.ID: true, // don't place the requested eval in the related list.
+	}
+
+	for len(todo) > 0 {
+		// Pop the first value from the todo list.
+		current := todo[0]
+		todo = todo[1:]
+		if current == "" {
+			continue
+		}
+
+		// Skip value if we already have it in the results.
+		if done[current] {
+			continue
+		}
+
+		eval, err := s.EvalByID(ws, current)
+		if err != nil {
+			return nil, err
+		}
+		if eval == nil {
+			continue
+		}
+
+		todo = append(todo, eval.RelatedIDs()...)
+		relatedEvals = append(relatedEvals, eval.Stub())
+		done[eval.ID] = true
+	}
+
+	return relatedEvals, nil
+}
+
 // EvalsByIDPrefix is used to lookup evaluations by prefix in a particular
 // namespace
 func (s *StateStore) EvalsByIDPrefix(ws memdb.WatchSet, namespace, id string, sort SortOption) (memdb.ResultIterator, error) {
