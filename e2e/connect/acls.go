@@ -7,6 +7,7 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
+	uuidparse "github.com/hashicorp/go-uuid"
 	nomadapi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
@@ -36,9 +37,9 @@ func (tc *ConnectACLsE2ETest) BeforeAll(f *framework.F) {
 	// Validate the consul root token exists, otherwise tests are just
 	// going to be a train wreck.
 	tc.consulManagementToken = os.Getenv(envConsulToken)
-	if len(tc.consulManagementToken) != 36 {
-		f.T().Skip("CONSUL_HTTP_TOKEN not set")
-	}
+
+	_, err := uuidparse.ParseUUID(tc.consulManagementToken)
+	f.NoError(err, "CONSUL_HTTP_TOKEN not set")
 }
 
 // AfterEach does cleanup of Consul ACL objects that were created during each
@@ -153,7 +154,7 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterMissingOperatorToken(f *fra
 
 	t.Log("test register Connect job w/ ACLs enabled w/o operator token")
 
-	jobID := "connect" + uuid.Generate()[0:8]
+	jobID := "connect" + uuid.Short()
 	tc.jobIDs = append(tc.jobIDs, jobID) // need to clean up if the test fails
 
 	job, err := jobspec.ParseFile(demoConnectJob)
@@ -186,7 +187,7 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterFakeOperatorToken(f *framew
 	// generate a fake consul token token
 	fakeToken := uuid.Generate()
 
-	jobID := "connect" + uuid.Generate()[0:8]
+	jobID := "connect" + uuid.Short()
 	tc.jobIDs = append(tc.jobIDs, jobID) // need to clean up if the test fails
 
 	job := tc.parseJobSpecFile(t, demoConnectJob)

@@ -71,8 +71,6 @@ terraform apply
 > leader" in the output several times while the ACL bootstrap script
 > polls the cluster to start and and elect a leader.
 
-## Nomad Version
-
 ## Configuration
 
 The files in `etc` are template configuration files for Nomad and the
