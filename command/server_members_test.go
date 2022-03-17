@@ -38,7 +38,11 @@ func TestServerMembersCommand_Run(t *testing.T) {
 	}
 	ui.OutputWriter.Reset()
 
-	// Query members with detailed output
+	// Query members with verbose output
+	if code := cmd.Run([]string{"-address=" + url, "-verbose"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	// Still support previous detailed flag
 	if code := cmd.Run([]string{"-address=" + url, "-detailed"}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
