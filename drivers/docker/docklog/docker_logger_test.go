@@ -9,6 +9,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/nomad/ci"
 	ctu "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
@@ -34,9 +35,9 @@ func testContainerDetails() (image string, imageName string, imageTag string) {
 }
 
 func TestDockerLogger_Success(t *testing.T) {
+	ci.Parallel(t)
 	ctu.DockerCompatible(t)
 
-	t.Parallel()
 	require := require.New(t)
 
 	containerImage, containerImageName, containerImageTag := testContainerDetails()
@@ -115,9 +116,9 @@ func TestDockerLogger_Success(t *testing.T) {
 }
 
 func TestDockerLogger_Success_TTY(t *testing.T) {
+	ci.Parallel(t)
 	ctu.DockerCompatible(t)
 
-	t.Parallel()
 	require := require.New(t)
 
 	containerImage, containerImageName, containerImageTag := testContainerDetails()
@@ -212,9 +213,9 @@ func echoToContainer(t *testing.T, client *docker.Client, id string, line string
 }
 
 func TestDockerLogger_LoggingNotSupported(t *testing.T) {
+	ci.Parallel(t)
 	ctu.DockerCompatible(t)
 
-	t.Parallel()
 	require := require.New(t)
 
 	containerImage, containerImageName, containerImageTag := testContainerDetails()
@@ -303,6 +304,8 @@ func (*noopCloser) Close() error {
 }
 
 func TestNextBackoff(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		currentBackoff float64
 		min            float64
@@ -325,6 +328,8 @@ func TestNextBackoff(t *testing.T) {
 }
 
 func TestIsLoggingTerminalError(t *testing.T) {
+	ci.Parallel(t)
+
 	terminalErrs := []error{
 		errors.New("docker returned: configured logging driver does not support reading"),
 		&docker.Error{

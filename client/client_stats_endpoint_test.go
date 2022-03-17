@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -12,8 +13,9 @@ import (
 )
 
 func TestClientStats_Stats(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
+
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 
@@ -26,7 +28,7 @@ func TestClientStats_Stats(t *testing.T) {
 }
 
 func TestClientStats_Stats_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)

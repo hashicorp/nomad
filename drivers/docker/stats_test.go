@@ -7,14 +7,15 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDriver_DockerStatsCollector(t *testing.T) {
-	t.Parallel()
-
+	ci.Parallel(t)
 	require := require.New(t)
+
 	src := make(chan *docker.Stats)
 	defer close(src)
 	dst, recvCh := newStatsChanPipe()
@@ -69,7 +70,7 @@ func TestDriver_DockerStatsCollector(t *testing.T) {
 // TestDriver_DockerUsageSender asserts that the TaskResourceUsage chan wrapper
 // supports closing and sending on a chan from concurrent goroutines.
 func TestDriver_DockerUsageSender(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// sample payload
 	res := &cstructs.TaskResourceUsage{}

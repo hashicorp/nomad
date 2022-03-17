@@ -4,21 +4,21 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/nomad/structs"
-
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/require"
 )
 
 func TestJobDispatchCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &JobDispatchCommand{}
 }
 
 func TestJobDispatchCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobDispatchCommand{Meta: Meta{Ui: ui}}
 
@@ -50,7 +50,7 @@ func TestJobDispatchCommand_Fails(t *testing.T) {
 }
 
 func TestJobDispatchCommand_AutocompleteArgs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()

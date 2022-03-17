@@ -3,10 +3,12 @@ package config
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestUIConfig_Merge(t *testing.T) {
+	ci.Parallel(t)
 
 	fullConfig := &UIConfig{
 		Enabled: true,
@@ -69,7 +71,7 @@ func TestUIConfig_Merge(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+			ci.Parallel(t)
 			result := tc.left.Merge(tc.right)
 			require.Equal(t, tc.expect, result)
 		})

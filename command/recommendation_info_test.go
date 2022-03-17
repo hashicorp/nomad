@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 
@@ -12,8 +13,8 @@ import (
 )
 
 func TestRecommendationInfoCommand_Run(t *testing.T) {
+	ci.Parallel(t)
 	require := require.New(t)
-	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	testutil.WaitForResult(func() (bool, error) {
@@ -88,6 +89,8 @@ func TestRecommendationInfoCommand_Run(t *testing.T) {
 }
 
 func TestRecommendationInfoCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
+
 	srv, client, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 

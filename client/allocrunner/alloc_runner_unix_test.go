@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -25,7 +26,7 @@ import (
 // DesiredStatus=Stop, persisting the update, but crashing before terminating
 // the task.
 func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// 1. Run task
 	// 2. Shutdown alloc runner
@@ -143,7 +144,7 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 // TestAllocRunner_Restore_CompletedBatch asserts that restoring a completed
 // batch alloc doesn't run it again
 func TestAllocRunner_Restore_CompletedBatch(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// 1. Run task and wait for it to complete
 	// 2. Start new alloc runner
@@ -228,7 +229,7 @@ func TestAllocRunner_Restore_CompletedBatch(t *testing.T) {
 // prestart hooks failed, then the alloc and subsequent tasks transition
 // to failed state
 func TestAllocRunner_PreStartFailuresLeadToFailed(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.Type = structs.JobTypeBatch

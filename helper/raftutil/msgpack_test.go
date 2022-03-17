@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
@@ -28,6 +29,8 @@ func TestMaybeDecodeTimeIgnoresASCII(t *testing.T) {
 }
 
 func TestDecodesTime(t *testing.T) {
+	ci.Parallel(t)
+
 	type Value struct {
 		CreateTime time.Time
 		Mode       string
@@ -59,6 +62,8 @@ func TestDecodesTime(t *testing.T) {
 }
 
 func TestMyDate(t *testing.T) {
+	ci.Parallel(t)
+
 	handler := &codec.MsgpackHandle{}
 	handler.TimeNotBuiltin = true
 

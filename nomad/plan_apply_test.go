@@ -6,6 +6,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -65,7 +66,7 @@ func testRegisterJob(t *testing.T, s *Server, j *structs.Job) {
 
 // COMPAT 0.11: Tests the older unoptimized code path for applyPlan
 func TestPlanApply_applyPlan(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -239,7 +240,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 // Verifies that applyPlan properly updates the constituent objects in MemDB,
 // when the plan contains normalized allocs.
 func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Build = "0.9.2"
@@ -390,7 +391,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 }
 
 func TestPlanApply_EvalPlan_Simple(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
@@ -434,7 +435,7 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 }
 
 func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	state := testStateStore(t)
 	node := mock.Node()
 	node.NodeResources = &structs.NodeResources{
@@ -548,7 +549,7 @@ func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
 }
 
 func TestPlanApply_EvalPlan_Partial(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
@@ -606,7 +607,7 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 }
 
 func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
@@ -657,7 +658,7 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
@@ -684,7 +685,7 @@ func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	state := testStateStore(t)
 	node := mock.Node()
 	node.Status = structs.NodeStatusInit
@@ -712,7 +713,7 @@ func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	state := testStateStore(t)
 	node := mock.DrainNode()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
@@ -739,7 +740,7 @@ func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	state := testStateStore(t)
 	snap, _ := state.Snapshot()
 
@@ -765,7 +766,7 @@ func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
@@ -802,7 +803,7 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 
 // Test that we detect device oversubscription
 func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	alloc := mock.Alloc()
 	state := testStateStore(t)
@@ -855,7 +856,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
@@ -887,7 +888,7 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
@@ -925,7 +926,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
@@ -958,7 +959,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()

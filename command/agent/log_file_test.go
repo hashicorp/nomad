@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/logutils"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +19,7 @@ const (
 )
 
 func TestLogFile_timeRotation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	tempDir, err := ioutil.TempDir("", "LogWriterTimeTest")
@@ -43,7 +44,7 @@ func TestLogFile_timeRotation(t *testing.T) {
 }
 
 func TestLogFile_openNew(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	tempDir, err := ioutil.TempDir("", "LogWriterOpenTest")
@@ -80,7 +81,7 @@ func TestLogFile_openNew(t *testing.T) {
 }
 
 func TestLogFile_byteRotation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	tempDir, err := ioutil.TempDir("", "LogWriterByteTest")
@@ -104,7 +105,7 @@ func TestLogFile_byteRotation(t *testing.T) {
 }
 
 func TestLogFile_logLevelFiltering(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	tempDir, err := ioutil.TempDir("", "LogWriterFilterTest")
@@ -127,7 +128,7 @@ func TestLogFile_logLevelFiltering(t *testing.T) {
 }
 
 func TestLogFile_deleteArchives(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	tempDir, err := ioutil.TempDir("", "LogWriterDeleteArchivesTest")
@@ -167,7 +168,7 @@ func TestLogFile_deleteArchives(t *testing.T) {
 }
 
 func TestLogFile_deleteArchivesDisabled(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 	tempDir, err := ioutil.TempDir("", "LogWriterDeleteArchivesDisabledTest")

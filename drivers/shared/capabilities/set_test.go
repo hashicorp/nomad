@@ -3,11 +3,12 @@ package capabilities
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSet_Empty(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		result := New(nil).Empty()
@@ -26,7 +27,7 @@ func TestSet_Empty(t *testing.T) {
 }
 
 func TestSet_New(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("duplicates", func(t *testing.T) {
 		result := New([]string{"chown", "sys_time", "chown"})
@@ -46,7 +47,7 @@ func TestSet_New(t *testing.T) {
 }
 
 func TestSet_Slice(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	exp := []string{"chown", "net_raw", "sys_time"}
 
@@ -67,7 +68,7 @@ func TestSet_Slice(t *testing.T) {
 }
 
 func TestSet_String(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("empty", func(t *testing.T) {
 		result := New(nil).String()
@@ -83,7 +84,7 @@ func TestSet_String(t *testing.T) {
 }
 
 func TestSet_Add(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("add one", func(t *testing.T) {
 		s := New([]string{"chown", "net_raw"})
@@ -114,7 +115,7 @@ func TestSet_Add(t *testing.T) {
 }
 
 func TestSet_Remove(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("remove one", func(t *testing.T) {
 		s := New([]string{"af_net", "chown", "net_raw", "seteuid", "sys_time"})
@@ -137,7 +138,7 @@ func TestSet_Remove(t *testing.T) {
 }
 
 func TestSet_Difference(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("a is empty", func(t *testing.T) {
 		a := New(nil)
@@ -162,7 +163,7 @@ func TestSet_Difference(t *testing.T) {
 }
 
 func TestSet_Intersect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("empty", func(t *testing.T) {
 		a := New(nil)
@@ -188,7 +189,7 @@ func TestSet_Intersect(t *testing.T) {
 }
 
 func TestSet_Union(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("empty", func(t *testing.T) {
 		a := New(nil)

@@ -18,6 +18,7 @@ import (
 
 	"github.com/hashicorp/go-msgpack/codec"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -47,7 +48,7 @@ func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
 }
 
 func TestRPC_forwardLeader(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
@@ -89,7 +90,7 @@ func TestRPC_forwardLeader(t *testing.T) {
 }
 
 func TestRPC_WaitForConsistentReads(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS2 := TestServer(t, func(c *Config) {
 		c.RPCHoldTimeout = 20 * time.Millisecond
@@ -131,7 +132,7 @@ func TestRPC_WaitForConsistentReads(t *testing.T) {
 }
 
 func TestRPC_forwardRegion(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -156,7 +157,7 @@ func TestRPC_forwardRegion(t *testing.T) {
 }
 
 func TestRPC_getServer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -182,7 +183,7 @@ func TestRPC_getServer(t *testing.T) {
 }
 
 func TestRPC_PlaintextRPCSucceedsWhenInUpgradeMode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -225,7 +226,7 @@ func TestRPC_PlaintextRPCSucceedsWhenInUpgradeMode(t *testing.T) {
 }
 
 func TestRPC_PlaintextRPCFailsWhenNotInUpgradeMode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -262,7 +263,7 @@ func TestRPC_PlaintextRPCFailsWhenNotInUpgradeMode(t *testing.T) {
 }
 
 func TestRPC_streamingRpcConn_badMethod(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -292,7 +293,7 @@ func TestRPC_streamingRpcConn_badMethod(t *testing.T) {
 }
 
 func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	const (
@@ -352,7 +353,7 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 }
 
 func TestRPC_streamingRpcConn_goodMethod_Plaintext(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
@@ -404,7 +405,7 @@ func TestRPC_streamingRpcConn_goodMethod_Plaintext(t *testing.T) {
 }
 
 func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	const (
@@ -484,7 +485,7 @@ func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
 // switch the conn pool to establishing v2 connections and we can deprecate this
 // test.
 func TestRPC_handleMultiplexV2(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s, cleanupS := TestServer(t, nil)
@@ -544,7 +545,7 @@ func TestRPC_handleMultiplexV2(t *testing.T) {
 
 // TestRPC_TLS_in_TLS asserts that trying to nest TLS connections fails.
 func TestRPC_TLS_in_TLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
@@ -604,7 +605,7 @@ func TestRPC_TLS_in_TLS(t *testing.T) {
 //
 // Invalid limits are tested in command/agent/agent_test.go
 func TestRPC_Limits_OK(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	const (
 		cafile   = "../helper/tlsutil/testdata/ca.pem"
@@ -847,7 +848,7 @@ func TestRPC_Limits_OK(t *testing.T) {
 		tc := cases[i]
 		name := fmt.Sprintf("%d-tls-%t-timeout-%s-limit-%v", i, tc.tls, tc.timeout, tc.limit)
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
+			ci.Parallel(t)
 
 			if tc.limit >= maxConns {
 				t.Fatalf("test fixture failure: cannot assert limit (%d) >= max (%d)", tc.limit, maxConns)
@@ -898,7 +899,7 @@ func TestRPC_Limits_OK(t *testing.T) {
 // the overall connection limit to prevent DOS via server-routed streaming API
 // calls.
 func TestRPC_Limits_Streaming(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanup := TestServer(t, func(c *Config) {
 		limits := config.DefaultLimits()
@@ -1019,7 +1020,7 @@ func TestRPC_Limits_Streaming(t *testing.T) {
 }
 
 func TestRPC_TLS_Enforcement_Raft(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	defer func() {
 		//TODO Avoid panics from logging during shutdown
@@ -1102,7 +1103,7 @@ func TestRPC_TLS_Enforcement_Raft(t *testing.T) {
 }
 
 func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	defer func() {
 		//TODO Avoid panics from logging during shutdown

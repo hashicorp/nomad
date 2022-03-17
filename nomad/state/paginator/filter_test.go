@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-bexpr"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -12,7 +13,7 @@ import (
 )
 
 func TestGenericFilter(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ids := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
 
 	filters := []Filter{GenericFilter{
@@ -45,7 +46,7 @@ func TestGenericFilter(t *testing.T) {
 }
 
 func TestNamespaceFilter(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	mocks := []*mockObject{
 		{namespace: "default"},

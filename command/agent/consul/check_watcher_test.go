@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -172,7 +173,7 @@ func testCheck() *structs.ServiceCheck {
 
 // TestCheckWatcher_Skip asserts unwatched checks are ignored.
 func TestCheckWatcher_Skip(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Create a check with restarting disabled
 	check := testCheck()
@@ -194,7 +195,7 @@ func TestCheckWatcher_Skip(t *testing.T) {
 
 // TestCheckWatcher_Healthy asserts healthy tasks are not restarted.
 func TestCheckWatcher_Healthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	fakeAPI, cw := testWatcherSetup(t)
 
@@ -228,7 +229,7 @@ func TestCheckWatcher_Healthy(t *testing.T) {
 
 // TestCheckWatcher_Unhealthy asserts unhealthy tasks are restarted exactly once.
 func TestCheckWatcher_Unhealthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	fakeAPI, cw := testWatcherSetup(t)
 
@@ -251,7 +252,7 @@ func TestCheckWatcher_Unhealthy(t *testing.T) {
 // TestCheckWatcher_HealthyWarning asserts checks in warning with
 // ignore_warnings=true do not restart tasks.
 func TestCheckWatcher_HealthyWarning(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	fakeAPI, cw := testWatcherSetup(t)
 
@@ -279,7 +280,7 @@ func TestCheckWatcher_HealthyWarning(t *testing.T) {
 // TestCheckWatcher_Flapping asserts checks that flap from healthy to unhealthy
 // before the unhealthy limit is reached do not restart tasks.
 func TestCheckWatcher_Flapping(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	fakeAPI, cw := testWatcherSetup(t)
 
@@ -308,7 +309,7 @@ func TestCheckWatcher_Flapping(t *testing.T) {
 
 // TestCheckWatcher_Unwatch asserts unwatching checks prevents restarts.
 func TestCheckWatcher_Unwatch(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	fakeAPI, cw := testWatcherSetup(t)
 
@@ -337,7 +338,7 @@ func TestCheckWatcher_Unwatch(t *testing.T) {
 // for a single task, all checks should be removed when any of them restart the
 // task to avoid multiple restarts.
 func TestCheckWatcher_MultipleChecks(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	fakeAPI, cw := testWatcherSetup(t)
 
@@ -386,7 +387,7 @@ func TestCheckWatcher_MultipleChecks(t *testing.T) {
 // attempting to restart a task even if its update queue is full.
 // https://github.com/hashicorp/nomad/issues/5395
 func TestCheckWatcher_Deadlock(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	fakeAPI, cw := testWatcherSetup(t)
 

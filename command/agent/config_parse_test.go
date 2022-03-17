@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -411,7 +412,7 @@ var nonoptConfig = &Config{
 }
 
 func TestConfig_ParseMerge(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	path, err := filepath.Abs(filepath.Join(".", "testdata", "basic.hcl"))
 	require.NoError(t, err)
@@ -435,7 +436,7 @@ func TestConfig_ParseMerge(t *testing.T) {
 }
 
 func TestConfig_Parse(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	basicConfig.addDefaults()
 	pluginConfig.addDefaults()
@@ -545,6 +546,8 @@ func (c *Config) addDefaults() {
 // length 1 described in
 // https://github.com/hashicorp/nomad/issues/1290
 func TestConfig_ParsePanic(t *testing.T) {
+	ci.Parallel(t)
+
 	c, err := ParseConfigFile("./testdata/obj-len-one.hcl")
 	if err != nil {
 		t.Fatalf("parse error: %s\n", err)
@@ -561,6 +564,8 @@ func TestConfig_ParsePanic(t *testing.T) {
 // Top level keys left by hcl when parsing slices in the config
 // structure should not be unexpected
 func TestConfig_ParseSliceExtra(t *testing.T) {
+	ci.Parallel(t)
+
 	c, err := ParseConfigFile("./testdata/config-slices.json")
 	require.NoError(t, err)
 
@@ -677,6 +682,8 @@ var sample0 = &Config{
 }
 
 func TestConfig_ParseSample0(t *testing.T) {
+	ci.Parallel(t)
+
 	c, err := ParseConfigFile("./testdata/sample0.json")
 	require.NoError(t, err)
 	require.EqualValues(t, sample0, c)
@@ -766,6 +773,8 @@ var sample1 = &Config{
 }
 
 func TestConfig_ParseDir(t *testing.T) {
+	ci.Parallel(t)
+
 	c, err := LoadConfig("./testdata/sample1")
 	require.NoError(t, err)
 
@@ -798,6 +807,8 @@ func TestConfig_ParseDir(t *testing.T) {
 // that parsing a directory config is the equivalent of
 // parsing individual files in any order
 func TestConfig_ParseDir_Matches_IndividualParsing(t *testing.T) {
+	ci.Parallel(t)
+
 	dirConfig, err := LoadConfig("./testdata/sample1")
 	require.NoError(t, err)
 

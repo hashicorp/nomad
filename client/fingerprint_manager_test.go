@@ -3,13 +3,15 @@ package client
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
+
 	testClient, cleanup := TestClient(t, nil)
 	defer cleanup()
 
@@ -33,7 +35,7 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 }
 
 func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
@@ -62,12 +64,13 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 }
 
 func TestFingerprintManager_Run_InDenylist(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
+
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"fingerprint.allowlist": "  arch,memory,foo,bar	",
-			"fingerprint.denylist": "  cpu	",
+			"fingerprint.denylist":  "  cpu	",
 		}
 	})
 	defer cleanup()
@@ -91,13 +94,13 @@ func TestFingerprintManager_Run_InDenylist(t *testing.T) {
 }
 
 func TestFingerprintManager_Run_Combination(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"fingerprint.allowlist": "  arch,cpu,memory,foo,bar	",
-			"fingerprint.denylist": "  memory,host	",
+			"fingerprint.denylist":  "  memory,host	",
 		}
 	})
 	defer cleanup()
@@ -123,7 +126,7 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 }
 
 func TestFingerprintManager_Run_CombinationLegacyNames(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {

@@ -4,11 +4,14 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestStorageFingerprint(t *testing.T) {
+	ci.Parallel(t)
+
 	fp := NewStorageFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),

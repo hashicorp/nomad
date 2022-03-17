@@ -7,6 +7,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -17,7 +18,7 @@ import (
 )
 
 func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -49,7 +50,7 @@ func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -103,7 +104,7 @@ func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -153,7 +154,7 @@ func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Fail(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -203,7 +204,7 @@ func TestDeploymentEndpoint_Fail(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -279,7 +280,7 @@ func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -357,7 +358,7 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Pause(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -400,7 +401,7 @@ func TestDeploymentEndpoint_Pause(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -469,7 +470,7 @@ func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Promote(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -534,7 +535,7 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -625,7 +626,7 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -693,7 +694,7 @@ func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -787,7 +788,7 @@ func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -877,7 +878,7 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 
 // tests rollback upon alloc health failure to job with identical spec does not succeed
 func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -964,7 +965,7 @@ func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_List(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1033,7 +1034,7 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_List_order(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1121,7 +1122,7 @@ func TestDeploymentEndpoint_List_order(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_List_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1190,7 +1191,7 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1248,7 +1249,7 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s1, _, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -1464,7 +1465,7 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Allocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1502,7 +1503,7 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1577,7 +1578,7 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1645,7 +1646,7 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Reap(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()

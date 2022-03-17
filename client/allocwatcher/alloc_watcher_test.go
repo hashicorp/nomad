@@ -13,6 +13,7 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -88,6 +89,8 @@ func newConfig(t *testing.T) (Config, func()) {
 // TestPrevAlloc_Noop asserts that when no previous allocation is set the noop
 // implementation is returned that does not block or perform migrations.
 func TestPrevAlloc_Noop(t *testing.T) {
+	ci.Parallel(t)
+
 	conf, cleanup := newConfig(t)
 	defer cleanup()
 
@@ -114,7 +117,8 @@ func TestPrevAlloc_Noop(t *testing.T) {
 // TestPrevAlloc_LocalPrevAlloc_Block asserts that when a previous alloc runner
 // is set a localPrevAlloc will block on it.
 func TestPrevAlloc_LocalPrevAlloc_Block(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	conf, cleanup := newConfig(t)
 
 	defer cleanup()
@@ -181,7 +185,8 @@ func TestPrevAlloc_LocalPrevAlloc_Block(t *testing.T) {
 // TestPrevAlloc_LocalPrevAlloc_Terminated asserts that when a previous alloc
 // runner has already terminated the watcher does not block on the broadcaster.
 func TestPrevAlloc_LocalPrevAlloc_Terminated(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	conf, cleanup := newConfig(t)
 	defer cleanup()
 
@@ -201,7 +206,8 @@ func TestPrevAlloc_LocalPrevAlloc_Terminated(t *testing.T) {
 // streaming a tar cause the migration to be cancelled and no files are written
 // (migrations are atomic).
 func TestPrevAlloc_StreamAllocDir_Error(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	dest, err := ioutil.TempDir("", "nomadtest-")
 	if err != nil {
 		t.Fatalf("err: %v", err)

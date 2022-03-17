@@ -4,10 +4,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/hashicorp/nomad/ci"
 )
 
 func TestHTTP_StatusLeader(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/status/leader", nil)
@@ -30,7 +32,7 @@ func TestHTTP_StatusLeader(t *testing.T) {
 }
 
 func TestHTTP_StatusPeers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/status/peers", nil)

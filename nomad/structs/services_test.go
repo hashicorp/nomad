@@ -4,12 +4,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/stretchr/testify/require"
 )
 
 func TestServiceCheck_Hash(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	original := &ServiceCheck{
 		Name:                   "check",
@@ -53,7 +54,7 @@ func TestServiceCheck_Hash(t *testing.T) {
 }
 
 func TestServiceCheck_validate_PassingTypes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("valid", func(t *testing.T) {
 		for _, checkType := range []string{"tcp", "http", "grpc"} {
@@ -83,7 +84,7 @@ func TestServiceCheck_validate_PassingTypes(t *testing.T) {
 }
 
 func TestServiceCheck_validate_FailingTypes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("valid", func(t *testing.T) {
 		for _, checkType := range []string{"tcp", "http", "grpc"} {
@@ -114,7 +115,7 @@ func TestServiceCheck_validate_FailingTypes(t *testing.T) {
 }
 
 func TestServiceCheck_validate_PassFailZero_on_scripts(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("invalid", func(t *testing.T) {
 		err := (&ServiceCheck{
@@ -131,7 +132,7 @@ func TestServiceCheck_validate_PassFailZero_on_scripts(t *testing.T) {
 }
 
 func TestServiceCheck_validate_OnUpdate_CheckRestart_Conflict(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("invalid", func(t *testing.T) {
 		err := (&ServiceCheck{
@@ -186,7 +187,7 @@ func TestServiceCheck_validate_OnUpdate_CheckRestart_Conflict(t *testing.T) {
 }
 
 func TestService_Hash(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	original := &Service{
 		Name:      "myService",
@@ -293,7 +294,7 @@ func TestService_Hash(t *testing.T) {
 }
 
 func TestConsulConnect_Validate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	c := &ConsulConnect{}
 
@@ -312,7 +313,7 @@ func TestConsulConnect_Validate(t *testing.T) {
 }
 
 func TestConsulConnect_CopyEquals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	c := &ConsulConnect{
 		SidecarService: &ConsulSidecarService{
@@ -349,7 +350,7 @@ func TestConsulConnect_CopyEquals(t *testing.T) {
 }
 
 func TestConsulConnect_GatewayProxy_CopyEquals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	c := &ConsulGatewayProxy{
 		ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
@@ -366,7 +367,7 @@ func TestConsulConnect_GatewayProxy_CopyEquals(t *testing.T) {
 }
 
 func TestSidecarTask_MergeIntoTask(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	task := MockJob().TaskGroups[0].Tasks[0]
 	sTask := &SidecarTask{
@@ -422,7 +423,7 @@ func TestSidecarTask_MergeIntoTask(t *testing.T) {
 }
 
 func TestSidecarTask_Equals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	original := &SidecarTask{
 		Name:        "sidecar-task-1",
@@ -501,7 +502,7 @@ func TestSidecarTask_Equals(t *testing.T) {
 }
 
 func TestConsulUpstream_upstreamEquals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	up := func(name string, port int) ConsulUpstream {
 		return ConsulUpstream{
@@ -542,7 +543,7 @@ func TestConsulUpstream_upstreamEquals(t *testing.T) {
 }
 
 func TestConsulExposePath_exposePathsEqual(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	expose := func(path, protocol, listen string, local int) ConsulExposePath {
 		return ConsulExposePath{
@@ -579,7 +580,7 @@ func TestConsulExposePath_exposePathsEqual(t *testing.T) {
 }
 
 func TestConsulExposeConfig_Copy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require.Nil(t, (*ConsulExposeConfig)(nil).Copy())
 	require.Equal(t, &ConsulExposeConfig{
@@ -594,7 +595,7 @@ func TestConsulExposeConfig_Copy(t *testing.T) {
 }
 
 func TestConsulExposeConfig_Equals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require.True(t, (*ConsulExposeConfig)(nil).Equals(nil))
 	require.True(t, (&ConsulExposeConfig{
@@ -609,7 +610,7 @@ func TestConsulExposeConfig_Equals(t *testing.T) {
 }
 
 func TestConsulSidecarService_Copy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		s := (*ConsulSidecarService)(nil)
@@ -700,6 +701,8 @@ var (
 )
 
 func TestConsulGateway_Prefix(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("ingress", func(t *testing.T) {
 		result := (&ConsulGateway{Ingress: new(ConsulIngressConfigEntry)}).Prefix()
 		require.Equal(t, ConnectIngressPrefix, result)
@@ -717,7 +720,7 @@ func TestConsulGateway_Prefix(t *testing.T) {
 }
 
 func TestConsulGateway_Copy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		g := (*ConsulGateway)(nil)
@@ -748,7 +751,7 @@ func TestConsulGateway_Copy(t *testing.T) {
 }
 
 func TestConsulGateway_Equals_mesh(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		a := (*ConsulGateway)(nil)
@@ -764,7 +767,7 @@ func TestConsulGateway_Equals_mesh(t *testing.T) {
 }
 
 func TestConsulGateway_Equals_ingress(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		a := (*ConsulGateway)(nil)
@@ -858,7 +861,7 @@ func TestConsulGateway_Equals_ingress(t *testing.T) {
 }
 
 func TestConsulGateway_Equals_terminating(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	original := consulTerminatingGateway1.Copy()
 
@@ -911,7 +914,7 @@ func TestConsulGateway_Equals_terminating(t *testing.T) {
 }
 
 func TestConsulGateway_ingressServicesEqual(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	igs1 := []*ConsulIngressService{{
 		Name:  "service1",
@@ -942,7 +945,7 @@ func TestConsulGateway_ingressServicesEqual(t *testing.T) {
 }
 
 func TestConsulGateway_ingressListenersEqual(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	ils1 := []*ConsulIngressListener{{
 		Port:     2000,
@@ -969,7 +972,7 @@ func TestConsulGateway_ingressListenersEqual(t *testing.T) {
 }
 
 func TestConsulGateway_Validate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("bad proxy", func(t *testing.T) {
 		err := (&ConsulGateway{
@@ -1037,7 +1040,7 @@ func TestConsulGateway_Validate(t *testing.T) {
 }
 
 func TestConsulGatewayBindAddress_Validate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("no address", func(t *testing.T) {
 		err := (&ConsulGatewayBindAddress{
@@ -1065,7 +1068,7 @@ func TestConsulGatewayBindAddress_Validate(t *testing.T) {
 }
 
 func TestConsulGatewayProxy_Validate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("no timeout", func(t *testing.T) {
 		err := (&ConsulGatewayProxy{
@@ -1117,7 +1120,7 @@ func TestConsulGatewayProxy_Validate(t *testing.T) {
 }
 
 func TestConsulIngressService_Validate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("invalid name", func(t *testing.T) {
 		err := (&ConsulIngressService{
@@ -1172,7 +1175,7 @@ func TestConsulIngressService_Validate(t *testing.T) {
 }
 
 func TestConsulIngressListener_Validate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("invalid port", func(t *testing.T) {
 		err := (&ConsulIngressListener{
@@ -1229,7 +1232,7 @@ func TestConsulIngressListener_Validate(t *testing.T) {
 }
 
 func TestConsulIngressConfigEntry_Validate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("no listeners", func(t *testing.T) {
 		err := (&ConsulIngressConfigEntry{}).Validate()
@@ -1264,7 +1267,7 @@ func TestConsulIngressConfigEntry_Validate(t *testing.T) {
 }
 
 func TestConsulLinkedService_Validate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		err := (*ConsulLinkedService)(nil).Validate()
@@ -1349,7 +1352,7 @@ func TestConsulLinkedService_Validate(t *testing.T) {
 }
 
 func TestConsulLinkedService_Copy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require.Nil(t, (*ConsulLinkedService)(nil).Copy())
 	require.Equal(t, &ConsulLinkedService{
@@ -1368,7 +1371,7 @@ func TestConsulLinkedService_Copy(t *testing.T) {
 }
 
 func TestConsulLinkedService_linkedServicesEqual(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	services := []*ConsulLinkedService{{
 		Name:   "service1",
@@ -1399,7 +1402,7 @@ func TestConsulLinkedService_linkedServicesEqual(t *testing.T) {
 }
 
 func TestConsulTerminatingConfigEntry_Validate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		err := (*ConsulTerminatingConfigEntry)(nil).Validate()
@@ -1433,7 +1436,7 @@ func TestConsulTerminatingConfigEntry_Validate(t *testing.T) {
 }
 
 func TestConsulMeshGateway_Copy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require.Nil(t, (*ConsulMeshGateway)(nil))
 	require.Equal(t, &ConsulMeshGateway{
@@ -1444,7 +1447,7 @@ func TestConsulMeshGateway_Copy(t *testing.T) {
 }
 
 func TestConsulMeshGateway_Equals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	c := &ConsulMeshGateway{Mode: "local"}
 	require.False(t, c.Equals(nil))
@@ -1455,7 +1458,7 @@ func TestConsulMeshGateway_Equals(t *testing.T) {
 }
 
 func TestConsulMeshGateway_Validate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		err := (*ConsulMeshGateway)(nil).Validate()

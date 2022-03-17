@@ -5,19 +5,19 @@ package rawexec
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
-
-	"fmt"
-	"io/ioutil"
-	"path/filepath"
-	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
 	basePlug "github.com/hashicorp/nomad/plugins/base"
@@ -29,7 +29,7 @@ import (
 )
 
 func TestRawExecDriver_User(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	if runtime.GOOS != "linux" {
 		t.Skip("Linux only test")
 	}
@@ -61,7 +61,7 @@ func TestRawExecDriver_User(t *testing.T) {
 }
 
 func TestRawExecDriver_Signal(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	if runtime.GOOS != "linux" {
 		t.Skip("Linux only test")
 	}
@@ -135,7 +135,7 @@ done
 }
 
 func TestRawExecDriver_StartWaitStop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
@@ -204,7 +204,7 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 // TestRawExecDriver_DestroyKillsAll asserts that when TaskDestroy is called all
 // task processes are cleaned up.
 func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// This only works reliably with cgroup PID tracking, happens in linux only
 	if runtime.GOOS != "linux" {
@@ -307,7 +307,7 @@ func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 }
 
 func TestRawExec_ExecTaskStreaming(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	if runtime.GOOS == "darwin" {
 		t.Skip("skip running exec tasks on darwin as darwin has restrictions on starting tty shells")
 	}
@@ -341,7 +341,7 @@ func TestRawExec_ExecTaskStreaming(t *testing.T) {
 }
 
 func TestRawExec_ExecTaskStreaming_User(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	if runtime.GOOS != "linux" {
 		t.Skip("skip, requires running on Linux for testing custom user setting")
 	}
@@ -380,7 +380,7 @@ func TestRawExec_ExecTaskStreaming_User(t *testing.T) {
 }
 
 func TestRawExecDriver_NoCgroup(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	if runtime.GOOS != "linux" {
 		t.Skip("Linux only test")
 	}

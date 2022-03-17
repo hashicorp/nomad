@@ -18,6 +18,7 @@ import (
 
 	"github.com/hashicorp/consul/sdk/testutil/retry"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,7 @@ import (
 )
 
 func TestHTTP_OperatorRaftConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		body := bytes.NewBuffer(nil)
 		req, err := http.NewRequest("GET", "/v1/operator/raft/configuration", body)
@@ -54,8 +55,8 @@ func TestHTTP_OperatorRaftConfiguration(t *testing.T) {
 }
 
 func TestHTTP_OperatorRaftPeer(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		body := bytes.NewBuffer(nil)
 		req, err := http.NewRequest("DELETE", "/v1/operator/raft/peer?address=nope", body)
@@ -88,7 +89,7 @@ func TestHTTP_OperatorRaftPeer(t *testing.T) {
 }
 
 func TestOperator_AutopilotGetConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		body := bytes.NewBuffer(nil)
 		req, _ := http.NewRequest("GET", "/v1/operator/autopilot/configuration", body)
@@ -111,7 +112,7 @@ func TestOperator_AutopilotGetConfiguration(t *testing.T) {
 }
 
 func TestOperator_AutopilotSetConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		body := bytes.NewBuffer([]byte(`{"CleanupDeadServers": false}`))
 		req, _ := http.NewRequest("PUT", "/v1/operator/autopilot/configuration", body)
@@ -140,7 +141,7 @@ func TestOperator_AutopilotSetConfiguration(t *testing.T) {
 }
 
 func TestOperator_AutopilotCASConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		body := bytes.NewBuffer([]byte(`{"CleanupDeadServers": false}`))
 		req, _ := http.NewRequest("PUT", "/v1/operator/autopilot/configuration", body)
@@ -208,6 +209,8 @@ func TestOperator_AutopilotCASConfiguration(t *testing.T) {
 }
 
 func TestOperator_ServerHealth(t *testing.T) {
+	ci.Parallel(t)
+
 	httpTest(t, func(c *Config) {
 		c.Server.RaftProtocol = 3
 	}, func(s *TestAgent) {
@@ -238,7 +241,7 @@ func TestOperator_ServerHealth(t *testing.T) {
 }
 
 func TestOperator_ServerHealth_Unhealthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, func(c *Config) {
 		c.Server.RaftProtocol = 3
 		c.Autopilot.LastContactThreshold = -1 * time.Second
@@ -268,7 +271,7 @@ func TestOperator_ServerHealth_Unhealthy(t *testing.T) {
 }
 
 func TestOperator_SchedulerGetConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		require := require.New(t)
 		body := bytes.NewBuffer(nil)
@@ -290,7 +293,7 @@ func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 }
 
 func TestOperator_SchedulerSetConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		require := require.New(t)
 		body := bytes.NewBuffer([]byte(`
@@ -328,7 +331,7 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 }
 
 func TestOperator_SchedulerCASConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		require := require.New(t)
 		body := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
@@ -406,7 +409,7 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 }
 
 func TestOperator_SnapshotRequests(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	dir, err := ioutil.TempDir("", "nomadtest-operator-")
 	require.NoError(t, err)
@@ -498,5 +501,4 @@ func TestOperator_SnapshotRequests(t *testing.T) {
 
 		require.True(t, jobExists())
 	})
-
 }

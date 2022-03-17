@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -30,7 +31,7 @@ var (
 )
 
 func TestConnect_newConnect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		asr, err := newConnect("", "", nil, nil, nil)
@@ -111,7 +112,7 @@ func TestConnect_newConnect(t *testing.T) {
 }
 
 func TestConnect_connectSidecarRegistration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		sidecarReg, err := connectSidecarRegistration("", nil, testConnectNetwork, testConnectPorts)
@@ -172,7 +173,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 }
 
 func TestConnect_connectProxy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// If the input proxy is nil, we expect the output to be a proxy with its
 	// config set to default values.
@@ -243,7 +244,7 @@ func TestConnect_connectProxy(t *testing.T) {
 }
 
 func TestConnect_connectProxyExpose(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		exposeConfig, err := connectProxyExpose(nil, nil)
@@ -284,7 +285,7 @@ func TestConnect_connectProxyExpose(t *testing.T) {
 }
 
 func TestConnect_connectProxyExposePaths(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		upstreams, err := connectProxyExposePaths(nil, nil)
@@ -332,7 +333,7 @@ func TestConnect_connectProxyExposePaths(t *testing.T) {
 }
 
 func TestConnect_connectUpstreams(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		require.Nil(t, connectUpstreams(nil))
@@ -363,7 +364,7 @@ func TestConnect_connectUpstreams(t *testing.T) {
 }
 
 func TestConnect_connectProxyConfig(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil map", func(t *testing.T) {
 		require.Equal(t, map[string]interface{}{
@@ -384,7 +385,7 @@ func TestConnect_connectProxyConfig(t *testing.T) {
 }
 
 func TestConnect_getConnectPort(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	networks := structs.Networks{{
 		IP: "192.168.30.1",
@@ -432,7 +433,7 @@ func TestConnect_getConnectPort(t *testing.T) {
 }
 
 func TestConnect_getExposePathPort(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	networks := structs.Networks{{
 		Device: "eth0",
@@ -470,7 +471,7 @@ func TestConnect_getExposePathPort(t *testing.T) {
 }
 
 func TestConnect_newConnectGateway(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("not a gateway", func(t *testing.T) {
 		result := newConnectGateway("s1", &structs.ConsulConnect{Native: true})
@@ -546,7 +547,7 @@ func TestConnect_newConnectGateway(t *testing.T) {
 }
 
 func Test_connectMeshGateway(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		result := connectMeshGateway(nil)

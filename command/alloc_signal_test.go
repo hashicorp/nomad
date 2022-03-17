@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -15,12 +16,12 @@ import (
 )
 
 func TestAllocSignalCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &AllocSignalCommand{}
 }
 
 func TestAllocSignalCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -57,6 +58,8 @@ func TestAllocSignalCommand_Fails(t *testing.T) {
 }
 
 func TestAllocSignalCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
+
 	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
@@ -81,6 +84,8 @@ func TestAllocSignalCommand_AutocompleteArgs(t *testing.T) {
 }
 
 func TestAllocSignalCommand_Run(t *testing.T) {
+	ci.Parallel(t)
+
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 

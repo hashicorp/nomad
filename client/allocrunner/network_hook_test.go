@@ -3,6 +3,7 @@ package allocrunner
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -42,6 +43,8 @@ func (m *mockNetworkStatusSetter) SetNetworkStatus(status *structs.AllocNetworkS
 // Test that the prerun and postrun hooks call the setter with the expected spec when
 // the network mode is not host
 func TestNetworkHook_Prerun_Postrun(t *testing.T) {
+	ci.Parallel(t)
+
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{
 		{

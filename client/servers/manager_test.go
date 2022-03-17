@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/stretchr/testify/require"
@@ -47,6 +48,8 @@ func testManagerFailProb(t *testing.T, failPct float64) (m *servers.Manager) {
 }
 
 func TestServers_SetServers(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	m := testManager(t)
 	var num int
@@ -82,6 +85,8 @@ func TestServers_SetServers(t *testing.T) {
 }
 
 func TestServers_FindServer(t *testing.T) {
+	ci.Parallel(t)
+
 	m := testManager(t)
 
 	if m.FindServer() != nil {
@@ -126,6 +131,8 @@ func TestServers_FindServer(t *testing.T) {
 }
 
 func TestServers_New(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 	shutdownCh := make(chan struct{})
 	m := servers.New(logger, shutdownCh, &fauxConnPool{})
@@ -135,6 +142,8 @@ func TestServers_New(t *testing.T) {
 }
 
 func TestServers_NotifyFailedServer(t *testing.T) {
+	ci.Parallel(t)
+
 	m := testManager(t)
 
 	if m.NumServers() != 0 {
@@ -194,6 +203,8 @@ func TestServers_NotifyFailedServer(t *testing.T) {
 }
 
 func TestServers_NumServers(t *testing.T) {
+	ci.Parallel(t)
+
 	m := testManager(t)
 	var num int
 	num = m.NumServers()
@@ -210,6 +221,8 @@ func TestServers_NumServers(t *testing.T) {
 }
 
 func TestServers_RebalanceServers(t *testing.T) {
+	ci.Parallel(t)
+
 	const failPct = 0.5
 	m := testManagerFailProb(t, failPct)
 	const maxServers = 100

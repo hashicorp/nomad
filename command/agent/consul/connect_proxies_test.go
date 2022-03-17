@@ -3,10 +3,13 @@ package consul
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConnectProxies_Proxies(t *testing.T) {
+	ci.Parallel(t)
+
 	pc := NewConnectProxiesClient(NewMockAgent(ossFeatures))
 
 	proxies, err := pc.Proxies()

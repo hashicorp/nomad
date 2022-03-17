@@ -4,14 +4,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestACLTokenCreateCommand(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	config := func(c *agent.Config) {
 		c.ACL.Enabled = true
 	}

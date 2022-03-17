@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/stretchr/testify/require"
 )
 
 func testPolicy(success bool, mode string) *structs.RestartPolicy {
@@ -34,7 +34,7 @@ func testExitResult(exit int) *drivers.ExitResult {
 }
 
 func TestClient_RestartTracker_ModeDelay(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	p := testPolicy(true, structs.RestartPolicyModeDelay)
 	rt := NewRestartTracker(p, structs.JobTypeService, nil)
 	for i := 0; i < p.Attempts; i++ {
@@ -60,7 +60,7 @@ func TestClient_RestartTracker_ModeDelay(t *testing.T) {
 }
 
 func TestClient_RestartTracker_ModeFail(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	rt := NewRestartTracker(p, structs.JobTypeSystem, nil)
 	for i := 0; i < p.Attempts; i++ {
@@ -80,7 +80,7 @@ func TestClient_RestartTracker_ModeFail(t *testing.T) {
 }
 
 func TestClient_RestartTracker_NoRestartOnSuccess(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	p := testPolicy(false, structs.RestartPolicyModeDelay)
 	rt := NewRestartTracker(p, structs.JobTypeBatch, nil)
 	if state, _ := rt.SetExitResult(testExitResult(0)).GetState(); state != structs.TaskTerminated {
@@ -89,7 +89,7 @@ func TestClient_RestartTracker_NoRestartOnSuccess(t *testing.T) {
 }
 
 func TestClient_RestartTracker_ZeroAttempts(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	p.Attempts = 0
 
@@ -122,7 +122,7 @@ func TestClient_RestartTracker_ZeroAttempts(t *testing.T) {
 }
 
 func TestClient_RestartTracker_TaskKilled(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	p.Attempts = 0
 	rt := NewRestartTracker(p, structs.JobTypeService, nil)
@@ -132,7 +132,7 @@ func TestClient_RestartTracker_TaskKilled(t *testing.T) {
 }
 
 func TestClient_RestartTracker_RestartTriggered(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	p.Attempts = 0
 	rt := NewRestartTracker(p, structs.JobTypeService, nil)
@@ -142,7 +142,7 @@ func TestClient_RestartTracker_RestartTriggered(t *testing.T) {
 }
 
 func TestClient_RestartTracker_RestartTriggered_Failure(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	p.Attempts = 1
 	rt := NewRestartTracker(p, structs.JobTypeService, nil)
@@ -155,7 +155,7 @@ func TestClient_RestartTracker_RestartTriggered_Failure(t *testing.T) {
 }
 
 func TestClient_RestartTracker_StartError_Recoverable_Fail(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	rt := NewRestartTracker(p, structs.JobTypeSystem, nil)
 	recErr := structs.NewRecoverableError(fmt.Errorf("foo"), true)
@@ -176,7 +176,7 @@ func TestClient_RestartTracker_StartError_Recoverable_Fail(t *testing.T) {
 }
 
 func TestClient_RestartTracker_StartError_Recoverable_Delay(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	p := testPolicy(true, structs.RestartPolicyModeDelay)
 	rt := NewRestartTracker(p, structs.JobTypeSystem, nil)
 	recErr := structs.NewRecoverableError(fmt.Errorf("foo"), true)
@@ -201,7 +201,7 @@ func TestClient_RestartTracker_StartError_Recoverable_Delay(t *testing.T) {
 }
 
 func TestClient_RestartTracker_Lifecycle(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testCase := []struct {
 		name                   string

@@ -18,6 +18,7 @@ import (
 
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
@@ -50,7 +51,7 @@ func (n nopWriteCloser) Close() error {
 }
 
 func TestFS_Stat_NoAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a client
@@ -71,7 +72,7 @@ func TestFS_Stat_NoAlloc(t *testing.T) {
 }
 
 func TestFS_Stat(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -108,7 +109,7 @@ func TestFS_Stat(t *testing.T) {
 }
 
 func TestFS_Stat_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Start a server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
@@ -183,7 +184,7 @@ func TestFS_Stat_ACL(t *testing.T) {
 }
 
 func TestFS_List_NoAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a client
@@ -204,7 +205,7 @@ func TestFS_List_NoAlloc(t *testing.T) {
 }
 
 func TestFS_List(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -241,7 +242,7 @@ func TestFS_List(t *testing.T) {
 }
 
 func TestFS_List_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Start a server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
@@ -316,7 +317,7 @@ func TestFS_List_ACL(t *testing.T) {
 }
 
 func TestFS_Stream_NoAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a client
@@ -391,7 +392,7 @@ OUTER:
 }
 
 func TestFS_Stream_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Start a server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
@@ -519,7 +520,7 @@ func TestFS_Stream_ACL(t *testing.T) {
 }
 
 func TestFS_Stream(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -635,7 +636,7 @@ func (r *ReadWriteCloseChecker) Close() error {
 }
 
 func TestFS_Stream_Follow(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -732,7 +733,7 @@ OUTER:
 }
 
 func TestFS_Stream_Limit(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -826,7 +827,7 @@ OUTER:
 }
 
 func TestFS_Logs_NoAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a client
@@ -904,7 +905,7 @@ OUTER:
 // TestFS_Logs_TaskPending asserts that trying to stream logs for tasks which
 // have not started returns a 404 error.
 func TestFS_Logs_TaskPending(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -1019,7 +1020,7 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 }
 
 func TestFS_Logs_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server
@@ -1150,7 +1151,7 @@ func TestFS_Logs_ACL(t *testing.T) {
 }
 
 func TestFS_Logs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -1251,7 +1252,7 @@ OUTER:
 }
 
 func TestFS_Logs_Follow(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -1555,7 +1556,8 @@ func TestFS_findClosest(t *testing.T) {
 }
 
 func TestFS_streamFile_NoFile(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
 
@@ -1578,7 +1580,7 @@ func TestFS_streamFile_NoFile(t *testing.T) {
 }
 
 func TestFS_streamFile_Modify(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
@@ -1649,7 +1651,8 @@ func TestFS_streamFile_Modify(t *testing.T) {
 }
 
 func TestFS_streamFile_Truncate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
 
@@ -1752,10 +1755,10 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 }
 
 func TestFS_streamImpl_Delete(t *testing.T) {
+	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not allow us to delete a file while it is open")
 	}
-	t.Parallel()
 
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
@@ -1828,7 +1831,7 @@ func TestFS_streamImpl_Delete(t *testing.T) {
 }
 
 func TestFS_logsImpl_NoFollow(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
@@ -1897,7 +1900,7 @@ func TestFS_logsImpl_NoFollow(t *testing.T) {
 }
 
 func TestFS_logsImpl_Follow(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
