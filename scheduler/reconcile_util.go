@@ -291,7 +291,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 			// Filter allocs on a node that is now re-connected to be resumed.
 			if supportsDisconnectedClients && triggeredBy == structs.EvalTriggerReconnect {
 				original := replacements.getOriginal(alloc.Name)
-				if original != nil {
+				if original != nil && !original.ClientTerminalStatus() {
 					reconnecting[original.ID] = original
 					continue
 				}
@@ -320,7 +320,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 				// Filter unknown allocs on a node that is connected to reconnect.
 				if supportsDisconnectedClients && triggeredBy == structs.EvalTriggerReconnect {
 					original := replacements.getOriginal(alloc.Name)
-					if original != nil {
+					if original != nil && !original.ClientTerminalStatus() {
 						reconnecting[original.ID] = original
 						continue
 					}

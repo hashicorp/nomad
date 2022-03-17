@@ -9998,19 +9998,6 @@ func (a *Allocation) AllocationDiff() *AllocationDiff {
 	return (*AllocationDiff)(a)
 }
 
-func (a *Allocation) IsReconnecting() bool {
-	threshold := 15 * time.Second.Nanoseconds()
-	for _, taskState := range a.TaskStates {
-		for _, taskEvent := range taskState.Events {
-			if taskEvent.Type == TaskClientReconnected && (taskEvent.Time-time.Now().UnixNano()) <= threshold {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
 // AllocationDiff is another named type for Allocation (to use the same fields),
 // which is used to represent the delta for an Allocation. If you need a method
 // defined on the al
