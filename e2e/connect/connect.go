@@ -49,22 +49,15 @@ func init() {
 		},
 	})
 
-	// Connect tests with Consul ACLs enabled. These are now gated behind the
-	// NOMAD_TEST_CONSUL_ACLS environment variable, because they cause lots of
-	// problems for e2e test flakiness (due to restarting consul, nomad, etc.).
-	//
-	// Run these tests locally when working on Connect.
-	if os.Getenv("NOMAD_TEST_CONSUL_ACLS") == "1" {
-		framework.AddSuites(&framework.TestSuite{
-			Component:   "ConnectACLs",
-			CanRunLocal: false,
-			Consul:      true,
-			Parallel:    false,
-			Cases: []framework.TestCase{
-				new(ConnectACLsE2ETest),
-			},
-		})
-	}
+	framework.AddSuites(&framework.TestSuite{
+		Component:   "ConnectACLs",
+		CanRunLocal: false,
+		Consul:      true,
+		Parallel:    false,
+		Cases: []framework.TestCase{
+			new(ConnectACLsE2ETest),
+		},
+	})
 }
 
 func (tc *ConnectE2ETest) BeforeAll(f *framework.F) {
