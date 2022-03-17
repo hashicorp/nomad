@@ -391,6 +391,9 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// that the task group no longer exists
 	tg := a.job.LookupTaskGroup(groupName)
 
+	if a.evalTriggeredBy == structs.EvalTriggerReconnect {
+		fmt.Println("got here")
+	}
 	// If the task group is nil, then the task group has been removed so all we
 	// need to do is stop everything
 	if tg == nil {
@@ -1081,6 +1084,8 @@ func (a *allocReconciler) computeStopByReconnecting(untainted, reconnecting, sto
 				stopAlloc = reconnectingAlloc
 				deleteSet = reconnecting
 			}
+
+			fmt.Printf("reconnect is stopping %s with id %s on node %s\n", stopAlloc.Name, stopAlloc.ID, stopAlloc.NodeID)
 
 			stop[stopAlloc.ID] = stopAlloc
 			a.result.stop = append(a.result.stop, allocStopResult{

@@ -292,6 +292,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 			if supportsDisconnectedClients && triggeredBy == structs.EvalTriggerReconnect {
 				original := replacements.getOriginal(alloc.Name)
 				if original != nil && !original.ClientTerminalStatus() {
+					fmt.Printf("reconnecting %s with id %s\n", original.Name, original.ID)
 					reconnecting[original.ID] = original
 					continue
 				}
@@ -321,6 +322,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 				if supportsDisconnectedClients && triggeredBy == structs.EvalTriggerReconnect {
 					original := replacements.getOriginal(alloc.Name)
 					if original != nil && !original.ClientTerminalStatus() {
+						fmt.Printf("reconnecting %s with id %s\n", original.Name, original.ID)
 						reconnecting[original.ID] = original
 						continue
 					}

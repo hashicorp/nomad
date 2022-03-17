@@ -131,3 +131,17 @@ func TestRPCOnlyClient(t testing.T, srvAddr net.Addr, rpcs map[string]interface{
 
 	return client, cancelFunc, nil
 }
+
+// FailTasks allows failing tasks on a client when testing.
+func FailTask(c *Client, allocID, taskName, taskEvent string) error {
+	if !c.allocFailersEnabled {
+		return fmt.Errorf("alloc failers not enabled on client")
+	}
+
+	failer := c.allocFailers[allocID]
+	if failer == nil {
+		return fmt.Errorf("alloc %s not running", allocID)
+	}
+
+	return failer.FailTask(taskName, taskEvent)
+}

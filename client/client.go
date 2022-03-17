@@ -309,6 +309,10 @@ type Client struct {
 
 	// EnterpriseClient is used to set and check enterprise features for clients
 	EnterpriseClient *EnterpriseClient
+
+	// allocFailers provides a way to expose alloc runners to test code.
+	allocFailers        map[string]*allocrunner.AllocFailer
+	allocFailersEnabled bool
 }
 
 var (
@@ -409,6 +413,12 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	// Setup the node
 	if err := c.setupNode(); err != nil {
 		return nil, fmt.Errorf("node setup failed: %v", err)
+	}
+
+	// Enable alloc failer for tests.
+	if option, ok := c.config.Options["test.init_alloc_failer"]; ok && option == "true" {
+		c.allocFailersEnabled = true
+		c.allocFailers = make(map[string]*allocrunner.AllocFailer)
 	}
 
 	// Store the config copy before restoring state but after it has been
@@ -2499,6 +2509,11 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 
 	// Store the alloc runner.
 	c.allocs[alloc.ID] = ar
+
+	// Store the runner if enabled for tests.
+	if c.allocFailersEnabled {
+		c.allocFailers[alloc.ID] = &allocrunner.AllocFailer{Runner: ar}
+	}
 
 	// Maybe mark the alloc for halt on missing server heartbeats
 	c.heartbeatStop.allocHook(alloc)
