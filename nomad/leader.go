@@ -120,6 +120,30 @@ func (s *Server) monitorLeadership() {
 	}
 }
 
+func (s *Server) leadershipTransfer() error {
+	retryCount := 3
+	for i := 0; i < retryCount; i++ {
+		err := s.raft.LeadershipTransfer().Error()
+		if err == nil {
+			s.logger.Info("successfully transferred leadership")
+			return nil
+		}
+
+		// Don't retry if the Raft version doesn't support leadership transfer
+		// since this will never succeed.
+		if err == raft.ErrUnsupportedProtocol {
+			return fmt.Errorf("leadership transfer not supported with Raft version lower than 3")
+		}
+
+		s.logger.Error("failed to transfer leadership attempt, will retry",
+			"attempt", i,
+			"retry_limit", retryCount,
+			"error", err,
+		)
+	}
+	return fmt.Errorf("failed to transfer leadership in %d attempts", retryCount)
+}
+
 // leaderLoop runs as long as we are the leader to run various
 // maintenance activities
 func (s *Server) leaderLoop(stopCh chan struct{}) {
@@ -151,7 +175,15 @@ RECONCILE:
 				s.logger.Error("failed to revoke leadership", "error", err)
 			}
 
-			goto WAIT
+			// Attempt to transfer leadership. If successful, leave the
+			// leaderLoop since this node is no longer the leader. Otherwise
+			// try to establish leadership again after 5 seconds.
+			if err := s.leadershipTransfer(); err != nil {
+				s.logger.Error("failed to transfer leadership", "error", err)
+				interval = time.After(5 * time.Second)
+				goto WAIT
+			}
+			return
 		}
 
 		establishedLeader = true
@@ -182,10 +214,12 @@ RECONCILE:
 	}
 
 WAIT:
-	// Wait until leadership is lost
+	// Wait until leadership is lost or periodically reconcile as long as we
+	// are the leader, or when Serf events arrive.
 	for {
 		select {
 		case <-stopCh:
+			// Lost leadership.
 			return
 		case <-s.shutdownCh:
 			return
@@ -213,6 +247,27 @@ WAIT:
 			s.revokeLeadership()
 			err := s.establishLeadership(stopCh)
 			errCh <- err
+
+			// In case establishLeadership fails, try to transfer leadership.
+			// At this point Raft thinks we are the leader, but Nomad did not
+			// complete the required steps to act as the leader.
+			if err != nil {
+				if err := s.leadershipTransfer(); err != nil {
+					// establishedLeader was true before, but it no longer is
+					// since we revoked leadership and leadershipTransfer also
+					// failed.
+					// Stay in the leaderLoop with establishedLeader set to
+					// false so we try to establish leadership again in the
+					// next loop.
+					establishedLeader = false
+					interval = time.After(5 * time.Second)
+					goto WAIT
+				}
+
+				// leadershipTransfer was successful and it is
+				// time to leave the leaderLoop.
+				return
+			}
 		}
 	}
 }
