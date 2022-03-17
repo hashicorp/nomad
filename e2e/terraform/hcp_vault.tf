@@ -45,5 +45,5 @@ resource "local_file" "nomad_config_for_vault" {
     namespace = var.hcp_vault_namespace
   })
   filename        = "uploads/shared/nomad.d/vault.hcl"
-  file_permission = "0700"
+  file_permission = "0600"
 }

@@ -11,7 +11,7 @@ resource "local_file" "nomad_environment" {
     license = var.nomad_license
   })
   filename        = "${local.upload_dir}/nomad.d/.environment"
-  file_permission = "0700"
+  file_permission = "0600"
 }
 
 resource "local_file" "nomad_base_config" {
@@ -19,25 +19,25 @@ resource "local_file" "nomad_base_config" {
     data_dir = var.platform != "windows" ? "/opt/nomad/data" : "C://opt/nomad/data"
   })
   filename        = "${local.upload_dir}/nomad.d/base.hcl"
-  file_permission = "0700"
+  file_permission = "0600"
 }
 
 resource "local_file" "nomad_role_config" {
   sensitive_content = templatefile("etc/nomad.d/${var.role}-${var.platform}.hcl", {})
   filename          = "${local.upload_dir}/nomad.d/${var.role}.hcl"
-  file_permission   = "0700"
+  file_permission   = "0600"
 }
 
 resource "local_file" "nomad_indexed_config" {
   sensitive_content = templatefile(local.indexed_config_path, {})
   filename          = "${local.upload_dir}/nomad.d/${var.role}-${var.platform}-${var.index}.hcl"
-  file_permission   = "0700"
+  file_permission   = "0600"
 }
 
 resource "local_file" "nomad_tls_config" {
   sensitive_content = templatefile("etc/nomad.d/tls.hcl", {})
   filename          = "${local.upload_dir}/nomad.d/tls.hcl"
-  file_permission   = "0700"
+  file_permission   = "0600"
 }
 
 resource "null_resource" "upload_consul_configs" {

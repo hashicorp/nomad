@@ -35,13 +35,13 @@ resource "local_file" "consul_acl_file" {
     token = data.consul_acl_token_secret_id.consul_agent_token.secret_id
   })
   filename        = "uploads/shared/consul.d/client_acl.json"
-  file_permission = "0700"
+  file_permission = "0600"
 }
 
 resource "local_file" "consul_ca_file" {
   sensitive_content = base64decode(data.hcp_consul_cluster.e2e_shared_consul.consul_ca_file)
   filename          = "uploads/shared/consul.d/ca.pem"
-  file_permission   = "0700"
+  file_permission   = "0600"
 }
 
 resource "local_file" "consul_config_file" {
@@ -91,7 +91,7 @@ resource "local_file" "nomad_server_config_for_consul" {
     server_service_name = "server-${local.random_name}"
   })
   filename        = "uploads/shared/nomad.d/server-consul.hcl"
-  file_permission = "0700"
+  file_permission = "0600"
 }
 
 # Nomad clients configuration for Consul
@@ -123,5 +123,5 @@ resource "local_file" "nomad_client_config_for_consul" {
     server_service_name = "server-${local.random_name}"
   })
   filename        = "uploads/shared/nomad.d/client-consul.hcl"
-  file_permission = "0700"
+  file_permission = "0600"
 }
