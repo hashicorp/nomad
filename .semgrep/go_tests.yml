@@ -128,6 +128,5 @@ rules:
     severity: "WARNING"
     fix: "ci.Parallel(t)"
     paths:
-      exclude: ["*"]
       include:
         - "*_test.go"
