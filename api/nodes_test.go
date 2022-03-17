@@ -14,7 +14,7 @@ import (
 )
 
 func TestNodes_List(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -43,7 +43,7 @@ func TestNodes_List(t *testing.T) {
 }
 
 func TestNodes_PrefixList(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -86,7 +86,7 @@ func TestNodes_PrefixList(t *testing.T) {
 // TestNodes_List_Resources asserts that ?resources=true includes allocated and
 // reserved resources in the response.
 func TestNodes_List_Resources(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -123,7 +123,7 @@ func TestNodes_List_Resources(t *testing.T) {
 }
 
 func TestNodes_Info(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	startTime := time.Now().Unix()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
@@ -182,7 +182,7 @@ func TestNodes_Info(t *testing.T) {
 }
 
 func TestNodes_NoSecretID(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -216,7 +216,7 @@ func TestNodes_NoSecretID(t *testing.T) {
 }
 
 func TestNodes_ToggleDrain(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
@@ -319,7 +319,7 @@ func TestNodes_ToggleDrain(t *testing.T) {
 }
 
 func TestNodes_ToggleEligibility(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -388,7 +388,7 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 }
 
 func TestNodes_Allocations(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	nodes := c.Nodes()
@@ -407,7 +407,7 @@ func TestNodes_Allocations(t *testing.T) {
 }
 
 func TestNodes_ForceEvaluate(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -446,7 +446,7 @@ func TestNodes_ForceEvaluate(t *testing.T) {
 }
 
 func TestNodes_Sort(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	nodes := []*NodeListStub{
 		{CreateIndex: 2},
 		{CreateIndex: 1},
@@ -466,7 +466,7 @@ func TestNodes_Sort(t *testing.T) {
 
 // Unittest monitorDrainMultiplex when an error occurs
 func TestNodes_MonitorDrain_Multiplex_Bad(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	ctx := context.Background()
@@ -518,7 +518,7 @@ func TestNodes_MonitorDrain_Multiplex_Bad(t *testing.T) {
 
 // Unittest monitorDrainMultiplex when drain finishes
 func TestNodes_MonitorDrain_Multiplex_Good(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	ctx := context.Background()
@@ -583,7 +583,7 @@ func TestNodes_MonitorDrain_Multiplex_Good(t *testing.T) {
 }
 
 func TestNodes_DrainStrategy_Equal(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	// nil
@@ -620,7 +620,7 @@ func TestNodes_DrainStrategy_Equal(t *testing.T) {
 }
 
 func TestNodes_Purge(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
@@ -661,7 +661,7 @@ func TestNodes_Purge(t *testing.T) {
 }
 
 func TestNodeStatValueFormatting(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	cases := []struct {
 		expected string

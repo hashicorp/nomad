@@ -13,6 +13,7 @@ import (
 	"time"
 
 	getter "github.com/hashicorp/go-getter"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/execagent"
 	"github.com/hashicorp/nomad/e2e/framework"
@@ -119,7 +120,7 @@ func (tc *UpgradePathTC) TestRawExecTaskUpgrade(f *framework.F) {
 	for _, ver := range nomadVersions {
 		ver := ver
 		f.T().Run(ver, func(t *testing.T) {
-			t.Parallel()
+			ci.Parallel(t)
 			tc.testUpgradeForJob(t, ver, "nomad09upgrade/rawexec.nomad")
 		})
 	}
@@ -129,7 +130,7 @@ func (tc *UpgradePathTC) TestExecTaskUpgrade(f *framework.F) {
 	for _, ver := range nomadVersions {
 		ver := ver
 		f.T().Run(ver, func(t *testing.T) {
-			t.Parallel()
+			ci.Parallel(t)
 			tc.testUpgradeForJob(t, ver, "nomad09upgrade/exec.nomad")
 		})
 	}
@@ -139,7 +140,7 @@ func (tc *UpgradePathTC) TestDockerTaskUpgrade(f *framework.F) {
 	for _, ver := range nomadVersions {
 		ver := ver
 		f.T().Run(ver, func(t *testing.T) {
-			t.Parallel()
+			ci.Parallel(t)
 			tc.testUpgradeForJob(t, ver, "nomad09upgrade/docker.nomad")
 		})
 	}

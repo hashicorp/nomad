@@ -13,10 +13,12 @@ import (
 	"testing"
 	"testing/iotest"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestChecksumValidatingReader(t *testing.T) {
+	testutil.Parallel(t)
 	data := make([]byte, 4096)
 	_, err := rand.Read(data)
 	require.NoError(t, err)
@@ -66,7 +68,7 @@ func TestChecksumValidatingReader(t *testing.T) {
 }
 
 func TestChecksumValidatingReader_PropagatesError(t *testing.T) {
-
+	testutil.Parallel(t)
 	pr, pw := io.Pipe()
 	defer pr.Close()
 	defer pw.Close()

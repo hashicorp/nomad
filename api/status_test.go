@@ -2,10 +2,12 @@ package api
 
 import (
 	"testing"
+
+	"github.com/hashicorp/nomad/api/internal/testutil"
 )
 
 func TestStatus_Leader(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	status := c.Status()

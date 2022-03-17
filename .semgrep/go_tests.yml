@@ -119,3 +119,14 @@ rules:
       exclude: ["*"]
       include:
         - "*_test.go"
+  - id: "tests-no-parallel"
+    patterns:
+      - pattern: "t.Parallel()"
+    message: "Use ci.Parallel(t) instead of t.Parallel()"
+    languages:
+      - "go"
+    severity: "WARNING"
+    fix: "ci.Parallel(t)"
+    paths:
+      include:
+        - "*_test.go"

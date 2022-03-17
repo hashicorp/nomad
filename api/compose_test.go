@@ -3,10 +3,12 @@ package api
 import (
 	"reflect"
 	"testing"
+
+	"github.com/hashicorp/nomad/api/internal/testutil"
 )
 
 func TestCompose(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	// Compose a task
 	task := NewTask("task1", "exec").
 		SetConfig("foo", "bar").

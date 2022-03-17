@@ -9,7 +9,7 @@ import (
 )
 
 func TestEvaluations_List(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	e := c.Evaluations()
@@ -73,7 +73,7 @@ func TestEvaluations_List(t *testing.T) {
 }
 
 func TestEvaluations_PrefixList(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	e := c.Evaluations()
@@ -102,7 +102,7 @@ func TestEvaluations_PrefixList(t *testing.T) {
 }
 
 func TestEvaluations_Info(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	e := c.Evaluations()
@@ -148,7 +148,7 @@ func TestEvaluations_Info(t *testing.T) {
 }
 
 func TestEvaluations_Allocations(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	e := c.Evaluations()
@@ -161,7 +161,7 @@ func TestEvaluations_Allocations(t *testing.T) {
 }
 
 func TestEvaluations_Sort(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	evals := []*Evaluation{
 		{CreateIndex: 2},
 		{CreateIndex: 1},
