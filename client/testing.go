@@ -143,5 +143,6 @@ func FailTask(c *Client, allocID, taskName, taskEvent string) error {
 		return fmt.Errorf("alloc %s not running", allocID)
 	}
 
-	return failer.FailTask(taskName, taskEvent)
+	failer.FailTask(taskName, taskEvent)
+	return nil
 }

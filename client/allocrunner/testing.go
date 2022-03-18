@@ -98,7 +98,7 @@ type AllocFailer struct {
 }
 
 // FailTask allows failing a task from test code.
-func (af *AllocFailer) FailTask(taskName, taskEvent string) error {
+func (af *AllocFailer) FailTask(taskName, taskEvent string) {
 	if taskEvent == "" {
 		taskEvent = structs.TaskDriverFailure
 	}
@@ -120,19 +120,14 @@ func (af *AllocFailer) FailTask(taskName, taskEvent string) error {
 	}
 
 	// Build the client allocation
-	alloc := af.Runner.clientAlloc(states)
+	clientAlloc := af.Runner.clientAlloc(states)
 
-	// Update the client state store.
-	err := af.Runner.stateUpdater.PutAllocation(alloc)
-	if err != nil {
-		return err
-	}
+	// Set to instance and set on runner
+	alloc := af.Runner.Alloc()
+	alloc.ClientStatus = clientAlloc.ClientStatus
+	alloc.ClientDescription = clientAlloc.ClientDescription
+	alloc.TaskStates = clientAlloc.TaskStates
 
-	// Update the server.
 	af.Runner.stateUpdater.AllocStateUpdated(alloc)
-
-	// Broadcast client alloc to listeners.
-	err = af.Runner.allocBroadcaster.Send(alloc)
-
-	return err
+	return
 }

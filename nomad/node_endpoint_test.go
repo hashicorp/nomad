@@ -3741,17 +3741,19 @@ func TestClientEndpoint_UpdateAlloc_Reconnect(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	noRestart := &structs.RestartPolicy{
+		Attempts: 0,
+		Interval: 5 * time.Second,
+		Mode:     structs.RestartPolicyModeFail,
+	}
 	// Inject mock job
 	job := mock.Job()
 	job.ID = "reconnect-job"
 	job.Constraints = []*structs.Constraint{}
 	job.TaskGroups[0].MaxClientDisconnect = helper.TimeToPtr(time.Second * 30)
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].RestartPolicy = &structs.RestartPolicy{
-		Attempts: 0,
-		Interval: 5 * time.Second,
-		Mode:     structs.RestartPolicyModeFail,
-	}
+	job.TaskGroups[0].RestartPolicy = noRestart
+	job.TaskGroups[0].Tasks[0].RestartPolicy = noRestart
 	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "10s",
@@ -3915,6 +3917,7 @@ func TestClientEndpoint_UpdateAlloc_Reconnect(t *testing.T) {
 	require.Equal(t, structs.AllocClientStatusFailed, outAlloc.ClientStatus)
 
 	// Assert that exactly one eval with TriggeredBy EvalTriggerReconnect exists
+	foundCount = 0
 	testutil.WaitForResult(func() (bool, error) {
 		evaluations, err = srv.State().EvalsByJob(nil, job.Namespace, job.ID)
 		if err != nil {
