@@ -1,20 +1,5 @@
 name: Core CI Tests
 on:
-  pull_request:
-    branches:
-      - main
-    paths-ignore:
-      - 'README.md'
-      - 'CHANGELOG.md'
-      - '.changelog/*'
-      - '.tours/*'
-      - 'contributing/*'
-      - 'demo/*'
-      - 'pkg/*'
-      - 'scripts/*'
-      - 'terraform/*'
-      - 'ui/*'
-      - 'website/*'
   push:
     branches-ignore:
       - main
@@ -26,6 +11,9 @@ on:
       - '.tours/*'
       - 'contributing/*'
       - 'demo/*'
+      - 'dev/*'
+      - 'e2e/terraform/*'
+      - 'integrations/*'
       - 'pkg/*'
       - 'scripts/*'
       - 'terraform/*'
