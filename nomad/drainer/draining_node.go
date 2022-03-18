@@ -139,7 +139,7 @@ func (n *drainingNode) DrainingJobs() ([]structs.NamespacedID, error) {
 	jobIDs := make(map[structs.NamespacedID]struct{})
 	var jobs []structs.NamespacedID
 	for _, alloc := range allocs {
-		if alloc.TerminalStatus() || alloc.Job.Type == structs.JobTypeSystem {
+		if alloc.TerminalStatus() || alloc.Job.Type == structs.JobTypeSystem || alloc.Job.IsPlugin() {
 			continue
 		}
 
