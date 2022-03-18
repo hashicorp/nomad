@@ -24,6 +24,7 @@ func TestIsNomadServer(t *testing.T) {
 			"dc":       "east-aws",
 			"rpc_addr": "1.1.1.1",
 			"port":     "10000",
+			"vsn":      "1",
 			"raft_vsn": "2",
 			"build":    "0.7.0+ent",
 			"nonvoter": "1",
@@ -52,6 +53,7 @@ func TestIsNomadServer(t *testing.T) {
 	if parts.RPCAddr.String() != "1.1.1.1:10000" {
 		t.Fatalf("bad: %v", parts.RPCAddr.String())
 	}
+	require.Equal(t, 1, parts.MajorVersion)
 	if seg := parts.Build.Segments(); len(seg) != 3 {
 		t.Fatalf("bad: %v", parts.Build)
 	} else if seg[0] != 0 && seg[1] != 7 && seg[2] != 0 {
@@ -201,6 +203,7 @@ func makeMember(version string, status serf.MemberStatus) serf.Member {
 			"dc":     "east-aws",
 			"port":   "10000",
 			"build":  version,
+			"vsn":    "1",
 		},
 		Status: status,
 	}

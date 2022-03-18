@@ -1407,6 +1407,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.Tags["region"] = s.config.Region
 	conf.Tags["dc"] = s.config.Datacenter
 	conf.Tags["build"] = s.config.Build
+	conf.Tags["vsn"] = deprecatedAPIMajorVersionStr // for Nomad <= v1.2 compat
 	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
 	conf.Tags["id"] = s.config.NodeID
 	conf.Tags["rpc_addr"] = s.clientRpcAdvertise.(*net.TCPAddr).IP.String()         // Address that clients will use to RPC to servers

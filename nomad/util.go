@@ -15,6 +15,14 @@ import (
 	"github.com/hashicorp/serf/serf"
 )
 
+const (
+	// Deprecated: Through Nomad v1.2 these values were configurable but
+	// functionally unused. We still need to advertise them in Serf for
+	// compatibility with v1.2 and earlier.
+	deprecatedAPIMajorVersion    = 1
+	deprecatedAPIMajorVersionStr = "1"
+)
+
 // MinVersionPlanNormalization is the minimum version to support the
 // normalization of Plan in SubmitPlan, and the denormalization raft log entry committed
 // in ApplyPlanResultsRequest
@@ -43,6 +51,10 @@ type serverParts struct {
 	RPCAddr     net.Addr
 	Status      serf.MemberStatus
 	NonVoter    bool
+
+	// Deprecated: Functionally unused but needs to always be set by 1 for
+	// compatibility with v1.2.x and earlier.
+	MajorVersion int
 }
 
 func (s *serverParts) String() string {
@@ -113,19 +125,20 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 	addr := &net.TCPAddr{IP: m.Addr, Port: port}
 	rpcAddr := &net.TCPAddr{IP: rpcIP, Port: port}
 	parts := &serverParts{
-		Name:        m.Name,
-		ID:          id,
-		Region:      region,
-		Datacenter:  datacenter,
-		Port:        port,
-		Bootstrap:   bootstrap,
-		Expect:      expect,
-		Addr:        addr,
-		RPCAddr:     rpcAddr,
-		Build:       *buildVersion,
-		RaftVersion: raftVsn,
-		Status:      m.Status,
-		NonVoter:    nonVoter,
+		Name:         m.Name,
+		ID:           id,
+		Region:       region,
+		Datacenter:   datacenter,
+		Port:         port,
+		Bootstrap:    bootstrap,
+		Expect:       expect,
+		Addr:         addr,
+		RPCAddr:      rpcAddr,
+		Build:        *buildVersion,
+		RaftVersion:  raftVsn,
+		Status:       m.Status,
+		NonVoter:     nonVoter,
+		MajorVersion: deprecatedAPIMajorVersion,
 	}
 	return true, parts
 }
