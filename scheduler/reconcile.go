@@ -391,9 +391,6 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// that the task group no longer exists
 	tg := a.job.LookupTaskGroup(groupName)
 
-	if a.evalTriggeredBy == structs.EvalTriggerReconnect {
-		fmt.Println("got here")
-	}
 	// If the task group is nil, then the task group has been removed so all we
 	// need to do is stop everything
 	if tg == nil {
@@ -1034,8 +1031,20 @@ func (a *allocReconciler) computeStopByReconnecting(untainted, reconnecting, sto
 	}
 
 	for _, reconnectingAlloc := range reconnecting {
+		// If the reconnecting alloc went terminal during the disconnect don't process it.
+		//if reconnectingAlloc.ClientTerminalStatus() {
+		//	delete(reconnecting, reconnectingAlloc.ID)
+		//
+		//	remove--
+		//	// if we've removed all we need to, stop iterating and return.
+		//	if remove == 0 {
+		//		return remove
+		//	}
+		//	continue
+		//}
+
 		// if the desired status is not run, or if the user-specified desired
-		// transition is not run, stop the allocation.
+		// transition is not run, stop the reconnecting allocation.
 		if reconnectingAlloc.DesiredStatus != structs.AllocDesiredStatusRun ||
 			reconnectingAlloc.DesiredTransition.ShouldMigrate() ||
 			reconnectingAlloc.DesiredTransition.ShouldReschedule() ||

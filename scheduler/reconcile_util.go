@@ -222,23 +222,30 @@ func newReplacementMap(set allocSet) *replacementMap {
 	}
 
 	for _, alloc := range set {
+		fmt.Printf("replacementMap: set alloc %s with id %s\n", alloc.Name, alloc.ID)
 		if allocs, ok := rm.entries[alloc.Name]; ok {
-			allocs = append(allocs, alloc)
+			rm.entries[alloc.Name] = append(allocs, alloc)
 		} else {
 			rm.entries[alloc.Name] = []*structs.Allocation{alloc}
 		}
+		fmt.Printf("replacementMap: set alloc %s with %d entries %#v\n", alloc.Name, len(rm.entries[alloc.Name]), rm.entries[alloc.Name])
+
 	}
 
 	for allocName, allocs := range rm.entries {
 		if len(allocs) > 2 {
-			fmt.Printf("unexpected replacement confg: alloc %s has %d entries\n", allocName, len(allocs))
+			fmt.Printf("unexpected replacement config: alloc %s has %d entries\n", allocName, len(allocs))
 			delete(rm.entries, allocName)
 		}
 		if len(allocs) < 2 {
+			fmt.Printf("replacementMap: alloc %s removed\n", allocName)
 			delete(rm.entries, allocName)
 		}
 	}
 
+	if len(rm.entries) == 0 {
+		fmt.Println("no replacements found")
+	}
 	return rm
 }
 
@@ -291,8 +298,8 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 			// Filter allocs on a node that is now re-connected to be resumed.
 			if supportsDisconnectedClients && triggeredBy == structs.EvalTriggerReconnect {
 				original := replacements.getOriginal(alloc.Name)
-				if original != nil && !original.ClientTerminalStatus() {
-					fmt.Printf("reconnecting %s with id %s\n", original.Name, original.ID)
+				if original != nil {
+					fmt.Printf("reconnecting %s with status %s and id %s and previous %s\n", original.Name, original.ClientStatus, original.ID, original.PreviousAllocation)
 					reconnecting[original.ID] = original
 					continue
 				}
@@ -321,8 +328,8 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 				// Filter unknown allocs on a node that is connected to reconnect.
 				if supportsDisconnectedClients && triggeredBy == structs.EvalTriggerReconnect {
 					original := replacements.getOriginal(alloc.Name)
-					if original != nil && !original.ClientTerminalStatus() {
-						fmt.Printf("reconnecting %s with id %s\n", original.Name, original.ID)
+					if original != nil {
+						fmt.Printf("reconnecting %s with status %s and id %s and previous %s\n", original.Name, original.ClientStatus, original.ID, original.PreviousAllocation)
 						reconnecting[original.ID] = original
 						continue
 					}
