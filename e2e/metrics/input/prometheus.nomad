@@ -44,7 +44,6 @@ scrape_configs:
 
     consul_sd_configs:
     - server: '{{ env "NOMAD_IP_prometheus_ui" }}:8500'
-      services: ['nomad-client', 'nomad']
 
     relabel_configs:
     - source_labels: ['__meta_consul_tags']

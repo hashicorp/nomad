@@ -1,23 +1,46 @@
 # Terraform infrastructure
 
-This folder contains Terraform resources for provisioning a Nomad cluster on
-EC2 instances on AWS to use as the target of end-to-end tests.
+This folder contains Terraform resources for provisioning a Nomad
+cluster on EC2 instances on AWS to use as the target of end-to-end
+tests.
 
-Terraform provisions the AWS infrastructure assuming that EC2 AMIs have
-already been built via Packer. It deploys a specific build of Nomad to the
-cluster along with configuration files for Nomad, Consul, and Vault.
+Terraform provisions the AWS infrastructure assuming that EC2 AMIs
+have already been built via Packer and HCP Consul and HCP Vault
+clusters are already running. It deploys a build of Nomad from your
+local machine along with configuration files.
 
 ## Setup
 
-You'll need Terraform 0.14.7+, as well as AWS credentials to create the Nomad
-cluster. This Terraform stack assumes that an appropriate instance role has
-been configured elsewhere and that you have the ability to `AssumeRole` into
-the AWS account.
+You'll need a recent version of Terraform (1.1+ recommended), as well
+as AWS credentials to create the Nomad cluster and credentials for
+HCP. This Terraform stack assumes that an appropriate instance role
+has been configured elsewhere and that you have the ability to
+`AssumeRole` into the AWS account.
 
-Optionally, edit the `terraform.tfvars` file to change the number of Linux
-clients or Windows clients. The Terraform variables file
-`terraform.full.tfvars` is for the nightly E2E test run and deploys a larger,
-more diverse set of test targets.
+Configure the following environment variables. For HashiCorp Nomad
+developers, this configuration can be found in 1Pass in the Nomad
+team's vault under `nomad-e2e`.
+
+```
+export HCP_CLIENT_ID=
+export HCP_CLIENT_SECRET=
+export CONSUL_HTTP_TOKEN=
+export CONSUL_HTTP_ADDR=
+```
+
+The Vault admin token will expire after 6 hours. If you haven't
+created one already use the separate Terraform configuration found in
+the `hcp-vault-auth` directory. The following will set the correct
+values for `VAULT_TOKEN`, `VAULT_ADDR`, and `VAULT_NAMESPACE`:
+
+```
+cd ./hcp-vault-auth
+terraform apply --auto-approve
+$(terraform output environment --raw)
+```
+
+Optionally, edit the `terraform.tfvars` file to change the number of
+Linux clients or Windows clients.
 
 ```hcl
 region                           = "us-east-1"
@@ -25,8 +48,11 @@ instance_type                    = "t2.medium"
 server_count                     = "3"
 client_count_ubuntu_bionic_amd64 = "4"
 client_count_windows_2016_amd64  = "1"
-profile                          = "dev-cluster"
 ```
+
+Optionally, edit the `nomad_local_binary` variable in the
+`terraform.tfvars` file to change the path to the local binary of
+Nomad you'd like to upload.
 
 Run Terraform apply to deploy the infrastructure:
 
@@ -40,66 +66,23 @@ terraform apply
 > where the ssh service isn't yet ready. That's ok and expected; they'll get
 > retried. In particular, Windows instances can take a few minutes before ssh
 > is ready.
+>
+> Also note: When ACLs are being bootstrapped, you may see "No cluster
+> leader" in the output several times while the ACL bootstrap script
+> polls the cluster to start and and elect a leader.
 
-## Nomad Version
+## Configuration
 
-You'll need to pass one of the following variables in either your
-`terraform.tfvars` file or as a command line argument (ex. `terraform apply
--var 'nomad_version=0.10.2+ent'`)
+The files in `etc` are template configuration files for Nomad and the
+Consul agent. Terraform will render these files to the `uploads`
+folder and upload them to the cluster during provisioning.
 
-* `nomad_local_binary`: provision this specific local binary of Nomad. This is
-  a path to a Nomad binary on your own host. Ex. `nomad_local_binary =
-  "/home/me/nomad"`. This setting overrides `nomad_version`.
-* `nomad_url`: provision this version from a remote archived binary, e.g. `build-binaries` CircleCI artifacts zip file urls.
-* `nomad_version`: provision this version from
-  [releases.hashicorp.com](https://releases.hashicorp.com/nomad). Ex. `nomad_version
-  = "0.10.2+ent"`
-
-If you want to deploy the Enterprise build, include `-var
-'nomad_enterprise=true'`.
-
-If you want to bootstrap Nomad ACLs, include `-var 'nomad_acls=true'`.
-
-> Note: If you bootstrap ACLs you will see "No cluster leader" in the output
-> several times while the ACL bootstrap script polls the cluster to start and
-> and elect a leader.
-
-## Profiles
-
-The `profile` field selects from a set of configuration files for Nomad,
-Consul, and Vault by uploading the files found in `./config/<profile>`. The
-standard profiles are as follows:
-
-* `full-cluster`: This profile is used for nightly E2E testing. It assumes at
-  least 3 servers and includes a unique config for each Nomad client.
-* `dev-cluster`: This profile is used for developer testing of a more limited
-  set of clients. It assumes at least 3 servers but uses the one config for
-  all the Linux Nomad clients and one config for all the Windows Nomad
-  clients.
-
-You may create additional profiles for testing more complex interactions between features.
-You can build your own custom profile by writing config files to the
-`./config/<custom name>` directory.
-
-For each profile, application (Nomad, Consul, Vault), and agent type
-(`server`, `client_linux`, or `client_windows`), the agent gets the following
-configuration files, ignoring any that are missing.
-
-* `./config/<profile>/<application>/*`: base configurations shared between all
-  servers and clients.
-* `./config/<profile>/<application>/<type>/*`: base configurations shared
-  between all agents of this type.
-* `./config/<profile>/<application>/<type>/indexed/*<index>.<ext>`: a
-  configuration for that particular agent, where the index value is the index
-  of that agent within the total count.
-
-For example, with the `full-cluster` profile, 2nd Nomad server would get the
-following configuration files:
-* `./config/full-cluster/nomad/base.hcl`
-* `./config/full-cluster/nomad/server/indexed/server-1.hcl`
-
-The directory `./config/full-cluster/nomad/server` has no configuration files,
-so that's safely skipped.
+* `etc/nomad.d` are the Nomad configuration files.
+  * `base.hcl`, `tls.hcl`, `consul.hcl`, and `vault.hcl` are shared.
+  * `server-linux.hcl`, `client-linux.hcl`, and `client-windows.hcl` are role and platform specific.
+  * `client-linux-0.hcl`, etc. are specific to individual instances.
+* `etc/consul.d` are the Consul agent configuration files.
+* `etc/acls` are ACL policy files for Consul and Vault.
 
 ## Outputs
 

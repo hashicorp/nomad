@@ -95,11 +95,16 @@ Try {
     New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' `
       -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 -ErrorAction Stop
 
+    # Note: there appears to be a regression in recent versions of
+    # Terraform for file provisioning over ssh for Windows with
+    # powershell as the default shell
+    # See: https://github.com/hashicorp/terraform/issues/30661
+    #
     # Set powershell as the OpenSSH login shell
-    New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" `
-      -Name DefaultShell `
-      -Value "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
-      -PropertyType String -Force -ErrorAction Stop
+    # New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" `
+    #   -Name DefaultShell `
+    #   -Value "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
+    #   -PropertyType String -Force -ErrorAction Stop
 
     Write-Output "Installed OpenSSH."
 

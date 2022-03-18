@@ -6,7 +6,7 @@ variable "build_sha" {
 locals {
   timestamp = regex_replace(timestamp(), "[- TZ:]", "")
   distro    = "ubuntu-bionic-18.04-amd64-server-*"
-  version   = "v2"
+  version   = "v3"
 }
 
 source "amazon-ebs" "latest_ubuntu_bionic" {
