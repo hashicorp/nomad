@@ -16,6 +16,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
+	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -356,6 +357,14 @@ func (a *TestAgent) config() *Config {
 	// Customize the server configuration
 	config := nomad.DefaultConfig()
 	conf.NomadConfig = config
+
+	// Setup client config
+	conf.ClientConfig = client.DefaultConfig()
+
+	logger := testlog.HCLogger(a.T)
+	conf.LogLevel = testlog.HCLoggerTestLevel().String()
+	conf.NomadConfig.Logger = logger
+	conf.ClientConfig.Logger = logger
 
 	// Set the name
 	conf.NodeName = a.Name
