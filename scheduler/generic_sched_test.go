@@ -4641,6 +4641,187 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 	assert.Equal(5, len(out)) // 2 original, plus 3 reschedule attempts
 }
 
+func TestServiceSched_BlockedReschedule(t *testing.T) {
+	ci.Parallel(t)
+
+	h := NewHarness(t)
+	node := mock.Node()
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// Generate a fake job with an allocation and an update policy.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	delayDuration := 15 * time.Second
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      3,
+		Interval:      15 * time.Minute,
+		Delay:         delayDuration,
+		MaxDelay:      1 * time.Minute,
+		DelayFunction: "constant",
+	}
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	alloc := mock.Alloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.Name = "my-job.web[0]"
+	alloc.ClientStatus = structs.AllocClientStatusFailed
+	alloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now}}
+	failedAllocID := alloc.ID
+
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Create a mock evaluation for the allocation failure
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// -----------------------------------
+	// first reschedule which works with delay as expected
+
+	// Process the evaluation and assert we have a plan
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+	must.Len(t, 1, h.Plans)
+	must.MapLen(t, 0, h.Plans[0].NodeUpdate)     // stop
+	must.MapLen(t, 1, h.Plans[0].NodeAllocation) // place
+
+	// Lookup the allocations by JobID and verify no new allocs created
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	must.NoError(t, err)
+	must.Len(t, 1, out)
+
+	// Verify follow-up eval was created for the failed alloc
+	// and write the eval to the state store
+	alloc, err = h.State.AllocByID(ws, failedAllocID)
+	must.NoError(t, err)
+	must.NotEq(t, "", alloc.FollowupEvalID)
+	must.Len(t, 1, h.CreateEvals)
+	followupEval := h.CreateEvals[0]
+	must.Eq(t, structs.EvalStatusPending, followupEval.Status)
+	must.Eq(t, now.Add(delayDuration), followupEval.WaitUntil)
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{followupEval}))
+
+	// Follow-up delay "expires", so process the follow-up eval, which results
+	// in a replacement and stop
+	must.NoError(t, h.Process(NewServiceScheduler, followupEval))
+	must.Len(t, 2, h.Plans)
+	must.MapLen(t, 1, h.Plans[1].NodeUpdate)     // stop
+	must.MapLen(t, 1, h.Plans[1].NodeAllocation) // place
+
+	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	must.NoError(t, err)
+	must.Len(t, 2, out)
+
+	var replacementAllocID string
+	for _, alloc := range out {
+		if alloc.ID != failedAllocID {
+			must.NotNil(t, alloc.RescheduleTracker,
+				must.Sprint("replacement alloc should have reschedule tracker"))
+			must.Len(t, 1, alloc.RescheduleTracker.Events)
+			replacementAllocID = alloc.ID
+			break
+		}
+	}
+
+	// -----------------------------------
+	// Replacement alloc fails, second reschedule but it blocks because of delay
+
+	alloc, err = h.State.AllocByID(ws, replacementAllocID)
+	must.NoError(t, err)
+	alloc.ClientStatus = structs.AllocClientStatusFailed
+	alloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now}}
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Create a mock evaluation for the allocation failure
+	eval.ID = uuid.Generate()
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation and assert we have a plan
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+	must.Len(t, 3, h.Plans)
+	must.MapLen(t, 0, h.Plans[2].NodeUpdate)     // stop
+	must.MapLen(t, 1, h.Plans[2].NodeAllocation) // place
+
+	// Lookup the allocations by JobID and verify no new allocs created
+	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	must.NoError(t, err)
+	must.Len(t, 2, out)
+
+	// Verify follow-up eval was created for the failed alloc
+	// and write the eval to the state store
+	alloc, err = h.State.AllocByID(ws, replacementAllocID)
+	must.NoError(t, err)
+	must.NotEq(t, "", alloc.FollowupEvalID)
+	must.Len(t, 2, h.CreateEvals)
+	followupEval = h.CreateEvals[1]
+	must.Eq(t, structs.EvalStatusPending, followupEval.Status)
+	must.Eq(t, now.Add(delayDuration), followupEval.WaitUntil)
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{followupEval}))
+
+	// "use up" resources on the node so the follow-up will block
+	node.NodeResources.Memory.MemoryMB = 200
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// Process the follow-up eval, which results in a stop but not a replacement
+	must.NoError(t, h.Process(NewServiceScheduler, followupEval))
+	must.Len(t, 4, h.Plans)
+	must.MapLen(t, 1, h.Plans[3].NodeUpdate)     // stop
+	must.MapLen(t, 0, h.Plans[3].NodeAllocation) // place
+
+	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	must.NoError(t, err)
+	must.Len(t, 2, out)
+
+	// Verify blocked eval was created and write it to state
+	must.Len(t, 3, h.CreateEvals)
+	blockedEval := h.CreateEvals[1]
+	must.Eq(t, structs.EvalTriggerRetryFailedAlloc, blockedEval.TriggeredBy)
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{blockedEval, followupEval}))
+
+	// "free up" resources on the node so the blocked eval will succeed
+	node.NodeResources.Memory.MemoryMB = 8000
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	must.NoError(t, h.Process(NewServiceScheduler, blockedEval))
+	must.Len(t, 5, h.Plans)
+	must.MapLen(t, 1, h.Plans[4].NodeUpdate)     // stop
+	must.MapLen(t, 1, h.Plans[4].NodeAllocation) // place
+
+	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	must.NoError(t, err)
+	must.Len(t, 3, out)
+
+	for _, alloc := range out {
+		if alloc.ID != failedAllocID && alloc.ID != replacementAllocID {
+			must.NotNil(t, alloc.RescheduleTracker,
+				must.Sprint("replacement alloc should have reschedule tracker"))
+			must.Len(t, 2, alloc.RescheduleTracker.Events)
+		}
+	}
+}
+
 // Tests that old reschedule attempts are pruned
 func TestServiceSched_Reschedule_PruneEvents(t *testing.T) {
 	ci.Parallel(t)
