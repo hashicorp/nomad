@@ -544,7 +544,7 @@ executors:
       GOBIN: c:\gopath\bin
       GOTESTSUM_PATH: c:\tmp\test-reports
       GOLANG_VERSION: 1.17.5
-      GOTESTSUM_VERSION: 0.4.2
+      GOTESTSUM_VERSION: 1.7.0
       VAULT_VERSION: 1.4.1
 
 workflows:
