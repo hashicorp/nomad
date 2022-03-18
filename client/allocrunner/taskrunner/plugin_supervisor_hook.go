@@ -179,10 +179,10 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 			// plugins will need to be aware of the csi directory layout
 			// in the client data dir
 			resp.Env = map[string]string{
-				"CSI_ENDPOINT": h.socketPath}
+				"CSI_ENDPOINT": "unix://" + h.socketPath}
 		default:
 			resp.Env = map[string]string{
-				"CSI_ENDPOINT": filepath.Join(
+				"CSI_ENDPOINT": "unix://" + filepath.Join(
 					h.task.CSIPluginConfig.MountDir, structs.CSISocketName)}
 		}
 	}
