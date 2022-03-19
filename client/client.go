@@ -310,9 +310,13 @@ type Client struct {
 	// EnterpriseClient is used to set and check enterprise features for clients
 	EnterpriseClient *EnterpriseClient
 
-	// allocFailers provides a way to expose alloc runners to test code.
+	// allocFailers is an instrumentation hook for test code.
 	allocFailers        map[string]*allocrunner.AllocFailer
 	allocFailersEnabled bool
+
+	// heartbeatFailer is an instrumentation hook for test code.
+	heartbeatFailerEnabled bool
+	failHeartbeat          bool
 }
 
 var (
@@ -415,10 +419,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		return nil, fmt.Errorf("node setup failed: %v", err)
 	}
 
-	// Enable alloc failer for tests.
-	if option, ok := c.config.Options["test.init_alloc_failer"]; ok && option == "true" {
+	// Enable test instrumentation.
+	if option, ok := c.config.Options["test.alloc_failer.enabled"]; ok && option == "true" {
 		c.allocFailersEnabled = true
 		c.allocFailers = make(map[string]*allocrunner.AllocFailer)
+	}
+	if option, ok := c.config.Options["test.heartbeat_failer.enabled"]; ok && option == "true" {
+		c.heartbeatFailerEnabled = true
 	}
 
 	// Store the config copy before restoring state but after it has been
@@ -1613,6 +1620,12 @@ func (c *Client) registerAndHeartbeat() {
 	}
 
 	for {
+		// If test instrumentation is enabled skip heartbeating
+		if c.failHeartbeat {
+			c.logger.Trace("failing heartbeat per test config")
+			time.Sleep(devModeRetryIntv)
+			continue
+		}
 		select {
 		case <-c.rpcRetryWatcher():
 		case <-heartbeat:

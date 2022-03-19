@@ -146,3 +146,21 @@ func FailTask(c *Client, allocID, taskName, taskEvent string) error {
 	failer.FailTask(taskName, taskEvent)
 	return nil
 }
+
+func FailHeartbeat(c *Client) error {
+	if !c.heartbeatFailerEnabled {
+		return fmt.Errorf("heartbeat failer not enabled on client")
+	}
+
+	c.failHeartbeat = true
+	return nil
+}
+
+func ResumeHeartbeat(c *Client) error {
+	if !c.heartbeatFailerEnabled {
+		return fmt.Errorf("heartbeat failer not enabled on client")
+	}
+
+	c.failHeartbeat = false
+	return nil
+}

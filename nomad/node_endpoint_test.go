@@ -3720,21 +3720,49 @@ func TestClientEndpoint_ShouldCreateNodeEval(t *testing.T) {
 func TestClientEndpoint_UpdateAlloc_Reconnect(t *testing.T) {
 	t.Parallel()
 
-	srv, cleanupSrv := TestServer(t, nil)
+	srv, cleanupSrv := TestServer(t, func(c *Config) {
+		c.HeartbeatGrace = 0
+		c.MaxHeartbeatsPerSecond = 1
+		c.MinHeartbeatTTL = 1
+	})
 	defer cleanupSrv()
 	testutil.WaitForLeader(t, srv.RPC)
 
-	clnt, cleanupClient := client.TestClient(t, func(c *config.Config) {
+	client1, cleanupClient1 := client.TestClient(t, func(c *config.Config) {
 		c.RPCHandler = srv
+		c.DevMode = true
 		c.Options = make(map[string]string)
-		c.Options["test.init_alloc_failer"] = "true"
+		c.Options["test.alloc_failer.enabled"] = "true"
+		c.Options["test.heartbeat_failer.enabled"] = "true"
 	})
-	defer cleanupClient()
+	defer cleanupClient1()
+
+	client2, cleanupClient2 := client.TestClient(t, func(c *config.Config) {
+		c.RPCHandler = srv
+		c.DevMode = true
+	})
+	defer cleanupClient2()
 
 	testutil.WaitForResult(func() (bool, error) {
-		n := clnt.Node()
-		if n.Status != structs.NodeStatusReady {
-			return false, fmt.Errorf("node not registered")
+		clientNode, nodeErr := srv.State().NodeByID(nil, client1.Node().ID)
+		if nodeErr != nil {
+			return false, nodeErr
+		}
+		if clientNode == nil || clientNode.Status != structs.NodeStatusReady {
+			return false, nil
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	testutil.WaitForResult(func() (bool, error) {
+		clientNode, nodeErr := srv.State().NodeByID(nil, client2.Node().ID)
+		if nodeErr != nil {
+			return false, nodeErr
+		}
+		if clientNode == nil || clientNode.Status != structs.NodeStatusReady {
+			return false, nil
 		}
 		return true, nil
 	}, func(err error) {
@@ -3751,7 +3779,14 @@ func TestClientEndpoint_UpdateAlloc_Reconnect(t *testing.T) {
 	job.ID = "reconnect-job"
 	job.Constraints = []*structs.Constraint{}
 	job.TaskGroups[0].MaxClientDisconnect = helper.TimeToPtr(time.Second * 30)
-	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].Spreads = []*structs.Spread{
+		{
+			Attribute:    "${node.unique.id}",
+			Weight:       50,
+			SpreadTarget: []*structs.SpreadTarget{},
+		},
+	}
 	job.TaskGroups[0].RestartPolicy = noRestart
 	job.TaskGroups[0].Tasks[0].RestartPolicy = noRestart
 	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
@@ -3779,34 +3814,48 @@ func TestClientEndpoint_UpdateAlloc_Reconnect(t *testing.T) {
 		if err != nil {
 			return false, err
 		}
-		return len(allocs) == 1 && allocs[0].ClientStatus == structs.AllocClientStatusRunning, nil
+		return len(allocs) == 2 &&
+				allocs[0].ClientStatus == structs.AllocClientStatusRunning &&
+				allocs[1].ClientStatus == structs.AllocClientStatusRunning,
+			nil
 	}, func(err error) {
 		require.NoError(t, err, "error retrieving allocs %s", err)
 	})
 
 	require.NoError(t, err)
-	require.Equal(t, 1, len(allocs))
+	require.Equal(t, 2, len(allocs))
 
-	alloc := allocs[0]
+	var alloc *structs.Allocation
+	for _, a := range allocs {
+		if a.NodeID == client1.NodeID() {
+			alloc = a
+			break
+		}
+	}
+
+	require.NotNil(t, alloc)
 	require.Equal(t, structs.AllocClientStatusRunning, alloc.ClientStatus)
 
-	// Trigger a node disconnect
-	var disconnectResp structs.NodeUpdateResponse
-	disconnectReq := &structs.NodeUpdateStatusRequest{
-		NodeID:    clnt.NodeID(),
-		Status:    structs.NodeStatusDisconnected,
-		NodeEvent: structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).SetMessage(NodeHeartbeatEventMissed),
-		WriteRequest: structs.WriteRequest{
-			Region: "global",
-		},
-	}
-	err = srv.RPC("Node.UpdateStatus", disconnectReq, &disconnectResp)
+	//// Trigger a node disconnect
+	//var disconnectResp structs.NodeUpdateResponse
+	//disconnectReq := &structs.NodeUpdateStatusRequest{
+	//	NodeID:    client1.NodeID(),
+	//	Status:    structs.NodeStatusDisconnected,
+	//	NodeEvent: structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).SetMessage(NodeHeartbeatEventMissed),
+	//	WriteRequest: structs.WriteRequest{
+	//		Region: "global",
+	//	},
+	//}
+	//err = srv.RPC("Node.UpdateStatus", disconnectReq, &disconnectResp)
+	//require.NoError(t, err)
+
+	err = client.FailHeartbeat(client1)
 	require.NoError(t, err)
 
 	// Check that the node is disconnected
 	var outNode *structs.Node
 	testutil.WaitForResult(func() (bool, error) {
-		outNode, err = srv.State().NodeByID(nil, clnt.NodeID())
+		outNode, err = srv.State().NodeByID(nil, client1.NodeID())
 		if err != nil {
 			return false, err
 		}
@@ -3856,11 +3905,11 @@ func TestClientEndpoint_UpdateAlloc_Reconnect(t *testing.T) {
 	require.NotNil(t, outAlloc)
 	require.Equal(t, structs.AllocClientStatusUnknown, outAlloc.ClientStatus)
 
-	err = client.FailTask(clnt, alloc.ID, "", "")
+	err = client.FailTask(client1, alloc.ID, "", "")
 	require.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
-		outAlloc, err = clnt.GetAlloc(alloc.ID)
+		outAlloc, err = client1.GetAlloc(alloc.ID)
 		if err != nil {
 			return false, err
 		}
@@ -3873,21 +3922,24 @@ func TestClientEndpoint_UpdateAlloc_Reconnect(t *testing.T) {
 	require.NotNil(t, outAlloc)
 	require.Equal(t, structs.AllocClientStatusFailed, outAlloc.ClientStatus)
 
-	reconnectReq := &structs.NodeUpdateStatusRequest{
-		NodeID:    clnt.NodeID(),
-		Status:    structs.NodeStatusReady,
-		NodeEvent: structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).SetMessage(NodeHeartbeatEventReregistered),
-		WriteRequest: structs.WriteRequest{
-			Region: "global",
-		},
-	}
-	var reconnectResp structs.NodeUpdateResponse
-	err = srv.RPC("Node.UpdateStatus", reconnectReq, &reconnectResp)
+	//reconnectReq := &structs.NodeUpdateStatusRequest{
+	//	NodeID:    client1.NodeID(),
+	//	Status:    structs.NodeStatusReady,
+	//	NodeEvent: structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).SetMessage(NodeHeartbeatEventReregistered),
+	//	WriteRequest: structs.WriteRequest{
+	//		Region: "global",
+	//	},
+	//}
+	//var reconnectResp structs.NodeUpdateResponse
+	//err = srv.RPC("Node.UpdateStatus", reconnectReq, &reconnectResp)
+	//require.NoError(t, err)
+
+	err = client.ResumeHeartbeat(client1)
 	require.NoError(t, err)
 
 	// Check that the node is reconnected
 	testutil.WaitForResult(func() (bool, error) {
-		outNode, err = srv.State().NodeByID(nil, clnt.NodeID())
+		outNode, err = srv.State().NodeByID(nil, client1.NodeID())
 		if err != nil {
 			return false, err
 		}
