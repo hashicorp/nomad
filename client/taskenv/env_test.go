@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -235,6 +236,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		fmt.Sprintf("NOMAD_JOB_PARENT_ID=%s", a.Job.ParentID),
 		fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID),
 		"NOMAD_ALLOC_INDEX=0",
+		fmt.Sprintf("NOMAD_JOB_VERSION=%d", a.Job.Version),
 	}
 	sort.Strings(act)
 	sort.Strings(exp)
@@ -395,6 +397,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_JOB_ID":                              a.Job.ID,
 		"NOMAD_JOB_NAME":                            "my-job",
 		"NOMAD_JOB_PARENT_ID":                       a.Job.ParentID,
+		"NOMAD_JOB_VERSION":                         strconv.FormatUint(a.Job.Version, 10),
 		"NOMAD_ALLOC_ID":                            a.ID,
 		"NOMAD_ALLOC_INDEX":                         "0",
 		"NOMAD_PORT_connect_proxy_testconnect":      "9999",
