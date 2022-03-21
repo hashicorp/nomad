@@ -1216,7 +1216,9 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	// Kill the first v2 server
 	s1.Shutdown()
 
-	for _, s := range []*Server{s1, s3} {
+	for _, s := range []*Server{s2, s3} {
+		s.RemoveFailedNode(s1.config.NodeID)
+
 		retry.Run(t, func(r *retry.R) {
 			minVer, err := s.autopilot.MinRaftProtocol()
 			if err != nil {
@@ -1224,6 +1226,14 @@ func TestLeader_RollRaftServer(t *testing.T) {
 			}
 			if got, want := minVer, 2; got != want {
 				r.Fatalf("got min raft version %d want %d", got, want)
+			}
+
+			configFuture := s.raft.GetConfiguration()
+			if err != nil {
+				r.Fatal(err)
+			}
+			if len(configFuture.Configuration().Servers) != 2 {
+				r.Fatalf("expected 2 servers, got %d", len(configFuture.Configuration().Servers))
 			}
 		})
 	}
@@ -1234,20 +1244,33 @@ func TestLeader_RollRaftServer(t *testing.T) {
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS4()
-	TestJoin(t, s4, s2)
+	TestJoin(t, s2, s3, s4)
 	servers[0] = s4
 
 	// Kill the second v2 server
 	s2.Shutdown()
 
 	for _, s := range []*Server{s3, s4} {
-		retry.Run(t, func(r *retry.R) {
+		s.RemoveFailedNode(s2.config.NodeID)
+
+		retry.RunWith(&retry.Counter{
+			Count: int(10 * testutil.TestMultiplier()),
+			Wait:  time.Duration(testutil.TestMultiplier()) * time.Second,
+		}, t, func(r *retry.R) {
 			minVer, err := s.autopilot.MinRaftProtocol()
 			if err != nil {
 				r.Fatal(err)
 			}
 			if got, want := minVer, 2; got != want {
 				r.Fatalf("got min raft version %d want %d", got, want)
+			}
+
+			configFuture := s.raft.GetConfiguration()
+			if err != nil {
+				r.Fatal(err)
+			}
+			if len(configFuture.Configuration().Servers) != 2 {
+				r.Fatalf("expected 2 servers, got %d", len(configFuture.Configuration().Servers))
 			}
 		})
 	}
@@ -1257,20 +1280,33 @@ func TestLeader_RollRaftServer(t *testing.T) {
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS5()
-	TestJoin(t, s5, s4)
+	TestJoin(t, s3, s4, s5)
 	servers[1] = s5
 
 	// Kill the last v2 server, now minRaftProtocol should be 3
 	s3.Shutdown()
 
 	for _, s := range []*Server{s4, s5} {
-		retry.Run(t, func(r *retry.R) {
+		s.RemoveFailedNode(s2.config.NodeID)
+
+		retry.RunWith(&retry.Counter{
+			Count: int(10 * testutil.TestMultiplier()),
+			Wait:  time.Duration(testutil.TestMultiplier()) * time.Second,
+		}, t, func(r *retry.R) {
 			minVer, err := s.autopilot.MinRaftProtocol()
 			if err != nil {
 				r.Fatal(err)
 			}
 			if got, want := minVer, 3; got != want {
 				r.Fatalf("got min raft version %d want %d", got, want)
+			}
+
+			configFuture := s.raft.GetConfiguration()
+			if err != nil {
+				r.Fatal(err)
+			}
+			if len(configFuture.Configuration().Servers) != 2 {
+				r.Fatalf("expected 2 servers, got %d", len(configFuture.Configuration().Servers))
 			}
 		})
 	}
