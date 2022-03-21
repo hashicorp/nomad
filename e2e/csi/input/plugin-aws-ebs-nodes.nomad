@@ -23,7 +23,7 @@ job "plugin-aws-ebs-nodes" {
 
         args = [
           "node",
-          "--endpoint=unix://csi/csi.sock",
+          "--endpoint=${CSI_ENDPOINT}",
           "--logtostderr",
           "--v=5",
         ]
