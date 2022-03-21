@@ -66,20 +66,28 @@ func (h *HandlerWrapper) RegisterWorkload(workload *serviceregistration.Workload
 // workload unless the provider is unknown.
 func (h *HandlerWrapper) RemoveWorkload(services *serviceregistration.WorkloadServices) {
 
-	// Don't rely on callers to check there are no services to remove.
-	if len(services.Services) == 0 {
-		return
+	var provider string
+
+	// It is possible the services field is empty depending on the exact
+	// situation which resulted in the call.
+	if len(services.Services) > 0 {
+		provider = services.RegistrationProvider()
 	}
 
-	provider := services.RegistrationProvider()
-
-	// Call the correct provider. In the case it is not supported, we can't do
-	// much apart from log, although we should never reach this point because
-	// of job validation.
+	// Call the correct provider, if we have managed to identify it. An empty
+	// string means you didn't find a provider, therefore default to consul.
+	//
+	// In certain situations this function is called with zero services,
+	// therefore meaning we make an assumption on the provider. When this
+	// happens, we need to ensure the allocation is removed from the Consul
+	// implementation. This tracking (allocRegistrations) is used by the
+	// allochealth tracker and so is critical to be removed. The test
+	// allocrunner.TestAllocRunner_Restore_RunningTerminal covers the case
+	// described here.
 	switch provider {
 	case structs.ServiceProviderNomad:
 		h.nomadServiceProvider.RemoveWorkload(services)
-	case structs.ServiceProviderConsul:
+	case structs.ServiceProviderConsul, "":
 		h.consulServiceProvider.RemoveWorkload(services)
 	default:
 		h.log.Error("unknown service registration provider", "provider", provider)
