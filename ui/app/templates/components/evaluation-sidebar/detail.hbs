@@ -1,6 +1,8 @@
 {{#let @data.evaluation as |evaluation|}}
   <Portal @target="eval-detail-portal">
     <div
+      data-test-eval-detail
+      data-test-eval-detail-is-open={{@data.isSideBarOpen}}
       class="sidebar {{if @data.isSideBarOpen "pib"}}"
       {{on-click-outside
         @fns.closeSidebar
@@ -8,127 +10,140 @@
         exceptSelector="tr[data-eval-row]"
       }}
     >
-      <div data-header style="display: flex; justify-content: space-between">
-        <h1 data-test-title class="title">
-          789a44e5
-          <span class="bumper-left tag is-primary">
-            Complete
-          </span>
-        </h1>
-        <button
-          class="button is-borderless"
-          type="button"
-          {{on "click" @fns.closeSidebar}}
-        >
-          {{x-icon "cancel"}}
-        </button>
-      </div>
-      <div class="boxed-section is-small">
+      {{#if this.isSuccess}}
         <div
-          class="boxed-section-body inline-definitions"
-          style="display: flex;"
+          data-test-eval-detail-header
+          style="display: flex; justify-content: space-between"
         >
-          <span class="label" style="width: 6.125rem;">
-            Evaluation Details
-          </span>
-          <div style="display: flex; flex-direction: column">
-            <span class="pair" data-test-job-stat="type">
-              <span class="term">
-                Job
-              </span>
-              <LinkTo
-                data-test-evaluation-job
-                @model="example@default"
-                @route="jobs.job"
-              >
-                example
-              </LinkTo>
+          <h1 data-test-title class="title">
+            789a44e5
+            <span class="bumper-left tag is-primary">
+              Complete
             </span>
-            <span class="pair" data-test-job-stat="type">
-              <span class="term">
-                Triggered By
-              </span>
-              job-register
-            </span>
-          </div>
-          <div style="display: flex; flex-direction: column">
-            <span class="pair" data-test-job-stat="priority">
-              <span class="term">
-                Priority
-              </span>
-              10
-            </span>
-          </div>
-          <div style="display: flex; flex-direction: column">
-            <span class="pair" data-test-job-stat="type">
-              <span class="term">
-                Created
-              </span>
-              Some Type
-            </span>
-            <span class="pair" data-test-job-stat="priority">
-              <span class="term">
-                Placement Failure
-              </span>
-              No
-            </span>
-          </div>
+          </h1>
+          <button
+            class="button is-borderless"
+            type="button"
+            {{on "click" @fns.closeSidebar}}
+          >
+            {{x-icon "cancel"}}
+          </button>
         </div>
-      </div>
-      {{! Start Related Evaluation}}
-      <div
-        class="absolute inset-0 flex justify-center items-center"
-        {{on-resize @fns.handleResize}}
-      >
-        {{#if (and @data.width @data.height)}}
-          <Providers::ActorsRelationships as |actors|>
-            <svg
-              width={{@data.width}}
-              height={{@data.height}}
-              class="absolute inset-0 z-10"
-              {{did-update actors.fns.recalcCurves @data.width}}
-            >
-              {{#each actors.data.relationships as |d|}}
-                <path d={{d}} stroke="black" strokeWidth="3" fill="none"></path>
-              {{/each}}
-            </svg>
-          </Providers::ActorsRelationships>
-        {{/if}}
-        <div class="bg-white h-96 w-96 shadow-sm p-8 flex space-x-24">
-          <div class="flex space-x-24">
-            <div class="flex flex-col">
-              <EvaluationSidebar::EvaluationActor @eval={{@data.hierarchy}} />
+        <div class="boxed-section is-small">
+          <div
+            class="boxed-section-body inline-definitions"
+            style="display: flex;"
+          >
+            <span class="label" style="width: 6.125rem;">
+              Evaluation Details
+            </span>
+            <div style="display: flex; flex-direction: column">
+              <span class="pair" data-test-job-stat="type">
+                <span class="term">
+                  Job
+                </span>
+                <LinkTo
+                  data-test-evaluation-job
+                  @model="example@default"
+                  @route="jobs.job"
+                >
+                  example
+                </LinkTo>
+              </span>
+              <span class="pair" data-test-job-stat="type">
+                <span class="term">
+                  Triggered By
+                </span>
+                job-register
+              </span>
             </div>
-            {{#each @data.descendentsMap as |evals|}}
-              <div class="flex flex-col space-y-4">
-                {{#each evals as |eval|}}
-                  <EvaluationSidebar::EvaluationActor @eval={{eval}} />
-                {{/each}}
-              </div>
-            {{/each}}
+            <div style="display: flex; flex-direction: column">
+              <span class="pair" data-test-job-stat="priority">
+                <span class="term">
+                  Priority
+                </span>
+                10
+              </span>
+            </div>
+            <div style="display: flex; flex-direction: column">
+              <span class="pair" data-test-job-stat="type">
+                <span class="term">
+                  Created
+                </span>
+                Some Type
+              </span>
+              <span class="pair" data-test-job-stat="priority">
+                <span class="term">
+                  Placement Failure
+                </span>
+                No
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-      {{! End Related Evaluations}}
-      <div
-        class="boxed-section
-          {{if evaluation.failedTGAllocs "is-warning" "is-primary"}}"
-        data-test-dry-run-message
-      >
-        <div class="boxed-section-head" data-test-dry-run-title>
-          Placement Failures
-        </div>
-        <div class="boxed-section-body" data-test-dry-run-body>
-          {{#if evaluation.failedTGAllocs}}
-            {{#each evaluation.failedTGAllocs as |placementFailure|}}
-              <PlacementFailure @failedTGAlloc={{placementFailure}} />
-            {{/each}}
-          {{else}}
-            All tasks successfully allocated.
+        {{! Start Related Evaluation}}
+        <div
+          style="display: flex; justify-content: center; align-items: center; z-index: 10; inset: 0"
+          {{on-resize @fns.handleResize}}
+        >
+          {{#if (and @data.width @data.height)}}
+            <Providers::ActorsRelationships as |actors|>
+              <svg
+                width={{@data.width}}
+                height={{@data.height}}
+                style="z-index: 10; inset: 0; position: absolute;"
+                {{did-update actors.fns.recalcCurves @data.width}}
+              >
+                {{#each actors.data.relationships as |d|}}
+                  <path
+                    d={{d}}
+                    stroke="black"
+                    strokeWidth="3"
+                    fill="none"
+                  ></path>
+                {{/each}}
+              </svg>
+            </Providers::ActorsRelationships>
           {{/if}}
+          <div
+            style="background-color: white; height: 96px; width: 96px; padding: 8px; margin: 2px;"
+          >
+            <div style="display: flex;">
+              <div style="display: flex; flex-direction: column">
+                <EvaluationSidebar::EvaluationActor @eval={{@data.hierarchy}} />
+              </div>
+              {{#each @data.descendentsMap as |evals|}}
+                <div style="display: flex; flex-direction: column;">
+                  {{#each evals as |eval|}}
+                    {{! Why do we render this twice?}}
+                    <EvaluationSidebar::EvaluationActor @eval={{eval}} />
+                  {{/each}}
+                </div>
+              {{/each}}
+            </div>
+          </div>
         </div>
-      </div>
-      <JsonViewer @json={{evaluation}} />
+        {{! End Related Evaluations}}
+        <div
+          class="boxed-section
+            {{if evaluation.failedTGAllocs "is-warning" "is-primary"}}"
+          data-test-dry-run-message
+        >
+          <div class="boxed-section-head" data-test-dry-run-title>
+            Placement Failures
+          </div>
+          <div class="boxed-section-body" data-test-dry-run-body>
+            {{#if evaluation.failedTGAllocs}}
+              {{#each evaluation.failedTGAllocs as |placementFailure|}}
+                <PlacementFailure @failedTGAlloc={{placementFailure}} />
+              {{/each}}
+            {{else}}
+              All tasks successfully allocated.
+            {{/if}}
+          </div>
+        </div>
+        <JsonViewer @json={{evaluation}} />
+      {{/if}}
     </div>
   </Portal>
 {{/let}}
