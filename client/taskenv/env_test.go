@@ -5,7 +5,6 @@ import (
 	"os"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -159,6 +158,7 @@ func TestEnvironment_AsList(t *testing.T) {
 	}
 	a := mock.Alloc()
 	a.Job.ParentID = fmt.Sprintf("mock-parent-service-%s", uuid.Generate())
+	a.Job.Version = 5
 	a.AllocatedResources.Tasks["web"] = &structs.AllocatedTaskResources{
 		Cpu: structs.AllocatedCpuResources{CpuShares: 500},
 		Memory: structs.AllocatedMemoryResources{
@@ -234,9 +234,9 @@ func TestEnvironment_AsList(t *testing.T) {
 		fmt.Sprintf("NOMAD_JOB_ID=%s", a.Job.ID),
 		"NOMAD_JOB_NAME=my-job",
 		fmt.Sprintf("NOMAD_JOB_PARENT_ID=%s", a.Job.ParentID),
+		"NOMAD_JOB_VERSION=5",
 		fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID),
 		"NOMAD_ALLOC_INDEX=0",
-		fmt.Sprintf("NOMAD_JOB_VERSION=%d", a.Job.Version),
 	}
 	sort.Strings(act)
 	sort.Strings(exp)
@@ -254,6 +254,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 	}
 	a := mock.ConnectAlloc()
 	a.Job.ParentID = fmt.Sprintf("mock-parent-service-%s", uuid.Generate())
+	a.Job.Version = 9152
 	a.AllocatedResources.Tasks["web"].Networks[0] = &structs.NetworkResource{
 		Device:        "eth0",
 		IP:            "127.0.0.1",
@@ -397,7 +398,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_JOB_ID":                              a.Job.ID,
 		"NOMAD_JOB_NAME":                            "my-job",
 		"NOMAD_JOB_PARENT_ID":                       a.Job.ParentID,
-		"NOMAD_JOB_VERSION":                         strconv.FormatUint(a.Job.Version, 10),
+		"NOMAD_JOB_VERSION":                         "9152",
 		"NOMAD_ALLOC_ID":                            a.ID,
 		"NOMAD_ALLOC_INDEX":                         "0",
 		"NOMAD_PORT_connect_proxy_testconnect":      "9999",
