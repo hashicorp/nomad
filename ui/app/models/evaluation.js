@@ -1,6 +1,6 @@
 import { bool, equal } from '@ember/object/computed';
 import Model from '@ember-data/model';
-import { attr, belongsTo } from '@ember-data/model';
+import { attr, belongsTo, hasMany } from '@ember-data/model';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 
@@ -14,6 +14,8 @@ export default class Evaluation extends Model {
   @attr('string') statusDescription;
   @fragmentArray('placement-failure', { defaultValue: () => [] })
   failedTGAllocs;
+
+  @fragmentArray('evaluation-stub') relatedEvals;
 
   @bool('failedTGAllocs.length') hasPlacementFailures;
   @equal('status', 'blocked') isBlocked;
