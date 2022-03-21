@@ -17,7 +17,11 @@ export default class EvaluationsController extends Controller {
   @matchesState({ sidebar: 'open' })
   isSideBarOpen;
 
-  @use statechart = useMachine(evaluationsMachine).withConfig({
+  @matchesState({ sidebar: { open: 'success' } })
+  isSuccess;
+
+  @use
+  statechart = useMachine(evaluationsMachine).withConfig({
     services: {
       loadEvaluation: this.loadEvaluation,
     },
@@ -47,6 +51,7 @@ export default class EvaluationsController extends Controller {
     } else {
       evaluationId = this.currentEval;
     }
+
     return this.store.findRecord('evaluation', evaluationId, {
       reload: true,
     });
@@ -92,58 +97,7 @@ export default class EvaluationsController extends Controller {
   }
 
   get currentEvalDetail() {
-    return {
-      id: this.currentEval,
-      Priority: 50,
-      Type: 'service',
-      TriggeredBy: 'job-register',
-      JobID: 'example',
-      JobModifyIndex: 52,
-      NodeID: '',
-      NodeModifyIndex: 0,
-      Status: 'complete',
-      StatusDescription: '',
-      Wait: 0,
-      NextEval: '',
-      PreviousEval: '',
-      BlockedEval: '',
-      FailedTGAllocs: null,
-      ClassEligibility: null,
-      EscapedComputedClass: false,
-      AnnotatePlan: false,
-      SnapshotIndex: 53,
-      QueuedAllocations: {
-        cache: 0,
-      },
-      CreateIndex: 53,
-      ModifyIndex: 55,
-      RelatedEvals: [
-        {
-          id: '1',
-          prevEval: '0',
-          nextEval: '2',
-          blockedEval: '3',
-        },
-        {
-          id: '2',
-          prevEval: '1',
-          nextEval: '',
-          blockedEval: '',
-        },
-        {
-          id: '3',
-          prevEval: '1',
-          nextEval: '',
-          blockedEval: '',
-        },
-        {
-          id: '0',
-          prevEval: '',
-          nextEval: '1',
-          blockedEval: '',
-        },
-      ],
-    };
+    return this.statechart.state.context.evaluation;
   }
 
   get hierarchy() {

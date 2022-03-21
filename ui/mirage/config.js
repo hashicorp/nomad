@@ -262,7 +262,117 @@ export default function () {
   });
 
   this.get('/evaluations');
-  this.get('/evaluation/:id');
+  this.get('/evaluation/:id', function (_, { params }) {
+    return {
+      ID: params.id,
+      Priority: 50,
+      Type: 'service',
+      TriggeredBy: 'job-register',
+      JobID: 'example',
+      JobModifyIndex: 52,
+      NodeID: '',
+      NodeModifyIndex: 0,
+      Status: 'complete',
+      StatusDescription: '',
+      Wait: 0,
+      NextEval: '',
+      PreviousEval: '',
+      BlockedEval: '',
+      FailedTGAllocs: null,
+      ClassEligibility: null,
+      EscapedComputedClass: false,
+      AnnotatePlan: false,
+      SnapshotIndex: 53,
+      QueuedAllocations: {
+        cache: 0,
+      },
+      CreateIndex: 53,
+      ModifyIndex: 55,
+      RelatedEvals: [
+        {
+          ID: 'eef1147c-3396-928d-b0f3-ce411bd5d550',
+          Priority: 50,
+          Type: 'system',
+          TriggeredBy: 'node-update',
+          Namespace: 'default',
+          JobID: 'system-job',
+          NodeID: '462aad3f-bfa5-00be-d1d4-aa713adb4dbe',
+          // Deployment ID
+          Status: 'complete',
+          StatusDescription: 'lorem ipsum dolor emet',
+          // WaitUntil: 1646071501474137000,
+          NextEval: '',
+          PreviousEval: '',
+          BlockedEval: '',
+          CreateIndex: 82,
+          ModifyIndex: 88,
+          CreateTime: 1646071501471847000,
+          ModifyTime: 1646071501474137000,
+        },
+        // Fix up later, incorrect schema below this line
+        {
+          CreateIndex: 82,
+          CreateTime: 1646071501471847000,
+          DeploymentID: '61adb5d0-4bb2-fe37-f504-21e23377e291',
+          ID: '55d51a54-f7af-f978-2390-c5688a17fba8',
+          JobID: 'example2',
+          ModifyIndex: 90,
+          ModifyTime: 1646071501476093000,
+          Namespace: 'default',
+          NodeID: '462aad3f-bfa5-00be-d1d4-aa713adb4dbe',
+          NodeModifyIndex: 81,
+          Priority: 50,
+          QueuedAllocations: {
+            cache: 0,
+          },
+          SnapshotIndex: 89,
+          Status: 'complete',
+          TriggeredBy: 'node-update',
+          Type: 'service',
+        },
+        {
+          CreateIndex: 82,
+          CreateTime: 1646071501471847000,
+          DeploymentID: 'c60e9405-86ff-5de6-9d3e-ab4ab2409d28',
+          ID: '2b33210a-9471-b523-0ae4-e8fcc9d094fe',
+          JobID: 'example',
+          ModifyIndex: 86,
+          ModifyTime: 1646071501473893000,
+          Namespace: 'default',
+          NodeID: '462aad3f-bfa5-00be-d1d4-aa713adb4dbe',
+          NodeModifyIndex: 81,
+          Priority: 50,
+          QueuedAllocations: {
+            cache: 0,
+          },
+          SnapshotIndex: 84,
+          Status: 'complete',
+          TriggeredBy: 'node-update',
+          Type: 'service',
+        },
+        {
+          CreateIndex: 43,
+          CreateTime: 1646071122930603000,
+          DeploymentID: '61adb5d0-4bb2-fe37-f504-21e23377e291',
+          ID: 'f8915b6d-294b-a60d-172d-f0b5d4e6df1a',
+          JobID: 'example2',
+          ModifyIndex: 46,
+          ModifyTime: 1646071122936311000,
+          Namespace: 'default',
+          NodeID: '462aad3f-bfa5-00be-d1d4-aa713adb4dbe',
+          NodeModifyIndex: 42,
+          Priority: 50,
+          QueuedAllocations: {
+            cache: 0,
+          },
+          SnapshotIndex: 45,
+          Status: 'complete',
+          TriggeredBy: 'node-update',
+          Type: 'service',
+        },
+      ],
+    };
+  });
 
   this.get('/deployment/allocations/:id', function (schema, { params }) {
     const job = schema.jobs.find(schema.deployments.find(params.id).jobId);
