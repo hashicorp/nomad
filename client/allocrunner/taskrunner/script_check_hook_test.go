@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -228,6 +229,7 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 	consulClient := regMock.NewServiceRegistrationHandler(logger)
+	regWrap := wrapper.NewHandlerWrapper(logger, consulClient, nil)
 	exec, cancel := newBlockingScriptExec()
 	defer cancel()
 
@@ -243,10 +245,10 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 		map[string]string{"SVC_NAME": "frontend"}).Build()
 
 	svcHook := newServiceHook(serviceHookConfig{
-		alloc:          alloc,
-		task:           task,
-		consulServices: consulClient,
-		logger:         logger,
+		alloc:             alloc,
+		task:              task,
+		serviceRegWrapper: regWrap,
+		logger:            logger,
 	})
 	// emulate prestart having been fired
 	svcHook.taskEnv = env

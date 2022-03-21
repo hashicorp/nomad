@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -104,13 +105,18 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	closedCh := make(chan struct{})
 	close(closedCh)
 
+	// Set up the Nomad and Consul registration providers along with the wrapper.
+	consulRegMock := regMock.NewServiceRegistrationHandler(logger)
+	nomadRegMock := regMock.NewServiceRegistrationHandler(logger)
+	wrapperMock := wrapper.NewHandlerWrapper(logger, consulRegMock, nomadRegMock)
+
 	conf := &Config{
 		Alloc:                 alloc,
 		ClientConfig:          clientConf,
 		Task:                  thisTask,
 		TaskDir:               taskDir,
 		Logger:                clientConf.Logger,
-		Consul:                regMock.NewServiceRegistrationHandler(logger),
+		Consul:                consulRegMock,
 		ConsulSI:              consulapi.NewMockServiceIdentitiesClient(),
 		Vault:                 vaultclient.NewMockVaultClient(),
 		StateDB:               cstate.NoopDB{},
@@ -121,6 +127,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		StartConditionMetCtx:  closedCh,
 		ShutdownDelayCtx:      shutdownDelayCtx,
 		ShutdownDelayCancelFn: shutdownDelayCancelFn,
+		ServiceRegWrapper:     wrapperMock,
 	}
 	return conf, trCleanup
 }
@@ -1229,6 +1236,7 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 			Grace: 100 * time.Millisecond,
 		},
 	}
+	task.Services[0].Provider = structs.ServiceProviderConsul
 
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
@@ -1246,6 +1254,7 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	defer consulClient.Shutdown()
 
 	conf.Consul = consulClient
+	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, consulClient, nil)
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
@@ -1885,6 +1894,7 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 			Name:        "host-service",
 			PortLabel:   "http",
 			AddressMode: "host",
+			Provider:    structs.ServiceProviderConsul,
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:        "driver-check",
@@ -1898,6 +1908,7 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 			Name:        "driver-service",
 			PortLabel:   "5678",
 			AddressMode: "driver",
+			Provider:    structs.ServiceProviderConsul,
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:      "host-check",
@@ -1928,6 +1939,7 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 	go consulClient.Run()
 
 	conf.Consul = consulClient
+	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, consulClient, nil)
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)

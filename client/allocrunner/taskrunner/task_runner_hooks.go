@@ -96,8 +96,12 @@ func (tr *TaskRunner) initHooks() {
 		}))
 	}
 
-	// Get the consul namespace for the TG of the allocation
+	// Get the consul namespace for the TG of the allocation.
 	consulNamespace := tr.alloc.ConsulNamespace()
+
+	// Identify the service registration provider, which can differ from the
+	// Consul namespace depending on which provider is used.
+	serviceProviderNamespace := tr.alloc.ServiceProviderNamespace()
 
 	// If there are templates is enabled, add the hook
 	if len(task.Templates) != 0 {
@@ -115,12 +119,12 @@ func (tr *TaskRunner) initHooks() {
 	// Always add the service hook. A task with no services on initial registration
 	// may be updated to include services, which must be handled with this hook.
 	tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
-		alloc:           tr.Alloc(),
-		task:            tr.Task(),
-		consulServices:  tr.consulServiceClient,
-		consulNamespace: consulNamespace,
-		restarter:       tr,
-		logger:          hookLogger,
+		alloc:             tr.Alloc(),
+		task:              tr.Task(),
+		namespace:         serviceProviderNamespace,
+		serviceRegWrapper: tr.serviceRegWrapper,
+		restarter:         tr,
+		logger:            hookLogger,
 	}))
 
 	// If this is a Connect sidecar proxy (or a Connect Native) service,

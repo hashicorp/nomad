@@ -9,6 +9,7 @@ import (
 	ctestutil "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
@@ -32,17 +33,24 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Services = []*structs.Service{{
 		Name:      "foo",
+		Provider:  "consul",
 		PortLabel: "9999",
 	}}
 	logger := testlog.HCLogger(t)
-	consulClient := regMock.NewServiceRegistrationHandler(logger)
+
+	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+
+	regWrapper := wrapper.NewHandlerWrapper(
+		logger,
+		consulMockClient,
+		regMock.NewServiceRegistrationHandler(logger))
 
 	h := newGroupServiceHook(groupServiceHookConfig{
-		alloc:          alloc,
-		consul:         consulClient,
-		restarter:      agentconsul.NoopRestarter(),
-		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
-		logger:         logger,
+		alloc:             alloc,
+		serviceRegWrapper: regWrapper,
+		restarter:         agentconsul.NoopRestarter(),
+		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:            logger,
 	})
 	require.NoError(t, h.Prerun())
 
@@ -53,7 +61,7 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 
 	require.NoError(t, h.PreTaskRestart())
 
-	ops := consulClient.GetOps()
+	ops := consulMockClient.GetOps()
 	require.Len(t, ops, 5)
 	require.Equal(t, "add", ops[0].Op)    // Prerun
 	require.Equal(t, "update", ops[1].Op) // Update
@@ -71,14 +79,20 @@ func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
 	alloc.Job.TaskGroups[0].ShutdownDelay = helper.TimeToPtr(10 * time.Second)
 
 	logger := testlog.HCLogger(t)
-	consulClient := regMock.NewServiceRegistrationHandler(logger)
+	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+
+	regWrapper := wrapper.NewHandlerWrapper(
+		logger,
+		consulMockClient,
+		regMock.NewServiceRegistrationHandler(logger),
+	)
 
 	h := newGroupServiceHook(groupServiceHookConfig{
-		alloc:          alloc,
-		consul:         consulClient,
-		restarter:      agentconsul.NoopRestarter(),
-		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
-		logger:         logger,
+		alloc:             alloc,
+		serviceRegWrapper: regWrapper,
+		restarter:         agentconsul.NoopRestarter(),
+		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:            logger,
 	})
 	require.NoError(t, h.Prerun())
 
@@ -105,15 +119,21 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.ConnectAlloc()
+	alloc.Job.Canonicalize()
 	logger := testlog.HCLogger(t)
-	consulClient := regMock.NewServiceRegistrationHandler(logger)
+	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+
+	regWrapper := wrapper.NewHandlerWrapper(
+		logger,
+		consulMockClient,
+		regMock.NewServiceRegistrationHandler(logger))
 
 	h := newGroupServiceHook(groupServiceHookConfig{
-		alloc:          alloc,
-		consul:         consulClient,
-		restarter:      agentconsul.NoopRestarter(),
-		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
-		logger:         logger,
+		alloc:             alloc,
+		serviceRegWrapper: regWrapper,
+		restarter:         agentconsul.NoopRestarter(),
+		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:            logger,
 	})
 	require.NoError(t, h.Prerun())
 
@@ -124,13 +144,62 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 
 	require.NoError(t, h.PreTaskRestart())
 
-	ops := consulClient.GetOps()
+	ops := consulMockClient.GetOps()
 	require.Len(t, ops, 5)
 	require.Equal(t, "add", ops[0].Op)    // Prerun
 	require.Equal(t, "update", ops[1].Op) // Update
 	require.Equal(t, "remove", ops[2].Op) // Postrun
 	require.Equal(t, "remove", ops[3].Op) // Restart -> preKill
 	require.Equal(t, "add", ops[4].Op)    // Restart -> preRun
+}
+
+// TestGroupServiceHook_GroupServices_Nomad asserts group service hooks with
+// group services does not error when using the Nomad provider.
+func TestGroupServiceHook_GroupServices_Nomad(t *testing.T) {
+	t.Parallel()
+
+	// Create a mock alloc, and add a group service using provider Nomad.
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Services = []*structs.Service{
+		{
+			Name:     "nomad-provider-service",
+			Provider: structs.ServiceProviderNomad,
+		},
+	}
+
+	// Create our base objects and our subsequent wrapper.
+	logger := testlog.HCLogger(t)
+	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+	nomadMockClient := regMock.NewServiceRegistrationHandler(logger)
+
+	regWrapper := wrapper.NewHandlerWrapper(logger, consulMockClient, nomadMockClient)
+
+	h := newGroupServiceHook(groupServiceHookConfig{
+		alloc:             alloc,
+		serviceRegWrapper: regWrapper,
+		restarter:         agentconsul.NoopRestarter(),
+		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:            logger,
+	})
+	require.NoError(t, h.Prerun())
+
+	// Trigger our hook requests.
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
+	require.NoError(t, h.Update(req))
+	require.NoError(t, h.Postrun())
+	require.NoError(t, h.PreTaskRestart())
+
+	// Ensure the Nomad mock provider has the expected operations.
+	ops := nomadMockClient.GetOps()
+	require.Len(t, ops, 5)
+	require.Equal(t, "add", ops[0].Op)    // Prerun
+	require.Equal(t, "update", ops[1].Op) // Update
+	require.Equal(t, "remove", ops[2].Op) // Postrun
+	require.Equal(t, "remove", ops[3].Op) // Restart -> preKill
+	require.Equal(t, "add", ops[4].Op)    // Restart -> preRun
+
+	// Ensure the Consul mock provider has zero operations.
+	require.Len(t, consulMockClient.GetOps(), 0)
 }
 
 // TestGroupServiceHook_Error asserts group service hooks with group
@@ -144,6 +213,7 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 	tg.Services = []*structs.Service{
 		{
 			Name:      "testconnect",
+			Provider:  "consul",
 			PortLabel: "9999",
 			Connect: &structs.ConsulConnect{
 				SidecarService: &structs.ConsulSidecarService{},
@@ -152,14 +222,19 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 	}
 	logger := testlog.HCLogger(t)
 
-	consulClient := regMock.NewServiceRegistrationHandler(logger)
+	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+
+	regWrapper := wrapper.NewHandlerWrapper(
+		logger,
+		consulMockClient,
+		regMock.NewServiceRegistrationHandler(logger))
 
 	h := newGroupServiceHook(groupServiceHookConfig{
-		alloc:          alloc,
-		consul:         consulClient,
-		restarter:      agentconsul.NoopRestarter(),
-		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
-		logger:         logger,
+		alloc:             alloc,
+		serviceRegWrapper: regWrapper,
+		restarter:         agentconsul.NoopRestarter(),
+		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:            logger,
 	})
 	require.NoError(t, h.Prerun())
 
@@ -170,7 +245,7 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 
 	require.NoError(t, h.PreTaskRestart())
 
-	ops := consulClient.GetOps()
+	ops := consulMockClient.GetOps()
 	require.Len(t, ops, 5)
 	require.Equal(t, "add", ops[0].Op)    // Prerun
 	require.Equal(t, "update", ops[1].Op) // Update
@@ -196,14 +271,19 @@ func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
 	}
 	logger := testlog.HCLogger(t)
 
-	consulClient := regMock.NewServiceRegistrationHandler(logger)
+	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+
+	regWrapper := wrapper.NewHandlerWrapper(
+		logger,
+		consulMockClient,
+		regMock.NewServiceRegistrationHandler(logger))
 
 	h := newGroupServiceHook(groupServiceHookConfig{
-		alloc:          alloc,
-		consul:         consulClient,
-		restarter:      agentconsul.NoopRestarter(),
-		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
-		logger:         logger,
+		alloc:             alloc,
+		serviceRegWrapper: regWrapper,
+		restarter:         agentconsul.NoopRestarter(),
+		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:            logger,
 	})
 
 	services := h.getWorkloadServices()
@@ -234,7 +314,14 @@ func TestGroupServiceHook_Update08Alloc(t *testing.T) {
 	require.NoError(t, err)
 	namespacesClient := agentconsul.NewNamespacesClient(consulClient.Namespaces(), consulClient.Agent())
 
+	logger := testlog.HCLogger(t)
 	serviceClient := agentconsul.NewServiceClient(consulClient.Agent(), namespacesClient, testlog.HCLogger(t), true)
+
+	regWrapper := wrapper.NewHandlerWrapper(
+		logger,
+		serviceClient,
+		regMock.NewServiceRegistrationHandler(logger),
+	)
 
 	// Lower periodicInterval to ensure periodic syncing doesn't improperly
 	// remove Connect services.
@@ -266,6 +353,7 @@ func TestGroupServiceHook_Update08Alloc(t *testing.T) {
 	tg.Services = []*structs.Service{
 		{
 			Name:      "testconnect",
+			Provider:  "consul",
 			PortLabel: "9999",
 			Connect: &structs.ConsulConnect{
 				SidecarService: &structs.ConsulSidecarService{
@@ -284,11 +372,11 @@ func TestGroupServiceHook_Update08Alloc(t *testing.T) {
 
 	// Create the group service hook
 	h := newGroupServiceHook(groupServiceHookConfig{
-		alloc:          oldAlloc,
-		consul:         serviceClient,
-		restarter:      agentconsul.NoopRestarter(),
-		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), oldAlloc, nil, oldAlloc.Job.Region),
-		logger:         testlog.HCLogger(t),
+		alloc:             oldAlloc,
+		serviceRegWrapper: regWrapper,
+		restarter:         agentconsul.NoopRestarter(),
+		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), oldAlloc, nil, oldAlloc.Job.Region),
+		logger:            testlog.HCLogger(t),
 	})
 
 	require.NoError(t, h.Prerun())
@@ -300,5 +388,4 @@ func TestGroupServiceHook_Update08Alloc(t *testing.T) {
 		require.NoError(t, err)
 		return len(services) == 2
 	}, 3*time.Second, 100*time.Millisecond)
-
 }

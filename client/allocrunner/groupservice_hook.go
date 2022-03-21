@@ -8,6 +8,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -25,14 +26,21 @@ type networkStatusGetter interface {
 // deregistration.
 type groupServiceHook struct {
 	allocID             string
+	jobID               string
 	group               string
 	restarter           agentconsul.WorkloadRestarter
-	consulClient        serviceregistration.Handler
-	consulNamespace     string
 	prerun              bool
 	deregistered        bool
 	networkStatusGetter networkStatusGetter
 	shutdownDelayCtx    context.Context
+
+	// namespace is the Nomad or Consul namespace in which service
+	// registrations will be made.
+	namespace string
+
+	// serviceRegWrapper is the handler wrapper that is used to perform service
+	// and check registration and deregistration.
+	serviceRegWrapper *wrapper.HandlerWrapper
 
 	logger log.Logger
 
@@ -51,13 +59,19 @@ type groupServiceHook struct {
 
 type groupServiceHookConfig struct {
 	alloc               *structs.Allocation
-	consul              serviceregistration.Handler
-	consulNamespace     string
 	restarter           agentconsul.WorkloadRestarter
 	taskEnvBuilder      *taskenv.Builder
 	networkStatusGetter networkStatusGetter
 	shutdownDelayCtx    context.Context
 	logger              log.Logger
+
+	// namespace is the Nomad or Consul namespace in which service
+	// registrations will be made.
+	namespace string
+
+	// serviceRegWrapper is the handler wrapper that is used to perform service
+	// and check registration and deregistration.
+	serviceRegWrapper *wrapper.HandlerWrapper
 }
 
 func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
@@ -70,15 +84,16 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 
 	h := &groupServiceHook{
 		allocID:             cfg.alloc.ID,
+		jobID:               cfg.alloc.JobID,
 		group:               cfg.alloc.TaskGroup,
 		restarter:           cfg.restarter,
-		consulClient:        cfg.consul,
-		consulNamespace:     cfg.consulNamespace,
+		namespace:           cfg.namespace,
 		taskEnvBuilder:      cfg.taskEnvBuilder,
 		delay:               shutdownDelay,
 		networkStatusGetter: cfg.networkStatusGetter,
 		logger:              cfg.logger.Named(groupServiceHookName),
 		services:            cfg.alloc.Job.LookupTaskGroup(cfg.alloc.TaskGroup).Services,
+		serviceRegWrapper:   cfg.serviceRegWrapper,
 		shutdownDelayCtx:    cfg.shutdownDelayCtx,
 	}
 
@@ -114,7 +129,7 @@ func (h *groupServiceHook) prerunLocked() error {
 	}
 
 	services := h.getWorkloadServices()
-	return h.consulClient.RegisterWorkload(services)
+	return h.serviceRegWrapper.RegisterWorkload(services)
 }
 
 func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
@@ -157,7 +172,7 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 		return nil
 	}
 
-	return h.consulClient.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
+	return h.serviceRegWrapper.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
 }
 
 func (h *groupServiceHook) PreTaskRestart() error {
@@ -213,7 +228,7 @@ func (h *groupServiceHook) Postrun() error {
 func (h *groupServiceHook) deregister() {
 	if len(h.services) > 0 {
 		workloadServices := h.getWorkloadServices()
-		h.consulClient.RemoveWorkload(workloadServices)
+		h.serviceRegWrapper.RemoveWorkload(workloadServices)
 	}
 }
 
@@ -229,8 +244,9 @@ func (h *groupServiceHook) getWorkloadServices() *serviceregistration.WorkloadSe
 	// Create task services struct with request's driver metadata
 	return &serviceregistration.WorkloadServices{
 		AllocID:       h.allocID,
+		JobID:         h.jobID,
 		Group:         h.group,
-		Namespace:     h.consulNamespace,
+		Namespace:     h.namespace,
 		Restarter:     h.restarter,
 		Services:      interpolatedServices,
 		Networks:      h.networks,
