@@ -1314,22 +1314,26 @@ func (s *Server) removeRaftPeer(m serf.Member, parts *serverParts) error {
 
 	// Pick which remove API to use based on how the server was added.
 	for _, server := range configFuture.Configuration().Servers {
-		// If we understand the new add/remove APIs and the server was added by ID, use the new remove API
-		if minRaftProtocol >= 2 && server.ID == raft.ServerID(parts.ID) {
-			s.logger.Info("removing server by ID", "id", server.ID)
-			future := s.raft.RemoveServer(raft.ServerID(parts.ID), 0, 0)
-			if err := future.Error(); err != nil {
-				s.logger.Error("failed to remove raft peer", "id", server.ID, "error", err)
-				return err
-			}
-			break
-		} else if server.Address == raft.ServerAddress(addr) {
-			// If not, use the old remove API
-			s.logger.Info("removing server by address", "address", server.Address)
-			future := s.raft.RemovePeer(raft.ServerAddress(addr))
-			if err := future.Error(); err != nil {
-				s.logger.Error("failed to remove raft peer", "address", addr, "error", err)
-				return err
+		// Check if this is the server to remove based on how it was registered.
+		// Raft v2 servers are registered by address.
+		// Raft v3 servers are registered by ID.
+		if server.ID == raft.ServerID(parts.ID) || server.Address == raft.ServerAddress(addr) {
+			// Use the new add/remove APIs if we understand them.
+			if minRaftProtocol >= 2 {
+				s.logger.Info("removing server by ID", "id", server.ID)
+				future := s.raft.RemoveServer(server.ID, 0, 0)
+				if err := future.Error(); err != nil {
+					s.logger.Error("failed to remove raft peer", "id", server.ID, "error", err)
+					return err
+				}
+			} else {
+				// If not, use the old remove API
+				s.logger.Info("removing server by address", "address", server.Address)
+				future := s.raft.RemovePeer(raft.ServerAddress(addr))
+				if err := future.Error(); err != nil {
+					s.logger.Error("failed to remove raft peer", "address", addr, "error", err)
+					return err
+				}
 			}
 			break
 		}
