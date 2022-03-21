@@ -40,6 +40,13 @@ func (tc *ConnectACLsE2ETest) BeforeAll(f *framework.F) {
 
 	_, err := uuidparse.ParseUUID(tc.consulManagementToken)
 	f.NoError(err, "CONSUL_HTTP_TOKEN not set")
+
+	// ensure SI tokens from previous test cases were removed
+	f.Eventually(func() bool {
+		siTokens := tc.countSITokens(f.T())
+		f.T().Log("cleanup: checking for remaining SI tokens:", siTokens)
+		return len(siTokens) == 0
+	}, 2*time.Minute, 2*time.Second, "SI tokens did not get removed")
 }
 
 // AfterEach does cleanup of Consul ACL objects that were created during each
