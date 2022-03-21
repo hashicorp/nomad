@@ -61,6 +61,9 @@ const (
 	// JobParentID is the environment variable for passing the ID of the parnt of the job
 	JobParentID = "NOMAD_JOB_PARENT_ID"
 
+	// JobVersion is the environment variable for passing the version number of the job.
+	JobVersion = "NOMAD_JOB_VERSION"
+
 	// AllocIndex is the environment variable for passing the allocation index.
 	AllocIndex = "NOMAD_ALLOC_INDEX"
 
@@ -411,6 +414,7 @@ type Builder struct {
 	jobID            string
 	jobName          string
 	jobParentID      string
+	jobVersion       uint64
 
 	// otherPorts for tasks in the same alloc
 	otherPorts map[string]string
@@ -514,6 +518,9 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	}
 	if b.jobParentID != "" {
 		envMap[JobParentID] = b.jobParentID
+	}
+	if b.jobVersion != 0 {
+		envMap[JobVersion] = strconv.FormatUint(b.jobVersion, 10)
 	}
 	if b.datacenter != "" {
 		envMap[Datacenter] = b.datacenter
@@ -699,6 +706,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 	b.jobID = alloc.Job.ID
 	b.jobName = alloc.Job.Name
 	b.jobParentID = alloc.Job.ParentID
+	b.jobVersion = alloc.Job.Version
 	b.namespace = alloc.Namespace
 
 	// Set meta
