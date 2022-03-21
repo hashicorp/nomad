@@ -446,8 +446,8 @@ func DefaultConfig() *Config {
 	// Disable shutdown on removal
 	c.RaftConfig.ShutdownOnRemove = false
 
-	// Default to Raft v2, update to v3 to enable new Raft and autopilot features.
-	c.RaftConfig.ProtocolVersion = 2
+	// Default to Raft v3 since Nomad 1.3
+	c.RaftConfig.ProtocolVersion = 3
 
 	return c
 }
