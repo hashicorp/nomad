@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where garbage collected nodes would block releasing a volume
+```
