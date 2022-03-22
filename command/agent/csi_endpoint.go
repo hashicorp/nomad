@@ -2,6 +2,7 @@ package agent
 
 import (
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -547,6 +548,10 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 			}
 		}
 	}
+
+	sort.Slice(out.Allocations, func(i, j int) bool {
+		return out.Allocations[i].ModifyIndex > out.Allocations[j].ModifyIndex
+	})
 
 	return out
 }

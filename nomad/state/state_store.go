@@ -2793,6 +2793,9 @@ func (s *StateStore) CSIPluginDenormalizeTxn(txn Txn, ws memdb.WatchSet, plug *s
 		}
 		plug.Allocations = append(plug.Allocations, alloc.Stub(nil))
 	}
+	sort.Slice(plug.Allocations, func(i, j int) bool {
+		return plug.Allocations[i].ModifyIndex > plug.Allocations[j].ModifyIndex
+	})
 
 	return plug, nil
 }

@@ -206,7 +206,8 @@ func (c *PluginStatusCommand) formatControllerCaps(controllers map[string]*api.C
 		return ""
 	}
 
-	return "  " + strings.Join(sort.StringSlice(caps), "\n  ")
+	sort.StringSlice(caps).Sort()
+	return "  " + strings.Join(caps, "\n  ")
 }
 
 func (c *PluginStatusCommand) formatNodeCaps(nodes map[string]*api.CSIInfo) string {
@@ -237,7 +238,8 @@ func (c *PluginStatusCommand) formatNodeCaps(nodes map[string]*api.CSIInfo) stri
 		return ""
 	}
 
-	return "  " + strings.Join(sort.StringSlice(caps), "\n  ")
+	sort.StringSlice(caps).Sort()
+	return "  " + strings.Join(caps, "\n  ")
 }
 
 func (c *PluginStatusCommand) formatTopology(nodes map[string]*api.CSIInfo) string {
