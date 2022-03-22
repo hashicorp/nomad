@@ -870,6 +870,55 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly_Advertise(t *testing.T) {
 	require.Equal(resp.Servers[0].RPCAdvertiseAddr, advAddr)
 }
 
+func TestNode_UpdateStatus_ServiceRegistrations(t *testing.T) {
+	t.Parallel()
+
+	testServer, serverCleanup := TestServer(t, nil)
+	defer serverCleanup()
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Create a node and upsert this into state.
+	node := mock.Node()
+	require.NoError(t, testServer.State().UpsertNode(structs.MsgTypeTestSetup, 10, node))
+
+	// Generate service registrations, ensuring the nodeID is set to the
+	// generated node from above.
+	services := mock.ServiceRegistrations()
+
+	for _, s := range services {
+		s.NodeID = node.ID
+	}
+
+	// Upsert the service registrations into state.
+	require.NoError(t, testServer.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 20, services))
+
+	// Check the service registrations are in state as we expect, so we can
+	// have confidence in the rest of the test.
+	ws := memdb.NewWatchSet()
+	nodeRegs, err := testServer.State().GetServiceRegistrationsByNodeID(ws, node.ID)
+	require.NoError(t, err)
+	require.Len(t, nodeRegs, 2)
+	require.Equal(t, nodeRegs[0].NodeID, node.ID)
+	require.Equal(t, nodeRegs[1].NodeID, node.ID)
+
+	// Generate and trigger a node down status update. This mimics what happens
+	// when the node fails its heart-beating.
+	args := structs.NodeUpdateStatusRequest{
+		NodeID:       node.ID,
+		Status:       structs.NodeStatusDown,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var reply structs.NodeUpdateResponse
+	require.NoError(t, testServer.staticEndpoints.Node.UpdateStatus(&args, &reply))
+
+	// Query our state, to ensure the node service registrations have been
+	// removed.
+	nodeRegs, err = testServer.State().GetServiceRegistrationsByNodeID(ws, node.ID)
+	require.NoError(t, err)
+	require.Len(t, nodeRegs, 0)
+}
+
 // TestClientEndpoint_UpdateDrain asserts the ability to initiate drain
 // against a node and cancel that drain. It also asserts:
 // * an evaluation is created when the node becomes eligible
