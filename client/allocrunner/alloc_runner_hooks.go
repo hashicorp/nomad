@@ -153,8 +153,8 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newNetworkHook(hookLogger, ns, alloc, nm, nc, ar, builtTaskEnv),
 		newGroupServiceHook(groupServiceHookConfig{
 			alloc:               alloc,
-			consul:              ar.consulClient,
-			consulNamespace:     alloc.ConsulNamespace(),
+			namespace:           alloc.ServiceProviderNamespace(),
+			serviceRegWrapper:   ar.serviceRegWrapper,
 			restarter:           ar,
 			taskEnvBuilder:      envBuilder,
 			networkStatusGetter: ar,

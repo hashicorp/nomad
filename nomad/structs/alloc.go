@@ -22,3 +22,37 @@ type AllocServiceRegistrationsResponse struct {
 	Services []*ServiceRegistration
 	QueryMeta
 }
+
+// ServiceProviderNamespace returns the namespace within which the allocations
+// services should be registered. This takes into account the different
+// providers that can provide service registrations. In the event no services
+// are found, the function will return the Consul namespace which allows hooks
+// to work as they did before this feature.
+//
+// It currently assumes that all services within an allocation use the same
+// provider and therefore the same namespace.
+func (a *Allocation) ServiceProviderNamespace() string {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	if len(tg.Services) > 0 {
+		switch tg.Services[0].Provider {
+		case ServiceProviderNomad:
+			return a.Job.Namespace
+		default:
+			return tg.Consul.GetNamespace()
+		}
+	}
+
+	if len(tg.Tasks) > 0 {
+		if len(tg.Tasks[0].Services) > 0 {
+			switch tg.Tasks[0].Services[0].Provider {
+			case ServiceProviderNomad:
+				return a.Job.Namespace
+			default:
+				return tg.Consul.GetNamespace()
+			}
+		}
+	}
+
+	return tg.Consul.GetNamespace()
+}

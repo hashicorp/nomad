@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -81,4 +82,8 @@ type Config struct {
 	// RPCClient is the RPC Client that should be used by the allocrunner and its
 	// hooks to communicate with Nomad Servers.
 	RPCClient RPCer
+
+	// ServiceRegWrapper is the handler wrapper that is used by service hooks
+	// to perform service and check registration and deregistration.
+	ServiceRegWrapper *wrapper.HandlerWrapper
 }

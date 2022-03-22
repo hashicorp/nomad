@@ -15,6 +15,8 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
@@ -93,6 +95,7 @@ func TestConsul_Integration(t *testing.T) {
 			Name:      "httpd",
 			PortLabel: "http",
 			Tags:      []string{"nomad", "test", "http"},
+			Provider:  structs.ServiceProviderConsul,
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:     "httpd-http-check",
@@ -114,6 +117,7 @@ func TestConsul_Integration(t *testing.T) {
 		{
 			Name:      "httpd2",
 			PortLabel: "http",
+			Provider:  structs.ServiceProviderConsul,
 			Tags: []string{
 				"test",
 				// Use URL-unfriendly tags to test #3620
@@ -162,6 +166,7 @@ func TestConsul_Integration(t *testing.T) {
 		DeviceManager:        devicemanager.NoopMockManager(),
 		DriverManager:        drivermanager.TestDriverManager(t),
 		StartConditionMetCtx: closedCh,
+		ServiceRegWrapper:    wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
 	}
 
 	tr, err := taskrunner.NewTaskRunner(config)

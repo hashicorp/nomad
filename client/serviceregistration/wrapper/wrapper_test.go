@@ -131,10 +131,10 @@ func TestHandlerWrapper_RemoveWorkload(t *testing.T) {
 				// Generate the test wrapper and provider mocks.
 				wrapper, consul, nomad := setupTestWrapper()
 
-				// Call the function with no services and check that nothing is
-				// registered.
+				// Call the function with no services and check that consul is
+				// defaulted to.
 				wrapper.RemoveWorkload(&serviceregistration.WorkloadServices{})
-				require.Len(t, consul.GetOps(), 0)
+				require.Len(t, consul.GetOps(), 1)
 				require.Len(t, nomad.GetOps(), 0)
 			},
 			name: "zero services",

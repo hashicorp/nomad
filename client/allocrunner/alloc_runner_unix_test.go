@@ -38,6 +38,7 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 		{
 			Name:      "foo",
 			PortLabel: "8888",
+			Provider:  structs.ServiceProviderConsul,
 		},
 	}
 	task := alloc.Job.TaskGroups[0].Tasks[0]

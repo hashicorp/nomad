@@ -489,7 +489,8 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	tg := alloc.Job.TaskGroups[0]
 	tg.Services = []*structs.Service{
 		{
-			Name: "shutdown_service",
+			Name:     "shutdown_service",
+			Provider: structs.ServiceProviderConsul,
 		},
 	}
 
@@ -1314,6 +1315,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 		{
 			Name:      "fakservice",
 			PortLabel: "http",
+			Provider:  structs.ServiceProviderConsul,
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:     "fakecheck",

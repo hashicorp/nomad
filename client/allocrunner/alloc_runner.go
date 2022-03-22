@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -20,9 +18,11 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -178,6 +178,10 @@ type allocRunner struct {
 	// rpcClient is the RPC Client that should be used by the allocrunner and its
 	// hooks to communicate with Nomad Servers.
 	rpcClient RPCer
+
+	// serviceRegWrapper is the handler wrapper that is used by service hooks
+	// to perform service and check registration and deregistration.
+	serviceRegWrapper *wrapper.HandlerWrapper
 }
 
 // RPCer is the interface needed by hooks to make RPC calls.
@@ -221,6 +225,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
 		rpcClient:                config.RPCClient,
+		serviceRegWrapper:        config.ServiceRegWrapper,
 	}
 
 	// Create the logger based on the allocation ID
@@ -274,6 +279,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			ServersContactedCh:   ar.serversContactedCh,
 			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
 			ShutdownDelayCtx:     ar.shutdownDelayCtx,
+			ServiceRegWrapper:    ar.serviceRegWrapper,
 		}
 
 		if ar.cpusetManager != nil {
