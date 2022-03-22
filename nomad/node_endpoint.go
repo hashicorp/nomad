@@ -35,7 +35,7 @@ const (
 	// NodeDrainEvents are the various drain messages
 	NodeDrainEventDrainSet      = "Node drain strategy set"
 	NodeDrainEventDrainDisabled = "Node drain disabled"
-	NodeDrainEventDrainUpdated  = "Node drain stategy updated"
+	NodeDrainEventDrainUpdated  = "Node drain strategy updated"
 
 	// NodeEligibilityEventEligible is used when the nodes eligiblity is marked
 	// eligible
