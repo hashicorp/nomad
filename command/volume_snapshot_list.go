@@ -186,7 +186,7 @@ func csiFormatSnapshots(snapshots []*api.CSISnapshot, verbose bool) string {
 			v.ID,
 			limit(v.ExternalSourceVolumeID, length),
 			humanize.IBytes(uint64(v.SizeBytes)),
-			formatUnixNanoTime(v.CreateTime),
+			formatUnixNanoTime(v.CreateTime*1000000000), // this time is in seconds
 			v.IsReady,
 		))
 	}
