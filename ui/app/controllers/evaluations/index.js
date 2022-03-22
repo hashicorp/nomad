@@ -101,17 +101,26 @@ export default class EvaluationsController extends Controller {
   }
 
   get hierarchy() {
-    const { RelatedEvals: data } = this.currentEvalDetail;
+    const data = this.currentEvalDetail?.relatedEvals;
 
-    return d3
-      .stratify()
-      .id((d) => d.id)
-      .parentId((d) => d.prevEval)(data);
+    if (data) {
+      debugger;
+      return d3
+        .stratify()
+        .id((d) => {
+          return d.id;
+        })
+        .parentId((d) => d.previousEval)([
+        ...data.toArray(),
+        this.currentEvalDetail,
+      ]);
+    }
+    return null;
   }
 
   get descendentsMap() {
     return this.hierarchy
-      .descendants()
+      ?.descendants()
       .map((d) => d.children)
       .compact();
   }

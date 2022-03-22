@@ -8,6 +8,7 @@ import {
   selectChoose,
   clickTrigger,
 } from 'ember-power-select/test-support/helpers';
+import { MOCK_EVALUATION } from '../../mirage/utils';
 
 const getStandardRes = () => [
   {
@@ -447,74 +448,8 @@ module('Acceptance | evaluations list', function (hooks) {
   module('evaluation detail', function () {
     test('clicking an evaluation opens the detail view', async function (assert) {
       server.get('/evaluations', getStandardRes);
-      server.get('/evaluation/:id', function (_, fakeRes) {
-        return {
-          ID: fakeRes.params.id,
-          Priority: 50,
-          Type: 'service',
-          TriggeredBy: 'job-register',
-          JobID: 'example',
-          JobModifyIndex: 52,
-          NodeID: 'yes',
-          NodeModifyIndex: 0,
-          Status: 'complete',
-          StatusDescription: '',
-          Wait: 0,
-          NextEval: '',
-          PreviousEval: '',
-          BlockedEval: '',
-          FailedTGAllocs: null,
-          ClassEligibility: null,
-          EscapedComputedClass: false,
-          AnnotatePlan: false,
-          SnapshotIndex: 53,
-          QueuedAllocations: {
-            cache: 0,
-          },
-          CreateIndex: 53,
-          ModifyIndex: 55,
-          Related: [
-            {
-              ID: 'a9125398-1ef6-480a-80e5-ebfb4a74aeb8',
-              CreateIndex: 82,
-              CreateTime: 1646071501471847000,
-              JobID: 'system-job',
-              ModifyIndex: 88,
-              ModifyTime: 1646071501474137000,
-              Namespace: 'default',
-              NodeID: '462aad3f-bfa5-00be-d1d4-aa713adb4dbe',
-              NodeModifyIndex: 81,
-              Priority: 50,
-              SnapshotIndex: 82,
-              Status: 'complete',
-              TriggeredBy: 'node-update',
-              Type: 'system',
-              NextEval: '',
-              PreviousEval: '04928ead-9b3d-40a7-b45d-d90d2afd2d8d',
-              BlockedEval: '',
-            },
-            {
-              ID: '04928ead-9b3d-40a7-b45d-d90d2afd2d8d',
-              NextEval: '',
-              PreviousEval: '5456bd7a-9fc0-c0dd-6131-cbee77f57577',
-              BlockedEval: 'a9125398-1ef6-480a-80e5-ebfb4a74aeb8',
-              CreateIndex: 82,
-              CreateTime: 1646071501471847000,
-              DeploymentID: '61adb5d0-4bb2-fe37-f504-21e23377e291',
-              JobID: 'example2',
-              ModifyIndex: 90,
-              ModifyTime: 1646071501476093000,
-              Namespace: 'default',
-              NodeID: '462aad3f-bfa5-00be-d1d4-aa713adb4dbe',
-              NodeModifyIndex: 81,
-              Priority: 50,
-              SnapshotIndex: 89,
-              Status: 'complete',
-              TriggeredBy: 'node-update',
-              Type: 'service',
-            },
-          ],
-        };
+      server.get('/evaluation/:id', function (_, { params }) {
+        return { ...MOCK_EVALUATION(params.id), ID: params.id };
       });
 
       await visit('/evaluations');
@@ -522,7 +457,7 @@ module('Acceptance | evaluations list', function (hooks) {
       const evalId = '5fb1b8cd';
       await click(`[data-test-evaluation='${evalId}']`);
 
-      // await this.pauseTest();
+      await this.pauseTest();
 
       assert
         .dom('[data-test-eval-detail-is-open]')

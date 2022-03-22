@@ -79,6 +79,7 @@ export default createMachine(
                 },
               },
               error: {
+                entry: assign({ error: (_ctx, event) => event.data }),
                 on: {
                   RETRY: 'busy',
                 },

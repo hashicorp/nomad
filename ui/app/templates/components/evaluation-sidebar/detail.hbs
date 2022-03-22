@@ -10,7 +10,12 @@
         exceptSelector="tr[data-eval-row]"
       }}
     >
-      {{#if this.isSuccess}}
+      {{#if @data.error}}
+        <h2>
+          ERROR!
+        </h2>
+      {{/if}}
+      {{#if @data.isSuccess}}
         <div
           data-test-eval-detail-header
           style="display: flex; justify-content: space-between"
@@ -81,7 +86,7 @@
             </div>
           </div>
         </div>
-        {{! Start Related Evaluation}}
+        {{!-- Start Related Evaluation
         <div
           style="display: flex; justify-content: center; align-items: center; z-index: 10; inset: 0"
           {{on-resize @fns.handleResize}}
@@ -123,7 +128,20 @@
             </div>
           </div>
         </div>
-        {{! End Related Evaluations}}
+        End Related Evaluations --}}
+        {{! Temporary Evaluations}}
+        {{debugger}}
+        <div data-test-rel-eval={{eval}}>
+          Parent
+        </div>
+        {{#each @data.descendentsMap as |evals|}}
+          {{#each evals as |eval|}}
+            <div data-test-rel-eval={{eval}}>
+              hello
+            </div>
+          {{/each}}
+        {{/each}}
+        {{! End Temporary Evaluaitons}}
         <div
           class="boxed-section
             {{if evaluation.failedTGAllocs "is-warning" "is-primary"}}"
