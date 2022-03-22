@@ -4566,6 +4566,18 @@ func (j *Job) IsMultiregion() bool {
 	return j.Multiregion != nil && j.Multiregion.Regions != nil && len(j.Multiregion.Regions) > 0
 }
 
+// IsPlugin returns whether a job is implements a plugin (currently just CSI)
+func (j *Job) IsPlugin() bool {
+	for _, tg := range j.TaskGroups {
+		for _, task := range tg.Tasks {
+			if task.CSIPluginConfig != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // VaultPolicies returns the set of Vault policies per task group, per task
 func (j *Job) VaultPolicies() map[string]map[string]*Vault {
 	policies := make(map[string]map[string]*Vault, len(j.TaskGroups))
