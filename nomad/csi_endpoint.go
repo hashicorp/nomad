@@ -1,8 +1,8 @@
 package nomad
 
 import (
-	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -666,7 +666,9 @@ func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *struc
 		// we should only get this error if the Nomad node disconnects and
 		// is garbage-collected, so at this point we don't have any reason
 		// to operate as though the volume is attached to it.
-		if !errors.Is(err, structs.ErrUnknownNode) {
+		// note: errors.Is cannot be used because the RPC call breaks
+		// error wrapping.
+		if !strings.Contains(err.Error(), structs.ErrUnknownNode.Error()) {
 			return fmt.Errorf("could not detach from node: %w", err)
 		}
 	}
