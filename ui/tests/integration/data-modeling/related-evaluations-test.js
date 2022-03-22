@@ -17,7 +17,7 @@ module('Integration | Data Modeling | related evaluations', function (hooks) {
         'it should append the related query parameter when making the API request for related evaluations'
       );
       return {
-        ID: 5,
+        ID: 'tomster',
         Priority: 50,
         Type: 'service',
         TriggeredBy: 'job-register',
@@ -54,7 +54,7 @@ module('Integration | Data Modeling | related evaluations', function (hooks) {
         'it should not append the related query parameter when making the API request for related evaluations'
       );
       return {
-        ID: 5,
+        ID: 'tomster',
         Priority: 50,
         Type: 'service',
         TriggeredBy: 'job-register',
@@ -84,13 +84,13 @@ module('Integration | Data Modeling | related evaluations', function (hooks) {
     await store.findRecord('evaluation', 'tomster');
   });
 
-  test('it should store related evaluations as a fragment in the ember data store', async function (assert) {
+  test('it should store related evaluations stubs as a hasMany in the store', async function (assert) {
     assert.expect(2);
     const store = this.owner.lookup('service:store');
 
     server.get('/evaluation/:id', function () {
       return {
-        ID: 5,
+        ID: 'tomster',
         Priority: 50,
         Type: 'service',
         TriggeredBy: 'job-register',
@@ -114,7 +114,10 @@ module('Integration | Data Modeling | related evaluations', function (hooks) {
         },
         CreateIndex: 53,
         ModifyIndex: 55,
-        RelatedEvals: [{ StatusDescription: 'a' }, { StatusDescription: 'b' }],
+        RelatedEvals: [
+          { ID: 'a', StatusDescription: 'a' },
+          { ID: 'b', StatusDescription: 'b' },
+        ],
       };
     });
 
@@ -124,9 +127,8 @@ module('Integration | Data Modeling | related evaluations', function (hooks) {
 
     assert.equal(result.relatedEvals.length, 2);
 
-    const mappedResult = result.relatedEvals.map(
-      (evalStub) => evalStub.statusDescription
-    );
+    const mappedResult = result.relatedEvals.map((es) => es.id);
+
     assert.deepEqual(
       mappedResult,
       ['a', 'b'],
