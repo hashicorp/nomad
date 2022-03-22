@@ -522,7 +522,7 @@ module('Acceptance | evaluations list', function (hooks) {
       const evalId = '5fb1b8cd';
       await click(`[data-test-evaluation='${evalId}']`);
 
-      await this.pauseTest();
+      // await this.pauseTest();
 
       assert
         .dom('[data-test-eval-detail-is-open]')
