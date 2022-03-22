@@ -11,7 +11,9 @@ export default class EvaluationStub extends Model {
   @attr('string') status;
   @attr('string') statusDescription;
   @attr('date') waitUntil;
-  // next, prev, blocked
+  @attr('string') previousEval;
+  @attr('string') nextEval;
+  @attr('string') blockedEval;
   @attr('number') modifyIndex;
   @attr('date') modifyTime;
   @attr('number') createIndex;
