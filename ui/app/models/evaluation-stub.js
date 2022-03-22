@@ -1,8 +1,6 @@
-import { attr } from '@ember-data/model';
-import Fragment from 'ember-data-model-fragments/fragment';
+import Model, { attr } from '@ember-data/model';
 
-export default class EvaluationStub extends Fragment {
-  //   @attr('string') id;
+export default class EvaluationStub extends Model {
   @attr('number') priority;
   @attr('string') type;
   @attr('string') triggeredBy;

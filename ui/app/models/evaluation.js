@@ -15,7 +15,7 @@ export default class Evaluation extends Model {
   @fragmentArray('placement-failure', { defaultValue: () => [] })
   failedTGAllocs;
 
-  @fragmentArray('evaluation-stub') relatedEvals;
+  @hasMany('evaluation-stub', { async: false }) relatedEvals;
 
   @bool('failedTGAllocs.length') hasPlacementFailures;
   @equal('status', 'blocked') isBlocked;
