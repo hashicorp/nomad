@@ -42,9 +42,9 @@ The table below shows this endpoint's support for
   used as the `last_token` of the next request to fetch additional
   pages.
 
-- `filter` `(string: "")` - Specifies the expression used to filter the query
-  results. Consider using pagination or a query parameter to reduce resource
-  used to serve the request.
+- `filter` `(string: "")` - Specifies the [expression](/api-docs#filtering)
+  used to filter the results. Consider using pagination or a query parameter to
+  reduce resource used to serve the request.
 
 - `job` `(string: "")` - Filter the list of evaluations to a specific
   job ID.
@@ -57,9 +57,10 @@ The table below shows this endpoint's support for
   Specifying `*` will return all evaluations across all authorized namespaces.
   This parameter is used before any `filter` expression is applied.
 
-- `ascending` `(bool: false)` - Specifies the list of returned evaluations should
-  be sorted in chronological order (oldest evaluations first). By default evaluations
-  are returned sorted in reverse chronological order (newest evaluations first).
+- `reverse` `(bool: false)` - Specifies the list of returned evaluations should
+  be sorted in the reverse order. By default evaluations are returned sorted in
+  chronological order (older evaluations first), or in lexicographical order by
+  their ID if the `prefix` query parameter is used.
 
 ### Sample Request
 
@@ -128,41 +129,78 @@ The table below shows this endpoint's support for
   must be the full UUID, not the short 8-character one. This is specified as
   part of the path.
 
+- `related` `(bool: false)` - Specifies if related evaluations should be
+  returned. Related evaluations are the ones that can be reached by following
+  the trail of IDs for `NextEval`, `PreviousEval`, and `BlockedEval`. This is
+  specified as a query parameter.
+
 ### Sample Request
 
 ```shell-session
 $ curl \
-    https://localhost:4646/v1/evaluation/5456bd7a-9fc0-c0dd-6131-cbee77f57577
+    https://localhost:4646/v1/evaluation/2deb5f06-a100-f01a-3316-5e501a4965e7?related=true
 ```
 
 ### Sample Response
 
 ```json
 {
-  "ID": "5456bd7a-9fc0-c0dd-6131-cbee77f57577",
-  "Priority": 50,
-  "Type": "service",
-  "TriggeredBy": "job-register",
-  "JobID": "example",
-  "JobModifyIndex": 52,
-  "NodeID": "",
-  "NodeModifyIndex": 0,
-  "Status": "complete",
-  "StatusDescription": "",
-  "Wait": 0,
-  "NextEval": "",
-  "PreviousEval": "",
-  "BlockedEval": "",
-  "FailedTGAllocs": null,
-  "ClassEligibility": null,
-  "EscapedComputedClass": false,
-  "AnnotatePlan": false,
-  "SnapshotIndex": 53,
-  "QueuedAllocations": {
-    "cache": 0
+  "CreateIndex": 28,
+  "CreateTime": 1647394818583344000,
+  "FailedTGAllocs": {
+    "cache": {
+      "AllocationTime": 4111,
+      "ClassExhausted": null,
+      "ClassFiltered": null,
+      "CoalescedFailures": 0,
+      "ConstraintFiltered": null,
+      "DimensionExhausted": null,
+      "NodesAvailable": {
+        "dc1": 0
+      },
+      "NodesEvaluated": 0,
+      "NodesExhausted": 0,
+      "NodesFiltered": 0,
+      "QuotaExhausted": null,
+      "ResourcesExhausted": null,
+      "ScoreMetaData": null,
+      "Scores": null
+    }
   },
-  "CreateIndex": 53,
-  "ModifyIndex": 55
+  "ID": "2deb5f06-a100-f01a-3316-5e501a4965e7",
+  "JobID": "example",
+  "ModifyIndex": 28,
+  "ModifyTime": 1647394818583344000,
+  "Namespace": "default",
+  "PreviousEval": "0f98f7ea-59ae-4d90-d9bd-b8ce80b9e100",
+  "Priority": 50,
+  "RelatedEvals": [
+    {
+      "BlockedEval": "2deb5f06-a100-f01a-3316-5e501a4965e7",
+      "CreateIndex": 27,
+      "CreateTime": 1647394818582736000,
+      "DeploymentID": "79ae0a49-acf6-0fcf-183f-8646f3167b88",
+      "ID": "0f98f7ea-59ae-4d90-d9bd-b8ce80b9e100",
+      "JobID": "example",
+      "ModifyIndex": 30,
+      "ModifyTime": 1647394818583565000,
+      "Namespace": "default",
+      "NextEval": "",
+      "NodeID": "",
+      "PreviousEval": "",
+      "Priority": 50,
+      "Status": "complete",
+      "StatusDescription": "",
+      "TriggeredBy": "node-drain",
+      "Type": "service",
+      "WaitUntil": null
+    }
+  ],
+  "SnapshotIndex": 27,
+  "Status": "blocked",
+  "StatusDescription": "created to place remaining allocations",
+  "TriggeredBy": "queued-allocs",
+  "Type": "service"
 }
 ```
 

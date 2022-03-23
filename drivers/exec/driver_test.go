@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -52,9 +53,7 @@ var testResources = &drivers.Resources{
 }
 
 func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	require := require.New(t)
 	if runtime.GOOS == "linux" {
 		t.Skip("Test only available not on Linux")
@@ -77,7 +76,7 @@ func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
 }
 
 func TestExecDriver_Fingerprint(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	ctestutils.ExecCompatible(t)
@@ -100,7 +99,7 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 }
 
 func TestExecDriver_StartWait(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -135,7 +134,7 @@ func TestExecDriver_StartWait(t *testing.T) {
 }
 
 func TestExecDriver_StartWaitStopKill(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -199,7 +198,7 @@ func TestExecDriver_StartWaitStopKill(t *testing.T) {
 }
 
 func TestExecDriver_StartWaitRecover(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -274,7 +273,7 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 // TestExecDriver_NoOrphans asserts that when the main
 // task dies, the orphans in the PID namespaces are killed by the kernel
 func TestExecDriver_NoOrphans(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -390,7 +389,7 @@ func TestExecDriver_NoOrphans(t *testing.T) {
 }
 
 func TestExecDriver_Stats(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -436,7 +435,7 @@ func TestExecDriver_Stats(t *testing.T) {
 }
 
 func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -488,7 +487,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestExecDriver_User(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -525,7 +524,7 @@ func TestExecDriver_User(t *testing.T) {
 // TestExecDriver_HandlerExec ensures the exec driver's handle properly
 // executes commands inside the container.
 func TestExecDriver_HandlerExec(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -609,7 +608,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 }
 
 func TestExecDriver_DevicesAndMounts(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -705,6 +704,8 @@ touch: cannot touch '/tmp/task-path-ro/testfile-from-ro': Read-only file system`
 }
 
 func TestConfig_ParseAllHCL(t *testing.T) {
+	ci.Parallel(t)
+
 	cfgStr := `
 config {
   command = "/bin/bash"
@@ -723,7 +724,7 @@ config {
 }
 
 func TestExecDriver_NoPivotRoot(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -764,6 +765,7 @@ func TestExecDriver_NoPivotRoot(t *testing.T) {
 }
 
 func TestDriver_Config_validate(t *testing.T) {
+	ci.Parallel(t)
 	t.Run("pid/ipc", func(t *testing.T) {
 		for _, tc := range []struct {
 			pidMode, ipcMode string
@@ -804,6 +806,7 @@ func TestDriver_Config_validate(t *testing.T) {
 }
 
 func TestDriver_TaskConfig_validate(t *testing.T) {
+	ci.Parallel(t)
 	t.Run("pid/ipc", func(t *testing.T) {
 		for _, tc := range []struct {
 			pidMode, ipcMode string

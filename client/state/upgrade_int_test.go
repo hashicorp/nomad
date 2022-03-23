@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	clientconfig "github.com/hashicorp/nomad/client/config"
@@ -32,7 +33,7 @@ import (
 // TestBoltStateDB_Upgrade_Ok asserts upgading an old state db does not error
 // during upgrade and restore.
 func TestBoltStateDB_UpgradeOld_Ok(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	dbFromTestFile := func(t *testing.T, dir, fn string) *BoltStateDB {
 

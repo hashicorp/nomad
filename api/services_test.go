@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestService_Canonicalize(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	j := &Job{Name: stringToPtr("job")}
 	tg := &TaskGroup{Name: stringToPtr("group")}
@@ -25,7 +26,7 @@ func TestService_Canonicalize(t *testing.T) {
 }
 
 func TestServiceCheck_Canonicalize(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	j := &Job{Name: stringToPtr("job")}
 	tg := &TaskGroup{Name: stringToPtr("group")}
@@ -44,7 +45,7 @@ func TestServiceCheck_Canonicalize(t *testing.T) {
 }
 
 func TestService_Check_PassFail(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	job := &Job{Name: stringToPtr("job")}
 	tg := &TaskGroup{Name: stringToPtr("group")}
@@ -80,7 +81,7 @@ func TestService_Check_PassFail(t *testing.T) {
 // TestService_CheckRestart asserts Service.CheckRestart settings are properly
 // inherited by Checks.
 func TestService_CheckRestart(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	job := &Job{Name: stringToPtr("job")}
 	tg := &TaskGroup{Name: stringToPtr("group")}
@@ -128,7 +129,7 @@ func TestService_CheckRestart(t *testing.T) {
 }
 
 func TestService_Connect_Canonicalize(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil connect", func(t *testing.T) {
 		cc := (*ConsulConnect)(nil)
@@ -146,7 +147,7 @@ func TestService_Connect_Canonicalize(t *testing.T) {
 }
 
 func TestService_Connect_ConsulSidecarService_Canonicalize(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil sidecar_service", func(t *testing.T) {
 		css := (*ConsulSidecarService)(nil)
@@ -182,7 +183,7 @@ func TestService_Connect_ConsulSidecarService_Canonicalize(t *testing.T) {
 }
 
 func TestService_Connect_ConsulProxy_Canonicalize(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil proxy", func(t *testing.T) {
 		cp := (*ConsulProxy)(nil)
@@ -218,7 +219,7 @@ func TestService_Connect_ConsulProxy_Canonicalize(t *testing.T) {
 }
 
 func TestService_Connect_ConsulUpstream_Copy(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil upstream", func(t *testing.T) {
 		cu := (*ConsulUpstream)(nil)
@@ -240,7 +241,7 @@ func TestService_Connect_ConsulUpstream_Copy(t *testing.T) {
 }
 
 func TestService_Connect_ConsulUpstream_Canonicalize(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil upstream", func(t *testing.T) {
 		cu := (*ConsulUpstream)(nil)
@@ -268,7 +269,7 @@ func TestService_Connect_ConsulUpstream_Canonicalize(t *testing.T) {
 }
 
 func TestService_Connect_proxy_settings(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	job := &Job{Name: stringToPtr("job")}
 	tg := &TaskGroup{Name: stringToPtr("group")}
@@ -301,7 +302,7 @@ func TestService_Connect_proxy_settings(t *testing.T) {
 }
 
 func TestService_Tags(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	r := require.New(t)
 
 	// canonicalize does not modify eto or tags
@@ -321,7 +322,7 @@ func TestService_Tags(t *testing.T) {
 }
 
 func TestService_Connect_SidecarTask_Canonicalize(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil sidecar_task", func(t *testing.T) {
 		st := (*SidecarTask)(nil)
@@ -353,7 +354,7 @@ func TestService_Connect_SidecarTask_Canonicalize(t *testing.T) {
 }
 
 func TestService_ConsulGateway_Canonicalize(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		cg := (*ConsulGateway)(nil)
@@ -389,7 +390,7 @@ func TestService_ConsulGateway_Canonicalize(t *testing.T) {
 }
 
 func TestService_ConsulGateway_Copy(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		result := (*ConsulGateway)(nil).Copy()
@@ -440,7 +441,7 @@ func TestService_ConsulGateway_Copy(t *testing.T) {
 }
 
 func TestService_ConsulIngressConfigEntry_Canonicalize(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		c := (*ConsulIngressConfigEntry)(nil)
@@ -486,7 +487,7 @@ func TestService_ConsulIngressConfigEntry_Canonicalize(t *testing.T) {
 }
 
 func TestService_ConsulIngressConfigEntry_Copy(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		result := (*ConsulIngressConfigEntry)(nil).Copy()
@@ -517,7 +518,7 @@ func TestService_ConsulIngressConfigEntry_Copy(t *testing.T) {
 }
 
 func TestService_ConsulTerminatingConfigEntry_Canonicalize(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		c := (*ConsulTerminatingConfigEntry)(nil)
@@ -535,7 +536,7 @@ func TestService_ConsulTerminatingConfigEntry_Canonicalize(t *testing.T) {
 }
 
 func TestService_ConsulTerminatingConfigEntry_Copy(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		result := (*ConsulIngressConfigEntry)(nil).Copy()
@@ -561,7 +562,7 @@ func TestService_ConsulTerminatingConfigEntry_Copy(t *testing.T) {
 }
 
 func TestService_ConsulMeshConfigEntry_Canonicalize(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		ce := (*ConsulMeshConfigEntry)(nil)
@@ -577,7 +578,7 @@ func TestService_ConsulMeshConfigEntry_Canonicalize(t *testing.T) {
 }
 
 func TestService_ConsulMeshConfigEntry_Copy(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		ce := (*ConsulMeshConfigEntry)(nil)
@@ -593,7 +594,7 @@ func TestService_ConsulMeshConfigEntry_Copy(t *testing.T) {
 }
 
 func TestService_ConsulMeshGateway_Canonicalize(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		c := (*ConsulMeshGateway)(nil)
@@ -615,7 +616,7 @@ func TestService_ConsulMeshGateway_Canonicalize(t *testing.T) {
 }
 
 func TestService_ConsulMeshGateway_Copy(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		c := (*ConsulMeshGateway)(nil)

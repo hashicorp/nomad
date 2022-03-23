@@ -7,6 +7,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -17,7 +18,7 @@ import (
 )
 
 func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -49,7 +50,7 @@ func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -103,7 +104,7 @@ func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -153,7 +154,7 @@ func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Fail(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -203,7 +204,7 @@ func TestDeploymentEndpoint_Fail(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -279,7 +280,7 @@ func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -357,7 +358,7 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Pause(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -400,7 +401,7 @@ func TestDeploymentEndpoint_Pause(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -469,7 +470,7 @@ func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Promote(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -534,7 +535,7 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -625,7 +626,7 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -693,7 +694,7 @@ func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -787,7 +788,7 @@ func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -877,7 +878,7 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 
 // tests rollback upon alloc health failure to job with identical spec does not succeed
 func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -964,7 +965,7 @@ func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_List(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1033,7 +1034,7 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_List_order(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1066,13 +1067,12 @@ func TestDeploymentEndpoint_List_order(t *testing.T) {
 	err = s1.fsm.State().UpsertDeployment(1003, dep2)
 	require.NoError(t, err)
 
-	t.Run("ascending", func(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
 		// Lookup the deployments in chronological order (oldest first)
 		get := &structs.DeploymentListRequest{
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
-				Ascending: true,
 			},
 		}
 
@@ -1093,13 +1093,13 @@ func TestDeploymentEndpoint_List_order(t *testing.T) {
 		require.Equal(t, uuid3, resp.Deployments[2].ID)
 	})
 
-	t.Run("descending", func(t *testing.T) {
+	t.Run("reverse", func(t *testing.T) {
 		// Lookup the deployments in reverse chronological order (newest first)
 		get := &structs.DeploymentListRequest{
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
-				Ascending: false,
+				Reverse:   true,
 			},
 		}
 
@@ -1122,7 +1122,7 @@ func TestDeploymentEndpoint_List_order(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_List_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1191,7 +1191,7 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1249,7 +1249,7 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s1, _, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -1271,11 +1271,18 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 		{id: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9"},                           // 4
 		{id: "aaaaaacc-3350-4b4b-d185-0e1992ed43e9"},                           // 5
 		{id: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9"},                           // 6
+		{id: "00000111-3350-4b4b-d185-0e1992ed43e9"},                           // 7
+		{}, // 8, index missing
+		{id: "bbbb1111-3350-4b4b-d185-0e1992ed43e9"}, // 9
 	}
 
 	state := s1.fsm.State()
 
 	for i, m := range mocks {
+		if m.id == "" {
+			continue
+		}
+
 		index := 1000 + uint64(i)
 		deployment := mock.Deployment()
 		deployment.Status = structs.DeploymentStatusCancelled
@@ -1305,7 +1312,7 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 		{
 			name:              "test01 size-2 page-1 default NS",
 			pageSize:          2,
-			expectedNextToken: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
@@ -1315,7 +1322,7 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 			name:              "test02 size-2 page-1 default NS with prefix",
 			prefix:            "aaaa",
 			pageSize:          2,
-			expectedNextToken: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9", // prefix results are not sorted by create index
 			expectedIDs: []string{
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
@@ -1324,8 +1331,8 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 		{
 			name:              "test03 size-2 page-2 default NS",
 			pageSize:          2,
-			nextToken:         "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1005.aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
@@ -1343,14 +1350,25 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 			},
 		},
 		{
-			name:        "test05 no valid results with filters and prefix",
+			name:              "test05 size-2 page-2 all namespaces",
+			namespace:         "*",
+			pageSize:          2,
+			nextToken:         "1002.aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1004.aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:        "test06 no valid results with filters and prefix",
 			prefix:      "cccc",
 			pageSize:    2,
 			nextToken:   "",
 			expectedIDs: []string{},
 		},
 		{
-			name:      "test06 go-bexpr filter",
+			name:      "test07 go-bexpr filter",
 			namespace: "*",
 			filter:    `ID matches "^a+[123]"`,
 			expectedIDs: []string{
@@ -1360,18 +1378,18 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 			},
 		},
 		{
-			name:              "test07 go-bexpr filter with pagination",
+			name:              "test08 go-bexpr filter with pagination",
 			namespace:         "*",
 			filter:            `ID matches "^a+[123]"`,
 			pageSize:          2,
-			expectedNextToken: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1002.aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
 			},
 		},
 		{
-			name:      "test08 go-bexpr filter in namespace",
+			name:      "test09 go-bexpr filter in namespace",
 			namespace: "non-default",
 			filter:    `Status == "cancelled"`,
 			expectedIDs: []string{
@@ -1379,20 +1397,37 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 			},
 		},
 		{
-			name:        "test09 go-bexpr wrong namespace",
+			name:        "test10 go-bexpr wrong namespace",
 			namespace:   "default",
 			filter:      `Namespace == "non-default"`,
 			expectedIDs: []string{},
 		},
 		{
-			name:          "test10 go-bexpr invalid expression",
+			name:          "test11 go-bexpr invalid expression",
 			filter:        `NotValid`,
 			expectedError: "failed to read filter expression",
 		},
 		{
-			name:          "test11 go-bexpr invalid field",
+			name:          "test12 go-bexpr invalid field",
 			filter:        `InvalidField == "value"`,
 			expectedError: "error finding value in datum",
+		},
+		{
+			name:              "test13 non-lexicographic order",
+			pageSize:          1,
+			nextToken:         "1007.00000111-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1009.bbbb1111-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"00000111-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:      "test14 missing index",
+			pageSize:  1,
+			nextToken: "1008.e9522802-0cd8-4b1d-9c9e-ab3d97938371",
+			expectedIDs: []string{
+				"bbbb1111-3350-4b4b-d185-0e1992ed43e9",
+			},
 		},
 	}
 
@@ -1406,7 +1441,6 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 					Filter:    tc.filter,
 					PerPage:   tc.pageSize,
 					NextToken: tc.nextToken,
-					Ascending: true, // counting up is easier to think about
 				},
 			}
 			req.AuthToken = aclToken
@@ -1431,7 +1465,7 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Allocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1469,7 +1503,7 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1544,7 +1578,7 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1612,7 +1646,7 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Reap(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()

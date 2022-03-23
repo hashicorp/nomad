@@ -8,6 +8,7 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -19,7 +20,7 @@ import (
 )
 
 func TestTracker_Checks_Healthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
@@ -90,7 +91,7 @@ func TestTracker_Checks_Healthy(t *testing.T) {
 }
 
 func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.LifecycleAllocWithPoststopDeploy()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
@@ -130,7 +131,7 @@ func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
 }
 
 func TestTracker_Succeeded_PostStart_Healthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.LifecycleAllocWithPoststartDeploy()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = time.Millisecond * 1
@@ -171,7 +172,7 @@ func TestTracker_Succeeded_PostStart_Healthy(t *testing.T) {
 }
 
 func TestTracker_Checks_Unhealthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
@@ -261,7 +262,7 @@ func TestTracker_Checks_Unhealthy(t *testing.T) {
 }
 
 func TestTracker_Healthy_IfBothTasksAndConsulChecksAreHealthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	logger := testlog.HCLogger(t)
@@ -312,7 +313,7 @@ func TestTracker_Healthy_IfBothTasksAndConsulChecksAreHealthy(t *testing.T) {
 // TestTracker_Checks_Healthy_Before_TaskHealth asserts that we mark an alloc
 // healthy, if the checks pass before task health pass
 func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
@@ -419,7 +420,7 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 }
 
 func TestTracker_Checks_OnUpdate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		desc          string

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -15,7 +16,7 @@ import (
 // TestVolumeWatch_EnableDisable tests the watcher registration logic that needs
 // to happen during leader step-up/step-down
 func TestVolumeWatch_EnableDisable(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	srv := &MockRPCServer{}
@@ -32,7 +33,7 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 	vol := testVolume(plugin, alloc, node.ID)
 
 	index++
-	err := srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	err := srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
 	require.NoError(err)
 
 	claim := &structs.CSIVolumeClaim{
@@ -55,7 +56,7 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 // TestVolumeWatch_LeadershipTransition tests the correct behavior of
 // claim reaping across leader step-up/step-down
 func TestVolumeWatch_LeadershipTransition(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	srv := &MockRPCServer{}
@@ -78,7 +79,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 	watcher.SetEnabled(true, srv.State(), "")
 
 	index++
-	err = srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	err = srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
 	require.NoError(err)
 
 	// we should get or start up a watcher when we get an update for
@@ -139,7 +140,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 // TestVolumeWatch_StartStop tests the start and stop of the watcher when
 // it receives notifcations and has completed its work
 func TestVolumeWatch_StartStop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	srv := &MockStatefulRPCServer{}
@@ -167,7 +168,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	// register a volume
 	vol := testVolume(plugin, alloc1, node.ID)
 	index++
-	err = srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	err = srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
 	require.NoError(err)
 
 	// assert we get a watcher; there are no claims so it should immediately stop
@@ -234,7 +235,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 // TestVolumeWatch_RegisterDeregister tests the start and stop of
 // watchers around registration
 func TestVolumeWatch_RegisterDeregister(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	srv := &MockStatefulRPCServer{}
@@ -254,7 +255,7 @@ func TestVolumeWatch_RegisterDeregister(t *testing.T) {
 	// register a volume without claims
 	vol := mock.CSIVolume(plugin)
 	index++
-	err := srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	err := srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
 	require.NoError(err)
 
 	// watcher should be started but immediately stopped

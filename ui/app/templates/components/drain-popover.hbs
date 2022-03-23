@@ -1,3 +1,4 @@
+{{! template-lint-disable require-input-label }}
 <PopoverMenu
   data-test-drain-popover
   @isDisabled={{this.isDisabled}}
@@ -6,31 +7,48 @@
   @triggerClass={{concat
     "is-small "
     (if this.drain.isRunning "is-loading ")
-    (if this.isDisabled "tooltip is-right-aligned"
-  )}} as |m|>
-  <form data-test-drain-popover-form onsubmit={{action (queue (action this.preventDefault) (perform this.drain m.actions.close))}} class="form is-small">
+    (if this.isDisabled "tooltip is-right-aligned")
+  }}
+  as |m|
+>
+  <form
+    data-test-drain-popover-form
+    onsubmit={{action
+      (queue (action this.preventDefault) (perform this.drain m.actions.close))
+    }}
+    class="form is-small"
+  >
     <h4 class="group-heading">Drain Options</h4>
     <div class="field">
       <label class="label is-interactive">
         <Toggle
           data-test-drain-deadline-toggle
           @isActive={{this.deadlineEnabled}}
-          @onToggle={{action (mut this.deadlineEnabled) value="target.checked"}}>
+          @onToggle={{action (mut this.deadlineEnabled) value="target.checked"}}
+        >
           Deadline
-       </Toggle>
-        <span class="tooltip multiline" aria-label="The amount of time a drain must complete within.">
+        </Toggle>
+        <span
+          class="tooltip multiline"
+          aria-label="The amount of time a drain must complete within."
+        >
           {{x-icon "info-circle-outline" class="is-faded"}}
         </span>
       </label>
     </div>
     {{#if this.deadlineEnabled}}
-      <div class="field is-sub-field" data-test-drain-deadline-option-select-parent>
+      <div
+        class="field is-sub-field"
+        data-test-drain-deadline-option-select-parent
+      >
         <PowerSelect
           data-test-drain-deadline-option-select
           @tagName="div"
           @options={{this.durationQuickOptions}}
           @selected={{this.selectedDurationQuickOption}}
-          @onChange={{action (mut this.selectedDurationQuickOption)}} as |opt|>
+          @onChange={{action (mut this.selectedDurationQuickOption)}}
+          as |opt|
+        >
           {{opt.label}}
         </PowerSelect>
       </div>
@@ -40,12 +58,16 @@
           <input
             data-test-drain-custom-deadline
             type="text"
-            class="input {{if this.parseError "is-danger"}}"
+            class="input {{if this.parseError 'is-danger'}}"
             placeholder="1h30m"
             value={{if (eq this.customDuration 0) "" this.customDuration}}
-            oninput={{action (queue
-              (action (mut this.parseError) '')
-              (action (mut this.customDuration) value="target.value"))}} />
+            oninput={{action
+              (queue
+                (action (mut this.parseError) "")
+                (action (mut this.customDuration) value="target.value")
+              )
+            }}
+          />
           {{#if this.parseError}}
             <em class="help is-danger">{{this.parseError}}</em>
           {{/if}}
@@ -57,10 +79,14 @@
         <Toggle
           data-test-force-drain-toggle
           @isActive={{this.forceDrain}}
-          @onToggle={{action (mut this.forceDrain) value="target.checked"}}>
+          @onToggle={{action (mut this.forceDrain) value="target.checked"}}
+        >
           Force Drain
-       </Toggle>
-        <span class="tooltip multiline" aria-label="Immediately remove allocations from the client.">
+        </Toggle>
+        <span
+          class="tooltip multiline"
+          aria-label="Immediately remove allocations from the client."
+        >
           {{x-icon "info-circle-outline" class="is-faded"}}
         </span>
       </label>
@@ -70,10 +96,14 @@
         <Toggle
           data-test-system-jobs-toggle
           @isActive={{this.drainSystemJobs}}
-          @onToggle={{action (mut this.drainSystemJobs) value="target.checked"}}>
+          @onToggle={{action (mut this.drainSystemJobs) value="target.checked"}}
+        >
           Drain System Jobs
-       </Toggle>
-        <span class="tooltip multiline" aria-label="Stop allocations for system jobs.">
+        </Toggle>
+        <span
+          class="tooltip multiline"
+          aria-label="Stop allocations for system jobs."
+        >
           {{x-icon "info-circle-outline" class="is-faded"}}
         </span>
       </label>
@@ -83,10 +113,16 @@
         data-test-drain-submit
         type="button"
         class="popover-action is-primary"
-        onclick={{perform this.drain m.actions.close}}>
+        onclick={{perform this.drain m.actions.close}}
+      >
         Drain
       </button>
-      <button data-test-drain-cancel type="button" class="popover-action" onclick={{action m.actions.close}}>Cancel</button>
+      <button
+        data-test-drain-cancel
+        type="button"
+        class="popover-action"
+        onclick={{action m.actions.close}}
+      >Cancel</button>
     </div>
   </form>
 </PopoverMenu>

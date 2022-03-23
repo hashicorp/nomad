@@ -2,6 +2,7 @@ package agent
 
 import (
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -136,7 +137,6 @@ func (s *HTTPServer) csiVolumeGet(id string, resp http.ResponseWriter, req *http
 	// remove sensitive fields, as our redaction mechanism doesn't
 	// help serializing here
 	vol.Secrets = nil
-	vol.MountOptions = nil
 
 	return vol, nil
 }
@@ -305,13 +305,9 @@ func (s *HTTPServer) csiSnapshotDelete(resp http.ResponseWriter, req *http.Reque
 	query := req.URL.Query()
 	snap.PluginID = query.Get("plugin_id")
 	snap.ID = query.Get("snapshot_id")
-	secrets := query["secret"]
-	for _, raw := range secrets {
-		secret := strings.Split(raw, "=")
-		if len(secret) == 2 {
-			snap.Secrets[secret[0]] = secret[1]
-		}
-	}
+
+	secrets := parseCSISecrets(req)
+	snap.Secrets = secrets
 
 	args.Snapshots = []*structs.CSISnapshot{snap}
 
@@ -333,19 +329,9 @@ func (s *HTTPServer) csiSnapshotList(resp http.ResponseWriter, req *http.Request
 
 	query := req.URL.Query()
 	args.PluginID = query.Get("plugin_id")
-	querySecrets := query["secrets"]
 
-	// Parse comma separated secrets only when provided
-	if len(querySecrets) >= 1 {
-		secrets := strings.Split(querySecrets[0], ",")
-		args.Secrets = make(structs.CSISecrets)
-		for _, raw := range secrets {
-			secret := strings.Split(raw, "=")
-			if len(secret) == 2 {
-				args.Secrets[secret[0]] = secret[1]
-			}
-		}
-	}
+	secrets := parseCSISecrets(req)
+	args.Secrets = secrets
 
 	var out structs.CSISnapshotListResponse
 	if err := s.agent.RPC("CSIVolume.ListSnapshots", &args, &out); err != nil {
@@ -420,6 +406,28 @@ func (s *HTTPServer) CSIPluginSpecificRequest(resp http.ResponseWriter, req *htt
 	return structsCSIPluginToApi(out.Plugin), nil
 }
 
+// parseCSISecrets extracts a map of k/v pairs from the CSI secrets
+// header. Silently ignores invalid secrets
+func parseCSISecrets(req *http.Request) structs.CSISecrets {
+	secretsHeader := req.Header.Get("X-Nomad-CSI-Secrets")
+	if secretsHeader == "" {
+		return nil
+	}
+
+	secrets := map[string]string{}
+	secretkvs := strings.Split(secretsHeader, ",")
+	for _, secretkv := range secretkvs {
+		kv := strings.Split(secretkv, "=")
+		if len(kv) == 2 {
+			secrets[kv[0]] = kv[1]
+		}
+	}
+	if len(secrets) == 0 {
+		return nil
+	}
+	return structs.CSISecrets(secrets)
+}
+
 // structsCSIPluginToApi converts CSIPlugin, setting Expected the count of known plugin
 // instances
 func structsCSIPluginToApi(plug *structs.CSIPlugin) *api.CSIPlugin {
@@ -468,10 +476,11 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 	allocCount := len(vol.ReadAllocs) + len(vol.WriteAllocs)
 
 	out := &api.CSIVolume{
-		ID:             vol.ID,
-		Name:           vol.Name,
-		ExternalID:     vol.ExternalID,
-		Namespace:      vol.Namespace,
+		ID:         vol.ID,
+		Name:       vol.Name,
+		ExternalID: vol.ExternalID,
+		Namespace:  vol.Namespace,
+
 		Topologies:     structsCSITopolgiesToApi(vol.Topologies),
 		AccessMode:     structsCSIAccessModeToApi(vol.AccessMode),
 		AttachmentMode: structsCSIAttachmentModeToApi(vol.AttachmentMode),
@@ -479,6 +488,13 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 		Secrets:        structsCSISecretsToApi(vol.Secrets),
 		Parameters:     vol.Parameters,
 		Context:        vol.Context,
+		Capacity:       vol.Capacity,
+
+		RequestedCapacityMin:  vol.RequestedCapacityMin,
+		RequestedCapacityMax:  vol.RequestedCapacityMax,
+		RequestedCapabilities: structsCSICapabilityToApi(vol.RequestedCapabilities),
+		CloneID:               vol.CloneID,
+		SnapshotID:            vol.SnapshotID,
 
 		// Allocations is the collapsed list of both read and write allocs
 		Allocations: make([]*api.AllocationListStub, 0, allocCount),
@@ -499,6 +515,13 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 		ResourceExhausted:   vol.ResourceExhausted,
 		CreateIndex:         vol.CreateIndex,
 		ModifyIndex:         vol.ModifyIndex,
+	}
+
+	if vol.RequestedTopologies != nil {
+		out.RequestedTopologies = &api.CSITopologyRequest{
+			Preferred: structsCSITopolgiesToApi(vol.RequestedTopologies.Preferred),
+			Required:  structsCSITopolgiesToApi(vol.RequestedTopologies.Required),
+		}
 	}
 
 	// WriteAllocs and ReadAllocs will only ever contain the Allocation ID,
@@ -525,6 +548,10 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 			}
 		}
 	}
+
+	sort.Slice(out.Allocations, func(i, j int) bool {
+		return out.Allocations[i].ModifyIndex > out.Allocations[j].ModifyIndex
+	})
 
 	return out
 }
@@ -718,9 +745,11 @@ func structsTaskEventToApi(te *structs.TaskEvent) *api.TaskEvent {
 func structsCSITopolgiesToApi(tops []*structs.CSITopology) []*api.CSITopology {
 	out := make([]*api.CSITopology, 0, len(tops))
 	for _, t := range tops {
-		out = append(out, &api.CSITopology{
-			Segments: t.Segments,
-		})
+		if t != nil {
+			out = append(out, &api.CSITopology{
+				Segments: t.Segments,
+			})
+		}
 	}
 
 	return out
@@ -756,16 +785,31 @@ func structsCSIAttachmentModeToApi(mode structs.CSIVolumeAttachmentMode) api.CSI
 	return api.CSIVolumeAttachmentModeUnknown
 }
 
+// structsCSICapabilityToApi converts capabilities, part of structsCSIVolumeToApi
+func structsCSICapabilityToApi(caps []*structs.CSIVolumeCapability) []*api.CSIVolumeCapability {
+	out := make([]*api.CSIVolumeCapability, len(caps))
+	for i, cap := range caps {
+		out[i] = &api.CSIVolumeCapability{
+			AccessMode:     api.CSIVolumeAccessMode(cap.AccessMode),
+			AttachmentMode: api.CSIVolumeAttachmentMode(cap.AttachmentMode),
+		}
+	}
+	return out
+}
+
 // structsCSIMountOptionsToApi converts mount options, part of structsCSIVolumeToApi
 func structsCSIMountOptionsToApi(opts *structs.CSIMountOptions) *api.CSIMountOptions {
 	if opts == nil {
 		return nil
 	}
-
-	return &api.CSIMountOptions{
-		FSType:     opts.FSType,
-		MountFlags: opts.MountFlags,
+	apiOpts := &api.CSIMountOptions{
+		FSType: opts.FSType,
 	}
+	if len(opts.MountFlags) > 0 {
+		apiOpts.MountFlags = []string{"[REDACTED]"}
+	}
+
+	return apiOpts
 }
 
 func structsCSISecretsToApi(secrets structs.CSISecrets) api.CSISecrets {

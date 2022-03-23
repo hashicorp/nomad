@@ -14,7 +14,7 @@ import (
 )
 
 func TestAllocations_List(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -58,7 +58,7 @@ func TestAllocations_List(t *testing.T) {
 }
 
 func TestAllocations_PrefixList(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Allocations()
@@ -106,7 +106,7 @@ func TestAllocations_PrefixList(t *testing.T) {
 }
 
 func TestAllocations_List_Resources(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -137,7 +137,7 @@ func TestAllocations_List_Resources(t *testing.T) {
 }
 
 func TestAllocations_CreateIndexSort(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	allocs := []*AllocationListStub{
 		{CreateIndex: 2},
 		{CreateIndex: 1},
@@ -156,7 +156,7 @@ func TestAllocations_CreateIndexSort(t *testing.T) {
 }
 
 func TestAllocations_RescheduleInfo(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	// Create a job, task group and alloc
 	job := &Job{
 		Name:      stringToPtr("foo"),
@@ -317,7 +317,7 @@ func TestAllocations_ExecErrors(t *testing.T) {
 }
 
 func TestAllocation_ServerTerminalStatus(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	testCases := []struct {
 		inputAllocation *Allocation
@@ -349,7 +349,7 @@ func TestAllocation_ServerTerminalStatus(t *testing.T) {
 }
 
 func TestAllocation_ClientTerminalStatus(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	testCases := []struct {
 		inputAllocation *Allocation
@@ -391,7 +391,7 @@ func TestAllocation_ClientTerminalStatus(t *testing.T) {
 }
 
 func TestAllocations_ShouldMigrate(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require.True(t, DesiredTransition{Migrate: boolToPtr(true)}.ShouldMigrate())
 	require.False(t, DesiredTransition{}.ShouldMigrate())
 	require.False(t, DesiredTransition{Migrate: boolToPtr(false)}.ShouldMigrate())

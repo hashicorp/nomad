@@ -4,10 +4,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/kr/pretty"
 )
 
 func TestResources_Canonicalize(t *testing.T) {
+	testutil.Parallel(t)
 	testCases := []struct {
 		name     string
 		input    *Resources

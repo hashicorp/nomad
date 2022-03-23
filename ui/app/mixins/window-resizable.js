@@ -1,5 +1,5 @@
 import Mixin from '@ember/object/mixin';
-import { run } from '@ember/runloop';
+import { scheduleOnce } from '@ember/runloop';
 import { assert } from '@ember/debug';
 import { on } from '@ember/object/evented';
 
@@ -13,7 +13,7 @@ export default Mixin.create({
   },
 
   setupWindowResize: on('didInsertElement', function () {
-    run.scheduleOnce('afterRender', this, this.addResizeListener);
+    scheduleOnce('afterRender', this, this.addResizeListener);
   }),
 
   addResizeListener() {

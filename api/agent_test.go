@@ -9,15 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kr/pretty"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/api/internal/testutil"
+	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAgent_Self(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -42,7 +41,7 @@ func TestAgent_Self(t *testing.T) {
 }
 
 func TestAgent_NodeName(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
@@ -58,7 +57,7 @@ func TestAgent_NodeName(t *testing.T) {
 }
 
 func TestAgent_Datacenter(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
@@ -74,7 +73,7 @@ func TestAgent_Datacenter(t *testing.T) {
 }
 
 func TestAgent_Join(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c1, s1 := makeClient(t, nil, nil)
 	defer s1.Stop()
 	a1 := c1.Agent()
@@ -104,7 +103,7 @@ func TestAgent_Join(t *testing.T) {
 }
 
 func TestAgent_Members(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
@@ -125,7 +124,7 @@ func TestAgent_Members(t *testing.T) {
 }
 
 func TestAgent_ForceLeave(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
@@ -143,7 +142,7 @@ func (a *AgentMember) String() string {
 }
 
 func TestAgents_Sort(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	var sortTests = []struct {
 		in  []*AgentMember
 		out []*AgentMember
@@ -254,7 +253,7 @@ func TestAgents_Sort(t *testing.T) {
 }
 
 func TestAgent_Health(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -269,7 +268,7 @@ func TestAgent_Health(t *testing.T) {
 // passing in a log level and node ie, which tests monitor
 // functionality for a specific client node
 func TestAgent_MonitorWithNode(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	rpcPort := 0
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		rpcPort = c.Ports.RPC
@@ -339,7 +338,7 @@ OUTER:
 // passing in only a log level, which tests the servers
 // monitor functionality
 func TestAgent_Monitor(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -379,7 +378,7 @@ OUTER:
 }
 
 func TestAgentCPUProfile(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	c, s, token := makeACLClient(t, nil, nil)
 	defer s.Stop()
@@ -415,7 +414,7 @@ func TestAgentCPUProfile(t *testing.T) {
 }
 
 func TestAgentTrace(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	c, s, token := makeACLClient(t, nil, nil)
 	defer s.Stop()
@@ -432,7 +431,7 @@ func TestAgentTrace(t *testing.T) {
 }
 
 func TestAgentProfile(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	c, s, token := makeACLClient(t, nil, nil)
 	defer s.Stop()
@@ -459,7 +458,7 @@ func TestAgentProfile(t *testing.T) {
 }
 
 func TestAgent_SchedulerWorkerConfig(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -475,7 +474,7 @@ func TestAgent_SchedulerWorkerConfig(t *testing.T) {
 }
 
 func TestAgent_SchedulerWorkerConfig_BadRequest(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -491,7 +490,7 @@ func TestAgent_SchedulerWorkerConfig_BadRequest(t *testing.T) {
 }
 
 func TestAgent_SchedulerWorkersInfo(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()

@@ -13,7 +13,7 @@ import (
 )
 
 func TestJobs_Register(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -45,7 +45,7 @@ func TestJobs_Register(t *testing.T) {
 }
 
 func TestJobs_Register_PreserveCounts(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -117,7 +117,7 @@ func TestJobs_Register_PreserveCounts(t *testing.T) {
 }
 
 func TestJobs_Register_NoPreserveCounts(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -188,7 +188,7 @@ func TestJobs_Register_NoPreserveCounts(t *testing.T) {
 }
 
 func TestJobs_Register_EvalPriority(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	requireAssert := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -215,7 +215,7 @@ func TestJobs_Register_EvalPriority(t *testing.T) {
 }
 
 func TestJobs_Register_NoEvalPriority(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	requireAssert := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -242,7 +242,7 @@ func TestJobs_Register_NoEvalPriority(t *testing.T) {
 }
 
 func TestJobs_Validate(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -270,7 +270,7 @@ func TestJobs_Validate(t *testing.T) {
 }
 
 func TestJobs_Canonicalize(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	testCases := []struct {
 		name     string
 		expected *Job
@@ -1283,7 +1283,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 }
 
 func TestJobs_EnforceRegister(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -1329,7 +1329,7 @@ func TestJobs_EnforceRegister(t *testing.T) {
 }
 
 func TestJobs_Revert(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1379,7 +1379,7 @@ func TestJobs_Revert(t *testing.T) {
 }
 
 func TestJobs_Info(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1415,7 +1415,7 @@ func TestJobs_Info(t *testing.T) {
 }
 
 func TestJobs_ScaleInvalidAction(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -1455,7 +1455,7 @@ func TestJobs_ScaleInvalidAction(t *testing.T) {
 }
 
 func TestJobs_Versions(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1488,7 +1488,7 @@ func TestJobs_Versions(t *testing.T) {
 }
 
 func TestJobs_PrefixList(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1524,7 +1524,7 @@ func TestJobs_PrefixList(t *testing.T) {
 }
 
 func TestJobs_List(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1560,7 +1560,7 @@ func TestJobs_List(t *testing.T) {
 }
 
 func TestJobs_Allocations(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1582,7 +1582,7 @@ func TestJobs_Allocations(t *testing.T) {
 }
 
 func TestJobs_Evaluations(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1624,7 +1624,7 @@ func TestJobs_Evaluations(t *testing.T) {
 }
 
 func TestJobs_Deregister(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1684,7 +1684,7 @@ func TestJobs_Deregister(t *testing.T) {
 }
 
 func TestJobs_Deregister_EvalPriority(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	requireAssert := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -1715,7 +1715,7 @@ func TestJobs_Deregister_EvalPriority(t *testing.T) {
 }
 
 func TestJobs_Deregister_NoEvalPriority(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	requireAssert := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -1746,7 +1746,7 @@ func TestJobs_Deregister_NoEvalPriority(t *testing.T) {
 }
 
 func TestJobs_ForceEvaluate(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1786,7 +1786,7 @@ func TestJobs_ForceEvaluate(t *testing.T) {
 }
 
 func TestJobs_PeriodicForce(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1839,7 +1839,7 @@ func TestJobs_PeriodicForce(t *testing.T) {
 }
 
 func TestJobs_Plan(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1911,7 +1911,7 @@ func TestJobs_Plan(t *testing.T) {
 }
 
 func TestJobs_JobSummary(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1949,7 +1949,7 @@ func TestJobs_JobSummary(t *testing.T) {
 }
 
 func TestJobs_NewBatchJob(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	job := NewBatchJob("job1", "myjob", "global", 5)
 	expect := &Job{
 		Region:   stringToPtr("global"),
@@ -1964,7 +1964,7 @@ func TestJobs_NewBatchJob(t *testing.T) {
 }
 
 func TestJobs_NewServiceJob(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	job := NewServiceJob("job1", "myjob", "global", 5)
 	expect := &Job{
 		Region:   stringToPtr("global"),
@@ -1979,7 +1979,7 @@ func TestJobs_NewServiceJob(t *testing.T) {
 }
 
 func TestJobs_NewSystemJob(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	job := NewSystemJob("job1", "myjob", "global", 5)
 	expect := &Job{
 		Region:   stringToPtr("global"),
@@ -1994,7 +1994,7 @@ func TestJobs_NewSystemJob(t *testing.T) {
 }
 
 func TestJobs_SetMeta(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	job := &Job{Meta: nil}
 
 	// Initializes a nil map
@@ -2017,7 +2017,7 @@ func TestJobs_SetMeta(t *testing.T) {
 }
 
 func TestJobs_Constrain(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	job := &Job{Constraints: nil}
 
 	// Create and add a constraint
@@ -2051,7 +2051,7 @@ func TestJobs_Constrain(t *testing.T) {
 }
 
 func TestJobs_AddAffinity(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	job := &Job{Affinities: nil}
 
 	// Create and add an affinity
@@ -2087,7 +2087,7 @@ func TestJobs_AddAffinity(t *testing.T) {
 }
 
 func TestJobs_Sort(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	jobs := []*JobListStub{
 		{ID: "job2"},
 		{ID: "job0"},
@@ -2106,7 +2106,7 @@ func TestJobs_Sort(t *testing.T) {
 }
 
 func TestJobs_AddSpread(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	job := &Job{Spreads: nil}
 
 	// Create and add a Spread
@@ -2158,7 +2158,7 @@ func TestJobs_AddSpread(t *testing.T) {
 
 // TestJobs_ScaleAction tests the scale target for task group count
 func TestJobs_ScaleAction(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -2219,7 +2219,7 @@ func TestJobs_ScaleAction(t *testing.T) {
 }
 
 func TestJobs_ScaleAction_Error(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -2271,7 +2271,7 @@ func TestJobs_ScaleAction_Error(t *testing.T) {
 }
 
 func TestJobs_ScaleAction_Noop(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -2324,7 +2324,7 @@ func TestJobs_ScaleAction_Noop(t *testing.T) {
 
 // TestJobs_ScaleStatus tests the /scale status endpoint for task group count
 func TestJobs_ScaleStatus(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	require := require.New(t)
 

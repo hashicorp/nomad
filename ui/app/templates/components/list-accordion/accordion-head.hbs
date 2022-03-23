@@ -5,8 +5,8 @@
   data-test-accordion-toggle
   data-test-accordion-summary-chart={{this.buttonType}}
   class="button is-light is-compact pull-right accordion-toggle
-    {{unless this.isExpandable "is-invisible"}}"
-  onclick={{action (if this.isOpen this.onClose this.onOpen) this.item}}
+    {{unless this.isExpandable 'is-invisible'}}"
+  {{on "click" (fn (if this.isOpen this.onClose this.onOpen) this.item)}}
   type="button"
 >
   {{this.buttonLabel}}

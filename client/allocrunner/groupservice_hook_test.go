@@ -7,6 +7,7 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	ctestutil "github.com/hashicorp/consul/sdk/testutil"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
@@ -28,7 +29,7 @@ var _ interfaces.RunnerTaskRestartHook = (*groupServiceHook)(nil)
 // TestGroupServiceHook_NoGroupServices asserts calling group service hooks
 // without group services does not error.
 func TestGroupServiceHook_NoGroupServices(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Services = []*structs.Service{{
@@ -73,7 +74,7 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 // TestGroupServiceHook_ShutdownDelayUpdate asserts calling group service hooks
 // update updates the hooks delay value.
 func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].ShutdownDelay = helper.TimeToPtr(10 * time.Second)
@@ -116,7 +117,7 @@ func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
 // TestGroupServiceHook_GroupServices asserts group service hooks with group
 // services does not error.
 func TestGroupServiceHook_GroupServices(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.ConnectAlloc()
 	alloc.Job.Canonicalize()
@@ -205,7 +206,7 @@ func TestGroupServiceHook_GroupServices_Nomad(t *testing.T) {
 // TestGroupServiceHook_Error asserts group service hooks with group
 // services but no group network is handled gracefully.
 func TestGroupServiceHook_NoNetwork(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{}
@@ -255,7 +256,7 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 }
 
 func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{}

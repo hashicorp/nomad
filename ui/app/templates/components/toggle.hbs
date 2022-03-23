@@ -1,9 +1,11 @@
+{{! template-lint-disable }}
 <input
   data-test-input
   type="checkbox"
   checked={{this.isActive}}
   disabled={{this.isDisabled}}
   class="input"
-  onchange={{action this.onToggle}} />
-<span data-test-toggler class="toggler" />
+  onchange={{action this.onToggle}}
+/>
+<span data-test-toggler class="toggler"></span>
 {{yield}}

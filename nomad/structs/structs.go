@@ -276,8 +276,8 @@ type QueryOptions struct {
 	// previous response.
 	NextToken string
 
-	// Ascending is used to have results sorted in ascending chronological order.
-	Ascending bool
+	// Reverse is used to reverse the default order of list results.
+	Reverse bool
 
 	InternalRpcInfo
 }
@@ -831,7 +831,8 @@ type EvalDeleteRequest struct {
 
 // EvalSpecificRequest is used when we just need to specify a target evaluation
 type EvalSpecificRequest struct {
-	EvalID string
+	EvalID         string
+	IncludeRelated bool
 	QueryOptions
 }
 
@@ -4191,6 +4192,33 @@ func (j *Job) NamespacedID() NamespacedID {
 	}
 }
 
+// GetID implements the IDGetter interface, required for pagination.
+func (j *Job) GetID() string {
+	if j == nil {
+		return ""
+	}
+	return j.ID
+}
+
+// GetNamespace implements the NamespaceGetter interface, required for
+// pagination and filtering namespaces in endpoints that support glob namespace
+// requests using tokens with limited access.
+func (j *Job) GetNamespace() string {
+	if j == nil {
+		return ""
+	}
+	return j.Namespace
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (j *Job) GetCreateIndex() uint64 {
+	if j == nil {
+		return 0
+	}
+	return j.CreateIndex
+}
+
 // Canonicalize is used to canonicalize fields in the Job. This should be
 // called when registering a Job.
 func (j *Job) Canonicalize() {
@@ -4539,6 +4567,18 @@ func (j *Job) IsParameterized() bool {
 // IsMultiregion returns whether a job is multiregion
 func (j *Job) IsMultiregion() bool {
 	return j.Multiregion != nil && j.Multiregion.Regions != nil && len(j.Multiregion.Regions) > 0
+}
+
+// IsPlugin returns whether a job is implements a plugin (currently just CSI)
+func (j *Job) IsPlugin() bool {
+	for _, tg := range j.TaskGroups {
+		for _, task := range tg.Tasks {
+			if task.CSIPluginConfig != nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // VaultPolicies returns the set of Vault policies per task group, per task
@@ -4966,6 +5006,9 @@ type Namespace struct {
 	// Capabilities is the set of capabilities allowed for this namespace
 	Capabilities *NamespaceCapabilities
 
+	// Meta is the set of metadata key/value pairs that attached to the namespace
+	Meta map[string]string
+
 	// Hash is the hash of the namespace which is used to efficiently replicate
 	// cross-regions.
 	Hash []byte
@@ -5019,6 +5062,18 @@ func (n *Namespace) SetHash() []byte {
 		}
 	}
 
+	// sort keys to ensure hash stability when meta is stored later
+	var keys []string
+	for k := range n.Meta {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		_, _ = hash.Write([]byte(k))
+		_, _ = hash.Write([]byte(n.Meta[k]))
+	}
+
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
 
@@ -5037,6 +5092,12 @@ func (n *Namespace) Copy() *Namespace {
 		c.EnabledTaskDrivers = helper.CopySliceString(n.Capabilities.EnabledTaskDrivers)
 		c.DisabledTaskDrivers = helper.CopySliceString(n.Capabilities.DisabledTaskDrivers)
 		nc.Capabilities = c
+	}
+	if n.Meta != nil {
+		nc.Meta = make(map[string]string, len(n.Meta))
+		for k, v := range n.Meta {
+			nc.Meta[k] = v
+		}
 	}
 	copy(nc.Hash, n.Hash)
 	return nc
@@ -9086,6 +9147,15 @@ func (d *Deployment) GetID() string {
 	return d.ID
 }
 
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (d *Deployment) GetCreateIndex() uint64 {
+	if d == nil {
+		return 0
+	}
+	return d.CreateIndex
+}
+
 // HasPlacedCanaries returns whether the deployment has placed canaries
 func (d *Deployment) HasPlacedCanaries() bool {
 	if d == nil || len(d.TaskGroups) == 0 {
@@ -9473,6 +9543,33 @@ type Allocation struct {
 
 	// ModifyTime is the time the allocation was last updated.
 	ModifyTime int64
+}
+
+// GetID implements the IDGetter interface, required for pagination.
+func (a *Allocation) GetID() string {
+	if a == nil {
+		return ""
+	}
+	return a.ID
+}
+
+// GetNamespace implements the NamespaceGetter interface, required for
+// pagination and filtering namespaces in endpoints that support glob namespace
+// requests using tokens with limited access.
+func (a *Allocation) GetNamespace() string {
+	if a == nil {
+		return ""
+	}
+	return a.Namespace
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (a *Allocation) GetCreateIndex() uint64 {
+	if a == nil {
+		return 0
+	}
+	return a.CreateIndex
 }
 
 // ConsulNamespace returns the Consul namespace of the task group associated
@@ -10531,6 +10628,10 @@ type Evaluation struct {
 	// to constraints or lacking resources.
 	BlockedEval string
 
+	// RelatedEvals is a list of all the evaluations that are related (next,
+	// previous, or blocked) to this one. It may be nil if not requested.
+	RelatedEvals []*EvaluationStub
+
 	// FailedTGAllocs are task groups which have allocations that could not be
 	// made, but the metrics are persisted so that the user can use the feedback
 	// to determine the cause.
@@ -10577,12 +10678,42 @@ type Evaluation struct {
 	ModifyTime int64
 }
 
-// GetID implements the IDGetter interface, required for pagination
+type EvaluationStub struct {
+	ID                string
+	Namespace         string
+	Priority          int
+	Type              string
+	TriggeredBy       string
+	JobID             string
+	NodeID            string
+	DeploymentID      string
+	Status            string
+	StatusDescription string
+	WaitUntil         time.Time
+	NextEval          string
+	PreviousEval      string
+	BlockedEval       string
+	CreateIndex       uint64
+	ModifyIndex       uint64
+	CreateTime        int64
+	ModifyTime        int64
+}
+
+// GetID implements the IDGetter interface, required for pagination.
 func (e *Evaluation) GetID() string {
 	if e == nil {
 		return ""
 	}
 	return e.ID
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (e *Evaluation) GetCreateIndex() uint64 {
+	if e == nil {
+		return 0
+	}
+	return e.CreateIndex
 }
 
 // TerminalStatus returns if the current status is terminal and
@@ -10598,6 +10729,50 @@ func (e *Evaluation) TerminalStatus() bool {
 
 func (e *Evaluation) GoString() string {
 	return fmt.Sprintf("<Eval %q JobID: %q Namespace: %q>", e.ID, e.JobID, e.Namespace)
+}
+
+func (e *Evaluation) RelatedIDs() []string {
+	if e == nil {
+		return nil
+	}
+
+	ids := []string{e.NextEval, e.PreviousEval, e.BlockedEval}
+	related := make([]string, 0, len(ids))
+
+	for _, id := range ids {
+		if id != "" {
+			related = append(related, id)
+		}
+	}
+
+	return related
+}
+
+func (e *Evaluation) Stub() *EvaluationStub {
+	if e == nil {
+		return nil
+	}
+
+	return &EvaluationStub{
+		ID:                e.ID,
+		Namespace:         e.Namespace,
+		Priority:          e.Priority,
+		Type:              e.Type,
+		TriggeredBy:       e.TriggeredBy,
+		JobID:             e.JobID,
+		NodeID:            e.NodeID,
+		DeploymentID:      e.DeploymentID,
+		Status:            e.Status,
+		StatusDescription: e.StatusDescription,
+		WaitUntil:         e.WaitUntil,
+		NextEval:          e.NextEval,
+		PreviousEval:      e.PreviousEval,
+		BlockedEval:       e.BlockedEval,
+		CreateIndex:       e.CreateIndex,
+		ModifyIndex:       e.ModifyIndex,
+		CreateTime:        e.CreateTime,
+		ModifyTime:        e.ModifyTime,
+	}
 }
 
 func (e *Evaluation) Copy() *Evaluation {
@@ -11353,6 +11528,23 @@ type ACLToken struct {
 	CreateTime  time.Time // Time of creation
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// GetID implements the IDGetter interface, required for pagination.
+func (a *ACLToken) GetID() string {
+	if a == nil {
+		return ""
+	}
+	return a.AccessorID
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (a *ACLToken) GetCreateIndex() uint64 {
+	if a == nil {
+		return 0
+	}
+	return a.CreateIndex
 }
 
 func (a *ACLToken) Copy() *ACLToken {

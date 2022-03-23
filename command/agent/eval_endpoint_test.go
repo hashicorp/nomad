@@ -6,14 +6,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTP_EvalList(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -60,7 +60,7 @@ func TestHTTP_EvalList(t *testing.T) {
 }
 
 func TestHTTP_EvalPrefixList(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -111,7 +111,7 @@ func TestHTTP_EvalPrefixList(t *testing.T) {
 }
 
 func TestHTTP_EvalAllocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -159,7 +159,7 @@ func TestHTTP_EvalAllocations(t *testing.T) {
 }
 
 func TestHTTP_EvalQuery(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -198,5 +198,46 @@ func TestHTTP_EvalQuery(t *testing.T) {
 		if e.ID != eval.ID {
 			t.Fatalf("bad: %#v", e)
 		}
+	})
+}
+
+func TestHTTP_EvalQueryWithRelated(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		// Directly manipulate the state
+		state := s.Agent.server.State()
+		eval1 := mock.Eval()
+		eval2 := mock.Eval()
+
+		// Link related evals
+		eval1.NextEval = eval2.ID
+		eval2.PreviousEval = eval1.ID
+
+		err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
+		require.NoError(t, err)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", fmt.Sprintf("/v1/evaluation/%s?related=true", eval1.ID), nil)
+		require.NoError(t, err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.EvalSpecificRequest(respW, req)
+		require.NoError(t, err)
+
+		// Check for the index
+		require.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"))
+		require.NotEmpty(t, respW.Result().Header.Get("X-Nomad-KnownLeader"))
+		require.NotEmpty(t, respW.Result().Header.Get("X-Nomad-LastContact"))
+
+		// Check the eval
+		e := obj.(*structs.Evaluation)
+		require.Equal(t, eval1.ID, e.ID)
+
+		// Check for the related evals
+		expected := []*structs.EvaluationStub{
+			eval2.Stub(),
+		}
+		require.Equal(t, expected, e.RelatedEvals)
 	})
 }

@@ -11,12 +11,8 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	vapi "github.com/hashicorp/vault/api"
-	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -24,10 +20,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	vapi "github.com/hashicorp/vault/api"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClientEndpoint_Register(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -90,7 +90,7 @@ func TestClientEndpoint_Register(t *testing.T) {
 // forwarded RPCs. This is essential otherwise we will think a Yamux session to
 // a Nomad server is actually the session to the node.
 func TestClientEndpoint_Register_NodeConn_Forwarded(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -181,7 +181,7 @@ func TestClientEndpoint_Register_NodeConn_Forwarded(t *testing.T) {
 }
 
 func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -211,7 +211,7 @@ func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
 
 // Test the deprecated single node deregistration path
 func TestClientEndpoint_DeregisterOne(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -257,7 +257,7 @@ func TestClientEndpoint_DeregisterOne(t *testing.T) {
 }
 
 func TestClientEndpoint_Deregister_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -323,7 +323,7 @@ func TestClientEndpoint_Deregister_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_Deregister_Vault(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -385,7 +385,7 @@ func TestClientEndpoint_Deregister_Vault(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -465,7 +465,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -524,7 +524,7 @@ func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_HeartbeatRecovery(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -575,7 +575,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatRecovery(t *testing.T) {
 }
 
 func TestClientEndpoint_Register_GetEvals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -670,7 +670,7 @@ func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -754,7 +754,7 @@ func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
@@ -832,7 +832,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_HeartbeatOnly_Advertise(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	advAddr := "127.0.1.1:1234"
@@ -875,7 +875,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly_Advertise(t *testing.T) {
 // * an evaluation is created when the node becomes eligible
 // * drain metadata is properly persisted in Node.LastDrain
 func TestClientEndpoint_UpdateDrain(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -992,7 +992,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 // is properly persisted in Node.LastDrain as the node drain is updated and
 // completes.
 func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -1099,7 +1099,7 @@ func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
 // persisted in Node.LastDrain when calls to Node.UpdateDrain() don't affect
 // the drain status.
 func TestClientEndpoint_UpdatedDrainNoop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -1174,7 +1174,7 @@ func TestClientEndpoint_UpdatedDrainNoop(t *testing.T) {
 // node.write ACLs, and that token accessor ID is properly persisted in
 // Node.LastDrain.AccessorID
 func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1243,7 +1243,7 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 // This test ensures that Nomad marks client state of allocations which are in
 // pending/running state to lost when a node is marked as down.
 func TestClientEndpoint_Drain_Down(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1374,7 +1374,7 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateEligibility(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -1432,7 +1432,7 @@ func TestClientEndpoint_UpdateEligibility(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1488,7 +1488,7 @@ func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_GetNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1555,7 +1555,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 }
 
 func TestClientEndpoint_GetNode_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1619,7 +1619,7 @@ func TestClientEndpoint_GetNode_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1722,7 +1722,7 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 }
 
 func TestClientEndpoint_GetAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1785,7 +1785,7 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 }
 
 func TestClientEndpoint_GetAllocs_ACL_Basic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1860,7 +1860,7 @@ func TestClientEndpoint_GetAllocs_ACL_Basic(t *testing.T) {
 }
 
 func TestClientEndpoint_GetAllocs_ACL_Namespaces(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -1956,7 +1956,7 @@ func TestClientEndpoint_GetAllocs_ACL_Namespaces(t *testing.T) {
 }
 
 func TestClientEndpoint_GetClientAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -2036,7 +2036,7 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 }
 
 func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2063,11 +2063,11 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	alloc.ModifyTime = now
-	state := s1.fsm.State()
-	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	store := s1.fsm.State()
+	store.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	start := time.Now()
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
+		err := store.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -2101,7 +2101,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 		t.Fatalf("bad: %#v", resp2.Allocs)
 	}
 
-	iter, err := state.AllocsByIDPrefix(nil, structs.DefaultNamespace, alloc.ID)
+	iter, err := store.AllocsByIDPrefix(nil, structs.DefaultNamespace, alloc.ID, state.SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2133,8 +2133,8 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 		allocUpdate.NodeID = alloc.NodeID
 		allocUpdate.ID = alloc.ID
 		allocUpdate.ClientStatus = structs.AllocClientStatusRunning
-		state.UpsertJobSummary(199, mock.JobSummary(allocUpdate.JobID))
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{allocUpdate})
+		store.UpsertJobSummary(199, mock.JobSummary(allocUpdate.JobID))
+		err := store.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{allocUpdate})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -2158,7 +2158,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 }
 
 func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -2235,7 +2235,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 // A MigrateToken should not be created if an allocation shares the same node
 // with its previous allocation
 func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -2288,7 +2288,7 @@ func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
 }
 
 func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2381,7 +2381,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		// Disabling scheduling in this test so that we can
@@ -2479,7 +2479,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 }
 
 func TestClientEndpoint_BatchUpdate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2537,7 +2537,7 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2623,7 +2623,7 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 }
 
 func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2708,7 +2708,7 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 // TestClientEndpoint_CreateNodeEvals_MultipleNSes asserts that evals are made
 // for all jobs across namespaces
 func TestClientEndpoint_CreateNodeEvals_MultipleNSes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2767,7 +2767,7 @@ func TestClientEndpoint_CreateNodeEvals_MultipleNSes(t *testing.T) {
 }
 
 func TestClientEndpoint_Evaluate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -2855,7 +2855,7 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 }
 
 func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2914,7 +2914,7 @@ func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_ListNodes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2986,7 +2986,7 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 }
 
 func TestClientEndpoint_ListNodes_Fields(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -3023,7 +3023,7 @@ func TestClientEndpoint_ListNodes_Fields(t *testing.T) {
 }
 
 func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -3078,7 +3078,7 @@ func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -3210,7 +3210,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 }
 
 func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -3292,7 +3292,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 }
 
 func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -3385,7 +3385,7 @@ func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 }
 
 func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -3443,7 +3443,7 @@ func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
 }
 
 func TestClientEndpoint_taskUsesConnect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	try := func(t *testing.T, task *structs.Task, exp bool) {
 		result := taskUsesConnect(task)
@@ -3471,7 +3471,7 @@ func TestClientEndpoint_taskUsesConnect(t *testing.T) {
 }
 
 func TestClientEndpoint_tasksNotUsingConnect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	taskGroup := &structs.TaskGroup{
 		Name: "testgroup",
@@ -3523,7 +3523,7 @@ func mutateConnectJob(t *testing.T, job *structs.Job) {
 }
 
 func TestClientEndpoint_DeriveSIToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil) // already sets consul mocks
@@ -3576,7 +3576,7 @@ func TestClientEndpoint_DeriveSIToken(t *testing.T) {
 }
 
 func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -3624,7 +3624,7 @@ func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
 }
 
 func TestClientEndpoint_EmitEvents(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -3663,6 +3663,8 @@ func TestClientEndpoint_EmitEvents(t *testing.T) {
 }
 
 func TestClientEndpoint_ShouldCreateNodeEval(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("spurious changes don't require eval", func(t *testing.T) {
 		n1 := mock.Node()
 		n2 := n1.Copy()

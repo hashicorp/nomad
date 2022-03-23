@@ -19,11 +19,11 @@ job "plugin-aws-ebs-nodes" {
       driver = "docker"
 
       config {
-        image = "amazon/aws-ebs-csi-driver:v0.9.0"
+        image = "public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver:v1.5.1"
 
         args = [
           "node",
-          "--endpoint=unix://csi/csi.sock",
+          "--endpoint=${CSI_ENDPOINT}",
           "--logtostderr",
           "--v=5",
         ]

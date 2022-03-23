@@ -37,6 +37,29 @@ func (c *PluginStatusCommand) csiStatus(client *api.Client, id string) int {
 		return 0
 	}
 
+	// filter by plugin if a plugin ID was passed
+	plugs, _, err := client.CSIPlugins().List(&api.QueryOptions{Prefix: id})
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying CSI plugins: %s", err))
+		return 1
+	}
+	if len(plugs) == 0 {
+		c.Ui.Error(fmt.Sprintf("No plugins(s) with prefix or ID %q found", id))
+		return 1
+	}
+	if len(plugs) > 1 {
+		if id != plugs[0].ID {
+			out, err := c.csiFormatPlugins(plugs)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
+				return 1
+			}
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple plugins\n\n%s", out))
+			return 1
+		}
+	}
+	id = plugs[0].ID
+
 	// Lookup matched a single plugin
 	plug, _, err := client.CSIPlugins().Info(id, nil)
 	if err != nil {
@@ -118,6 +141,12 @@ func (c *PluginStatusCommand) csiFormatPlugin(plug *api.CSIPlugin) (string, erro
 			full = append(full, c.Colorize().Color("\n[bold]Node Capabilities[reset]"))
 			full = append(full, nodeCaps)
 		}
+		topos := c.formatTopology(plug.Nodes)
+		if topos != "" {
+			full = append(full, c.Colorize().Color("\n[bold]Accessible Topologies[reset]"))
+			full = append(full, topos)
+		}
+
 	}
 
 	// Format the allocs
@@ -148,7 +177,7 @@ func (c *PluginStatusCommand) formatControllerCaps(controllers map[string]*api.C
 			caps = append(caps, "CREATE_DELETE_SNAPSHOT")
 			fallthrough
 		case info.SupportsListSnapshots:
-			caps = append(caps, "CREATE_LIST_SNAPSHOTS")
+			caps = append(caps, "LIST_SNAPSHOTS")
 			fallthrough
 		case info.SupportsClone:
 			caps = append(caps, "CLONE_VOLUME")
@@ -177,12 +206,16 @@ func (c *PluginStatusCommand) formatControllerCaps(controllers map[string]*api.C
 		return ""
 	}
 
-	return strings.Join(caps, "\n\t")
+	sort.StringSlice(caps).Sort()
+	return "  " + strings.Join(caps, "\n  ")
 }
 
 func (c *PluginStatusCommand) formatNodeCaps(nodes map[string]*api.CSIInfo) string {
 	caps := []string{}
 	for _, node := range nodes {
+		if node.RequiresTopologies {
+			caps = append(caps, "VOLUME_ACCESSIBILITY_CONSTRAINTS")
+		}
 		switch info := node.NodeInfo; {
 		case info.RequiresNodeStageVolume:
 			caps = append(caps, "STAGE_UNSTAGE_VOLUME")
@@ -205,5 +238,24 @@ func (c *PluginStatusCommand) formatNodeCaps(nodes map[string]*api.CSIInfo) stri
 		return ""
 	}
 
+	sort.StringSlice(caps).Sort()
 	return "  " + strings.Join(caps, "\n  ")
+}
+
+func (c *PluginStatusCommand) formatTopology(nodes map[string]*api.CSIInfo) string {
+	rows := []string{"Node ID|Accessible Topology"}
+	for nodeID, node := range nodes {
+		if node.NodeInfo.AccessibleTopology != nil {
+			segments := node.NodeInfo.AccessibleTopology.Segments
+			segmentPairs := make([]string, 0, len(segments))
+			for k, v := range segments {
+				segmentPairs = append(segmentPairs, fmt.Sprintf("%s=%s", k, v))
+			}
+			rows = append(rows, fmt.Sprintf("%s|%s", nodeID[:8], strings.Join(segmentPairs, ",")))
+		}
+	}
+	if len(rows) == 1 {
+		return ""
+	}
+	return formatList(rows)
 }

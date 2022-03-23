@@ -61,6 +61,13 @@ mount_options {
   mount_flags = ["noatime"]
 }
 
+topology_request {
+  required {
+    topology { segments { "rack" = "R2" } }
+    topology { segments { "rack" = "R1", "zone" = "us-east-1a"} }
+  }
+}
+
 secrets {
   example_secret = "xyzzy"
 }
@@ -120,6 +127,15 @@ context {
   - `fs_type`: file system type (ex. `"ext4"`)
   - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)
 
+- `topology_request` <code>([TopologyRequest](#topology_request-parameters): nil)</code> -
+  Specify locations (region, zone, rack, etc.)  where the provisioned
+  volume is accessible from. Consult the documentation for your
+  storage provider and CSI plugin as to whether it supports defining
+  topology and what values it expects for topology
+  segments. Specifying topology segments that aren't supported by the
+  storage provider may return an error or may be silently removed by
+  the plugin.
+
 - `secrets` <code>(map<string|string>:nil)</code> - An optional
   key-value map of strings used as credentials for publishing and
   unpublishing volumes.
@@ -135,6 +151,38 @@ context {
   validate the volume. The details of these parameters are specific to
   each storage provider, so please see the specific plugin
   documentation for more information.
+
+### `topology_request` Parameters
+
+For the `topology_request` field, you may specify a list of `required`
+topologies. The `required` topologies indicate that the volume was
+created in a location accessible from all the listed topologies.
+
+Note this behavior is different from the `nomad volume create`
+command, because the volume has already been created and you are
+defining the topology for Nomad. The `register` command does not
+support setting `preferred` topologies.
+
+Each topology listed has a single field:
+
+- `segments` `(map[string]string)` - A map of location types to their
+ values. The specific fields required are defined by the CSI
+ plugin. For example, a plugin might require defining both a rack and
+ a zone: `segments {rack = "R2", zone = "us-east-1a"}`.
+
+For example:
+
+```hcl
+topology_request {
+  required {
+    topology { segments { "rack" = "R1", "zone" = "us-east-1a" } }
+    topology { segments { "rack" = "R2", "zone" = "us-east-1a" } }
+  }
+}
+```
+
+This configuration indicates that the volume is accessible from both
+racks `R1` or `R2`.
 
 ### Unused Fields
 

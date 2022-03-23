@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -121,7 +122,8 @@ func setupFake(t *testing.T) *testFakeCtx {
 }
 
 func TestConsul_ChangeTags(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	ctx := setupFake(t)
 	r := require.New(t)
 
@@ -157,7 +159,8 @@ func TestConsul_ChangeTags(t *testing.T) {
 }
 
 func TestConsul_EnableTagOverride_Syncs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	ctx := setupFake(t)
 	r := require.New(t)
 
@@ -204,6 +207,8 @@ func TestConsul_EnableTagOverride_Syncs(t *testing.T) {
 // it in Consul. Pre-0.7.1 ports were not part of the service ID and this was a
 // slightly different code path than changing tags.
 func TestConsul_ChangePorts(t *testing.T) {
+	ci.Parallel(t)
+
 	ctx := setupFake(t)
 	require := require.New(t)
 
@@ -327,6 +332,8 @@ func TestConsul_ChangePorts(t *testing.T) {
 // TestConsul_ChangeChecks asserts that updating only the checks on a service
 // properly syncs with Consul.
 func TestConsul_ChangeChecks(t *testing.T) {
+	ci.Parallel(t)
+
 	ctx := setupFake(t)
 	ctx.Workload.Services[0].Checks = []*structs.ServiceCheck{
 		{
@@ -561,6 +568,8 @@ func TestConsul_ChangeChecks(t *testing.T) {
 
 // TestConsul_RegServices tests basic service registration.
 func TestConsul_RegServices(t *testing.T) {
+	ci.Parallel(t)
+
 	ctx := setupFake(t)
 
 	// Add a check w/restarting
@@ -697,6 +706,8 @@ func TestConsul_RegServices(t *testing.T) {
 // TestConsul_ShutdownOK tests the ok path for the shutdown logic in
 // ServiceClient.
 func TestConsul_ShutdownOK(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	ctx := setupFake(t)
 	go ctx.ServiceClient.Run()
@@ -735,8 +746,10 @@ func TestConsul_ShutdownOK(t *testing.T) {
 // TestConsul_ShutdownBlocked tests the blocked past deadline path for the
 // shutdown logic in ServiceClient.
 func TestConsul_ShutdownBlocked(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
-	t.Parallel()
+	ci.Parallel(t)
 	ctx := setupFake(t)
 	// can be short because we're intentionally blocking, but needs to
 	// be longer than the time we'll block Consul so we can be sure
@@ -802,7 +815,8 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 // auto-use set then services should advertise it unless explicitly set to
 // host. Checks should always use host.
 func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	ctx := setupFake(t)
 
 	ctx.Workload.Services = []*structs.Service{
@@ -929,7 +943,8 @@ func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
 // set auto-use only services which request the driver's network should
 // advertise it.
 func TestConsul_DriverNetwork_NoAutoUse(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	ctx := setupFake(t)
 
 	ctx.Workload.Services = []*structs.Service{
@@ -1003,7 +1018,8 @@ func TestConsul_DriverNetwork_NoAutoUse(t *testing.T) {
 // TestConsul_DriverNetwork_Change asserts that if a driver network is
 // specified and a service updates its use its properly updated in Consul.
 func TestConsul_DriverNetwork_Change(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	ctx := setupFake(t)
 
 	ctx.Workload.Services = []*structs.Service{
@@ -1075,7 +1091,8 @@ func TestConsul_DriverNetwork_Change(t *testing.T) {
 
 // TestConsul_CanaryTags asserts CanaryTags are used when Canary=true
 func TestConsul_CanaryTags(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	require := require.New(t)
 	ctx := setupFake(t)
 
@@ -1108,7 +1125,8 @@ func TestConsul_CanaryTags(t *testing.T) {
 // TestConsul_CanaryTags_NoTags asserts Tags are used when Canary=true and there
 // are no specified canary tags
 func TestConsul_CanaryTags_NoTags(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	require := require.New(t)
 	ctx := setupFake(t)
 
@@ -1140,7 +1158,8 @@ func TestConsul_CanaryTags_NoTags(t *testing.T) {
 
 // TestConsul_CanaryMeta asserts CanaryMeta are used when Canary=true
 func TestConsul_CanaryMeta(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	require := require.New(t)
 	ctx := setupFake(t)
 
@@ -1174,7 +1193,8 @@ func TestConsul_CanaryMeta(t *testing.T) {
 // TestConsul_CanaryMeta_NoMeta asserts Meta are used when Canary=true and there
 // are no specified canary meta
 func TestConsul_CanaryMeta_NoMeta(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	require := require.New(t)
 	ctx := setupFake(t)
 
@@ -1208,7 +1228,7 @@ func TestConsul_CanaryMeta_NoMeta(t *testing.T) {
 // TestConsul_PeriodicSync asserts that Nomad periodically reconciles with
 // Consul.
 func TestConsul_PeriodicSync(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	ctx := setupFake(t)
 	defer ctx.ServiceClient.Shutdown()
@@ -1235,7 +1255,7 @@ func TestConsul_PeriodicSync(t *testing.T) {
 // TestIsNomadService asserts the isNomadService helper returns true for Nomad
 // task IDs and false for unknown IDs and Nomad agent IDs (see #2827).
 func TestIsNomadService(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tests := []struct {
 		id     string
@@ -1268,7 +1288,8 @@ func TestIsNomadService(t *testing.T) {
 // TestCreateCheckReg_HTTP asserts Nomad ServiceCheck structs are properly
 // converted to Consul API AgentCheckRegistrations for HTTP checks.
 func TestCreateCheckReg_HTTP(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	check := &structs.ServiceCheck{
 		Name:      "name",
 		Type:      "http",
@@ -1315,7 +1336,8 @@ func TestCreateCheckReg_HTTP(t *testing.T) {
 // TestCreateCheckReg_GRPC asserts Nomad ServiceCheck structs are properly
 // converted to Consul API AgentCheckRegistrations for GRPC checks.
 func TestCreateCheckReg_GRPC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	check := &structs.ServiceCheck{
 		Name:          "name",
 		Type:          "grpc",
@@ -1350,7 +1372,8 @@ func TestCreateCheckReg_GRPC(t *testing.T) {
 }
 
 func TestConsul_ServiceName_Duplicates(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	ctx := setupFake(t)
 	require := require.New(t)
 
@@ -1413,7 +1436,8 @@ func TestConsul_ServiceName_Duplicates(t *testing.T) {
 // TestConsul_ServiceDeregistration_OutOfProbation asserts that during in steady
 // state we remove any services we don't reconize locally
 func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	ctx := setupFake(t)
 	require := require.New(t)
 
@@ -1522,7 +1546,8 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 // services untouched.  This adds a grace period for restoring recovered tasks
 // before deregistering them
 func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	ctx := setupFake(t)
 	require := require.New(t)
 

@@ -8,6 +8,7 @@ import (
 
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,6 +25,8 @@ const (
 )
 
 func TestParse(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		File   string
 		Result *api.Job
@@ -1810,6 +1813,8 @@ func TestParse(t *testing.T) {
 }
 
 func TestBadPorts(t *testing.T) {
+	ci.Parallel(t)
+
 	path, err := filepath.Abs(filepath.Join("./test-fixtures", "bad-ports.hcl"))
 	if err != nil {
 		t.Fatalf("Can't get absolute path for file: %s", err)
@@ -1823,6 +1828,8 @@ func TestBadPorts(t *testing.T) {
 }
 
 func TestOverlappingPorts(t *testing.T) {
+	ci.Parallel(t)
+
 	path, err := filepath.Abs(filepath.Join("./test-fixtures", "overlapping-ports.hcl"))
 	if err != nil {
 		t.Fatalf("Can't get absolute path for file: %s", err)
@@ -1840,6 +1847,8 @@ func TestOverlappingPorts(t *testing.T) {
 }
 
 func TestIncorrectKey(t *testing.T) {
+	ci.Parallel(t)
+
 	path, err := filepath.Abs(filepath.Join("./test-fixtures", "basic_wrong_key.hcl"))
 	if err != nil {
 		t.Fatalf("Can't get absolute path for file: %s", err)

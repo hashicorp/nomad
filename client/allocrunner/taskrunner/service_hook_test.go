@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
@@ -91,6 +92,7 @@ func TestUpdate_beforePoststart(t *testing.T) {
 }
 
 func Test_serviceHook_multipleDeRegisterCall(t *testing.T) {
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	logger := testlog.HCLogger(t)

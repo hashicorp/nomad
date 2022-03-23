@@ -581,10 +581,11 @@ type ControllerCreateVolumeResponse struct {
 func NewCreateVolumeResponse(resp *csipbv1.CreateVolumeResponse) *ControllerCreateVolumeResponse {
 	vol := resp.GetVolume()
 	return &ControllerCreateVolumeResponse{Volume: &Volume{
-		CapacityBytes:    vol.GetCapacityBytes(),
-		ExternalVolumeID: vol.GetVolumeId(),
-		VolumeContext:    vol.GetVolumeContext(),
-		ContentSource:    newVolumeContentSource(vol.GetContentSource()),
+		CapacityBytes:      vol.GetCapacityBytes(),
+		ExternalVolumeID:   vol.GetVolumeId(),
+		VolumeContext:      vol.GetVolumeContext(),
+		ContentSource:      newVolumeContentSource(vol.GetContentSource()),
+		AccessibleTopology: newTopologies(vol.GetAccessibleTopology()),
 	}}
 }
 

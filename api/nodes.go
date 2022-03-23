@@ -614,8 +614,13 @@ type NodeReservedNetworkResources struct {
 	ReservedHostPorts string
 }
 
+type CSITopologyRequest struct {
+	Required  []*CSITopology `hcl:"required"`
+	Preferred []*CSITopology `hcl:"preferred"`
+}
+
 type CSITopology struct {
-	Segments map[string]string
+	Segments map[string]string `hcl:"segments"`
 }
 
 // CSINodeInfo is the fingerprinted data from a CSI Plugin that is specific to

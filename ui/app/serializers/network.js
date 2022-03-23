@@ -1,6 +1,8 @@
 import ApplicationSerializer from './application';
 import isIp from 'is-ip';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class NetworkSerializer extends ApplicationSerializer {
   attrs = {
     cidr: 'CIDR',

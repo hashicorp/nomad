@@ -3,6 +3,7 @@ package fingerprint
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -11,6 +12,8 @@ import (
 )
 
 func TestNomadFingerprint(t *testing.T) {
+	ci.Parallel(t)
+
 	f := NewNomadFingerprint(testlog.HCLogger(t))
 
 	v := "foo"

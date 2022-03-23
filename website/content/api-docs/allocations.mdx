@@ -31,6 +31,20 @@ The table below shows this endpoint's support for
   even number of hexadecimal characters (0-9a-f). This is specified as a query
   string parameter.
 
+- `next_token` `(string: "")` - This endpoint supports paging. The `next_token`
+  parameter accepts a string which identifies the next expected allocation.
+  This value can be obtained from the `X-Nomad-NextToken` header from the
+  previous response.
+
+- `per_page` `(int: 0)` - Specifies a maximum number of allocations to return
+  for this request. If omitted, the response is not paginated. The value of the
+  `X-Nomad-NextToken` header of the last response can be used as the
+  `next_token` of the next request to fetch additional pages.
+
+- `filter` `(string: "")` - Specifies the [expression](/api-docs#filtering)
+  used to filter the results. Consider using pagination or a query parameter to
+  reduce resource used to serve the request.
+
 - `namespace` `(string: "default")` - Specifies the namespace to search. Specifying
   `*` would return all allocations across all the authorized namespaces.
 
@@ -42,6 +56,11 @@ The table below shows this endpoint's support for
   can represent a large percentage of the overall response size. Clusters with
   a large number of allocations may set `task_states=false` to significantly
   reduce the size of the response.
+
+- `reverse` `(bool: false)` - Specifies the list of returned allocations should
+  be sorted in the reverse order. By default allocations are returned sorted in
+  chronological order (older evaluations first), or in lexicographical order by
+  their ID if the `prefix` query parameter is used.
 
 ### Sample Request
 

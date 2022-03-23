@@ -10,7 +10,7 @@ variable "region" {
 
 variable "availability_zone" {
   description = "The AWS availability zone to deploy to."
-  default     = "us-east-1a"
+  default     = "us-east-1b"
 }
 
 variable "instance_type" {
@@ -64,30 +64,9 @@ variable "restrict_ingress_cidrblock" {
 # The specific version of Nomad deployed will default to whichever one of
 # nomad_sha, nomad_version, or nomad_local_binary is set
 
-variable "nomad_sha" {
-  description = "The sha of Nomad to provision; only used for automated nightly testing"
-  default     = ""
-}
-
-variable "nomad_version" {
-  description = "The release version of Nomad to provision"
-  default     = ""
-}
-
 variable "nomad_local_binary" {
   description = "The path to a local binary to provision"
   default     = ""
-}
-
-variable "nomad_url" {
-  description = "the URL to Nomad binary archives e.g. CircleCI artifacts"
-  default     = ""
-}
-
-variable "nomad_enterprise" {
-  type        = bool
-  description = "If nomad_sha is used, deploy Nomad Enterprise"
-  default     = false
 }
 
 variable "nomad_license" {
@@ -96,28 +75,28 @@ variable "nomad_license" {
   default     = ""
 }
 
-variable "nomad_acls" {
-  type        = bool
-  description = "Bootstrap ACLs"
-  default     = false
-}
-
-variable "tls" {
-  type        = bool
-  description = "Bootstrap TLS"
-  default     = false
-}
-
-variable "vault" {
-  type        = bool
-  description = "Bootstrap Vault"
-  default     = false
-}
-
 variable "volumes" {
   type        = bool
-  description = "Include external EBS and EFS volumes (for CSI)"
-  default     = false
+  description = "Include external EFS volumes (for CSI)"
+  default     = true
+}
+
+variable "hcp_consul_cluster_id" {
+  description = "The ID of the HCP Consul cluster"
+  type        = string
+  default     = "nomad-e2e-shared-hcp-consul"
+}
+
+variable "hcp_vault_cluster_id" {
+  description = "The ID of the HCP Vault cluster"
+  type        = string
+  default     = "nomad-e2e-shared-hcp-vault"
+}
+
+variable "hcp_vault_namespace" {
+  description = "The namespace where the HCP Vault cluster policy works"
+  type        = string
+  default     = "admin"
 }
 
 # ----------------------------------------
@@ -125,38 +104,8 @@ variable "volumes" {
 # provide a list of builds to override the values of nomad_sha, nomad_version,
 # or nomad_local_binary. Most of the time you can ignore these variables!
 
-variable "nomad_version_server" {
-  description = "A list of Nomad versions to deploy to servers, to override nomad_version"
-  type        = list(string)
-  default     = []
-}
-
-variable "nomad_sha_server" {
-  description = "A list of Nomad SHAs to deploy to servers, to override nomad_sha"
-  type        = list(string)
-  default     = []
-}
-
 variable "nomad_local_binary_server" {
   description = "A list of nomad local binary paths to deploy to servers, to override nomad_local_binary"
-  type        = list(string)
-  default     = []
-}
-
-variable "nomad_url_server" {
-  description = "A list of Nomad binary archive URLs to deploy to servers, to override nomad_url"
-  type        = list(string)
-  default     = []
-}
-
-variable "nomad_version_client_ubuntu_bionic_amd64" {
-  description = "A list of Nomad versions to deploy to Ubuntu Bionic clients, to override nomad_version"
-  type        = list(string)
-  default     = []
-}
-
-variable "nomad_sha_client_ubuntu_bionic_amd64" {
-  description = "A list of Nomad SHAs to deploy to Ubuntu Bionic clients, to override nomad_sha"
   type        = list(string)
   default     = []
 }
@@ -167,32 +116,8 @@ variable "nomad_local_binary_client_ubuntu_bionic_amd64" {
   default     = []
 }
 
-variable "nomad_url_client_ubuntu_bionic_amd64" {
-  description = "A list of Nomad binary archive URLs to deploy to Ubuntu Bionic clients, to override nomad_url"
-  type        = list(string)
-  default     = []
-}
-
-variable "nomad_version_client_windows_2016_amd64" {
-  description = "A list of Nomad versions to deploy to Windows 2016 clients, to override nomad_version"
-  type        = list(string)
-  default     = []
-}
-
-variable "nomad_sha_client_windows_2016_amd64" {
-  description = "A list of Nomad SHAs to deploy to Windows 2016 clients, to override nomad_sha"
-  type        = list(string)
-  default     = []
-}
-
 variable "nomad_local_binary_client_windows_2016_amd64" {
   description = "A list of nomad local binary paths to deploy to Windows 2016 clients, to override nomad_local_binary"
-  type        = list(string)
-  default     = []
-}
-
-variable "nomad_url_client_windows_2016_amd64" {
-  description = "A list of Nomad binary archive URLs to deploy to Windows 2016 clients, to override nomad_url"
   type        = list(string)
   default     = []
 }

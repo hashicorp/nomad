@@ -5,11 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 // TestCSIVolumeClaim ensures that a volume claim workflows work as expected.
 func TestCSIVolumeClaim(t *testing.T) {
+	ci.Parallel(t)
+
 	vol := NewCSIVolume("vol0", 0)
 	vol.Schedulable = true
 	vol.AccessMode = CSIVolumeAccessModeUnknown
@@ -187,6 +190,8 @@ func TestCSIVolumeClaim(t *testing.T) {
 //
 // COMPAT(1.3.0): safe to remove this test, but not the code, for 1.3.0
 func TestCSIVolumeClaim_CompatOldClaims(t *testing.T) {
+	ci.Parallel(t)
+
 	vol := NewCSIVolume("vol0", 0)
 	vol.Schedulable = true
 	vol.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
@@ -283,6 +288,8 @@ func TestCSIVolumeClaim_CompatOldClaims(t *testing.T) {
 //
 // COMPAT(1.3.0): safe to remove this test, but not the code, for 1.3.0
 func TestCSIVolumeClaim_CompatNewClaimsOK(t *testing.T) {
+	ci.Parallel(t)
+
 	vol := NewCSIVolume("vol0", 0)
 	vol.Schedulable = true
 	vol.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
@@ -388,6 +395,8 @@ func TestCSIVolumeClaim_CompatNewClaimsOK(t *testing.T) {
 //
 // COMPAT(1.3.0): safe to remove this test, but not the code, for 1.3.0
 func TestCSIVolumeClaim_CompatNewClaimsNoUpgrade(t *testing.T) {
+	ci.Parallel(t)
+
 	vol := NewCSIVolume("vol0", 0)
 	vol.Schedulable = true
 	vol.AccessMode = CSIVolumeAccessModeMultiNodeReader
@@ -471,6 +480,7 @@ func TestCSIVolumeClaim_CompatNewClaimsNoUpgrade(t *testing.T) {
 }
 
 func TestVolume_Copy(t *testing.T) {
+	ci.Parallel(t)
 
 	a1 := MockAlloc()
 	a2 := MockAlloc()
@@ -554,7 +564,196 @@ func TestVolume_Copy(t *testing.T) {
 
 }
 
+func TestCSIVolume_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	vol := &CSIVolume{
+		ID:         "test",
+		PluginID:   "test",
+		SnapshotID: "test-snapshot",
+		CloneID:    "test-clone",
+		RequestedTopologies: &CSITopologyRequest{
+			Required: []*CSITopology{{}, {}},
+		},
+	}
+	err := vol.Validate()
+	require.EqualError(t, err, "validation: missing namespace, only one of snapshot_id and clone_id is allowed, must include at least one capability block, required topology is missing segments field, required topology is missing segments field")
+
+}
+
+func TestCSIVolume_Merge(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name     string
+		v        *CSIVolume
+		update   *CSIVolume
+		expected string
+		expectFn func(t *testing.T, v *CSIVolume)
+	}{
+		{
+			name: "invalid capacity update",
+			v:    &CSIVolume{Capacity: 100},
+			update: &CSIVolume{
+				RequestedCapacityMax: 300, RequestedCapacityMin: 200},
+			expected: "volume requested capacity update was not compatible with existing capacity",
+			expectFn: func(t *testing.T, v *CSIVolume) {
+				require.NotEqual(t, 300, v.RequestedCapacityMax)
+				require.NotEqual(t, 200, v.RequestedCapacityMin)
+			},
+		},
+		{
+			name: "invalid capability update",
+			v: &CSIVolume{
+				AccessMode:     CSIVolumeAccessModeMultiNodeReader,
+				AttachmentMode: CSIVolumeAttachmentModeFilesystem,
+			},
+			update: &CSIVolume{
+				RequestedCapabilities: []*CSIVolumeCapability{
+					{
+						AccessMode:     CSIVolumeAccessModeSingleNodeWriter,
+						AttachmentMode: CSIVolumeAttachmentModeFilesystem,
+					},
+				},
+			},
+			expected: "volume requested capabilities update was not compatible with existing capability in use",
+		},
+		{
+			name: "invalid topology update - removed",
+			v: &CSIVolume{
+				RequestedTopologies: &CSITopologyRequest{
+					Required: []*CSITopology{
+						{Segments: map[string]string{"rack": "R1"}},
+					},
+				},
+				Topologies: []*CSITopology{
+					{Segments: map[string]string{"rack": "R1"}},
+				},
+			},
+			update:   &CSIVolume{},
+			expected: "volume topology request update was not compatible with existing topology",
+			expectFn: func(t *testing.T, v *CSIVolume) {
+				require.Len(t, v.Topologies, 1)
+			},
+		},
+		{
+			name: "invalid topology requirement added",
+			v: &CSIVolume{
+				Topologies: []*CSITopology{
+					{Segments: map[string]string{"rack": "R1"}},
+				},
+			},
+			update: &CSIVolume{
+				RequestedTopologies: &CSITopologyRequest{
+					Required: []*CSITopology{
+						{Segments: map[string]string{"rack": "R1"}},
+						{Segments: map[string]string{"rack": "R3"}},
+					},
+				},
+			},
+			expected: "volume topology request update was not compatible with existing topology",
+			expectFn: func(t *testing.T, v *CSIVolume) {
+				require.Len(t, v.Topologies, 1)
+				require.Equal(t, "R1", v.Topologies[0].Segments["rack"])
+			},
+		},
+		{
+			name: "invalid topology preference removed",
+			v: &CSIVolume{
+				Topologies: []*CSITopology{
+					{Segments: map[string]string{"rack": "R1"}},
+				},
+				RequestedTopologies: &CSITopologyRequest{
+					Preferred: []*CSITopology{
+						{Segments: map[string]string{"rack": "R1"}},
+						{Segments: map[string]string{"rack": "R3"}},
+					},
+				},
+			},
+			update: &CSIVolume{
+				Topologies: []*CSITopology{
+					{Segments: map[string]string{"rack": "R1"}},
+				},
+				RequestedTopologies: &CSITopologyRequest{
+					Preferred: []*CSITopology{
+						{Segments: map[string]string{"rack": "R3"}},
+					},
+				},
+			},
+			expected: "volume topology request update was not compatible with existing topology",
+		},
+		{
+			name: "valid update",
+			v: &CSIVolume{
+				Topologies: []*CSITopology{
+					{Segments: map[string]string{"rack": "R1"}},
+					{Segments: map[string]string{"rack": "R2"}},
+				},
+				AccessMode:     CSIVolumeAccessModeMultiNodeReader,
+				AttachmentMode: CSIVolumeAttachmentModeFilesystem,
+				MountOptions: &CSIMountOptions{
+					FSType:     "ext4",
+					MountFlags: []string{"noatime"},
+				},
+				RequestedTopologies: &CSITopologyRequest{
+					Required: []*CSITopology{
+						{Segments: map[string]string{"rack": "R1"}},
+					},
+					Preferred: []*CSITopology{
+						{Segments: map[string]string{"rack": "R2"}},
+					},
+				},
+			},
+			update: &CSIVolume{
+				Topologies: []*CSITopology{
+					{Segments: map[string]string{"rack": "R1"}},
+					{Segments: map[string]string{"rack": "R2"}},
+				},
+				MountOptions: &CSIMountOptions{
+					FSType:     "ext4",
+					MountFlags: []string{"noatime"},
+				},
+				RequestedTopologies: &CSITopologyRequest{
+					Required: []*CSITopology{
+						{Segments: map[string]string{"rack": "R1"}},
+					},
+					Preferred: []*CSITopology{
+						{Segments: map[string]string{"rack": "R2"}},
+					},
+				},
+				RequestedCapabilities: []*CSIVolumeCapability{
+					{
+						AccessMode:     CSIVolumeAccessModeMultiNodeReader,
+						AttachmentMode: CSIVolumeAttachmentModeFilesystem,
+					},
+					{
+						AccessMode:     CSIVolumeAccessModeMultiNodeReader,
+						AttachmentMode: CSIVolumeAttachmentModeFilesystem,
+					},
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		tc = tc
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.v.Merge(tc.update)
+			if tc.expected == "" {
+				require.NoError(t, err)
+			} else {
+				if tc.expectFn != nil {
+					tc.expectFn(t, tc.v)
+				}
+				require.Error(t, err, tc.expected)
+				require.Contains(t, err.Error(), tc.expected)
+			}
+		})
+	}
+}
+
 func TestCSIPluginJobs(t *testing.T) {
+	ci.Parallel(t)
+
 	plug := NewCSIPlugin("foo", 1000)
 	controller := &Job{
 		ID:   "job",
@@ -605,6 +804,8 @@ func TestCSIPluginJobs(t *testing.T) {
 }
 
 func TestCSIPluginCleanup(t *testing.T) {
+	ci.Parallel(t)
+
 	plug := NewCSIPlugin("foo", 1000)
 	plug.AddPlugin("n0", &CSIInfo{
 		PluginID:                 "foo",
@@ -640,6 +841,8 @@ func TestCSIPluginCleanup(t *testing.T) {
 }
 
 func TestDeleteNodeForType_Controller(t *testing.T) {
+	ci.Parallel(t)
+
 	info := &CSIInfo{
 		PluginID:                 "foo",
 		AllocID:                  "a0",
@@ -663,6 +866,8 @@ func TestDeleteNodeForType_Controller(t *testing.T) {
 }
 
 func TestDeleteNodeForType_NilController(t *testing.T) {
+	ci.Parallel(t)
+
 	plug := NewCSIPlugin("foo", 1000)
 
 	plug.Controllers["n0"] = nil
@@ -677,6 +882,8 @@ func TestDeleteNodeForType_NilController(t *testing.T) {
 }
 
 func TestDeleteNodeForType_Node(t *testing.T) {
+	ci.Parallel(t)
+
 	info := &CSIInfo{
 		PluginID:                 "foo",
 		AllocID:                  "a0",
@@ -700,6 +907,8 @@ func TestDeleteNodeForType_Node(t *testing.T) {
 }
 
 func TestDeleteNodeForType_NilNode(t *testing.T) {
+	ci.Parallel(t)
+
 	plug := NewCSIPlugin("foo", 1000)
 
 	plug.Nodes["n0"] = nil
@@ -714,6 +923,8 @@ func TestDeleteNodeForType_NilNode(t *testing.T) {
 }
 
 func TestDeleteNodeForType_Monolith(t *testing.T) {
+	ci.Parallel(t)
+
 	controllerInfo := &CSIInfo{
 		PluginID:                 "foo",
 		AllocID:                  "a0",
@@ -756,6 +967,8 @@ func TestDeleteNodeForType_Monolith(t *testing.T) {
 }
 
 func TestDeleteNodeForType_Monolith_NilController(t *testing.T) {
+	ci.Parallel(t)
+
 	plug := NewCSIPlugin("foo", 1000)
 
 	plug.Controllers["n0"] = nil
@@ -788,6 +1001,8 @@ func TestDeleteNodeForType_Monolith_NilController(t *testing.T) {
 }
 
 func TestDeleteNodeForType_Monolith_NilNode(t *testing.T) {
+	ci.Parallel(t)
+	
 	plug := NewCSIPlugin("foo", 1000)
 
 	plug.Nodes["n0"] = nil

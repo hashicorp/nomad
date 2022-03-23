@@ -59,6 +59,16 @@ mount_options {
   mount_flags = ["noatime"]
 }
 
+topology_request {
+  required {
+    topology { segments { "rack" = "R2" } }
+    topology { segments { "rack" = "R1", "zone" = "us-east-1a"} }
+  }
+  preferred {
+    topology { segments { "rack" = "R1", "zone" = "us-east-1a"} }
+  }
+}
+
 secrets {
   example_secret = "xyzzy"
 }
@@ -134,6 +144,15 @@ parameters {
   - `mount_flags` `([]string: <optional>)` - The flags passed to `mount`
     (ex. `["ro", "noatime"]`)
 
+- `topology_request` <code>([TopologyRequest](#topology_request-parameters): nil)</code> -
+  Specify locations (region, zone, rack, etc.)  where the provisioned
+  volume must be accessible from. Consult the documentation for your
+  storage provider and CSI plugin as to whether it supports defining
+  topology and what values it expects for topology
+  segments. Specifying topology segments that aren't supported by the
+  storage provider may return an error or may be silently removed by
+  the plugin.
+
 - `secrets` <code>(map<string|string>:nil)</code> - An optional
   key-value map of strings used as credentials for publishing and
   unpublishing volumes.
@@ -143,6 +162,40 @@ parameters {
   configure the volume. The details of these parameters are specific
   to each storage provider, so please see the specific plugin
   documentation for more information.
+
+### `topology_request` Parameters
+
+For the `topology_request` field, you may specify a list of either
+`required` or `preferred` topologies (or both). The `required`
+topologies indicate that the volume must be created in a location
+accessible from at least one of the listed topologies. The `preferred`
+topologies indicate that you would prefer the storage provider to
+create the volume in one of the provided topologies.
+
+Each topology listed has a single field:
+
+- `segments` `(map[string]string)` - A map of location types to their
+ values. The specific fields required are defined by the CSI
+ plugin. For example, a plugin might require defining both a rack and
+ a zone: `segments {rack = "R2", zone = "us-east-1a"}`.
+
+For example:
+
+```hcl
+topology_request {
+  required {
+    topology { segments { "rack" = "R1", "zone" = "us-east-1a" } }
+    topology { segments { "rack" = "R2", "zone" = "us-east-1a" } }
+  }
+  preferred {
+    topology { segments { "rack" = "R1", "zone" = "us-east-1a"} }
+  }
+}
+```
+
+This configuration indicates you require the volume to be created
+within racks `R1` or `R2`, but that you prefer the volume to be
+created within `R1`.
 
 ### Unused Fields
 

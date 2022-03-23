@@ -740,6 +740,11 @@ func (c *client) NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error) 
 		result.MaxVolumes = math.MaxInt64
 	}
 
+	topo := resp.GetAccessibleTopology()
+	if topo != nil {
+		result.AccessibleTopology = &Topology{Segments: topo.Segments}
+	}
+
 	return result, nil
 }
 

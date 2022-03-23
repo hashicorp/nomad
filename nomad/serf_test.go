@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -17,7 +18,7 @@ import (
 )
 
 func TestNomad_JoinPeer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -59,7 +60,7 @@ func TestNomad_JoinPeer(t *testing.T) {
 }
 
 func TestNomad_RemovePeer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -99,7 +100,7 @@ func TestNomad_RemovePeer(t *testing.T) {
 }
 
 func TestNomad_ReapPeer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
@@ -195,7 +196,7 @@ func TestNomad_ReapPeer(t *testing.T) {
 }
 
 func TestNomad_BootstrapExpect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
@@ -272,7 +273,7 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 }
 
 func TestNomad_BootstrapExpect_NonVoter(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	dir := t.TempDir()
 
@@ -343,7 +344,7 @@ func TestNomad_BootstrapExpect_NonVoter(t *testing.T) {
 }
 
 func TestNomad_BadExpect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
@@ -386,7 +387,7 @@ func TestNomad_BadExpect(t *testing.T) {
 // TestNomad_NonBootstraping_ShouldntBootstap asserts that if BootstrapExpect is zero,
 // the server shouldn't bootstrap
 func TestNomad_NonBootstraping_ShouldntBootstap(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)

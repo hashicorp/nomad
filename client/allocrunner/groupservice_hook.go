@@ -92,8 +92,8 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 		delay:               shutdownDelay,
 		networkStatusGetter: cfg.networkStatusGetter,
 		logger:              cfg.logger.Named(groupServiceHookName),
-		services:            cfg.alloc.Job.LookupTaskGroup(cfg.alloc.TaskGroup).Services,
 		serviceRegWrapper:   cfg.serviceRegWrapper,
+		services:            tg.Services,
 		shutdownDelayCtx:    cfg.shutdownDelayCtx,
 	}
 

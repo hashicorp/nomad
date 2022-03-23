@@ -1,5 +1,7 @@
 import ApplicationSerializer from './application';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class TaskState extends ApplicationSerializer {
   normalize(typeHash, hash) {
     // TODO API: finishedAt is always marshaled as a date even when unset.

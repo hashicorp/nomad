@@ -23,10 +23,17 @@
       <div class="columns">
         <div class="column">
           <h3 class="title is-4" data-test-editor-help-title>Run a Job</h3>
-          <p data-test-editor-help-message>Paste or author HCL or JSON to submit to your cluster. A plan will be requested before the job is submitted.</p>
+          <p data-test-editor-help-message>Paste or author HCL or JSON to submit
+            to your cluster. A plan will be requested before the job is
+            submitted.</p>
         </div>
         <div class="column is-centered is-minimum">
-          <button class="button is-info" onclick={{toggle-action "showEditorMessage" this}} data-test-editor-help-dismiss type="button">Okay</button>
+          <button
+            class="button is-info"
+            onclick={{toggle-action "showEditorMessage" this}}
+            data-test-editor-help-dismiss
+            type="button"
+          >Okay</button>
         </div>
       </div>
     </div>
@@ -35,7 +42,12 @@
     <div class="boxed-section-head">
       Job Definition
       {{#if this.cancelable}}
-        <button class="button is-light is-compact pull-right" onclick={{action this.onCancel}} data-test-cancel-editing type="button">Cancel</button>
+        <button
+          class="button is-light is-compact pull-right"
+          onclick={{action this.onCancel}}
+          data-test-cancel-editing
+          type="button"
+        >Cancel</button>
       {{/if}}
     </div>
     <div class="boxed-section-body is-full-bleed">
@@ -43,18 +55,25 @@
         data-test-editor
         aria-label="Job definition"
         @value={{or this.job._newDefinition this.jobSpec}}
-        @valueUpdated={{action (mut this.job._newDefinition)}}
+        @valueUpdated={{this.updateCode}}
         @options={{hash
           mode="javascript"
           theme="hashi"
           screenReaderLabel="Job definition editor"
           tabSize=2
           lineNumbers=true
-        }} />
+        }}
+      />
     </div>
   </div>
   <div class="content is-associative">
-    <button class="button is-primary {{if this.plan.isRunning "is-loading"}}" type="button" onclick={{perform this.plan}} disabled={{or this.plan.isRunning (not this.job._newDefinition)}} data-test-plan>Plan</button>
+    <button
+      class="button is-primary {{if this.plan.isRunning 'is-loading'}}"
+      type="button"
+      onclick={{perform this.plan}}
+      disabled={{or this.plan.isRunning (not this.job._newDefinition)}}
+      data-test-plan
+    >Plan</button>
   </div>
 {{/if}}
 
@@ -64,10 +83,16 @@
       <div class="columns">
         <div class="column">
           <h3 class="title is-4" data-test-plan-help-title>Job Plan</h3>
-          <p data-test-plan-help-message>This is the impact running this job will have on your cluster.</p>
+          <p data-test-plan-help-message>This is the impact running this job
+            will have on your cluster.</p>
         </div>
         <div class="column is-centered is-minimum">
-          <button class="button is-info" onclick={{toggle-action "showPlanMessage" this}} data-test-plan-help-dismiss type="button">Okay</button>
+          <button
+            class="button is-info"
+            onclick={{toggle-action "showPlanMessage" this}}
+            data-test-plan-help-dismiss
+            type="button"
+          >Okay</button>
         </div>
       </div>
     </div>
@@ -75,10 +100,18 @@
   <div class="boxed-section">
     <div class="boxed-section-head">Job Plan</div>
     <div class="boxed-section-body is-dark">
-      <JobDiff data-test-plan-output @diff={{this.planOutput.diff}} @verbose={{false}} />
+      <JobDiff
+        data-test-plan-output
+        @diff={{this.planOutput.diff}}
+        @verbose={{false}}
+      />
     </div>
   </div>
-  <div class="boxed-section {{if this.planOutput.failedTGAllocs "is-warning" "is-primary"}}" data-test-dry-run-message>
+  <div
+    class="boxed-section
+      {{if this.planOutput.failedTGAllocs 'is-warning' 'is-primary'}}"
+    data-test-dry-run-message
+  >
     <div class="boxed-section-head" data-test-dry-run-title>Scheduler dry-run</div>
     <div class="boxed-section-body" data-test-dry-run-body>
       {{#if this.planOutput.failedTGAllocs}}
@@ -90,15 +123,22 @@
       {{/if}}
     </div>
   </div>
-  {{#if (and this.planOutput.preemptions.isFulfilled this.planOutput.preemptions.length)}}
+  {{#if
+    (and
+      this.planOutput.preemptions.isFulfilled this.planOutput.preemptions.length
+    )
+  }}
     <div class="boxed-section is-warning" data-test-preemptions>
       <div class="boxed-section-head" data-test-preemptions-title>
-        Preemptions (if you choose to run this job, these allocations will be stopped)
+        Preemptions (if you choose to run this job, these allocations will be
+        stopped)
       </div>
       <div class="boxed-section-body" data-test-preemptions-body>
         <ListTable
           @source={{this.planOutput.preemptions}}
-          @class="allocations is-isolated" as |t|>
+          @class="allocations is-isolated"
+          as |t|
+        >
           <t.head>
             <th class="is-narrow"></th>
             <th>ID</th>
@@ -120,7 +160,18 @@
     </div>
   {{/if}}
   <div class="content is-associative">
-    <button class="button is-primary {{if this.submit.isRunning "is-loading"}}" type="button" onclick={{perform this.submit}} disabled={{this.submit.isRunning}} data-test-run>Run</button>
-    <button class="button is-light" type="button" onclick={{action this.reset}} data-test-cancel>Cancel</button>
+    <button
+      class="button is-primary {{if this.submit.isRunning 'is-loading'}}"
+      type="button"
+      onclick={{perform this.submit}}
+      disabled={{this.submit.isRunning}}
+      data-test-run
+    >Run</button>
+    <button
+      class="button is-light"
+      type="button"
+      onclick={{action this.reset}}
+      data-test-cancel
+    >Cancel</button>
   </div>
 {{/if}}

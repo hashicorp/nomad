@@ -5,16 +5,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
-	"github.com/hashicorp/nomad/nomad/structs"
-
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTaskHookCoordinator_OnlyMainApp(t *testing.T) {
+	ci.Parallel(t)
+
 	alloc := mock.Alloc()
 	tasks := alloc.Job.TaskGroups[0].Tasks
 	task := tasks[0]
@@ -28,6 +29,8 @@ func TestTaskHookCoordinator_OnlyMainApp(t *testing.T) {
 }
 
 func TestTaskHookCoordinator_PrestartRunsBeforeMain(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 
 	alloc := mock.LifecycleAlloc()
@@ -48,6 +51,8 @@ func TestTaskHookCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 }
 
 func TestTaskHookCoordinator_MainRunsAfterPrestart(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 
 	alloc := mock.LifecycleAlloc()
@@ -92,6 +97,8 @@ func TestTaskHookCoordinator_MainRunsAfterPrestart(t *testing.T) {
 }
 
 func TestTaskHookCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 
 	alloc := mock.LifecycleAlloc()
@@ -137,6 +144,8 @@ func TestTaskHookCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
 }
 
 func TestTaskHookCoordinator_FailedInitTask(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 
 	alloc := mock.LifecycleAlloc()
@@ -182,6 +191,8 @@ func TestTaskHookCoordinator_FailedInitTask(t *testing.T) {
 }
 
 func TestTaskHookCoordinator_SidecarNeverStarts(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 
 	alloc := mock.LifecycleAlloc()
@@ -225,6 +236,8 @@ func TestTaskHookCoordinator_SidecarNeverStarts(t *testing.T) {
 }
 
 func TestTaskHookCoordinator_PoststartStartsAfterMain(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 
 	alloc := mock.LifecycleAlloc()
@@ -280,6 +293,7 @@ func isChannelClosed(ch <-chan struct{}) bool {
 }
 
 func TestHasSidecarTasks(t *testing.T) {
+	ci.Parallel(t)
 
 	falseV, trueV := false, true
 

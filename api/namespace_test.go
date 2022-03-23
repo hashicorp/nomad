@@ -3,11 +3,12 @@ package api
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNamespaces_Register(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -29,7 +30,7 @@ func TestNamespaces_Register(t *testing.T) {
 }
 
 func TestNamespaces_Register_Invalid(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -43,7 +44,7 @@ func TestNamespaces_Register_Invalid(t *testing.T) {
 }
 
 func TestNamespace_Info(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -69,7 +70,7 @@ func TestNamespace_Info(t *testing.T) {
 }
 
 func TestNamespaces_Delete(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -103,7 +104,7 @@ func TestNamespaces_Delete(t *testing.T) {
 }
 
 func TestNamespaces_List(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()

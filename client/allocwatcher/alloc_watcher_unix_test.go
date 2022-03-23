@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 )
@@ -22,8 +23,9 @@ import (
 // TestPrevAlloc_StreamAllocDir_Ok asserts that streaming a tar to an alloc dir
 // works.
 func TestPrevAlloc_StreamAllocDir_Ok(t *testing.T) {
+	ci.Parallel(t)
 	ctestutil.RequireRoot(t)
-	t.Parallel()
+
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatalf("err: %v", err)

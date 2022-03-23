@@ -10,6 +10,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -402,6 +403,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 	}
 
 	// Setup the blocking query
+	sort := state.SortOption(args.Reverse)
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
@@ -409,20 +411,34 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 			// Capture all the deployments
 			var err error
 			var iter memdb.ResultIterator
+			var opts paginator.StructsTokenizerOptions
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = store.DeploymentsByIDPrefix(ws, namespace, prefix)
+				iter, err = store.DeploymentsByIDPrefix(ws, namespace, prefix, sort)
+				opts = paginator.StructsTokenizerOptions{
+					WithID: true,
+				}
 			} else if namespace != structs.AllNamespacesSentinel {
-				iter, err = store.DeploymentsByNamespaceOrdered(ws, namespace, args.Ascending)
+				iter, err = store.DeploymentsByNamespaceOrdered(ws, namespace, sort)
+				opts = paginator.StructsTokenizerOptions{
+					WithCreateIndex: true,
+					WithID:          true,
+				}
 			} else {
-				iter, err = store.Deployments(ws, args.Ascending)
+				iter, err = store.Deployments(ws, sort)
+				opts = paginator.StructsTokenizerOptions{
+					WithCreateIndex: true,
+					WithID:          true,
+				}
 			}
 			if err != nil {
 				return err
 			}
 
+			tokenizer := paginator.NewStructsTokenizer(iter, opts)
+
 			var deploys []*structs.Deployment
-			paginator, err := state.NewPaginator(iter, args.QueryOptions,
+			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
 				func(raw interface{}) error {
 					deploy := raw.(*structs.Deployment)
 					deploys = append(deploys, deploy)

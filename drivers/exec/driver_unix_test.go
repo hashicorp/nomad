@@ -10,22 +10,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
+	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
-	basePlug "github.com/hashicorp/nomad/plugins/base"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/unix"
-
-	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
+	basePlug "github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 func TestExecDriver_StartWaitStop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -87,7 +87,7 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 }
 
 func TestExec_ExecTaskStreaming(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -121,7 +121,7 @@ func TestExec_ExecTaskStreaming(t *testing.T) {
 
 // Tests that a given DNSConfig properly configures dns
 func TestExec_dnsConfig(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ctestutils.RequireRoot(t)
 	ctestutils.ExecCompatible(t)
 	require := require.New(t)
@@ -181,6 +181,7 @@ func TestExec_dnsConfig(t *testing.T) {
 }
 
 func TestExecDriver_Capabilities(t *testing.T) {
+	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
 	task := &drivers.TaskConfig{

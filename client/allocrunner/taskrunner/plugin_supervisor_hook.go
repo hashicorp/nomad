@@ -129,12 +129,13 @@ func (*csiPluginSupervisorHook) Name() string {
 }
 
 // Prestart is called before the task is started including after every
-// restart. This requires that the mount paths for a plugin be idempotent,
-// despite us not knowing the name of the plugin ahead of time.
-// Because of this, we use the allocid_taskname as the unique identifier for a
-// plugin on the filesystem.
+// restart (but not after restore). This requires that the mount paths
+// for a plugin be idempotent, despite us not knowing the name of the
+// plugin ahead of time.  Because of this, we use the allocid_taskname
+// as the unique identifier for a plugin on the filesystem.
 func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+
 	// Create the mount directory that the container will access if it doesn't
 	// already exist. Default to only nomad user access.
 	if err := os.MkdirAll(h.mountPoint, 0700); err != nil && !os.IsExist(err) {
@@ -167,33 +168,23 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 		Readonly: false,
 	}
 
-	// TODO(tgross): https://github.com/hashicorp/nomad/issues/11786
-	// If we're already registered, we should be able to update the
-	// definition in the update hook
+	h.setSocketHook()
 
-	// For backwards compatibility, ensure that we don't overwrite the
-	// socketPath on client restart with existing plugin allocations.
-	pluginInfo, _ := h.runner.dynamicRegistry.PluginForAlloc(
-		string(h.task.CSIPluginConfig.Type), h.task.CSIPluginConfig.ID, h.alloc.ID)
-	if pluginInfo != nil {
-		h.socketPath = pluginInfo.ConnectionInfo.SocketPath
-	} else {
-		h.socketPath = filepath.Join(h.socketMountPoint, structs.CSISocketName)
-	}
-
-	switch h.caps.FSIsolation {
-	case drivers.FSIsolationNone:
-		// Plugin tasks with no filesystem isolation won't have the
-		// plugin dir bind-mounted to their alloc dir, but we can
-		// provide them the path to the socket. These Nomad-only
-		// plugins will need to be aware of the csi directory layout
-		// in the client data dir
-		resp.Env = map[string]string{
-			"CSI_ENDPOINT": h.socketPath}
-	default:
-		resp.Env = map[string]string{
-			"CSI_ENDPOINT": filepath.Join(
-				h.task.CSIPluginConfig.MountDir, structs.CSISocketName)}
+	if _, ok := h.task.Env["CSI_ENDPOINT"]; !ok {
+		switch h.caps.FSIsolation {
+		case drivers.FSIsolationNone:
+			// Plugin tasks with no filesystem isolation won't have the
+			// plugin dir bind-mounted to their alloc dir, but we can
+			// provide them the path to the socket. These Nomad-only
+			// plugins will need to be aware of the csi directory layout
+			// in the client data dir
+			resp.Env = map[string]string{
+				"CSI_ENDPOINT": "unix://" + h.socketPath}
+		default:
+			resp.Env = map[string]string{
+				"CSI_ENDPOINT": "unix://" + filepath.Join(
+					h.task.CSIPluginConfig.MountDir, structs.CSISocketName)}
+		}
 	}
 
 	mounts := ensureMountpointInserted(h.runner.hookResources.getMounts(), configMount)
@@ -206,11 +197,29 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	return nil
 }
 
+func (h *csiPluginSupervisorHook) setSocketHook() {
+
+	// TODO(tgross): https://github.com/hashicorp/nomad/issues/11786
+	// If we're already registered, we should be able to update the
+	// definition in the update hook
+
+	// For backwards compatibility, ensure that we don't overwrite the
+	// socketPath on client restart with existing plugin allocations.
+	pluginInfo, _ := h.runner.dynamicRegistry.PluginForAlloc(
+		string(h.task.CSIPluginConfig.Type), h.task.CSIPluginConfig.ID, h.alloc.ID)
+	if pluginInfo != nil && pluginInfo.ConnectionInfo.SocketPath != "" {
+		h.socketPath = pluginInfo.ConnectionInfo.SocketPath
+		return
+	}
+	h.socketPath = filepath.Join(h.socketMountPoint, structs.CSISocketName)
+}
+
 // Poststart is called after the task has started. Poststart is not
 // called if the allocation is terminal.
 //
 // The context is cancelled if the task is killed.
 func (h *csiPluginSupervisorHook) Poststart(_ context.Context, _ *interfaces.TaskPoststartRequest, _ *interfaces.TaskPoststartResponse) error {
+
 	// If we're already running the supervisor routine, then we don't need to try
 	// and restart it here as it only terminates on `Stop` hooks.
 	h.runningLock.Lock()
@@ -219,6 +228,8 @@ func (h *csiPluginSupervisorHook) Poststart(_ context.Context, _ *interfaces.Tas
 		return nil
 	}
 	h.runningLock.Unlock()
+
+	h.setSocketHook()
 
 	go h.ensureSupervisorLoop(h.shutdownCtx)
 	return nil

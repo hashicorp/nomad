@@ -1,12 +1,17 @@
+{{! template-lint-disable no-duplicate-landmark-elements}}
 {{#if this.interstitialComponent}}
   <section class="das-interstitial" style={{this.interstitialStyle}}>
-    {{component (concat 'das/' this.interstitialComponent) proceed=this.proceedPromiseResolve error=this.error}}
+    {{component
+      (concat "das/" this.interstitialComponent)
+      proceed=this.proceedPromiseResolve
+      error=this.error
+    }}
   </section>
 {{else if @summary.taskGroup}}
   <section
     ...attributes
     data-test-task-group-recommendations
-    class='recommendation-card'
+    class="recommendation-card"
     {{did-insert this.cardInserted}}
   >
 
@@ -14,11 +19,18 @@
 
     <header class="overview inner-container">
       <h3 class="slug">
-        <span class="job" data-test-job-name>{{@summary.taskGroup.job.name}}</span>
-        <span class="group" data-test-task-group-name>{{@summary.taskGroup.name}}</span>
+        <span
+          class="job"
+          data-test-job-name
+        >{{@summary.taskGroup.job.name}}</span>
+        <span
+          class="group"
+          data-test-task-group-name
+        >{{@summary.taskGroup.name}}</span>
       </h3>
       <h4 class="namespace">
-        <span class="namespace-label">Namespace:</span> <span data-test-namespace>{{@summary.jobNamespace}}</span>
+        <span class="namespace-label">Namespace:</span>
+        <span data-test-namespace>{{@summary.jobNamespace}}</span>
       </h4>
     </header>
 
@@ -45,10 +57,16 @@
               <th class="toggle-cell">
                 <Toggle
                   data-test-cpu-toggle
-                  @isActive={{and this.allCpuToggleActive (not this.allCpuToggleDisabled)}}
+                  @isActive={{and
+                    this.allCpuToggleActive
+                    (not this.allCpuToggleDisabled)
+                  }}
                   @isDisabled={{this.allCpuToggleDisabled}}
-                  @onToggle={{action this.toggleAllRecommendationsForResource 'CPU'}}
-                  title='Toggle CPU recommendations for all tasks'
+                  @onToggle={{action
+                    this.toggleAllRecommendationsForResource
+                    "CPU"
+                  }}
+                  title="Toggle CPU recommendations for all tasks"
                 >
                   <div class="label-wrapper">CPU</div>
                 </Toggle>
@@ -56,10 +74,16 @@
               <th class="toggle-cell">
                 <Toggle
                   data-test-memory-toggle
-                  @isActive={{and this.allMemoryToggleActive (not this.allMemoryToggleDisabled)}}
+                  @isActive={{and
+                    this.allMemoryToggleActive
+                    (not this.allMemoryToggleDisabled)
+                  }}
                   @isDisabled={{this.allMemoryToggleDisabled}}
-                  @onToggle={{action this.toggleAllRecommendationsForResource 'MemoryMB'}}
-                  title='Toggle memory recommendations for all tasks'
+                  @onToggle={{action
+                    this.toggleAllRecommendationsForResource
+                    "MemoryMB"
+                  }}
+                  title="Toggle memory recommendations for all tasks"
                 >
                   <div class="label-wrapper">Mem</div>
                 </Toggle>
@@ -87,13 +111,27 @@
     </section>
 
     <section class="actions overview inner-container">
-      <button class='button is-primary' type='button' disabled={{this.cannotAccept}} data-test-accept {{on "click" this.accept}}>Accept</button>
-      <button class='button is-light' type='button' data-test-dismiss {{on "click" this.dismiss}}>Dismiss</button>
+      <button
+        class="button is-primary"
+        type="button"
+        disabled={{this.cannotAccept}}
+        data-test-accept
+        {{on "click" this.accept}}
+      >Accept</button>
+      <button
+        class="button is-light"
+        type="button"
+        data-test-dismiss
+        {{on "click" this.dismiss}}
+      >Dismiss</button>
     </section>
 
     <section class="active-task-group" data-test-active-task>
       <section class="top active-task inner-container">
-        <CopyButton data-test-copy-button @clipboardText={{this.copyButtonLink}}>
+        <CopyButton
+          data-test-copy-button
+          @clipboardText={{this.copyButtonLink}}
+        >
           {{@summary.taskGroup.job.name}}
           /
           {{@summary.taskGroup.name}}
@@ -104,7 +142,8 @@
             data-test-accordion-toggle
             class="button is-light is-compact pull-right accordion-toggle"
             {{on "click" @onCollapse}}
-            type="button">
+            type="button"
+          >
             Collapse
           </button>
         {{/if}}
@@ -131,7 +170,10 @@
               @currentValue={{recommendation.currentValue}}
               @recommendedValue={{recommendation.value}}
               @stats={{recommendation.stats}}
-              @disabled={{includes recommendation @summary.excludedRecommendations}}
+              @disabled={{includes
+                recommendation
+                @summary.excludedRecommendations
+              }}
             />
           </li>
         {{/each}}

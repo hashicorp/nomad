@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,7 +15,7 @@ import (
 // logs" fail with a helpful error message when called on an inuse
 // database.
 func TestRaftStateInfo_InUse(t *testing.T) {
-	t.Parallel() // since there's a 1s timeout.
+	ci.Parallel(t) // since there's a 1s timeout.
 
 	// First create an empty raft db
 	dir := filepath.Join(t.TempDir(), "raft.db")

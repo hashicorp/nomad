@@ -6,17 +6,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
 
 func TestInitCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &JobInitCommand{}
 }
 
 func TestInitCommand_Run(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobInitCommand{Meta: Meta{Ui: ui}}
 
@@ -79,7 +80,7 @@ func TestInitCommand_Run(t *testing.T) {
 }
 
 func TestInitCommand_defaultJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Ensure the job file is always written with spaces instead of tabs. Since
 	// the default job file is embedded in the go file, it's easy for tabs to
 	// slip in.
@@ -90,7 +91,7 @@ func TestInitCommand_defaultJob(t *testing.T) {
 }
 
 func TestInitCommand_customFilename(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobInitCommand{Meta: Meta{Ui: ui}}
 	filename := "custom.nomad"

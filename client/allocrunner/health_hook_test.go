@@ -6,6 +6,7 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
@@ -84,7 +85,7 @@ func (m *mockHealthSetter) HasHealth() bool {
 // TestHealthHook_PrerunPostrun asserts a health hook does not error if it is
 // run and postrunned.
 func TestHealthHook_PrerunPostrun(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	logger := testlog.HCLogger(t)
@@ -121,7 +122,7 @@ func TestHealthHook_PrerunPostrun(t *testing.T) {
 
 // TestHealthHook_PrerunUpdatePostrun asserts Updates may be applied concurrently.
 func TestHealthHook_PrerunUpdatePostrun(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	alloc := mock.Alloc()
@@ -160,7 +161,7 @@ func TestHealthHook_PrerunUpdatePostrun(t *testing.T) {
 // TestHealthHook_UpdatePrerunPostrun asserts that a hook may have Update
 // called before Prerun.
 func TestHealthHook_UpdatePrerunPostrun(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	alloc := mock.Alloc()
@@ -203,7 +204,7 @@ func TestHealthHook_UpdatePrerunPostrun(t *testing.T) {
 
 // TestHealthHook_Postrun asserts that a hook may have only Postrun called.
 func TestHealthHook_Postrun(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	logger := testlog.HCLogger(t)
@@ -222,7 +223,7 @@ func TestHealthHook_Postrun(t *testing.T) {
 // TestHealthHook_SetHealth_healthy asserts SetHealth is called when health status is
 // set. Uses task state and health checks.
 func TestHealthHook_SetHealth_healthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	alloc := mock.Alloc()
@@ -302,7 +303,7 @@ func TestHealthHook_SetHealth_healthy(t *testing.T) {
 
 // TestHealthHook_SetHealth_unhealthy asserts SetHealth notices unhealthy allocs
 func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	alloc := mock.Alloc()
@@ -386,7 +387,7 @@ func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
 
 // TestHealthHook_SystemNoop asserts that system jobs return the noop tracker.
 func TestHealthHook_SystemNoop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	h := newAllocHealthWatcherHook(testlog.HCLogger(t), mock.SystemAlloc(), nil, nil, nil)
 
@@ -407,7 +408,7 @@ func TestHealthHook_SystemNoop(t *testing.T) {
 
 // TestHealthHook_BatchNoop asserts that batch jobs return the noop tracker.
 func TestHealthHook_BatchNoop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	h := newAllocHealthWatcherHook(testlog.HCLogger(t), mock.BatchAlloc(), nil, nil, nil)
 

@@ -6,9 +6,9 @@ The official Nomad UI.
 
 This is an [ember.js](https://emberjs.com/) project, and you will need the following tools installed on your computer.
 
-* [Node.js v10](https://nodejs.org/)
-* [Yarn](https://yarnpkg.com)
-* [Ember CLI](https://ember-cli.com/)
+- [Node.js v10](https://nodejs.org/)
+- [Yarn](https://yarnpkg.com)
+- [Ember CLI](https://ember-cli.com/)
 
 ## Installation
 
@@ -21,10 +21,10 @@ $ yarn
 
 ## Running / Development
 
-UI in development mode defaults to using fake generated data, but you can configure it to proxy a live running nomad process by setting `USE_MIRAGE` environment variable to `false`.  First, make sure nomad is running. The UI, in development mode, runs independently from Nomad, so this could be an official release or a dev branch. Likewise, Nomad can be running in server mode or dev mode. As long as the API is accessible, the UI will work as expected.
+UI in development mode defaults to using fake generated data, but you can configure it to proxy a live running nomad process by setting `USE_MIRAGE` environment variable to `false`. First, make sure nomad is running. The UI, in development mode, runs independently from Nomad, so this could be an official release or a dev branch. Likewise, Nomad can be running in server mode or dev mode. As long as the API is accessible, the UI will work as expected.
 
-* `USE_MIRAGE=false ember serve`
-* Visit your app at [http://localhost:4200](http://localhost:4200).
+- `USE_MIRAGE=false ember serve`
+- Visit your app at [http://localhost:4200](http://localhost:4200).
 
 You may need to reference the direct path to `ember`, typically in `./node_modules/.bin/ember`.
 
@@ -38,8 +38,8 @@ All necessary tools for UI development are installed as part of the Vagrantfile.
 
 That said, development with Vagrant is still possible, but the `ember serve` command requires two modifications:
 
-* `--watch polling`: This allows the vm to notice file changes made in the host environment.
-* `--port 4201`: The default port 4200 is not forwarded, since local development is recommended.
+- `--watch polling`: This allows the vm to notice file changes made in the host environment.
+- `--port 4201`: The default port 4200 is not forwarded, since local development is recommended.
 
 This makes the full command for running the UI in development mode in Vagrant:
 
@@ -51,8 +51,8 @@ $ ember serve --watch polling --port 4201
 
 Nomad UI tests can be run independently of Nomad golang tests.
 
-* `ember test` (single run, headless browser)
-* `ember test --server` (watches for changes, runs in a full browser)
+- `ember test` (single run, headless browser)
+- `ember test --server` (watches for changes, runs in a full browser)
 
 You can use `--filter <test name>` to run a targetted set of tests, e.g. `ember test --filter 'allocation detail'`.
 
@@ -60,18 +60,15 @@ In the test environment, the fake data is generated with a random seed. If you w
 
 ### Linting
 
-Linting should happen automatically in your editor and when committing changes, but it can also be invoked manually.
-
-* `npm run lint:hbs`
-* `npm run lint:js`
-* `npm run lint:js -- --fix`
+- `yarn lint`
+- `yarn lint:fix`
 
 ### Building
 
 Typically `make release` or `make dev-ui` will be the desired build workflow, but in the event that build artifacts need to be inspected, `ember build` will output compiled files in `ui/dist`.
 
-* `ember build` (development)
-* `ember build --environment production` (production)
+- `ember build` (development)
+- `ember build --environment production` (production)
 
 ### Releasing
 
@@ -79,7 +76,7 @@ Nomad UI releases are in lockstep with Nomad releases and are integrated into th
 
 ### Conventions
 
-* UI branches should be prefix with `f-ui-` for feature work and `b-ui-` for bug fixes.  This instructs CI to skip running nomad backend tests.
+- UI branches should be prefix with `f-ui-` for feature work and `b-ui-` for bug fixes. This instructs CI to skip running nomad backend tests.
 
 ### Storybook UI Library
 

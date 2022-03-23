@@ -5,17 +5,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
 
 func TestOperator_Autopilot_SetConfig_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &OperatorRaftListCommand{}
 }
 
 func TestOperatorAutopilotSetConfigCommand(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()

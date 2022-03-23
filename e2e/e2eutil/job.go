@@ -1,18 +1,22 @@
 package e2eutil
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // Register registers a jobspec from a file but with a unique ID.
 // The caller is responsible for recording that ID for later cleanup.
 func Register(jobID, jobFilePath string) error {
-	return register(jobID, jobFilePath, exec.Command("nomad", "job", "run", "-detach", "-"))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	return register(jobID, jobFilePath, exec.CommandContext(ctx, "nomad", "job", "run", "-detach", "-"))
 }
 
 // RegisterWithArgs registers a jobspec from a file but with a unique ID. The
@@ -25,8 +29,10 @@ func RegisterWithArgs(jobID, jobFilePath string, args ...string) error {
 		baseArgs = append(baseArgs, args[i])
 	}
 	baseArgs = append(baseArgs, "-")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
 
-	return register(jobID, jobFilePath, exec.Command("nomad", baseArgs...))
+	return register(jobID, jobFilePath, exec.CommandContext(ctx, "nomad", baseArgs...))
 }
 
 func register(jobID, jobFilePath string, cmd *exec.Cmd) error {
@@ -60,7 +66,9 @@ func register(jobID, jobFilePath string, cmd *exec.Cmd) error {
 // PeriodicForce forces a periodic job to dispatch
 func PeriodicForce(jobID string) error {
 	// nomad job periodic force
-	cmd := exec.Command("nomad", "job", "periodic", "force", jobID)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "nomad", "job", "periodic", "force", jobID)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -82,7 +90,9 @@ func Dispatch(jobID string, meta map[string]string, payload string) error {
 		args = append(args, "-")
 	}
 
-	cmd := exec.Command("nomad", args...)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "nomad", args...)
 	cmd.Stdin = strings.NewReader(payload)
 
 	out, err := cmd.CombinedOutput()
@@ -96,7 +106,9 @@ func Dispatch(jobID string, meta map[string]string, payload string) error {
 // JobInspectTemplate runs nomad job inspect and formats the output
 // using the specified go template
 func JobInspectTemplate(jobID, template string) (string, error) {
-	cmd := exec.Command("nomad", "job", "inspect", "-t", template, jobID)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "nomad", "job", "inspect", "-t", template, jobID)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("could not inspect job: %w\n%v", err, string(out))
@@ -109,8 +121,9 @@ func JobInspectTemplate(jobID, template string) (string, error) {
 // RegisterFromJobspec registers a jobspec from a string, also with a unique
 // ID. The caller is responsible for recording that ID for later cleanup.
 func RegisterFromJobspec(jobID, jobspec string) error {
-
-	cmd := exec.Command("nomad", "job", "run", "-detach", "-")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "nomad", "job", "run", "-detach", "-")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("could not open stdin?: %w", err)
@@ -211,7 +224,8 @@ func StopJob(jobID string, args ...string) error {
 		// expect that the monitor fails and exits with status code one because
 		// technically the deployment has failed. Overwrite the error to be
 		// nil.
-		if strings.Contains(err.Error(), "Description = Cancelled because job is stopped") {
+		if strings.Contains(err.Error(), "Description = Cancelled because job is stopped") ||
+			strings.Contains(err.Error(), "Description = Failed due to progress deadline") {
 			err = nil
 		}
 	}

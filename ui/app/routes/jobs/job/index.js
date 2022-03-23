@@ -11,6 +11,7 @@ import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
 export default class IndexRoute extends Route.extend(WithWatchers) {
   @service can;
+  @service store;
 
   async model() {
     return this.modelFor('jobs.job');

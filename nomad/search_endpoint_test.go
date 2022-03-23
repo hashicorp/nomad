@@ -8,6 +8,7 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -37,7 +38,7 @@ func mockAlloc() *structs.Allocation {
 }
 
 func TestSearch_PrefixSearch_Job(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -70,7 +71,7 @@ func TestSearch_PrefixSearch_Job(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	jobID := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -179,7 +180,7 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	prefix := "example-test-------" // Assert that a job with more than 4 hyphens works
 
@@ -221,7 +222,7 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	prefix := strings.Repeat("a", 100)
 
@@ -261,7 +262,7 @@ func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
 
 // truncate should limit results to 20
 func TestSearch_PrefixSearch_Truncate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -294,7 +295,7 @@ func TestSearch_PrefixSearch_Truncate(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -330,7 +331,7 @@ func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_Evals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -363,7 +364,7 @@ func TestSearch_PrefixSearch_Evals(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_Allocation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -400,7 +401,7 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -443,7 +444,7 @@ func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_Node(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -480,7 +481,7 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_Deployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -512,7 +513,7 @@ func TestSearch_PrefixSearch_Deployment(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_AllContext(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -553,7 +554,7 @@ func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 
 // Tests that the top 20 matches are returned when no prefix is set
 func TestSearch_PrefixSearch_NoPrefix(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -585,7 +586,7 @@ func TestSearch_PrefixSearch_NoPrefix(t *testing.T) {
 // Tests that the zero matches are returned when a prefix has no matching
 // results
 func TestSearch_PrefixSearch_NoMatches(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -614,7 +615,7 @@ func TestSearch_PrefixSearch_NoMatches(t *testing.T) {
 // Prefixes can only be looked up if their length is a power of two. For
 // prefixes which are an odd length, use the length-1 characters.
 func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	id1 := "aaafaaaa-e8f7-fd38-c855-ab94ceb89"
 	id2 := "aaafeaaa-e8f7-fd38-c855-ab94ceb89"
@@ -646,7 +647,7 @@ func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_MultiRegion(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	jobName := "exampleexample"
 
@@ -687,7 +688,7 @@ func TestSearch_PrefixSearch_MultiRegion(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_CSIPlugin(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -718,7 +719,7 @@ func TestSearch_PrefixSearch_CSIPlugin(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_CSIVolume(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -728,7 +729,7 @@ func TestSearch_PrefixSearch_CSIVolume(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	id := uuid.Generate()
-	err := s.fsm.State().CSIVolumeRegister(1000, []*structs.CSIVolume{{
+	err := s.fsm.State().UpsertCSIVolume(1000, []*structs.CSIVolume{{
 		ID:        id,
 		Namespace: structs.DefaultNamespace,
 		PluginID:  "glade",
@@ -755,7 +756,7 @@ func TestSearch_PrefixSearch_CSIVolume(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_Namespace(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanup := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -787,7 +788,7 @@ func TestSearch_PrefixSearch_Namespace(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, root, cleanup := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -914,7 +915,7 @@ func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_ScalingPolicy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -952,7 +953,7 @@ func TestSearch_PrefixSearch_ScalingPolicy(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, root, cleanupS := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1057,7 +1058,7 @@ func TestSearch_FuzzySearch_ACL(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_NotEnabled(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1085,7 +1086,7 @@ func TestSearch_FuzzySearch_NotEnabled(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_ShortText(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1113,7 +1114,7 @@ func TestSearch_FuzzySearch_ShortText(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_TruncateLimitQuery(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1146,7 +1147,7 @@ func TestSearch_FuzzySearch_TruncateLimitQuery(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_TruncateLimitResults(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1181,7 +1182,7 @@ func TestSearch_FuzzySearch_TruncateLimitResults(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_Evals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1213,7 +1214,7 @@ func TestSearch_FuzzySearch_Evals(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_Allocation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1248,7 +1249,7 @@ func TestSearch_FuzzySearch_Allocation(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_Node(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1280,7 +1281,7 @@ func TestSearch_FuzzySearch_Node(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_Deployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1310,7 +1311,7 @@ func TestSearch_FuzzySearch_Deployment(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_CSIPlugin(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1338,7 +1339,7 @@ func TestSearch_FuzzySearch_CSIPlugin(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_CSIVolume(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1348,7 +1349,7 @@ func TestSearch_FuzzySearch_CSIVolume(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	id := uuid.Generate()
-	err := s.fsm.State().CSIVolumeRegister(1000, []*structs.CSIVolume{{
+	err := s.fsm.State().UpsertCSIVolume(1000, []*structs.CSIVolume{{
 		ID:        id,
 		Namespace: structs.DefaultNamespace,
 		PluginID:  "glade",
@@ -1373,7 +1374,7 @@ func TestSearch_FuzzySearch_CSIVolume(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_Namespace(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanup := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1403,7 +1404,7 @@ func TestSearch_FuzzySearch_Namespace(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_Namespace_caseInsensitive(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanup := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1434,7 +1435,7 @@ func TestSearch_FuzzySearch_Namespace_caseInsensitive(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_ScalingPolicy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1471,7 +1472,7 @@ func TestSearch_FuzzySearch_ScalingPolicy(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_Namespace_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, root, cleanup := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1585,7 +1586,7 @@ func TestSearch_FuzzySearch_Namespace_ACL(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, root, cleanupS := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -1879,7 +1880,7 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_Job(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -2025,6 +2026,8 @@ func TestSearch_FuzzySearch_Job(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch_fuzzyIndex(t *testing.T) {
+	ci.Parallel(t)
+
 	for _, tc := range []struct {
 		name, text string
 		exp        int

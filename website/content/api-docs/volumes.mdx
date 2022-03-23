@@ -41,6 +41,20 @@ The table below shows this endpoint's support for
   the prefix must have an even number of hexadecimal characters
   (0-9a-f). This is specified as a query string parameter.
 
+- `next_token` `(string: "")` - This endpoint supports paging. The `next_token`
+  parameter accepts a string which identifies the next expected volume. This
+  value can be obtained from the `X-Nomad-NextToken` header from the previous
+  response.
+
+- `per_page` `(int: 0)` - Specifies a maximum number of volumes to return for
+  this request. If omitted, the response is not paginated. The value of the
+  `X-Nomad-NextToken` header of the last response can be used as the
+  `next_token` of the next request to fetch additional pages.
+
+- `filter` `(string: "")` - Specifies the [expression](/api-docs#filtering)
+  used to filter the results. Consider using pagination or a query parameter to
+  reduce resource used to serve the request.
+
 ### Sample Request
 
 ```shell-session

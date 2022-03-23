@@ -4,11 +4,6 @@
 
 set -e
 
-# Will be overwritten at test time with the version specified
-NOMADVERSION=0.12.7
-CONSULVERSION=1.9.4+ent
-VAULTVERSION=1.5.4
-
 NOMAD_PLUGIN_DIR=/opt/nomad/plugins/
 
 mkdir_for_root() {
@@ -19,9 +14,6 @@ mkdir_for_root() {
 # Disable interactive apt prompts
 export DEBIAN_FRONTEND=noninteractive
 echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
-
-sudo mkdir -p /ops/shared
-sudo chown -R ubuntu:ubuntu /ops/shared
 
 mkdir_for_root /opt
 mkdir_for_root /srv/data # for host volumes
@@ -43,43 +35,30 @@ sudo chown root:root /usr/local/bin/sockaddr
 # Disable the firewall
 sudo ufw disable || echo "ufw not installed"
 
-echo "Install Consul"
-curl -fsL -o /tmp/consul.zip \
-     "https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip"
-sudo unzip -q /tmp/consul.zip -d /usr/local/bin
-sudo chmod 0755 /usr/local/bin/consul
-sudo chown root:root /usr/local/bin/consul
+echo "Install HashiCorp apt repositories"
+curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+sudo apt-get update
+
+echo "Install Consul and Nomad"
+sudo apt-get install -y \
+     consul-enterprise \
+     nomad
+
+# Note: neither service will start on boot because we haven't enabled
+# the systemd unit file and we haven't uploaded any configuration
+# files for Consul and Nomad
 
 echo "Configure Consul"
 mkdir_for_root /etc/consul.d
 mkdir_for_root /opt/consul
 sudo mv /tmp/linux/consul.service /etc/systemd/system/consul.service
 
-echo "Install Vault"
-curl -fsL -o /tmp/vault.zip \
-     "https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip"
-sudo unzip -q /tmp/vault.zip -d /usr/local/bin
-sudo chmod 0755 /usr/local/bin/vault
-sudo chown root:root /usr/local/bin/vault
-
-echo "Configure Vault"
-mkdir_for_root /etc/vault.d
-mkdir_for_root /opt/vault
-sudo mv /tmp/linux/vault.service /etc/systemd/system/vault.service
-
-sudo setcap cap_ipc_lock=+ep /usr/local/bin/vault
-sudo useradd --system --home /etc/vault.d --shell /bin/false vault
-
 echo "Configure Nomad"
 mkdir_for_root /etc/nomad.d
 mkdir_for_root /opt/nomad
 mkdir_for_root $NOMAD_PLUGIN_DIR
 sudo mv /tmp/linux/nomad.service /etc/systemd/system/nomad.service
-
-echo "Install Nomad"
-sudo mv /tmp/linux/provision.sh /opt/provision.sh
-sudo chmod +x /opt/provision.sh
-/opt/provision.sh --nomad_version $NOMADVERSION --nostart
 
 echo "Installing third-party apt repositories"
 

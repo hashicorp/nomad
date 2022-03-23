@@ -3,10 +3,12 @@ package api
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConsul_Canonicalize(t *testing.T) {
+	testutil.Parallel(t)
 	t.Run("missing ns", func(t *testing.T) {
 		c := new(Consul)
 		c.Canonicalize()
@@ -21,6 +23,7 @@ func TestConsul_Canonicalize(t *testing.T) {
 }
 
 func TestConsul_Copy(t *testing.T) {
+	testutil.Parallel(t)
 	t.Run("complete", func(t *testing.T) {
 		result := (&Consul{
 			Namespace: "foo",
@@ -32,6 +35,7 @@ func TestConsul_Copy(t *testing.T) {
 }
 
 func TestConsul_MergeNamespace(t *testing.T) {
+	testutil.Parallel(t)
 	t.Run("already set", func(t *testing.T) {
 		a := &Consul{Namespace: "foo"}
 		ns := stringToPtr("bar")

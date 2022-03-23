@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/ci"
 )
 
 func TestAgent_LoadKeyrings(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	key := "tbLJg26ZJyJ9pK3qhc9jig=="
 
 	// Should be no configured keyring file by default
@@ -45,7 +46,7 @@ func TestAgent_LoadKeyrings(t *testing.T) {
 }
 
 func TestAgent_InitKeyring(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	key1 := "tbLJg26ZJyJ9pK3qhc9jig=="
 	key2 := "4leC33rgtXKIVUr9Nr0snQ=="
 	expected := fmt.Sprintf(`["%s"]`, key1)

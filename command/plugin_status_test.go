@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -11,12 +12,12 @@ import (
 )
 
 func TestPluginStatusCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &PluginStatusCommand{}
 }
 
 func TestPluginStatusCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &PluginStatusCommand{Meta: Meta{Ui: ui}}
 
@@ -38,7 +39,7 @@ func TestPluginStatusCommand_Fails(t *testing.T) {
 }
 
 func TestPluginStatusCommand_AutocompleteArgs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()

@@ -5,10 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestStateStore_Autopilot(t *testing.T) {
+	ci.Parallel(t)
+
 	s := testStateStore(t)
 
 	expected := &structs.AutopilotConfig{
@@ -39,6 +42,8 @@ func TestStateStore_Autopilot(t *testing.T) {
 }
 
 func TestStateStore_AutopilotCAS(t *testing.T) {
+	ci.Parallel(t)
+
 	s := testStateStore(t)
 
 	expected := &structs.AutopilotConfig{

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allochealth"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/serviceregistration"
@@ -30,7 +31,7 @@ func destroy(ar *allocRunner) {
 // TestAllocRunner_AllocState_Initialized asserts that getting TaskStates via
 // AllocState() are initialized even before the AllocRunner has run.
 func TestAllocRunner_AllocState_Initialized(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
@@ -49,7 +50,7 @@ func TestAllocRunner_AllocState_Initialized(t *testing.T) {
 // TestAllocRunner_TaskLeader_KillTG asserts that when a leader task dies the
 // entire task group is killed.
 func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
@@ -239,7 +240,7 @@ func TestAllocRunner_Lifecycle_Poststart(t *testing.T) {
 // TestAllocRunner_TaskMain_KillTG asserts that when main tasks die the
 // entire task group is killed.
 func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
@@ -398,6 +399,8 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 // postop lifecycle hook starts all 3 tasks, only
 // the ephemeral one finishes, and the other 2 exit when the alloc is stopped.
 func TestAllocRunner_Lifecycle_Poststop(t *testing.T) {
+	ci.Parallel(t)
+
 	alloc := mock.LifecycleAlloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 
@@ -478,7 +481,7 @@ func TestAllocRunner_Lifecycle_Poststop(t *testing.T) {
 }
 
 func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
@@ -609,7 +612,7 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 // TestAllocRunner_TaskLeader_StopTG asserts that when stopping an alloc with a
 // leader the leader is stopped before other tasks.
 func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
@@ -708,7 +711,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 // not stopped as it does not exist.
 // See https://github.com/hashicorp/nomad/issues/3420#issuecomment-341666932
 func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
@@ -786,7 +789,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 }
 
 func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.LifecycleAlloc()
 
@@ -824,7 +827,7 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 }
 
 func TestAllocRunner_Update_Semantics(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	updatedAlloc := func(a *structs.Allocation) *structs.Allocation {
@@ -877,7 +880,7 @@ func TestAllocRunner_Update_Semantics(t *testing.T) {
 // TestAllocRunner_DeploymentHealth_Healthy_Migration asserts that health is
 // reported for services that got migrated; not just part of deployments.
 func TestAllocRunner_DeploymentHealth_Healthy_Migration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 
@@ -925,7 +928,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_Migration(t *testing.T) {
 // TestAllocRunner_DeploymentHealth_Healthy_NoChecks asserts that the health
 // watcher will mark the allocation as healthy based on task states alone.
 func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 
@@ -988,7 +991,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 // TestAllocRunner_DeploymentHealth_Unhealthy_Checks asserts that the health
 // watcher will mark the allocation as unhealthy with failing checks.
 func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -1083,7 +1086,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 // TestAllocRunner_Destroy asserts that Destroy kills and cleans up a running
 // alloc.
 func TestAllocRunner_Destroy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Ensure task takes some time
 	alloc := mock.BatchAlloc()
@@ -1145,7 +1148,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 }
 
 func TestAllocRunner_SimpleRun(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
 
@@ -1180,7 +1183,7 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 // TestAllocRunner_MoveAllocDir asserts that a rescheduled
 // allocation copies ephemeral disk content from previous alloc run
 func TestAllocRunner_MoveAllocDir(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Step 1: start and run a task
 	alloc := mock.BatchAlloc()
@@ -1237,7 +1240,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 // retrying fetching an artifact, other tasks in the group should be able
 // to proceed.
 func TestAllocRunner_HandlesArtifactFailure(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
 	rp := &structs.RestartPolicy{
@@ -1297,6 +1300,8 @@ func TestAllocRunner_HandlesArtifactFailure(t *testing.T) {
 
 // Test that alloc runner kills tasks in task group when another task fails
 func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
+	ci.Parallel(t)
+
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
@@ -1427,7 +1432,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 
 // Test that alloc becoming terminal should destroy the alloc runner
 func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	alloc := mock.BatchAlloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
@@ -1515,7 +1520,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 
 // TestAllocRunner_PersistState_Destroyed asserts that destroyed allocs don't persist anymore
 func TestAllocRunner_PersistState_Destroyed(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
 	taskName := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks[0].Name

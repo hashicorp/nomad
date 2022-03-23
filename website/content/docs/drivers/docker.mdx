@@ -100,13 +100,21 @@ config {
 }
 ```
 
-- `dns_search_domains` - (Optional) A list of DNS search domains for the container
-  to use.
+- `dns_search_domains` - (Optional) A list of DNS search domains for
+  the container to use. If you are using bridge networking mode with a
+  `network` block in the task group, you must set all DNS options in
+  the `network.dns` block instead.
 
-- `dns_options` - (Optional) A list of DNS options for the container to use.
+- `dns_options` - (Optional) A list of DNS options for the container
+  to use. If you are using bridge networking mode with a `network`
+  block in the task group, you must set all DNS options in the
+  `network.dns` block instead.
 
-- `dns_servers` - (Optional) A list of DNS servers for the container to use
-  (e.g. ["8.8.8.8", "8.8.4.4"]). Requires Docker v1.10 or greater.
+- `dns_servers` - (Optional) A list of DNS servers for the container
+  to use (e.g. ["8.8.8.8", "8.8.4.4"]). Requires Docker v1.10 or
+  greater. If you are using bridge networking mode with a `network`
+  block in the task group, you must set all DNS options in the
+  `network.dns` block instead.
 
 - `entrypoint` - (Optional) A string list overriding the image's entrypoint.
 
@@ -257,7 +265,14 @@ config {
   the group `network.mode = "bridge"` you should not set the Docker config
   `network_mode`, or the container will be unable to reach other containers in
   the task group. This will also prevent [Connect]-enabled tasks from reaching
-  the Envoy sidecar proxy.
+  the Envoy sidecar proxy. You must also set any DNS options in the `network.dns`
+  block and not in the task configuration.
+
+  If you are in the process of migrating from the default Docker network to
+  group-wide bridge networking, you may encounter issues preventing your
+  containers from reaching networks outside of the bridge interface on systems with
+  firewalld enabled. This behavior is often caused by the CNI plugin not registering the group
+  network as trusted and can be resolved as described in the [network stanza] documentation.
 
 - `pid_mode` - (Optional) `host` or not set (default). Set to `host` to share
   the PID namespace with the host. Note that this also requires the Nomad agent
@@ -1173,4 +1188,5 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [allow_caps]: /docs/drivers/docker#allow_caps
 [Connect]: /docs/job-specification/connect
 [`bridge`]: docs/job-specification/network#bridge
+[network stanza]: /docs/job-specification/network#bridge-mode
 [`pids_limit`]: /docs/drivers/docker#pids_limit

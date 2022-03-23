@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestJobEndpointConnect_isSidecarForService(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		task    *structs.Task
@@ -54,7 +55,7 @@ func TestJobEndpointConnect_isSidecarForService(t *testing.T) {
 }
 
 func TestJobEndpointConnect_groupConnectHook(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Test that connect-proxy task is inserted for backend service
 	job := mock.Job()
@@ -113,7 +114,7 @@ func TestJobEndpointConnect_groupConnectHook(t *testing.T) {
 }
 
 func TestJobEndpointConnect_groupConnectHook_IngressGateway_BridgeNetwork(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Test that the connect ingress gateway task is inserted if a gateway service
 	// exists and since this is a bridge network, will rewrite the default gateway proxy
@@ -146,7 +147,7 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_BridgeNetwork(t *tes
 }
 
 func TestJobEndpointConnect_groupConnectHook_IngressGateway_HostNetwork(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Test that the connect ingress gateway task is inserted if a gateway service
 	// exists. In host network mode, the default values are used.
@@ -178,7 +179,7 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_HostNetwork(t *testi
 }
 
 func TestJobEndpointConnect_groupConnectHook_IngressGateway_CustomTask(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Test that the connect gateway task is inserted if a gateway service exists
 	// and since this is a bridge network, will rewrite the default gateway proxy
@@ -247,7 +248,7 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_CustomTask(t *testin
 }
 
 func TestJobEndpointConnect_groupConnectHook_TerminatingGateway(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Tests that the connect terminating gateway task is inserted if a gateway
 	// service exists and since this is a bridge network, will rewrite the default
@@ -280,7 +281,7 @@ func TestJobEndpointConnect_groupConnectHook_TerminatingGateway(t *testing.T) {
 }
 
 func TestJobEndpointConnect_groupConnectHook_MeshGateway(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Test that the connect mesh gateway task is inserted if a gateway service
 	// exists and since this is a bridge network, will rewrite the default gateway
@@ -326,7 +327,7 @@ func TestJobEndpointConnect_groupConnectHook_MeshGateway(t *testing.T) {
 //
 // See https://github.com/hashicorp/nomad/issues/6853
 func TestJobEndpointConnect_ConnectInterpolation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	server := &Server{logger: testlog.HCLogger(t)}
 	jobEndpoint := NewJobEndpoints(server)
@@ -342,7 +343,7 @@ func TestJobEndpointConnect_ConnectInterpolation(t *testing.T) {
 }
 
 func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// network validation
 
@@ -457,6 +458,8 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 }
 
 func TestJobEndpointConnect_groupConnectUpstreamsValidate(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("no connect services", func(t *testing.T) {
 		err := groupConnectUpstreamsValidate("group",
 			[]*structs.Service{{Name: "s1"}, {Name: "s2"}})
@@ -543,7 +546,7 @@ func TestJobEndpointConnect_groupConnectUpstreamsValidate(t *testing.T) {
 }
 
 func TestJobEndpointConnect_getNamedTaskForNativeService(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("named exists", func(t *testing.T) {
 		task, err := getNamedTaskForNativeService(&structs.TaskGroup{
@@ -583,7 +586,7 @@ func TestJobEndpointConnect_getNamedTaskForNativeService(t *testing.T) {
 }
 
 func TestJobEndpointConnect_groupConnectGatewayValidate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("no group network", func(t *testing.T) {
 		err := groupConnectGatewayValidate(&structs.TaskGroup{
@@ -605,7 +608,7 @@ func TestJobEndpointConnect_groupConnectGatewayValidate(t *testing.T) {
 }
 
 func TestJobEndpointConnect_newConnectGatewayTask_host(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("ingress", func(t *testing.T) {
 		task := newConnectGatewayTask(structs.ConnectIngressPrefix, "foo", true)
@@ -627,14 +630,14 @@ func TestJobEndpointConnect_newConnectGatewayTask_host(t *testing.T) {
 }
 
 func TestJobEndpointConnect_newConnectGatewayTask_bridge(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	task := newConnectGatewayTask(structs.ConnectIngressPrefix, "service1", false)
 	require.NotContains(t, task.Config, "network_mode")
 }
 
 func TestJobEndpointConnect_hasGatewayTaskForService(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("no gateway task", func(t *testing.T) {
 		result := hasGatewayTaskForService(&structs.TaskGroup{
@@ -682,7 +685,7 @@ func TestJobEndpointConnect_hasGatewayTaskForService(t *testing.T) {
 }
 
 func TestJobEndpointConnect_gatewayProxyIsDefault(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		result := gatewayProxyIsDefault(nil)
@@ -725,7 +728,7 @@ func TestJobEndpointConnect_gatewayProxyIsDefault(t *testing.T) {
 }
 
 func TestJobEndpointConnect_gatewayBindAddressesForBridge(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 
@@ -792,7 +795,7 @@ func TestJobEndpointConnect_gatewayBindAddressesForBridge(t *testing.T) {
 }
 
 func TestJobEndpointConnect_gatewayProxy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
 		result := gatewayProxy(nil, "bridge")
@@ -986,5 +989,4 @@ func TestJobEndpointConnect_gatewayProxy(t *testing.T) {
 			EnvoyGatewayBindAddresses:       nil,
 		}, result)
 	})
-
 }

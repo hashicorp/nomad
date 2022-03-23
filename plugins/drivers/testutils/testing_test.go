@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -19,6 +20,8 @@ var _ drivers.DriverPlugin = (*MockDriver)(nil)
 
 // Very simple test to ensure the test harness works as expected
 func TestDriverHarness(t *testing.T) {
+	ci.Parallel(t)
+
 	handle := &drivers.TaskHandle{Config: &drivers.TaskConfig{Name: "mock"}}
 	d := &MockDriver{
 		StartTaskF: func(task *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
@@ -38,7 +41,7 @@ type testDriverState struct {
 }
 
 func TestBaseDriver_Fingerprint(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	fingerprints := []*drivers.Fingerprint{
@@ -100,7 +103,7 @@ func TestBaseDriver_Fingerprint(t *testing.T) {
 }
 
 func TestBaseDriver_RecoverTask(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// build driver state and encode it into proto msg
@@ -130,7 +133,7 @@ func TestBaseDriver_RecoverTask(t *testing.T) {
 }
 
 func TestBaseDriver_StartTask(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	cfg := &drivers.TaskConfig{
@@ -162,7 +165,7 @@ func TestBaseDriver_StartTask(t *testing.T) {
 }
 
 func TestBaseDriver_WaitTask(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	result := &drivers.ExitResult{ExitCode: 1, Signal: 9}
@@ -200,7 +203,7 @@ func TestBaseDriver_WaitTask(t *testing.T) {
 }
 
 func TestBaseDriver_TaskEvents(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	now := time.Now().UTC().Truncate(time.Millisecond)
@@ -263,6 +266,8 @@ func TestBaseDriver_TaskEvents(t *testing.T) {
 }
 
 func TestBaseDriver_Capabilities(t *testing.T) {
+	ci.Parallel(t)
+
 	capabilities := &drivers.Capabilities{
 		NetIsolationModes: []drivers.NetIsolationMode{
 			drivers.NetIsolationModeHost,

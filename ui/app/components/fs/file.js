@@ -6,11 +6,12 @@ import { equal, gt } from '@ember/object/computed';
 import RSVP from 'rsvp';
 import Log from 'nomad-ui/utils/classes/log';
 import timeout from 'nomad-ui/utils/timeout';
-import { classNames } from '@ember-decorators/component';
+import { classNames, attributeBindings } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 @classic
 @classNames('boxed-section', 'task-log')
+@attributeBindings('data-test-file-viewer')
 export default class File extends Component {
   @service token;
   @service system;

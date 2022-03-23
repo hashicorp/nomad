@@ -23,6 +23,9 @@ sed -i'' -e "s|/golang:[.0-9]*|/golang:${golang_version}|g" .circleci/config.yml
 sed -i'' -e "s|GOLANG_VERSION:[ \"]*[.0-9]*\"*|GOLANG_VERSION: ${golang_version}|g" \
 	.circleci/config.yml
 
+sed -i'' -e "s|GO_VERSION:[ \"]*[.0-9]*\"*|GO_VERSION: ${golang_version}|g" \
+	.github/workflows/test-core.yaml
+
 sed -i'' -e "s|\\(Install .Go\\) [.0-9]*|\\1 ${golang_version}|g" \
 	contributing/README.md
 

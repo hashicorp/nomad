@@ -4,11 +4,12 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSearch_PrefixSearch(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -30,7 +31,7 @@ func TestSearch_PrefixSearch(t *testing.T) {
 }
 
 func TestSearch_FuzzySearch(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()

@@ -87,12 +87,10 @@ module('Acceptance | jobs list', function (hooks) {
 
   test('the job run button is disabled when the token lacks permission', async function (assert) {
     window.localStorage.nomadTokenSecret = clientToken.secretId;
+
     await JobsList.visit();
 
     assert.ok(JobsList.runJobButton.isDisabled);
-
-    await JobsList.runJobButton.click();
-    assert.equal(currentURL(), '/jobs');
   });
 
   test('the anonymous policy is fetched to check whether to show the job run button', async function (assert) {

@@ -176,7 +176,11 @@ func (tc *CSIControllerPluginEBSTest) TestSnapshot(f *framework.F) {
 	f.NoError(err, fmt.Sprintf("could not parse output:\n%v", out))
 	f.Len(snaps, 1, fmt.Sprintf("could not parse output:\n%v", out))
 
-	out, err = e2e.Command("nomad", "volume", "snapshot", "list")
+	// the snapshot we're looking for should be the first one because
+	// we just created it, but give us some breathing room to allow
+	// for concurrent test runs
+	out, err = e2e.Command("nomad", "volume", "snapshot", "list",
+		"-plugin", ebsPluginID, "-per-page", "10")
 	requireNoErrorElseDump(f, err, "could not list volume snapshots", tc.pluginJobIDs)
 	f.Contains(out, snaps[0]["ID"],
 		fmt.Sprintf("volume snapshot list did not include expected snapshot:\n%v", out))

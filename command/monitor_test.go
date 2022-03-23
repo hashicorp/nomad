@@ -6,13 +6,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMonitor_Update_Eval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	mon := newMonitor(ui, nil, fullId)
 
@@ -66,7 +67,7 @@ func TestMonitor_Update_Eval(t *testing.T) {
 }
 
 func TestMonitor_Update_Allocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	mon := newMonitor(ui, nil, fullId)
 
@@ -137,7 +138,7 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 }
 
 func TestMonitor_Update_AllocModification(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	mon := newMonitor(ui, nil, fullId)
 
@@ -173,7 +174,7 @@ func TestMonitor_Update_AllocModification(t *testing.T) {
 }
 
 func TestMonitor_Monitor(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, _ := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -220,6 +221,8 @@ func TestMonitor_Monitor(t *testing.T) {
 }
 
 func TestMonitor_formatAllocMetric(t *testing.T) {
+	ci.Parallel(t)
+
 	tests := []struct {
 		Name     string
 		Metrics  *api.AllocationMetric

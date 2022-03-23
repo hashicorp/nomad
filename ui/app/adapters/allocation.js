@@ -1,6 +1,8 @@
 import Watchable from './watchable';
 import addToPath from 'nomad-ui/utils/add-to-path';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class AllocationAdapter extends Watchable {
   stop = adapterAction('/stop');
 

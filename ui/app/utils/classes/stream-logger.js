@@ -10,6 +10,10 @@ import classic from 'ember-classic-decorator';
 export default class StreamLogger extends EmberObject.extend(AbstractLogger) {
   reader = null;
 
+  get isSupported() {
+    return !!window.ReadableStream;
+  }
+
   @computed()
   get additionalParams() {
     return {
@@ -87,7 +91,3 @@ export default class StreamLogger extends EmberObject.extend(AbstractLogger) {
   })
   poll;
 }
-
-StreamLogger.reopenClass({
-  isSupported: !!window.ReadableStream,
-});

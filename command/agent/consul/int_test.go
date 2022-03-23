@@ -10,6 +10,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/sdk/testutil"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/config"
@@ -37,6 +38,8 @@ func (m *mockUpdater) TaskStateUpdated() {
 // TestConsul_Integration asserts TaskRunner properly registers and deregisters
 // services and checks with Consul using an embedded Consul agent.
 func TestConsul_Integration(t *testing.T) {
+	ci.Parallel(t)
+
 	if testing.Short() {
 		t.Skip("-short set; skipping")
 	}

@@ -109,7 +109,11 @@ func (c *VolumeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.length = fullId
+	// Truncate alloc and node IDs unless full length is requested
+	c.length = shortId
+	if c.verbose {
+		c.length = fullId
+	}
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
