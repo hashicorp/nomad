@@ -1,5 +1,3 @@
-* @hashicorp/release-engineering
-
 # release configuration
 
 /.release/                              @hashicorp/release-engineering
