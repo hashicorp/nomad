@@ -97,7 +97,7 @@ require (
 	github.com/mitchellh/mapstructure v1.4.3
 	github.com/mitchellh/reflectwalk v1.0.2
 	github.com/moby/sys/mount v0.3.0
-	github.com/moby/sys/mountinfo v0.5.0
+	github.com/moby/sys/mountinfo v0.6.0
 	github.com/opencontainers/runc v1.0.3
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/pkg/errors v0.9.1
