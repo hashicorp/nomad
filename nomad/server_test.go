@@ -649,9 +649,7 @@ func TestServer_ReloadSchedulers_InvalidSchedulers(t *testing.T) {
 func TestServer_PreventRaftDowngrade(t *testing.T) {
 	ci.Parallel(t)
 
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
-
+	dir := t.TempDir()
 	_, cleanupv3 := TestServer(t, func(c *Config) {
 		c.DevMode = false
 		c.DataDir = dir
@@ -659,7 +657,7 @@ func TestServer_PreventRaftDowngrade(t *testing.T) {
 	})
 	cleanupv3()
 
-	_, cleanupv2, err := TestServerWithErr(t, func(c *Config) {
+	_, cleanupv2, err := TestServerErr(t, func(c *Config) {
 		c.DevMode = false
 		c.DataDir = dir
 		c.RaftConfig.ProtocolVersion = 2

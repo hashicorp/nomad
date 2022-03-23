@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -39,14 +40,12 @@ func TestACLServer(t *testing.T, cb func(*Config)) (*Server, *structs.ACLToken, 
 }
 
 func TestServer(t *testing.T, cb func(*Config)) (*Server, func()) {
-	s, c, err := TestServerWithErr(t, cb)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	s, c, err := TestServerErr(t, cb)
+	require.NoError(t, err, "failed to start test server")
 	return s, c
 }
 
-func TestServerWithErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
+func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 	// Setup the default settings
 	config := DefaultConfig()
 

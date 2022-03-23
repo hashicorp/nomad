@@ -1286,11 +1286,11 @@ func (s *Server) setupRaft() error {
 
 		// Check Raft version and update the version file.
 		raftVersionFilePath := filepath.Join(path, "version")
-		raftVersionFileContent := fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
+		raftVersionFileContent := strconv.Itoa(int(s.config.RaftConfig.ProtocolVersion))
 		if err := s.checkRaftVersionFile(raftVersionFilePath); err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(raftVersionFilePath, []byte(raftVersionFileContent), 0755); err != nil {
+		if err := ioutil.WriteFile(raftVersionFilePath, []byte(raftVersionFileContent), 0644); err != nil {
 			return fmt.Errorf("failed to write Raft version file: %v", err)
 		}
 
@@ -1419,10 +1419,10 @@ func (s *Server) checkRaftVersionFile(path string) error {
 	_, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			s.logger.Info(fmt.Sprintf("Raft version file not found, %v", baseWarning))
-		} else {
-			s.logger.Warn(fmt.Sprintf("unable to read Raft version file, %s", baseWarning), "error", err)
+			return nil
 		}
+
+		s.logger.Warn(fmt.Sprintf("unable to read Raft version file, %s", baseWarning), "error", err)
 		return nil
 	}
 
@@ -1432,7 +1432,7 @@ func (s *Server) checkRaftVersionFile(path string) error {
 		return nil
 	}
 
-	previousVersion, err := strconv.Atoi(string(v))
+	previousVersion, err := strconv.Atoi(strings.TrimSpace(string(v)))
 	if err != nil {
 		s.logger.Warn(fmt.Sprintf("invalid Raft protocol version in Raft version file, %s", baseWarning), "error", err)
 		return nil
