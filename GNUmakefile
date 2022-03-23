@@ -56,7 +56,8 @@ ALL_TARGETS = linux_s390x
 endif
 
 ifeq (Darwin,$(THIS_OS))
-ALL_TARGETS = darwin_amd64
+ALL_TARGETS = darwin_amd64 \
+	darwin_arm64
 endif
 
 ifeq (FreeBSD,$(THIS_OS))
@@ -364,7 +365,7 @@ test-ui: ## Run Nomad UI test suite
 .PHONY: ember-dist
 ember-dist: ## Build the static UI assets from source
 	@echo "--> Installing JavaScript assets"
-	@cd ui && yarn install --silent
+	@cd ui && yarn install --silent --network-timeout 300000
 	@cd ui && npm rebuild node-sass
 	@echo "--> Building Ember application"
 	@cd ui && npm run build
