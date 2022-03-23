@@ -162,6 +162,7 @@ func newGrpcConn(addr string, logger hclog.Logger) (*grpc.ClientConn, error) {
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(logging.UnaryClientInterceptor(logger)),
 		grpc.WithStreamInterceptor(logging.StreamClientInterceptor(logger)),
+		grpc.WithAuthority("localhost"),
 		grpc.WithDialer(func(target string, timeout time.Duration) (net.Conn, error) {
 			return net.DialTimeout("unix", target, timeout)
 		}),
