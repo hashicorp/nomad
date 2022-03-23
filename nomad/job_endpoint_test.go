@@ -724,7 +724,7 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 				Type:           structs.VolumeTypeCSI,
 				Source:         "prod-db",
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
-				AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
+				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 			},
 		}
 
