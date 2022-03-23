@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"time"
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/wrappers"
@@ -15,6 +16,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func newTestClient(t *testing.T) (*fake.IdentityClient, *fake.ControllerClient, *fake.NodeClient, CSIPlugin) {
@@ -950,6 +952,8 @@ func TestClient_RPC_ControllerListVolume(t *testing.T) {
 
 func TestClient_RPC_ControllerCreateSnapshot(t *testing.T) {
 
+	now := time.Now()
+
 	cases := []struct {
 		Name        string
 		Request     *ControllerCreateSnapshotRequest
@@ -984,6 +988,7 @@ func TestClient_RPC_ControllerCreateSnapshot(t *testing.T) {
 					SizeBytes:      100000,
 					SnapshotId:     "snap-12345",
 					SourceVolumeId: "vol-12345",
+					CreationTime:   timestamppb.New(now),
 					ReadyToUse:     true,
 				},
 			},
@@ -999,11 +1004,13 @@ func TestClient_RPC_ControllerCreateSnapshot(t *testing.T) {
 			// note: there's nothing interesting to assert about the response
 			// here other than that we don't throw a NPE during transformation
 			// from protobuf to our struct
-			_, err := client.ControllerCreateSnapshot(context.TODO(), tc.Request)
+			resp, err := client.ControllerCreateSnapshot(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
 			} else {
 				require.NoError(t, err, tc.Name)
+				require.NotZero(t, resp.Snapshot.CreateTime)
+				require.Equal(t, now.Second(), time.Unix(resp.Snapshot.CreateTime, 0).Second())
 			}
 		})
 	}
@@ -1078,16 +1085,15 @@ func TestClient_RPC_ControllerListSnapshots(t *testing.T) {
 		},
 	}
 
+	now := time.Now()
+
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			_, cc, _, client := newTestClient(t)
 			defer client.Close()
 
 			cc.NextErr = tc.ResponseErr
-			if tc.ResponseErr != nil {
-				// note: there's nothing interesting to assert here other than
-				// that we don't throw a NPE during transformation from
-				// protobuf to our struct
+			if tc.ResponseErr == nil {
 				cc.NextListSnapshotsResponse = &csipbv1.ListSnapshotsResponse{
 					Entries: []*csipbv1.ListSnapshotsResponse_Entry{
 						{
@@ -1096,6 +1102,7 @@ func TestClient_RPC_ControllerListSnapshots(t *testing.T) {
 								SnapshotId:     "snap-12345",
 								SourceVolumeId: "vol-12345",
 								ReadyToUse:     true,
+								CreationTime:   timestamppb.New(now),
 							},
 						},
 					},
@@ -1110,7 +1117,10 @@ func TestClient_RPC_ControllerListSnapshots(t *testing.T) {
 			}
 			require.NoError(t, err, tc.Name)
 			require.NotNil(t, resp)
-
+			require.Len(t, resp.Entries, 1)
+			require.NotZero(t, resp.Entries[0].Snapshot.CreateTime)
+			require.Equal(t, now.Second(),
+				time.Unix(resp.Entries[0].Snapshot.CreateTime, 0).Second())
 		})
 	}
 }

@@ -134,6 +134,7 @@ require (
 	golang.org/x/tools v0.0.0-20200522201501-cb1345f3a375 // indirect
 	google.golang.org/api v0.13.0 // indirect
 	google.golang.org/grpc v1.29.1
+	google.golang.org/protobuf v1.27.1
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	gopkg.in/tomb.v2 v2.0.0-20140626144623-14b3d72120e8
