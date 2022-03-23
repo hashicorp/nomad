@@ -8,7 +8,7 @@ container {
 }
 
 binary {
-	go_modules = false
+	go_modules = true
 	osv        = false
 	nvd        = false
 
