@@ -1195,10 +1195,16 @@ func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply
 			continue
 		}
 
+		secrets := vol.Secrets
+		for k, v := range snap.Secrets {
+			// merge request secrets onto volume secrets
+			secrets[k] = v
+		}
+
 		cReq := &cstructs.ClientCSIControllerCreateSnapshotRequest{
 			ExternalSourceVolumeID: vol.ExternalID,
 			Name:                   snap.Name,
-			Secrets:                vol.Secrets,
+			Secrets:                secrets,
 			Parameters:             snap.Parameters,
 		}
 		cReq.PluginID = pluginID

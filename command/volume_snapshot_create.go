@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
 )
 
@@ -34,7 +35,20 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
 
+Snapshot Create Options:
+
+  -parameter
+    Parameters to pass to the plugin to create a snapshot. Accepts multiple
+    flags in the form -parameter key=value
+
+  -secret
+    Secrets to pass to the plugin to create snapshot. Accepts multiple
+    flags in the form -secret key=value
+
+  -verbose
+    Display full information for the resulting snapshot.
 `
+
 	return strings.TrimSpace(helpText)
 }
 
@@ -70,7 +84,11 @@ func (c *VolumeSnapshotCreateCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	var verbose bool
+	var parametersArgs flaghelper.StringFlag
+	var secretsArgs flaghelper.StringFlag
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.Var(&parametersArgs, "parameter", "parameters for snapshot, ex. -parameter key=value")
+	flags.Var(&secretsArgs, "secret", "secrets for snapshot, ex. -secret key=value")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
@@ -97,9 +115,30 @@ func (c *VolumeSnapshotCreateCommand) Run(args []string) int {
 		return 1
 	}
 
+	secrets := api.CSISecrets{}
+	for _, kv := range secretsArgs {
+		s := strings.Split(kv, "=")
+		if len(s) == 2 {
+			secrets[s[0]] = s[1]
+		} else {
+			c.Ui.Error("Secret must be in the format: -secret key=value")
+			return 1
+		}
+	}
+
+	params := map[string]string{}
+	for _, kv := range parametersArgs {
+		p := strings.Split(kv, "=")
+		if len(p) == 2 {
+			params[p[0]] = p[1]
+		}
+	}
+
 	snaps, _, err := client.CSIVolumes().CreateSnapshot(&api.CSISnapshot{
 		SourceVolumeID: volID,
 		Name:           snapshotName,
+		Secrets:        secrets,
+		Parameters:     params,
 	}, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error snapshotting volume: %s", err))
