@@ -370,7 +370,7 @@ static-assets: ## Compile the static routes to serve alongside the API
 test-ui: ## Run Nomad UI test suite
 	@echo "--> Installing JavaScript assets"
 	@cd ui && npm rebuild node-sass
-	@cd ui && yarn install 
+	@cd ui && yarn install
 	@echo "--> Running ember tests"
 	@cd ui && npm test
 
