@@ -12,7 +12,9 @@
     >
       {{#if this.isLoading}}
         <div data-test-eval-loading>
-          Loading!
+          <section class="section has-text-centered">
+            <LoadingSpinner />
+          </section>
         </div>
       {{/if}}
       {{#if this.error}}
@@ -29,11 +31,21 @@
             {{x-icon "cancel"}}
           </button>
         </div>
-        <h2 data-test-eval-error>
-          ERROR!
-        </h2>
+        <div class="error-container">
+          <div data-test-eval-error class="error-message">
+            <h1 data-test-error-title class="title is-spaced">
+              Not Found
+            </h1>
+            <p data-test-error-message class="subtitle">
+              What you're looking for
+          couldn't be found. It either doesn't exist or you are not authorized
+          to see it.
+            </p>
+          </div>
+        </div>
       {{/if}}
       {{#if this.isSuccess}}
+        {{! Evaluation Detail Header}}
         <div
           data-test-eval-detail-header
           style="display: flex; justify-content: space-between"
@@ -41,7 +53,7 @@
           <h1 data-test-title class="title">
             {{evaluation.shortId}}
             <span class="bumper-left tag is-primary">
-              Complete
+              {{evaluation.status}}
             </span>
           </h1>
           <button
@@ -53,6 +65,7 @@
             {{x-icon "cancel"}}
           </button>
         </div>
+        {{! Start Evaluation Stats}}
         <div class="boxed-section is-small">
           <div
             class="boxed-section-body inline-definitions"
@@ -62,117 +75,77 @@
               Evaluation Details
             </span>
             <div style="display: flex; flex-direction: column">
-              <span class="pair" data-test-job-stat="type">
+              <span class="pair">
                 <span class="term">
                   Job
                 </span>
                 <LinkTo
                   data-test-evaluation-job
-                  @model="example@default"
+                  @model={{concat evaluation.plainJobId "@" evaluation.namespace
+                  }}
                   @route="jobs.job"
                 >
-                  example
+                  {{evaluation.plainJobId}}
                 </LinkTo>
               </span>
-              <span class="pair" data-test-job-stat="type">
+              <span class="pair">
                 <span class="term">
                   Triggered By
                 </span>
-                job-register
+                {{evaluation.triggeredBy}}
               </span>
             </div>
             <div style="display: flex; flex-direction: column">
-              <span class="pair" data-test-job-stat="priority">
+              <span class="pair">
                 <span class="term">
                   Priority
                 </span>
-                10
+                {{evaluation.priority}}
               </span>
             </div>
             <div style="display: flex; flex-direction: column">
-              <span class="pair" data-test-job-stat="type">
+              <span class="pair">
                 <span class="term">
                   Created
                 </span>
-                Some Type
+                {{format-month-ts evaluation.createTime}}
               </span>
-              <span class="pair" data-test-job-stat="priority">
+              <span class="pair">
                 <span class="term">
                   Placement Failure
                 </span>
-                No
+                {{evaluation.hasPlacementFailures}}
               </span>
             </div>
           </div>
         </div>
-        {{! Start Related Evaluation}}
-        <div
-          style="max-width: 600px; overflow-x: scroll; overflow-y: hidden"
-          data-test-eval-container
-        >
-          <div
-            style="display: flex; position: relative;"
-            {{on-resize this.handleResize}}
-          >
-            {{#if (and this.width this.height)}}
-              <Providers::ActorsRelationships as |actors|>
-                <svg
-                  width={{this.width}}
-                  height={{this.height}}
-                  style="z-index: 10; inset: 0; position: absolute; pointer-events: none"
-                  {{did-update actors.fns.recalcCurves this.width}}
-                >
-                  {{#each actors.data.relationships as |d|}}
-                    <path
-                      d={{d}}
-                      stroke="#7E8FA8"
-                      strokeWidth="1"
-                      fill="none"
-                    ></path>
-                  {{/each}}
-                </svg>
-              </Providers::ActorsRelationships>
-            {{/if}}
-            <div>
-              <EvaluationSidebar::EvaluationActor
-                @eval={{this.parentEvaluation}}
-                @onClick={{fn @fns.handleEvaluationClick this.parentEvaluation}}
-              />
+        {{! Placement Failures}}
+        {{#if evaluation.failedTGAllocs}}
+          <div class="boxed-section is-danger">
+            <div class="boxed-section-head">
+              Placement Failures
             </div>
-            {{#each this.descendentsMap as |evals|}}
-              <div
-                data-test-eval-descendents-container
-                style="display: flex; flex-direction: column; justify-content: space-evenly;"
-              >
-                {{#each evals as |eval|}}
-                  <EvaluationSidebar::EvaluationActor
-                    @eval={{eval.data}}
-                    @onClick={{fn @fns.handleEvaluationClick eval.data}}
-                  />
-                {{/each}}
-              </div>
-            {{/each}}
-          </div>
-        </div>
-        {{! End Related Evaluations}}
-        <div
-          class="boxed-section
-            {{if evaluation.failedTGAllocs "is-warning" "is-primary"}}"
-          data-test-dry-run-message
-        >
-          <div class="boxed-section-head" data-test-dry-run-title>
-            Placement Failures
-          </div>
-          <div class="boxed-section-body" data-test-dry-run-body>
-            {{#if evaluation.failedTGAllocs}}
+            <div class="boxed-section-body">
               {{#each evaluation.failedTGAllocs as |placementFailure|}}
                 <PlacementFailure @failedTGAlloc={{placementFailure}} />
               {{/each}}
-            {{else}}
-              All tasks successfully allocated.
-            {{/if}}
+            </div>
           </div>
-        </div>
+        {{/if}}
+        {{! Related Evaluations}}
+        <EvaluationSidebar::RelatedEvaluations
+          @fns={{hash
+            handleResize=this.handleResize
+            handleEvaluationClick=@fns.handleEvaluationClick
+          }}
+          @data={{hash
+            width=this.width
+            height=this.height
+            parentEvaluation=this.parentEvaluation
+            descendentsMap=this.descendentsMap
+          }}
+        />
+        {{! Evaluation JSON Response}}
         <JsonViewer @json={{evaluation}} />
       {{/if}}
     </div>
