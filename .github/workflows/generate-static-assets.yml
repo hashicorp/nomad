@@ -11,24 +11,25 @@ on:
       - 'test-generate-static-assets'
 
 jobs:
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v2
-    - name: Generate static assets
-      id: generate-static-assets
-      run: make static-assets
-    - name: Commit and push changes
-      id: commit-change-push
-      run: |
-        echo "committing generated files"
-        git add -A .
-        find . -name '*.generated.go' -not -path './vendor/*' -exec git add -f '{}' \;
-      # skip comitting files if there are no generated files
-        if ! git diff-index --quiet HEAD --; \
-        then \
-          git commit --message "Generate files for $(NOMAD_VERSION) release"; \
-          git push origin "$(git rev-parse --abbrev-ref HEAD)" \
-        else \
-          echo "no files were updated" \
-        fi
+  generate-metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Generate static assets
+        id: generate-static-assets
+        run: make static-assets
+      - name: Commit and push changes
+        id: commit-change-push
+        run: |
+          echo "committing generated files"
+          git add -A .
+          find . -name '*.generated.go' -not -path './vendor/*' -exec git add -f '{}' \;
+        # skip comitting files if there are no generated files
+          if ! git diff-index --quiet HEAD --; \
+          then \
+            git commit --message "Generate files for $(NOMAD_VERSION) release"; \
+            git push origin "$(git rev-parse --abbrev-ref HEAD)" \
+          else \
+            echo "no files were updated" \
+          fi
 
