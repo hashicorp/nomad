@@ -54,7 +54,7 @@ jobs:
           if ! git diff-index --quiet HEAD --; \
           then \
             git commit --message "Generate files for $(NOMAD_VERSION) release"; \
-            git push origin "$(git rev-parse --abbrev-ref HEAD)" \
+            git push origin "$(git rev-parse --abbrev-ref HEAD)"; \
           elif \
             echo "no files were updated" \
           fi
