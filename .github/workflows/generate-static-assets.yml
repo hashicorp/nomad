@@ -22,7 +22,7 @@ jobs:
   generate-metadata:
     runs-on: ubuntu-latest
     needs: get-go-version
-    name: Go ${{ needs.get-go-version.outputs.go-version }} build
+    name: generate-metadata
     steps:
       - uses: actions/checkout@v2
       - name: Setup go
@@ -49,12 +49,12 @@ jobs:
         id: commit-change-push
         run: |
           echo "committing generated files"
-          git add -A . \
+          git add -A . 
           find . -name '*.generated.go' -not -path './vendor/*' -exec git add -f '{}' \;
           if ! git diff-index --quiet HEAD --; \
           then \
             git commit --message "Generate files for $(NOMAD_VERSION) release"; \
             git push origin "$(git rev-parse --abbrev-ref HEAD)" \
-          else \
+          elif \
             echo "no files were updated" \
           fi
