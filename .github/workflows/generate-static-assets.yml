@@ -34,7 +34,7 @@ jobs:
         id: generate-static-assets
         run: |
           make deps
-          make generate-all
+          make generate-examples
           make static-assets
       - name: Commit and push changes
         id: commit-change-push
