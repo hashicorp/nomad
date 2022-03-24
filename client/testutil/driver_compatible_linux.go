@@ -3,7 +3,6 @@
 package testutil
 
 import (
-	"runtime"
 	"testing"
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
@@ -23,9 +22,7 @@ func CgroupsCompatibleV1(t *testing.T) {
 }
 
 func cgroupsCompatibleV1(t *testing.T) bool {
-	if runtime.GOOS != "linux" {
-		return false
-	}
+	// build tags mean this will never run outside of linux
 
 	if cgroupsCompatibleV2(t) {
 		t.Log("No cgroup.v1 mount point: running in cgroup.v2 mode")

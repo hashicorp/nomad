@@ -371,8 +371,8 @@ func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 				}
 
 				// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
-				// don't isolate it by default.
-				if strings.Contains(line, ":rdma:") || strings.Contains(line, "::") {
+				// don't isolate it by default. And also misc.
+				if strings.Contains(line, ":rdma:") || strings.Contains(line, "::") || strings.Contains(line, ":misc:") {
 					continue
 				}
 

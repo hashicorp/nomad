@@ -92,3 +92,12 @@ func MountCompatible(t *testing.T) {
 		t.Skip("Test requires root")
 	}
 }
+
+// MinimumCores skips tests unless:
+// - system has at least cores available CPU cores
+func MinimumCores(t *testing.T, cores int) {
+	available := runtime.NumCPU()
+	if available < cores {
+		t.Skipf("Test requires at least %d cores, only %d available", cores, available)
+	}
+}

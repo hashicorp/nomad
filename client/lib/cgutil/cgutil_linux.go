@@ -32,24 +32,26 @@ func GetCgroupParent(parent string) string {
 
 // CreateCPUSetManager creates a V1 or V2 CpusetManager depending on system configuration.
 func CreateCPUSetManager(parent string, logger hclog.Logger) CpusetManager {
+	parent = GetCgroupParent(parent) // use appropriate default parent if not set in client config
 	if UseV2 {
-		return NewCpusetManagerV2(getParentV2(parent), logger.Named("cpuset.v2"))
+		return NewCpusetManagerV2(parent, logger.Named("cpuset.v2"))
 	}
-	return NewCpusetManagerV1(getParentV1(parent), logger.Named("cpuset.v1"))
+	return NewCpusetManagerV1(parent, logger.Named("cpuset.v1"))
 }
 
 // GetCPUsFromCgroup gets the effective cpuset value for the given cgroup.
 func GetCPUsFromCgroup(group string) ([]uint16, error) {
+	group = GetCgroupParent(group)
 	if UseV2 {
-		return getCPUsFromCgroupV2(getParentV2(group))
+		return getCPUsFromCgroupV2(group)
 	}
-	return getCPUsFromCgroupV1(getParentV1(group))
+	return getCPUsFromCgroupV1(group)
 }
 
 // CgroupScope returns the name of the scope for Nomad's managed cgroups for
 // the given allocID and task.
 //
-// e.g. "<allocID>-<task>.scope"
+// e.g. "<allocID>.<task>.scope"
 //
 // Only useful for v2.
 func CgroupScope(allocID, task string) string {

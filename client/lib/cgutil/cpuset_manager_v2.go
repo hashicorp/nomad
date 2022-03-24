@@ -40,8 +40,8 @@ const (
 // nothing is used for treating a map like a set with no values
 type nothing struct{}
 
-// null represents nothing
-var null = nothing{}
+// present indicates something exists
+var present = nothing{}
 
 type cpusetManagerV2 struct {
 	logger hclog.Logger
@@ -57,10 +57,9 @@ type cpusetManagerV2 struct {
 }
 
 func NewCpusetManagerV2(parent string, logger hclog.Logger) CpusetManager {
-	cgroupParent := getParentV2(parent)
 	return &cpusetManagerV2{
-		parent:    cgroupParent,
-		parentAbs: filepath.Join(CgroupRoot, cgroupParent),
+		parent:    parent,
+		parentAbs: filepath.Join(CgroupRoot, parent),
 		logger:    logger,
 		sharing:   make(map[identity]nothing),
 		isolating: make(map[identity]cpuset.CPUSet),
@@ -93,7 +92,7 @@ func (c *cpusetManagerV2) AddAlloc(alloc *structs.Allocation) {
 		if len(resources.Cpu.ReservedCores) > 0 {
 			c.isolating[id] = cpuset.New(resources.Cpu.ReservedCores...)
 		} else {
-			c.sharing[id] = null
+			c.sharing[id] = present
 		}
 	}
 
@@ -197,10 +196,10 @@ func (c *cpusetManagerV2) cleanup() {
 	size := len(c.sharing) + len(c.isolating)
 	ids := make(map[identity]nothing, size)
 	for id := range c.sharing {
-		ids[id] = null
+		ids[id] = present
 	}
 	for id := range c.isolating {
-		ids[id] = null
+		ids[id] = present
 	}
 
 	if err := filepath.WalkDir(c.parentAbs, func(path string, entry os.DirEntry, err error) error {

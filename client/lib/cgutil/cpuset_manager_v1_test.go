@@ -106,17 +106,15 @@ func TestCpusetManager_V1_AddAlloc_single(t *testing.T) {
 func TestCpusetManager_V1_RemoveAlloc(t *testing.T) {
 	testutil.CgroupsCompatibleV1(t)
 
+	// This case tests adding 2 allocations, reconciling then removing 1 alloc.
+	// It requires the system to have at least 3 cpu cores (one for each alloc),
+	// BUT plus another one because writing an empty cpuset causes the cgroup to
+	// inherit the parent.
+	testutil.MinimumCores(t, 3)
+
 	manager, cleanup := tmpCpusetManagerV1(t)
 	defer cleanup()
 	require.NoError(t, manager.Init(nil))
-
-	// This case tests adding 2 allocs, reconciling then removing 1 alloc
-	// it requires the system to have at least 3 cpu cores (one for each alloc),
-	// BUT plus another one because writing an empty cpuset causes the cgroup to
-	// inherit the parent.
-	if manager.parentCpuset.Size() < 3 {
-		t.Skip("test requires at least 3 cpu cores")
-	}
 
 	alloc1 := mock.Alloc()
 	alloc1Cpuset := cpuset.New(manager.parentCpuset.ToSlice()[0])

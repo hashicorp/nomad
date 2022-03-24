@@ -117,12 +117,12 @@ func (c *cpusetManagerV1) CgroupPathFor(allocID, task string) CgroupPathGetter {
 				break
 			}
 
-			timer.Reset(100 * time.Millisecond)
 			if _, err := os.Stat(taskInfo.CgroupPath); os.IsNotExist(err) {
 				select {
 				case <-ctx.Done():
 					return taskInfo.CgroupPath, ctx.Err()
 				case <-timer.C:
+					timer.Reset(100 * time.Millisecond)
 					continue
 				}
 			}

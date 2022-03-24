@@ -24,6 +24,7 @@ var systemCores = []uint16{0, 1}
 
 func TestCpusetManager_V2_AddAlloc(t *testing.T) {
 	testutil.CgroupsCompatibleV2(t)
+	testutil.MinimumCores(t, 2)
 
 	logger := testlog.HCLogger(t)
 	parent := uuid.Short() + ".scope"
@@ -63,6 +64,7 @@ func cpusetIs(t *testing.T, exp, parent, allocID, task string) {
 
 func TestCpusetManager_V2_RemoveAlloc(t *testing.T) {
 	testutil.CgroupsCompatibleV2(t)
+	testutil.MinimumCores(t, 2)
 
 	logger := testlog.HCLogger(t)
 	parent := uuid.Short() + ".scope"
