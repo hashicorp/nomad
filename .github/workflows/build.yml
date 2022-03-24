@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows: [generate-static-assets]
     types: [completed]
+    branches: [test-generate-static-assets]
     
 env:
   PKG_NAME: "nomad"
