@@ -50,7 +50,7 @@ jobs:
         run: |
           echo "committing generated files"
           git add -A . 
-          find . -name "*.generated.go" -not -path "./vendor/*" -exec git add -f "{}" \;
+          find . -name '*.generated.go' -not -path './vendor/*' -exec git add -f '{}' \
           if ! git diff-index --quiet HEAD --; \
           then \
             git commit --message "Generate files for $(NOMAD_VERSION) release"; \
