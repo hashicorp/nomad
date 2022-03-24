@@ -1763,6 +1763,11 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.BindWildcardDefaultHostNetwork {
 		result.BindWildcardDefaultHostNetwork = true
 	}
+
+	if b.CgroupParent != "" {
+		result.CgroupParent = b.CgroupParent
+	}
+
 	return &result
 }
 

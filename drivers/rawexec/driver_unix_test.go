@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package rawexec
 
@@ -18,8 +17,11 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
+	clienttestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 	basePlug "github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
@@ -30,9 +32,7 @@ import (
 
 func TestRawExecDriver_User(t *testing.T) {
 	ci.Parallel(t)
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux only test")
-	}
+	clienttestutil.RequireLinux(t)
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
@@ -205,13 +205,8 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 // task processes are cleaned up.
 func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 	ci.Parallel(t)
-
-	// This only works reliably with cgroup PID tracking, happens in linux only
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux only test")
-	}
-
-	require := require.New(t)
+	clienttestutil.RequireLinux(t)
+	clienttestutil.CgroupsCompatibleV1(t) // todo(shoenig): #12348
 
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -222,6 +217,15 @@ func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 		Name: "test",
 	}
 
+	if cgutil.UseV2 {
+		allocID := uuid.Generate()
+		task.AllocID = allocID
+		task.Resources = new(drivers.Resources)
+		task.Resources.NomadResources = new(structs.AllocatedTaskResources)
+		task.Resources.LinuxResources = new(drivers.LinuxResources)
+		task.Resources.LinuxResources.CpusetCgroupPath = filepath.Join(cgutil.CgroupRoot, "testing.slice", cgutil.CgroupScope(allocID, "test"))
+	}
+
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
@@ -229,20 +233,20 @@ func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 	taskConfig["command"] = "/bin/sh"
 	taskConfig["args"] = []string{"-c", fmt.Sprintf(`sleep 3600 & echo "SLEEP_PID=$!"`)}
 
-	require.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
+	require.NoError(t, task.EncodeConcreteDriverConfig(&taskConfig))
 
 	handle, _, err := harness.StartTask(task)
-	require.NoError(err)
+	require.NoError(t, err)
 	defer harness.DestroyTask(task.ID, true)
 
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
-	require.NoError(err)
+	require.NoError(t, err)
 
 	select {
 	case result := <-ch:
-		require.True(result.Successful(), "command failed: %#v", result)
+		require.True(t, result.Successful(), "command failed: %#v", result)
 	case <-time.After(10 * time.Second):
-		require.Fail("timeout waiting for task to shutdown")
+		require.Fail(t, "timeout waiting for task to shutdown")
 	}
 
 	sleepPid := 0
@@ -268,7 +272,7 @@ func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 		sleepPid = pid
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 
 	// isProcessRunning returns an error if process is not running
@@ -286,9 +290,9 @@ func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(isProcessRunning(sleepPid))
+	require.NoError(t, isProcessRunning(sleepPid))
 
-	require.NoError(harness.DestroyTask(task.ID, true))
+	require.NoError(t, harness.DestroyTask(task.ID, true))
 
 	testutil.WaitForResult(func() (bool, error) {
 		err := isProcessRunning(sleepPid)
@@ -302,7 +306,7 @@ func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 }
 
@@ -342,9 +346,7 @@ func TestRawExec_ExecTaskStreaming(t *testing.T) {
 
 func TestRawExec_ExecTaskStreaming_User(t *testing.T) {
 	ci.Parallel(t)
-	if runtime.GOOS != "linux" {
-		t.Skip("skip, requires running on Linux for testing custom user setting")
-	}
+	clienttestutil.RequireLinux(t)
 
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -381,9 +383,7 @@ func TestRawExec_ExecTaskStreaming_User(t *testing.T) {
 
 func TestRawExecDriver_NoCgroup(t *testing.T) {
 	ci.Parallel(t)
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux only test")
-	}
+	clienttestutil.RequireLinux(t)
 
 	expectedBytes, err := ioutil.ReadFile("/proc/self/cgroup")
 	require.NoError(t, err)

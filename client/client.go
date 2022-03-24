@@ -365,7 +365,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		invalidAllocs:        make(map[string]struct{}),
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
-		cpusetManager:        cgutil.NewCpusetManager(cfg.CgroupParent, logger.Named("cpuset_manager")),
+		cpusetManager:        cgutil.CreateCPUSetManager(cfg.CgroupParent, logger),
 		EnterpriseClient:     newEnterpriseClient(logger),
 	}
 
@@ -657,19 +657,23 @@ func (c *Client) init() error {
 
 	// Ensure cgroups are created on linux platform
 	if runtime.GOOS == "linux" && c.cpusetManager != nil {
-		err := c.cpusetManager.Init()
-		if err != nil {
-			// if the client cannot initialize the cgroup then reserved cores will not be reported and the cpuset manager
-			// will be disabled. this is common when running in dev mode under a non-root user for example
-			c.logger.Warn("could not initialize cpuset cgroup subsystem, cpuset management disabled", "error", err)
-			c.cpusetManager = cgutil.NoopCpusetManager()
+		// use the client configuration for reservable_cores if set
+		cores := c.config.ReservableCores
+		if len(cores) == 0 {
+			// otherwise lookup the effective cores from the parent cgroup
+			cores, _ = cgutil.GetCPUsFromCgroup(c.config.CgroupParent)
+		}
+		if cpuErr := c.cpusetManager.Init(cores); cpuErr != nil {
+			// If the client cannot initialize the cgroup then reserved cores will not be reported and the cpuset manager
+			// will be disabled. this is common when running in dev mode under a non-root user for example.
+			c.logger.Warn("failed to initialize cpuset cgroup subsystem, cpuset management disabled", "error", cpuErr)
+			c.cpusetManager = new(cgutil.NoopCpusetManager)
 		}
 	}
 	return nil
 }
 
-// reloadTLSConnections allows a client to reload its TLS configuration on the
-// fly
+// reloadTLSConnections allows a client to reload its TLS configuration on the fly
 func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	var tlsWrap tlsutil.RegionWrapper
 	if newConfig != nil && newConfig.EnableRPC {

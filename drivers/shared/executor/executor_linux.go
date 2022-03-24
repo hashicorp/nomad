@@ -1,10 +1,10 @@
 //go:build linux
-// +build linux
 
 package executor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -35,10 +36,6 @@ import (
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
-)
-
-const (
-	defaultCgroupParent = "/nomad"
 )
 
 var (
@@ -71,7 +68,6 @@ type LibcontainerExecutor struct {
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger) Executor {
-
 	logger = logger.Named("isolated_executor")
 	if err := shelpers.Init(); err != nil {
 		logger.Error("unable to initialize stats", "error", err)
@@ -665,14 +661,27 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 }
 
 func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
-
 	// If resources are not limited then manually create cgroups needed
 	if !command.ResourceLimits {
-		return configureBasicCgroups(cfg)
+		return cgutil.ConfigureBasicCgroups(cfg)
 	}
 
-	id := uuid.Generate()
-	cfg.Cgroups.Path = filepath.Join("/", defaultCgroupParent, id)
+	// set cgroups path
+	if cgutil.UseV2 {
+		// in v2, the cgroup must have been created by the client already,
+		// which breaks a lot of existing tests that run drivers without a client
+		if command.Resources == nil || command.Resources.LinuxResources == nil || command.Resources.LinuxResources.CpusetCgroupPath == "" {
+			return errors.New("cgroup path must be set")
+		}
+		parent, cgroup := cgutil.SplitPath(command.Resources.LinuxResources.CpusetCgroupPath)
+		cfg.Cgroups.Path = filepath.Join("/", parent, cgroup)
+	} else {
+		// in v1, the cgroup is created using /nomad, which is a bug because it
+		// does not respect the cgroup_parent client configuration
+		// (but makes testing easy)
+		id := uuid.Generate()
+		cfg.Cgroups.Path = filepath.Join("/", cgutil.DefaultCgroupV1Parent, id)
+	}
 
 	if command.Resources == nil || command.Resources.NomadResources == nil {
 		return nil
@@ -713,44 +722,6 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 	}
 
 	return nil
-}
-
-func configureBasicCgroups(cfg *lconfigs.Config) error {
-	id := uuid.Generate()
-
-	// Manually create freezer cgroup
-
-	subsystem := "freezer"
-
-	path, err := getCgroupPathHelper(subsystem, filepath.Join(defaultCgroupParent, id))
-	if err != nil {
-		return fmt.Errorf("failed to find %s cgroup mountpoint: %v", subsystem, err)
-	}
-
-	if err = os.MkdirAll(path, 0755); err != nil {
-		return err
-	}
-
-	cfg.Cgroups.Paths = map[string]string{
-		subsystem: path,
-	}
-	return nil
-}
-
-func getCgroupPathHelper(subsystem, cgroup string) (string, error) {
-	mnt, root, err := cgroups.FindCgroupMountpointAndRoot("", subsystem)
-	if err != nil {
-		return "", err
-	}
-
-	// This is needed for nested containers, because in /proc/self/cgroup we
-	// see paths from host, which don't exist in container.
-	relCgroup, err := filepath.Rel(root, cgroup)
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Join(mnt, relCgroup), nil
 }
 
 func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
