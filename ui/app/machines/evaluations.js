@@ -55,26 +55,10 @@ export default createMachine(
                     return event.data;
                   },
                 }),
-                initial: 'busy',
                 on: {
                   LOAD_EVALUATION: {
                     target: 'busy',
                     actions: ['updateEvaluationQueryParameter'],
-                  },
-                },
-                states: {
-                  busy: {
-                    invoke: {
-                      src: 'loadRelatedEvaluations',
-                      onDone: 'successRelatedEvaluations',
-                      onError: 'errorRelatedEvaluations',
-                    },
-                  },
-                  successRelatedEvaluations: {},
-                  errorRelatedEvaluations: {
-                    on: {
-                      RETRY: 'busy',
-                    },
                   },
                 },
               },
@@ -103,13 +87,9 @@ export default createMachine(
   },
   {
     services: {
-      async loadEvaluations() {
-        return;
-      },
+      // Overridden in the controller
+      async loadEvaluations() {},
       async loadEvaluation() {},
-      async loadRelatedEvaluations() {
-        return;
-      },
     },
     guards: {
       sidebarIsOpen() {
