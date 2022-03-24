@@ -27,7 +27,7 @@ env:
   CONSUL_VERSION: 1.11.3
   VAULT_VERSION: 1.9.3
   NOMAD_SLOW_TEST: 0
-  NOMAD_TEST_LOG_LEVEL: ERROR
+  NOMAD_TEST_LOG_LEVEL: OFF
 jobs:
   checks:
     runs-on: ubuntu-20.04
