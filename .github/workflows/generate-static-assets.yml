@@ -1,0 +1,33 @@
+name: generate-static-assets
+
+on: 
+  push:
+    # Sequence of patterns matched against refs/heads
+    branches:
+      # Push events on main branch
+      # - main
+      # Push events to branches matching refs/heads/release/**
+      # - 'release/**'
+      - 'crt/1.2.x'
+
+jobs:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v2
+    - name: Generate static assets
+      id: generate-static-assets
+      run: make static-assets
+    - name: Commit and push changes
+      id: commit-change-push
+      run: |
+        echo "committing generated files"
+        git add -A .
+        find . -name '*.generated.go' -not -path './vendor/*' -exec git add -f '{}' \;
+      # skip comitting files if there are no generated files
+      # if prerelease process was a no-op
+        if ! git diff-index --quiet HEAD --; \
+        then \
+          git commit --author 'Nomad Release bot <nomad@hashicorp.com>' \
+            --message "Generate files for $(NOMAD_VERSION) release"; \
+        fi
+        git push origin "$(git rev-parse --abbrev-ref HEAD)"
