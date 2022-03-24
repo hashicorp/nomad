@@ -149,16 +149,10 @@
     {{/if}}
   </div>
   <EvaluationSidebar::Detail
-    @data={{hash
-      evaluation=this.currentEvalDetail
-      height=this.height
-      width=this.width
-      hierarchy=this.hierarchy
-      descendentsMap=this.descendentsMap
-      isSideBarOpen=this.isSideBarOpen
-      isSuccess=this.isSuccess
-      error=this.statechart.state.context.error
+    @statechart={{this.statechart}}
+    @fns={{hash
+      closeSidebar=this.closeSidebar
+      handleEvaluationClick=this.handleEvaluationClick
     }}
-    @fns={{hash closeSidebar=this.closeSidebar handleResize=this.handleResize}}
   />
 </section>
