@@ -5,6 +5,9 @@ on:
     branches:
       - test-generate-static-assets
 
+env:
+  GO_TAGS: "ui codegen_generated release"
+
 jobs:
   get-go-version:
     runs-on: ubuntu-latest
