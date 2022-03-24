@@ -33,6 +33,7 @@ jobs:
       - name: Generate static assets
         id: generate-static-assets
         run: |
+          make deps
           make prerelease
       - name: Commit and push changes
         id: commit-change-push
