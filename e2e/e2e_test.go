@@ -15,6 +15,7 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/consultemplate"
 	_ "github.com/hashicorp/nomad/e2e/csi"
 	_ "github.com/hashicorp/nomad/e2e/deployment"
+	_ "github.com/hashicorp/nomad/e2e/disconnectedclients"
 	_ "github.com/hashicorp/nomad/e2e/eval_priority"
 	_ "github.com/hashicorp/nomad/e2e/events"
 	_ "github.com/hashicorp/nomad/e2e/example"
