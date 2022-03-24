@@ -181,22 +181,24 @@ to be added.
 
 For production raft clusters with 3 or more memebrs, the easiest way
 to upgrade servers is to have each server leave the cluster, upgrade
-its [`raft_protocol`] version in the `server` stanza, and then add it
-back. Make sure the new server joins successfully and that the cluster
-is stable before rolling the upgrade forward to the next server. It's
-also possible to stand up a new set of servers, and then slowly stand
-down each of the older servers in a similar fashion.
+its [`raft_protocol`] version in the `server` stanza (if upgrading to
+a version lower than v1.3.0), and then add it back. Make sure the new
+server joins successfully and that the cluster is stable before
+rolling the upgrade forward to the next server. It's also possible to
+stand up a new set of servers, and then slowly stand down each of the
+older servers in a similar fashion.
 
 For in-place raft protocol upgrades, perform the following for each
 server, leaving the leader until last to reduce the chance of leader
 elections that will slow down the process:
 
-* Stop the server
-* Run `nomad server force-leave $server_name`
-* Update the `raft_protocol` in the server's configuration file to 3.
-* Restart the server
-* Run `nomad operator raft list-peers` to verify that the `raft_vsn`
-  for the server is now 3.
+* Stop the server.
+* Run `nomad server force-leave $server_name`.
+* If the upgrade is for a Nomad version lower than v1.3.0, update the
+  [`raft_protocol`] in the server's configuration file to `3`.
+* Restart the server.
+* Run `nomad operator raft list-peers` to verify that the
+  `RaftProtocol` for the server is now `3`.
 * On the server, run `nomad agent-info` and check that the
   `last_log_index` is of a similar value to the other servers. This
   step ensures that raft is healthy and changes are replicating to the
@@ -229,7 +231,9 @@ cat <<EOF > "$NOMAD_DATA_DIR/server/raft/peers.json"
 EOF
 ```
 
-After running this script, update the `raft_protocol` in the server's
-configuration to 3 and restart the server.
+After running this script, if the upgrade is for a Nomad version lower
+than v1.3.0, update the [`raft_protocol`] in the server's
+configuration to `3` and restart the server.
 
 [peers-json]: https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson
+[`raft_protocol`]: /docs/configuration/server#raft_protocol
