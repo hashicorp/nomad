@@ -868,6 +868,12 @@ func TestRPC_Limits_OK(t *testing.T) {
 				}
 				c.RPCHandshakeTimeout = tc.timeout
 				c.RPCMaxConnsPerClient = tc.limit
+
+				// With Raft v3 Autopilot makes a lot of RPC requests to
+				// Status.RaftStats using the StatsFetcher. This makes it very
+				// likely that there will be a concurrent request that will
+				// mess with the request limit enforcer.
+				c.RaftConfig.ProtocolVersion = 2
 			})
 			defer func() {
 				cleanup()
