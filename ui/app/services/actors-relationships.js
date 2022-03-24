@@ -5,18 +5,18 @@ import { schedule } from '@ember/runloop';
 import { getBoxToBoxArrow } from 'curved-arrows';
 
 function boxToArrow(ra, rb) {
-  const bbA = ra.getBoundingClientRect();
-  const bbB = rb.getBoundingClientRect();
+  const bbA = ra;
+  const bbB = rb;
 
   const [sx, sy, c1x, c1y, c2x, c2y, ex, ey, ae, as] = getBoxToBoxArrow(
-    bbA.x,
-    bbA.y,
-    bbA.width,
-    bbA.height,
-    bbB.x,
-    bbB.y,
-    bbA.width,
-    bbB.height
+    bbA.offsetLeft,
+    bbA.offsetTop,
+    bbA.offsetWidth,
+    bbA.offsetHeight,
+    bbB.offsetLeft,
+    bbB.offsetTop,
+    bbA.offsetWidth,
+    bbB.offsetHeight
   );
 
   return {
@@ -62,11 +62,9 @@ export default class ActorRelationshipService extends Service {
     const { actors } = this;
 
     return actors
-      .filter((e) => e.data.prevEval) // should we make this more generic
+      .filter((e) => e.previousEval) // should we make this more generic
       .map((e) => {
-        const {
-          data: { prevEval: pid, id },
-        } = e;
+        const { previousEval: pid, id } = e;
 
         const eRectangle = document.querySelector(`[data-eval="${id}"]`);
         const prevRectangle = document.querySelector(`[data-eval="${pid}"]`);
