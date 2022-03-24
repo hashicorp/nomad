@@ -101,8 +101,9 @@ envoy_gateway_bind_addresses "<service>" {
 #### `listener` Parameters
 
 - `port` `(int: required)` - The port that the listener should receive traffic on.
-- `protocol` `(string: "tcp")` - The protocol associated with the listener. Either
-  `tcp` or `http`.
+- `protocol` `(string: "tcp")` - 'The protocol associated with the listener. 
+   One of `tcp`, `http`, `http2`, or `grpc`.',
+  
 
   ~> **Note:** If using `http`, preconfiguring a [service-default] in Consul to
   set the [Protocol](https://www.consul.io/docs/agent/config-entries/service-defaults#protocol)
