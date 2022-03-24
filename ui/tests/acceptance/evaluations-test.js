@@ -1,4 +1,11 @@
-import { click, currentRouteName, visit } from '@ember/test-helpers';
+import {
+  click,
+  currentRouteName,
+  currentURL,
+  visit,
+  waitFor,
+  waitUntil,
+} from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -457,13 +464,93 @@ module('Acceptance | evaluations list', function (hooks) {
       const evalId = '5fb1b8cd';
       await click(`[data-test-evaluation='${evalId}']`);
 
-      await this.pauseTest();
+      assert
+        .dom('[data-test-eval-detail-is-open]')
+        .exists(
+          'A sidebar portal mounts to the dom after clicking an evaluation'
+        );
+
+      assert
+        .dom('[data-test-rel-eval]')
+        .exists(
+          { count: 11 },
+          'all related evaluations and the current evaluation are displayed'
+        );
+
+      click(`[data-test-rel-eval='fd1cd898-d655-c7e4-17f6-a1a2e98b18ef']`);
+      await waitFor('[data-test-eval-loading]');
+      assert
+        .dom('[data-test-eval-loading]')
+        .exists(
+          'transition to loading state after clicking related evaluation'
+        );
+
+      await waitFor('[data-test-eval-detail-header]');
+
+      assert.equal(
+        currentURL(),
+        '/evaluations?currentEval=fd1cd898-d655-c7e4-17f6-a1a2e98b18ef'
+      );
+      assert
+        .dom('[data-test-title]')
+        .includesText('fd1cd898', 'New evaluation hash appears in the title');
+
+      await click(`[data-test-evaluation='66cb98a6']`);
+      assert.equal(
+        currentURL(),
+        '/evaluations?currentEval=66cb98a6-7740-d5ef-37e4-fa0f8b1de44b',
+        'Clicking an evaluation in the table updates the sidebar'
+      );
+
+      click('[data-test-eval-sidebar-x]');
+
+      // We wait until the sidebar closes since it uses a transition of 300ms
+      await waitUntil(
+        () => !document.querySelector('[data-test-eval-detail-is-open]')
+      );
+
+      assert.equal(
+        currentURL(),
+        '/evaluations',
+        'When the user clicks the x button the sidebar closes'
+      );
+    });
+
+    test('it should provide an error state when loading an invalid evaluation', async function (assert) {
+      server.get('/evaluations', getStandardRes);
+      server.get('/evaluation/:id', function () {
+        return new Response(404, {}, '');
+      });
+
+      await visit('/evaluations');
+
+      const evalId = '5fb1b8cd';
+      await click(`[data-test-evaluation='${evalId}']`);
 
       assert
         .dom('[data-test-eval-detail-is-open]')
         .exists(
           'A sidebar portal mounts to the dom after clicking an evaluation'
         );
+
+      assert
+        .dom('[data-test-eval-error]')
+        .exists(
+          'all related evaluations and the current evaluation are displayed'
+        );
+
+      click('[data-test-eval-sidebar-x]');
+
+      // We wait until the sidebar closes since it uses a transition of 300ms
+      await waitUntil(
+        () => !document.querySelector('[data-test-eval-detail-is-open]')
+      );
+
+      assert.equal(
+        currentURL(),
+        '/evaluations',
+        'When the user clicks the x button the sidebar closes'
+      );
     });
   });
 });
