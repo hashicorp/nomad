@@ -956,7 +956,7 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 }
 
 func Test_eventsFromChanges_ServiceRegistration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testState := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer testState.StopEventBroker()
 

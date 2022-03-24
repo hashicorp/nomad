@@ -2,10 +2,10 @@ package structs
 
 import (
 	"errors"
-	"github.com/hashicorp/go-multierror"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/stretchr/testify/require"
@@ -1479,7 +1479,7 @@ func TestConsulMeshGateway_Validate(t *testing.T) {
 }
 
 func TestService_validateNomadService(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testCases := []struct {
 		inputService         *Service

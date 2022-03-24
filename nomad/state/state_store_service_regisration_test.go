@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStateStore_UpsertServiceRegistrations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testState := testStateStore(t)
 
 	// SubTest Marker: This ensures new service registrations are inserted as
@@ -143,7 +144,7 @@ func TestStateStore_UpsertServiceRegistrations(t *testing.T) {
 }
 
 func TestStateStore_DeleteServiceRegistrationByID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testState := testStateStore(t)
 
 	// Generate some test services that we will use and modify throughout.
@@ -216,7 +217,7 @@ func TestStateStore_DeleteServiceRegistrationByID(t *testing.T) {
 }
 
 func TestStateStore_DeleteServiceRegistrationByNodeID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testState := testStateStore(t)
 
 	// Generate some test services that we will use and modify throughout.
@@ -312,7 +313,7 @@ func TestStateStore_DeleteServiceRegistrationByNodeID(t *testing.T) {
 }
 
 func TestStateStore_GetServiceRegistrations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testState := testStateStore(t)
 
 	// Generate some test services and upsert them.
@@ -347,7 +348,7 @@ func TestStateStore_GetServiceRegistrations(t *testing.T) {
 }
 
 func TestStateStore_GetServiceRegistrationsByNamespace(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testState := testStateStore(t)
 
 	// Generate some test services and upsert them.
@@ -400,7 +401,7 @@ func TestStateStore_GetServiceRegistrationsByNamespace(t *testing.T) {
 }
 
 func TestStateStore_GetServiceRegistrationByName(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testState := testStateStore(t)
 
 	// Generate some test services and upsert them.
@@ -473,7 +474,7 @@ func TestStateStore_GetServiceRegistrationByName(t *testing.T) {
 }
 
 func TestStateStore_GetServiceRegistrationByID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testState := testStateStore(t)
 
 	// Generate some test services and upsert them.
@@ -499,7 +500,7 @@ func TestStateStore_GetServiceRegistrationByID(t *testing.T) {
 }
 
 func TestStateStore_GetServiceRegistrationsByAllocID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testState := testStateStore(t)
 
 	// Generate some test services and upsert them.
@@ -543,7 +544,7 @@ func TestStateStore_GetServiceRegistrationsByAllocID(t *testing.T) {
 }
 
 func TestStateStore_GetServiceRegistrationsByJobID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testState := testStateStore(t)
 
 	// Generate some test services and upsert them.
@@ -593,7 +594,7 @@ func TestStateStore_GetServiceRegistrationsByJobID(t *testing.T) {
 }
 
 func TestStateStore_GetServiceRegistrationsByNodeID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testState := testStateStore(t)
 
 	// Generate some test services and upsert them.

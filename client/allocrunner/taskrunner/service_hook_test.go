@@ -156,7 +156,7 @@ func Test_serviceHook_multipleDeRegisterCall(t *testing.T) {
 // Test_serviceHook_Nomad performs a normal operation test of the serviceHook
 // when using task services which utilise the Nomad provider.
 func Test_serviceHook_Nomad(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Create a mock alloc, and add a task service using provider Nomad.
 	alloc := mock.Alloc()

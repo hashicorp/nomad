@@ -871,7 +871,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly_Advertise(t *testing.T) {
 }
 
 func TestNode_UpdateStatus_ServiceRegistrations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testServer, serverCleanup := TestServer(t, nil)
 	defer serverCleanup()

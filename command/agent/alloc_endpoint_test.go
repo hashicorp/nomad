@@ -435,7 +435,7 @@ func TestHTTP_AllocStop(t *testing.T) {
 }
 
 func TestHTTP_allocServiceRegistrations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testCases := []struct {
 		testFn func(srv *TestAgent)

@@ -3,12 +3,13 @@ package nomad
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_jobImpliedConstraints_Mutate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testCases := []struct {
 		inputJob               *structs.Job

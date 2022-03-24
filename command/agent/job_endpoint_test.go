@@ -2250,7 +2250,7 @@ func TestJobs_NamespaceForJob(t *testing.T) {
 }
 
 func TestHTTPServer_jobServiceRegistrations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testCases := []struct {
 		testFn func(srv *TestAgent)

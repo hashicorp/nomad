@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
 func TestHTTPServer_ServiceRegistrationListRequest(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testCases := []struct {
 		testFn func(srv *TestAgent)
@@ -149,7 +150,7 @@ func TestHTTPServer_ServiceRegistrationListRequest(t *testing.T) {
 }
 
 func TestHTTPServer_ServiceRegistrationRequest(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testCases := []struct {
 		testFn func(srv *TestAgent)

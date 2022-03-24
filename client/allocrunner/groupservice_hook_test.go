@@ -157,7 +157,7 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 // TestGroupServiceHook_GroupServices_Nomad asserts group service hooks with
 // group services does not error when using the Nomad provider.
 func TestGroupServiceHook_GroupServices_Nomad(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Create a mock alloc, and add a group service using provider Nomad.
 	alloc := mock.Alloc()

@@ -1362,7 +1362,7 @@ func TestAllocEndpoint_List_AllNamespaces_ACL_OSS(t *testing.T) {
 }
 
 func TestAlloc_GetServiceRegistrations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// This function is a helper function to set up an allocation and service
 	// which can be queried.

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestServiceListCommand_Run(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()

@@ -7920,7 +7920,7 @@ func TestJobEndpoint_GetScaleStatus_ACL(t *testing.T) {
 }
 
 func TestJob_GetServiceRegistrations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// This function is a helper function to set up job and service which can
 	// be queried.

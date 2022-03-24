@@ -4599,7 +4599,7 @@ func TestStateStore_EvalsByIDPrefix_Namespaces(t *testing.T) {
 }
 
 func TestStateStore_EvalsRelatedToID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 

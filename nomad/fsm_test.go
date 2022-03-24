@@ -3260,7 +3260,7 @@ func TestFSM_SnapshotRestore_Namespaces(t *testing.T) {
 }
 
 func TestFSM_UpsertServiceRegistrations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	// Generate our test service registrations.
@@ -3284,7 +3284,7 @@ func TestFSM_UpsertServiceRegistrations(t *testing.T) {
 }
 
 func TestFSM_DeleteServiceRegistrationsByID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	// Generate our test service registrations.
@@ -3312,7 +3312,7 @@ func TestFSM_DeleteServiceRegistrationsByID(t *testing.T) {
 }
 
 func TestFSM_DeleteServiceRegistrationsByNodeID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	// Generate our test service registrations. Set them both to have the same

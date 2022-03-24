@@ -544,7 +544,7 @@ func TestStateStore_RestoreSchedulerConfig(t *testing.T) {
 }
 
 func TestStateStore_ServiceRegistrationRestore(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testState := testStateStore(t)
 
 	// Set up our test registrations and index.

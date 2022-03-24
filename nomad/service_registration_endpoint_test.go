@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestServiceRegistration_Upsert(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testCases := []struct {
 		serverFn func(t *testing.T) (*Server, *structs.ACLToken, func())
@@ -198,7 +199,7 @@ func TestServiceRegistration_Upsert(t *testing.T) {
 }
 
 func TestServiceRegistration_DeleteByID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testCases := []struct {
 		serverFn func(t *testing.T) (*Server, *structs.ACLToken, func())
@@ -401,7 +402,7 @@ func TestServiceRegistration_DeleteByID(t *testing.T) {
 }
 
 func TestServiceRegistration_List(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testCases := []struct {
 		serverFn func(t *testing.T) (*Server, *structs.ACLToken, func())
@@ -811,7 +812,7 @@ func TestServiceRegistration_List(t *testing.T) {
 }
 
 func TestServiceRegistration_GetService(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testCases := []struct {
 		serverFn func(t *testing.T) (*Server, *structs.ACLToken, func())
