@@ -32,17 +32,23 @@ jobs:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
       - uses: actions/checkout@v2
 
+      - name: make deps
+        run: make deps  
+
       - name: Setup node and yarn
         uses: actions/setup-node@v2
         with:
           node-version: '14'
           cache-dependency-path: 'ui/yarn.lock'
-          
+      
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+
       - name: Generate static assets
         id: generate-static-assets
-        run: |
-          make deps
-          make static-assets
+        run: make static-assets 
+        
       - name: Commit and push changes
         id: commit-change-push
         run: |
