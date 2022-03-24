@@ -12,7 +12,9 @@ jobs:
       - uses: actions/checkout@v2
       - name: Generate static assets
         id: generate-static-assets
-        run: make static-assets
+        run: |
+          make deps
+          make static-assets
       - name: Commit and push changes
         id: commit-change-push
         run: |
