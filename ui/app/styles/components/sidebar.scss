@@ -1,9 +1,11 @@
 .sidebar {
-  position: absolute;
+  position: fixed;
   background: #ffffff;
   padding: 24px;
   right: 0%;
-  height: fit-content;
+  overflow-y: auto;
+  bottom: 0;
+  top: 112px;
   transform: translateX(100%);
   transition-duration: 150ms;
   transition-timing-function: ease;
