@@ -1284,6 +1284,16 @@ func (s *Server) setupRaft() error {
 			return err
 		}
 
+		// Check Raft version and update the version file.
+		raftVersionFilePath := filepath.Join(path, "version")
+		raftVersionFileContent := strconv.Itoa(int(s.config.RaftConfig.ProtocolVersion))
+		if err := s.checkRaftVersionFile(raftVersionFilePath); err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(raftVersionFilePath, []byte(raftVersionFileContent), 0644); err != nil {
+			return fmt.Errorf("failed to write Raft version file: %v", err)
+		}
+
 		// Create the BoltDB backend, with NoFreelistSync option
 		store, raftErr := raftboltdb.New(raftboltdb.Options{
 			Path:   filepath.Join(path, "raft.db"),
@@ -1396,6 +1406,42 @@ func (s *Server) setupRaft() error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+// checkRaftVersionFile reads the Raft version file and returns an error if
+// the Raft version is incompatible with the current version configured.
+// Provide best-effort check if the file cannot be read.
+func (s *Server) checkRaftVersionFile(path string) error {
+	raftVersion := s.config.RaftConfig.ProtocolVersion
+	baseWarning := "use the 'nomad operator raft list-peers' command to make sure the Raft protocol versions are consistent"
+
+	_, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		s.logger.Warn(fmt.Sprintf("unable to read Raft version file, %s", baseWarning), "error", err)
+		return nil
+	}
+
+	v, err := ioutil.ReadFile(path)
+	if err != nil {
+		s.logger.Warn(fmt.Sprintf("unable to read Raft version file, %s", baseWarning), "error", err)
+		return nil
+	}
+
+	previousVersion, err := strconv.Atoi(strings.TrimSpace(string(v)))
+	if err != nil {
+		s.logger.Warn(fmt.Sprintf("invalid Raft protocol version in Raft version file, %s", baseWarning), "error", err)
+		return nil
+	}
+
+	if raft.ProtocolVersion(previousVersion) > raftVersion {
+		return fmt.Errorf("downgrading Raft is not supported, current version is %d, previous version was %d", raftVersion, previousVersion)
+	}
+
 	return nil
 }
 
