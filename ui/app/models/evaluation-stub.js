@@ -1,6 +1,8 @@
 import Model, { attr } from '@ember-data/model';
+import shortUUIDProperty from '../utils/properties/short-uuid';
 
 export default class EvaluationStub extends Model {
+  @shortUUIDProperty('id') shortId;
   @attr('number') priority;
   @attr('string') type;
   @attr('string') triggeredBy;
