@@ -2,8 +2,7 @@ import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
-import d3 from 'd3';
-import { matchesState, useMachine } from 'ember-statecharts';
+import { useMachine } from 'ember-statecharts';
 import { use } from 'ember-usable';
 import evaluationsMachine from '../../machines/evaluations';
 
@@ -13,12 +12,6 @@ export default class EvaluationsController extends Controller {
 
   @tracked width = null;
   @tracked height = null;
-
-  @matchesState({ sidebar: 'open' })
-  isSideBarOpen;
-
-  @matchesState({ sidebar: { open: 'success' } })
-  isSuccess;
 
   @use
   statechart = useMachine(evaluationsMachine).withConfig({
@@ -58,11 +51,6 @@ export default class EvaluationsController extends Controller {
   }
 
   @action
-  closeSidebar() {
-    return this.statechart.send('MODAL_CLOSE');
-  }
-
-  @action
   async handleEvaluationClick(evaluation) {
     this.statechart.send('LOAD_EVALUATION', { evaluation });
   }
@@ -94,35 +82,6 @@ export default class EvaluationsController extends Controller {
       { key: 'failed', label: 'Failed' },
       { key: 'canceled', label: 'Canceled' },
     ];
-  }
-
-  get currentEvalDetail() {
-    return this.statechart.state.context.evaluation;
-  }
-
-  get hierarchy() {
-    const data = this.currentEvalDetail?.relatedEvals;
-
-    if (data) {
-      debugger;
-      return d3
-        .stratify()
-        .id((d) => {
-          return d.id;
-        })
-        .parentId((d) => d.previousEval)([
-        ...data.toArray(),
-        this.currentEvalDetail,
-      ]);
-    }
-    return null;
-  }
-
-  get descendentsMap() {
-    return this.hierarchy
-      ?.descendants()
-      .map((d) => d.children)
-      .compact();
   }
 
   @tracked pageSize = this.userSettings.pageSize;
@@ -159,13 +118,6 @@ export default class EvaluationsController extends Controller {
   setStatus(selection) {
     this._resetTokens();
     this.status = selection;
-  }
-
-  @action
-  handleResize({ contentRect: { width, height } }) {
-    if (width === this.width || height === this.height) return;
-    this.height = height;
-    this.width = width;
   }
 
   _resetTokens() {
