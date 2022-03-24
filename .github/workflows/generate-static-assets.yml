@@ -1,14 +1,9 @@
 name: generate-static-assets
 
-on: 
+on:
   push:
-    # Sequence of patterns matched against refs/heads
     branches:
-      # Push events on main branch
-      # - main
-      # Push events to branches matching refs/heads/release/**
-      # - 'release/**'
-      - 'test-generate-static-assets'
+      - test-generate-static-assets
 
 jobs:
   generate-metadata:
@@ -24,7 +19,6 @@ jobs:
           echo "committing generated files"
           git add -A .
           find . -name '*.generated.go' -not -path './vendor/*' -exec git add -f '{}' \;
-        # skip comitting files if there are no generated files
           if ! git diff-index --quiet HEAD --; \
           then \
             git commit --message "Generate files for $(NOMAD_VERSION) release"; \
@@ -32,4 +26,3 @@ jobs:
           else \
             echo "no files were updated" \
           fi
-
