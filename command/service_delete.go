@@ -58,7 +58,7 @@ func (s *ServiceDeleteCommand) Run(args []string) int {
 		return 1
 	}
 
-	if _, err := client.ServiceRegistrations().Delete(args[0], args[1], nil); err != nil {
+	if _, err := client.Services().Delete(args[0], args[1], nil); err != nil {
 		s.Ui.Error(fmt.Sprintf("Error deleting service registration: %s", err))
 		return 1
 	}

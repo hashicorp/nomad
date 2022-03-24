@@ -92,7 +92,7 @@ func (s *ServiceInfoCommand) Run(args []string) int {
 		return 1
 	}
 
-	serviceInfo, _, err := client.ServiceRegistrations().Get(args[0], nil)
+	serviceInfo, _, err := client.Services().Get(args[0], nil)
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("Error listing service registrations: %s", err))
 		return 1

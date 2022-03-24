@@ -61,7 +61,7 @@ func TestServiceDeleteCommand_Run(t *testing.T) {
 	require.Equal(t, 0, registerCode)
 
 	// Detail the service as we need the ID.
-	serviceList, _, err := client.ServiceRegistrations().Get("service-discovery-nomad-delete", nil)
+	serviceList, _, err := client.Services().Get("service-discovery-nomad-delete", nil)
 	require.NoError(t, err)
 	require.Len(t, serviceList, 1)
 

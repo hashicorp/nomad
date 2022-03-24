@@ -89,7 +89,7 @@ func (s *ServiceListCommand) Run(args []string) int {
 		return 1
 	}
 
-	list, _, err := client.ServiceRegistrations().List(nil)
+	list, _, err := client.Services().List(nil)
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("Error listing service registrations: %s", err))
 		return 1
