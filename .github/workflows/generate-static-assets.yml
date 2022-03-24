@@ -29,6 +29,16 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
+      
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+          cache-dependency-path: 'ui/yarn.lock'
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+
       - uses: actions/checkout@v2
       - name: Generate static assets
         id: generate-static-assets
