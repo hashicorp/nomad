@@ -41,7 +41,7 @@ environment for `NOMAD_ADDR` and run the tests as shown below:
 $(terraform output environment)
 
 cd ..
-go test -v .
+go test -v ./...
 ```
 
 If you want to run a specific suite, you can specify the `-suite` flag as
@@ -64,6 +64,16 @@ go test -v . -run 'TestE2E/Consul/\*consul\.ScriptChecksE2ETest/TestGroup'
                                       |             |
                                   Go Package      Struct
 ```
+
+We're also in the process of migrating to "stdlib-style" tests that
+use the standard go `testing` package without a notion of "suite". You
+can run these with `-run` regexes the same way you would any other go
+test:
+
+```sh
+go test -v . -run TestExample/TestExample_Simple
+```
+
 
 ## I Want To...
 

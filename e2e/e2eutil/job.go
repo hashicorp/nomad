@@ -8,7 +8,10 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // Register registers a jobspec from a file but with a unique ID.
@@ -230,4 +233,18 @@ func StopJob(jobID string, args ...string) error {
 		}
 	}
 	return err
+}
+
+// CleanupJobsAndGC stops and purges the list of jobIDs and runs a
+// system gc. Returns a func so that the return value can be used
+// in t.Cleanup
+func CleanupJobsAndGC(t *testing.T, jobIDs *[]string) func() {
+	return func() {
+		for _, jobID := range *jobIDs {
+			err := StopJob(jobID, "-purge", "-detach")
+			assert.NoError(t, err)
+		}
+		_, err := Command("nomad", "system", "gc")
+		assert.NoError(t, err)
+	}
 }
