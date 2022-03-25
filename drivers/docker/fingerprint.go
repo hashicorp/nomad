@@ -13,9 +13,10 @@ import (
 )
 
 func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
-	// start reconciler when we start fingerprinting
-	// this is the only method called when driver is launched properly
-	d.reconciler.Start()
+	// Start docker reconcilers when we start fingerprinting, a workaround for
+	// task drivers not having a kind of post-setup hook.
+	d.danglingReconciler.Start()
+	d.cpusetFixer.Start()
 
 	ch := make(chan *drivers.Fingerprint)
 	go d.handleFingerprint(ctx, ch)

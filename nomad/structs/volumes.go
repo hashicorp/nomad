@@ -102,54 +102,81 @@ type VolumeRequest struct {
 	PerAlloc       bool
 }
 
-func (v *VolumeRequest) Validate(canaries int) error {
+func (v *VolumeRequest) Validate(taskGroupCount, canaries int) error {
 	if !(v.Type == VolumeTypeHost ||
 		v.Type == VolumeTypeCSI) {
 		return fmt.Errorf("volume has unrecognized type %s", v.Type)
 	}
 
 	var mErr multierror.Error
-	if v.Type == VolumeTypeHost && v.AttachmentMode != CSIVolumeAttachmentModeUnknown {
-		mErr.Errors = append(mErr.Errors,
-			fmt.Errorf("host volumes cannot have an attachment mode"))
-	}
-	if v.Type == VolumeTypeHost && v.AccessMode != CSIVolumeAccessModeUnknown {
-		mErr.Errors = append(mErr.Errors,
-			fmt.Errorf("host volumes cannot have an access mode"))
-	}
-	if v.Type == VolumeTypeHost && v.MountOptions != nil {
-		mErr.Errors = append(mErr.Errors,
-			fmt.Errorf("host volumes cannot have mount options"))
-	}
-	if v.Type == VolumeTypeCSI && v.AttachmentMode == CSIVolumeAttachmentModeUnknown {
-		mErr.Errors = append(mErr.Errors,
-			fmt.Errorf("CSI volumes must have an attachment mode"))
-	}
-	if v.Type == VolumeTypeCSI && v.AccessMode == CSIVolumeAccessModeUnknown {
-		mErr.Errors = append(mErr.Errors,
-			fmt.Errorf("CSI volumes must have an access mode"))
-	}
-
-	if v.AccessMode == CSIVolumeAccessModeSingleNodeReader || v.AccessMode == CSIVolumeAccessModeMultiNodeReader {
-		if !v.ReadOnly {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("%s volumes must be read-only", v.AccessMode))
-		}
-	}
-
-	if v.AttachmentMode == CSIVolumeAttachmentModeBlockDevice && v.MountOptions != nil {
-		mErr.Errors = append(mErr.Errors,
-			fmt.Errorf("block devices cannot have mount options"))
-	}
-
-	if v.PerAlloc && canaries > 0 {
-		mErr.Errors = append(mErr.Errors,
-			fmt.Errorf("volume cannot be per_alloc when canaries are in use"))
+	addErr := func(msg string, args ...interface{}) {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf(msg, args...))
 	}
 
 	if v.Source == "" {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("volume has an empty source"))
+		addErr("volume has an empty source")
 	}
+
+	switch v.Type {
+
+	case VolumeTypeHost:
+		if v.AttachmentMode != CSIVolumeAttachmentModeUnknown {
+			addErr("host volumes cannot have an attachment mode")
+		}
+		if v.AccessMode != CSIVolumeAccessModeUnknown {
+			addErr("host volumes cannot have an access mode")
+		}
+		if v.MountOptions != nil {
+			addErr("host volumes cannot have mount options")
+		}
+		if v.PerAlloc {
+			addErr("host volumes do not support per_alloc")
+		}
+
+	case VolumeTypeCSI:
+
+		switch v.AttachmentMode {
+		case CSIVolumeAttachmentModeUnknown:
+			addErr("CSI volumes must have an attachment mode")
+		case CSIVolumeAttachmentModeBlockDevice:
+			if v.MountOptions != nil {
+				addErr("block devices cannot have mount options")
+			}
+		}
+
+		switch v.AccessMode {
+		case CSIVolumeAccessModeUnknown:
+			addErr("CSI volumes must have an access mode")
+		case CSIVolumeAccessModeSingleNodeReader:
+			if !v.ReadOnly {
+				addErr("%s volumes must be read-only", v.AccessMode)
+			}
+			if taskGroupCount > 1 && !v.PerAlloc {
+				addErr("volume with %s access mode allows only one reader", v.AccessMode)
+			}
+		case CSIVolumeAccessModeSingleNodeWriter:
+			// note: we allow read-only mount of this volume, but only one
+			if taskGroupCount > 1 && !v.PerAlloc {
+				addErr("volume with %s access mode allows only one reader or writer", v.AccessMode)
+			}
+		case CSIVolumeAccessModeMultiNodeReader:
+			if !v.ReadOnly {
+				addErr("%s volumes must be read-only", v.AccessMode)
+			}
+		case CSIVolumeAccessModeMultiNodeSingleWriter:
+			if !v.ReadOnly && taskGroupCount > 1 && !v.PerAlloc {
+				addErr("volume with %s access mode allows only one writer", v.AccessMode)
+			}
+		case CSIVolumeAccessModeMultiNodeMultiWriter:
+			// note: we intentionally allow read-only mount of this mode
+		}
+
+		if v.PerAlloc && canaries > 0 {
+			addErr("volume cannot be per_alloc when canaries are in use")
+		}
+
+	}
+
 	return mErr.ErrorOrNil()
 }
 

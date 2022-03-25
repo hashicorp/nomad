@@ -29,6 +29,8 @@ Nomad.
 
 ## Snapshot List Options
 
+- `-page-token`: Where to start pagination.
+- `-per-page`: How many results to show per page.
 - `-plugin`: Display only snapshots managed by a particular [CSI
   plugin][csi_plugin]. This flag is required and accepts a plugin ID
   or prefix. If there is an exact match based on the provided plugin,
@@ -36,8 +38,7 @@ Nomad.
   matching plugins will be displayed.
 - `-secret`: Secrets to pass to the plugin to list snapshots. Accepts
   multiple flags in the form `-secret key=value`
-- `-per-page`: How many results to show per page.
-- `-page-token`: Where to start pagination.
+- `-verbose`: Display full information for the resulting snapshot.
 
 When ACLs are enabled, this command requires a token with the
 `csi-list-volumes` capability for the plugin's namespace.

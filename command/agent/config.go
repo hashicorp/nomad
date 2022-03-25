@@ -1778,6 +1778,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.NomadServiceDiscovery = b.NomadServiceDiscovery
 	}
 
+	if b.CgroupParent != "" {
+		result.CgroupParent = b.CgroupParent
+	}
+
 	return &result
 }
 

@@ -36,6 +36,12 @@ General Options:
 
 List Options:
 
+  -page-token
+    Where to start pagination.
+
+  -per-page
+    How many results to show per page. Defaults to 30.
+
   -plugin: Display only snapshots managed by a particular plugin. This
     parameter is required.
 
@@ -43,12 +49,10 @@ List Options:
     Secrets to pass to the plugin to list snapshots. Accepts multiple
     flags in the form -secret key=value
 
-  -per-page
-    How many results to show per page. Defaults to 30.
-
-  -page-token
-    Where to start pagination.
+  -verbose
+    Display full information for snapshots.
 `
+
 	return strings.TrimSpace(helpText)
 }
 
@@ -139,6 +143,9 @@ func (c *VolumeSnapshotListCommand) Run(args []string) int {
 		s := strings.Split(kv, "=")
 		if len(s) == 2 {
 			secrets[s[0]] = s[1]
+		} else {
+			c.Ui.Error("Secret must be in the format: -secret key=value")
+			return 1
 		}
 	}
 
@@ -186,7 +193,7 @@ func csiFormatSnapshots(snapshots []*api.CSISnapshot, verbose bool) string {
 			v.ID,
 			limit(v.ExternalSourceVolumeID, length),
 			humanize.IBytes(uint64(v.SizeBytes)),
-			formatUnixNanoTime(v.CreateTime),
+			formatUnixNanoTime(v.CreateTime*1e9), // seconds to nanoseconds
 			v.IsReady,
 		))
 	}

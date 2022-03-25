@@ -645,3 +645,27 @@ func TestServer_ReloadSchedulers_InvalidSchedulers(t *testing.T) {
 	currentWC = s.GetSchedulerWorkerConfig()
 	require.Equal(t, origWC, currentWC)
 }
+
+func TestServer_PreventRaftDowngrade(t *testing.T) {
+	ci.Parallel(t)
+
+	dir := t.TempDir()
+	_, cleanupv3 := TestServer(t, func(c *Config) {
+		c.DevMode = false
+		c.DataDir = dir
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	cleanupv3()
+
+	_, cleanupv2, err := TestServerErr(t, func(c *Config) {
+		c.DevMode = false
+		c.DataDir = dir
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	if cleanupv2 != nil {
+		defer cleanupv2()
+	}
+
+	// Downgrading Raft should prevent the server from starting.
+	require.Error(t, err)
+}

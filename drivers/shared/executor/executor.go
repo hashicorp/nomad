@@ -302,7 +302,8 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 
 	// Setup cgroups on linux
 	if e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup {
-		if err := e.configureResourceContainer(os.Getpid()); err != nil {
+		pid := os.Getpid()
+		if err := e.configureResourceContainer(pid); err != nil {
 			return nil, err
 		}
 	}

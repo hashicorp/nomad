@@ -1,51 +1,48 @@
+//go:build linux
+
 package cgutil
 
 import (
 	"io/ioutil"
 	"path/filepath"
-	"runtime"
-	"syscall"
 	"testing"
 
+	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-
-	"github.com/hashicorp/nomad/helper/uuid"
-
 	"github.com/stretchr/testify/require"
-
-	"github.com/hashicorp/nomad/helper/testlog"
 )
 
-func tmpCpusetManager(t *testing.T) (manager *cpusetManager, cleanup func()) {
-	if runtime.GOOS != "linux" || syscall.Geteuid() != 0 {
-		t.Skip("Test only available running as root on linux")
-	}
+func tmpCpusetManagerV1(t *testing.T) (manager *cpusetManagerV1, cleanup func()) {
 	mount, err := FindCgroupMountpointDir()
 	if err != nil || mount == "" {
 		t.Skipf("Failed to find cgroup mount: %v %v", mount, err)
 	}
 
 	parent := "/gotest-" + uuid.Short()
-	require.NoError(t, cpusetEnsureParent(parent))
+	require.NoError(t, cpusetEnsureParentV1(parent))
 
-	manager = &cpusetManager{
+	manager = &cpusetManagerV1{
 		cgroupParent: parent,
 		cgroupInfo:   map[string]allocTaskCgroupInfo{},
 		logger:       testlog.HCLogger(t),
 	}
 
-	parentPath, err := getCgroupPathHelper("cpuset", parent)
+	parentPath, err := GetCgroupPathHelperV1("cpuset", parent)
 	require.NoError(t, err)
 
 	return manager, func() { require.NoError(t, cgroups.RemovePaths(map[string]string{"cpuset": parentPath})) }
 }
 
-func TestCpusetManager_Init(t *testing.T) {
-	manager, cleanup := tmpCpusetManager(t)
+func TestCpusetManager_V1_Init(t *testing.T) {
+	testutil.CgroupsCompatibleV1(t)
+
+	manager, cleanup := tmpCpusetManagerV1(t)
 	defer cleanup()
-	require.NoError(t, manager.Init())
+	require.NoError(t, manager.Init(nil))
 
 	require.DirExists(t, filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName))
 	require.FileExists(t, filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus"))
@@ -57,10 +54,12 @@ func TestCpusetManager_Init(t *testing.T) {
 	require.DirExists(t, filepath.Join(manager.cgroupParentPath, ReservedCpusetCgroupName))
 }
 
-func TestCpusetManager_AddAlloc_single(t *testing.T) {
-	manager, cleanup := tmpCpusetManager(t)
+func TestCpusetManager_V1_AddAlloc_single(t *testing.T) {
+	testutil.CgroupsCompatibleV1(t)
+
+	manager, cleanup := tmpCpusetManagerV1(t)
 	defer cleanup()
-	require.NoError(t, manager.Init())
+	require.NoError(t, manager.Init(nil))
 
 	alloc := mock.Alloc()
 	// reserve just one core (the 0th core, which probably exists)
@@ -104,27 +103,18 @@ func TestCpusetManager_AddAlloc_single(t *testing.T) {
 	require.Exactly(t, alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores, taskCpus.ToSlice())
 }
 
-func TestCpusetManager_AddAlloc_subset(t *testing.T) {
-	t.Skip("todo: add test for #11933")
-}
+func TestCpusetManager_V1_RemoveAlloc(t *testing.T) {
+	testutil.CgroupsCompatibleV1(t)
 
-func TestCpusetManager_AddAlloc_all(t *testing.T) {
-	// cgroupsv2 changes behavior of writing empty cpuset.cpu, which is what
-	// happens to the /shared group when one or more allocs consume all available
-	// cores.
-	t.Skip("todo: add test for #11933")
-}
+	// This case tests adding 2 allocations, reconciling then removing 1 alloc.
+	// It requires the system to have at least 3 cpu cores (one for each alloc),
+	// BUT plus another one because writing an empty cpuset causes the cgroup to
+	// inherit the parent.
+	testutil.MinimumCores(t, 3)
 
-func TestCpusetManager_RemoveAlloc(t *testing.T) {
-	manager, cleanup := tmpCpusetManager(t)
+	manager, cleanup := tmpCpusetManagerV1(t)
 	defer cleanup()
-	require.NoError(t, manager.Init())
-
-	// this case tests adding 2 allocs, reconciling then removing 1 alloc
-	// it requires the system to have atleast 2 cpu cores (one for each alloc)
-	if manager.parentCpuset.Size() < 2 {
-		t.Skip("test requires atleast 2 cpu cores")
-	}
+	require.NoError(t, manager.Init(nil))
 
 	alloc1 := mock.Alloc()
 	alloc1Cpuset := cpuset.New(manager.parentCpuset.ToSlice()[0])

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
@@ -1322,12 +1323,14 @@ func TestCSIVolumeEndpoint_CreateSnapshot(t *testing.T) {
 
 	testutil.WaitForLeader(t, srv.RPC)
 
+	now := time.Now().Unix()
 	fake := newMockClientCSI()
 	fake.NextCreateSnapshotError = nil
 	fake.NextCreateSnapshotResponse = &cstructs.ClientCSIControllerCreateSnapshotResponse{
 		ID:                     "snap-12345",
 		ExternalSourceVolumeID: "vol-12345",
 		SizeBytes:              42,
+		CreateTime:             now,
 		IsReady:                true,
 	}
 

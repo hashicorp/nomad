@@ -20,6 +20,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -122,7 +123,8 @@ type Driver struct {
 	detected     bool
 	detectedLock sync.RWMutex
 
-	reconciler *containerReconciler
+	danglingReconciler *containerReconciler
+	cpusetFixer        CpusetFixer
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin
@@ -350,9 +352,14 @@ CREATE:
 			container.ID, "container_state", container.State.String())
 	}
 
-	if containerCfg.HostConfig.CPUSet == "" && cfg.Resources.LinuxResources.CpusetCgroupPath != "" {
-		if err := setCPUSetCgroup(cfg.Resources.LinuxResources.CpusetCgroupPath, container.State.Pid); err != nil {
-			return nil, nil, fmt.Errorf("failed to set the cpuset cgroup for container: %v", err)
+	if !cgutil.UseV2 {
+		// This does not apply to cgroups.v2, which only allows setting the PID
+		// into exactly 1 group. For cgroups.v2, we use the cpuset fixer to reconcile
+		// the cpuset value into the cgroups created by docker in the background.
+		if containerCfg.HostConfig.CPUSet == "" && cfg.Resources.LinuxResources.CpusetCgroupPath != "" {
+			if err := setCPUSetCgroup(cfg.Resources.LinuxResources.CpusetCgroupPath, container.State.Pid); err != nil {
+				return nil, nil, fmt.Errorf("failed to set the cpuset cgroup for container: %v", err)
+			}
 		}
 	}
 
@@ -841,7 +848,12 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		pidsLimit = driverConfig.PidsLimit
 	}
 
+	// Extract the cgroup parent from the nomad cgroup (bypass the need for plugin config)
+	parent, _ := cgutil.SplitPath(task.Resources.LinuxResources.CpusetCgroupPath)
+
 	hostConfig := &docker.HostConfig{
+		CgroupParent: parent,
+
 		Memory:            memory,            // hard limit
 		MemoryReservation: memoryReservation, // soft limit
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
@@ -77,8 +78,7 @@ func (e *UniversalExecutor) configureResourceContainer(pid int) error {
 		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.Rule)
 	}
 
-	err := configureBasicCgroups(cfg)
-	if err != nil {
+	if err := cgutil.ConfigureBasicCgroups(cfg); err != nil {
 		// Log this error to help diagnose cases where nomad is run with too few
 		// permissions, but don't return an error. There is no separate check for
 		// cgroup creation permissions, so this may be the happy path.

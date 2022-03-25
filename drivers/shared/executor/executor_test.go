@@ -18,7 +18,9 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -88,6 +90,10 @@ func testExecutorCommand(t *testing.T) *testExecCmd {
 				MemoryLimitBytes: 256 * 1024 * 1024,
 			},
 		},
+	}
+
+	if cgutil.UseV2 {
+		cmd.Resources.LinuxResources.CpusetCgroupPath = filepath.Join(cgutil.CgroupRoot, "testing.scope", cgutil.CgroupScope(alloc.ID, task.Name))
 	}
 
 	testCmd := &testExecCmd{
@@ -253,6 +259,8 @@ func TestExecutor_Start_Wait_Children(t *testing.T) {
 
 func TestExecutor_WaitExitSignal(t *testing.T) {
 	ci.Parallel(t)
+	testutil.CgroupsCompatibleV1(t) // todo(shoenig) #12351
+
 	for name, factory := range executorFactories {
 		t.Run(name, func(t *testing.T) {
 			testExecCmd := testExecutorCommand(t)
@@ -519,6 +527,7 @@ func copyFile(t *testing.T, src, dst string) {
 func TestExecutor_Start_Kill_Immediately_NoGrace(t *testing.T) {
 	ci.Parallel(t)
 	for name, factory := range executorFactories {
+
 		t.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			testExecCmd := testExecutorCommand(t)

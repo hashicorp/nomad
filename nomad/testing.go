@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -39,6 +40,12 @@ func TestACLServer(t *testing.T, cb func(*Config)) (*Server, *structs.ACLToken, 
 }
 
 func TestServer(t *testing.T, cb func(*Config)) (*Server, func()) {
+	s, c, err := TestServerErr(t, cb)
+	require.NoError(t, err, "failed to start test server")
+	return s, c
+}
+
+func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 	// Setup the default settings
 	config := DefaultConfig()
 
@@ -137,10 +144,10 @@ func TestServer(t *testing.T, cb func(*Config)) (*Server, func()) {
 				case <-time.After(1 * time.Minute):
 					t.Fatal("timed out while shutting down server")
 				}
-			}
+			}, nil
 		} else if i == 0 {
 			freeport.Return(ports)
-			t.Fatalf("err: %v", err)
+			return nil, nil, err
 		} else {
 			if server != nil {
 				_ = server.Shutdown()
@@ -151,7 +158,7 @@ func TestServer(t *testing.T, cb func(*Config)) (*Server, func()) {
 		}
 	}
 
-	return nil, nil
+	return nil, nil, nil
 }
 
 func TestJoin(t *testing.T, servers ...*Server) {

@@ -120,6 +120,10 @@ func (v *CSIVolumes) CreateSnapshot(snap *CSISnapshot, w *WriteOptions) (*CSISna
 	req := &CSISnapshotCreateRequest{
 		Snapshots: []*CSISnapshot{snap},
 	}
+	if w == nil {
+		w = &WriteOptions{}
+	}
+	w.SetHeadersFromCSISecrets(snap.Secrets)
 	resp := &CSISnapshotCreateResponse{}
 	meta, err := v.client.write("/v1/volumes/snapshot", req, resp, w)
 	return resp, meta, err

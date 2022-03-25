@@ -1507,9 +1507,7 @@ func TestDockerDriver_Init(t *testing.T) {
 func TestDockerDriver_CPUSetCPUs(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows does not support CPUSetCPUs.")
-	}
+	testutil.CgroupsCompatible(t)
 
 	testCases := []struct {
 		Name       string

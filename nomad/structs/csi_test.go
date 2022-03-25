@@ -1002,7 +1002,7 @@ func TestDeleteNodeForType_Monolith_NilController(t *testing.T) {
 
 func TestDeleteNodeForType_Monolith_NilNode(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	plug := NewCSIPlugin("foo", 1000)
 
 	plug.Nodes["n0"] = nil

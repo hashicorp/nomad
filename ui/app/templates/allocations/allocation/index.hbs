@@ -42,9 +42,9 @@
         <TwoStepButton
           data-test-stop
           @alignRight={{true}}
-          @idleText="Stop"
-          @cancelText="Cancel"
-          @confirmText="Yes, Stop"
+          @idleText="Stop Alloc"
+          @cancelText="Cancel Stop"
+          @confirmText="Yes, Stop Alloc"
           @confirmationMessage="Are you sure? This will reschedule the allocation on a different client."
           @awaitingConfirmation={{this.stopAllocation.isRunning}}
           @disabled={{or
@@ -56,9 +56,9 @@
         <TwoStepButton
           data-test-restart
           @alignRight={{true}}
-          @idleText="Restart"
-          @cancelText="Cancel"
-          @confirmText="Yes, Restart"
+          @idleText="Restart Alloc"
+          @cancelText="Cancel Restart"
+          @confirmText="Yes, Restart Alloc"
           @confirmationMessage="Are you sure? This will restart the allocation in-place."
           @awaitingConfirmation={{this.restartAllocation.isRunning}}
           @disabled={{or

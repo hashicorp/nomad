@@ -1288,6 +1288,16 @@ func (s *Server) setupRaft() error {
 			return err
 		}
 
+		// Check Raft version and update the version file.
+		raftVersionFilePath := filepath.Join(path, "version")
+		raftVersionFileContent := strconv.Itoa(int(s.config.RaftConfig.ProtocolVersion))
+		if err := s.checkRaftVersionFile(raftVersionFilePath); err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(raftVersionFilePath, []byte(raftVersionFileContent), 0644); err != nil {
+			return fmt.Errorf("failed to write Raft version file: %v", err)
+		}
+
 		// Create the BoltDB backend, with NoFreelistSync option
 		store, raftErr := raftboltdb.New(raftboltdb.Options{
 			Path:   filepath.Join(path, "raft.db"),
@@ -1334,7 +1344,7 @@ func (s *Server) setupRaft() error {
 		peersFile := filepath.Join(path, "peers.json")
 		peersInfoFile := filepath.Join(path, "peers.info")
 		if _, err := os.Stat(peersInfoFile); os.IsNotExist(err) {
-			if err := ioutil.WriteFile(peersInfoFile, []byte(peersInfoContent), 0755); err != nil {
+			if err := ioutil.WriteFile(peersInfoFile, []byte(peersInfoContent), 0644); err != nil {
 				return fmt.Errorf("failed to write peers.info file: %v", err)
 			}
 
@@ -1403,6 +1413,42 @@ func (s *Server) setupRaft() error {
 	return nil
 }
 
+// checkRaftVersionFile reads the Raft version file and returns an error if
+// the Raft version is incompatible with the current version configured.
+// Provide best-effort check if the file cannot be read.
+func (s *Server) checkRaftVersionFile(path string) error {
+	raftVersion := s.config.RaftConfig.ProtocolVersion
+	baseWarning := "use the 'nomad operator raft list-peers' command to make sure the Raft protocol versions are consistent"
+
+	_, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		s.logger.Warn(fmt.Sprintf("unable to read Raft version file, %s", baseWarning), "error", err)
+		return nil
+	}
+
+	v, err := ioutil.ReadFile(path)
+	if err != nil {
+		s.logger.Warn(fmt.Sprintf("unable to read Raft version file, %s", baseWarning), "error", err)
+		return nil
+	}
+
+	previousVersion, err := strconv.Atoi(strings.TrimSpace(string(v)))
+	if err != nil {
+		s.logger.Warn(fmt.Sprintf("invalid Raft protocol version in Raft version file, %s", baseWarning), "error", err)
+		return nil
+	}
+
+	if raft.ProtocolVersion(previousVersion) > raftVersion {
+		return fmt.Errorf("downgrading Raft is not supported, current version is %d, previous version was %d", raftVersion, previousVersion)
+	}
+
+	return nil
+}
+
 // setupSerf is used to setup and initialize a Serf
 func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (*serf.Serf, error) {
 	conf.Init()
@@ -1411,6 +1457,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.Tags["region"] = s.config.Region
 	conf.Tags["dc"] = s.config.Datacenter
 	conf.Tags["build"] = s.config.Build
+	conf.Tags["vsn"] = deprecatedAPIMajorVersionStr // for Nomad <= v1.2 compat
 	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
 	conf.Tags["id"] = s.config.NodeID
 	conf.Tags["rpc_addr"] = s.clientRpcAdvertise.(*net.TCPAddr).IP.String()         // Address that clients will use to RPC to servers

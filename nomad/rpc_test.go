@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-sockaddr"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -868,6 +869,15 @@ func TestRPC_Limits_OK(t *testing.T) {
 				}
 				c.RPCHandshakeTimeout = tc.timeout
 				c.RPCMaxConnsPerClient = tc.limit
+
+				// Bind the server to a private IP so that Autopilot's
+				// StatsFetcher requests come from a different IP than the test
+				// requests, otherwise they would interfere with the connection
+				// rate limiter since limits are imposed by IP address.
+				ip, err := sockaddr.GetPrivateIP()
+				require.NoError(t, err)
+				c.RPCAddr.IP = []byte(ip)
+				c.SerfConfig.MemberlistConfig.BindAddr = ip
 			})
 			defer func() {
 				cleanup()
