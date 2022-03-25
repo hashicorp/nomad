@@ -39,7 +39,7 @@ dpkg --add-architecture i386
 apt-get update
 
 # Install GCC-5
-if [[ "$2" != "386" || "$2" != "darwin" ]]; then
+if [[ "$2" != "386" ]]; then
   echo "deb http://dk.archive.ubuntu.com/ubuntu/ xenial main" | sudo tee -a /etc/apt/sources.list >/dev/null
   echo "deb http://dk.archive.ubuntu.com/ubuntu/ xenial universe" | sudo tee -a /etc/apt/sources.list >/dev/null
   sudo apt-get update
