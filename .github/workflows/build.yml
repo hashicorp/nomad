@@ -171,6 +171,7 @@ jobs:
         run: make prerelease
 
       - name: Add arm compiler to PATH
+        shell: bash
         run: |
           if [ "${{ matrix.goarch }}" == "arm" ]; then
             echo "/usr/bin/gcc-5-arm-linux-gnueabihf" >> $GITHUB_PATH
@@ -235,11 +236,10 @@ jobs:
     strategy:
       matrix:
         goos: [ darwin ]
-        goarch: [ "arm64", "amd64" ]
-        go: [ "1.16.12" ]
+        goarch: [ "amd64" ]
       fail-fast: true
 
-    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
     steps:
       - uses: actions/checkout@v2
@@ -247,7 +247,7 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@v2
         with:
-          go-version: ${{ matrix.go }}
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
       
       - name: Setup node and yarn
         uses: actions/setup-node@v2
