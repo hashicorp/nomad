@@ -2,10 +2,12 @@ package csi
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 // CSIControllerPluginEBSTest exercises the AWS EBS plugin, which is an
@@ -16,6 +18,7 @@ type CSIControllerPluginEBSTest struct {
 	testJobIDs   []string
 	volumeIDs    []string
 	pluginJobIDs []string
+	nodeIDs      []string
 }
 
 const ebsPluginID = "aws-ebs0"
@@ -98,6 +101,14 @@ func (tc *CSIControllerPluginEBSTest) AfterAll(f *framework.F) {
 		f.Assert().NoError(err)
 	}
 	tc.pluginJobIDs = []string{}
+
+	for _, id := range tc.nodeIDs {
+		_, err := e2eutil.Command("nomad", "node", "drain", "-disable", "-yes", id)
+		f.Assert().NoError(err)
+		_, err = e2eutil.Command("nomad", "node", "eligibility", "-enable", id)
+		f.Assert().NoError(err)
+	}
+	tc.nodeIDs = []string{}
 
 	// Garbage collect
 	out, err := e2eutil.Command("nomad", "system", "gc")
@@ -184,4 +195,63 @@ func (tc *CSIControllerPluginEBSTest) TestSnapshot(f *framework.F) {
 	requireNoErrorElseDump(f, err, "could not list volume snapshots", tc.pluginJobIDs)
 	f.Contains(out, snaps[0]["ID"],
 		fmt.Sprintf("volume snapshot list did not include expected snapshot:\n%v", out))
+}
+
+// TestNodeDrain exercises the remounting behavior in the face of a node drain
+func (tc *CSIControllerPluginEBSTest) TestNodeDrain(f *framework.F) {
+
+	nomadClient := tc.Nomad()
+
+	// deploy a job that writes to the volume
+	writeJobID := "write-ebs-" + tc.uuid
+	f.NoError(e2eutil.Register(writeJobID, "csi/input/use-ebs-volume.nomad"))
+	f.NoError(
+		e2eutil.WaitForAllocStatusExpected(writeJobID, ns, []string{"running"}),
+		"job should be running")
+	tc.testJobIDs = append(tc.testJobIDs, writeJobID) // ensure failed tests clean up
+
+	allocs, err := e2eutil.AllocsForJob(writeJobID, ns)
+	f.NoError(err, "could not get allocs for write job")
+	f.Len(allocs, 1, "could not get allocs for write job")
+	writeAllocID := allocs[0]["ID"]
+
+	// read data from volume and assert the writer wrote a file to it
+	expectedPath := "/task/test/" + writeAllocID
+	_, err = readFile(nomadClient, writeAllocID, expectedPath)
+	f.NoError(err)
+
+	// intentionally set a long deadline so we can check the plugins
+	// haven't been moved
+	nodeID := allocs[0]["Node ID"]
+	out, err := e2eutil.Command("nomad", "node",
+		"drain", "-enable",
+		"-deadline", "5m",
+		"-yes", "-detach", nodeID)
+	f.NoError(err, fmt.Sprintf("'nomad node drain' failed: %v\n%v", err, out))
+	tc.nodeIDs = append(tc.nodeIDs, nodeID)
+
+	wc := &e2eutil.WaitConfig{}
+	interval, retries := wc.OrDefault()
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		time.Sleep(interval)
+		allocs, err := e2eutil.AllocsForJob(writeJobID, ns)
+		if err != nil {
+			return false, err
+		}
+		for _, alloc := range allocs {
+			if alloc["ID"] != writeAllocID {
+				if alloc["Status"] == "running" {
+					return true, nil
+				}
+				if alloc["Status"] == "failed" {
+					// no point in waiting anymore if we hit this case
+					f.T().Fatal("expected replacement alloc not to fail")
+				}
+			}
+		}
+		return false, fmt.Errorf("expected replacement alloc to be running")
+	}, func(e error) {
+		err = e
+	})
+
 }
