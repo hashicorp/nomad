@@ -11,7 +11,7 @@ data "hcp_consul_cluster" "e2e_shared_consul" {
 # policy and configuration for the Consul Agent
 
 resource "consul_acl_policy" "consul_agent" {
-  name        = "consul_agent_policy"
+  name        = "${local.random_name}_consul_agent_policy"
   datacenters = [var.hcp_consul_cluster_id]
   rules       = data.local_file.consul_policy_for_consul_agent.content
 }
@@ -65,7 +65,7 @@ resource "local_file" "consul_systemd_unit_file" {
 # Nomad servers configuration for Consul
 
 resource "consul_acl_policy" "nomad_servers" {
-  name        = "nomad_server_policy"
+  name        = "${local.random_name}_nomad_server_policy"
   datacenters = [var.hcp_consul_cluster_id]
   rules       = data.local_file.consul_policy_for_nomad_server.content
 }
@@ -97,7 +97,7 @@ resource "local_file" "nomad_server_config_for_consul" {
 # Nomad clients configuration for Consul
 
 resource "consul_acl_policy" "nomad_clients" {
-  name        = "nomad_client_policy"
+  name        = "${local.random_name}_nomad_client_policy"
   datacenters = [var.hcp_consul_cluster_id]
   rules       = data.local_file.consul_policy_for_nomad_clients.content
 }
