@@ -301,10 +301,7 @@ test-nomad: dev ## Run Nomad test suites
 		-cover \
 		-timeout=20m \
 		-tags "$(GO_TAGS)" \
-		$(GOTEST_PKGS) $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
-	@if [ $(VERBOSE) ] ; then \
-		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
-	fi
+		$(GOTEST_PKGS)
 
 .PHONY: test-nomad-module
 test-nomad-module: dev ## Run Nomad test suites on a sub-module
@@ -314,10 +311,7 @@ test-nomad-module: dev ## Run Nomad test suites on a sub-module
 		-cover \
 		-timeout=20m \
 		-tags "$(GO_TAGS)" \
-		./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
-	@if [ $(VERBOSE) ] ; then \
-		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
-	fi
+		./...
 
 .PHONY: e2e-test
 e2e-test: dev ## Run the Nomad e2e test suite

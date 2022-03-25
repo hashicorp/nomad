@@ -20,6 +20,7 @@ on:
       - 'ui/*'
       - 'website/*'
 env:
+  VERBOSE: 1
   GO_VERSION: 1.17.7
   GOBIN: /usr/local/bin
   GOTESTARCH: amd64
