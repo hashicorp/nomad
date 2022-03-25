@@ -91,6 +91,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		"ami-id":                      false,
 		"hostname":                    true,
 		"instance-id":                 true,
+		"instance-life-cycle":         false,
 		"instance-type":               false,
 		"local-hostname":              true,
 		"local-ipv4":                  true,
