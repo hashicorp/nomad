@@ -300,6 +300,7 @@ test-nomad: dev ## Run Nomad test suites
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=20m \
+		-count=1 \
 		-tags "$(GO_TAGS)" \
 		$(GOTEST_PKGS)
 
@@ -310,6 +311,7 @@ test-nomad-module: dev ## Run Nomad test suites on a sub-module
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=20m \
+		-count=1 \
 		-tags "$(GO_TAGS)" \
 		./...
 
