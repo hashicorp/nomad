@@ -30,6 +30,7 @@ rules:
       # Pattern used by endpoints called exclusively between agents
       # (server -> server or client -> server)
       - pattern-not-inside: |
+          ...
           ... := validateTLSCertificateLevel(...)
           ...
           if done, err := $A.$B.forward($METHOD, ...); done {
