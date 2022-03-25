@@ -28,6 +28,7 @@ type NodeStatusCommand struct {
 	Meta
 	length      int
 	short       bool
+	os          bool
 	verbose     bool
 	list_allocs bool
 	self        bool
@@ -74,6 +75,9 @@ Node Status Options:
   -verbose
     Display full information.
 
+  -os
+    Display operating system name.
+
   -json
     Output the node in its JSON format.
 
@@ -96,6 +100,7 @@ func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
 			"-short":   complete.PredictNothing,
 			"-stats":   complete.PredictNothing,
 			"-t":       complete.PredictAnything,
+			"-os":      complete.PredictAnything,
 			"-verbose": complete.PredictNothing,
 		})
 }
@@ -122,6 +127,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&c.short, "short", false, "")
+	flags.BoolVar(&c.os, "os", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
 	flags.BoolVar(&c.list_allocs, "allocs", false, "")
 	flags.BoolVar(&c.self, "self", false, "")
@@ -186,6 +192,10 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 		out[0] = "ID|DC|Name|Class|"
 
+		if c.os {
+			out[0] += "OS|"
+		}
+
 		if c.verbose {
 			out[0] += "Address|Version|"
 		}
@@ -196,12 +206,25 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			out[0] += "|Running Allocs"
 		}
 
+		queryOptions := &api.QueryOptions{AllowStale: true}
+		var nodeInfo *api.Node
+
 		for i, node := range nodes {
+			if c.os {
+				nodeInfo, _, err = client.Nodes().Info(node.ID, queryOptions)
+				if err != nil {
+					c.Ui.Error(fmt.Sprintf("Error getting node info: %s", err))
+					return 1
+				}
+			}
 			out[i+1] = fmt.Sprintf("%s|%s|%s|%s",
 				limit(node.ID, c.length),
 				node.Datacenter,
 				node.Name,
 				node.NodeClass)
+			if c.os {
+				out[i+1] += fmt.Sprintf("|%s", nodeInfo.Attributes["os.name"])
+			}
 			if c.verbose {
 				out[i+1] += fmt.Sprintf("|%s|%s",
 					node.Address, node.Version)
