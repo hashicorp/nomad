@@ -101,10 +101,16 @@ that volume.
   a Consul token must be supplied with appropriate service and kv Consul ACL policy
   permissions.
 
-- `-vault-token`: If set, the passed Vault token is stored in the job before
-  sending to the Nomad servers. This allows passing the Vault token without
+- `-vault-token`: Used to validate if the user submitting the job has
+  permission to run the job according to its Vault policies.
+  A Vault token must be supplied if `allow_unauthenticated = false` is
+  configured in the Vault server. If set, the passed Vault token is added to the jobspec
+  before sending to the Nomad servers. This allows passing the vault token without
   storing it in the job file. This overrides the token found in the
-  `$VAULT_TOKEN` environment variable and that found in the job.
+  `$VAULT_TOKEN` environment variable and the `vault-token` field in the job file.
+  This token is cleared from the job after validating and cannot be used within the
+  job executing environment. If templating a Vault token within the job is needed,
+  please use the `vault` stanza.
 
 - `-vault-namespace`: If set, the passed Vault namespace is stored in the job
   before sending to the Nomad servers.
