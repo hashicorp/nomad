@@ -774,6 +774,26 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"service": func() (cli.Command, error) {
+			return &ServiceCommand{
+				Meta: meta,
+			}, nil
+		},
+		"service list": func() (cli.Command, error) {
+			return &ServiceListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"service info": func() (cli.Command, error) {
+			return &ServiceInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"service delete": func() (cli.Command, error) {
+			return &ServiceDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
 		"status": func() (cli.Command, error) {
 			return &StatusCommand{
 				Meta: meta,

@@ -25,6 +25,8 @@ import (
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -166,7 +168,7 @@ type TaskRunner struct {
 
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
-	consulServiceClient consul.ConsulServiceAPI
+	consulServiceClient serviceregistration.Handler
 
 	// consulProxiesClient is the client used by the envoy version hook for
 	// asking consul what version of envoy nomad should inject into the connect
@@ -238,6 +240,10 @@ type TaskRunner struct {
 	networkIsolationSpec *drivers.NetworkIsolationSpec
 
 	allocHookResources *cstructs.AllocHookResources
+
+	// serviceRegWrapper is the handler wrapper that is used by service hooks
+	// to perform service and check registration and deregistration.
+	serviceRegWrapper *wrapper.HandlerWrapper
 }
 
 type Config struct {
@@ -248,7 +254,7 @@ type Config struct {
 	Logger       log.Logger
 
 	// Consul is the client to use for managing Consul service registrations
-	Consul consul.ConsulServiceAPI
+	Consul serviceregistration.Handler
 
 	// ConsulProxies is the client to use for looking up supported envoy versions
 	// from Consul.
@@ -299,6 +305,10 @@ type Config struct {
 
 	// ShutdownDelayCancelFn should only be used in testing.
 	ShutdownDelayCancelFn context.CancelFunc
+
+	// ServiceRegWrapper is the handler wrapper that is used by service hooks
+	// to perform service and check registration and deregistration.
+	ServiceRegWrapper *wrapper.HandlerWrapper
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -356,6 +366,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		startConditionMetCtx:   config.StartConditionMetCtx,
 		shutdownDelayCtx:       config.ShutdownDelayCtx,
 		shutdownDelayCancelFn:  config.ShutdownDelayCancelFn,
+		serviceRegWrapper:      config.ServiceRegWrapper,
 	}
 
 	// Create the logger based on the allocation ID

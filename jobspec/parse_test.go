@@ -1766,6 +1766,32 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"service-provider.hcl",
+			&api.Job{
+				ID:   stringToPtr("service-provider"),
+				Name: stringToPtr("service-provider"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Count: intToPtr(5),
+						Name:  stringToPtr("group"),
+						Tasks: []*api.Task{
+							{
+								Name:   "task",
+								Driver: "docker",
+								Services: []*api.Service{
+									{
+										Name:     "service-provider",
+										Provider: "nomad",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {

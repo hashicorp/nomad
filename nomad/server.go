@@ -264,22 +264,23 @@ type Server struct {
 
 // Holds the RPC endpoints
 type endpoints struct {
-	Status     *Status
-	Node       *Node
-	Job        *Job
-	CSIVolume  *CSIVolume
-	CSIPlugin  *CSIPlugin
-	Deployment *Deployment
-	Region     *Region
-	Search     *Search
-	Periodic   *Periodic
-	System     *System
-	Operator   *Operator
-	ACL        *ACL
-	Scaling    *Scaling
-	Enterprise *EnterpriseEndpoints
-	Event      *Event
-	Namespace  *Namespace
+	Status              *Status
+	Node                *Node
+	Job                 *Job
+	CSIVolume           *CSIVolume
+	CSIPlugin           *CSIPlugin
+	Deployment          *Deployment
+	Region              *Region
+	Search              *Search
+	Periodic            *Periodic
+	System              *System
+	Operator            *Operator
+	ACL                 *ACL
+	Scaling             *Scaling
+	Enterprise          *EnterpriseEndpoints
+	Event               *Event
+	Namespace           *Namespace
+	ServiceRegistration *ServiceRegistration
 
 	// Client endpoints
 	ClientStats       *ClientStats
@@ -1167,6 +1168,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		// register them as static.
 		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
 		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")}
+		s.staticEndpoints.ServiceRegistration = &ServiceRegistration{srv: s}
 
 		// Client endpoints
 		s.staticEndpoints.ClientStats = &ClientStats{srv: s, logger: s.logger.Named("client_stats")}
@@ -1212,6 +1214,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	eval := &Eval{srv: s, ctx: ctx, logger: s.logger.Named("eval")}
 	node := &Node{srv: s, ctx: ctx, logger: s.logger.Named("client")}
 	plan := &Plan{srv: s, ctx: ctx, logger: s.logger.Named("plan")}
+	serviceReg := &ServiceRegistration{srv: s, ctx: ctx}
 
 	// Register the dynamic endpoints
 	server.Register(alloc)
@@ -1219,6 +1222,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(eval)
 	server.Register(node)
 	server.Register(plan)
+	_ = server.Register(serviceReg)
 }
 
 // setupRaft is used to setup and initialize Raft
@@ -1930,6 +1934,32 @@ func (s *Server) EmitRaftStats(period time.Duration, stopCh <-chan struct{}) {
 			return
 		}
 	}
+}
+
+// setReplyQueryMeta is an RPC helper function to properly populate the query
+// meta for a read response. It populates the index using a floored value
+// obtained from the index table as well as leader and last contact
+// information.
+//
+// If the passed state.StateStore is nil, a new handle is obtained.
+func (s *Server) setReplyQueryMeta(stateStore *state.StateStore, table string, reply *structs.QueryMeta) error {
+
+	// Protect against an empty stateStore object to avoid panic.
+	if stateStore == nil {
+		stateStore = s.fsm.State()
+	}
+
+	// Get the index from the index table and ensure the value is floored to at
+	// least one.
+	index, err := stateStore.Index(table)
+	if err != nil {
+		return err
+	}
+	reply.Index = helper.Uint64Max(1, index)
+
+	// Set the query response.
+	s.setQueryMeta(reply)
+	return nil
 }
 
 // Region returns the region of the server

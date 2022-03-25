@@ -434,6 +434,119 @@ func TestHTTP_AllocStop(t *testing.T) {
 	})
 }
 
+func TestHTTP_allocServiceRegistrations(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		testFn func(srv *TestAgent)
+		name   string
+	}{
+		{
+			testFn: func(s *TestAgent) {
+
+				// Grab the state, so we can manipulate it and test against it.
+				testState := s.Agent.server.State()
+
+				// Generate an alloc and upsert this.
+				alloc := mock.Alloc()
+				require.NoError(t, testState.UpsertAllocs(
+					structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc}))
+
+				// Generate a service registration, assigned the allocID to the
+				// mocked allocation ID, and upsert this.
+				serviceReg := mock.ServiceRegistrations()[0]
+				serviceReg.AllocID = alloc.ID
+				require.NoError(t, testState.UpsertServiceRegistrations(
+					structs.MsgTypeTestSetup, 20, []*structs.ServiceRegistration{serviceReg}))
+
+				// Build the HTTP request.
+				path := fmt.Sprintf("/v1/allocation/%s/services", alloc.ID)
+				req, err := http.NewRequest(http.MethodGet, path, nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := s.Server.AllocSpecificRequest(respW, req)
+				require.NoError(t, err)
+
+				// Check the response.
+				require.Equal(t, "20", respW.Header().Get("X-Nomad-Index"))
+				require.ElementsMatch(t, []*structs.ServiceRegistration{serviceReg},
+					obj.([]*structs.ServiceRegistration))
+			},
+			name: "alloc has registrations",
+		},
+		{
+			testFn: func(s *TestAgent) {
+
+				// Grab the state, so we can manipulate it and test against it.
+				testState := s.Agent.server.State()
+
+				// Generate an alloc and upsert this.
+				alloc := mock.Alloc()
+				require.NoError(t, testState.UpsertAllocs(
+					structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc}))
+
+				// Build the HTTP request.
+				path := fmt.Sprintf("/v1/allocation/%s/services", alloc.ID)
+				req, err := http.NewRequest(http.MethodGet, path, nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := s.Server.AllocSpecificRequest(respW, req)
+				require.NoError(t, err)
+
+				// Check the response.
+				require.Equal(t, "1", respW.Header().Get("X-Nomad-Index"))
+				require.ElementsMatch(t, []*structs.ServiceRegistration{},
+					obj.([]*structs.ServiceRegistration))
+			},
+			name: "alloc without registrations",
+		},
+		{
+			testFn: func(s *TestAgent) {
+
+				// Build the HTTP request.
+				path := fmt.Sprintf("/v1/allocation/%s/services", uuid.Generate())
+				req, err := http.NewRequest(http.MethodGet, path, nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := s.Server.AllocSpecificRequest(respW, req)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "allocation not found")
+				require.Nil(t, obj)
+			},
+			name: "alloc not found",
+		},
+		{
+			testFn: func(s *TestAgent) {
+
+				// Build the HTTP request.
+				path := fmt.Sprintf("/v1/allocation/%s/services", uuid.Generate())
+				req, err := http.NewRequest(http.MethodHead, path, nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := s.Server.AllocSpecificRequest(respW, req)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "Invalid method")
+				require.Nil(t, obj)
+			},
+			name: "alloc not found",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpTest(t, nil, tc.testFn)
+		})
+	}
+}
+
 func TestHTTP_AllocStats(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)

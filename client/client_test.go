@@ -15,8 +15,8 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/client/config"
-	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
@@ -617,7 +617,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	c1.config.Logger = logger
 	consulCatalog := consul.NewMockCatalog(logger)
-	mockService := consulApi.NewMockConsulServiceClient(t, logger)
+	mockService := regMock.NewServiceRegistrationHandler(logger)
 
 	// ensure we use non-shutdown driver instances
 	c1.config.PluginLoader = catalog.TestPluginLoaderWithOptions(t, "", c1.config.Options, nil)

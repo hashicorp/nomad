@@ -15,6 +15,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// jobNotFoundErr is an error string which can be used as the return string
+// alongside a 404 when a job is not found.
+const jobNotFoundErr = "job not found"
+
 func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
 	case "GET":
@@ -86,6 +90,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/scale"):
 		jobName := strings.TrimSuffix(path, "/scale")
 		return s.jobScale(resp, req, jobName)
+	case strings.HasSuffix(path, "/services"):
+		jobName := strings.TrimSuffix(path, "/services")
+		return s.jobServiceRegistrations(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -751,6 +758,39 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	return jobStruct, nil
 }
 
+// jobServiceRegistrations returns a list of all service registrations assigned
+// to the job identifier. It is callable via the
+// /v1/job/:jobID/services HTTP API and uses the
+// structs.JobServiceRegistrationsRPCMethod RPC method.
+func (s *HTTPServer) jobServiceRegistrations(
+	resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+
+	// The endpoint only supports GET requests.
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	// Set up the request args and parse this to ensure the query options are
+	// set.
+	args := structs.JobServiceRegistrationsRequest{JobID: jobID}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	// Perform the RPC request.
+	var reply structs.JobServiceRegistrationsResponse
+	if err := s.agent.RPC(structs.JobServiceRegistrationsRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &reply.QueryMeta)
+
+	if reply.Services == nil {
+		return nil, CodedError(http.StatusNotFound, jobNotFoundErr)
+	}
+	return reply.Services, nil
+}
+
 // apiJobAndRequestToStructs parses the query params from the incoming
 // request and converts to a structs.Job and WriteRequest with the
 func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, apiReq api.WriteRequest) (*structs.Job, *structs.WriteRequest) {
@@ -1332,6 +1372,7 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			Meta:              helper.CopyMapStringString(s.Meta),
 			CanaryMeta:        helper.CopyMapStringString(s.CanaryMeta),
 			OnUpdate:          s.OnUpdate,
+			Provider:          s.Provider,
 		}
 
 		if l := len(s.Checks); l != 0 {

@@ -374,3 +374,67 @@ func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransiti
 	reply.Index = index
 	return nil
 }
+
+// GetServiceRegistrations returns a list of service registrations which belong
+// to the passed allocation ID.
+func (a *Alloc) GetServiceRegistrations(
+	args *structs.AllocServiceRegistrationsRequest,
+	reply *structs.AllocServiceRegistrationsResponse) error {
+
+	if done, err := a.srv.forward(structs.AllocServiceRegistrationsRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_service_registrations"}, time.Now())
+
+	// If ACLs are enabled, ensure the caller has the read-job namespace
+	// capability.
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if aclObj != nil {
+		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+			return structs.ErrPermissionDenied
+		}
+	}
+
+	// Set up the blocking query.
+	return a.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			// Read the allocation to ensure its namespace matches the request
+			// args.
+			alloc, err := stateStore.AllocByID(ws, args.AllocID)
+			if err != nil {
+				return err
+			}
+
+			// Guard against the alloc not-existing or that the namespace does
+			// not match the request arguments.
+			if alloc == nil || alloc.Namespace != args.RequestNamespace() {
+				return nil
+			}
+
+			// Perform the state query to get an iterator.
+			iter, err := stateStore.GetServiceRegistrationsByAllocID(ws, args.AllocID)
+			if err != nil {
+				return err
+			}
+
+			// Set up our output after we have checked the error.
+			services := make([]*structs.ServiceRegistration, 0)
+
+			// Iterate the iterator, appending all service registrations
+			// returned to the reply.
+			for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				services = append(services, raw.(*structs.ServiceRegistration))
+			}
+			reply.Services = services
+
+			// Use the index table to populate the query meta as we have no way
+			// of tracking the max index on deletes.
+			return a.srv.setReplyQueryMeta(stateStore, state.TableServiceRegistrations, &reply.QueryMeta)
+		},
+	})
+}

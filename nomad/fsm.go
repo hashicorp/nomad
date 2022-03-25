@@ -54,6 +54,7 @@ const (
 	CSIVolumeSnapshot                    SnapshotType = 18
 	ScalingEventsSnapshot                SnapshotType = 19
 	EventSinkSnapshot                    SnapshotType = 20
+	ServiceRegistrationSnapshot          SnapshotType = 21
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
 )
@@ -306,6 +307,12 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyOneTimeTokenDelete(msgType, buf[1:], log.Index)
 	case structs.OneTimeTokenExpireRequestType:
 		return n.applyOneTimeTokenExpire(msgType, buf[1:], log.Index)
+	case structs.ServiceRegistrationUpsertRequestType:
+		return n.applyUpsertServiceRegistrations(msgType, buf[1:], log.Index)
+	case structs.ServiceRegistrationDeleteByIDRequestType:
+		return n.applyDeleteServiceRegistrationByID(msgType, buf[1:], log.Index)
+	case structs.ServiceRegistrationDeleteByNodeIDRequestType:
+		return n.applyDeleteServiceRegistrationByNodeID(msgType, buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -1663,6 +1670,22 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 		// COMPAT(1.0): Allow 1.0-beta clusterers to gracefully handle
 		case EventSinkSnapshot:
 			return nil
+
+		case ServiceRegistrationSnapshot:
+
+			// Create a new ServiceRegistration object, so we can decode the
+			// message into it.
+			serviceRegistration := new(structs.ServiceRegistration)
+
+			if err := dec.Decode(serviceRegistration); err != nil {
+				return err
+			}
+
+			// Perform the restoration.
+			if err := restore.ServiceRegistrationRestore(serviceRegistration); err != nil {
+				return err
+			}
+
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
@@ -1871,6 +1894,51 @@ func (n *nomadFSM) applyUpsertScalingEvent(buf []byte, index uint64) interface{}
 
 	if err := n.state.UpsertScalingEvent(index, &req); err != nil {
 		n.logger.Error("UpsertScalingEvent failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyUpsertServiceRegistrations(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_service_registration_upsert"}, time.Now())
+	var req structs.ServiceRegistrationUpsertRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertServiceRegistrations(msgType, index, req.Services); err != nil {
+		n.logger.Error("UpsertServiceRegistrations failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyDeleteServiceRegistrationByID(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_service_registration_delete_id"}, time.Now())
+	var req structs.ServiceRegistrationDeleteByIDRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteServiceRegistrationByID(msgType, index, req.RequestNamespace(), req.ID); err != nil {
+		n.logger.Error("DeleteServiceRegistrationByID failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyDeleteServiceRegistrationByNodeID(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_service_registration_delete_node_id"}, time.Now())
+	var req structs.ServiceRegistrationDeleteByNodeIDRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteServiceRegistrationByNodeID(msgType, index, req.NodeID); err != nil {
+		n.logger.Error("DeleteServiceRegistrationByNodeID failed", "error", err)
 		return err
 	}
 

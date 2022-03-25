@@ -7,7 +7,8 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -25,14 +26,21 @@ type networkStatusGetter interface {
 // deregistration.
 type groupServiceHook struct {
 	allocID             string
+	jobID               string
 	group               string
 	restarter           agentconsul.WorkloadRestarter
-	consulClient        consul.ConsulServiceAPI
-	consulNamespace     string
 	prerun              bool
 	deregistered        bool
 	networkStatusGetter networkStatusGetter
 	shutdownDelayCtx    context.Context
+
+	// namespace is the Nomad or Consul namespace in which service
+	// registrations will be made.
+	namespace string
+
+	// serviceRegWrapper is the handler wrapper that is used to perform service
+	// and check registration and deregistration.
+	serviceRegWrapper *wrapper.HandlerWrapper
 
 	logger log.Logger
 
@@ -51,13 +59,19 @@ type groupServiceHook struct {
 
 type groupServiceHookConfig struct {
 	alloc               *structs.Allocation
-	consul              consul.ConsulServiceAPI
-	consulNamespace     string
 	restarter           agentconsul.WorkloadRestarter
 	taskEnvBuilder      *taskenv.Builder
 	networkStatusGetter networkStatusGetter
 	shutdownDelayCtx    context.Context
 	logger              log.Logger
+
+	// namespace is the Nomad or Consul namespace in which service
+	// registrations will be made.
+	namespace string
+
+	// serviceRegWrapper is the handler wrapper that is used to perform service
+	// and check registration and deregistration.
+	serviceRegWrapper *wrapper.HandlerWrapper
 }
 
 func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
@@ -70,14 +84,15 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 
 	h := &groupServiceHook{
 		allocID:             cfg.alloc.ID,
+		jobID:               cfg.alloc.JobID,
 		group:               cfg.alloc.TaskGroup,
 		restarter:           cfg.restarter,
-		consulClient:        cfg.consul,
-		consulNamespace:     cfg.consulNamespace,
+		namespace:           cfg.namespace,
 		taskEnvBuilder:      cfg.taskEnvBuilder,
 		delay:               shutdownDelay,
 		networkStatusGetter: cfg.networkStatusGetter,
 		logger:              cfg.logger.Named(groupServiceHookName),
+		serviceRegWrapper:   cfg.serviceRegWrapper,
 		services:            tg.Services,
 		shutdownDelayCtx:    cfg.shutdownDelayCtx,
 	}
@@ -114,7 +129,7 @@ func (h *groupServiceHook) prerunLocked() error {
 	}
 
 	services := h.getWorkloadServices()
-	return h.consulClient.RegisterWorkload(services)
+	return h.serviceRegWrapper.RegisterWorkload(services)
 }
 
 func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
@@ -157,7 +172,7 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 		return nil
 	}
 
-	return h.consulClient.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
+	return h.serviceRegWrapper.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
 }
 
 func (h *groupServiceHook) PreTaskRestart() error {
@@ -213,11 +228,11 @@ func (h *groupServiceHook) Postrun() error {
 func (h *groupServiceHook) deregister() {
 	if len(h.services) > 0 {
 		workloadServices := h.getWorkloadServices()
-		h.consulClient.RemoveWorkload(workloadServices)
+		h.serviceRegWrapper.RemoveWorkload(workloadServices)
 	}
 }
 
-func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
+func (h *groupServiceHook) getWorkloadServices() *serviceregistration.WorkloadServices {
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnvBuilder.Build(), h.services)
 
@@ -227,15 +242,16 @@ func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 	}
 
 	// Create task services struct with request's driver metadata
-	return &agentconsul.WorkloadServices{
-		AllocID:         h.allocID,
-		Group:           h.group,
-		ConsulNamespace: h.consulNamespace,
-		Restarter:       h.restarter,
-		Services:        interpolatedServices,
-		Networks:        h.networks,
-		NetworkStatus:   netStatus,
-		Ports:           h.ports,
-		Canary:          h.canary,
+	return &serviceregistration.WorkloadServices{
+		AllocID:       h.allocID,
+		JobID:         h.jobID,
+		Group:         h.group,
+		Namespace:     h.namespace,
+		Restarter:     h.restarter,
+		Services:      interpolatedServices,
+		Networks:      h.networks,
+		NetworkStatus: netStatus,
+		Ports:         h.ports,
+		Canary:        h.canary,
 	}
 }

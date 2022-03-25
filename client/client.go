@@ -39,6 +39,9 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/servers"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/nsd"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -225,9 +228,18 @@ type Client struct {
 	// allocUpdates stores allocations that need to be synced to the server.
 	allocUpdates chan *structs.Allocation
 
-	// consulService is Nomad's custom Consul client for managing services
+	// consulService is the Consul handler implementation for managing services
 	// and checks.
-	consulService consulApi.ConsulServiceAPI
+	consulService serviceregistration.Handler
+
+	// nomadService is the Nomad handler implementation for managing service
+	// registrations.
+	nomadService serviceregistration.Handler
+
+	// serviceRegWrapper wraps the consulService and nomadService
+	// implementations so that the alloc and task runner service hooks can call
+	// this without needing to identify which backend provider should be used.
+	serviceRegWrapper *wrapper.HandlerWrapper
 
 	// consulProxies is Nomad's custom Consul client for looking up supported
 	// envoy versions
@@ -322,7 +334,7 @@ var (
 // registered via https://golang.org/pkg/net/rpc/#Server.RegisterName in place
 // of the client's normal RPC handlers. This allows server tests to override
 // the behavior of the client.
-func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxies consulApi.SupportedProxiesAPI, consulService consulApi.ConsulServiceAPI, rpcs map[string]interface{}) (*Client, error) {
+func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxies consulApi.SupportedProxiesAPI, consulService serviceregistration.Handler, rpcs map[string]interface{}) (*Client, error) {
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
@@ -470,6 +482,12 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	devManager := devicemanager.New(devConfig)
 	c.devicemanager = devManager
 	c.pluginManagers.RegisterAndRun(devManager)
+
+	// Set up the service registration wrapper using the Consul and Nomad
+	// implementations. The Nomad implementation is only ever used on the
+	// client, so we do that here rather than within the agent.
+	c.setupNomadServiceRegistrationHandler()
+	c.serviceRegWrapper = wrapper.NewHandlerWrapper(c.logger, c.consulService, c.nomadService)
 
 	// Batching of initial fingerprints is done to reduce the number of node
 	// updates sent to the server on startup. This is the first RPC to the servers
@@ -787,6 +805,13 @@ func (c *Client) Shutdown() error {
 		}
 	}
 	arGroup.Wait()
+
+	// Assert the implementation, so we can trigger the shutdown call. This is
+	// the only place this occurs, so it's OK to store the interface rather
+	// than the implementation.
+	if h, ok := c.nomadService.(*nsd.ServiceRegistrationHandler); ok {
+		h.Shutdown()
+	}
 
 	// Shutdown the plugin managers
 	c.pluginManagers.Shutdown()
@@ -1144,6 +1169,7 @@ func (c *Client) restoreState() error {
 			DeviceManager:       c.devicemanager,
 			DriverManager:       c.drivermanager,
 			ServersContactedCh:  c.serversContactedCh,
+			ServiceRegWrapper:   c.serviceRegWrapper,
 			RPCClient:           c,
 		}
 		c.configLock.RUnlock()
@@ -2465,6 +2491,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		CpusetManager:       c.cpusetManager,
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
+		ServiceRegWrapper:   c.serviceRegWrapper,
 		RPCClient:           c,
 	}
 	c.configLock.RUnlock()
@@ -2510,6 +2537,20 @@ func (c *Client) setupVaultClient() error {
 	c.vaultClient.Start()
 
 	return nil
+}
+
+// setupNomadServiceRegistrationHandler sets up the registration handler to use
+// for native service discovery.
+func (c *Client) setupNomadServiceRegistrationHandler() {
+	cfg := nsd.ServiceRegistrationHandlerCfg{
+		Datacenter: c.Datacenter(),
+		Enabled:    c.config.NomadServiceDiscovery,
+		NodeID:     c.NodeID(),
+		NodeSecret: c.secretNodeID(),
+		Region:     c.Region(),
+		RPCFn:      c.RPC,
+	}
+	c.nomadService = nsd.NewServiceRegistrationHandler(c.logger, &cfg)
 }
 
 // deriveToken takes in an allocation and a set of tasks and derives vault

@@ -341,6 +341,10 @@ func (s HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/agent/health", s.wrap(s.HealthRequest))
 	s.mux.HandleFunc("/v1/agent/host", s.wrap(s.AgentHostRequest))
 
+	// Register our service registration handlers.
+	s.mux.HandleFunc("/v1/services", s.wrap(s.ServiceRegistrationListRequest))
+	s.mux.HandleFunc("/v1/service/", s.wrap(s.ServiceRegistrationRequest))
+
 	// Monitor is *not* an untrusted endpoint despite the log contents
 	// potentially containing unsanitized user input. Monitor, like
 	// "/v1/client/fs/logs", explicitly sets a "text/plain" or

@@ -382,6 +382,7 @@ func testJob() *Job {
 					{
 						Name:      "${TASK}-frontend",
 						PortLabel: "http",
+						Provider:  "consul",
 					},
 				},
 				Tasks: []*Task{
@@ -1228,7 +1229,8 @@ func TestTaskGroup_Validate(t *testing.T) {
 		Name: "group-a",
 		Services: []*Service{
 			{
-				Name: "service-a",
+				Name:     "service-a",
+				Provider: "consul",
 				Checks: []*ServiceCheck{
 					{
 						Name:      "check-a",
@@ -1250,6 +1252,47 @@ func TestTaskGroup_Validate(t *testing.T) {
 	expected = `Check check-a invalid: only script and gRPC checks should have tasks`
 	require.Contains(t, err.Error(), expected)
 
+	tg = &TaskGroup{
+		Name: "group-a",
+		Services: []*Service{
+			{
+				Name:     "service-a",
+				Provider: "nomad",
+			},
+			{
+				Name:     "service-b",
+				Provider: "consul",
+			},
+		},
+		Tasks: []*Task{{Name: "task-a"}},
+	}
+	err = tg.Validate(&Job{})
+	expected = "Multiple service providers used: task group services must use the same provider"
+	require.Contains(t, err.Error(), expected)
+
+	tg = &TaskGroup{
+		Name: "group-a",
+		Services: []*Service{
+			{
+				Name:     "service-a",
+				Provider: "nomad",
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name: "task-a",
+				Services: []*Service{
+					{
+						Name:     "service-b",
+						Provider: "consul",
+					},
+				},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	expected = "Multiple service providers used: task group services must use the same provider"
+	require.Contains(t, err.Error(), expected)
 }
 
 func TestTaskGroupNetwork_Validate(t *testing.T) {
@@ -1724,6 +1767,7 @@ func TestTask_Validate_Services(t *testing.T) {
 
 	s1 := &Service{
 		Name:      "service-name",
+		Provider:  "consul",
 		PortLabel: "bar",
 		Checks: []*ServiceCheck{
 			{
@@ -1746,15 +1790,18 @@ func TestTask_Validate_Services(t *testing.T) {
 
 	s2 := &Service{
 		Name:      "service-name",
+		Provider:  "consul",
 		PortLabel: "bar",
 	}
 
 	s3 := &Service{
 		Name:      "service-A",
+		Provider:  "consul",
 		PortLabel: "a",
 	}
 	s4 := &Service{
 		Name:      "service-A",
+		Provider:  "consul",
 		PortLabel: "b",
 	}
 
@@ -1849,25 +1896,30 @@ func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
 		{
 			// https://github.com/hashicorp/nomad/issues/3681#issuecomment-357274177
 			Name:        "DriverModeWithLabel",
+			Provider:    "consul",
 			PortLabel:   "http",
 			AddressMode: AddressModeDriver,
 		},
 		{
 			Name:        "DriverModeWithPort",
+			Provider:    "consul",
 			PortLabel:   "80",
 			AddressMode: AddressModeDriver,
 		},
 		{
 			Name:        "HostModeWithLabel",
+			Provider:    "consul",
 			PortLabel:   "http",
 			AddressMode: AddressModeHost,
 		},
 		{
 			Name:        "HostModeWithoutLabel",
+			Provider:    "consul",
 			AddressMode: AddressModeHost,
 		},
 		{
 			Name:        "DriverModeWithoutLabel",
+			Provider:    "consul",
 			AddressMode: AddressModeDriver,
 		},
 	}
@@ -2072,6 +2124,7 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 		{
 			Service: &Service{
 				Name:        "invalid-driver",
+				Provider:    "consul",
 				PortLabel:   "80",
 				AddressMode: "host",
 			},
@@ -2096,6 +2149,7 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 		{
 			Service: &Service{
 				Name:        "http-driver-fail-2",
+				Provider:    "consul",
 				PortLabel:   "80",
 				AddressMode: "driver",
 				Checks: []*ServiceCheck{
@@ -2113,6 +2167,7 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 		{
 			Service: &Service{
 				Name:        "http-driver-fail-3",
+				Provider:    "consul",
 				PortLabel:   "80",
 				AddressMode: "driver",
 				Checks: []*ServiceCheck{
@@ -2130,6 +2185,7 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 		{
 			Service: &Service{
 				Name:        "http-driver-passes",
+				Provider:    "consul",
 				PortLabel:   "80",
 				AddressMode: "driver",
 				Checks: []*ServiceCheck{
@@ -2159,7 +2215,8 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 		},
 		{
 			Service: &Service{
-				Name: "empty-address-3673-passes-1",
+				Name:     "empty-address-3673-passes-1",
+				Provider: "consul",
 				Checks: []*ServiceCheck{
 					{
 						Name:      "valid-port-label",
@@ -2185,7 +2242,8 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 		},
 		{
 			Service: &Service{
-				Name: "empty-address-3673-fails",
+				Name:     "empty-address-3673-fails",
+				Provider: "consul",
 				Checks: []*ServiceCheck{
 					{
 						Name:     "empty-is-not-ok",
@@ -2234,8 +2292,9 @@ func TestTask_Validate_Service_Check_GRPC(t *testing.T) {
 		Timeout:  time.Second,
 	}
 	service := &Service{
-		Name:   "test",
-		Checks: []*ServiceCheck{invalidGRPC},
+		Name:     "test",
+		Provider: "consul",
+		Checks:   []*ServiceCheck{invalidGRPC},
 	}
 
 	assert.Error(t, service.Validate())
@@ -3196,6 +3255,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 
 	s := Service{
 		Name:      "service-name",
+		Provider:  "consul",
 		PortLabel: "bar",
 		Checks: []*ServiceCheck{
 			{
@@ -3210,6 +3270,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 
 	s = Service{
 		Name:      "service.name",
+		Provider:  "consul",
 		PortLabel: "bar",
 	}
 	if err := s.ValidateName(s.Name); err == nil {
@@ -3218,6 +3279,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 
 	s = Service{
 		Name:      "-my-service",
+		Provider:  "consul",
 		PortLabel: "bar",
 	}
 	if err := s.Validate(); err == nil {
@@ -3226,6 +3288,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 
 	s = Service{
 		Name:      "my-service-${NOMAD_META_FOO}",
+		Provider:  "consul",
 		PortLabel: "bar",
 	}
 	if err := s.Validate(); err != nil {
@@ -3234,6 +3297,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 
 	s = Service{
 		Name:      "my_service-${NOMAD_META_FOO}",
+		Provider:  "consul",
 		PortLabel: "bar",
 	}
 	if err := s.Validate(); err == nil {
@@ -3242,6 +3306,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 
 	s = Service{
 		Name:      "abcdef0123456789-abcdef0123456789-abcdef0123456789-abcdef0123456",
+		Provider:  "consul",
 		PortLabel: "bar",
 	}
 	if err := s.ValidateName(s.Name); err == nil {
@@ -3249,7 +3314,8 @@ func TestInvalidServiceCheck(t *testing.T) {
 	}
 
 	s = Service{
-		Name: "service-name",
+		Name:     "service-name",
+		Provider: "consul",
 		Checks: []*ServiceCheck{
 			{
 				Name:     "check-tcp",
@@ -3271,7 +3337,8 @@ func TestInvalidServiceCheck(t *testing.T) {
 	}
 
 	s = Service{
-		Name: "service-name",
+		Name:     "service-name",
+		Provider: "consul",
 		Checks: []*ServiceCheck{
 			{
 				Name:     "check-script",
@@ -3287,7 +3354,8 @@ func TestInvalidServiceCheck(t *testing.T) {
 	}
 
 	s = Service{
-		Name: "service-name",
+		Name:     "service-name",
+		Provider: "consul",
 		Checks: []*ServiceCheck{
 			{
 				Name:     "tcp-check",
@@ -3342,64 +3410,200 @@ func TestDistinctCheckID(t *testing.T) {
 func TestService_Canonicalize(t *testing.T) {
 	ci.Parallel(t)
 
-	job := "example"
-	taskGroup := "cache"
-	task := "redis"
-
-	s := Service{
-		Name: "${TASK}-db",
+	testCases := []struct {
+		inputService          *Service
+		inputJob              string
+		inputTaskGroup        string
+		inputTask             string
+		inputJobNamespace     string
+		expectedOutputService *Service
+		name                  string
+	}{
+		{
+			inputService: &Service{
+				Name: "${TASK}-db",
+			},
+			inputJob:          "example",
+			inputTaskGroup:    "cache",
+			inputTask:         "redis",
+			inputJobNamespace: "platform",
+			expectedOutputService: &Service{
+				Name:      "redis-db",
+				Provider:  "consul",
+				Namespace: "default",
+			},
+			name: "interpolate task in name",
+		},
+		{
+			inputService: &Service{
+				Name: "db",
+			},
+			inputJob:          "example",
+			inputTaskGroup:    "cache",
+			inputTask:         "redis",
+			inputJobNamespace: "platform",
+			expectedOutputService: &Service{
+				Name:      "db",
+				Provider:  "consul",
+				Namespace: "default",
+			},
+			name: "no interpolation in name",
+		},
+		{
+			inputService: &Service{
+				Name: "${JOB}-${TASKGROUP}-${TASK}-db",
+			},
+			inputJob:          "example",
+			inputTaskGroup:    "cache",
+			inputTask:         "redis",
+			inputJobNamespace: "platform",
+			expectedOutputService: &Service{
+				Name:      "example-cache-redis-db",
+				Provider:  "consul",
+				Namespace: "default",
+			},
+			name: "interpolate job, taskgroup and task in name",
+		},
+		{
+			inputService: &Service{
+				Name: "${BASE}-db",
+			},
+			inputJob:          "example",
+			inputTaskGroup:    "cache",
+			inputTask:         "redis",
+			inputJobNamespace: "platform",
+			expectedOutputService: &Service{
+				Name:      "example-cache-redis-db",
+				Provider:  "consul",
+				Namespace: "default",
+			},
+			name: "interpolate base in name",
+		},
+		{
+			inputService: &Service{
+				Name:     "db",
+				Provider: "nomad",
+			},
+			inputJob:          "example",
+			inputTaskGroup:    "cache",
+			inputTask:         "redis",
+			inputJobNamespace: "platform",
+			expectedOutputService: &Service{
+				Name:      "db",
+				Provider:  "nomad",
+				Namespace: "platform",
+			},
+			name: "nomad provider",
+		},
 	}
 
-	s.Canonicalize(job, taskGroup, task)
-	if s.Name != "redis-db" {
-		t.Fatalf("Expected name: %v, Actual: %v", "redis-db", s.Name)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.inputService.Canonicalize(tc.inputJob, tc.inputTaskGroup, tc.inputTask, tc.inputJobNamespace)
+			assert.Equal(t, tc.expectedOutputService, tc.inputService)
+		})
 	}
-
-	s.Name = "db"
-	s.Canonicalize(job, taskGroup, task)
-	if s.Name != "db" {
-		t.Fatalf("Expected name: %v, Actual: %v", "redis-db", s.Name)
-	}
-
-	s.Name = "${JOB}-${TASKGROUP}-${TASK}-db"
-	s.Canonicalize(job, taskGroup, task)
-	if s.Name != "example-cache-redis-db" {
-		t.Fatalf("Expected name: %v, Actual: %v", "example-cache-redis-db", s.Name)
-	}
-
-	s.Name = "${BASE}-db"
-	s.Canonicalize(job, taskGroup, task)
-	if s.Name != "example-cache-redis-db" {
-		t.Fatalf("Expected name: %v, Actual: %v", "example-cache-redis-db", s.Name)
-	}
-
 }
 
 func TestService_Validate(t *testing.T) {
 	ci.Parallel(t)
 
-	s := Service{
-		Name: "testservice",
+	testCases := []struct {
+		inputService          *Service
+		expectedError         bool
+		expectedErrorContains string
+		name                  string
+	}{
+		{
+			inputService: &Service{
+				Name: "testservice",
+			},
+			expectedError: false,
+			name:          "base service",
+		},
+		{
+			inputService: &Service{
+				Name: "testservice",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			expectedError:         true,
+			expectedErrorContains: "Connect Native and requires setting the task",
+			name:                  "Native Connect without task name",
+		},
+		{
+			inputService: &Service{
+				Name:     "testservice",
+				TaskName: "testtask",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			expectedError: false,
+			name:          "Native Connect with task name",
+		},
+		{
+			inputService: &Service{
+				Name:     "testservice",
+				TaskName: "testtask",
+				Connect: &ConsulConnect{
+					Native:         true,
+					SidecarService: &ConsulSidecarService{},
+				},
+			},
+			expectedError:         true,
+			expectedErrorContains: "Consul Connect must be exclusively native",
+			name:                  "Native Connect with Sidecar",
+		},
+		{
+			inputService: &Service{
+				Name:     "testservice",
+				Provider: "nomad",
+				Checks: []*ServiceCheck{
+					{
+						Name: "servicecheck",
+					},
+				},
+			},
+			expectedError:         true,
+			expectedErrorContains: "Service with provider nomad cannot include Check blocks",
+			name:                  "provider nomad with checks",
+		},
+		{
+			inputService: &Service{
+				Name:     "testservice",
+				Provider: "nomad",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			expectedError:         true,
+			expectedErrorContains: "Service with provider nomad cannot include Connect blocks",
+			name:                  "provider nomad with connect",
+		},
+		{
+			inputService: &Service{
+				Name:     "testservice",
+				Provider: "nomad",
+			},
+			expectedError: false,
+			name:          "provider nomad valid",
+		},
 	}
 
-	s.Canonicalize("testjob", "testgroup", "testtask")
-
-	// Base service should be valid
-	require.NoError(t, s.Validate())
-
-	// Native Connect requires task name on service
-	s.Connect = &ConsulConnect{
-		Native: true,
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.inputService.Canonicalize("testjob", "testgroup", "testtask", "testnamespace")
+			err := tc.inputService.Validate()
+			if tc.expectedError {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expectedErrorContains)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
-	require.Error(t, s.Validate())
-
-	// Native Connect should work with task name on service set
-	s.TaskName = "testtask"
-	require.NoError(t, s.Validate())
-
-	// Native Connect + Sidecar should be invalid
-	s.Connect.SidecarService = &ConsulSidecarService{}
-	require.Error(t, s.Validate())
 }
 
 func TestService_Equals(t *testing.T) {
@@ -3409,7 +3613,7 @@ func TestService_Equals(t *testing.T) {
 		Name: "testservice",
 	}
 
-	s.Canonicalize("testjob", "testgroup", "testtask")
+	s.Canonicalize("testjob", "testgroup", "testtask", "default")
 
 	o := s.Copy()
 
@@ -3446,6 +3650,9 @@ func TestService_Equals(t *testing.T) {
 	assertDiff()
 
 	o.EnableTagOverride = true
+	assertDiff()
+
+	o.Provider = "nomad"
 	assertDiff()
 }
 
@@ -3788,7 +3995,6 @@ func TestRestartPolicy_Validate(t *testing.T) {
 
 func TestReschedulePolicy_Validate(t *testing.T) {
 	ci.Parallel(t)
-
 	type testCase struct {
 		desc             string
 		ReschedulePolicy *ReschedulePolicy
@@ -4376,7 +4582,6 @@ func TestEvaluation_MsgPackTags(t *testing.T) {
 
 func TestAllocation_Terminated(t *testing.T) {
 	ci.Parallel(t)
-
 	type desiredState struct {
 		ClientStatus  string
 		DesiredStatus string
@@ -4417,7 +4622,6 @@ func TestAllocation_Terminated(t *testing.T) {
 
 func TestAllocation_ShouldReschedule(t *testing.T) {
 	ci.Parallel(t)
-
 	type testCase struct {
 		Desc               string
 		FailTime           time.Time
@@ -4555,7 +4759,6 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 
 func TestAllocation_LastEventTime(t *testing.T) {
 	ci.Parallel(t)
-
 	type testCase struct {
 		desc                  string
 		taskState             map[string]*TaskState
@@ -4619,7 +4822,6 @@ func TestAllocation_LastEventTime(t *testing.T) {
 
 func TestAllocation_NextDelay(t *testing.T) {
 	ci.Parallel(t)
-
 	type testCase struct {
 		desc                       string
 		reschedulePolicy           *ReschedulePolicy
@@ -5104,7 +5306,6 @@ func TestAllocation_NextDelay(t *testing.T) {
 
 func TestAllocation_WaitClientStop(t *testing.T) {
 	ci.Parallel(t)
-
 	type testCase struct {
 		desc                   string
 		stop                   time.Duration
@@ -5230,7 +5431,6 @@ func TestAllocation_Canonicalize_New(t *testing.T) {
 
 func TestRescheduleTracker_Copy(t *testing.T) {
 	ci.Parallel(t)
-
 	type testCase struct {
 		original *RescheduleTracker
 		expected *RescheduleTracker
@@ -5415,7 +5615,6 @@ func TestScalingPolicy_Canonicalize(t *testing.T) {
 
 func TestScalingPolicy_Validate(t *testing.T) {
 	ci.Parallel(t)
-
 	type testCase struct {
 		name        string
 		input       *ScalingPolicy
@@ -6064,7 +6263,6 @@ func TestNode_Sanitize(t *testing.T) {
 
 func TestSpread_Validate(t *testing.T) {
 	ci.Parallel(t)
-
 	type tc struct {
 		spread *Spread
 		err    error
@@ -6582,7 +6780,7 @@ func TestTaskGroup_validateScriptChecksInGroupServices(t *testing.T) {
 
 func TestComparableResources_Superset(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	base := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{

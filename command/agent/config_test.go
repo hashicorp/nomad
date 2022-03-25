@@ -129,6 +129,7 @@ func TestConfig_Merge(t *testing.T) {
 				DiskMB:        10,
 				ReservedPorts: "1,10-30,55",
 			},
+			NomadServiceDiscovery: helper.BoolToPtr(false),
 		},
 		Server: &ServerConfig{
 			Enabled:                false,
@@ -317,6 +318,7 @@ func TestConfig_Merge(t *testing.T) {
 			GCParallelDestroys:    6,
 			GCDiskUsageThreshold:  71,
 			GCInodeUsageThreshold: 86,
+			NomadServiceDiscovery: helper.BoolToPtr(false),
 		},
 		Server: &ServerConfig{
 			Enabled:                true,

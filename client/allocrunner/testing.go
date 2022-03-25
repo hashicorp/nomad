@@ -7,13 +7,14 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/serviceregistration/mock"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -56,13 +57,17 @@ func (m *MockStateUpdater) Reset() {
 
 func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, func()) {
 	clientConf, cleanup := clientconfig.TestClientConfig(t)
+
+	consulRegMock := mock.NewServiceRegistrationHandler(clientConf.Logger)
+	nomadRegMock := mock.NewServiceRegistrationHandler(clientConf.Logger)
+
 	conf := &Config{
 		// Copy the alloc in case the caller edits and reuses it
 		Alloc:              alloc.Copy(),
 		Logger:             clientConf.Logger,
 		ClientConfig:       clientConf,
 		StateDB:            state.NoopDB{},
-		Consul:             consul.NewMockConsulServiceClient(t, clientConf.Logger),
+		Consul:             consulRegMock,
 		ConsulSI:           consul.NewMockServiceIdentitiesClient(),
 		Vault:              vaultclient.NewMockVaultClient(),
 		StateUpdater:       &MockStateUpdater{},
@@ -72,6 +77,7 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, fu
 		DriverManager:      drivermanager.TestDriverManager(t),
 		CpusetManager:      new(cgutil.NoopCpusetManager),
 		ServersContactedCh: make(chan struct{}),
+		ServiceRegWrapper:  wrapper.NewHandlerWrapper(clientConf.Logger, consulRegMock, nomadRegMock),
 	}
 	return conf, cleanup
 }

@@ -8,6 +8,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -95,7 +96,7 @@ func TestConsul_Connect(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, services, 2)
 
-		serviceID := MakeAllocServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0])
+		serviceID := serviceregistration.MakeAllocServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0])
 		connectID := serviceID + "-sidecar-proxy"
 
 		require.Contains(t, services, serviceID)

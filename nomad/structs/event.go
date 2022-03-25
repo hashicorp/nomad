@@ -16,14 +16,15 @@ type EventStreamWrapper struct {
 type Topic string
 
 const (
-	TopicDeployment Topic = "Deployment"
-	TopicEvaluation Topic = "Evaluation"
-	TopicAllocation Topic = "Allocation"
-	TopicJob        Topic = "Job"
-	TopicNode       Topic = "Node"
-	TopicACLPolicy  Topic = "ACLPolicy"
-	TopicACLToken   Topic = "ACLToken"
-	TopicAll        Topic = "*"
+	TopicDeployment          Topic = "Deployment"
+	TopicEvaluation          Topic = "Evaluation"
+	TopicAllocation          Topic = "Allocation"
+	TopicJob                 Topic = "Job"
+	TopicNode                Topic = "Node"
+	TopicACLPolicy           Topic = "ACLPolicy"
+	TopicACLToken            Topic = "ACLToken"
+	TopicServiceRegistration Topic = "ServiceRegistration"
+	TopicAll                 Topic = "*"
 
 	TypeNodeRegistration              = "NodeRegistration"
 	TypeNodeDeregistration            = "NodeDeregistration"
@@ -45,6 +46,8 @@ const (
 	TypeACLTokenUpserted              = "ACLTokenUpserted"
 	TypeACLPolicyDeleted              = "ACLPolicyDeleted"
 	TypeACLPolicyUpserted             = "ACLPolicyUpserted"
+	TypeServiceRegistration           = "ServiceRegistration"
+	TypeServiceDeregistration         = "ServiceDeregistration"
 )
 
 // Event represents a change in Nomads state.
@@ -121,6 +124,12 @@ type NodeStreamEvent struct {
 type ACLTokenEvent struct {
 	ACLToken *ACLToken
 	secretID string
+}
+
+// ServiceRegistrationStreamEvent holds a newly updated or deleted service
+// registration.
+type ServiceRegistrationStreamEvent struct {
+	Service *ServiceRegistration
 }
 
 // NewACLTokenEvent takes a token and creates a new ACLTokenEvent.  It creates

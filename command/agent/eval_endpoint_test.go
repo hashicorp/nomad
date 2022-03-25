@@ -202,7 +202,7 @@ func TestHTTP_EvalQuery(t *testing.T) {
 }
 
 func TestHTTP_EvalQueryWithRelated(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()

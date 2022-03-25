@@ -3259,6 +3259,87 @@ func TestFSM_SnapshotRestore_Namespaces(t *testing.T) {
 	}
 }
 
+func TestFSM_UpsertServiceRegistrations(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	// Generate our test service registrations.
+	services := mock.ServiceRegistrations()
+
+	// Build and apply our message.
+	req := structs.ServiceRegistrationUpsertRequest{Services: services}
+	buf, err := structs.Encode(structs.ServiceRegistrationUpsertRequestType, req)
+	assert.Nil(t, err)
+	assert.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// Check that both services are found within state.
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().GetServiceRegistrationByID(ws, services[0].Namespace, services[0].ID)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+
+	out, err = fsm.State().GetServiceRegistrationByID(ws, services[1].Namespace, services[1].ID)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+}
+
+func TestFSM_DeleteServiceRegistrationsByID(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	// Generate our test service registrations.
+	services := mock.ServiceRegistrations()
+
+	// Upsert the services.
+	assert.NoError(t, fsm.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, uint64(10), services))
+
+	// Build and apply our message.
+	req := structs.ServiceRegistrationDeleteByIDRequest{ID: services[0].ID}
+	buf, err := structs.Encode(structs.ServiceRegistrationDeleteByIDRequestType, req)
+	assert.Nil(t, err)
+	assert.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// Check that the service has been deleted, whilst the other is still
+	// available.
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().GetServiceRegistrationByID(ws, services[0].Namespace, services[0].ID)
+	assert.Nil(t, err)
+	assert.Nil(t, out)
+
+	out, err = fsm.State().GetServiceRegistrationByID(ws, services[1].Namespace, services[1].ID)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+}
+
+func TestFSM_DeleteServiceRegistrationsByNodeID(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	// Generate our test service registrations. Set them both to have the same
+	// node ID.
+	services := mock.ServiceRegistrations()
+	services[1].NodeID = services[0].NodeID
+
+	// Upsert the services.
+	assert.NoError(t, fsm.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, uint64(10), services))
+
+	// Build and apply our message.
+	req := structs.ServiceRegistrationDeleteByNodeIDRequest{NodeID: services[0].NodeID}
+	buf, err := structs.Encode(structs.ServiceRegistrationDeleteByNodeIDRequestType, req)
+	assert.Nil(t, err)
+	assert.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// Check both services have been removed.
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().GetServiceRegistrationByID(ws, services[0].Namespace, services[0].ID)
+	assert.Nil(t, err)
+	assert.Nil(t, out)
+
+	out, err = fsm.State().GetServiceRegistrationByID(ws, services[1].Namespace, services[1].ID)
+	assert.Nil(t, err)
+	assert.Nil(t, out)
+}
+
 func TestFSM_ACLEvents(t *testing.T) {
 	ci.Parallel(t)
 

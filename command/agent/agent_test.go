@@ -522,6 +522,14 @@ func TestAgent_ClientConfig(t *testing.T) {
 	if c.Node.HTTPAddr != expectedHttpAddr {
 		t.Fatalf("Expected http addr: %v, got: %v", expectedHttpAddr, c.Node.HTTPAddr)
 	}
+
+	// Test the default, and then custom setting of the client service
+	// discovery boolean.
+	require.True(t, c.NomadServiceDiscovery)
+	conf.Client.NomadServiceDiscovery = helper.BoolToPtr(false)
+	c, err = a.clientConfig()
+	require.NoError(t, err)
+	require.False(t, c.NomadServiceDiscovery)
 }
 
 func TestAgent_ClientConfig_ReservedCores(t *testing.T) {

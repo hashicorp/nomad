@@ -8,9 +8,9 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -93,7 +93,7 @@ func TestHealthHook_PrerunPostrun(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t, logger)
+	consul := regMock.NewServiceRegistrationHandler(logger)
 	hs := &mockHealthSetter{}
 
 	h := newAllocHealthWatcherHook(logger, mock.Alloc(), hs, b.Listen(), consul)
@@ -131,7 +131,7 @@ func TestHealthHook_PrerunUpdatePostrun(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t, logger)
+	consul := regMock.NewServiceRegistrationHandler(logger)
 	hs := &mockHealthSetter{}
 
 	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
@@ -170,7 +170,7 @@ func TestHealthHook_UpdatePrerunPostrun(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t, logger)
+	consul := regMock.NewServiceRegistrationHandler(logger)
 	hs := &mockHealthSetter{}
 
 	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
@@ -211,7 +211,7 @@ func TestHealthHook_Postrun(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t, logger)
+	consul := regMock.NewServiceRegistrationHandler(logger)
 	hs := &mockHealthSetter{}
 
 	h := newAllocHealthWatcherHook(logger, mock.Alloc(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
@@ -244,9 +244,9 @@ func TestHealthHook_SetHealth_healthy(t *testing.T) {
 		Name:   task.Services[0].Checks[0].Name,
 		Status: consulapi.HealthPassing,
 	}
-	taskRegs := map[string]*agentconsul.ServiceRegistrations{
+	taskRegs := map[string]*serviceregistration.ServiceRegistrations{
 		task.Name: {
-			Services: map[string]*agentconsul.ServiceRegistration{
+			Services: map[string]*serviceregistration.ServiceRegistration{
 				task.Services[0].Name: {
 					Service: &consulapi.AgentService{
 						ID:      "foo",
@@ -264,14 +264,14 @@ func TestHealthHook_SetHealth_healthy(t *testing.T) {
 
 	// Don't reply on the first call
 	called := false
-	consul := consul.NewMockConsulServiceClient(t, logger)
-	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+	consul := regMock.NewServiceRegistrationHandler(logger)
+	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
 		if !called {
 			called = true
 			return nil, nil
 		}
 
-		reg := &agentconsul.AllocRegistration{
+		reg := &serviceregistration.AllocRegistration{
 			Tasks: taskRegs,
 		}
 
@@ -332,9 +332,9 @@ func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
 		Name:   task.Services[0].Checks[1].Name,
 		Status: consulapi.HealthCritical,
 	}
-	taskRegs := map[string]*agentconsul.ServiceRegistrations{
+	taskRegs := map[string]*serviceregistration.ServiceRegistrations{
 		task.Name: {
-			Services: map[string]*agentconsul.ServiceRegistration{
+			Services: map[string]*serviceregistration.ServiceRegistration{
 				task.Services[0].Name: {
 					Service: &consulapi.AgentService{
 						ID:      "foo",
@@ -352,14 +352,14 @@ func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
 
 	// Don't reply on the first call
 	called := false
-	consul := consul.NewMockConsulServiceClient(t, logger)
-	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+	consul := regMock.NewServiceRegistrationHandler(logger)
+	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
 		if !called {
 			called = true
 			return nil, nil
 		}
 
-		reg := &agentconsul.AllocRegistration{
+		reg := &serviceregistration.AllocRegistration{
 			Tasks: taskRegs,
 		}
 

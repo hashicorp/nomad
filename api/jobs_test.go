@@ -742,6 +742,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										PortLabel:   "db",
 										AddressMode: "auto",
 										OnUpdate:    "require_healthy",
+										Provider:    "consul",
 										Checks: []ServiceCheck{
 											{
 												Name:     "alive",
@@ -2355,4 +2356,8 @@ func TestJobs_ScaleStatus(t *testing.T) {
 
 	// Check that the result is what we expect
 	require.Equal(groupCount, result.TaskGroups[groupName].Desired)
+}
+
+func TestJobs_Services(t *testing.T) {
+	// TODO(jrasell) add tests once registration process is in place.
 }

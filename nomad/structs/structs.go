@@ -105,6 +105,9 @@ const (
 	OneTimeTokenUpsertRequestType                MessageType = 44
 	OneTimeTokenDeleteRequestType                MessageType = 45
 	OneTimeTokenExpireRequestType                MessageType = 46
+	ServiceRegistrationUpsertRequestType         MessageType = 47
+	ServiceRegistrationDeleteByIDRequestType     MessageType = 48
+	ServiceRegistrationDeleteByNodeIDRequestType MessageType = 49
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
@@ -6253,7 +6256,7 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 	}
 
 	for _, service := range tg.Services {
-		service.Canonicalize(job.Name, tg.Name, "group")
+		service.Canonicalize(job.Name, tg.Name, "group", job.Namespace)
 	}
 
 	for _, network := range tg.Networks {
@@ -6549,6 +6552,10 @@ func (tg *TaskGroup) validateServices() error {
 	var mErr multierror.Error
 	knownTasks := make(map[string]struct{})
 
+	// Track the providers used for this task group. Currently, Nomad only
+	// allows the use of a single service provider within a task group.
+	configuredProviders := make(map[string]struct{})
+
 	// Create a map of known tasks and their services so we can compare
 	// vs the group-level services and checks
 	for _, task := range tg.Tasks {
@@ -6562,9 +6569,22 @@ func (tg *TaskGroup) validateServices() error {
 					mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s is invalid: only task group service checks can be assigned tasks", check.Name))
 				}
 			}
+
+			// Add the service provider to the tracking, if it has not already
+			// been seen.
+			if _, ok := configuredProviders[service.Provider]; !ok {
+				configuredProviders[service.Provider] = struct{}{}
+			}
 		}
 	}
 	for i, service := range tg.Services {
+
+		// Add the service provider to the tracking, if it has not already been
+		// seen.
+		if _, ok := configuredProviders[service.Provider]; !ok {
+			configuredProviders[service.Provider] = struct{}{}
+		}
+
 		if err := service.Validate(); err != nil {
 			outer := fmt.Errorf("Service[%d] %s validation failed: %s", i, service.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
@@ -6593,6 +6613,15 @@ func (tg *TaskGroup) validateServices() error {
 			}
 		}
 	}
+
+	// The initial feature release of native service discovery only allows for
+	// a single service provider to be used across all services in a task
+	// group.
+	if len(configuredProviders) > 1 {
+		mErr.Errors = append(mErr.Errors,
+			errors.New("Multiple service providers used: task group services must use the same provider"))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -7004,7 +7033,7 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 	}
 
 	for _, service := range t.Services {
-		service.Canonicalize(job.Name, tg.Name, t.Name)
+		service.Canonicalize(job.Name, tg.Name, t.Name, job.Namespace)
 	}
 
 	// If Resources are nil initialize them to defaults, otherwise canonicalize

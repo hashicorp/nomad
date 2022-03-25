@@ -459,6 +459,14 @@ func (j *Jobs) Stable(jobID string, version uint64, stable bool,
 	return &resp, wm, nil
 }
 
+// Services is used to return a list of service registrations associated to the
+// specified jobID.
+func (j *Jobs) Services(jobID string, q *QueryOptions) ([]*ServiceRegistration, *QueryMeta, error) {
+	var resp []*ServiceRegistration
+	qm, err := j.client.query("/v1/job/"+jobID+"/services", &resp, q)
+	return resp, qm, err
+}
+
 // periodicForceResponse is used to deserialize a force response
 type periodicForceResponse struct {
 	EvalID string

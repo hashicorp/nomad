@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/consul"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -39,6 +39,7 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 		{
 			Name:      "foo",
 			PortLabel: "8888",
+			Provider:  structs.ServiceProviderConsul,
 		},
 	}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -126,7 +127,7 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 	//    - removal during exited is de-duped due to prekill
 	//    - removal during stop is de-duped due to prekill
 	//   1 removal group during stop
-	consulOps := conf2.Consul.(*consul.MockConsulServiceClient).GetOps()
+	consulOps := conf2.Consul.(*regMock.ServiceRegistrationHandler).GetOps()
 	require.Len(t, consulOps, 2)
 	for _, op := range consulOps {
 		require.Equal(t, "remove", op.Op)

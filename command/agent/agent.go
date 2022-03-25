@@ -14,8 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/lib/cpuset"
-
 	metrics "github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
@@ -28,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/event"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -704,6 +703,10 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		conf.ReservableCores = cores.ToSlice()
 	}
 
+	if agentConfig.Client.NomadServiceDiscovery != nil {
+		conf.NomadServiceDiscovery = *agentConfig.Client.NomadServiceDiscovery
+	}
+
 	return conf, nil
 }
 
@@ -887,7 +890,6 @@ func (a *Agent) setupClient() error {
 	if !a.config.Client.Enabled {
 		return nil
 	}
-
 	// Setup the configuration
 	conf, err := a.clientConfig()
 	if err != nil {

@@ -279,6 +279,10 @@ type Config struct {
 
 	// ReservableCores if set overrides the set of reservable cores reported in fingerprinting.
 	ReservableCores []uint16
+
+	// NomadServiceDiscovery determines whether the Nomad native service
+	// discovery client functionality is enabled.
+	NomadServiceDiscovery bool
 }
 
 // ClientTemplateConfig is configuration on the client specific to template

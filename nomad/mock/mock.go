@@ -2257,3 +2257,34 @@ func Namespace() *structs.Namespace {
 	ns.SetHash()
 	return ns
 }
+
+// ServiceRegistrations generates an array containing two unique service
+// registrations.
+func ServiceRegistrations() []*structs.ServiceRegistration {
+	return []*structs.ServiceRegistration{
+		{
+			ID:          "_nomad-task-2873cf75-42e5-7c45-ca1c-415f3e18be3d-group-cache-example-cache-db",
+			ServiceName: "example-cache",
+			Namespace:   "default",
+			NodeID:      "17a6d1c0-811e-2ca9-ded0-3d5d6a54904c",
+			Datacenter:  "dc1",
+			JobID:       "example",
+			AllocID:     "2873cf75-42e5-7c45-ca1c-415f3e18be3d",
+			Tags:        []string{"foo"},
+			Address:     "192.168.10.1",
+			Port:        23000,
+		},
+		{
+			ID:          "_nomad-task-ca60e901-675a-0ab2-2e57-2f3b05fdc540-group-api-countdash-api-http",
+			ServiceName: "countdash-api",
+			Namespace:   "platform",
+			NodeID:      "ba991c17-7ce5-9c20-78b7-311e63578583",
+			Datacenter:  "dc2",
+			JobID:       "countdash-api",
+			AllocID:     "ca60e901-675a-0ab2-2e57-2f3b05fdc540",
+			Tags:        []string{"bar"},
+			Address:     "192.168.200.200",
+			Port:        29000,
+		},
+	}
+}
