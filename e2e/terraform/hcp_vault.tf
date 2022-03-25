@@ -11,7 +11,7 @@ data "hcp_vault_cluster" "e2e_shared_vault" {
 # Nomad servers configuration for Vault
 
 resource "vault_policy" "nomad" {
-  name   = "nomad-server"
+  name   = "${local.random_name}-nomad-server"
   policy = data.local_file.vault_policy_for_nomad.content
 }
 
