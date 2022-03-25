@@ -90,10 +90,7 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
- 
-      - name: Build dependencies
-        run: make deps
-      
+
       - name: Setup node and yarn
         uses: actions/setup-node@v2
         with:
@@ -103,6 +100,17 @@ jobs:
       - name: Install Yarn
         run: |
           npm install -g yarn
+
+      - name: Build dependencies
+        run: make deps
+
+      - name: Install tools
+        shell: bash
+        run: sudo bash scripts/ci-install-deps.sh ${{ matrix.goos }} ${{ matrix.goarch }}
+
+      - name: Add buf to PATH
+        shell: bash
+        run: echo "/usr/local/bin/buf" >> $GITHUB_PATH
 
       - name: Build prerelease
         run: make prerelease
@@ -139,10 +147,7 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
-     
-      - name: Build dependencies
-        run: make deps
-      
+
       - name: Setup node and yarn
         uses: actions/setup-node@v2
         with:
@@ -152,33 +157,25 @@ jobs:
       - name: Install Yarn
         run: |
           npm install -g yarn
+           
+      - name: Build dependencies
+        run: make deps
       
+      - name: Install tools
+        run: sudo bash scripts/ci-install-deps.sh ${{ matrix.goos }} ${{ matrix.goarch }}
+      
+      - name: Add buf to PATH
+        run: echo "/usr/local/bin/buf/bin/buf" >> $GITHUB_PATH
+
       - name: Build prerelease
         run: make prerelease
-      
-      - name: Install Linux build utilties
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y software-properties-common
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install -y \
-            libc6-dev-i386 \
-            libpcre3-dev \
-            linux-libc-dev:i386 
-          sudo apt-get install -y \
-            binutils-aarch64-linux-gnu \
-            binutils-arm-linux-gnueabihf \
-            gcc-aarch64-linux-gnu \
-            gcc-arm-linux-gnueabihf \
-            gcc-multilib-arm-linux-gnueabihf
 
-      - name: Set gcc
+      - name: Add arm compiler to PATH
         run: |
           if [ "${{ matrix.goarch }}" == "arm" ]; then
-            echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+            echo "/usr/bin/gcc-5-arm-linux-gnueabihf" >> $GITHUB_PATH
           elif [ "${{ matrix.goarch }}" == "arm64" ]; then
-            echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+            echo "/usr/bin/aarch64-linux-gnu-gcc-5" >> $GITHUB_PATH
           fi
 
       - name: Build
@@ -251,9 +248,6 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
-
-      - name: Build dependencies
-        run: make deps
       
       - name: Setup node and yarn
         uses: actions/setup-node@v2
@@ -264,7 +258,16 @@ jobs:
       - name: Install Yarn
         run: |
           npm install -g yarn
-           
+
+      - name: Build dependencies
+        run: make deps    
+
+      - name: Install tools
+        run: sudo bash scripts/ci-install-deps.sh ${{ matrix.goos }} ${{ matrix.goarch }}
+
+      - name: Add buf to PATH
+        run: echo "/usr/local/bin/buf" >> $GITHUB_PATH
+
       - name: Build prerelease
         run: make prerelease
       
