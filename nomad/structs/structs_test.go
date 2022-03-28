@@ -5082,6 +5082,145 @@ func TestAllocation_DisconnectTimeout(t *testing.T) {
 	}
 }
 
+func TestAllocation_Expired(t *testing.T) {
+	type testCase struct {
+		name             string
+		maxDisconnect    string
+		ellapsed         int
+		expected         bool
+		nilJob           bool
+		badTaskGroup     bool
+		mixedUTC         bool
+		noReconnectEvent bool
+		status           string
+	}
+
+	testCases := []testCase{
+		{
+			name:          "has-expired",
+			maxDisconnect: "5s",
+			ellapsed:      10,
+			expected:      true,
+		},
+		{
+			name:          "has-not-expired",
+			maxDisconnect: "5s",
+			ellapsed:      3,
+			expected:      false,
+		},
+		{
+			name:          "are-equal",
+			maxDisconnect: "5s",
+			ellapsed:      5,
+			expected:      true,
+		},
+		{
+			name:          "nil-job",
+			maxDisconnect: "5s",
+			ellapsed:      10,
+			expected:      false,
+			nilJob:        true,
+		},
+		{
+			name:          "wrong-status",
+			maxDisconnect: "5s",
+			ellapsed:      10,
+			expected:      false,
+			status:        AllocClientStatusUnknown,
+		},
+		{
+			name:          "no-bad-task-group",
+			maxDisconnect: "",
+			badTaskGroup:  true,
+			ellapsed:      10,
+			expected:      false,
+		},
+		{
+			name:          "no-max-disconnect",
+			maxDisconnect: "",
+			ellapsed:      10,
+			expected:      false,
+		},
+		{
+			name:          "mixed-utc-has-expired",
+			maxDisconnect: "5s",
+			ellapsed:      10,
+			mixedUTC:      true,
+			expected:      true,
+		},
+		{
+			name:          "mixed-utc-has-not-expired",
+			maxDisconnect: "5s",
+			ellapsed:      3,
+			mixedUTC:      true,
+			expected:      false,
+		},
+		{
+			name:             "no-reconnect-event",
+			maxDisconnect:    "5s",
+			ellapsed:         2,
+			expected:         false,
+			noReconnectEvent: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc := MockAlloc()
+			var err error
+			var maxDisconnect time.Duration
+
+			if tc.maxDisconnect != "" {
+				maxDisconnect, err = time.ParseDuration(tc.maxDisconnect)
+				require.NoError(t, err)
+				alloc.Job.TaskGroups[0].MaxClientDisconnect = &maxDisconnect
+			} else {
+				t.Log("got here ")
+			}
+
+			if tc.nilJob {
+				alloc.Job = nil
+			}
+
+			if tc.badTaskGroup {
+				alloc.TaskGroup = "bad"
+			}
+
+			alloc.ClientStatus = AllocClientStatusRunning
+			if tc.status != "" {
+				alloc.ClientStatus = tc.status
+			}
+
+			require.NoError(t, err)
+			now := time.Now().UTC()
+			if tc.mixedUTC {
+				now = time.Now()
+			}
+
+			if !tc.noReconnectEvent {
+				event := NewTaskEvent(TaskClientReconnected)
+				event.Time = now.UnixNano()
+
+				alloc.TaskStates = map[string]*TaskState{
+					"web": {
+						Events: []*TaskEvent{event},
+					},
+				}
+			}
+
+			ellapsedDuration := time.Duration(tc.ellapsed) * time.Second
+			now = now.Add(ellapsedDuration)
+
+			expired, err := alloc.Expired(now)
+			if tc.nilJob || tc.noReconnectEvent || tc.maxDisconnect == "" || tc.badTaskGroup || alloc.ClientStatus != AllocClientStatusRunning {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.expected, expired)
+		})
+	}
+}
+
 func TestAllocation_Canonicalize_Old(t *testing.T) {
 	alloc := MockAlloc()
 	alloc.AllocatedResources = nil
