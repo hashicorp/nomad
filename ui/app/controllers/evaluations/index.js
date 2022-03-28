@@ -47,6 +47,7 @@ export default class EvaluationsController extends Controller {
 
     return this.store.findRecord('evaluation', evaluationId, {
       reload: true,
+      adapterOptions: { related: true },
     });
   }
 
