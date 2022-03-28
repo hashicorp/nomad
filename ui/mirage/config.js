@@ -263,8 +263,8 @@ export default function () {
   });
 
   this.get('/evaluations');
-  this.get('/evaluation/:id', function (_, { params }) {
-    return MOCK_EVALUATION(params.id);
+  this.get('/evaluation/:id', function () {
+    return MOCK_EVALUATION;
   });
 
   this.get('/deployment/allocations/:id', function (schema, { params }) {
