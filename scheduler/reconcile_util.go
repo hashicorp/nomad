@@ -208,22 +208,136 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 	return from
 }
 
+type replacementMap struct {
+	enabled bool
+	entries map[string]map[string]*structs.Allocation
+}
+
+func newReplacementMap(supportsDisconnectedClients bool, set allocSet) *replacementMap {
+	rm := &replacementMap{
+		enabled: supportsDisconnectedClients && len(set) > 0,
+		entries: make(map[string]map[string]*structs.Allocation, len(set)),
+	}
+
+	if !rm.enabled {
+		return rm
+	}
+
+	for _, alloc := range set {
+		if allocs, ok := rm.entries[alloc.Name]; ok {
+			allocs[alloc.ID] = alloc
+			rm.entries[alloc.Name] = allocs
+		} else {
+			rm.entries[alloc.Name] = map[string]*structs.Allocation{alloc.ID: alloc}
+		}
+	}
+
+	for allocName, allocs := range rm.entries {
+		if len(allocs) < 2 {
+			delete(rm.entries, allocName)
+		}
+	}
+
+	rm.enabled = len(rm.entries) > 0
+
+	return rm
+}
+
+func (rm *replacementMap) isReconnecting(alloc *structs.Allocation) bool {
+	// Can't filter terminal on initial pass because there may be stopped allocs between
+	// the current running and the reconnecting (job version updates for instance).
+	if !rm.enabled || alloc.ClientStatus == structs.AllocClientStatusUnknown || alloc.TerminalStatus() {
+		return false
+	}
+
+	return rm.isOriginal(alloc)
+}
+
+func (rm *replacementMap) isOriginal(alloc *structs.Allocation) bool {
+	if !rm.enabled {
+		return false
+	}
+
+	// If no replacement, return nil. Node.UpdateAlloc has already updated
+	// ClientStatus and there is no need to reconcile with replacement.
+	items, ok := rm.entries[alloc.Name]
+	if !ok {
+		return false
+	}
+
+	// Map acts as a linked list. If the previous allocation is not in the
+	// map, we've found the head of the list.
+	original := alloc
+	for {
+		prevAlloc, inMap := items[original.PreviousAllocation]
+		if !inMap {
+			break
+		}
+		original = prevAlloc
+	}
+
+	return original.ID == alloc.ID
+}
+
+// Allocs that are part of a replacement map and have a failed status should be ignored.
+func (rm *replacementMap) shouldIgnore(alloc *structs.Allocation) bool {
+	if !rm.enabled || alloc.ClientStatus != structs.AllocClientStatusFailed {
+		return false
+	}
+
+	_, ok := rm.entries[alloc.Name]
+	return ok
+}
+
+func (rm *replacementMap) allTerminal(alloc *structs.Allocation) bool {
+	if !rm.enabled {
+		return false
+	}
+
+	items, ok := rm.entries[alloc.Name]
+	if !ok {
+		return false
+	}
+
+	for _, item := range items {
+		if !item.Terminated() {
+			return false
+		}
+	}
+
+	return true
+}
+
 // filterByTainted takes a set of tainted nodes and filters the allocation set
-// into 5 groups:
+// into the following groups:
 // 1. Those that exist on untainted nodes
 // 2. Those exist on nodes that are draining
-// 3. Those that exist on lost nodes
+// 3. Those that exist on lost nodes or have expired
 // 4. Those that are on nodes that are disconnected, but have not had their ClientState set to unknown
-// 5. Those that have had their ClientState set to unknown, but their node has reconnected.
-func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, supportsDisconnectedClients bool) (untainted, migrate, lost, disconnecting, reconnecting allocSet) {
+// 5. Those that are on a node that has reconnected.
+// 6. Those that are in a state the results in a noop.
+func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, supportsDisconnectedClients bool, now time.Time) (untainted, migrate, lost, disconnecting, reconnecting, ignore allocSet) {
 	untainted = make(map[string]*structs.Allocation)
 	migrate = make(map[string]*structs.Allocation)
 	lost = make(map[string]*structs.Allocation)
 	disconnecting = make(map[string]*structs.Allocation)
 	reconnecting = make(map[string]*structs.Allocation)
+	ignore = make(map[string]*structs.Allocation)
+	replacements := newReplacementMap(supportsDisconnectedClients, a)
 
 	for _, alloc := range a {
-		// Terminal allocs are always untainted as they should never be migrated
+		if replacements.allTerminal(alloc) {
+			untainted[alloc.ID] = alloc
+			continue
+		}
+
+		// This MUST be called before alloc.TerminalStatus()
+		if replacements.shouldIgnore(alloc) {
+			ignore[alloc.ID] = alloc
+			continue
+		}
+
+		// Terminal allocs are always untainted as they should never be migrated.
 		if alloc.TerminalStatus() {
 			untainted[alloc.ID] = alloc
 			continue
@@ -238,7 +352,11 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 		taintedNode, ok := taintedNodes[alloc.NodeID]
 		if !ok {
 			// Filter allocs on a node that is now re-connected to be resumed.
-			if supportsDisconnectedClients && alloc.ClientStatus == structs.AllocClientStatusUnknown {
+			if replacements.isReconnecting(alloc) {
+				if alloc.Expired(now.UTC()) {
+					lost[alloc.ID] = alloc
+					continue
+				}
 				reconnecting[alloc.ID] = alloc
 				continue
 			}
@@ -252,6 +370,16 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 			// Group disconnecting/reconnecting
 			switch taintedNode.Status {
 			case structs.NodeStatusDisconnected:
+				// Expired allocs on disconnected nodes are lost
+				if supportsDisconnectedClients && alloc.Expired(now) {
+					lost[alloc.ID] = alloc
+					continue
+				}
+				// Ignore unknown allocs on a node that is disconnected.
+				if supportsDisconnectedClients && alloc.ClientStatus == structs.AllocClientStatusUnknown {
+					ignore[alloc.ID] = alloc
+					continue
+				}
 				// Filter running allocs on a node that is disconnected to be marked as unknown.
 				if supportsDisconnectedClients && alloc.ClientStatus == structs.AllocClientStatusRunning {
 					disconnecting[alloc.ID] = alloc
@@ -263,8 +391,12 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 					continue
 				}
 			case structs.NodeStatusReady:
-				// Filter unknown allocs on a node that is connected to reconnect.
-				if supportsDisconnectedClients && alloc.ClientStatus == structs.AllocClientStatusUnknown {
+				// Filter reconnecting allocs with replacements on a node that is now connected.
+				if replacements.isReconnecting(alloc) {
+					if alloc.Expired(now.UTC()) {
+						lost[alloc.ID] = alloc
+						continue
+					}
 					reconnecting[alloc.ID] = alloc
 					continue
 				}
@@ -280,7 +412,6 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 
 		// All other allocs are untainted
 		untainted[alloc.ID] = alloc
-
 	}
 
 	return
