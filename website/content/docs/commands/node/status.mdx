@@ -47,6 +47,8 @@ capability.
 
 - `-verbose`: Show full information.
 
+- `-os`: Display operating system name.
+
 - `-json` : Output the node in its JSON format.
 
 - `-t` : Format and display node using a Go template.
@@ -60,6 +62,13 @@ $ nomad node status
 ID        DC   Name   Class   Drain  Eligibility  Status
 a72dfba2  dc1  node1  <none>  false  eligible     ready
 1f3f03ea  dc1  node2  <none>  false  eligible     ready
+```
+
+```shell-session
+$ nomad node status -os
+ID        DC   Name   Class   OS      Drain  Eligibility  Status
+a72dfba2  dc1  node1  <none>  ubuntu  false  eligible     ready
+f73e3993  dc1  node2  <none>  centos  false  eligible     ready
 ```
 
 List view, with running allocations:
