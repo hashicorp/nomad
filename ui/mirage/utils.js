@@ -25,10 +25,10 @@ export function arrToObj(prop, alias = '') {
   };
 }
 
-export const MOCK_EVALUATION = (id) => ({
+export const MOCK_EVALUATION = {
   CreateIndex: 20,
   CreateTime: 1647899150314738000,
-  ID: id,
+  ID: 'fede162c-26a6-c108-178b-1c140f9f5680',
   JobID: 'example',
   JobModifyIndex: 10,
   ModifyIndex: 31,
@@ -50,27 +50,7 @@ export const MOCK_EVALUATION = (id) => ({
       Namespace: 'default',
       NextEval: 'cac7dfa0-b79b-ee55-c86a-0ca89dffb9e1',
       NodeID: '',
-      PreviousEval: id,
-      Priority: 50,
-      Status: 'failed',
-      StatusDescription: 'evaluation reached delivery limit (3)',
-      TriggeredBy: 'failed-follow-up',
-      Type: 'service',
-      WaitUntil: null,
-    },
-    {
-      BlockedEval: '',
-      CreateIndex: 31,
-      CreateTime: 1647899318007563000,
-      DeploymentID: '',
-      ID: 'fd1cd898-d655-c7e4-17f6-a1a2e98b18test',
-      JobID: 'example',
-      ModifyIndex: 44,
-      ModifyTime: 1647899591412413000,
-      Namespace: 'default',
-      NextEval: '',
-      NodeID: '',
-      PreviousEval: id,
+      PreviousEval: 'fede162c-26a6-c108-178b-1c140f9f5680',
       Priority: 50,
       Status: 'failed',
       StatusDescription: 'evaluation reached delivery limit (3)',
@@ -88,7 +68,7 @@ export const MOCK_EVALUATION = (id) => ({
       ModifyIndex: 20,
       ModifyTime: 1647899150314745000,
       Namespace: 'default',
-      NextEval: id,
+      NextEval: 'fede162c-26a6-c108-178b-1c140f9f5680',
       NodeID: '',
       PreviousEval: '',
       Priority: 50,
@@ -264,4 +244,4 @@ export const MOCK_EVALUATION = (id) => ({
   TriggeredBy: 'failed-follow-up',
   Type: 'service',
   Wait: 20000000000,
-});
+};
