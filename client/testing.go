@@ -131,3 +131,36 @@ func TestRPCOnlyClient(t testing.T, srvAddr net.Addr, rpcs map[string]interface{
 
 	return client, cancelFunc, nil
 }
+
+// FailTasks allows failing tasks on a client when testing.
+func FailTask(c *Client, allocID, taskName, taskEvent string) error {
+	if !c.allocFailersEnabled {
+		return fmt.Errorf("alloc failers not enabled on client")
+	}
+
+	failer := c.allocFailers[allocID]
+	if failer == nil {
+		return fmt.Errorf("alloc %s not running", allocID)
+	}
+
+	failer.FailTask(taskName, taskEvent)
+	return nil
+}
+
+func FailHeartbeat(c *Client) error {
+	if !c.heartbeatFailerEnabled {
+		return fmt.Errorf("heartbeat failer not enabled on client")
+	}
+
+	c.failHeartbeat = true
+	return nil
+}
+
+func ResumeHeartbeat(c *Client) error {
+	if !c.heartbeatFailerEnabled {
+		return fmt.Errorf("heartbeat failer not enabled on client")
+	}
+
+	c.failHeartbeat = false
+	return nil
+}

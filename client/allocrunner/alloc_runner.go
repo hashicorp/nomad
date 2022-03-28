@@ -1249,6 +1249,7 @@ func (ar *allocRunner) Reconnect(update *structs.Allocation) (err error) {
 	ar.logger.Trace("reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex)
 
 	event := structs.NewTaskEvent(structs.TaskClientReconnected)
+	event.Time = time.Now().UnixNano()
 	for _, tr := range ar.tasks {
 		tr.AppendEvent(event)
 	}

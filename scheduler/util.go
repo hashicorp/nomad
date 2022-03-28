@@ -1034,6 +1034,10 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 // update necessary and can minimize the set of objects it is exposed to.
 func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateType {
 	return func(existing *structs.Allocation, newJob *structs.Job, newTG *structs.TaskGroup) (ignore, destructive bool, updated *structs.Allocation) {
+		//if existing.ClientStatus == structs.AllocClientStatusUnknown {
+		//	return true, false, nil
+		//}
+
 		// Same index, so nothing to do
 		if existing.Job.JobModifyIndex == newJob.JobModifyIndex {
 			return true, false, nil

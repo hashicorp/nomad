@@ -521,6 +521,7 @@ OUTER:
 
 			preemptedAllocs := preemptor.PreemptForTaskGroup(total)
 			allocsToPreempt = append(allocsToPreempt, preemptedAllocs...)
+			fmt.Printf("allocToPreempt len %d\n", len(allocsToPreempt))
 
 			// If we were unable to find preempted allocs to meet these requirements
 			// mark as exhausted and continue

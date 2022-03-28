@@ -6275,6 +6275,7 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 		} else {
 			// If alloc is a stopped alloc
 			allocCopy.DesiredDescription = allocDiff.DesiredDescription
+			fmt.Printf("setting desired status stop for alloc %s with DesiredStatus %s and ClientStatus %s\n", allocCopy.ID, allocCopy.DesiredStatus, allocCopy.ClientStatus)
 			allocCopy.DesiredStatus = structs.AllocDesiredStatusStop
 			if allocDiff.ClientStatus != "" {
 				allocCopy.ClientStatus = allocDiff.ClientStatus

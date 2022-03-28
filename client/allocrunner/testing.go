@@ -91,3 +91,42 @@ func TestAllocRunnerFromAlloc(t *testing.T, alloc *structs.Allocation) (*allocRu
 
 	return ar, cleanup
 }
+
+// AllocFailer provides access to the concrete allocRunner instance for test code.
+type AllocFailer struct {
+	Runner *allocRunner
+}
+
+// FailTask allows failing a task from test code.
+func (af *AllocFailer) FailTask(taskName, taskEvent string) {
+	if taskEvent == "" {
+		taskEvent = structs.TaskDriverFailure
+	}
+
+	event := structs.NewTaskEvent(taskEvent).SetFailsTask()
+	for taskKey, taskRunner := range af.Runner.tasks {
+		if taskName == "" || taskName == taskKey {
+			taskRunner.AppendEvent(event)
+		}
+	}
+
+	// Calculate alloc state to get the final state with the new events.
+	// Cannot rely on AllocStates as it won't recompute TaskStates once they are set.
+	states := make(map[string]*structs.TaskState, len(af.Runner.tasks))
+	for name, tr := range af.Runner.tasks {
+		taskState := tr.TaskState()
+		taskState.State = structs.TaskStateDead
+		states[name] = taskState
+	}
+
+	// Build the client allocation
+	clientAlloc := af.Runner.clientAlloc(states)
+
+	// Set to instance and set on runner
+	alloc := af.Runner.Alloc()
+	alloc.ClientStatus = clientAlloc.ClientStatus
+	alloc.ClientDescription = clientAlloc.ClientDescription
+	alloc.TaskStates = clientAlloc.TaskStates
+
+	af.Runner.stateUpdater.AllocStateUpdated(alloc)
+}

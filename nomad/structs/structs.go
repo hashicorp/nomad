@@ -9752,10 +9752,8 @@ func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
-	// Prefer the duration from the task group.
 	timeout := tg.MaxClientDisconnect
 
-	// If not configured, return now
 	if timeout == nil {
 		return now
 	}
@@ -9996,6 +9994,38 @@ func (a *Allocation) Stub(fields *AllocStubFields) *AllocListStub {
 // this method should be changed accordingly.
 func (a *Allocation) AllocationDiff() *AllocationDiff {
 	return (*AllocationDiff)(a)
+}
+
+// Expired determines whether a reconnecting alloc should be marked lost.
+func (a *Allocation) Expired(now time.Time) bool {
+	// If alloc is not Unknown it cannot be expired.
+	if a == nil || a.Job == nil || a.ClientStatus != AllocClientStatusUnknown {
+		return false
+	}
+
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return false
+	}
+
+	if tg.MaxClientDisconnect == nil {
+		return false
+	}
+
+	var lastUnknown time.Time
+	for _, s := range a.AllocStates {
+		if s.Field == AllocStateFieldClientStatus &&
+			s.Value == AllocClientStatusUnknown {
+			if lastUnknown.IsZero() || lastUnknown.Before(s.Time) {
+				lastUnknown = s.Time
+			}
+			break
+		}
+	}
+
+	expiry := lastUnknown.Add(*tg.MaxClientDisconnect)
+
+	return now.UTC().After(expiry) || now.Equal(expiry)
 }
 
 // AllocationDiff is another named type for Allocation (to use the same fields),
@@ -10416,6 +10446,7 @@ const (
 	EvalTriggerPreemption           = "preemption"
 	EvalTriggerScaling              = "job-scaling"
 	EvalTriggerMaxDisconnectTimeout = "max-disconnect-timeout"
+	EvalTriggerReconnect            = "reconnect"
 )
 
 const (

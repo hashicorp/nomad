@@ -1130,12 +1130,12 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	for _, allocToUpdate := range args.Alloc {
 		allocToUpdate.ModifyTime = now.UTC().UnixNano()
 
-		if !allocToUpdate.TerminalStatus() {
+		alloc, _ := n.srv.State().AllocByID(nil, allocToUpdate.ID)
+		if alloc == nil {
 			continue
 		}
 
-		alloc, _ := n.srv.State().AllocByID(nil, allocToUpdate.ID)
-		if alloc == nil {
+		if !allocToUpdate.TerminalStatus() && alloc.ClientStatus != structs.AllocClientStatusUnknown {
 			continue
 		}
 
@@ -1161,6 +1161,23 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 				ID:          uuid.Generate(),
 				Namespace:   alloc.Namespace,
 				TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
+				JobID:       alloc.JobID,
+				Type:        job.Type,
+				Priority:    job.Priority,
+				Status:      structs.EvalStatusPending,
+				CreateTime:  now.UTC().UnixNano(),
+				ModifyTime:  now.UTC().UnixNano(),
+			}
+			evals = append(evals, eval)
+		}
+
+		//Add an evaluation if this is a reconnecting allocation.
+		if alloc.ClientStatus == structs.AllocClientStatusUnknown {
+			n.logger.Trace("creating reconnect eval for unknown alloc", "alloc_id", allocToUpdate.ID)
+			eval := &structs.Evaluation{
+				ID:          uuid.Generate(),
+				Namespace:   alloc.Namespace,
+				TriggeredBy: structs.EvalTriggerReconnect,
 				JobID:       alloc.JobID,
 				Type:        job.Type,
 				Priority:    job.Priority,
@@ -1420,6 +1437,7 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 			CreateTime:      now,
 			ModifyTime:      now,
 		}
+
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
 	}
