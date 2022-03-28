@@ -1756,6 +1756,7 @@ func TestClient_ReconnectAllocs(t *testing.T) {
 	require.Equal(t, structs.AllocClientStatusRunning, unknownAlloc.ClientStatus)
 	require.NoError(t, err)
 	unknownAlloc.ClientStatus = structs.AllocClientStatusUnknown
+	unknownAlloc.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, runningAlloc.AllocModifyIndex+1, []*structs.Allocation{unknownAlloc})
 	require.NoError(t, err)
 

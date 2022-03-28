@@ -309,6 +309,14 @@ type Client struct {
 
 	// EnterpriseClient is used to set and check enterprise features for clients
 	EnterpriseClient *EnterpriseClient
+
+	// allocFailers is an instrumentation hook for test code.
+	allocFailers        map[string]*allocrunner.AllocFailer
+	allocFailersEnabled bool
+
+	// heartbeatFailer is an instrumentation hook for test code.
+	heartbeatFailerEnabled bool
+	failHeartbeat          bool
 }
 
 var (
@@ -409,6 +417,15 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	// Setup the node
 	if err := c.setupNode(); err != nil {
 		return nil, fmt.Errorf("node setup failed: %v", err)
+	}
+
+	// Enable test instrumentation.
+	if option, ok := c.config.Options["test.alloc_failer.enabled"]; ok && option == "true" {
+		c.allocFailersEnabled = true
+		c.allocFailers = make(map[string]*allocrunner.AllocFailer)
+	}
+	if option, ok := c.config.Options["test.heartbeat_failer.enabled"]; ok && option == "true" {
+		c.heartbeatFailerEnabled = true
 	}
 
 	// Store the config copy before restoring state but after it has been
@@ -1856,6 +1873,9 @@ func (c *Client) registerNode() error {
 
 // updateNodeStatus is used to heartbeat and update the status of the node
 func (c *Client) updateNodeStatus() error {
+	if c.failHeartbeat {
+		return errors.New("failing heartbeat per test configuration")
+	}
 	start := time.Now()
 	req := structs.NodeUpdateStatusRequest{
 		NodeID:       c.NodeID(),
@@ -2075,6 +2095,9 @@ OUTER:
 		// in full.
 		resp = structs.NodeClientAllocsResponse{}
 		err := c.RPC("Node.GetClientAllocs", &req, &resp)
+		if c.failHeartbeat {
+			err = errors.New("failing GetClientAllocs per test configuration")
+		}
 		if err != nil {
 			// Shutdown often causes EOF errors, so check for shutdown first
 			select {
@@ -2168,7 +2191,6 @@ OUTER:
 			// Ensure that we received all the allocations we wanted
 			pulledAllocs = make(map[string]*structs.Allocation, len(allocsResp.Allocs))
 			for _, alloc := range allocsResp.Allocs {
-
 				// handle an old Server
 				alloc.Canonicalize()
 
@@ -2499,6 +2521,11 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 
 	// Store the alloc runner.
 	c.allocs[alloc.ID] = ar
+
+	// Store the runner if enabled for tests.
+	if c.allocFailersEnabled {
+		c.allocFailers[alloc.ID] = &allocrunner.AllocFailer{Runner: ar}
+	}
 
 	// Maybe mark the alloc for halt on missing server heartbeats
 	c.heartbeatStop.allocHook(alloc)
