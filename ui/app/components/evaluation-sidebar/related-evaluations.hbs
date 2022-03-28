@@ -1,47 +1,67 @@
-<div
-  class="boxed-section"
-  style="max-width: 600px; overflow-x: scroll; overflow-y: hidden; outline: 1px solid black;"
-  data-test-eval-container
->
-  <div class="boxed-section-head">
+<div class="boxed-section">
+  <div class="boxed-section-head" style="position: relative; width: 600px">
     Related Evaluations
   </div>
   <div
-    style="display: flex; position: relative;"
-    {{on-resize @fns.handleResize}}
+    style="max-width: 600px; overflow-x: scroll; overflow-y: hidden;"
+    data-test-eval-container
   >
-    {{#if (and @data.width @data.height)}}
-      <Providers::ActorsRelationships as |actors|>
-        <svg
-          width={{@data.width}}
-          height={{@data.height}}
-          style="z-index: 10; inset: 0; position: absolute; pointer-events: none"
-          {{did-update actors.fns.recalcCurves @data.width}}
-        >
-          {{#each actors.data.relationships as |d|}}
-            <path d={{d}} stroke="#7E8FA8" strokeWidth="1" fill="none"></path>
-          {{/each}}
-        </svg>
-      </Providers::ActorsRelationships>
-    {{/if}}
-    <div>
-      <EvaluationSidebar::EvaluationActor
-        @eval={{@data.parentEvaluation}}
-        @onClick={{fn @fns.handleEvaluationClick @data.parentEvaluation}}
-      />
-    </div>
-    {{#each @data.descendentsMap as |evals|}}
-      <div
-        data-test-eval-descendents-container
-        style="display: flex; flex-direction: column; justify-content: space-evenly; flex-basis: 100%"
-      >
-        {{#each evals as |eval|}}
-          <EvaluationSidebar::EvaluationActor
-            @eval={{eval.data}}
-            @onClick={{fn @fns.handleEvaluationClick eval.data}}
-          />
-        {{/each}}
+    <div
+      style="display: flex; position: relative;"
+      {{on-resize @fns.handleResize}}
+    >
+      {{#if (and @data.width @data.height)}}
+        <Providers::ActorsRelationships as |actors|>
+          <svg
+            width={{@data.width}}
+            height={{@data.height}}
+            style="z-index: 10; inset: 0; position: absolute; pointer-events: none"
+            {{did-update actors.fns.recalcCurves @data.width}}
+          >
+            {{#each actors.data.relationships as |r|}}
+              <path
+                d={{r.d}}
+                stroke="#7E8FA8"
+                strokeWidth="1"
+                fill="none"
+              ></path>
+              <circle
+                cx={{r.sx}}
+                cy={{r.sy}}
+                r="4"
+                fill="white"
+                stroke="black"
+              ></circle>
+              <circle
+                cx={{r.ex}}
+                cy={{r.ey}}
+                r="4"
+                fill="white"
+                stroke="black"
+              ></circle>
+            {{/each}}
+          </svg>
+        </Providers::ActorsRelationships>
+      {{/if}}
+      <div>
+        <EvaluationSidebar::EvaluationActor
+          @eval={{@data.parentEvaluation}}
+          @onClick={{fn @fns.handleEvaluationClick @data.parentEvaluation}}
+        />
       </div>
-    {{/each}}
+      {{#each @data.descendentsMap as |evals|}}
+        <div
+          data-test-eval-descendents-container
+          style="display: flex; flex-direction: column; justify-content: space-evenly; flex-basis: 100%"
+        >
+          {{#each evals as |eval|}}
+            <EvaluationSidebar::EvaluationActor
+              @eval={{eval.data}}
+              @onClick={{fn @fns.handleEvaluationClick eval.data}}
+            />
+          {{/each}}
+        </div>
+      {{/each}}
+    </div>
   </div>
 </div>

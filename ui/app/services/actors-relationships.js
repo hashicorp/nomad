@@ -15,7 +15,7 @@ function boxToArrow(ra, rb) {
     bbA.offsetHeight,
     bbB.offsetLeft,
     bbB.offsetTop,
-    bbA.offsetWidth,
+    bbB.offsetWidth,
     bbB.offsetHeight
   );
 
@@ -83,7 +83,13 @@ export default class ActorRelationshipService extends Service {
         prevRectangle
       );
 
-      return `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${ex} ${ey}`;
+      return {
+        d: `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${ex} ${ey}`,
+        sx,
+        sy,
+        ex,
+        ey,
+      };
     });
   }
 
