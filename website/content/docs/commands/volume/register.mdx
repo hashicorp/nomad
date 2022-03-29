@@ -87,6 +87,10 @@ context {
   [`volume.source`][csi_volume_source] field in a job specification will refer
   to the volume.
 
+- `namespace` `(string: <optional>)` - The namespace of the volume. This field
+  overrides the namespace provided by the `-namespace` flag or `NOMAD_NAMESPACE`
+  environment variable. Defaults to `"default"` if unset.
+
 - `name` `(string: <required>)` - The display name of the volume.
 
 - `type` `(string: <required>)` - The type of volume. Currently only `"csi"`

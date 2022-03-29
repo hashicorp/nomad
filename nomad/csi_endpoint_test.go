@@ -125,12 +125,14 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	defer shutdown()
 	testutil.WaitForLeader(t, srv.RPC)
 
-	ns := structs.DefaultNamespace
-
-	state := srv.fsm.State()
+	store := srv.fsm.State()
 	codec := rpcClient(t, srv)
 
 	id0 := uuid.Generate()
+
+	// Create the register request
+	ns := mock.Namespace()
+	store.UpsertNamespaces(900, []*structs.Namespace{ns})
 
 	// Create the node and plugin
 	node := mock.Node()
@@ -142,11 +144,12 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	require.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
 
 	// Create the volume
 	vols := []*structs.CSIVolume{{
 		ID:             id0,
+		Namespace:      ns.Name,
 		PluginID:       "minnie",
 		AccessMode:     structs.CSIVolumeAccessModeSingleNodeReader, // legacy field ignored
 		AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,  // legacy field ignored
@@ -166,7 +169,7 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 		Volumes: vols,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
-			Namespace: ns,
+			Namespace: "",
 		},
 	}
 	resp1 := &structs.CSIVolumeRegisterResponse{}
@@ -178,7 +181,8 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	req2 := &structs.CSIVolumeGetRequest{
 		ID: id0,
 		QueryOptions: structs.QueryOptions{
-			Region: "global",
+			Region:    "global",
+			Namespace: ns.Name,
 		},
 	}
 	resp2 := &structs.CSIVolumeGetResponse{}
@@ -201,7 +205,7 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 		VolumeIDs: []string{id0},
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
-			Namespace: ns,
+			Namespace: ns.Name,
 		},
 	}
 	resp3 := &structs.CSIVolumeDeregisterResponse{}
@@ -1029,7 +1033,7 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	vols := []*structs.CSIVolume{{
 		ID:             volID,
 		Name:           "vol",
-		Namespace:      "notTheNamespace", // overriden by WriteRequest
+		Namespace:      "", // overriden by WriteRequest
 		PluginID:       "minnie",
 		AccessMode:     structs.CSIVolumeAccessModeSingleNodeReader, // legacy field ignored
 		AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,  // legacy field ignored
