@@ -1864,6 +1864,9 @@ type Node struct {
 	// Node name
 	Name string
 
+	// CgroupParent for this node (linux only)
+	CgroupParent string
+
 	// HTTPAddr is the address on which the Nomad client is listening for http
 	// requests
 	HTTPAddr string

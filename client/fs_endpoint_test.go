@@ -318,6 +318,7 @@ func TestFS_List_ACL(t *testing.T) {
 
 func TestFS_Stream_NoAlloc(t *testing.T) {
 	ci.Parallel(t)
+	ci.SkipSlow(t, "flaky on GHA; #12358")
 	require := require.New(t)
 
 	// Start a client

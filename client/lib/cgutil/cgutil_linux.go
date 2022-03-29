@@ -58,13 +58,13 @@ func CgroupScope(allocID, task string) string {
 	return fmt.Sprintf("%s.%s.scope", allocID, task)
 }
 
-// ConfigureBasicCgroups will initialize cgroups for v1.
+// ConfigureBasicCgroups will initialize a cgroup and modify config to contain
+// a reference to its path.
 //
-// Not useful in cgroups.v2
+// v1: creates a random "freezer" cgroup which can later be used for cleanup of processes.
+// v2: does nothing.
 func ConfigureBasicCgroups(config *lcc.Config) error {
 	if UseV2 {
-		// In v2 the default behavior is to create inherited interface files for
-		// all mounted subsystems automatically.
 		return nil
 	}
 

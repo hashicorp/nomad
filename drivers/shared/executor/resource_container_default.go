@@ -1,5 +1,4 @@
-//go:build darwin || dragonfly || freebsd || netbsd || openbsd || solaris || windows
-// +build darwin dragonfly freebsd netbsd openbsd solaris windows
+//go:build !linux
 
 package executor
 

@@ -122,7 +122,9 @@ func TestExecDriver_StartWait(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	logger := testlog.HCLogger(t)
+
+	d := NewExecDriver(ctx, logger)
 	harness := dtestutil.NewDriverHarness(t, d)
 	allocID := uuid.Generate()
 	task := &drivers.TaskConfig{
@@ -793,6 +795,7 @@ func TestExecDriver_NoPivotRoot(t *testing.T) {
 	handle, _, err := harness.StartTask(task)
 	require.NoError(t, err)
 	require.NotNil(t, handle)
+	require.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
 func TestDriver_Config_validate(t *testing.T) {

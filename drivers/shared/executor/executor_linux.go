@@ -20,6 +20,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/resources"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -200,21 +201,16 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}, nil
 }
 
-func (l *LibcontainerExecutor) getAllPids() (map[int]*nomadPid, error) {
+func (l *LibcontainerExecutor) getAllPids() (resources.PIDs, error) {
 	pids, err := l.container.Processes()
 	if err != nil {
 		return nil, err
 	}
-	nPids := make(map[int]*nomadPid)
+	m := make(resources.PIDs, 1)
 	for _, pid := range pids {
-		nPids[pid] = &nomadPid{
-			pid:           pid,
-			cpuStatsTotal: stats.NewCpuStats(),
-			cpuStatsUser:  stats.NewCpuStats(),
-			cpuStatsSys:   stats.NewCpuStats(),
-		}
+		m[pid] = resources.NewPID(pid)
 	}
-	return nPids, nil
+	return m, nil
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
