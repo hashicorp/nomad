@@ -19,6 +19,10 @@ type DisconnectedClientsE2ETest struct {
 
 const ns = ""
 
+// typical wait times for this test package
+var wait30s = &e2eutil.WaitConfig{Interval: time.Second, Retries: 30}
+var wait60s = &e2eutil.WaitConfig{Interval: time.Second, Retries: 60}
+
 func init() {
 	framework.AddSuites(&framework.TestSuite{
 		Component:   "DisconnectedClients",
@@ -83,28 +87,28 @@ func (tc *DisconnectedClientsE2ETest) TestDisconnectedClients_AllocReplacment(f 
 	f.NoError(err, "expected agent restart job to register")
 	tc.jobIDs = append(tc.jobIDs, restartJobID)
 
-	err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "down", nil)
+	err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "down", wait30s)
 	f.NoError(err, "expected node to go down")
 
 	err = waitForAllocStatusMap(jobID, map[string]string{
 		lostAllocID:  "lost",
 		otherAllocID: "running",
 		"":           "running",
-	}, &e2eutil.WaitConfig{Interval: time.Second, Retries: 60})
+	}, wait60s)
 	f.NoError(err, "expected alloc on disconnected client to be marked lost and replaced")
 
 	allocs, err = e2eutil.AllocsForJob(jobID, ns)
 	f.NoError(err, "could not query allocs for job")
 	f.Len(allocs, 3, "could not find 3 allocs for job")
 
-	err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "ready", nil)
+	err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "ready", wait30s)
 	f.NoError(err, "expected node to come back up")
 
 	err = waitForAllocStatusMap(jobID, map[string]string{
 		lostAllocID:  "dead",
 		otherAllocID: "running",
 		"":           "running",
-	}, &e2eutil.WaitConfig{Interval: time.Second, Retries: 30})
+	}, wait30s)
 	f.NoError(err, "expected lost alloc on reconnected client to be marked dead and replaced")
 }
 
