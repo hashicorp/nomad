@@ -40,6 +40,7 @@
         <t.body as |row|>
           <tr
             data-test-evaluation="{{row.model.shortId}}"
+            style="cursor: pointer;"
             {{on "click" (fn this.handleEvaluationClick row.model)}}
           >
             <td data-test-id>
