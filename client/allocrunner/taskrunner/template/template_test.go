@@ -2234,7 +2234,7 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 	require.NoError(t, harness.startWithErr(), "couldn't setup initial harness")
 	defer harness.stop()
 
-	// Using writeToFile should cause a kill
+	// Using writeToFile should not cause a kill
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-harness.mockHooks.EmitEventCh:
