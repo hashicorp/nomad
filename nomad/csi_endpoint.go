@@ -332,8 +332,6 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		if err != nil {
 			return err
 		}
-		// TODO: allow volume spec file to set namespace
-		// https://github.com/hashicorp/nomad/issues/11196
 		if vol.Namespace == "" {
 			vol.Namespace = args.RequestNamespace()
 		}
@@ -921,7 +919,9 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 	// We also validate that the plugin exists for each plugin, and validate the
 	// capabilities when the plugin has a controller.
 	for _, vol := range args.Volumes {
-		vol.Namespace = args.RequestNamespace()
+		if vol.Namespace == "" {
+			vol.Namespace = args.RequestNamespace()
+		}
 		if err = vol.Validate(); err != nil {
 			return err
 		}

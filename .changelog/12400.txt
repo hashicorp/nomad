@@ -1,0 +1,3 @@
+```release-note:improvement
+csi: allow namespace field to be passed in volume spec
+```

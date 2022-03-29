@@ -37,6 +37,7 @@ The file may be provided as either HCL or JSON. An example HCL configuration:
 
 ```hcl
 id           = "ebs_prod_db1"
+namespace    = "default"
 name         = "database"
 type         = "csi"
 plugin_id    = "ebs-prod"
@@ -83,6 +84,10 @@ parameters {
 - `id` `(string: <required>)` - The unique ID of the volume. This is how the
   [`volume.source`][csi_volume_source] field in a job specification will refer
   to the volume.
+
+- `namespace` `(string: <optional>)` - The namespace of the volume. This field
+  overrides the namespace provided by the `-namespace` flag or `NOMAD_NAMESPACE`
+  environment variable. Defaults to `"default"` if unset.
 
 - `name` `(string: <required>)` - The display name of the volume. This field
   may be used by the external storage provider to tag the volume.
