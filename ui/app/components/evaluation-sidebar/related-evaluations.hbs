@@ -1,11 +1,8 @@
 <div class="boxed-section">
-  <div class="boxed-section-head" style="position: relative; width: 600px">
+  <div class="boxed-section-head" style="position: relative">
     Related Evaluations
   </div>
-  <div
-    style="max-width: 600px; overflow-x: scroll; overflow-y: hidden;"
-    data-test-eval-container
-  >
+  <div style="overflow-x: scroll; overflow-y: hidden;" data-test-eval-container>
     <div
       style="display: flex; position: relative;"
       {{on-resize @fns.handleResize}}
@@ -52,7 +49,7 @@
       {{#each @data.descendentsMap as |evals|}}
         <div
           data-test-eval-descendents-container
-          style="display: flex; flex-direction: column; justify-content: space-evenly; flex-basis: 100%"
+          style="display: flex; flex-direction: column; justify-content: space-evenly; flex-basis: 100%;"
         >
           {{#each evals as |eval|}}
             <EvaluationSidebar::EvaluationActor
