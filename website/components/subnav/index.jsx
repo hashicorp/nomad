@@ -2,10 +2,11 @@ import Subnav from '@hashicorp/react-subnav'
 import subnavItems from '../../data/subnav'
 import { useRouter } from 'next/router'
 
-export default function NomadSubnav() {
+export default function NomadSubnav({ menuItems }) {
   const router = useRouter()
   return (
     <Subnav
+      hideGithubStars={true}
       titleLink={{
         text: 'HashiCorp Nomad',
         url: '/',
@@ -22,7 +23,7 @@ export default function NomadSubnav() {
       ]}
       currentPath={router.asPath}
       menuItemsAlign="right"
-      menuItems={subnavItems}
+      menuItems={menuItems}
       constrainWidth
       matchOnBasePath
     />
