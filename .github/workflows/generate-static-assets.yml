@@ -1,4 +1,4 @@
-name: generate-static-assets
+name: Generate Static Assets
 
 on:
   push:

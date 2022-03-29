@@ -2,9 +2,8 @@ name: build
 
 on:
   workflow_run:
-    workflows: [generate-static-assets]
+    workflows: [Generate Static Assets]
     types: [completed]
-    branches: [test-generate-static-assets]
     
 env:
   PKG_NAME: "nomad"
@@ -12,8 +11,8 @@ env:
 
 jobs:
   get-go-version:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
       go-version: ${{ steps.get-go-version.outputs.go-version }}
     steps:
@@ -26,8 +25,8 @@ jobs:
           echo "Building with Go $(cat .go-version)"
           echo "::set-output name=go-version::$(cat .go-version)"
   get-product-version:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
     steps:
@@ -38,9 +37,9 @@ jobs:
           make version
           echo "::set-output name=product-version::$(make version)"
   generate-metadata-file:
+    runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     needs: get-product-version
-    runs-on: ubuntu-latest
     outputs:
       filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
     steps:
@@ -58,9 +57,9 @@ jobs:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
   generate-ld-flags:
+    runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     needs: get-product-version
-    runs-on: ubuntu-latest
     outputs:
       ldflags: ${{ steps.generate-ld-flags.outputs.ldflags }}
     steps:
@@ -74,9 +73,9 @@ jobs:
           -X \'$project/version.GitDescribe=v$(make version base=1)\'""
   
   build-other:
+    runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     needs: [ get-go-version, get-product-version, generate-ld-flags ]
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         goos: [ windows ]
@@ -124,9 +123,9 @@ jobs:
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
         
   build-linux:
+    runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     needs: [ get-go-version, get-product-version, generate-ld-flags ]
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         goos: [ linux ]
@@ -235,9 +234,9 @@ jobs:
           path: out/${{ env.DEB_PACKAGE }}
 
   build-darwin:
+    runs-on: macos-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     needs: [ get-go-version, get-product-version, generate-ld-flags ]
-    runs-on: macos-latest
     strategy:
       matrix:
         goos: [ darwin ]
