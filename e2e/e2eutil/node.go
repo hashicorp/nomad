@@ -2,6 +2,8 @@ package e2eutil
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
@@ -22,7 +24,20 @@ func AgentRestartAfter(nodeID string, after time.Duration) (string, error) {
 		vars = append(vars, "-var", fmt.Sprintf("time=%d", int(after.Seconds())))
 	}
 
-	err := RegisterWithArgs(jobID, "e2eutil/input/restart-node.nomad", vars...)
+	jobFilePath := "../e2eutil/input/restart-node.nomad"
+
+	// TODO: temporary hack around having older tests running on the
+	// framework vs new tests not, as the framework has a different
+	// working directory
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	if filepath.Base(dir) == "e2e" {
+		jobFilePath = "e2eutil/input/restart-node.nomad"
+	}
+
+	err = RegisterWithArgs(jobID, jobFilePath, vars...)
 	return jobID, err
 }
 

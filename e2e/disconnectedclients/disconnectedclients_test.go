@@ -2,20 +2,14 @@ package disconnectedclients
 
 import (
 	"fmt"
-	"os"
+	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
-	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
 )
-
-type DisconnectedClientsE2ETest struct {
-	framework.TC
-	jobIDs  []string
-	nodeIDs []string
-}
 
 const ns = ""
 
@@ -23,60 +17,52 @@ const ns = ""
 var wait30s = &e2eutil.WaitConfig{Interval: time.Second, Retries: 30}
 var wait60s = &e2eutil.WaitConfig{Interval: time.Second, Retries: 60}
 
-func init() {
-	framework.AddSuites(&framework.TestSuite{
-		Component:   "DisconnectedClients",
-		CanRunLocal: true,
-		Cases: []framework.TestCase{
-			new(DisconnectedClientsE2ETest),
-		},
-	})
+func TestDisconnectedClients(t *testing.T) {
+	nomad := e2eutil.NomadClient(t)
 
+	e2eutil.WaitForLeader(t, nomad)
+	e2eutil.WaitForNodesReady(t, nomad, 2) // needs at least 2 to test replacement
+
+	t.Run("AllocReplacementOnShutdown", testDisconnected_AllocReplacementOnShutdown)
 }
 
-func (tc *DisconnectedClientsE2ETest) BeforeAll(f *framework.F) {
-	e2eutil.WaitForLeader(f.T(), tc.Nomad())
-	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 2) // needs at least 2 to test replacement
-
+// disconnectedClientsCleanup sets up a cleanup function to make sure
+// we've waited for all the nodes to come back up between tests
+func disconnectedClientsCleanup(t *testing.T) func() {
+	nodeIDs := []string{}
 	nodeStatuses, err := e2eutil.NodeStatusList()
-	f.NoError(err)
+	require.NoError(t, err)
 	for _, nodeStatus := range nodeStatuses {
-		tc.nodeIDs = append(tc.nodeIDs, nodeStatus["ID"])
+		nodeIDs = append(nodeIDs, nodeStatus["ID"])
+	}
+	return func() {
+		nomad := e2eutil.NomadClient(t)
+		e2eutil.WaitForNodesReady(t, nomad, len(nodeIDs))
 	}
 }
 
-func (tc *DisconnectedClientsE2ETest) AfterEach(f *framework.F) {
-	if os.Getenv("NOMAD_TEST_SKIPCLEANUP") == "1" {
-		return
-	}
+// testDisconnected_AllocReplacementOnShutdown tests that allocations on
+// clients that are shut down and marked disconnected are replaced
+func testDisconnected_AllocReplacementOnShutdown(t *testing.T) {
 
-	for _, id := range tc.jobIDs {
-		_, err := e2eutil.Command("nomad", "job", "stop", "-purge", id)
-		f.Assert().NoError(err)
-	}
-	tc.jobIDs = []string{}
+	jobIDs := []string{}
+	t.Cleanup(disconnectedClientsCleanup(t))
+	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
 
-	_, err := e2eutil.Command("nomad", "system", "gc")
-	f.Assert().NoError(err)
+	jobID := "test-lost-allocs-" + uuid.Short()
 
-	// make sure we've waited for all the nodes to come back up
-	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), len(tc.nodeIDs))
-}
+	err := e2eutil.Register(jobID, "./input/lost_simple.nomad")
+	require.NoError(t, err)
+	jobIDs = append(jobIDs, jobID)
 
-// TestDisconnectedClients_AllocReplacement tests that allocations on
-// disconnected clients are replaced
-func (tc *DisconnectedClientsE2ETest) TestDisconnectedClients_AllocReplacment(f *framework.F) {
-	jobID := "test-lost-allocs-" + uuid.Generate()[0:8]
-
-	f.NoError(e2eutil.Register(jobID, "disconnectedclients/input/lost_simple.nomad"))
-	tc.jobIDs = append(tc.jobIDs, jobID)
-	f.NoError(e2eutil.WaitForAllocStatusExpected(jobID, ns,
-		[]string{"running", "running"}), "job should be running")
+	err = e2eutil.WaitForAllocStatusExpected(jobID, ns,
+		[]string{"running", "running"})
+	require.NoError(t, err, "job should be running")
 
 	// pick a node to make our lost node
 	allocs, err := e2eutil.AllocsForJob(jobID, ns)
-	f.NoError(err, "could not query allocs for job")
-	f.Len(allocs, 2, "could not find 2 allocs for job")
+	require.NoError(t, err, "could not query allocs for job")
+	require.Len(t, allocs, 2, "could not find 2 allocs for job")
 
 	lostAlloc := allocs[0]
 	lostAllocID := lostAlloc["ID"]
@@ -84,32 +70,32 @@ func (tc *DisconnectedClientsE2ETest) TestDisconnectedClients_AllocReplacment(f 
 	otherAllocID := allocs[0]["ID"]
 
 	restartJobID, err := e2eutil.AgentRestartAfter(disconnectedNodeID, 30*time.Second)
-	f.NoError(err, "expected agent restart job to register")
-	tc.jobIDs = append(tc.jobIDs, restartJobID)
+	require.NoError(t, err, "expected agent restart job to register")
+	jobIDs = append(jobIDs, restartJobID)
 
 	err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "down", wait30s)
-	f.NoError(err, "expected node to go down")
+	require.NoError(t, err, "expected node to go down")
 
 	err = waitForAllocStatusMap(jobID, map[string]string{
 		lostAllocID:  "lost",
 		otherAllocID: "running",
 		"":           "running",
 	}, wait60s)
-	f.NoError(err, "expected alloc on disconnected client to be marked lost and replaced")
+	require.NoError(t, err, "expected alloc on disconnected client to be marked lost and replaced")
 
 	allocs, err = e2eutil.AllocsForJob(jobID, ns)
-	f.NoError(err, "could not query allocs for job")
-	f.Len(allocs, 3, "could not find 3 allocs for job")
+	require.NoError(t, err, "could not query allocs for job")
+	require.Len(t, allocs, 3, "could not find 3 allocs for job")
 
 	err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "ready", wait30s)
-	f.NoError(err, "expected node to come back up")
+	require.NoError(t, err, "expected node to come back up")
 
 	err = waitForAllocStatusMap(jobID, map[string]string{
 		lostAllocID:  "dead",
 		otherAllocID: "running",
 		"":           "running",
 	}, wait30s)
-	f.NoError(err, "expected lost alloc on reconnected client to be marked dead and replaced")
+	require.NoError(t, err, "expected lost alloc on reconnected client to be marked dead and replaced")
 }
 
 func waitForAllocStatusMap(jobID string, allocsToStatus map[string]string, wc *e2eutil.WaitConfig) error {
