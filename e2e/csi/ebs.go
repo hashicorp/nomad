@@ -202,6 +202,11 @@ func (tc *CSIControllerPluginEBSTest) TestNodeDrain(f *framework.F) {
 
 	nomadClient := tc.Nomad()
 
+	nodesJobID := "aws-ebs-plugin-nodes-" + tc.uuid
+	pluginAllocs, err := e2eutil.AllocsForJob(nodesJobID, ns)
+	f.NoError(err)
+	expectedHealthyNodePlugins := len(pluginAllocs)
+
 	// deploy a job that writes to the volume
 	writeJobID := "write-ebs-" + tc.uuid
 	f.NoError(e2eutil.Register(writeJobID, "csi/input/use-ebs-volume.nomad"))
@@ -225,7 +230,7 @@ func (tc *CSIControllerPluginEBSTest) TestNodeDrain(f *framework.F) {
 	nodeID := allocs[0]["Node ID"]
 	out, err := e2eutil.Command("nomad", "node",
 		"drain", "-enable",
-		"-deadline", "5m",
+		"-deadline", "10m",
 		"-yes", "-detach", nodeID)
 	f.NoError(err, fmt.Sprintf("'nomad node drain' failed: %v\n%v", err, out))
 	tc.nodeIDs = append(tc.nodeIDs, nodeID)
@@ -254,4 +259,7 @@ func (tc *CSIControllerPluginEBSTest) TestNodeDrain(f *framework.F) {
 		err = e
 	})
 
+	pluginAllocs, err = e2eutil.AllocsForJob(nodesJobID, ns)
+	f.Lenf(pluginAllocs, expectedHealthyNodePlugins,
+		"expected node plugins to be unchanged, got: %v", pluginAllocs)
 }
