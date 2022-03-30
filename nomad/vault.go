@@ -151,6 +151,14 @@ type VaultStats struct {
 
 	// TokenExpiry is the recorded expiry time of the current token
 	TokenExpiry time.Time
+
+	// LastRenewalTime is the time since the token was last renewed
+	LastRenewalTime time.Time
+	TimeFromLastRenewal time.Duration
+
+	// NextRenewalTime is the time the token will attempt to renew
+	NextRenewalTime time.Time
+	TimeToNextRenewal time.Duration
 }
 
 // PurgeVaultAccessorFn is called to remove VaultAccessors from the system. If
@@ -232,6 +240,9 @@ type vaultClient struct {
 	// currentExpiration is the time the current token lease expires
 	currentExpiration     time.Time
 	currentExpirationLock sync.Mutex
+	lastRenewalTime time.Time
+	nextRenewalTime time.Time
+	nextRenewalTimeLock sync.Mutex
 
 	tomb   *tomb.Tomb
 	logger log.Logger
@@ -557,6 +568,9 @@ func (v *vaultClient) renewalLoop() {
 			if err == nil {
 				// Attempt to renew the token at half the expiration time
 				durationUntilRenew := time.Until(currentExpiration) / 2
+				v.nextRenewalTimeLock.Lock()
+				v.nextRenewalTime = time.Now().Add(durationUntilRenew)
+				v.nextRenewalTimeLock.Unlock()
 
 				v.logger.Info("successfully renewed token", "next_renewal", durationUntilRenew)
 				authRenewTimer.Reset(durationUntilRenew)
@@ -587,6 +601,9 @@ func (v *vaultClient) renewalLoop() {
 			}
 
 			durationUntilRetry := time.Duration(backoff) * time.Second
+			v.nextRenewalTimeLock.Lock()
+			v.nextRenewalTime = time.Now().Add(durationUntilRetry)
+			v.nextRenewalTimeLock.Unlock()
 			v.logger.Info("backing off renewal", "retry", durationUntilRetry)
 
 			authRenewTimer.Reset(durationUntilRetry)
@@ -1391,15 +1408,27 @@ func (v *vaultClient) Stats() map[string]string {
 	stat := v.stats()
 
 	expireTimeStr := ""
-
 	if !stat.TokenExpiry.IsZero() {
 		expireTimeStr = stat.TokenExpiry.Format(time.RFC3339)
 	}
+
+	lastRenewTimeStr := ""
+	if !stat.LastRenewalTime.IsZero() {
+		lastRenewTimeStr = stat.LastRenewalTime.Format(time.RFC3339)
+	}
+
+	nextRenewTimeStr := ""
+	if !stat.NextRenewalTime.IsZero() {
+		nextRenewTimeStr = stat.NextRenewalTime.Format(time.RFC3339)
+	}
+
 
 	return map[string]string{
 		"tracked_for_revoked": strconv.Itoa(stat.TrackedForRevoke),
 		"token_ttl":           stat.TokenTTL.Round(time.Second).String(),
 		"token_expire_time":   expireTimeStr,
+		"last_renewal_time":   lastRenewTimeStr,
+		"next_renewal_time":   nextRenewTimeStr,
 	}
 }
 
@@ -1413,10 +1442,22 @@ func (v *vaultClient) stats() *VaultStats {
 
 	v.currentExpirationLock.Lock()
 	stats.TokenExpiry = v.currentExpiration
+	stats.LastRenewalTime = v.lastRenewalTime
 	v.currentExpirationLock.Unlock()
+
+	v.nextRenewalTimeLock.Lock()
+	stats.NextRenewalTime = v.nextRenewalTime
+	v.nextRenewalTimeLock.Unlock()
 
 	if !stats.TokenExpiry.IsZero() {
 		stats.TokenTTL = time.Until(stats.TokenExpiry)
+	}
+
+	if !stats.LastRenewalTime.IsZero() {
+		stats.TimeFromLastRenewal = time.Since(stats.LastRenewalTime)
+	}
+	if !stats.NextRenewalTime.IsZero() {
+		stats.TimeToNextRenewal = time.Until(stats.NextRenewalTime)
 	}
 
 	return stats
@@ -1435,6 +1476,8 @@ func (v *vaultClient) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 			stats := v.stats()
 			metrics.SetGauge([]string{"nomad", "vault", "distributed_tokens_revoking"}, float32(stats.TrackedForRevoke))
 			metrics.SetGauge([]string{"nomad", "vault", "token_ttl"}, float32(stats.TokenTTL/time.Millisecond))
+			metrics.SetGauge([]string{"nomad", "vault", "last_renewal"}, float32(stats.TimeFromLastRenewal/time.Millisecond))
+			metrics.SetGauge([]string{"nomad", "vault", "next_renewal"}, float32(stats.TimeToNextRenewal/time.Millisecond))
 
 		case <-stopCh:
 			return
@@ -1445,7 +1488,9 @@ func (v *vaultClient) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 // extendExpiration sets the current auth token expiration record to ttLSeconds seconds from now
 func (v *vaultClient) extendExpiration(ttlSeconds int) {
 	v.currentExpirationLock.Lock()
-	v.currentExpiration = time.Now().Add(time.Duration(ttlSeconds) * time.Second)
+	now := time.Now()
+	v.currentExpiration = now.Add(time.Duration(ttlSeconds) * time.Second)
+	v.lastRenewalTime = now
 	v.currentExpirationLock.Unlock()
 }
 
