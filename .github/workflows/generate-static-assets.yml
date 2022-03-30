@@ -1,8 +1,14 @@
 name: Generate Static Assets
 
 on:
+  push:
+    branches:
+      - test-generate-static-assets       
   workflow_dispatch:
-
+    inputs:
+      trigger_build:
+        description: 'trigger build'
+        required: true
 env:
   GO_TAGS: "ui codegen_generated release"
 
@@ -59,3 +65,7 @@ jobs:
           else \
             echo "no files were updated"
           fi
+
+      - name: Trigger Build
+        if:  ${{ github.event.inputs.trigger_build == 'true' }}
+        run: echo "build was triggered"
