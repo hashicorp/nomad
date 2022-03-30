@@ -9689,6 +9689,10 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 		return time.Time{}, false
 	}
 
+	return a.nextRescheduleTime(failTime, reschedulePolicy)
+}
+
+func (a *Allocation) nextRescheduleTime(failTime time.Time, reschedulePolicy *ReschedulePolicy) (time.Time, bool) {
 	nextDelay := a.NextDelay()
 	nextRescheduleTime := failTime.Add(nextDelay)
 	rescheduleEligible := reschedulePolicy.Unlimited || (reschedulePolicy.Attempts > 0 && a.RescheduleTracker == nil)
@@ -9698,6 +9702,18 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 		rescheduleEligible = attempted < attempts && nextDelay < reschedulePolicy.Interval
 	}
 	return nextRescheduleTime, rescheduleEligible
+}
+
+// NextRescheduleTimeByFailTime works like NextRescheduleTime but allows callers
+// specify a failure time. Useful for things like determining whether to reschedule
+// an alloc on a disconnected node.
+func (a *Allocation) NextRescheduleTimeByFailTime(failTime time.Time) (time.Time, bool) {
+	reschedulePolicy := a.ReschedulePolicy()
+	if reschedulePolicy == nil {
+		return time.Time{}, false
+	}
+
+	return a.nextRescheduleTime(failTime, reschedulePolicy)
 }
 
 // ShouldClientStop tests an alloc for StopAfterClientDisconnect configuration
@@ -9752,10 +9768,8 @@ func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
-	// Prefer the duration from the task group.
 	timeout := tg.MaxClientDisconnect
 
-	// If not configured, return now
 	if timeout == nil {
 		return now
 	}
@@ -9996,6 +10010,85 @@ func (a *Allocation) Stub(fields *AllocStubFields) *AllocListStub {
 // this method should be changed accordingly.
 func (a *Allocation) AllocationDiff() *AllocationDiff {
 	return (*AllocationDiff)(a)
+}
+
+// Expired determines whether an allocation has exceeded its MaxClientDisonnect
+// duration relative to the passed time stamp.
+func (a *Allocation) Expired(now time.Time) bool {
+	// If alloc is not Unknown it cannot be expired.
+	if a.ClientStatus != AllocClientStatusUnknown {
+		return false
+	}
+
+	lastUnknown := a.LastUnknown()
+	if lastUnknown.IsZero() {
+		return false
+	}
+
+	return a.expired(now, lastUnknown)
+}
+
+func (a *Allocation) expired(now, lastUnknown time.Time) bool {
+	if a == nil || a.Job == nil {
+		return false
+	}
+
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return false
+	}
+
+	if tg.MaxClientDisconnect == nil {
+		return false
+	}
+
+	expiry := lastUnknown.Add(*tg.MaxClientDisconnect)
+	return now.UTC().After(expiry) || now.Equal(expiry)
+}
+
+// LastUnknown returns the timestamp for the last time the allocation
+// transitioned into the unknown client status.
+func (a *Allocation) LastUnknown() time.Time {
+	var lastUnknown time.Time
+
+	for _, s := range a.AllocStates {
+		if s.Field == AllocStateFieldClientStatus &&
+			s.Value == AllocClientStatusUnknown {
+			if lastUnknown.IsZero() || lastUnknown.Before(s.Time) {
+				lastUnknown = s.Time
+			}
+		}
+	}
+
+	return lastUnknown
+}
+
+// Reconnected determines whether a reconnect event has occurred for any task
+// and whether that event occurred within the allowable duration specified by MaxClientDisconnect.
+func (a *Allocation) Reconnected() (bool, bool) {
+	var lastReconnect time.Time
+	for _, taskState := range a.TaskStates {
+		for _, taskEvent := range taskState.Events {
+			if taskEvent.Type != TaskClientReconnected {
+				continue
+			}
+			eventTime := time.Unix(0, taskEvent.Time).UTC()
+			if lastReconnect.IsZero() || lastReconnect.Before(eventTime) {
+				lastReconnect = eventTime
+			}
+		}
+	}
+
+	if lastReconnect.IsZero() {
+		return false, a.Expired(time.Now().UTC())
+	}
+
+	lastUnknown := a.LastUnknown()
+	if lastUnknown.IsZero() {
+		return false, false
+	}
+
+	return true, a.expired(lastReconnect, lastUnknown)
 }
 
 // AllocationDiff is another named type for Allocation (to use the same fields),
@@ -10416,6 +10509,7 @@ const (
 	EvalTriggerPreemption           = "preemption"
 	EvalTriggerScaling              = "job-scaling"
 	EvalTriggerMaxDisconnectTimeout = "max-disconnect-timeout"
+	EvalTriggerReconnect            = "reconnect"
 )
 
 const (
