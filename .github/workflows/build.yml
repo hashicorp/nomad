@@ -1,6 +1,11 @@
 name: build
 
-on: [ workflow_dispatch ]
+on:
+  workflow_run:
+    workflows: ["Build"]
+    types: [requested]
+    branches:
+       - test-generate-static-assets
     
 env:
   PKG_NAME: "nomad"
