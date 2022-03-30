@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - test-generate-static-assets
+  
+  worflow_dispatch: 
 
 env:
   GO_TAGS: "ui codegen_generated release"

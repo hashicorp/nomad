@@ -1,11 +1,6 @@
 name: build
 
-on:
-  workflow_run:
-    workflows: ["Generate Static Assets"]
-    branches: [test-generate-static-assets]
-    types: 
-      - completed
+on: [ workflow_run ]
     
 env:
   PKG_NAME: "nomad"
@@ -14,7 +9,6 @@ env:
 jobs:
   get-go-version:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
       go-version: ${{ steps.get-go-version.outputs.go-version }}
     steps:
@@ -28,7 +22,6 @@ jobs:
           echo "::set-output name=go-version::$(cat .go-version)"
   get-product-version:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
     steps:
@@ -40,7 +33,6 @@ jobs:
           echo "::set-output name=product-version::$(make version)"
   generate-metadata-file:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     needs: get-product-version
     outputs:
       filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
@@ -60,7 +52,6 @@ jobs:
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
   generate-ld-flags:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     needs: get-product-version
     outputs:
       ldflags: ${{ steps.generate-ld-flags.outputs.ldflags }}
@@ -76,7 +67,6 @@ jobs:
   
   build-other:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     needs: [ get-go-version, get-product-version, generate-ld-flags ]
     strategy:
       matrix:
@@ -126,7 +116,6 @@ jobs:
         
   build-linux:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     needs: [ get-go-version, get-product-version, generate-ld-flags ]
     strategy:
       matrix:
@@ -237,7 +226,6 @@ jobs:
 
   build-darwin:
     runs-on: macos-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     needs: [ get-go-version, get-product-version, generate-ld-flags ]
     strategy:
       matrix:
