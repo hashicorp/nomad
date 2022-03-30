@@ -66,6 +66,7 @@ TODO.md
 codecgen-*.generated.go
 **/structs.generated.go
 GNUMakefile.local
+go.work
 
 # Terraform state and locking files.
 .terraform
