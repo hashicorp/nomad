@@ -404,7 +404,7 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 			p.logger.Debug("blocking alloc was GC'd")
 			return nil
 		}
-		if resp.Alloc.Terminated() {
+		if resp.Alloc.Terminated() || resp.Alloc.ClientStatus == structs.AllocClientStatusUnknown {
 			// Terminated!
 			p.nodeID = resp.Alloc.NodeID
 			return nil
