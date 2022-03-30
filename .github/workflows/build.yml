@@ -2,10 +2,10 @@ name: build
 
 on:
   workflow_run:
-    workflows: ["Build"]
+    workflows: ["Generate Static Assets"]
     types: [requested]
     branches:
-       - test-generate-static-assets
+       - "test-generate-static-assets"
     
 env:
   PKG_NAME: "nomad"
