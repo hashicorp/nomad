@@ -67,7 +67,7 @@ func testDisconnected_AllocReplacementOnShutdown(t *testing.T) {
 	lostAlloc := allocs[0]
 	lostAllocID := lostAlloc["ID"]
 	disconnectedNodeID := lostAlloc["Node ID"]
-	otherAllocID := allocs[0]["ID"]
+	otherAllocID := allocs[1]["ID"]
 
 	restartJobID, err := e2eutil.AgentRestartAfter(disconnectedNodeID, 30*time.Second)
 	require.NoError(t, err, "expected agent restart job to register")
@@ -91,11 +91,11 @@ func testDisconnected_AllocReplacementOnShutdown(t *testing.T) {
 	require.NoError(t, err, "expected node to come back up")
 
 	err = waitForAllocStatusMap(jobID, map[string]string{
-		lostAllocID:  "dead",
+		lostAllocID:  "complete",
 		otherAllocID: "running",
 		"":           "running",
 	}, wait30s)
-	require.NoError(t, err, "expected lost alloc on reconnected client to be marked dead and replaced")
+	require.NoError(t, err, "expected lost alloc on reconnected client to be marked complete and replaced")
 }
 
 func waitForAllocStatusMap(jobID string, allocsToStatus map[string]string, wc *e2eutil.WaitConfig) error {
