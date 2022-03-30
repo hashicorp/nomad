@@ -1376,4 +1376,9 @@ module.exports = [
     destination: '/plugins/drivers/remote',
     permanent: true,
   },
+  {
+    source: '/api/:path*',
+    destination: '/api-docs/:path*',
+    permanent: true,
+  },
 ]

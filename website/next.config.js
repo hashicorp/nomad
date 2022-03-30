@@ -1,6 +1,5 @@
 const withHashicorp = require('@hashicorp/platform-nextjs-plugin')
 const redirects = require('./redirects')
-const rewrites = require('./rewrites')
 
 module.exports = withHashicorp({
   defaultLayout: true,
@@ -8,9 +7,6 @@ module.exports = withHashicorp({
 })({
   redirects() {
     return redirects
-  },
-  rewrites() {
-    return rewrites
   },
   svgo: {
     plugins: [
