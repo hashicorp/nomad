@@ -17,6 +17,11 @@ func TestServiceDeleteCommand_Run(t *testing.T) {
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
+	// Wait for server and client to start
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+	clientID := srv.Agent.Client().NodeID()
+	testutil.WaitForClient(t, srv.Agent.Client().RPC, clientID, srv.Agent.Client().Region())
+
 	// Wait until our test node is ready.
 	testutil.WaitForResult(func() (bool, error) {
 		nodes, _, err := client.Nodes().List(nil)
