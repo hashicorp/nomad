@@ -523,6 +523,7 @@ func TestStateStore_GetServiceRegistrationsByAllocID(t *testing.T) {
 
 	// Read the two allocations that we should find.
 	iter, err = testState.GetServiceRegistrationsByAllocID(ws, services[0].AllocID)
+	require.NoError(t, err)
 
 	var count2 int
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
@@ -533,6 +534,7 @@ func TestStateStore_GetServiceRegistrationsByAllocID(t *testing.T) {
 	require.Equal(t, 1, count2)
 
 	iter, err = testState.GetServiceRegistrationsByAllocID(ws, services[1].AllocID)
+	require.NoError(t, err)
 
 	var count3 int
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
