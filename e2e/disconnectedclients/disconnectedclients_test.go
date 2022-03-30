@@ -24,6 +24,7 @@ func TestDisconnectedClients(t *testing.T) {
 	e2eutil.WaitForNodesReady(t, nomad, 2) // needs at least 2 to test replacement
 
 	t.Run("AllocReplacementOnShutdown", testDisconnected_AllocReplacementOnShutdown)
+	t.Run("AllocReplacementOnNetsplit", testDisconnected_AllocReplacementOnNetsplit)
 }
 
 // disconnectedClientsCleanup sets up a cleanup function to make sure
@@ -37,6 +38,7 @@ func disconnectedClientsCleanup(t *testing.T) func() {
 	}
 	return func() {
 		nomad := e2eutil.NomadClient(t)
+		t.Logf("waiting for %d nodes to become ready again", len(nodeIDs))
 		e2eutil.WaitForNodesReady(t, nomad, len(nodeIDs))
 	}
 }
@@ -71,6 +73,63 @@ func testDisconnected_AllocReplacementOnShutdown(t *testing.T) {
 
 	restartJobID, err := e2eutil.AgentRestartAfter(disconnectedNodeID, 30*time.Second)
 	require.NoError(t, err, "expected agent restart job to register")
+	jobIDs = append(jobIDs, restartJobID)
+
+	err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "down", wait30s)
+	require.NoError(t, err, "expected node to go down")
+
+	err = waitForAllocStatusMap(jobID, map[string]string{
+		lostAllocID:  "lost",
+		otherAllocID: "running",
+		"":           "running",
+	}, wait60s)
+	require.NoError(t, err, "expected alloc on disconnected client to be marked lost and replaced")
+
+	allocs, err = e2eutil.AllocsForJob(jobID, ns)
+	require.NoError(t, err, "could not query allocs for job")
+	require.Len(t, allocs, 3, "could not find 3 allocs for job")
+
+	err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "ready", wait30s)
+	require.NoError(t, err, "expected node to come back up")
+
+	err = waitForAllocStatusMap(jobID, map[string]string{
+		lostAllocID:  "complete",
+		otherAllocID: "running",
+		"":           "running",
+	}, wait30s)
+	require.NoError(t, err, "expected lost alloc on reconnected client to be marked complete and replaced")
+}
+
+// testDisconnected_AllocReplacementOnNetsplit tests that allocations on
+// clients that are netsplit and marked disconnected are replaced
+func testDisconnected_AllocReplacementOnNetsplit(t *testing.T) {
+
+	jobIDs := []string{}
+	t.Cleanup(disconnectedClientsCleanup(t))
+	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
+
+	jobID := "test-lost-allocs-" + uuid.Short()
+
+	err := e2eutil.Register(jobID, "./input/lost_simple.nomad")
+	require.NoError(t, err)
+	jobIDs = append(jobIDs, jobID)
+
+	err = e2eutil.WaitForAllocStatusExpected(jobID, ns,
+		[]string{"running", "running"})
+	require.NoError(t, err, "job should be running")
+
+	// pick a node to make our lost node
+	allocs, err := e2eutil.AllocsForJob(jobID, ns)
+	require.NoError(t, err, "could not query allocs for job")
+	require.Len(t, allocs, 2, "could not find 2 allocs for job")
+
+	lostAlloc := allocs[0]
+	lostAllocID := lostAlloc["ID"]
+	disconnectedNodeID := lostAlloc["Node ID"]
+	otherAllocID := allocs[1]["ID"]
+
+	restartJobID, err := e2eutil.AgentDisconnect(disconnectedNodeID, 30*time.Second)
+	require.NoError(t, err, "expected agent disconnect job to register")
 	jobIDs = append(jobIDs, restartJobID)
 
 	err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "down", wait30s)
