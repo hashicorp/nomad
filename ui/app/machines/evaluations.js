@@ -84,7 +84,12 @@ export default createMachine(
                 target: 'open',
                 actions: ['updateEvaluationQueryParameter'],
               },
-              // CHANGE_EVAL: { target: 'open' },
+              CHANGE_EVAL: [
+                {
+                  target: 'open',
+                  cond: 'hasCurrentEval',
+                },
+              ],
             },
           },
         },
@@ -106,6 +111,9 @@ export default createMachine(
       },
       hasNoCurrentEval(_ctx, { evaluation }) {
         return !evaluation;
+      },
+      hasCurrentEval(_ctx, { evaluation }) {
+        return evaluation;
       },
       notBusy(_ctx, _event, meta) {
         return !meta.state.matches({ sidebar: { open: 'busy' } });
