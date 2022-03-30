@@ -5,7 +5,7 @@
       data-test-eval-detail-is-open={{this.isSideBarOpen}}
       class="sidebar {{if this.isSideBarOpen "pib"}}"
       {{on-click-outside
-        @fns.closeSidebar
+        this.closeSidebar
         capture=true
         exceptSelector="tr[data-eval-row]"
       }}
@@ -131,18 +131,31 @@
           </div>
         {{/if}}
         {{! Related Evaluations}}
-        <EvaluationSidebar::RelatedEvaluations
-          @fns={{hash
-            handleResize=this.handleResize
-            handleEvaluationClick=@fns.handleEvaluationClick
-          }}
-          @data={{hash
-            width=this.width
-            height=this.height
-            parentEvaluation=this.parentEvaluation
-            descendentsMap=this.descendentsMap
-          }}
-        />
+        {{#if this.descendentsMap}}
+          <EvaluationSidebar::RelatedEvaluations
+            @fns={{hash
+              handleResize=this.handleResize
+              handleEvaluationClick=@fns.handleEvaluationClick
+            }}
+            @data={{hash
+              width=this.width
+              height=this.height
+              parentEvaluation=this.parentEvaluation
+              descendentsMap=this.descendentsMap
+            }}
+          />
+        {{else}}
+          <div class="boxed-section">
+            <div data-test-eval-error class="error-message">
+              <h1 data-test-error-title class="title is-spaced">
+                Related Evaluations Can't Be Visualized
+              </h1>
+              <p data-test-error-message class="subtitle">
+                Parts of the chain may have been garbage collected.
+              </p>
+            </div>
+          </div>
+        {{/if}}
         {{! Evaluation JSON Response}}
         <div class="boxed-section">
           <div class="boxed-section-head">

@@ -1,6 +1,7 @@
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
+import { schedule } from '@ember/runloop';
 import { inject as service } from '@ember/service';
 import { useMachine } from 'ember-statecharts';
 import { use } from 'ember-usable';
@@ -54,6 +55,13 @@ export default class EvaluationsController extends Controller {
   @action
   async handleEvaluationClick(evaluation) {
     this.statechart.send('LOAD_EVALUATION', { evaluation });
+  }
+
+  @action
+  notifyEvalChange([evaluation]) {
+    schedule('actions', this, () => {
+      this.statechart.send('CHANGE_EVAL', { evaluation });
+    });
   }
 
   @action

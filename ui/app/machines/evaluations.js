@@ -43,6 +43,7 @@ export default createMachine(
             exit: ['removeCurrentEvaluationQueryParameter'],
             states: {
               busy: {
+                id: 'busy',
                 invoke: {
                   src: 'loadEvaluation',
                   onDone: 'success',
@@ -71,6 +72,10 @@ export default createMachine(
             },
             on: {
               MODAL_CLOSE: 'close',
+              CHANGE_EVAL: [
+                { target: 'close', cond: 'hasNoCurrentEval' },
+                // { target: '#busy', cond: 'notBusy' },
+              ],
             },
           },
           close: {
@@ -79,6 +84,7 @@ export default createMachine(
                 target: 'open',
                 actions: ['updateEvaluationQueryParameter'],
               },
+              // CHANGE_EVAL: { target: 'open' },
             },
           },
         },
@@ -97,6 +103,12 @@ export default createMachine(
       },
       hasData() {
         return true;
+      },
+      hasNoCurrentEval(_ctx, { evaluation }) {
+        return !evaluation;
+      },
+      notBusy(_ctx, _event, meta) {
+        return !meta.state.matches({ sidebar: { open: 'busy' } });
       },
     },
     actions: {

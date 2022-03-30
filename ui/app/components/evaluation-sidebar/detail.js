@@ -33,18 +33,22 @@ export default class Detail extends Component {
   }
 
   get hierarchy() {
-    const data = this.currentEvalDetail?.relatedEvals;
+    try {
+      const data = this.currentEvalDetail?.relatedEvals;
 
-    if (data) {
-      return d3
-        .stratify()
-        .id((d) => {
-          return d.id;
-        })
-        .parentId((d) => d.previousEval)([
-        ...data.toArray(),
-        this.currentEvalDetail,
-      ]);
+      if (data) {
+        return d3
+          .stratify()
+          .id((d) => {
+            return d.id;
+          })
+          .parentId((d) => d.previousEval)([
+          ...data.toArray(),
+          this.currentEvalDetail,
+        ]);
+      }
+    } catch (e) {
+      console.error(`\n\nRelated Evaluation Error:   ${e.message}`);
     }
     return null;
   }
