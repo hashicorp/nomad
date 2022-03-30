@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,10 @@ func TestRecommendationListCommand_Run(t *testing.T) {
 	require := require.New(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
+
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+	clientID := srv.Agent.Client().NodeID()
+	testutil.WaitForClient(t, srv.Agent.Client().RPC, clientID, srv.Agent.Client().Region())
 
 	ui := cli.NewMockUi()
 	cmd := &RecommendationListCommand{Meta: Meta{Ui: ui}}

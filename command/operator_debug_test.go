@@ -410,7 +410,7 @@ func buildPathSlice(path string, files []string) []string {
 }
 
 func TestDebug_CapturedFiles(t *testing.T) {
-	// ci.Parallel(t)
+	ci.Parallel(t)
 	srv, _, url := testServer(t, true, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
@@ -418,6 +418,7 @@ func TestDebug_CapturedFiles(t *testing.T) {
 	region := srv.Config.Region
 	serverName := fmt.Sprintf("%s.%s", serverNodeName, region)
 	clientID := srv.Agent.Client().NodeID()
+	testutil.WaitForClient(t, srv.Agent.Client().RPC, clientID, srv.Agent.Client().Region())
 
 	t.Logf("serverName: %s, clientID, %s", serverName, clientID)
 
