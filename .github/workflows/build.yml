@@ -1,6 +1,6 @@
 name: build
 
-on: [ workflow_run ]
+on: [ workflow_dispatch ]
     
 env:
   PKG_NAME: "nomad"
