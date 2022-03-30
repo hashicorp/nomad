@@ -1130,12 +1130,12 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	for _, allocToUpdate := range args.Alloc {
 		allocToUpdate.ModifyTime = now.UTC().UnixNano()
 
-		if !allocToUpdate.TerminalStatus() {
+		alloc, _ := n.srv.State().AllocByID(nil, allocToUpdate.ID)
+		if alloc == nil {
 			continue
 		}
 
-		alloc, _ := n.srv.State().AllocByID(nil, allocToUpdate.ID)
-		if alloc == nil {
+		if !allocToUpdate.TerminalStatus() && alloc.ClientStatus != structs.AllocClientStatusUnknown {
 			continue
 		}
 
@@ -1155,12 +1155,26 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			continue
 		}
 
+		evalTriggerBy := ""
+		var eval *structs.Evaluation
 		// Add an evaluation if this is a failed alloc that is eligible for rescheduling
-		if allocToUpdate.ClientStatus == structs.AllocClientStatusFailed && alloc.FollowupEvalID == "" && alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
-			eval := &structs.Evaluation{
+		if allocToUpdate.ClientStatus == structs.AllocClientStatusFailed &&
+			alloc.FollowupEvalID == "" &&
+			alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
+
+			evalTriggerBy = structs.EvalTriggerRetryFailedAlloc
+		}
+
+		//Add an evaluation if this is a reconnecting allocation.
+		if alloc.ClientStatus == structs.AllocClientStatusUnknown {
+			evalTriggerBy = structs.EvalTriggerReconnect
+		}
+
+		if evalTriggerBy != "" {
+			eval = &structs.Evaluation{
 				ID:          uuid.Generate(),
 				Namespace:   alloc.Namespace,
-				TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
+				TriggeredBy: evalTriggerBy,
 				JobID:       alloc.JobID,
 				Type:        job.Type,
 				Priority:    job.Priority,
@@ -1420,6 +1434,7 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 			CreateTime:      now,
 			ModifyTime:      now,
 		}
+
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
 	}
