@@ -43,7 +43,6 @@ export default createMachine(
             exit: ['removeCurrentEvaluationQueryParameter'],
             states: {
               busy: {
-                id: 'busy',
                 invoke: {
                   src: 'loadEvaluation',
                   onDone: 'success',
@@ -72,10 +71,7 @@ export default createMachine(
             },
             on: {
               MODAL_CLOSE: 'close',
-              CHANGE_EVAL: [
-                { target: 'close', cond: 'hasNoCurrentEval' },
-                // { target: '#busy', cond: 'notBusy' },
-              ],
+              CHANGE_EVAL: [{ target: 'close', cond: 'hasNoCurrentEval' }],
             },
           },
           close: {
