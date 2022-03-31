@@ -205,7 +205,10 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			supportsDisconnectedClients: false,
 			now:                         time.Now(),
 			taintedNodes:                nodes,
-			skipNilNodeTest:             true,
+			// The logic associated with this test case can only trigger if there
+			// is a tainted node. Therefore, testing with a nil node set produces
+			// false failures, so don't perform that test if in this case.
+			skipNilNodeTest: true,
 			all: allocSet{
 				// Non-terminal allocs on lost nodes are lost
 				"lost1": {
