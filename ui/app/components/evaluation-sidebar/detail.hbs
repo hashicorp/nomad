@@ -146,13 +146,15 @@
           />
         {{else}}
           <div class="boxed-section">
-            <div data-test-eval-error class="error-message">
-              <h1 data-test-error-title class="title is-spaced">
-                Related Evaluations Can't Be Visualized
-              </h1>
-              <p data-test-error-message class="subtitle">
-                Parts of the chain may have been garbage collected.
-              </p>
+            <div class="boxed-section-head">
+              Related Evaluations
+            </div>
+            <div class="boxed-section-body">
+              <div data-test-eval-error class="error-message title">
+                <p data-test-error-message class="subtitle">
+                  The related evaluations cannot be visualized. Parts of the related evaluation tree may have been garbage collected.
+                </p>
+              </div>
             </div>
           </div>
         {{/if}}
