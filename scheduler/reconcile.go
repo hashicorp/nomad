@@ -344,7 +344,7 @@ func (a *allocReconciler) handleStop(m allocMatrix) {
 // filterAndStopAll stops all allocations in an allocSet. This is useful in when
 // stopping an entire job or task group.
 func (a *allocReconciler) filterAndStopAll(set allocSet) uint64 {
-	untainted, migrate, lost, disconnecting, reconnecting := set.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients)
+	untainted, migrate, lost, disconnecting, reconnecting, _ := set.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
 	a.markStop(untainted, "", allocNotNeeded)
 	a.markStop(migrate, "", allocNotNeeded)
 	a.markStop(lost, structs.AllocClientStatusLost, allocLost)
@@ -406,18 +406,24 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	canaries, all := a.cancelUnneededCanaries(all, desiredChanges)
 
 	// Determine what set of allocations are on tainted nodes
-	untainted, migrate, lost, disconnecting, reconnecting := all.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients)
+	untainted, migrate, lost, disconnecting, reconnecting, ignore := all.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
+	desiredChanges.Ignore += uint64(len(ignore))
 
 	// Determine what set of terminal allocations need to be rescheduled
-	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, a.now, a.evalID, a.deployment)
+	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
+
+	// Determine what set of disconnecting allocations need to be rescheduled
+	_, rescheduleDisconnecting, _ := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
+	rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
 
 	// Find delays for any lost allocs that have stop_after_client_disconnect
 	lostLater := lost.delayByStopAfterClientDisconnect()
-	lostLaterEvals := a.createLostLaterEvals(lostLater, all, tg.Name)
+	lostLaterEvals := a.createLostLaterEvals(lostLater, tg.Name)
 
 	// Find delays for any disconnecting allocs that have max_client_disconnect,
 	// create followup evals, and update the ClientStatus to unknown.
 	timeoutLaterEvals := a.createTimeoutLaterEvals(disconnecting, tg.Name)
+
 	// Merge disconnecting with the stop_after_client_disconnect set into the
 	// lostLaterEvals so that computeStop can add them to the stop set.
 	lostLaterEvals = helper.MergeMapStringString(lostLaterEvals, timeoutLaterEvals)
@@ -438,9 +444,9 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	desiredChanges.Stop += uint64(len(stop))
 	untainted = untainted.difference(stop)
 
-	// Validate and add reconnecting allocs to the plan so that they will be synced by the client on next poll.
+	// Validate and add reconnecting allocs to the plan so that they will be logged.
 	a.computeReconnecting(reconnecting)
-
+	desiredChanges.Ignore += uint64(len(a.result.reconnectUpdates))
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
 	ignore, inplace, destructive := a.computeUpdates(tg, untainted)
@@ -571,9 +577,11 @@ func (a *allocReconciler) filterOldTerminalAllocs(all allocSet) (filtered, ignor
 // cancelUnneededCanaries handles the canaries for the group by stopping the
 // unneeded ones and returning the current set of canaries and the updated total
 // set of allocs for the group
-func (a *allocReconciler) cancelUnneededCanaries(all allocSet, desiredChanges *structs.DesiredUpdates) (canaries, newAll allocSet) {
+func (a *allocReconciler) cancelUnneededCanaries(original allocSet, desiredChanges *structs.DesiredUpdates) (canaries, all allocSet) {
 	// Stop any canary from an older deployment or from a failed one
 	var stop []string
+
+	all = original
 
 	// Cancel any non-promoted canaries from the older deployment
 	if a.oldDeployment != nil {
@@ -609,7 +617,7 @@ func (a *allocReconciler) cancelUnneededCanaries(all allocSet, desiredChanges *s
 		}
 
 		canaries = all.fromKeys(canaryIDs)
-		untainted, migrate, lost, _, _ := canaries.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients)
+		untainted, migrate, lost, _, _, _ := canaries.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
 		a.markStop(migrate, "", allocMigrating)
 		a.markStop(lost, structs.AllocClientStatusLost, allocLost)
 
@@ -617,7 +625,7 @@ func (a *allocReconciler) cancelUnneededCanaries(all allocSet, desiredChanges *s
 		all = all.difference(migrate, lost)
 	}
 
-	return canaries, all
+	return
 }
 
 // computeUnderProvisionedBy returns the number of allocs that still need to be
@@ -688,9 +696,10 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 		})
 	}
 
-	// Add replacements for lost allocs up to group.Count
+	// Add replacements for disconnected and lost allocs up to group.Count
 	existing := len(untainted) + len(migrate) + len(reschedule) + len(reconnecting)
 
+	// Add replacements for lost
 	for _, alloc := range lost {
 		if existing >= group.Count {
 			// Reached desired count, do not replace remaining lost
@@ -731,7 +740,17 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 // The input deploymentPlaceReady is calculated as the deployment is not paused, failed, or canarying.
 // It returns the number of allocs still needed.
 func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desiredChanges *structs.DesiredUpdates,
-	place []allocPlaceResult, failed, lost allocSet, underProvisionedBy int) int {
+	place []allocPlaceResult, rescheduleNow, lost allocSet, underProvisionedBy int) int {
+
+	// Disconnecting allocs are not failing, but are included in rescheduleNow.
+	// Create a new set that only includes the actual failures and compute
+	// replacements based off that.
+	failed := make(allocSet)
+	for id, alloc := range rescheduleNow {
+		if _, ok := a.result.disconnectUpdates[id]; !ok {
+			failed[id] = alloc
+		}
+	}
 
 	// If the deployment is place ready, apply all placements and return
 	if deploymentPlaceReady {
@@ -739,6 +758,7 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 		// This relies on the computePlacements having built this set, which in
 		// turn relies on len(lostLater) == 0.
 		a.result.place = append(a.result.place, place...)
+
 		a.markStop(failed, "", allocRescheduled)
 		desiredChanges.Stop += uint64(len(failed))
 
@@ -760,13 +780,13 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 	}
 
 	// if no failures or there are no pending placements return.
-	if len(failed) == 0 || len(place) == 0 {
+	if len(rescheduleNow) == 0 || len(place) == 0 {
 		return underProvisionedBy
 	}
 
 	// Handle rescheduling of failed allocations even if the deployment is failed.
 	// If the placement is rescheduling, and not part of a failed deployment, add
-	// to the place set, and add the previous alloc to the stop set.
+	// to the place set. Add the previous alloc to the stop set unless it is disconnecting.
 	for _, p := range place {
 		prev := p.PreviousAllocation()
 		partOfFailedDeployment := a.deploymentFailed && prev != nil && a.deployment.ID == prev.DeploymentID
@@ -774,6 +794,11 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 		if !partOfFailedDeployment && p.IsRescheduling() {
 			a.result.place = append(a.result.place, p)
 			desiredChanges.Place++
+
+			_, prevIsDisconnecting := a.result.disconnectUpdates[prev.ID]
+			if prevIsDisconnecting {
+				continue
+			}
 
 			a.result.stop = append(a.result.stop, allocStopResult{
 				alloc:             prev,
@@ -873,9 +898,7 @@ func (a *allocReconciler) isDeploymentComplete(groupName string, destructive, in
 	}
 
 	// Final check to see if the deployment is complete is to ensure everything is healthy
-	var ok bool
-	var dstate *structs.DeploymentState
-	if dstate, ok = a.deployment.TaskGroups[groupName]; ok {
+	if dstate, ok := a.deployment.TaskGroups[groupName]; ok {
 		if dstate.HealthyAllocs < helper.IntMax(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
 			(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
 			complete = false
@@ -1009,11 +1032,13 @@ func (a *allocReconciler) computeStopByReconnecting(untainted, reconnecting, sto
 
 	for _, reconnectingAlloc := range reconnecting {
 		// if the desired status is not run, or if the user-specified desired
-		// transition is not run, stop the allocation.
+		// transition is not run, stop the reconnecting allocation.
 		if reconnectingAlloc.DesiredStatus != structs.AllocDesiredStatusRun ||
 			reconnectingAlloc.DesiredTransition.ShouldMigrate() ||
 			reconnectingAlloc.DesiredTransition.ShouldReschedule() ||
-			reconnectingAlloc.DesiredTransition.ShouldForceReschedule() {
+			reconnectingAlloc.DesiredTransition.ShouldForceReschedule() ||
+			reconnectingAlloc.Job.Version < a.job.Version ||
+			reconnectingAlloc.Job.CreateIndex < a.job.CreateIndex {
 
 			stop[reconnectingAlloc.ID] = reconnectingAlloc
 			a.result.stop = append(a.result.stop, allocStopResult{
@@ -1032,7 +1057,7 @@ func (a *allocReconciler) computeStopByReconnecting(untainted, reconnecting, sto
 
 		// Compare reconnecting to untainted and decide which to keep.
 		for _, untaintedAlloc := range untainted {
-			// If not a match by name go to next
+			// If not a match by name and previous alloc continue
 			if reconnectingAlloc.Name != untaintedAlloc.Name {
 				continue
 			}
@@ -1045,17 +1070,19 @@ func (a *allocReconciler) computeStopByReconnecting(untainted, reconnecting, sto
 			reconnectingMaxScoreMeta := reconnectingAlloc.Metrics.MaxNormScore()
 
 			if untaintedMaxScoreMeta == nil {
-				a.logger.Error(fmt.Sprintf("error computing stop: replacement allocation metrics not available for alloc.name %q", untaintedAlloc.Name))
+				a.logger.Error("error computing stop: replacement allocation metrics not available", "alloc_name", untaintedAlloc.Name, "alloc_id", untaintedAlloc.ID)
 				continue
 			}
 
 			if reconnectingMaxScoreMeta == nil {
-				a.logger.Error(fmt.Sprintf("error computing stop: reconnecting allocation metrics not available for alloc.name %q", reconnectingAlloc.Name))
+				a.logger.Error("error computing stop: reconnecting allocation metrics not available", "alloc_name", reconnectingAlloc.Name, "alloc_id", reconnectingAlloc.ID)
 				continue
 			}
 
 			statusDescription := allocNotNeeded
-			if untaintedMaxScoreMeta.NormScore > reconnectingMaxScoreMeta.NormScore {
+			if untaintedAlloc.Job.Version > reconnectingAlloc.Job.Version ||
+				untaintedAlloc.Job.CreateIndex > reconnectingAlloc.Job.CreateIndex ||
+				untaintedMaxScoreMeta.NormScore > reconnectingMaxScoreMeta.NormScore {
 				stopAlloc = reconnectingAlloc
 				deleteSet = reconnecting
 			} else {
@@ -1112,7 +1139,7 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 // the followupEvalID
 func (a *allocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
 	// followupEvals are created in the same way as for delayed lost allocs
-	allocIDToFollowupEvalID := a.createLostLaterEvals(rescheduleLater, all, tgName)
+	allocIDToFollowupEvalID := a.createLostLaterEvals(rescheduleLater, tgName)
 
 	// Create updates that will be applied to the allocs to mark the FollowupEvalID
 	for allocID, evalID := range allocIDToFollowupEvalID {
@@ -1136,7 +1163,11 @@ func (a *allocReconciler) computeReconnecting(reconnecting allocSet) {
 	// Create updates that will be appended to the plan.
 	for _, alloc := range reconnecting {
 		// If the user has defined a DesiredTransition don't resume the alloc.
-		if alloc.DesiredTransition.ShouldMigrate() || alloc.DesiredTransition.ShouldReschedule() || alloc.DesiredTransition.ShouldForceReschedule() {
+		if alloc.DesiredTransition.ShouldMigrate() ||
+			alloc.DesiredTransition.ShouldReschedule() ||
+			alloc.DesiredTransition.ShouldForceReschedule() ||
+			alloc.Job.Version < a.job.Version ||
+			alloc.Job.CreateIndex < a.job.CreateIndex {
 			continue
 		}
 
@@ -1145,14 +1176,14 @@ func (a *allocReconciler) computeReconnecting(reconnecting allocSet) {
 			continue
 		}
 
-		a.result.reconnectUpdates[alloc.ID] = alloc.Copy()
+		a.result.reconnectUpdates[alloc.ID] = alloc
 	}
 }
 
 // handleDelayedLost creates batched followup evaluations with the WaitUntil field set for
 // lost allocations. followupEvals are appended to a.result as a side effect, we return a
 // map of alloc IDs to their followupEval IDs.
-func (a *allocReconciler) createLostLaterEvals(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) map[string]string {
+func (a *allocReconciler) createLostLaterEvals(rescheduleLater []*delayedRescheduleInfo, tgName string) map[string]string {
 	if len(rescheduleLater) == 0 {
 		return map[string]string{}
 	}
@@ -1222,7 +1253,7 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 
 	timeoutDelays, err := disconnecting.delayByMaxClientDisconnect(a.now)
 	if err != nil || len(timeoutDelays) != len(disconnecting) {
-		a.logger.Error(fmt.Sprintf("error computing disconnecting timeouts for task_group.name %q: %s", tgName, err))
+		a.logger.Error("error computing disconnecting timeouts for task_group", "task_group", tgName, "err", err)
 		return map[string]string{}
 	}
 
@@ -1278,9 +1309,10 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 		emitRescheduleInfo(timeoutInfo.alloc, eval)
 
 		// Create updates that will be applied to the allocs to mark the FollowupEvalID
-		// and the unknown ClientStatus.
+		// and the unknown ClientStatus and AllocState.
 		updatedAlloc := timeoutInfo.alloc.Copy()
 		updatedAlloc.ClientStatus = structs.AllocClientStatusUnknown
+		updatedAlloc.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
 		updatedAlloc.ClientDescription = allocUnknown
 		updatedAlloc.FollowupEvalID = eval.ID
 		a.result.disconnectUpdates[updatedAlloc.ID] = updatedAlloc

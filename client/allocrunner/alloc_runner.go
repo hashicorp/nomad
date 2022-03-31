@@ -1256,6 +1256,7 @@ func (ar *allocRunner) Reconnect(update *structs.Allocation) (err error) {
 	ar.logger.Trace("reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex)
 
 	event := structs.NewTaskEvent(structs.TaskClientReconnected)
+	event.Time = time.Now().UnixNano()
 	for _, tr := range ar.tasks {
 		tr.AppendEvent(event)
 	}
@@ -1272,6 +1273,12 @@ func (ar *allocRunner) Reconnect(update *structs.Allocation) (err error) {
 
 	// Build the client allocation
 	alloc := ar.clientAlloc(states)
+
+	// Don't destroy until after we've appended the reconnect event.
+	if update.DesiredStatus != structs.AllocDesiredStatusRun {
+		ar.Shutdown()
+		return
+	}
 
 	// Update the client state store.
 	err = ar.stateUpdater.PutAllocation(alloc)

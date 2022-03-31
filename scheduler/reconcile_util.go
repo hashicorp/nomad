@@ -209,21 +209,23 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 }
 
 // filterByTainted takes a set of tainted nodes and filters the allocation set
-// into 5 groups:
+// into the following groups:
 // 1. Those that exist on untainted nodes
 // 2. Those exist on nodes that are draining
-// 3. Those that exist on lost nodes
+// 3. Those that exist on lost nodes or have expired
 // 4. Those that are on nodes that are disconnected, but have not had their ClientState set to unknown
-// 5. Those that have had their ClientState set to unknown, but their node has reconnected.
-func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, supportsDisconnectedClients bool) (untainted, migrate, lost, disconnecting, reconnecting allocSet) {
+// 5. Those that are on a node that has reconnected.
+// 6. Those that are in a state that results in a noop.
+func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, supportsDisconnectedClients bool, now time.Time) (untainted, migrate, lost, disconnecting, reconnecting, ignore allocSet) {
 	untainted = make(map[string]*structs.Allocation)
 	migrate = make(map[string]*structs.Allocation)
 	lost = make(map[string]*structs.Allocation)
 	disconnecting = make(map[string]*structs.Allocation)
 	reconnecting = make(map[string]*structs.Allocation)
+	ignore = make(map[string]*structs.Allocation)
 
 	for _, alloc := range a {
-		// Terminal allocs are always untainted as they should never be migrated
+		// Terminal allocs are always untainted as they should never be migrated.
 		if alloc.TerminalStatus() {
 			untainted[alloc.ID] = alloc
 			continue
@@ -235,10 +237,27 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 			continue
 		}
 
+		// Expired unknown allocs are lost
+		if supportsDisconnectedClients && alloc.Expired(now) {
+			lost[alloc.ID] = alloc
+			continue
+		}
+
+		// Ignore unknown allocs
+		if supportsDisconnectedClients && alloc.ClientStatus == structs.AllocClientStatusUnknown {
+			ignore[alloc.ID] = alloc
+			continue
+		}
+
 		taintedNode, ok := taintedNodes[alloc.NodeID]
 		if !ok {
 			// Filter allocs on a node that is now re-connected to be resumed.
-			if supportsDisconnectedClients && alloc.ClientStatus == structs.AllocClientStatusUnknown {
+			reconnected, expired := alloc.Reconnected()
+			if reconnected {
+				if expired {
+					lost[alloc.ID] = alloc
+					continue
+				}
 				reconnecting[alloc.ID] = alloc
 				continue
 			}
@@ -263,8 +282,13 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 					continue
 				}
 			case structs.NodeStatusReady:
-				// Filter unknown allocs on a node that is connected to reconnect.
-				if supportsDisconnectedClients && alloc.ClientStatus == structs.AllocClientStatusUnknown {
+				// Filter reconnecting allocs with replacements on a node that is now connected.
+				reconnected, expired := alloc.Reconnected()
+				if reconnected {
+					if expired {
+						lost[alloc.ID] = alloc
+						continue
+					}
 					reconnecting[alloc.ID] = alloc
 					continue
 				}
@@ -280,7 +304,6 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 
 		// All other allocs are untainted
 		untainted[alloc.ID] = alloc
-
 	}
 
 	return
@@ -290,23 +313,25 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 // untainted or a set of allocations that must be rescheduled now. Allocations that can be rescheduled
 // at a future time are also returned so that we can create follow up evaluations for them. Allocs are
 // skipped or considered untainted according to logic defined in shouldFilter method.
-func (a allocSet) filterByRescheduleable(isBatch bool, now time.Time, evalID string, deployment *structs.Deployment) (untainted, rescheduleNow allocSet, rescheduleLater []*delayedRescheduleInfo) {
+func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time.Time, evalID string, deployment *structs.Deployment) (untainted, rescheduleNow allocSet, rescheduleLater []*delayedRescheduleInfo) {
 	untainted = make(map[string]*structs.Allocation)
 	rescheduleNow = make(map[string]*structs.Allocation)
 
+	// When filtering disconnected sets, the untainted set is never populated.
+	// It has no purpose in that context.
 	for _, alloc := range a {
 		var eligibleNow, eligibleLater bool
 		var rescheduleTime time.Time
 
-		// Ignore failing allocs that have already been rescheduled
-		// only failed allocs should be rescheduled, but protect against a bug allowing rescheduling
-		// running allocs
+		// Ignore failing allocs that have already been rescheduled.
+		// Only failed or disconnecting allocs should be rescheduled.
+		// Protects against a bug allowing rescheduling running allocs.
 		if alloc.NextAllocation != "" && alloc.TerminalStatus() {
 			continue
 		}
 
 		isUntainted, ignore := shouldFilter(alloc, isBatch)
-		if isUntainted {
+		if isUntainted && !isDisconnecting {
 			untainted[alloc.ID] = alloc
 		}
 		if isUntainted || ignore {
@@ -314,9 +339,11 @@ func (a allocSet) filterByRescheduleable(isBatch bool, now time.Time, evalID str
 		}
 
 		// Only failed allocs with desired state run get to this point
-		// If the failed alloc is not eligible for rescheduling now we add it to the untainted set
-		eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, now, evalID, deployment)
-		if !eligibleNow {
+		// If the failed alloc is not eligible for rescheduling now we
+		// add it to the untainted set. Disconnecting delay evals are
+		// handled by allocReconciler.createTimeoutLaterEvals
+		eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, now, evalID, deployment, isDisconnecting)
+		if !isDisconnecting && !eligibleNow {
 			untainted[alloc.ID] = alloc
 			if eligibleLater {
 				rescheduleLater = append(rescheduleLater, &delayedRescheduleInfo{alloc.ID, alloc, rescheduleTime})
@@ -378,7 +405,7 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 
 // updateByReschedulable is a helper method that encapsulates logic for whether a failed allocation
 // should be rescheduled now, later or left in the untainted set
-func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string, d *structs.Deployment) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
+func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string, d *structs.Deployment, isDisconnecting bool) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
 	// If the allocation is part of an ongoing active deployment, we only allow it to reschedule
 	// if it has been marked eligible
 	if d != nil && alloc.DeploymentID == d.ID && d.Active() && !alloc.DesiredTransition.ShouldReschedule() {
@@ -391,7 +418,13 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 	}
 
 	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
-	rescheduleTime, eligible := alloc.NextRescheduleTime()
+	var eligible bool
+	if isDisconnecting {
+		rescheduleTime, eligible = alloc.NextRescheduleTimeByFailTime(now)
+	} else {
+		rescheduleTime, eligible = alloc.NextRescheduleTime()
+	}
+
 	if eligible && (alloc.FollowupEvalID == evalID || rescheduleTime.Sub(now) <= rescheduleWindowSize) {
 		rescheduleNow = true
 		return
