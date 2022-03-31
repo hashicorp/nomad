@@ -815,16 +815,12 @@ func Test_dnsConfig(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	require := require.New(t)
-	harness := dockerDriverHarness(t, nil)
-	defer harness.Kill()
-
 	cases := []struct {
 		name string
 		cfg  *drivers.DNSConfig
 	}{
 		{
-			name: "nil DNSConfig",
+			name: "nil",
 		},
 		{
 			name: "basic",
@@ -843,24 +839,31 @@ func Test_dnsConfig(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		taskCfg := newTaskConfig("", []string{"/bin/sleep", "1000"})
-		task := &drivers.TaskConfig{
-			ID:        uuid.Generate(),
-			Name:      "nc-demo",
-			AllocID:   uuid.Generate(),
-			Resources: basicResources,
-			DNS:       c.cfg,
-		}
-		require.NoError(task.EncodeConcreteDriverConfig(&taskCfg))
+		t.Run(c.name, func(t *testing.T) {
+			harness := dockerDriverHarness(t, nil)
 
-		cleanup := harness.MkAllocDir(task, false)
-		defer cleanup()
+			taskCfg := newTaskConfig("", []string{"/bin/sleep", "1000"})
+			task := &drivers.TaskConfig{
+				ID:        uuid.Generate(),
+				Name:      "nc-demo",
+				AllocID:   uuid.Generate(),
+				Resources: basicResources,
+				DNS:       c.cfg,
+			}
+			require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
 
-		_, _, err := harness.StartTask(task)
-		require.NoError(err)
-		defer harness.DestroyTask(task.ID, true)
+			cleanup := harness.MkAllocDir(task, false)
 
-		dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)
+			_, _, err := harness.StartTask(task)
+			require.NoError(t, err)
+
+			dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)
+
+			// cleanup immediately before the next test case
+			require.NoError(t, harness.DestroyTask(task.ID, true))
+			cleanup()
+			harness.Kill()
+		})
 	}
 
 }
