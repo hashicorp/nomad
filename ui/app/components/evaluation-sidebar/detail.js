@@ -18,6 +18,9 @@ export default class Detail extends Component {
   @matchesState({ sidebar: { open: 'busy' } })
   isLoading;
 
+  @matchesState({ sidebar: { open: 'error' } })
+  isError;
+
   @tracked width = null;
   @tracked height = null;
 
