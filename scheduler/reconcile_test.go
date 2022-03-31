@@ -259,8 +259,8 @@ type resultExpectation struct {
 	attributeUpdates  int
 	disconnectUpdates int
 	reconnectUpdates  int
-	stop              int
 	desiredTGUpdates  map[string]*structs.DesiredUpdates
+	stop              int
 }
 
 func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {

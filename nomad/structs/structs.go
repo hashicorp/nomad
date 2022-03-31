@@ -9923,10 +9923,8 @@ func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
-	// Prefer the duration from the task group.
 	timeout := tg.MaxClientDisconnect
 
-	// If not configured, return now
 	if timeout == nil {
 		return now
 	}
