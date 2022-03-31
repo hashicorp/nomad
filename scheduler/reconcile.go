@@ -742,11 +742,13 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desiredChanges *structs.DesiredUpdates,
 	place []allocPlaceResult, rescheduleNow, lost allocSet, underProvisionedBy int) int {
 
-	stop := make(allocSet, 0)
-	// Disconnecting allocs are not failing.
+	// Disconnecting allocs are not failing, but are included in rescheduleNow.
+	// Create a new set that only includes the actual failures and compute
+	// replacements based off that.
+	failed := make(allocSet)
 	for id, alloc := range rescheduleNow {
 		if _, ok := a.result.disconnectUpdates[id]; !ok {
-			stop[id] = alloc
+			failed[id] = alloc
 		}
 	}
 
@@ -757,8 +759,8 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 		// turn relies on len(lostLater) == 0.
 		a.result.place = append(a.result.place, place...)
 
-		a.markStop(stop, "", allocRescheduled)
-		desiredChanges.Stop += uint64(len(stop))
+		a.markStop(failed, "", allocRescheduled)
+		desiredChanges.Stop += uint64(len(failed))
 
 		min := helper.IntMin(len(place), underProvisionedBy)
 		underProvisionedBy -= min

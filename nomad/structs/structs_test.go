@@ -5223,12 +5223,12 @@ func TestAllocation_Reconnected(t *testing.T) {
 	type testCase struct {
 		name             string
 		maxDisconnect    string
-		ellapsed         int
+		elapsed          int
 		reconnected      bool
 		expired          bool
 		nilJob           bool
 		badTaskGroup     bool
-		mixedUTC         bool
+		mixedTZ          bool
 		noReconnectEvent bool
 		status           string
 	}
@@ -5237,28 +5237,28 @@ func TestAllocation_Reconnected(t *testing.T) {
 		{
 			name:          "has-expired",
 			maxDisconnect: "5s",
-			ellapsed:      10,
+			elapsed:       10,
 			reconnected:   true,
 			expired:       true,
 		},
 		{
 			name:          "has-not-expired",
 			maxDisconnect: "5s",
-			ellapsed:      3,
+			elapsed:       3,
 			reconnected:   true,
 			expired:       false,
 		},
 		{
 			name:          "are-equal",
 			maxDisconnect: "5s",
-			ellapsed:      5,
+			elapsed:       5,
 			reconnected:   true,
 			expired:       true,
 		},
 		{
 			name:          "nil-job",
 			maxDisconnect: "5s",
-			ellapsed:      10,
+			elapsed:       10,
 			reconnected:   true,
 			expired:       false,
 			nilJob:        true,
@@ -5266,38 +5266,38 @@ func TestAllocation_Reconnected(t *testing.T) {
 		{
 			name:          "bad-task-group",
 			maxDisconnect: "",
-			badTaskGroup:  true,
-			ellapsed:      10,
+			elapsed:       10,
 			reconnected:   true,
 			expired:       false,
+			badTaskGroup:  true,
 		},
 		{
 			name:          "no-max-disconnect",
 			maxDisconnect: "",
-			ellapsed:      10,
+			elapsed:       10,
 			reconnected:   true,
 			expired:       false,
 		},
 		{
 			name:          "mixed-utc-has-expired",
 			maxDisconnect: "5s",
-			ellapsed:      10,
-			mixedUTC:      true,
+			elapsed:       10,
 			reconnected:   true,
 			expired:       true,
+			mixedTZ:       true,
 		},
 		{
 			name:          "mixed-utc-has-not-expired",
 			maxDisconnect: "5s",
-			ellapsed:      3,
-			mixedUTC:      true,
+			elapsed:       3,
 			reconnected:   true,
 			expired:       false,
+			mixedTZ:       true,
 		},
 		{
 			name:             "no-reconnect-event",
 			maxDisconnect:    "5s",
-			ellapsed:         2,
+			elapsed:          2,
 			reconnected:      false,
 			expired:          false,
 			noReconnectEvent: true,
@@ -5335,11 +5335,14 @@ func TestAllocation_Reconnected(t *testing.T) {
 			}}
 
 			now := time.Now().UTC()
-			if tc.mixedUTC {
-				now = time.Now()
+			if tc.mixedTZ {
+				var loc *time.Location
+				loc, err = time.LoadLocation("America/New_York")
+				require.NoError(t, err)
+				now = time.Now().In(loc)
 			}
 
-			ellapsedDuration := time.Duration(tc.ellapsed) * time.Second
+			ellapsedDuration := time.Duration(tc.elapsed) * time.Second
 			now = now.Add(ellapsedDuration)
 
 			if !tc.noReconnectEvent {

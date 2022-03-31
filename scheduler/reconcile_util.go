@@ -215,7 +215,7 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 // 3. Those that exist on lost nodes or have expired
 // 4. Those that are on nodes that are disconnected, but have not had their ClientState set to unknown
 // 5. Those that are on a node that has reconnected.
-// 6. Those that are in a state the results in a noop.
+// 6. Those that are in a state that results in a noop.
 func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, supportsDisconnectedClients bool, now time.Time) (untainted, migrate, lost, disconnecting, reconnecting, ignore allocSet) {
 	untainted = make(map[string]*structs.Allocation)
 	migrate = make(map[string]*structs.Allocation)
@@ -339,14 +339,13 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 		}
 
 		// Only failed allocs with desired state run get to this point
-		// If the failed alloc is not eligible for rescheduling now we add it to the untainted set
+		// If the failed alloc is not eligible for rescheduling now we
+		// add it to the untainted set. Disconnecting delay evals are
+		// handled by allocReconciler.createTimeoutLaterEvals
 		eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, now, evalID, deployment, isDisconnecting)
-		if !eligibleNow {
-			if !isDisconnecting {
-				untainted[alloc.ID] = alloc
-			}
-			// Disconnecting delay evals are handled by allocReconciler.createTimeoutLaterEvals
-			if eligibleLater && !isDisconnecting {
+		if !isDisconnecting && !eligibleNow {
+			untainted[alloc.ID] = alloc
+			if eligibleLater {
 				rescheduleLater = append(rescheduleLater, &delayedRescheduleInfo{alloc.ID, alloc, rescheduleTime})
 			}
 		} else {

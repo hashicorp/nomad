@@ -10015,6 +10015,10 @@ func (a *Allocation) AllocationDiff() *AllocationDiff {
 // Expired determines whether an allocation has exceeded its MaxClientDisonnect
 // duration relative to the passed time stamp.
 func (a *Allocation) Expired(now time.Time) bool {
+	if a == nil || a.Job == nil {
+		return false
+	}
+
 	// If alloc is not Unknown it cannot be expired.
 	if a.ClientStatus != AllocClientStatusUnknown {
 		return false
@@ -10022,14 +10026,6 @@ func (a *Allocation) Expired(now time.Time) bool {
 
 	lastUnknown := a.LastUnknown()
 	if lastUnknown.IsZero() {
-		return false
-	}
-
-	return a.expired(now, lastUnknown)
-}
-
-func (a *Allocation) expired(now, lastUnknown time.Time) bool {
-	if a == nil || a.Job == nil {
 		return false
 	}
 
@@ -10043,7 +10039,7 @@ func (a *Allocation) expired(now, lastUnknown time.Time) bool {
 	}
 
 	expiry := lastUnknown.Add(*tg.MaxClientDisconnect)
-	return now.UTC().After(expiry) || now.Equal(expiry)
+	return now.UTC().After(expiry) || now.UTC().Equal(expiry)
 }
 
 // LastUnknown returns the timestamp for the last time the allocation
@@ -10060,7 +10056,7 @@ func (a *Allocation) LastUnknown() time.Time {
 		}
 	}
 
-	return lastUnknown
+	return lastUnknown.UTC()
 }
 
 // Reconnected determines whether a reconnect event has occurred for any task
@@ -10080,15 +10076,10 @@ func (a *Allocation) Reconnected() (bool, bool) {
 	}
 
 	if lastReconnect.IsZero() {
-		return false, a.Expired(time.Now().UTC())
-	}
-
-	lastUnknown := a.LastUnknown()
-	if lastUnknown.IsZero() {
 		return false, false
 	}
 
-	return true, a.expired(lastReconnect, lastUnknown)
+	return true, a.Expired(lastReconnect)
 }
 
 // AllocationDiff is another named type for Allocation (to use the same fields),

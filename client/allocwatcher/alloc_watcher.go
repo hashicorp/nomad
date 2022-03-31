@@ -405,7 +405,6 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 			return nil
 		}
 		if resp.Alloc.Terminated() || resp.Alloc.ClientStatus == structs.AllocClientStatusUnknown {
-			// Terminated!
 			p.nodeID = resp.Alloc.NodeID
 			return nil
 		}

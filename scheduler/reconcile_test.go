@@ -5133,7 +5133,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		disconnectedAllocStatus      string
 		isBatch                      bool
 		nodeStatusDisconnected       bool
-		dontReplace                  bool
+		replace                      bool
 		failReplacement              bool
 		shouldStopOnDisconnectedNode bool
 		maxDisconnect                *time.Duration
@@ -5144,10 +5144,10 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		{
 			name:                         "reconnect-original-no-replacement",
 			allocCount:                   2,
+			replace:                      false,
 			disconnectedAllocCount:       2,
-			dontReplace:                  true,
-			shouldStopOnDisconnectedNode: false,
 			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			shouldStopOnDisconnectedNode: false,
 			expected: &resultExpectation{
 				reconnectUpdates: 2,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
@@ -5160,9 +5160,10 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		{
 			name:                         "resume-original-and-stop-replacement",
 			allocCount:                   3,
+			replace:                      true,
 			disconnectedAllocCount:       1,
-			shouldStopOnDisconnectedNode: false,
 			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			shouldStopOnDisconnectedNode: false,
 			expected: &resultExpectation{
 				stop:             1,
 				reconnectUpdates: 1,
@@ -5177,8 +5178,10 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		{
 			name:                         "stop-original-with-lower-node-score",
 			allocCount:                   4,
-			shouldStopOnDisconnectedNode: true,
+			replace:                      true,
+			disconnectedAllocCount:       1,
 			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			shouldStopOnDisconnectedNode: true,
 			nodeScoreIncrement:           1,
 			expected: &resultExpectation{
 				stop: 1,
@@ -5193,9 +5196,10 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		{
 			name:                         "ignore-original-failed-if-replaced",
 			allocCount:                   4,
+			replace:                      true,
 			disconnectedAllocCount:       2,
-			shouldStopOnDisconnectedNode: true,
 			disconnectedAllocStatus:      structs.AllocClientStatusFailed,
+			shouldStopOnDisconnectedNode: true,
 			expected: &resultExpectation{
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
@@ -5204,14 +5208,13 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 				},
 			},
 		},
-		// Flapping but not yet replaced.
 		{
 			name:                         "reschedule-original-failed-if-not-replaced",
 			allocCount:                   4,
+			replace:                      false,
 			disconnectedAllocCount:       2,
-			shouldStopOnDisconnectedNode: true,
-			dontReplace:                  true,
 			disconnectedAllocStatus:      structs.AllocClientStatusFailed,
+			shouldStopOnDisconnectedNode: true,
 			expected: &resultExpectation{
 				stop:  2,
 				place: 2,
@@ -5227,10 +5230,10 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		{
 			name:                    "ignore-reconnect-completed",
 			allocCount:              2,
+			replace:                 false,
 			disconnectedAllocCount:  2,
-			dontReplace:             true,
-			isBatch:                 true,
 			disconnectedAllocStatus: structs.AllocClientStatusComplete,
+			isBatch:                 true,
 			expected: &resultExpectation{
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
@@ -5242,9 +5245,10 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		{
 			name:                         "stop-original-alloc-with-old-job-version",
 			allocCount:                   5,
+			replace:                      true,
 			disconnectedAllocCount:       2,
-			shouldStopOnDisconnectedNode: true,
 			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			shouldStopOnDisconnectedNode: true,
 			jobVersionIncrement:          1,
 			expected: &resultExpectation{
 				stop: 2,
@@ -5259,9 +5263,10 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		{
 			name:                         "stop-original-alloc-with-old-job-version-reconnect-eval",
 			allocCount:                   5,
+			replace:                      true,
 			disconnectedAllocCount:       2,
-			shouldStopOnDisconnectedNode: true,
 			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			shouldStopOnDisconnectedNode: true,
 			jobVersionIncrement:          1,
 			expected: &resultExpectation{
 				stop: 2,
@@ -5276,10 +5281,11 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		{
 			name:                         "stop-original-alloc-with-old-job-version-and-failed-replacements",
 			allocCount:                   5,
-			failReplacement:              true,
-			shouldStopOnDisconnectedNode: true,
+			replace:                      true,
 			disconnectedAllocCount:       2,
 			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			failReplacement:              true,
+			shouldStopOnDisconnectedNode: true,
 			jobVersionIncrement:          1,
 			expected: &resultExpectation{
 				stop: 2,
@@ -5294,9 +5300,11 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		{
 			name:                         "stop-original-pending-alloc-for-disconnected-node",
 			allocCount:                   2,
+			replace:                      true,
+			disconnectedAllocCount:       1,
+			disconnectedAllocStatus:      structs.AllocClientStatusPending,
 			shouldStopOnDisconnectedNode: true,
 			nodeStatusDisconnected:       true,
-			disconnectedAllocStatus:      structs.AllocClientStatusPending,
 			expected: &resultExpectation{
 				stop: 1,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
@@ -5310,9 +5318,10 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		{
 			name:                         "stop-expired-allocs",
 			allocCount:                   5,
+			replace:                      true,
 			disconnectedAllocCount:       2,
-			shouldStopOnDisconnectedNode: true,
 			disconnectedAllocStatus:      structs.AllocClientStatusUnknown,
+			shouldStopOnDisconnectedNode: true,
 			nodeStatusDisconnected:       true,
 			maxDisconnect:                helper.TimeToPtr(2 * time.Second),
 			expected: &resultExpectation{
@@ -5326,12 +5335,12 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                   "replace-allocs-on-disconnected-node",
-			allocCount:             5,
-			disconnectedAllocCount: 2,
-			nodeStatusDisconnected: true,
-			// this means the test won't create replacements so the reconciler should
-			dontReplace: true,
+			name:                    "replace-allocs-on-disconnected-node",
+			allocCount:              5,
+			replace:                 false,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+			nodeStatusDisconnected:  true,
 			expected: &resultExpectation{
 				place:             2,
 				disconnectUpdates: 2,
@@ -5348,14 +5357,6 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			require.NotEqual(t, 0, tc.allocCount, "invalid test case: alloc count must be greater than zero")
-
-			// Set defaults used by most tests if not set
-			if tc.disconnectedAllocCount == 0 {
-				tc.disconnectedAllocCount = 1
-			}
-			if tc.disconnectedAllocStatus == "" {
-				tc.disconnectedAllocStatus = structs.AllocClientStatusRunning
-			}
 
 			testNode := mock.Node()
 			if tc.nodeStatusDisconnected == true {
@@ -5400,7 +5401,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			}
 
 			// Place the allocs on another node.
-			if !tc.dontReplace {
+			if tc.replace {
 				replacements := make([]*structs.Allocation, 0)
 				for _, alloc := range allocs {
 					if alloc.NodeID != testNode.ID {
@@ -5455,9 +5456,8 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 				} else {
 					require.NotEqual(t, testNode.ID, stopResult.alloc.NodeID)
 				}
-				if tc.jobVersionIncrement != 0 {
-					require.Equal(t, job.Version, stopResult.alloc.Job.Version)
-				}
+
+				require.Equal(t, job.Version, stopResult.alloc.Job.Version)
 			}
 
 			assertResults(t, results, tc.expected)

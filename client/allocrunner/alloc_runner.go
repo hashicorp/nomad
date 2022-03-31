@@ -1269,7 +1269,7 @@ func (ar *allocRunner) Reconnect(update *structs.Allocation) (err error) {
 
 	// Don't destroy until after we've appended the reconnect event.
 	if update.DesiredStatus != structs.AllocDesiredStatusRun {
-		ar.Destroy()
+		ar.Shutdown()
 		return
 	}
 
