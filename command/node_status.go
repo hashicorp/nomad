@@ -29,6 +29,7 @@ type NodeStatusCommand struct {
 	length      int
 	short       bool
 	os          bool
+	quiet       bool
 	verbose     bool
 	list_allocs bool
 	self        bool
@@ -78,6 +79,9 @@ Node Status Options:
   -os
     Display operating system name.
 
+  -quiet
+    Display only node IDs.
+
   -json
     Output the node in its JSON format.
 
@@ -101,6 +105,7 @@ func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
 			"-stats":   complete.PredictNothing,
 			"-t":       complete.PredictAnything,
 			"-os":      complete.PredictAnything,
+			"-quiet":   complete.PredictAnything,
 			"-verbose": complete.PredictNothing,
 		})
 }
@@ -128,6 +133,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&c.short, "short", false, "")
 	flags.BoolVar(&c.os, "os", false, "")
+	flags.BoolVar(&c.quiet, "quiet", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
 	flags.BoolVar(&c.list_allocs, "allocs", false, "")
 	flags.BoolVar(&c.self, "self", false, "")
@@ -162,12 +168,39 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 	// Use list mode if no node name was provided
 	if len(args) == 0 && !c.self {
+		if c.quiet && (c.verbose || c.json) {
+			c.Ui.Error("-quiet cannot be used with -verbose or -json")
+			return 1
+		}
 
 		// Query the node info
 		nodes, _, err := client.Nodes().List(nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node status: %s", err))
 			return 1
+		}
+
+		// Return nothing if no nodes found
+		if len(nodes) == 0 {
+			return 0
+		}
+
+		var size int
+		if c.quiet {
+			size = len(nodes)
+		} else {
+			size = len(nodes) + 1
+		}
+
+		// Format the nodes list
+		out := make([]string, size)
+
+		if c.quiet {
+			for i, node := range nodes {
+				out[i] = node.ID
+			}
+			c.Ui.Output(formatList(out))
+			return 0
 		}
 
 		// If output format is specified, format and output the node data list
@@ -181,14 +214,6 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			c.Ui.Output(out)
 			return 0
 		}
-
-		// Return nothing if no nodes found
-		if len(nodes) == 0 {
-			return 0
-		}
-
-		// Format the nodes list
-		out := make([]string, len(nodes)+1)
 
 		out[0] = "ID|DC|Name|Class|"
 
