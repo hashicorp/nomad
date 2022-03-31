@@ -415,7 +415,6 @@ func testJob() *Job {
 					"elb_check_interval": "30s",
 					"elb_check_min":      "3",
 				},
-				MaxClientDisconnect: helper.TimeToPtr(1 * time.Hour),
 			},
 		},
 		Meta: map[string]string{
@@ -5880,7 +5879,6 @@ func TestParameterizedJobConfig_Validate_NonBatch(t *testing.T) {
 
 func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
 	ci.Parallel(t)
-
 	// Setup a system Job with stop_after_client_disconnect set, which is invalid
 	job := testJob()
 	job.Type = JobTypeSystem
@@ -5912,14 +5910,17 @@ func TestJobConfig_Validate_MaxClientDisconnect(t *testing.T) {
 	job := testJob()
 	timeout := -1 * time.Minute
 	job.TaskGroups[0].MaxClientDisconnect = &timeout
+	job.TaskGroups[0].StopAfterClientDisconnect = &timeout
 
 	err := job.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "max_client_disconnect cannot be negative")
+	require.Contains(t, err.Error(), "Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect")
 
 	// Modify the job with a valid max_client_disconnect value
 	timeout = 1 * time.Minute
 	job.TaskGroups[0].MaxClientDisconnect = &timeout
+	job.TaskGroups[0].StopAfterClientDisconnect = nil
 	err = job.Validate()
 	require.NoError(t, err)
 }
