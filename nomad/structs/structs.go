@@ -6213,6 +6213,10 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing tasks for task group"))
 	}
 
+	if tg.MaxClientDisconnect != nil && tg.StopAfterClientDisconnect != nil {
+		mErr.Errors = append(mErr.Errors, errors.New("Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect"))
+	}
+
 	if tg.MaxClientDisconnect != nil && *tg.MaxClientDisconnect < 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("max_client_disconnect cannot be negative"))
 	}
