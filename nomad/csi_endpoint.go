@@ -332,8 +332,6 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		if err != nil {
 			return err
 		}
-		// TODO: allow volume spec file to set namespace
-		// https://github.com/hashicorp/nomad/issues/11196
 		if vol.Namespace == "" {
 			vol.Namespace = args.RequestNamespace()
 		}
@@ -472,15 +470,6 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		args.NodeID = alloc.NodeID
 	}
 
-	if isNewClaim {
-		// if this is a new claim, add a Volume and PublishContext from the
-		// controller (if any) to the reply
-		err = v.controllerPublishVolume(args, reply)
-		if err != nil {
-			return fmt.Errorf("controller publish: %v", err)
-		}
-	}
-
 	resp, index, err := v.srv.raftApply(structs.CSIVolumeClaimRequestType, args)
 	if err != nil {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "claim")
@@ -488,6 +477,15 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	}
 	if respErr, ok := resp.(error); ok {
 		return respErr
+	}
+
+	if isNewClaim {
+		// if this is a new claim, add a Volume and PublishContext from the
+		// controller (if any) to the reply
+		err = v.controllerPublishVolume(args, reply)
+		if err != nil {
+			return fmt.Errorf("controller publish: %v", err)
+		}
 	}
 
 	reply.Index = index
@@ -570,7 +568,10 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 
 	err = v.srv.RPC(method, cReq, cResp)
 	if err != nil {
-		return fmt.Errorf("attach volume: %v", err)
+		if strings.Contains(err.Error(), "FailedPrecondition") {
+			return fmt.Errorf("%v: %v", structs.ErrCSIClientRPCRetryable, err)
+		}
+		return err
 	}
 	resp.PublishContext = cResp.PublishContext
 	return nil
@@ -725,6 +726,11 @@ func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.C
 }
 
 func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
+	if claim.AccessMode == structs.CSIVolumeAccessModeUnknown {
+		// claim has already been released client-side
+		return nil
+	}
+
 	req := &cstructs.ClientCSINodeDetachVolumeRequest{
 		PluginID:       vol.PluginID,
 		VolumeID:       vol.ID,
@@ -820,17 +826,17 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 // and GC'd by this point, so looking there is the last resort.
 func (v *CSIVolume) lookupExternalNodeID(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) (string, error) {
 	for _, rClaim := range vol.ReadClaims {
-		if rClaim.NodeID == claim.NodeID {
+		if rClaim.NodeID == claim.NodeID && rClaim.ExternalNodeID != "" {
 			return rClaim.ExternalNodeID, nil
 		}
 	}
 	for _, wClaim := range vol.WriteClaims {
-		if wClaim.NodeID == claim.NodeID {
+		if wClaim.NodeID == claim.NodeID && wClaim.ExternalNodeID != "" {
 			return wClaim.ExternalNodeID, nil
 		}
 	}
 	for _, pClaim := range vol.PastClaims {
-		if pClaim.NodeID == claim.NodeID {
+		if pClaim.NodeID == claim.NodeID && pClaim.ExternalNodeID != "" {
 			return pClaim.ExternalNodeID, nil
 		}
 	}
@@ -913,7 +919,9 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 	// We also validate that the plugin exists for each plugin, and validate the
 	// capabilities when the plugin has a controller.
 	for _, vol := range args.Volumes {
-		vol.Namespace = args.RequestNamespace()
+		if vol.Namespace == "" {
+			vol.Namespace = args.RequestNamespace()
+		}
 		if err = vol.Validate(); err != nil {
 			return err
 		}

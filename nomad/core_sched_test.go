@@ -2384,21 +2384,17 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	c := core.(*CoreScheduler)
 	require.NoError(c.csiVolumeClaimGC(gc))
 
-	// TODO(tgross): the condition below means this test doesn't tell
-	// us much; ideally we should be intercepting the claim request
-	// and verifying that we send the expected claims but we don't
-	// have test infra in place to do that for server RPCs
-
 	// sending the GC claim will trigger the volumewatcher's normal
-	// code path. but the volumewatcher will hit an error here
-	// because there's no path to the node, so we shouldn't see
-	// the WriteClaims removed
+	// code path. the volumewatcher will hit an error here because
+	// there's no path to the node, but this is a node-only plugin so
+	// we accept that the node has been GC'd and there's no point
+	// holding onto the claim
 	require.Eventually(func() bool {
 		vol, _ := state.CSIVolumeByID(ws, ns, volID)
-		return len(vol.WriteClaims) == 1 &&
-			len(vol.WriteAllocs) == 1 &&
-			len(vol.PastClaims) == 1
-	}, time.Second*1, 10*time.Millisecond, "claims were released unexpectedly")
+		return len(vol.WriteClaims) == 0 &&
+			len(vol.WriteAllocs) == 0 &&
+			len(vol.PastClaims) == 0
+	}, time.Second*2, 10*time.Millisecond, "claims were not released")
 
 }
 

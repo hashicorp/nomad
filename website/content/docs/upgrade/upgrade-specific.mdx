@@ -94,6 +94,7 @@ be removed in future releases.
 
 The previous `Protocol` value can be viewed using the `-verbose` flag.
 
+<<<<<<< HEAD
 #### Linux Control Groups Version 2
 
 Starting with Nomad 1.3.0, Linux systems configured to use [cgroups v2][cgroups2]
@@ -123,6 +124,19 @@ The new cgroup file system layout will look like the following:
 ├── 8b8da4cf-8ebf-b578-0bcf-77190749abf3.redis.scope
 └── a8c8e495-83c8-311b-4657-e6e3127e98bc.example.scope
 ```
+
+#### `client.template.function_denylist` Change
+
+consul-template v0.28 added a new function
+[`writeToFile`](https://github.com/hashicorp/consul-template/blob/v0.28.0/docs/templating-language.md#writeToFile)
+which can write to arbitrary files on the host.
+
+Nomad 1.3.0 disables this function by default in its
+[`function_denylist`](/docs/configuration/client#function_denylist).
+
+However *if you have overridden the default `template.function_denylist` in
+your client configuration, you must add `writeToFile` to your denylist.*
+Failing to do so allows templates to write to arbitrary paths on the host.
 
 ## Nomad 1.2.6, 1.1.12, and 1.0.18
 
