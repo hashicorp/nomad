@@ -403,7 +403,6 @@ func testJob() *Job {
 					"elb_check_interval": "30s",
 					"elb_check_min":      "3",
 				},
-				MaxClientDisconnect: helper.TimeToPtr(1 * time.Hour),
 			},
 		},
 		Meta: map[string]string{
@@ -5226,7 +5225,7 @@ func TestParameterizedJobConfig_Validate_NonBatch(t *testing.T) {
 	}
 }
 
-func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
+func TestJobConfig_Validate_StopAfterClientDisconnect(t *testing.T) {
 	// Setup a system Job with stop_after_client_disconnect set, which is invalid
 	job := testJob()
 	job.Type = JobTypeSystem
