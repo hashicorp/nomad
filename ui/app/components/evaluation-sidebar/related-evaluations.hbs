@@ -47,6 +47,7 @@
       <div>
         <EvaluationSidebar::EvaluationActor
           @eval={{@data.parentEvaluation}}
+          @activeEvaluationID={{@data.activeEvaluationID}}
           @onClick={{fn @fns.handleEvaluationClick @data.parentEvaluation}}
         />
       </div>
@@ -58,6 +59,7 @@
           {{#each evals as |eval|}}
             <EvaluationSidebar::EvaluationActor
               @eval={{eval.data}}
+              @activeEvaluationID={{@data.activeEvaluationID}}
               @onClick={{fn @fns.handleEvaluationClick eval.data}}
             />
           {{/each}}
