@@ -42,10 +42,10 @@
           <tr
             data-test-evaluation="{{row.model.shortId}}"
             style="cursor: pointer;"
-            class="{{if (eq this.currentEval row.model.id) 'is-active'}}"
+            class="{{if (eq this.currentEval row.model.id) "is-active"}}"
+            tabindex="0"
             {{on "click" (fn this.handleEvaluationClick row.model)}}
             {{on "keyup" (fn this.handleEvaluationClick row.model)}}
-            tabindex="0"
           >
             <td data-test-id>
               {{row.model.shortId}}
@@ -54,9 +54,8 @@
               {{#if row.model.hasJob}}
                 <LinkTo
                   data-test-evaluation-resource
-                  @model={{row.model.plainJobId}}
+                  @model={{concat row.model.plainJobId "@" row.model.namespace}}
                   @route="jobs.job"
-                  @query={{hash namespace=row.model.namespace}}
                 >
                   {{row.model.plainJobId}}
                 </LinkTo>

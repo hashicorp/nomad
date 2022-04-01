@@ -1,15 +1,15 @@
 <Providers::ActorsRelationships as |actors|>
   <div
-    class="related-evaluation {{if (eq @eval.id @activeEvaluationID) 'is-active'}}"
+    class="related-evaluation
+      {{if (eq @eval.id @activeEvaluationID) "is-active"}}"
     style="margin: 24px; outline: 1px solid #D9DEE6; padding: 10px; width: 100px;"
     data-eval={{@eval.id}}
     ...attributes
     {{did-insert (fn actors.fns.registerActor @eval)}}
     {{will-destroy (fn actors.fns.deregisterActor @eval)}}
-    {{! #F5F5F5 background for parent}}
   >
     {{#if (eq @eval.id @activeEvaluationID)}}
-      <span>
+      <span data-test-rel-eval={{@eval.id}}>
         {{@eval.shortId}}
       </span>
     {{else}}

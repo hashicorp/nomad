@@ -15,7 +15,7 @@ import {
   selectChoose,
   clickTrigger,
 } from 'ember-power-select/test-support/helpers';
-import { MOCK_EVALUATION } from '../../mirage/utils';
+import { generateAcceptanceTestEvalMock } from '../../mirage/utils';
 
 const getStandardRes = () => [
   {
@@ -415,16 +415,17 @@ module('Acceptance | evaluations list', function (hooks) {
   module('resource linking', function () {
     test('it should generate a link to the job resource', async function (assert) {
       server.create('node');
-      const job = server.create('job', { shallow: true });
+      const job = server.create('job', { id: 'example', shallow: true });
       server.create('evaluation', { jobId: job.id });
-      await visit('/evaluations');
 
+      await visit('/evaluations');
       assert
         .dom('[data-test-evaluation-resource]')
         .hasText(
           job.name,
           'It conditionally renders the correct resource name'
         );
+
       await click('[data-test-evaluation-resource]');
       assert
         .dom('[data-test-job-name]')
@@ -456,7 +457,7 @@ module('Acceptance | evaluations list', function (hooks) {
     test('clicking an evaluation opens the detail view', async function (assert) {
       server.get('/evaluations', getStandardRes);
       server.get('/evaluation/:id', function (_, { params }) {
-        return { ...MOCK_EVALUATION(params.id), ID: params.id };
+        return { ...generateAcceptanceTestEvalMock(params.id), ID: params.id };
       });
 
       await visit('/evaluations');
