@@ -109,8 +109,7 @@ that volume.
   storing it in the job file. This overrides the token found in the
   `$VAULT_TOKEN` environment variable and the `vault-token` field in the job file.
   This token is cleared from the job after validating and cannot be used within the
-  job executing environment. If templating a Vault token within the job is needed,
-  please use the `vault` stanza.
+  job executing environment. Use the `vault` stanza when templating in a job with a Vault token.
 
 - `-vault-namespace`: If set, the passed Vault namespace is stored in the job
   before sending to the Nomad servers.
