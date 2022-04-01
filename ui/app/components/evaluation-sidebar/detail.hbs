@@ -3,7 +3,7 @@
     <div
       data-test-eval-detail
       data-test-eval-detail-is-open={{this.isSideBarOpen}}
-      class="sidebar {{if this.isSideBarOpen "pib"}}"
+      class="sidebar {{if this.isSideBarOpen "open"}}"
       {{on-click-outside
         this.closeSidebar
         capture=true
@@ -18,10 +18,7 @@
         </div>
       {{/if}}
       {{#if this.isError}}
-        <div
-          data-test-eval-detail-header
-          style="display: flex; justify-content: flex-end"
-        >
+        <div data-test-eval-detail-header class="error-header">
           <button
             data-test-eval-sidebar-x
             class="button is-borderless"
@@ -44,10 +41,7 @@
       {{/if}}
       {{#if this.isSuccess}}
         {{! Evaluation Detail Header}}
-        <div
-          data-test-eval-detail-header
-          style="display: flex; justify-content: space-between"
-        >
+        <div data-test-eval-detail-header class="detail-header">
           <h1 data-test-title class="title">
             {{evaluation.shortId}}
             <span class="bumper-left tag is-primary">
