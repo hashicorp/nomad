@@ -44,6 +44,8 @@
             style="cursor: pointer;"
             class="{{if (eq this.currentEval row.model.id) 'is-active'}}"
             {{on "click" (fn this.handleEvaluationClick row.model)}}
+            {{on "keyup" (fn this.handleEvaluationClick row.model)}}
+            tabindex="0"
           >
             <td data-test-id>
               {{row.model.shortId}}
