@@ -23,7 +23,6 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-	require := require.New(t)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
 	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
@@ -34,7 +33,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	eval.Status = structs.EvalStatusFailed
 	state.UpsertJobSummary(999, mock.JobSummary(eval.JobID))
 	err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval})
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Insert mock job with rescheduling disabled
 	job := mock.Job()
@@ -44,7 +43,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 		Interval: 0 * time.Second,
 	}
 	err = state.UpsertJob(structs.MsgTypeTestSetup, 1001, job)
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Insert "dead" alloc
 	alloc := mock.Alloc()
@@ -117,7 +116,6 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-	require := require.New(t)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
 	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
@@ -128,21 +126,21 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	eval.Status = structs.EvalStatusFailed
 	state.UpsertJobSummary(999, mock.JobSummary(eval.JobID))
 	err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval})
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Insert "pending" eval for same job
 	eval2 := mock.Eval()
 	eval2.JobID = eval.JobID
 	state.UpsertJobSummary(999, mock.JobSummary(eval2.JobID))
 	err = state.UpsertEvals(structs.MsgTypeTestSetup, 1003, []*structs.Evaluation{eval2})
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Insert mock job with default reschedule policy of 2 in 10 minutes
 	job := mock.Job()
 	job.ID = eval.JobID
 
 	err = state.UpsertJob(structs.MsgTypeTestSetup, 1001, job)
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Insert failed alloc with an old reschedule attempt, can be GCed
 	alloc := mock.Alloc()
@@ -180,7 +178,7 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 		},
 	}
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc, alloc2})
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Update the time tables to make this work
 	tt := s1.fsm.TimeTable()
@@ -196,22 +194,22 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	// Attempt the GC, job has all terminal allocs and one pending eval
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
 	err = core.Process(gc)
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Eval should still exist
 	ws := memdb.NewWatchSet()
 	out, err := state.EvalByID(ws, eval.ID)
-	require.Nil(err)
-	require.NotNil(out)
-	require.Equal(eval.ID, out.ID)
+	require.Nil(t, err)
+	require.NotNil(t, out)
+	require.Equal(t, eval.ID, out.ID)
 
 	outA, err := state.AllocByID(ws, alloc.ID)
-	require.Nil(err)
-	require.Nil(outA)
+	require.Nil(t, err)
+	require.Nil(t, outA)
 
 	outA2, err := state.AllocByID(ws, alloc2.ID)
-	require.Nil(err)
-	require.Equal(alloc2.ID, outA2.ID)
+	require.Nil(t, err)
+	require.Equal(t, alloc2.ID, outA2.ID)
 
 }
 
@@ -222,7 +220,6 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-	require := require.New(t)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
 	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
@@ -233,7 +230,7 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 	eval.Status = structs.EvalStatusFailed
 	state.UpsertJobSummary(999, mock.JobSummary(eval.JobID))
 	err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval})
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Insert mock stopped job with default reschedule policy of 2 in 10 minutes
 	job := mock.Job()
@@ -241,7 +238,7 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 	job.Stop = true
 
 	err = state.UpsertJob(structs.MsgTypeTestSetup, 1001, job)
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Insert failed alloc with a recent reschedule attempt
 	alloc := mock.Alloc()
@@ -260,7 +257,7 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 		},
 	}
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Update the time tables to make this work
 	tt := s1.fsm.TimeTable()
@@ -276,18 +273,18 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
 	err = core.Process(gc)
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Eval should not exist
 	ws := memdb.NewWatchSet()
 	out, err := state.EvalByID(ws, eval.ID)
-	require.Nil(err)
-	require.Nil(out)
+	require.Nil(t, err)
+	require.Nil(t, out)
 
 	// Alloc should not exist
 	outA, err := state.AllocByID(ws, alloc.ID)
-	require.Nil(err)
-	require.Nil(outA)
+	require.Nil(t, err)
+	require.Nil(t, outA)
 
 }
 
@@ -526,7 +523,6 @@ func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	require := require.New(t)
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
 	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
@@ -541,7 +537,7 @@ func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
 		Interval: 0 * time.Second,
 	}
 	err := state.UpsertJob(structs.MsgTypeTestSetup, 1001, job)
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Insert "complete" eval
 	eval := mock.Eval()
@@ -549,7 +545,7 @@ func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
 	eval.Type = structs.JobTypeBatch
 	eval.JobID = job.ID
 	err = state.UpsertEvals(structs.MsgTypeTestSetup, 1002, []*structs.Evaluation{eval})
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Insert "failed" alloc
 	alloc := mock.Alloc()
@@ -622,7 +618,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-	require := require.New(t)
+
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
 	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
@@ -677,7 +673,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 		Interval: 0 * time.Second,
 	}
 	err = state.UpsertJob(structs.MsgTypeTestSetup, 1001, job)
-	require.Nil(err)
+	require.Nil(t, err)
 
 	// Update the time tables to make this work
 	tt := s1.fsm.TimeTable()
@@ -737,7 +733,6 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 	ci.Parallel(t)
 	for _, withAcl := range []bool{false, true} {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
-			require := require.New(t)
 			var server *Server
 			var cleanup func()
 			if withAcl {
@@ -769,7 +764,7 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 				Interval: 0 * time.Second,
 			}
 			err = state.UpsertJob(structs.MsgTypeTestSetup, 1001, job)
-			require.Nil(err)
+			require.Nil(t, err)
 
 			// Insert "dead" alloc
 			alloc := mock.Alloc()
@@ -1921,7 +1916,6 @@ func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 
 func TestCoreScheduler_PartitionJobReap(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1939,12 +1933,12 @@ func TestCoreScheduler_PartitionJobReap(t *testing.T) {
 
 	jobs := []*structs.Job{mock.Job(), mock.Job(), mock.Job()}
 	requests := core.(*CoreScheduler).partitionJobReap(jobs, "")
-	require.Len(requests, 2)
+	require.Len(t, requests, 2)
 
 	first := requests[0]
 	second := requests[1]
-	require.Len(first.Jobs, 2)
-	require.Len(second.Jobs, 1)
+	require.Len(t, first.Jobs, 2)
+	require.Len(t, second.Jobs, 1)
 }
 
 // Tests various scenarios when allocations are eligible to be GCed
@@ -2191,10 +2185,9 @@ func TestAllocation_GCEligible(t *testing.T) {
 	}
 
 	// Verify nil job
-	require := require.New(t)
 	alloc := mock.Alloc()
 	alloc.ClientStatus = structs.AllocClientStatusComplete
-	require.True(allocGCEligible(alloc, nil, time.Now(), 1000))
+	require.True(t, allocGCEligible(alloc, nil, time.Now(), 1000))
 }
 
 func TestCoreScheduler_CSIPluginGC(t *testing.T) {
@@ -2203,7 +2196,6 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 	srv, cleanupSRV := TestServer(t, nil)
 	defer cleanupSRV()
 	testutil.WaitForLeader(t, srv.RPC)
-	require := require.New(t)
 
 	srv.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
@@ -2218,19 +2210,19 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 
 	// Create a core scheduler
 	snap, err := state.Snapshot()
-	require.NoError(err)
+	require.NoError(t, err)
 	core := NewCoreScheduler(srv, snap)
 
 	// Attempt the GC
 	index++
 	gc := srv.coreJobEval(structs.CoreJobCSIPluginGC, index)
-	require.NoError(core.Process(gc))
+	require.NoError(t, core.Process(gc))
 
 	// Should not be gone (plugin in use)
 	ws := memdb.NewWatchSet()
 	plug, err := state.CSIPluginByID(ws, "foo")
-	require.NotNil(plug)
-	require.NoError(err)
+	require.NotNil(t, plug)
+	require.NoError(t, err)
 
 	// Empty the plugin
 	plug.Controllers = map[string]*structs.CSIInfo{}
@@ -2238,22 +2230,21 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 
 	index++
 	err = state.UpsertCSIPlugin(index, plug)
-	require.NoError(err)
+	require.NoError(t, err)
 
 	// Retry
 	index++
 	gc = srv.coreJobEval(structs.CoreJobCSIPluginGC, index)
-	require.NoError(core.Process(gc))
+	require.NoError(t, core.Process(gc))
 
 	// Should be gone
 	plug, err = state.CSIPluginByID(ws, "foo")
-	require.Nil(plug)
-	require.NoError(err)
+	require.Nil(t, plug)
+	require.NoError(t, err)
 }
 
 func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -2285,7 +2276,7 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	}
 	index++
 	err := state.UpsertNode(structs.MsgTypeTestSetup, index, node)
-	require.NoError(err)
+	require.NoError(t, err)
 
 	// Note that for volume writes in this test we need to use the
 	// RPCs rather than StateStore methods directly so that the GC
@@ -2309,7 +2300,7 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Register",
 		volReq, &structs.CSIVolumeRegisterResponse{})
-	require.NoError(err)
+	require.NoError(t, err)
 
 	// Create a job with two allocations that claim the volume.
 	// We use two allocs here, one of which is not running, so
@@ -2322,14 +2313,14 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	state.UpsertJobSummary(index, mock.JobSummary(eval.JobID))
 	index++
 	err = state.UpsertEvals(structs.MsgTypeTestSetup, index, []*structs.Evaluation{eval})
-	require.Nil(err)
+	require.Nil(t, err)
 
 	job := mock.Job()
 	job.ID = eval.JobID
 	job.Status = structs.JobStatusRunning
 	index++
 	err = state.UpsertJob(structs.MsgTypeTestSetup, index, job)
-	require.NoError(err)
+	require.NoError(t, err)
 
 	alloc1, alloc2 := mock.Alloc(), mock.Alloc()
 	alloc1.NodeID = node.ID
@@ -2346,12 +2337,12 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 
 	summary := mock.JobSummary(alloc1.JobID)
 	index++
-	require.NoError(state.UpsertJobSummary(index, summary))
+	require.NoError(t, state.UpsertJobSummary(index, summary))
 	summary = mock.JobSummary(alloc2.JobID)
 	index++
-	require.NoError(state.UpsertJobSummary(index, summary))
+	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
-	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1, alloc2}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1, alloc2}))
 
 	// Claim the volume for the alloc
 	req := &structs.CSIVolumeClaimRequest{
@@ -2364,32 +2355,32 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	req.Region = srv.config.Region
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim",
 		req, &structs.CSIVolumeClaimResponse{})
-	require.NoError(err)
+	require.NoError(t, err)
 
 	// Delete allocation and job
 	index++
 	err = state.DeleteJob(index, ns, job.ID)
-	require.NoError(err)
+	require.NoError(t, err)
 	index++
 	err = state.DeleteEval(index, []string{eval.ID}, []string{alloc1.ID, alloc2.ID})
-	require.NoError(err)
+	require.NoError(t, err)
 
 	// Create a core scheduler and attempt the volume claim GC
 	snap, err := state.Snapshot()
-	require.NoError(err)
+	require.NoError(t, err)
 	core := NewCoreScheduler(srv, snap)
 
 	index++
 	gc := srv.coreJobEval(structs.CoreJobForceGC, index)
 	c := core.(*CoreScheduler)
-	require.NoError(c.csiVolumeClaimGC(gc))
+	require.NoError(t, c.csiVolumeClaimGC(gc))
 
 	// sending the GC claim will trigger the volumewatcher's normal
 	// code path. the volumewatcher will hit an error here because
 	// there's no path to the node, but this is a node-only plugin so
 	// we accept that the node has been GC'd and there's no point
 	// holding onto the claim
-	require.Eventually(func() bool {
+	require.Eventually(t, func() bool {
 		vol, _ := state.CSIVolumeByID(ws, ns, volID)
 		return len(vol.WriteClaims) == 0 &&
 			len(vol.WriteAllocs) == 0 &&
@@ -2400,7 +2391,6 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 
 func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -2410,19 +2400,19 @@ func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
 	testutil.WaitForLeader(t, srv.RPC)
 
 	err := state.TestBadCSIState(t, srv.State())
-	require.NoError(err)
+	require.NoError(t, err)
 
 	snap, err := srv.State().Snapshot()
-	require.NoError(err)
+	require.NoError(t, err)
 	core := NewCoreScheduler(srv, snap)
 
 	index, _ := srv.State().LatestIndex()
 	index++
 	gc := srv.coreJobEval(structs.CoreJobForceGC, index)
 	c := core.(*CoreScheduler)
-	require.NoError(c.csiVolumeClaimGC(gc))
+	require.NoError(t, c.csiVolumeClaimGC(gc))
 
-	require.Eventually(func() bool {
+	require.Eventually(t, func() bool {
 		vol, _ := srv.State().CSIVolumeByID(nil,
 			structs.DefaultNamespace, "csi-volume-nfs0")
 		if len(vol.PastClaims) != 2 {
@@ -2440,7 +2430,6 @@ func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
 
 func TestCoreScheduler_FailLoop(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	srv, cleanupSrv := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -2475,23 +2464,23 @@ func TestCoreScheduler_FailLoop(t *testing.T) {
 	}
 
 	out, token, err := srv.evalBroker.Dequeue(sched, time.Second*5)
-	require.NoError(err)
-	require.NotNil(out)
-	require.Equal(expected, out)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	require.Equal(t, expected, out)
 
 	// first fail
-	require.NoError(nack(out.ID, token))
+	require.NoError(t, nack(out.ID, token))
 
 	out, token, err = srv.evalBroker.Dequeue(sched, time.Second*5)
-	require.NoError(err)
-	require.NotNil(out)
-	require.Equal(expected, out)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	require.Equal(t, expected, out)
 
 	// second fail, should not result in failed-follow-up
-	require.NoError(nack(out.ID, token))
+	require.NoError(t, nack(out.ID, token))
 
 	out, token, err = srv.evalBroker.Dequeue(sched, time.Second*5)
-	require.NoError(err)
+	require.NoError(t, err)
 	if out != nil {
 		t.Fatalf(
 			"failed core jobs should not result in follow-up. TriggeredBy: %v",
