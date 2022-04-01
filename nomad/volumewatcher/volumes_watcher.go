@@ -3,6 +3,7 @@ package volumewatcher
 import (
 	"context"
 	"sync"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
@@ -34,8 +35,14 @@ type Watcher struct {
 	ctx    context.Context
 	exitFn context.CancelFunc
 
+	// quiescentTimeout is the time we wait until the volume has "settled"
+	// before stopping the child watcher goroutines
+	quiescentTimeout time.Duration
+
 	wlock sync.RWMutex
 }
+
+var defaultQuiescentTimeout = time.Minute * 5
 
 // NewVolumesWatcher returns a volumes watcher that is used to watch
 // volumes and trigger the scheduler as needed.
@@ -47,11 +54,12 @@ func NewVolumesWatcher(logger log.Logger, rpc CSIVolumeRPC, leaderAcl string) *W
 	ctx, exitFn := context.WithCancel(context.Background())
 
 	return &Watcher{
-		rpc:       rpc,
-		logger:    logger.Named("volumes_watcher"),
-		ctx:       ctx,
-		exitFn:    exitFn,
-		leaderAcl: leaderAcl,
+		rpc:              rpc,
+		logger:           logger.Named("volumes_watcher"),
+		ctx:              ctx,
+		exitFn:           exitFn,
+		leaderAcl:        leaderAcl,
+		quiescentTimeout: defaultQuiescentTimeout,
 	}
 }
 
