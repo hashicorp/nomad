@@ -1,5 +1,6 @@
 <Providers::ActorsRelationships as |actors|>
   <div
+    class="related-evaluation {{if (eq @eval.id @activeEvaluationID) 'is-active'}}"
     style="margin: 24px; outline: 1px solid #D9DEE6; padding: 10px; width: 100px;"
     data-eval={{@eval.id}}
     ...attributes
@@ -7,9 +8,15 @@
     {{will-destroy (fn actors.fns.deregisterActor @eval)}}
     {{! #F5F5F5 background for parent}}
   >
-    <a data-test-rel-eval={{@eval.id}} {{on "click" @onClick}}>
-      {{@eval.shortId}}
-    </a>
+    {{#if (eq @eval.id @activeEvaluationID)}}
+      <span>
+        {{@eval.shortId}}
+      </span>
+    {{else}}
+      <a data-test-rel-eval={{@eval.id}} {{on "click" @onClick}}>
+        {{@eval.shortId}}
+      </a>
+    {{/if}}
     <span>
       <StatusCell @status={{@eval.status}} />
     </span>
