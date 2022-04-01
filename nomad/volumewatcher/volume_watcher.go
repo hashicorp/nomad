@@ -30,6 +30,7 @@ type volumeWatcher struct {
 	shutdownCtx context.Context // parent context
 	ctx         context.Context // own context
 	exitFn      context.CancelFunc
+	deleteFn    func()
 
 	// updateCh is triggered when there is an updated volume
 	updateCh chan *structs.CSIVolume
@@ -49,6 +50,7 @@ func newVolumeWatcher(parent *Watcher, vol *structs.CSIVolume) *volumeWatcher {
 		rpc:         parent.rpc,
 		leaderAcl:   parent.leaderAcl,
 		logger:      parent.logger.With("volume_id", vol.ID, "namespace", vol.Namespace),
+		deleteFn:    func() { parent.remove(vol.ID + vol.Namespace) },
 		shutdownCtx: parent.ctx,
 	}
 
@@ -125,6 +127,11 @@ func (vw *volumeWatcher) watch() {
 			if vol.ModifyIndex >= vw.v.ModifyIndex {
 				vol = vw.getVolume(vol)
 				if vol == nil {
+					// We stop the goroutine whenever we have no more
+					// work, but only delete the watcher when the volume
+					// is gone to avoid racing the blocking query
+					vw.deleteFn()
+					vw.Stop()
 					return
 				}
 				vw.volumeReap(vol)

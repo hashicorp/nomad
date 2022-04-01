@@ -157,10 +157,10 @@ func (w *Watcher) getVolumesImpl(ws memdb.WatchSet, state *state.StateStore) (in
 }
 
 // add adds a volume to the watch list
-func (w *Watcher) add(d *structs.CSIVolume) error {
+func (w *Watcher) add(v *structs.CSIVolume) error {
 	w.wlock.Lock()
 	defer w.wlock.Unlock()
-	_, err := w.addLocked(d)
+	_, err := w.addLocked(v)
 	return err
 }
 
@@ -181,4 +181,11 @@ func (w *Watcher) addLocked(v *structs.CSIVolume) (*volumeWatcher, error) {
 	watcher := newVolumeWatcher(w, v)
 	w.watchers[v.ID+v.Namespace] = watcher
 	return watcher, nil
+}
+
+// removes a volume from the watch list
+func (w *Watcher) remove(volID string) {
+	w.wlock.Lock()
+	defer w.wlock.Unlock()
+	delete(w.watchers, volID)
 }
