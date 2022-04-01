@@ -671,6 +671,7 @@ NODE_DETACHED:
 	}
 
 RELEASE_CLAIM:
+	v.logger.Trace("releasing claim", "vol", vol.ID)
 	// advance a CSIVolumeClaimStateControllerDetached claim
 	claim.State = structs.CSIVolumeClaimStateReadyToFree
 	err = v.checkpointClaim(vol, claim)
@@ -684,6 +685,7 @@ RELEASE_CLAIM:
 }
 
 func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
+	v.logger.Trace("node unpublish", "vol", vol.ID)
 	if claim.AllocationID != "" {
 		err := v.nodeUnpublishVolumeImpl(vol, claim)
 		if err != nil {
@@ -757,7 +759,7 @@ func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *struc
 }
 
 func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
-
+	v.logger.Trace("controller unpublish", "vol", vol.ID)
 	if !vol.ControllerRequired {
 		claim.State = structs.CSIVolumeClaimStateReadyToFree
 		return nil
