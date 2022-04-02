@@ -901,11 +901,12 @@ func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
 	duration := time.After(c.duration)
 	// Create a ticker to execute on every interval ticks
 	ticker := time.NewTicker(c.pprofInterval)
-	// Additionally, an out of loop execute to imitate first tick
-	c.collectPprofs(client)
 
 	var pprofIntervalCount int
 	var name string
+
+	// Additionally, an out of loop execute to imitate first tick
+	c.collectPprofs(client, pprofIntervalCount)
 
 	for {
 		select {
@@ -916,7 +917,7 @@ func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
 		case <-ticker.C:
 			name = fmt.Sprintf("%04d", pprofIntervalCount)
 			c.Ui.Output(fmt.Sprintf("    Capture pprofInterval %s", name))
-			c.collectPprofs(client)
+			c.collectPprofs(client, pprofIntervalCount)
 			pprofIntervalCount++
 
 		case <-c.ctx.Done():
@@ -926,18 +927,18 @@ func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
 }
 
 // collectPprofs captures the /agent/pprof for each listed node
-func (c *OperatorDebugCommand) collectPprofs(client *api.Client) {
+func (c *OperatorDebugCommand) collectPprofs(client *api.Client, interval int) {
 	for _, n := range c.nodeIDs {
-		c.collectPprof(clientDir, n, client)
+		c.collectPprof(clientDir, n, client, interval)
 	}
 
 	for _, n := range c.serverIDs {
-		c.collectPprof(serverDir, n, client)
+		c.collectPprof(serverDir, n, client, interval)
 	}
 }
 
 // collectPprof captures pprof data for the node
-func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client) {
+func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client, interval int) {
 	pprofDurationSeconds := int(c.pprofDuration.Seconds())
 	opts := api.PprofOptions{Seconds: pprofDurationSeconds}
 	if path == serverDir {
@@ -960,7 +961,8 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 			return // only exit on 403
 		}
 	} else {
-		err := c.writeBytes(path, "profile.prof", bs)
+		filename := fmt.Sprintf("profile_%d.prof", interval)
+		err := c.writeBytes(path, filename, bs)
 		if err != nil {
 			c.Ui.Error(err.Error())
 		}
