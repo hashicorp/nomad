@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -130,7 +129,7 @@ func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 					// Shutdown server
 					err := server.Shutdown()
 					if err != nil {
-						ch <- errors.Wrap(err, "failed to shutdown server")
+						ch <- fmt.Errorf("failed to shutdown server: %w", err)
 					}
 
 					freeport.Return(ports)

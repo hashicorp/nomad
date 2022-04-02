@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -13,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 

@@ -15,12 +15,11 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
-	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -374,7 +373,7 @@ type ServiceClient struct {
 	agentAPI         AgentAPI
 	namespacesClient *NamespacesClient
 
-	logger           log.Logger
+	logger           hclog.Logger
 	retryInterval    time.Duration
 	maxRetryInterval time.Duration
 	periodicInterval time.Duration
@@ -429,7 +428,7 @@ type ServiceClient struct {
 // Client, logger and takes whether the client is being used by a Nomad Client agent.
 // When being used by a Nomad client, this Consul client reconciles all services and
 // checks created by Nomad on behalf of running tasks.
-func NewServiceClient(agentAPI AgentAPI, namespacesClient *NamespacesClient, logger log.Logger, isNomadClient bool) *ServiceClient {
+func NewServiceClient(agentAPI AgentAPI, namespacesClient *NamespacesClient, logger hclog.Logger, isNomadClient bool) *ServiceClient {
 	logger = logger.ResetNamed("consul.sync")
 	return &ServiceClient{
 		agentAPI:                       agentAPI,
@@ -671,7 +670,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 	namespaces, err := c.namespacesClient.List()
 	if err != nil {
 		metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-		return errors.Wrap(err, "failed to query Consul namespaces")
+		return fmt.Errorf("failed to query Consul namespaces: %w", err)
 	}
 
 	// Accumulate all services in Consul across all namespaces.
@@ -679,7 +678,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 	for _, namespace := range namespaces {
 		if nsServices, err := c.agentAPI.ServicesWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)}); err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-			return errors.Wrap(err, "failed to query Consul services")
+			return fmt.Errorf("failed to query Consul services: %w", err)
 		} else {
 			for k, v := range nsServices {
 				servicesInConsul[k] = v
@@ -769,7 +768,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		nsChecks, err := c.agentAPI.ChecksWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
 		if err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-			return errors.Wrap(err, "failed to query Consul checks")
+			return fmt.Errorf("failed to query Consul checks: %w", err)
 		}
 		for k, v := range nsChecks {
 			checksInConsul[k] = v
@@ -1321,7 +1320,7 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*serviceregistration
 	// Get the list of all namespaces created so we can iterate them.
 	namespaces, err := c.namespacesClient.List()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to retrieve namespaces from consul")
+		return nil, fmt.Errorf("failed to retrieve namespaces from consul: %w", err)
 	}
 
 	services := make(map[string]*api.AgentService)
@@ -1331,7 +1330,7 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*serviceregistration
 	for _, namespace := range namespaces {
 		nsServices, err := c.agentAPI.ServicesWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to retrieve services from consul")
+			return nil, fmt.Errorf("failed to retrieve services from consul: %w", err)
 		}
 		for k, v := range nsServices {
 			services[k] = v
@@ -1339,7 +1338,7 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*serviceregistration
 
 		nsChecks, err := c.agentAPI.ChecksWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to retrieve checks from consul")
+			return nil, fmt.Errorf("failed to retrieve checks from consul: %w", err)
 		}
 		for k, v := range nsChecks {
 			checks[k] = v

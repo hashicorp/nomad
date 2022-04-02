@@ -2,15 +2,13 @@ package allocrunner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
@@ -20,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/stretchr/testify/require"
 )
 
 var _ interfaces.RunnerPrerunHook = (*csiHook)(nil)

@@ -3,6 +3,7 @@ package taskrunner
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -22,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/pkg/errors"
 	"oss.indeed.com/go/libtime/decay"
 )
 
@@ -271,7 +271,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	siToken, err := h.maybeLoadSIToken(req.Task.Name, req.TaskDir.SecretsDir)
 	if err != nil {
 		h.logger.Error("failed to generate envoy bootstrap config", "sidecar_for", service.Name)
-		return errors.Wrap(err, "failed to generate envoy bootstrap config")
+		return fmt.Errorf("failed to generate envoy bootstrap config: %w", err)
 	}
 	h.logger.Debug("check for SI token for task", "task", req.Task.Name, "exists", siToken != "")
 
@@ -283,11 +283,11 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	// Write args to file for debugging
 	argsFile, err := os.Create(bootstrapCmdPath)
 	if err != nil {
-		return errors.Wrap(err, "failed to write bootstrap command line")
+		return fmt.Errorf("failed to write bootstrap command line: %w", err)
 	}
 	defer argsFile.Close()
 	if _, err := io.WriteString(argsFile, strings.Join(bootstrapArgs, " ")+"\n"); err != nil {
-		return errors.Wrap(err, "failed to encode bootstrap command line")
+		return fmt.Errorf("failed to encode bootstrap command line: %w", err)
 	}
 
 	// Create environment
@@ -296,13 +296,13 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	// Write env to file for debugging
 	envFile, err := os.Create(bootstrapEnvPath)
 	if err != nil {
-		return errors.Wrap(err, "failed to write bootstrap environment")
+		return fmt.Errorf("failed to write bootstrap environment: %w", err)
 	}
 	defer envFile.Close()
 	envEnc := json.NewEncoder(envFile)
 	envEnc.SetIndent("", "    ")
 	if err := envEnc.Encode(bootstrapEnv); err != nil {
-		return errors.Wrap(err, "failed to encode bootstrap environment")
+		return fmt.Errorf("failed to encode bootstrap environment: %w", err)
 	}
 
 	// keep track of latest error returned from exec-ing consul envoy bootstrap
@@ -586,7 +586,7 @@ func (h *envoyBootstrapHook) maybeLoadSIToken(task, dir string) (string, error) 
 	if err != nil {
 		if !os.IsNotExist(err) {
 			h.logger.Error("failed to load SI token", "task", task, "error", err)
-			return "", errors.Wrapf(err, "failed to load SI token for %s", task)
+			return "", fmt.Errorf("failed to load SI token for %s: %w", task, err)
 		}
 		h.logger.Trace("no SI token to load", "task", task)
 		return "", nil // token file does not exist
