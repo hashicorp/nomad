@@ -1,3 +1,4 @@
+import { getOwner } from '@ember/application';
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
@@ -123,6 +124,12 @@ export default class EvaluationsController extends Controller {
 
   @action
   refresh() {
+    const isDefaultParams = this.nextToken === null && this.status === null;
+    if (isDefaultParams) {
+      getOwner(this).lookup('route:evaluations.index').refresh();
+      return;
+    }
+
     this._resetTokens();
     this.status = null;
     this.pageSize = this.userSettings.pageSize;
