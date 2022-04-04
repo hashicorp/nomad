@@ -490,6 +490,23 @@ func (j *Job) validateVault(job *structs.Job) error {
 	//   - the token used to submit the job and the Nomad server configuration
 	//     must have a role
 	//   - both roles must allow access to all entity aliases defined in the job
+	//
+	// If the Nomad server is configured with a default entity alias, it will
+	// use that for any Vault block that don't specify one, so:
+	//   - the token used to submit the job must be allowed to use the default
+	//     entity alias
+	//   - except if all Vault blocks in the job define an alias, since in this
+	//     case the server alias would not be used.
+	if vconf.EntityAlias != "" {
+		for _, task := range vaultBlocks {
+			for _, v := range task {
+				if v.EntityAlias == "" {
+					v.EntityAlias = vconf.EntityAlias
+				}
+			}
+		}
+	}
+
 	aliases := structs.VaultEntityAliasesSet(vaultBlocks)
 	if len(aliases) > 0 {
 		var tokenData structs.VaultTokenData

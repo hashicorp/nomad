@@ -711,7 +711,9 @@ func (v *vaultClient) parseSelfToken() error {
 	//     1) Must allow tokens to be renewed
 	//     2) Must not have an explicit max TTL
 	//     3) Must have non-zero period
-	// 5) If not configured against a role, the token must be root
+	//     4) Must allow entity alias if one is defined
+	// 5) Must have a role if an entity alias is defined
+	// 6) If not configured against a role, the token must be root
 
 	var mErr multierror.Error
 	role := v.getRole()
@@ -756,6 +758,9 @@ func (v *vaultClient) parseSelfToken() error {
 		if err := v.validateRole(role); err != nil {
 			_ = multierror.Append(&mErr, err)
 		}
+	} else if v.config.EntityAlias != "" {
+		// If entity alias is defined the server must also have a role.
+		_ = multierror.Append(&mErr, fmt.Errorf("Role must be set to create tokens using an entity alias"))
 	}
 
 	return mErr.ErrorOrNil()
@@ -905,6 +910,12 @@ func (v *vaultClient) validateRole(role string) error {
 		_ = multierror.Append(&mErr, fmt.Errorf("Role must have a non-zero period to make tokens periodic."))
 	}
 
+	// If an entity alias is used, the role must be allowed to use it.
+	alias := v.config.EntityAlias
+	if alias != "" && !data.AllowsEntityAlias(alias) {
+		_ = multierror.Append(&mErr, fmt.Errorf("Role must allow entity alias %s to be used.", alias))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -991,6 +1002,11 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 			return nil, fmt.Errorf("task defines a Vault entity alias, but the Nomad server does not have a Vault role")
 		}
 		req.EntityAlias = taskVault.EntityAlias
+	} else if v.config.EntityAlias != "" {
+		if role == "" {
+			return nil, fmt.Errorf("Vault configuration defines an entity alias, but the Nomad server does not have a Vault role")
+		}
+		req.EntityAlias = v.config.EntityAlias
 	}
 
 	// Ensure we are under our rate limit

@@ -38,6 +38,11 @@ type VaultConfig struct {
 	// role the token is from.
 	Role string `hcl:"create_from_role"`
 
+	// EntityAlias is the entity alias to use when creating tokens for tasks
+	// that don't define one. The role used by Nomad must be allowed to use
+	// this alias.
+	EntityAlias string `hcl:"create_with_entity_alias"`
+
 	// Namespace sets the Vault namespace used for all calls against the
 	// Vault API. If this is unset, then Nomad does not use Vault namespaces.
 	Namespace string `mapstructure:"namespace"`
@@ -114,6 +119,9 @@ func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	}
 	if b.Role != "" {
 		result.Role = b.Role
+	}
+	if b.EntityAlias != "" {
+		result.EntityAlias = b.EntityAlias
 	}
 	if b.TaskTokenTTL != "" {
 		result.TaskTokenTTL = b.TaskTokenTTL
@@ -202,6 +210,9 @@ func (c *VaultConfig) IsEqual(b *VaultConfig) bool {
 		return false
 	}
 	if c.Role != b.Role {
+		return false
+	}
+	if c.EntityAlias != b.EntityAlias {
 		return false
 	}
 	if c.TaskTokenTTL != b.TaskTokenTTL {

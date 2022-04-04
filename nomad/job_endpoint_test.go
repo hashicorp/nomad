@@ -1928,6 +1928,36 @@ func TestJobEndpoint_Register_Vault_EntityAlias(t *testing.T) {
 			},
 			expectedError: "failed to validate entity alias against Nomad server configuration",
 		},
+		{
+			name:  "server with default entity alias and token is allowed to use it",
+			token: "user-app1",
+			job: func() *structs.Job {
+				j := jobApp1.Copy()
+				j.TaskGroups[0].Tasks[0].Vault.EntityAlias = ""
+				return j
+			}(),
+		},
+		{
+			name:  "server with default entity alias but token is not allowed to use it",
+			token: "user-app2",
+			job: func() *structs.Job {
+				j := jobApp1App2.Copy()
+				j.TaskGroups[0].Tasks[0].Vault.EntityAlias = ""
+				return j
+			}(),
+			serverConfig: func(c *Config) {
+				c.VaultConfig.EntityAlias = "nomad"
+			},
+			expectedError: "role doesn't allow access to the following entity aliases: nomad",
+		},
+		{
+			name:  "server with default entity alias but job doesn't use it",
+			token: "user-app2",
+			job:   jobApp2,
+			serverConfig: func(c *Config) {
+				c.VaultConfig.EntityAlias = "nomad"
+			},
+		},
 	}
 
 	for _, tc := range testCases {

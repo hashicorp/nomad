@@ -466,6 +466,96 @@ func TestVaultClient_ValidateRole_NonExistent(t *testing.T) {
 	}
 }
 
+func TestVaultClient_ValidateRole_EntityAlias(t *testing.T) {
+	ci.Parallel(t)
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	testCases := []struct {
+		name                string
+		allowedEntityAlises []string
+		serverEntityAlias   string
+		expectError         string
+	}{
+		{
+			name:                "success",
+			allowedEntityAlises: []string{"valid-entity-alias"},
+			serverEntityAlias:   "valid-entity-alias",
+		},
+		{
+			name:                "no default alias",
+			allowedEntityAlises: []string{"valid-entity-alias"},
+			serverEntityAlias:   "",
+		},
+		{
+			name:                "no allowed alias and no default",
+			allowedEntityAlises: []string{},
+			serverEntityAlias:   "",
+		},
+		{
+			name:                "no allowed alias with default",
+			allowedEntityAlises: []string{},
+			serverEntityAlias:   "valid-entity-alias",
+			expectError:         "Role must allow entity alias valid-entity-alias to be used.",
+		},
+		{
+			name:                "default entity alias not allowed",
+			allowedEntityAlises: []string{"valid-entity-alias"},
+			serverEntityAlias:   "not-valid-entity-alias",
+			expectError:         "Role must allow entity alias not-valid-entity-alias to be used.",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Set the configs token in a new test role
+			vaultPolicies := map[string]string{
+				"nomad-role-create":     nomadRoleCreatePolicy,
+				"nomad-role-management": nomadRoleManagementPolicy,
+			}
+			data := map[string]interface{}{
+				"allowed_policies":       "default,root",
+				"allowed_entity_aliases": tc.allowedEntityAlises,
+				"orphan":                 true,
+				"renewable":              true,
+				"token_period":           1000,
+			}
+			v.Config.Token = testVaultRoleAndToken(v, t, vaultPolicies, data, nil)
+			v.Config.EntityAlias = tc.serverEntityAlias
+			v.Config.ConnectionRetryIntv = 100 * time.Millisecond
+
+			logger := testlog.HCLogger(t)
+			client, err := NewVaultClient(v.Config, logger, nil, nil)
+			require.NoError(t, err)
+
+			defer client.Stop()
+
+			// Wait for an error
+			var conn bool
+			var connErr error
+			testutil.WaitForResult(func() (bool, error) {
+				conn, connErr = client.ConnectionEstablished()
+				if !conn {
+					return false, fmt.Errorf("Should connect")
+				}
+
+				if connErr != nil {
+					return false, connErr
+				}
+
+				return true, nil
+			}, func(err error) {
+				if tc.expectError != "" {
+					require.Error(t, err)
+					require.Contains(t, err.Error(), tc.expectError)
+				} else {
+					require.NoError(t, err)
+				}
+			})
+		})
+	}
+}
+
 func TestVaultClient_ValidateToken(t *testing.T) {
 	ci.Parallel(t)
 	v := testutil.NewTestVault(t)
@@ -1519,11 +1609,12 @@ func TestVaultClient_CreateToken_EntityAlias(t *testing.T) {
 	defer v.Stop()
 
 	testCases := []struct {
-		name            string
-		entityAlias     string
-		noRole          bool
-		expectError     string
-		requireEntityID bool
+		name              string
+		entityAlias       string
+		serverEntityAlias string
+		noRole            bool
+		expectError       string
+		requireEntityID   bool
 	}{
 		{
 			name:            "success",
@@ -1540,12 +1631,21 @@ func TestVaultClient_CreateToken_EntityAlias(t *testing.T) {
 			noRole:          true,
 			requireEntityID: false,
 		},
+		{
+			name:              "use server entity alias",
+			entityAlias:       "",
+			serverEntityAlias: "valid-entity-alias",
+			requireEntityID:   true,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if !tc.noRole {
 				v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
+			}
+			if tc.serverEntityAlias != "" {
+				v.Config.EntityAlias = tc.serverEntityAlias
 			}
 
 			client, err := NewVaultClient(v.Config, logger, nil, nil)
