@@ -164,14 +164,9 @@ func (s *ServiceRegistration) List(
 		return s.listAllServiceRegistrations(args, reply)
 	}
 
-	// If ACLs are enabled, ensure the caller has the read-job namespace
-	// capability.
-	if aclObj, err := s.srv.ResolveToken(args.AuthToken); err != nil {
+	// Perform our mixed auth handling.
+	if err := s.handleMixedAuthEndpoint(args.QueryOptions, acl.NamespaceCapabilityReadJob); err != nil {
 		return err
-	} else if aclObj != nil {
-		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
-			return structs.ErrPermissionDenied
-		}
 	}
 
 	// Set up and return the blocking query.
@@ -377,14 +372,9 @@ func (s *ServiceRegistration) GetService(
 	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "get_service"}, time.Now())
 
-	// If ACLs are enabled, ensure the caller has the read-job namespace
-	// capability.
-	if aclObj, err := s.srv.ResolveToken(args.AuthToken); err != nil {
+	// Perform our mixed auth handling.
+	if err := s.handleMixedAuthEndpoint(args.QueryOptions, acl.NamespaceCapabilityReadJob); err != nil {
 		return err
-	} else if aclObj != nil {
-		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
-			return structs.ErrPermissionDenied
-		}
 	}
 
 	// Set up the blocking query.
@@ -414,4 +404,46 @@ func (s *ServiceRegistration) GetService(
 			return s.srv.setReplyQueryMeta(stateStore, state.TableServiceRegistrations, &reply.QueryMeta)
 		},
 	})
+}
+
+// handleMixedAuthEndpoint is a helper to handle auth on RPC endpoints that can
+// either be called by Nomad nodes, or by external clients.
+func (s *ServiceRegistration) handleMixedAuthEndpoint(args structs.QueryOptions, cap string) error {
+
+	// Perform the initial token resolution.
+	aclObj, err := s.srv.ResolveToken(args.AuthToken)
+
+	switch err {
+	case nil:
+		// Perform our ACL validation. If the object is nil, this means ACLs
+		// are not enabled, otherwise trigger the allowed namespace function.
+		if aclObj != nil {
+			if !aclObj.AllowNsOp(args.RequestNamespace(), cap) {
+				return structs.ErrPermissionDenied
+			}
+		}
+	default:
+		// In the event we got any error other than notfound, consider this
+		// terminal.
+		if err != structs.ErrTokenNotFound {
+			return err
+		}
+
+		// Attempt to lookup AuthToken as a Node.SecretID and return any error
+		// wrapped along with the original.
+		node, stateErr := s.srv.fsm.State().NodeBySecretID(nil, args.AuthToken)
+		if stateErr != nil {
+			var mErr multierror.Error
+			mErr.Errors = append(mErr.Errors, err, stateErr)
+			return mErr.ErrorOrNil()
+		}
+
+		// At this point, we do not have a valid ACL token, nor are we being
+		// called, or able to confirm via the state store, by a node.
+		if node == nil {
+			return structs.ErrTokenNotFound
+		}
+	}
+
+	return nil
 }

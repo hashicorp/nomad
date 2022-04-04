@@ -800,6 +800,64 @@ func TestServiceRegistration_List(t *testing.T) {
 			},
 			name: "ACLs enabled with read namespace policy token",
 		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				return TestACLServer(t, nil)
+			},
+			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				// Create a namespace as this is needed when using an ACL like
+				// we do in this test.
+				ns := &structs.Namespace{
+					Name:        "platform",
+					Description: "test namespace",
+					CreateIndex: 5,
+					ModifyIndex: 5,
+				}
+				ns.SetHash()
+				require.NoError(t, s.State().UpsertNamespaces(5, []*structs.Namespace{ns}))
+
+				// Generate a node.
+				node := mock.Node()
+				require.NoError(t, s.State().UpsertNode(structs.MsgTypeTestSetup, 10, node))
+
+				ws := memdb.NewWatchSet()
+				node, err := s.State().NodeByID(ws, node.ID)
+				require.NoError(t, err)
+				require.NotNil(t, node)
+
+				// Generate and upsert some service registrations.
+				services := mock.ServiceRegistrations()
+				require.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 20, services))
+
+				// Test a request while setting the auth token to the node
+				// secret ID.
+				serviceRegReq := &structs.ServiceRegistrationListRequest{
+					QueryOptions: structs.QueryOptions{
+						Namespace: "platform",
+						Region:    DefaultRegion,
+						AuthToken: node.SecretID,
+					},
+				}
+				var serviceRegResp structs.ServiceRegistrationListResponse
+				err = msgpackrpc.CallWithCodec(
+					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{
+					{
+						Namespace: "platform",
+						Services: []*structs.ServiceRegistrationStub{
+							{
+								ServiceName: "countdash-api",
+								Tags:        []string{"bar"},
+							},
+						}},
+				}, serviceRegResp.Services)
+			},
+			name: "ACLs enabled with node secret toekn",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -962,6 +1020,58 @@ func TestServiceRegistration_GetService(t *testing.T) {
 				require.Contains(t, err.Error(), "Permission denied")
 			},
 			name: "ACLs enabled",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				return TestACLServer(t, nil)
+			},
+			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				// Generate mock services then upsert them individually using different indexes.
+				services := mock.ServiceRegistrations()
+
+				require.NoError(t, s.fsm.State().UpsertServiceRegistrations(
+					structs.MsgTypeTestSetup, 10, []*structs.ServiceRegistration{services[0]}))
+
+				require.NoError(t, s.fsm.State().UpsertServiceRegistrations(
+					structs.MsgTypeTestSetup, 20, []*structs.ServiceRegistration{services[1]}))
+
+				// Generate a node.
+				node := mock.Node()
+				require.NoError(t, s.State().UpsertNode(structs.MsgTypeTestSetup, 30, node))
+
+				ws := memdb.NewWatchSet()
+				node, err := s.State().NodeByID(ws, node.ID)
+				require.NoError(t, err)
+				require.NotNil(t, node)
+
+				// Test a request while setting the auth token to the node
+				// secret ID.
+				serviceRegReq := &structs.ServiceRegistrationListRequest{
+					QueryOptions: structs.QueryOptions{
+						Namespace: "platform",
+						Region:    DefaultRegion,
+						AuthToken: node.SecretID,
+					},
+				}
+				var serviceRegResp structs.ServiceRegistrationListResponse
+				err = msgpackrpc.CallWithCodec(
+					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{
+					{
+						Namespace: "platform",
+						Services: []*structs.ServiceRegistrationStub{
+							{
+								ServiceName: "countdash-api",
+								Tags:        []string{"bar"},
+							},
+						}},
+				}, serviceRegResp.Services)
+			},
+			name: "ACLs enabled using node secret",
 		},
 	}
 
