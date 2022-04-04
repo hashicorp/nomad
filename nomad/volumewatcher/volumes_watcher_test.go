@@ -23,18 +23,22 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 	index := uint64(100)
 
 	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv, "")
+	watcher.quiescentTimeout = 100 * time.Millisecond
 	watcher.SetEnabled(true, srv.State(), "")
 
 	plugin := mock.CSIPlugin()
 	node := testNode(plugin, srv.State())
 	alloc := mock.Alloc()
 	alloc.ClientStatus = structs.AllocClientStatusComplete
+
 	vol := testVolume(plugin, alloc, node.ID)
 
 	index++
 	err := srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
 	require.NoError(err)
 
+	// need to have just enough of a volume and claim in place so that
+	// the watcher doesn't immediately stop and unload itself
 	claim := &structs.CSIVolumeClaim{
 		Mode:  structs.CSIVolumeClaimGC,
 		State: structs.CSIVolumeClaimStateNodeDetached,
@@ -63,6 +67,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 	index := uint64(100)
 
 	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv, "")
+	watcher.quiescentTimeout = 100 * time.Millisecond
 
 	plugin := mock.CSIPlugin()
 	node := testNode(plugin, srv.State())
@@ -121,12 +126,12 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 	// create a new watcher and enable it to simulate the leadership
 	// transition
 	watcher = NewVolumesWatcher(testlog.HCLogger(t), srv, "")
+	watcher.quiescentTimeout = 100 * time.Millisecond
 	watcher.SetEnabled(true, srv.State(), "")
 
 	require.Eventually(func() bool {
 		watcher.wlock.RLock()
 		defer watcher.wlock.RUnlock()
-
 		return 1 == len(watcher.watchers) &&
 			!watcher.watchers[vol.ID+vol.Namespace].isRunning()
 	}, time.Second, 10*time.Millisecond)
@@ -146,6 +151,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	srv.state = state.TestStateStore(t)
 	index := uint64(100)
 	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv, "")
+	watcher.quiescentTimeout = 100 * time.Millisecond
 
 	watcher.SetEnabled(true, srv.State(), "")
 	require.Equal(0, len(watcher.watchers))
@@ -243,6 +249,7 @@ func TestVolumeWatch_RegisterDeregister(t *testing.T) {
 	index := uint64(100)
 
 	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv, "")
+	watcher.quiescentTimeout = 10 * time.Millisecond
 
 	watcher.SetEnabled(true, srv.State(), "")
 	require.Equal(0, len(watcher.watchers))
@@ -264,5 +271,9 @@ func TestVolumeWatch_RegisterDeregister(t *testing.T) {
 		return 1 == len(watcher.watchers)
 	}, time.Second, 10*time.Millisecond)
 
-	require.False(watcher.watchers[vol.ID+vol.Namespace].isRunning())
+	require.Eventually(func() bool {
+		watcher.wlock.RLock()
+		defer watcher.wlock.RUnlock()
+		return !watcher.watchers[vol.ID+vol.Namespace].isRunning()
+	}, 1*time.Second, 10*time.Millisecond)
 }
