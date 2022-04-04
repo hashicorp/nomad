@@ -3,10 +3,12 @@ package volumewatcher
 import (
 	"context"
 	"sync"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -30,6 +32,11 @@ type volumeWatcher struct {
 	shutdownCtx context.Context // parent context
 	ctx         context.Context // own context
 	exitFn      context.CancelFunc
+	deleteFn    func()
+
+	// quiescentTimeout is the time we wait until the volume has "settled"
+	// before stopping the child watcher goroutines
+	quiescentTimeout time.Duration
 
 	// updateCh is triggered when there is an updated volume
 	updateCh chan *structs.CSIVolume
@@ -43,13 +50,15 @@ type volumeWatcher struct {
 func newVolumeWatcher(parent *Watcher, vol *structs.CSIVolume) *volumeWatcher {
 
 	w := &volumeWatcher{
-		updateCh:    make(chan *structs.CSIVolume, 1),
-		v:           vol,
-		state:       parent.state,
-		rpc:         parent.rpc,
-		leaderAcl:   parent.leaderAcl,
-		logger:      parent.logger.With("volume_id", vol.ID, "namespace", vol.Namespace),
-		shutdownCtx: parent.ctx,
+		updateCh:         make(chan *structs.CSIVolume, 1),
+		v:                vol,
+		state:            parent.state,
+		rpc:              parent.rpc,
+		leaderAcl:        parent.leaderAcl,
+		logger:           parent.logger.With("volume_id", vol.ID, "namespace", vol.Namespace),
+		shutdownCtx:      parent.ctx,
+		deleteFn:         func() { parent.remove(vol.ID + vol.Namespace) },
+		quiescentTimeout: parent.quiescentTimeout,
 	}
 
 	// Start the long lived watcher that scans for allocation updates
@@ -111,6 +120,9 @@ func (vw *volumeWatcher) watch() {
 	vol := vw.getVolume(vw.v)
 	vw.volumeReap(vol)
 
+	timer, stop := helper.NewSafeTimer(vw.quiescentTimeout)
+	defer stop()
+
 	for {
 		select {
 		// TODO(tgross): currently server->client RPC have no cancellation
@@ -120,17 +132,28 @@ func (vw *volumeWatcher) watch() {
 		case <-vw.ctx.Done():
 			return
 		case vol := <-vw.updateCh:
-			// while we won't make raft writes if we get a stale update,
-			// we can still fire extra CSI RPC calls if we don't check this
-			if vol.ModifyIndex >= vw.v.ModifyIndex {
-				vol = vw.getVolume(vol)
-				if vol == nil {
-					return
-				}
-				vw.volumeReap(vol)
+			vol = vw.getVolume(vol)
+			if vol == nil {
+				// We stop the goroutine whenever we have no more
+				// work, but only delete the watcher when the volume
+				// is gone to avoid racing the blocking query
+				vw.deleteFn()
+				vw.Stop()
+				return
 			}
-		default:
-			vw.Stop() // no pending work
+			vw.volumeReap(vol)
+			timer.Reset(vw.quiescentTimeout)
+		case <-timer.C:
+			// Wait until the volume has "settled" before stopping
+			// this goroutine so that the race between shutdown and
+			// the parent goroutine sending on <-updateCh is pushed to
+			// after the window we most care about quick freeing of
+			// claims (and the GC job will clean up anything we miss)
+			vol = vw.getVolume(vol)
+			if vol == nil {
+				vw.deleteFn()
+			}
+			vw.Stop()
 			return
 		}
 	}
@@ -145,9 +168,12 @@ func (vw *volumeWatcher) getVolume(vol *structs.CSIVolume) *structs.CSIVolume {
 	var err error
 	ws := memdb.NewWatchSet()
 
-	vol, err = vw.state.CSIVolumeDenormalizePlugins(ws, vol.Copy())
+	vol, err = vw.state.CSIVolumeByID(ws, vol.Namespace, vol.ID)
 	if err != nil {
-		vw.logger.Error("could not query plugins for volume", "error", err)
+		vw.logger.Error("could not query for volume", "error", err)
+		return nil
+	}
+	if vol == nil {
 		return nil
 	}
 
@@ -167,9 +193,6 @@ func (vw *volumeWatcher) volumeReap(vol *structs.CSIVolume) {
 	err := vw.volumeReapImpl(vol)
 	if err != nil {
 		vw.logger.Error("error releasing volume claims", "error", err)
-	}
-	if vw.isUnclaimed(vol) {
-		vw.Stop()
 	}
 }
 
@@ -230,6 +253,7 @@ func (vw *volumeWatcher) collectPastClaims(vol *structs.CSIVolume) *structs.CSIV
 }
 
 func (vw *volumeWatcher) unpublish(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
+	vw.logger.Trace("unpublishing volume", "alloc", claim.AllocationID)
 	req := &structs.CSIVolumeUnpublishRequest{
 		VolumeID: vol.ID,
 		Claim:    claim,
