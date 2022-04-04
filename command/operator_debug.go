@@ -167,10 +167,6 @@ Debug Options:
     The interval between snapshots of the Nomad state. Set interval equal to
     duration to capture a single snapshot. Defaults to 30s.
 
-  -pprof-interval=<pprof-interval>
-    The interval between pprof collections. Set interval equal to
-    duration to capture a single snapshot. Defaults to 250ms.
-
   -log-level=<level>
     The log level to monitor. Defaults to DEBUG.
 
@@ -188,6 +184,10 @@ Debug Options:
 
   -pprof-duration=<duration>
     Duration for pprof collection. Defaults to 1s.
+
+  -pprof-interval=<pprof-interval>
+    The interval between pprof collections. Set interval equal to
+    duration to capture a single snapshot. Defaults to 250ms.
 
   -server-id=<server1>,<server2>
     Comma separated list of Nomad server names to monitor for logs, API
@@ -406,6 +406,14 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Parse the pprof capture interval
+	pi, err := time.ParseDuration(pprofInterval)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing pprof-interval: %s: %s", pprofInterval, err.Error()))
+		return 1
+	}
+	c.pprofInterval = pi
+
 	// Parse the pprof capture duration
 	pd, err := time.ParseDuration(pprofDuration)
 	if err != nil {
@@ -413,6 +421,12 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 	c.pprofDuration = pd
+
+	// Validate pprof interval
+	if pi.Seconds() > pd.Seconds() {
+		c.Ui.Error(fmt.Sprintf("pprof-interval %s must be less than pprof-duration %s", pprofInterval, pprofDuration))
+		return 1
+	}
 
 	// Parse event stream topic filter
 	t, err := topicsFromString(eventTopic)
@@ -428,20 +442,6 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 	c.index = uint64(eventIndex)
-
-	// Parse the pprof capture interval
-	pi, err := time.ParseDuration(pprofInterval)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing pprof-interval: %s: %s", pprofInterval, err.Error()))
-		return 1
-	}
-	c.pprofInterval = pi
-
-	// Validate interval
-	if pi.Seconds() > pd.Seconds() {
-		c.Ui.Error(fmt.Sprintf("pprof-interval %s must be less than pprof-duration %s", pprofInterval, pprofDuration))
-		return 1
-	}
 
 	// Verify there are no extra arguments
 	args = flags.Args()
@@ -615,7 +615,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.Ui.Output(fmt.Sprintf("         Interval: %s", interval))
 	c.Ui.Output(fmt.Sprintf("         Duration: %s", duration))
-	c.Ui.Output(fmt.Sprintf("         Pprof Interval: %s", pprofInterval))
+	c.Ui.Output(fmt.Sprintf("         pprof Interval: %s", pprofInterval))
 	if c.pprofDuration.Seconds() != 1 {
 		c.Ui.Output(fmt.Sprintf("   pprof Duration: %s", c.pprofDuration))
 	}
@@ -684,7 +684,7 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	c.collectVault(clusterDir, vaultAddr)
 
 	c.collectAgentHosts(client)
-	c.collectPeriodicPprofs(client)
+	go c.collectPeriodicPprofs(client)
 
 	c.collectPeriodic(client)
 
@@ -898,7 +898,7 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 }
 
 func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
-	duration := time.After(c.duration)
+	duration := time.After(c.pprofDuration)
 	// Create a ticker to execute on every interval ticks
 	ticker := time.NewTicker(c.pprofInterval)
 
@@ -948,10 +948,11 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 	}
 
 	path = filepath.Join(path, id)
+	filename := fmt.Sprintf("profile_%04d.prof", interval)
 
 	bs, err := client.Agent().CPUProfile(opts, c.queryOpts())
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof profile.prof, err: %v", path, err))
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof %s, err: %v", filename, path, err))
 		if structs.IsErrPermissionDenied(err) {
 			// All Profiles require the same permissions, so we only need to see
 			// one permission failure before we bail.
@@ -961,7 +962,6 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 			return // only exit on 403
 		}
 	} else {
-		filename := fmt.Sprintf("profile_%04d.prof", interval)
 		err := c.writeBytes(path, filename, bs)
 		if err != nil {
 			c.Ui.Error(err.Error())
