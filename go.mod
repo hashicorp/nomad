@@ -25,7 +25,7 @@ require (
 	github.com/containernetworking/plugins v1.0.1
 	github.com/coreos/go-iptables v0.6.0
 	github.com/coreos/go-semver v0.3.0
-	github.com/creack/pty v1.1.17
+	github.com/creack/pty v1.1.18
 	github.com/docker/cli v20.10.3-0.20220113150236-6e2838e18645+incompatible
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v20.10.12+incompatible
