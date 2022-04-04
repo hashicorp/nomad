@@ -441,7 +441,7 @@ func TestDebug_CapturedFiles(t *testing.T) {
 		"goroutine-debug2.txt",
 		"goroutine.prof",
 		"heap.prof",
-		"profile.prof",
+		"profile_0000.prof",
 		"threadcreate.prof",
 		"trace.prof",
 	}
