@@ -1,18 +1,18 @@
 container {
-	secrets {
-		all = false
-	}
+  secrets {
+    all = false
+  }
 
-       dependencies    = false
-       alpine_security = false
+  dependencies    = false
+  alpine_security = false
 }
 
 binary {
-	go_modules = true
-	osv        = false
-	nvd        = false
+  go_modules = true
+  osv        = false
+  nvd        = false
 
-	secrets {
-		all = true
-	}
+  secrets {
+    all = true
+  }
 }
