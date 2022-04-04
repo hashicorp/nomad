@@ -31,12 +31,12 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
-      
+
       - name: Setup node and yarn
         uses: actions/setup-node@v2
         with:
-          node-version: '14'
-          cache-dependency-path: 'ui/yarn.lock'
+          node-version: "14"
+          cache-dependency-path: "ui/yarn.lock"
       - name: Install Yarn
         run: |
           npm install -g yarn
@@ -64,9 +64,9 @@ jobs:
       runs-on: ubuntu-latest
       if: ${{ github.event.workflow_run.conclusion == 'success' }}
       steps:
-      - run: echo 'The triggering workflow passed'
+        - run: echo 'The triggering workflow passed'
     on-failure:
       runs-on: ubuntu-latest
       if: ${{ github.event.workflow_run.conclusion == 'failure' }}
       steps:
-      - run: echo 'The triggering workflow failed'
+        - run: echo 'The triggering workflow failed'
