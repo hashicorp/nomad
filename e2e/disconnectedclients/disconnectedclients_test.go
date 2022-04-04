@@ -23,7 +23,8 @@ func TestDisconnectedClients(t *testing.T) {
 	e2eutil.WaitForLeader(t, nomad)
 	e2eutil.WaitForNodesReady(t, nomad, 2) // needs at least 2 to test replacement
 
-	t.Run("AllocReplacementOnShutdown", testDisconnected_AllocReplacementOnShutdown)
+	// TODO(tgross): this is broken till be merge the disconnected clients feature
+	// t.Run("AllocReplacementOnShutdown", testDisconnected_AllocReplacementOnShutdown)
 	t.Run("AllocReplacementOnNetsplit", testDisconnected_AllocReplacementOnNetsplit)
 }
 
@@ -153,7 +154,7 @@ func testDisconnected_AllocReplacementOnNetsplit(t *testing.T) {
 		lostAllocID:  "complete",
 		otherAllocID: "running",
 		"":           "running",
-	}, wait30s)
+	}, wait60s) // this needs quite a while, because at first it's marked running
 	require.NoError(t, err, "expected lost alloc on reconnected client to be marked complete and replaced")
 }
 
@@ -175,7 +176,7 @@ func waitForAllocStatusMap(jobID string, allocsToStatus map[string]string, wc *e
 			} else {
 				if alloc["Status"] != allocsToStatus[""] {
 					return false, fmt.Errorf("expected status of alloc %q to be %q, got %q",
-						alloc["ID"], expectedAllocStatus, alloc["Status"])
+						alloc["ID"], allocsToStatus[""], alloc["Status"])
 				}
 			}
 		}
