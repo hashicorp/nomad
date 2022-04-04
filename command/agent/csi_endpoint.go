@@ -223,10 +223,10 @@ func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *h
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	query := req.URL.Query()
+	secrets := parseCSISecrets(req)
 	args := structs.CSIVolumeDeleteRequest{
 		VolumeIDs: []string{id},
-		Secrets:   parseSecretsParam(query["secrets"]),
+		Secrets:   secrets,
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
@@ -818,22 +818,4 @@ func structsCSISecretsToApi(secrets structs.CSISecrets) api.CSISecrets {
 		out[k] = v
 	}
 	return out
-}
-
-// parseSecretsParam parses a comma separated list of secrets
-func parseSecretsParam(querySecrets []string) structs.CSISecrets {
-	csiSecrets := make(structs.CSISecrets)
-
-	// Parse comma separated secrets only when provided
-	if len(querySecrets) >= 1 {
-		secrets := strings.Split(querySecrets[0], ",")
-		for _, raw := range secrets {
-			secret := strings.Split(raw, "=")
-			if len(secret) == 2 {
-				csiSecrets[secret[0]] = secret[1]
-			}
-		}
-	}
-
-	return csiSecrets
 }

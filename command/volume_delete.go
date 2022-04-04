@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
 )
 
@@ -33,7 +35,9 @@ General Options:
 
 Delete Options:
 
-  -secrets: A set of key/value secrets to be used when deleting a volume.
+  -secret
+    Secrets to pass to the plugin to delete the snapshot. Accepts multiple
+    flags in the form -secret key=value
 `
 	return strings.TrimSpace(helpText)
 }
@@ -72,10 +76,10 @@ func (c *VolumeDeleteCommand) Synopsis() string {
 func (c *VolumeDeleteCommand) Name() string { return "volume delete" }
 
 func (c *VolumeDeleteCommand) Run(args []string) int {
+	var secretsArgs flaghelper.StringFlag
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-
-	flags.StringVar(&c.Secrets, "secrets", "", "")
+	flags.Var(&secretsArgs, "secret", "secrets for snapshot, ex. -secret key=value")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
@@ -98,7 +102,21 @@ func (c *VolumeDeleteCommand) Run(args []string) int {
 		return 1
 	}
 
-	err = client.CSIVolumes().Delete(volID, c.Secrets, nil)
+	secrets := api.CSISecrets{}
+	for _, kv := range secretsArgs {
+		s := strings.Split(kv, "=")
+		if len(s) == 2 {
+			secrets[s[0]] = s[1]
+		} else {
+			c.Ui.Error("Secret must be in the format: -secret key=value")
+			return 1
+		}
+	}
+
+	err = client.CSIVolumes().DeleteOpts(&api.CSIVolumeDeleteRequest{
+		ExternalVolumeID: volID,
+		Secrets:          secrets,
+	}, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deleting volume: %s", err))
 		return 1
