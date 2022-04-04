@@ -1,6 +1,7 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -19,11 +20,6 @@ import (
 	"github.com/hashicorp/consul/lib"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/helper/envoy"
-	vaultapi "github.com/hashicorp/vault/api"
-	"github.com/pkg/errors"
-	"github.com/shirou/gopsutil/v3/host"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -48,6 +44,7 @@ import (
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/helper/pool"
 	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -57,6 +54,8 @@ import (
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	vaultapi "github.com/hashicorp/vault/api"
+	"github.com/shirou/gopsutil/v3/host"
 )
 
 const (
@@ -536,7 +535,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	}
 
 	if err := c.setupConsulTokenClient(); err != nil {
-		return nil, errors.Wrap(err, "failed to setup consul tokens client")
+		return nil, fmt.Errorf("failed to setup consul tokens client: %w", err)
 	}
 
 	// Setup the vault client for token and secret renewals

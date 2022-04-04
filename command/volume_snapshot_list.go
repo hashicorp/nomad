@@ -1,17 +1,17 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"sort"
 	"strings"
 
-	humanize "github.com/dustin/go-humanize"
+	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
-	"github.com/pkg/errors"
 	"github.com/posener/complete"
 )
 

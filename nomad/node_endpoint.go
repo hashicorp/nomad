@@ -2,26 +2,24 @@ package nomad
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
-	vapi "github.com/hashicorp/vault/api"
-
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
-	"github.com/pkg/errors"
+	vapi "github.com/hashicorp/vault/api"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -53,7 +51,7 @@ const (
 // Node endpoint is used for client interactions
 type Node struct {
 	srv    *Server
-	logger log.Logger
+	logger hclog.Logger
 
 	// ctx provides context regarding the underlying connection
 	ctx *RPCContext
@@ -1759,11 +1757,11 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 		return nil
 	}
 	if node == nil {
-		setError(errors.Errorf("Node %q does not exist", args.NodeID), false)
+		setError(fmt.Errorf("Node %q does not exist", args.NodeID), false)
 		return nil
 	}
 	if node.SecretID != args.SecretID {
-		setError(errors.Errorf("SecretID mismatch"), false)
+		setError(errors.New("SecretID mismatch"), false)
 		return nil
 	}
 
@@ -1773,26 +1771,26 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 		return nil
 	}
 	if alloc == nil {
-		setError(errors.Errorf("Allocation %q does not exist", args.AllocID), false)
+		setError(fmt.Errorf("Allocation %q does not exist", args.AllocID), false)
 		return nil
 	}
 	if alloc.NodeID != args.NodeID {
-		setError(errors.Errorf("Allocation %q not running on node %q", args.AllocID, args.NodeID), false)
+		setError(fmt.Errorf("Allocation %q not running on node %q", args.AllocID, args.NodeID), false)
 		return nil
 	}
 	if alloc.TerminalStatus() {
-		setError(errors.Errorf("Cannot request SI token for terminal allocation"), false)
+		setError(errors.New("Cannot request SI token for terminal allocation"), false)
 		return nil
 	}
 
 	// make sure task group contains at least one connect enabled service
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
-		setError(errors.Errorf("Allocation %q does not contain TaskGroup %q", args.AllocID, alloc.TaskGroup), false)
+		setError(fmt.Errorf("Allocation %q does not contain TaskGroup %q", args.AllocID, alloc.TaskGroup), false)
 		return nil
 	}
 	if !tg.UsesConnect() {
-		setError(errors.Errorf("TaskGroup %q does not use Connect", tg.Name), false)
+		setError(fmt.Errorf("TaskGroup %q does not use Connect", tg.Name), false)
 		return nil
 	}
 

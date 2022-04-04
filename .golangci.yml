@@ -59,8 +59,9 @@ linters-settings:
     # disallow packages from being used
     list-type: blacklist
     packages:
-      - github.com/hashicorp/consul/command/flags
       - github.com/boltdb/bolt
+      - github.com/hashicorp/consul/command/flags
+      - github.com/pkg/errors
   gocritic:
     disabled-checks:
       - commentFormatting

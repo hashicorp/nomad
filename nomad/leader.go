@@ -10,18 +10,16 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/time/rate"
-
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
-	version "github.com/hashicorp/go-version"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
-	"github.com/pkg/errors"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -640,7 +638,7 @@ func (s *Server) revokeSITokenAccessorsOnRestore() error {
 	fsmState := s.fsm.State()
 	iter, err := fsmState.SITokenAccessors(ws)
 	if err != nil {
-		return errors.Wrap(err, "failed to get SI token accessors")
+		return fmt.Errorf("failed to get SI token accessors: %w", err)
 	}
 
 	var toRevoke []*structs.SITokenAccessor
@@ -650,7 +648,7 @@ func (s *Server) revokeSITokenAccessorsOnRestore() error {
 		// Check the allocation
 		alloc, err := fsmState.AllocByID(ws, accessor.AllocID)
 		if err != nil {
-			return errors.Wrapf(err, "failed to lookup alloc %q", accessor.AllocID)
+			return fmt.Errorf("failed to lookup alloc %q: %w", accessor.AllocID, err)
 		}
 		if alloc == nil || alloc.Terminated() {
 			// no longer running and associated accessors should be revoked
@@ -661,7 +659,7 @@ func (s *Server) revokeSITokenAccessorsOnRestore() error {
 		// Check the node
 		node, err := fsmState.NodeByID(ws, accessor.NodeID)
 		if err != nil {
-			return errors.Wrapf(err, "failed to lookup node %q", accessor.NodeID)
+			return fmt.Errorf("failed to lookup node %q: %w", accessor.NodeID, err)
 		}
 		if node == nil || node.TerminalStatus() {
 			// node is terminal and associated accessors should be revoked
@@ -854,7 +852,7 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			updateEval.Status = structs.EvalStatusFailed
 			updateEval.StatusDescription = fmt.Sprintf("evaluation reached delivery limit (%d)", s.config.EvalDeliveryLimit)
 			s.logger.Warn("eval reached delivery limit, marking as failed",
-				"eval", log.Fmt("%#v", updateEval))
+				"eval", hclog.Fmt("%#v", updateEval))
 
 			// Core job evals that fail or span leader elections will never
 			// succeed because the follow-up doesn't have the leader ACL. We
@@ -878,7 +876,7 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 				}
 				if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
 					s.logger.Error("failed to update failed eval and create a follow-up",
-						"eval", log.Fmt("%#v", updateEval), "error", err)
+						"eval", hclog.Fmt("%#v", updateEval), "error", err)
 					continue
 				}
 			}
@@ -917,7 +915,7 @@ func (s *Server) reapDupBlockedEvaluations(stopCh chan struct{}) {
 				Evals: cancel,
 			}
 			if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
-				s.logger.Error("failed to update duplicate evals", "evals", log.Fmt("%#v", cancel), "error", err)
+				s.logger.Error("failed to update duplicate evals", "evals", hclog.Fmt("%#v", cancel), "error", err)
 				continue
 			}
 		}
@@ -1681,13 +1679,13 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 func (s *Server) generateClusterID() (string, error) {
 	if !ServersMeetMinimumVersion(s.Members(), minClusterIDVersion, false) {
 		s.logger.Named("core").Warn("cannot initialize cluster ID until all servers are above minimum version", "min_version", minClusterIDVersion)
-		return "", errors.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
+		return "", fmt.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
 	}
 
 	newMeta := structs.ClusterMetadata{ClusterID: uuid.Generate(), CreateTime: time.Now().UnixNano()}
 	if _, _, err := s.raftApply(structs.ClusterMetadataRequestType, newMeta); err != nil {
 		s.logger.Named("core").Error("failed to create cluster ID", "error", err)
-		return "", errors.Wrap(err, "failed to create cluster ID")
+		return "", fmt.Errorf("failed to create cluster ID: %w", err)
 	}
 
 	s.logger.Named("core").Info("established cluster id", "cluster_id", newMeta.ClusterID, "create_time", newMeta.CreateTime)

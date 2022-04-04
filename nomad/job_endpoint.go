@@ -2,21 +2,19 @@ package nomad
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
 	"strings"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
-
+	"github.com/armon/go-metrics"
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul/lib"
-	"github.com/pkg/errors"
-
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -51,7 +49,7 @@ var (
 // Job endpoint is used for job interactions
 type Job struct {
 	srv    *Server
-	logger log.Logger
+	logger hclog.Logger
 
 	// builtin admission controllers
 	mutators   []jobMutator
@@ -278,7 +276,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		ctx := context.Background()
 		for namespace, usage := range usages {
 			if err := j.srv.consulACLs.CheckPermissions(ctx, namespace, usage, args.Job.ConsulToken); err != nil {
-				return errors.Wrap(err, "job-submitter consul token denied")
+				return fmt.Errorf("job-submitter consul token denied: %w", err)
 			}
 		}
 

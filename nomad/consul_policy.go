@@ -1,11 +1,11 @@
 package nomad
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/hcl"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -44,7 +44,7 @@ type ConsulPolicy struct {
 func parseConsulPolicy(s string) (*ConsulPolicy, error) {
 	cp := new(ConsulPolicy)
 	if err := hcl.Decode(cp, s); err != nil {
-		return nil, errors.Wrap(err, "failed to parse ACL policy")
+		return nil, fmt.Errorf("failed to parse ACL policy: %w", err)
 	}
 	return cp, nil
 }
@@ -98,10 +98,10 @@ func namespaceCheck(namespace string, token *api.ACLToken) error {
 	case namespace == "" && token.Namespace != "default":
 		// ACLs enabled with non-default token, but namespace on job not set, so
 		// provide a more informative error message.
-		return errors.Errorf("consul ACL token requires using namespace %q", token.Namespace)
+		return fmt.Errorf("consul ACL token requires using namespace %q", token.Namespace)
 
 	default:
-		return errors.Errorf("consul ACL token cannot use namespace %q", namespace)
+		return fmt.Errorf("consul ACL token cannot use namespace %q", namespace)
 	}
 }
 
