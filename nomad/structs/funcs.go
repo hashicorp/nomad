@@ -13,6 +13,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
 	"golang.org/x/crypto/blake2b"
 )
 
@@ -349,17 +350,15 @@ func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 
 	for _, tgp := range policies {
 		for _, tp := range tgp {
-			for _, p := range tp.Policies {
-				set[p] = struct{}{}
+			if tp != nil {
+				for _, p := range tp.Policies {
+					set[p] = struct{}{}
+				}
 			}
 		}
 	}
 
-	flattened := make([]string, 0, len(set))
-	for p := range set {
-		flattened = append(flattened, p)
-	}
-	return flattened
+	return helper.SetToSliceString(set)
 }
 
 // VaultNamespaceSet takes the structure returned by VaultPolicies and
@@ -369,17 +368,13 @@ func VaultNamespaceSet(policies map[string]map[string]*Vault) []string {
 
 	for _, tgp := range policies {
 		for _, tp := range tgp {
-			if tp.Namespace != "" {
+			if tp != nil && tp.Namespace != "" {
 				set[tp.Namespace] = struct{}{}
 			}
 		}
 	}
 
-	flattened := make([]string, 0, len(set))
-	for p := range set {
-		flattened = append(flattened, p)
-	}
-	return flattened
+	return helper.SetToSliceString(set)
 }
 
 // DenormalizeAllocationJobs is used to attach a job to all allocations that are

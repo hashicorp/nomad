@@ -165,6 +165,17 @@ func TestMapStringStringSliceValueSet(t *testing.T) {
 	}
 }
 
+func TestSetToSliceString(t *testing.T) {
+	set := map[string]struct{}{
+		"foo": {},
+		"bar": {},
+		"baz": {},
+	}
+	expect := []string{"foo", "bar", "baz"}
+	got := SetToSliceString(set)
+	require.ElementsMatch(t, expect, got)
+}
+
 func TestCopyMapStringSliceString(t *testing.T) {
 	m := map[string][]string{
 		"x": {"a", "b", "c"},

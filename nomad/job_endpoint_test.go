@@ -1545,7 +1545,7 @@ func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
 	// Fetch the response
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), "missing Vault Token") {
+	if err == nil || !strings.Contains(err.Error(), "missing Vault token") {
 		t.Fatalf("expected Vault not enabled error: %v", err)
 	}
 }
@@ -2605,7 +2605,7 @@ func TestJobEndpoint_Revert_Vault_NoToken(t *testing.T) {
 
 	// Fetch the response
 	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp)
-	if err == nil || !strings.Contains(err.Error(), "missing Vault Token") {
+	if err == nil || !strings.Contains(err.Error(), "missing Vault token") {
 		t.Fatalf("expected Vault not enabled error: %v", err)
 	}
 }

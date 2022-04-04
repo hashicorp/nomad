@@ -11,7 +11,6 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/golang/snappy"
-	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
@@ -219,46 +218,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Ensure that the job has permissions for the requested Vault tokens
-	policies := args.Job.VaultPolicies()
-	if len(policies) != 0 {
-		vconf := j.srv.config.VaultConfig
-		if !vconf.IsEnabled() {
-			return fmt.Errorf("Vault not enabled and Vault policies requested")
-		}
-
-		// Have to check if the user has permissions
-		if !vconf.AllowsUnauthenticated() {
-			if args.Job.VaultToken == "" {
-				return fmt.Errorf("Vault policies requested but missing Vault Token")
-			}
-
-			vault := j.srv.vault
-			s, err := vault.LookupToken(context.Background(), args.Job.VaultToken)
-			if err != nil {
-				return err
-			}
-
-			allowedPolicies, err := PoliciesFrom(s)
-			if err != nil {
-				return err
-			}
-
-			// Check Namespaces
-			namespaceErr := j.multiVaultNamespaceValidation(policies, s)
-			if namespaceErr != nil {
-				return namespaceErr
-			}
-
-			// If we are given a root token it can access all policies
-			if !lib.StrContains(allowedPolicies, "root") {
-				flatPolicies := structs.VaultPoliciesSet(policies)
-				subset, offending := helper.SliceStringIsSubset(allowedPolicies, flatPolicies)
-				if !subset {
-					return fmt.Errorf("Passed Vault Token doesn't allow access to the following policies: %s",
-						strings.Join(offending, ", "))
-				}
-			}
-		}
+	if err := j.validateVault(args.Job); err != nil {
+		return err
 	}
 
 	// helper function that checks if the Consul token supplied with the job has
@@ -465,6 +426,61 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		err = j.multiregionDrop(args, reply)
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func (j *Job) validateVault(job *structs.Job) error {
+	vaultBlocks := job.Vault()
+	if len(vaultBlocks) == 0 {
+		return nil
+	}
+
+	vconf := j.srv.config.VaultConfig
+	if !vconf.IsEnabled() {
+		return fmt.Errorf("Vault not enabled but used in the job")
+	}
+
+	// Return early if Vault configuration doesn't require authentication.
+	if vconf.AllowsUnauthenticated() {
+		return nil
+	}
+
+	// At this point the job has a vault block and the server requires
+	// authentication, so check if the user has the right permissions.
+	if job.VaultToken == "" {
+		return fmt.Errorf("Vault used in the job but missing Vault token")
+	}
+
+	vault := j.srv.vault
+	tokenSecret, err := vault.LookupToken(context.Background(), job.VaultToken)
+	if err != nil {
+		return fmt.Errorf("failed to lookup Vault token: %v", err)
+	}
+
+	// Check namespaces.
+	err = j.multiVaultNamespaceValidation(vaultBlocks, tokenSecret)
+	if err != nil {
+		return err
+	}
+
+	// Check policies.
+	// If we are given a root token it can access all policies
+	allowedPolicies, err := tokenSecret.TokenPolicies()
+	if err != nil {
+		return fmt.Errorf("failed to lookup Vault token policies: %v", err)
+	}
+
+	jobPolicies := structs.VaultPoliciesSet(vaultBlocks)
+	isRoot := helper.SliceStringContains(allowedPolicies, "root")
+
+	if len(jobPolicies) > 0 && !isRoot {
+		subset, offending := helper.SliceStringIsSubset(allowedPolicies, jobPolicies)
+		if !subset {
+			return fmt.Errorf("Vault token doesn't allow access to the following policies: %s",
+				strings.Join(offending, ", "))
 		}
 	}
 

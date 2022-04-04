@@ -171,6 +171,14 @@ func SliceStringToSet(s []string) map[string]struct{} {
 	return m
 }
 
+func SetToSliceString(set map[string]struct{}) []string {
+	flattened := make([]string, 0, len(set))
+	for x := range set {
+		flattened = append(flattened, x)
+	}
+	return flattened
+}
+
 // SliceStringIsSubset returns whether the smaller set of strings is a subset of
 // the larger. If the smaller slice is not a subset, the offending elements are
 // returned.
