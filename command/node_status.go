@@ -180,6 +180,18 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			return 1
 		}
 
+		// If output format is specified, format and output the node data list
+		if c.json || len(c.tmpl) > 0 {
+			out, err := Format(c.json, c.tmpl, nodes)
+			if err != nil {
+				c.Ui.Error(err.Error())
+				return 1
+			}
+
+			c.Ui.Output(out)
+			return 0
+		}
+
 		// Return nothing if no nodes found
 		if len(nodes) == 0 {
 			return 0
@@ -200,18 +212,6 @@ func (c *NodeStatusCommand) Run(args []string) int {
 				out[i] = node.ID
 			}
 			c.Ui.Output(formatList(out))
-			return 0
-		}
-
-		// If output format is specified, format and output the node data list
-		if c.json || len(c.tmpl) > 0 {
-			out, err := Format(c.json, c.tmpl, nodes)
-			if err != nil {
-				c.Ui.Error(err.Error())
-				return 1
-			}
-
-			c.Ui.Output(out)
 			return 0
 		}
 
