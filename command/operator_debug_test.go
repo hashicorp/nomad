@@ -164,7 +164,7 @@ func TestDebug_ClientToServer(t *testing.T) {
 		},
 		{
 			name:            "client1 address - verify no SIGSEGV panic",
-			args:            []string{"-address", addrClient1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			args:            []string{"-address", addrClient1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-pprof-interval", "200ms", "-pprof-duration", "250ms"},
 			expectedCode:    0,
 			expectedOutputs: []string{"Created debug archive"},
 		},
