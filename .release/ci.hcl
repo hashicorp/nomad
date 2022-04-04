@@ -7,8 +7,8 @@ project "nomad" {
     notification_channel = "C01A3A54G0L"
   }
   github {
-    organization = "hashicorp"
-    repository = "nomad"
+    organization     = "hashicorp"
+    repository       = "nomad"
     release_branches = ["nomad-onboard-crt"]
   }
 }
@@ -22,8 +22,8 @@ event "build" {
   depends = ["merge"]
   action "build" {
     organization = "hashicorp"
-    repository = "nomad"
-    workflow = "build"
+    repository   = "nomad"
+    workflow     = "build"
   }
 }
 
@@ -31,9 +31,9 @@ event "upload-dev" {
   depends = ["build"]
   action "upload-dev" {
     organization = "hashicorp"
-    repository = "crt-workflows-common"
-    workflow = "upload-dev"
-    depends = ["build"]
+    repository   = "crt-workflows-common"
+    workflow     = "upload-dev"
+    depends      = ["build"]
   }
 
   notification {
@@ -45,9 +45,9 @@ event "security-scan-binaries" {
   depends = ["upload-dev"]
   action "security-scan-binaries" {
     organization = "hashicorp"
-    repository = "crt-workflows-common"
-    workflow = "security-scan-binaries"
-    config = "security-scan.hcl"
+    repository   = "crt-workflows-common"
+    workflow     = "security-scan-binaries"
+    config       = "security-scan.hcl"
   }
 
   notification {
@@ -59,8 +59,8 @@ event "notarize-darwin-amd64" {
   depends = ["security-scan-binaries"]
   action "notarize-darwin-amd64" {
     organization = "hashicorp"
-    repository = "crt-workflows-common"
-    workflow = "notarize-darwin-amd64"
+    repository   = "crt-workflows-common"
+    workflow     = "notarize-darwin-amd64"
   }
 
   notification {
@@ -72,8 +72,8 @@ event "notarize-darwin-arm64" {
   depends = ["notarize-darwin-amd64"]
   action "notarize-darwin-arm64" {
     organization = "hashicorp"
-    repository = "crt-workflows-common"
-    workflow = "notarize-darwin-arm64"
+    repository   = "crt-workflows-common"
+    workflow     = "notarize-darwin-arm64"
   }
 
   notification {
@@ -85,8 +85,8 @@ event "notarize-windows-386" {
   depends = ["notarize-darwin-arm64"]
   action "notarize-windows-386" {
     organization = "hashicorp"
-    repository = "crt-workflows-common"
-    workflow = "notarize-windows-386"
+    repository   = "crt-workflows-common"
+    workflow     = "notarize-windows-386"
   }
 
   notification {
@@ -98,8 +98,8 @@ event "notarize-windows-amd64" {
   depends = ["notarize-windows-386"]
   action "notarize-windows-amd64" {
     organization = "hashicorp"
-    repository = "crt-workflows-common"
-    workflow = "notarize-windows-amd64"
+    repository   = "crt-workflows-common"
+    workflow     = "notarize-windows-amd64"
   }
 
   notification {
@@ -111,8 +111,8 @@ event "sign" {
   depends = ["notarize-windows-amd64"]
   action "sign" {
     organization = "hashicorp"
-    repository = "crt-workflows-common"
-    workflow = "sign"
+    repository   = "crt-workflows-common"
+    workflow     = "sign"
   }
 
   notification {
@@ -124,8 +124,8 @@ event "sign-linux-rpms" {
   depends = ["sign"]
   action "sign-linux-rpms" {
     organization = "hashicorp"
-    repository = "crt-workflows-common"
-    workflow = "sign-linux-rpms"
+    repository   = "crt-workflows-common"
+    workflow     = "sign-linux-rpms"
   }
 
   notification {
@@ -137,8 +137,8 @@ event "verify" {
   depends = ["sign-linux-rpms"]
   action "verify" {
     organization = "hashicorp"
-    repository = "crt-workflows-common"
-    workflow = "verify"
+    repository   = "crt-workflows-common"
+    workflow     = "verify"
   }
 
   notification {
@@ -150,16 +150,16 @@ event "verify" {
 ## they should be added to the end of the file after the verify event stanza.
 
 event "trigger-staging" {
-// This event is dispatched by the bob trigger-promotion command
-// and is required - do not delete.
+  // This event is dispatched by the bob trigger-promotion command
+  // and is required - do not delete.
 }
 
 event "promote-staging" {
   depends = ["trigger-staging"]
   action "promote-staging" {
     organization = "hashicorp"
-    repository = "crt-workflows-common"
-    workflow = "promote-staging"
+    repository   = "crt-workflows-common"
+    workflow     = "promote-staging"
   }
 
   notification {
@@ -168,16 +168,16 @@ event "promote-staging" {
 }
 
 event "trigger-production" {
-// This event is dispatched by the bob trigger-promotion command
-// and is required - do not delete.
+  // This event is dispatched by the bob trigger-promotion command
+  // and is required - do not delete.
 }
 
 event "promote-production" {
   depends = ["trigger-production"]
   action "promote-production" {
     organization = "hashicorp"
-    repository = "crt-workflows-common"
-    workflow = "promote-production"
+    repository   = "crt-workflows-common"
+    workflow     = "promote-production"
   }
 
   notification {
@@ -189,8 +189,8 @@ event "promote-production-packaging" {
   depends = ["promote-production"]
   action "promote-production-packaging" {
     organization = "hashicorp"
-    repository = "crt-workflows-common"
-    workflow = "promote-production-packaging"
+    repository   = "crt-workflows-common"
+    workflow     = "promote-production-packaging"
   }
 
   notification {
