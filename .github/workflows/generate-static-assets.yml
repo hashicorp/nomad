@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - test-generate-static-assets
-  
-  workflow_dispatch: 
-
 env:
   GO_TAGS: "release"
 
