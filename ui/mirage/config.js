@@ -6,7 +6,7 @@ import { generateDiff } from './factories/job-version';
 import { generateTaskGroupFailures } from './factories/evaluation';
 import { copy } from 'ember-copy';
 import formatHost from 'nomad-ui/utils/format-host';
-import { MOCK_EVALUATION } from './utils';
+import { generateAcceptanceTestEvalMock } from './utils';
 
 export function findLeader(schema) {
   const agent = schema.agents.first();
@@ -263,8 +263,12 @@ export default function () {
   });
 
   this.get('/evaluations');
-  this.get('/evaluation/:id', function () {
-    return MOCK_EVALUATION;
+  this.get('/evaluation/:id', function ({ evaluations }, { params }) {
+    const evaluation = evaluations.find(params.id);
+    if (evaluation) {
+      return evaluation;
+    }
+    return generateAcceptanceTestEvalMock(params.id);
   });
 
   this.get('/deployment/allocations/:id', function (schema, { params }) {

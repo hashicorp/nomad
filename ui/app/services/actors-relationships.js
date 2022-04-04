@@ -96,6 +96,7 @@ export default class ActorRelationshipService extends Service {
   @action
   recalcCurves() {
     // retrigger the tracked getters by resetting dependent keys
+    /* eslint-disable-next-line */
     this.actors = this.actors;
   }
 }
