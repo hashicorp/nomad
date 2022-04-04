@@ -60,9 +60,3 @@ jobs:
           else \
             echo "no files were updated"
           fi
-    on-success:
-      runs-on: ubuntu-latest
-      needs: generate-metadata
-      if: ${{ github.event.workflow_run.conclusion == 'success' }}
-      steps:
-        - run: echo 'The triggering workflow passed'
