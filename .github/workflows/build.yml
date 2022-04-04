@@ -1,10 +1,11 @@
 name: build
 
 on:
-  workflow_run:
-    workflows: [Generate Static Assets]
-    types: [completed]
-    branches: [test-generate-static-assets]
+  workflow_call:
+    inputs:
+      build-trigger:
+        required: true
+        type: string
 env:
   PKG_NAME: "nomad"
   GO_TAGS: "ui"

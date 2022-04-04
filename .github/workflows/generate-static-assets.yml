@@ -60,3 +60,10 @@ jobs:
           else \
             echo "no files were updated"
           fi
+
+  trigger-build:
+    name: Trigger Build
+    needs: generate-metadata
+    uses: ./.github/workflows/build.yml
+    with:
+      build-trigger: ${{ needs.generate-metadata.outputs.add-metadata }}
