@@ -164,7 +164,7 @@ func TestDebug_ClientToServer(t *testing.T) {
 		},
 		{
 			name:            "client1 address - verify no SIGSEGV panic",
-			args:            []string{"-address", addrClient1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			args:            []string{"-address", addrClient1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-pprof-interval", "200ms", "-pprof-duration", "250ms"},
 			expectedCode:    0,
 			expectedOutputs: []string{"Created debug archive"},
 		},
@@ -211,12 +211,12 @@ func TestDebug_MultiRegion(t *testing.T) {
 		// Good
 		{
 			name:         "no region - all servers, all clients",
-			args:         []string{"-address", addrServer1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			args:         []string{"-address", addrServer1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
 			expectedCode: 0,
 		},
 		{
 			name:         "region1 - server1 address",
-			args:         []string{"-address", addrServer1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			args:         []string{"-address", addrServer1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region1 + "\n",
@@ -227,7 +227,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		},
 		{
 			name:         "region1 - client1 address",
-			args:         []string{"-address", addrClient1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			args:         []string{"-address", addrClient1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region1 + "\n",
@@ -238,7 +238,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		},
 		{
 			name:         "region2 - server2 address",
-			args:         []string{"-address", addrServer2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			args:         []string{"-address", addrServer2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region2 + "\n",
@@ -249,7 +249,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		},
 		{
 			name:         "region2 - client2 address",
-			args:         []string{"-address", addrClient2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			args:         []string{"-address", addrClient2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region2 + "\n",
@@ -262,7 +262,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		// Bad
 		{
 			name:          "invalid region - all servers, all clients",
-			args:          []string{"-address", addrServer1, "-region", "never", "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			args:          []string{"-address", addrServer1, "-region", "never", "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
 			expectedCode:  1,
 			expectedError: "500 (No path to region)",
 		},
@@ -348,6 +348,11 @@ func TestDebug_Failures(t *testing.T) {
 			expectedCode: 1,
 		},
 		{
+			name:         "Fails bad pprof interval",
+			args:         []string{"-pprof-interval", "bar"},
+			expectedCode: 1,
+		},
+		{
 			name:          "Fails bad address",
 			args:          []string{"-address", url + "bogus"},
 			expectedCode:  1,
@@ -379,9 +384,11 @@ func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
 	// Setup mock UI
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+	testDir := t.TempDir()
+	defer os.Remove(testDir)
 
 	// Debug on the leader and all client nodes
-	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-node-id", "all", "-output", os.TempDir()})
+	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-node-id", "all", "-output", testDir})
 	assert.Equal(t, 0, code)
 
 	// Bad plugin name should be escaped before it reaches the sandbox test
@@ -389,7 +396,6 @@ func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
 	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
 
 	path := cmd.collectDir
-	defer os.Remove(path)
 
 	var pluginFiles []string
 	for _, pluginName := range cases {
@@ -436,7 +442,7 @@ func TestDebug_CapturedFiles(t *testing.T) {
 		"goroutine-debug2.txt",
 		"goroutine.prof",
 		"heap.prof",
-		"profile.prof",
+		"profile_0000.prof",
 		"threadcreate.prof",
 		"trace.prof",
 	}
@@ -470,6 +476,8 @@ func TestDebug_CapturedFiles(t *testing.T) {
 
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+	testDir := t.TempDir()
+	defer os.Remove(testDir)
 
 	duration := 2 * time.Second
 	interval := 750 * time.Millisecond
@@ -477,17 +485,14 @@ func TestDebug_CapturedFiles(t *testing.T) {
 
 	code := cmd.Run([]string{
 		"-address", url,
-		"-output", os.TempDir(),
+		"-output", testDir,
 		"-server-id", serverName,
 		"-node-id", clientID,
 		"-duration", duration.String(),
 		"-interval", interval.String(),
-		"-pprof-duration", "0",
+		"-pprof-duration", "1s",
+		"-pprof-interval", "250ms",
 	})
-
-	// Get capture directory
-	path := cmd.collectDir
-	defer os.Remove(path)
 
 	// There should be no errors
 	require.Empty(t, ui.ErrorWriter.String())
@@ -529,11 +534,12 @@ func TestDebug_ExistingOutput(t *testing.T) {
 	// Fails existing output
 	format := "2006-01-02-150405Z"
 	stamped := "nomad-debug-" + time.Now().UTC().Format(format)
-	path := filepath.Join(os.TempDir(), stamped)
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, stamped)
 	os.MkdirAll(path, 0755)
-	defer os.Remove(path)
+	defer os.Remove(tempDir)
 
-	code := cmd.Run([]string{"-output", os.TempDir(), "-duration", "50ms", "-interval", "50ms"})
+	code := cmd.Run([]string{"-output", tempDir, "-duration", "50ms", "-interval", "50ms"})
 	require.Equal(t, 2, code)
 }
 
@@ -636,12 +642,12 @@ func TestDebug_WriteBytes_Nil(t *testing.T) {
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
-	testDir = os.TempDir()
+	testDir = t.TempDir()
+	defer os.Remove(testDir)
 	cmd.collectDir = testDir
 
 	testFile = "test_nil.json"
 	testPath = filepath.Join(testDir, testFile)
-	defer os.Remove(testPath)
 
 	// Write nil file at top level of collect directory
 	err := cmd.writeBytes("", testFile, testBytes)
@@ -655,7 +661,7 @@ func TestDebug_WriteBytes_PathEscapesSandbox(t *testing.T) {
 	var testDir, testFile string
 	var testBytes []byte
 
-	testDir = os.TempDir()
+	testDir = t.TempDir()
 	defer os.Remove(testDir)
 
 	testFile = "testing.json"
@@ -713,7 +719,7 @@ func TestDebug_CollectConsul(t *testing.T) {
 	c.consul = ce
 
 	// Setup capture directory
-	testDir := os.TempDir()
+	testDir := t.TempDir()
 	defer os.Remove(testDir)
 	c.collectDir = testDir
 
@@ -756,7 +762,7 @@ func TestDebug_CollectVault(t *testing.T) {
 	c.vault = ve
 
 	// Set capture directory
-	testDir := os.TempDir()
+	testDir := t.TempDir()
 	defer os.Remove(testDir)
 	c.collectDir = testDir
 
