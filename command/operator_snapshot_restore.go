@@ -46,7 +46,7 @@ func (c *OperatorSnapshotRestoreCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *OperatorSnapshotRestoreCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return complete.PredictFiles("*.snap")
 }
 
 func (c *OperatorSnapshotRestoreCommand) Synopsis() string {
