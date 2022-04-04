@@ -911,7 +911,6 @@ func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
 	for {
 		select {
 		case <-duration:
-			c.cancel()
 			return
 
 		case <-ticker.C:
