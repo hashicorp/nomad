@@ -1,6 +1,6 @@
 name: build
 
-on: 
+on:
   push:
     # Sequence of patterns matched against refs/heads
     branches:
@@ -8,11 +8,11 @@ on:
       # - main
       # Push events to branches matching refs/heads/release/**
       # - 'release/**'
-      - 'crt/1.1.x'
+      - "crt/1.1.x"
 
 env:
   PKG_NAME: "nomad"
-  GO_TAGS: "ui"
+  GO_TAGS: "release"
 
 jobs:
   get-go-version:
@@ -45,7 +45,7 @@ jobs:
     outputs:
       filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
     steps:
-      - name: 'Checkout directory'
+      - name: "Checkout directory"
         uses: actions/checkout@v2
       - name: Generate metadata file
         id: generate-metadata-file
@@ -65,21 +65,21 @@ jobs:
       ldflags: ${{ steps.generate-ld-flags.outputs.ldflags }}
     steps:
       - uses: actions/checkout@v2
-      - name: 'Generate ld flags'
+      - name: "Generate ld flags"
         id: generate-ld-flags
         run: |
           project="$(go list -m)"
           sha="$(git rev-parse --short HEAD)"
           echo "::set-output name=ldflags::"-s -w -X \'$project/version.Name=${{ env.PKG_NAME }}\' \
           -X \'$project/version.GitDescribe=v$(make version base=1)\'""
-  
+
   build-other:
-    needs: [ get-go-version, get-product-version, generate-ld-flags ]
+    needs: [get-go-version, get-product-version, generate-ld-flags]
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [ windows ]
-        goarch: [ "386", "amd64" ]
+        goos: [windows]
+        goarch: ["386", "amd64"]
       fail-fast: true
 
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
@@ -90,23 +90,23 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
- 
+
       - name: Build dependencies
         run: make deps
-      
+
       - name: Setup node and yarn
         uses: actions/setup-node@v2
         with:
-          node-version: '14'
-          cache-dependency-path: 'ui/yarn.lock'
-      
+          node-version: "14"
+          cache-dependency-path: "ui/yarn.lock"
+
       - name: Install Yarn
         run: |
           npm install -g yarn
 
       - name: Build prerelease
         run: make prerelease
-      
+
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
@@ -121,16 +121,16 @@ jobs:
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-        
+
   build-linux:
-    needs: [ get-go-version, get-product-version, generate-ld-flags ]
+    needs: [get-go-version, get-product-version, generate-ld-flags]
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [ linux ]
-        goarch: [ "arm", "arm64", "386", "amd64" ]
+        goos: [linux]
+        goarch: ["arm", "arm64", "386", "amd64"]
       fail-fast: true
-    
+
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
     steps:
@@ -139,23 +139,23 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
-     
+
       - name: Build dependencies
         run: make deps
-      
+
       - name: Setup node and yarn
         uses: actions/setup-node@v2
         with:
-          node-version: '14'
-          cache-dependency-path: 'ui/yarn.lock'
-      
+          node-version: "14"
+          cache-dependency-path: "ui/yarn.lock"
+
       - name: Install Yarn
         run: |
           npm install -g yarn
-      
+
       - name: Build prerelease
         run: make prerelease
-      
+
       - name: Install Linux build utilties
         run: |
           sudo apt-get update
@@ -195,7 +195,7 @@ jobs:
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-    
+
       - name: Package
         if: ${{ matrix.goos == 'linux' }}
         uses: hashicorp/actions-packaging-linux@v1
@@ -233,12 +233,12 @@ jobs:
           path: out/${{ env.DEB_PACKAGE }}
 
   build-darwin:
-    needs: [ get-go-version, get-product-version, generate-ld-flags ]
+    needs: [get-go-version, get-product-version, generate-ld-flags]
     runs-on: macos-latest
     strategy:
       matrix:
-        goos: [ darwin ]
-        goarch: [ "arm64", "amd64" ]
+        goos: [darwin]
+        goarch: ["arm64", "amd64"]
       fail-fast: true
 
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
@@ -253,20 +253,20 @@ jobs:
 
       - name: Build dependencies
         run: make deps
-      
+
       - name: Setup node and yarn
         uses: actions/setup-node@v2
         with:
-          node-version: '14'
-          cache-dependency-path: 'ui/yarn.lock'
-      
+          node-version: "14"
+          cache-dependency-path: "ui/yarn.lock"
+
       - name: Install Yarn
         run: |
           npm install -g yarn
-           
+
       - name: Build prerelease
         run: make prerelease
-      
+
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
@@ -282,8 +282,8 @@ jobs:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
 
-  # This placed here for when the Nomad team is ready to build docker images. 
-  # Please reach out the RDX team for assistance or refer to the CRT Self-Serve Onboarding doc. 
+  # This placed here for when the Nomad team is ready to build docker images.
+  # Please reach out the RDX team for assistance or refer to the CRT Self-Serve Onboarding doc.
 
   # build-docker-default:
   #   name: Docker ${{ matrix.arch }} default release build
@@ -304,14 +304,14 @@ jobs:
   #       uses: hashicorp/actions-docker-build@v1
   #       with:
   #         # Add smoke test here. Below is a sample smoke test that runs the built image
-  #         # and validates the version. 
+  #         # and validates the version.
   #         smoke_test: |
   #           TEST_VERSION="$(docker run "${IMAGE_NAME}" | awk '/CLI version/{print $3}')"
   #           if [ "${TEST_VERSION}" != "${version}" ]; then
   #             echo "Test FAILED"
   #             exit 1
   #           fi
-  #           echo "Test PASSED"               
+  #           echo "Test PASSED"
   #         version: ${{env.version}}
   #         target: release-default
   #         arch: ${{matrix.arch}}

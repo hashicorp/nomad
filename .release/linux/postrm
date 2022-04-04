@@ -1,7 +1,6 @@
 #!/bin/bash
 
-if [ "$1" = "purge" ]
-then
+if [ "$1" = "purge" ]; then
   userdel nomad
 fi
 
