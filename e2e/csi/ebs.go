@@ -76,8 +76,16 @@ func (tc *CSIControllerPluginEBSTest) BeforeAll(f *framework.F) {
 	tc.volumeIDs = append(tc.volumeIDs, volID)
 }
 
-// AfterAll cleans up the volumes and plugin jobs created by the test.
-func (tc *CSIControllerPluginEBSTest) AfterAll(f *framework.F) {
+func (tc *CSIControllerPluginEBSTest) AfterEach(f *framework.F) {
+
+	// Ensure nodes are all restored
+	for _, id := range tc.nodeIDs {
+		_, err := e2eutil.Command("nomad", "node", "drain", "-disable", "-yes", id)
+		f.Assert().NoError(err)
+		_, err = e2eutil.Command("nomad", "node", "eligibility", "-enable", id)
+		f.Assert().NoError(err)
+	}
+	tc.nodeIDs = []string{}
 
 	// Stop all jobs in test
 	for _, id := range tc.testJobIDs {
@@ -85,6 +93,14 @@ func (tc *CSIControllerPluginEBSTest) AfterAll(f *framework.F) {
 		f.Assert().NoError(err)
 	}
 	tc.testJobIDs = []string{}
+
+	// Garbage collect
+	out, err := e2eutil.Command("nomad", "system", "gc")
+	f.Assert().NoError(err, out)
+}
+
+// AfterAll cleans up the volumes and plugin jobs created by the test.
+func (tc *CSIControllerPluginEBSTest) AfterAll(f *framework.F) {
 
 	for _, volID := range tc.volumeIDs {
 		err := waitForVolumeClaimRelease(volID, reapWait)
@@ -101,14 +117,6 @@ func (tc *CSIControllerPluginEBSTest) AfterAll(f *framework.F) {
 		f.Assert().NoError(err)
 	}
 	tc.pluginJobIDs = []string{}
-
-	for _, id := range tc.nodeIDs {
-		_, err := e2eutil.Command("nomad", "node", "drain", "-disable", "-yes", id)
-		f.Assert().NoError(err)
-		_, err = e2eutil.Command("nomad", "node", "eligibility", "-enable", id)
-		f.Assert().NoError(err)
-	}
-	tc.nodeIDs = []string{}
 
 	// Garbage collect
 	out, err := e2eutil.Command("nomad", "system", "gc")
@@ -208,7 +216,7 @@ func (tc *CSIControllerPluginEBSTest) TestNodeDrain(f *framework.F) {
 	expectedHealthyNodePlugins := len(pluginAllocs)
 
 	// deploy a job that writes to the volume
-	writeJobID := "write-ebs-" + tc.uuid
+	writeJobID := "write-ebs-for-drain" + tc.uuid
 	f.NoError(e2eutil.Register(writeJobID, "csi/input/use-ebs-volume.nomad"))
 	f.NoError(
 		e2eutil.WaitForAllocStatusExpected(writeJobID, ns, []string{"running"}),
