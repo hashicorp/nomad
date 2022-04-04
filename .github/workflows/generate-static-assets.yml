@@ -4,8 +4,11 @@ on:
   push:
     branches:
       - test-generate-static-assets
+  
+  workflow_dispatch: 
+
 env:
-  GO_TAGS: "ui codegen_generated release"
+  GO_TAGS: "release"
 
 jobs:
   get-go-version:
