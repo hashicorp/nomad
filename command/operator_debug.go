@@ -961,7 +961,7 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 			return // only exit on 403
 		}
 	} else {
-		filename := fmt.Sprintf("profile_%d.prof", interval)
+		filename := fmt.Sprintf("profile_%04d.prof", interval)
 		err := c.writeBytes(path, filename, bs)
 		if err != nil {
 			c.Ui.Error(err.Error())
