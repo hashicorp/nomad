@@ -8933,6 +8933,10 @@ type Vault struct {
 	// ChangeSignal is the signal sent to the task when a new token is
 	// retrieved. This is only valid when using the signal change mode.
 	ChangeSignal string
+
+	// EntityAlias is passed to Vault when creating a token to associate that
+	// token with an entity.
+	EntityAlias string
 }
 
 func DefaultVaultBlock() *Vault {

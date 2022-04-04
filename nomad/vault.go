@@ -118,6 +118,9 @@ type VaultClient interface {
 	// LookupToken takes a token string and returns its capabilities.
 	LookupToken(ctx context.Context, token string) (*vapi.Secret, error)
 
+	// LookupTokenRole takes a role name string and returns its data.
+	LookupTokenRole(ctx context.Context, role string) (*vapi.Secret, error)
+
 	// RevokeTokens takes a set of tokens accessor and revokes the tokens
 	RevokeTokens(ctx context.Context, accessors []*structs.VaultAccessor, committed bool) error
 
@@ -980,6 +983,16 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		DisplayName: fmt.Sprintf("%s-%s", a.ID, task),
 	}
 
+	// If the task defines an entity alias, the Nomad server must have a role
+	// to be able to derive a token.
+	role := v.getRole()
+	if taskVault.EntityAlias != "" {
+		if role == "" {
+			return nil, fmt.Errorf("task defines a Vault entity alias, but the Nomad server does not have a Vault role")
+		}
+		req.EntityAlias = taskVault.EntityAlias
+	}
+
 	// Ensure we are under our rate limit
 	if err := v.limiter.Wait(ctx); err != nil {
 		return nil, err
@@ -989,7 +1002,6 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 	// token or a role based token
 	var secret *vapi.Secret
 	var err error
-	role := v.getRole()
 
 	// Fetch client for task
 	taskClient, err := v.entHandler.clientForTask(v, namespaceForTask)
@@ -1062,6 +1074,43 @@ func (v *vaultClient) LookupToken(ctx context.Context, token string) (*vapi.Secr
 
 	// Lookup the token
 	return v.auth.Lookup(token)
+}
+
+// LookupTokenRole takes a Vault token role and does a lookup against Vault.
+// The call is rate limited and may be canceled with passed context.
+func (v *vaultClient) LookupTokenRole(ctx context.Context, role string) (*vapi.Secret, error) {
+	if !v.Enabled() {
+		return nil, fmt.Errorf("Vault integration disabled")
+	}
+
+	if !v.Active() {
+		return nil, fmt.Errorf("Vault client not active")
+	}
+
+	// Check if we have established a connection with Vault
+	if established, err := v.ConnectionEstablished(); !established && err == nil {
+		return nil, structs.NewRecoverableError(fmt.Errorf("Connection to Vault has not been established"), true)
+	} else if err != nil {
+		return nil, err
+	}
+
+	// Track how long the request takes
+	defer metrics.MeasureSince([]string{"nomad", "vault", "lookup_token_role"}, time.Now())
+
+	// Ensure we are under our rate limit
+	if err := v.limiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+
+	resp, err := v.client.Logical().Read(fmt.Sprintf("auth/token/roles/%s", role))
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup role: %v", err)
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("role %q does not exist", role)
+	}
+
+	return resp, nil
 }
 
 // RevokeTokens revokes the passed set of accessors. If committed is set, the

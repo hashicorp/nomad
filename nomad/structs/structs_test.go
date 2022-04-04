@@ -588,6 +588,7 @@ func TestJob_Vault(t *testing.T) {
 		Policies: []string{
 			"p5",
 		},
+		EntityAlias: "alias1",
 	}
 	j1 := &Job{
 		TaskGroups: []*TaskGroup{
@@ -5483,6 +5484,28 @@ func TestVault_Validate(t *testing.T) {
 	if !strings.Contains(err.Error(), "root") {
 		t.Fatalf("Expected root error")
 	}
+}
+
+func TestVault_Copy(t *testing.T) {
+	v := &Vault{
+		Policies:     []string{"policy1", "policy2"},
+		Namespace:    "ns1",
+		Env:          false,
+		ChangeMode:   "noop",
+		ChangeSignal: "SIGKILL",
+		EntityAlias:  "alias1",
+	}
+
+	// Copy and modify.
+	vc := v.Copy()
+	vc.Policies[0] = "policy0"
+	vc.Namespace = "ns2"
+	vc.Env = true
+	vc.ChangeMode = "signal"
+	vc.ChangeSignal = "SIGHUP"
+	vc.EntityAlias = "alias2"
+
+	require.NotEqual(t, v, vc)
 }
 
 func TestVault_Canonicalize(t *testing.T) {

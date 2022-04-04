@@ -484,6 +484,60 @@ func (j *Job) validateVault(job *structs.Job) error {
 		}
 	}
 
+	// Check entity aliases.
+	// In order to use entity aliases in a job, the following conditions must
+	// be met:
+	//   - the token used to submit the job and the Nomad server configuration
+	//     must have a role
+	//   - both roles must allow access to all entity aliases defined in the job
+	aliases := structs.VaultEntityAliasesSet(vaultBlocks)
+	if len(aliases) > 0 {
+		var tokenData structs.VaultTokenData
+		if err := structs.DecodeVaultSecretData(tokenSecret, &tokenData); err != nil {
+			return fmt.Errorf("failed to parse Vault token data: %v", err)
+		}
+
+		validateRole := func(role string) error {
+			s, err := vault.LookupTokenRole(context.Background(), role)
+			if err != nil {
+				return err
+			}
+
+			var data structs.VaultTokenRoleData
+			if err := structs.DecodeVaultSecretData(s, &data); err != nil {
+				return fmt.Errorf("failed to parse role data: %v", err)
+			}
+
+			invalidAliases := []string{}
+			for _, a := range aliases {
+				if !data.AllowsEntityAlias(a) {
+					invalidAliases = append(invalidAliases, a)
+				}
+			}
+			if len(invalidAliases) > 0 {
+				return fmt.Errorf("role doesn't allow access to the following entity aliases: %s",
+					strings.Join(invalidAliases, ", "))
+			}
+			return nil
+		}
+
+		// Check if user token allows requested entity aliases.
+		if tokenData.Role == "" {
+			return fmt.Errorf("jobs with Vault entity aliases require the Vault token to have a role")
+		}
+		if err := validateRole(tokenData.Role); err != nil {
+			return fmt.Errorf("failed to validate entity alias against Vault token: %v", err)
+		}
+
+		// Check if Nomad server role allows requested entity aliases.
+		if vconf.Role == "" {
+			return fmt.Errorf("jobs with Vault entity aliases require the Nomad server to have a Vault role")
+		}
+		if err := validateRole(vconf.Role); err != nil {
+			return fmt.Errorf("failed to validate entity alias against Nomad server configuration: %v", err)
+		}
+	}
+
 	return nil
 }
 

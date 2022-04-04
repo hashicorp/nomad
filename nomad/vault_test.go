@@ -82,6 +82,7 @@ func defaultTestVaultAllowlistRoleAndToken(v *testutil.TestVault, t *testing.T, 
 	d := make(map[string]interface{}, 2)
 	d["allowed_policies"] = "nomad-role-create,nomad-role-management"
 	d["period"] = rolePeriod
+	d["allowed_entity_aliases"] = []string{"valid-entity-alias"}
 	return testVaultRoleAndToken(v, t, vaultPolicies, d,
 		[]string{"nomad-role-create", "nomad-role-management"})
 }
@@ -1014,49 +1015,118 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 	waitForConnection(client, t)
 
 	client.setLimit(rate.Limit(1.0))
+	testRateLimit(t, 20, client, func(ctx context.Context) error {
+		// Lookup ourselves
+		_, err := client.LookupToken(ctx, v.Config.Token)
+		return err
+	})
+}
 
-	// Spin up many requests. These should block
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func TestVaultClient_LookupTokenRole(t *testing.T) {
+	//	ci.Parallel(t)
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
 
-	cancels := 0
-	numRequests := 20
-	unblock := make(chan struct{})
-	for i := 0; i < numRequests; i++ {
-		go func() {
-			// Lookup ourselves
-			_, err := client.LookupToken(ctx, v.Config.Token)
-			if err != nil {
-				if err == context.Canceled {
-					cancels += 1
-					return
-				}
-				t.Errorf("self lookup failed: %v", err)
-				return
+	logger := testlog.HCLogger(t)
+
+	// Create test role.
+	_, err := v.Client.Logical().Write("auth/token/roles/nomad", map[string]interface{}{
+		"name": "nomad",
+	})
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name     string
+		dontWait bool
+		config   *config.VaultConfig
+		run      func(*testing.T, *vaultClient)
+	}{
+		{
+			name: "read role",
+			run: func(t *testing.T, client *vaultClient) {
+				s, err := client.LookupTokenRole(context.Background(), "nomad")
+				require.NoError(t, err)
+				require.Equal(t, "nomad", s.Data["name"])
+			},
+		},
+		{
+			name:     "not enabled",
+			dontWait: true,
+			config: &config.VaultConfig{
+				Enabled: helper.BoolToPtr(false),
+			},
+			run: func(t *testing.T, client *vaultClient) {
+				client.SetActive(false)
+				_, err := client.LookupTokenRole(context.Background(), "nomad")
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "disabled")
+			},
+		},
+		{
+			name: "not active",
+			run: func(t *testing.T, client *vaultClient) {
+				client.SetActive(false)
+				_, err := client.LookupTokenRole(context.Background(), "nomad")
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "not active")
+			},
+		},
+		{
+			name:     "fail to establish connection",
+			dontWait: true,
+			config: &config.VaultConfig{
+				Addr:  "http://foobar:12345",
+				Token: uuid.Generate(),
+			},
+			run: func(t *testing.T, client *vaultClient) {
+				_, err := client.LookupTokenRole(context.Background(), "nomad")
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "Connection to Vault has not been established")
+			},
+		},
+		{
+			name: "read non-existing role",
+			run: func(t *testing.T, client *vaultClient) {
+				_, err := client.LookupTokenRole(context.Background(), "invalid")
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "does not exist")
+			},
+		},
+		{
+			name: "rate limit",
+			run: func(t *testing.T, client *vaultClient) {
+				client.setLimit(rate.Limit(1.0))
+
+				testRateLimit(t, 20, client, func(ctx context.Context) error {
+					// Lookup role
+					_, err := client.LookupTokenRole(ctx, "nomad")
+					return err
+				})
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			config := v.Config
+			if tc.config != nil {
+				config = config.Merge(tc.config)
 			}
 
-			// Cancel the context
-			close(unblock)
-		}()
+			client, err := NewVaultClient(config, logger, nil, nil)
+			require.NoError(t, err)
+			client.SetActive(true)
+			defer client.Stop()
+
+			if !tc.dontWait {
+				waitForConnection(client, t)
+			}
+
+			if tc.run != nil {
+				tc.run(t, client)
+			}
+		})
 	}
-
-	select {
-	case <-time.After(5 * time.Second):
-		t.Fatalf("timeout")
-	case <-unblock:
-		cancel()
-	}
-
-	desired := numRequests - 1
-	testutil.WaitForResult(func() (bool, error) {
-		if desired-cancels > 2 {
-			return false, fmt.Errorf("Incorrect number of cancels; got %d; want %d", cancels, desired)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatal(err)
-	})
 }
 
 func TestVaultClient_CreateToken_Root(t *testing.T) {
@@ -1441,6 +1511,77 @@ func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 	}
 }
 
+func TestVaultClient_CreateToken_EntityAlias(t *testing.T) {
+	ci.Parallel(t)
+
+	logger := testlog.HCLogger(t)
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	testCases := []struct {
+		name            string
+		entityAlias     string
+		noRole          bool
+		expectError     string
+		requireEntityID bool
+	}{
+		{
+			name:            "success",
+			entityAlias:     "valid-entity-alias",
+			requireEntityID: true,
+		},
+		{
+			name:        "invalid entity alias",
+			entityAlias: "not-valid-entity-alias",
+			expectError: "invalid 'entity_alias'",
+		},
+		{
+			name:            "token without role",
+			noRole:          true,
+			requireEntityID: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if !tc.noRole {
+				v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
+			}
+
+			client, err := NewVaultClient(v.Config, logger, nil, nil)
+			require.NoError(t, err)
+			client.SetActive(true)
+			defer client.Stop()
+
+			waitForConnection(client, t)
+
+			// Create test alloc and set vault block.
+			alloc := mock.Alloc()
+			task := alloc.Job.TaskGroups[0].Tasks[0]
+			task.Vault = &structs.Vault{
+				Policies:    []string{"default"},
+				EntityAlias: tc.entityAlias,
+			}
+
+			s, err := client.CreateToken(context.Background(), alloc, task.Name)
+
+			if tc.expectError != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectError)
+			} else {
+				require.NoError(t, err)
+
+				// Unwrap token from its cubbyhole.
+				unwrapToken, err := client.client.Logical().Unwrap(s.WrapInfo.Token)
+				require.NoError(t, err)
+				if tc.requireEntityID {
+					require.NotEmpty(t, unwrapToken.Auth.EntityID)
+				}
+			}
+		})
+	}
+}
+
 // TestVaultClient_RevokeTokens_Failures_TTL asserts that
 // the registered TTL doesn't get extended on retries
 func TestVaultClient_RevokeTokens_Failures_TTL(t *testing.T) {
@@ -1820,5 +1961,48 @@ func TestVaultClient_nextBackoff(t *testing.T) {
 		if !(60 <= b && b <= 120) {
 			t.Fatalf("Expected backoff within [%v, %v] but found %v", 60, 120, b)
 		}
+	})
+}
+
+func testRateLimit(t *testing.T, count int, client *vaultClient, fn func(context.Context) error) {
+	// Spin up many requests. These should block
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cancels := 0
+	unblock := make(chan struct{})
+	for i := 0; i < count; i++ {
+		go func() {
+			err := fn(ctx)
+			if err != nil {
+				if err == context.Canceled {
+					cancels += 1
+					return
+				}
+				t.Errorf("request failed: %v", err)
+				return
+			}
+
+			// Cancel the context
+			close(unblock)
+		}()
+	}
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timeout")
+	case <-unblock:
+		cancel()
+	}
+
+	desired := count - 1
+	testutil.WaitForResult(func() (bool, error) {
+		if desired-cancels > 2 {
+			return false, fmt.Errorf("Incorrect number of cancels; got %d; want %d", cancels, desired)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatal(err)
 	})
 }
