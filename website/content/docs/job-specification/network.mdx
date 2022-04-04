@@ -40,10 +40,13 @@ job "docs" {
 
 When the `network` stanza is defined with `bridge` as the networking mode,
 all tasks in the task group share the same network namespace. This is a prerequisite for
-[Consul Connect](/docs/integrations/consul-connect). Tasks running within a
-network namespace are not visible to applications outside the namespace on the same host.
-This allows [Connect][]-enabled applications to bind only to localhost within the shared network stack,
-and use the proxy for ingress and egress traffic.
+[Consul Connect](/docs/integrations/consul-connect). This allows [Connect][]-enabled
+applications to bind only to localhost within the shared network stack, and use the
+Connect proxy for ingress and egress traffic.
+
+-> **Note:** Tasks using bridge networking will be able to reach all other network
+namespaces created via bridge networking on the same host. Each network namespace
+on the host is bridged together via [bridge_network_name][bridge] in Client configuration.
 
 To use `bridge` mode, you must have the [reference CNI
 plugins](https://github.com/containernetworking/plugins/releases/tag/v1.0.0)
@@ -320,7 +323,10 @@ network {
 - Only one `network` stanza can be specified, when it is defined at the task group level.
 - Only the `NOMAD_PORT_<label>` and `NOMAD_HOST_PORT_<label>` environment
   variables are set for group network ports.
+- Using `bridge` networking does not imply complete network isolation between tasks
+  running on the same host.
 
+[bridge]: http://localhost:3000/docs/configuration/client#bridge_network_name
 [docker-driver]: /docs/drivers/docker 'Nomad Docker Driver'
 [qemu-driver]: /docs/drivers/qemu 'Nomad QEMU Driver'
 [connect]: /docs/job-specification/connect 'Nomad Consul Connect Integration'
