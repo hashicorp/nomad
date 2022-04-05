@@ -54,6 +54,8 @@ jobs:
           find . -name '*.generated.go' -not -path './vendor/*' -exec git add -f '{}' \;
           if ! git diff-index --quiet HEAD --;
           then
+            git config --global user.email "github-team-nomad-core@hashicorp.com"
+            git config --global user.name "hc-github-team-nomad-core"
             git commit --message "Generate files for $(NOMAD_VERSION) release"
             git push origin "$(git rev-parse --abbrev-ref HEAD)"
             echo "committing generated files"
