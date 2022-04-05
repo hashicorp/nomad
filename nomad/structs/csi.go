@@ -879,6 +879,7 @@ type CSIVolumeCreateResponse struct {
 
 type CSIVolumeDeleteRequest struct {
 	VolumeIDs []string
+	Secrets   CSISecrets
 	WriteRequest
 }
 

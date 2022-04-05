@@ -223,8 +223,10 @@ func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *h
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
+	secrets := parseCSISecrets(req)
 	args := structs.CSIVolumeDeleteRequest{
 		VolumeIDs: []string{id},
+		Secrets:   secrets,
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
@@ -329,10 +331,8 @@ func (s *HTTPServer) csiSnapshotList(resp http.ResponseWriter, req *http.Request
 
 	query := req.URL.Query()
 	args.PluginID = query.Get("plugin_id")
-
 	secrets := parseCSISecrets(req)
 	args.Secrets = secrets
-
 	var out structs.CSISnapshotListResponse
 	if err := s.agent.RPC("CSIVolume.ListSnapshots", &args, &out); err != nil {
 		return nil, err

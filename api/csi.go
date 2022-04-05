@@ -99,11 +99,25 @@ func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *Wri
 	return resp.Volumes, meta, err
 }
 
+// DEPRECATED: will be removed in Nomad 1.4.0
 // Delete deletes a CSI volume from an external storage provider. The ID
 // passed as an argument here is for the storage provider's ID, so a volume
 // that's already been deregistered can be deleted.
 func (v *CSIVolumes) Delete(externalVolID string, w *WriteOptions) error {
 	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(externalVolID)), nil, w)
+	return err
+}
+
+// DeleteOpts deletes a CSI volume from an external storage
+// provider. The ID passed in the request is for the storage
+// provider's ID, so a volume that's already been deregistered can be
+// deleted.
+func (v *CSIVolumes) DeleteOpts(req *CSIVolumeDeleteRequest, w *WriteOptions) error {
+	if w == nil {
+		w = &WriteOptions{}
+	}
+	w.SetHeadersFromCSISecrets(req.Secrets)
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(req.ExternalVolumeID)), nil, w)
 	return err
 }
 
@@ -419,6 +433,12 @@ type CSIVolumeRegisterRequest struct {
 
 type CSIVolumeDeregisterRequest struct {
 	VolumeIDs []string
+	WriteRequest
+}
+
+type CSIVolumeDeleteRequest struct {
+	ExternalVolumeID string
+	Secrets          CSISecrets
 	WriteRequest
 }
 
