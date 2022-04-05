@@ -85,7 +85,6 @@ module('Integration | Data Modeling | related evaluations', function (hooks) {
   });
 
   test('it should store related evaluations stubs as a hasMany in the store', async function (assert) {
-    assert.expect(2);
     const store = this.owner.lookup('service:store');
 
     server.get('/evaluation/:id', function () {
