@@ -137,10 +137,10 @@ not in the `disallowed_policies` list. There are trade-offs to both approaches
 but generally it is easier to use the denylist approach and add policies that
 you would not like tasks to have access to into the `disallowed_policies` list.
 
-To allows tasks to receive tokens that are associated with an entity, the role
-must have a list of `allowed_entity_aliases` that includes this entity aliases
-that are expected to be used. This field supports globbing to cover multiple
-aliases.
+For tasks to receive tokens associated with a Vault entity, the role must
+include a list of `allowed_entity_aliases` indicating the entity aliases
+allowed for use. This field supports globbing to cover multiple entity aliases,
+refer to the Vault documentation for more information.
 
 An example token role definition is given below:
 
