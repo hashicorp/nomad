@@ -102,6 +102,9 @@ type TaskTemplateManagerConfig struct {
 
 	// MaxTemplateEventRate is the maximum rate at which we should emit events.
 	MaxTemplateEventRate time.Duration
+
+	// NomadNamespace is the Nomad namespace for the task
+	NomadNamespace string
 }
 
 // Validate validates the configuration.
@@ -806,6 +809,11 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			}
 		}
 	}
+
+	// Set up Nomad
+	conf.Nomad.Namespace = &config.NomadNamespace
+	conf.Nomad.CustomDialer = cc.TemplateDialer
+	conf.Nomad.Token = &cc.Node.SecretID
 
 	conf.Finalize()
 	return conf, nil

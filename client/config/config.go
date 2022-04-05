@@ -17,6 +17,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/nomad/structs"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
@@ -285,6 +286,10 @@ type Config struct {
 	// NomadServiceDiscovery determines whether the Nomad native service
 	// discovery client functionality is enabled.
 	NomadServiceDiscovery bool
+
+	// TemplateDialer is our custom HTTP dialer for consul-template. This is
+	// used for template functions which require access to the Nomad API.
+	TemplateDialer *bufconndialer.BufConnWrapper
 }
 
 // ClientTemplateConfig is configuration on the client specific to template

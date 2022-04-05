@@ -113,6 +113,7 @@ func (tr *TaskRunner) initHooks() {
 			clientConfig:    tr.clientConfig,
 			envBuilder:      tr.envBuilder,
 			consulNamespace: consulNamespace,
+			nomadNamespace:  tr.alloc.Job.Namespace,
 		}))
 	}
 

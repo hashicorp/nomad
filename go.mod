@@ -43,7 +43,7 @@ require (
 	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.1-0.20200228141219-3ce3d519df39
 	github.com/hashicorp/consul v1.7.8
-	github.com/hashicorp/consul-template v0.28.0
+	github.com/hashicorp/consul-template v0.28.1-0.20220401205807-9005d749c0fe
 	github.com/hashicorp/consul/api v1.12.0
 	github.com/hashicorp/consul/sdk v0.8.0
 	github.com/hashicorp/cronexpr v1.1.1
@@ -75,7 +75,7 @@ require (
 	github.com/hashicorp/logutils v1.0.0
 	github.com/hashicorp/memberlist v0.3.1
 	github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
-	github.com/hashicorp/nomad/api v0.0.0-20200529203653-c4416b26d3eb
+	github.com/hashicorp/nomad/api v0.0.0-20220202221254-5a3278368db7
 	github.com/hashicorp/raft v1.3.5
 	github.com/hashicorp/raft-boltdb/v2 v2.2.0
 	github.com/hashicorp/serf v0.9.7

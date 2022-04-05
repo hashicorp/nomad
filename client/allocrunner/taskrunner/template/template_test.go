@@ -124,28 +124,32 @@ func (m *MockTaskHooks) SetState(state string, event *structs.TaskEvent) {}
 // testHarness is used to test the TaskTemplateManager by spinning up
 // Consul/Vault as needed
 type testHarness struct {
-	manager    *TaskTemplateManager
-	mockHooks  *MockTaskHooks
-	templates  []*structs.Template
-	envBuilder *taskenv.Builder
-	node       *structs.Node
-	config     *config.Config
-	vaultToken string
-	taskDir    string
-	vault      *testutil.TestVault
-	consul     *ctestutil.TestServer
-	emitRate   time.Duration
+	manager        *TaskTemplateManager
+	mockHooks      *MockTaskHooks
+	templates      []*structs.Template
+	envBuilder     *taskenv.Builder
+	node           *structs.Node
+	config         *config.Config
+	vaultToken     string
+	taskDir        string
+	vault          *testutil.TestVault
+	consul         *ctestutil.TestServer
+	emitRate       time.Duration
+	nomadNamespace string
 }
 
 // newTestHarness returns a harness starting a dev consul and vault server,
 // building the appropriate config and creating a TaskTemplateManager
 func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault bool) *testHarness {
 	region := "global"
+	mockNode := mock.Node()
+
 	harness := &testHarness{
 		mockHooks: NewMockTaskHooks(),
 		templates: templates,
-		node:      mock.Node(),
+		node:      mockNode,
 		config: &config.Config{
+			Node:   mockNode,
 			Region: region,
 			TemplateConfig: &config.ClientTemplateConfig{
 				FunctionDenylist: config.DefaultTemplateFunctionDenylist,
@@ -160,6 +164,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Name = TestTaskName
 	harness.envBuilder = taskenv.NewBuilder(harness.node, a, task, region)
+	harness.nomadNamespace = a.Namespace
 
 	// Make a tempdir
 	d, err := ioutil.TempDir("", "ct_test")
@@ -1486,6 +1491,7 @@ OUTER:
 func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 	ci.Parallel(t)
 	c := config.DefaultConfig()
+	c.Node = mock.Node()
 	c.VaultConfig = &sconfig.VaultConfig{
 		Enabled:       helper.BoolToPtr(true),
 		Addr:          "https://localhost/",
