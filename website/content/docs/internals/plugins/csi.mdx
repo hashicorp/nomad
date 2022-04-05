@@ -63,11 +63,11 @@ node drain` command handles this automatically by stopping plugin
 tasks last.
 
 Typically, you should run node plugins as Nomad `system` jobs so they
-can mount volumes on any client in a datacenter. Controller plugins
-can create and attach volumes anywhere they can communicate with the
-storage provider's API, so they can usually be run as `service`
-jobs. You should always run more than one controller plugin allocation
-for high availability.
+can mount volumes on any client where they are running. Controller
+plugins can create and attach volumes anywhere they can communicate
+with the storage provider's API, so they can usually be run as
+`service` jobs. You should always run more than one controller plugin
+allocation for high availability.
 
 Nomad exposes a Unix domain socket named `csi.sock` inside each CSI
 plugin task, and communicates over the gRPC protocol expected by the
