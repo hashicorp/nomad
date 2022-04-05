@@ -214,6 +214,26 @@ func TestNodeStatusCommand_Fails(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Both json and template formatting are not allowed") {
 		t.Fatalf("expected getting formatter error, got: %s", out)
 	}
+	ui.ErrorWriter.Reset()
+
+	// Fail if -quiet is passed with -verbose
+	if code := cmd.Run([]string{"-address=" + url, "-quiet", "-verbose"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
+	}
+
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "-quiet cannot be used with -verbose or -json") {
+		t.Fatalf("expected getting formatter error, got: %s", out)
+	}
+	ui.ErrorWriter.Reset()
+
+	// Fail if -quiet is passed with -json
+	if code := cmd.Run([]string{"-address=" + url, "-quiet", "-json"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
+	}
+
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "-quiet cannot be used with -verbose or -json") {
+		t.Fatalf("expected getting formatter error, got: %s", out)
+	}
 }
 
 func TestNodeStatusCommand_AutocompleteArgs(t *testing.T) {
