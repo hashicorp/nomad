@@ -7586,7 +7586,7 @@ func (x *AllocStatsResponse) codecDecodeSelfFromMap(l int, d *codec1978.Decoder)
 				}
 			} else {
 				if x.Stats == nil {
-					x.Stats = new(AllocResourceUsage)
+					x.Stats = new(AllocResourceUsages)
 				}
 
 				x.Stats.CodecDecodeSelf(d)
@@ -7651,7 +7651,7 @@ func (x *AllocStatsResponse) codecDecodeSelfFromArray(l int, d *codec1978.Decode
 		}
 	} else {
 		if x.Stats == nil {
-			x.Stats = new(AllocResourceUsage)
+			x.Stats = new(AllocResourceUsages)
 		}
 
 		x.Stats.CodecDecodeSelf(d)
@@ -9214,7 +9214,7 @@ func (x *TaskResourceUsage) codecDecodeSelfFromArray(l int, d *codec1978.Decoder
 	r.ReadArrayEnd()
 }
 
-func (x *AllocResourceUsage) CodecEncodeSelf(e *codec1978.Encoder) {
+func (x *AllocResourceUsages) CodecEncodeSelf(e *codec1978.Encoder) {
 	var h codecSelfer102
 	z, r := codec1978.GenHelperEncoder(e)
 	_, _, _ = h, z, r
@@ -9325,7 +9325,7 @@ func (x *AllocResourceUsage) CodecEncodeSelf(e *codec1978.Encoder) {
 	}
 }
 
-func (x *AllocResourceUsage) CodecDecodeSelf(d *codec1978.Decoder) {
+func (x *AllocResourceUsages) CodecDecodeSelf(d *codec1978.Decoder) {
 	var h codecSelfer102
 	z, r := codec1978.GenHelperDecoder(d)
 	_, _, _ = h, z, r
@@ -9354,7 +9354,7 @@ func (x *AllocResourceUsage) CodecDecodeSelf(d *codec1978.Decoder) {
 	}
 }
 
-func (x *AllocResourceUsage) codecDecodeSelfFromMap(l int, d *codec1978.Decoder) {
+func (x *AllocResourceUsages) codecDecodeSelfFromMap(l int, d *codec1978.Decoder) {
 	var h codecSelfer102
 	z, r := codec1978.GenHelperDecoder(d)
 	_, _, _ = h, z, r
@@ -9407,7 +9407,7 @@ func (x *AllocResourceUsage) codecDecodeSelfFromMap(l int, d *codec1978.Decoder)
 	r.ReadMapEnd()
 }
 
-func (x *AllocResourceUsage) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) {
+func (x *AllocResourceUsages) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) {
 	var h codecSelfer102
 	z, r := codec1978.GenHelperDecoder(d)
 	_, _, _ = h, z, r
