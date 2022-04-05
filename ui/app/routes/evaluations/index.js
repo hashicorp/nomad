@@ -57,8 +57,9 @@ export default class EvaluationsIndexRoute extends Route {
       namespace,
       per_page: pageSize,
       next_token: nextToken,
-      status,
-      triggeredBy,
+      // TODO: add support for status and triggeredBy filters
+      //status,
+      //triggeredBy,
       filter: generateFilter(),
     });
   }
