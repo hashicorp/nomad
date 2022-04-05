@@ -33,7 +33,6 @@ event "upload-dev" {
     organization = "hashicorp"
     repository   = "crt-workflows-common"
     workflow     = "upload-dev"
-    depends      = ["build"]
   }
 
   notification {
