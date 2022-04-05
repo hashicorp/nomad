@@ -17,6 +17,11 @@
   }
 }
 
+.sidebar-content {
+  position: relative;
+  display: flex;
+}
+
 .error-header {
   display: flex;
   justify-content: flex-end;
