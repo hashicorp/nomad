@@ -62,11 +62,9 @@ jobs:
           else
             echo "no files were updated"
           fi
-          echo "::set-output name=sha::$(git rev-parse HEAD)"
 
       - name: Invoke build workflow
         uses: benc-uk/workflow-dispatch@4c044c1613fabbe5250deadc65452d54c4ad4fc7
         with:
           workflow: build
           token: ${{ secrets.ELEVATED_GITHUB_TOKEN}}
-          ref: ${{ steps.commit-change-push.outputs.sha }}
