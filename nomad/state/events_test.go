@@ -976,7 +976,7 @@ func Test_eventsFromChanges_ServiceRegistration(t *testing.T) {
 
 	// Check the event, and it's payload are what we are expecting.
 	require.Len(t, receivedChange.Events, 1)
-	require.Equal(t, structs.TopicServiceRegistration, receivedChange.Events[0].Topic)
+	require.Equal(t, structs.TopicService, receivedChange.Events[0].Topic)
 	require.Equal(t, structs.TypeServiceRegistration, receivedChange.Events[0].Type)
 	require.Equal(t, uint64(10), receivedChange.Events[0].Index)
 
@@ -994,7 +994,7 @@ func Test_eventsFromChanges_ServiceRegistration(t *testing.T) {
 
 	// Check the event, and it's payload are what we are expecting.
 	require.Len(t, receivedDeleteChange.Events, 1)
-	require.Equal(t, structs.TopicServiceRegistration, receivedDeleteChange.Events[0].Topic)
+	require.Equal(t, structs.TopicService, receivedDeleteChange.Events[0].Topic)
 	require.Equal(t, structs.TypeServiceDeregistration, receivedDeleteChange.Events[0].Type)
 	require.Equal(t, uint64(20), receivedDeleteChange.Events[0].Index)
 

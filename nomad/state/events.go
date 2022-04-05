@@ -97,7 +97,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				return structs.Event{}, false
 			}
 			return structs.Event{
-				Topic: structs.TopicServiceRegistration,
+				Topic: structs.TopicService,
 				Key:   before.ID,
 				FilterKeys: []string{
 					before.JobID,
@@ -224,7 +224,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			return structs.Event{}, false
 		}
 		return structs.Event{
-			Topic: structs.TopicServiceRegistration,
+			Topic: structs.TopicService,
 			Key:   after.ID,
 			FilterKeys: []string{
 				after.JobID,
