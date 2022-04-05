@@ -9,7 +9,7 @@ project "nomad" {
   github {
     organization     = "hashicorp"
     repository       = "nomad"
-    release_branches = ["nomad-onboard-crt"]
+    release_branches = ["main"]
   }
 }
 
@@ -33,7 +33,6 @@ event "upload-dev" {
     organization = "hashicorp"
     repository   = "crt-workflows-common"
     workflow     = "upload-dev"
-    depends      = ["build"]
   }
 
   notification {

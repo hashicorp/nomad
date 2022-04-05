@@ -8,7 +8,7 @@ on:
       # - main
       # Push events to branches matching refs/heads/release/**
       # - 'release/**'
-      - "nomad-onboard-crt"
+      - "main"
 
 env:
   PKG_NAME: "nomad"
@@ -197,7 +197,6 @@ jobs:
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
 
       - name: Package
-        if: ${{ matrix.goos == 'linux' }}
         uses: hashicorp/actions-packaging-linux@v1
         with:
           name: ${{ env.PKG_NAME }}
@@ -215,19 +214,16 @@ jobs:
           postremove: ".release/linux/postrm"
 
       - name: Set Package Names
-        if: ${{ matrix.goos == 'linux' }}
         run: |
           echo "RPM_PACKAGE=$(basename out/*.rpm)" >> $GITHUB_ENV
           echo "DEB_PACKAGE=$(basename out/*.deb)" >> $GITHUB_ENV
 
       - uses: actions/upload-artifact@v2
-        if: ${{ matrix.goos == 'linux' }}
         with:
           name: ${{ env.RPM_PACKAGE }}
           path: out/${{ env.RPM_PACKAGE }}
 
       - uses: actions/upload-artifact@v2
-        if: ${{ matrix.goos == 'linux' }}
         with:
           name: ${{ env.DEB_PACKAGE }}
           path: out/${{ env.DEB_PACKAGE }}
