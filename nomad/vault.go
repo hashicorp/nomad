@@ -1427,8 +1427,8 @@ func (v *vaultClient) Stats() map[string]string {
 		"tracked_for_revoked": strconv.Itoa(stat.TrackedForRevoke),
 		"token_ttl":           stat.TokenTTL.Round(time.Second).String(),
 		"token_expire_time":   expireTimeStr,
-		"last_renewal_time":   lastRenewTimeStr,
-		"next_renewal_time":   nextRenewTimeStr,
+		"token_last_renewal_time":   lastRenewTimeStr,
+		"token_next_renewal_time":   nextRenewTimeStr,
 	}
 }
 
@@ -1476,8 +1476,8 @@ func (v *vaultClient) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 			stats := v.stats()
 			metrics.SetGauge([]string{"nomad", "vault", "distributed_tokens_revoking"}, float32(stats.TrackedForRevoke))
 			metrics.SetGauge([]string{"nomad", "vault", "token_ttl"}, float32(stats.TokenTTL/time.Millisecond))
-			metrics.SetGauge([]string{"nomad", "vault", "last_renewal"}, float32(stats.TimeFromLastRenewal/time.Millisecond))
-			metrics.SetGauge([]string{"nomad", "vault", "next_renewal"}, float32(stats.TimeToNextRenewal/time.Millisecond))
+			metrics.SetGauge([]string{"nomad", "vault", "token_last_renewal"}, float32(stats.TimeFromLastRenewal/time.Millisecond))
+			metrics.SetGauge([]string{"nomad", "vault", "token_next_renewal"}, float32(stats.TimeToNextRenewal/time.Millisecond))
 
 		case <-stopCh:
 			return
