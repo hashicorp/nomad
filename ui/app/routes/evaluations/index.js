@@ -32,7 +32,9 @@ export default class EvaluationsIndexRoute extends Route {
     nextToken,
     pageSize,
     searchTerm,
+    // eslint-disable-next-line no-unused-vars
     status,
+    // eslint-disable-next-line no-unused-vars
     triggeredBy,
     type,
     qpNamespace: namespace,
