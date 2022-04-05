@@ -549,6 +549,7 @@ type Node struct {
 	Links                 map[string]string
 	Meta                  map[string]string
 	NodeClass             string
+	CgroupParent          string
 	Drain                 bool
 	DrainStrategy         *DrainStrategy
 	SchedulingEligibility string
