@@ -1,14 +1,7 @@
 name: build
 
 on:
-  push:
-    # Sequence of patterns matched against refs/heads
-    branches:
-      # Push events on main branch
-      # - main
-      # Push events to branches matching refs/heads/release/**
-      # - 'release/**'
-      - "crt/1.0.x"
+  workflow_dispatch:
 
 env:
   PKG_NAME: "nomad"
