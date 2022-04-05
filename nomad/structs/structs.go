@@ -2192,8 +2192,13 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 
 	addr, _, _ := net.SplitHostPort(n.HTTPAddr)
 
+	// Fetch key attributes from the main Attributes map.
+	m := make(map[string]string)
+	m["os.name"] = n.Attributes["os.name"]
+
 	s := &NodeListStub{
 		Address:               addr,
+		Attributes:            m,
 		ID:                    n.ID,
 		Datacenter:            n.Datacenter,
 		Name:                  n.Name,
@@ -2225,6 +2230,7 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 type NodeListStub struct {
 	Address               string
 	ID                    string
+	Attributes            map[string]string
 	Datacenter            string
 	Name                  string
 	NodeClass             string
