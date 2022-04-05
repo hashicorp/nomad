@@ -197,7 +197,7 @@ type AllocStatsRequest struct {
 // AllocStatsResponse is used to return the resource usage of a given
 // allocation.
 type AllocStatsResponse struct {
-	Stats *AllocResourceUsage
+	Stats *AllocResourceUsages
 	structs.QueryMeta
 }
 
@@ -280,9 +280,9 @@ type TaskResourceUsage struct {
 	Pids          map[string]*ResourceUsage
 }
 
-// AllocResourceUsage holds the aggregated task resource usage of the
+// AllocResourceUsages holds the aggregated task resource usage of the
 // allocation.
-type AllocResourceUsage struct {
+type AllocResourceUsages struct {
 	// ResourceUsage is the summation of the task resources
 	ResourceUsage *ResourceUsage
 
