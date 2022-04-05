@@ -18,9 +18,9 @@ export default Factory.extend({
       return `${this.parentId}/${dispatchId}`;
     }
 
-    return `${faker.helpers.randomize(JOB_PREFIXES)}-${dasherize(
-      faker.hacker.noun()
-    )}-${i}`.toLowerCase();
+    return `${faker.helpers.randomize(JOB_PREFIXES)}-${faker.hacker
+      .noun()
+      .dasherize()}-${i}`.toLowerCase();
   },
 
   name() {
@@ -284,36 +284,6 @@ export default Factory.extend({
             activeDeployment: job.activeDeployment,
           });
         });
-    }
-
-    if (!job.shallow) {
-      const knownEvaluationProperties = {
-        job,
-        namespace: job.namespace,
-      };
-      server.createList(
-        'evaluation',
-        faker.random.number({ min: 1, max: 5 }),
-        knownEvaluationProperties
-      );
-      if (!job.noFailedPlacements) {
-        server.createList(
-          'evaluation',
-          faker.random.number(3),
-          'withPlacementFailures',
-          knownEvaluationProperties
-        );
-      }
-
-      if (job.failedPlacements) {
-        server.create(
-          'evaluation',
-          'withPlacementFailures',
-          assign(knownEvaluationProperties, {
-            modifyIndex: 4000,
-          })
-        );
-      }
     }
 
     if (job.periodic) {

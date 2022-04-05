@@ -263,19 +263,9 @@ export default function () {
   });
 
   this.get('/evaluations');
-  this.get(
-    '/evaluation/:id',
-    function ({ evaluations }, { params, queryParams }) {
-      const showRelated = queryParams.related;
-
-      if (showRelated) {
-        // we are dealing with a "related" request - return the mock
-        return generateAcceptanceTestEvalMock(params.id);
-      }
-
-      return evaluations.find(params.id);
-    }
-  );
+  this.get('/evaluation/:id', function ({ evaluations }, { params }) {
+    return evaluations.find(params.id);
+  });
 
   this.get('/deployment/allocations/:id', function (schema, { params }) {
     const job = schema.jobs.find(schema.deployments.find(params.id).jobId);
