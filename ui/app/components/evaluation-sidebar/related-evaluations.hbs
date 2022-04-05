@@ -11,7 +11,7 @@
         <Providers::ActorsRelationships as |actors|>
           <svg
             width={{@data.width}}
-            height={{@data.height}}
+            height="100%"
             style="z-index: 10; inset: 0; position: absolute; pointer-events: none"
             {{did-update actors.fns.recalcCurves @data.width}}
           >
