@@ -153,11 +153,11 @@ type VaultStats struct {
 	TokenExpiry time.Time
 
 	// LastRenewalTime is the time since the token was last renewed
-	LastRenewalTime time.Time
+	LastRenewalTime     time.Time
 	TimeFromLastRenewal time.Duration
 
 	// NextRenewalTime is the time the token will attempt to renew
-	NextRenewalTime time.Time
+	NextRenewalTime   time.Time
 	TimeToNextRenewal time.Duration
 }
 
@@ -240,9 +240,9 @@ type vaultClient struct {
 	// currentExpiration is the time the current token lease expires
 	currentExpiration     time.Time
 	currentExpirationLock sync.Mutex
-	lastRenewalTime time.Time
-	nextRenewalTime time.Time
-	nextRenewalTimeLock sync.Mutex
+	lastRenewalTime       time.Time
+	nextRenewalTime       time.Time
+	nextRenewalTimeLock   sync.Mutex
 
 	tomb   *tomb.Tomb
 	logger log.Logger
@@ -1422,13 +1422,12 @@ func (v *vaultClient) Stats() map[string]string {
 		nextRenewTimeStr = stat.NextRenewalTime.Format(time.RFC3339)
 	}
 
-
 	return map[string]string{
-		"tracked_for_revoked": strconv.Itoa(stat.TrackedForRevoke),
-		"token_ttl":           stat.TokenTTL.Round(time.Second).String(),
-		"token_expire_time":   expireTimeStr,
-		"token_last_renewal_time":   lastRenewTimeStr,
-		"token_next_renewal_time":   nextRenewTimeStr,
+		"tracked_for_revoked":     strconv.Itoa(stat.TrackedForRevoke),
+		"token_ttl":               stat.TokenTTL.Round(time.Second).String(),
+		"token_expire_time":       expireTimeStr,
+		"token_last_renewal_time": lastRenewTimeStr,
+		"token_next_renewal_time": nextRenewTimeStr,
 	}
 }
 
