@@ -1894,7 +1894,7 @@ func TestJobEndpoint_Register_Vault_EntityAlias(t *testing.T) {
 			name:          "token without access to any aliases",
 			token:         "not-allowed",
 			job:           jobApp1App2,
-			expectedError: "role doesn't allow access to the following entity aliases: app1, app2",
+			expectedError: "role doesn't allow access to the following entity aliases",
 		},
 		{
 			name:          "token without access to one of the aliases",
