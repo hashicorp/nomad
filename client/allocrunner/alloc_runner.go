@@ -1100,8 +1100,8 @@ func (ar *allocRunner) StatsReporter() interfaces.AllocStatsReporter {
 
 // LatestAllocStats returns the latest stats for an allocation. If taskFilter
 // is set, only stats for that task -- if it exists -- are returned.
-func (ar *allocRunner) LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsage, error) {
-	astat := &cstructs.AllocResourceUsage{
+func (ar *allocRunner) LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsages, error) {
+	astat := &cstructs.AllocResourceUsages{
 		Tasks: make(map[string]*cstructs.TaskResourceUsage, len(ar.tasks)),
 		ResourceUsage: &cstructs.ResourceUsage{
 			MemoryStats: &cstructs.MemoryStats{},

@@ -30,5 +30,5 @@ type TaskStateHandler interface {
 // AllocStatsReporter gives access to the latest resource usage from the
 // allocation
 type AllocStatsReporter interface {
-	LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsage, error)
+	LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsages, error)
 }
