@@ -17,7 +17,7 @@
           @label="Status"
           @options={{this.optionsEvaluationsStatus}}
           @selection={{this.status}}
-          @onSelect={{action this.setStatus}}
+          @onSelect={{action this.setQueryParam "status"}}
         />
         <SingleSelectDropdown
           data-test-evaluation-status-facet
