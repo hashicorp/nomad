@@ -3,7 +3,7 @@ name: Generate Static Assets
 on:
   push:
     branches:
-      - crt/1.1.x
+      - release/1.1.x
 env:
   GO_TAGS: "release"
 
@@ -55,7 +55,7 @@ jobs:
           then
             git config --global user.email "github-team-nomad-core@hashicorp.com"
             git config --global user.name "hc-github-team-nomad-core"
-            git commit --message "Generate files for $(NOMAD_VERSION) release"
+            git commit --message "Generate files for release"
             git push origin "$(git rev-parse --abbrev-ref HEAD)"
             echo "committing generated files"
           else
