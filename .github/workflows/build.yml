@@ -1,18 +1,14 @@
 name: build
 
 on:
-  workflow_call:
-    inputs:
-      build-trigger:
-        required: true
-        type: string
+  workflow_dispatch:
+
 env:
   PKG_NAME: "nomad"
   GO_TAGS: "ui"
 
 jobs:
   get-go-version:
-    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
       go-version: ${{ steps.get-go-version.outputs.go-version }}
@@ -26,7 +22,6 @@ jobs:
           echo "Building with Go $(cat .go-version)"
           echo "::set-output name=go-version::$(cat .go-version)"
   get-product-version:
-    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
@@ -38,7 +33,6 @@ jobs:
           make version
           echo "::set-output name=product-version::$(make version)"
   generate-metadata-file:
-    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     needs: get-product-version
     outputs:
@@ -58,7 +52,6 @@ jobs:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
   generate-ld-flags:
-    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     needs: get-product-version
     outputs:
@@ -74,7 +67,6 @@ jobs:
           -X \'$project/version.GitDescribe=v$(make version base=1)\'""
 
   build-other:
-    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     needs: [get-go-version, get-product-version, generate-ld-flags]
     strategy:
@@ -124,7 +116,6 @@ jobs:
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
 
   build-linux:
-    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     needs: [get-go-version, get-product-version, generate-ld-flags]
     strategy:
@@ -235,7 +226,6 @@ jobs:
           path: out/${{ env.DEB_PACKAGE }}
 
   build-darwin:
-    if: github.event.workflow_run.conclusion == 'success'
     runs-on: macos-latest
     needs: [get-go-version, get-product-version, generate-ld-flags]
     strategy:

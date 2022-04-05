@@ -61,9 +61,8 @@ jobs:
             echo "no files were updated"
           fi
 
-  trigger-build:
-    name: Trigger Build
-    needs: generate-metadata
-    uses: ./.github/workflows/build.yml
-    with:
-      build-trigger: ${{ needs.generate-metadata.outputs.add-metadata }}
+      - name: Invoke workflow without inputs
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: build
+          token: ${{ secrets.ELEVATED_GITHUB_TOKEN}}
