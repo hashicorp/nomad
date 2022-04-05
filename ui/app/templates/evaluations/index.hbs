@@ -27,6 +27,13 @@
           @selection={{this.triggeredBy}}
           @onSelect={{action this.setQueryParam "triggeredBy"}}
         />
+        <SingleSelectDropdown
+          data-test-evaluation-type-facet
+          @label="Type"
+          @options={{this.optionsType}}
+          @selection={{this.type}}
+          @onSelect={{action this.setQueryParam "type"}}
+        />
         --}}
         <SingleSelectDropdown
           data-test-evaluation-namespace-facet
@@ -34,13 +41,6 @@
           @options={{this.optionsNamespaces}}
           @selection={{this.qpNamespace}}
           @onSelect={{action this.setQueryParam "qpNamespace"}}
-        />
-        <SingleSelectDropdown
-          data-test-evaluation-type-facet
-          @label="Type"
-          @options={{this.optionsType}}
-          @selection={{this.type}}
-          @onSelect={{action this.setQueryParam "type"}}
         />
       </div>
     </div>
