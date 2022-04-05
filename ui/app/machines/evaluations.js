@@ -1,5 +1,6 @@
 import { assign, createMachine, send } from 'xstate';
 
+// Docs on using statecharts:  https://xstate.js.org/docs/packages/xstate-fsm/#api
 export default createMachine(
   {
     id: 'evaluations_ui',

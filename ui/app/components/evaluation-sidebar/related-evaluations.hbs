@@ -1,12 +1,9 @@
 <div class="boxed-section">
-  <div class="boxed-section-head" style="position: relative">
+  <div class="boxed-section-head">
     Related Evaluations
   </div>
   <div class="boxed-section-body related-evaluations" data-test-eval-container>
-    <div
-      style="display: flex; position: relative;"
-      {{on-resize @fns.handleResize}}
-    >
+    <div class="sidebar-content" {{on-resize @fns.handleResize}}>
       {{#if (and @data.width @data.height)}}
         <Providers::ActorsRelationships as |actors|>
           <svg
@@ -48,7 +45,7 @@
         />
       </div>
       {{#each @data.descendentsMap as |evals|}}
-        <div data-test-eval-descendents-container class="evaluation-actors">
+        <div class="evaluation-actors">
           {{#each evals as |eval|}}
             <EvaluationSidebar::EvaluationActor
               @eval={{eval.data}}

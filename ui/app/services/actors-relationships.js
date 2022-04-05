@@ -62,7 +62,7 @@ export default class ActorRelationshipService extends Service {
     const { actors } = this;
 
     return actors
-      .filter((e) => e.previousEval) // should we make this more generic
+      .filter((e) => e.previousEval)
       .map((e) => {
         const { previousEval: pid, id } = e;
 
@@ -71,7 +71,6 @@ export default class ActorRelationshipService extends Service {
 
         return [eRectangle, prevRectangle];
       });
-    // find previousEval if it exists calculate and add add a path
   }
 
   get relationships() {

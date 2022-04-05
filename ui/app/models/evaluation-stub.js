@@ -9,7 +9,7 @@ export default class EvaluationStub extends Model {
   @attr('string') namespace;
   @attr('string') jobId;
   @attr('string') nodeId;
-  @attr('string') deploymentId; // why doesnt evaluation have this?
+  @attr('string') deploymentId;
   @attr('string') status;
   @attr('string') statusDescription;
   @attr('date') waitUntil;

@@ -12,9 +12,7 @@ export default class EvaluationsController extends Controller {
   @service store;
   @service userSettings;
 
-  @tracked width = null;
-  @tracked height = null;
-
+  // We use statecharts here to manage complex user flows for the sidebar logic
   @use
   statechart = useMachine(evaluationsMachine).withConfig({
     services: {
