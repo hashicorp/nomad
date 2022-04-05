@@ -97,9 +97,6 @@ jobs:
         run: |
           npm install -g yarn
 
-      - name: Build prerelease
-        run: make prerelease
-
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
@@ -145,9 +142,6 @@ jobs:
       - name: Install Yarn
         run: |
           npm install -g yarn
-
-      - name: Build prerelease
-        run: make prerelease
 
       - name: Install Linux build utilties
         run: |
@@ -256,9 +250,6 @@ jobs:
       - name: Install Yarn
         run: |
           npm install -g yarn
-
-      - name: Build prerelease
-        run: make prerelease
 
       - name: Build
         env:

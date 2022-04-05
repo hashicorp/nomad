@@ -9,7 +9,7 @@ project "nomad" {
   github {
     organization = "hashicorp"
     repository = "nomad"
-    release_branches = ["crt/1.2.x"]
+    release_branches = ["test-generate-static-assets"]
   }
 }
 
