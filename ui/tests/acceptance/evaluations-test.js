@@ -474,7 +474,7 @@ module('Acceptance | evaluations list', function (hooks) {
       assert
         .dom('[data-test-rel-eval]')
         .exists(
-          { count: 11 },
+          { count: 12 },
           'all related evaluations and the current evaluation are displayed'
         );
 
