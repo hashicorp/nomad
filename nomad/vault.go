@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
-	"github.com/mitchellh/mapstructure"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
@@ -119,6 +118,9 @@ type VaultClient interface {
 	// LookupToken takes a token string and returns its capabilities.
 	LookupToken(ctx context.Context, token string) (*vapi.Secret, error)
 
+	// LookupTokenRole takes a role name string and returns its data.
+	LookupTokenRole(ctx context.Context, role string) (*vapi.Secret, error)
+
 	// RevokeTokens takes a set of tokens accessor and revokes the tokens
 	RevokeTokens(ctx context.Context, accessors []*structs.VaultAccessor, committed bool) error
 
@@ -158,18 +160,6 @@ type VaultStats struct {
 // will retry till there is a success
 type PurgeVaultAccessorFn func(accessors []*structs.VaultAccessor) error
 
-// tokenData holds the relevant information about the Vault token passed to the
-// client.
-type tokenData struct {
-	CreationTTL   int      `mapstructure:"creation_ttl"`
-	TTL           int      `mapstructure:"ttl"`
-	Renewable     bool     `mapstructure:"renewable"`
-	Policies      []string `mapstructure:"policies"`
-	Role          string   `mapstructure:"role"`
-	NamespacePath string   `mapstructure:"namespace_path"`
-	Root          bool
-}
-
 // vaultClient is the Servers implementation of the VaultClient interface. The
 // client renews the PeriodicToken given in the Vault configuration and provides
 // the Server with the ability to create child tokens and lookup the permissions
@@ -207,7 +197,7 @@ type vaultClient struct {
 	token string
 
 	// tokenData is the data of the passed Vault token
-	tokenData *tokenData
+	tokenData *structs.VaultTokenData
 
 	// revoking tracks the VaultAccessors that must be revoked
 	revoking map[*structs.VaultAccessor]time.Time
@@ -511,7 +501,7 @@ OUTER:
 	v.client.SetWrappingLookupFunc(v.getWrappingFn())
 
 	// If we are given a non-root token, start renewing it
-	if v.tokenData.Root && v.tokenData.CreationTTL == 0 {
+	if v.tokenData.Root() && v.tokenData.CreationTTL == 0 {
 		v.logger.Debug("not renewing token as it is root")
 	} else {
 		v.logger.Debug("starting renewal loop", "creation_ttl", time.Duration(v.tokenData.CreationTTL)*time.Second)
@@ -701,18 +691,10 @@ func (v *vaultClient) parseSelfToken() error {
 	}
 
 	// Read and parse the fields
-	var data tokenData
-	if err := mapstructure.WeakDecode(secret.Data, &data); err != nil {
+	var data structs.VaultTokenData
+	if err := structs.DecodeVaultSecretData(secret, &data); err != nil {
 		return fmt.Errorf("failed to parse Vault token's data block: %v", err)
 	}
-	root := false
-	for _, p := range data.Policies {
-		if p == "root" {
-			root = true
-			break
-		}
-	}
-	data.Root = root
 	v.tokenData = &data
 	v.extendExpiration(data.TTL)
 
@@ -729,11 +711,13 @@ func (v *vaultClient) parseSelfToken() error {
 	//     1) Must allow tokens to be renewed
 	//     2) Must not have an explicit max TTL
 	//     3) Must have non-zero period
-	// 5) If not configured against a role, the token must be root
+	//     4) Must allow entity alias if one is defined
+	// 5) Must have a role if an entity alias is defined
+	// 6) If not configured against a role, the token must be root
 
 	var mErr multierror.Error
 	role := v.getRole()
-	if !data.Root {
+	if !data.Root() {
 		// All non-root tokens must be renewable
 		if !data.Renewable {
 			_ = multierror.Append(&mErr, fmt.Errorf("Vault token is not renewable or root"))
@@ -765,7 +749,7 @@ func (v *vaultClient) parseSelfToken() error {
 	}
 
 	// Check we have the correct capabilities
-	if err := v.validateCapabilities(role, data.Root); err != nil {
+	if err := v.validateCapabilities(role, data.Root()); err != nil {
 		_ = multierror.Append(&mErr, err)
 	}
 
@@ -774,6 +758,9 @@ func (v *vaultClient) parseSelfToken() error {
 		if err := v.validateRole(role); err != nil {
 			_ = multierror.Append(&mErr, err)
 		}
+	} else if v.config.EntityAlias != "" {
+		// If entity alias is defined the server must also have a role.
+		_ = multierror.Append(&mErr, fmt.Errorf("Role must be set to create tokens using an entity alias"))
 	}
 
 	return mErr.ErrorOrNil()
@@ -904,15 +891,8 @@ func (v *vaultClient) validateRole(role string) error {
 	}
 
 	// Read and parse the fields
-	var data struct {
-		ExplicitMaxTtl      int `mapstructure:"explicit_max_ttl"`
-		TokenExplicitMaxTtl int `mapstructure:"token_explicit_max_ttl"`
-		Orphan              bool
-		Period              int
-		TokenPeriod         int `mapstructure:"token_period"`
-		Renewable           bool
-	}
-	if err := mapstructure.WeakDecode(rsecret.Data, &data); err != nil {
+	var data structs.VaultTokenRoleData
+	if err := structs.DecodeVaultSecretData(rsecret, &data); err != nil {
 		return fmt.Errorf("failed to parse Vault role's data block: %v", err)
 	}
 
@@ -928,6 +908,12 @@ func (v *vaultClient) validateRole(role string) error {
 
 	if data.Period == 0 && data.TokenPeriod == 0 {
 		_ = multierror.Append(&mErr, fmt.Errorf("Role must have a non-zero period to make tokens periodic."))
+	}
+
+	// If an entity alias is used, the role must be allowed to use it.
+	alias := v.config.EntityAlias
+	if alias != "" && !data.AllowsEntityAlias(alias) {
+		_ = multierror.Append(&mErr, fmt.Errorf("Role must allow entity alias %s to be used.", alias))
 	}
 
 	return mErr.ErrorOrNil()
@@ -974,17 +960,17 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 	defer metrics.MeasureSince([]string{"nomad", "vault", "create_token"}, time.Now())
 
 	// Retrieve the Vault block for the task
-	policies := a.Job.VaultPolicies()
-	if policies == nil {
-		return nil, fmt.Errorf("Job doesn't require Vault policies")
+	vaultBlocks := a.Job.Vault()
+	if vaultBlocks == nil {
+		return nil, fmt.Errorf("Job does not require Vault token")
 	}
-	tg, ok := policies[a.TaskGroup]
+	tg, ok := vaultBlocks[a.TaskGroup]
 	if !ok {
-		return nil, fmt.Errorf("Task group does not require Vault policies")
+		return nil, fmt.Errorf("Task group does not require Vault token")
 	}
 	taskVault, ok := tg[task]
 	if !ok {
-		return nil, fmt.Errorf("Task does not require Vault policies")
+		return nil, fmt.Errorf("Task does not require Vault token")
 	}
 
 	// Set namespace for task
@@ -1008,6 +994,21 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		DisplayName: fmt.Sprintf("%s-%s", a.ID, task),
 	}
 
+	// If the task defines an entity alias, the Nomad server must have a role
+	// to be able to derive a token.
+	role := v.getRole()
+	if taskVault.EntityAlias != "" {
+		if role == "" {
+			return nil, fmt.Errorf("task defines a Vault entity alias, but the Nomad server does not have a Vault role")
+		}
+		req.EntityAlias = taskVault.EntityAlias
+	} else if v.config.EntityAlias != "" {
+		if role == "" {
+			return nil, fmt.Errorf("Vault configuration defines an entity alias, but the Nomad server does not have a Vault role")
+		}
+		req.EntityAlias = v.config.EntityAlias
+	}
+
 	// Ensure we are under our rate limit
 	if err := v.limiter.Wait(ctx); err != nil {
 		return nil, err
@@ -1017,7 +1018,6 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 	// token or a role based token
 	var secret *vapi.Secret
 	var err error
-	role := v.getRole()
 
 	// Fetch client for task
 	taskClient, err := v.entHandler.clientForTask(v, namespaceForTask)
@@ -1025,12 +1025,12 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		return nil, err
 	}
 
-	if v.tokenData.Root && role == "" {
+	if v.tokenData.Root() && role == "" {
 		req.Period = v.childTTL
 		secret, err = taskClient.Auth().Token().Create(req)
 	} else {
 		// Make the token using the role
-		secret, err = taskClient.Auth().Token().CreateWithRole(req, v.getRole())
+		secret, err = taskClient.Auth().Token().CreateWithRole(req, role)
 	}
 
 	// Determine whether it is unrecoverable
@@ -1092,25 +1092,41 @@ func (v *vaultClient) LookupToken(ctx context.Context, token string) (*vapi.Secr
 	return v.auth.Lookup(token)
 }
 
-// PoliciesFrom parses the set of policies returned by a token lookup.
-func PoliciesFrom(s *vapi.Secret) ([]string, error) {
-	return s.TokenPolicies()
-}
-
-// PolicyDataFrom parses the Data returned by a token lookup.
-// It should not be used to parse TokenPolicies as the list will not be
-// exhaustive.
-func PolicyDataFrom(s *vapi.Secret) (tokenData, error) {
-	if s == nil {
-		return tokenData{}, fmt.Errorf("cannot parse nil Vault secret")
-	}
-	var data tokenData
-
-	if err := mapstructure.WeakDecode(s.Data, &data); err != nil {
-		return tokenData{}, fmt.Errorf("failed to parse Vault token's data block: %v", err)
+// LookupTokenRole takes a Vault token role and does a lookup against Vault.
+// The call is rate limited and may be canceled with passed context.
+func (v *vaultClient) LookupTokenRole(ctx context.Context, role string) (*vapi.Secret, error) {
+	if !v.Enabled() {
+		return nil, fmt.Errorf("Vault integration disabled")
 	}
 
-	return data, nil
+	if !v.Active() {
+		return nil, fmt.Errorf("Vault client not active")
+	}
+
+	// Check if we have established a connection with Vault
+	if established, err := v.ConnectionEstablished(); !established && err == nil {
+		return nil, structs.NewRecoverableError(fmt.Errorf("Connection to Vault has not been established"), true)
+	} else if err != nil {
+		return nil, err
+	}
+
+	// Track how long the request takes
+	defer metrics.MeasureSince([]string{"nomad", "vault", "lookup_token_role"}, time.Now())
+
+	// Ensure we are under our rate limit
+	if err := v.limiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+
+	resp, err := v.client.Logical().Read(fmt.Sprintf("auth/token/roles/%s", role))
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup role: %v", err)
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("role %q does not exist", role)
+	}
+
+	return resp, nil
 }
 
 // RevokeTokens revokes the passed set of accessors. If committed is set, the

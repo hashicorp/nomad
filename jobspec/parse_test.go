@@ -349,10 +349,11 @@ func TestParse(t *testing.T) {
 									},
 								},
 								Vault: &api.Vault{
-									Namespace:  stringToPtr("ns1"),
-									Policies:   []string{"foo", "bar"},
-									Env:        boolToPtr(true),
-									ChangeMode: stringToPtr(vaultChangeModeRestart),
+									Namespace:   stringToPtr("ns1"),
+									Policies:    []string{"foo", "bar"},
+									Env:         boolToPtr(true),
+									ChangeMode:  stringToPtr(vaultChangeModeRestart),
+									EntityAlias: stringToPtr("binstore-task"),
 								},
 								Templates: []*api.Template{
 									{

@@ -854,6 +854,7 @@ type Vault struct {
 	Policies     []string `hcl:"policies,optional"`
 	Namespace    *string  `mapstructure:"namespace" hcl:"namespace,optional"`
 	Env          *bool    `hcl:"env,optional"`
+	EntityAlias  *string  `mapstructure:"entity_alias" hcl:"entity_alias,optional"`
 	ChangeMode   *string  `mapstructure:"change_mode" hcl:"change_mode,optional"`
 	ChangeSignal *string  `mapstructure:"change_signal" hcl:"change_signal,optional"`
 }
@@ -864,6 +865,9 @@ func (v *Vault) Canonicalize() {
 	}
 	if v.Namespace == nil {
 		v.Namespace = stringToPtr("")
+	}
+	if v.EntityAlias == nil {
+		v.EntityAlias = stringToPtr("")
 	}
 	if v.ChangeMode == nil {
 		v.ChangeMode = stringToPtr("restart")

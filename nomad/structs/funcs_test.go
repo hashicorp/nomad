@@ -912,10 +912,158 @@ func TestMergeMultierrorWarnings(t *testing.T) {
 	require.Equal(t, "2 warning(s):\n\n* foo\n* bar", str)
 }
 
+func TestVaultPoliciesSet(t *testing.T) {
+	input := map[string]map[string]*Vault{
+		"tg1": {
+			"task1": {
+				Policies: []string{"policy1-1"},
+			},
+			"task2": {
+				Policies: []string{"policy1-2"},
+			},
+		},
+		"tg2": {
+			"task1": {
+				Policies: []string{"policy2"},
+			},
+			"task2": {
+				Policies: []string{"policy2"},
+			},
+		},
+		"tg3": {
+			"task1": {
+				Policies: []string{"policy3-1"},
+			},
+		},
+		"tg4": {
+			"task1": nil,
+		},
+		"tg5": {
+			"task1": {
+				Policies: []string{"policy2"},
+			},
+		},
+		"tg6": {
+			"task1": {},
+		},
+		"tg7": {
+			"task1": {
+				Policies: []string{"policy7", "policy7"},
+			},
+		},
+		"tg8": {
+			"task1": {
+				Policies: []string{"policy8-1-1", "policy8-1-2"},
+			},
+		},
+	}
+	expected := []string{
+		"policy1-1",
+		"policy1-2",
+		"policy2",
+		"policy3-1",
+		"policy7",
+		"policy8-1-1",
+		"policy8-1-2",
+	}
+	got := VaultPoliciesSet(input)
+	require.ElementsMatch(t, expected, got)
+}
+
+func TestVaultNamespaceSet(t *testing.T) {
+	input := map[string]map[string]*Vault{
+		"tg1": {
+			"task1": {
+				Namespace: "ns1-1",
+			},
+			"task2": {
+				Namespace: "ns1-2",
+			},
+		},
+		"tg2": {
+			"task1": {
+				Namespace: "ns2",
+			},
+			"task2": {
+				Namespace: "ns2",
+			},
+		},
+		"tg3": {
+			"task1": {
+				Namespace: "ns3-1",
+			},
+		},
+		"tg4": {
+			"task1": nil,
+		},
+		"tg5": {
+			"task1": {
+				Namespace: "ns2",
+			},
+		},
+		"tg6": {
+			"task1": {},
+		},
+	}
+	expected := []string{
+		"ns1-1",
+		"ns1-2",
+		"ns2",
+		"ns3-1",
+	}
+	got := VaultNamespaceSet(input)
+	require.ElementsMatch(t, expected, got)
+}
+
+func TestVaultEntityAliasesSet(t *testing.T) {
+	input := map[string]map[string]*Vault{
+		"tg1": {
+			"task1": {
+				EntityAlias: "alias1-1",
+			},
+			"task2": {
+				EntityAlias: "alias1-2",
+			},
+		},
+		"tg2": {
+			"task1": {
+				EntityAlias: "alias2",
+			},
+			"task2": {
+				EntityAlias: "alias2",
+			},
+		},
+		"tg3": {
+			"task1": {
+				EntityAlias: "alias3-1",
+			},
+		},
+		"tg4": {
+			"task1": nil,
+		},
+		"tg5": {
+			"task1": {
+				EntityAlias: "alias2",
+			},
+		},
+		"tg6": {
+			"task1": {},
+		},
+	}
+	expected := []string{
+		"alias1-1",
+		"alias1-2",
+		"alias2",
+		"alias3-1",
+	}
+	got := VaultEntityAliasesSet(input)
+	require.ElementsMatch(t, expected, got)
+}
+
 // TestParsePortRanges asserts ParsePortRanges errors on invalid port ranges.
 func TestParsePortRanges(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	cases := []struct {
 		name string
 		spec string

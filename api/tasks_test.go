@@ -494,6 +494,33 @@ func TestTask_Template_WaitConfig_Canonicalize_and_Copy(t *testing.T) {
 	}
 }
 
+func TestTask_Canonicalize_Vault(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    *Vault
+		expected *Vault
+	}{
+		{
+			name:  "empty",
+			input: &Vault{},
+			expected: &Vault{
+				Env:          boolToPtr(true),
+				Namespace:    stringToPtr(""),
+				EntityAlias:  stringToPtr(""),
+				ChangeMode:   stringToPtr("restart"),
+				ChangeSignal: stringToPtr("SIGHUP"),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.input.Canonicalize()
+			require.Equal(t, tc.expected, tc.input)
+		})
+	}
+}
+
 // Ensures no regression on https://github.com/hashicorp/nomad/issues/3132
 func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 	testutil.Parallel(t)

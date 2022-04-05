@@ -1,0 +1,3 @@
+```release-note:improvement
+vault: support Vault entity aliases when deriving tokens
+```

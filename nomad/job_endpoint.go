@@ -11,7 +11,6 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/golang/snappy"
-	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
@@ -70,6 +69,7 @@ func NewJobEndpoints(s *Server) *Job {
 		validators: []jobValidator{
 			jobConnectHook{},
 			jobExposeCheckHook{},
+			jobVaultHook{srv: s},
 			jobNamespaceConstraintCheckHook{srv: s},
 			jobValidate{},
 			&memoryOversubscriptionValidate{srv: s},
@@ -216,49 +216,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Ensure that all scaling policies have an appropriate ID
 	if err := propagateScalingPolicyIDs(existingJob, args.Job); err != nil {
 		return err
-	}
-
-	// Ensure that the job has permissions for the requested Vault tokens
-	policies := args.Job.VaultPolicies()
-	if len(policies) != 0 {
-		vconf := j.srv.config.VaultConfig
-		if !vconf.IsEnabled() {
-			return fmt.Errorf("Vault not enabled and Vault policies requested")
-		}
-
-		// Have to check if the user has permissions
-		if !vconf.AllowsUnauthenticated() {
-			if args.Job.VaultToken == "" {
-				return fmt.Errorf("Vault policies requested but missing Vault Token")
-			}
-
-			vault := j.srv.vault
-			s, err := vault.LookupToken(context.Background(), args.Job.VaultToken)
-			if err != nil {
-				return err
-			}
-
-			allowedPolicies, err := PoliciesFrom(s)
-			if err != nil {
-				return err
-			}
-
-			// Check Namespaces
-			namespaceErr := j.multiVaultNamespaceValidation(policies, s)
-			if namespaceErr != nil {
-				return namespaceErr
-			}
-
-			// If we are given a root token it can access all policies
-			if !lib.StrContains(allowedPolicies, "root") {
-				flatPolicies := structs.VaultPoliciesSet(policies)
-				subset, offending := helper.SliceStringIsSubset(allowedPolicies, flatPolicies)
-				if !subset {
-					return fmt.Errorf("Passed Vault Token doesn't allow access to the following policies: %s",
-						strings.Join(offending, ", "))
-				}
-			}
-		}
 	}
 
 	// helper function that checks if the Consul token supplied with the job has

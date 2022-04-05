@@ -4581,27 +4581,27 @@ func (j *Job) IsPlugin() bool {
 	return false
 }
 
-// VaultPolicies returns the set of Vault policies per task group, per task
-func (j *Job) VaultPolicies() map[string]map[string]*Vault {
-	policies := make(map[string]map[string]*Vault, len(j.TaskGroups))
+// Vault returns the set of Vault blocks per task group, per task
+func (j *Job) Vault() map[string]map[string]*Vault {
+	blocks := make(map[string]map[string]*Vault, len(j.TaskGroups))
 
 	for _, tg := range j.TaskGroups {
-		tgPolicies := make(map[string]*Vault, len(tg.Tasks))
+		tgBlocks := make(map[string]*Vault, len(tg.Tasks))
 
 		for _, task := range tg.Tasks {
 			if task.Vault == nil {
 				continue
 			}
 
-			tgPolicies[task.Name] = task.Vault
+			tgBlocks[task.Name] = task.Vault
 		}
 
-		if len(tgPolicies) != 0 {
-			policies[tg.Name] = tgPolicies
+		if len(tgBlocks) != 0 {
+			blocks[tg.Name] = tgBlocks
 		}
 	}
 
-	return policies
+	return blocks
 }
 
 // ConnectTasks returns the set of Consul Connect enabled tasks defined on the
@@ -8933,6 +8933,10 @@ type Vault struct {
 	// ChangeSignal is the signal sent to the task when a new token is
 	// retrieved. This is only valid when using the signal change mode.
 	ChangeSignal string
+
+	// EntityAlias is passed to Vault when creating a token to associate that
+	// token with an entity.
+	EntityAlias string
 }
 
 func DefaultVaultBlock() *Vault {
@@ -8956,6 +8960,10 @@ func (v *Vault) Copy() *Vault {
 func (v *Vault) Canonicalize() {
 	if v.ChangeSignal != "" {
 		v.ChangeSignal = strings.ToUpper(v.ChangeSignal)
+	}
+
+	if v.ChangeMode == "" {
+		v.ChangeMode = VaultChangeModeRestart
 	}
 }
 
