@@ -1,12 +1,82 @@
+import { getOwner } from '@ember/application';
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
+import { schedule } from '@ember/runloop';
 import { inject as service } from '@ember/service';
+import { useMachine } from 'ember-statecharts';
+import { use } from 'ember-usable';
+import evaluationsMachine from '../../machines/evaluations';
 
 export default class EvaluationsController extends Controller {
+  @service store;
   @service userSettings;
 
-  queryParams = ['nextToken', 'pageSize', 'status'];
+  // We use statecharts here to manage complex user flows for the sidebar logic
+  @use
+  statechart = useMachine(evaluationsMachine).withConfig({
+    services: {
+      loadEvaluation: this.loadEvaluation,
+    },
+    actions: {
+      updateEvaluationQueryParameter: this.updateEvaluationQueryParameter,
+      removeCurrentEvaluationQueryParameter:
+        this.removeCurrentEvaluationQueryParameter,
+    },
+    guards: {
+      sidebarIsOpen: this._sidebarIsOpen,
+    },
+  });
+
+  queryParams = ['nextToken', 'currentEval', 'pageSize', 'status'];
+  @tracked currentEval = null;
+
+  @action
+  _sidebarIsOpen() {
+    return !!this.currentEval;
+  }
+
+  @action
+  async loadEvaluation(context, { evaluation }) {
+    let evaluationId;
+    if (evaluation?.id) {
+      evaluationId = evaluation.id;
+    } else {
+      evaluationId = this.currentEval;
+    }
+
+    return this.store.findRecord('evaluation', evaluationId, {
+      reload: true,
+      adapterOptions: { related: true },
+    });
+  }
+
+  @action
+  async handleEvaluationClick(evaluation, e) {
+    if (
+      e instanceof MouseEvent ||
+      (e instanceof KeyboardEvent && (e.code === 'Enter' || e.code === 'Space'))
+    ) {
+      this.statechart.send('LOAD_EVALUATION', { evaluation });
+    }
+  }
+
+  @action
+  notifyEvalChange([evaluation]) {
+    schedule('actions', this, () => {
+      this.statechart.send('CHANGE_EVAL', { evaluation });
+    });
+  }
+
+  @action
+  updateEvaluationQueryParameter(context, { evaluation }) {
+    this.currentEval = evaluation.id;
+  }
+
+  @action
+  removeCurrentEvaluationQueryParameter() {
+    this.currentEval = null;
+  }
 
   get shouldDisableNext() {
     return !this.model.meta?.nextToken;
@@ -52,6 +122,12 @@ export default class EvaluationsController extends Controller {
 
   @action
   refresh() {
+    const isDefaultParams = this.nextToken === null && this.status === null;
+    if (isDefaultParams) {
+      getOwner(this).lookup('route:evaluations.index').refresh();
+      return;
+    }
+
     this._resetTokens();
     this.status = null;
     this.pageSize = this.userSettings.pageSize;
