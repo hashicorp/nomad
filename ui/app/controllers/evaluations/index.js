@@ -8,6 +8,8 @@ import { useMachine } from 'ember-statecharts';
 import { use } from 'ember-usable';
 import evaluationsMachine from '../../machines/evaluations';
 
+const ALL_NAMESPACE_WILDCARD = '*';
+
 export default class EvaluationsController extends Controller {
   @service store;
   @service userSettings;
@@ -28,7 +30,15 @@ export default class EvaluationsController extends Controller {
     },
   });
 
-  queryParams = ['nextToken', 'currentEval', 'pageSize', 'status'];
+  queryParams = [
+    'nextToken',
+    'currentEval',
+    'pageSize',
+    'status',
+    'qpNamespace',
+    'type',
+    'searchTerm',
+  ];
   @tracked currentEval = null;
 
   @action
@@ -97,10 +107,58 @@ export default class EvaluationsController extends Controller {
     ];
   }
 
+  get optionsTriggeredBy() {
+    return [
+      { key: null, label: 'All' },
+      { key: 'job-register', label: 'Job Register' },
+      { key: 'job-deregister', label: 'Job Deregister' },
+      { key: 'periodic-job', label: 'Periodic Job' },
+      { key: 'node-drain', label: 'Node Drain' },
+      { key: 'node-update', label: 'Node Update' },
+      { key: 'alloc-stop', label: 'Allocation Stop' },
+      { key: 'scheduled', label: 'Scheduled' },
+      { key: 'rolling-update', label: 'Rolling Update' },
+      { key: 'deployment-watcher', label: 'Deployment Watcher' },
+      { key: 'failed-follow-up', label: 'Failed Follow Up' },
+      { key: 'max-plan-attempts', label: 'Max Plan Attempts' },
+      { key: 'alloc-failure', label: 'Allocation Failure' },
+      { key: 'queued-allocs', label: 'Queued Allocations' },
+      { key: 'preemption', label: 'Preemption' },
+      { key: 'job-scaling', label: 'Job Scalling' },
+    ];
+  }
+
+  get optionsNamespaces() {
+    const namespaces = this.store.peekAll('namespace').map((namespace) => ({
+      key: namespace.name,
+      label: namespace.name,
+    }));
+
+    // Create default namespace selection
+    namespaces.unshift({
+      key: ALL_NAMESPACE_WILDCARD,
+      label: 'All (*)',
+    });
+
+    return namespaces;
+  }
+
+  get optionsType() {
+    return [
+      { key: null, label: 'All' },
+      { key: 'client', label: 'Client' },
+      { key: 'no client', label: 'No Client' },
+    ];
+  }
+
   @tracked pageSize = this.userSettings.pageSize;
   @tracked nextToken = null;
   @tracked previousTokens = [];
   @tracked status = null;
+  @tracked triggeredBy = null;
+  @tracked qpNamespace = ALL_NAMESPACE_WILDCARD;
+  @tracked type = null;
+  @tracked searchTerm = null;
 
   @action
   onChange(newPageSize) {
@@ -134,11 +192,18 @@ export default class EvaluationsController extends Controller {
   }
 
   @action
-  setStatus(selection) {
+  setQueryParam(qp, selection) {
     this._resetTokens();
-    this.status = selection;
+    this[qp] = selection;
   }
 
+  @action
+  toggle() {
+    this._resetTokens();
+    this.shouldOnlyDisplayClientEvals = !this.shouldOnlyDisplayClientEvals;
+  }
+
+  @action
   _resetTokens() {
     this.nextToken = null;
     this.previousTokens = [];
