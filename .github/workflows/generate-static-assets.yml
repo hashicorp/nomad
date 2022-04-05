@@ -3,7 +3,7 @@ name: Generate Static Assets
 on:
   push:
     branches:
-      - crt/1.2.x
+      - crt/1.0.x
 env:
   GO_TAGS: "release"
 
