@@ -24,10 +24,6 @@ import (
 var _ interfaces.RunnerPrerunHook = (*csiHook)(nil)
 var _ interfaces.RunnerPostrunHook = (*csiHook)(nil)
 
-// TODO https://github.com/hashicorp/nomad/issues/11786
-// we should implement Update as well
-// var _ interfaces.RunnerUpdateHook = (*csiHook)(nil)
-
 func TestCSIHook(t *testing.T) {
 	ci.Parallel(t)
 
