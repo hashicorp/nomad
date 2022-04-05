@@ -14,10 +14,9 @@ import (
 	// processes along side of a task. By early importing them we can avoid
 	// additional code being imported and thus reserving memory
 	_ "github.com/hashicorp/nomad/client/logmon"
+	"github.com/hashicorp/nomad/command"
 	_ "github.com/hashicorp/nomad/drivers/docker/docklog"
 	_ "github.com/hashicorp/nomad/drivers/shared/executor"
-
-	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
 	"github.com/sean-/seed"

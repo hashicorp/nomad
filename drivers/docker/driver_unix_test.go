@@ -787,6 +787,11 @@ func TestDocker_ExecTaskStreaming(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
+	// todo(shoenig) these fail maybe 50% of the time on GHA, and the test cases
+	//  are tricky to follow all the way through - maybe a decent candidate for
+	//  a generics re-write.
+	ci.SkipSlow(t, "flaky on GHA; #12358")
+
 	taskCfg := newTaskConfig("", []string{"/bin/sleep", "1000"})
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),

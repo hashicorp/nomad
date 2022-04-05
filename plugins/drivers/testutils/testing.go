@@ -43,7 +43,6 @@ func (h *DriverHarness) Impl() drivers.DriverPlugin {
 }
 func NewDriverHarness(t testing.T, d drivers.DriverPlugin) *DriverHarness {
 	logger := testlog.HCLogger(t).Named("driver_harness")
-
 	pd := drivers.NewDriverPlugin(d, logger)
 
 	client, server := plugin.TestPluginGRPCConn(t,
@@ -68,18 +67,26 @@ func NewDriverHarness(t testing.T, d drivers.DriverPlugin) *DriverHarness {
 	}
 }
 
-// setCgroup creates a v2 cgroup for the task, as if a Client were initialized
-// and managing the cgroup as it normally would.
+// setupCgroupV2 creates a v2 cgroup for the task, as if a Client were initialized
+// and managing the cgroup as it normally would via the cpuset manager.
 //
-// Uses testing.slice as a parent.
-func (h *DriverHarness) setCgroup(allocID, task string) {
+// Note that we are being lazy and trying to avoid importing cgutil because
+// currently plugins/drivers/testutils is platform agnostic-ish.
+//
+// Some drivers (raw_exec) setup their own cgroup, while others (exec, java, docker)
+// would otherwise depend on the Nomad cpuset manager (and docker daemon) to create
+// one, which isn't available here in testing, and so we create one via the harness.
+// Plumbing such metadata through to the harness is a mind bender, so we just always
+// create the cgroup, but at least put it under 'testing.slice'.
+//
+// tl;dr raw_exec tests should ignore this cgroup.
+func (h *DriverHarness) setupCgroupV2(allocID, task string) {
 	if cgutil.UseV2 {
 		h.cgroup = filepath.Join(cgutil.CgroupRoot, "testing.slice", cgutil.CgroupScope(allocID, task))
-		f, err := os.Create(h.cgroup)
-		if err != nil {
+		h.logger.Trace("create cgroup for test", "parent", "testing.slice", "id", allocID, "task", task, "path", h.cgroup)
+		if err := os.MkdirAll(h.cgroup, 0755); err != nil {
 			panic(err)
 		}
-		defer f.Close()
 	}
 }
 
@@ -89,11 +96,15 @@ func (h *DriverHarness) Kill() {
 	h.cleanupCgroup()
 }
 
+// cleanupCgroup might cleanup a cgroup that may or may not be tricked by DriverHarness.
 func (h *DriverHarness) cleanupCgroup() {
-	if cgutil.UseV2 {
-		err := os.Remove(h.cgroup)
-		if err != nil {
-			panic(err)
+	// some [non-exec] tests don't bother with MkAllocDir which is what would create
+	// the cgroup, but then do call Kill, so in that case skip the cgroup cleanup
+	if cgutil.UseV2 && h.cgroup != "" {
+		if err := os.Remove(h.cgroup); err != nil && !os.IsNotExist(err) {
+			// in some cases the driver will cleanup the cgroup itself, in which
+			// case we do not care about the cgroup not existing at cleanup time
+			h.t.Fatalf("failed to cleanup cgroup: %v", err)
 		}
 	}
 }
@@ -153,6 +164,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 	require.NoError(h.t, err)
 
 	fsi := caps.FSIsolation
+	h.logger.Trace("FS isolation", "fsi", fsi)
 	require.NoError(h.t, taskDir.Build(fsi == drivers.FSIsolationChroot, tinyChroot))
 
 	task := &structs.Task{
@@ -181,8 +193,8 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 		}
 	}
 
-	// set cgroup
-	h.setCgroup(alloc.ID, task.Name)
+	// setup a v2 cgroup for test cases that assume one exists
+	h.setupCgroupV2(alloc.ID, task.Name)
 
 	//logmon
 	if enableLogs {

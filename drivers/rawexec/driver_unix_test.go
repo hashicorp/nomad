@@ -17,11 +17,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	clienttestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/structs"
 	basePlug "github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
@@ -62,17 +60,18 @@ func TestRawExecDriver_User(t *testing.T) {
 
 func TestRawExecDriver_Signal(t *testing.T) {
 	ci.Parallel(t)
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux only test")
-	}
+	clienttestutil.RequireLinux(t)
+
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "signal",
+		AllocID: uuid.Generate(),
+		ID:      uuid.Generate(),
+		Name:    "signal",
+		Env:     defaultEnv(),
 	}
 
 	cleanup := harness.MkAllocDir(task, true)
@@ -206,24 +205,16 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 	ci.Parallel(t)
 	clienttestutil.RequireLinux(t)
-	clienttestutil.CgroupsCompatibleV1(t) // todo(shoenig): #12348
 
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "test",
-	}
-
-	if cgutil.UseV2 {
-		allocID := uuid.Generate()
-		task.AllocID = allocID
-		task.Resources = new(drivers.Resources)
-		task.Resources.NomadResources = new(structs.AllocatedTaskResources)
-		task.Resources.LinuxResources = new(drivers.LinuxResources)
-		task.Resources.LinuxResources.CpusetCgroupPath = filepath.Join(cgutil.CgroupRoot, "testing.slice", cgutil.CgroupScope(allocID, "test"))
+		AllocID: uuid.Generate(),
+		ID:      uuid.Generate(),
+		Name:    "test",
+		Env:     defaultEnv(),
 	}
 
 	cleanup := harness.MkAllocDir(task, true)
@@ -322,8 +313,10 @@ func TestRawExec_ExecTaskStreaming(t *testing.T) {
 	defer harness.Kill()
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "sleep",
+		AllocID: uuid.Generate(),
+		ID:      uuid.Generate(),
+		Name:    "sleep",
+		Env:     defaultEnv(),
 	}
 
 	cleanup := harness.MkAllocDir(task, false)
@@ -349,10 +342,21 @@ func TestRawExec_ExecTaskStreaming_User(t *testing.T) {
 	clienttestutil.RequireLinux(t)
 
 	d := newEnabledRawExecDriver(t)
+
+	// because we cannot set AllocID, see below
+	d.config.NoCgroups = true
+
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
 	task := &drivers.TaskConfig{
+		// todo(shoenig) - Setting AllocID causes test to fail - with or without
+		//  cgroups, and with or without chroot. It has to do with MkAllocDir
+		//  creating the directory structure, but the actual root cause is still
+		//  TBD. The symptom is that any command you try to execute will result
+		//  in "permission denied" coming from os/exec. This test is imperfect,
+		//  the actual feature of running commands as another user works fine.
+		// AllocID: uuid.Generate()
 		ID:   uuid.Generate(),
 		Name: "sleep",
 		User: "nobody",
@@ -394,8 +398,9 @@ func TestRawExecDriver_NoCgroup(t *testing.T) {
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "nocgroup",
+		AllocID: uuid.Generate(),
+		ID:      uuid.Generate(),
+		Name:    "nocgroup",
 	}
 
 	cleanup := harness.MkAllocDir(task, true)

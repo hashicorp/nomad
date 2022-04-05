@@ -250,6 +250,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"nested.meta.key":   "a",
 		"invalid...metakey": "b",
 	}
+	n.CgroupParent = "abc.slice"
 	a := mock.ConnectAlloc()
 	a.Job.ParentID = fmt.Sprintf("mock-parent-service-%s", uuid.Generate())
 	a.AllocatedResources.Tasks["web"].Networks[0] = &structs.NetworkResource{
@@ -378,6 +379,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_PORT_ssh_ssh":                        "22",
 		"NOMAD_CPU_LIMIT":                           "500",
 		"NOMAD_DC":                                  "dc1",
+		"NOMAD_PARENT_CGROUP":                       "abc.slice",
 		"NOMAD_NAMESPACE":                           "default",
 		"NOMAD_REGION":                              "global",
 		"NOMAD_MEMORY_LIMIT":                        "256",

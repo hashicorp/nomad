@@ -1432,6 +1432,7 @@ func (c *Client) setupNode() error {
 	if node.Name == "" {
 		node.Name, _ = os.Hostname()
 	}
+	node.CgroupParent = c.config.CgroupParent
 	if node.HostVolumes == nil {
 		if l := len(c.config.HostVolumes); l != 0 {
 			node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig, l)

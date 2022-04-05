@@ -2244,8 +2244,6 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 }
 
 func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
-	ci.Parallel(t)
-
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})

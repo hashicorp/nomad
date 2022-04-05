@@ -67,6 +67,9 @@ const (
 	// Datacenter is the environment variable for passing the datacenter in which the alloc is running.
 	Datacenter = "NOMAD_DC"
 
+	// CgroupParent is the environment variable for passing the cgroup parent in which cgroups are made.
+	CgroupParent = "NOMAD_PARENT_CGROUP"
+
 	// Namespace is the environment variable for passing the namespace in which the alloc is running.
 	Namespace = "NOMAD_NAMESPACE"
 
@@ -400,6 +403,7 @@ type Builder struct {
 	taskName         string
 	allocIndex       int
 	datacenter       string
+	cgroupParent     string
 	namespace        string
 	region           string
 	allocId          string
@@ -517,6 +521,9 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	}
 	if b.datacenter != "" {
 		envMap[Datacenter] = b.datacenter
+	}
+	if b.cgroupParent != "" {
+		envMap[CgroupParent] = b.cgroupParent
 	}
 	if b.namespace != "" {
 		envMap[Namespace] = b.namespace
@@ -802,6 +809,7 @@ func (b *Builder) setNode(n *structs.Node) *Builder {
 	b.nodeAttrs[nodeClassKey] = n.NodeClass
 	b.nodeAttrs[nodeDcKey] = n.Datacenter
 	b.datacenter = n.Datacenter
+	b.cgroupParent = n.CgroupParent
 
 	// Set up the attributes.
 	for k, v := range n.Attributes {

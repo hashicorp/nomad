@@ -21,6 +21,7 @@ import (
 	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/command/agent/event"
@@ -694,7 +695,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 	conf.BindWildcardDefaultHostNetwork = agentConfig.Client.BindWildcardDefaultHostNetwork
 
-	conf.CgroupParent = agentConfig.Client.CgroupParent
+	conf.CgroupParent = cgutil.GetCgroupParent(agentConfig.Client.CgroupParent)
 	if agentConfig.Client.ReserveableCores != "" {
 		cores, err := cpuset.Parse(agentConfig.Client.ReserveableCores)
 		if err != nil {
