@@ -35,7 +35,7 @@ type groupServiceHook struct {
 	shutdownDelayCtx    context.Context
 
 	// namespace is the Nomad or Consul namespace in which service
-	// registrations will be made.
+	// registrations will be made. This field may be updated.
 	namespace string
 
 	// serviceRegWrapper is the handler wrapper that is used to perform service
@@ -162,6 +162,10 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	h.canary = canary
 	h.delay = shutdown
 	h.taskEnvBuilder.UpdateTask(req.Alloc, nil)
+
+	// An update may change the service provider, therefore we need to account
+	// for how namespaces work across providers also.
+	h.namespace = req.Alloc.ServiceProviderNamespace()
 
 	// Create new task services struct with those new values
 	newWorkloadServices := h.getWorkloadServices()
