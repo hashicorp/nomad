@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: fixed a bug where in-place updates on ineligible nodes would be ignored
+```
