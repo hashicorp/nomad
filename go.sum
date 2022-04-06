@@ -663,6 +663,8 @@ github.com/hashicorp/consul v1.7.8 h1:hp308KxAf3zWoGuwp2e+0UUhrm6qHjeBQk3jCZ+bjc
 github.com/hashicorp/consul v1.7.8/go.mod h1:urbfGaVZDmnXC6geg0LYPh/SRUk1E8nfmDHpz+Q0nLw=
 github.com/hashicorp/consul-template v0.28.1-0.20220401205807-9005d749c0fe h1:GuSNdU8CUW0wAlTnFfnyZYwcl5YrJpkq0Sf+KiMZLik=
 github.com/hashicorp/consul-template v0.28.1-0.20220401205807-9005d749c0fe/go.mod h1:0p/k281DONmXdD4SkoDqXpOhYL35+wMbptYu4EXaT7Y=
+github.com/hashicorp/consul-template v0.28.1-0.20220406001259-e710909d8054 h1:OmSwttQVWtsaFAR5fgjkcn5iNnanQM8KuVAWeBxoSVM=
+github.com/hashicorp/consul-template v0.28.1-0.20220406001259-e710909d8054/go.mod h1:WPYxOkWS57H7jPT3XefIF5ICkNrDRPDxGdrbRtHtovY=
 github.com/hashicorp/consul/api v1.4.0/go.mod h1:xc8u05kyMa3Wjr9eEAsIAo3dg8+LywT5E/Cl7cNS5nU=
 github.com/hashicorp/consul/api v1.12.0 h1:k3y1FYv6nuKyNTqj6w9gXOx5r5CfLj/k/euUeBXj1OY=
 github.com/hashicorp/consul/api v1.12.0/go.mod h1:6pVBMo0ebnYdt2S3H87XhekM/HHrUoTD2XXb/VrZVy0=

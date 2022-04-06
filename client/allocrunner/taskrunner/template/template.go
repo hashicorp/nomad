@@ -812,7 +812,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 
 	// Set up Nomad
 	conf.Nomad.Namespace = &config.NomadNamespace
-	conf.Nomad.CustomDialer = cc.TemplateDialer
+	conf.Nomad.Transport.CustomDialer = cc.TemplateDialer
 	conf.Nomad.Token = &cc.Node.SecretID
 
 	conf.Finalize()
