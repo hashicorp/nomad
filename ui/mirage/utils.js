@@ -26,6 +26,7 @@ export function arrToObj(prop, alias = '') {
 }
 
 export const generateAcceptanceTestEvalMock = (id) => {
+
   return {
     CreateIndex: 20,
     CreateTime: 1647899150314738000,
