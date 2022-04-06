@@ -178,8 +178,6 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 			wsUpgrader: wsUpgrader,
 		}
 
-		// TODO(schmichael) only register services and inject auth token (or
-		//  inject auth token into template config?)
 		srv.registerHandlers(config.EnableDebug)
 
 		httpServer := http.Server{

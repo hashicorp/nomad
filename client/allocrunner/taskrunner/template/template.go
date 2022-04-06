@@ -813,6 +813,8 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	// Set up Nomad
 	conf.Nomad.Namespace = &config.NomadNamespace
 	conf.Nomad.Transport.CustomDialer = cc.TemplateDialer
+
+	// Use the Node's SecretID to authenticate Nomad template function calls.
 	conf.Nomad.Token = &cc.Node.SecretID
 
 	conf.Finalize()
