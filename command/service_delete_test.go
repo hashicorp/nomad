@@ -6,8 +6,11 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,24 +57,36 @@ func TestServiceDeleteCommand_Run(t *testing.T) {
 		"This command takes two arguments: <service_name> and <service_id>")
 	ui.ErrorWriter.Reset()
 
-	// Create a test job with a Nomad service.
-	testJob := testJob("service-discovery-nomad-delete")
-	testJob.TaskGroups[0].Tasks[0].Services = []*api.Service{
-		{Name: "service-discovery-nomad-delete", Provider: "nomad"}}
+	// Create an upsert some service registrations.
+	serviceRegs := mock.ServiceRegistrations()
+	assert.NoError(t,
+		srv.Agent.Server().State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 10, serviceRegs))
 
-	// Register that job.
-	regResp, _, err := client.Jobs().Register(testJob, nil)
+	// Detail the service within the default namespace as we need the ID.
+	defaultNSService, _, err := client.Services().Get(serviceRegs[0].ServiceName, nil)
 	require.NoError(t, err)
-	registerCode := waitForSuccess(ui, client, fullId, t, regResp.EvalID)
-	require.Equal(t, 0, registerCode)
+	require.Len(t, defaultNSService, 1)
 
-	// Detail the service as we need the ID.
-	serviceList, _, err := client.Services().Get("service-discovery-nomad-delete", nil)
+	// Attempt to manually delete the service registration within the default
+	// namespace.
+	code := cmd.Run([]string{"-address=" + url, "service-discovery-nomad-delete", defaultNSService[0].ID})
+	require.Equal(t, 0, code)
+	require.Contains(t, ui.OutputWriter.String(), "Successfully deleted service registration")
+
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
+
+	// Detail the service within the platform namespace as we need the ID.
+	platformNSService, _, err := client.Services().Get(serviceRegs[1].ServiceName, &api.QueryOptions{
+		Namespace: serviceRegs[1].Namespace},
+	)
 	require.NoError(t, err)
-	require.Len(t, serviceList, 1)
+	require.Len(t, platformNSService, 1)
 
-	// Attempt to manually delete the service registration.
-	code := cmd.Run([]string{"-address=" + url, "service-discovery-nomad-delete", serviceList[0].ID})
+	// Attempt to manually delete the service registration within the platform
+	// namespace.
+	code = cmd.Run([]string{"-address=" + url, "-namespace=" + platformNSService[0].Namespace,
+		"service-discovery-nomad-delete", platformNSService[0].ID})
 	require.Equal(t, 0, code)
 	require.Contains(t, ui.OutputWriter.String(), "Successfully deleted service registration")
 
