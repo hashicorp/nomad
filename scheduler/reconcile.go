@@ -440,13 +440,14 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// Stop any unneeded allocations and update the untainted set to not
 	// include stopped allocations.
 	isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
-	stop := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, reconnecting, isCanarying, lostLaterEvals)
+	stop, reconnecting := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, reconnecting, isCanarying, lostLaterEvals)
 	desiredChanges.Stop += uint64(len(stop))
 	untainted = untainted.difference(stop)
 
 	// Validate and add reconnecting allocs to the plan so that they will be logged.
 	a.computeReconnecting(reconnecting)
 	desiredChanges.Ignore += uint64(len(a.result.reconnectUpdates))
+
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
 	ignore, inplace, destructive := a.computeUpdates(tg, untainted)
@@ -697,7 +698,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	}
 
 	// Add replacements for disconnected and lost allocs up to group.Count
-	existing := len(untainted) + len(migrate) + len(reschedule) + len(reconnecting)
+	existing := len(untainted) + len(migrate) + len(reschedule) + len(reconnecting) - len(reconnecting.filterByFailedReconnect())
 
 	// Add replacements for lost
 	for _, alloc := range lost {
@@ -912,12 +913,18 @@ func (a *allocReconciler) isDeploymentComplete(groupName string, destructive, in
 // the group definition, the set of allocations in various states and whether we
 // are canarying.
 func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *allocNameIndex,
-	untainted, migrate, lost, canaries, reconnecting allocSet, isCanarying bool, followupEvals map[string]string) allocSet {
+	untainted, migrate, lost, canaries, reconnecting allocSet, isCanarying bool, followupEvals map[string]string) (allocSet, allocSet) {
 
 	// Mark all lost allocations for stop.
 	var stop allocSet
 	stop = stop.union(lost)
 	a.markDelayed(lost, structs.AllocClientStatusLost, allocLost, followupEvals)
+
+	// Mark all failed reconnects for stop.
+	failedReconnects := reconnecting.filterByFailedReconnect()
+	stop = stop.union(failedReconnects)
+	a.markStop(failedReconnects, structs.AllocClientStatusFailed, allocRescheduled)
+	reconnecting = reconnecting.difference(failedReconnects)
 
 	// If we are still deploying or creating canaries, don't stop them
 	if isCanarying {
@@ -927,7 +934,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	// Hot path the nothing to do case
 	remove := len(untainted) + len(migrate) + len(reconnecting) - group.Count
 	if remove <= 0 {
-		return stop
+		return stop, reconnecting
 	}
 
 	// Filter out any terminal allocations from the untainted set
@@ -949,7 +956,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 
 				remove--
 				if remove == 0 {
-					return stop
+					return stop, reconnecting
 				}
 			}
 		}
@@ -973,7 +980,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 
 			remove--
 			if remove == 0 {
-				return stop
+				return stop, reconnecting
 			}
 		}
 	}
@@ -982,7 +989,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	if len(reconnecting) != 0 {
 		remove = a.computeStopByReconnecting(untainted, reconnecting, stop, remove)
 		if remove == 0 {
-			return stop
+			return stop, reconnecting
 		}
 	}
 
@@ -999,7 +1006,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 
 			remove--
 			if remove == 0 {
-				return stop
+				return stop, reconnecting
 			}
 		}
 	}
@@ -1016,11 +1023,11 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 
 		remove--
 		if remove == 0 {
-			return stop
+			return stop, reconnecting
 		}
 	}
 
-	return stop
+	return stop, reconnecting
 }
 
 // computeStopByReconnecting moves allocations from either the untainted or reconnecting
@@ -1173,6 +1180,11 @@ func (a *allocReconciler) computeReconnecting(reconnecting allocSet) {
 
 		// If the scheduler has defined a terminal DesiredStatus don't resume the alloc.
 		if alloc.DesiredStatus != structs.AllocDesiredStatusRun {
+			continue
+		}
+
+		// If the alloc has failed don't reconnect.
+		if alloc.ClientStatus != structs.AllocClientStatusRunning {
 			continue
 		}
 
