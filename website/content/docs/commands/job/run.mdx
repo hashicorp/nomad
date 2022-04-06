@@ -102,7 +102,7 @@ that volume.
   permissions.
 
 - `-vault-token`: Used to validate if the user submitting the job has
-  permission to run the job according to its Vault policies.
+  permission to run the job according to its Vault policies and entity aliases.
   A Vault token must be supplied if the [`vault` stanza `allow_unauthenticated`] is
   disabled in the Nomad server configuration. If the `-vault-token` flag is set,
   the passed Vault token is added to the jobspec
