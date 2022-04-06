@@ -1163,7 +1163,6 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			continue
 		}
 
-		// if the job has been purged, this will always return error
 		var job *structs.Job
 		var jobType string
 		var jobPriority int
@@ -1171,6 +1170,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		job, err = n.srv.State().JobByID(nil, alloc.Namespace, alloc.JobID)
 		if err != nil {
 			n.logger.Debug("UpdateAlloc unable to find job", "job", alloc.JobID, "error", err)
+			continue
 		}
 
 		// If the job is nil it means it has been de-registered.
@@ -1192,23 +1192,20 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		// If we cannot find the task group for a failed alloc we cannot continue, unless it is an orphan.
 		if evalTriggerBy != structs.EvalTriggerJobDeregister &&
 			allocToUpdate.ClientStatus == structs.AllocClientStatusFailed &&
-			alloc.FollowupEvalID == "" &&
-			taskGroup == nil {
-			n.logger.Debug("UpdateAlloc unable to find task group for job", "job", alloc.JobID, "alloc", alloc.ID, "task_group", alloc.TaskGroup)
-			continue
+			alloc.FollowupEvalID == "" {
+
+			if taskGroup == nil {
+				n.logger.Debug("UpdateAlloc unable to find task group for job", "job", alloc.JobID, "alloc", alloc.ID, "task_group", alloc.TaskGroup)
+				continue
+			}
+
+			// Set trigger by failed if not an orphan.
+			if alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
+				evalTriggerBy = structs.EvalTriggerRetryFailedAlloc
+			}
 		}
 
 		var eval *structs.Evaluation
-		// Add an evaluation if this is a failed alloc that is eligible for rescheduling,
-		// unless it is an orphan.
-		if evalTriggerBy != structs.EvalTriggerJobDeregister &&
-			allocToUpdate.ClientStatus == structs.AllocClientStatusFailed &&
-			alloc.FollowupEvalID == "" &&
-			alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
-
-			evalTriggerBy = structs.EvalTriggerRetryFailedAlloc
-		}
-
 		// If unknown, and not an orphan, set the trigger by.
 		if evalTriggerBy != structs.EvalTriggerJobDeregister &&
 			alloc.ClientStatus == structs.AllocClientStatusUnknown {
