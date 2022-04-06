@@ -22,6 +22,14 @@ type ConsulTemplateTest struct {
 	framework.TC
 	jobIDs     []string
 	consulKeys []string
+
+	// namespaceIDs tracks the created namespace for removal after test
+	// completion.
+	namespaceIDs []string
+
+	// namespacedJobIDs tracks any non-default namespaced jobs for removal
+	// after test completion.
+	namespacedJobIDs map[string][]string
 }
 
 func init() {
@@ -30,7 +38,9 @@ func init() {
 		CanRunLocal: true,
 		Consul:      true,
 		Cases: []framework.TestCase{
-			new(ConsulTemplateTest),
+			&ConsulTemplateTest{
+				namespacedJobIDs: make(map[string][]string),
+			},
 		},
 	})
 }
@@ -56,6 +66,20 @@ func (tc *ConsulTemplateTest) AfterEach(f *framework.F) {
 		f.Assert().NoError(err, "could not clean up consul key", key)
 	}
 	tc.consulKeys = []string{}
+
+	for namespace, jobIDs := range tc.namespacedJobIDs {
+		for _, jobID := range jobIDs {
+			err := e2eutil.StopJob(jobID, "-purge", "-namespace", namespace)
+			f.Assert().NoError(err)
+		}
+	}
+	tc.namespacedJobIDs = make(map[string][]string)
+
+	for _, ns := range tc.namespaceIDs {
+		_, err := e2eutil.Command("nomad", "namespace", "delete", ns)
+		f.Assert().NoError(err)
+	}
+	tc.namespaceIDs = []string{}
 
 	_, err := e2eutil.Command("nomad", "system", "gc")
 	f.NoError(err)
@@ -337,6 +361,116 @@ func (tc *ConsulTemplateTest) TestTemplatePathInterpolation_SharedAllocDir(f *fr
 		f.NoError(err)
 		f.Contains(out, "HELLO_FROM=raw_exec")
 	}
+}
+
+// TestConsulTemplate_NomadServiceLookups tests consul-templates Nomad service
+// lookup functionality. It runs a job which registers two services, then
+// another which performs both a list and read template function lookup against
+// registered services.
+func (tc *ConsulTemplateTest) TestConsulTemplate_NomadServiceLookups(f *framework.F) {
+
+	// Set up our base job that will be used in various manners.
+	serviceJob, err := jobspec.ParseFile("consultemplate/input/nomad_provider_service.nomad")
+	f.NoError(err)
+	serviceJobID := "test-consul-template-nomad-lookups" + uuid.Generate()[0:8]
+	serviceJob.ID = &serviceJobID
+
+	_, _, err = tc.Nomad().Jobs().Register(serviceJob, nil)
+	f.NoError(err)
+	tc.jobIDs = append(tc.jobIDs, serviceJobID)
+	f.NoError(e2eutil.WaitForAllocStatusExpected(serviceJobID, "default", []string{"running"}), "job should be running")
+
+	// Pull the allocation ID for the job, we use this to ensure this is found
+	// in the rendered template later on.
+	serviceJobAllocs, err := e2eutil.AllocsForJob(serviceJobID, "default")
+	f.NoError(err)
+	f.Len(serviceJobAllocs, 1)
+	serviceAllocID := serviceJobAllocs[0]["ID"]
+
+	// Create at non-default namespace.
+	_, err = e2eutil.Command("nomad", "namespace", "apply", "platform")
+	f.NoError(err)
+	tc.namespaceIDs = append(tc.namespaceIDs, "NamespaceA")
+
+	// Register a job which includes services destined for the Nomad provider
+	// into the platform namespace. This is used to ensure consul-template
+	// lookups stay bound to the allocation namespace.
+	diffNamespaceServiceJobID := "test-consul-template-nomad-lookups" + uuid.Generate()[0:8]
+	f.NoError(e2eutil.Register(diffNamespaceServiceJobID, "consultemplate/input/nomad_provider_service_ns.nomad"))
+	tc.namespacedJobIDs["platform"] = append(tc.namespacedJobIDs["platform"], diffNamespaceServiceJobID)
+	f.NoError(e2eutil.WaitForAllocStatusExpected(diffNamespaceServiceJobID, "platform", []string{"running"}), "job should be running")
+
+	// Register a job which includes consul-template function performing Nomad
+	// service listing and reads.
+	serviceLookupJobID := "test-consul-template-nomad-lookups" + uuid.Generate()[0:8]
+	f.NoError(e2eutil.Register(serviceLookupJobID, "consultemplate/input/nomad_provider_service_lookup.nomad"))
+	tc.jobIDs = append(tc.jobIDs, serviceLookupJobID)
+	f.NoError(e2eutil.WaitForAllocStatusExpected(serviceLookupJobID, "default", []string{"running"}), "job should be running")
+
+	// Find the allocation ID for the job which contains templates, so we can
+	// perform filesystem actions.
+	serviceLookupJobAllocs, err := e2eutil.AllocsForJob(serviceLookupJobID, "default")
+	f.NoError(err)
+	f.Len(serviceLookupJobAllocs, 1)
+	serviceLookupAllocID := serviceLookupJobAllocs[0]["ID"]
+
+	// Ensure the listing (nomadServices) template function has found all
+	// services within the default namespace.
+	err = waitForTaskFile(serviceLookupAllocID, "test", "${NOMAD_TASK_DIR}/services.conf",
+		func(out string) bool {
+			if !f.Assert().Contains(out, "service default-nomad-provider-service-primary [bar foo]") {
+				return false
+			}
+			if !f.Assert().Contains(out, "service default-nomad-provider-service-secondary [baz buz]") {
+				return false
+			}
+			if strings.Contains(out, "service platform-nomad-provider-service-secondary [baz buz]") {
+				return false
+			}
+			return true
+		}, nil)
+	f.NoError(err)
+
+	// Ensure the direct service lookup has found the entry we expect.
+	err = waitForTaskFile(serviceLookupAllocID, "test", "${NOMAD_TASK_DIR}/service.conf",
+		func(out string) bool {
+			expected := fmt.Sprintf("service default-nomad-provider-service-primary [bar foo] dc1 %s", serviceAllocID)
+			return f.Assert().Contains(out, expected)
+		}, nil)
+	f.NoError(err)
+
+	// Scale the default namespaced service job in order to change the expected
+	// number of entries.
+	count := 3
+	serviceJob.TaskGroups[0].Count = &count
+	_, _, err = tc.Nomad().Jobs().Register(serviceJob, nil)
+	f.NoError(err)
+
+	// Pull the allocation ID for the job, we use this to ensure this is found
+	// in the rendered template later on.
+	serviceJobAllocs, err = e2eutil.AllocsForJob(serviceJobID, "default")
+	f.NoError(err)
+	f.Len(serviceJobAllocs, 3)
+
+	// Track the expected entries, including the allocID to make this test
+	// actually valuable.
+	var expectedEntries []string
+	for _, allocs := range serviceJobAllocs {
+		e := fmt.Sprintf("service default-nomad-provider-service-primary [bar foo] dc1 %s", allocs["ID"])
+		expectedEntries = append(expectedEntries, e)
+	}
+
+	// Ensure the direct service lookup has the new entries we expect.
+	err = waitForTaskFile(serviceLookupAllocID, "test", "${NOMAD_TASK_DIR}/service.conf",
+		func(out string) bool {
+			for _, entry := range expectedEntries {
+				if !f.Assert().Contains(out, entry) {
+					return false
+				}
+			}
+			return true
+		}, nil)
+	f.NoError(err)
 }
 
 func waitForTaskFile(allocID, task, path string, test func(out string) bool, wc *e2eutil.WaitConfig) error {

@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/command/agent/event"
+	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/cpuset"
@@ -107,6 +108,12 @@ type Agent struct {
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
+
+	// builtinDialer dials the builtinListener. It is used for connecting
+	// consul-template to the HTTP API in process. In the event this agent is
+	// not running in client mode, these two fields will be nil.
+	builtinListener net.Listener
+	builtinDialer   *bufconndialer.BufConnWrapper
 
 	InmemSink *metrics.InmemSink
 }
@@ -906,6 +913,13 @@ func (a *Agent) setupClient() error {
 	if conf.StateDBFactory == nil {
 		conf.StateDBFactory = state.GetStateDBFactory(conf.DevMode)
 	}
+
+	// Set up a custom listener and dialer. This is used by Nomad clients when
+	// running consul-template functions that utilise the Nomad API. We lazy
+	// load this into the client config, therefore this needs to happen before
+	// we call NewClient.
+	a.builtinListener, a.builtinDialer = bufconndialer.New()
+	conf.TemplateDialer = a.builtinDialer
 
 	nomadClient, err := client.NewClient(
 		conf, a.consulCatalog, a.consulProxies, a.consulService, nil)

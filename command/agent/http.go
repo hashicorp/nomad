@@ -116,9 +116,6 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 
 	// Start the listener
 	for _, addr := range config.normalizedAddrs.HTTP {
-		// Create the mux
-		mux := http.NewServeMux()
-
 		lnAddr, err := net.ResolveTCPAddr("tcp", addr)
 		if err != nil {
 			serverInitializationErrors = multierror.Append(serverInitializationErrors, err)
@@ -143,7 +140,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		// Create the server
 		srv := &HTTPServer{
 			agent:      agent,
-			mux:        mux,
+			mux:        http.NewServeMux(),
 			listener:   ln,
 			listenerCh: make(chan struct{}),
 			logger:     agent.httpLogger,
@@ -155,7 +152,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		// Create HTTP server with timeouts
 		httpServer := http.Server{
 			Addr:      srv.Addr,
-			Handler:   handlers.CompressHandler(mux),
+			Handler:   handlers.CompressHandler(srv.mux),
 			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
 			ErrorLog:  newHTTPServerLogger(srv.logger),
 		}
@@ -163,6 +160,35 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		go func() {
 			defer close(srv.listenerCh)
 			httpServer.Serve(ln)
+		}()
+
+		srvs = append(srvs, srv)
+	}
+
+	// This HTTP server is only create when running in client mode, otherwise
+	// the builtinDialer and builtinListener will be nil.
+	if agent.builtinDialer != nil && agent.builtinListener != nil {
+		srv := &HTTPServer{
+			agent:      agent,
+			mux:        http.NewServeMux(),
+			listener:   agent.builtinListener,
+			listenerCh: make(chan struct{}),
+			logger:     agent.httpLogger,
+			Addr:       "builtin",
+			wsUpgrader: wsUpgrader,
+		}
+
+		srv.registerHandlers(config.EnableDebug)
+
+		httpServer := http.Server{
+			Addr:     srv.Addr,
+			Handler:  srv.mux,
+			ErrorLog: newHTTPServerLogger(srv.logger),
+		}
+
+		go func() {
+			defer close(srv.listenerCh)
+			httpServer.Serve(agent.builtinListener)
 		}()
 
 		srvs = append(srvs, srv)

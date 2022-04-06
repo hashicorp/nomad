@@ -517,6 +517,7 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 // setupAgent is used to start the agent and various interfaces
 func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOutput io.Writer, inmem *metrics.InmemSink) error {
 	c.Ui.Output("Starting Nomad agent...")
+
 	agent, err := NewAgent(config, logger, logOutput, inmem)
 	if err != nil {
 		// log the error as well, so it appears at the end
