@@ -264,7 +264,7 @@ func (t *TLSConfig) Copy() *TLSConfig {
 }
 
 func defaultHttpClient() *http.Client {
-	httpClient := cleanhttp.DefaultClient()
+	httpClient := cleanhttp.DefaultPooledClient()
 	transport := httpClient.Transport.(*http.Transport)
 	transport.TLSHandshakeTimeout = 10 * time.Second
 	transport.TLSClientConfig = &tls.Config{
@@ -474,6 +474,18 @@ func NewClient(config *Config) (*Client, error) {
 		httpClient: httpClient,
 	}
 	return client, nil
+}
+
+// Close closes the client's idle keep-alived connections. The default
+// client configuration uses keep-alive to maintain connections and
+// you should instantiate a single Client and reuse it for all
+// requests from the same host. Connections will be closed
+// automatically once the client is garbage collected. If you are
+// creating multiple clients on the same host (for example, for
+// testing), it may be useful to call Close() to avoid hitting
+// connection limits.
+func (c *Client) Close() {
+	c.httpClient.CloseIdleConnections()
 }
 
 // Address return the address of the Nomad agent
