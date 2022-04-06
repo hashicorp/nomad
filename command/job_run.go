@@ -115,10 +115,11 @@ Run Options:
     variable and that found in the job.
 
   -vault-token
-    If set, the passed Vault token is stored in the job before sending to the
-    Nomad servers. This allows passing the Vault token without storing it in
-    the job file. This overrides the token found in $VAULT_TOKEN environment
-    variable and that found in the job.
+    Used to validate if the user submitting the job has permission to run the
+    job according to its Vault policies. If set, the passed Vault token is stored
+    in the job before sending to the Nomad servers. This allows passing the Vault
+    token without storing it in the job file. This overrides the token found in
+    $VAULT_TOKEN environment variable and the vault_token field in the job.
 
   -vault-namespace
     If set, the passed Vault namespace is stored in the job before sending to the
