@@ -1694,16 +1694,17 @@ func (ne *NodeEvent) AddDetail(k, v string) *NodeEvent {
 }
 
 const (
-	NodeStatusInit  = "initializing"
-	NodeStatusReady = "ready"
-	NodeStatusDown  = "down"
+	NodeStatusInit         = "initializing"
+	NodeStatusReady        = "ready"
+	NodeStatusDown         = "down"
+	NodeStatusDisconnected = "disconnected"
 )
 
 // ShouldDrainNode checks if a given node status should trigger an
 // evaluation. Some states don't require any further action.
 func ShouldDrainNode(status string) bool {
 	switch status {
-	case NodeStatusInit, NodeStatusReady:
+	case NodeStatusInit, NodeStatusReady, NodeStatusDisconnected:
 		return false
 	case NodeStatusDown:
 		return true
@@ -1715,7 +1716,7 @@ func ShouldDrainNode(status string) bool {
 // ValidNodeStatus is used to check if a node status is valid
 func ValidNodeStatus(status string) bool {
 	switch status {
-	case NodeStatusInit, NodeStatusReady, NodeStatusDown:
+	case NodeStatusInit, NodeStatusReady, NodeStatusDown, NodeStatusDisconnected:
 		return true
 	default:
 		return false
@@ -4793,6 +4794,7 @@ type TaskGroupSummary struct {
 	Running  int
 	Starting int
 	Lost     int
+	Unknown  int
 }
 
 const (
@@ -6168,6 +6170,10 @@ type TaskGroup struct {
 	// StopAfterClientDisconnect, if set, configures the client to stop the task group
 	// after this duration since the last known good heartbeat
 	StopAfterClientDisconnect *time.Duration
+
+	// MaxClientDisconnect, if set, configures the client to allow placed
+	// allocations for tasks in this group to attempt to resume running without a restart.
+	MaxClientDisconnect *time.Duration
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -6222,6 +6228,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 
 	if tg.StopAfterClientDisconnect != nil {
 		ntg.StopAfterClientDisconnect = tg.StopAfterClientDisconnect
+	}
+
+	if tg.MaxClientDisconnect != nil {
+		ntg.MaxClientDisconnect = tg.MaxClientDisconnect
 	}
 
 	return ntg
@@ -6285,6 +6295,14 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	if len(tg.Tasks) == 0 {
 		// could be a lone consul gateway inserted by the connect mutator
 		mErr.Errors = append(mErr.Errors, errors.New("Missing tasks for task group"))
+	}
+
+	if tg.MaxClientDisconnect != nil && tg.StopAfterClientDisconnect != nil {
+		mErr.Errors = append(mErr.Errors, errors.New("Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect"))
+	}
+
+	if tg.MaxClientDisconnect != nil && *tg.MaxClientDisconnect < 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("max_client_disconnect cannot be negative"))
 	}
 
 	for idx, constr := range tg.Constraints {
@@ -7976,6 +7994,9 @@ const (
 
 	// TaskPluginHealthy indicates that a plugin managed by Nomad became healthy
 	TaskPluginHealthy = "Plugin became healthy"
+
+	// TaskClientReconnected indicates that the client running the task disconnected.
+	TaskClientReconnected = "Reconnected"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -8187,6 +8208,8 @@ func (e *TaskEvent) PopulateEventDisplayMessage() {
 		desc = "Leader Task in Group dead"
 	case TaskMainDead:
 		desc = "Main tasks in the group died"
+	case TaskClientReconnected:
+		desc = "Client reconnected"
 	default:
 		desc = e.Message
 	}
@@ -9427,6 +9450,7 @@ const (
 	AllocClientStatusComplete = "complete"
 	AllocClientStatusFailed   = "failed"
 	AllocClientStatusLost     = "lost"
+	AllocClientStatusUnknown  = "unknown"
 )
 
 // Allocation is used to allocate the placement of a task group to a node.
@@ -9823,6 +9847,10 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 		return time.Time{}, false
 	}
 
+	return a.nextRescheduleTime(failTime, reschedulePolicy)
+}
+
+func (a *Allocation) nextRescheduleTime(failTime time.Time, reschedulePolicy *ReschedulePolicy) (time.Time, bool) {
 	nextDelay := a.NextDelay()
 	nextRescheduleTime := failTime.Add(nextDelay)
 	rescheduleEligible := reschedulePolicy.Unlimited || (reschedulePolicy.Attempts > 0 && a.RescheduleTracker == nil)
@@ -9832,6 +9860,18 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 		rescheduleEligible = attempted < attempts && nextDelay < reschedulePolicy.Interval
 	}
 	return nextRescheduleTime, rescheduleEligible
+}
+
+// NextRescheduleTimeByFailTime works like NextRescheduleTime but allows callers
+// specify a failure time. Useful for things like determining whether to reschedule
+// an alloc on a disconnected node.
+func (a *Allocation) NextRescheduleTimeByFailTime(failTime time.Time) (time.Time, bool) {
+	reschedulePolicy := a.ReschedulePolicy()
+	if reschedulePolicy == nil {
+		return time.Time{}, false
+	}
+
+	return a.nextRescheduleTime(failTime, reschedulePolicy)
 }
 
 // ShouldClientStop tests an alloc for StopAfterClientDisconnect configuration
@@ -9875,6 +9915,24 @@ func (a *Allocation) WaitClientStop() time.Time {
 	}
 
 	return t.Add(*tg.StopAfterClientDisconnect + kill)
+}
+
+// DisconnectTimeout uses the MaxClientDisconnect to compute when the allocation
+// should transition to lost.
+func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
+	if a == nil || a.Job == nil {
+		return now
+	}
+
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	timeout := tg.MaxClientDisconnect
+
+	if timeout == nil {
+		return now
+	}
+
+	return now.Add(*timeout)
 }
 
 // NextDelay returns a duration after which the allocation can be rescheduled.
@@ -10110,6 +10168,76 @@ func (a *Allocation) Stub(fields *AllocStubFields) *AllocListStub {
 // this method should be changed accordingly.
 func (a *Allocation) AllocationDiff() *AllocationDiff {
 	return (*AllocationDiff)(a)
+}
+
+// Expired determines whether an allocation has exceeded its MaxClientDisonnect
+// duration relative to the passed time stamp.
+func (a *Allocation) Expired(now time.Time) bool {
+	if a == nil || a.Job == nil {
+		return false
+	}
+
+	// If alloc is not Unknown it cannot be expired.
+	if a.ClientStatus != AllocClientStatusUnknown {
+		return false
+	}
+
+	lastUnknown := a.LastUnknown()
+	if lastUnknown.IsZero() {
+		return false
+	}
+
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return false
+	}
+
+	if tg.MaxClientDisconnect == nil {
+		return false
+	}
+
+	expiry := lastUnknown.Add(*tg.MaxClientDisconnect)
+	return now.UTC().After(expiry) || now.UTC().Equal(expiry)
+}
+
+// LastUnknown returns the timestamp for the last time the allocation
+// transitioned into the unknown client status.
+func (a *Allocation) LastUnknown() time.Time {
+	var lastUnknown time.Time
+
+	for _, s := range a.AllocStates {
+		if s.Field == AllocStateFieldClientStatus &&
+			s.Value == AllocClientStatusUnknown {
+			if lastUnknown.IsZero() || lastUnknown.Before(s.Time) {
+				lastUnknown = s.Time
+			}
+		}
+	}
+
+	return lastUnknown.UTC()
+}
+
+// Reconnected determines whether a reconnect event has occurred for any task
+// and whether that event occurred within the allowable duration specified by MaxClientDisconnect.
+func (a *Allocation) Reconnected() (bool, bool) {
+	var lastReconnect time.Time
+	for _, taskState := range a.TaskStates {
+		for _, taskEvent := range taskState.Events {
+			if taskEvent.Type != TaskClientReconnected {
+				continue
+			}
+			eventTime := time.Unix(0, taskEvent.Time).UTC()
+			if lastReconnect.IsZero() || lastReconnect.Before(eventTime) {
+				lastReconnect = eventTime
+			}
+		}
+	}
+
+	if lastReconnect.IsZero() {
+		return false, false
+	}
+
+	return true, a.Expired(lastReconnect)
 }
 
 // AllocationDiff is another named type for Allocation (to use the same fields),
@@ -10377,6 +10505,15 @@ func (a *AllocMetric) PopulateScoreMetaData() {
 	}
 }
 
+// MaxNormScore returns the ScoreMetaData entry with the highest normalized
+// score.
+func (a *AllocMetric) MaxNormScore() *NodeScoreMeta {
+	if a == nil || len(a.ScoreMetaData) == 0 {
+		return nil
+	}
+	return a.ScoreMetaData[0]
+}
+
 // NodeScoreMeta captures scoring meta data derived from
 // different scoring factors.
 type NodeScoreMeta struct {
@@ -10505,21 +10642,23 @@ const (
 )
 
 const (
-	EvalTriggerJobRegister       = "job-register"
-	EvalTriggerJobDeregister     = "job-deregister"
-	EvalTriggerPeriodicJob       = "periodic-job"
-	EvalTriggerNodeDrain         = "node-drain"
-	EvalTriggerNodeUpdate        = "node-update"
-	EvalTriggerAllocStop         = "alloc-stop"
-	EvalTriggerScheduled         = "scheduled"
-	EvalTriggerRollingUpdate     = "rolling-update"
-	EvalTriggerDeploymentWatcher = "deployment-watcher"
-	EvalTriggerFailedFollowUp    = "failed-follow-up"
-	EvalTriggerMaxPlans          = "max-plan-attempts"
-	EvalTriggerRetryFailedAlloc  = "alloc-failure"
-	EvalTriggerQueuedAllocs      = "queued-allocs"
-	EvalTriggerPreemption        = "preemption"
-	EvalTriggerScaling           = "job-scaling"
+	EvalTriggerJobRegister          = "job-register"
+	EvalTriggerJobDeregister        = "job-deregister"
+	EvalTriggerPeriodicJob          = "periodic-job"
+	EvalTriggerNodeDrain            = "node-drain"
+	EvalTriggerNodeUpdate           = "node-update"
+	EvalTriggerAllocStop            = "alloc-stop"
+	EvalTriggerScheduled            = "scheduled"
+	EvalTriggerRollingUpdate        = "rolling-update"
+	EvalTriggerDeploymentWatcher    = "deployment-watcher"
+	EvalTriggerFailedFollowUp       = "failed-follow-up"
+	EvalTriggerMaxPlans             = "max-plan-attempts"
+	EvalTriggerRetryFailedAlloc     = "alloc-failure"
+	EvalTriggerQueuedAllocs         = "queued-allocs"
+	EvalTriggerPreemption           = "preemption"
+	EvalTriggerScaling              = "job-scaling"
+	EvalTriggerMaxDisconnectTimeout = "max-disconnect-timeout"
+	EvalTriggerReconnect            = "reconnect"
 )
 
 const (
@@ -10621,7 +10760,8 @@ type Evaluation struct {
 	Wait time.Duration
 
 	// WaitUntil is the time when this eval should be run. This is used to
-	// supported delayed rescheduling of failed allocations
+	// supported delayed rescheduling of failed allocations, and delayed
+	// stopping of allocations that are configured with max_client_disconnect.
 	WaitUntil time.Time
 
 	// NextEval is the evaluation ID for the eval created to do a followup.
@@ -11134,6 +11274,17 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string)
 	node := alloc.NodeID
 	existing := p.NodePreemptions[node]
 	p.NodePreemptions[node] = append(existing, newAlloc)
+}
+
+// AppendUnknownAlloc marks an allocation as unknown.
+func (p *Plan) AppendUnknownAlloc(alloc *Allocation) {
+	// Strip the job as it's set once on the ApplyPlanResultRequest.
+	alloc.Job = nil
+	// Strip the resources as they can be rebuilt.
+	alloc.Resources = nil
+
+	existing := p.NodeAllocation[alloc.NodeID]
+	p.NodeAllocation[alloc.NodeID] = append(existing, alloc)
 }
 
 func (p *Plan) PopUpdate(alloc *Allocation) {

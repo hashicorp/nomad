@@ -257,8 +257,10 @@ type resultExpectation struct {
 	destructive       int
 	inplace           int
 	attributeUpdates  int
-	stop              int
+	disconnectUpdates int
+	reconnectUpdates  int
 	desiredTGUpdates  map[string]*structs.DesiredUpdates
+	stop              int
 }
 
 func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
@@ -283,8 +285,59 @@ func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 	assertion.Len(r.destructiveUpdate, exp.destructive, "Expected Destructive")
 	assertion.Len(r.inplaceUpdate, exp.inplace, "Expected Inplace Updates")
 	assertion.Len(r.attributeUpdates, exp.attributeUpdates, "Expected Attribute Updates")
+	assertion.Len(r.reconnectUpdates, exp.reconnectUpdates, "Expected Reconnect Updates")
+	assertion.Len(r.disconnectUpdates, exp.disconnectUpdates, "Expected Disconnect Updates")
 	assertion.Len(r.stop, exp.stop, "Expected Stops")
 	assertion.EqualValues(exp.desiredTGUpdates, r.desiredTGUpdates, "Expected Desired TG Update Annotations")
+}
+
+func buildAllocations(job *structs.Job, count int, clientStatus, desiredStatus string, nodeScore float64) []*structs.Allocation {
+	allocs := make([]*structs.Allocation, 0)
+
+	for i := 0; i < count; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.ClientStatus = clientStatus
+		alloc.DesiredStatus = desiredStatus
+
+		alloc.Metrics = &structs.AllocMetric{
+			ScoreMetaData: []*structs.NodeScoreMeta{
+				{
+					NodeID:    alloc.NodeID,
+					NormScore: nodeScore,
+					Scores: map[string]float64{
+						alloc.NodeID: nodeScore,
+					},
+				},
+			},
+		}
+
+		allocs = append(allocs, alloc)
+	}
+
+	return allocs
+}
+
+func buildDisconnectedNodes(allocs []*structs.Allocation, count int) map[string]*structs.Node {
+	tainted := make(map[string]*structs.Node, count)
+	for i := 0; i < count; i++ {
+		n := mock.Node()
+		n.ID = allocs[i].NodeID
+		n.Status = structs.NodeStatusDisconnected
+		tainted[n.ID] = n
+	}
+	return tainted
+}
+
+func buildResumableAllocations(count int, clientStatus, desiredStatus string, nodeScore float64) (*structs.Job, []*structs.Allocation) {
+	job := mock.Job()
+	job.TaskGroups[0].MaxClientDisconnect = helper.TimeToPtr(5 * time.Minute)
+	job.TaskGroups[0].Count = count
+
+	return job, buildAllocations(job, count, clientStatus, desiredStatus, nodeScore)
 }
 
 // Tests the reconciler properly handles placements for a job that has no
@@ -295,7 +348,7 @@ func TestReconciler_Place_NoExisting(t *testing.T) {
 	job := mock.Job()
 	reconciler := NewAllocReconciler(
 		testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, nil, nil, "", job.Priority)
+		nil, nil, nil, "", job.Priority, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -334,7 +387,7 @@ func TestReconciler_Place_Existing(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -375,7 +428,7 @@ func TestReconciler_ScaleDown_Partial(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -417,7 +470,7 @@ func TestReconciler_ScaleDown_Zero(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -460,7 +513,7 @@ func TestReconciler_ScaleDown_Zero_DuplicateNames(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -498,7 +551,7 @@ func TestReconciler_Inplace(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -539,7 +592,7 @@ func TestReconciler_Inplace_ScaleUp(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -582,7 +635,7 @@ func TestReconciler_Inplace_ScaleDown(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -646,7 +699,7 @@ func TestReconciler_Inplace_Rollback(t *testing.T) {
 	}, allocUpdateFnDestructive)
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFn,
-		false, job.ID, job, nil, allocs, nil, uuid.Generate(), 50)
+		false, job.ID, job, nil, allocs, nil, uuid.Generate(), 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -692,7 +745,7 @@ func TestReconciler_Destructive(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -728,7 +781,7 @@ func TestReconciler_DestructiveMaxParallel(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -767,7 +820,7 @@ func TestReconciler_Destructive_ScaleUp(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -809,7 +862,7 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -857,7 +910,7 @@ func TestReconciler_LostNode(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, tainted, "", 50)
+		nil, allocs, tainted, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -910,7 +963,7 @@ func TestReconciler_LostNode_ScaleUp(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, tainted, "", 50)
+		nil, allocs, tainted, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -963,7 +1016,7 @@ func TestReconciler_LostNode_ScaleDown(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, tainted, "", 50)
+		nil, allocs, tainted, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1011,7 +1064,7 @@ func TestReconciler_DrainNode(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, tainted, "", 50)
+		nil, allocs, tainted, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1066,7 +1119,7 @@ func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, tainted, "", 50)
+		nil, allocs, tainted, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1122,7 +1175,7 @@ func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, tainted, "", 50)
+		nil, allocs, tainted, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1170,7 +1223,7 @@ func TestReconciler_RemovedTG(t *testing.T) {
 	job.TaskGroups[0].Name = newName
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1235,7 +1288,7 @@ func TestReconciler_JobStopped(t *testing.T) {
 			}
 
 			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, c.jobID, c.job,
-				nil, allocs, nil, "", 50)
+				nil, allocs, nil, "", 50, true)
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -1304,7 +1357,7 @@ func TestReconciler_JobStopped_TerminalAllocs(t *testing.T) {
 			}
 
 			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, c.jobID, c.job,
-				nil, allocs, nil, "", 50)
+				nil, allocs, nil, "", 50, true)
 			r := reconciler.Compute()
 			require.Len(t, r.stop, 0)
 			// Assert the correct results
@@ -1343,7 +1396,7 @@ func TestReconciler_MultiTG(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1398,7 +1451,7 @@ func TestReconciler_MultiTG_SingleUpdateStanza(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1477,7 +1530,7 @@ func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 	allocs[5].ClientStatus = structs.AllocClientStatusComplete
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job.ID, job,
-		nil, allocs, nil, uuid.Generate(), 50)
+		nil, allocs, nil, uuid.Generate(), 50, true)
 	r := reconciler.Compute()
 
 	// Two reschedule attempts were already made, one more can be made at a future time
@@ -1560,7 +1613,7 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job.ID, job,
-		nil, allocs, nil, uuid.Generate(), 50)
+		nil, allocs, nil, uuid.Generate(), 50, true)
 	r := reconciler.Compute()
 
 	// Verify that two follow up evals were created
@@ -1657,7 +1710,7 @@ func TestReconciler_RescheduleNow_Batch(t *testing.T) {
 	allocs[5].ClientStatus = structs.AllocClientStatusComplete
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	reconciler.now = now
 	r := reconciler.Compute()
 
@@ -1735,7 +1788,7 @@ func TestReconciler_RescheduleLater_Service(t *testing.T) {
 	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, uuid.Generate(), 50)
+		nil, allocs, nil, uuid.Generate(), 50, true)
 	r := reconciler.Compute()
 
 	// Should place a new placement and create a follow up eval for the delayed reschedule
@@ -1807,7 +1860,7 @@ func TestReconciler_Service_ClientStatusComplete(t *testing.T) {
 	allocs[4].ClientStatus = structs.AllocClientStatusComplete
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Should place a new placement for the alloc that was marked complete
@@ -1866,7 +1919,7 @@ func TestReconciler_Service_DesiredStop_ClientStatusComplete(t *testing.T) {
 	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Should place a new placement for the alloc that was marked stopped
@@ -1946,7 +1999,7 @@ func TestReconciler_RescheduleNow_Service(t *testing.T) {
 	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Verify that no follow up evals were created
@@ -2027,7 +2080,7 @@ func TestReconciler_RescheduleNow_WithinAllowedTimeWindow(t *testing.T) {
 	allocs[1].ClientStatus = structs.AllocClientStatusFailed
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	reconciler.now = now
 	r := reconciler.Compute()
 
@@ -2111,7 +2164,7 @@ func TestReconciler_RescheduleNow_EvalIDMatch(t *testing.T) {
 	allocs[1].FollowupEvalID = evalID
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, evalID, 50)
+		nil, allocs, nil, evalID, 50, true)
 	reconciler.now = now.Add(-30 * time.Second)
 	r := reconciler.Compute()
 
@@ -2223,7 +2276,7 @@ func TestReconciler_RescheduleNow_Service_WithCanaries(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job2,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Verify that no follow up evals were created
@@ -2349,7 +2402,7 @@ func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job2,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	reconciler.now = now
 	r := reconciler.Compute()
 
@@ -2479,7 +2532,7 @@ func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job2,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	reconciler.now = now
 	r := reconciler.Compute()
 
@@ -2547,7 +2600,7 @@ func TestReconciler_DontReschedule_PreviouslyRescheduled(t *testing.T) {
 	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Should place 1 - one is a new placement to make up the desired count of 5
@@ -2637,7 +2690,7 @@ func TestReconciler_CancelDeployment_JobStop(t *testing.T) {
 			}
 
 			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, c.jobID, c.job,
-				c.deployment, allocs, nil, "", 50)
+				c.deployment, allocs, nil, "", 50, true)
 			r := reconciler.Compute()
 
 			var updates []*structs.DeploymentStatusUpdate
@@ -2717,7 +2770,7 @@ func TestReconciler_CancelDeployment_JobUpdate(t *testing.T) {
 			}
 
 			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-				c.deployment, allocs, nil, "", 50)
+				c.deployment, allocs, nil, "", 50, true)
 			r := reconciler.Compute()
 
 			var updates []*structs.DeploymentStatusUpdate
@@ -2769,7 +2822,7 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Destructive(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	d := structs.NewDeployment(job, 50)
@@ -2815,7 +2868,7 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Inplace(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	d := structs.NewDeployment(job, 50)
@@ -2860,7 +2913,7 @@ func TestReconciler_CreateDeployment_NewerCreateIndex(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	d := structs.NewDeployment(job, 50)
@@ -2907,7 +2960,7 @@ func TestReconciler_DontCreateDeployment_NoChanges(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -2988,7 +3041,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreCanaries(t *testing.T) {
 
 			mockUpdateFn := allocUpdateFnMock(map[string]allocUpdateType{canary.ID: allocUpdateFnIgnore}, allocUpdateFnDestructive)
 			reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job,
-				d, allocs, nil, "", 50)
+				d, allocs, nil, "", 50, true)
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -3056,7 +3109,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMorePlacements(t *testing.T) {
 			}
 
 			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-				d, allocs, nil, "", 50)
+				d, allocs, nil, "", 50, true)
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -3133,7 +3186,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreDestructiveUpdates(t *testing
 
 			mockUpdateFn := allocUpdateFnMock(map[string]allocUpdateType{newAlloc.ID: allocUpdateFnIgnore}, allocUpdateFnDestructive)
 			reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job,
-				d, allocs, nil, "", 50)
+				d, allocs, nil, "", 50, true)
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -3207,7 +3260,7 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job,
-		d, allocs, tainted, "", 50)
+		d, allocs, tainted, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -3282,7 +3335,7 @@ func TestReconciler_LostNode_Canary(t *testing.T) {
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job,
-		d, allocs, tainted, "", 50)
+		d, allocs, tainted, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -3351,7 +3404,7 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, d,
-		allocs, nil, "", 50)
+		allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job, 50)
@@ -3407,7 +3460,7 @@ func TestReconciler_NewCanaries(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job, 50)
@@ -3458,7 +3511,7 @@ func TestReconciler_NewCanaries_CountGreater(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job, 50)
@@ -3512,7 +3565,7 @@ func TestReconciler_NewCanaries_MultiTG(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job, 50)
@@ -3568,7 +3621,7 @@ func TestReconciler_NewCanaries_ScaleUp(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job, 50)
@@ -3619,7 +3672,7 @@ func TestReconciler_NewCanaries_ScaleDown(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job, 50)
@@ -3699,7 +3752,7 @@ func TestReconciler_NewCanaries_FillNames(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -3771,7 +3824,7 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -3848,7 +3901,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	updates := []*structs.DeploymentStatusUpdate{
@@ -3950,7 +4003,7 @@ func TestReconciler_DeploymentLimit_HealthAccounting(t *testing.T) {
 
 			mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
 			reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job,
-				d, allocs, nil, "", 50)
+				d, allocs, nil, "", 50, true)
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -4034,7 +4087,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job,
-		d, allocs, tainted, "", 50)
+		d, allocs, tainted, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -4122,7 +4175,7 @@ func TestReconciler_FailedDeployment_TaintedNodes(t *testing.T) {
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job,
-		d, allocs, tainted, "", 50)
+		d, allocs, tainted, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -4181,7 +4234,7 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -4239,7 +4292,7 @@ func TestReconciler_MarkDeploymentComplete_FailedAllocations(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID,
-		job, d, allocs, nil, "", 50)
+		job, d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	updates := []*structs.DeploymentStatusUpdate{
@@ -4337,7 +4390,7 @@ func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -4409,7 +4462,7 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 	jobNew.Version += 100
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, jobNew,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	dnew := structs.NewDeployment(jobNew, 50)
@@ -4465,7 +4518,7 @@ func TestReconciler_MarkDeploymentComplete(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	updates := []*structs.DeploymentStatusUpdate{
@@ -4537,7 +4590,7 @@ func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -4575,7 +4628,7 @@ func TestReconciler_RollingUpgrade_MissingAllocs(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	d := structs.NewDeployment(job, 50)
@@ -4630,7 +4683,7 @@ func TestReconciler_Batch_Rerun(t *testing.T) {
 	job2.CreateIndex++
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job2.ID, job2,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -4694,7 +4747,7 @@ func TestReconciler_FailedDeployment_DontReschedule(t *testing.T) {
 		FinishedAt: now.Add(-10 * time.Second)}}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert that no rescheduled placements were created
@@ -4752,7 +4805,7 @@ func TestReconciler_DeploymentWithFailedAllocs_DontReschedule(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert that no rescheduled placements were created
@@ -4840,7 +4893,7 @@ func TestReconciler_FailedDeployment_AutoRevert_CancelCanaries(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, jobv2,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	updates := []*structs.DeploymentStatusUpdate{
@@ -4905,7 +4958,7 @@ func TestReconciler_SuccessfulDeploymentWithFailedAllocs_Reschedule(t *testing.T
 	}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job,
-		d, allocs, nil, "", 50)
+		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Assert that rescheduled placements were created
@@ -4972,7 +5025,7 @@ func TestReconciler_ForceReschedule_Service(t *testing.T) {
 	allocs[0].DesiredTransition = structs.DesiredTransition{ForceReschedule: helper.BoolToPtr(true)}
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Verify that no follow up evals were created
@@ -5057,7 +5110,7 @@ func TestReconciler_RescheduleNot_Service(t *testing.T) {
 	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
 	// Verify that no follow up evals were created
@@ -5145,7 +5198,7 @@ func TestReconciler_RescheduleNot_Batch(t *testing.T) {
 	allocs[5].ClientStatus = structs.AllocClientStatusComplete
 
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job.ID, job,
-		nil, allocs, nil, "", 50)
+		nil, allocs, nil, "", 50, true)
 	reconciler.now = now
 	r := reconciler.Compute()
 
@@ -5168,4 +5221,413 @@ func TestReconciler_RescheduleNot_Batch(t *testing.T) {
 			},
 		},
 	})
+}
+
+// Tests that when a node disconnects running allocations are queued to transition to unknown.
+func TestReconciler_Node_Disconnect_Updates_Alloc_To_Unknown(t *testing.T) {
+	job, allocs := buildResumableAllocations(3, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun, 2)
+	// Build a map of disconnected nodes
+	nodes := buildDisconnectedNodes(allocs, 2)
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
+		nil, allocs, nodes, "", 50, true)
+	reconciler.now = time.Now().UTC()
+	results := reconciler.Compute()
+
+	// Verify that 1 follow up eval was created with the values we expect.
+	evals := results.desiredFollowupEvals[job.TaskGroups[0].Name]
+	require.Len(t, evals, 1)
+	expectedTime := reconciler.now.Add(5 * time.Minute)
+
+	eval := evals[0]
+	require.NotNil(t, eval.WaitUntil)
+	require.Equal(t, expectedTime, eval.WaitUntil)
+
+	// Validate that the queued disconnectUpdates have the right client status,
+	// and that they have a valid FollowUpdEvalID.
+	for _, disconnectUpdate := range results.disconnectUpdates {
+		require.Equal(t, structs.AllocClientStatusUnknown, disconnectUpdate.ClientStatus)
+		require.NotEmpty(t, disconnectUpdate.FollowupEvalID)
+		require.Equal(t, eval.ID, disconnectUpdate.FollowupEvalID)
+	}
+
+	// 2 to place, 2 to update, 1 to ignore
+	assertResults(t, results, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             2,
+		stop:              0,
+		inplace:           0,
+		disconnectUpdates: 2,
+
+		// 2 to place and 1 to ignore
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:         2,
+				Stop:          0,
+				Ignore:        1,
+				InPlaceUpdate: 0,
+			},
+		},
+	})
+}
+
+// Tests that when a node disconnects/reconnects allocations for that node are
+// reconciled according to the business rules.
+func TestReconciler_Disconnected_Client(t *testing.T) {
+	type testCase struct {
+		name                         string
+		allocCount                   int
+		disconnectedAllocCount       int
+		jobVersionIncrement          uint64
+		nodeScoreIncrement           float64
+		disconnectedAllocStatus      string
+		serverDesiredStatus          string
+		isBatch                      bool
+		nodeStatusDisconnected       bool
+		replace                      bool
+		failReplacement              bool
+		shouldStopOnDisconnectedNode bool
+		maxDisconnect                *time.Duration
+		expected                     *resultExpectation
+	}
+
+	testCases := []testCase{
+		{
+			name:                         "reconnect-original-no-replacement",
+			allocCount:                   2,
+			replace:                      false,
+			disconnectedAllocCount:       2,
+			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			serverDesiredStatus:          structs.AllocDesiredStatusRun,
+			shouldStopOnDisconnectedNode: false,
+			expected: &resultExpectation{
+				reconnectUpdates: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Ignore: 2,
+					},
+				},
+			},
+		},
+		{
+			name:                         "resume-original-and-stop-replacement",
+			allocCount:                   3,
+			replace:                      true,
+			disconnectedAllocCount:       1,
+			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			serverDesiredStatus:          structs.AllocDesiredStatusRun,
+			shouldStopOnDisconnectedNode: false,
+			expected: &resultExpectation{
+				stop:             1,
+				reconnectUpdates: 1,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   1,
+						Ignore: 3,
+					},
+				},
+			},
+		},
+		{
+			name:                         "stop-original-with-lower-node-score",
+			allocCount:                   4,
+			replace:                      true,
+			disconnectedAllocCount:       1,
+			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			serverDesiredStatus:          structs.AllocDesiredStatusRun,
+			shouldStopOnDisconnectedNode: true,
+			nodeScoreIncrement:           1,
+			expected: &resultExpectation{
+				stop: 1,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   1,
+						Ignore: 4,
+					},
+				},
+			},
+		},
+		{
+			name:                         "stop-original-failed-on-reconnect",
+			allocCount:                   4,
+			replace:                      true,
+			disconnectedAllocCount:       2,
+			disconnectedAllocStatus:      structs.AllocClientStatusFailed,
+			serverDesiredStatus:          structs.AllocDesiredStatusRun,
+			shouldStopOnDisconnectedNode: true,
+			expected: &resultExpectation{
+				stop: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   2,
+						Ignore: 4,
+					},
+				},
+			},
+		},
+		{
+			name:                         "reschedule-original-failed-if-not-replaced",
+			allocCount:                   4,
+			replace:                      false,
+			disconnectedAllocCount:       2,
+			disconnectedAllocStatus:      structs.AllocClientStatusFailed,
+			serverDesiredStatus:          structs.AllocDesiredStatusRun,
+			shouldStopOnDisconnectedNode: true,
+			expected: &resultExpectation{
+				stop:  2,
+				place: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Ignore: 2,
+						Place:  2,
+						Stop:   2,
+					},
+				},
+			},
+		},
+		{
+			name:                    "ignore-reconnect-completed",
+			allocCount:              2,
+			replace:                 false,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusComplete,
+			serverDesiredStatus:     structs.AllocDesiredStatusRun,
+			isBatch:                 true,
+			expected: &resultExpectation{
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Ignore: 2,
+					},
+				},
+			},
+		},
+		{
+			name:                         "stop-original-alloc-with-old-job-version",
+			allocCount:                   5,
+			replace:                      true,
+			disconnectedAllocCount:       2,
+			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			serverDesiredStatus:          structs.AllocDesiredStatusRun,
+			shouldStopOnDisconnectedNode: true,
+			jobVersionIncrement:          1,
+			expected: &resultExpectation{
+				stop: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Ignore: 5,
+						Stop:   2,
+					},
+				},
+			},
+		},
+		{
+			name:                         "stop-original-alloc-with-old-job-version-reconnect-eval",
+			allocCount:                   5,
+			replace:                      true,
+			disconnectedAllocCount:       2,
+			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			serverDesiredStatus:          structs.AllocDesiredStatusRun,
+			shouldStopOnDisconnectedNode: true,
+			jobVersionIncrement:          1,
+			expected: &resultExpectation{
+				stop: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   2,
+						Ignore: 5,
+					},
+				},
+			},
+		},
+		{
+			name:                         "stop-original-alloc-with-old-job-version-and-failed-replacements",
+			allocCount:                   5,
+			replace:                      true,
+			disconnectedAllocCount:       2,
+			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			serverDesiredStatus:          structs.AllocDesiredStatusRun,
+			failReplacement:              true,
+			shouldStopOnDisconnectedNode: true,
+			jobVersionIncrement:          1,
+			expected: &resultExpectation{
+				stop: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   2,
+						Ignore: 5,
+					},
+				},
+			},
+		},
+		{
+			name:                         "stop-original-pending-alloc-for-disconnected-node",
+			allocCount:                   2,
+			replace:                      true,
+			disconnectedAllocCount:       1,
+			disconnectedAllocStatus:      structs.AllocClientStatusPending,
+			serverDesiredStatus:          structs.AllocDesiredStatusRun,
+			shouldStopOnDisconnectedNode: true,
+			nodeStatusDisconnected:       true,
+			expected: &resultExpectation{
+				stop: 1,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   1,
+						Ignore: 2,
+					},
+				},
+			},
+		},
+		{
+			name:                         "stop-expired-allocs",
+			allocCount:                   5,
+			replace:                      true,
+			disconnectedAllocCount:       2,
+			disconnectedAllocStatus:      structs.AllocClientStatusUnknown,
+			serverDesiredStatus:          structs.AllocDesiredStatusRun,
+			shouldStopOnDisconnectedNode: true,
+			nodeStatusDisconnected:       true,
+			maxDisconnect:                helper.TimeToPtr(2 * time.Second),
+			expected: &resultExpectation{
+				stop: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   2,
+						Ignore: 5,
+					},
+				},
+			},
+		},
+		{
+			name:                    "replace-allocs-on-disconnected-node",
+			allocCount:              5,
+			replace:                 false,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+			serverDesiredStatus:     structs.AllocDesiredStatusRun,
+			nodeStatusDisconnected:  true,
+			expected: &resultExpectation{
+				place:             2,
+				disconnectUpdates: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Place:  2,
+						Ignore: 3,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.NotEqual(t, 0, tc.allocCount, "invalid test case: alloc count must be greater than zero")
+
+			testNode := mock.Node()
+			if tc.nodeStatusDisconnected == true {
+				testNode.Status = structs.NodeStatusDisconnected
+			}
+
+			// Create resumable allocs
+			job, allocs := buildResumableAllocations(tc.allocCount, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun, 2)
+
+			if tc.isBatch {
+				job.Type = structs.JobTypeBatch
+			}
+
+			// Set alloc state
+			disconnectedAllocCount := tc.disconnectedAllocCount
+			for _, alloc := range allocs {
+				alloc.DesiredStatus = tc.serverDesiredStatus
+
+				if tc.maxDisconnect != nil {
+					alloc.Job.TaskGroups[0].MaxClientDisconnect = tc.maxDisconnect
+				}
+
+				if disconnectedAllocCount > 0 {
+					alloc.ClientStatus = tc.disconnectedAllocStatus
+					// Set the node id on all the disconnected allocs to the node under test.
+					alloc.NodeID = testNode.ID
+
+					alloc.AllocStates = []*structs.AllocState{{
+						Field: structs.AllocStateFieldClientStatus,
+						Value: structs.AllocClientStatusUnknown,
+						Time:  time.Now(),
+					}}
+
+					event := structs.NewTaskEvent(structs.TaskClientReconnected)
+					event.Time = time.Now().UnixNano()
+
+					alloc.TaskStates = map[string]*structs.TaskState{
+						alloc.Job.TaskGroups[0].Tasks[0].Name: {
+							Events: []*structs.TaskEvent{event},
+						},
+					}
+					disconnectedAllocCount--
+				}
+			}
+
+			// Place the allocs on another node.
+			if tc.replace {
+				replacements := make([]*structs.Allocation, 0)
+				for _, alloc := range allocs {
+					if alloc.NodeID != testNode.ID {
+						continue
+					}
+					replacement := alloc.Copy()
+					replacement.ID = uuid.Generate()
+					replacement.NodeID = uuid.Generate()
+					replacement.ClientStatus = structs.AllocClientStatusRunning
+					replacement.PreviousAllocation = alloc.ID
+					replacement.AllocStates = nil
+					replacement.TaskStates = nil
+					alloc.NextAllocation = replacement.ID
+
+					if tc.jobVersionIncrement != 0 {
+						replacement.Job.Version = replacement.Job.Version + tc.jobVersionIncrement
+					}
+					if tc.nodeScoreIncrement != 0 {
+						replacement.Metrics.ScoreMetaData[0].NormScore = replacement.Metrics.ScoreMetaData[0].NormScore + tc.nodeScoreIncrement
+					}
+
+					replacements = append(replacements, replacement)
+
+					// If we want to test intermediate replacement failures simulate that.
+					if tc.failReplacement {
+						replacement.ClientStatus = structs.AllocClientStatusFailed
+						nextReplacement := replacement.Copy()
+						nextReplacement.ID = uuid.Generate()
+						nextReplacement.ClientStatus = structs.AllocClientStatusRunning
+						nextReplacement.PreviousAllocation = replacement.ID
+						replacement.NextAllocation = nextReplacement.ID
+						replacements = append(replacements, nextReplacement)
+					}
+				}
+
+				allocs = append(allocs, replacements...)
+			}
+
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, tc.isBatch, job.ID, job,
+				nil, allocs, map[string]*structs.Node{testNode.ID: testNode}, "", 50, true)
+
+			reconciler.now = time.Now()
+			if tc.maxDisconnect != nil {
+				reconciler.now = time.Now().Add(*tc.maxDisconnect * 20)
+			}
+
+			results := reconciler.Compute()
+			assertResults(t, results, tc.expected)
+
+			for _, stopResult := range results.stop {
+				if tc.shouldStopOnDisconnectedNode {
+					require.Equal(t, testNode.ID, stopResult.alloc.NodeID)
+				} else {
+					require.NotEqual(t, testNode.ID, stopResult.alloc.NodeID)
+				}
+
+				require.Equal(t, job.Version, stopResult.alloc.Job.Version)
+			}
+		})
+	}
 }

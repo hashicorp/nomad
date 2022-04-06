@@ -3910,6 +3910,75 @@ func TestTaskGroupDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			TestCase: "MaxClientDisconnect added",
+			Old: &TaskGroup{
+				Name:                "foo",
+				MaxClientDisconnect: nil,
+			},
+			New: &TaskGroup{
+				Name:                "foo",
+				MaxClientDisconnect: helper.TimeToPtr(20 * time.Second),
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Name: "foo",
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "MaxClientDisconnect",
+						Old:  "",
+						New:  "20000000000",
+					},
+				},
+			},
+		},
+		{
+			TestCase: "MaxClientDisconnect updated",
+			Old: &TaskGroup{
+				Name:                "foo",
+				MaxClientDisconnect: helper.TimeToPtr(10 * time.Second),
+			},
+			New: &TaskGroup{
+				Name:                "foo",
+				MaxClientDisconnect: helper.TimeToPtr(20 * time.Second),
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Name: "foo",
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "MaxClientDisconnect",
+						Old:  "10000000000",
+						New:  "20000000000",
+					},
+				},
+			},
+		},
+		{
+			TestCase: "MaxClientDisconnect deleted",
+			Old: &TaskGroup{
+				Name:                "foo",
+				MaxClientDisconnect: helper.TimeToPtr(10 * time.Second),
+			},
+			New: &TaskGroup{
+				Name:                "foo",
+				MaxClientDisconnect: nil,
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Name: "foo",
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "MaxClientDisconnect",
+						Old:  "10000000000",
+						New:  "",
+					},
+				},
+			},
+		},
 	}
 
 	for i, c := range cases {

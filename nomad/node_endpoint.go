@@ -487,7 +487,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	// Check if we should trigger evaluations
 	transitionToReady := transitionedToReady(args.Status, node.Status)
-	if structs.ShouldDrainNode(args.Status) || transitionToReady {
+	if structs.ShouldDrainNode(args.Status) || transitionToReady || args.Status == structs.NodeStatusDisconnected {
 		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)
@@ -546,6 +546,9 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 			}
 		}
 
+	case structs.NodeStatusDisconnected:
+		n.logger.Trace(fmt.Sprintf("heartbeat reset skipped for disconnected node %q", args.NodeID))
+
 	default:
 		ttl, err := n.srv.resetHeartbeatTimer(args.NodeID)
 		if err != nil {
@@ -572,7 +575,8 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 func transitionedToReady(newStatus, oldStatus string) bool {
 	initToReady := oldStatus == structs.NodeStatusInit && newStatus == structs.NodeStatusReady
 	terminalToReady := oldStatus == structs.NodeStatusDown && newStatus == structs.NodeStatusReady
-	return initToReady || terminalToReady
+	disconnectedToReady := oldStatus == structs.NodeStatusDisconnected && newStatus == structs.NodeStatusReady
+	return initToReady || terminalToReady || disconnectedToReady
 }
 
 // UpdateDrain is used to update the drain mode of a client node
@@ -1147,48 +1151,85 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	var evals []*structs.Evaluation
 
 	for _, allocToUpdate := range args.Alloc {
+		evalTriggerBy := ""
 		allocToUpdate.ModifyTime = now.UTC().UnixNano()
-
-		if !allocToUpdate.TerminalStatus() {
-			continue
-		}
 
 		alloc, _ := n.srv.State().AllocByID(nil, allocToUpdate.ID)
 		if alloc == nil {
 			continue
 		}
 
-		// if the job has been purged, this will always return error
-		job, err := n.srv.State().JobByID(nil, alloc.Namespace, alloc.JobID)
+		if !allocToUpdate.TerminalStatus() && alloc.ClientStatus != structs.AllocClientStatusUnknown {
+			continue
+		}
+
+		var job *structs.Job
+		var jobType string
+		var jobPriority int
+
+		job, err = n.srv.State().JobByID(nil, alloc.Namespace, alloc.JobID)
 		if err != nil {
 			n.logger.Debug("UpdateAlloc unable to find job", "job", alloc.JobID, "error", err)
 			continue
 		}
+
+		// If the job is nil it means it has been de-registered.
 		if job == nil {
-			n.logger.Debug("UpdateAlloc unable to find job", "job", alloc.JobID)
-			continue
+			jobType = alloc.Job.Type
+			jobPriority = alloc.Job.Priority
+			evalTriggerBy = structs.EvalTriggerJobDeregister
+			allocToUpdate.DesiredStatus = structs.AllocDesiredStatusStop
+			n.logger.Debug("UpdateAlloc unable to find job - shutting down alloc", "job", alloc.JobID)
 		}
 
-		taskGroup := job.LookupTaskGroup(alloc.TaskGroup)
-		if taskGroup == nil {
-			continue
+		var taskGroup *structs.TaskGroup
+		if job != nil {
+			jobType = job.Type
+			jobPriority = job.Priority
+			taskGroup = job.LookupTaskGroup(alloc.TaskGroup)
 		}
 
-		// Add an evaluation if this is a failed alloc that is eligible for rescheduling
-		if allocToUpdate.ClientStatus == structs.AllocClientStatusFailed && alloc.FollowupEvalID == "" && alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
-			eval := &structs.Evaluation{
-				ID:          uuid.Generate(),
-				Namespace:   alloc.Namespace,
-				TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
-				JobID:       alloc.JobID,
-				Type:        job.Type,
-				Priority:    job.Priority,
-				Status:      structs.EvalStatusPending,
-				CreateTime:  now.UTC().UnixNano(),
-				ModifyTime:  now.UTC().UnixNano(),
+		// If we cannot find the task group for a failed alloc we cannot continue, unless it is an orphan.
+		if evalTriggerBy != structs.EvalTriggerJobDeregister &&
+			allocToUpdate.ClientStatus == structs.AllocClientStatusFailed &&
+			alloc.FollowupEvalID == "" {
+
+			if taskGroup == nil {
+				n.logger.Debug("UpdateAlloc unable to find task group for job", "job", alloc.JobID, "alloc", alloc.ID, "task_group", alloc.TaskGroup)
+				continue
 			}
-			evals = append(evals, eval)
+
+			// Set trigger by failed if not an orphan.
+			if alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
+				evalTriggerBy = structs.EvalTriggerRetryFailedAlloc
+			}
 		}
+
+		var eval *structs.Evaluation
+		// If unknown, and not an orphan, set the trigger by.
+		if evalTriggerBy != structs.EvalTriggerJobDeregister &&
+			alloc.ClientStatus == structs.AllocClientStatusUnknown {
+			evalTriggerBy = structs.EvalTriggerReconnect
+		}
+
+		// If we weren't able to determine one of our expected eval triggers,
+		// continue and don't create an eval.
+		if evalTriggerBy == "" {
+			continue
+		}
+
+		eval = &structs.Evaluation{
+			ID:          uuid.Generate(),
+			Namespace:   alloc.Namespace,
+			TriggeredBy: evalTriggerBy,
+			JobID:       alloc.JobID,
+			Type:        jobType,
+			Priority:    jobPriority,
+			Status:      structs.EvalStatusPending,
+			CreateTime:  now.UTC().UnixNano(),
+			ModifyTime:  now.UTC().UnixNano(),
+		}
+		evals = append(evals, eval)
 	}
 
 	// Add this to the batch
@@ -1236,6 +1277,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 // batchUpdate is used to update all the allocations
 func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Allocation, evals []*structs.Evaluation) {
+	var mErr multierror.Error
 	// Group pending evals by jobID to prevent creating unnecessary evals
 	evalsByJobId := make(map[structs.NamespacedID]struct{})
 	var trimmedEvals []*structs.Evaluation
@@ -1265,7 +1307,6 @@ func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Alloc
 	}
 
 	// Commit this update via Raft
-	var mErr multierror.Error
 	_, index, err := n.srv.raftApply(structs.AllocClientUpdateRequestType, batch)
 	if err != nil {
 		n.logger.Error("alloc update failed", "error", err)
@@ -1439,6 +1480,7 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 			CreateTime:      now,
 			ModifyTime:      now,
 		}
+
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
 	}

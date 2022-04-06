@@ -36,6 +36,11 @@ func (m *MockStateUpdater) AllocStateUpdated(alloc *structs.Allocation) {
 	m.mu.Unlock()
 }
 
+// PutAllocation satisfies the AllocStateHandler interface.
+func (m *MockStateUpdater) PutAllocation(alloc *structs.Allocation) (err error) {
+	return
+}
+
 // Last returns a copy of the last alloc (or nil) update. Safe for concurrent
 // access with updates.
 func (m *MockStateUpdater) Last() *structs.Allocation {

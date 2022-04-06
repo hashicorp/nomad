@@ -2558,6 +2558,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 					},
 				},
+				MaxClientDisconnect: helper.TimeToPtr(30 * time.Second),
 				Tasks: []*api.Task{
 					{
 						Name:   "task1",
@@ -2955,6 +2956,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 					},
 				},
+				MaxClientDisconnect: helper.TimeToPtr(30 * time.Second),
 				Tasks: []*structs.Task{
 					{
 						Name:   "task1",

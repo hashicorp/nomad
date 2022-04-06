@@ -158,6 +158,7 @@ type AllocRunner interface {
 
 	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
 	RestartAll(taskEvent *structs.TaskEvent) error
+	Reconnect(update *structs.Allocation) error
 
 	GetTaskExecHandler(taskName string) drivermanager.TaskExecHandler
 	GetTaskDriverCapabilities(taskName string) (*drivers.Capabilities, error)
@@ -1979,6 +1980,11 @@ func (c *Client) AllocStateUpdated(alloc *structs.Allocation) {
 	}
 }
 
+// PutAllocation stores an allocation or returns an error if it could not be stored.
+func (c *Client) PutAllocation(alloc *structs.Allocation) error {
+	return c.stateDB.PutAllocation(alloc)
+}
+
 // allocSync is a long lived function that batches allocation updates to the
 // server.
 func (c *Client) allocSync() {
@@ -2418,6 +2424,15 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 	ar, err := c.getAllocRunner(update.ID)
 	if err != nil {
 		c.logger.Warn("cannot update nonexistent alloc", "alloc_id", update.ID)
+		return
+	}
+
+	// Reconnect unknown allocations
+	if update.ClientStatus == structs.AllocClientStatusUnknown && update.AllocModifyIndex > ar.Alloc().AllocModifyIndex {
+		err = ar.Reconnect(update)
+		if err != nil {
+			c.logger.Error("error reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex, "err", err)
+		}
 		return
 	}
 

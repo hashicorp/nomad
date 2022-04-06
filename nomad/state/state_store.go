@@ -3528,9 +3528,10 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			// Keep the clients task states
 			alloc.TaskStates = exist.TaskStates
 
-			// If the scheduler is marking this allocation as lost we do not
+			// If the scheduler is marking this allocation as lost or unknown we do not
 			// want to reuse the status of the existing allocation.
-			if alloc.ClientStatus != structs.AllocClientStatusLost {
+			if alloc.ClientStatus != structs.AllocClientStatusLost &&
+				alloc.ClientStatus != structs.AllocClientStatusUnknown {
 				alloc.ClientStatus = exist.ClientStatus
 				alloc.ClientDescription = exist.ClientDescription
 			}
@@ -4732,6 +4733,8 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 				tg.Failed += 1
 			case structs.AllocClientStatusLost:
 				tg.Lost += 1
+			case structs.AllocClientStatusUnknown:
+				tg.Unknown += 1
 			case structs.AllocClientStatusComplete:
 				tg.Complete += 1
 			case structs.AllocClientStatusRunning:
@@ -5289,6 +5292,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			tgSummary.Complete += 1
 		case structs.AllocClientStatusLost:
 			tgSummary.Lost += 1
+		case structs.AllocClientStatusUnknown:
+			tgSummary.Unknown += 1
 		}
 
 		// Decrementing the count of the bin of the last state
@@ -5304,6 +5309,10 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		case structs.AllocClientStatusLost:
 			if tgSummary.Lost > 0 {
 				tgSummary.Lost -= 1
+			}
+		case structs.AllocClientStatusUnknown:
+			if tgSummary.Unknown > 0 {
+				tgSummary.Unknown -= 1
 			}
 		case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
 		default:

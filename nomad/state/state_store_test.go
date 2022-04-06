@@ -5793,7 +5793,13 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 	alloc11 := alloc10.Copy()
 	alloc11.ClientStatus = structs.AllocClientStatusLost
 
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 130, []*structs.Allocation{alloc4, alloc6, alloc8, alloc10})
+	alloc12 := mock.Alloc()
+	alloc12.JobID = alloc.JobID
+	alloc12.Job = alloc.Job
+	alloc12.TaskGroup = "db"
+	alloc12.ClientStatus = structs.AllocClientStatusUnknown
+
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 130, []*structs.Allocation{alloc4, alloc6, alloc8, alloc10, alloc12})
 
 	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 150, []*structs.Allocation{alloc5, alloc7, alloc9, alloc11})
 
@@ -5817,6 +5823,7 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 				Failed:   1,
 				Complete: 1,
 				Lost:     1,
+				Unknown:  1,
 			},
 		},
 		CreateIndex: 100,

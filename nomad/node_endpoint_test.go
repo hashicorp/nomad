@@ -3765,3 +3765,178 @@ func TestClientEndpoint_ShouldCreateNodeEval(t *testing.T) {
 		})
 	}
 }
+
+func TestClientEndpoint_UpdateAlloc_Evals_ByTrigger(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name               string
+		clientStatus       string
+		serverClientStatus string
+		triggerBy          string
+		missingJob         bool
+		missingAlloc       bool
+		invalidTaskGroup   bool
+	}
+
+	testCases := []testCase{
+		{
+			name:               "failed-alloc",
+			clientStatus:       structs.AllocClientStatusFailed,
+			serverClientStatus: structs.AllocClientStatusRunning,
+			triggerBy:          structs.EvalTriggerRetryFailedAlloc,
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "unknown-alloc",
+			clientStatus:       structs.AllocClientStatusRunning,
+			serverClientStatus: structs.AllocClientStatusUnknown,
+			triggerBy:          structs.EvalTriggerReconnect,
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "orphaned-unknown-alloc",
+			clientStatus:       structs.AllocClientStatusRunning,
+			serverClientStatus: structs.AllocClientStatusUnknown,
+			triggerBy:          structs.EvalTriggerJobDeregister,
+			missingJob:         true,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "running-job",
+			clientStatus:       structs.AllocClientStatusRunning,
+			serverClientStatus: structs.AllocClientStatusRunning,
+			triggerBy:          "",
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "complete-job",
+			clientStatus:       structs.AllocClientStatusComplete,
+			serverClientStatus: structs.AllocClientStatusComplete,
+			triggerBy:          "",
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "no-alloc-at-server",
+			clientStatus:       structs.AllocClientStatusUnknown,
+			serverClientStatus: "",
+			triggerBy:          "",
+			missingJob:         false,
+			missingAlloc:       true,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "invalid-task-group",
+			clientStatus:       structs.AllocClientStatusUnknown,
+			serverClientStatus: structs.AllocClientStatusRunning,
+			triggerBy:          "",
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s1, cleanupS1 := TestServer(t, func(c *Config) {
+				// Disabling scheduling in this test so that we can
+				// ensure that the state store doesn't accumulate more evals
+				// than what we expect the unit test to add
+				c.NumSchedulers = 0
+			})
+
+			defer cleanupS1()
+			codec := rpcClient(t, s1)
+			testutil.WaitForLeader(t, s1.RPC)
+
+			// Create the register request
+			node := mock.Node()
+			reg := &structs.NodeRegisterRequest{
+				Node:         node,
+				WriteRequest: structs.WriteRequest{Region: "global"},
+			}
+
+			// Fetch the response
+			var nodeResp structs.GenericResponse
+			err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &nodeResp)
+			require.NoError(t, err)
+
+			fsmState := s1.fsm.State()
+
+			job := mock.Job()
+			job.ID = tc.name + "-test-job"
+
+			if !tc.missingJob {
+				err = fsmState.UpsertJob(structs.MsgTypeTestSetup, 101, job)
+				require.NoError(t, err)
+			}
+
+			serverAlloc := mock.Alloc()
+			serverAlloc.JobID = job.ID
+			serverAlloc.NodeID = node.ID
+			serverAlloc.ClientStatus = tc.serverClientStatus
+			serverAlloc.TaskGroup = job.TaskGroups[0].Name
+
+			// Create the incoming client alloc.
+			clientAlloc := serverAlloc.Copy()
+			clientAlloc.ClientStatus = tc.clientStatus
+
+			err = fsmState.UpsertJobSummary(99, mock.JobSummary(serverAlloc.JobID))
+			require.NoError(t, err)
+
+			if tc.invalidTaskGroup {
+				serverAlloc.TaskGroup = "invalid"
+			}
+
+			if !tc.missingAlloc {
+				err = fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{serverAlloc})
+				require.NoError(t, err)
+			}
+
+			updateReq := &structs.AllocUpdateRequest{
+				Alloc:        []*structs.Allocation{clientAlloc},
+				WriteRequest: structs.WriteRequest{Region: "global"},
+			}
+
+			var nodeAllocResp structs.NodeAllocsResponse
+			err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", updateReq, &nodeAllocResp)
+			require.NoError(t, err)
+			require.NotEqual(t, uint64(0), nodeAllocResp.Index)
+
+			// If no eval should be created validate, none were and return.
+			if tc.triggerBy == "" {
+				evaluations, err := fsmState.EvalsByJob(nil, job.Namespace, job.ID)
+				require.NoError(t, err)
+				require.Len(t, evaluations, 0)
+				return
+			}
+
+			// Lookup the alloc
+			updatedAlloc, err := fsmState.AllocByID(nil, serverAlloc.ID)
+			require.NoError(t, err)
+			require.Equal(t, tc.clientStatus, updatedAlloc.ClientStatus)
+
+			// Assert that exactly one eval with test case TriggeredBy exists
+			evaluations, err := fsmState.EvalsByJob(nil, job.Namespace, job.ID)
+			require.NoError(t, err)
+			require.Equal(t, 1, len(evaluations))
+			foundCount := 0
+			for _, resultEval := range evaluations {
+				if resultEval.TriggeredBy == tc.triggerBy && resultEval.WaitUntil.IsZero() {
+					foundCount++
+				}
+			}
+			require.Equal(t, 1, foundCount, "Should create exactly one eval for trigger by", tc.triggerBy)
+		})
+	}
+
+}

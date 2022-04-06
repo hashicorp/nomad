@@ -1015,6 +1015,7 @@ type TaskGroupSummary struct {
 	Running  int
 	Starting int
 	Lost     int
+	Unknown  int
 }
 
 // JobListStub is used to return a subset of information about
