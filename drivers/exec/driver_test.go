@@ -557,7 +557,6 @@ func TestExecDriver_User(t *testing.T) {
 func TestExecDriver_HandlerExec(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
-	ctestutils.CgroupsCompatibleV1(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -584,50 +583,29 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, handle)
 
-	// Exec a command that should work and dump the environment
-	// TODO: enable section when exec env is fully loaded
-	/*res, err := harness.ExecTask(task.ID, []string{"/bin/sh", "-c", "env | grep ^NOMAD"}, time.Second)
-	require.NoError(err)
-	require.True(res.ExitResult.Successful())
-
-	// Assert exec'd commands are run in a task-like environment
-	scriptEnv := make(map[string]string)
-	for _, line := range strings.Split(string(res.Stdout), "\n") {
-		if line == "" {
-			continue
-		}
-		parts := strings.SplitN(string(line), "=", 2)
-		if len(parts) != 2 {
-			t.Fatalf("Invalid env var: %q", line)
-		}
-		scriptEnv[parts[0]] = parts[1]
-	}
-	if v, ok := scriptEnv["NOMAD_SECRETS_DIR"]; !ok || v != "/secrets" {
-		t.Errorf("Expected NOMAD_SECRETS_DIR=/secrets but found=%t value=%q", ok, v)
-	}*/
-
 	// Assert cgroup membership
 	res, err := harness.ExecTask(task.ID, []string{"/bin/cat", "/proc/self/cgroup"}, time.Second)
 	require.NoError(t, err)
 	require.True(t, res.ExitResult.Successful())
-	found := false
-	for _, line := range strings.Split(string(res.Stdout), "\n") {
-		// Every cgroup entry should be /nomad/$ALLOC_ID
-		if line == "" {
-			continue
+	stdout := strings.TrimSpace(string(res.Stdout))
+	if !cgutil.UseV2 {
+		for _, line := range strings.Split(stdout, "\n") {
+			// skip empty lines
+			if line == "" {
+				continue
+			}
+			// skip rdma & misc subsystems
+			if strings.Contains(line, ":rdma:") || strings.Contains(line, ":misc:") || strings.Contains(line, "::") {
+				continue
+			}
+			// assert we are in a nomad cgroup
+			if !strings.Contains(line, ":/nomad/") {
+				t.Fatalf("not a member of the allocs nomad cgroup: %q", line)
+			}
 		}
-		// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
-		// don't isolate it by default.
-		if strings.Contains(line, ":rdma:") || strings.Contains(line, "::") {
-			continue
-		}
-		if !strings.Contains(line, ":/nomad/") {
-			t.Errorf("Not a member of the alloc's cgroup: expected=...:/nomad/... -- found=%q", line)
-			continue
-		}
-		found = true
+	} else {
+		require.True(t, strings.HasSuffix(stdout, ".scope"), "actual stdout %q", stdout)
 	}
-	require.True(t, found, "exec'd command isn't in the task's cgroup")
 
 	// Exec a command that should fail
 	res, err = harness.ExecTask(task.ID, []string{"/usr/bin/stat", "lkjhdsaflkjshowaisxmcvnlia"}, time.Second)
