@@ -242,7 +242,7 @@ type vaultClient struct {
 	currentExpirationLock sync.Mutex
 	lastRenewalTime       time.Time
 	nextRenewalTime       time.Time
-	nextRenewalTimeLock   sync.Mutex
+	renewalTimeLock       sync.Mutex
 
 	tomb   *tomb.Tomb
 	logger log.Logger
@@ -568,9 +568,11 @@ func (v *vaultClient) renewalLoop() {
 			if err == nil {
 				// Attempt to renew the token at half the expiration time
 				durationUntilRenew := time.Until(currentExpiration) / 2
-				v.nextRenewalTimeLock.Lock()
-				v.nextRenewalTime = time.Now().Add(durationUntilRenew)
-				v.nextRenewalTimeLock.Unlock()
+				v.renewalTimeLock.Lock()
+				now := time.Now()
+				v.lastRenewalTime = now
+				v.nextRenewalTime = now.Add(durationUntilRenew)
+				v.renewalTimeLock.Unlock()
 
 				v.logger.Info("successfully renewed token", "next_renewal", durationUntilRenew)
 				authRenewTimer.Reset(durationUntilRenew)
@@ -601,9 +603,9 @@ func (v *vaultClient) renewalLoop() {
 			}
 
 			durationUntilRetry := time.Duration(backoff) * time.Second
-			v.nextRenewalTimeLock.Lock()
+			v.renewalTimeLock.Lock()
 			v.nextRenewalTime = time.Now().Add(durationUntilRetry)
-			v.nextRenewalTimeLock.Unlock()
+			v.renewalTimeLock.Unlock()
 			v.logger.Info("backing off renewal", "retry", durationUntilRetry)
 
 			authRenewTimer.Reset(durationUntilRetry)
@@ -1441,12 +1443,12 @@ func (v *vaultClient) stats() *VaultStats {
 
 	v.currentExpirationLock.Lock()
 	stats.TokenExpiry = v.currentExpiration
-	stats.LastRenewalTime = v.lastRenewalTime
 	v.currentExpirationLock.Unlock()
 
-	v.nextRenewalTimeLock.Lock()
+	v.renewalTimeLock.Lock()
 	stats.NextRenewalTime = v.nextRenewalTime
-	v.nextRenewalTimeLock.Unlock()
+	stats.LastRenewalTime = v.lastRenewalTime
+	v.renewalTimeLock.Unlock()
 
 	if !stats.TokenExpiry.IsZero() {
 		stats.TokenTTL = time.Until(stats.TokenExpiry)
@@ -1487,9 +1489,7 @@ func (v *vaultClient) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 // extendExpiration sets the current auth token expiration record to ttLSeconds seconds from now
 func (v *vaultClient) extendExpiration(ttlSeconds int) {
 	v.currentExpirationLock.Lock()
-	now := time.Now()
-	v.currentExpiration = now.Add(time.Duration(ttlSeconds) * time.Second)
-	v.lastRenewalTime = now
+	v.currentExpiration = time.Now().Add(time.Duration(ttlSeconds) * time.Second)
 	v.currentExpirationLock.Unlock()
 }
 
