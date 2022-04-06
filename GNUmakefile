@@ -412,9 +412,9 @@ ui-screenshots-local:
 
 version:
 ifneq (,$(wildcard version/version_ent.go))
-	@$(CURDIR)/scripts/version.sh version/version_ent.go
+	@$(CURDIR)/scripts/version.sh version/version.go version/version_ent.go
 else
-	@$(CURDIR)/scripts/version.sh version/version.go
+	@$(CURDIR)/scripts/version.sh version/version.go version/version.go
 endif
 
 .PHONY: version
