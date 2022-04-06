@@ -12,6 +12,7 @@
         />
       </div>
       <div class="toolbar-item is-right-aligned">
+        {{!-- TODO: add support for status and triggered by
         <SingleSelectDropdown
           data-test-evaluation-status-facet
           @label="Status"
@@ -27,18 +28,19 @@
           @onSelect={{action this.setQueryParam "triggeredBy"}}
         />
         <SingleSelectDropdown
-          data-test-evaluation-namespace-facet
-          @label="Namespace"
-          @options={{this.optionsNamespaces}}
-          @selection={{this.qpNamespace}}
-          @onSelect={{action this.setQueryParam "qpNamespace"}}
-        />
-        <SingleSelectDropdown
           data-test-evaluation-type-facet
           @label="Type"
           @options={{this.optionsType}}
           @selection={{this.type}}
           @onSelect={{action this.setQueryParam "type"}}
+        />
+        --}}
+        <SingleSelectDropdown
+          data-test-evaluation-namespace-facet
+          @label="Namespace"
+          @options={{this.optionsNamespaces}}
+          @selection={{this.qpNamespace}}
+          @onSelect={{action this.setQueryParam "qpNamespace"}}
         />
       </div>
     </div>
@@ -71,7 +73,7 @@
           <tr
             data-test-evaluation="{{row.model.shortId}}"
             style="cursor: pointer;"
-            class="{{if (eq this.currentEval row.model.id) "is-active"}}"
+            class="{{if (eq this.currentEval row.model.id) 'is-active'}}"
             tabindex="0"
             {{on "click" (fn this.handleEvaluationClick row.model)}}
             {{on "keyup" (fn this.handleEvaluationClick row.model)}}
