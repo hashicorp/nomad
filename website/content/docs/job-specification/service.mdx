@@ -15,10 +15,11 @@ description: |-
   ]}
 />
 
-The `service` stanza instructs Nomad to register a service with Consul. This
-section of the documentation will discuss the configuration, but please also
-read the [Nomad service discovery documentation][service-discovery] for more
-detailed information about the integration.
+The `service` stanza instructs Nomad to register a service with the specified
+provider; Nomad or Consul. This section of the documentation will discuss the
+configuration, but please also read the
+[Nomad service discovery documentation][service-discovery] for more detailed
+information about the external integrations.
 
 ```hcl
 job "docs" {
@@ -70,13 +71,21 @@ Connect][connect] integration.
 
 ## `service` Parameters
 
+- `provider` `(string: "consul")` - Specifies the service registration provider
+  to use for service registrations. Valid options are either `consul` or
+  `nomad`. All services within a single task group must utilise the same
+  provider value.
+
 - `check` <code>([Check](#check-parameters): nil)</code> - Specifies a health
   check associated with the service. This can be specified multiple times to
-  define multiple checks for the service. At this time, Nomad supports the
-  `grpc`, `http`, `script`<sup><small>1</small></sup>, and `tcp` checks.
+  define multiple checks for the service. Only available where
+  `provider = "consul"`.
+
+  At this time, the Consul integration supports the `grpc`, `http`,
+  `script`<sup><small>1</small></sup>, and `tcp` checks.
 
 - `connect` - Configures the [Consul Connect][connect] integration. Only
-  available on group services.
+  available on group services and where `provider = "consul"`.
 
 - `name` `(string: "<job>-<group>-<task>")` - Specifies the name this service
   will be advertised as in Consul. If not supplied, this will default to the
@@ -130,7 +139,7 @@ Connect][connect] integration.
   to make changes to the tags of a service without having those changes be
   overwritten by Consul's anti-entropy mechanism. See Consul
   [documentation](https://www.consul.io/docs/internals/anti-entropy#enable-tag-override)
-  for more information.
+  for more information. Only available where `provider = "consul"`.
 
 - `address_mode` `(string: "auto")` - Specifies which address (host, alloc or
   driver-specific) this service should advertise. This setting is supported in
@@ -163,14 +172,15 @@ Connect][connect] integration.
   than one task in the task group.
 
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
-  the Consul service with user-defined metadata.
+  the Consul service with user-defined metadata. Only available where
+  `provider = "consul"`.
 
 - `canary_meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that
   annotates the Consul service with user-defined metadata when the service is
   part of an allocation that is currently a canary. Once the canary is
   promoted, the registered meta will be updated to those specified in the
   `meta` parameter. If this is not supplied, the registered meta will be set to
-  that of the `meta` parameter.
+  that of the `meta` parameter. Only available where `provider = "consul"`.
 
 - `on_update` `(string: "require_healthy")` - Specifies how checks should be
   evaluated when determining deployment health (including a job's initial
@@ -348,29 +358,31 @@ service {
 
 ## `service` Lifecycle
 
-Nomad manages registering, updating, and deregistering services with Consul. It
-is important to understand when each of these steps happens and how they can be
-customized.
+Nomad manages registering, updating, and deregistering services with the
+service provider. It is important to understand when each of these steps
+happens and how they can be customized.
 
 **Registration**: Nomad will register `group` services and checks _before_
 starting any tasks. Services and checks for a specific `task` are registered
 _after_ the task has started.
 
 **Updating**: If a service or check definition is updated, Nomad will update
-the service in Consul as well. Consul is updated without restarting a task.
+the service in the provider as well. This update happens without restarting a
+task.
 
 **Deregistering**: If a running task with a service stanza exits, the services
-and checks are immediately deregistered from Consul without delay. If however
-Nomad needs to kill a running task, the task is killed in the following order:
+and checks are immediately deregistered from the provider without delay. If,
+however, Nomad needs to kill a running task, the task is killed in the
+following order:
 
-1. Immediately remove the services and checks from Consul. This stops new
+1. Immediately remove the services and checks from the provider. This stops new
    traffic from being routed to the task that is being killed.
 2. If [`shutdown_delay`][shutdowndelay] is set, wait the configured duration
    before proceeding to step 3. Setting a [`shutdown_delay`][shutdowndelay] can
    be useful if the application itself doesn't handle graceful shutdowns based
    on the [`kill_signal`][killsignal]. The configured delay will provide a
-   period of time in which the service is no longer registered in Consul, and
-   thus is not receiving additional requests, but hasn't been signalled to
+   period of time in which the service is no longer registered in the provider,
+   and thus is not receiving additional requests, but hasn't been signalled to
    shutdown. This allows the application time to complete the requests and
    become idle.
 3. Send the [`kill_signal`][killsignal] to the task and wait for the task to
@@ -386,7 +398,19 @@ The following examples only show the `service` stanzas. Remember that the
 
 ### Basic Service
 
-This example registers a service named "load-balancer" with no health checks.
+This example registers a service named "load-balancer" with no health checks
+using the Nomad provider:
+
+```hcl
+service {
+  name     = "load-balancer"
+  port     = "lb"
+  provider = "nomad"
+}
+```
+
+This example registers a service named "load-balancer" with no health checks
+using the Consul provider:
 
 ```hcl
 service {
@@ -395,8 +419,8 @@ service {
 }
 ```
 
-This example must be accompanied by a [`network`][network] stanza which defines
-a static or dynamic port labeled "lb". For example:
+These examples must be accompanied by a [`network`][network] stanza which
+defines a static or dynamic port labeled "lb". For example:
 
 ```hcl
 network {
