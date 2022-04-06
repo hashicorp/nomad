@@ -61,7 +61,7 @@ type serviceHook struct {
 	taskEnv    *taskenv.TaskEnv
 
 	// namespace is the Nomad or Consul namespace in which service
-	// registrations will be made.
+	// registrations will be made. This field may be updated.
 	namespace string
 
 	// serviceRegWrapper is the handler wrapper that is used to perform service
@@ -172,6 +172,10 @@ func (h *serviceHook) updateHookFields(req *interfaces.TaskUpdateRequest) error 
 	h.networks = networks
 	h.canary = canary
 	h.ports = req.Alloc.AllocatedResources.Shared.Ports
+
+	// An update may change the service provider, therefore we need to account
+	// for how namespaces work across providers also.
+	h.namespace = req.Alloc.ServiceProviderNamespace()
 
 	return nil
 }
