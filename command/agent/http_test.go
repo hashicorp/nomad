@@ -1113,6 +1113,8 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 			conf.Address = a.HTTPAddr()
 			conf.TLSConfig.Insecure = true
 			client, err := api.NewClient(conf)
+			defer client.Close()
+
 			require.NoError(t, err)
 
 			// Assert a blocking query isn't timed out by the
