@@ -1124,9 +1124,8 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 
 // UpdateAlloc is used to update the client status of an allocation
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
-	var err error
 	// Ensure the connection was initiated by another client if TLS is used.
-	err = validateTLSCertificateLevel(n.srv, n.ctx, tlsCertificateLevelClient)
+	err := validateTLSCertificateLevel(n.srv, n.ctx, tlsCertificateLevelClient)
 	if err != nil {
 		return err
 	}

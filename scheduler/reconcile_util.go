@@ -230,10 +230,20 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 
 		// Only compute reconnected for unknown, running, and failed since they need to go through the reconnect logic.
 		if supportsDisconnectedClients &&
-			alloc.ClientStatus != structs.AllocClientStatusPending &&
-			alloc.ClientStatus != structs.AllocClientStatusComplete &&
-			alloc.ClientStatus != structs.AllocClientStatusLost {
+			(alloc.ClientStatus == structs.AllocClientStatusUnknown ||
+				alloc.ClientStatus == structs.AllocClientStatusRunning ||
+				alloc.ClientStatus == structs.AllocClientStatusFailed) {
 			reconnected, expired = alloc.Reconnected()
+		}
+
+		// Failed reconnected allocs need to be added to reconnecting so that they
+		// can be handled as a failed reconnect.
+		if supportsDisconnectedClients &&
+			reconnected &&
+			alloc.DesiredStatus == structs.AllocDesiredStatusRun &&
+			alloc.ClientStatus == structs.AllocClientStatusFailed {
+			reconnecting[alloc.ID] = alloc
+			continue
 		}
 
 		// Terminal allocs, if not reconnected, are always untainted as they
@@ -255,7 +265,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 			continue
 		}
 
-		// Ignore unknown allocs
+		// Ignore unknown allocs that we want to reconnect eventually.
 		if supportsDisconnectedClients &&
 			alloc.ClientStatus == structs.AllocClientStatusUnknown &&
 			alloc.DesiredStatus == structs.AllocDesiredStatusRun {
