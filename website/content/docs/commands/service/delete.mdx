@@ -1,0 +1,39 @@
+---
+layout: docs
+page_title: 'Commands: service delete'
+description: |
+  The service delete command is used to delete Nomad service registrations.
+---
+
+# Command: service delete
+
+The `service delete` command is used to delete an individual service
+registration. <em>This command is not expected to be used during normal
+operations of Nomad and should be used with caution.</em>
+
+~> Service commands are new in Nomad 1.3.
+
+## Usage
+
+```plaintext
+nomad service delete [options] <service_name> <service_id>
+```
+
+The `service delete` command requires two arguments, the name of the service
+and the ID of the individual registration to delete.
+
+When ACLs are enabled, this command requires a token with the `submit-job`
+capability for the service registration namespace.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Examples
+
+Delete a service registration:
+
+```shell-session
+$ nomad service delete delete example-cache-redis _nomad-task-a831f7f2-4c01-39dc-c742-f2b8ca178a49-redis-example-cache-redis-db
+Successfully deleted service registration
+```

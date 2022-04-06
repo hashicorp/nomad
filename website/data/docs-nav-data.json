@@ -742,6 +742,27 @@
         ]
       },
       {
+        "title": "service",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "commands/service"
+          },
+          {
+            "title": "service delete",
+            "path": "commands/service/delete"
+          },
+          {
+            "title": "service info",
+            "path": "commands/service/info"
+          },
+          {
+            "title": "service list",
+            "path": "commands/service/list"
+          }
+        ]
+      },
+      {
         "title": "status",
         "path": "commands/status"
       },
