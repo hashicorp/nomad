@@ -7,7 +7,7 @@ import { pluralize, singularize } from 'ember-inflector';
 import removeRecord from '../utils/remove-record';
 import { assign } from '@ember/polyfills';
 import classic from 'ember-classic-decorator';
-
+import { camelize, capitalize } from '@ember/string';
 @classic
 export default class Application extends JSONSerializer {
   primaryKey = 'ID';
@@ -61,11 +61,11 @@ export default class Application extends JSONSerializer {
   separateNanos = null;
 
   keyForAttribute(attr) {
-    return attr.camelize().capitalize();
+    return capitalize(camelize(attr));
   }
 
   keyForRelationship(attr, relationshipType) {
-    const key = `${singularize(attr).camelize().capitalize()}ID`;
+    const key = `${capitalize(camelize(singularize(attr)))}ID`;
     return relationshipType === 'hasMany' ? pluralize(key) : key;
   }
 
