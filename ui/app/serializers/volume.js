@@ -56,7 +56,6 @@ export default class VolumeSerializer extends ApplicationSerializer {
 
   keyForRelationship(attr, relationshipType) {
     //Embedded relationship attributes don't end in IDs
-    /* eslint-disable-next-line ember/no-string-prototype-extensions */
     if (this.embeddedRelationships.includes(attr)) return capitalize(attr);
     return super.keyForRelationship(attr, relationshipType);
   }

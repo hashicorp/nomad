@@ -1,4 +1,3 @@
-/* eslint-disable ember/no-string-prototype-extensions */
 import { copy } from 'ember-copy';
 import { get } from '@ember/object';
 import { makeArray } from '@ember/array';
