@@ -418,16 +418,13 @@ func (tc *ConsulTemplateTest) TestConsulTemplate_NomadServiceLookups(f *framewor
 	// services within the default namespace.
 	err = waitForTaskFile(serviceLookupAllocID, "test", "${NOMAD_TASK_DIR}/services.conf",
 		func(out string) bool {
-			if !f.Assert().Contains(out, "service default-nomad-provider-service-primary [bar foo]") {
+			if !strings.Contains(out, "service default-nomad-provider-service-primary [bar foo]") {
 				return false
 			}
-			if !f.Assert().Contains(out, "service default-nomad-provider-service-secondary [baz buz]") {
+			if !strings.Contains(out, "service default-nomad-provider-service-secondary [baz buz]") {
 				return false
 			}
-			if strings.Contains(out, "service platform-nomad-provider-service-secondary [baz buz]") {
-				return false
-			}
-			return true
+			return !strings.Contains(out, "service platform-nomad-provider-service-secondary [baz buz]")
 		}, nil)
 	f.NoError(err)
 
@@ -435,7 +432,7 @@ func (tc *ConsulTemplateTest) TestConsulTemplate_NomadServiceLookups(f *framewor
 	err = waitForTaskFile(serviceLookupAllocID, "test", "${NOMAD_TASK_DIR}/service.conf",
 		func(out string) bool {
 			expected := fmt.Sprintf("service default-nomad-provider-service-primary [bar foo] dc1 %s", serviceAllocID)
-			return f.Assert().Contains(out, expected)
+			return strings.Contains(out, expected)
 		}, nil)
 	f.NoError(err)
 
@@ -447,10 +444,15 @@ func (tc *ConsulTemplateTest) TestConsulTemplate_NomadServiceLookups(f *framewor
 	f.NoError(err)
 
 	// Pull the allocation ID for the job, we use this to ensure this is found
-	// in the rendered template later on.
-	serviceJobAllocs, err = e2eutil.AllocsForJob(serviceJobID, "default")
-	f.NoError(err)
-	f.Len(serviceJobAllocs, 3)
+	// in the rendered template later on. Wrap this in an eventual do to the
+	// eventual consistency around the service registration process.
+	f.Eventually(func() bool {
+		serviceJobAllocs, err = e2eutil.AllocsForJob(serviceJobID, "default")
+		if err != nil {
+			return false
+		}
+		return len(serviceJobAllocs) == 3
+	}, 10*time.Second, 200*time.Millisecond, "unexpected number of allocs found")
 
 	// Track the expected entries, including the allocID to make this test
 	// actually valuable.
@@ -464,7 +466,7 @@ func (tc *ConsulTemplateTest) TestConsulTemplate_NomadServiceLookups(f *framewor
 	err = waitForTaskFile(serviceLookupAllocID, "test", "${NOMAD_TASK_DIR}/service.conf",
 		func(out string) bool {
 			for _, entry := range expectedEntries {
-				if !f.Assert().Contains(out, entry) {
+				if !strings.Contains(out, entry) {
 					return false
 				}
 			}
