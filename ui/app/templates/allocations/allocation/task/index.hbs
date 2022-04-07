@@ -161,6 +161,16 @@
               </td>
               <td data-test-volume-client-source>
                 {{#if row.model.isCSI}}
+                  {{#if row.model.perAlloc}}
+                    <!-- TODO: where can we get the alloc index from? -->
+                  <LinkTo
+                    @route="csi.volumes.volume"
+                    @model={{concat row.model.volume "[X]@" row.model.namespace.id
+                    }}
+                  >
+                    {{row.model.volume}}[X]
+                  </LinkTo>
+                  {{else}}
                   <LinkTo
                     @route="csi.volumes.volume"
                     @model={{concat row.model.volume "@" row.model.namespace.id
@@ -168,6 +178,7 @@
                   >
                     {{row.model.volume}}
                   </LinkTo>
+                  {{/if}}
                 {{else}}
                   {{row.model.source}}
                 {{/if}}
