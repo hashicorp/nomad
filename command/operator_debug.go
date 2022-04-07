@@ -183,11 +183,12 @@ Debug Options:
     Filter client nodes based on node class.
 
   -pprof-duration=<duration>
-    Duration for pprof collection. Defaults to 1s.
+    Duration for pprof collection. Defaults to 1s or -duration, whichever is less.
 
   -pprof-interval=<pprof-interval>
     The interval between pprof collections. Set interval equal to
-    duration to capture a single snapshot. Defaults to 250ms.
+    duration to capture a single snapshot. Defaults to 250ms or
+   -pprof-duration, whichever is less.
 
   -server-id=<server1>,<server2>
     Comma separated list of Nomad server names to monitor for logs, API
@@ -406,27 +407,27 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Parse the pprof capture interval
-	pi, err := time.ParseDuration(pprofInterval)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing pprof-interval: %s: %s", pprofInterval, err.Error()))
-		return 1
-	}
-	c.pprofInterval = pi
-
-	// Parse the pprof capture duration
+	// Parse and clamp the pprof capture duration
 	pd, err := time.ParseDuration(pprofDuration)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing pprof duration: %s: %s", pprofDuration, err.Error()))
 		return 1
 	}
+	if pd.Seconds() > d.Seconds() {
+		pd = d
+	}
 	c.pprofDuration = pd
 
-	// Validate pprof interval
-	if pi.Seconds() > pd.Seconds() {
-		c.Ui.Error(fmt.Sprintf("pprof-interval %s must be less than pprof-duration %s", pprofInterval, pprofDuration))
+	// Parse and clamp the pprof capture interval
+	pi, err := time.ParseDuration(pprofInterval)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing pprof-interval: %s: %s", pprofInterval, err.Error()))
 		return 1
 	}
+	if pi.Seconds() > pd.Seconds() {
+		pi = pd
+	}
+	c.pprofInterval = pi
 
 	// Parse event stream topic filter
 	t, err := topicsFromString(eventTopic)
@@ -615,7 +616,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.Ui.Output(fmt.Sprintf("         Interval: %s", interval))
 	c.Ui.Output(fmt.Sprintf("         Duration: %s", duration))
-	c.Ui.Output(fmt.Sprintf("         pprof Interval: %s", pprofInterval))
+	c.Ui.Output(fmt.Sprintf("   pprof Interval: %s", pprofInterval))
 	if c.pprofDuration.Seconds() != 1 {
 		c.Ui.Output(fmt.Sprintf("   pprof Duration: %s", c.pprofDuration))
 	}
@@ -684,7 +685,7 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	c.collectVault(clusterDir, vaultAddr)
 
 	c.collectAgentHosts(client)
-	go c.collectPeriodicPprofs(client)
+	c.collectPeriodicPprofs(client)
 
 	c.collectPeriodic(client)
 
@@ -898,31 +899,34 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 }
 
 func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
-	duration := time.After(c.pprofDuration)
-	// Create a ticker to execute on every interval ticks
-	ticker := time.NewTicker(c.pprofInterval)
 
-	var pprofIntervalCount int
-	var name string
-
-	// Additionally, an out of loop execute to imitate first tick
-	c.collectPprofs(client, pprofIntervalCount)
-
-	for {
-		select {
-		case <-duration:
-			return
-
-		case <-ticker.C:
-			name = fmt.Sprintf("%04d", pprofIntervalCount)
-			c.Ui.Output(fmt.Sprintf("    Capture pprofInterval %s", name))
-			c.collectPprofs(client, pprofIntervalCount)
-			pprofIntervalCount++
-
-		case <-c.ctx.Done():
-			return
-		}
+	// Take the first set of pprofs synchronously...
+	c.Ui.Output("    Capture pprofInterval 0000")
+	c.collectPprofs(client, 0)
+	if c.pprofInterval == c.pprofDuration {
+		return
 	}
+
+	// ... and then move the rest off into a goroutine
+	go func() {
+		ctx, cancel := context.WithTimeout(c.ctx, c.duration)
+		defer cancel()
+		timer, stop := helper.NewSafeTimer(c.pprofInterval)
+		defer stop()
+
+		pprofIntervalCount := 1
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+				c.Ui.Output(fmt.Sprintf("    Capture pprofInterval %04d", pprofIntervalCount))
+				c.collectPprofs(client, pprofIntervalCount)
+				timer.Reset(c.pprofInterval)
+				pprofIntervalCount++
+			}
+		}
+	}()
 }
 
 // collectPprofs captures the /agent/pprof for each listed node

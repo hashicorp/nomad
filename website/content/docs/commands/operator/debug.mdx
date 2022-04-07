@@ -64,11 +64,13 @@ true.
   to monitor for logs, API outputs, and pprof profiles. Accepts id prefixes, and
   "all" to select all nodes (up to count = max-nodes). Defaults to `all`.
 
-- `-pprof-duration=<duration>`: Duration for pprof collection. Defaults to 1s.
+- `-pprof-duration=<duration>`: Duration for pprof
+  collection. Defaults to 1s or `-duration`, whichever is less.
 
 - `-pprof-interval=<pprof-interval>`: The interval between pprof
     collections. Set interval equal to duration to capture a single
-    snapshot. Defaults to 250ms.
+    snapshot. Defaults to 250ms or `-pprof-duration`, whichever is
+    less.
 
 - `-server-id=<server1>,<server2>`: Comma separated list of Nomad server names to
   monitor for logs, API outputs, and pprof profiles. Accepts server names, "leader", or

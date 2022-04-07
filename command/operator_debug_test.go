@@ -42,21 +42,30 @@ func runTestCases(t *testing.T, cases testCases) {
 	t.Helper()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			// Setup mock UI
 			ui := cli.NewMockUi()
 			cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
-			// Run test case
 			code := cmd.Run(c.args)
 			out := ui.OutputWriter.String()
 			outerr := ui.ErrorWriter.String()
 
-			// Verify case expectations
-			require.Equalf(t, code, c.expectedCode, "expected exit code %d, got: %d: %s", c.expectedCode, code, outerr)
-			for _, expectedOutput := range c.expectedOutputs {
-				require.Contains(t, out, expectedOutput, "expected output %q, got %q", expectedOutput, out)
+			assert.Equalf(t, code, c.expectedCode, "did not get expected exit code")
+
+			if len(c.expectedOutputs) > 0 {
+				if assert.NotEmpty(t, out, "command output was empty") {
+					for _, expectedOutput := range c.expectedOutputs {
+						assert.Contains(t, out, expectedOutput, "did not get expected output")
+					}
+				}
+			} else {
+				assert.Empty(t, out, "command output should have been empty")
 			}
-			require.Containsf(t, outerr, c.expectedError, "expected error %q, got %q", c.expectedError, outerr)
+
+			if c.expectedError == "" {
+				assert.Empty(t, outerr, "got unexpected error")
+			} else {
+				assert.Containsf(t, outerr, c.expectedError, "did not get expected error")
+			}
 		})
 	}
 }
@@ -75,7 +84,6 @@ func newClientAgentConfigFunc(region string, nodeClass string, srvRPCAddr string
 }
 
 func TestDebug_NodeClass(t *testing.T) {
-	ci.Parallel(t)
 
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
@@ -85,7 +93,7 @@ func TestDebug_NodeClass(t *testing.T) {
 
 	// Retrieve server RPC address to join clients
 	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
-	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
+	t.Logf("Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
 
 	// Start test clients
 	testClient(t, "client1", newClientAgentConfigFunc("global", "classA", srvRPCAddr))
@@ -125,7 +133,6 @@ func TestDebug_NodeClass(t *testing.T) {
 }
 
 func TestDebug_ClientToServer(t *testing.T) {
-	ci.Parallel(t)
 
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
@@ -135,7 +142,7 @@ func TestDebug_ClientToServer(t *testing.T) {
 
 	// Retrieve server RPC address to join client
 	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
-	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
+	t.Logf("Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
 
 	// Start client
 	agent1, _, _ := testClient(t, "client1", newClientAgentConfigFunc("", "", srvRPCAddr))
@@ -144,9 +151,9 @@ func TestDebug_ClientToServer(t *testing.T) {
 	addrServer := srv.HTTPAddr()
 	addrClient1 := agent1.HTTPAddr()
 
-	t.Logf("[TEST] testAgent api address: %s", url)
-	t.Logf("[TEST] Server    api address: %s", addrServer)
-	t.Logf("[TEST] Client1   api address: %s", addrClient1)
+	t.Logf("testAgent api address: %s", url)
+	t.Logf("Server    api address: %s", addrServer)
+	t.Logf("Client1   api address: %s", addrClient1)
 
 	// Setup test cases
 	var cases = testCases{
@@ -164,7 +171,7 @@ func TestDebug_ClientToServer(t *testing.T) {
 		},
 		{
 			name:            "client1 address - verify no SIGSEGV panic",
-			args:            []string{"-address", addrClient1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-pprof-interval", "200ms", "-pprof-duration", "250ms"},
+			args:            []string{"-address", addrClient1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode:    0,
 			expectedOutputs: []string{"Created debug archive"},
 		},
@@ -174,7 +181,6 @@ func TestDebug_ClientToServer(t *testing.T) {
 }
 
 func TestDebug_MultiRegion(t *testing.T) {
-	ci.Parallel(t)
 
 	region1 := "region1"
 	region2 := "region2"
@@ -183,40 +189,41 @@ func TestDebug_MultiRegion(t *testing.T) {
 	server1, _, addrServer1 := testServer(t, false, func(c *agent.Config) { c.Region = region1 })
 	testutil.WaitForLeader(t, server1.Agent.RPC)
 	rpcAddrServer1 := server1.GetConfig().AdvertiseAddrs.RPC
-	t.Logf("[TEST] %s: Leader started, HTTPAddr: %s, RPC: %s", region1, addrServer1, rpcAddrServer1)
+	t.Logf("%s: Leader started, HTTPAddr: %s, RPC: %s", region1, addrServer1, rpcAddrServer1)
 
 	// Start region1 client
 	agent1, _, addrClient1 := testClient(t, "client1", newClientAgentConfigFunc(region1, "", rpcAddrServer1))
 	nodeIdClient1 := agent1.Agent.Client().NodeID()
-	t.Logf("[TEST] %s: Client1 started, ID: %s, HTTPAddr: %s", region1, nodeIdClient1, addrClient1)
+	t.Logf("%s: Client1 started, ID: %s, HTTPAddr: %s", region1, nodeIdClient1, addrClient1)
 
 	// Start region2 server
 	server2, _, addrServer2 := testServer(t, false, func(c *agent.Config) { c.Region = region2 })
 	testutil.WaitForLeader(t, server2.Agent.RPC)
 	rpcAddrServer2 := server2.GetConfig().AdvertiseAddrs.RPC
-	t.Logf("[TEST] %s: Leader started, HTTPAddr: %s, RPC: %s", region2, addrServer2, rpcAddrServer2)
+	t.Logf("%s: Leader started, HTTPAddr: %s, RPC: %s", region2, addrServer2, rpcAddrServer2)
 
 	// Start client2
 	agent2, _, addrClient2 := testClient(t, "client2", newClientAgentConfigFunc(region2, "", rpcAddrServer2))
 	nodeIdClient2 := agent2.Agent.Client().NodeID()
-	t.Logf("[TEST] %s: Client1 started, ID: %s, HTTPAddr: %s", region2, nodeIdClient2, addrClient2)
+	t.Logf("%s: Client1 started, ID: %s, HTTPAddr: %s", region2, nodeIdClient2, addrClient2)
 
-	t.Logf("[TEST] Region: %s, Server1   api address: %s", region1, addrServer1)
-	t.Logf("[TEST] Region: %s, Client1   api address: %s", region1, addrClient1)
-	t.Logf("[TEST] Region: %s, Server2   api address: %s", region2, addrServer2)
-	t.Logf("[TEST] Region: %s, Client2   api address: %s", region2, addrClient2)
+	t.Logf("Region: %s, Server1   api address: %s", region1, addrServer1)
+	t.Logf("Region: %s, Client1   api address: %s", region1, addrClient1)
+	t.Logf("Region: %s, Server2   api address: %s", region2, addrServer2)
+	t.Logf("Region: %s, Client2   api address: %s", region2, addrClient2)
 
 	// Setup test cases
 	var cases = testCases{
 		// Good
 		{
-			name:         "no region - all servers, all clients",
-			args:         []string{"-address", addrServer1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
-			expectedCode: 0,
+			name:            "no region - all servers, all clients",
+			args:            []string{"-address", addrServer1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode:    0,
+			expectedOutputs: []string{"Starting debugger"},
 		},
 		{
 			name:         "region1 - server1 address",
-			args:         []string{"-address", addrServer1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
+			args:         []string{"-address", addrServer1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region1 + "\n",
@@ -227,7 +234,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		},
 		{
 			name:         "region1 - client1 address",
-			args:         []string{"-address", addrClient1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
+			args:         []string{"-address", addrClient1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region1 + "\n",
@@ -238,7 +245,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		},
 		{
 			name:         "region2 - server2 address",
-			args:         []string{"-address", addrServer2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
+			args:         []string{"-address", addrServer2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region2 + "\n",
@@ -249,7 +256,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		},
 		{
 			name:         "region2 - client2 address",
-			args:         []string{"-address", addrClient2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
+			args:         []string{"-address", addrClient2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region2 + "\n",
@@ -262,7 +269,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		// Bad
 		{
 			name:          "invalid region - all servers, all clients",
-			args:          []string{"-address", addrServer1, "-region", "never", "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
+			args:          []string{"-address", addrServer1, "-region", "never", "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode:  1,
 			expectedError: "500 (No path to region)",
 		},
@@ -272,7 +279,6 @@ func TestDebug_MultiRegion(t *testing.T) {
 }
 
 func TestDebug_SingleServer(t *testing.T) {
-	ci.Parallel(t)
 
 	srv, _, url := testServer(t, false, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -287,7 +293,7 @@ func TestDebug_SingleServer(t *testing.T) {
 				"Clients: (0/0)",
 				"Created debug archive",
 			},
-			expectedError: "",
+			expectedError: "No node(s) with prefix",
 		},
 		{
 			name:         "address=api, server-id=all",
@@ -298,7 +304,7 @@ func TestDebug_SingleServer(t *testing.T) {
 				"Clients: (0/0)",
 				"Created debug archive",
 			},
-			expectedError: "",
+			expectedError: "No node(s) with prefix",
 		},
 	}
 
@@ -306,51 +312,57 @@ func TestDebug_SingleServer(t *testing.T) {
 }
 
 func TestDebug_Failures(t *testing.T) {
-	ci.Parallel(t)
 
 	srv, _, url := testServer(t, false, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
 	var cases = testCases{
 		{
-			name:         "fails incorrect args",
-			args:         []string{"some", "bad", "args"},
-			expectedCode: 1,
+			name:          "fails incorrect args",
+			args:          []string{"some", "bad", "args"},
+			expectedCode:  1,
+			expectedError: "This command takes no arguments",
 		},
 		{
-			name:         "Fails illegal node ids",
-			args:         []string{"-node-id", "foo:bar"},
-			expectedCode: 1,
+			name:          "Fails illegal node ids",
+			args:          []string{"-node-id", "foo:bar"},
+			expectedCode:  1,
+			expectedError: "Error querying node info",
 		},
 		{
-			name:         "Fails missing node ids",
-			args:         []string{"-node-id", "abc,def", "-duration", "250ms", "-interval", "250ms"},
-			expectedCode: 1,
+			name:          "Fails missing node ids",
+			args:          []string{"-node-id", "abc,def", "-duration", "250ms", "-interval", "250ms"},
+			expectedCode:  1,
+			expectedError: "Error querying node info",
 		},
 		{
-			name:         "Fails bad durations",
-			args:         []string{"-duration", "foo"},
-			expectedCode: 1,
+			name:          "Fails bad durations",
+			args:          []string{"-duration", "foo"},
+			expectedCode:  1,
+			expectedError: "Error parsing duration: foo: time: invalid duration \"foo\""},
+		{
+			name:          "Fails bad intervals",
+			args:          []string{"-interval", "bar"},
+			expectedCode:  1,
+			expectedError: "Error parsing interval: bar: time: invalid duration \"bar\"",
 		},
 		{
-			name:         "Fails bad intervals",
-			args:         []string{"-interval", "bar"},
-			expectedCode: 1,
+			name:          "Fails intervals greater than duration",
+			args:          []string{"-duration", "5m", "-interval", "10m"},
+			expectedCode:  1,
+			expectedError: "Error parsing interval: 10m is greater than duration 5m",
 		},
 		{
-			name:         "Fails intervals greater than duration",
-			args:         []string{"-duration", "5m", "-interval", "10m"},
-			expectedCode: 1,
+			name:          "Fails bad pprof duration",
+			args:          []string{"-pprof-duration", "baz"},
+			expectedCode:  1,
+			expectedError: "Error parsing pprof duration: baz: time: invalid duration \"baz\"",
 		},
 		{
-			name:         "Fails bad pprof duration",
-			args:         []string{"-pprof-duration", "baz"},
-			expectedCode: 1,
-		},
-		{
-			name:         "Fails bad pprof interval",
-			args:         []string{"-pprof-interval", "bar"},
-			expectedCode: 1,
+			name:          "Fails bad pprof interval",
+			args:          []string{"-pprof-interval", "bar"},
+			expectedCode:  1,
+			expectedError: "Error parsing pprof-interval: bar: time: invalid duration \"bar\"",
 		},
 		{
 			name:          "Fails bad address",
@@ -364,7 +376,6 @@ func TestDebug_Failures(t *testing.T) {
 }
 
 func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
-	ci.Parallel(t)
 
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
@@ -416,7 +427,6 @@ func buildPathSlice(path string, files []string) []string {
 }
 
 func TestDebug_CapturedFiles(t *testing.T) {
-	ci.Parallel(t)
 	srv, _, url := testServer(t, true, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
@@ -490,8 +500,6 @@ func TestDebug_CapturedFiles(t *testing.T) {
 		"-node-id", clientID,
 		"-duration", duration.String(),
 		"-interval", interval.String(),
-		"-pprof-duration", "1s",
-		"-pprof-interval", "250ms",
 	})
 
 	// There should be no errors
@@ -544,7 +552,6 @@ func TestDebug_ExistingOutput(t *testing.T) {
 }
 
 func TestDebug_Fail_Pprof(t *testing.T) {
-	ci.Parallel(t)
 
 	// Setup agent config with debug endpoints disabled
 	agentConfFunc := func(c *agent.Config) {
@@ -810,13 +817,12 @@ func TestDebug_RedirectError(t *testing.T) {
 // complete a debug run have their query options configured with the
 // -stale flag
 func TestDebug_StaleLeadership(t *testing.T) {
-	ci.Parallel(t)
 
 	srv, _, url := testServerWithoutLeader(t, false, nil)
 	addrServer := srv.HTTPAddr()
 
-	t.Logf("[TEST] testAgent api address: %s", url)
-	t.Logf("[TEST] Server    api address: %s", addrServer)
+	t.Logf("testAgent api address: %s", url)
+	t.Logf("Server    api address: %s", addrServer)
 
 	var cases = testCases{
 		{
@@ -824,7 +830,8 @@ func TestDebug_StaleLeadership(t *testing.T) {
 			args: []string{"-address", addrServer,
 				"-duration", "250ms", "-interval", "250ms",
 				"-server-id", "all", "-node-id", "all"},
-			expectedCode: 1,
+			expectedCode:  1,
+			expectedError: "No cluster leader",
 		},
 		{
 			name: "no leader with stale flag",
@@ -835,6 +842,7 @@ func TestDebug_StaleLeadership(t *testing.T) {
 				"-stale"},
 			expectedCode:    0,
 			expectedOutputs: []string{"Created debug archive"},
+			expectedError:   "No node(s) with prefix", // still exits 0
 		},
 	}
 
@@ -937,23 +945,22 @@ func TestDebug_EventStream(t *testing.T) {
 	// TODO dmay: scenario where no events are expected, verify "No events captured"
 	// TODO dmay: verify event topic filtering only includes expected events
 
-	var start time.Time
+	start := time.Now()
 
 	// Start test server
 	srv, client, url := testServer(t, true, nil)
-	t.Logf("[TEST] %s: test server started, waiting for leadership to establish\n", time.Since(start))
+	t.Logf("%s: test server started, waiting for leadership to establish\n", time.Since(start))
 
 	// Ensure leader is ready
 	testutil.WaitForLeader(t, srv.Agent.RPC)
-	t.Logf("[TEST] %s: Leadership established\n", time.Since(start))
+	t.Logf("%s: Leadership established\n", time.Since(start))
 
 	// Setup mock UI
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
-	// Create channels to pass info back from goroutine
+	// Return command output back to the main test goroutine
 	chOutput := make(chan testOutput)
-	chDone := make(chan bool)
 
 	// Set duration for capture
 	duration := 5 * time.Second
@@ -961,7 +968,7 @@ func TestDebug_EventStream(t *testing.T) {
 	timeout := duration + 5*time.Second
 
 	// Run debug in a goroutine so we can start the capture before we run the test job
-	t.Logf("[TEST] %s: Starting nomad operator debug in goroutine\n", time.Since(start))
+	t.Logf("%s: Starting nomad operator debug in goroutine\n", time.Since(start))
 	go func() {
 		code := cmd.Run([]string{"-address", url, "-duration", duration.String(), "-interval", "5s", "-event-topic", "Job:*"})
 		assert.Equal(t, 0, code)
@@ -972,14 +979,13 @@ func TestDebug_EventStream(t *testing.T) {
 			output: ui.OutputWriter.String(),
 			error:  ui.ErrorWriter.String(),
 		}
-		chDone <- true
 	}()
 
 	// Start test job
-	t.Logf("[TEST] %s: Running test job\n", time.Since(start))
+	t.Logf("%s: Running test job\n", time.Since(start))
 	job := testJob("event_stream_test")
 	resp, _, err := client.Jobs().Register(job, nil)
-	t.Logf("[TEST] %s: Test job started\n", time.Since(start))
+	t.Logf("%s: Test job started\n", time.Since(start))
 
 	// Ensure job registered
 	require.NoError(t, err)
@@ -995,24 +1001,15 @@ func TestDebug_EventStream(t *testing.T) {
 			t.Fatalf("status code non zero saw %d\n", code)
 		}
 	}
-	t.Logf("[TEST] %s: test job is complete, eval id: %s\n", time.Since(start), resp.EvalID)
+	t.Logf("%s: test job is complete, eval id: %s\n", time.Since(start), resp.EvalID)
 
 	// Capture the output struct from nomad operator debug goroutine
 	var testOut testOutput
-	var done bool
-	for {
-		select {
-		case testOut = <-chOutput:
-			t.Logf("out from channel testout\n")
-		case done = <-chDone:
-			t.Logf("[TEST] %s: goroutine is complete", time.Since(start))
-		case <-time.After(timeout):
-			t.Fatalf("timed out waiting for event stream event (duration: %s, timeout: %s", duration, timeout)
-		}
-
-		if done {
-			break
-		}
+	select {
+	case testOut = <-chOutput:
+		t.Logf("%s: goroutine is complete", time.Since(start))
+	case <-time.After(timeout):
+		t.Fatalf("timed out waiting for event stream event (duration: %s, timeout: %s", duration, timeout)
 	}
 
 	t.Logf("Values from struct -- code: %d, len(out): %d, len(outerr): %d\n", testOut.code, len(testOut.output), len(testOut.error))
