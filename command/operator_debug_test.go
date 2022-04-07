@@ -937,7 +937,7 @@ func TestDebug_EventStream(t *testing.T) {
 	// TODO dmay: scenario where no events are expected, verify "No events captured"
 	// TODO dmay: verify event topic filtering only includes expected events
 
-	var start time.Time
+	start := time.Now()
 
 	// Start test server
 	srv, client, url := testServer(t, true, nil)
