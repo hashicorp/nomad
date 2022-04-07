@@ -1025,3 +1025,79 @@ func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 		t.Fatalf("bad")
 	}
 }
+
+// TestPlanApply_EvalNodePlan_Node_Disconnected tests that plans for disconnected
+// nodes can only contain allocs with client status unknown.
+func TestPlanApply_EvalNodePlan_Node_Disconnected(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	node := mock.Node()
+	node.Status = structs.NodeStatusDisconnected
+	_ = state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
+	snap, _ := state.Snapshot()
+
+	unknownAlloc := mock.Alloc()
+	unknownAlloc.ClientStatus = structs.AllocClientStatusUnknown
+
+	runningAlloc := unknownAlloc.Copy()
+	runningAlloc.ClientStatus = structs.AllocClientStatusRunning
+
+	job := unknownAlloc.Job
+
+	type testCase struct {
+		name           string
+		nodeAllocs     map[string][]*structs.Allocation
+		expectedFit    bool
+		expectedReason string
+	}
+
+	testCases := []testCase{
+		{
+			name: "unknown-valid",
+			nodeAllocs: map[string][]*structs.Allocation{
+				node.ID: {unknownAlloc},
+			},
+			expectedFit:    true,
+			expectedReason: "",
+		},
+		{
+			name: "running-invalid",
+			nodeAllocs: map[string][]*structs.Allocation{
+				node.ID: {runningAlloc},
+			},
+			expectedFit:    false,
+			expectedReason: "node is disconnected and contains invalid updates",
+		},
+		{
+			name: "multiple-invalid",
+			nodeAllocs: map[string][]*structs.Allocation{
+				node.ID: {runningAlloc, unknownAlloc},
+			},
+			expectedFit:    false,
+			expectedReason: "node is disconnected and contains invalid updates",
+		},
+		{
+			name: "multiple-valid",
+			nodeAllocs: map[string][]*structs.Allocation{
+				node.ID: {unknownAlloc, unknownAlloc.Copy()},
+			},
+			expectedFit:    true,
+			expectedReason: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			plan := &structs.Plan{
+				Job:            job,
+				NodeAllocation: tc.nodeAllocs,
+			}
+
+			fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedFit, fit)
+			require.Equal(t, tc.expectedReason, reason)
+		})
+	}
+}
