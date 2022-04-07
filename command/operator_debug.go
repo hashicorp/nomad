@@ -685,7 +685,7 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	c.collectVault(clusterDir, vaultAddr)
 
 	c.collectAgentHosts(client)
-	go c.collectPeriodicPprofs(client)
+	c.collectPeriodicPprofs(client)
 
 	c.collectPeriodic(client)
 
@@ -899,31 +899,34 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 }
 
 func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
-	duration := time.After(c.pprofDuration)
-	// Create a ticker to execute on every interval ticks
-	ticker := time.NewTicker(c.pprofInterval)
 
-	var pprofIntervalCount int
-	var name string
-
-	// Additionally, an out of loop execute to imitate first tick
-	c.collectPprofs(client, pprofIntervalCount)
-
-	for {
-		select {
-		case <-duration:
-			return
-
-		case <-ticker.C:
-			name = fmt.Sprintf("%04d", pprofIntervalCount)
-			c.Ui.Output(fmt.Sprintf("    Capture pprofInterval %s", name))
-			c.collectPprofs(client, pprofIntervalCount)
-			pprofIntervalCount++
-
-		case <-c.ctx.Done():
-			return
-		}
+	// Take the first set of pprofs synchronously...
+	c.Ui.Output("    Capture pprofInterval 0000")
+	c.collectPprofs(client, 0)
+	if c.pprofInterval == c.pprofDuration {
+		return
 	}
+
+	// ... and then move the rest off into a goroutine
+	go func() {
+		ctx, cancel := context.WithTimeout(c.ctx, c.duration)
+		defer cancel()
+		timer, stop := helper.NewSafeTimer(c.pprofInterval)
+		defer stop()
+
+		pprofIntervalCount := 1
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+				c.Ui.Output(fmt.Sprintf("    Capture pprofInterval %04d", pprofIntervalCount))
+				c.collectPprofs(client, pprofIntervalCount)
+				timer.Reset(c.pprofInterval)
+				pprofIntervalCount++
+			}
+		}
+	}()
 }
 
 // collectPprofs captures the /agent/pprof for each listed node
