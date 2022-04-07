@@ -615,7 +615,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.Ui.Output(fmt.Sprintf("         Interval: %s", interval))
 	c.Ui.Output(fmt.Sprintf("         Duration: %s", duration))
-	c.Ui.Output(fmt.Sprintf("         pprof Interval: %s", pprofInterval))
+	c.Ui.Output(fmt.Sprintf("   pprof Interval: %s", pprofInterval))
 	if c.pprofDuration.Seconds() != 1 {
 		c.Ui.Output(fmt.Sprintf("   pprof Duration: %s", c.pprofDuration))
 	}
