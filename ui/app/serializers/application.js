@@ -6,7 +6,7 @@ import { pluralize, singularize } from 'ember-inflector';
 import removeRecord from '../utils/remove-record';
 import { assign } from '@ember/polyfills';
 import classic from 'ember-classic-decorator';
-import { camelize, capitalize } from '@ember/string';
+import { camelize, capitalize, dasherize } from '@ember/string';
 @classic
 export default class Application extends JSONSerializer {
   primaryKey = 'ID';
@@ -175,6 +175,6 @@ export default class Application extends JSONSerializer {
   }
 
   modelNameFromPayloadKey(key) {
-    return singularize(key.dasherize());
+    return singularize(dasherize(key));
   }
 }
