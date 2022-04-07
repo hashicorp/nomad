@@ -17,15 +17,151 @@ const ns = ""
 var wait30s = &e2eutil.WaitConfig{Interval: time.Second, Retries: 30}
 var wait60s = &e2eutil.WaitConfig{Interval: time.Second, Retries: 60}
 
-func TestDisconnectedClients(t *testing.T) {
-	nomad := e2eutil.NomadClient(t)
+type expectedAllocStatus struct {
+	disconnected string
+	unchanged    string
+	replacement  string
+}
 
+func TestDisconnectedClients(t *testing.T) {
+
+	nomad := e2eutil.NomadClient(t)
 	e2eutil.WaitForLeader(t, nomad)
 	e2eutil.WaitForNodesReady(t, nomad, 2) // needs at least 2 to test replacement
 
-	// TODO(tgross): this is broken till be merge the disconnected clients feature
-	// t.Run("AllocReplacementOnShutdown", testDisconnected_AllocReplacementOnShutdown)
-	t.Run("AllocReplacementOnNetsplit", testDisconnected_AllocReplacementOnNetsplit)
+	testCases := []struct {
+		name                    string
+		jobFile                 string
+		disconnectFn            func(string, time.Duration) (string, error)
+		expectedAfterDisconnect expectedAllocStatus
+		expectedAfterReconnect  expectedAllocStatus
+	}{
+		{
+			// test that allocations on clients that are netsplit and
+			// marked disconnected are replaced
+			name:         "netsplit client no max disconnect",
+			jobFile:      "./input/lost_simple.nomad",
+			disconnectFn: e2eutil.AgentDisconnect,
+			expectedAfterDisconnect: expectedAllocStatus{
+				disconnected: "lost",
+				unchanged:    "running",
+				replacement:  "running",
+			},
+			expectedAfterReconnect: expectedAllocStatus{
+				disconnected: "complete",
+				unchanged:    "running",
+				replacement:  "running",
+			},
+		},
+
+		{
+			// test that allocations on clients that are netsplit and
+			// marked disconnected are replaced but that the
+			// replacements are rolled back after reconnection
+			name:         "netsplit client with max disconnect",
+			jobFile:      "./input/lost_max_disconnect.nomad",
+			disconnectFn: e2eutil.AgentDisconnect,
+			expectedAfterDisconnect: expectedAllocStatus{
+				disconnected: "unknown",
+				unchanged:    "running",
+				replacement:  "running",
+			},
+			expectedAfterReconnect: expectedAllocStatus{
+				disconnected: "running",
+				unchanged:    "running",
+				replacement:  "complete",
+			},
+		},
+
+		{
+			// test that allocations on clients that are shutdown and
+			// marked disconnected are replaced
+			name:         "shutdown client no max disconnect",
+			jobFile:      "./input/lost_simple.nomad",
+			disconnectFn: e2eutil.AgentDisconnect,
+			expectedAfterDisconnect: expectedAllocStatus{
+				disconnected: "lost",
+				unchanged:    "running",
+				replacement:  "running",
+			},
+			expectedAfterReconnect: expectedAllocStatus{
+				disconnected: "complete",
+				unchanged:    "running",
+				replacement:  "running",
+			},
+		},
+
+		{
+			// test that allocations on clients that are shutdown and
+			// marked disconnected are replaced
+			name:         "shutdown client with max disconnect",
+			jobFile:      "./input/lost_max_disconnect.nomad",
+			disconnectFn: e2eutil.AgentDisconnect,
+			expectedAfterDisconnect: expectedAllocStatus{
+				disconnected: "unknown",
+				unchanged:    "running",
+				replacement:  "running",
+			},
+			expectedAfterReconnect: expectedAllocStatus{
+				disconnected: "running",
+				unchanged:    "running",
+				replacement:  "complete",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+
+			jobIDs := []string{}
+			t.Cleanup(disconnectedClientsCleanup(t))
+			t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
+
+			jobID := "test-disconnected-clients-" + uuid.Short()
+
+			err := e2eutil.Register(jobID, tc.jobFile)
+			require.NoError(t, err)
+			jobIDs = append(jobIDs, jobID)
+
+			err = e2eutil.WaitForAllocStatusExpected(jobID, ns,
+				[]string{"running", "running"})
+			require.NoError(t, err, "job should be running")
+
+			// pick one alloc to make our disconnected alloc (and its node)
+			allocs, err := e2eutil.AllocsForJob(jobID, ns)
+			require.NoError(t, err, "could not query allocs for job")
+			require.Len(t, allocs, 2, "could not find 2 allocs for job")
+
+			disconnectedAllocID := allocs[0]["ID"]
+			disconnectedNodeID := allocs[0]["Node ID"]
+			unchangedAllocID := allocs[1]["ID"]
+
+			// disconnect the node and wait for the results
+
+			restartJobID, err := tc.disconnectFn(disconnectedNodeID, 30*time.Second)
+			require.NoError(t, err, "expected agent disconnect job to register")
+			jobIDs = append(jobIDs, restartJobID)
+
+			err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "disconnected", wait60s)
+			require.NoError(t, err, "expected node to go down")
+
+			require.NoError(t, waitForAllocStatusMap(
+				jobID, disconnectedAllocID, unchangedAllocID, tc.expectedAfterDisconnect, wait60s))
+
+			allocs, err = e2eutil.AllocsForJob(jobID, ns)
+			require.NoError(t, err, "could not query allocs for job")
+			require.Len(t, allocs, 3, "could not find 3 allocs for job")
+
+			// wait for the reconnect and wait for the results
+
+			err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "ready", wait30s)
+			require.NoError(t, err, "expected node to come back up")
+			require.NoError(t, waitForAllocStatusMap(
+				jobID, disconnectedAllocID, unchangedAllocID, tc.expectedAfterReconnect, wait60s))
+		})
+	}
+
 }
 
 // disconnectedClientsCleanup sets up a cleanup function to make sure
@@ -44,121 +180,7 @@ func disconnectedClientsCleanup(t *testing.T) func() {
 	}
 }
 
-// testDisconnected_AllocReplacementOnShutdown tests that allocations on
-// clients that are shut down and marked disconnected are replaced
-func testDisconnected_AllocReplacementOnShutdown(t *testing.T) {
-
-	jobIDs := []string{}
-	t.Cleanup(disconnectedClientsCleanup(t))
-	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
-
-	jobID := "test-lost-allocs-" + uuid.Short()
-
-	err := e2eutil.Register(jobID, "./input/lost_simple.nomad")
-	require.NoError(t, err)
-	jobIDs = append(jobIDs, jobID)
-
-	err = e2eutil.WaitForAllocStatusExpected(jobID, ns,
-		[]string{"running", "running"})
-	require.NoError(t, err, "job should be running")
-
-	// pick a node to make our lost node
-	allocs, err := e2eutil.AllocsForJob(jobID, ns)
-	require.NoError(t, err, "could not query allocs for job")
-	require.Len(t, allocs, 2, "could not find 2 allocs for job")
-
-	lostAlloc := allocs[0]
-	lostAllocID := lostAlloc["ID"]
-	disconnectedNodeID := lostAlloc["Node ID"]
-	otherAllocID := allocs[1]["ID"]
-
-	restartJobID, err := e2eutil.AgentRestartAfter(disconnectedNodeID, 30*time.Second)
-	require.NoError(t, err, "expected agent restart job to register")
-	jobIDs = append(jobIDs, restartJobID)
-
-	err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "down", wait30s)
-	require.NoError(t, err, "expected node to go down")
-
-	err = waitForAllocStatusMap(jobID, map[string]string{
-		lostAllocID:  "lost",
-		otherAllocID: "running",
-		"":           "running",
-	}, wait60s)
-	require.NoError(t, err, "expected alloc on disconnected client to be marked lost and replaced")
-
-	allocs, err = e2eutil.AllocsForJob(jobID, ns)
-	require.NoError(t, err, "could not query allocs for job")
-	require.Len(t, allocs, 3, "could not find 3 allocs for job")
-
-	err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "ready", wait30s)
-	require.NoError(t, err, "expected node to come back up")
-
-	err = waitForAllocStatusMap(jobID, map[string]string{
-		lostAllocID:  "complete",
-		otherAllocID: "running",
-		"":           "running",
-	}, wait30s)
-	require.NoError(t, err, "expected lost alloc on reconnected client to be marked complete and replaced")
-}
-
-// testDisconnected_AllocReplacementOnNetsplit tests that allocations on
-// clients that are netsplit and marked disconnected are replaced
-func testDisconnected_AllocReplacementOnNetsplit(t *testing.T) {
-
-	jobIDs := []string{}
-	t.Cleanup(disconnectedClientsCleanup(t))
-	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
-
-	jobID := "test-lost-allocs-" + uuid.Short()
-
-	err := e2eutil.Register(jobID, "./input/lost_simple.nomad")
-	require.NoError(t, err)
-	jobIDs = append(jobIDs, jobID)
-
-	err = e2eutil.WaitForAllocStatusExpected(jobID, ns,
-		[]string{"running", "running"})
-	require.NoError(t, err, "job should be running")
-
-	// pick a node to make our lost node
-	allocs, err := e2eutil.AllocsForJob(jobID, ns)
-	require.NoError(t, err, "could not query allocs for job")
-	require.Len(t, allocs, 2, "could not find 2 allocs for job")
-
-	lostAlloc := allocs[0]
-	lostAllocID := lostAlloc["ID"]
-	disconnectedNodeID := lostAlloc["Node ID"]
-	otherAllocID := allocs[1]["ID"]
-
-	restartJobID, err := e2eutil.AgentDisconnect(disconnectedNodeID, 30*time.Second)
-	require.NoError(t, err, "expected agent disconnect job to register")
-	jobIDs = append(jobIDs, restartJobID)
-
-	err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "down", wait30s)
-	require.NoError(t, err, "expected node to go down")
-
-	err = waitForAllocStatusMap(jobID, map[string]string{
-		lostAllocID:  "lost",
-		otherAllocID: "running",
-		"":           "running",
-	}, wait60s)
-	require.NoError(t, err, "expected alloc on disconnected client to be marked lost and replaced")
-
-	allocs, err = e2eutil.AllocsForJob(jobID, ns)
-	require.NoError(t, err, "could not query allocs for job")
-	require.Len(t, allocs, 3, "could not find 3 allocs for job")
-
-	err = e2eutil.WaitForNodeStatus(disconnectedNodeID, "ready", wait30s)
-	require.NoError(t, err, "expected node to come back up")
-
-	err = waitForAllocStatusMap(jobID, map[string]string{
-		lostAllocID:  "complete",
-		otherAllocID: "running",
-		"":           "running",
-	}, wait60s) // this needs quite a while, because at first it's marked running
-	require.NoError(t, err, "expected lost alloc on reconnected client to be marked complete and replaced")
-}
-
-func waitForAllocStatusMap(jobID string, allocsToStatus map[string]string, wc *e2eutil.WaitConfig) error {
+func waitForAllocStatusMap(jobID, disconnectedAllocID, unchangedAllocID string, expected expectedAllocStatus, wc *e2eutil.WaitConfig) error {
 	var err error
 	interval, retries := wc.OrDefault()
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
@@ -168,15 +190,24 @@ func waitForAllocStatusMap(jobID string, allocsToStatus map[string]string, wc *e
 			return false, err
 		}
 		for _, alloc := range allocs {
-			if expectedAllocStatus, ok := allocsToStatus[alloc["ID"]]; ok {
-				if alloc["Status"] != expectedAllocStatus {
-					return false, fmt.Errorf("expected status of alloc %q to be %q, got %q",
-						alloc["ID"], expectedAllocStatus, alloc["Status"])
+			switch allocID, allocStatus := alloc["ID"], alloc["Status"]; allocID {
+			case disconnectedAllocID:
+				if allocStatus != expected.disconnected {
+					return false, fmt.Errorf(
+						"disconnected alloc should be %q, got %q",
+						expected.disconnected, allocStatus)
 				}
-			} else {
-				if alloc["Status"] != allocsToStatus[""] {
-					return false, fmt.Errorf("expected status of alloc %q to be %q, got %q",
-						alloc["ID"], allocsToStatus[""], alloc["Status"])
+			case unchangedAllocID:
+				if allocStatus != expected.unchanged {
+					return false, fmt.Errorf(
+						"unchanged alloc should be %q, got %q",
+						expected.unchanged, allocStatus)
+				}
+			default:
+				if allocStatus != expected.replacement {
+					return false, fmt.Errorf(
+						"replacement alloc should be %q, got %q",
+						expected.replacement, allocStatus)
 				}
 			}
 		}

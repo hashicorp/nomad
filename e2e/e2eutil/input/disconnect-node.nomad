@@ -31,7 +31,10 @@ job "disconnect-node" {
       config {
         command = "/bin/sh"
         args = ["-c",
-        "iptables -I OUTPUT -p tcp --dport 4647 -j DROP; sleep ${var.time}; iptables -D OUTPUT -p tcp --dport 4647 -j DROP"]
+          # before disconnecting, we need to sleep long enough for the
+          # task to register itself, otherwise we end up trying to
+          # re-run the task immediately on reconnect
+        "sleep 5; iptables -I OUTPUT -p tcp --dport 4647 -j DROP; sleep ${var.time}; iptables -D OUTPUT -p tcp --dport 4647 -j DROP"]
       }
     }
 

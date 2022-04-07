@@ -31,7 +31,10 @@ job "restart-node" {
       config {
         command = "/bin/sh"
         args = ["-c",
-        "systemctl stop nomad; sleep ${var.time}; systemctl start nomad"]
+          # before disconnecting, we need to sleep long enough for the
+          # task to register itself, otherwise we end up trying to
+          # re-run the task immediately on reconnect
+        "sleep 5; systemctl stop nomad; sleep ${var.time}; systemctl start nomad"]
       }
     }
 
