@@ -13,6 +13,10 @@ job "disconnect-node" {
 
   group "group" {
 
+    # need to prevent the task from being restarted on reconnect, if
+    # we're stopped long enough for the node to be marked down
+    max_client_disconnect = "1h"
+
     constraint {
       attribute = "${attr.kernel.name}"
       value     = "linux"
