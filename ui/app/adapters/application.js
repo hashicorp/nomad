@@ -1,5 +1,6 @@
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { camelize } from '@ember/string';
 import RESTAdapter from '@ember-data/adapter/rest';
 import codesForError from '../utils/codes-for-error';
 import removeRecord from '../utils/remove-record';
@@ -96,8 +97,7 @@ export default class ApplicationAdapter extends RESTAdapter {
     let prefix = this.urlPrefix();
 
     if (modelName) {
-      /* eslint-disable-next-line ember/no-string-prototype-extensions */
-      path = modelName.camelize();
+      path = camelize(modelName);
       if (path) {
         url.push(path);
       }

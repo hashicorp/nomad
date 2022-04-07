@@ -1,6 +1,7 @@
 import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { generateResources } from '../common';
+import { dasherize } from '@ember/string';
 
 const DRIVERS = ['docker', 'java', 'rkt', 'qemu', 'exec', 'raw_exec'];
 
@@ -15,11 +16,11 @@ export default Factory.extend({
 
   JobID: '',
 
-  name: id => `task-${faker.hacker.noun().dasherize()}-${id}`,
+  name: (id) => `task-${dasherize(faker.hacker.noun())}-${id}`,
   driver: () => faker.helpers.randomize(DRIVERS),
 
   originalResources: generateResources,
-  resources: function() {
+  resources: function () {
     // Generate resources the usual way, but transform to the old
     // shape because that's what the job spec uses.
     const resources = this.originalResources;
@@ -31,7 +32,7 @@ export default Factory.extend({
     };
   },
 
-  Lifecycle: i => {
+  Lifecycle: (i) => {
     const cycle = i % 6;
 
     if (cycle === 0) {
@@ -54,11 +55,15 @@ export default Factory.extend({
       const recommendations = [];
 
       if (faker.random.number(10) >= 1) {
-        recommendations.push(server.create('recommendation', { task, resource: 'CPU' }));
+        recommendations.push(
+          server.create('recommendation', { task, resource: 'CPU' })
+        );
       }
 
       if (faker.random.number(10) >= 1) {
-        recommendations.push(server.create('recommendation', { task, resource: 'MemoryMB' }));
+        recommendations.push(
+          server.create('recommendation', { task, resource: 'MemoryMB' })
+        );
       }
 
       task.save({ recommendationIds: recommendations.mapBy('id') });

@@ -2,11 +2,12 @@ import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
 import { generateResources } from '../common';
+import { dasherize } from '@ember/string';
 
 const DISK_RESERVATIONS = [200, 500, 1000, 2000, 5000, 10000, 100000];
 
 export default Factory.extend({
-  name: id => `${faker.hacker.noun().dasherize()}-g-${id}`,
+  name: (id) => `${dasherize(faker.hacker.noun())}-g-${id}`,
   count: () => faker.random.number({ min: 1, max: 2 }),
 
   ephemeralDisk: () => ({
@@ -75,7 +76,8 @@ export default Factory.extend({
 
     if (!group.shallow) {
       const resources =
-        group.resourceSpec && divide(group.count, parseResourceSpec(group.resourceSpec));
+        group.resourceSpec &&
+        divide(group.count, parseResourceSpec(group.resourceSpec));
       const tasks = provide(group.count, (_, idx) => {
         const mounts = faker.helpers
           .shuffle(volumes)
@@ -88,7 +90,7 @@ export default Factory.extend({
         return server.create('task', {
           taskGroup: group,
           ...maybeResources,
-          volumeMounts: mounts.map(mount => ({
+          volumeMounts: mounts.map((mount) => ({
             Volume: mount,
             Destination: `/${faker.internet.userName()}/${faker.internet.domainWord()}/${faker.internet.color()}`,
             PropagationMode: '',
@@ -113,7 +115,9 @@ export default Factory.extend({
             namespace: group.job.namespace,
             taskGroup: group.name,
             name: `${group.name}.[${i}]`,
-            rescheduleSuccess: group.withRescheduling ? faker.random.boolean() : null,
+            rescheduleSuccess: group.withRescheduling
+              ? faker.random.boolean()
+              : null,
             rescheduleAttempts: group.withRescheduling
               ? faker.random.number({ min: 1, max: 5 })
               : 0,
@@ -162,11 +166,11 @@ function parseResourceSpec(spec) {
     I: 'IOPS',
   };
 
-  const terms = spec.split(',').map(t => {
+  const terms = spec.split(',').map((t) => {
     const [k, v] = t
       .trim()
       .split(':')
-      .map(kv => kv.trim());
+      .map((kv) => kv.trim());
     return [k, +v];
   });
 
@@ -201,12 +205,17 @@ function roulette(total, divisions, variance = 0.8) {
   let roulette = new Array(divisions).fill(total / divisions);
   roulette.forEach((v, i) => {
     if (i === roulette.length - 1) return;
-    roulette.splice(i, 2, ...rngDistribute(roulette[i], roulette[i + 1], variance));
+    roulette.splice(
+      i,
+      2,
+      ...rngDistribute(roulette[i], roulette[i + 1], variance)
+    );
   });
   return roulette;
 }
 
 function rngDistribute(a, b, variance = 0.8) {
-  const move = a * faker.random.number({ min: 0, max: variance, precision: 0.01 });
+  const move =
+    a * faker.random.number({ min: 0, max: variance, precision: 0.01 });
   return [a - move, b + move];
 }
