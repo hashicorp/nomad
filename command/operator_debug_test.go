@@ -85,7 +85,7 @@ func TestDebug_NodeClass(t *testing.T) {
 
 	// Retrieve server RPC address to join clients
 	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
-	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
+	t.Logf("Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
 
 	// Start test clients
 	testClient(t, "client1", newClientAgentConfigFunc("global", "classA", srvRPCAddr))
@@ -135,7 +135,7 @@ func TestDebug_ClientToServer(t *testing.T) {
 
 	// Retrieve server RPC address to join client
 	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
-	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
+	t.Logf("Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
 
 	// Start client
 	agent1, _, _ := testClient(t, "client1", newClientAgentConfigFunc("", "", srvRPCAddr))
@@ -144,9 +144,9 @@ func TestDebug_ClientToServer(t *testing.T) {
 	addrServer := srv.HTTPAddr()
 	addrClient1 := agent1.HTTPAddr()
 
-	t.Logf("[TEST] testAgent api address: %s", url)
-	t.Logf("[TEST] Server    api address: %s", addrServer)
-	t.Logf("[TEST] Client1   api address: %s", addrClient1)
+	t.Logf("testAgent api address: %s", url)
+	t.Logf("Server    api address: %s", addrServer)
+	t.Logf("Client1   api address: %s", addrClient1)
 
 	// Setup test cases
 	var cases = testCases{
@@ -183,28 +183,28 @@ func TestDebug_MultiRegion(t *testing.T) {
 	server1, _, addrServer1 := testServer(t, false, func(c *agent.Config) { c.Region = region1 })
 	testutil.WaitForLeader(t, server1.Agent.RPC)
 	rpcAddrServer1 := server1.GetConfig().AdvertiseAddrs.RPC
-	t.Logf("[TEST] %s: Leader started, HTTPAddr: %s, RPC: %s", region1, addrServer1, rpcAddrServer1)
+	t.Logf("%s: Leader started, HTTPAddr: %s, RPC: %s", region1, addrServer1, rpcAddrServer1)
 
 	// Start region1 client
 	agent1, _, addrClient1 := testClient(t, "client1", newClientAgentConfigFunc(region1, "", rpcAddrServer1))
 	nodeIdClient1 := agent1.Agent.Client().NodeID()
-	t.Logf("[TEST] %s: Client1 started, ID: %s, HTTPAddr: %s", region1, nodeIdClient1, addrClient1)
+	t.Logf("%s: Client1 started, ID: %s, HTTPAddr: %s", region1, nodeIdClient1, addrClient1)
 
 	// Start region2 server
 	server2, _, addrServer2 := testServer(t, false, func(c *agent.Config) { c.Region = region2 })
 	testutil.WaitForLeader(t, server2.Agent.RPC)
 	rpcAddrServer2 := server2.GetConfig().AdvertiseAddrs.RPC
-	t.Logf("[TEST] %s: Leader started, HTTPAddr: %s, RPC: %s", region2, addrServer2, rpcAddrServer2)
+	t.Logf("%s: Leader started, HTTPAddr: %s, RPC: %s", region2, addrServer2, rpcAddrServer2)
 
 	// Start client2
 	agent2, _, addrClient2 := testClient(t, "client2", newClientAgentConfigFunc(region2, "", rpcAddrServer2))
 	nodeIdClient2 := agent2.Agent.Client().NodeID()
-	t.Logf("[TEST] %s: Client1 started, ID: %s, HTTPAddr: %s", region2, nodeIdClient2, addrClient2)
+	t.Logf("%s: Client1 started, ID: %s, HTTPAddr: %s", region2, nodeIdClient2, addrClient2)
 
-	t.Logf("[TEST] Region: %s, Server1   api address: %s", region1, addrServer1)
-	t.Logf("[TEST] Region: %s, Client1   api address: %s", region1, addrClient1)
-	t.Logf("[TEST] Region: %s, Server2   api address: %s", region2, addrServer2)
-	t.Logf("[TEST] Region: %s, Client2   api address: %s", region2, addrClient2)
+	t.Logf("Region: %s, Server1   api address: %s", region1, addrServer1)
+	t.Logf("Region: %s, Client1   api address: %s", region1, addrClient1)
+	t.Logf("Region: %s, Server2   api address: %s", region2, addrServer2)
+	t.Logf("Region: %s, Client2   api address: %s", region2, addrClient2)
 
 	// Setup test cases
 	var cases = testCases{
@@ -815,8 +815,8 @@ func TestDebug_StaleLeadership(t *testing.T) {
 	srv, _, url := testServerWithoutLeader(t, false, nil)
 	addrServer := srv.HTTPAddr()
 
-	t.Logf("[TEST] testAgent api address: %s", url)
-	t.Logf("[TEST] Server    api address: %s", addrServer)
+	t.Logf("testAgent api address: %s", url)
+	t.Logf("Server    api address: %s", addrServer)
 
 	var cases = testCases{
 		{
@@ -941,11 +941,11 @@ func TestDebug_EventStream(t *testing.T) {
 
 	// Start test server
 	srv, client, url := testServer(t, true, nil)
-	t.Logf("[TEST] %s: test server started, waiting for leadership to establish\n", time.Since(start))
+	t.Logf("%s: test server started, waiting for leadership to establish\n", time.Since(start))
 
 	// Ensure leader is ready
 	testutil.WaitForLeader(t, srv.Agent.RPC)
-	t.Logf("[TEST] %s: Leadership established\n", time.Since(start))
+	t.Logf("%s: Leadership established\n", time.Since(start))
 
 	// Setup mock UI
 	ui := cli.NewMockUi()
@@ -961,7 +961,7 @@ func TestDebug_EventStream(t *testing.T) {
 	timeout := duration + 5*time.Second
 
 	// Run debug in a goroutine so we can start the capture before we run the test job
-	t.Logf("[TEST] %s: Starting nomad operator debug in goroutine\n", time.Since(start))
+	t.Logf("%s: Starting nomad operator debug in goroutine\n", time.Since(start))
 	go func() {
 		code := cmd.Run([]string{"-address", url, "-duration", duration.String(), "-interval", "5s", "-event-topic", "Job:*"})
 		assert.Equal(t, 0, code)
@@ -976,10 +976,10 @@ func TestDebug_EventStream(t *testing.T) {
 	}()
 
 	// Start test job
-	t.Logf("[TEST] %s: Running test job\n", time.Since(start))
+	t.Logf("%s: Running test job\n", time.Since(start))
 	job := testJob("event_stream_test")
 	resp, _, err := client.Jobs().Register(job, nil)
-	t.Logf("[TEST] %s: Test job started\n", time.Since(start))
+	t.Logf("%s: Test job started\n", time.Since(start))
 
 	// Ensure job registered
 	require.NoError(t, err)
@@ -995,7 +995,7 @@ func TestDebug_EventStream(t *testing.T) {
 			t.Fatalf("status code non zero saw %d\n", code)
 		}
 	}
-	t.Logf("[TEST] %s: test job is complete, eval id: %s\n", time.Since(start), resp.EvalID)
+	t.Logf("%s: test job is complete, eval id: %s\n", time.Since(start), resp.EvalID)
 
 	// Capture the output struct from nomad operator debug goroutine
 	var testOut testOutput
@@ -1005,7 +1005,7 @@ func TestDebug_EventStream(t *testing.T) {
 		case testOut = <-chOutput:
 			t.Logf("out from channel testout\n")
 		case done = <-chDone:
-			t.Logf("[TEST] %s: goroutine is complete", time.Since(start))
+			t.Logf("%s: goroutine is complete", time.Since(start))
 		case <-time.After(timeout):
 			t.Fatalf("timed out waiting for event stream event (duration: %s, timeout: %s", duration, timeout)
 		}
