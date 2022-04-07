@@ -84,7 +84,6 @@ func newClientAgentConfigFunc(region string, nodeClass string, srvRPCAddr string
 }
 
 func TestDebug_NodeClass(t *testing.T) {
-	ci.Parallel(t)
 
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
@@ -134,7 +133,6 @@ func TestDebug_NodeClass(t *testing.T) {
 }
 
 func TestDebug_ClientToServer(t *testing.T) {
-	ci.Parallel(t)
 
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
@@ -183,7 +181,6 @@ func TestDebug_ClientToServer(t *testing.T) {
 }
 
 func TestDebug_MultiRegion(t *testing.T) {
-	ci.Parallel(t)
 
 	region1 := "region1"
 	region2 := "region2"
@@ -281,7 +278,6 @@ func TestDebug_MultiRegion(t *testing.T) {
 }
 
 func TestDebug_SingleServer(t *testing.T) {
-	ci.Parallel(t)
 
 	srv, _, url := testServer(t, false, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -315,7 +311,6 @@ func TestDebug_SingleServer(t *testing.T) {
 }
 
 func TestDebug_Failures(t *testing.T) {
-	ci.Parallel(t)
 
 	srv, _, url := testServer(t, false, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -380,7 +375,6 @@ func TestDebug_Failures(t *testing.T) {
 }
 
 func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
-	ci.Parallel(t)
 
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
@@ -432,7 +426,6 @@ func buildPathSlice(path string, files []string) []string {
 }
 
 func TestDebug_CapturedFiles(t *testing.T) {
-	ci.Parallel(t)
 	srv, _, url := testServer(t, true, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
@@ -560,7 +553,6 @@ func TestDebug_ExistingOutput(t *testing.T) {
 }
 
 func TestDebug_Fail_Pprof(t *testing.T) {
-	ci.Parallel(t)
 
 	// Setup agent config with debug endpoints disabled
 	agentConfFunc := func(c *agent.Config) {
@@ -826,7 +818,6 @@ func TestDebug_RedirectError(t *testing.T) {
 // complete a debug run have their query options configured with the
 // -stale flag
 func TestDebug_StaleLeadership(t *testing.T) {
-	ci.Parallel(t)
 
 	srv, _, url := testServerWithoutLeader(t, false, nil)
 	addrServer := srv.HTTPAddr()
