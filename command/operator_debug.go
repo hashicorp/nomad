@@ -183,11 +183,12 @@ Debug Options:
     Filter client nodes based on node class.
 
   -pprof-duration=<duration>
-    Duration for pprof collection. Defaults to 1s.
+    Duration for pprof collection. Defaults to 1s or -duration, whichever is less.
 
   -pprof-interval=<pprof-interval>
     The interval between pprof collections. Set interval equal to
-    duration to capture a single snapshot. Defaults to 250ms.
+    duration to capture a single snapshot. Defaults to 250ms or
+   -pprof-duration, whichever is less.
 
   -server-id=<server1>,<server2>
     Comma separated list of Nomad server names to monitor for logs, API
@@ -406,27 +407,27 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Parse the pprof capture interval
-	pi, err := time.ParseDuration(pprofInterval)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing pprof-interval: %s: %s", pprofInterval, err.Error()))
-		return 1
-	}
-	c.pprofInterval = pi
-
-	// Parse the pprof capture duration
+	// Parse and clamp the pprof capture duration
 	pd, err := time.ParseDuration(pprofDuration)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing pprof duration: %s: %s", pprofDuration, err.Error()))
 		return 1
 	}
+	if pd.Seconds() > d.Seconds() {
+		pd = d
+	}
 	c.pprofDuration = pd
 
-	// Validate pprof interval
-	if pi.Seconds() > pd.Seconds() {
-		c.Ui.Error(fmt.Sprintf("pprof-interval %s must be less than pprof-duration %s", pprofInterval, pprofDuration))
+	// Parse and clamp the pprof capture interval
+	pi, err := time.ParseDuration(pprofInterval)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing pprof-interval: %s: %s", pprofInterval, err.Error()))
 		return 1
 	}
+	if pi.Seconds() > pd.Seconds() {
+		pi = pd
+	}
+	c.pprofInterval = pi
 
 	// Parse event stream topic filter
 	t, err := topicsFromString(eventTopic)
