@@ -171,7 +171,7 @@ func TestDebug_ClientToServer(t *testing.T) {
 		},
 		{
 			name:            "client1 address - verify no SIGSEGV panic",
-			args:            []string{"-address", addrClient1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-pprof-interval", "200ms", "-pprof-duration", "250ms"},
+			args:            []string{"-address", addrClient1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode:    0,
 			expectedOutputs: []string{"Created debug archive"},
 		},
@@ -216,13 +216,14 @@ func TestDebug_MultiRegion(t *testing.T) {
 	var cases = testCases{
 		// Good
 		{
-			name:         "no region - all servers, all clients",
-			args:         []string{"-address", addrServer1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
-			expectedCode: 0,
+			name:            "no region - all servers, all clients",
+			args:            []string{"-address", addrServer1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode:    0,
+			expectedOutputs: []string{"Starting debugger"},
 		},
 		{
 			name:         "region1 - server1 address",
-			args:         []string{"-address", addrServer1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
+			args:         []string{"-address", addrServer1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region1 + "\n",
@@ -233,7 +234,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		},
 		{
 			name:         "region1 - client1 address",
-			args:         []string{"-address", addrClient1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
+			args:         []string{"-address", addrClient1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region1 + "\n",
@@ -244,7 +245,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		},
 		{
 			name:         "region2 - server2 address",
-			args:         []string{"-address", addrServer2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
+			args:         []string{"-address", addrServer2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region2 + "\n",
@@ -255,7 +256,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		},
 		{
 			name:         "region2 - client2 address",
-			args:         []string{"-address", addrClient2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
+			args:         []string{"-address", addrClient2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: " + region2 + "\n",
@@ -268,7 +269,7 @@ func TestDebug_MultiRegion(t *testing.T) {
 		// Bad
 		{
 			name:          "invalid region - all servers, all clients",
-			args:          []string{"-address", addrServer1, "-region", "never", "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "1s", "-pprof-interval", "250ms"},
+			args:          []string{"-address", addrServer1, "-region", "never", "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode:  1,
 			expectedError: "500 (No path to region)",
 		},
@@ -499,8 +500,6 @@ func TestDebug_CapturedFiles(t *testing.T) {
 		"-node-id", clientID,
 		"-duration", duration.String(),
 		"-interval", interval.String(),
-		"-pprof-duration", "1s",
-		"-pprof-interval", "250ms",
 	})
 
 	// There should be no errors
