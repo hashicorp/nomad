@@ -951,9 +951,8 @@ func TestDebug_EventStream(t *testing.T) {
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
-	// Create channels to pass info back from goroutine
+	// Return command output back to the main test goroutine
 	chOutput := make(chan testOutput)
-	chDone := make(chan bool)
 
 	// Set duration for capture
 	duration := 5 * time.Second
@@ -972,7 +971,6 @@ func TestDebug_EventStream(t *testing.T) {
 			output: ui.OutputWriter.String(),
 			error:  ui.ErrorWriter.String(),
 		}
-		chDone <- true
 	}()
 
 	// Start test job
@@ -999,20 +997,11 @@ func TestDebug_EventStream(t *testing.T) {
 
 	// Capture the output struct from nomad operator debug goroutine
 	var testOut testOutput
-	var done bool
-	for {
-		select {
-		case testOut = <-chOutput:
-			t.Logf("out from channel testout\n")
-		case done = <-chDone:
-			t.Logf("%s: goroutine is complete", time.Since(start))
-		case <-time.After(timeout):
-			t.Fatalf("timed out waiting for event stream event (duration: %s, timeout: %s", duration, timeout)
-		}
-
-		if done {
-			break
-		}
+	select {
+	case testOut = <-chOutput:
+		t.Logf("%s: goroutine is complete", time.Since(start))
+	case <-time.After(timeout):
+		t.Fatalf("timed out waiting for event stream event (duration: %s, timeout: %s", duration, timeout)
 	}
 
 	t.Logf("Values from struct -- code: %d, len(out): %d, len(outerr): %d\n", testOut.code, len(testOut.output), len(testOut.error))
