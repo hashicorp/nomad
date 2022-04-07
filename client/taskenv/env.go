@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	hargs "github.com/hashicorp/nomad/helper/args"
+	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/zclconf/go-cty/cty"
@@ -39,6 +40,9 @@ const (
 
 	// CpuLimit is the environment variable with the tasks CPU limit in MHz.
 	CpuLimit = "NOMAD_CPU_LIMIT"
+
+	// CpuCores is the environment variable for passing the task's reserved cpu cores
+	CpuCores = "NOMAD_CPU_CORES"
 
 	// AllocID is the environment variable for passing the allocation ID.
 	AllocID = "NOMAD_ALLOC_ID"
@@ -397,6 +401,7 @@ type Builder struct {
 	// clientTaskSecretsDir is the secrets dir from the client's perspective; eg <client_task_root>/secrets
 	clientTaskSecretsDir string
 
+	cpuCores         string
 	cpuLimit         int64
 	memLimit         int64
 	memMaxLimit      int64
@@ -492,6 +497,9 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	}
 	if b.cpuLimit != 0 {
 		envMap[CpuLimit] = strconv.FormatInt(b.cpuLimit, 10)
+	}
+	if b.cpuCores != "" {
+		envMap[CpuCores] = b.cpuCores
 	}
 
 	// Add the task metadata
@@ -742,6 +750,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		// Populate task resources
 		if tr, ok := alloc.AllocatedResources.Tasks[b.taskName]; ok {
 			b.cpuLimit = tr.Cpu.CpuShares
+			b.cpuCores = cpuset.New(tr.Cpu.ReservedCores...).String()
 			b.memLimit = tr.Memory.MemoryMB
 			b.memMaxLimit = tr.Memory.MemoryMaxMB
 
@@ -788,7 +797,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		}
 	}
 
-	upstreams := []structs.ConsulUpstream{}
+	var upstreams []structs.ConsulUpstream
 	for _, svc := range tg.Services {
 		if svc.Connect.HasSidecar() && svc.Connect.SidecarService.HasUpstreams() {
 			upstreams = append(upstreams, svc.Connect.SidecarService.Proxy.Upstreams...)
