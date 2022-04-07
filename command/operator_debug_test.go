@@ -42,21 +42,30 @@ func runTestCases(t *testing.T, cases testCases) {
 	t.Helper()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			// Setup mock UI
 			ui := cli.NewMockUi()
 			cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
-			// Run test case
 			code := cmd.Run(c.args)
 			out := ui.OutputWriter.String()
 			outerr := ui.ErrorWriter.String()
 
-			// Verify case expectations
-			require.Equalf(t, code, c.expectedCode, "expected exit code %d, got: %d: %s", c.expectedCode, code, outerr)
-			for _, expectedOutput := range c.expectedOutputs {
-				require.Contains(t, out, expectedOutput, "expected output %q, got %q", expectedOutput, out)
+			assert.Equalf(t, code, c.expectedCode, "did not get expected exit code")
+
+			if len(c.expectedOutputs) > 0 {
+				if assert.NotEmpty(t, out, "command output was empty") {
+					for _, expectedOutput := range c.expectedOutputs {
+						assert.Contains(t, out, expectedOutput, "did not get expected output")
+					}
+				}
+			} else {
+				assert.Empty(t, out, "command output should have been empty")
 			}
-			require.Containsf(t, outerr, c.expectedError, "expected error %q, got %q", c.expectedError, outerr)
+
+			if c.expectedError == "" {
+				assert.Empty(t, outerr, "got unexpected error")
+			} else {
+				assert.Containsf(t, outerr, c.expectedError, "did not get expected error")
+			}
 		})
 	}
 }
@@ -287,7 +296,7 @@ func TestDebug_SingleServer(t *testing.T) {
 				"Clients: (0/0)",
 				"Created debug archive",
 			},
-			expectedError: "",
+			expectedError: "No node(s) with prefix",
 		},
 		{
 			name:         "address=api, server-id=all",
@@ -298,7 +307,7 @@ func TestDebug_SingleServer(t *testing.T) {
 				"Clients: (0/0)",
 				"Created debug archive",
 			},
-			expectedError: "",
+			expectedError: "No node(s) with prefix",
 		},
 	}
 
@@ -313,44 +322,51 @@ func TestDebug_Failures(t *testing.T) {
 
 	var cases = testCases{
 		{
-			name:         "fails incorrect args",
-			args:         []string{"some", "bad", "args"},
-			expectedCode: 1,
+			name:          "fails incorrect args",
+			args:          []string{"some", "bad", "args"},
+			expectedCode:  1,
+			expectedError: "This command takes no arguments",
 		},
 		{
-			name:         "Fails illegal node ids",
-			args:         []string{"-node-id", "foo:bar"},
-			expectedCode: 1,
+			name:          "Fails illegal node ids",
+			args:          []string{"-node-id", "foo:bar"},
+			expectedCode:  1,
+			expectedError: "Error querying node info",
 		},
 		{
-			name:         "Fails missing node ids",
-			args:         []string{"-node-id", "abc,def", "-duration", "250ms", "-interval", "250ms"},
-			expectedCode: 1,
+			name:          "Fails missing node ids",
+			args:          []string{"-node-id", "abc,def", "-duration", "250ms", "-interval", "250ms"},
+			expectedCode:  1,
+			expectedError: "Error querying node info",
 		},
 		{
-			name:         "Fails bad durations",
-			args:         []string{"-duration", "foo"},
-			expectedCode: 1,
+			name:          "Fails bad durations",
+			args:          []string{"-duration", "foo"},
+			expectedCode:  1,
+			expectedError: "Error parsing duration: foo: time: invalid duration \"foo\""},
+		{
+			name:          "Fails bad intervals",
+			args:          []string{"-interval", "bar"},
+			expectedCode:  1,
+			expectedError: "Error parsing interval: bar: time: invalid duration \"bar\"",
 		},
 		{
-			name:         "Fails bad intervals",
-			args:         []string{"-interval", "bar"},
-			expectedCode: 1,
+			name:          "Fails intervals greater than duration",
+			args:          []string{"-duration", "5m", "-interval", "10m"},
+			expectedCode:  1,
+			expectedError: "Error parsing interval: 10m is greater than duration 5m",
 		},
 		{
-			name:         "Fails intervals greater than duration",
-			args:         []string{"-duration", "5m", "-interval", "10m"},
-			expectedCode: 1,
+			name:          "Fails bad pprof duration",
+			args:          []string{"-pprof-duration", "baz"},
+			expectedCode:  1,
+			expectedError: "Error parsing pprof duration: baz: time: invalid duration \"baz\"",
 		},
 		{
-			name:         "Fails bad pprof duration",
-			args:         []string{"-pprof-duration", "baz"},
-			expectedCode: 1,
-		},
-		{
-			name:         "Fails bad pprof interval",
-			args:         []string{"-pprof-interval", "bar"},
-			expectedCode: 1,
+			name:          "Fails bad pprof interval",
+			args:          []string{"-pprof-interval", "bar"},
+			expectedCode:  1,
+			expectedError: "Error parsing pprof-interval: bar: time: invalid duration \"bar\"",
 		},
 		{
 			name:          "Fails bad address",
@@ -824,7 +840,8 @@ func TestDebug_StaleLeadership(t *testing.T) {
 			args: []string{"-address", addrServer,
 				"-duration", "250ms", "-interval", "250ms",
 				"-server-id", "all", "-node-id", "all"},
-			expectedCode: 1,
+			expectedCode:  1,
+			expectedError: "No cluster leader",
 		},
 		{
 			name: "no leader with stale flag",
@@ -835,6 +852,7 @@ func TestDebug_StaleLeadership(t *testing.T) {
 				"-stale"},
 			expectedCode:    0,
 			expectedOutputs: []string{"Created debug archive"},
+			expectedError:   "No node(s) with prefix", // still exits 0
 		},
 	}
 
