@@ -9,7 +9,7 @@ project "nomad" {
   github {
     organization     = "hashicorp"
     repository       = "nomad"
-    release_branches = ["release/1.3.0-beta.1"]
+    release_branches = ["main"]
   }
 }
 
