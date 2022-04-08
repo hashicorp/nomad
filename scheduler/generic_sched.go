@@ -74,7 +74,7 @@ const (
 )
 
 // minVersionMaxClientDisconnect is the minimum version that supports max_client_disconnect.
-var minVersionMaxClientDisconnect = version.Must(version.NewVersion("1.2.6"))
+var minVersionMaxClientDisconnect = version.Must(version.NewVersion("1.3.0"))
 
 // SetStatusError is used to set the status of the evaluation to the given error
 type SetStatusError struct {
