@@ -44,7 +44,7 @@ func TestDisconnectedClients(t *testing.T) {
 			jobFile:      "./input/lost_simple.nomad",
 			disconnectFn: e2eutil.AgentDisconnect,
 			expectedAfterDisconnect: expectedAllocStatus{
-				disconnected: "lost", // TODO: getting "complete"
+				disconnected: "lost",
 				unchanged:    "running",
 				replacement:  "running",
 			},
@@ -81,7 +81,7 @@ func TestDisconnectedClients(t *testing.T) {
 			jobFile:      "./input/lost_simple.nomad",
 			disconnectFn: e2eutil.AgentDisconnect,
 			expectedAfterDisconnect: expectedAllocStatus{
-				disconnected: "lost", // TODO: getting "complete"
+				disconnected: "lost",
 				unchanged:    "running",
 				replacement:  "running",
 			},
