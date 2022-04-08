@@ -40,7 +40,7 @@
     "@hashicorp/react-text-split-with-logo-grid": "^5.1.5",
     "@hashicorp/react-use-cases": "^5.0.0",
     "@hashicorp/react-vertical-text-block-list": "^7.0.0",
-    "marked": "0.7.0",
+    "marked": "4.0.13",
     "next": "^11.1.2",
     "next-mdx-remote": "3.0.1",
     "next-remote-watch": "^1.0.0",
