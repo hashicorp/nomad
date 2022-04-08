@@ -72,12 +72,9 @@ func (c *Client) ACLTokens() *ACLTokens {
 	return &ACLTokens{client: c}
 }
 
-// ACLSecrets contain optional additional credentials that may be needed by
-// the Bootstrap Command.
 // TODO
 // These values will be redacted when reported in the
 // API or in Nomad's logs
-// type ACLSecrets map[string]string
 
 type BootstrapRequest struct {
 	Secret string
