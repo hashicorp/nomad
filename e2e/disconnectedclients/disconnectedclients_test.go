@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
@@ -43,7 +44,7 @@ func TestDisconnectedClients(t *testing.T) {
 			jobFile:      "./input/lost_simple.nomad",
 			disconnectFn: e2eutil.AgentDisconnect,
 			expectedAfterDisconnect: expectedAllocStatus{
-				disconnected: "lost",
+				disconnected: "lost", // TODO: getting "complete"
 				unchanged:    "running",
 				replacement:  "running",
 			},
@@ -80,7 +81,7 @@ func TestDisconnectedClients(t *testing.T) {
 			jobFile:      "./input/lost_simple.nomad",
 			disconnectFn: e2eutil.AgentDisconnect,
 			expectedAfterDisconnect: expectedAllocStatus{
-				disconnected: "lost",
+				disconnected: "lost", // TODO: getting "complete"
 				unchanged:    "running",
 				replacement:  "running",
 			},
@@ -189,28 +190,35 @@ func waitForAllocStatusMap(jobID, disconnectedAllocID, unchangedAllocID string, 
 		if err != nil {
 			return false, err
 		}
+
+		var merr *multierror.Error
+
 		for _, alloc := range allocs {
 			switch allocID, allocStatus := alloc["ID"], alloc["Status"]; allocID {
 			case disconnectedAllocID:
 				if allocStatus != expected.disconnected {
-					return false, fmt.Errorf(
+					merr = multierror.Append(merr, fmt.Errorf(
 						"disconnected alloc should be %q, got %q",
-						expected.disconnected, allocStatus)
+						expected.disconnected, allocStatus))
 				}
 			case unchangedAllocID:
 				if allocStatus != expected.unchanged {
-					return false, fmt.Errorf(
+					merr = multierror.Append(merr, fmt.Errorf(
 						"unchanged alloc should be %q, got %q",
-						expected.unchanged, allocStatus)
+						expected.unchanged, allocStatus))
 				}
 			default:
 				if allocStatus != expected.replacement {
-					return false, fmt.Errorf(
+					merr = multierror.Append(merr, fmt.Errorf(
 						"replacement alloc should be %q, got %q",
-						expected.replacement, allocStatus)
+						expected.replacement, allocStatus))
 				}
 			}
 		}
+		if merr != nil {
+			return false, merr.ErrorOrNil()
+		}
+
 		return true, nil
 	}, func(e error) {
 		err = e
