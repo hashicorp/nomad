@@ -29,7 +29,7 @@ Bootstrap Options:
 
   -t
     Format and display the bootstrap response using a Go template.
-	
+
   -bootstrap-token
     Provide an operator generated management token.
 
