@@ -37,8 +37,9 @@ Bootstrap Options:
 func (c *ACLBootstrapCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json": complete.PredictNothing,
-			"-t":    complete.PredictAnything,
+			"-json":  complete.PredictNothing,
+			"-t":     complete.PredictAnything,
+			"-token": complete.PredictAnything,
 		})
 }
 
@@ -57,12 +58,14 @@ func (c *ACLBootstrapCommand) Run(args []string) int {
 	var (
 		json bool
 		tmpl string
+		tkn  string
 	)
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
+	flags.StringVar(&tkn, "tkn", "", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -82,8 +85,15 @@ func (c *ACLBootstrapCommand) Run(args []string) int {
 		return 1
 	}
 
+	// LANCES HACK!!!!! BEWARE
+	var BootStrapSecret map[string]string
+	BootStrapSecret = make(map[string]string)
+	BootStrapSecret["bootstraptoken"] = tkn
+	btkn := api.BootstrapRequest{}
+	btkn.Secrets = BootStrapSecret
+
 	// Get the bootstrap token
-	token, _, err := client.ACLTokens().Bootstrap(nil)
+	token, _, err := client.ACLTokens().Bootstrap(&btkn, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error bootstrapping: %s", err))
 		return 1

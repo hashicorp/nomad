@@ -353,6 +353,7 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 		return aclDisabled
 	}
 	args.Region = a.srv.config.AuthoritativeRegion
+	providedTokenID := args.Secrets["bootstraptoken"]
 
 	if done, err := a.srv.forward("ACL.Bootstrap", args, args, reply); done {
 		return err
@@ -396,6 +397,12 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 		Global:     true,
 		CreateTime: time.Now().UTC(),
 	}
+
+	//if a token has been passed in from the comand line overwrite the created one.
+	if providedTokenID != "" {
+		args.Token.SecretID = providedTokenID
+	}
+
 	args.Token.SetHash()
 
 	// Update via Raft

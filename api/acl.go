@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -72,9 +73,35 @@ func (c *Client) ACLTokens() *ACLTokens {
 	return &ACLTokens{client: c}
 }
 
+// CSISecrets contain optional additional credentials that may be needed by
+// the Bootstrap Command.
+// TODO
+// These values will be redacted when reported in the
+// API or in Nomad's logs
+type ACLSecrets map[string]string
+type BootstrapRequest struct {
+	Secrets ACLSecrets
+	WriteRequest
+}
+
+func (q *WriteOptions) SetHeadersFromBootstrapSecrets(secrets ACLSecrets) {
+	pairs := []string{}
+	for k, v := range secrets {
+		pairs = append(pairs, fmt.Sprintf("%v=%v", k, v))
+	}
+	if q.Headers == nil {
+		q.Headers = map[string]string{}
+	}
+	q.Headers["X-Nomad-BOOT-Secrets"] = strings.Join(pairs, ",")
+}
+
 // Bootstrap is used to get the initial bootstrap token
-func (a *ACLTokens) Bootstrap(q *WriteOptions) (*ACLToken, *WriteMeta, error) {
+func (a *ACLTokens) Bootstrap(req *BootstrapRequest, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
+	if q == nil {
+		q = &WriteOptions{}
+	}
 	var resp ACLToken
+	q.SetHeadersFromBootstrapSecrets(req.Secrets)
 	wm, err := a.client.write("/v1/acl/bootstrap", nil, &resp, q)
 	if err != nil {
 		return nil, nil, err
