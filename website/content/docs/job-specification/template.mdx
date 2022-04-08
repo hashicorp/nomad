@@ -278,6 +278,38 @@ task "task" {
 }
 ```
 
+## Nomad Integration
+
+### Nomad Services
+
+Nomad service registrations can be queried using the `nomadService` and
+`nomadServices` functions. The requests are tied to the same namespace as the
+job which contains the template stanza.
+
+```hcl
+  template {
+    data = <<EOF
+# Configuration for a single NGINX upstream service.
+upstream my_app {
+  {{- range nomadService "my-app" }}
+  server {{ .Address }}:{{ .Port }};{{- end }}
+}
+
+# Configuration for all services registered in Nomad as an NGINX upstream
+# service.
+{{ range nomadServices }}
+# Configuration for service {{ .Name }}.
+upstream {{ .Name | toLower }} {
+  {{- range nomadService .Name }}
+  server {{ .Address}}:{{ .Port }};{{- end }}
+}
+{{ end -}}
+EOF
+
+    destination = "local/nginx.conf"
+  }
+```
+
 ## Consul Integration
 
 ### Consul KV
@@ -315,22 +347,18 @@ the [`connect`][ct_api_connect] function.
     data = <<EOF
 # Configuration for a single upstream service.
 upstream my_app {
-  {{range service "my_app"}}
-  server {{.Address}}:{{.Port}};
-  {{end}}
+  {{- range service "my-app" }}
+  server {{ .Address }}:{{ .Port }};{{- end }}
 }
 
 # Configuration for all services in the catalog.
-{{range services}}
-{{with service .Name}}
-{{with index . 0}}
-# Configuration for service {{.Name}}.
-upstream {{.Name | toLower}} {
-  {{range service .Name}}
-  server {{.Address}}:{{.Port}};
-  {{end}}
+{{ range services }}
+# Configuration for service {{ .Name }}.
+upstream {{ .Name | toLower }} {
+  {{- range service .Name }}
+  server {{ .Address}}:{{ .Port }};{{- end }}
 }
-{{end}}{{end}}{{end}}
+{{ end -}}
     EOF
 
     destination = "local/nginx.conf"
