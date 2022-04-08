@@ -1,3 +1,118 @@
+## 1.3.0 (Unreleased)
+
+FEATURES:
+
+* **Native service discovery**: Register and discover services using builtin simple service discovery. [[GH-12368](https://github.com/hashicorp/nomad/issues/12368)]
+* core: Added support for reconnecting healthy allocations when disconnected clients reconnect. [[GH-12476](https://github.com/hashicorp/nomad/issues/12476)]
+
+BREAKING CHANGES:
+
+* agent: The state database on both clients and servers will automatically migrate its underlying database on startup. Downgrading to a previous version of an agent after upgrading it to Nomad 1.3 is not supported. [[GH-12107](https://github.com/hashicorp/nomad/issues/12107)]
+* client: The client state store will be automatically migrated to a new schema version when upgrading a client. Downgrading to a previous version of the client after upgrading it to Nomad 1.3 is not supported. To downgrade safely, users should erase the Nomad client's data directory. [[GH-12078](https://github.com/hashicorp/nomad/issues/12078)]
+* csi: The client filesystem layout for CSI plugins has been updated to correctly handle the lifecycle of multiple allocations serving the same plugin. Running plugin tasks will not be updated after upgrading the client, but it is recommended to redeploy CSI plugin jobs after upgrading the cluster. [[GH-12078](https://github.com/hashicorp/nomad/issues/12078)]
+* raft: The default raft protocol version is now 3 so you must follow the [Upgrading to Raft Protocol 3](https://www.nomadproject.io/docs/upgrade#upgrading-to-raft-protocol-3) guide when upgrading an existing cluster to Nomad 1.3.0. Downgrading the raft protocol version is not supported. [[GH-11572](https://github.com/hashicorp/nomad/issues/11572)]
+
+SECURITY:
+
+* server: validate mTLS certificate names on agent to agent endpoints [[GH-11956](https://github.com/hashicorp/nomad/issues/11956)]
+
+IMPROVEMENTS:
+
+* agent: Switch from boltdb/bolt to go.etcd.io/bbolt [[GH-12107](https://github.com/hashicorp/nomad/issues/12107)]
+* api: Add `related` query parameter to the Evaluation details endpoint [[GH-12305](https://github.com/hashicorp/nomad/issues/12305)]
+* api: Add support for filtering and pagination to the jobs and volumes list endpoint [[GH-12186](https://github.com/hashicorp/nomad/issues/12186)]
+* api: Add support for filtering, sorting, and pagination to the ACL tokens and allocations list endpoint [[GH-12186](https://github.com/hashicorp/nomad/issues/12186)]
+* api: CSI secrets for list and delete snapshots are now passed in HTTP headers [[GH-12144](https://github.com/hashicorp/nomad/issues/12144)]
+* api: `AllocFS.Logs` now explicitly closes frames channel after being canceled [[GH-12248](https://github.com/hashicorp/nomad/issues/12248)]
+* api: default to using `DefaultPooledTransport` client to support keep-alive by default [[GH-12492](https://github.com/hashicorp/nomad/issues/12492)]
+* api: filter values of evaluation and deployment list api endpoints [[GH-12034](https://github.com/hashicorp/nomad/issues/12034)]
+* api: sort return values of evaluation and deployment list api endpoints by creation index [[GH-12054](https://github.com/hashicorp/nomad/issues/12054)]
+* build: make targets now respect GOBIN variable [[GH-12077](https://github.com/hashicorp/nomad/issues/12077)]
+* build: upgrade and speedup circleci configuration [[GH-11889](https://github.com/hashicorp/nomad/issues/11889)]
+* cli: Added -os flag to node status to display operating system name [[GH-12388](https://github.com/hashicorp/nomad/issues/12388)]
+* cli: Added `nomad operator api` command to ease querying Nomad's HTTP API. [[GH-10808](https://github.com/hashicorp/nomad/issues/10808)]
+* cli: CSI secrets argument for `volume snapshot list` has been made consistent with `volume snapshot delete` [[GH-12144](https://github.com/hashicorp/nomad/issues/12144)]
+* cli: Return a redacted value for mount flags in the `volume status` command, instead of `<none>` [[GH-12150](https://github.com/hashicorp/nomad/issues/12150)]
+* cli: add `nomad config validate` command to check configuration files without an agent [[GH-9198](https://github.com/hashicorp/nomad/issues/9198)]
+* cli: added `-pprof-interval` to `nomad operator debug` command [[GH-11938](https://github.com/hashicorp/nomad/issues/11938)]
+* cli: display the Raft version instead of the Serf protocol in the `nomad server members` command [[GH-12317](https://github.com/hashicorp/nomad/issues/12317)]
+* cli: rename the `nomad server members` `-detailed` flag to `-verbose` so it matches other commands [[GH-12317](https://github.com/hashicorp/nomad/issues/12317)]
+* client: Allow interpolation of the network.dns block [[GH-12021](https://github.com/hashicorp/nomad/issues/12021)]
+* client: Enable support for cgroups v2 [[GH-12274](https://github.com/hashicorp/nomad/issues/12274)]
+* client: fingerprint AWS instance life cycle option [[GH-12371](https://github.com/hashicorp/nomad/issues/12371)]
+* client: set NOMAD_CPU_CORES environment variable when reserving cpu cores [[GH-12496](https://github.com/hashicorp/nomad/issues/12496)]
+* connect: bootstrap envoy sidecars using -proxy-for [[GH-12011](https://github.com/hashicorp/nomad/issues/12011)]
+* consul/connect: write Envoy bootstrapping information to disk for debugging [[GH-11975](https://github.com/hashicorp/nomad/issues/11975)]
+* consul: add go-sockaddr templating support to nomad consul address [[GH-12084](https://github.com/hashicorp/nomad/issues/12084)]
+* consul: improve service name validation message to include maximum length requirement [[GH-12012](https://github.com/hashicorp/nomad/issues/12012)]
+* core: Enable configuring raft boltdb freelist sync behavior [[GH-12107](https://github.com/hashicorp/nomad/issues/12107)]
+* core: The unused protocol_version agent configuration value has been removed. [[GH-11600](https://github.com/hashicorp/nomad/issues/11600)]
+* csi: Add pagination parameters to `volume snapshot list` command [[GH-12193](https://github.com/hashicorp/nomad/issues/12193)]
+* csi: Added `-secret` and `-parameter` flags to `volume snapshot create` command [[GH-12360](https://github.com/hashicorp/nomad/issues/12360)]
+* csi: Added support for storage topology [[GH-12129](https://github.com/hashicorp/nomad/issues/12129)]
+* csi: Allow for concurrent plugin allocations [[GH-12078](https://github.com/hashicorp/nomad/issues/12078)]
+* csi: Allow volumes to be re-registered to be updated while not in use [[GH-12167](https://github.com/hashicorp/nomad/issues/12167)]
+* csi: Display plugin capabilities in `nomad plugin status -verbose` output [[GH-12116](https://github.com/hashicorp/nomad/issues/12116)]
+* csi: Respect the verbose flag in the output of `volume status` [[GH-12153](https://github.com/hashicorp/nomad/issues/12153)]
+* csi: Sort allocations in `plugin status` output [[GH-12154](https://github.com/hashicorp/nomad/issues/12154)]
+* csi: add flag for providing secrets as a set of key/value pairs to delete a volume [[GH-11245](https://github.com/hashicorp/nomad/issues/11245)]
+* csi: allow namespace field to be passed in volume spec [[GH-12400](https://github.com/hashicorp/nomad/issues/12400)]
+* deps: Update hashicorp/raft-boltdb to v2.2.0 [[GH-12107](https://github.com/hashicorp/nomad/issues/12107)]
+* deps: Update serf library to v0.9.7 [[GH-12130](https://github.com/hashicorp/nomad/issues/12130)]
+* deps: Updated hashicorp/raft to v1.3.5 [[GH-12079](https://github.com/hashicorp/nomad/issues/12079)]
+* deps: Upgrade kr/pty to creack/pty v1.1.5 [[GH-11855](https://github.com/hashicorp/nomad/issues/11855)]
+* deps: use gorilla package for gzip http handler [[GH-11843](https://github.com/hashicorp/nomad/issues/11843)]
+* drainer: defer draining CSI plugin jobs until system jobs are drained [[GH-12324](https://github.com/hashicorp/nomad/issues/12324)]
+* drivers/raw_exec: Add support for cgroups v2 in raw_exec driver [[GH-12419](https://github.com/hashicorp/nomad/issues/12419)]
+* fingerprint: add support for detecting DigitalOcean environment [[GH-12015](https://github.com/hashicorp/nomad/issues/12015)]
+* metrics: Emit metrics regarding raft boltdb operations [[GH-12107](https://github.com/hashicorp/nomad/issues/12107)]
+* metrics: emit `nomad.vault.token_last_renewal` and `nomad.vault.token_next_renewal` metrics for Vault token renewal information [[GH-12435](https://github.com/hashicorp/nomad/issues/12435)]
+* namespaces: Allow adding custom metadata to namespaces. [[GH-12138](https://github.com/hashicorp/nomad/issues/12138)]
+* namespaces: Allow enabling/disabling allowed drivers per namespace. [[GH-11807](https://github.com/hashicorp/nomad/issues/11807)]
+* raft: The default raft protocol version is now 3. [[GH-11572](https://github.com/hashicorp/nomad/issues/11572)]
+* scheduler: Seed node shuffling with the evaluation ID to make the order reproducible [[GH-12008](https://github.com/hashicorp/nomad/issues/12008)]
+* scheduler: recover scheduler goroutines on panic [[GH-12009](https://github.com/hashicorp/nomad/issues/12009)]
+* server: Transfer Raft leadership in case the Nomad server fails to establish leadership [[GH-12293](https://github.com/hashicorp/nomad/issues/12293)]
+* server: store and check previous Raft protocol version to prevent downgrades [[GH-12362](https://github.com/hashicorp/nomad/issues/12362)]
+* template: Upgraded to from consul-template v0.25.2 to v0.28.0 which includes the sprig library of functions and more. [[GH-12312](https://github.com/hashicorp/nomad/issues/12312)]
+* ui: break long service tags into multiple lines [[GH-11995](https://github.com/hashicorp/nomad/issues/11995)]
+* ui: make buttons with confirmation more descriptive of their actions [[GH-12252](https://github.com/hashicorp/nomad/issues/12252)]
+* vault: support Vault entity aliases when deriving tokens [[GH-12449](https://github.com/hashicorp/nomad/issues/12449)]
+
+DEPRECATIONS:
+
+* Raft protocol version 2 is deprecated and will be removed in Nomad 1.4.0. [[GH-11572](https://github.com/hashicorp/nomad/issues/11572)]
+
+BUG FIXES:
+
+* api: Apply prefix filter when querying CSI volumes in all namespaces [[GH-12184](https://github.com/hashicorp/nomad/issues/12184)]
+* cleanup: prevent leaks from time.After [[GH-11983](https://github.com/hashicorp/nomad/issues/11983)]
+* config: Fixed a bug where the `reservable_cores` setting was not respected [[GH-12044](https://github.com/hashicorp/nomad/issues/12044)]
+* core: Fixed auto-promotion of canaries in jobs with at least one task group without canaries. [[GH-11878](https://github.com/hashicorp/nomad/issues/11878)]
+* csi: Fixed a bug where `plugin status` commands could choose the incorrect plugin if a plugin with a name that matched the same prefix existed. [[GH-12194](https://github.com/hashicorp/nomad/issues/12194)]
+* csi: Fixed a bug where `volume snapshot list` did not correctly filter by plugin IDs. The `-plugin` parameter is required. [[GH-12197](https://github.com/hashicorp/nomad/issues/12197)]
+* csi: Fixed a bug where allocations with volume claims would fail their first placement after a reschedule [[GH-12113](https://github.com/hashicorp/nomad/issues/12113)]
+* csi: Fixed a bug where allocations with volume claims would fail to restore after a client restart [[GH-12113](https://github.com/hashicorp/nomad/issues/12113)]
+* csi: Fixed a bug where creating snapshots required a plugin ID instead of falling back to the volume's plugin ID [[GH-12195](https://github.com/hashicorp/nomad/issues/12195)]
+* csi: Fixed a bug where fields were missing from the Read Volume API response [[GH-12178](https://github.com/hashicorp/nomad/issues/12178)]
+* csi: Fixed a bug where garbage collected nodes would block releasing a volume [[GH-12350](https://github.com/hashicorp/nomad/issues/12350)]
+* csi: Fixed a bug where plugins written in NodeJS could fail to fingerprint [[GH-12359](https://github.com/hashicorp/nomad/issues/12359)]
+* csi: Fixed a bug where purging a job with a missing plugin would fail [[GH-12114](https://github.com/hashicorp/nomad/issues/12114)]
+* csi: Fixed a bug where single-use access modes were not enforced during validation [[GH-12337](https://github.com/hashicorp/nomad/issues/12337)]
+* csi: Fixed a bug where the maximum number of volume claims was incorrectly enforced when an allocation claims a volume [[GH-12112](https://github.com/hashicorp/nomad/issues/12112)]
+* csi: Fixed a bug where the plugin instance manager would not retry the initial gRPC connection to plugins [[GH-12057](https://github.com/hashicorp/nomad/issues/12057)]
+* csi: Fixed a bug where the plugin supervisor would not restart the task if it failed to connect to the plugin [[GH-12057](https://github.com/hashicorp/nomad/issues/12057)]
+* csi: Fixed a bug where volume snapshot timestamps were always zero values [[GH-12352](https://github.com/hashicorp/nomad/issues/12352)]
+* csi: fixed a bug where `volume detach`, `volume deregister`, and `volume status` commands did not accept an exact ID if multiple volumes matched the prefix [[GH-12051](https://github.com/hashicorp/nomad/issues/12051)]
+* csi: provide `CSI_ENDPOINT` environment variable to plugin tasks [[GH-12050](https://github.com/hashicorp/nomad/issues/12050)]
+* lifecycle: Fixed a bug where successful poststart tasks were marked as unhealthy [[GH-11945](https://github.com/hashicorp/nomad/issues/11945)]
+* recommendations (Enterprise): Fixed a bug where the recommendations list RPC incorrectly forwarded requests to the authoritative region [[GH-12040](https://github.com/hashicorp/nomad/issues/12040)]
+* scheduler: fixed a bug where in-place updates on ineligible nodes would be ignored [[GH-12264](https://github.com/hashicorp/nomad/issues/12264)]
+* server: Write peers.json file with correct permissions [[GH-12369](https://github.com/hashicorp/nomad/issues/12369)]
+* template: Fixed a bug preventing allowing all consul-template functions. [[GH-12312](https://github.com/hashicorp/nomad/issues/12312)]
+* ui: Fix the link target for CSI volumes on the task detail page [[GH-11896](https://github.com/hashicorp/nomad/issues/11896)]
+* ui: fix the unit for the task row memory usage metric [[GH-11980](https://github.com/hashicorp/nomad/issues/11980)]
+
 ## 1.2.6 (February 9, 2022)
 
 __BACKWARDS INCOMPATIBILITIES:__
