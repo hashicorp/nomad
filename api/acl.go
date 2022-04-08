@@ -101,7 +101,11 @@ func (a *ACLTokens) Bootstrap(req *BootstrapRequest, q *WriteOptions) (*ACLToken
 		q = &WriteOptions{}
 	}
 	var resp ACLToken
-	q.SetHeadersFromBootstrapSecrets(req.Secrets)
+	// Test if token is in the request.
+	if req != nil {
+		// TODO ADD Validation for UUID here.
+		q.SetHeadersFromBootstrapSecrets(req.Secrets)
+	}
 	wm, err := a.client.write("/v1/acl/bootstrap", nil, &resp, q)
 	if err != nil {
 		return nil, nil, err
