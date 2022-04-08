@@ -3,12 +3,13 @@ package scheduler
 import (
 	"testing"
 
+	"time"
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
-	"time"
 )
 
 // Test that we properly create the bitmap even when the alloc set includes an
@@ -63,6 +64,9 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 	testJob := mock.Job()
 	testJob.TaskGroups[0].MaxClientDisconnect = helper.TimeToPtr(5 * time.Second)
 	now := time.Now()
+
+	testJobNoMaxDisconnect := mock.Job()
+	testJobNoMaxDisconnect.TaskGroups[0].MaxClientDisconnect = nil
 
 	unknownAllocState := []*structs.AllocState{{
 		Field: structs.AllocStateFieldClientStatus,
@@ -253,6 +257,61 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			},
 		},
 
+		{
+			name:                        "disco-client-disconnect-unset-max-disconnect",
+			supportsDisconnectedClients: true,
+			now:                         time.Now(),
+			taintedNodes:                nodes,
+			skipNilNodeTest:             true,
+			all: allocSet{
+				// Non-terminal allocs on disconnected nodes w/o max-disconnect are lost
+				"lost-running": {
+					ID:           "lost-running",
+					Name:         "lost-running",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          testJobNoMaxDisconnect,
+					NodeID:       "disconnected",
+					TaskGroup:    "web",
+				},
+				// Unknown allocs on disconnected nodes w/o max-disconnect are lost
+				"lost-unknown": {
+					ID:            "lost-unknown",
+					Name:          "lost-unknown",
+					ClientStatus:  structs.AllocClientStatusUnknown,
+					DesiredStatus: structs.AllocDesiredStatusRun,
+					Job:           testJobNoMaxDisconnect,
+					NodeID:        "disconnected",
+					TaskGroup:     "web",
+					AllocStates:   unknownAllocState,
+				},
+			},
+			untainted:     allocSet{},
+			migrate:       allocSet{},
+			disconnecting: allocSet{},
+			reconnecting:  allocSet{},
+			ignore:        allocSet{},
+			lost: allocSet{
+				"lost-running": {
+					ID:           "lost-running",
+					Name:         "lost-running",
+					ClientStatus: structs.AllocClientStatusRunning,
+					Job:          testJobNoMaxDisconnect,
+					NodeID:       "disconnected",
+					TaskGroup:    "web",
+				},
+				"lost-unknown": {
+					ID:            "lost-unknown",
+					Name:          "lost-unknown",
+					ClientStatus:  structs.AllocClientStatusUnknown,
+					DesiredStatus: structs.AllocDesiredStatusRun,
+					Job:           testJobNoMaxDisconnect,
+					NodeID:        "disconnected",
+					TaskGroup:     "web",
+					AllocStates:   unknownAllocState,
+				},
+			},
+		},
+
 		// Everything below this line tests the disconnected client mode.
 		{
 			name:                        "disco-client-untainted-reconnect-failed-and-replaced",
@@ -270,16 +329,19 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					TaskGroup:          "web",
 					PreviousAllocation: "failed-original",
 				},
-				// Failed and replaced allocs on reconnected nodes are untainted
+				// Failed and replaced allocs on reconnected nodes
+				// that are still desired-running are reconnected so
+				// we can stop them
 				"failed-original": {
-					ID:           "failed-original",
-					Name:         "web",
-					ClientStatus: structs.AllocClientStatusFailed,
-					Job:          testJob,
-					NodeID:       "normal",
-					TaskGroup:    "web",
-					AllocStates:  unknownAllocState,
-					TaskStates:   reconnectTaskState,
+					ID:            "failed-original",
+					Name:          "web",
+					ClientStatus:  structs.AllocClientStatusFailed,
+					DesiredStatus: structs.AllocDesiredStatusRun,
+					Job:           testJob,
+					NodeID:        "normal",
+					TaskGroup:     "web",
+					AllocStates:   unknownAllocState,
+					TaskStates:    reconnectTaskState,
 				},
 			},
 			untainted: allocSet{
@@ -297,14 +359,15 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			disconnecting: allocSet{},
 			reconnecting: allocSet{
 				"failed-original": {
-					ID:           "failed-original",
-					Name:         "web",
-					ClientStatus: structs.AllocClientStatusFailed,
-					Job:          testJob,
-					NodeID:       "normal",
-					TaskGroup:    "web",
-					AllocStates:  unknownAllocState,
-					TaskStates:   reconnectTaskState,
+					ID:            "failed-original",
+					Name:          "web",
+					ClientStatus:  structs.AllocClientStatusFailed,
+					DesiredStatus: structs.AllocDesiredStatusRun,
+					Job:           testJob,
+					NodeID:        "normal",
+					TaskGroup:     "web",
+					AllocStates:   unknownAllocState,
+					TaskStates:    reconnectTaskState,
 				},
 			},
 			ignore: allocSet{},
@@ -530,6 +593,18 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					TaskGroup:    "web",
 					AllocStates:  expiredAllocState,
 				},
+				// Failed and stopped allocs on disconnected nodes are ignored
+				"ignore-reconnected-failed-stopped": {
+					ID:            "ignore-reconnected-failed-stopped",
+					Name:          "ignore-reconnected-failed-stopped",
+					ClientStatus:  structs.AllocClientStatusFailed,
+					DesiredStatus: structs.AllocDesiredStatusStop,
+					Job:           testJob,
+					NodeID:        "disconnected",
+					TaskGroup:     "web",
+					TaskStates:    reconnectTaskState,
+					AllocStates:   unknownAllocState, // TODO really?
+				},
 			},
 			untainted: allocSet{},
 			migrate:   allocSet{},
@@ -554,6 +629,17 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 					Job:           testJob,
 					NodeID:        "disconnected",
 					TaskGroup:     "web",
+					AllocStates:   unknownAllocState,
+				},
+				"ignore-reconnected-failed-stopped": {
+					ID:            "ignore-reconnected-failed-stopped",
+					Name:          "ignore-reconnected-failed-stopped",
+					ClientStatus:  structs.AllocClientStatusFailed,
+					DesiredStatus: structs.AllocDesiredStatusStop,
+					Job:           testJob,
+					NodeID:        "disconnected",
+					TaskGroup:     "web",
+					TaskStates:    reconnectTaskState,
 					AllocStates:   unknownAllocState,
 				},
 			},
@@ -631,12 +717,12 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// With tainted nodes
 			untainted, migrate, lost, disconnecting, reconnecting, ignore := tc.all.filterByTainted(tc.taintedNodes, tc.supportsDisconnectedClients, tc.now)
-			require.Equal(t, tc.untainted, untainted, "with-nodes", "untainted")
-			require.Equal(t, tc.migrate, migrate, "with-nodes", "migrate")
-			require.Equal(t, tc.lost, lost, "with-nodes", "lost")
-			require.Equal(t, tc.disconnecting, disconnecting, "with-nodes", "disconnecting")
-			require.Equal(t, tc.reconnecting, reconnecting, "with-nodes", "reconnecting")
-			require.Equal(t, tc.ignore, ignore, "with-nodes", "ignore")
+			require.Equal(t, tc.untainted, untainted, "with-nodes: %s", "untainted")
+			require.Equal(t, tc.migrate, migrate, "with-nodes: %s", "migrate")
+			require.Equal(t, tc.lost, lost, "with-nodes: %s", "lost")
+			require.Equal(t, tc.disconnecting, disconnecting, "with-nodes: %s", "disconnecting")
+			require.Equal(t, tc.reconnecting, reconnecting, "with-nodes: %s", "reconnecting")
+			require.Equal(t, tc.ignore, ignore, "with-nodes: %s", "ignore")
 
 			if tc.skipNilNodeTest {
 				return
@@ -644,12 +730,12 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 
 			// Now again with nodes nil
 			untainted, migrate, lost, disconnecting, reconnecting, ignore = tc.all.filterByTainted(nil, tc.supportsDisconnectedClients, tc.now)
-			require.Equal(t, tc.untainted, untainted, "nodes-nil", "untainted")
-			require.Equal(t, tc.migrate, migrate, "nodes-nil", "migrate")
-			require.Equal(t, tc.lost, lost, "nodes-nil", "lost")
-			require.Equal(t, tc.disconnecting, disconnecting, "nodes-nil", "disconnecting")
-			require.Equal(t, tc.reconnecting, reconnecting, "nodes-nil", "reconnecting")
-			require.Equal(t, tc.ignore, ignore, "nodes-nil", "ignore")
+			require.Equal(t, tc.untainted, untainted, "nodes-nil: %s", "untainted")
+			require.Equal(t, tc.migrate, migrate, "nodes-nil: %s", "migrate")
+			require.Equal(t, tc.lost, lost, "nodes-nil: %s", "lost")
+			require.Equal(t, tc.disconnecting, disconnecting, "nodes-nil: %s", "disconnecting")
+			require.Equal(t, tc.reconnecting, reconnecting, "nodes-nil: %s", "reconnecting")
+			require.Equal(t, tc.ignore, ignore, "nodes-nil: %s", "ignore")
 		})
 	}
 }
