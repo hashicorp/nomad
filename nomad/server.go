@@ -22,7 +22,6 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/lib"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
@@ -885,7 +884,7 @@ func (s *Server) setupBootstrapHandler() error {
 			// `bootstrap_expect`.
 			raftPeers, err := s.numPeers()
 			if err != nil {
-				peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
+				peersTimeout.Reset(peersPollInterval + helper.RandomStagger(peersPollInterval/peersPollJitterFactor))
 				return nil
 			}
 
@@ -894,7 +893,7 @@ func (s *Server) setupBootstrapHandler() error {
 			// Consul.  Let the normal timeout-based strategy
 			// take over.
 			if raftPeers >= bootstrapExpect {
-				peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
+				peersTimeout.Reset(peersPollInterval + helper.RandomStagger(peersPollInterval/peersPollJitterFactor))
 				return nil
 			}
 		}
@@ -904,7 +903,7 @@ func (s *Server) setupBootstrapHandler() error {
 
 		dcs, err := s.consulCatalog.Datacenters()
 		if err != nil {
-			peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
+			peersTimeout.Reset(peersPollInterval + helper.RandomStagger(peersPollInterval/peersPollJitterFactor))
 			return fmt.Errorf("server.nomad: unable to query Consul datacenters: %v", err)
 		}
 		if len(dcs) > 2 {
@@ -914,7 +913,7 @@ func (s *Server) setupBootstrapHandler() error {
 			// walk all datacenter until it finds enough hosts to
 			// form a quorum.
 			shuffleStrings(dcs[1:])
-			dcs = dcs[0:lib.MinInt(len(dcs), datacenterQueryLimit)]
+			dcs = dcs[0:helper.MinInt(len(dcs), datacenterQueryLimit)]
 		}
 
 		nomadServerServiceName := s.config.ConsulConfig.ServerServiceName
@@ -953,13 +952,13 @@ func (s *Server) setupBootstrapHandler() error {
 
 		if len(nomadServerServices) == 0 {
 			if len(mErr.Errors) > 0 {
-				peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
+				peersTimeout.Reset(peersPollInterval + helper.RandomStagger(peersPollInterval/peersPollJitterFactor))
 				return mErr.ErrorOrNil()
 			}
 
 			// Log the error and return nil so future handlers
 			// can attempt to register the `nomad` service.
-			pollInterval := peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor)
+			pollInterval := peersPollInterval + helper.RandomStagger(peersPollInterval/peersPollJitterFactor)
 			s.logger.Trace("no Nomad Servers advertising Nomad service in Consul datacenters", "service_name", nomadServerServiceName, "datacenters", dcs, "retry", pollInterval)
 			peersTimeout.Reset(pollInterval)
 			return nil
@@ -967,7 +966,7 @@ func (s *Server) setupBootstrapHandler() error {
 
 		numServersContacted, err := s.Join(nomadServerServices)
 		if err != nil {
-			peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
+			peersTimeout.Reset(peersPollInterval + helper.RandomStagger(peersPollInterval/peersPollJitterFactor))
 			return fmt.Errorf("contacted %d Nomad Servers: %v", numServersContacted, err)
 		}
 

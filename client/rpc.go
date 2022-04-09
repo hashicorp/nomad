@@ -9,9 +9,9 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/client/servers"
+	"github.com/hashicorp/nomad/helper"
 	inmem "github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -110,7 +110,7 @@ TRY:
 
 	// Wait to avoid thundering herd
 	select {
-	case <-time.After(lib.RandomStagger(c.config.RPCHoldTimeout / structs.JitterFraction)):
+	case <-time.After(helper.RandomStagger(c.config.RPCHoldTimeout / structs.JitterFraction)):
 		// If we are going to retry a blocking query we need to update the time to block so it finishes by our deadline.
 		if info, ok := args.(structs.RPCInfo); ok && info.TimeToBlock() > 0 {
 			newBlockTime := time.Until(deadline)
@@ -139,7 +139,7 @@ func canRetry(args interface{}, err error) bool {
 	// Reads are safe to retry for stream errors, such as if a server was
 	// being shut down.
 	info, ok := args.(structs.RPCInfo)
-	if ok && info.IsRead() && lib.IsErrEOF(err) {
+	if ok && info.IsRead() && helper.IsErrEOF(err) {
 		return true
 	}
 

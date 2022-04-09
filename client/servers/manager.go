@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/consul/lib"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper"
 )
 
 const (
@@ -345,8 +345,8 @@ func (m *Manager) refreshServerRebalanceTimer() time.Duration {
 	// clusterWideRebalanceConnsPerSec operations/s across numLANMembers.
 	clusterWideRebalanceConnsPerSec := float64(numServers * newRebalanceConnsPerSecPerServer)
 
-	connRebalanceTimeout := lib.RateScaledInterval(clusterWideRebalanceConnsPerSec, clientRPCMinReuseDuration, int(m.numNodes))
-	connRebalanceTimeout += lib.RandomStagger(connRebalanceTimeout)
+	connRebalanceTimeout := helper.RateScaledInterval(clusterWideRebalanceConnsPerSec, clientRPCMinReuseDuration, int(m.numNodes))
+	connRebalanceTimeout += helper.RandomStagger(connRebalanceTimeout)
 
 	m.rebalanceTimer.Reset(connRebalanceTimeout)
 	return connRebalanceTimeout

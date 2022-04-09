@@ -17,7 +17,6 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/lib"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -1595,7 +1594,7 @@ func (c *Client) retryIntv(base time.Duration) time.Duration {
 	if c.config.DevMode {
 		return devModeRetryIntv
 	}
-	return base + lib.RandomStagger(base)
+	return base + helper.RandomStagger(base)
 }
 
 // registerAndHeartbeat is a long lived goroutine used to register the client
@@ -1617,7 +1616,7 @@ func (c *Client) registerAndHeartbeat() {
 	if c.config.DevMode {
 		heartbeat = time.After(0)
 	} else {
-		heartbeat = time.After(lib.RandomStagger(initialHeartbeatStagger))
+		heartbeat = time.After(helper.RandomStagger(initialHeartbeatStagger))
 	}
 
 	for {
@@ -1634,7 +1633,7 @@ func (c *Client) registerAndHeartbeat() {
 				// Re-register the node
 				c.logger.Info("re-registering node")
 				c.retryRegisterNode()
-				heartbeat = time.After(lib.RandomStagger(initialHeartbeatStagger))
+				heartbeat = time.After(helper.RandomStagger(initialHeartbeatStagger))
 			} else {
 				intv := c.getHeartbeatRetryIntv(err)
 				c.logger.Error("error heartbeating. retrying", "error", err, "period", intv)
@@ -1690,16 +1689,16 @@ func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
 		// Make left the absolute value so we delay and jitter properly.
 		left *= -1
 	case left < 0:
-		return time.Second + lib.RandomStagger(time.Second)
+		return time.Second + helper.RandomStagger(time.Second)
 	default:
 	}
 
-	stagger := lib.RandomStagger(left)
+	stagger := helper.RandomStagger(left)
 	switch {
 	case stagger < time.Second:
-		return time.Second + lib.RandomStagger(time.Second)
+		return time.Second + helper.RandomStagger(time.Second)
 	case stagger > 30*time.Second:
-		return 25*time.Second + lib.RandomStagger(5*time.Second)
+		return 25*time.Second + helper.RandomStagger(5*time.Second)
 	default:
 		return stagger
 	}
@@ -2780,7 +2779,7 @@ func (c *Client) consulDiscoveryImpl() error {
 		// datacenterQueryLimit, the next heartbeat will pick
 		// a new set of servers so it's okay.
 		shuffleStrings(dcs[1:])
-		dcs = dcs[0:lib.MinInt(len(dcs), datacenterQueryLimit)]
+		dcs = dcs[0:helper.MinInt(len(dcs), datacenterQueryLimit)]
 	}
 
 	// Query for servers in this client's region only
