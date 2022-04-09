@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,13 +12,13 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
-	consultest "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	clienttest "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/sdk"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
@@ -687,29 +686,17 @@ func TestDebug_WriteBytes_PathEscapesSandbox(t *testing.T) {
 
 func TestDebug_CollectConsul(t *testing.T) {
 	ci.Parallel(t)
-	if testing.Short() {
-		t.Skip("-short set; skipping")
-	}
+	ci.SkipSlow(t, "is a slow test")
 
 	// Skip test if Consul binary cannot be found
 	clienttest.RequireConsul(t)
 
 	// Create an embedded Consul server
-	testconsul, err := consultest.NewTestServerConfigT(t, func(c *consultest.TestServerConfig) {
-		// If -v wasn't specified squelch consul logging
-		if !testing.Verbose() {
-			c.Stdout = ioutil.Discard
-			c.Stderr = ioutil.Discard
-		}
-	})
-	require.NoError(t, err)
-	if err != nil {
-		t.Fatalf("error starting test consul server: %v", err)
-	}
-	defer testconsul.Stop()
+	consul, ready, stop := sdk.NewConsul(t, nil)
+	t.Cleanup(stop)
 
 	consulConfig := consulapi.DefaultConfig()
-	consulConfig.Address = testconsul.HTTPAddr
+	consulConfig.Address = consul.HTTP()
 
 	// Setup mock UI
 	ui := cli.NewMockUi()
@@ -727,8 +714,10 @@ func TestDebug_CollectConsul(t *testing.T) {
 
 	// Setup capture directory
 	testDir := t.TempDir()
-	defer os.Remove(testDir)
 	c.collectDir = testDir
+
+	// Wait for consul agent
+	ready()
 
 	// Collect data from Consul into folder "test"
 	c.collectConsul("test")

@@ -35,39 +35,8 @@ import (
 
 // makeHTTPServer returns a test server whose logs will be written to
 // the passed writer. If the writer is nil, the logs are written to stderr.
-func makeHTTPServer(t testing.TB, cb func(c *Config)) *TestAgent {
+func makeHTTPServer(t *testing.T, cb func(c *Config)) *TestAgent {
 	return NewTestAgent(t, t.Name(), cb)
-}
-
-func BenchmarkHTTPRequests(b *testing.B) {
-	s := makeHTTPServer(b, func(c *Config) {
-		c.Client.Enabled = false
-	})
-	defer s.Shutdown()
-
-	job := mock.Job()
-	var allocs []*structs.Allocation
-	count := 1000
-	for i := 0; i < count; i++ {
-		alloc := mock.Alloc()
-		alloc.Job = job
-		alloc.JobID = job.ID
-		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		allocs = append(allocs, alloc)
-	}
-
-	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-		return allocs[:count], nil
-	}
-	b.ResetTimer()
-
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			resp := httptest.NewRecorder()
-			req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
-			s.Server.wrap(handler)(resp, req)
-		}
-	})
 }
 
 func TestMultipleInterfaces(t *testing.T) {
@@ -81,7 +50,7 @@ func TestMultipleInterfaces(t *testing.T) {
 	})
 	defer s.Shutdown()
 
-	httpPort := s.ports[0]
+	httpPort := s.Config.Ports.HTTP
 	for _, ip := range httpIps {
 		resp, err := http.Get(fmt.Sprintf("http://%s:%d/", ip, httpPort))
 
@@ -1445,14 +1414,14 @@ func benchmarkJsonEncoding(b *testing.B, handle *codec.JsonHandle) {
 	}
 }
 
-func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
+func httpTest(t *testing.T, cb func(c *Config), f func(srv *TestAgent)) {
 	s := makeHTTPServer(t, cb)
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.Agent.RPC)
 	f(s)
 }
 
-func httpACLTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
+func httpACLTest(t *testing.T, cb func(c *Config), f func(srv *TestAgent)) {
 	s := makeHTTPServer(t, func(c *Config) {
 		c.ACL.Enabled = true
 		if cb != nil {

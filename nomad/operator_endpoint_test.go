@@ -19,11 +19,11 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/snapshot"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/portfree"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/assert"
@@ -148,12 +148,11 @@ func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	ports := freeport.MustTake(1)
-	defer freeport.Return(ports)
+	port := portfree.New(t).GetOne()
 
 	// Try to remove a peer that's not there.
 	arg := structs.RaftPeerByAddressRequest{
-		Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", ports[0])),
+		Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", port)),
 	}
 	arg.Region = s1.config.Region
 	var reply struct{}
@@ -216,11 +215,9 @@ func TestOperator_RaftRemovePeerByAddress_ACL(t *testing.T) {
 	// Create ACL token
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
 
-	ports := freeport.MustTake(1)
-	defer freeport.Return(ports)
-
+	port := portfree.New(t).GetOne()
 	arg := structs.RaftPeerByAddressRequest{
-		Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", ports[0])),
+		Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", port)),
 	}
 	arg.Region = s1.config.Region
 
@@ -276,12 +273,10 @@ func TestOperator_RaftRemovePeerByID(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	ports := freeport.MustTake(1)
-	defer freeport.Return(ports)
-
 	// Add it manually to Raft.
 	{
-		future := s1.raft.AddVoter(arg.ID, raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", ports[0])), 0, 0)
+		port := portfree.New(t).GetOne()
+		future := s1.raft.AddVoter(arg.ID, raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", port)), 0, 0)
 		if err := future.Error(); err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -337,12 +332,10 @@ func TestOperator_RaftRemovePeerByID_ACL(t *testing.T) {
 	}
 	arg.Region = s1.config.Region
 
-	ports := freeport.MustTake(1)
-	defer freeport.Return(ports)
-
 	// Add peer manually to Raft.
 	{
-		future := s1.raft.AddVoter(arg.ID, raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", ports[0])), 0, 0)
+		port := portfree.New(t).GetOne()
+		future := s1.raft.AddVoter(arg.ID, raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", port)), 0, 0)
 		assert.Nil(future.Error())
 	}
 

@@ -20,7 +20,7 @@ import (
 	"time"
 
 	templateconfig "github.com/hashicorp/consul-template/config"
-	ctestutil "github.com/hashicorp/consul/sdk/testutil"
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -31,6 +31,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/sdk"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
@@ -133,14 +134,14 @@ type testHarness struct {
 	vaultToken     string
 	taskDir        string
 	vault          *testutil.TestVault
-	consul         *ctestutil.TestServer
+	consul         *sdk.Consul
 	emitRate       time.Duration
 	nomadNamespace string
 }
 
 // newTestHarness returns a harness starting a dev consul and vault server,
 // building the appropriate config and creating a TaskTemplateManager
-func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault bool) *testHarness {
+func newTestHarness(t *testing.T, templates []*structs.Template, useConsul, useVault bool) *testHarness {
 	region := "global"
 	mockNode := mock.Node()
 
@@ -165,34 +166,36 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	task.Name = TestTaskName
 	harness.envBuilder = taskenv.NewBuilder(harness.node, a, task, region)
 	harness.nomadNamespace = a.Namespace
-
-	// Make a tempdir
-	d, err := ioutil.TempDir("", "ct_test")
-	if err != nil {
-		t.Fatalf("Failed to make tmpdir: %v", err)
-	}
-	harness.taskDir = d
+	harness.taskDir = t.TempDir()
 	harness.envBuilder.SetClientTaskRoot(harness.taskDir)
 
-	if consul {
-		harness.consul, err = ctestutil.NewTestServerConfigT(t, func(c *ctestutil.TestServerConfig) {
-			// defaults
-		})
-		if err != nil {
-			t.Fatalf("error starting test Consul server: %v", err)
-		}
+	if useConsul {
+		consul, ready, stop := sdk.NewConsul(t, nil)
+		t.Cleanup(stop)
+		harness.consul = consul
 		harness.config.ConsulConfig = &sconfig.ConsulConfig{
-			Addr: harness.consul.HTTPAddr,
+			Addr: consul.HTTP(),
 		}
+		ready()
 	}
 
-	if vault {
+	if useVault {
 		harness.vault = testutil.NewTestVault(t)
 		harness.config.VaultConfig = harness.vault.Config
 		harness.vaultToken = harness.vault.RootToken
 	}
 
 	return harness
+}
+
+func (h *testHarness) setKV(t *testing.T, key, value string) {
+	require.NotNil(t, h.consul)
+	client := h.consul.Client(t)
+	_, err := client.KV().Put(&api.KVPair{
+		Key:   key,
+		Value: []byte(value),
+	}, nil)
+	require.NoError(t, err)
 }
 
 func (h *testHarness) start(t *testing.T) {
@@ -222,19 +225,13 @@ func (h *testHarness) setEmitRate(d time.Duration) {
 	h.emitRate = d
 }
 
-// stop is used to stop any running Vault or Consul server plus the task manager
+// stop is used to stop Vault or the task manager
 func (h *testHarness) stop() {
 	if h.vault != nil {
 		h.vault.Stop()
 	}
-	if h.consul != nil {
-		h.consul.Stop()
-	}
 	if h.manager != nil {
 		h.manager.Stop()
-	}
-	if h.taskDir != "" {
-		os.RemoveAll(h.taskDir)
 	}
 }
 
@@ -377,6 +374,15 @@ func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func setKV(t *testing.T, consul *sdk.Consul, key, value string) {
+	client := consul.Client(t)
+	_, err := client.KV().Put(&api.KVPair{
+		Key:   key,
+		Value: []byte(value),
+	}, nil)
+	require.NoError(t, err)
 }
 
 func TestTaskTemplateManager_HostPath(t *testing.T) {
@@ -641,7 +647,7 @@ func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(t, key, []byte(content))
+	harness.setKV(t, key, content)
 
 	// Wait for the unblock
 	select {
@@ -757,7 +763,7 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(t, consulKey, []byte(consulContent))
+	harness.setKV(t, consulKey, consulContent)
 
 	// Wait for the unblock
 	select {
@@ -903,7 +909,7 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(t, key, []byte(content1))
+	harness.setKV(t, key, content1)
 
 	// Wait for the unblock
 	select {
@@ -924,7 +930,7 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 	}
 
 	// Update the key in Consul
-	harness.consul.SetKV(t, key, []byte(content2))
+	harness.setKV(t, key, content2)
 
 	select {
 	case <-harness.mockHooks.RestartCh:
@@ -986,8 +992,8 @@ func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(t, key1, []byte(content1_1))
-	harness.consul.SetKV(t, key2, []byte(content2_1))
+	harness.setKV(t, key1, content1_1)
+	harness.setKV(t, key2, content2_1)
 
 	// Wait for the unblock
 	select {
@@ -1001,8 +1007,8 @@ func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
 	}
 
 	// Update the keys in Consul
-	harness.consul.SetKV(t, key1, []byte(content1_2))
-	harness.consul.SetKV(t, key2, []byte(content2_2))
+	harness.setKV(t, key1, content1_2)
+	harness.setKV(t, key2, content2_2)
 
 	// Wait for signals
 	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
@@ -1072,7 +1078,7 @@ func TestTaskTemplateManager_Rerender_Restart(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(t, key1, []byte(content1_1))
+	harness.setKV(t, key1, content1_1)
 
 	// Wait for the unblock
 	select {
@@ -1082,7 +1088,7 @@ func TestTaskTemplateManager_Rerender_Restart(t *testing.T) {
 	}
 
 	// Update the keys in Consul
-	harness.consul.SetKV(t, key1, []byte(content1_2))
+	harness.setKV(t, key1, content1_2)
 
 	// Wait for restart
 	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
@@ -1169,7 +1175,7 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	harness.mockHooks.SignalError = fmt.Errorf("test error")
 
 	// Write the key to Consul
-	harness.consul.SetKV(t, key1, []byte(content1))
+	harness.setKV(t, key1, content1)
 
 	// Wait a little
 	select {
@@ -1179,7 +1185,7 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(t, key1, []byte(content2))
+	harness.setKV(t, key1, content2)
 
 	// Wait for kill channel
 	select {
@@ -1442,8 +1448,8 @@ BAR={{key "bar"}}
 	}
 
 	// Write the key to Consul
-	harness.consul.SetKV(t, key1, []byte(content1_1))
-	harness.consul.SetKV(t, key2, []byte(content1_1))
+	harness.setKV(t, key1, content1_1)
+	harness.setKV(t, key2, content1_1)
 
 	// Wait for the unblock
 	select {
@@ -1461,7 +1467,7 @@ BAR={{key "bar"}}
 	}
 
 	// Update the keys in Consul
-	harness.consul.SetKV(t, key1, []byte(content1_2))
+	harness.setKV(t, key1, content1_2)
 
 	// Wait for restart
 	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
@@ -1893,7 +1899,7 @@ func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 
 	// Write 0-2 keys to Consul
 	for i := 0; i < 3; i++ {
-		harness.consul.SetKV(t, fmt.Sprintf("%d", i), []byte{0xa})
+		harness.setKV(t, strconv.Itoa(i), ":)")
 	}
 
 	// Ensure that we get a blocked event

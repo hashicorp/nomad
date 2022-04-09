@@ -2,13 +2,11 @@ package consul_test
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/sdk/testutil"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -20,10 +18,11 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
-	"github.com/hashicorp/nomad/command/agent/consul"
+	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,42 +39,20 @@ func (m *mockUpdater) TaskStateUpdated() {
 func TestConsul_Integration(t *testing.T) {
 	ci.Parallel(t)
 
-	if testing.Short() {
-		t.Skip("-short set; skipping")
-	}
-	r := require.New(t)
-
-	// Create an embedded Consul server
-	testconsul, err := testutil.NewTestServerConfigT(t, func(c *testutil.TestServerConfig) {
-		// If -v wasn't specified squelch consul logging
-		if !testing.Verbose() {
-			c.Stdout = ioutil.Discard
-			c.Stderr = ioutil.Discard
-		}
-	})
-	if err != nil {
-		t.Fatalf("error starting test consul server: %v", err)
-	}
-	defer testconsul.Stop()
+	consul, ready, stop := sdk.NewConsul(t, nil)
+	t.Cleanup(stop)
 
 	conf := config.DefaultConfig()
 	conf.Node = mock.Node()
-	conf.ConsulConfig.Addr = testconsul.HTTPAddr
+	conf.ConsulConfig.Addr = consul.HTTP()
 	consulConfig, err := conf.ConsulConfig.ApiConfig()
-	if err != nil {
-		t.Fatalf("error generating consul config: %v", err)
-	}
+	require.NoError(t, err)
 
-	conf.StateDir, err = ioutil.TempDir("", "nomadtest-consulstate")
-	if err != nil {
-		t.Fatalf("error creating temp dir: %v", err)
-	}
-	defer os.RemoveAll(conf.StateDir)
-	conf.AllocDir, err = ioutil.TempDir("", "nomdtest-consulalloc")
-	if err != nil {
-		t.Fatalf("error creating temp dir: %v", err)
-	}
-	defer os.RemoveAll(conf.AllocDir)
+	conf.StateDir = t.TempDir()
+	// todo(shoenig): the task runner does not unmount secrets, and the testing
+	//  cleanup hook fails trying to remove it
+	// conf.AllocDir = t.TempDir()
+	conf.AllocDir = os.TempDir()
 
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -139,11 +116,17 @@ func TestConsul_Integration(t *testing.T) {
 	taskDir := allocDir.NewTaskDir(task.Name)
 	vclient := vaultclient.NewMockVaultClient()
 	consulClient, err := consulapi.NewClient(consulConfig)
-	r.Nil(err)
+	require.NoError(t, err)
 
-	namespacesClient := consul.NewNamespacesClient(consulClient.Namespaces(), consulClient.Agent())
-	serviceClient := consul.NewServiceClient(consulClient.Agent(), namespacesClient, testlog.HCLogger(t), true)
-	defer serviceClient.Shutdown() // just-in-case cleanup
+	// wait for consul
+	ready()
+
+	namespacesClient := agentconsul.NewNamespacesClient(consulClient.Namespaces(), consulClient.Agent())
+	serviceClient := agentconsul.NewServiceClient(consulClient.Agent(), namespacesClient, testlog.HCLogger(t), true)
+	t.Cleanup(func() {
+		_ = serviceClient.Shutdown()
+	})
+
 	consulRan := make(chan struct{})
 	go func() {
 		serviceClient.Run()
@@ -155,8 +138,8 @@ func TestConsul_Integration(t *testing.T) {
 	closedCh := make(chan struct{})
 	close(closedCh)
 
-	// Build the config
-	config := &taskrunner.Config{
+	// Build the task runner config
+	runnerConfig := &taskrunner.Config{
 		Alloc:                alloc,
 		ClientConfig:         conf,
 		Consul:               serviceClient,
@@ -172,8 +155,8 @@ func TestConsul_Integration(t *testing.T) {
 		ServiceRegWrapper:    wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
 	}
 
-	tr, err := taskrunner.NewTaskRunner(config)
-	r.NoError(err)
+	tr, err := taskrunner.NewTaskRunner(runnerConfig)
+	require.NoError(t, err)
 	go tr.Run()
 	defer func() {
 		// Make sure we always shutdown task runner when the test exits
@@ -181,14 +164,14 @@ func TestConsul_Integration(t *testing.T) {
 		case <-tr.WaitCh():
 			// Exited cleanly, no need to kill
 		default:
-			tr.Kill(context.Background(), &structs.TaskEvent{}) // just in case
+			_ = tr.Kill(context.Background(), &structs.TaskEvent{}) // just in case
 		}
 	}()
 
 	// Block waiting for the service to appear
 	catalog := consulClient.Catalog()
 	res, meta, err := catalog.Service("httpd2", "test", nil)
-	r.Nil(err)
+	require.NoError(t, err)
 
 	for i := 0; len(res) == 0 && i < 10; i++ {
 		//Expected initial request to fail, do a blocking query
@@ -197,7 +180,7 @@ func TestConsul_Integration(t *testing.T) {
 			t.Fatalf("error querying for service: %v", err)
 		}
 	}
-	r.Len(res, 1)
+	require.Len(t, res, 1)
 
 	// Truncate results
 	res = res[:]
@@ -205,16 +188,16 @@ func TestConsul_Integration(t *testing.T) {
 	// Assert the service with the checks exists
 	for i := 0; len(res) == 0 && i < 10; i++ {
 		res, meta, err = catalog.Service("httpd", "http", &consulapi.QueryOptions{WaitIndex: meta.LastIndex + 1, WaitTime: 3 * time.Second})
-		r.Nil(err)
+		require.NoError(t, err)
 	}
-	r.Len(res, 1)
+	require.Len(t, res, 1)
 
 	// Assert the script check passes (mock_driver script checks always
 	// pass) after having time to run once
 	time.Sleep(2 * time.Second)
 	checks, _, err := consulClient.Health().Checks("httpd", nil)
-	r.Nil(err)
-	r.Len(checks, 2)
+	require.Nil(t, err)
+	require.Len(t, checks, 2)
 
 	for _, check := range checks {
 		if expected := "httpd"; check.ServiceName != expected {
@@ -254,7 +237,7 @@ func TestConsul_Integration(t *testing.T) {
 	logger.Debug("killing task")
 
 	// Kill the task
-	tr.Kill(context.Background(), &structs.TaskEvent{})
+	_ = tr.Kill(context.Background(), &structs.TaskEvent{})
 
 	select {
 	case <-tr.WaitCh():
@@ -269,7 +252,7 @@ func TestConsul_Integration(t *testing.T) {
 
 	// Ensure Consul is clean
 	services, _, err := catalog.Services(nil)
-	r.Nil(err)
-	r.Len(services, 1)
-	r.Contains(services, "consul")
+	require.Nil(t, err)
+	require.Len(t, services, 1)
+	require.Contains(t, services, "consul")
 }

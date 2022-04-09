@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	consulapi "github.com/hashicorp/consul/api"
-	consultest "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -21,19 +19,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/sdk"
 	"github.com/stretchr/testify/require"
 )
-
-func getTestConsul(t *testing.T) *consultest.TestServer {
-	testConsul, err := consultest.NewTestServerConfigT(t, func(c *consultest.TestServerConfig) {
-		if !testing.Verbose() { // disable consul logging if -v not set
-			c.Stdout = ioutil.Discard
-			c.Stderr = ioutil.Discard
-		}
-	})
-	require.NoError(t, err, "failed to start test consul server")
-	return testConsul
-}
 
 func TestConnectNativeHook_Name(t *testing.T) {
 	ci.Parallel(t)
@@ -311,8 +299,10 @@ func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
-	testConsul := getTestConsul(t)
-	defer testConsul.Stop()
+	consul, ready, stop := sdk.NewConsul(t, func(c *sdk.ConsulConfig) {
+		// c.LogLevel = os.Getenv("NOMAD_TEST_LOG_LEVEL") todo
+	})
+	t.Cleanup(stop)
 
 	alloc := mock.Alloc()
 	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{{Mode: "host", IP: "1.1.1.1"}}
@@ -329,23 +319,25 @@ func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
-	defer cleanup()
+	t.Cleanup(cleanup)
+
+	// wait for consul agent
+	ready()
 
 	// register group services
-	consulConfig := consulapi.DefaultConfig()
-	consulConfig.Address = testConsul.HTTPAddr
-	consulAPIClient, err := consulapi.NewClient(consulConfig)
-	require.NoError(t, err)
-	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
+	consulClient := consul.Client(t)
+	namespacesClient := agentconsul.NewNamespacesClient(consulClient.Namespaces(), consulClient.Agent())
 
-	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
-	go consulClient.Run()
-	defer consulClient.Shutdown()
-	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+	serviceClient := agentconsul.NewServiceClient(consulClient.Agent(), namespacesClient, logger, true)
+	go serviceClient.Run()
+	t.Cleanup(func() {
+		_ = serviceClient.Shutdown()
+	})
+	require.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
 
 	// Run Connect Native hook
 	h := newConnectNativeHook(newConnectNativeHookConfig(alloc, &config.ConsulConfig{
-		Addr: consulConfig.Address,
+		Addr: consul.HTTP(),
 	}, logger))
 	request := &interfaces.TaskPrestartRequest{
 		Task:    tg.Tasks[0],
@@ -363,7 +355,7 @@ func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 	require.True(t, response.Done)
 
 	// Assert only CONSUL_HTTP_ADDR env variable is set
-	require.Equal(t, map[string]string{"CONSUL_HTTP_ADDR": testConsul.HTTPAddr}, response.Env)
+	require.Equal(t, map[string]string{"CONSUL_HTTP_ADDR": consul.HTTP()}, response.Env)
 
 	// Assert no secrets were written
 	checkFilesInDir(t, request.TaskDir.SecretsDir,
@@ -376,8 +368,8 @@ func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
-	testConsul := getTestConsul(t)
-	defer testConsul.Stop()
+	consul, ready, stop := sdk.NewConsul(t, nil)
+	t.Cleanup(stop)
 
 	alloc := mock.Alloc()
 	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{{Mode: "host", IP: "1.1.1.1"}}
@@ -394,23 +386,25 @@ func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
-	defer cleanup()
+	t.Cleanup(cleanup)
+
+	// wait for consul agent
+	ready()
 
 	// register group services
-	consulConfig := consulapi.DefaultConfig()
-	consulConfig.Address = testConsul.HTTPAddr
-	consulAPIClient, err := consulapi.NewClient(consulConfig)
-	require.NoError(t, err)
-	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
+	consulClient := consul.Client(t)
+	namespacesClient := agentconsul.NewNamespacesClient(consulClient.Namespaces(), consulClient.Agent())
 
-	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
-	go consulClient.Run()
-	defer consulClient.Shutdown()
-	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+	serviceClient := agentconsul.NewServiceClient(consulClient.Agent(), namespacesClient, logger, true)
+	go serviceClient.Run()
+	t.Cleanup(func() {
+		_ = serviceClient.Shutdown()
+	})
+	require.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
 
 	// Run Connect Native hook
 	h := newConnectNativeHook(newConnectNativeHookConfig(alloc, &config.ConsulConfig{
-		Addr: consulConfig.Address,
+		Addr: consul.HTTP(),
 	}, logger))
 	request := &interfaces.TaskPrestartRequest{
 		Task:    tg.Tasks[0],
@@ -422,7 +416,7 @@ func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 	// Insert service identity token in the secrets directory
 	token := uuid.Generate()
 	siTokenFile := filepath.Join(request.TaskDir.SecretsDir, sidsTokenFile)
-	err = ioutil.WriteFile(siTokenFile, []byte(token), 0440)
+	err := ioutil.WriteFile(siTokenFile, []byte(token), 0440)
 	require.NoError(t, err)
 
 	response := new(interfaces.TaskPrestartResponse)
@@ -453,8 +447,8 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 		fakeCert, fakeCertDir := setupCertDirs(t)
 		defer cleanupCertDirs(t, fakeCert, fakeCertDir)
 
-		testConsul := getTestConsul(t)
-		defer testConsul.Stop()
+		consul, ready, stop := sdk.NewConsul(t, nil)
+		t.Cleanup(stop)
 
 		alloc := mock.Alloc()
 		alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{{Mode: "host", IP: "1.1.1.1"}}
@@ -471,23 +465,25 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 		logger := testlog.HCLogger(t)
 
 		allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
-		defer cleanup()
+		t.Cleanup(cleanup)
+
+		// wait for consul agent
+		ready()
 
 		// register group services
-		consulConfig := consulapi.DefaultConfig()
-		consulConfig.Address = testConsul.HTTPAddr
-		consulAPIClient, err := consulapi.NewClient(consulConfig)
-		require.NoError(t, err)
-		namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
+		consulClient := consul.Client(t)
+		namespacesClient := agentconsul.NewNamespacesClient(consulClient.Namespaces(), consulClient.Agent())
 
-		consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
-		go consulClient.Run()
-		defer consulClient.Shutdown()
-		require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+		serviceClient := agentconsul.NewServiceClient(consulClient.Agent(), namespacesClient, logger, true)
+		go serviceClient.Run()
+		t.Cleanup(func() {
+			_ = serviceClient.Shutdown()
+		})
+		require.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
 
 		// Run Connect Native hook
 		h := newConnectNativeHook(newConnectNativeHookConfig(alloc, &config.ConsulConfig{
-			Addr: consulConfig.Address,
+			Addr: consul.HTTP(),
 
 			// TLS config consumed by native application
 			ShareSSL:  shareSSL,
@@ -570,11 +566,11 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
+	consul, ready, stop := sdk.NewConsul(t, nil)
+	t.Cleanup(stop)
+
 	fakeCert, fakeCertDir := setupCertDirs(t)
 	defer cleanupCertDirs(t, fakeCert, fakeCertDir)
-
-	testConsul := getTestConsul(t)
-	defer testConsul.Stop()
 
 	alloc := mock.Alloc()
 	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{{Mode: "host", IP: "1.1.1.1"}}
@@ -591,23 +587,25 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
-	defer cleanup()
+	t.Cleanup(cleanup)
+
+	// wait for consul agent
+	ready()
 
 	// register group services
-	consulConfig := consulapi.DefaultConfig()
-	consulConfig.Address = testConsul.HTTPAddr
-	consulAPIClient, err := consulapi.NewClient(consulConfig)
-	require.NoError(t, err)
-	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
+	consulClient := consul.Client(t)
+	namespacesClient := agentconsul.NewNamespacesClient(consulClient.Namespaces(), consulClient.Agent())
 
-	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
-	go consulClient.Run()
-	defer consulClient.Shutdown()
-	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+	serviceClient := agentconsul.NewServiceClient(consulClient.Agent(), namespacesClient, logger, true)
+	go serviceClient.Run()
+	t.Cleanup(func() {
+		_ = serviceClient.Shutdown()
+	})
+	require.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
 
 	// Run Connect Native hook
 	h := newConnectNativeHook(newConnectNativeHookConfig(alloc, &config.ConsulConfig{
-		Addr: consulConfig.Address,
+		Addr: consul.HTTP(),
 
 		// TLS config consumed by native application
 		ShareSSL:  helper.BoolToPtr(true),

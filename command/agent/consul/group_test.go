@@ -1,40 +1,30 @@
 package consul
 
 import (
-	"io/ioutil"
 	"testing"
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConsul_Connect(t *testing.T) {
 	ci.Parallel(t)
 
-	// Create an embedded Consul server
-	testconsul, err := testutil.NewTestServerConfigT(t, func(c *testutil.TestServerConfig) {
-		// If -v wasn't specified squelch consul logging
-		if !testing.Verbose() {
-			c.Stdout = ioutil.Discard
-			c.Stderr = ioutil.Discard
-		}
-	})
-	if err != nil {
-		t.Fatalf("error starting test consul server: %v", err)
-	}
-	defer testconsul.Stop()
+	consul, ready, stop := sdk.NewConsul(t, nil)
+	t.Cleanup(stop)
 
 	consulConfig := consulapi.DefaultConfig()
-	consulConfig.Address = testconsul.HTTPAddr
+	consulConfig.Address = consul.HTTP()
 	consulClient, err := consulapi.NewClient(consulConfig)
 	require.NoError(t, err)
+
 	namespacesClient := NewNamespacesClient(consulClient.Namespaces(), consulClient.Agent())
 	serviceClient := NewServiceClient(consulClient.Agent(), namespacesClient, testlog.HCLogger(t), true)
 
@@ -43,11 +33,13 @@ func TestConsul_Connect(t *testing.T) {
 	const interval = 50 * time.Millisecond
 	serviceClient.periodicInterval = interval
 
-	// Disable deregistration probation to test syncing
+	// Disable de-registration probation to test syncing
 	serviceClient.deregisterProbationExpiry = time.Time{}
 
 	go serviceClient.Run()
-	defer serviceClient.Shutdown()
+	t.Cleanup(func() {
+		_ = serviceClient.Shutdown()
+	})
 
 	alloc := mock.Alloc()
 	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
@@ -81,6 +73,9 @@ func TestConsul_Connect(t *testing.T) {
 		},
 	}
 
+	// wait for consul agent
+	ready()
+
 	require.NoError(t, serviceClient.RegisterWorkload(BuildAllocServices(mock.Node(), alloc, NoopRestarter())))
 
 	require.Eventually(t, func() bool {
@@ -89,7 +84,7 @@ func TestConsul_Connect(t *testing.T) {
 		return len(services) == 2
 	}, 3*time.Second, 100*time.Millisecond)
 
-	// Test a few times to ensure Nomad doesn't improperly deregister
+	// Test a few times to ensure Nomad doesn't improperly de-register
 	// Connect services.
 	for i := 10; i > 0; i-- {
 		services, err := consulClient.Agent().Services()

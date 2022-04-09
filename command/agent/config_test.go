@@ -17,9 +17,9 @@ import (
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/sdk/portfree"
 	"github.com/stretchr/testify/require"
 )
 
@@ -652,8 +652,7 @@ func TestConfig_Listener(t *testing.T) {
 	}
 
 	// Works with valid inputs
-	ports := freeport.MustTake(2)
-	defer freeport.Return(ports)
+	ports := portfree.New(t).Get(2)
 
 	ln, err := config.Listener("tcp", "127.0.0.1", ports[0])
 	if err != nil {

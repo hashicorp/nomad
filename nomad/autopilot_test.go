@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
-	"github.com/hashicorp/consul/sdk/testutil/retry"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/sdk/retry"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"

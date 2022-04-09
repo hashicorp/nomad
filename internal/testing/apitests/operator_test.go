@@ -3,9 +3,9 @@ package apitests
 import (
 	"testing"
 
-	"github.com/hashicorp/consul/sdk/testutil/retry"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/sdk/retry"
 	"github.com/stretchr/testify/require"
 )
 

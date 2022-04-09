@@ -10,8 +10,11 @@ replace (
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 )
 
-// Nomad is built using the current source of the API module
-replace github.com/hashicorp/nomad/api => ./api
+// Nomad is built using the current source of the API, SDK modules
+replace (
+	github.com/hashicorp/nomad/api => ./api
+	github.com/hashicorp/nomad/sdk => ./sdk
+)
 
 require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
@@ -45,7 +48,6 @@ require (
 	github.com/hashicorp/consul v1.7.8
 	github.com/hashicorp/consul-template v0.28.1-0.20220406001259-e710909d8054
 	github.com/hashicorp/consul/api v1.12.0
-	github.com/hashicorp/consul/sdk v0.8.0
 	github.com/hashicorp/cronexpr v1.1.1
 	github.com/hashicorp/go-bexpr v0.1.11
 	github.com/hashicorp/go-checkpoint v0.0.0-20171009173528-1545e56e46de
@@ -77,6 +79,7 @@ require (
 	github.com/hashicorp/memberlist v0.3.1
 	github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
 	github.com/hashicorp/nomad/api v0.0.0-20220401211553-29eff9ab2a92
+	github.com/hashicorp/nomad/sdk v0.0.0-00010101000000-000000000000
 	github.com/hashicorp/raft v1.3.5
 	github.com/hashicorp/raft-boltdb/v2 v2.2.0
 	github.com/hashicorp/serf v0.9.7
@@ -125,7 +128,7 @@ require (
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	gopkg.in/tomb.v2 v2.0.0-20140626144623-14b3d72120e8
-	oss.indeed.com/go/libtime v1.5.0
+	oss.indeed.com/go/libtime v1.6.0
 )
 
 require (

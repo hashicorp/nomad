@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/portfree"
 	"github.com/hashicorp/nomad/version"
 	"github.com/stretchr/testify/require"
 )
@@ -110,7 +110,7 @@ func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 
 	for i := 10; i >= 0; i-- {
 		// Get random ports, need to cleanup later
-		ports := freeport.MustTake(2)
+		ports := portfree.New(t).Get(2)
 
 		config.RPCAddr = &net.TCPAddr{
 			IP:   []byte{127, 0, 0, 1},
@@ -131,8 +131,6 @@ func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 					if err != nil {
 						ch <- fmt.Errorf("failed to shutdown server: %w", err)
 					}
-
-					freeport.Return(ports)
 				}()
 
 				select {
@@ -145,12 +143,10 @@ func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 				}
 			}, nil
 		} else if i == 0 {
-			freeport.Return(ports)
 			return nil, nil, err
 		} else {
 			if server != nil {
 				_ = server.Shutdown()
-				freeport.Return(ports)
 			}
 			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
 			time.Sleep(wait)

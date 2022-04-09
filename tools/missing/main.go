@@ -116,8 +116,9 @@ var null = nothing{}
 // uninteresting lists remaining packages that contain Go code but still
 // do not need to be covered by test cases.
 var uninteresting = []string{
-	// module
+	// modules
 	"api",
+	"sdk",
 
 	// main
 	".",

@@ -20,12 +20,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"testing"
 	"time"
 
-	cleanhttp "github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/helper/discover"
-	"github.com/hashicorp/nomad/helper/freeport"
-	testing "github.com/mitchellh/go-testing-interface"
+	"github.com/hashicorp/nomad/sdk/portfree"
 )
 
 // TestServerConfig is the main server configuration struct.
@@ -95,8 +95,8 @@ type ServerConfigCallback func(c *TestServerConfig)
 
 // defaultServerConfig returns a new TestServerConfig struct
 // with all of the listen ports incremented by one.
-func defaultServerConfig() (*TestServerConfig, []int) {
-	ports := freeport.MustTake(3)
+func defaultServerConfig(t *testing.T) (*TestServerConfig, []int) {
+	ports := portfree.New(t).Get(3)
 	return &TestServerConfig{
 		NodeName:          fmt.Sprintf("node-%d", ports[0]),
 		DisableCheckpoint: true,
@@ -126,7 +126,7 @@ func defaultServerConfig() (*TestServerConfig, []int) {
 type TestServer struct {
 	cmd    *exec.Cmd
 	Config *TestServerConfig
-	t      testing.T
+	t      *testing.T
 
 	// ports (if any) that are reserved through freeport that must be returned
 	// at the end of a test, done when Close() is called.
@@ -139,7 +139,7 @@ type TestServer struct {
 
 // NewTestServer creates a new TestServer, and makes a call to
 // an optional callback function to modify the configuration.
-func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
+func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 	path, err := discover.NomadExecutable()
 	if err != nil {
 		t.Skipf("nomad not found, skipping: %v", err)
@@ -165,7 +165,7 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 	}
 	defer configFile.Close()
 
-	nomadConfig, ports := defaultServerConfig()
+	nomadConfig, ports := defaultServerConfig(t)
 	nomadConfig.DataDir = dataDir
 
 	if cb != nil {
@@ -236,8 +236,6 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 // Stop stops the test Nomad server, and removes the Nomad data
 // directory once we are done.
 func (s *TestServer) Stop() {
-	defer freeport.Return(s.ports)
-
 	defer os.RemoveAll(s.Config.DataDir)
 
 	// wait for the process to exit to be sure that the data dir can be

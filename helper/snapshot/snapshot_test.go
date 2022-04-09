@@ -5,15 +5,14 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/require"
@@ -125,8 +124,7 @@ func makeRaft(t *testing.T, dir string) (*raft.Raft, *MockFSM) {
 }
 
 func TestSnapshot(t *testing.T) {
-	dir := testutil.TempDir(t, "snapshot")
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Make a Raft and populate it with some data. We tee everything we
 	// apply off to a buffer for checking post-snapshot.
@@ -149,7 +147,7 @@ func TestSnapshot(t *testing.T) {
 	}
 
 	// Take a snapshot.
-	logger := testutil.Logger(t)
+	logger := testlog.HCLogger(t)
 	snap, err := New(logger, before)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -234,8 +232,7 @@ func TestSnapshot_BadVerify(t *testing.T) {
 }
 
 func TestSnapshot_TruncatedVerify(t *testing.T) {
-	dir := testutil.TempDir(t, "snapshot")
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Make a Raft and populate it with some data. We tee everything we
 	// apply off to a buffer for checking post-snapshot.
@@ -257,10 +254,12 @@ func TestSnapshot_TruncatedVerify(t *testing.T) {
 	}
 
 	// Take a snapshot.
-	logger := testutil.Logger(t)
+	logger := testlog.HCLogger(t)
 	snap, err := New(logger, before)
 	require.NoError(t, err)
-	defer snap.Close()
+	t.Cleanup(func() {
+		_ = snap.Close()
+	})
 
 	var data []byte
 	{
@@ -282,8 +281,7 @@ func TestSnapshot_TruncatedVerify(t *testing.T) {
 }
 
 func TestSnapshot_BadRestore(t *testing.T) {
-	dir := testutil.TempDir(t, "snapshot")
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Make a Raft and populate it with some data.
 	before, _ := makeRaft(t, filepath.Join(dir, "before"))
@@ -300,7 +298,7 @@ func TestSnapshot_BadRestore(t *testing.T) {
 	}
 
 	// Take a snapshot.
-	logger := testutil.Logger(t)
+	logger := testlog.HCLogger(t)
 	snap, err := New(logger, before)
 	if err != nil {
 		t.Fatalf("err: %v", err)

@@ -5,14 +5,14 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/sdk/portfree"
 	vapi "github.com/hashicorp/vault/api"
-	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,7 +26,7 @@ import (
 // testing.
 type TestVault struct {
 	cmd    *exec.Cmd
-	t      testing.T
+	t      *testing.T
 	waitCh chan error
 
 	// ports (if any) that are reserved through freeport that must be returned
@@ -40,12 +40,12 @@ type TestVault struct {
 	Client    *vapi.Client
 }
 
-func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
+func NewTestVaultFromPath(t *testing.T, binary string) *TestVault {
 	var ports []int
 	nextPort := func() int {
-		next := freeport.MustTake(1)
-		ports = append(ports, next...)
-		return next[0]
+		next := portfree.New(t).GetOne()
+		ports = append(ports, next)
+		return next
 	}
 
 	for i := 10; i >= 0; i-- {
@@ -131,7 +131,7 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 }
 
 // NewTestVault returns a new TestVault instance that is ready for API calls
-func NewTestVault(t testing.T) *TestVault {
+func NewTestVault(t *testing.T) *TestVault {
 	// Lookup vault from the path
 	return NewTestVaultFromPath(t, "vault")
 }
@@ -139,8 +139,8 @@ func NewTestVault(t testing.T) *TestVault {
 // NewTestVaultDelayed returns a test Vault server that has not been started.
 // Start must be called and it is the callers responsibility to deal with any
 // port conflicts that may occur and retry accordingly.
-func NewTestVaultDelayed(t testing.T) *TestVault {
-	port := freeport.MustTake(1)[0]
+func NewTestVaultDelayed(t *testing.T) *TestVault {
+	port := portfree.New(t).GetOne()
 	token := uuid.Generate()
 	bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
 	http := fmt.Sprintf("http://127.0.0.1:%d", port)
@@ -208,8 +208,6 @@ func (tv *TestVault) Start() error {
 
 // Stop stops the test Vault server
 func (tv *TestVault) Stop() {
-	defer freeport.Return(tv.ports)
-
 	if tv.cmd.Process == nil {
 		return
 	}

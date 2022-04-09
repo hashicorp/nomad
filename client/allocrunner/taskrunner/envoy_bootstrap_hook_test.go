@@ -1,8 +1,4 @@
 //go:build !windows
-// +build !windows
-
-// todo(shoenig): Once Connect is supported on Windows, we'll need to make this
-//  set of tests work there too.
 
 package taskrunner
 
@@ -30,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/sdk"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
@@ -295,8 +292,8 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
-	testConsul := getTestConsul(t)
-	defer testConsul.Stop()
+	consul, ready, stop := sdk.NewConsul(t, nil)
+	t.Cleanup(stop)
 
 	alloc := mock.ConnectAlloc()
 	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
@@ -331,23 +328,25 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap", alloc.ID)
-	defer cleanup()
+	t.Cleanup(cleanup)
+
+	// wait for consul agent
+	ready()
 
 	// Register Group Services
-	consulConfig := consulapi.DefaultConfig()
-	consulConfig.Address = testConsul.HTTPAddr
-	consulAPIClient, err := consulapi.NewClient(consulConfig)
-	require.NoError(t, err)
-	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
+	consulClient := consul.Client(t)
+	namespacesClient := agentconsul.NewNamespacesClient(consulClient.Namespaces(), consulClient.Agent())
 
-	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
-	go consulClient.Run()
-	defer consulClient.Shutdown()
-	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+	serviceClient := agentconsul.NewServiceClient(consulClient.Agent(), namespacesClient, logger, true)
+	go serviceClient.Run()
+	t.Cleanup(func() {
+		_ = serviceClient.Shutdown()
+	})
+	require.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
 
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
-		Addr: consulConfig.Address,
+		Addr: consul.HTTP(),
 	}, consulNamespace, logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
@@ -359,7 +358,7 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	// Insert service identity token in the secrets directory
 	token := uuid.Generate()
 	siTokenFile := filepath.Join(req.TaskDir.SecretsDir, sidsTokenFile)
-	err = ioutil.WriteFile(siTokenFile, []byte(token), 0440)
+	err := ioutil.WriteFile(siTokenFile, []byte(token), 0440)
 	require.NoError(t, err)
 
 	resp := &interfaces.TaskPrestartResponse{}
@@ -376,7 +375,9 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	}
 	f, err := os.Open(args.ReplaceEnv(structs.EnvoyBootstrapPath, env))
 	require.NoError(t, err)
-	defer f.Close()
+	t.Cleanup(func() {
+		_ = f.Close()
+	})
 
 	// Assert bootstrap configuration is valid json
 	var out envoyConfig
@@ -396,8 +397,8 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
-	testConsul := getTestConsul(t)
-	defer testConsul.Stop()
+	consul, ready, stop := sdk.NewConsul(t, nil)
+	t.Cleanup(stop)
 
 	alloc := mock.ConnectAlloc()
 	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
@@ -432,23 +433,24 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap", alloc.ID)
-	defer cleanup()
+	t.Cleanup(cleanup)
+
+	// wait for consul agent
+	ready()
 
 	// Register Group Services
-	consulConfig := consulapi.DefaultConfig()
-	consulConfig.Address = testConsul.HTTPAddr
-	consulAPIClient, err := consulapi.NewClient(consulConfig)
-	require.NoError(t, err)
+	consulAPIClient := consul.Client(t)
 	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
-
-	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
-	go consulClient.Run()
-	defer consulClient.Shutdown()
-	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+	serviceClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
+	go serviceClient.Run()
+	t.Cleanup(func() {
+		_ = serviceClient.Shutdown()
+	})
+	require.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
 
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
-		Addr: consulConfig.Address,
+		Addr: consul.HTTP(),
 	}, consulNamespace, logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
@@ -474,7 +476,9 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	}
 	f, err := os.Open(args.ReplaceEnv(structs.EnvoyBootstrapPath, env))
 	require.NoError(t, err)
-	defer f.Close()
+	t.Cleanup(func() {
+		_ = f.Close()
+	})
 
 	// Assert bootstrap configuration is valid json
 	var out envoyConfig
@@ -491,29 +495,31 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
-	testConsul := getTestConsul(t)
-	defer testConsul.Stop()
+	consul, ready, stop := sdk.NewConsul(t, nil)
+	t.Cleanup(stop)
 
 	// Setup an Allocation
 	alloc := mock.ConnectIngressGatewayAlloc("bridge")
 	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyBootstrapIngressGateway", alloc.ID)
 	defer cleanupDir()
 
+	// wait for consul agent
+	ready()
+
 	// Get a Consul client
-	consulConfig := consulapi.DefaultConfig()
-	consulConfig.Address = testConsul.HTTPAddr
-	consulAPIClient, err := consulapi.NewClient(consulConfig)
-	require.NoError(t, err)
-	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
+	consulClient := consul.Client(t)
+	namespacesClient := agentconsul.NewNamespacesClient(consulClient.Namespaces(), consulClient.Agent())
 
 	// Register Group Services
-	serviceClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
+	serviceClient := agentconsul.NewServiceClient(consulClient.Agent(), namespacesClient, logger, true)
 	go serviceClient.Run()
-	defer serviceClient.Shutdown()
+	t.Cleanup(func() {
+		_ = serviceClient.Shutdown()
+	})
 	require.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
 
 	// Register Configuration Entry
-	ceClient := consulAPIClient.ConfigEntries()
+	ceClient := consulClient.ConfigEntries()
 	set, _, err := ceClient.Set(&consulapi.IngressGatewayConfigEntry{
 		Kind: consulapi.IngressGateway,
 		Name: "gateway-service", // matches job
@@ -530,7 +536,7 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 
 	// Run Connect bootstrap hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
-		Addr: consulConfig.Address,
+		Addr: consul.HTTP(),
 	}, consulNamespace, logger))
 
 	req := &interfaces.TaskPrestartRequest{
@@ -555,7 +561,9 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	}
 	f, err := os.Open(args.ReplaceEnv(structs.EnvoyBootstrapPath, env))
 	require.NoError(t, err)
-	defer f.Close()
+	t.Cleanup(func() {
+		_ = f.Close()
+	})
 
 	var out envoyConfig
 	require.NoError(t, json.NewDecoder(f).Decode(&out))
@@ -611,8 +619,8 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
-	testConsul := getTestConsul(t)
-	defer testConsul.Stop()
+	consul, ready, stop := sdk.NewConsul(t, nil)
+	t.Cleanup(stop)
 
 	alloc := mock.ConnectAlloc()
 	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
@@ -647,7 +655,10 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap", alloc.ID)
-	defer cleanup()
+	t.Cleanup(cleanup)
+
+	// wait for consul agent
+	ready()
 
 	// Unlike the successful test above, do NOT register the group services
 	// yet. This should cause a recoverable error similar to if Consul was
@@ -655,7 +666,7 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
-		Addr: testConsul.HTTPAddr,
+		Addr: consul.HTTP(),
 	}, consulNamespace, logger))
 
 	// Lower the allowable wait time for testing
@@ -689,8 +700,8 @@ func TestTaskRunner_EnvoyBootstrapHook_retryTimeout(t *testing.T) {
 	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
-	testConsul := getTestConsul(t)
-	defer testConsul.Stop()
+	consul, ready, stop := sdk.NewConsul(t, nil)
+	t.Cleanup(stop)
 
 	begin := time.Now()
 
@@ -724,12 +735,15 @@ func TestTaskRunner_EnvoyBootstrapHook_retryTimeout(t *testing.T) {
 		Kind: structs.NewTaskKind(structs.ConnectProxyPrefix, "foo"),
 	}
 	tg.Tasks = append(tg.Tasks, sidecarTask)
-	allocDir, cleanupAlloc := allocdir.TestAllocDir(t, logger, "EnvoyBootstrapRetryTimeout", alloc.ID)
-	defer cleanupAlloc()
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrapRetryTimeout", alloc.ID)
+	t.Cleanup(cleanup)
+
+	// wait for consul agent
+	ready()
 
 	// Get a Consul client
 	consulConfig := consulapi.DefaultConfig()
-	consulConfig.Address = testConsul.HTTPAddr
+	consulConfig.Address = consul.HTTP()
 
 	// Do NOT register group services, causing the hook to retry until timeout
 
@@ -805,9 +819,7 @@ func TestTaskRunner_EnvoyBootstrapHook_extractNameAndKind(t *testing.T) {
 	})
 
 	t.Run("normal task", func(t *testing.T) {
-		_, _, err := (*envoyBootstrapHook)(nil).extractNameAndKind(
-			structs.TaskKind(""),
-		)
+		_, _, err := (*envoyBootstrapHook)(nil).extractNameAndKind("")
 		require.EqualError(t, err, "envoy must be used as connect sidecar or gateway")
 	})
 }

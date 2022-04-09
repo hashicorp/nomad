@@ -17,12 +17,12 @@ import (
 	"github.com/hashicorp/nomad/api"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/sdk/portfree"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -38,7 +38,7 @@ var TempDir = os.TempDir()
 // is removed after shutdown.
 type TestAgent struct {
 	// T is the testing object
-	T testing.TB
+	T *testing.T
 
 	// Name is an optional name of the agent.
 	Name string
@@ -80,10 +80,6 @@ type TestAgent struct {
 	// RootToken is auto-bootstrapped if ACLs are enabled
 	RootToken *structs.ACLToken
 
-	// ports that are reserved through freeport that must be returned at
-	// the end of a test, done when Shutdown() is called.
-	ports []int
-
 	// Enterprise specifies if the agent is enterprise or not
 	Enterprise bool
 
@@ -94,7 +90,7 @@ type TestAgent struct {
 // NewTestAgent returns a started agent with the given name and
 // configuration. The caller should call Shutdown() to stop the agent and
 // remove temporary directories.
-func NewTestAgent(t testing.TB, name string, configCallback func(*Config)) *TestAgent {
+func NewTestAgent(t *testing.T, name string, configCallback func(*Config)) *TestAgent {
 	a := &TestAgent{
 		T:              t,
 		Name:           name,
@@ -110,7 +106,7 @@ func NewTestAgent(t testing.TB, name string, configCallback func(*Config)) *Test
 // Start starts a test agent.
 func (a *TestAgent) Start() *TestAgent {
 	if a.Agent != nil {
-		a.T.Fatalf("TestAgent already started")
+		a.T.Fatal("TestAgent already started")
 	}
 	if a.Config == nil {
 		a.Config = a.config()
@@ -267,8 +263,6 @@ func (a *TestAgent) Shutdown() error {
 	}
 	a.shutdown = true
 
-	defer freeport.Return(a.ports)
-
 	defer func() {
 		if a.DataDir != "" {
 			os.RemoveAll(a.DataDir)
@@ -324,8 +318,7 @@ func (a *TestAgent) Client() *api.Client {
 // Instead of relying on one set of ports to be sufficient we retry
 // starting the agent with different ports on port conflict.
 func (a *TestAgent) pickRandomPorts(c *Config) {
-	ports := freeport.MustTake(3)
-	a.ports = append(a.ports, ports...)
+	ports := portfree.New(a.T).Get(3)
 
 	c.Ports.HTTP = ports[0]
 	c.Ports.RPC = ports[1]

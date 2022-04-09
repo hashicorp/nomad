@@ -64,6 +64,23 @@ jobs:
         run: |
           make bootstrap
           make dev
+  tests-sdk:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v2
+      - uses: magnetikonline/action-golang-cache@v1
+        with:
+          go-version: ${{env.GO_VERSION}}
+          cache-key-suffix: -sdk
+      - name: Run SDK tests
+        env:
+          GOTEST_MOD: sdk
+        run: |
+          make bootstrap
+          make generate-all
+          hc-install consul ${{env.CONSUL_VERSION}}
+          make test-nomad-module
   tests-api:
     runs-on: ubuntu-20.04
     timeout-minutes: 30
