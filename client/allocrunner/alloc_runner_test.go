@@ -1,6 +1,7 @@
 package allocrunner
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,11 +10,12 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allochealth"
 	"github.com/hashicorp/nomad/client/allocwatcher"
-	cconsul "github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
-	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -30,7 +32,7 @@ func destroy(ar *allocRunner) {
 // TestAllocRunner_AllocState_Initialized asserts that getting TaskStates via
 // AllocState() are initialized even before the AllocRunner has run.
 func TestAllocRunner_AllocState_Initialized(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
@@ -49,7 +51,7 @@ func TestAllocRunner_AllocState_Initialized(t *testing.T) {
 // TestAllocRunner_TaskLeader_KillTG asserts that when a leader task dies the
 // entire task group is killed.
 func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
@@ -110,7 +112,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 		found := false
 		killingMsg := ""
 		for _, e := range state1.Events {
-			if e.Type != structs.TaskLeaderDead {
+			if e.Type == structs.TaskLeaderDead {
 				found = true
 			}
 			if e.Type == structs.TaskKilling {
@@ -142,8 +144,345 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	})
 }
 
+// TestAllocRunner_Lifecycle_Poststart asserts that a service job with 2
+// poststart lifecycle hooks (1 sidecar, 1 ephemeral) starts all 3 tasks, only
+// the ephemeral one finishes, and the other 2 exit when the alloc is stopped.
+func TestAllocRunner_Lifecycle_Poststart(t *testing.T) {
+	alloc := mock.LifecycleAlloc()
+
+	alloc.Job.Type = structs.JobTypeService
+	mainTask := alloc.Job.TaskGroups[0].Tasks[0]
+	mainTask.Config["run_for"] = "100s"
+
+	sidecarTask := alloc.Job.TaskGroups[0].Tasks[1]
+	sidecarTask.Lifecycle.Hook = structs.TaskLifecycleHookPoststart
+	sidecarTask.Config["run_for"] = "100s"
+
+	ephemeralTask := alloc.Job.TaskGroups[0].Tasks[2]
+	ephemeralTask.Lifecycle.Hook = structs.TaskLifecycleHookPoststart
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	defer destroy(ar)
+	go ar.Run()
+
+	upd := conf.StateUpdater.(*MockStateUpdater)
+
+	// Wait for main and sidecar tasks to be running, and that the
+	// ephemeral task ran and exited.
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+
+		if last.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
+		}
+
+		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateRunning {
+			return false, fmt.Errorf("expected main task to be running not %s", s)
+		}
+
+		if s := last.TaskStates[sidecarTask.Name].State; s != structs.TaskStateRunning {
+			return false, fmt.Errorf("expected sidecar task to be running not %s", s)
+		}
+
+		if s := last.TaskStates[ephemeralTask.Name].State; s != structs.TaskStateDead {
+			return false, fmt.Errorf("expected ephemeral task to be dead not %s", s)
+		}
+
+		if last.TaskStates[ephemeralTask.Name].Failed {
+			return false, fmt.Errorf("expected ephemeral task to be successful not failed")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error waiting for initial state:\n%v", err)
+	})
+
+	// Tell the alloc to stop
+	stopAlloc := alloc.Copy()
+	stopAlloc.DesiredStatus = structs.AllocDesiredStatusStop
+	ar.Update(stopAlloc)
+
+	// Wait for main and sidecar tasks to stop.
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
+		}
+
+		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateDead {
+			return false, fmt.Errorf("expected main task to be dead not %s", s)
+		}
+
+		if last.TaskStates[mainTask.Name].Failed {
+			return false, fmt.Errorf("expected main task to be successful not failed")
+		}
+
+		if s := last.TaskStates[sidecarTask.Name].State; s != structs.TaskStateDead {
+			return false, fmt.Errorf("expected sidecar task to be dead not %s", s)
+		}
+
+		if last.TaskStates[sidecarTask.Name].Failed {
+			return false, fmt.Errorf("expected sidecar task to be successful not failed")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error waiting for initial state:\n%v", err)
+	})
+}
+
+// TestAllocRunner_TaskMain_KillTG asserts that when main tasks die the
+// entire task group is killed.
+func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
+	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
+
+	// Create four tasks in the task group
+	prestart := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	prestart.Name = "prestart-sidecar"
+	prestart.Driver = "mock_driver"
+	prestart.KillTimeout = 10 * time.Millisecond
+	prestart.Lifecycle = &structs.TaskLifecycleConfig{
+		Hook:    structs.TaskLifecycleHookPrestart,
+		Sidecar: true,
+	}
+
+	prestart.Config = map[string]interface{}{
+		"run_for": "100s",
+	}
+
+	poststart := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	poststart.Name = "poststart-sidecar"
+	poststart.Driver = "mock_driver"
+	poststart.KillTimeout = 10 * time.Millisecond
+	poststart.Lifecycle = &structs.TaskLifecycleConfig{
+		Hook:    structs.TaskLifecycleHookPoststart,
+		Sidecar: true,
+	}
+
+	poststart.Config = map[string]interface{}{
+		"run_for": "100s",
+	}
+
+	// these two main tasks have the same name, is that ok?
+	main1 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	main1.Name = "task2"
+	main1.Driver = "mock_driver"
+	main1.Config = map[string]interface{}{
+		"run_for": "1s",
+	}
+
+	main2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	main2.Name = "task2"
+	main2.Driver = "mock_driver"
+	main2.Config = map[string]interface{}{
+		"run_for": "2s",
+	}
+
+	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{prestart, poststart, main1, main2}
+	alloc.AllocatedResources.Tasks = map[string]*structs.AllocatedTaskResources{
+		prestart.Name:  tr,
+		poststart.Name: tr,
+		main1.Name:     tr,
+		main2.Name:     tr,
+	}
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	defer destroy(ar)
+	go ar.Run()
+
+	hasTaskMainEvent := func(state *structs.TaskState) bool {
+		for _, e := range state.Events {
+			if e.Type == structs.TaskMainDead {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	// Wait for all tasks to be killed
+	upd := conf.StateUpdater.(*MockStateUpdater)
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
+		}
+
+		var state *structs.TaskState
+
+		// both sidecars should be killed because Task2 exited
+		state = last.TaskStates[prestart.Name]
+		if state == nil {
+			return false, fmt.Errorf("could not find state for task %s", prestart.Name)
+		}
+		if state.State != structs.TaskStateDead {
+			return false, fmt.Errorf("got state %v; want %v", state.State, structs.TaskStateDead)
+		}
+		if state.FinishedAt.IsZero() || state.StartedAt.IsZero() {
+			return false, fmt.Errorf("expected to have a start and finish time")
+		}
+		if len(state.Events) < 2 {
+			// At least have a received and destroyed
+			return false, fmt.Errorf("Unexpected number of events")
+		}
+
+		if !hasTaskMainEvent(state) {
+			return false, fmt.Errorf("Did not find event %v: %#+v", structs.TaskMainDead, state.Events)
+		}
+
+		state = last.TaskStates[poststart.Name]
+		if state == nil {
+			return false, fmt.Errorf("could not find state for task %s", poststart.Name)
+		}
+		if state.State != structs.TaskStateDead {
+			return false, fmt.Errorf("got state %v; want %v", state.State, structs.TaskStateDead)
+		}
+		if state.FinishedAt.IsZero() || state.StartedAt.IsZero() {
+			return false, fmt.Errorf("expected to have a start and finish time")
+		}
+		if len(state.Events) < 2 {
+			// At least have a received and destroyed
+			return false, fmt.Errorf("Unexpected number of events")
+		}
+
+		if !hasTaskMainEvent(state) {
+			return false, fmt.Errorf("Did not find event %v: %#+v", structs.TaskMainDead, state.Events)
+		}
+
+		// main tasks should die naturely
+		state = last.TaskStates[main1.Name]
+		if state.State != structs.TaskStateDead {
+			return false, fmt.Errorf("got state %v; want %v", state.State, structs.TaskStateDead)
+		}
+		if state.FinishedAt.IsZero() || state.StartedAt.IsZero() {
+			return false, fmt.Errorf("expected to have a start and finish time")
+		}
+		if hasTaskMainEvent(state) {
+			return false, fmt.Errorf("unexpected event %#+v in %v", structs.TaskMainDead, state.Events)
+		}
+
+		state = last.TaskStates[main2.Name]
+		if state.State != structs.TaskStateDead {
+			return false, fmt.Errorf("got state %v; want %v", state.State, structs.TaskStateDead)
+		}
+		if state.FinishedAt.IsZero() || state.StartedAt.IsZero() {
+			return false, fmt.Errorf("expected to have a start and finish time")
+		}
+		if hasTaskMainEvent(state) {
+			return false, fmt.Errorf("unexpected event %v in %#+v", structs.TaskMainDead, state.Events)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+// TestAllocRunner_Lifecycle_Poststop asserts that a service job with 1
+// postop lifecycle hook starts all 3 tasks, only
+// the ephemeral one finishes, and the other 2 exit when the alloc is stopped.
+func TestAllocRunner_Lifecycle_Poststop(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.LifecycleAlloc()
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
+
+	alloc.Job.Type = structs.JobTypeService
+	mainTask := alloc.Job.TaskGroups[0].Tasks[0]
+	mainTask.Config["run_for"] = "100s"
+
+	ephemeralTask := alloc.Job.TaskGroups[0].Tasks[1]
+	ephemeralTask.Name = "quit"
+	ephemeralTask.Lifecycle.Hook = structs.TaskLifecycleHookPoststop
+	ephemeralTask.Config["run_for"] = "10s"
+
+	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{mainTask, ephemeralTask}
+	alloc.AllocatedResources.Tasks = map[string]*structs.AllocatedTaskResources{
+		mainTask.Name:      tr,
+		ephemeralTask.Name: tr,
+	}
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	defer destroy(ar)
+	go ar.Run()
+
+	upd := conf.StateUpdater.(*MockStateUpdater)
+
+	// Wait for main task to be running
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+
+		if last.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
+		}
+
+		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateRunning {
+			return false, fmt.Errorf("expected main task to be running not %s", s)
+		}
+
+		if s := last.TaskStates[ephemeralTask.Name].State; s != structs.TaskStatePending {
+			return false, fmt.Errorf("expected ephemeral task to be pending not %s", s)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error waiting for initial state:\n%v", err)
+	})
+
+	// Tell the alloc to stop
+	stopAlloc := alloc.Copy()
+	stopAlloc.DesiredStatus = structs.AllocDesiredStatusStop
+	ar.Update(stopAlloc)
+
+	// Wait for main task to die & poststop task to run.
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+
+		if last.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
+		}
+
+		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateDead {
+			return false, fmt.Errorf("expected main task to be dead not %s", s)
+		}
+
+		if s := last.TaskStates[ephemeralTask.Name].State; s != structs.TaskStateRunning {
+			return false, fmt.Errorf("expected poststop task to be running not %s", s)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error waiting for initial state:\n%v", err)
+	})
+
+}
+
 func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
@@ -154,7 +493,8 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	tg := alloc.Job.TaskGroups[0]
 	tg.Services = []*structs.Service{
 		{
-			Name: "shutdown_service",
+			Name:     "shutdown_service",
+			Provider: structs.ServiceProviderConsul,
 		},
 	}
 
@@ -242,9 +582,9 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	})
 
 	// Get consul client operations
-	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
+	consulClient := conf.Consul.(*regMock.ServiceRegistrationHandler)
 	consulOpts := consulClient.GetOps()
-	var groupRemoveOp cconsul.MockConsulOp
+	var groupRemoveOp regMock.Operation
 	for _, op := range consulOpts {
 		// Grab the first deregistration request
 		if op.Op == "remove" && op.Name == "group-web" {
@@ -273,7 +613,7 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 // TestAllocRunner_TaskLeader_StopTG asserts that when stopping an alloc with a
 // leader the leader is stopped before other tasks.
 func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
@@ -372,7 +712,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 // not stopped as it does not exist.
 // See https://github.com/hashicorp/nomad/issues/3420#issuecomment-341666932
 func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
@@ -450,7 +790,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 }
 
 func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.LifecycleAlloc()
 
@@ -488,7 +828,7 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 }
 
 func TestAllocRunner_Update_Semantics(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	updatedAlloc := func(a *structs.Allocation) *structs.Allocation {
@@ -541,7 +881,7 @@ func TestAllocRunner_Update_Semantics(t *testing.T) {
 // TestAllocRunner_DeploymentHealth_Healthy_Migration asserts that health is
 // reported for services that got migrated; not just part of deployments.
 func TestAllocRunner_DeploymentHealth_Healthy_Migration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 
@@ -589,7 +929,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_Migration(t *testing.T) {
 // TestAllocRunner_DeploymentHealth_Healthy_NoChecks asserts that the health
 // watcher will mark the allocation as healthy based on task states alone.
 func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 
@@ -652,7 +992,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 // TestAllocRunner_DeploymentHealth_Unhealthy_Checks asserts that the health
 // watcher will mark the allocation as unhealthy with failing checks.
 func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -695,12 +1035,12 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	defer cleanup()
 
 	// Only return the check as healthy after a duration
-	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
-	consulClient.AllocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
-		return &consul.AllocRegistration{
-			Tasks: map[string]*consul.ServiceRegistrations{
+	consulClient := conf.Consul.(*regMock.ServiceRegistrationHandler)
+	consulClient.AllocRegistrationsFn = func(allocID string) (*serviceregistration.AllocRegistration, error) {
+		return &serviceregistration.AllocRegistration{
+			Tasks: map[string]*serviceregistration.ServiceRegistrations{
 				task.Name: {
-					Services: map[string]*consul.ServiceRegistration{
+					Services: map[string]*serviceregistration.ServiceRegistration{
 						"123": {
 							Service: &api.AgentService{Service: "fakeservice"},
 							Checks:  []*api.AgentCheck{checkUnhealthy},
@@ -747,7 +1087,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 // TestAllocRunner_Destroy asserts that Destroy kills and cleans up a running
 // alloc.
 func TestAllocRunner_Destroy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Ensure task takes some time
 	alloc := mock.BatchAlloc()
@@ -809,7 +1149,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 }
 
 func TestAllocRunner_SimpleRun(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
 
@@ -844,7 +1184,7 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 // TestAllocRunner_MoveAllocDir asserts that a rescheduled
 // allocation copies ephemeral disk content from previous alloc run
 func TestAllocRunner_MoveAllocDir(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Step 1: start and run a task
 	alloc := mock.BatchAlloc()
@@ -901,7 +1241,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 // retrying fetching an artifact, other tasks in the group should be able
 // to proceed.
 func TestAllocRunner_HandlesArtifactFailure(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
 	rp := &structs.RestartPolicy{
@@ -961,6 +1301,8 @@ func TestAllocRunner_HandlesArtifactFailure(t *testing.T) {
 
 // Test that alloc runner kills tasks in task group when another task fails
 func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
+	ci.Parallel(t)
+
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
@@ -979,6 +1321,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 		{
 			Name:      "fakservice",
 			PortLabel: "http",
+			Provider:  structs.ServiceProviderConsul,
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:     "fakecheck",
@@ -1017,12 +1360,12 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	conf, cleanup := testAllocRunnerConfig(t, alloc)
 	defer cleanup()
 
-	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
-	consulClient.AllocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
-		return &consul.AllocRegistration{
-			Tasks: map[string]*consul.ServiceRegistrations{
+	consulClient := conf.Consul.(*regMock.ServiceRegistrationHandler)
+	consulClient.AllocRegistrationsFn = func(allocID string) (*serviceregistration.AllocRegistration, error) {
+		return &serviceregistration.AllocRegistration{
+			Tasks: map[string]*serviceregistration.ServiceRegistrations{
 				task.Name: {
-					Services: map[string]*consul.ServiceRegistration{
+					Services: map[string]*serviceregistration.ServiceRegistration{
 						"123": {
 							Service: &api.AgentService{Service: "fakeservice"},
 							Checks:  []*api.AgentCheck{checkHealthy},
@@ -1090,7 +1433,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 
 // Test that alloc becoming terminal should destroy the alloc runner
 func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	alloc := mock.BatchAlloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
@@ -1178,7 +1521,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 
 // TestAllocRunner_PersistState_Destroyed asserts that destroyed allocs don't persist anymore
 func TestAllocRunner_PersistState_Destroyed(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
 	taskName := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks[0].Name
@@ -1232,4 +1575,111 @@ func TestAllocRunner_PersistState_Destroyed(t *testing.T) {
 	_, ts, err = conf.StateDB.GetTaskRunnerState(alloc.ID, taskName)
 	require.NoError(t, err)
 	require.Nil(t, ts)
+}
+
+func TestAllocRunner_Reconnect(t *testing.T) {
+	t.Parallel()
+
+	type tcase struct {
+		clientStatus string
+		taskState    string
+		taskEvent    *structs.TaskEvent
+	}
+	tcases := []tcase{
+		{
+			structs.AllocClientStatusRunning,
+			structs.TaskStateRunning,
+			structs.NewTaskEvent(structs.TaskStarted),
+		},
+		{
+			structs.AllocClientStatusComplete,
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskTerminated),
+		},
+		{
+			structs.AllocClientStatusFailed,
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskDriverFailure).SetFailsTask(),
+		},
+		{
+			structs.AllocClientStatusPending,
+			structs.TaskStatePending,
+			structs.NewTaskEvent(structs.TaskReceived),
+		},
+	}
+
+	for _, tc := range tcases {
+		t.Run(tc.clientStatus, func(t *testing.T) {
+			// create a running alloc
+			alloc := mock.BatchAlloc()
+			alloc.AllocModifyIndex = 10
+			alloc.ModifyIndex = 10
+			alloc.ModifyTime = time.Now().UnixNano()
+
+			// Ensure task takes some time
+			task := alloc.Job.TaskGroups[0].Tasks[0]
+			task.Driver = "mock_driver"
+			task.Config["run_for"] = "30s"
+
+			original := alloc.Copy()
+
+			conf, cleanup := testAllocRunnerConfig(t, alloc)
+			defer cleanup()
+
+			ar, err := NewAllocRunner(conf)
+			require.NoError(t, err)
+			defer destroy(ar)
+
+			go ar.Run()
+
+			for _, taskRunner := range ar.tasks {
+				taskRunner.UpdateState(tc.taskState, tc.taskEvent)
+			}
+
+			update := ar.Alloc().Copy()
+
+			update.ClientStatus = structs.AllocClientStatusUnknown
+			update.AllocModifyIndex = original.AllocModifyIndex + 10
+			update.ModifyIndex = original.ModifyIndex + 10
+			update.ModifyTime = original.ModifyTime + 10
+
+			err = ar.Reconnect(update)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.clientStatus, ar.AllocState().ClientStatus)
+
+
+			// Make sure the runner's alloc indexes match the update.
+			require.Equal(t, update.AllocModifyIndex, ar.Alloc().AllocModifyIndex)
+			require.Equal(t, update.ModifyIndex, ar.Alloc().ModifyIndex)
+			require.Equal(t, update.ModifyTime, ar.Alloc().ModifyTime)
+
+			found := false
+
+			updater := conf.StateUpdater.(*MockStateUpdater)
+			var last *structs.Allocation
+			testutil.WaitForResult(func() (bool, error) {
+				last = updater.Last()
+				if last == nil {
+					return false, errors.New("last update nil")
+				}
+
+				states := last.TaskStates
+				for _, s := range states {
+					for _, e := range s.Events {
+						if e.Type == structs.TaskClientReconnected {
+							found = true
+							return true, nil
+						}
+					}
+				}
+
+				return false, errors.New("no reconnect event found")
+			}, func(err error) {
+				require.NoError(t, err)
+			})
+
+			require.True(t, found, "no reconnect event found")
+		})
+	}
 }

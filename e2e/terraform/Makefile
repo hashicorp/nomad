@@ -1,17 +1,52 @@
-NOMAD_SHA ?= $(shell git rev-parse HEAD)
 PKG_PATH = $(shell pwd)/../../pkg/linux_amd64/nomad
+LICENSE_PATH ?=
 
-dev-cluster:
-	terraform apply -auto-approve -var-file=terraform.tfvars.dev
-	terraform output provisioning | jq . > ../provisioning.json
-	cd .. && NOMAD_E2E=1 go test -v . -nomad.sha=$(NOMAD_SHA) -provision.terraform ./provisioning.json -skipTests
-	terraform output message
+# deploy for quick local development testing
 
-dev-cluster-from-local:
-	terraform apply -auto-approve -var-file=terraform.tfvars.dev
-	terraform output provisioning | jq . > ../provisioning.json
-	cd .. && NOMAD_E2E=1 go test -v . -nomad.local_file=$(PKG_PATH) -provision.terraform ./provisioning.json -skipTests
-	terraform output message
+plan:
+	terraform plan \
+		-var="nomad_local_binary=$(PKG_PATH)" \
+		-var="volumes=false" \
+		-var="client_count_ubuntu_bionic_amd64=3" \
+		-var="client_count_windows_2016_amd64=0"
 
-clean:
+apply:
+	terraform apply -auto-approve \
+		-var="nomad_local_binary=$(PKG_PATH)" \
+		-var="volumes=false" \
+		-var="client_count_ubuntu_bionic_amd64=3" \
+		-var="client_count_windows_2016_amd64=0"
+
+clean: destroy tidy
+
+destroy:
+	terraform destroy -auto-approve \
+		-var="nomad_local_binary=$(PKG_PATH)" \
+		-var="client_count_ubuntu_bionic_amd64=3" \
+		-var="client_count_windows_2016_amd64=0"
+
+# deploy what's in E2E nightly
+
+plan_full:
+	terraform plan
+
+apply_full:
+	@terraform apply -auto-approve \
+		-var="nomad_license=$(shell cat $(LICENSE_PATH))"
+
+clean_full: destroy_full tidy
+
+destroy_full:
 	terraform destroy -auto-approve
+
+# util
+
+# don't run this by default in plan/apply because it prevents you from
+# updating a running cluster
+tidy:
+	rm -rf keys
+	mkdir keys
+	chmod 0700 keys
+	rm -rf uploads/*
+	git checkout uploads/README.md
+	rm -f terraform.tfstate.*.backup

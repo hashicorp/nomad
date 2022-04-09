@@ -1,20 +1,31 @@
 package nomad
 
 import (
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
+func TestScalingEndpoint_StaleReadSupport(t *testing.T) {
+	ci.Parallel(t)
+	assert := assert.New(t)
+	list := &structs.ScalingPolicyListRequest{}
+	assert.True(list.IsRead())
+	get := &structs.ScalingPolicySpecificRequest{}
+	assert.True(get.IsRead())
+}
+
 func TestScalingEndpoint_GetPolicy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -26,7 +37,11 @@ func TestScalingEndpoint_GetPolicy(t *testing.T) {
 	p2 := mock.ScalingPolicy()
 	s1.fsm.State().UpsertScalingPolicies(1000, []*structs.ScalingPolicy{p1, p2})
 
-	// Lookup the policy
+	// Add another policy at a higher index.
+	p3 := mock.ScalingPolicy()
+	require.NoError(s1.fsm.State().UpsertScalingPolicies(2000, []*structs.ScalingPolicy{p3}))
+
+	// Lookup the first policy and perform assertions.
 	get := &structs.ScalingPolicySpecificRequest{
 		ID: p1.ID,
 		QueryOptions: structs.QueryOptions{
@@ -44,12 +59,12 @@ func TestScalingEndpoint_GetPolicy(t *testing.T) {
 	resp = structs.SingleScalingPolicyResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "Scaling.GetPolicy", get, &resp)
 	require.NoError(err)
-	require.EqualValues(1000, resp.Index)
+	require.EqualValues(2000, resp.Index)
 	require.Nil(resp.Policy)
 }
 
 func TestScalingEndpoint_GetPolicy_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
@@ -124,8 +139,7 @@ func TestScalingEndpoint_GetPolicy_ACL(t *testing.T) {
 }
 
 func TestScalingEndpoint_ListPolicies(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -133,28 +147,91 @@ func TestScalingEndpoint_ListPolicies(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Lookup the policies
-	get := &structs.ScalingPolicyListRequest{
+	var resp structs.ScalingPolicyListResponse
+	err := msgpackrpc.CallWithCodec(codec, "Scaling.ListPolicies", &structs.ScalingPolicyListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region: "global",
+			Region:    "global",
+			Namespace: "default",
+		},
+	}, &resp)
+	require.NoError(t, err)
+	require.Empty(t, resp.Policies)
+
+	j1 := mock.Job()
+	j1polV := mock.ScalingPolicy()
+	j1polV.Type = "vertical-cpu"
+	j1polV.TargetTask(j1, j1.TaskGroups[0], j1.TaskGroups[0].Tasks[0])
+	j1polH := mock.ScalingPolicy()
+	j1polH.Type = "horizontal"
+	j1polH.TargetTaskGroup(j1, j1.TaskGroups[0])
+
+	j2 := mock.Job()
+	j2polH := mock.ScalingPolicy()
+	j2polH.Type = "horizontal"
+	j2polH.TargetTaskGroup(j2, j2.TaskGroups[0])
+
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, j1)
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, j2)
+
+	pols := []*structs.ScalingPolicy{j1polV, j1polH, j2polH}
+	s1.fsm.State().UpsertScalingPolicies(1000, pols)
+	for _, p := range pols {
+		p.ModifyIndex = 1000
+		p.CreateIndex = 1000
+	}
+
+	cases := []struct {
+		Label    string
+		Job      string
+		Type     string
+		Expected []*structs.ScalingPolicy
+	}{
+		{
+			Label:    "all policies",
+			Expected: []*structs.ScalingPolicy{j1polH, j1polV, j2polH},
+		},
+		{
+			Label:    "job filter",
+			Job:      j1.ID,
+			Expected: []*structs.ScalingPolicy{j1polH, j1polV},
+		},
+		{
+			Label:    "type filter",
+			Type:     "horizontal",
+			Expected: []*structs.ScalingPolicy{j1polH, j2polH},
+		},
+		{
+			Label:    "job and type",
+			Job:      j1.ID,
+			Type:     "horizontal",
+			Expected: []*structs.ScalingPolicy{j1polH},
 		},
 	}
-	var resp structs.ACLPolicyListResponse
-	err := msgpackrpc.CallWithCodec(codec, "Scaling.ListPolicies", get, &resp)
-	require.NoError(err)
-	require.Empty(resp.Policies)
 
-	p1 := mock.ScalingPolicy()
-	p2 := mock.ScalingPolicy()
-	s1.fsm.State().UpsertScalingPolicies(1000, []*structs.ScalingPolicy{p1, p2})
-
-	err = msgpackrpc.CallWithCodec(codec, "Scaling.ListPolicies", get, &resp)
-	require.NoError(err)
-	require.EqualValues(1000, resp.Index)
-	require.Len(resp.Policies, 2)
+	for _, tc := range cases {
+		t.Run(tc.Label, func(t *testing.T) {
+			get := &structs.ScalingPolicyListRequest{
+				Job:  tc.Job,
+				Type: tc.Type,
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Namespace: "default",
+				},
+			}
+			var resp structs.ScalingPolicyListResponse
+			err = msgpackrpc.CallWithCodec(codec, "Scaling.ListPolicies", get, &resp)
+			require.NoError(t, err)
+			stubs := []*structs.ScalingPolicyListStub{}
+			for _, p := range tc.Expected {
+				stubs = append(stubs, p.Stub())
+			}
+			require.ElementsMatch(t, stubs, resp.Policies)
+		})
+	}
 }
 
 func TestScalingEndpoint_ListPolicies_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
@@ -169,7 +246,8 @@ func TestScalingEndpoint_ListPolicies_ACL(t *testing.T) {
 
 	get := &structs.ScalingPolicyListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region: "global",
+			Region:    "global",
+			Namespace: "default",
 		},
 	}
 
@@ -232,7 +310,7 @@ func TestScalingEndpoint_ListPolicies_ACL(t *testing.T) {
 }
 
 func TestScalingEndpoint_ListPolicies_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -261,6 +339,7 @@ func TestScalingEndpoint_ListPolicies_Blocking(t *testing.T) {
 	req := &structs.ScalingPolicyListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     "default",
 			MinQueryIndex: 150,
 		},
 	}

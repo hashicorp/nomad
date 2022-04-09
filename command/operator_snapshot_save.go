@@ -41,7 +41,7 @@ Usage: nomad operator snapshot save [options] <file>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Snapshot Save Options:
 

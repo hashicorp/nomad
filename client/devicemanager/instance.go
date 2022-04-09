@@ -336,7 +336,11 @@ START:
 
 	// Start fingerprinting
 	fingerprintCh, err := devicePlugin.Fingerprint(i.ctx)
-	if err != nil {
+	if err == device.ErrPluginDisabled {
+		i.logger.Info("fingerprinting failed: plugin is not enabled")
+		i.handleFingerprintError()
+		return
+	} else if err != nil {
 		i.logger.Error("fingerprinting failed", "error", err)
 		i.handleFingerprintError()
 		return
@@ -369,7 +373,7 @@ START:
 				goto START
 			}
 
-			i.logger.Error("fingerprinting returned an error", "error", err)
+			i.logger.Error("fingerprinting returned an error", "error", fresp.Error)
 			i.handleFingerprintError()
 			return
 		}
@@ -402,18 +406,11 @@ func (i *instanceManager) handleFingerprintError() {
 
 	// Cancel the context so we cleanup all goroutines
 	i.cancel()
-
-	return
 }
 
 // handleFingerprint stores the new devices and triggers the fingerprint output
 // channel. An error is returned if the passed devices don't pass validation.
 func (i *instanceManager) handleFingerprint(f *device.FingerprintResponse) error {
-	// If no devices are returned then there is nothing to do.
-	if f.Devices == nil {
-		return nil
-	}
-
 	// Validate the received devices
 	var validationErr multierror.Error
 	for i, d := range f.Devices {

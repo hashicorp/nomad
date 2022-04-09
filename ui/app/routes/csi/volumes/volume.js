@@ -1,8 +1,8 @@
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
+import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
-import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import classic from 'ember-classic-decorator';
@@ -11,24 +11,6 @@ import classic from 'ember-classic-decorator';
 export default class VolumeRoute extends Route.extend(WithWatchers) {
   @service store;
   @service system;
-
-  breadcrumbs = volume => [
-    {
-      label: 'Volumes',
-      args: [
-        'csi.volumes',
-        qpBuilder({ volumeNamespace: volume.get('namespace.name') || 'default' }),
-      ],
-    },
-    {
-      label: volume.name,
-      args: [
-        'csi.volumes.volume',
-        volume.plainId,
-        qpBuilder({ volumeNamespace: volume.get('namespace.name') || 'default' }),
-      ],
-    },
-  ];
 
   startWatchers(controller, model) {
     if (!model) return;
@@ -39,14 +21,23 @@ export default class VolumeRoute extends Route.extend(WithWatchers) {
   }
 
   serialize(model) {
-    return { volume_name: model.get('plainId') };
+    return { volume_name: JSON.parse(model.get('id')).join('@') };
   }
 
-  model(params, transition) {
-    const namespace = transition.to.queryParams.namespace || this.get('system.activeNamespace.id');
-    const name = params.volume_name;
+  model(params) {
+    // Issue with naming collissions
+    const url = params.volume_name.split('@');
+    const namespace = url.pop();
+    const name = url.join('');
+
     const fullId = JSON.stringify([`csi/${name}`, namespace || 'default']);
-    return this.store.findRecord('volume', fullId, { reload: true }).catch(notifyError(this));
+
+    return RSVP.hash({
+      volume: this.store.findRecord('volume', fullId, { reload: true }),
+      namespaces: this.store.findAll('namespace'),
+    })
+      .then((hash) => hash.volume)
+      .catch(notifyError(this));
   }
 
   // Since volume includes embedded records for allocations,

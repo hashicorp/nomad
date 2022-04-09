@@ -3,23 +3,30 @@
 # https://github.com/kubernetes-sigs/aws-ebs-csi-driver/tree/master/deploy/kubernetes
 
 job "plugin-aws-ebs-controller" {
-  datacenters = ["dc1"]
+  datacenters = ["dc1", "dc2"]
 
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
   }
 
+  spread {
+    attribute = "${node.unique.id}"
+  }
+
   group "controller" {
+
+    count = 2 // HA for node drain testing
+
     task "plugin" {
       driver = "docker"
 
       config {
-        image = "amazon/aws-ebs-csi-driver:v0.5.0"
+        image = "public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver:v1.5.1"
 
         args = [
           "controller",
-          "--endpoint=unix://csi/csi.sock",
+          "--endpoint=${CSI_ENDPOINT}",
           "--logtostderr",
           "--v=5",
         ]

@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Dropdown',
+  title: 'Components/Dropdown',
 };
 
 let options = [
@@ -77,7 +77,7 @@ export let Search = () => {
         'Thirteen',
         'Fourteen',
         'Fifteen',
-      ].map(name => ({ name })),
+      ].map((name) => ({ name })),
     },
   };
 };

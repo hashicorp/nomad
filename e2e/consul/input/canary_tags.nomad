@@ -9,12 +9,26 @@ job "consul_canary_test" {
   group "consul_canary_test" {
     count = 2
 
+    network {
+      port "db" {}
+    }
+
     task "consul_canary_test" {
-      driver = "mock_driver"
+      driver = "docker"
 
       config {
-        run_for   = "10m"
-        exit_code = 9
+        image   = "busybox:1"
+        command = "nc"
+        args    = ["-ll", "-p", "1234", "-e", "/bin/cat"]
+
+        port_map {
+          db = 1234
+        }
+      }
+
+      resources {
+        cpu    = 100
+        memory = 100
       }
 
       service {

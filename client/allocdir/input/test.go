@@ -9,7 +9,7 @@ type Client interface {
 	AllocStateHandler
 }
 
-// AllocStateHandler exposes a handler to be called when a allocation's state changes
+// AllocStateHandler exposes a handler to be called when an allocation's state changes
 type AllocStateHandler interface {
 	// AllocStateUpdated is used to emit an updated allocation. This allocation
 	// is stripped to only include client settable fields.

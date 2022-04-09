@@ -1,0 +1,7 @@
+```release-note:improvement
+api: Updated the deployments list API to respect wildcard namespaces
+```
+
+```release-note:improvement
+api: Added pagination to deployments list API
+```

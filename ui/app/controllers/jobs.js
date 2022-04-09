@@ -1,16 +1,4 @@
-import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
 
-export default class JobsController extends Controller {
-  @service system;
-
-  queryParams = [
-    {
-      jobNamespace: 'namespace',
-    },
-  ];
-
-  isForbidden = false;
-
-  jobNamespace = 'default';
-}
+// The WithNamespaceResetting Mixin uses Controller Injection and requires us to keep this controller around
+export default class JobsController extends Controller {}

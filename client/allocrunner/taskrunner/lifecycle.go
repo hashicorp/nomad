@@ -36,7 +36,7 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 	}
 
 	// Kill the task using an exponential backoff in-case of failures.
-	if err := tr.killTask(handle); err != nil {
+	if _, err := tr.killTask(handle, waitCh); err != nil {
 		// We couldn't successfully destroy the resource created.
 		tr.logger.Error("failed to kill task. Resources may have been leaked", "error", err)
 	}
@@ -85,4 +85,8 @@ func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error 
 	}
 
 	return tr.getKillErr()
+}
+
+func (tr *TaskRunner) IsRunning() bool {
+	return tr.getDriverHandle() != nil
 }

@@ -1,11 +1,13 @@
 package config
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	consul "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/go-secure-stdlib/listenerutil"
 	"github.com/hashicorp/nomad/helper"
 )
 
@@ -16,6 +18,9 @@ import (
 //
 // - Bootstrap this Nomad Client with the list of Nomad Servers registered
 //   with Consul
+//
+// - Establish how this Nomad Client will resolve Envoy Connect Sidecar
+//   images.
 //
 // Both the Agent and the executor need to be able to import ConsulConfig.
 type ConsulConfig struct {
@@ -85,6 +90,12 @@ type ConsulConfig struct {
 	// Uses Consul's default and env var.
 	EnableSSL *bool `hcl:"ssl"`
 
+	// ShareSSL enables Consul Connect Native applications to use the TLS
+	// configuration of the Nomad Client for establishing connections to Consul.
+	//
+	// Does not include sharing of ACL tokens.
+	ShareSSL *bool `hcl:"share_ssl"`
+
 	// VerifySSL enables or disables SSL verification when the transport scheme
 	// for the consul api client is https
 	//
@@ -112,9 +123,13 @@ type ConsulConfig struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	// Namespace sets the Consul namespace used for all calls against the
+	// Consul API. If this is unset, then Nomad does not specify a consul namespace.
+	Namespace string `hcl:"namespace"`
 }
 
-// DefaultConsulConfig() returns the canonical defaults for the Nomad
+// DefaultConsulConfig returns the canonical defaults for the Nomad
 // `consul` configuration. Uses Consul's default configuration which reads
 // environment variables.
 func DefaultConsulConfig() *ConsulConfig {
@@ -138,6 +153,7 @@ func DefaultConsulConfig() *ConsulConfig {
 		EnableSSL: helper.BoolToPtr(def.Scheme == "https"),
 		VerifySSL: helper.BoolToPtr(!def.TLSConfig.InsecureSkipVerify),
 		CAFile:    def.TLSConfig.CAFile,
+		Namespace: def.Namespace,
 	}
 }
 
@@ -200,6 +216,9 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.VerifySSL != nil {
 		result.VerifySSL = helper.BoolToPtr(*b.VerifySSL)
 	}
+	if b.ShareSSL != nil {
+		result.ShareSSL = helper.BoolToPtr(*b.ShareSSL)
+	}
 	if b.CAFile != "" {
 		result.CAFile = b.CAFile
 	}
@@ -221,6 +240,9 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.AllowUnauthenticated != nil {
 		result.AllowUnauthenticated = helper.BoolToPtr(*b.AllowUnauthenticated)
 	}
+	if b.Namespace != "" {
+		result.Namespace = b.Namespace
+	}
 	return result
 }
 
@@ -231,7 +253,11 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 	// http.Transport.
 	config := consul.DefaultConfig()
 	if c.Addr != "" {
-		config.Address = c.Addr
+		ipStr, err := listenerutil.ParseSingleIPTemplate(c.Addr)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse address template %q: %v", c.Addr, err)
+		}
+		config.Address = ipStr
 	}
 	if c.Token != "" {
 		config.Token = c.Token
@@ -276,6 +302,9 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 		}
 		config.Transport.TLSClientConfig = tlsConfig
 	}
+	if c.Namespace != "" {
+		config.Namespace = c.Namespace
+	}
 	return config, nil
 }
 
@@ -300,6 +329,9 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 	}
 	if nc.VerifySSL != nil {
 		nc.VerifySSL = helper.BoolToPtr(*nc.VerifySSL)
+	}
+	if nc.ShareSSL != nil {
+		nc.ShareSSL = helper.BoolToPtr(*nc.ShareSSL)
 	}
 	if nc.ServerAutoJoin != nil {
 		nc.ServerAutoJoin = helper.BoolToPtr(*nc.ServerAutoJoin)

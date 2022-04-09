@@ -1,4 +1,4 @@
-// +build windows
+//go:build windows
 
 package docker
 
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	tu "github.com/hashicorp/nomad/testutil"
 )
 
 func newTaskConfig(variant string, command []string) TaskConfig {
@@ -13,10 +14,16 @@ func newTaskConfig(variant string, command []string) TaskConfig {
 	// a busybox exe.
 	busyboxImageID := "hashicorpnomad/busybox-windows:server2016-0.1"
 
+	if tu.IsCI() {
+		// In CI, use HashiCorp Mirror to avoid DockerHub rate limiting
+		busyboxImageID = "docker.mirror.hashicorp.services/" + busyboxImageID
+	}
+
 	return TaskConfig{
-		Image:   busyboxImageID,
-		Command: command[0],
-		Args:    command[1:],
+		Image:            busyboxImageID,
+		ImagePullTimeout: "5m",
+		Command:          command[0],
+		Args:             command[1:],
 	}
 }
 

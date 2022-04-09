@@ -29,6 +29,8 @@ func (tc *PodmanTest) BeforeAll(f *framework.F) {
 
 func (tc *PodmanTest) TestRedisDeployment(f *framework.F) {
 	t := f.T()
+	// https://github.com/hashicorp/nomad-driver-podman/issues/57
+	t.Skip("skipping podman test until driver api issue is resolved")
 	nomadClient := tc.Nomad()
 	uuid := uuid.Generate()
 	jobID := "deployment" + uuid[0:8]

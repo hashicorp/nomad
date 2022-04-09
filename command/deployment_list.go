@@ -18,14 +18,20 @@ Usage: nomad deployment list [options]
 
   List is used to list the set of deployments tracked by Nomad.
 
+  When ACLs are enabled, this command requires a token with the 'read-job'
+  capability for the deployment's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 List Options:
 
   -json
     Output the deployments in a JSON format.
+
+  -filter
+    Specifies an expression used to filter query results.
 
   -t
     Format and display the deployments using a Go template.
@@ -40,6 +46,7 @@ func (c *DeploymentListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-json":    complete.PredictNothing,
+			"-filter":  complete.PredictAnything,
 			"-t":       complete.PredictAnything,
 			"-verbose": complete.PredictNothing,
 		})
@@ -57,12 +64,13 @@ func (c *DeploymentListCommand) Name() string { return "deployment list" }
 
 func (c *DeploymentListCommand) Run(args []string) int {
 	var json, verbose bool
-	var tmpl string
+	var filter, tmpl string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&filter, "filter", "", "")
 	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -90,7 +98,10 @@ func (c *DeploymentListCommand) Run(args []string) int {
 		return 1
 	}
 
-	deploys, _, err := client.Deployments().List(nil)
+	opts := &api.QueryOptions{
+		Filter: filter,
+	}
+	deploys, _, err := client.Deployments().List(opts)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving deployments: %s", err))
 		return 1

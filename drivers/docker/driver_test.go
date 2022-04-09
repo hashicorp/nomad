@@ -9,15 +9,17 @@ import (
 	"reflect"
 	"runtime"
 	"runtime/debug"
+	"sort"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/devices/gpu/nvidia"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -222,139 +224,12 @@ func newTestDockerClient(t *testing.T) *docker.Client {
 	return client
 }
 
-/*
-// This test should always pass, even if docker daemon is not available
-func TestDockerDriver_Fingerprint(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
-
-	ctx := testDockerDriverContexts(t, &structs.Task{Name: "foo", Driver: "docker", Resources: basicResources})
-	//ctx.DriverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
-	defer ctx.Destroy()
-	d := NewDockerDriver(ctx.DriverCtx)
-	node := &structs.Node{
-		Attributes: make(map[string]string),
-	}
-
-	request := &fingerprint.FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response fingerprint.FingerprintResponse
-	err := d.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	attributes := response.Attributes
-	if testutil.DockerIsConnected(t) && attributes["driver.docker"] == "" {
-		t.Fatalf("Fingerprinter should detect when docker is available")
-	}
-
-	if attributes["driver.docker"] != "1" {
-		t.Log("Docker daemon not available. The remainder of the docker tests will be skipped.")
-	} else {
-
-		// if docker is available, make sure that the response is tagged as
-		// applicable
-		if !response.Detected {
-			t.Fatalf("expected response to be applicable")
-		}
-	}
-
-	t.Logf("Found docker version %s", attributes["driver.docker.version"])
-}
-
-// TestDockerDriver_Fingerprint_Bridge asserts that if Docker is running we set
-// the bridge network's IP as a node attribute. See #2785
-func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
-	testutil.DockerCompatible(t)
-	if runtime.GOOS != "linux" {
-		t.Skip("expect only on linux")
-	}
-
-	// This seems fragile, so we might need to reconsider this test if it
-	// proves flaky
-	expectedAddr, err := sockaddr.GetInterfaceIP("docker0")
-	if err != nil {
-		t.Fatalf("unable to get ip for docker0: %v", err)
-	}
-	if expectedAddr == "" {
-		t.Fatalf("unable to get ip for docker bridge")
-	}
-
-	conf := testConfig(t)
-	conf.Node = mock.Node()
-	dd := NewDockerDriver(NewDriverContext("", "", "", "", conf, conf.Node, testlog.Logger(t), nil))
-
-	request := &fingerprint.FingerprintRequest{Config: conf, Node: conf.Node}
-	var response fingerprint.FingerprintResponse
-
-	err = dd.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("error fingerprinting docker: %v", err)
-	}
-
-	if !response.Detected {
-		t.Fatalf("expected response to be applicable")
-	}
-
-	attributes := response.Attributes
-	if attributes == nil {
-		t.Fatalf("expected attributes to be set")
-	}
-
-	if attributes["driver.docker"] == "" {
-		t.Fatalf("expected Docker to be enabled but false was returned")
-	}
-
-	if found := attributes["driver.docker.bridge_ip"]; found != expectedAddr {
-		t.Fatalf("expected bridge ip %q but found: %q", expectedAddr, found)
-	}
-	t.Logf("docker bridge ip: %q", attributes["driver.docker.bridge_ip"])
-}
-
-func TestDockerDriver_Check_DockerHealthStatus(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
-	testutil.DockerCompatible(t)
-	if runtime.GOOS != "linux" {
-		t.Skip("expect only on linux")
-	}
-
-	require := require.New(t)
-
-	expectedAddr, err := sockaddr.GetInterfaceIP("docker0")
-	if err != nil {
-		t.Fatalf("unable to get ip for docker0: %v", err)
-	}
-	if expectedAddr == "" {
-		t.Fatalf("unable to get ip for docker bridge")
-	}
-
-	conf := testConfig(t)
-	conf.Node = mock.Node()
-	dd := NewDockerDriver(NewDriverContext("", "", "", "", conf, conf.Node, testlog.Logger(t), nil))
-
-	request := &cstructs.HealthCheckRequest{}
-	var response cstructs.HealthCheckResponse
-
-	dc, ok := dd.(fingerprint.HealthCheck)
-	require.True(ok)
-	err = dc.HealthCheck(request, &response)
-	require.Nil(err)
-
-	driverInfo := response.Drivers["docker"]
-	require.NotNil(driverInfo)
-	require.True(driverInfo.Healthy)
-}*/
+// Following tests have been removed from this file.
+// [TestDockerDriver_Fingerprint, TestDockerDriver_Fingerprint_Bridge, TestDockerDriver_Check_DockerHealthStatus]
+// If you want to checkout/revert those tests, please check commit: 41715b1860778aa80513391bd64abd721d768ab0
 
 func TestDockerDriver_Start_Wait(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	taskCfg := newTaskConfig("", busyboxLongRunningCmd)
@@ -388,9 +263,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_WaitFinish(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	taskCfg := newTaskConfig("", []string{"echo", "hello"})
@@ -431,9 +304,7 @@ func TestDockerDriver_Start_WaitFinish(t *testing.T) {
 //
 // See https://github.com/hashicorp/nomad/issues/3419
 func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	taskCfg := newTaskConfig("", []string{"sleep", "9001"})
@@ -458,7 +329,7 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		imageID, err = d.Impl().(*Driver).loadImage(task, &taskCfg, client)
 	} else {
-		image, lErr := client.InspectImage("hashicorpnomad/busybox-windows:server2016-0.1")
+		image, lErr := client.InspectImage(taskCfg.Image)
 		err = lErr
 		if image != nil {
 			imageID = image.ID
@@ -492,9 +363,7 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 }
 
 func TestDockerDriver_Start_LoadImage(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	taskCfg := newTaskConfig("", []string{"sh", "-c", "echo hello > $NOMAD_TASK_DIR/output"})
@@ -543,9 +412,7 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 
 // Tests that starting a task without an image fails
 func TestDockerDriver_Start_NoImage(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
@@ -572,14 +439,13 @@ func TestDockerDriver_Start_NoImage(t *testing.T) {
 }
 
 func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
-		Image:   "127.0.0.1:32121/foo", // bad path
-		Command: "echo",
+		Image:            "127.0.0.1:32121/foo", // bad path
+		ImagePullTimeout: "5m",
+		Command:          "echo",
 		Args: []string{
 			"hello",
 		},
@@ -609,9 +475,7 @@ func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	// This test requires that the alloc dir be mounted into docker as a volume.
 	// Because this cannot happen when docker is run remotely, e.g. when running
 	// docker in a VM, we skip this when we detect Docker is being run remotely.
@@ -672,9 +536,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	taskCfg := newTaskConfig("", busyboxLongRunningCmd)
@@ -720,9 +582,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_KillTimeout(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	if runtime.GOOS == "windows" {
@@ -772,11 +632,9 @@ func TestDockerDriver_Start_KillTimeout(t *testing.T) {
 }
 
 func TestDockerDriver_StartN(t *testing.T) {
+	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows Docker does not support SIGINT")
-	}
-	if !tu.IsCI() {
-		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
 	require := require.New(t)
@@ -828,11 +686,9 @@ func TestDockerDriver_StartN(t *testing.T) {
 }
 
 func TestDockerDriver_StartNVersions(t *testing.T) {
+	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipped on windows, we don't have image variants available")
-	}
-	if !tu.IsCI() {
-		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
 	require := require.New(t)
@@ -899,9 +755,7 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 }
 
 func TestDockerDriver_Labels(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -922,17 +776,77 @@ func TestDockerDriver_Labels(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// expect to see 1 additional standard labels
+	// expect to see 1 additional standard labels (allocID)
 	require.Equal(t, len(cfg.Labels)+1, len(container.Config.Labels))
 	for k, v := range cfg.Labels {
 		require.Equal(t, v, container.Config.Labels[k])
 	}
 }
 
-func TestDockerDriver_ForcePull(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
+func TestDockerDriver_ExtraLabels(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dockerClientConfig := make(map[string]interface{})
+
+	dockerClientConfig["extra_labels"] = []string{"task*", "job_name"}
+	client, d, handle, cleanup := dockerSetup(t, task, dockerClientConfig)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
 	}
+
+	expectedLabels := map[string]string{
+		"com.hashicorp.nomad.alloc_id":        task.AllocID,
+		"com.hashicorp.nomad.task_name":       task.Name,
+		"com.hashicorp.nomad.task_group_name": task.TaskGroupName,
+		"com.hashicorp.nomad.job_name":        task.JobName,
+	}
+
+	// expect to see 4 labels (allocID by default, task_name and task_group_name due to task*, and job_name)
+	require.Equal(t, 4, len(container.Config.Labels))
+	for k, v := range expectedLabels {
+		require.Equal(t, v, container.Config.Labels[k])
+	}
+}
+
+func TestDockerDriver_LoggingConfiguration(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dockerClientConfig := make(map[string]interface{})
+	loggerConfig := map[string]string{"gelf-address": "udp://1.2.3.4:12201", "tag": "gelf"}
+
+	dockerClientConfig["logging"] = LoggingConfig{
+		Type:   "gelf",
+		Config: loggerConfig,
+	}
+	client, d, handle, cleanup := dockerSetup(t, task, dockerClientConfig)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	require.NoError(t, err)
+
+	require.Equal(t, "gelf", container.HostConfig.LogConfig.Type)
+	require.Equal(t, loggerConfig, container.HostConfig.LogConfig.Config)
+}
+
+func TestDockerDriver_ForcePull(t *testing.T) {
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -953,12 +867,9 @@ func TestDockerDriver_ForcePull(t *testing.T) {
 }
 
 func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
+	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("TODO: Skipped digest test on Windows")
-	}
-
-	if !tu.IsCI() {
-		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
 
@@ -982,11 +893,9 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 }
 
 func TestDockerDriver_SecurityOptUnconfined(t *testing.T) {
+	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not support seccomp")
-	}
-	if !tu.IsCI() {
-		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
 
@@ -1008,12 +917,9 @@ func TestDockerDriver_SecurityOptUnconfined(t *testing.T) {
 }
 
 func TestDockerDriver_SecurityOptFromFile(t *testing.T) {
-
+	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not support seccomp")
-	}
-	if !tu.IsCI() {
-		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
 
@@ -1033,9 +939,7 @@ func TestDockerDriver_SecurityOptFromFile(t *testing.T) {
 }
 
 func TestDockerDriver_Runtime(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -1056,7 +960,7 @@ func TestDockerDriver_Runtime(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfig(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
@@ -1080,11 +984,11 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfig_RuntimeConflict(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
-	task.DeviceEnv[nvidia.NvidiaVisibleDevices] = "GPU_UUID_1"
+	task.DeviceEnv["NVIDIA_VISIBLE_DEVICES"] = "GPU_UUID_1"
 
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -1105,14 +1009,14 @@ func TestDockerDriver_CreateContainerConfig_RuntimeConflict(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfig_ChecksAllowRuntimes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	dh := dockerDriverHarness(t, nil)
 	driver := dh.Impl().(*Driver)
 	driver.gpuRuntime = true
 	driver.config.allowRuntimes = map[string]struct{}{
-		"runc":   struct{}{},
-		"custom": struct{}{},
+		"runc":   {},
+		"custom": {},
 	}
 
 	allowRuntime := []string{
@@ -1144,7 +1048,7 @@ func TestDockerDriver_CreateContainerConfig_ChecksAllowRuntimes(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfig_User(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
@@ -1162,7 +1066,7 @@ func TestDockerDriver_CreateContainerConfig_User(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfig_Labels(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
@@ -1188,7 +1092,7 @@ func TestDockerDriver_CreateContainerConfig_Labels(t *testing.T) {
 	expectedLabels := map[string]string{
 		// user provided labels
 		"user_label": "user_value",
-		// default labels
+		// default label
 		"com.hashicorp.nomad.alloc_id": task.AllocID,
 	}
 
@@ -1196,7 +1100,7 @@ func TestDockerDriver_CreateContainerConfig_Labels(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfig_Logging(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		name           string
@@ -1274,10 +1178,86 @@ func TestDockerDriver_CreateContainerConfig_Logging(t *testing.T) {
 	}
 }
 
-func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
+func TestDockerDriver_CreateContainerConfig_Mounts(t *testing.T) {
+	ci.Parallel(t)
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+
+	cfg.Mounts = []DockerMount{
+		{
+			Type:   "bind",
+			Target: "/map-bind-target",
+			Source: "/map-source",
+		},
+		{
+			Type:   "tmpfs",
+			Target: "/map-tmpfs-target",
+		},
 	}
+	cfg.MountsList = []DockerMount{
+		{
+			Type:   "bind",
+			Target: "/list-bind-target",
+			Source: "/list-source",
+		},
+		{
+			Type:   "tmpfs",
+			Target: "/list-tmpfs-target",
+		},
+	}
+
+	expectedSrcPrefix := "/"
+	if runtime.GOOS == "windows" {
+		expectedSrcPrefix = "redis-demo\\"
+	}
+	expected := []docker.HostMount{
+		// from mount map
+		{
+			Type:        "bind",
+			Target:      "/map-bind-target",
+			Source:      expectedSrcPrefix + "map-source",
+			BindOptions: &docker.BindOptions{},
+		},
+		{
+			Type:          "tmpfs",
+			Target:        "/map-tmpfs-target",
+			TempfsOptions: &docker.TempfsOptions{},
+		},
+		// from mount list
+		{
+			Type:        "bind",
+			Target:      "/list-bind-target",
+			Source:      expectedSrcPrefix + "list-source",
+			BindOptions: &docker.BindOptions{},
+		},
+		{
+			Type:          "tmpfs",
+			Target:        "/list-tmpfs-target",
+			TempfsOptions: &docker.TempfsOptions{},
+		},
+	}
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+	driver.config.Volumes.Enabled = true
+
+	cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	found := cc.HostConfig.Mounts
+	sort.Slice(found, func(i, j int) bool { return strings.Compare(found[i].Target, found[j].Target) < 0 })
+	sort.Slice(expected, func(i, j int) bool {
+		return strings.Compare(expected[i].Target, expected[j].Target) < 0
+	})
+
+	require.Equal(t, expected, found)
+}
+
+func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
+	ci.Parallel(t)
 	testCases := []struct {
 		description           string
 		gpuRuntimeSet         bool
@@ -1327,7 +1307,7 @@ func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
 			driver.gpuRuntime = testCase.gpuRuntimeSet
 			driver.config.GPURuntimeName = testCase.expectedRuntime
 			if testCase.nvidiaDevicesProvided {
-				task.DeviceEnv[nvidia.NvidiaVisibleDevices] = "GPU_UUID_1"
+				task.DeviceEnv["NVIDIA_VISIBLE_DEVICES"] = "GPU_UUID_1"
 			}
 
 			c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
@@ -1347,9 +1327,7 @@ func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
 }
 
 func TestDockerDriver_Capabilities(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Capabilities not supported on windows")
@@ -1359,50 +1337,50 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 		Name       string
 		CapAdd     []string
 		CapDrop    []string
-		Whitelist  string
+		Allowlist  string
 		StartError string
 	}{
 		{
-			Name:    "default-whitelist-add-allowed",
+			Name:    "default-allowlist-add-allowed",
 			CapAdd:  []string{"fowner", "mknod"},
 			CapDrop: []string{"all"},
 		},
 		{
-			Name:       "default-whitelist-add-forbidden",
+			Name:       "default-allowlist-add-forbidden",
 			CapAdd:     []string{"net_admin"},
 			StartError: "net_admin",
 		},
 		{
-			Name:    "default-whitelist-drop-existing",
-			CapDrop: []string{"fowner", "mknod"},
+			Name:    "default-allowlist-drop-existing",
+			CapDrop: []string{"fowner", "mknod", "net_raw"},
 		},
 		{
-			Name:      "restrictive-whitelist-drop-all",
+			Name:      "restrictive-allowlist-drop-all",
 			CapDrop:   []string{"all"},
-			Whitelist: "fowner,mknod",
+			Allowlist: "fowner,mknod",
 		},
 		{
-			Name:      "restrictive-whitelist-add-allowed",
+			Name:      "restrictive-allowlist-add-allowed",
 			CapAdd:    []string{"fowner", "mknod"},
 			CapDrop:   []string{"all"},
-			Whitelist: "fowner,mknod",
+			Allowlist: "mknod,fowner",
 		},
 		{
-			Name:       "restrictive-whitelist-add-forbidden",
+			Name:       "restrictive-allowlist-add-forbidden",
 			CapAdd:     []string{"net_admin", "mknod"},
 			CapDrop:    []string{"all"},
-			Whitelist:  "fowner,mknod",
+			Allowlist:  "fowner,mknod",
 			StartError: "net_admin",
 		},
 		{
-			Name:      "permissive-whitelist",
-			CapAdd:    []string{"net_admin", "mknod"},
-			Whitelist: "all",
+			Name:      "permissive-allowlist",
+			CapAdd:    []string{"mknod", "net_admin"},
+			Allowlist: "all",
 		},
 		{
-			Name:      "permissive-whitelist-add-all",
+			Name:      "permissive-allowlist-add-all",
 			CapAdd:    []string{"all"},
-			Whitelist: "all",
+			Allowlist: "all",
 		},
 	}
 
@@ -1423,8 +1401,8 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 			d := dockerDriverHarness(t, nil)
 			dockerDriver, ok := d.Impl().(*Driver)
 			require.True(t, ok)
-			if tc.Whitelist != "" {
-				dockerDriver.config.AllowCaps = strings.Split(tc.Whitelist, ",")
+			if tc.Allowlist != "" {
+				dockerDriver.config.AllowCaps = strings.Split(tc.Allowlist, ",")
 			}
 
 			cleanup := d.MkAllocDir(task, true)
@@ -1459,35 +1437,118 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 }
 
 func TestDockerDriver_DNS(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
+	testutil.ExecCompatible(t)
+
+	cases := []struct {
+		name string
+		cfg  *drivers.DNSConfig
+	}{
+		{
+			name: "nil DNSConfig",
+		},
+		{
+			name: "basic",
+			cfg: &drivers.DNSConfig{
+				Servers: []string{"1.1.1.1", "1.0.0.1"},
+			},
+		},
+		{
+			name: "full",
+			cfg: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "1.0.0.1"},
+				Searches: []string{"local.test", "node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		task, cfg, ports := dockerTask(t)
+		defer freeport.Return(ports)
+		task.DNS = c.cfg
+		require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+		_, d, _, cleanup := dockerSetup(t, task, nil)
+		defer cleanup()
+
+		require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+		defer d.DestroyTask(task.ID, true)
+
+		dtestutil.TestTaskDNSConfig(t, d, task.ID, c.cfg)
+	}
+
+}
+
+func TestDockerDriver_Init(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support init.")
+	}
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
-	cfg.DNSServers = []string{"8.8.8.8", "8.8.4.4"}
-	cfg.DNSSearchDomains = []string{"example.com", "example.org", "example.net"}
-	cfg.DNSOptions = []string{"ndots:1"}
+
+	cfg.Init = true
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client, d, handle, cleanup := dockerSetup(t, task, nil)
 	defer cleanup()
-
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
 	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 
-	require.Exactly(t, cfg.DNSServers, container.HostConfig.DNS)
-	require.Exactly(t, cfg.DNSSearchDomains, container.HostConfig.DNSSearch)
-	require.Exactly(t, cfg.DNSOptions, container.HostConfig.DNSOptions)
+	require.Equal(t, cfg.Init, container.HostConfig.Init)
+}
+
+func TestDockerDriver_CPUSetCPUs(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+	testutil.CgroupsCompatible(t)
+
+	testCases := []struct {
+		Name       string
+		CPUSetCPUs string
+	}{
+		{
+			Name:       "Single CPU",
+			CPUSetCPUs: "0",
+		},
+		{
+			Name:       "Comma separated list of CPUs",
+			CPUSetCPUs: "0,1",
+		},
+		{
+			Name:       "Range of CPUs",
+			CPUSetCPUs: "0-1",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			task, cfg, ports := dockerTask(t)
+			defer freeport.Return(ports)
+
+			cfg.CPUSetCPUs = testCase.CPUSetCPUs
+			require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+			client, d, handle, cleanup := dockerSetup(t, task, nil)
+			defer cleanup()
+			require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+			container, err := client.InspectContainer(handle.containerID)
+			require.NoError(t, err)
+
+			require.Equal(t, cfg.CPUSetCPUs, container.HostConfig.CPUSetCPUs)
+		})
+	}
 }
 
 func TestDockerDriver_MemoryHardLimit(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not support MemoryReservation")
@@ -1511,9 +1572,7 @@ func TestDockerDriver_MemoryHardLimit(t *testing.T) {
 }
 
 func TestDockerDriver_MACAddress(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows docker does not support setting MacAddress")
@@ -1535,9 +1594,7 @@ func TestDockerDriver_MACAddress(t *testing.T) {
 }
 
 func TestDockerWorkDir(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -1564,9 +1621,7 @@ func inSlice(needle string, haystack []string) bool {
 }
 
 func TestDockerDriver_PortsNoMap(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, _, ports := dockerTask(t)
@@ -1608,9 +1663,7 @@ func TestDockerDriver_PortsNoMap(t *testing.T) {
 }
 
 func TestDockerDriver_PortsMapping(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -1659,8 +1712,51 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 	require.Exactly(t, expectedPortBindings, container.HostConfig.PortBindings)
 }
 
+func TestDockerDriver_CreateContainerConfig_Ports(t *testing.T) {
+	ci.Parallel(t)
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+	hostIP := "127.0.0.1"
+	if runtime.GOOS == "windows" {
+		hostIP = ""
+	}
+	portmappings := structs.AllocatedPorts(make([]structs.AllocatedPortMapping, len(ports)))
+	portmappings[0] = structs.AllocatedPortMapping{
+		Label:  "main",
+		Value:  ports[0],
+		HostIP: hostIP,
+		To:     8080,
+	}
+	portmappings[1] = structs.AllocatedPortMapping{
+		Label:  "REDIS",
+		Value:  ports[1],
+		HostIP: hostIP,
+		To:     6379,
+	}
+	task.Resources.Ports = &portmappings
+	cfg.Ports = []string{"main", "REDIS"}
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	require.Equal(t, "org/repo:0.1", c.Config.Image)
+
+	// Verify that the correct ports are FORWARDED
+	expectedPortBindings := map[docker.Port][]docker.PortBinding{
+		docker.Port("8080/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[0])}},
+		docker.Port("8080/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[0])}},
+		docker.Port("6379/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[1])}},
+		docker.Port("6379/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[1])}},
+	}
+	require.Exactly(t, expectedPortBindings, c.HostConfig.PortBindings)
+
+}
 func TestDockerDriver_CreateContainerConfig_PortsMapping(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
@@ -1696,9 +1792,7 @@ func TestDockerDriver_CreateContainerConfig_PortsMapping(t *testing.T) {
 }
 
 func TestDockerDriver_CleanupContainer(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -1736,6 +1830,7 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 }
 
 func TestDockerDriver_EnableImageGC(t *testing.T) {
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -1802,6 +1897,7 @@ func TestDockerDriver_EnableImageGC(t *testing.T) {
 }
 
 func TestDockerDriver_DisableImageGC(t *testing.T) {
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -1864,6 +1960,7 @@ func TestDockerDriver_DisableImageGC(t *testing.T) {
 }
 
 func TestDockerDriver_MissingContainer_Cleanup(t *testing.T) {
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -1930,9 +2027,7 @@ func TestDockerDriver_MissingContainer_Cleanup(t *testing.T) {
 }
 
 func TestDockerDriver_Stats(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -2005,9 +2100,7 @@ func setupDockerVolumes(t *testing.T, cfg map[string]interface{}, hostpath strin
 }
 
 func TestDockerDriver_VolumesDisabled(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	cfg := map[string]interface{}{
@@ -2077,10 +2170,17 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 }
 
 func TestDockerDriver_VolumesEnabled(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
+
+	cfg := map[string]interface{}{
+		"volumes": map[string]interface{}{
+			"enabled": true,
+		},
+		"gc": map[string]interface{}{
+			"image": false,
+		},
+	}
 
 	tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesenabled")
 	require.NoError(t, err)
@@ -2089,7 +2189,7 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	tmpvol, err = filepath.EvalSymlinks(tmpvol)
 	require.NoError(t, err)
 
-	task, driver, _, hostpath, cleanup := setupDockerVolumes(t, nil, tmpvol)
+	task, driver, _, hostpath, cleanup := setupDockerVolumes(t, cfg, tmpvol)
 	defer cleanup()
 
 	_, _, err = driver.StartTask(task)
@@ -2113,9 +2213,7 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 }
 
 func TestDockerDriver_Mounts(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	goodMount := DockerMount{
@@ -2154,6 +2252,9 @@ func TestDockerDriver_Mounts(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			d := dockerDriverHarness(t, nil)
+			driver := d.Impl().(*Driver)
+			driver.config.Volumes.Enabled = true
+
 			// Build the task
 			task, cfg, ports := dockerTask(t)
 			defer freeport.Return(ports)
@@ -2182,9 +2283,7 @@ func TestDockerDriver_Mounts(t *testing.T) {
 }
 
 func TestDockerDriver_AuthConfiguration(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	path := "./test-resources/docker/auth.json"
@@ -2233,9 +2332,7 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 }
 
 func TestDockerDriver_AuthFromTaskConfig(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 
 	cases := []struct {
 		Auth       DockerAuth
@@ -2287,9 +2384,7 @@ func TestDockerDriver_AuthFromTaskConfig(t *testing.T) {
 }
 
 func TestDockerDriver_OOMKilled(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	if runtime.GOOS == "windows" {
@@ -2338,9 +2433,7 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 }
 
 func TestDockerDriver_Devices_IsInvalidConfig(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	brokenConfigs := []DockerDevice{
@@ -2378,9 +2471,7 @@ func TestDockerDriver_Devices_IsInvalidConfig(t *testing.T) {
 }
 
 func TestDockerDriver_Device_Success(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	if runtime.GOOS != "linux" {
@@ -2418,9 +2509,7 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 }
 
 func TestDockerDriver_Entrypoint(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	entrypoint := []string{"sh", "-c"}
@@ -2445,9 +2534,7 @@ func TestDockerDriver_Entrypoint(t *testing.T) {
 }
 
 func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	if runtime.GOOS == "windows" {
@@ -2489,9 +2576,7 @@ func (fakeDockerClient) RemoveContainer(opts docker.RemoveContainerOptions) erro
 // TestDockerDriver_VolumeError asserts volume related errors when creating a
 // container are recoverable.
 func TestDockerDriver_VolumeError(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 
 	// setup
 	_, cfg, ports := dockerTask(t)
@@ -2504,9 +2589,7 @@ func TestDockerDriver_VolumeError(t *testing.T) {
 }
 
 func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	expectedPrefix := "2001:db8:1::242:ac11"
@@ -2556,6 +2639,8 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 }
 
 func TestParseDockerImage(t *testing.T) {
+	ci.Parallel(t)
+
 	tests := []struct {
 		Image string
 		Repo  string
@@ -2576,6 +2661,7 @@ func TestParseDockerImage(t *testing.T) {
 }
 
 func TestDockerImageRef(t *testing.T) {
+	ci.Parallel(t)
 	tests := []struct {
 		Image string
 		Repo  string
@@ -2612,9 +2698,7 @@ func waitForExist(t *testing.T, client *docker.Client, containerID string) {
 // and startContainers functions are idempotent, as we have some retry
 // logic there without ensureing we delete/destroy containers
 func TestDockerDriver_CreationIdempotent(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -2683,7 +2767,7 @@ func TestDockerDriver_CreationIdempotent(t *testing.T) {
 // TestDockerDriver_CreateContainerConfig_CPUHardLimit asserts that a default
 // CPU quota and period are set when cpu_hard_limit = true.
 func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	task, _, ports := dockerTask(t)
 	defer freeport.Return(ports)
@@ -2709,17 +2793,214 @@ func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
 }
 
 func TestDockerDriver_memoryLimits(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
-	t.Run("driver hard limit not set", func(t *testing.T) {
-		memory, memoryReservation := new(Driver).memoryLimits(0, 256*1024*1024)
-		require.Equal(t, int64(256*1024*1024), memory)
-		require.Equal(t, int64(0), memoryReservation)
-	})
+	cases := []struct {
+		name           string
+		driverMemoryMB int64
+		taskResources  drivers.MemoryResources
+		expectedHard   int64
+		expectedSoft   int64
+	}{
+		{
+			"plain request",
+			0,
+			drivers.MemoryResources{MemoryMB: 10},
+			10 * 1024 * 1024,
+			0,
+		},
+		{
+			"with driver max",
+			20,
+			drivers.MemoryResources{MemoryMB: 10},
+			20 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+		{
+			"with resources max",
+			20,
+			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 20},
+			20 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+		{
+			"with driver and resources max: higher driver",
+			30,
+			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 20},
+			30 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+		{
+			"with driver and resources max: higher resources",
+			20,
+			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 30},
+			30 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+	}
 
-	t.Run("driver hard limit is set", func(t *testing.T) {
-		memory, memoryReservation := new(Driver).memoryLimits(512, 256*1024*1024)
-		require.Equal(t, int64(512*1024*1024), memory)
-		require.Equal(t, int64(256*1024*1024), memoryReservation)
-	})
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			hard, soft := memoryLimits(c.driverMemoryMB, c.taskResources)
+			require.Equal(t, c.expectedHard, hard)
+			require.Equal(t, c.expectedSoft, soft)
+		})
+	}
+}
+
+func TestDockerDriver_parseSignal(t *testing.T) {
+	ci.Parallel(t)
+
+	tests := []struct {
+		name            string
+		runtime         string
+		specifiedSignal string
+		expectedSignal  string
+	}{
+		{
+			name:            "default",
+			runtime:         runtime.GOOS,
+			specifiedSignal: "",
+			expectedSignal:  "SIGTERM",
+		},
+		{
+			name:            "set",
+			runtime:         runtime.GOOS,
+			specifiedSignal: "SIGHUP",
+			expectedSignal:  "SIGHUP",
+		},
+		{
+			name:            "windows conversion",
+			runtime:         "windows",
+			specifiedSignal: "SIGINT",
+			expectedSignal:  "SIGTERM",
+		},
+		{
+			name:            "not signal",
+			runtime:         runtime.GOOS,
+			specifiedSignal: "SIGDOESNOTEXIST",
+			expectedSignal:  "", // throws error
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s, err := parseSignal(tc.runtime, tc.specifiedSignal)
+			if tc.expectedSignal == "" {
+				require.Error(t, err, "invalid signal")
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, s.(syscall.Signal), s)
+			}
+		})
+	}
+}
+
+// This test asserts that Nomad isn't overriding the STOPSIGNAL in a Dockerfile
+func TestDockerDriver_StopSignal(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipped on windows, we don't have image variants available")
+	}
+
+	cases := []struct {
+		name            string
+		variant         string
+		jobKillSignal   string
+		expectedSignals []string
+	}{
+		{
+			name:            "stopsignal-only",
+			variant:         "stopsignal",
+			jobKillSignal:   "",
+			expectedSignals: []string{"19", "9"},
+		},
+		{
+			name:            "stopsignal-killsignal",
+			variant:         "stopsignal",
+			jobKillSignal:   "SIGTERM",
+			expectedSignals: []string{"15", "19", "9"},
+		},
+		{
+			name:            "killsignal-only",
+			variant:         "",
+			jobKillSignal:   "SIGTERM",
+			expectedSignals: []string{"15", "15", "9"},
+		},
+		{
+			name:            "nosignals-default",
+			variant:         "",
+			jobKillSignal:   "",
+			expectedSignals: []string{"15", "9"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			taskCfg := newTaskConfig(c.variant, []string{"sleep", "9901"})
+
+			task := &drivers.TaskConfig{
+				ID:        uuid.Generate(),
+				Name:      c.name,
+				AllocID:   uuid.Generate(),
+				Resources: basicResources,
+			}
+			require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
+
+			d := dockerDriverHarness(t, nil)
+			cleanup := d.MkAllocDir(task, true)
+			defer cleanup()
+
+			if c.variant == "stopsignal" {
+				copyImage(t, task.TaskDir(), "busybox_stopsignal.tar") // Default busybox image with STOPSIGNAL 19 added
+			} else {
+				copyImage(t, task.TaskDir(), "busybox.tar")
+			}
+
+			client := newTestDockerClient(t)
+
+			listener := make(chan *docker.APIEvents)
+			err := client.AddEventListener(listener)
+			require.NoError(t, err)
+
+			defer func() {
+				err := client.RemoveEventListener(listener)
+				require.NoError(t, err)
+			}()
+
+			_, _, err = d.StartTask(task)
+			require.NoError(t, err)
+			require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+			stopErr := make(chan error, 1)
+			go func() {
+				err := d.StopTask(task.ID, 1*time.Second, c.jobKillSignal)
+				stopErr <- err
+			}()
+
+			timeout := time.After(10 * time.Second)
+			var receivedSignals []string
+		WAIT:
+			for {
+				select {
+				case msg := <-listener:
+					// Only add kill signals
+					if msg.Action == "kill" {
+						sig := msg.Actor.Attributes["signal"]
+						receivedSignals = append(receivedSignals, sig)
+
+						if reflect.DeepEqual(receivedSignals, c.expectedSignals) {
+							break WAIT
+						}
+					}
+				case err := <-stopErr:
+					require.NoError(t, err, "stop task failed")
+				case <-timeout:
+					// timeout waiting for signals
+					require.Equal(t, c.expectedSignals, receivedSignals, "timed out waiting for expected signals")
+				}
+			}
+		})
+	}
 }

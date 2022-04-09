@@ -1,0 +1,59 @@
+---
+layout: docs
+page_title: 'Commands: server members'
+description: >
+  The server members command is used to display a list of the known server
+  members and their status.
+---
+
+# Command: server members
+
+The `server members` command displays a list of the known servers in the cluster
+and their current status. Member information is provided by the gossip protocol,
+which is only run on server nodes.
+
+## Usage
+
+```plaintext
+nomad server members [options]
+```
+
+If ACLs are enabled, this option requires a token with the `node:read`
+capability.
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Server Members Options
+
+- `-detailed` (<code>_deprecated_</code> use `-verbose` instead): Dump the
+  basic member information as well as the raw set of tags for each member. This
+  mode reveals additional information not displayed in the standard output
+  format.
+
+- `-verbose`: Dump the basic member information as well as the raw set of tags
+  for each member. This mode reveals additional information not displayed in
+  the standard output format.
+
+## Examples
+
+Default view:
+
+```shell-session
+$ nomad server members
+Name             Address    Port  Status  Leader  Raft Version  Build  Datacenter  Region
+server-1.global  10.0.0.8   4648  alive   true    3             1.3.0  dc1         global
+server-2.global  10.0.0.9   4648  alive   false   3             1.3.0  dc1         global
+server-3.global  10.0.0.10  4648  alive   false   3             1.3.0  dc1         global
+```
+
+Verbose view:
+
+```shell-session
+$ nomad server members -verbose
+Name             Address    Port  Status  Leader  Protocol  Raft Version  Build  Datacenter  Region  Tags
+server-1.global  10.0.0.8   4648  alive   true    2         3             1.3.0  dc1         global  id=46122039-7c4d-4647-673a-81786bce2c23,rpc_addr=10.0.0.8,role=nomad,region=global,raft_vsn=3,expect=3,dc=dc1,build=1.3.0,port=4647
+server-2.global  10.0.0.9   4648  alive   false   2         3             1.3.0  dc1         global  id=04594bee-fec9-4cec-f308-eebe82025ae7,dc=dc1,expect=3,rpc_addr=10.0.0.9,raft_vsn=3,port=4647,role=nomad,region=global,build=1.3.0
+server-3.global  10.0.0.10  4648  alive   false   2         3             1.3.0  dc1         global  region=global,dc=dc1,rpc_addr=10.0.0.10,raft_vsn=3,build=1.3.0,expect=3,id=59542f6c-fb0e-50f1-4c9f-98bb593e9fe8,role=nomad,port=4647
+```

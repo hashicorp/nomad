@@ -38,6 +38,11 @@ type VaultConfig struct {
 	// role the token is from.
 	Role string `hcl:"create_from_role"`
 
+	// EntityAlias is the entity alias to use when creating tokens for tasks
+	// that don't define one. The role used by Nomad must be allowed to use
+	// this alias.
+	EntityAlias string `hcl:"create_with_entity_alias"`
+
 	// Namespace sets the Vault namespace used for all calls against the
 	// Vault API. If this is unset, then Nomad does not use Vault namespaces.
 	Namespace string `mapstructure:"namespace"`
@@ -81,7 +86,7 @@ type VaultConfig struct {
 	TLSServerName string `hcl:"tls_server_name"`
 }
 
-// DefaultVaultConfig() returns the canonical defaults for the Nomad
+// DefaultVaultConfig returns the canonical defaults for the Nomad
 // `vault` configuration.
 func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
@@ -92,19 +97,19 @@ func DefaultVaultConfig() *VaultConfig {
 }
 
 // IsEnabled returns whether the config enables Vault integration
-func (a *VaultConfig) IsEnabled() bool {
-	return a.Enabled != nil && *a.Enabled
+func (c *VaultConfig) IsEnabled() bool {
+	return c.Enabled != nil && *c.Enabled
 }
 
 // AllowsUnauthenticated returns whether the config allows unauthenticated
 // access to Vault
-func (a *VaultConfig) AllowsUnauthenticated() bool {
-	return a.AllowUnauthenticated != nil && *a.AllowUnauthenticated
+func (c *VaultConfig) AllowsUnauthenticated() bool {
+	return c.AllowUnauthenticated != nil && *c.AllowUnauthenticated
 }
 
 // Merge merges two Vault configurations together.
-func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
-	result := *a
+func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
+	result := *c
 
 	if b.Token != "" {
 		result.Token = b.Token
@@ -114,6 +119,9 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	}
 	if b.Role != "" {
 		result.Role = b.Role
+	}
+	if b.EntityAlias != "" {
+		result.EntityAlias = b.EntityAlias
 	}
 	if b.TaskTokenTTL != "" {
 		result.TaskTokenTTL = b.TaskTokenTTL
@@ -152,7 +160,7 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	return &result
 }
 
-// ApiConfig() returns a usable Vault config that can be passed directly to
+// ApiConfig returns a usable Vault config that can be passed directly to
 // hashicorp/vault/api.
 func (c *VaultConfig) ApiConfig() (*vault.Config, error) {
 	conf := vault.DefaultConfig()
@@ -190,51 +198,54 @@ func (c *VaultConfig) Copy() *VaultConfig {
 
 // IsEqual compares two Vault configurations and returns a boolean indicating
 // if they are equal.
-func (a *VaultConfig) IsEqual(b *VaultConfig) bool {
-	if a == nil && b != nil {
+func (c *VaultConfig) IsEqual(b *VaultConfig) bool {
+	if c == nil && b != nil {
 		return false
 	}
-	if a != nil && b == nil {
+	if c != nil && b == nil {
 		return false
 	}
 
-	if a.Token != b.Token {
+	if c.Token != b.Token {
 		return false
 	}
-	if a.Role != b.Role {
+	if c.Role != b.Role {
 		return false
 	}
-	if a.TaskTokenTTL != b.TaskTokenTTL {
+	if c.EntityAlias != b.EntityAlias {
 		return false
 	}
-	if a.Addr != b.Addr {
+	if c.TaskTokenTTL != b.TaskTokenTTL {
 		return false
 	}
-	if a.ConnectionRetryIntv.Nanoseconds() != b.ConnectionRetryIntv.Nanoseconds() {
+	if c.Addr != b.Addr {
 		return false
 	}
-	if a.TLSCaFile != b.TLSCaFile {
+	if c.ConnectionRetryIntv.Nanoseconds() != b.ConnectionRetryIntv.Nanoseconds() {
 		return false
 	}
-	if a.TLSCaPath != b.TLSCaPath {
+	if c.TLSCaFile != b.TLSCaFile {
 		return false
 	}
-	if a.TLSCertFile != b.TLSCertFile {
+	if c.TLSCaPath != b.TLSCaPath {
 		return false
 	}
-	if a.TLSKeyFile != b.TLSKeyFile {
+	if c.TLSCertFile != b.TLSCertFile {
 		return false
 	}
-	if a.TLSServerName != b.TLSServerName {
+	if c.TLSKeyFile != b.TLSKeyFile {
 		return false
 	}
-	if a.AllowUnauthenticated != b.AllowUnauthenticated {
+	if c.TLSServerName != b.TLSServerName {
 		return false
 	}
-	if a.TLSSkipVerify != b.TLSSkipVerify {
+	if c.AllowUnauthenticated != b.AllowUnauthenticated {
 		return false
 	}
-	if a.Enabled != b.Enabled {
+	if c.TLSSkipVerify != b.TLSSkipVerify {
+		return false
+	}
+	if c.Enabled != b.Enabled {
 		return false
 	}
 	return true

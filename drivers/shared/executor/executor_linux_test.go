@@ -12,15 +12,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
@@ -62,7 +66,7 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, "global").Build()
 
-	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), filepath.Join(os.TempDir(), alloc.ID))
+	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), os.TempDir(), alloc.ID)
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
@@ -79,6 +83,12 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 		},
 	}
 
+	if cgutil.UseV2 {
+		cmd.Resources.LinuxResources = &drivers.LinuxResources{
+			CpusetCgroupPath: filepath.Join(cgutil.CgroupRoot, "testing.scope", cgutil.CgroupScope(alloc.ID, task.Name)),
+		}
+	}
+
 	testCmd := &testExecCmd{
 		command:  cmd,
 		allocDir: allocDir,
@@ -87,9 +97,40 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 	return testCmd
 }
 
-func TestExecutor_IsolationAndConstraints(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+func TestExecutor_configureNamespaces(t *testing.T) {
+	ci.Parallel(t)
+	t.Run("host host", func(t *testing.T) {
+		require.Equal(t, lconfigs.Namespaces{
+			{Type: lconfigs.NEWNS},
+		}, configureNamespaces("host", "host"))
+	})
+
+	t.Run("host private", func(t *testing.T) {
+		require.Equal(t, lconfigs.Namespaces{
+			{Type: lconfigs.NEWNS},
+			{Type: lconfigs.NEWIPC},
+		}, configureNamespaces("host", "private"))
+	})
+
+	t.Run("private host", func(t *testing.T) {
+		require.Equal(t, lconfigs.Namespaces{
+			{Type: lconfigs.NEWNS},
+			{Type: lconfigs.NEWPID},
+		}, configureNamespaces("private", "host"))
+	})
+
+	t.Run("private private", func(t *testing.T) {
+		require.Equal(t, lconfigs.Namespaces{
+			{Type: lconfigs.NEWNS},
+			{Type: lconfigs.NEWPID},
+			{Type: lconfigs.NEWIPC},
+		}, configureNamespaces("private", "private"))
+	})
+}
+
+func TestExecutor_Isolation_PID_and_IPC_hostMode(t *testing.T) {
+	ci.Parallel(t)
+	r := require.New(t)
 	testutil.ExecCompatible(t)
 
 	testExecCmd := testExecutorCommandWithChroot(t)
@@ -99,43 +140,98 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	defer allocDir.Destroy()
 
 	execCmd.ResourceLimits = true
+	execCmd.ModePID = "host" // disable PID namespace
+	execCmd.ModeIPC = "host" // disable IPC namespace
 
 	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
-	require.NoError(err)
-	require.NotZero(ps.Pid)
+	r.NoError(err)
+	r.NotZero(ps.Pid)
 
-	state, err := executor.Wait(context.Background())
-	require.NoError(err)
-	require.Zero(state.ExitCode)
+	estate, err := executor.Wait(context.Background())
+	r.NoError(err)
+	r.Zero(estate.ExitCode)
+
+	lexec, ok := executor.(*LibcontainerExecutor)
+	r.True(ok)
+
+	// Check that namespaces were applied to the container config
+	config := lexec.container.Config()
+
+	r.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWNS})
+	r.NotContains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWPID})
+	r.NotContains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWIPC})
+
+	// Shut down executor
+	r.NoError(executor.Shutdown("", 0))
+	executor.Wait(context.Background())
+}
+
+func TestExecutor_IsolationAndConstraints(t *testing.T) {
+	ci.Parallel(t)
+	testutil.ExecCompatible(t)
+	testutil.CgroupsCompatibleV1(t) // todo(shoenig): hard codes cgroups v1 lookup
+
+	r := require.New(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "/bin/ls"
+	execCmd.Args = []string{"-F", "/", "/etc/"}
+	defer allocDir.Destroy()
+
+	execCmd.ResourceLimits = true
+	execCmd.ModePID = "private"
+	execCmd.ModeIPC = "private"
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	defer executor.Shutdown("SIGKILL", 0)
+
+	ps, err := executor.Launch(execCmd)
+	r.NoError(err)
+	r.NotZero(ps.Pid)
+
+	estate, err := executor.Wait(context.Background())
+	r.NoError(err)
+	r.Zero(estate.ExitCode)
+
+	lexec, ok := executor.(*LibcontainerExecutor)
+	r.True(ok)
 
 	// Check if the resource constraints were applied
-	if lexec, ok := executor.(*LibcontainerExecutor); ok {
-		state, err := lexec.container.State()
-		require.NoError(err)
+	state, err := lexec.container.State()
+	r.NoError(err)
 
-		memLimits := filepath.Join(state.CgroupPaths["memory"], "memory.limit_in_bytes")
-		data, err := ioutil.ReadFile(memLimits)
-		require.NoError(err)
+	memLimits := filepath.Join(state.CgroupPaths["memory"], "memory.limit_in_bytes")
+	data, err := ioutil.ReadFile(memLimits)
+	r.NoError(err)
 
-		expectedMemLim := strconv.Itoa(int(execCmd.Resources.NomadResources.Memory.MemoryMB * 1024 * 1024))
-		actualMemLim := strings.TrimSpace(string(data))
-		require.Equal(actualMemLim, expectedMemLim)
-		require.NoError(executor.Shutdown("", 0))
-		executor.Wait(context.Background())
+	expectedMemLim := strconv.Itoa(int(execCmd.Resources.NomadResources.Memory.MemoryMB * 1024 * 1024))
+	actualMemLim := strings.TrimSpace(string(data))
+	r.Equal(actualMemLim, expectedMemLim)
 
-		// Check if Nomad has actually removed the cgroups
-		tu.WaitForResult(func() (bool, error) {
-			_, err = os.Stat(memLimits)
-			if err == nil {
-				return false, fmt.Errorf("expected an error from os.Stat %s", memLimits)
-			}
-			return true, nil
-		}, func(err error) { t.Error(err) })
+	// Check that namespaces were applied to the container config
+	config := lexec.container.Config()
 
-	}
+	r.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWNS})
+	r.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWPID})
+	r.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWIPC})
+
+	// Shut down executor
+	r.NoError(executor.Shutdown("", 0))
+	executor.Wait(context.Background())
+
+	// Check if Nomad has actually removed the cgroups
+	tu.WaitForResult(func() (bool, error) {
+		_, err = os.Stat(memLimits)
+		if err == nil {
+			return false, fmt.Errorf("expected an error from os.Stat %s", memLimits)
+		}
+		return true, nil
+	}, func(err error) { t.Error(err) })
+
 	expected := `/:
 alloc/
 bin/
@@ -168,9 +264,10 @@ passwd`
 // TestExecutor_CgroupPaths asserts that process starts with independent cgroups
 // hierarchy created for this process
 func TestExecutor_CgroupPaths(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	ci.Parallel(t)
 	testutil.ExecCompatible(t)
+
+	require := require.New(t)
 
 	testExecCmd := testExecutorCommandWithChroot(t)
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -193,25 +290,33 @@ func TestExecutor_CgroupPaths(t *testing.T) {
 
 	tu.WaitForResult(func() (bool, error) {
 		output := strings.TrimSpace(testExecCmd.stdout.String())
-		// sanity check that we got some cgroups
-		if !strings.Contains(output, ":devices:") {
-			return false, fmt.Errorf("was expected cgroup files but found:\n%v", output)
-		}
-		lines := strings.Split(output, "\n")
-		for _, line := range lines {
-			// Every cgroup entry should be /nomad/$ALLOC_ID
-			if line == "" {
-				continue
+		switch cgutil.UseV2 {
+		case true:
+			isScope := strings.HasSuffix(output, ".scope")
+			require.True(isScope)
+		case false:
+			// Verify that we got some cgroups
+			if !strings.Contains(output, ":devices:") {
+				return false, fmt.Errorf("was expected cgroup files but found:\n%v", output)
 			}
+			lines := strings.Split(output, "\n")
+			for _, line := range lines {
+				// Every cgroup entry should be /nomad/$ALLOC_ID
+				if line == "" {
+					continue
+				}
 
-			// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
-			// don't isolate it by default.
-			if strings.Contains(line, ":rdma:") {
-				continue
-			}
+				// Skip rdma & misc subsystem; rdma was added in most recent kernels and libcontainer/docker
+				// don't isolate it by default.
+				// :: filters out odd empty cgroup found in latest Ubuntu lines, e.g. 0::/user.slice/user-1000.slice/session-17.scope
+				// that is also not used for isolation
+				if strings.Contains(line, ":rdma:") || strings.Contains(line, ":misc:") || strings.Contains(line, "::") {
+					continue
+				}
+				if !strings.Contains(line, ":/nomad/") {
+					return false, fmt.Errorf("Not a member of the alloc's cgroup: expected=...:/nomad/... -- found=%q", line)
+				}
 
-			if !strings.Contains(line, ":/nomad/") {
-				return false, fmt.Errorf("Not a member of the alloc's cgroup: expected=...:/nomad/... -- found=%q", line)
 			}
 		}
 		return true, nil
@@ -221,9 +326,10 @@ func TestExecutor_CgroupPaths(t *testing.T) {
 // TestExecutor_CgroupPaths asserts that all cgroups created for a task
 // are destroyed on shutdown
 func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	ci.Parallel(t)
 	testutil.ExecCompatible(t)
+
+	require := require.New(t)
 
 	testExecCmd := testExecutorCommandWithChroot(t)
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -247,28 +353,34 @@ func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 	var cgroupsPaths string
 	tu.WaitForResult(func() (bool, error) {
 		output := strings.TrimSpace(testExecCmd.stdout.String())
-		// sanity check that we got some cgroups
-		if !strings.Contains(output, ":devices:") {
-			return false, fmt.Errorf("was expected cgroup files but found:\n%v", output)
+
+		switch cgutil.UseV2 {
+		case true:
+			isScope := strings.HasSuffix(output, ".scope")
+			require.True(isScope)
+		case false:
+			// Verify that we got some cgroups
+			if !strings.Contains(output, ":devices:") {
+				return false, fmt.Errorf("was expected cgroup files but found:\n%v", output)
+			}
+			lines := strings.Split(output, "\n")
+			for _, line := range lines {
+				// Every cgroup entry should be /nomad/$ALLOC_ID
+				if line == "" {
+					continue
+				}
+
+				// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
+				// don't isolate it by default. And also misc.
+				if strings.Contains(line, ":rdma:") || strings.Contains(line, "::") || strings.Contains(line, ":misc:") {
+					continue
+				}
+
+				if !strings.Contains(line, ":/nomad/") {
+					return false, fmt.Errorf("Not a member of the alloc's cgroup: expected=...:/nomad/... -- found=%q", line)
+				}
+			}
 		}
-		lines := strings.Split(output, "\n")
-		for _, line := range lines {
-			// Every cgroup entry should be /nomad/$ALLOC_ID
-			if line == "" {
-				continue
-			}
-
-			// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
-			// don't isolate it by default.
-			if strings.Contains(line, ":rdma:") {
-				continue
-			}
-
-			if !strings.Contains(line, ":/nomad/") {
-				return false, fmt.Errorf("Not a member of the alloc's cgroup: expected=...:/nomad/... -- found=%q", line)
-			}
-		}
-
 		cgroupsPaths = output
 		return true, nil
 	}, func(err error) { t.Error(err) })
@@ -294,14 +406,14 @@ func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 			continue
 		}
 
-		p, err := getCgroupPathHelper(subsystem, cgroup)
+		p, err := cgutil.GetCgroupPathHelperV1(subsystem, cgroup)
 		require.NoError(err)
 		require.Falsef(cgroups.PathExists(p), "cgroup for %s %s still exists", subsystem, cgroup)
 	}
 }
 
 func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Create a temp dir
@@ -343,9 +455,11 @@ func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
 
 // Exec Launch looks for the binary only inside the chroot
 func TestExecutor_EscapeContainer(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
+	ci.Parallel(t)
 	testutil.ExecCompatible(t)
+	testutil.CgroupsCompatibleV1(t) // todo(shoenig) kills the terminal, probably defaulting to /
+
+	require := require.New(t)
 
 	testExecCmd := testExecutorCommandWithChroot(t)
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -378,8 +492,64 @@ func TestExecutor_EscapeContainer(t *testing.T) {
 	require.NoError(err)
 }
 
+// TestExecutor_DoesNotInheritOomScoreAdj asserts that the exec processes do not
+// inherit the oom_score_adj value of Nomad agent/executor process
+func TestExecutor_DoesNotInheritOomScoreAdj(t *testing.T) {
+	ci.Parallel(t)
+	testutil.ExecCompatible(t)
+
+	oomPath := "/proc/self/oom_score_adj"
+	origValue, err := os.ReadFile(oomPath)
+	require.NoError(t, err, "reading oom_score_adj")
+
+	err = os.WriteFile(oomPath, []byte("-100"), 0644)
+	require.NoError(t, err, "setting temporary oom_score_adj")
+
+	defer func() {
+		err := os.WriteFile(oomPath, origValue, 0644)
+		require.NoError(t, err, "restoring oom_score_adj")
+	}()
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	defer allocDir.Destroy()
+
+	execCmd.ResourceLimits = true
+	execCmd.Cmd = "/bin/bash"
+	execCmd.Args = []string{"-c", "cat /proc/self/oom_score_adj"}
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	defer executor.Shutdown("SIGKILL", 0)
+
+	_, err = executor.Launch(execCmd)
+	require.NoError(t, err)
+
+	ch := make(chan interface{})
+	go func() {
+		executor.Wait(context.Background())
+		close(ch)
+	}()
+
+	select {
+	case <-ch:
+		// all good
+	case <-time.After(5 * time.Second):
+		require.Fail(t, "timeout waiting for exec to shutdown")
+	}
+
+	expected := "0"
+	tu.WaitForResult(func() (bool, error) {
+		output := strings.TrimSpace(testExecCmd.stdout.String())
+		if output != expected {
+			return false, fmt.Errorf("oom_score_adj didn't match: want\n%v\n; got:\n%v\n", expected, output)
+		}
+		return true, nil
+	}, func(err error) { require.NoError(t, err) })
+
+}
+
 func TestExecutor_Capabilities(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.ExecCompatible(t)
 
 	cases := []struct {
@@ -392,7 +562,7 @@ func TestExecutor_Capabilities(t *testing.T) {
 CapInh: 0000000000000000
 CapPrm: 0000000000000000
 CapEff: 0000000000000000
-CapBnd: 0000003fffffffff
+CapBnd: 00000000a80405fb
 CapAmb: 0000000000000000`,
 		},
 		{
@@ -408,7 +578,6 @@ CapAmb: 0000000000000000`,
 
 	for _, c := range cases {
 		t.Run(c.user, func(t *testing.T) {
-			require := require.New(t)
 
 			testExecCmd := testExecutorCommandWithChroot(t)
 			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -418,12 +587,13 @@ CapAmb: 0000000000000000`,
 			execCmd.ResourceLimits = true
 			execCmd.Cmd = "/bin/bash"
 			execCmd.Args = []string{"-c", "cat /proc/$$/status"}
+			execCmd.Capabilities = capabilities.NomadDefaults().Slice(true)
 
 			executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 			defer executor.Shutdown("SIGKILL", 0)
 
 			_, err := executor.Launch(execCmd)
-			require.NoError(err)
+			require.NoError(t, err)
 
 			ch := make(chan interface{})
 			go func() {
@@ -435,7 +605,7 @@ CapAmb: 0000000000000000`,
 			case <-ch:
 				// all good
 			case <-time.After(5 * time.Second):
-				require.Fail("timeout waiting for exec to shutdown")
+				require.Fail(t, "timeout waiting for exec to shutdown")
 			}
 
 			canonical := func(s string) string {
@@ -452,14 +622,14 @@ CapAmb: 0000000000000000`,
 					return false, fmt.Errorf("capabilities didn't match: want\n%v\n; got:\n%v\n", expected, output)
 				}
 				return true, nil
-			}, func(err error) { require.NoError(err) })
+			}, func(err error) { require.NoError(t, err) })
 		})
 	}
 
 }
 
 func TestExecutor_ClientCleanup(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.ExecCompatible(t)
 	require := require.New(t)
 
@@ -504,6 +674,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 }
 
 func TestExecutor_cmdDevices(t *testing.T) {
+	ci.Parallel(t)
 	input := []*drivers.DeviceConfig{
 		{
 			HostPath:    "/dev/null",
@@ -512,12 +683,14 @@ func TestExecutor_cmdDevices(t *testing.T) {
 		},
 	}
 
-	expected := &lconfigs.Device{
-		Path:        "/task/dev/null",
-		Type:        99,
-		Major:       1,
-		Minor:       3,
-		Permissions: "rwm",
+	expected := &devices.Device{
+		Rule: devices.Rule{
+			Type:        99,
+			Major:       1,
+			Minor:       3,
+			Permissions: "rwm",
+		},
+		Path: "/task/dev/null",
 	}
 
 	found, err := cmdDevices(input)
@@ -535,6 +708,7 @@ func TestExecutor_cmdDevices(t *testing.T) {
 }
 
 func TestExecutor_cmdMounts(t *testing.T) {
+	ci.Parallel(t)
 	input := []*drivers.MountConfig{
 		{
 			HostPath: "/host/path-ro",
@@ -566,4 +740,47 @@ func TestExecutor_cmdMounts(t *testing.T) {
 	}
 
 	require.EqualValues(t, expected, cmdMounts(input))
+}
+
+// TestUniversalExecutor_NoCgroup asserts that commands are executed in the
+// same cgroup as parent process
+func TestUniversalExecutor_NoCgroup(t *testing.T) {
+	ci.Parallel(t)
+	testutil.ExecCompatible(t)
+
+	expectedBytes, err := ioutil.ReadFile("/proc/self/cgroup")
+	require.NoError(t, err)
+
+	expected := strings.TrimSpace(string(expectedBytes))
+
+	testExecCmd := testExecutorCommand(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "/bin/cat"
+	execCmd.Args = []string{"/proc/self/cgroup"}
+	defer allocDir.Destroy()
+
+	execCmd.BasicProcessCgroup = false
+	execCmd.ResourceLimits = false
+
+	executor := NewExecutor(testlog.HCLogger(t))
+	defer executor.Shutdown("SIGKILL", 0)
+
+	_, err = executor.Launch(execCmd)
+	require.NoError(t, err)
+
+	_, err = executor.Wait(context.Background())
+	require.NoError(t, err)
+
+	tu.WaitForResult(func() (bool, error) {
+		act := strings.TrimSpace(string(testExecCmd.stdout.String()))
+		if expected != act {
+			return false, fmt.Errorf("expected:\n%s actual:\n%s", expected, act)
+		}
+		return true, nil
+	}, func(err error) {
+		stderr := strings.TrimSpace(string(testExecCmd.stderr.String()))
+		t.Logf("stderr: %v", stderr)
+		require.NoError(t, err)
+	})
+
 }

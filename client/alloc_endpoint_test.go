@@ -12,13 +12,13 @@ import (
 
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -28,7 +28,8 @@ import (
 )
 
 func TestAllocations_Restart(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	require := require.New(t)
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
@@ -67,7 +68,7 @@ func TestAllocations_Restart(t *testing.T) {
 }
 
 func TestAllocations_Restart_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)
@@ -143,8 +144,9 @@ func TestAllocations_Restart_ACL(t *testing.T) {
 }
 
 func TestAllocations_GarbageCollectAll(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
+
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 
@@ -154,7 +156,7 @@ func TestAllocations_GarbageCollectAll(t *testing.T) {
 }
 
 func TestAllocations_GarbageCollectAll_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)
@@ -207,8 +209,9 @@ func TestAllocations_GarbageCollectAll_ACL(t *testing.T) {
 }
 
 func TestAllocations_GarbageCollect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
+
 	client, cleanup := TestClient(t, func(c *config.Config) {
 		c.GCDiskUsageThreshold = 100.0
 	})
@@ -250,7 +253,7 @@ func TestAllocations_GarbageCollect(t *testing.T) {
 }
 
 func TestAllocations_GarbageCollect_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)
@@ -267,6 +270,8 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "20s",
 	}
+
+	noSuchAllocErr := fmt.Errorf("No such allocation on client or allocation not eligible for GC")
 
 	// Wait for client to be running job
 	alloc := testutil.WaitForRunningWithToken(t, server.RPC, job, root.SecretID)[0]
@@ -306,7 +311,7 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.True(nstructs.IsErrUnknownAllocation(err))
+		require.Error(err, noSuchAllocErr)
 	}
 
 	// Try request with a management token
@@ -316,12 +321,12 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.True(nstructs.IsErrUnknownAllocation(err))
+		require.Error(err, noSuchAllocErr)
 	}
 }
 
 func TestAllocations_Signal(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
@@ -347,7 +352,7 @@ func TestAllocations_Signal(t *testing.T) {
 }
 
 func TestAllocations_Signal_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)
@@ -419,8 +424,9 @@ func TestAllocations_Signal_ACL(t *testing.T) {
 }
 
 func TestAllocations_Stats(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
+
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 
@@ -452,7 +458,7 @@ func TestAllocations_Stats(t *testing.T) {
 }
 
 func TestAllocations_Stats_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	server, addr, root, cleanupS := testACLServer(t, nil)
@@ -524,7 +530,7 @@ func TestAllocations_Stats_ACL(t *testing.T) {
 }
 
 func TestAlloc_ExecStreaming(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -628,7 +634,7 @@ OUTER:
 }
 
 func TestAlloc_ExecStreaming_NoAllocation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -683,7 +689,7 @@ func TestAlloc_ExecStreaming_NoAllocation(t *testing.T) {
 }
 
 func TestAlloc_ExecStreaming_DisableRemoteExec(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Start a server and client
@@ -739,7 +745,7 @@ func TestAlloc_ExecStreaming_DisableRemoteExec(t *testing.T) {
 }
 
 func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Start a server and client
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
@@ -756,7 +762,7 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
 
-	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, "",
+	policyGood := mock.NamespacePolicy(nstructs.DefaultNamespace, "",
 		[]string{acl.NamespaceCapabilityAllocExec, acl.NamespaceCapabilityReadFS})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
@@ -777,7 +783,7 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "good token",
@@ -842,7 +848,7 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 // TestAlloc_ExecStreaming_ACL_WithIsolation_Image asserts that token only needs
 // alloc-exec acl policy when image isolation is used
 func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	isolation := drivers.FSIsolationImage
 
 	// Start a server and client
@@ -871,11 +877,11 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
 
-	policyAllocExec := mock.NamespacePolicy(structs.DefaultNamespace, "",
+	policyAllocExec := mock.NamespacePolicy(nstructs.DefaultNamespace, "",
 		[]string{acl.NamespaceCapabilityAllocExec})
 	tokenAllocExec := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyAllocExec)
 
-	policyAllocNodeExec := mock.NamespacePolicy(structs.DefaultNamespace, "",
+	policyAllocNodeExec := mock.NamespacePolicy(nstructs.DefaultNamespace, "",
 		[]string{acl.NamespaceCapabilityAllocExec, acl.NamespaceCapabilityAllocNodeExec})
 	tokenAllocNodeExec := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyAllocNodeExec)
 
@@ -910,7 +916,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "alloc-exec token",
@@ -986,7 +992,8 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 // TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot asserts that token only needs
 // alloc-exec acl policy when chroot isolation is used
 func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
-	t.Parallel()
+	ci.SkipSlow(t, "flaky on GHA; too much disk IO")
+	ci.Parallel(t)
 
 	if runtime.GOOS != "linux" || unix.Geteuid() != 0 {
 		t.Skip("chroot isolation requires linux root")
@@ -1020,11 +1027,11 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
 
-	policyAllocExec := mock.NamespacePolicy(structs.DefaultNamespace, "",
+	policyAllocExec := mock.NamespacePolicy(nstructs.DefaultNamespace, "",
 		[]string{acl.NamespaceCapabilityAllocExec})
 	tokenAllocExec := mock.CreatePolicyAndToken(t, s.State(), 1009, "alloc-exec", policyAllocExec)
 
-	policyAllocNodeExec := mock.NamespacePolicy(structs.DefaultNamespace, "",
+	policyAllocNodeExec := mock.NamespacePolicy(nstructs.DefaultNamespace, "",
 		[]string{acl.NamespaceCapabilityAllocExec, acl.NamespaceCapabilityAllocNodeExec})
 	tokenAllocNodeExec := mock.CreatePolicyAndToken(t, s.State(), 1009, "alloc-node-exec", policyAllocNodeExec)
 
@@ -1059,7 +1066,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "alloc-exec token",
@@ -1135,7 +1142,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
 // TestAlloc_ExecStreaming_ACL_WithIsolation_None asserts that token needs
 // alloc-node-exec acl policy as well when no isolation is used
 func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	isolation := drivers.FSIsolationNone
 
 	// Start a server and client
@@ -1164,11 +1171,11 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
 
-	policyAllocExec := mock.NamespacePolicy(structs.DefaultNamespace, "",
+	policyAllocExec := mock.NamespacePolicy(nstructs.DefaultNamespace, "",
 		[]string{acl.NamespaceCapabilityAllocExec})
 	tokenAllocExec := mock.CreatePolicyAndToken(t, s.State(), 1009, "alloc-exec", policyAllocExec)
 
-	policyAllocNodeExec := mock.NamespacePolicy(structs.DefaultNamespace, "",
+	policyAllocNodeExec := mock.NamespacePolicy(nstructs.DefaultNamespace, "",
 		[]string{acl.NamespaceCapabilityAllocExec, acl.NamespaceCapabilityAllocNodeExec})
 	tokenAllocNodeExec := mock.CreatePolicyAndToken(t, s.State(), 1009, "alloc-node-exec", policyAllocNodeExec)
 
@@ -1203,12 +1210,12 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "alloc-exec token",
 			Token:         tokenAllocExec.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "alloc-node-exec token",

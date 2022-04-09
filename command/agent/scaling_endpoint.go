@@ -22,6 +22,12 @@ func (s *HTTPServer) scalingPoliciesListRequest(resp http.ResponseWriter, req *h
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
+	if job := req.URL.Query().Get("job"); job != "" {
+		args.Job = job
+	}
+	if tpe := req.URL.Query().Get("type"); tpe != "" {
+		args.Type = tpe
+	}
 
 	var out structs.ScalingPolicyListResponse
 	if err := s.agent.RPC("Scaling.ListPolicies", &args, &out); err != nil {
@@ -37,10 +43,7 @@ func (s *HTTPServer) scalingPoliciesListRequest(resp http.ResponseWriter, req *h
 
 func (s *HTTPServer) ScalingPolicySpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/scaling/policy/")
-	switch {
-	default:
-		return s.scalingPolicyCRUD(resp, req, path)
-	}
+	return s.scalingPolicyCRUD(resp, req, path)
 }
 
 func (s *HTTPServer) scalingPolicyCRUD(resp http.ResponseWriter, req *http.Request,
@@ -77,10 +80,20 @@ func (s *HTTPServer) scalingPolicyQuery(resp http.ResponseWriter, req *http.Requ
 
 func ApiScalingPolicyToStructs(count int, ap *api.ScalingPolicy) *structs.ScalingPolicy {
 	p := structs.ScalingPolicy{
-		Enabled: *ap.Enabled,
-		Max:     ap.Max,
-		Policy:  ap.Policy,
-		Target:  map[string]string{},
+		Type:   ap.Type,
+		Policy: ap.Policy,
+		Target: map[string]string{},
+	}
+	if ap.Enabled != nil {
+		p.Enabled = *ap.Enabled
+	} else {
+		p.Enabled = true
+	}
+	if ap.Max != nil {
+		p.Max = *ap.Max
+	} else {
+		// catch this in Validate
+		p.Max = -1
 	}
 	if ap.Min != nil {
 		p.Min = *ap.Min

@@ -15,18 +15,35 @@ import (
 )
 
 const (
-	FilterConstraintHostVolumes                 = "missing compatible host volumes"
-	FilterConstraintCSIPluginTemplate           = "CSI plugin %s is missing from client %s"
-	FilterConstraintCSIPluginUnhealthyTemplate  = "CSI plugin %s is unhealthy on client %s"
-	FilterConstraintCSIPluginMaxVolumesTemplate = "CSI plugin %s has the maximum number of volumes on client %s"
-	FilterConstraintCSIVolumesLookupFailed      = "CSI volume lookup failed"
-	FilterConstraintCSIVolumeNotFoundTemplate   = "missing CSI Volume %s"
-	FilterConstraintCSIVolumeNoReadTemplate     = "CSI volume %s is unschedulable or has exhausted its available reader claims"
-	FilterConstraintCSIVolumeNoWriteTemplate    = "CSI volume %s is unschedulable or is read-only"
-	FilterConstraintCSIVolumeInUseTemplate      = "CSI volume %s has exhausted its available writer claims" //
-	FilterConstraintDrivers                     = "missing drivers"
-	FilterConstraintDevices                     = "missing devices"
+	FilterConstraintHostVolumes                    = "missing compatible host volumes"
+	FilterConstraintCSIPluginTemplate              = "CSI plugin %s is missing from client %s"
+	FilterConstraintCSIPluginUnhealthyTemplate     = "CSI plugin %s is unhealthy on client %s"
+	FilterConstraintCSIPluginMaxVolumesTemplate    = "CSI plugin %s has the maximum number of volumes on client %s"
+	FilterConstraintCSIVolumesLookupFailed         = "CSI volume lookup failed"
+	FilterConstraintCSIVolumeNotFoundTemplate      = "missing CSI Volume %s"
+	FilterConstraintCSIVolumeNoReadTemplate        = "CSI volume %s is unschedulable or has exhausted its available reader claims"
+	FilterConstraintCSIVolumeNoWriteTemplate       = "CSI volume %s is unschedulable or is read-only"
+	FilterConstraintCSIVolumeInUseTemplate         = "CSI volume %s has exhausted its available writer claims"
+	FilterConstraintCSIVolumeGCdAllocationTemplate = "CSI volume %s has exhausted its available writer claims and is claimed by a garbage collected allocation %s; waiting for claim to be released"
+	FilterConstraintDrivers                        = "missing drivers"
+	FilterConstraintDevices                        = "missing devices"
+	FilterConstraintsCSIPluginTopology             = "did not meet topology requirement"
 )
+
+var (
+	// predatesBridgeFingerprint returns true if the constraint matches a version
+	// of nomad that predates the addition of the bridge network finger-printer,
+	// which was added in Nomad v0.12
+	predatesBridgeFingerprint = mustBridgeConstraint()
+)
+
+func mustBridgeConstraint() version.Constraints {
+	versionC, err := version.NewConstraint("< 0.12")
+	if err != nil {
+		panic(err)
+	}
+	return versionC
+}
 
 // FeasibleIterator is used to iteratively yield nodes that
 // match feasibility constraints. The iterators may manage
@@ -106,7 +123,8 @@ func (iter *StaticIterator) SetNodes(nodes []*structs.Node) {
 // is applied in-place
 func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 	// shuffle with the Fisher-Yates algorithm
-	shuffleNodes(nodes)
+	idx, _ := ctx.State().LatestIndex()
+	shuffleNodes(ctx.Plan(), idx, nodes)
 
 	// Create a static iterator
 	return NewStaticIterator(ctx, nodes)
@@ -212,23 +230,30 @@ func (c *CSIVolumeChecker) SetNamespace(namespace string) {
 	c.namespace = namespace
 }
 
-func (c *CSIVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
+func (c *CSIVolumeChecker) SetVolumes(allocName string, volumes map[string]*structs.VolumeRequest) {
+
 	xs := make(map[string]*structs.VolumeRequest)
+
 	// Filter to only CSI Volumes
 	for alias, req := range volumes {
 		if req.Type != structs.VolumeTypeCSI {
 			continue
 		}
-
-		xs[alias] = req
+		if req.PerAlloc {
+			// provide a unique volume source per allocation
+			copied := req.Copy()
+			copied.Source = copied.Source + structs.AllocSuffix(allocName)
+			xs[alias] = copied
+		} else {
+			xs[alias] = req
+		}
 	}
 	c.volumes = xs
 }
 
 func (c *CSIVolumeChecker) Feasible(n *structs.Node) bool {
-	hasPlugins, failReason := c.hasPlugins(n)
-
-	if hasPlugins {
+	ok, failReason := c.isFeasible(n)
+	if ok {
 		return true
 	}
 
@@ -236,7 +261,7 @@ func (c *CSIVolumeChecker) Feasible(n *structs.Node) bool {
 	return false
 }
 
-func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
+func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 	// We can mount the volume if
 	// - if required, a healthy controller plugin is running the driver
 	// - the volume has free claims, or this job owns the claims
@@ -251,7 +276,7 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 
 	// Find the count per plugin for this node, so that can enforce MaxVolumes
 	pluginCount := map[string]int64{}
-	iter, err := c.ctx.State().CSIVolumesByNodeID(ws, n.ID)
+	iter, err := c.ctx.State().CSIVolumesByNodeID(ws, "", n.ID)
 	if err != nil {
 		return false, FilterConstraintCSIVolumesLookupFailed
 	}
@@ -289,6 +314,15 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 			return false, fmt.Sprintf(FilterConstraintCSIPluginMaxVolumesTemplate, vol.PluginID, n.ID)
 		}
 
+		// CSI spec: "If requisite is specified, the provisioned
+		// volume MUST be accessible from at least one of the
+		// requisite topologies."
+		if len(vol.Topologies) > 0 {
+			if !plugin.NodeInfo.AccessibleTopology.MatchFound(vol.Topologies) {
+				return false, FilterConstraintsCSIPluginTopology
+			}
+		}
+
 		if req.ReadOnly {
 			if !vol.ReadSchedulable() {
 				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoReadTemplate, vol.ID)
@@ -297,15 +331,24 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 			if !vol.WriteSchedulable() {
 				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoWriteTemplate, vol.ID)
 			}
-			if vol.WriteFreeClaims() {
-				return true, ""
-			}
-
-			// Check the blocking allocations to see if they belong to this job
-			for id := range vol.WriteAllocs {
-				a, err := c.ctx.State().AllocByID(ws, id)
-				if err != nil || a == nil || a.Namespace != c.namespace || a.JobID != c.jobID {
-					return false, fmt.Sprintf(FilterConstraintCSIVolumeInUseTemplate, vol.ID)
+			if !vol.HasFreeWriteClaims() {
+				for id := range vol.WriteAllocs {
+					a, err := c.ctx.State().AllocByID(ws, id)
+					// the alloc for this blocking claim has been
+					// garbage collected but the volumewatcher hasn't
+					// finished releasing the claim (and possibly
+					// detaching the volume), so we need to block
+					// until it can be scheduled
+					if err != nil || a == nil {
+						return false, fmt.Sprintf(
+							FilterConstraintCSIVolumeGCdAllocationTemplate, vol.ID, id)
+					} else if a.Namespace != c.namespace || a.JobID != c.jobID {
+						// the blocking claim is for another live job
+						// so it's legitimately blocking more write
+						// claims
+						return false, fmt.Sprintf(
+							FilterConstraintCSIVolumeInUseTemplate, vol.ID)
+					}
 				}
 			}
 		}
@@ -333,16 +376,24 @@ func (c *NetworkChecker) SetNetwork(network *structs.NetworkResource) {
 	}
 
 	c.ports = make([]structs.Port, len(network.DynamicPorts)+len(network.ReservedPorts))
-	for _, port := range network.DynamicPorts {
-		c.ports = append(c.ports, port)
-	}
-	for _, port := range network.ReservedPorts {
-		c.ports = append(c.ports, port)
-	}
+	c.ports = append(c.ports, network.DynamicPorts...)
+	c.ports = append(c.ports, network.ReservedPorts...)
 }
 
 func (c *NetworkChecker) Feasible(option *structs.Node) bool {
 	if !c.hasNetwork(option) {
+
+		// special case - if the client is running a version older than 0.12 but
+		// the server is 0.12 or newer, we need to maintain an upgrade path for
+		// jobs looking for a bridge network that will not have been fingerprinted
+		// on the client (which was added in 0.12)
+		if c.networkMode == "bridge" {
+			sv, err := version.NewSemver(option.Attributes["nomad.version"])
+			if err == nil && predatesBridgeFingerprint.Check(sv) {
+				return true
+			}
+		}
+
 		c.ctx.Metrics().FilterNode(option, "missing network")
 		return false
 	}
@@ -359,15 +410,20 @@ func (c *NetworkChecker) Feasible(option *structs.Node) bool {
 func (c *NetworkChecker) hasHostNetworks(option *structs.Node) bool {
 	for _, port := range c.ports {
 		if port.HostNetwork != "" {
+			hostNetworkValue, hostNetworkOk := resolveTarget(port.HostNetwork, option)
+			if !hostNetworkOk {
+				c.ctx.Metrics().FilterNode(option, fmt.Sprintf("invalid host network %q template for port %q", port.HostNetwork, port.Label))
+				return false
+			}
 			found := false
 			for _, net := range option.NodeResources.NodeNetworks {
-				if net.HasAlias(port.HostNetwork) {
+				if net.HasAlias(hostNetworkValue.(string)) {
 					found = true
 					break
 				}
 			}
 			if !found {
-				c.ctx.Metrics().FilterNode(option, fmt.Sprintf("missing host network %q for port %q", port.HostNetwork, port.Label))
+				c.ctx.Metrics().FilterNode(option, fmt.Sprintf("missing host network %q for port %q", hostNetworkValue.(string), port.Label))
 				return false
 			}
 		}
@@ -381,7 +437,11 @@ func (c *NetworkChecker) hasNetwork(option *structs.Node) bool {
 	}
 
 	for _, nw := range option.NodeResources.Networks {
-		if nw.Mode == c.networkMode {
+		mode := nw.Mode
+		if mode == "" {
+			mode = "host"
+		}
+		if mode == c.networkMode {
 			return true
 		}
 	}

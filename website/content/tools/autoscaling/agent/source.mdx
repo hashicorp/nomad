@@ -1,0 +1,27 @@
+---
+layout: docs
+page_title: source Stanza - Nomad Autoscaler Agent Configuration
+description: >-
+  The "source" block is used to configure scaling target sources.
+---
+
+# `source` Block
+
+<Placement groups={['policy', 'source']} />
+
+The `source` block is used to configure scaling target sources.
+
+```hcl
+policy {
+  source "nomad" {
+    enabled = false
+  }
+}
+```
+
+Supported sources are `file` and `nomad`.
+
+### `source` Parameters
+
+- `enabled` `(bool: true)` - Defines if the scaling policy source should be
+  enabled or disabled.

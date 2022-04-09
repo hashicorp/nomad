@@ -14,17 +14,18 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
+	"github.com/creack/pty"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/fifo"
+	"github.com/hashicorp/nomad/client/lib/resources"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/kr/pty"
-
 	shelpers "github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/syndtr/gocapability/capability"
 )
 
 const (
@@ -34,6 +35,12 @@ const (
 	// ExecutorVersionPre0_9 is the version of executor use prior to the release
 	// of 0.9.x
 	ExecutorVersionPre0_9 = "1.1.0"
+
+	// IsolationModePrivate represents the private isolation mode for a namespace
+	IsolationModePrivate = "private"
+
+	// IsolationModeHost represents the host isolation mode for a namespace
+	IsolationModeHost = "host"
 )
 
 var (
@@ -85,6 +92,10 @@ type Executor interface {
 
 // ExecCommand holds the user command, args, and other isolation related
 // settings.
+//
+// Important (!): when adding fields, make sure to update the RPC methods in
+// grpcExecutorClient.Launch and grpcExecutorServer.Launch. Number of hours
+// spent tracking this down: too many.
 type ExecCommand struct {
 	// Cmd is the command that the user wants to run.
 	Cmd string
@@ -132,7 +143,17 @@ type ExecCommand struct {
 	// Devices are the the device nodes to be created in isolation environment
 	Devices []*drivers.DeviceConfig
 
+	// NetworkIsolation is the network isolation configuration.
 	NetworkIsolation *drivers.NetworkIsolationSpec
+
+	// ModePID is the PID isolation mode (private or host).
+	ModePID string
+
+	// ModeIPC is the IPC isolation mode (private or host).
+	ModeIPC string
+
+	// Capabilities are the linux capabilities to be enabled by the task driver.
+	Capabilities []string
 }
 
 // SetWriters sets the writer for the process stdout and stderr. This should
@@ -223,9 +244,9 @@ type UniversalExecutor struct {
 	exitState     *ProcessState
 	processExited chan interface{}
 
-	// resConCtx is used to track and cleanup additional resources created by
-	// the executor. Currently this is only used for cgroups.
-	resConCtx resourceContainerContext
+	// containment is used to cleanup resources created by the executor
+	// currently only used for killing pids via freezer cgroup on linux
+	containment resources.Containment
 
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
@@ -241,6 +262,7 @@ func NewExecutor(logger hclog.Logger) Executor {
 	if err := shelpers.Init(); err != nil {
 		logger.Error("unable to initialize stats", "error", err)
 	}
+
 	return &UniversalExecutor{
 		logger:         logger,
 		processExited:  make(chan interface{}),
@@ -266,7 +288,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	// setting the user of the process
 	if command.User != "" {
 		e.logger.Debug("running command as user", "user", command.User)
-		if err := e.runAs(command.User); err != nil {
+		if err := setCmdUser(&e.childCmd, command.User); err != nil {
 			return nil, err
 		}
 	}
@@ -279,9 +301,13 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 		return nil, err
 	}
 
-	// Setup cgroups on linux
-	if err := e.configureResourceContainer(os.Getpid()); err != nil {
-		return nil, err
+	// Maybe setup containment (for now, cgroups only only on linux)
+	if e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup {
+		pid := os.Getpid()
+		if err := e.configureResourceContainer(pid); err != nil {
+			e.logger.Error("failed to configure resource container", "pid", pid, "error", err)
+			return nil, err
+		}
 	}
 
 	stdout, err := e.commandCfg.Stdout()
@@ -406,6 +432,12 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			return nil
 		},
 		processStart: func() error {
+			if u := e.commandCfg.User; u != "" {
+				if err := setCmdUser(cmd, u); err != nil {
+					return err
+				}
+			}
+
 			return withNetworkIsolation(cmd.Start, e.commandCfg.NetworkIsolation)
 		},
 		processWait: func() (*os.ProcessState, error) {
@@ -476,8 +508,8 @@ var (
 	noSuchProcessErr = "no such process"
 )
 
-// Exit cleans up the alloc directory, destroys resource container and kills the
-// user process
+// Shutdown cleans up the alloc directory, destroys resource container and
+// kills the user process.
 func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 	e.logger.Debug("shutdown requested", "signal", signal, "grace_period_ms", grace.Round(time.Millisecond))
 	var merr multierror.Error
@@ -489,14 +521,14 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 
 	// If there is no process we can't shutdown
 	if e.childCmd.Process == nil {
-		e.logger.Warn("failed to shutdown", "error", "no process found")
+		e.logger.Warn("failed to shutdown due to missing process", "error", "no process found")
 		return fmt.Errorf("executor failed to shutdown error: no process found")
 	}
 
 	proc, err := os.FindProcess(e.childCmd.Process.Pid)
 	if err != nil {
 		err = fmt.Errorf("executor failed to find process: %v", err)
-		e.logger.Warn("failed to shutdown", "error", err)
+		e.logger.Warn("failed to shutdown due to inability to find process", "pid", e.childCmd.Process.Pid, "error", err)
 		return err
 	}
 
@@ -515,7 +547,7 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		}
 
 		if err := e.shutdownProcess(sig, proc); err != nil {
-			e.logger.Warn("failed to shutdown", "error", err)
+			e.logger.Warn("failed to shutdown process", "pid", proc.Pid, "error", err)
 			return err
 		}
 
@@ -536,22 +568,27 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		merr.Errors = append(merr.Errors, fmt.Errorf("process did not exit after 15 seconds"))
 	}
 
-	// Prefer killing the process via the resource container.
-	if !(e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup) {
-		if err := e.cleanupChildProcesses(proc); err != nil && err.Error() != finishedErr {
+	// prefer killing the process via platform-dependent resource containment
+	killByContainment := e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup
+
+	if !killByContainment {
+		// there is no containment, so kill the group the old fashioned way by sending
+		// SIGKILL to the negative pid
+		if cleanupChildrenErr := e.killProcessTree(proc); cleanupChildrenErr != nil && cleanupChildrenErr.Error() != finishedErr {
 			merr.Errors = append(merr.Errors,
-				fmt.Errorf("can't kill process with pid %d: %v", e.childCmd.Process.Pid, err))
+				fmt.Errorf("can't kill process with pid %d: %v", e.childCmd.Process.Pid, cleanupChildrenErr))
+		}
+	} else {
+		// there is containment available (e.g. cgroups) so defer to that implementation
+		// for killing the processes
+		if cleanupErr := e.containment.Cleanup(); cleanupErr != nil {
+			e.logger.Warn("containment cleanup failed", "error", cleanupErr)
+			merr.Errors = append(merr.Errors, cleanupErr)
 		}
 	}
 
-	if e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup {
-		if err := e.resConCtx.executorCleanup(); err != nil {
-			merr.Errors = append(merr.Errors, err)
-		}
-	}
-
-	if err := merr.ErrorOrNil(); err != nil {
-		e.logger.Warn("failed to shutdown", "error", err)
+	if err = merr.ErrorOrNil(); err != nil {
+		e.logger.Warn("failed to shutdown due to some error", "error", err.Error())
 		return err
 	}
 
@@ -662,4 +699,24 @@ func makeExecutable(binPath string) error {
 		}
 	}
 	return nil
+}
+
+// SupportedCaps returns a list of all supported capabilities in kernel.
+func SupportedCaps(allowNetRaw bool) []string {
+	var allCaps []string
+	last := capability.CAP_LAST_CAP
+	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
+	if last == capability.Cap(63) {
+		last = capability.CAP_BLOCK_SUSPEND
+	}
+	for _, cap := range capability.List() {
+		if cap > last {
+			continue
+		}
+		if !allowNetRaw && cap == capability.CAP_NET_RAW {
+			continue
+		}
+		allCaps = append(allCaps, fmt.Sprintf("CAP_%s", strings.ToUpper(cap.String())))
+	}
+	return allCaps
 }

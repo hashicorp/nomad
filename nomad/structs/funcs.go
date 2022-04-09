@@ -13,68 +13,81 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
-	"github.com/mitchellh/copystructure"
+	"github.com/hashicorp/nomad/helper"
 	"golang.org/x/crypto/blake2b"
 )
 
 // MergeMultierrorWarnings takes job warnings and canonicalize warnings and
 // merges them into a returnable string. Both the errors may be nil.
-func MergeMultierrorWarnings(warnings ...error) string {
-	var warningMsg multierror.Error
-	for _, warn := range warnings {
-		if warn != nil {
-			multierror.Append(&warningMsg, warn)
-		}
-	}
-
-	if len(warningMsg.Errors) == 0 {
+func MergeMultierrorWarnings(errs ...error) string {
+	if len(errs) == 0 {
 		return ""
 	}
 
-	// Set the formatter
-	warningMsg.ErrorFormat = warningsFormatter
-	return warningMsg.Error()
+	var mErr multierror.Error
+	_ = multierror.Append(&mErr, errs...)
+	mErr.ErrorFormat = warningsFormatter
+
+	return mErr.Error()
 }
 
 // warningsFormatter is used to format job warnings
 func warningsFormatter(es []error) string {
-	points := make([]string, len(es))
-	for i, err := range es {
-		points[i] = fmt.Sprintf("* %s", err)
+	sb := strings.Builder{}
+	sb.WriteString(fmt.Sprintf("%d warning(s):\n", len(es)))
+
+	for i := range es {
+		sb.WriteString(fmt.Sprintf("\n* %s", es[i]))
 	}
 
-	return fmt.Sprintf(
-		"%d warning(s):\n\n%s",
-		len(es), strings.Join(points, "\n"))
+	return sb.String()
 }
 
 // RemoveAllocs is used to remove any allocs with the given IDs
 // from the list of allocations
-func RemoveAllocs(alloc []*Allocation, remove []*Allocation) []*Allocation {
+func RemoveAllocs(allocs []*Allocation, remove []*Allocation) []*Allocation {
+	if len(remove) == 0 {
+		return allocs
+	}
 	// Convert remove into a set
 	removeSet := make(map[string]struct{})
 	for _, remove := range remove {
 		removeSet[remove.ID] = struct{}{}
 	}
 
-	n := len(alloc)
-	for i := 0; i < n; i++ {
-		if _, ok := removeSet[alloc[i].ID]; ok {
-			alloc[i], alloc[n-1] = alloc[n-1], nil
-			i--
-			n--
+	r := make([]*Allocation, 0, len(allocs))
+	for _, alloc := range allocs {
+		if _, ok := removeSet[alloc.ID]; !ok {
+			r = append(r, alloc)
 		}
 	}
+	return r
+}
 
-	alloc = alloc[:n]
-	return alloc
+func AllocSubset(allocs []*Allocation, subset []*Allocation) bool {
+	if len(subset) == 0 {
+		return true
+	}
+	// Convert allocs into a map
+	allocMap := make(map[string]struct{})
+	for _, alloc := range allocs {
+		allocMap[alloc.ID] = struct{}{}
+	}
+
+	for _, alloc := range subset {
+		if _, ok := allocMap[alloc.ID]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // FilterTerminalAllocs filters out all allocations in a terminal state and
-// returns the latest terminal allocations
+// returns the latest terminal allocations.
 func FilterTerminalAllocs(allocs []*Allocation) ([]*Allocation, map[string]*Allocation) {
 	terminalAllocsByName := make(map[string]*Allocation)
 	n := len(allocs)
+
 	for i := 0; i < n; i++ {
 		if allocs[i].TerminalStatus() {
 
@@ -92,7 +105,57 @@ func FilterTerminalAllocs(allocs []*Allocation) ([]*Allocation, map[string]*Allo
 			n--
 		}
 	}
+
 	return allocs[:n], terminalAllocsByName
+}
+
+// SplitTerminalAllocs splits allocs into non-terminal and terminal allocs, with
+// the terminal allocs indexed by node->alloc.name.
+func SplitTerminalAllocs(allocs []*Allocation) ([]*Allocation, TerminalByNodeByName) {
+	var alive []*Allocation
+	var terminal = make(TerminalByNodeByName)
+
+	for _, alloc := range allocs {
+		if alloc.TerminalStatus() {
+			terminal.Set(alloc)
+		} else {
+			alive = append(alive, alloc)
+		}
+	}
+
+	return alive, terminal
+}
+
+// TerminalByNodeByName is a map of NodeID->Allocation.Name->Allocation used by
+// the sysbatch scheduler for locating the most up-to-date terminal allocations.
+type TerminalByNodeByName map[string]map[string]*Allocation
+
+func (a TerminalByNodeByName) Set(allocation *Allocation) {
+	node := allocation.NodeID
+	name := allocation.Name
+
+	if _, exists := a[node]; !exists {
+		a[node] = make(map[string]*Allocation)
+	}
+
+	if previous, exists := a[node][name]; !exists {
+		a[node][name] = allocation
+	} else if previous.CreateIndex < allocation.CreateIndex {
+		// keep the newest version of the terminal alloc for the coordinate
+		a[node][name] = allocation
+	}
+}
+
+func (a TerminalByNodeByName) Get(nodeID, name string) (*Allocation, bool) {
+	if _, exists := a[nodeID]; !exists {
+		return nil, false
+	}
+
+	if _, exists := a[nodeID][name]; !exists {
+		return nil, false
+	}
+
+	return a[nodeID][name], true
 }
 
 // AllocsFit checks if a given set of allocations will fit on a node.
@@ -104,6 +167,9 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	// Compute the allocs' utilization from zero
 	used := new(ComparableResources)
 
+	reservedCores := map[uint16]struct{}{}
+	var coreOverlap bool
+
 	// For each alloc, add the resources
 	for _, alloc := range allocs {
 		// Do not consider the resource impact of terminal allocations
@@ -111,7 +177,21 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 			continue
 		}
 
-		used.Add(alloc.ComparableResources())
+		cr := alloc.ComparableResources()
+		used.Add(cr)
+
+		// Adding the comparable resource unions reserved core sets, need to check if reserved cores overlap
+		for _, core := range cr.Flattened.Cpu.ReservedCores {
+			if _, ok := reservedCores[core]; ok {
+				coreOverlap = true
+			} else {
+				reservedCores[core] = struct{}{}
+			}
+		}
+	}
+
+	if coreOverlap {
+		return false, "cores", used, nil
 	}
 
 	// Check that the node resources (after subtracting reserved) are a
@@ -126,8 +206,12 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	if netIdx == nil {
 		netIdx = NewNetworkIndex()
 		defer netIdx.Release()
-		if netIdx.SetNode(node) || netIdx.AddAllocs(allocs) {
-			return false, "reserved port collision", used, nil
+
+		if collision, reason := netIdx.SetNode(node); collision {
+			return false, fmt.Sprintf("reserved node port collision: %v", reason), used, nil
+		}
+		if collision, reason := netIdx.AddAllocs(allocs); collision {
+			return false, fmt.Sprintf("reserved alloc port collision: %v", reason), used, nil
 		}
 	}
 
@@ -194,7 +278,7 @@ func ScoreFitBinPack(node *Node, util *ComparableResources) float64 {
 	return score
 }
 
-// ScoreFitBinSpread computes a fit score to achieve spread behavior.
+// ScoreFitSpread computes a fit score to achieve spread behavior.
 // Score is in [0, 18]
 //
 // This is equivalent to Worst Fit of
@@ -277,32 +361,6 @@ func CopySliceNodeScoreMeta(s []*NodeScoreMeta) []*NodeScoreMeta {
 	return c
 }
 
-func CopyScalingPolicy(p *ScalingPolicy) *ScalingPolicy {
-	if p == nil {
-		return nil
-	}
-
-	opaquePolicyConfig, err := copystructure.Copy(p.Policy)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	c := ScalingPolicy{
-		ID:          p.ID,
-		Policy:      opaquePolicyConfig.(map[string]interface{}),
-		Enabled:     p.Enabled,
-		Min:         p.Min,
-		Max:         p.Max,
-		CreateIndex: p.CreateIndex,
-		ModifyIndex: p.ModifyIndex,
-	}
-	c.Target = make(map[string]string, len(p.Target))
-	for k, v := range p.Target {
-		c.Target[k] = v
-	}
-	return &c
-}
-
 // VaultPoliciesSet takes the structure returned by VaultPolicies and returns
 // the set of required policies
 func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
@@ -310,17 +368,47 @@ func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 
 	for _, tgp := range policies {
 		for _, tp := range tgp {
-			for _, p := range tp.Policies {
-				set[p] = struct{}{}
+			if tp != nil {
+				for _, p := range tp.Policies {
+					set[p] = struct{}{}
+				}
 			}
 		}
 	}
 
-	flattened := make([]string, 0, len(set))
-	for p := range set {
-		flattened = append(flattened, p)
+	return helper.SetToSliceString(set)
+}
+
+// VaultNamespaceSet takes the structure returned by VaultPolicies and
+// returns a set of required namespaces
+func VaultNamespaceSet(policies map[string]map[string]*Vault) []string {
+	set := make(map[string]struct{})
+
+	for _, tgp := range policies {
+		for _, tp := range tgp {
+			if tp != nil && tp.Namespace != "" {
+				set[tp.Namespace] = struct{}{}
+			}
+		}
 	}
-	return flattened
+
+	return helper.SetToSliceString(set)
+}
+
+// VaultEntityAliasesSet takes the structure returned by VaultPolicies and
+// returns a set of required entity aliases.
+func VaultEntityAliasesSet(blocks map[string]map[string]*Vault) []string {
+	set := make(map[string]struct{})
+
+	for _, task := range blocks {
+		for _, vault := range task {
+			if vault != nil && vault.EntityAlias != "" {
+				set[vault.EntityAlias] = struct{}{}
+			}
+		}
+	}
+
+	return helper.SetToSliceString(set)
 }
 
 // DenormalizeAllocationJobs is used to attach a job to all allocations that are
@@ -341,6 +429,17 @@ func AllocName(job, group string, idx uint) string {
 	return fmt.Sprintf("%s.%s[%d]", job, group, idx)
 }
 
+// AllocSuffix returns the alloc index suffix that was added by the AllocName
+// function above.
+func AllocSuffix(name string) string {
+	idx := strings.LastIndex(name, "[")
+	if idx == -1 {
+		return ""
+	}
+	suffix := name[idx:]
+	return suffix
+}
+
 // ACLPolicyListHash returns a consistent hash for a set of policies.
 func ACLPolicyListHash(policies []*ACLPolicy) string {
 	cacheKeyHash, err := blake2b.New256(nil)
@@ -348,8 +447,8 @@ func ACLPolicyListHash(policies []*ACLPolicy) string {
 		panic(err)
 	}
 	for _, policy := range policies {
-		cacheKeyHash.Write([]byte(policy.Name))
-		binary.Write(cacheKeyHash, binary.BigEndian, policy.ModifyIndex)
+		_, _ = cacheKeyHash.Write([]byte(policy.Name))
+		_ = binary.Write(cacheKeyHash, binary.BigEndian, policy.ModifyIndex)
 	}
 	cacheKey := string(cacheKeyHash.Sum(nil))
 	return cacheKey
@@ -397,7 +496,9 @@ func GenerateMigrateToken(allocID, nodeSecretID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	h.Write([]byte(allocID))
+
+	_, _ = h.Write([]byte(allocID))
+
 	return base64.URLEncoding.EncodeToString(h.Sum(nil)), nil
 }
 
@@ -408,7 +509,8 @@ func CompareMigrateToken(allocID, nodeSecretID, otherMigrateToken string) bool {
 	if err != nil {
 		return false
 	}
-	h.Write([]byte(allocID))
+
+	_, _ = h.Write([]byte(allocID))
 
 	otherBytes, err := base64.URLEncoding.DecodeString(otherMigrateToken)
 	if err != nil {
@@ -462,6 +564,12 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 				return nil, fmt.Errorf("invalid range: starting value (%v) less than ending (%v) value", end, start)
 			}
 
+			// Full range validation is below but prevent creating
+			// arbitrarily large arrays here
+			if end > MaxValidPort {
+				return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, end)
+			}
+
 			for i := start; i <= end; i++ {
 				ports[i] = struct{}{}
 			}
@@ -472,6 +580,12 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 
 	var results []uint64
 	for port := range ports {
+		if port == 0 {
+			return nil, fmt.Errorf("port must be > 0")
+		}
+		if port > MaxValidPort {
+			return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, port)
+		}
 		results = append(results, port)
 	}
 

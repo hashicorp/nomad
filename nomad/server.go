@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -26,6 +27,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/stats"
@@ -38,8 +40,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/volumewatcher"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
+	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 	"github.com/hashicorp/serf/serf"
+	"go.etcd.io/bbolt"
 )
 
 const (
@@ -216,6 +219,9 @@ type Server struct {
 	// consulCatalog is used for discovering other Nomad Servers via Consul
 	consulCatalog consul.CatalogAPI
 
+	// consulConfigEntries is used for managing Consul Configuration Entries.
+	consulConfigEntries ConsulConfigsAPI
+
 	// consulACLs is used for managing Consul Service Identity tokens.
 	consulACLs ConsulACLsAPI
 
@@ -223,7 +229,10 @@ type Server struct {
 	vault VaultClient
 
 	// Worker used for processing
-	workers []*Worker
+	workers          []*Worker
+	workerLock       sync.RWMutex
+	workerConfigLock sync.RWMutex
+	workersEventCh   chan interface{}
 
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *lru.TwoQueueCache
@@ -255,23 +264,23 @@ type Server struct {
 
 // Holds the RPC endpoints
 type endpoints struct {
-	Status     *Status
-	Node       *Node
-	Job        *Job
-	Eval       *Eval
-	Plan       *Plan
-	Alloc      *Alloc
-	CSIVolume  *CSIVolume
-	CSIPlugin  *CSIPlugin
-	Deployment *Deployment
-	Region     *Region
-	Search     *Search
-	Periodic   *Periodic
-	System     *System
-	Operator   *Operator
-	ACL        *ACL
-	Scaling    *Scaling
-	Enterprise *EnterpriseEndpoints
+	Status              *Status
+	Node                *Node
+	Job                 *Job
+	CSIVolume           *CSIVolume
+	CSIPlugin           *CSIPlugin
+	Deployment          *Deployment
+	Region              *Region
+	Search              *Search
+	Periodic            *Periodic
+	System              *System
+	Operator            *Operator
+	ACL                 *ACL
+	Scaling             *Scaling
+	Enterprise          *EnterpriseEndpoints
+	Event               *Event
+	Namespace           *Namespace
+	ServiceRegistration *ServiceRegistration
 
 	// Client endpoints
 	ClientStats       *ClientStats
@@ -283,11 +292,7 @@ type endpoints struct {
 
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
-func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulACLs consul.ACLsAPI) (*Server, error) {
-	// Check the protocol version
-	if err := config.CheckVersion(); err != nil {
-		return nil, err
-	}
+func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntries consul.ConfigAPI, consulACLs consul.ACLsAPI) (*Server, error) {
 
 	// Create an eval broker
 	evalBroker, err := NewEvalBroker(
@@ -337,6 +342,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulACLs consu
 		blockedEvals:     NewBlockedEvals(evalBroker, logger),
 		rpcTLS:           incomingTLS,
 		aclCache:         aclCache,
+		workersEventCh:   make(chan interface{}, 1),
 	}
 
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
@@ -362,7 +368,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulACLs consu
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
 
 	// Setup Consul (more)
-	s.setupConsul(consulACLs)
+	s.setupConsul(consulConfigEntries, consulACLs)
 
 	// Setup Vault
 	if err := s.setupVaultClient(); err != nil {
@@ -394,7 +400,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulACLs consu
 	}
 
 	// Initialize the scheduling workers
-	if err := s.setupWorkers(); err != nil {
+	if err := s.setupWorkers(s.shutdownCtx); err != nil {
 		s.Shutdown()
 		s.logger.Error("failed to start workers", "error", err)
 		return nil, fmt.Errorf("Failed to start workers: %v", err)
@@ -553,7 +559,7 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 
 	// Check if we can reload the RPC listener
 	if s.rpcListener == nil || s.rpcCancel == nil {
-		s.logger.Warn("unable to reload configuration due to uninitialized rpc listner")
+		s.logger.Warn("unable to reload configuration due to uninitialized rpc listener")
 		return fmt.Errorf("can't reload uninitialized RPC listener")
 	}
 
@@ -661,6 +667,9 @@ func (s *Server) Shutdown() error {
 
 	// Stop the Consul ACLs token revocations
 	s.consulACLs.Stop()
+
+	// Stop being able to set Configuration Entries
+	s.consulConfigEntries.Stop()
 
 	return nil
 }
@@ -781,7 +790,7 @@ func (s *Server) Reload(newConfig *Config) error {
 	// Handle the Vault reload. Vault should never be nil but just guard.
 	if s.vault != nil {
 		if err := s.vault.SetConfig(newConfig.VaultConfig); err != nil {
-			multierror.Append(&mErr, err)
+			_ = multierror.Append(&mErr, err)
 		}
 	}
 
@@ -793,8 +802,21 @@ func (s *Server) Reload(newConfig *Config) error {
 	if shouldReloadTLS {
 		if err := s.reloadTLSConnections(newConfig.TLSConfig); err != nil {
 			s.logger.Error("error reloading server TLS configuration", "error", err)
-			multierror.Append(&mErr, err)
+			_ = multierror.Append(&mErr, err)
 		}
+	}
+
+	if newConfig.LicenseEnv != "" || newConfig.LicensePath != "" {
+		s.EnterpriseState.ReloadLicense(newConfig)
+	}
+
+	// Because this is a new configuration, we extract the worker pool arguments without acquiring a lock
+	workerPoolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(newConfig)
+	if reload, newVals := shouldReloadSchedulers(s, workerPoolArgs); reload {
+		if newVals.IsValid() {
+			reloadSchedulers(s, newVals)
+		}
+		reloadSchedulers(s, newVals)
 	}
 
 	return mErr.ErrorOrNil()
@@ -1009,30 +1031,17 @@ func (s *Server) setupDeploymentWatcher() error {
 		raftShim,
 		s.staticEndpoints.Deployment,
 		s.staticEndpoints.Job,
-		deploymentwatcher.LimitStateQueriesPerSecond,
+		s.config.DeploymentQueryRateLimit,
 		deploymentwatcher.CrossDeploymentUpdateBatchDuration,
 	)
 
 	return nil
 }
 
-// setupVolumeWatcher creates a volume watcher that consumes the RPC
-// endpoints for state information and makes transitions via Raft through a
-// shim that provides the appropriate methods.
+// setupVolumeWatcher creates a volume watcher that sends CSI RPCs
 func (s *Server) setupVolumeWatcher() error {
-
-	// Create the raft shim type to restrict the set of raft methods that can be
-	// made
-	raftShim := &volumeWatcherRaftShim{
-		apply: s.raftApply,
-	}
-
-	// Create the volume watcher
 	s.volumeWatcher = volumewatcher.NewVolumesWatcher(
-		s.logger, raftShim,
-		s.staticEndpoints.ClientCSI,
-		volumewatcher.LimitStateQueriesPerSecond,
-		volumewatcher.CrossVolumeUpdateBatchDuration)
+		s.logger, s.staticEndpoints.CSIVolume, s.getLeaderAcl())
 
 	return nil
 }
@@ -1055,13 +1064,15 @@ func (s *Server) setupNodeDrainer() {
 }
 
 // setupConsul is used to setup Server specific consul components.
-func (s *Server) setupConsul(consulACLs consul.ACLsAPI) {
+func (s *Server) setupConsul(consulConfigEntries consul.ConfigAPI, consulACLs consul.ACLsAPI) {
+	s.consulConfigEntries = NewConsulConfigsAPI(consulConfigEntries, s.logger)
 	s.consulACLs = NewConsulACLsAPI(consulACLs, s.logger, s.purgeSITokenAccessors)
 }
 
 // setupVaultClient is used to set up the Vault API client.
 func (s *Server) setupVaultClient() error {
-	v, err := NewVaultClient(s.config.VaultConfig, s.logger, s.purgeVaultAccessors)
+	delegate := s.entVaultDelegate()
+	v, err := NewVaultClient(s.config.VaultConfig, s.logger, s.purgeVaultAccessors, delegate)
 	if err != nil {
 		return err
 	}
@@ -1136,24 +1147,28 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	if s.staticEndpoints.Status == nil {
 		// Initialize the list just once
 		s.staticEndpoints.ACL = &ACL{srv: s, logger: s.logger.Named("acl")}
-		s.staticEndpoints.Alloc = &Alloc{srv: s, logger: s.logger.Named("alloc")}
-		s.staticEndpoints.Eval = &Eval{srv: s, logger: s.logger.Named("eval")}
 		s.staticEndpoints.Job = NewJobEndpoints(s)
-		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")} // Add but don't register
 		s.staticEndpoints.CSIVolume = &CSIVolume{srv: s, logger: s.logger.Named("csi_volume")}
 		s.staticEndpoints.CSIPlugin = &CSIPlugin{srv: s, logger: s.logger.Named("csi_plugin")}
-		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
 		s.staticEndpoints.Operator = &Operator{srv: s, logger: s.logger.Named("operator")}
 		s.staticEndpoints.Operator.register()
 
 		s.staticEndpoints.Periodic = &Periodic{srv: s, logger: s.logger.Named("periodic")}
-		s.staticEndpoints.Plan = &Plan{srv: s, logger: s.logger.Named("plan")}
 		s.staticEndpoints.Region = &Region{srv: s, logger: s.logger.Named("region")}
 		s.staticEndpoints.Scaling = &Scaling{srv: s, logger: s.logger.Named("scaling")}
 		s.staticEndpoints.Status = &Status{srv: s, logger: s.logger.Named("status")}
 		s.staticEndpoints.System = &System{srv: s, logger: s.logger.Named("system")}
 		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
+		s.staticEndpoints.Namespace = &Namespace{srv: s}
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
+
+		// These endpoints are dynamic because they need access to the
+		// RPCContext, but they also need to be called directly in some cases,
+		// so store them into staticEndpoints for later access, but don't
+		// register them as static.
+		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
+		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")}
+		s.staticEndpoints.ServiceRegistration = &ServiceRegistration{srv: s}
 
 		// Client endpoints
 		s.staticEndpoints.ClientStats = &ClientStats{srv: s, logger: s.logger.Named("client_stats")}
@@ -1167,19 +1182,19 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 
 		s.staticEndpoints.Agent = &Agent{srv: s}
 		s.staticEndpoints.Agent.register()
+
+		s.staticEndpoints.Event = &Event{srv: s}
+		s.staticEndpoints.Event.register()
+
 	}
 
 	// Register the static handlers
 	server.Register(s.staticEndpoints.ACL)
-	server.Register(s.staticEndpoints.Alloc)
-	server.Register(s.staticEndpoints.Eval)
 	server.Register(s.staticEndpoints.Job)
 	server.Register(s.staticEndpoints.CSIVolume)
 	server.Register(s.staticEndpoints.CSIPlugin)
-	server.Register(s.staticEndpoints.Deployment)
 	server.Register(s.staticEndpoints.Operator)
 	server.Register(s.staticEndpoints.Periodic)
-	server.Register(s.staticEndpoints.Plan)
 	server.Register(s.staticEndpoints.Region)
 	server.Register(s.staticEndpoints.Scaling)
 	server.Register(s.staticEndpoints.Status)
@@ -1191,16 +1206,28 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.ClientCSI)
 	server.Register(s.staticEndpoints.FileSystem)
 	server.Register(s.staticEndpoints.Agent)
+	server.Register(s.staticEndpoints.Namespace)
 
 	// Create new dynamic endpoints and add them to the RPC server.
+	alloc := &Alloc{srv: s, ctx: ctx, logger: s.logger.Named("alloc")}
+	deployment := &Deployment{srv: s, ctx: ctx, logger: s.logger.Named("deployment")}
+	eval := &Eval{srv: s, ctx: ctx, logger: s.logger.Named("eval")}
 	node := &Node{srv: s, ctx: ctx, logger: s.logger.Named("client")}
+	plan := &Plan{srv: s, ctx: ctx, logger: s.logger.Named("plan")}
+	serviceReg := &ServiceRegistration{srv: s, ctx: ctx}
 
 	// Register the dynamic endpoints
+	server.Register(alloc)
+	server.Register(deployment)
+	server.Register(eval)
 	server.Register(node)
+	server.Register(plan)
+	_ = server.Register(serviceReg)
 }
 
 // setupRaft is used to setup and initialize Raft
 func (s *Server) setupRaft() error {
+
 	// If we have an unclean exit then attempt to close the Raft store.
 	defer func() {
 		if s.raft == nil && s.raftStore != nil {
@@ -1212,11 +1239,13 @@ func (s *Server) setupRaft() error {
 
 	// Create the FSM
 	fsmConfig := &FSMConfig{
-		EvalBroker: s.evalBroker,
-		Periodic:   s.periodicDispatcher,
-		Blocked:    s.blockedEvals,
-		Logger:     s.logger,
-		Region:     s.Region(),
+		EvalBroker:        s.evalBroker,
+		Periodic:          s.periodicDispatcher,
+		Blocked:           s.blockedEvals,
+		Logger:            s.logger,
+		Region:            s.Region(),
+		EnableEventBroker: s.config.EnableEventBroker,
+		EventBufferSize:   s.config.EventBufferSize,
 	}
 	var err error
 	s.fsm, err = NewFSM(fsmConfig)
@@ -1259,13 +1288,33 @@ func (s *Server) setupRaft() error {
 			return err
 		}
 
-		// Create the BoltDB backend
-		store, err := raftboltdb.NewBoltStore(filepath.Join(path, "raft.db"))
-		if err != nil {
+		// Check Raft version and update the version file.
+		raftVersionFilePath := filepath.Join(path, "version")
+		raftVersionFileContent := strconv.Itoa(int(s.config.RaftConfig.ProtocolVersion))
+		if err := s.checkRaftVersionFile(raftVersionFilePath); err != nil {
 			return err
+		}
+		if err := ioutil.WriteFile(raftVersionFilePath, []byte(raftVersionFileContent), 0644); err != nil {
+			return fmt.Errorf("failed to write Raft version file: %v", err)
+		}
+
+		// Create the BoltDB backend, with NoFreelistSync option
+		store, raftErr := raftboltdb.New(raftboltdb.Options{
+			Path:   filepath.Join(path, "raft.db"),
+			NoSync: false, // fsync each log write
+			BoltOptions: &bbolt.Options{
+				NoFreelistSync: s.config.RaftBoltNoFreelistSync,
+			},
+		})
+		if raftErr != nil {
+			return raftErr
 		}
 		s.raftStore = store
 		stable = store
+		s.logger.Info("setting up raft bolt store", "no_freelist_sync", s.config.RaftBoltNoFreelistSync)
+
+		// Start publishing bboltdb metrics
+		go store.RunMetrics(s.shutdownCtx, 0)
 
 		// Wrap the store in a LogCache to improve performance
 		cacheStore, err := raft.NewLogCache(raftLogCacheSize, store)
@@ -1295,7 +1344,7 @@ func (s *Server) setupRaft() error {
 		peersFile := filepath.Join(path, "peers.json")
 		peersInfoFile := filepath.Join(path, "peers.info")
 		if _, err := os.Stat(peersInfoFile); os.IsNotExist(err) {
-			if err := ioutil.WriteFile(peersInfoFile, []byte(peersInfoContent), 0755); err != nil {
+			if err := ioutil.WriteFile(peersInfoFile, []byte(peersInfoContent), 0644); err != nil {
 				return fmt.Errorf("failed to write peers.info file: %v", err)
 			}
 
@@ -1364,6 +1413,42 @@ func (s *Server) setupRaft() error {
 	return nil
 }
 
+// checkRaftVersionFile reads the Raft version file and returns an error if
+// the Raft version is incompatible with the current version configured.
+// Provide best-effort check if the file cannot be read.
+func (s *Server) checkRaftVersionFile(path string) error {
+	raftVersion := s.config.RaftConfig.ProtocolVersion
+	baseWarning := "use the 'nomad operator raft list-peers' command to make sure the Raft protocol versions are consistent"
+
+	_, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		s.logger.Warn(fmt.Sprintf("unable to read Raft version file, %s", baseWarning), "error", err)
+		return nil
+	}
+
+	v, err := ioutil.ReadFile(path)
+	if err != nil {
+		s.logger.Warn(fmt.Sprintf("unable to read Raft version file, %s", baseWarning), "error", err)
+		return nil
+	}
+
+	previousVersion, err := strconv.Atoi(strings.TrimSpace(string(v)))
+	if err != nil {
+		s.logger.Warn(fmt.Sprintf("invalid Raft protocol version in Raft version file, %s", baseWarning), "error", err)
+		return nil
+	}
+
+	if raft.ProtocolVersion(previousVersion) > raftVersion {
+		return fmt.Errorf("downgrading Raft is not supported, current version is %d, previous version was %d", raftVersion, previousVersion)
+	}
+
+	return nil
+}
+
 // setupSerf is used to setup and initialize a Serf
 func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (*serf.Serf, error) {
 	conf.Init()
@@ -1371,9 +1456,8 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.Tags["role"] = "nomad"
 	conf.Tags["region"] = s.config.Region
 	conf.Tags["dc"] = s.config.Datacenter
-	conf.Tags["vsn"] = fmt.Sprintf("%d", structs.ApiMajorVersion)
-	conf.Tags["mvn"] = fmt.Sprintf("%d", structs.ApiMinorVersion)
 	conf.Tags["build"] = s.config.Build
+	conf.Tags["vsn"] = deprecatedAPIMajorVersionStr // for Nomad <= v1.2 compat
 	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
 	conf.Tags["id"] = s.config.NodeID
 	conf.Tags["rpc_addr"] = s.clientRpcAdvertise.(*net.TCPAddr).IP.String()         // Address that clients will use to RPC to servers
@@ -1406,7 +1490,6 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 			return nil, err
 		}
 	}
-	conf.ProtocolVersion = protocolVersionMap[s.config.ProtocolVersion]
 	conf.RejoinAfterLeave = true
 	// LeavePropagateDelay is used to make sure broadcasted leave intents propagate
 	// This value was tuned using https://www.serf.io/docs/internals/simulator.html to
@@ -1421,17 +1504,167 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	return serf.Create(conf)
 }
 
+// shouldReloadSchedulers checks the new config to determine if the scheduler worker pool
+// needs to be updated. If so, returns true and a pointer to a populated SchedulerWorkerPoolArgs
+func shouldReloadSchedulers(s *Server, newPoolArgs *SchedulerWorkerPoolArgs) (bool, *SchedulerWorkerPoolArgs) {
+	s.workerConfigLock.RLock()
+	defer s.workerConfigLock.RUnlock()
+
+	newSchedulers := make([]string, len(newPoolArgs.EnabledSchedulers))
+	copy(newSchedulers, newPoolArgs.EnabledSchedulers)
+	sort.Strings(newSchedulers)
+
+	if s.config.NumSchedulers != newPoolArgs.NumSchedulers {
+		return true, newPoolArgs
+	}
+
+	oldSchedulers := make([]string, len(s.config.EnabledSchedulers))
+	copy(oldSchedulers, s.config.EnabledSchedulers)
+	sort.Strings(oldSchedulers)
+
+	for i, v := range newSchedulers {
+		if oldSchedulers[i] != v {
+			return true, newPoolArgs
+		}
+	}
+
+	return false, nil
+}
+
+// SchedulerWorkerPoolArgs are the two key configuration options for a Nomad server's
+// scheduler worker pool. Before using, you should always verify that they are rational
+// using IsValid() or IsInvalid()
+type SchedulerWorkerPoolArgs struct {
+	NumSchedulers     int
+	EnabledSchedulers []string
+}
+
+// IsInvalid returns true when the SchedulerWorkerPoolArgs.IsValid is false
+func (swpa SchedulerWorkerPoolArgs) IsInvalid() bool {
+	return !swpa.IsValid()
+}
+
+// IsValid verifies that the pool arguments are valid. That is, they have a non-negative
+// numSchedulers value and the enabledSchedulers list has _core and only refers to known
+// schedulers.
+func (swpa SchedulerWorkerPoolArgs) IsValid() bool {
+	if swpa.NumSchedulers < 0 {
+		// the pool has to be non-negative
+		return false
+	}
+
+	// validate the scheduler list against the builtin types and _core
+	foundCore := false
+	for _, sched := range swpa.EnabledSchedulers {
+		if sched == structs.JobTypeCore {
+			foundCore = true
+			continue // core is not in the BuiltinSchedulers map, so we need to skip that check
+		}
+
+		if _, ok := scheduler.BuiltinSchedulers[sched]; !ok {
+			return false // found an unknown scheduler in the list; bailing out
+		}
+	}
+
+	return foundCore
+}
+
+// Copy returns a clone of a SchedulerWorkerPoolArgs struct. Concurrent access
+// concerns should be managed by the caller.
+func (swpa SchedulerWorkerPoolArgs) Copy() SchedulerWorkerPoolArgs {
+	out := SchedulerWorkerPoolArgs{
+		NumSchedulers:     swpa.NumSchedulers,
+		EnabledSchedulers: make([]string, len(swpa.EnabledSchedulers)),
+	}
+	copy(out.EnabledSchedulers, swpa.EnabledSchedulers)
+
+	return out
+}
+
+func getSchedulerWorkerPoolArgsFromConfigLocked(c *Config) *SchedulerWorkerPoolArgs {
+	return &SchedulerWorkerPoolArgs{
+		NumSchedulers:     c.NumSchedulers,
+		EnabledSchedulers: c.EnabledSchedulers,
+	}
+}
+
+// GetSchedulerWorkerInfo returns a slice of WorkerInfos from all of
+// the running scheduler workers.
+func (s *Server) GetSchedulerWorkersInfo() []WorkerInfo {
+	s.workerLock.RLock()
+	defer s.workerLock.RUnlock()
+	out := make([]WorkerInfo, len(s.workers))
+	for i := 0; i < len(s.workers); i = i + 1 {
+		workerInfo := s.workers[i].Info()
+		out[i] = workerInfo.Copy()
+	}
+	return out
+}
+
+// GetSchedulerWorkerConfig returns a clean copy of the server's current scheduler
+// worker config.
+func (s *Server) GetSchedulerWorkerConfig() SchedulerWorkerPoolArgs {
+	s.workerConfigLock.RLock()
+	defer s.workerConfigLock.RUnlock()
+	return getSchedulerWorkerPoolArgsFromConfigLocked(s.config).Copy()
+}
+
+func (s *Server) SetSchedulerWorkerConfig(newArgs SchedulerWorkerPoolArgs) SchedulerWorkerPoolArgs {
+	if reload, newVals := shouldReloadSchedulers(s, &newArgs); reload {
+		if newVals.IsValid() {
+			reloadSchedulers(s, newVals)
+		}
+	}
+	return s.GetSchedulerWorkerConfig()
+}
+
+// reloadSchedulers validates the passed scheduler worker pool arguments, locks the
+// workerLock, applies the new values to the s.config, and restarts the pool
+func reloadSchedulers(s *Server, newArgs *SchedulerWorkerPoolArgs) {
+	if newArgs == nil || newArgs.IsInvalid() {
+		s.logger.Info("received invalid arguments for scheduler pool reload; ignoring")
+		return
+	}
+
+	// reload will modify the server.config so it needs a write lock
+	s.workerConfigLock.Lock()
+	defer s.workerConfigLock.Unlock()
+
+	// reload modifies the worker slice so it needs a write lock
+	s.workerLock.Lock()
+	defer s.workerLock.Unlock()
+
+	// TODO: If EnabledSchedulers didn't change, we can scale rather than drain and rebuild
+	s.config.NumSchedulers = newArgs.NumSchedulers
+	s.config.EnabledSchedulers = newArgs.EnabledSchedulers
+	s.setupNewWorkersLocked()
+}
+
 // setupWorkers is used to start the scheduling workers
-func (s *Server) setupWorkers() error {
+func (s *Server) setupWorkers(ctx context.Context) error {
+	poolArgs := s.GetSchedulerWorkerConfig()
+
+	go s.listenWorkerEvents()
+
+	// we will be writing to the worker slice
+	s.workerLock.Lock()
+	defer s.workerLock.Unlock()
+
+	return s.setupWorkersLocked(ctx, poolArgs)
+}
+
+// setupWorkersLocked directly manipulates the server.config, so it is not safe to
+// call concurrently. Use setupWorkers() or call this with server.workerLock set.
+func (s *Server) setupWorkersLocked(ctx context.Context, poolArgs SchedulerWorkerPoolArgs) error {
 	// Check if all the schedulers are disabled
-	if len(s.config.EnabledSchedulers) == 0 || s.config.NumSchedulers == 0 {
+	if len(poolArgs.EnabledSchedulers) == 0 || poolArgs.NumSchedulers == 0 {
 		s.logger.Warn("no enabled schedulers")
 		return nil
 	}
 
 	// Check if the core scheduler is not enabled
 	foundCore := false
-	for _, sched := range s.config.EnabledSchedulers {
+	for _, sched := range poolArgs.EnabledSchedulers {
 		if sched == structs.JobTypeCore {
 			foundCore = true
 			continue
@@ -1445,16 +1678,99 @@ func (s *Server) setupWorkers() error {
 		return fmt.Errorf("invalid configuration: %q scheduler not enabled", structs.JobTypeCore)
 	}
 
+	s.logger.Info("starting scheduling worker(s)", "num_workers", poolArgs.NumSchedulers, "schedulers", poolArgs.EnabledSchedulers)
 	// Start the workers
+
 	for i := 0; i < s.config.NumSchedulers; i++ {
-		if w, err := NewWorker(s); err != nil {
+		if w, err := NewWorker(ctx, s, poolArgs); err != nil {
 			return err
 		} else {
+			s.logger.Debug("started scheduling worker", "id", w.ID(), "index", i+1, "of", s.config.NumSchedulers)
+
 			s.workers = append(s.workers, w)
 		}
 	}
-	s.logger.Info("starting scheduling worker(s)", "num_workers", s.config.NumSchedulers, "schedulers", s.config.EnabledSchedulers)
+	s.logger.Info("started scheduling worker(s)", "num_workers", s.config.NumSchedulers, "schedulers", s.config.EnabledSchedulers)
 	return nil
+}
+
+// setupNewWorkersLocked directly manipulates the server.config, so it is not safe to
+// call concurrently. Use reloadWorkers() or call this with server.workerLock set.
+func (s *Server) setupNewWorkersLocked() error {
+	// make a copy of the s.workers array so we can safely stop those goroutines asynchronously
+	oldWorkers := make([]*Worker, len(s.workers))
+	defer s.stopOldWorkers(oldWorkers)
+	for i, w := range s.workers {
+		oldWorkers[i] = w
+	}
+	s.logger.Info(fmt.Sprintf("marking %v current schedulers for shutdown", len(oldWorkers)))
+
+	// build a clean backing array and call setupWorkersLocked like setupWorkers
+	// does in the normal startup path
+	s.workers = make([]*Worker, 0, s.config.NumSchedulers)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s.config).Copy()
+	err := s.setupWorkersLocked(s.shutdownCtx, poolArgs)
+	if err != nil {
+		return err
+	}
+
+	// if we're the leader, we need to pause all of the pausable workers.
+	s.handlePausableWorkers(s.IsLeader())
+
+	return nil
+}
+
+// stopOldWorkers is called once setupNewWorkers has created the new worker
+// array to asynchronously stop each of the old workers individually.
+func (s *Server) stopOldWorkers(oldWorkers []*Worker) {
+	workerCount := len(oldWorkers)
+	for i, w := range oldWorkers {
+		s.logger.Debug("stopping old scheduling worker", "id", w.ID(), "index", i+1, "of", workerCount)
+		go w.Stop()
+	}
+}
+
+// listenWorkerEvents listens for events emitted by scheduler workers and log
+// them if necessary. Some events may be skipped to avoid polluting logs with
+// duplicates.
+func (s *Server) listenWorkerEvents() {
+	loggedAt := make(map[string]time.Time)
+
+	gcDeadline := 4 * time.Hour
+	gcTicker := time.NewTicker(10 * time.Second)
+	defer gcTicker.Stop()
+
+	for {
+		select {
+		case <-gcTicker.C:
+			for k, v := range loggedAt {
+				if time.Since(v) >= gcDeadline {
+					delete(loggedAt, k)
+				}
+			}
+		case e := <-s.workersEventCh:
+			switch event := e.(type) {
+			case *scheduler.PortCollisionEvent:
+				if event == nil || event.Node == nil {
+					continue
+				}
+
+				if _, ok := loggedAt[event.Node.ID]; ok {
+					continue
+				}
+
+				eventJson, err := json.Marshal(event.Sanitize())
+				if err != nil {
+					s.logger.Debug("failed to encode event to JSON", "error", err)
+				}
+				s.logger.Warn("unexpected node port collision, refer to https://www.nomadproject.io/s/port-plan-failure for more information",
+					"node_id", event.Node.ID, "reason", event.Reason, "event", string(eventJson))
+				loggedAt[event.Node.ID] = time.Now()
+			}
+		case <-s.shutdownCh:
+			return
+		}
+	}
 }
 
 // numPeers is used to check on the number of known peers, including the local
@@ -1596,9 +1912,14 @@ func (s *Server) Stats() map[string]map[string]string {
 
 // EmitRaftStats is used to export metrics about raft indexes and state store snapshot index
 func (s *Server) EmitRaftStats(period time.Duration, stopCh <-chan struct{}) {
+	timer, stop := helper.NewSafeTimer(period)
+	defer stop()
+
 	for {
+		timer.Reset(period)
+
 		select {
-		case <-time.After(period):
+		case <-timer.C:
 			lastIndex := s.raft.LastIndex()
 			metrics.SetGauge([]string{"raft", "lastIndex"}, float32(lastIndex))
 			appliedIndex := s.raft.AppliedIndex()
@@ -1613,6 +1934,32 @@ func (s *Server) EmitRaftStats(period time.Duration, stopCh <-chan struct{}) {
 			return
 		}
 	}
+}
+
+// setReplyQueryMeta is an RPC helper function to properly populate the query
+// meta for a read response. It populates the index using a floored value
+// obtained from the index table as well as leader and last contact
+// information.
+//
+// If the passed state.StateStore is nil, a new handle is obtained.
+func (s *Server) setReplyQueryMeta(stateStore *state.StateStore, table string, reply *structs.QueryMeta) error {
+
+	// Protect against an empty stateStore object to avoid panic.
+	if stateStore == nil {
+		stateStore = s.fsm.State()
+	}
+
+	// Get the index from the index table and ensure the value is floored to at
+	// least one.
+	index, err := stateStore.Index(table)
+	if err != nil {
+		return err
+	}
+	reply.Index = helper.Uint64Max(1, index)
+
+	// Set the query response.
+	s.setQueryMeta(reply)
+	return nil
 }
 
 // Region returns the region of the server
@@ -1650,7 +1997,7 @@ func (s *Server) ClusterID() (string, error) {
 
 	// try to load the cluster ID from state store
 	fsmState := s.fsm.State()
-	existingMeta, err := fsmState.ClusterMetadata()
+	existingMeta, err := fsmState.ClusterMetadata(nil)
 	if err != nil {
 		s.logger.Named("core").Error("failed to get cluster ID", "error", err)
 		return "", err
@@ -1685,34 +2032,34 @@ func (s *Server) isSingleServerCluster() bool {
 const peersInfoContent = `
 As of Nomad 0.5.5, the peers.json file is only used for recovery
 after an outage. The format of this file depends on what the server has
-configured for its Raft protocol version. Please see the agent configuration
-page at https://www.consul.io/docs/agent/options.html#_raft_protocol for more
+configured for its Raft protocol version. Please see the server configuration
+page at https://www.nomadproject.io/docs/configuration/server#raft_protocol for more
 details about this parameter.
 For Raft protocol version 2 and earlier, this should be formatted as a JSON
-array containing the address and port of each Consul server in the cluster, like
+array containing the address and port of each Nomad server in the cluster, like
 this:
 [
-  "10.1.0.1:8300",
-  "10.1.0.2:8300",
-  "10.1.0.3:8300"
+  "10.1.0.1:4647",
+  "10.1.0.2:4647",
+  "10.1.0.3:4647"
 ]
 For Raft protocol version 3 and later, this should be formatted as a JSON
 array containing the node ID, address:port, and suffrage information of each
-Consul server in the cluster, like this:
+Nomad server in the cluster, like this:
 [
   {
     "id": "adf4238a-882b-9ddc-4a9d-5b6758e4159e",
-    "address": "10.1.0.1:8300",
+    "address": "10.1.0.1:4647",
     "non_voter": false
   },
   {
     "id": "8b6dda82-3103-11e7-93ae-92361f002671",
-    "address": "10.1.0.2:8300",
+    "address": "10.1.0.2:4647",
     "non_voter": false
   },
   {
     "id": "97e17742-3103-11e7-93ae-92361f002671",
-    "address": "10.1.0.3:8300",
+    "address": "10.1.0.3:4647",
     "non_voter": false
   }
 ]

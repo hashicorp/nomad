@@ -29,7 +29,7 @@ Usage: nomad check [options]
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Agent Check Options:
 

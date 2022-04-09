@@ -6,7 +6,7 @@ job "sidecar_task_name" {
       name = "example"
 
       connect {
-        sidecar_service = {}
+        sidecar_service {}
 
         sidecar_task {
           name = "my-sidecar"

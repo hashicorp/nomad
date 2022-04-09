@@ -16,34 +16,34 @@ export default function RollingArray(maxLength, ...items) {
   array.maxLength = maxLength;
 
   // Bring the length back down to maxLength by removing from the front
-  array._limit = function() {
+  array._limit = function () {
     const surplus = this.length - this.maxLength;
     if (surplus > 0) {
       this.splice(0, surplus);
     }
   };
 
-  array.push = function(...items) {
+  array.push = function (...items) {
     push.apply(this, items);
     this._limit();
     return this.length;
   };
 
-  array.splice = function(...args) {
+  array.splice = function (...args) {
     const returnValue = splice.apply(this, args);
     this._limit();
     return returnValue;
   };
 
   // All mutable array methods build on top of insertAt
-  array.insertAt = function(...args) {
+  array.insertAt = function (...args) {
     const returnValue = insertAt.apply(this, args);
     this._limit();
     this.arrayContentDidChange();
     return returnValue;
   };
 
-  array.unshift = function() {
+  array.unshift = function () {
     throw new Error('Cannot unshift onto a RollingArray');
   };
 

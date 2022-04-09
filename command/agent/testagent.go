@@ -2,7 +2,6 @@ package agent
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -10,13 +9,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 	"time"
-
-	testing "github.com/mitchellh/go-testing-interface"
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
+	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -39,7 +38,7 @@ var TempDir = os.TempDir()
 // is removed after shutdown.
 type TestAgent struct {
 	// T is the testing object
-	T testing.T
+	T testing.TB
 
 	// Name is an optional name of the agent.
 	Name string
@@ -55,9 +54,8 @@ type TestAgent struct {
 	// when Shutdown() is called.
 	Config *Config
 
-	// LogOutput is the sink for the logs. If nil, logs are written
-	// to os.Stderr.
-	LogOutput io.Writer
+	// logger is used for logging
+	logger hclog.InterceptLogger
 
 	// DataDir is the data directory which is used when Config.DataDir
 	// is not set. It is created automatically and removed when
@@ -67,7 +65,11 @@ type TestAgent struct {
 	// Key is the optional encryption key for the keyring.
 	Key string
 
-	// Server is a reference to the started HTTP endpoint.
+	// All HTTP servers started. Used to prevent server leaks and preserve
+	// backwards compatibility.
+	Servers []*HTTPServer
+
+	// Server is a reference to the primary, started HTTP endpoint.
 	// It is valid after Start().
 	Server *HTTPServer
 
@@ -84,17 +86,21 @@ type TestAgent struct {
 
 	// Enterprise specifies if the agent is enterprise or not
 	Enterprise bool
+
+	// shutdown is set to true if agent has been shutdown
+	shutdown bool
 }
 
 // NewTestAgent returns a started agent with the given name and
 // configuration. The caller should call Shutdown() to stop the agent and
 // remove temporary directories.
-func NewTestAgent(t testing.T, name string, configCallback func(*Config)) *TestAgent {
+func NewTestAgent(t testing.TB, name string, configCallback func(*Config)) *TestAgent {
 	a := &TestAgent{
 		T:              t,
 		Name:           name,
 		ConfigCallback: configCallback,
 		Enterprise:     EnterpriseTestAgent,
+		logger:         testlog.HCLogger(t),
 	}
 
 	a.Start()
@@ -109,12 +115,14 @@ func (a *TestAgent) Start() *TestAgent {
 	if a.Config == nil {
 		a.Config = a.config()
 	}
+	defaultEnterpriseTestServerConfig(a.Config.Server)
+
 	if a.Config.DataDir == "" {
 		name := "agent"
 		if a.Name != "" {
 			name = a.Name + "-agent"
 		}
-		name = strings.Replace(name, "/", "_", -1)
+		name = strings.ReplaceAll(name, "/", "_")
 		d, err := ioutil.TempDir(TempDir, name)
 		if err != nil {
 			a.T.Fatalf("Error creating data dir %s: %s", filepath.Join(TempDir, name), err)
@@ -140,11 +148,15 @@ RETRY:
 		a.Config.NodeName = fmt.Sprintf("Node %d", a.Config.Ports.RPC)
 	}
 
+	// Create a null logger before initializing the keyring. This is typically
+	// done using the agent's logger. However, it hasn't been created yet.
+	logger := hclog.NewNullLogger()
+
 	// write the keyring
 	if a.Key != "" {
 		writeKey := func(key, filename string) {
 			path := filepath.Join(a.Config.DataDir, filename)
-			if err := initKeyring(path, key); err != nil {
+			if err := initKeyring(path, key, logger); err != nil {
 				a.T.Fatalf("Error creating keyring %s: %s", path, err)
 			}
 		}
@@ -214,7 +226,7 @@ RETRY:
 	if a.Config.ACL.Enabled && a.Config.Server.Enabled && a.Config.ACL.PolicyTTL != 0 {
 		a.RootToken = mock.ACLManagementToken()
 		state := a.Agent.server.State()
-		if err := state.BootstrapACLTokens(1, 0, a.RootToken); err != nil {
+		if err := state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, a.RootToken); err != nil {
 			a.T.Fatalf("token bootstrap failed: %v", err)
 		}
 	}
@@ -222,11 +234,6 @@ RETRY:
 }
 
 func (a *TestAgent) start() (*Agent, error) {
-	if a.LogOutput == nil {
-		prefix := fmt.Sprintf("%v:%v ", a.Config.BindAddr, a.Config.Ports.RPC)
-		a.LogOutput = testlog.NewPrefixWriter(a.T, prefix)
-	}
-
 	inm := metrics.NewInmemSink(10*time.Second, time.Minute)
 	metrics.NewGlobal(metrics.DefaultConfig("service-name"), inm)
 
@@ -234,31 +241,32 @@ func (a *TestAgent) start() (*Agent, error) {
 		return nil, fmt.Errorf("unable to set up in memory metrics needed for agent initialization")
 	}
 
-	logger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
-		Name:       "agent",
-		Level:      hclog.LevelFromString(a.Config.LogLevel),
-		Output:     a.LogOutput,
-		JSONFormat: a.Config.LogJson,
-	})
-
-	agent, err := NewAgent(a.Config, logger, a.LogOutput, inm)
+	agent, err := NewAgent(a.Config, a.logger, testlog.NewWriter(a.T), inm)
 	if err != nil {
 		return nil, err
 	}
 
 	// Setup the HTTP server
-	http, err := NewHTTPServer(agent, a.Config)
+	httpServers, err := NewHTTPServers(agent, a.Config)
 	if err != nil {
 		return agent, err
 	}
 
-	a.Server = http
+	// TODO: investigate if there is a way to remove the requirement by updating test.
+	// Initial pass at implementing this is https://github.com/kevinschoonover/nomad/tree/tests.
+	a.Servers = httpServers
+	a.Server = httpServers[0]
 	return agent, nil
 }
 
 // Shutdown stops the agent and removes the data directory if it is
 // managed by the test agent.
 func (a *TestAgent) Shutdown() error {
+	if a.shutdown {
+		return nil
+	}
+	a.shutdown = true
+
 	defer freeport.Return(a.ports)
 
 	defer func() {
@@ -271,7 +279,10 @@ func (a *TestAgent) Shutdown() error {
 	ch := make(chan error, 1)
 	go func() {
 		defer close(ch)
-		a.Server.Shutdown()
+		for _, srv := range a.Servers {
+			srv.Shutdown()
+		}
+
 		ch <- a.Agent.Shutdown()
 	}()
 
@@ -325,14 +336,20 @@ func (a *TestAgent) pickRandomPorts(c *Config) {
 	}
 }
 
-// TestConfig returns a unique default configuration for testing an
-// agent.
+// TestConfig returns a unique default configuration for testing an agent.
 func (a *TestAgent) config() *Config {
 	conf := DevConfig(nil)
 
 	// Customize the server configuration
 	config := nomad.DefaultConfig()
 	conf.NomadConfig = config
+
+	// Setup client config
+	conf.ClientConfig = client.DefaultConfig()
+
+	conf.LogLevel = testlog.HCLoggerTestLevel().String()
+	conf.NomadConfig.Logger = a.logger
+	conf.ClientConfig.Logger = a.logger
 
 	// Set the name
 	conf.NodeName = a.Name

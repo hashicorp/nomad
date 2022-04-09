@@ -253,7 +253,6 @@ func (l *logRotatorWrapper) start(openFn func() (io.ReadCloser, error)) {
 			reader.Close()
 		}
 	}()
-	return
 }
 
 // Close closes the rotator and the process writer to ensure that the Wait

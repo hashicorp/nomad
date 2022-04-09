@@ -1,5 +1,10 @@
-{{#if visible}}
-  <LinkTo @query={{hash currentPage=page}} class={{attrs.class}} data-test-pager={{test}}>
+{{#if this.visible}}
+  <LinkTo
+    @query={{hash currentPage=this.page}}
+    class={{this.class}}
+    data-test-pager={{this.test}}
+    aria-label={{this.label}}
+  >
     {{yield}}
   </LinkTo>
 {{/if}}

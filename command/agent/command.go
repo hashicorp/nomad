@@ -26,10 +26,11 @@ import (
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper"
-	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/helper/logging"
 	"github.com/hashicorp/nomad/helper/winsvc"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
@@ -50,7 +51,7 @@ type Command struct {
 
 	args           []string
 	agent          *Agent
-	httpServer     *HTTPServer
+	httpServers    []*HTTPServer
 	logFilter      *logutils.LevelFilter
 	logOutput      io.Writer
 	retryJoinErrCh chan struct{}
@@ -225,7 +226,7 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Merge in the enterprise overlay
-	config.Merge(DefaultEntConfig())
+	config = config.Merge(DefaultEntConfig())
 
 	for _, path := range configPath {
 		current, err := LoadConfig(path)
@@ -285,20 +286,38 @@ func (c *Command) readConfig() *Config {
 		config.PluginDir = filepath.Join(config.DataDir, "plugins")
 	}
 
+	// License configuration options
+	config.Server.LicenseEnv = os.Getenv("NOMAD_LICENSE")
+	if config.Server.LicensePath == "" {
+		config.Server.LicensePath = os.Getenv("NOMAD_LICENSE_PATH")
+	}
+
 	config.Server.DefaultSchedulerConfig.Canonicalize()
 
-	if !c.isValidConfig(config, cmdConfig) {
+	if !c.IsValidConfig(config, cmdConfig) {
 		return nil
 	}
 
 	return config
 }
 
-func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
+func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
 		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
+		return false
+	}
+
+	// Check that the region does not contain invalid characters
+	if strings.ContainsAny(config.Region, "\000") {
+		c.Ui.Error("Region contains invalid characters")
+		return false
+	}
+
+	// Check that the datacenter name does not contain invalid characters
+	if strings.ContainsAny(config.Datacenter, "\000") {
+		c.Ui.Error("Datacenter contains invalid characters")
 		return false
 	}
 
@@ -354,10 +373,44 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
+	if config.Client.MinDynamicPort < 0 || config.Client.MinDynamicPort > structs.MaxValidPort {
+		c.Ui.Error(fmt.Sprintf("Invalid dynamic port range: min_dynamic_port=%d", config.Client.MinDynamicPort))
+		return false
+	}
+	if config.Client.MaxDynamicPort < 0 || config.Client.MaxDynamicPort > structs.MaxValidPort {
+		c.Ui.Error(fmt.Sprintf("Invalid dynamic port range: max_dynamic_port=%d", config.Client.MaxDynamicPort))
+		return false
+	}
+	if config.Client.MinDynamicPort > config.Client.MaxDynamicPort {
+		c.Ui.Error(fmt.Sprintf("Invalid dynamic port range: min_dynamic_port=%d and max_dynamic_port=%d", config.Client.MinDynamicPort, config.Client.MaxDynamicPort))
+		return false
+	}
+
+	if config.Client.Reserved == nil {
+		// Coding error; should always be set by DefaultConfig()
+		c.Ui.Error("client.reserved must be initialized. Please report a bug.")
+		return false
+	}
+
+	if ports := config.Client.Reserved.ReservedPorts; ports != "" {
+		if _, err := structs.ParsePortRanges(ports); err != nil {
+			c.Ui.Error(fmt.Sprintf("reserved.reserved_ports %q invalid: %v", ports, err))
+			return false
+		}
+	}
+
+	for _, hn := range config.Client.HostNetworks {
+		if _, err := structs.ParsePortRanges(hn.ReservedPorts); err != nil {
+			c.Ui.Error(fmt.Sprintf("host_network[%q].reserved_ports %q invalid: %v",
+				hn.Name, hn.ReservedPorts, err))
+			return false
+		}
+	}
+
 	if !config.DevMode {
 		// Ensure that we have the directories we need to run.
 		if config.Server.Enabled && config.DataDir == "" {
-			c.Ui.Error("Must specify data directory")
+			c.Ui.Error(`Must specify "data_dir" config option or "data-dir" CLI flag`)
 			return false
 		}
 
@@ -381,39 +434,45 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 		}
 	}
 
+	// ProtocolVersion has never been used. Warn if it is set as someone
+	// has probably made a mistake.
+	if config.Server.ProtocolVersion != 0 {
+		c.agent.logger.Warn("Please remove deprecated protocol_version field from config.")
+	}
+
 	return true
 }
 
-// setupLoggers is used to setup the logGate, and our logOutput
-func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) {
+// SetupLoggers is used to set up the logGate, and our logOutput
+func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwriter.Writer, io.Writer) {
 	// Setup logging. First create the gated log writer, which will
 	// store logs until we're ready to show them. Then create the level
 	// filter, filtering logs of the specified level.
 	logGate := &gatedwriter.Writer{
-		Writer: &cli.UiWriter{Ui: c.Ui},
+		Writer: &cli.UiWriter{Ui: ui},
 	}
 
-	c.logFilter = LevelFilter()
-	c.logFilter.MinLevel = logutils.LogLevel(strings.ToUpper(config.LogLevel))
-	c.logFilter.Writer = logGate
-	if !ValidateLevelFilter(c.logFilter.MinLevel, c.logFilter) {
-		c.Ui.Error(fmt.Sprintf(
+	logFilter := LevelFilter()
+	logFilter.MinLevel = logutils.LogLevel(strings.ToUpper(config.LogLevel))
+	logFilter.Writer = logGate
+	if !ValidateLevelFilter(logFilter.MinLevel, logFilter) {
+		ui.Error(fmt.Sprintf(
 			"Invalid log level: %s. Valid log levels are: %v",
-			c.logFilter.MinLevel, c.logFilter.Levels))
-		return nil, nil
+			logFilter.MinLevel, logFilter.Levels))
+		return nil, nil, nil
 	}
 
 	// Create a log writer, and wrap a logOutput around it
-	writers := []io.Writer{c.logFilter}
+	writers := []io.Writer{logFilter}
 
 	// Check if syslog is enabled
 	if config.EnableSyslog {
 		l, err := gsyslog.NewLogger(gsyslog.LOG_NOTICE, config.SyslogFacility, "nomad")
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
-			return nil, nil
+			ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
+			return nil, nil, nil
 		}
-		writers = append(writers, &SyslogWrapper{l, c.logFilter})
+		writers = append(writers, &SyslogWrapper{l, logFilter})
 	}
 
 	// Check if file logging is enabled
@@ -430,8 +489,8 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) 
 		if config.LogRotateDuration != "" {
 			duration, err := time.ParseDuration(config.LogRotateDuration)
 			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Failed to parse log rotation duration: %v", err))
-				return nil, nil
+				ui.Error(fmt.Sprintf("Failed to parse log rotation duration: %v", err))
+				return nil, nil, nil
 			}
 			logRotateDuration = duration
 		} else {
@@ -440,7 +499,7 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) 
 		}
 
 		logFile := &logFile{
-			logFilter: c.logFilter,
+			logFilter: logFilter,
 			fileName:  fileName,
 			logPath:   dir,
 			duration:  logRotateDuration,
@@ -451,29 +510,31 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) 
 		writers = append(writers, logFile)
 	}
 
-	c.logOutput = io.MultiWriter(writers...)
-	log.SetOutput(c.logOutput)
-	return logGate, c.logOutput
+	logOutput := io.MultiWriter(writers...)
+	return logFilter, logGate, logOutput
 }
 
 // setupAgent is used to start the agent and various interfaces
 func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOutput io.Writer, inmem *metrics.InmemSink) error {
 	c.Ui.Output("Starting Nomad agent...")
+
 	agent, err := NewAgent(config, logger, logOutput, inmem)
 	if err != nil {
+		// log the error as well, so it appears at the end
+		logger.Error("error starting agent", "error", err)
 		c.Ui.Error(fmt.Sprintf("Error starting agent: %s", err))
 		return err
 	}
 	c.agent = agent
 
 	// Setup the HTTP server
-	http, err := NewHTTPServer(agent, config)
+	httpServers, err := NewHTTPServers(agent, config)
 	if err != nil {
 		agent.Shutdown()
 		c.Ui.Error(fmt.Sprintf("Error starting http server: %s", err))
 		return err
 	}
-	c.httpServer = http
+	c.httpServers = httpServers
 
 	// If DisableUpdateCheck is not enabled, set up update checking
 	// (DisableUpdateCheck is false by default)
@@ -606,8 +667,19 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
+	// reset UI to prevent prefixed json output
+	if config.LogJson {
+		c.Ui = &cli.BasicUi{
+			Reader:      os.Stdin,
+			Writer:      os.Stdout,
+			ErrorWriter: os.Stderr,
+		}
+	}
+
 	// Setup the log outputs
-	logGate, logOutput := c.setupLoggers(config)
+	logFilter, logGate, logOutput := SetupLoggers(c.Ui, config)
+	c.logFilter = logFilter
+	c.logOutput = logOutput
 	if logGate == nil {
 		return 1
 	}
@@ -619,6 +691,15 @@ func (c *Command) Run(args []string) int {
 		Output:     logOutput,
 		JSONFormat: config.LogJson,
 	})
+
+	// Wrap log messages emitted with the 'log' package.
+	// These usually come from external dependencies.
+	log.SetOutput(logger.StandardWriter(&hclog.StandardLoggerOptions{
+		InferLevels:              true,
+		InferLevelsWithTimestamp: true,
+	}))
+	log.SetPrefix("")
+	log.SetFlags(0)
 
 	// Swap out UI implementation if json logging is enabled
 	if config.LogJson {
@@ -650,8 +731,10 @@ func (c *Command) Run(args []string) int {
 
 		// Shutdown the http server at the end, to ease debugging if
 		// the agent takes long to shutdown
-		if c.httpServer != nil {
-			c.httpServer.Shutdown()
+		if len(c.httpServers) > 0 {
+			for _, srv := range c.httpServers {
+				srv.Shutdown()
+			}
 		}
 	}()
 
@@ -852,13 +935,15 @@ WAIT:
 func (c *Command) reloadHTTPServer() error {
 	c.agent.logger.Info("reloading HTTP server with new TLS configuration")
 
-	c.httpServer.Shutdown()
+	for _, srv := range c.httpServers {
+		srv.Shutdown()
+	}
 
-	http, err := NewHTTPServer(c.agent, c.agent.config)
+	httpServers, err := NewHTTPServers(c.agent, c.agent.config)
 	if err != nil {
 		return err
 	}
-	c.httpServer = http
+	c.httpServers = httpServers
 
 	return nil
 }
@@ -868,7 +953,7 @@ func (c *Command) handleReload() {
 	c.Ui.Output("Reloading configuration...")
 	newConf := c.readConfig()
 	if newConf == nil {
-		c.Ui.Error(fmt.Sprintf("Failed to reload configs"))
+		c.Ui.Error("Failed to reload configs")
 		return
 	}
 
@@ -966,8 +1051,7 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 	metricsConf.EnableHostname = !telConfig.DisableHostname
 
 	// Prefer the hostname as a label.
-	metricsConf.EnableHostnameLabel = !telConfig.DisableHostname &&
-		!telConfig.DisableTaggedMetrics && !telConfig.BackwardsCompatibleMetrics
+	metricsConf.EnableHostnameLabel = !telConfig.DisableHostname
 
 	if telConfig.UseNodeName {
 		metricsConf.HostName = config.NodeName

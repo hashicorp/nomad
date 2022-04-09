@@ -1,3 +1,4 @@
+import Ember from 'ember';
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { action, computed } from '@ember/object';
@@ -5,13 +6,15 @@ import { equal, gt } from '@ember/object/computed';
 import RSVP from 'rsvp';
 import Log from 'nomad-ui/utils/classes/log';
 import timeout from 'nomad-ui/utils/timeout';
-import { classNames } from '@ember-decorators/component';
+import { classNames, attributeBindings } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 @classic
 @classNames('boxed-section', 'task-log')
+@attributeBindings('data-test-file-viewer')
 export default class File extends Component {
   @service token;
+  @service system;
 
   'data-test-file-viewer' = true;
 
@@ -37,7 +40,10 @@ export default class File extends Component {
 
     if (contentType.startsWith('image/')) {
       return 'image';
-    } else if (contentType.startsWith('text/') || contentType.startsWith('application/json')) {
+    } else if (
+      contentType.startsWith('text/') ||
+      contentType.startsWith('application/json')
+    ) {
       return 'stream';
     } else {
       return 'unknown';
@@ -51,10 +57,19 @@ export default class File extends Component {
   isStreaming = false;
 
   @computed('allocation.id', 'taskState.name', 'file')
-  get catUrl() {
+  get catUrlWithoutRegion() {
     const taskUrlPrefix = this.taskState ? `${this.taskState.name}/` : '';
     const encodedPath = encodeURIComponent(`${taskUrlPrefix}${this.file}`);
     return `/v1/client/fs/cat/${this.allocation.id}?path=${encodedPath}`;
+  }
+
+  @computed('catUrlWithoutRegion', 'system.{activeRegion,shouldIncludeRegion}')
+  get catUrl() {
+    let apiPath = this.catUrlWithoutRegion;
+    if (this.system.shouldIncludeRegion) {
+      apiPath += `&region=${this.system.activeRegion}`;
+    }
+    return apiPath;
   }
 
   @computed('isLarge', 'mode')
@@ -79,7 +94,7 @@ export default class File extends Component {
     return this.useServer ? url : `//${address}${url}`;
   }
 
-  @computed('taskState.name', 'file', 'mode')
+  @computed('file', 'mode', 'stat.Size', 'taskState.name')
   get fileParams() {
     // The Log class handles encoding query params
     const taskUrlPrefix = this.taskState ? `${this.taskState.name}/` : '';
@@ -97,7 +112,14 @@ export default class File extends Component {
     }
   }
 
-  @computed('fileUrl', 'fileParams', 'mode')
+  @computed(
+    'clientTimeout',
+    'fileParams',
+    'fileUrl',
+    'mode',
+    'serverTimeout',
+    'useServer'
+  )
   get logger() {
     // The cat and readat APIs are in plainText while the stream API is always encoded.
     const plainText = this.mode === 'head' || this.mode === 'tail';
@@ -105,15 +127,15 @@ export default class File extends Component {
     // If the file request can't settle in one second, the client
     // must be unavailable and the server should be used instead
     const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
-    const logFetch = url =>
+    const logFetch = (url) =>
       RSVP.race([this.token.authorizedRequest(url), timeout(timing)]).then(
-        response => {
+        (response) => {
           if (!response || !response.ok) {
             this.nextErrorState(response);
           }
           return response;
         },
-        error => this.nextErrorState(error)
+        (error) => this.nextErrorState(error)
       );
 
     return Log.create({
@@ -154,5 +176,42 @@ export default class File extends Component {
   @action
   failoverToServer() {
     this.set('useServer', true);
+  }
+
+  @action
+  async downloadFile() {
+    const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
+
+    try {
+      const response = await RSVP.race([
+        this.token.authorizedRequest(this.catUrlWithoutRegion),
+        timeout(timing),
+      ]);
+
+      if (!response || !response.ok) throw new Error('file download timeout');
+
+      // Don't download in tests. Unfortunately, since the download is triggered
+      // by the download attribute of the ephemeral anchor element, there's no
+      // way to stub this in tests.
+      if (Ember.testing) return;
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const downloadAnchor = document.createElement('a');
+
+      downloadAnchor.href = url;
+      downloadAnchor.target = '_blank';
+      downloadAnchor.rel = 'noopener noreferrer';
+      downloadAnchor.download = this.file;
+
+      // Appending the element to the DOM is required for Firefox support
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      this.nextErrorState(err);
+    }
   }
 }

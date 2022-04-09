@@ -3,6 +3,7 @@ package scheduler
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -14,6 +15,7 @@ import (
 func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
 	state := state.TestStateStore(t)
 	plan := &structs.Plan{
+		EvalID:          uuid.Generate(),
 		NodeUpdate:      make(map[string][]*structs.Allocation),
 		NodeAllocation:  make(map[string][]*structs.Allocation),
 		NodePreemptions: make(map[string][]*structs.Allocation),
@@ -21,11 +23,13 @@ func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
 
 	logger := testlog.HCLogger(t)
 
-	ctx := NewEvalContext(state, plan, logger)
+	ctx := NewEvalContext(nil, state, plan, logger)
 	return state, ctx
 }
 
 func TestEvalContext_ProposedAlloc(t *testing.T) {
+	ci.Parallel(t)
+
 	state, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -108,7 +112,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 	}
 	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
 	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
-	require.NoError(t, state.UpsertAllocs(1000, []*structs.Allocation{alloc1, alloc2}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 
 	// Add a planned eviction to alloc1
 	plan := ctx.Plan()
@@ -155,7 +159,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 // See https://github.com/hashicorp/nomad/issues/6787
 //
 func TestEvalContext_ProposedAlloc_EvictPreempt(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	state, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -247,7 +251,7 @@ func TestEvalContext_ProposedAlloc_EvictPreempt(t *testing.T) {
 	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(allocEvict.JobID)))
 	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(allocPreempt.JobID)))
 	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(allocPropose.JobID)))
-	require.NoError(t, state.UpsertAllocs(1000, []*structs.Allocation{allocEvict, allocPreempt, allocPropose}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{allocEvict, allocPreempt, allocPropose}))
 
 	// Plan to evict one alloc and preempt another
 	plan := ctx.Plan()
@@ -260,6 +264,8 @@ func TestEvalContext_ProposedAlloc_EvictPreempt(t *testing.T) {
 }
 
 func TestEvalEligibility_JobStatus(t *testing.T) {
+	ci.Parallel(t)
+
 	e := NewEvalEligibility()
 	cc := "v1:100"
 
@@ -281,6 +287,8 @@ func TestEvalEligibility_JobStatus(t *testing.T) {
 }
 
 func TestEvalEligibility_TaskGroupStatus(t *testing.T) {
+	ci.Parallel(t)
+
 	e := NewEvalEligibility()
 	cc := "v1:100"
 	tg := "foo"
@@ -303,6 +311,8 @@ func TestEvalEligibility_TaskGroupStatus(t *testing.T) {
 }
 
 func TestEvalEligibility_SetJob(t *testing.T) {
+	ci.Parallel(t)
+
 	e := NewEvalEligibility()
 	ne1 := &structs.Constraint{
 		LTarget: "${attr.kernel.name}",
@@ -348,6 +358,8 @@ func TestEvalEligibility_SetJob(t *testing.T) {
 }
 
 func TestEvalEligibility_GetClasses(t *testing.T) {
+	ci.Parallel(t)
+
 	e := NewEvalEligibility()
 	e.SetJobEligibility(true, "v1:1")
 	e.SetJobEligibility(false, "v1:2")
@@ -371,6 +383,8 @@ func TestEvalEligibility_GetClasses(t *testing.T) {
 	require.Equal(t, expClasses, actClasses)
 }
 func TestEvalEligibility_GetClasses_JobEligible_TaskGroupIneligible(t *testing.T) {
+	ci.Parallel(t)
+
 	e := NewEvalEligibility()
 	e.SetJobEligibility(true, "v1:1")
 	e.SetTaskGroupEligibility(false, "foo", "v1:1")
@@ -391,4 +405,53 @@ func TestEvalEligibility_GetClasses_JobEligible_TaskGroupIneligible(t *testing.T
 
 	actClasses := e.GetClasses()
 	require.Equal(t, expClasses, actClasses)
+}
+
+func TestPortCollisionEvent_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	ev := &PortCollisionEvent{
+		Reason: "original",
+		Node:   mock.Node(),
+		Allocations: []*structs.Allocation{
+			mock.Alloc(),
+			mock.Alloc(),
+		},
+		NetIndex: structs.NewNetworkIndex(),
+	}
+	ev.NetIndex.SetNode(ev.Node)
+
+	// Copy must be equal
+	evCopy := ev.Copy()
+	require.Equal(t, ev, evCopy)
+
+	// Modifying the copy should not affect the original value
+	evCopy.Reason = "copy"
+	require.NotEqual(t, ev.Reason, evCopy.Reason)
+
+	evCopy.Node.Attributes["test"] = "true"
+	require.NotEqual(t, ev.Node, evCopy.Node)
+
+	evCopy.Allocations = append(evCopy.Allocations, mock.Alloc())
+	require.NotEqual(t, ev.Allocations, evCopy.Allocations)
+
+	evCopy.NetIndex.AddReservedPortRange("1000-2000")
+	require.NotEqual(t, ev.NetIndex, evCopy.NetIndex)
+}
+
+func TestPortCollisionEvent_Sanitize(t *testing.T) {
+	ci.Parallel(t)
+
+	ev := &PortCollisionEvent{
+		Reason: "original",
+		Node:   mock.Node(),
+		Allocations: []*structs.Allocation{
+			mock.Alloc(),
+		},
+		NetIndex: structs.NewNetworkIndex(),
+	}
+
+	cleanEv := ev.Sanitize()
+	require.Empty(t, cleanEv.Node.SecretID)
+	require.Nil(t, cleanEv.Allocations[0].Job)
 }

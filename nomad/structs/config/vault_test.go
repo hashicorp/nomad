@@ -4,15 +4,19 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestVaultConfig_Merge(t *testing.T) {
+	ci.Parallel(t)
+
 	trueValue, falseValue := true, false
 	c1 := &VaultConfig{
 		Enabled:              &falseValue,
 		Token:                "1",
 		Role:                 "1",
+		EntityAlias:          "1",
 		AllowUnauthenticated: &trueValue,
 		TaskTokenTTL:         "1",
 		Addr:                 "1",
@@ -28,6 +32,7 @@ func TestVaultConfig_Merge(t *testing.T) {
 		Enabled:              &trueValue,
 		Token:                "2",
 		Role:                 "2",
+		EntityAlias:          "2",
 		AllowUnauthenticated: &falseValue,
 		TaskTokenTTL:         "2",
 		Addr:                 "2",
@@ -43,6 +48,7 @@ func TestVaultConfig_Merge(t *testing.T) {
 		Enabled:              &trueValue,
 		Token:                "2",
 		Role:                 "2",
+		EntityAlias:          "2",
 		AllowUnauthenticated: &falseValue,
 		TaskTokenTTL:         "2",
 		Addr:                 "2",
@@ -61,6 +67,8 @@ func TestVaultConfig_Merge(t *testing.T) {
 }
 
 func TestVaultConfig_IsEqual(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	trueValue, falseValue := true, false
@@ -68,6 +76,7 @@ func TestVaultConfig_IsEqual(t *testing.T) {
 		Enabled:              &falseValue,
 		Token:                "1",
 		Role:                 "1",
+		EntityAlias:          "1",
 		AllowUnauthenticated: &trueValue,
 		TaskTokenTTL:         "1",
 		Addr:                 "1",
@@ -83,6 +92,7 @@ func TestVaultConfig_IsEqual(t *testing.T) {
 		Enabled:              &falseValue,
 		Token:                "1",
 		Role:                 "1",
+		EntityAlias:          "1",
 		AllowUnauthenticated: &trueValue,
 		TaskTokenTTL:         "1",
 		Addr:                 "1",
@@ -100,6 +110,7 @@ func TestVaultConfig_IsEqual(t *testing.T) {
 		Enabled:              &trueValue,
 		Token:                "1",
 		Role:                 "1",
+		EntityAlias:          "1",
 		AllowUnauthenticated: &trueValue,
 		TaskTokenTTL:         "1",
 		Addr:                 "1",
@@ -115,6 +126,7 @@ func TestVaultConfig_IsEqual(t *testing.T) {
 		Enabled:              &falseValue,
 		Token:                "1",
 		Role:                 "1",
+		EntityAlias:          "1",
 		AllowUnauthenticated: &trueValue,
 		TaskTokenTTL:         "1",
 		Addr:                 "1",

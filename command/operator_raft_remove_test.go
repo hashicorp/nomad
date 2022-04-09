@@ -3,22 +3,23 @@ package command
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestOperator_Raft_RemovePeers_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &OperatorRaftRemoveCommand{}
 }
 
 func TestOperator_Raft_RemovePeer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	c := &OperatorRaftRemoveCommand{Meta: Meta{Ui: ui}}
 	args := []string{"-address=" + addr, "-peer-address=nope", "-peer-id=nope"}
 
@@ -41,12 +42,12 @@ func TestOperator_Raft_RemovePeer(t *testing.T) {
 }
 
 func TestOperator_Raft_RemovePeerAddress(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	c := &OperatorRaftRemoveCommand{Meta: Meta{Ui: ui}}
 	args := []string{"-address=" + addr, "-peer-address=nope"}
 
@@ -60,12 +61,12 @@ func TestOperator_Raft_RemovePeerAddress(t *testing.T) {
 }
 
 func TestOperator_Raft_RemovePeerID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	c := &OperatorRaftRemoveCommand{Meta: Meta{Ui: ui}}
 	args := []string{"-address=" + addr, "-peer-id=nope"}
 

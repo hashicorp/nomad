@@ -3,11 +3,12 @@ package api
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestACLPolicies_ListUpsert(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.ACLPolicies()
@@ -49,7 +50,7 @@ func TestACLPolicies_ListUpsert(t *testing.T) {
 }
 
 func TestACLPolicies_Delete(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.ACLPolicies()
@@ -84,7 +85,7 @@ func TestACLPolicies_Delete(t *testing.T) {
 }
 
 func TestACLPolicies_Info(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.ACLPolicies()
@@ -110,7 +111,7 @@ func TestACLPolicies_Info(t *testing.T) {
 }
 
 func TestACLTokens_List(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -129,7 +130,7 @@ func TestACLTokens_List(t *testing.T) {
 }
 
 func TestACLTokens_CreateUpdate(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -158,7 +159,7 @@ func TestACLTokens_CreateUpdate(t *testing.T) {
 }
 
 func TestACLTokens_Info(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -183,7 +184,7 @@ func TestACLTokens_Info(t *testing.T) {
 }
 
 func TestACLTokens_Self(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -213,7 +214,7 @@ func TestACLTokens_Self(t *testing.T) {
 }
 
 func TestACLTokens_Delete(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -234,4 +235,37 @@ func TestACLTokens_Delete(t *testing.T) {
 	wm, err = at.Delete(out.AccessorID, nil)
 	assert.Nil(t, err)
 	assertWriteMeta(t, wm)
+}
+
+func TestACL_OneTimeToken(t *testing.T) {
+	testutil.Parallel(t)
+	c, s, _ := makeACLClient(t, nil, nil)
+	defer s.Stop()
+	at := c.ACLTokens()
+
+	token := &ACLToken{
+		Name:     "foo",
+		Type:     "client",
+		Policies: []string{"foo1"},
+	}
+
+	// Create the ACL token
+	out, wm, err := at.Create(token, nil)
+	assert.Nil(t, err)
+	assertWriteMeta(t, wm)
+	assert.NotNil(t, out)
+
+	// Get a one-time token
+	c.SetSecretID(out.SecretID)
+	out2, wm, err := at.UpsertOneTimeToken(nil)
+	assert.Nil(t, err)
+	assertWriteMeta(t, wm)
+	assert.NotNil(t, out2)
+
+	// Exchange the one-time token
+	out3, wm, err := at.ExchangeOneTimeToken(out2.OneTimeSecretID, nil)
+	assert.Nil(t, err)
+	assertWriteMeta(t, wm)
+	assert.NotNil(t, out3)
+	assert.Equal(t, out3.AccessorID, out.AccessorID)
 }

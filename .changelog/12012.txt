@@ -1,0 +1,3 @@
+```release-note:improvement
+consul: improve service name validation message to include maximum length requirement
+```

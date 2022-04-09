@@ -1,9 +1,11 @@
-import ApplicationAdapter from './application';
+import Watchable from './watchable';
 import codesForError from '../utils/codes-for-error';
+import classic from 'ember-classic-decorator';
 
-export default class NamespaceAdapter extends ApplicationAdapter {
+@classic
+export default class NamespaceAdapter extends Watchable {
   findRecord(store, modelClass, id) {
-    return super.findRecord(...arguments).catch(error => {
+    return super.findRecord(...arguments).catch((error) => {
       const errorCodes = codesForError(error);
       if (errorCodes.includes('501')) {
         return { Name: id };

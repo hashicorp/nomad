@@ -1,0 +1,33 @@
+.legend {
+  margin-bottom: 1em;
+
+  .legend-label {
+    font-weight: $weight-bold;
+    margin-bottom: 0.3em;
+  }
+
+  .legend-terms {
+    dt,
+    dd {
+      display: inline;
+    }
+
+    dt {
+      font-weight: $weight-bold;
+    }
+
+    dd {
+      margin-left: 0.5em;
+    }
+
+    .legend-term {
+      display: inline-block;
+      whitespace: nowrap;
+      margin-right: 1.5em;
+
+      &:last-child {
+        margin-right: 0;
+      }
+    }
+  }
+}

@@ -19,9 +19,12 @@ Usage: nomad deployment resume [options] <deployment id>
   Resume is used to unpause a paused deployment. Resuming a deployment will
   resume the placement of new allocations as part of rolling deployment.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job'
+  and 'read-job' capabilities for the deployment's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Resume Options:
 
@@ -127,5 +130,5 @@ func (c *DeploymentResumeCommand) Run(args []string) int {
 
 	c.Ui.Output("")
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(u.EvalID, false)
+	return mon.monitor(u.EvalID)
 }

@@ -1,33 +1,39 @@
 <h1 class="title with-flex">
-  <div>
-    {{or title job.name}}
-    <span class="bumper-left tag {{job.statusClass}}" data-test-job-status>{{job.status}}</span>
+  <div data-test-job-name>
+    {{or this.title this.job.name}}
+    {{#if @job.meta.structured.pack}}
+      <span data-test-pack-tag class="tag is-hollow">
+        {{x-icon "box" class= "test"}}
+        <span>Pack</span>
+      </span>
+    {{/if}}
+    <span class="bumper-left tag {{this.job.statusClass}}" data-test-job-status>{{this.job.status}}</span>
+    {{yield}}
   </div>
-  {{yield}}
   <div>
-    {{#if (not (eq job.status "dead"))}}
+    {{#if (not (eq this.job.status "dead"))}}
       <div class="two-step-button">
-        <Exec::OpenButton @job={{job}} />
+        <Exec::OpenButton @job={{this.job}} />
       </div>
       <TwoStepButton
         data-test-stop
         @alignRight={{true}}
-        @idleText="Stop"
+        @idleText="Stop Job"
         @cancelText="Cancel"
-        @confirmText="Yes, Stop"
+        @confirmText="Yes, Stop Job"
         @confirmationMessage="Are you sure you want to stop this job?"
-        @awaitingConfirmation={{stopJob.isRunning}}
-        @onConfirm={{perform stopJob}} />
+        @awaitingConfirmation={{this.stopJob.isRunning}}
+        @onConfirm={{perform this.stopJob}} />
     {{else}}
       <TwoStepButton
         data-test-start
         @alignRight={{true}}
-        @idleText="Start"
+        @idleText="Start Job"
         @cancelText="Cancel"
-        @confirmText="Yes, Start"
+        @confirmText="Yes, Start Job"
         @confirmationMessage="Are you sure you want to start this job?"
-        @awaitingConfirmation={{startJob.isRunning}}
-        @onConfirm={{perform startJob}} />
+        @awaitingConfirmation={{this.startJob.isRunning}}
+        @onConfirm={{perform this.startJob}} />
     {{/if}}
   </div>
 </h1>

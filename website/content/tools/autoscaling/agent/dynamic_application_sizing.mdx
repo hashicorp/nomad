@@ -1,0 +1,61 @@
+---
+layout: docs
+page_title: dynamic_application_sizing Stanza - Nomad Autoscaler Agent Configuration
+description: >-
+  The "dynamic_application_sizing" block configures the Nomad Autoscaler agent
+  options for Dynamic Application Sizing.
+---
+
+# `dynamic_application_sizing` Block
+
+<Placement groups={['dynamic_application_sizing']} />
+
+<EnterpriseAlert>
+  This functionality only exists in Nomad Autoscaler Enterprise. This is not
+  present in the open source version of Nomad Autoscaler.
+</EnterpriseAlert>
+
+The `dynamic_application_sizing` blocks configures the Nomad Autoscaler agent
+options for Dynamic Application Sizing. Learn more about the Dynamic
+Application Sizing functionality in the
+[Dynamic Application Sizing Concepts guide][das_learn_guide]
+
+```hcl
+dynamic_application_sizing {
+  evaluate_after            = "1h"
+  metrics_preload_threshold = "12h"
+}
+```
+
+## `dynamic_application_sizing` Parameters
+
+- `cpu_metric` `(string: "nomad_client_allocs_cpu_total_ticks")` - The APM
+  metric to use for querying the historical CPU usage of a task.
+
+- `evaluate_after` `(string: "24h")` - Specifies how much historical data must
+  be available for a task before the Autoscaler starts generating
+  recommendations.
+
+- `group_label` `(string: "task_group")` - The label used by the APM to store
+  the name of a task group. It is used by the Autoscaler when querying the APM
+  for metrics.
+
+- `job_label` `(string: "exported_job")` - The label used by the APM to store
+  the ID of a job. It is used by the Autoscaler when querying the APM for
+  metrics.
+
+- `memory_metric` `(string: "nomad_client_allocs_memory_usage")` - The APM
+  metric to use for querying the historical memory usage of a task.
+
+- `metrics_preload_threshold` `(string: "168h")` - Specifies how much
+  historical data the Autoscaler will preload from the APM when it starts.
+
+- `namespace_label` `(string: "namespace")` - The label used by the APM to
+  store the namespace of a job. It is used by the Autoscaler when querying the
+  APM for metrics.
+
+- `task_label` `(string: "task")` - The label used by the APM to store the
+  name of a task. It is used by the Autoscaler when querying the APM for
+  metrics.
+
+[das_learn_guide]: https://learn.hashicorp.com/tutorials/nomad/dynamic-application-sizing-concepts

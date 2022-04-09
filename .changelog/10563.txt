@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Handle ACL token when running behind a reverse proxy
+```

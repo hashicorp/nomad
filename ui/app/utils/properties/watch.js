@@ -11,7 +11,7 @@ import config from 'nomad-ui/config/environment';
 const isEnabled = config.APP.blockingQueries !== false;
 
 export function watchRecord(modelName) {
-  return task(function*(id, throttle = 2000) {
+  return task(function* (id, throttle = 2000) {
     assert(
       'To watch a record, the record adapter MUST extend Watchable',
       this.store.adapterFor(modelName) instanceof Watchable
@@ -40,7 +40,7 @@ export function watchRecord(modelName) {
 }
 
 export function watchRelationship(relationshipName) {
-  return task(function*(model, throttle = 2000) {
+  return task(function* (model, throttle = 2000) {
     assert(
       'To watch a relationship, the adapter of the model provided to the watchRelationship task MUST extend Watchable',
       this.store.adapterFor(model.constructor.modelName) instanceof Watchable
@@ -68,7 +68,7 @@ export function watchRelationship(relationshipName) {
 }
 
 export function watchAll(modelName) {
-  return task(function*(throttle = 2000) {
+  return task(function* (throttle = 2000) {
     assert(
       'To watch all, the respective adapter MUST extend Watchable',
       this.store.adapterFor(modelName) instanceof Watchable
@@ -94,7 +94,7 @@ export function watchAll(modelName) {
 }
 
 export function watchQuery(modelName) {
-  return task(function*(params, throttle = 10000) {
+  return task(function* (params, throttle = 10000) {
     assert(
       'To watch a query, the adapter for the type being queried MUST extend Watchable',
       this.store.adapterFor(modelName) instanceof Watchable

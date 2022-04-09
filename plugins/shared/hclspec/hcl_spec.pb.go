@@ -36,7 +36,7 @@
 //The following type names and type constructors are supported:
 //
 // `any` is a wildcard that accepts a value of any type. (In HCL terms, this
-//is the _dynamic pseudo-type_.)
+// is the _dynamic pseudo-type_.)
 // `string` is a Unicode string.
 // `number` is an arbitrary-precision floating point number.
 // `bool` is a boolean value (`true` or `false`)
@@ -44,11 +44,11 @@
 // `set(element_type)` constructs a set type with the given element type
 // `map(element_type)` constructs a map type with the given element type
 // `object({name1 = element_type, name2 = element_type, ...})` constructs
-//an object type with the given attribute types.
+// an object type with the given attribute types.
 // `tuple([element_type, element_type, ...])` constructs a tuple type with
-//the given element types. This can be used, for example, to require an
-//array with a particular number of elements, or with elements of different
-//types.
+// the given element types. This can be used, for example, to require an
+// array with a particular number of elements, or with elements of different
+// types.
 //
 //`null` is a valid value of any type, and not a type itself.
 
@@ -278,26 +278,26 @@ func (*Spec) XXX_OneofWrappers() []interface{} {
 //
 //```hcl
 //Attr {
-//name     = "document_root"
-//type     = string
-//required = true
+// name     = "document_root"
+// type     = string
+// required = true
 //}
 //```
 //
 //`Attr` spec blocks accept the following arguments:
 //
 // `name` (required) - The attribute name to expect within the HCL input file.
-//This may be omitted when a default name selector is created by a parent
-//`Object` spec, if the input attribute name should match the output JSON
-//object property name.
+// This may be omitted when a default name selector is created by a parent
+// `Object` spec, if the input attribute name should match the output JSON
+// object property name.
 //
 // `type` (optional) - A [type expression](#type-expressions) that the given
-//attribute value must conform to. If this argument is set, `hcldec` will
-//automatically convert the given input value to this type or produce an
-//error if that is not possible.
+// attribute value must conform to. If this argument is set, `hcldec` will
+// automatically convert the given input value to this type or produce an
+// error if that is not possible.
 //
 // `required` (optional) - If set to `true`, `hcldec` will produce an error
-//if a value is not provided for the source attribute.
+// if a value is not provided for the source attribute.
 //
 //`Attr` is a leaf spec type, so no nested spec blocks are permitted.
 type Attr struct {
@@ -361,28 +361,28 @@ func (m *Attr) GetRequired() bool {
 //
 //```hcl
 //Block {
-//name = "logging"
+// name = "logging"
 //
-//Object {
-//Attr "level" {
-//type = string
-//}
-//Attr "file" {
-//type = string
-//}
-//}
+// Object {
+// Attr "level" {
+// type = string
+// }
+// Attr "file" {
+// type = string
+// }
+// }
 //}
 //```
 //
 //`Block` spec blocks accept the following arguments:
 //
 // `name` (required) - The block type name to expect within the HCL
-//input file. This may be omitted when a default name selector is created
-//by a parent `Object` spec, if the input block type name should match the
-//output JSON object property name.
+// input file. This may be omitted when a default name selector is created
+// by a parent `Object` spec, if the input block type name should match the
+// output JSON object property name.
 //
 // `required` (optional) - If set to `true`, `hcldec` will produce an error
-//if a block of the specified type is not present in the current body.
+// if a block of the specified type is not present in the current body.
 //
 //`Block` creates a validation constraint that there must be zero or one blocks
 //of the given type name, or exactly one if `required` is set.
@@ -446,37 +446,37 @@ func (m *Block) GetNested() *Spec {
 }
 
 //
-//The BlockAttrs spec type is similar to an Attr spec block of a map type,
-//but it produces a map from the attributes of a block rather than from an
-//attribute's expression.
+// The BlockAttrs spec type is similar to an Attr spec block of a map type,
+// but it produces a map from the attributes of a block rather than from an
+// attribute's expression.
 //
-//```hcl
-//BlockAttrs {
-//name     = "variables"
-//type     = string
-//required = false
-//}
-//```
+// ```hcl
+// BlockAttrs {
+// name     = "variables"
+// type     = string
+// required = false
+// }
+// ```
 //
-//This allows a map with user-defined keys to be produced within block syntax,
-//but due to the constraints of that syntax it also means that the user will
-//be unable to dynamically-generate either individual key names using key
-//expressions or the entire map value using a `for` expression.
+// This allows a map with user-defined keys to be produced within block syntax,
+// but due to the constraints of that syntax it also means that the user will
+// be unable to dynamically-generate either individual key names using key
+// expressions or the entire map value using a `for` expression.
 //
-//`BlockAttrs` spec blocks accept the following arguments:
+// `BlockAttrs` spec blocks accept the following arguments:
 //
 // `name` (required) - The block type name to expect within the HCL
-//input file. This may be omitted when a default name selector is created
-//by a parent `object` spec, if the input block type name should match the
-//output JSON object property name.
+// input file. This may be omitted when a default name selector is created
+// by a parent `object` spec, if the input block type name should match the
+// output JSON object property name.
 //
 // `type` (required) - The value type to require for each of the
-//attributes within a matched block. The resulting value will be a JSON
-//object whose property values are of this type.
+// attributes within a matched block. The resulting value will be a JSON
+// object whose property values are of this type.
 //
 // `required` (optional) - If `true`, an error will be produced if a block
-//of the given type is not present. If `false` -- the default -- an absent
-//block will be indicated by producing `null`.
+// of the given type is not present. If `false` -- the default -- an absent
+// block will be indicated by producing `null`.
 type BlockAttrs struct {
 	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Type                 string   `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
@@ -538,33 +538,33 @@ func (m *BlockAttrs) GetRequired() bool {
 //
 //```hcl
 //BlockList {
-//name = "log_file"
+// name = "log_file"
 //
-//Object {
-//Attr "level" {
-//type = string
-//}
-//Attr "filename" {
-//type     = string
-//required = true
-//}
-//}
+// Object {
+// Attr "level" {
+// type = string
+// }
+// Attr "filename" {
+// type     = string
+// required = true
+// }
+// }
 //}
 //```
 //
 //`BlockList` spec blocks accept the following arguments:
 //
 // `name` (required) - The block type name to expect within the HCL
-//input file. This may be omitted when a default name selector is created
-//by a parent `Object` spec, if the input block type name should match the
-//output JSON object property name.
+// input file. This may be omitted when a default name selector is created
+// by a parent `Object` spec, if the input block type name should match the
+// output JSON object property name.
 //
 // `min_items` (optional) - If set to a number greater than zero, `hcldec` will
-//produce an error if fewer than the given number of blocks are present.
+// produce an error if fewer than the given number of blocks are present.
 //
 // `max_items` (optional) - If set to a number greater than zero, `hcldec` will
-//produce an error if more than the given number of blocks are present. This
-//attribute must be greater than or equal to `min_items` if both are set.
+// produce an error if more than the given number of blocks are present. This
+// attribute must be greater than or equal to `min_items` if both are set.
 //
 //`Block` creates a validation constraint on the number of blocks of the given
 //type that must be present.
@@ -640,17 +640,17 @@ func (m *BlockList) GetNested() *Spec {
 //
 //```hcl
 //BlockSet {
-//name = "log_file"
+// name = "log_file"
 //
-//Object {
-//Attr "level" {
-//type = string
-//}
-//Attr "filename" {
-//type     = string
-//required = true
-//}
-//}
+// Object {
+// Attr "level" {
+// type = string
+// }
+// Attr "filename" {
+// type     = string
+// required = true
+// }
+// }
 //}
 //```
 //
@@ -726,30 +726,30 @@ func (m *BlockSet) GetNested() *Spec {
 //
 //```hcl
 //BlockMap {
-//name = "log_file"
-//labels = ["filename"]
+// name = "log_file"
+// labels = ["filename"]
 //
-//Object {
-//Attr "level" {
-//type     = string
-//required = true
-//}
-//}
+// Object {
+// Attr "level" {
+// type     = string
+// required = true
+// }
+// }
 //}
 //```
 //
 //`BlockMap` spec blocks accept the following arguments:
 //
 // `name` (required) - The block type name to expect within the HCL
-//input file. This may be omitted when a default name selector is created
-//by a parent `Object` spec, if the input block type name should match the
-//output JSON object property name.
+// input file. This may be omitted when a default name selector is created
+// by a parent `Object` spec, if the input block type name should match the
+// output JSON object property name.
 //
 // `labels` (required) - A list of user-oriented block label names. Each entry
-//in this list creates one level of object within the output value, and
-//requires one additional block header label on any child block of this type.
-//Block header labels are the quoted strings that appear after the block type
-//name but before the opening `{`.
+// in this list creates one level of object within the output value, and
+// requires one additional block header label on any child block of this type.
+// Block header labels are the quoted strings that appear after the block type
+// name but before the opening `{`.
 //
 //`Block` creates a validation constraint on the number of labels that blocks
 //of the given type must have.
@@ -820,14 +820,14 @@ func (m *BlockMap) GetNested() *Spec {
 //
 //```hcl
 //Literal {
-//value = "hello world"
+// value = "hello world"
 //}
 //```
 //
 //`Literal` spec blocks accept the following argument:
 //
 // `value` (required) - The value to return. This attribute may be an expression
-//that uses [functions](#spec-definition-functions).
+// that uses [functions](#spec-definition-functions).
 //
 //`Literal` is a leaf spec type, so no nested spec blocks are permitted.
 type Literal struct {
@@ -876,13 +876,13 @@ func (m *Literal) GetValue() string {
 //
 //```hcl
 //Default {
-//Attr {
-//name = "private"
-//type = bool
-//}
-//Literal {
-//value = false
-//}
+// Attr {
+// name = "private"
+// type = bool
+// }
+// Literal {
+// value = false
+// }
 //}
 //```
 //
@@ -947,17 +947,17 @@ func (m *Default) GetDefault() *Spec {
 //
 //```hcl
 //Object {
-//Attr "name" {
-//type = "string"
-//}
-//Block "address" {
-//Object {
-//Attr "street" {
-//type = "string"
-//}
-//# ...
-//}
-//}
+// Attr "name" {
+// type = "string"
+// }
+// Block "address" {
+// Object {
+// Attr "street" {
+// type = "string"
+// }
+// # ...
+// }
+// }
 //}
 //```
 //
@@ -1014,14 +1014,14 @@ func (m *Object) GetAttributes() map[string]*Spec {
 //
 //```hcl
 //Array {
-//Attr {
-//name = "first_element"
-//type = "string"
-//}
-//Attr {
-//name = "second_element"
-//type = "string"
-//}
+// Attr {
+// name = "first_element"
+// type = "string"
+// }
+// Attr {
+// name = "second_element"
+// type = "string"
+// }
 //}
 //```
 //

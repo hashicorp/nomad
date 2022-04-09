@@ -3,12 +3,14 @@ package docker
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -34,12 +36,6 @@ const (
 	// dockerTimeout is the length of time a request can be outstanding before
 	// it is timed out.
 	dockerTimeout = 5 * time.Minute
-
-	// dockerBasicCaps is comma-separated list of Linux capabilities that are
-	// allowed by docker by default, as documented in
-	// https://docs.docker.com/engine/reference/run/#block-io-bandwidth-blkio-constraint
-	dockerBasicCaps = "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID," +
-		"SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"
 
 	// dockerAuthHelperPrefix is the prefix to attach to the credential helper
 	// and should be found in the $PATH. Example: ${prefix-}${helper-name}
@@ -95,7 +91,10 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	conf["volumes"] = volConf
 
 	// capabilities
-	if v, ok := opts["docker.caps.whitelist"]; ok {
+	// COMPAT(1.0) uses inclusive language. whitelist is used for backward compatibility.
+	if v, ok := opts["docker.caps.allowlist"]; ok {
+		conf["allow_caps"] = strings.Split(v, ",")
+	} else if v, ok := opts["docker.caps.whitelist"]; ok {
 		conf["allow_caps"] = strings.Split(v, ",")
 	}
 
@@ -199,6 +198,21 @@ var (
 			"ca":   hclspec.NewAttr("ca", "string", false),
 		})),
 
+		// extra docker labels, globs supported
+		"extra_labels": hclspec.NewAttr("extra_labels", "list(string)", false),
+
+		// logging options
+		"logging": hclspec.NewDefault(hclspec.NewBlock("logging", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"type":   hclspec.NewAttr("type", "string", false),
+			"config": hclspec.NewBlockAttrs("config", "string", false),
+		})), hclspec.NewLiteral(`{
+			type = "json-file" 
+			config = {
+				max-file = "2"
+				max-size = "2m"
+			}
+		}`)),
+
 		// garbage collection options
 		// default needed for both if the gc {...} block is not set and
 		// if the default fields are missing
@@ -225,6 +239,7 @@ var (
 			),
 		})), hclspec.NewLiteral(`{
 			image = true
+			image_delay = "3m"
 			container = true
 			dangling_containers = {
 				enabled = true
@@ -237,16 +252,13 @@ var (
 		// defaulted needed for both if the volumes {...} block is not set and
 		// if the default fields are missing
 		"volumes": hclspec.NewDefault(hclspec.NewBlock("volumes", false, hclspec.NewObject(map[string]*hclspec.Spec{
-			"enabled": hclspec.NewDefault(
-				hclspec.NewAttr("enabled", "bool", false),
-				hclspec.NewLiteral("true"),
-			),
+			"enabled":      hclspec.NewAttr("enabled", "bool", false),
 			"selinuxlabel": hclspec.NewAttr("selinuxlabel", "string", false),
-		})), hclspec.NewLiteral("{ enabled = true }")),
+		})), hclspec.NewLiteral("{ enabled = false }")),
 		"allow_privileged": hclspec.NewAttr("allow_privileged", "bool", false),
 		"allow_caps": hclspec.NewDefault(
 			hclspec.NewAttr("allow_caps", "list(string)", false),
-			hclspec.NewLiteral(`["CHOWN","DAC_OVERRIDE","FSETID","FOWNER","MKNOD","NET_RAW","SETGID","SETUID","SETFCAP","SETPCAP","NET_BIND_SERVICE","SYS_CHROOT","KILL","AUDIT_WRITE"]`),
+			hclspec.NewLiteral(capabilities.HCLSpecLiteral),
 		),
 		"nvidia_runtime": hclspec.NewDefault(
 			hclspec.NewAttr("nvidia_runtime", "string", false),
@@ -260,7 +272,15 @@ var (
 		// image to use when creating a network namespace parent container
 		"infra_image": hclspec.NewDefault(
 			hclspec.NewAttr("infra_image", "string", false),
-			hclspec.NewLiteral(`"gcr.io/google_containers/pause-amd64:3.0"`),
+			hclspec.NewLiteral(fmt.Sprintf(
+				`"gcr.io/google_containers/pause-%s:3.1"`,
+				runtime.GOARCH,
+			)),
+		),
+		// timeout to use when pulling the infra image.
+		"infra_image_pull_timeout": hclspec.NewDefault(
+			hclspec.NewAttr("infra_image_pull_timeout", "string", false),
+			hclspec.NewLiteral(`"5m"`),
 		),
 
 		// the duration that the driver will wait for activity from the Docker engine during an image pull
@@ -269,10 +289,36 @@ var (
 			hclspec.NewAttr("pull_activity_timeout", "string", false),
 			hclspec.NewLiteral(`"2m"`),
 		),
-
+		"pids_limit": hclspec.NewAttr("pids_limit", "number", false),
 		// disable_log_collection indicates whether docker driver should collect logs of docker
 		// task containers.  If true, nomad doesn't start docker_logger/logmon processes
 		"disable_log_collection": hclspec.NewAttr("disable_log_collection", "bool", false),
+	})
+
+	// mountBodySpec is the hcl specification for the `mount` block
+	mountBodySpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"type": hclspec.NewDefault(
+			hclspec.NewAttr("type", "string", false),
+			hclspec.NewLiteral("\"volume\""),
+		),
+		"target":   hclspec.NewAttr("target", "string", false),
+		"source":   hclspec.NewAttr("source", "string", false),
+		"readonly": hclspec.NewAttr("readonly", "bool", false),
+		"bind_options": hclspec.NewBlock("bind_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"propagation": hclspec.NewAttr("propagation", "string", false),
+		})),
+		"tmpfs_options": hclspec.NewBlock("tmpfs_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"size": hclspec.NewAttr("size", "number", false),
+			"mode": hclspec.NewAttr("mode", "number", false),
+		})),
+		"volume_options": hclspec.NewBlock("volume_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"no_copy": hclspec.NewAttr("no_copy", "bool", false),
+			"labels":  hclspec.NewAttr("labels", "list(map(string))", false),
+			"driver_config": hclspec.NewBlock("driver_config", false, hclspec.NewObject(map[string]*hclspec.Spec{
+				"name":    hclspec.NewAttr("name", "string", false),
+				"options": hclspec.NewAttr("options", "list(map(string))", false),
+			})),
+		})),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -291,6 +337,7 @@ var (
 		"cap_add":        hclspec.NewAttr("cap_add", "list(string)", false),
 		"cap_drop":       hclspec.NewAttr("cap_drop", "list(string)", false),
 		"command":        hclspec.NewAttr("command", "string", false),
+		"cpuset_cpus":    hclspec.NewAttr("cpuset_cpus", "string", false),
 		"cpu_hard_limit": hclspec.NewAttr("cpu_hard_limit", "bool", false),
 		"cpu_cfs_period": hclspec.NewDefault(
 			hclspec.NewAttr("cpu_cfs_period", "number", false),
@@ -308,6 +355,7 @@ var (
 		"extra_hosts":        hclspec.NewAttr("extra_hosts", "list(string)", false),
 		"force_pull":         hclspec.NewAttr("force_pull", "bool", false),
 		"hostname":           hclspec.NewAttr("hostname", "string", false),
+		"init":               hclspec.NewAttr("init", "bool", false),
 		"interactive":        hclspec.NewAttr("interactive", "bool", false),
 		"ipc_mode":           hclspec.NewAttr("ipc_mode", "string", false),
 		"ipv4_address":       hclspec.NewAttr("ipv4_address", "string", false),
@@ -321,37 +369,23 @@ var (
 		})),
 		"mac_address":       hclspec.NewAttr("mac_address", "string", false),
 		"memory_hard_limit": hclspec.NewAttr("memory_hard_limit", "number", false),
-		"mounts": hclspec.NewBlockList("mounts", hclspec.NewObject(map[string]*hclspec.Spec{
-			"type": hclspec.NewDefault(
-				hclspec.NewAttr("type", "string", false),
-				hclspec.NewLiteral("\"volume\""),
-			),
-			"target":   hclspec.NewAttr("target", "string", false),
-			"source":   hclspec.NewAttr("source", "string", false),
-			"readonly": hclspec.NewAttr("readonly", "bool", false),
-			"bind_options": hclspec.NewBlock("bind_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
-				"propagation": hclspec.NewAttr("propagation", "string", false),
-			})),
-			"tmpfs_options": hclspec.NewBlock("tmpfs_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
-				"size": hclspec.NewAttr("size", "number", false),
-				"mode": hclspec.NewAttr("mode", "number", false),
-			})),
-			"volume_options": hclspec.NewBlock("volume_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
-				"no_copy": hclspec.NewAttr("no_copy", "bool", false),
-				"labels":  hclspec.NewAttr("labels", "list(map(string))", false),
-				"driver_config": hclspec.NewBlock("driver_config", false, hclspec.NewObject(map[string]*hclspec.Spec{
-					"name":    hclspec.NewAttr("name", "string", false),
-					"options": hclspec.NewAttr("options", "list(map(string))", false),
-				})),
-			})),
-		})),
+		// mount and mounts are effectively aliases, but `mounts` is meant for pre-1.0
+		// assignment syntax `mounts = [{type="..." ..."}]` while
+		// `mount` is 1.0 repeated block syntax `mount { type = "..." }`
+		"mount":           hclspec.NewBlockList("mount", mountBodySpec),
+		"mounts":          hclspec.NewBlockList("mounts", mountBodySpec),
 		"network_aliases": hclspec.NewAttr("network_aliases", "list(string)", false),
 		"network_mode":    hclspec.NewAttr("network_mode", "string", false),
 		"runtime":         hclspec.NewAttr("runtime", "string", false),
 		"pids_limit":      hclspec.NewAttr("pids_limit", "number", false),
 		"pid_mode":        hclspec.NewAttr("pid_mode", "string", false),
+		"ports":           hclspec.NewAttr("ports", "list(string)", false),
 		"port_map":        hclspec.NewAttr("port_map", "list(map(number))", false),
 		"privileged":      hclspec.NewAttr("privileged", "bool", false),
+		"image_pull_timeout": hclspec.NewDefault(
+			hclspec.NewAttr("image_pull_timeout", "string", false),
+			hclspec.NewLiteral(`"5m"`),
+		),
 		"readonly_rootfs": hclspec.NewAttr("readonly_rootfs", "bool", false),
 		"security_opt":    hclspec.NewAttr("security_opt", "list(string)", false),
 		"shm_size":        hclspec.NewAttr("shm_size", "number", false),
@@ -366,9 +400,9 @@ var (
 		"work_dir":        hclspec.NewAttr("work_dir", "string", false),
 	})
 
-	// capabilities is returned by the Capabilities RPC and indicates what
-	// optional features this driver supports
-	capabilities = &drivers.Capabilities{
+	// driverCapabilities represents the RPC response for what features are
+	// implemented by the docker task driver
+	driverCapabilities = &drivers.Capabilities{
 		SendSignals: true,
 		Exec:        true,
 		FSIsolation: drivers.FSIsolationImage,
@@ -393,6 +427,7 @@ type TaskConfig struct {
 	Command           string             `codec:"command"`
 	CPUCFSPeriod      int64              `codec:"cpu_cfs_period"`
 	CPUHardLimit      bool               `codec:"cpu_hard_limit"`
+	CPUSetCPUs        string             `codec:"cpuset_cpus"`
 	Devices           []DockerDevice     `codec:"devices"`
 	DNSSearchDomains  []string           `codec:"dns_search_domains"`
 	DNSOptions        []string           `codec:"dns_options"`
@@ -401,6 +436,7 @@ type TaskConfig struct {
 	ExtraHosts        []string           `codec:"extra_hosts"`
 	ForcePull         bool               `codec:"force_pull"`
 	Hostname          string             `codec:"hostname"`
+	Init              bool               `codec:"init"`
 	Interactive       bool               `codec:"interactive"`
 	IPCMode           string             `codec:"ipc_mode"`
 	IPv4Address       string             `codec:"ipv4_address"`
@@ -410,14 +446,16 @@ type TaskConfig struct {
 	Logging           DockerLogging      `codec:"logging"`
 	MacAddress        string             `codec:"mac_address"`
 	MemoryHardLimit   int64              `codec:"memory_hard_limit"`
-	Mounts            []DockerMount      `codec:"mounts"`
+	Mounts            []DockerMount      `codec:"mount"`
 	NetworkAliases    []string           `codec:"network_aliases"`
 	NetworkMode       string             `codec:"network_mode"`
 	Runtime           string             `codec:"runtime"`
 	PidsLimit         int64              `codec:"pids_limit"`
 	PidMode           string             `codec:"pid_mode"`
+	Ports             []string           `codec:"ports"`
 	PortMap           hclutils.MapStrInt `codec:"port_map"`
 	Privileged        bool               `codec:"privileged"`
+	ImagePullTimeout  string             `codec:"image_pull_timeout"`
 	ReadonlyRootfs    bool               `codec:"readonly_rootfs"`
 	SecurityOpt       []string           `codec:"security_opt"`
 	ShmSize           int64              `codec:"shm_size"`
@@ -430,6 +468,9 @@ type TaskConfig struct {
 	Volumes           []string           `codec:"volumes"`
 	VolumeDriver      string             `codec:"volume_driver"`
 	WorkDir           string             `codec:"work_dir"`
+
+	// MountsList supports the pre-1.0 mounts array syntax
+	MountsList []DockerMount `codec:"mounts"`
 }
 
 type DockerAuth struct {
@@ -485,7 +526,7 @@ type DockerMount struct {
 
 func (m DockerMount) toDockerHostMount() (docker.HostMount, error) {
 	if m.Type == "" {
-		// for backward compatbility, as type is optional
+		// for backward compatibility, as type is optional
 		m.Type = "volume"
 	}
 
@@ -570,18 +611,23 @@ type ContainerGCConfig struct {
 }
 
 type DriverConfig struct {
-	Endpoint                    string        `codec:"endpoint"`
-	Auth                        AuthConfig    `codec:"auth"`
-	TLS                         TLSConfig     `codec:"tls"`
-	GC                          GCConfig      `codec:"gc"`
-	Volumes                     VolumeConfig  `codec:"volumes"`
-	AllowPrivileged             bool          `codec:"allow_privileged"`
-	AllowCaps                   []string      `codec:"allow_caps"`
-	GPURuntimeName              string        `codec:"nvidia_runtime"`
-	InfraImage                  string        `codec:"infra_image"`
-	DisableLogCollection        bool          `codec:"disable_log_collection"`
-	PullActivityTimeout         string        `codec:"pull_activity_timeout"`
-	pullActivityTimeoutDuration time.Duration `codec:"-"`
+	Endpoint                      string        `codec:"endpoint"`
+	Auth                          AuthConfig    `codec:"auth"`
+	TLS                           TLSConfig     `codec:"tls"`
+	GC                            GCConfig      `codec:"gc"`
+	Volumes                       VolumeConfig  `codec:"volumes"`
+	AllowPrivileged               bool          `codec:"allow_privileged"`
+	AllowCaps                     []string      `codec:"allow_caps"`
+	GPURuntimeName                string        `codec:"nvidia_runtime"`
+	InfraImage                    string        `codec:"infra_image"`
+	InfraImagePullTimeout         string        `codec:"infra_image_pull_timeout"`
+	infraImagePullTimeoutDuration time.Duration `codec:"-"`
+	DisableLogCollection          bool          `codec:"disable_log_collection"`
+	PullActivityTimeout           string        `codec:"pull_activity_timeout"`
+	PidsLimit                     int64         `codec:"pids_limit"`
+	pullActivityTimeoutDuration   time.Duration `codec:"-"`
+	ExtraLabels                   []string      `codec:"extra_labels"`
+	Logging                       LoggingConfig `codec:"logging"`
 
 	AllowRuntimesList []string            `codec:"allow_runtimes"`
 	allowRuntimes     map[string]struct{} `codec:"-"`
@@ -612,6 +658,11 @@ type VolumeConfig struct {
 	SelinuxLabel string `codec:"selinuxlabel"`
 }
 
+type LoggingConfig struct {
+	Type   string            `codec:"type"`
+	Config map[string]string `codec:"config"`
+}
+
 func (d *Driver) PluginInfo() (*base.PluginInfoResponse, error) {
 	return pluginInfo, nil
 }
@@ -632,6 +683,8 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	}
 
 	d.config = &config
+	d.config.InfraImage = strings.TrimPrefix(d.config.InfraImage, "https://")
+
 	if len(d.config.GC.ImageDelay) > 0 {
 		dur, err := time.ParseDuration(d.config.GC.ImageDelay)
 		if err != nil {
@@ -670,6 +723,14 @@ func (d *Driver) SetConfig(c *base.Config) error {
 		d.config.pullActivityTimeoutDuration = dur
 	}
 
+	if d.config.InfraImagePullTimeout != "" {
+		dur, err := time.ParseDuration(d.config.InfraImagePullTimeout)
+		if err != nil {
+			return fmt.Errorf("failed to parse 'infra_image_pull_timeout' duaration: %v", err)
+		}
+		d.config.infraImagePullTimeoutDuration = dur
+	}
+
 	d.config.allowRuntimes = make(map[string]struct{}, len(d.config.AllowRuntimesList))
 	for _, r := range d.config.AllowRuntimesList {
 		d.config.allowRuntimes[r] = struct{}{}
@@ -693,7 +754,9 @@ func (d *Driver) SetConfig(c *base.Config) error {
 
 	d.coordinator = newDockerCoordinator(coordinatorConfig)
 
-	d.reconciler = newReconciler(d)
+	d.danglingReconciler = newReconciler(d)
+
+	d.cpusetFixer = newCpusetFixer(d)
 
 	return nil
 }
@@ -702,8 +765,10 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 	return taskConfigSpec, nil
 }
 
+// Capabilities is returned by the Capabilities RPC and indicates what optional
+// features this driver supports.
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
-	return capabilities, nil
+	return driverCapabilities, nil
 }
 
 var _ drivers.InternalCapabilitiesDriver = (*Driver)(nil)

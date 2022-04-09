@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package taskrunner
@@ -12,11 +13,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/shirou/gopsutil/process"
+	"github.com/shirou/gopsutil/v3/process"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,7 +26,7 @@ import (
 // Nomad client is restarting and asserts failing to reattach to logmon causes
 // nomad to spawn a new logmon.
 func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -93,7 +95,7 @@ func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
 // TestTaskRunner_LogmonHook_ShutdownMidStart simulates logmon crashing while the
 // Nomad client is calling Start() and asserts that we recover and spawn a new logmon.
 func TestTaskRunner_LogmonHook_ShutdownMidStart(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -144,9 +146,11 @@ func TestTaskRunner_LogmonHook_ShutdownMidStart(t *testing.T) {
 		if err != nil {
 			return false, err
 		}
-
-		if status != "T" && status != "T+" {
-			return false, fmt.Errorf("process is not asleep yet: %v", status)
+		if len(status) == 0 {
+			return false, fmt.Errorf("process status did not return value")
+		}
+		if status[0] != "stop" {
+			return false, fmt.Errorf("process is not stopped yet: %v", status)
 		}
 
 		return true, nil

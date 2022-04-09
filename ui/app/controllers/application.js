@@ -1,26 +1,33 @@
 /* eslint-disable ember/no-observers */
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
-import { run } from '@ember/runloop';
+import { next } from '@ember/runloop';
 import { observes } from '@ember-decorators/object';
 import { computed } from '@ember/object';
 import Ember from 'ember';
 import codesForError from '../utils/codes-for-error';
 import NoLeaderError from '../utils/no-leader-error';
+import OTTExchangeError from '../utils/ott-exchange-error';
 import classic from 'ember-classic-decorator';
 
 @classic
 export default class ApplicationController extends Controller {
   @service config;
   @service system;
+  @service token;
 
   queryParams = [
     {
       region: 'region',
     },
+    {
+      oneTimeToken: 'ott',
+    },
   ];
 
   region = null;
+
+  oneTimeToken = '';
 
   error = null;
 
@@ -55,14 +62,20 @@ export default class ApplicationController extends Controller {
     return error instanceof NoLeaderError;
   }
 
+  @computed('error')
+  get isOTTExchange() {
+    const error = this.error;
+    return error instanceof OTTExchangeError;
+  }
+
   @observes('error')
   throwError() {
     if (this.get('config.isDev')) {
-      run.next(() => {
+      next(() => {
         throw this.error;
       });
     } else if (!Ember.testing) {
-      run.next(() => {
+      next(() => {
         // eslint-disable-next-line
         console.warn('UNRECOVERABLE ERROR:', this.error);
       });

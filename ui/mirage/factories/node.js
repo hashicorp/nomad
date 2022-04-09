@@ -7,6 +7,7 @@ import moment from 'moment';
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
 const NODE_STATUSES = ['initializing', 'ready', 'down'];
 const NODE_CLASSES = provide(7, faker.company.bsBuzz.bind(faker.company));
+const NODE_VERSIONS = ['1.1.0-beta', '1.0.2-alpha+ent', ...provide(5, faker.system.semver)];
 const REF_DATE = new Date();
 
 export default Factory.extend({
@@ -17,11 +18,12 @@ export default Factory.extend({
   nodeClass: () => faker.helpers.randomize(NODE_CLASSES),
   drain: faker.random.boolean,
   status: () => faker.helpers.randomize(NODE_STATUSES),
-  tls_enabled: faker.random.boolean,
+  tlsEnabled: faker.random.boolean,
   schedulingEligibility: () => (faker.random.boolean() ? 'eligible' : 'ineligible'),
 
   createIndex: i => i,
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
+  version: () => faker.helpers.randomize(NODE_VERSIONS),
 
   httpAddr() {
     return this.name.split('@')[1];
@@ -68,13 +70,20 @@ export default Factory.extend({
     hostVolumes: () => ({}),
   }),
 
+  reserved: trait({
+    reservedResources: generateResources({
+      CPU: 1000,
+      MemoryMB: 2000,
+    }),
+  }),
+
   drainStrategy: null,
 
   drivers: makeDrivers,
 
   hostVolumes: makeHostVolumes,
 
-  resources: generateResources,
+  nodeResources: generateResources,
 
   attributes() {
     // TODO add variability to these

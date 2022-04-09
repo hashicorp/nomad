@@ -1,0 +1,4 @@
+```
+release-note:bug
+Fixed a bug where connect sidecar resources were ignored when using HCL1
+```

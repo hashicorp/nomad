@@ -19,9 +19,12 @@ Usage: nomad deployment unblock [options] <deployment id>
   Unblock is used to unblock a multiregion deployment that's waiting for
   peer region deployments to complete.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job'
+  and 'read-job' capabilities for the deployment's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Unblock Options:
 
@@ -127,5 +130,5 @@ func (c *DeploymentUnblockCommand) Run(args []string) int {
 
 	c.Ui.Output("")
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(u.EvalID, false)
+	return mon.monitor(u.EvalID)
 }

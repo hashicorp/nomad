@@ -3,11 +3,14 @@ package config
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestTLSConfig_Merge(t *testing.T) {
+	ci.Parallel(t)
+
 	assert := assert.New(t)
 	a := &TLSConfig{
 		CAFile:   "test-ca-file",
@@ -31,6 +34,8 @@ func TestTLSConfig_Merge(t *testing.T) {
 }
 
 func TestTLS_CertificateInfoIsEqual_TrueWhenEmpty(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	a := &TLSConfig{}
 	b := &TLSConfig{}
@@ -40,6 +45,8 @@ func TestTLS_CertificateInfoIsEqual_TrueWhenEmpty(t *testing.T) {
 }
 
 func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	const (
 		cafile   = "../../../helper/tlsutil/testdata/ca.pem"
@@ -143,6 +150,8 @@ func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 // Certificate info should be equal when the CA file, certificate file, and key
 // file all are equal
 func TestTLS_CertificateInfoIsEqual_TrueWhenEqual(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	const (
 		cafile  = "../../../helper/tlsutil/testdata/ca.pem"
@@ -167,6 +176,8 @@ func TestTLS_CertificateInfoIsEqual_TrueWhenEqual(t *testing.T) {
 }
 
 func TestTLS_Copy(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	const (
 		cafile  = "../../../helper/tlsutil/testdata/ca.pem"
@@ -192,6 +203,8 @@ func TestTLS_Copy(t *testing.T) {
 // GetKeyLoader should always return an initialized KeyLoader for a TLSConfig
 // object
 func TestTLS_GetKeyloader(t *testing.T) {
+	ci.Parallel(t)
+	
 	require := require.New(t)
 	a := &TLSConfig{}
 	require.NotNil(a.GetKeyLoader())

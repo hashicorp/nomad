@@ -1,0 +1,37 @@
+.flex-masonry {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  align-content: space-between;
+  margin-top: -0.75em;
+
+  &.flex-masonry-columns-1 > .flex-masonry-item {
+    width: 100%;
+  }
+  &.flex-masonry-columns-2 > .flex-masonry-item {
+    width: 50%;
+  }
+  &.flex-masonry-columns-3 > .flex-masonry-item {
+    width: 33%;
+  }
+  &.flex-masonry-columns-4 > .flex-masonry-item {
+    width: 25%;
+  }
+
+  &.with-spacing {
+    > .flex-masonry-item {
+      margin-top: 0.75em;
+      margin-bottom: 0.75em;
+    }
+
+    &.flex-masonry-columns-2 > .flex-masonry-item {
+      width: calc(50% - 0.75em);
+    }
+    &.flex-masonry-columns-3 > .flex-masonry-item {
+      width: calc(33% - 0.75em);
+    }
+    &.flex-masonry-columns-4 > .flex-masonry-item {
+      width: calc(25% - 0.75em);
+    }
+  }
+}

@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/sdk/testutil"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -15,8 +16,10 @@ import (
 )
 
 func TestConsul_Connect(t *testing.T) {
+	ci.Parallel(t)
+
 	// Create an embedded Consul server
-	testconsul, err := testutil.NewTestServerConfig(func(c *testutil.TestServerConfig) {
+	testconsul, err := testutil.NewTestServerConfigT(t, func(c *testutil.TestServerConfig) {
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
 			c.Stdout = ioutil.Discard
@@ -32,7 +35,8 @@ func TestConsul_Connect(t *testing.T) {
 	consulConfig.Address = testconsul.HTTPAddr
 	consulClient, err := consulapi.NewClient(consulConfig)
 	require.NoError(t, err)
-	serviceClient := NewServiceClient(consulClient.Agent(), testlog.HCLogger(t), true)
+	namespacesClient := NewNamespacesClient(consulClient.Namespaces(), consulClient.Agent())
+	serviceClient := NewServiceClient(consulClient.Agent(), namespacesClient, testlog.HCLogger(t), true)
 
 	// Lower periodicInterval to ensure periodic syncing doesn't improperly
 	// remove Connect services.
@@ -77,11 +81,6 @@ func TestConsul_Connect(t *testing.T) {
 		},
 	}
 
-	// required by isNomadSidecar assertion below
-	serviceRegMap := map[string]*api.AgentServiceRegistration{
-		MakeAllocServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0]): nil,
-	}
-
 	require.NoError(t, serviceClient.RegisterWorkload(BuildAllocServices(mock.Node(), alloc, NoopRestarter())))
 
 	require.Eventually(t, func() bool {
@@ -97,12 +96,12 @@ func TestConsul_Connect(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, services, 2)
 
-		serviceID := MakeAllocServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0])
+		serviceID := serviceregistration.MakeAllocServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0])
 		connectID := serviceID + "-sidecar-proxy"
 
 		require.Contains(t, services, serviceID)
 		require.True(t, isNomadService(serviceID))
-		require.False(t, isNomadSidecar(serviceID, serviceRegMap))
+		require.False(t, maybeConnectSidecar(serviceID))
 		agentService := services[serviceID]
 		require.Equal(t, agentService.Service, "testconnect")
 		require.Equal(t, agentService.Address, "10.0.0.1")
@@ -112,7 +111,7 @@ func TestConsul_Connect(t *testing.T) {
 
 		require.Contains(t, services, connectID)
 		require.True(t, isNomadService(connectID))
-		require.True(t, isNomadSidecar(connectID, serviceRegMap))
+		require.True(t, maybeConnectSidecar(connectID))
 		connectService := services[connectID]
 		require.Equal(t, connectService.Service, "testconnect-sidecar-proxy")
 		require.Equal(t, connectService.Address, "10.0.0.1")

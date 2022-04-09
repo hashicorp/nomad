@@ -10,6 +10,16 @@ $size: 12px;
     cursor: not-allowed;
   }
 
+  &.is-flex {
+    display: flex;
+    align-items: center;
+
+    .label {
+      padding-left: 0.5rem;
+      padding-bottom: 1px;
+    }
+  }
+
   .input {
     opacity: 0;
     width: 0;

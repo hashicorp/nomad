@@ -8,11 +8,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/boltdb/bolt"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
+	"go.etcd.io/bbolt"
 )
 
 type testingT interface {
@@ -46,7 +47,7 @@ func setupBoltDB(t testingT) (*DB, func()) {
 }
 
 func TestDB_Open(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	db, cleanup := setupBoltDB(t)
@@ -56,7 +57,7 @@ func TestDB_Open(t *testing.T) {
 }
 
 func TestDB_Close(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	db, cleanup := setupBoltDB(t)
 	defer cleanup()
@@ -66,16 +67,16 @@ func TestDB_Close(t *testing.T) {
 	require.Equal(t, db.Update(func(tx *Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("foo"))
 		return err
-	}), bolt.ErrDatabaseNotOpen)
+	}), bbolt.ErrDatabaseNotOpen)
 
 	require.Equal(t, db.Update(func(tx *Tx) error {
 		_, err := tx.CreateBucket([]byte("foo"))
 		return err
-	}), bolt.ErrDatabaseNotOpen)
+	}), bbolt.ErrDatabaseNotOpen)
 }
 
 func TestBucket_Create(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	db, cleanup := setupBoltDB(t)
@@ -112,7 +113,7 @@ func TestBucket_Create(t *testing.T) {
 }
 
 func TestBucket_DedupeWrites(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	db, cleanup := setupBoltDB(t)
@@ -166,7 +167,7 @@ func TestBucket_DedupeWrites(t *testing.T) {
 }
 
 func TestBucket_Delete(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	db, cleanup := setupBoltDB(t)

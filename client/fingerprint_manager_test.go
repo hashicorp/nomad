@@ -3,13 +3,15 @@ package client
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
+
 	testClient, cleanup := TestClient(t, nil)
 	defer cleanup()
 
@@ -33,7 +35,7 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 }
 
 func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
@@ -61,13 +63,14 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 	require.NotEqual(node.Attributes["cpu.frequency"], "")
 }
 
-func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
-	t.Parallel()
+func TestFingerprintManager_Run_InDenylist(t *testing.T) {
+	ci.Parallel(t)
 	require := require.New(t)
+
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
-			"fingerprint.whitelist": "  arch,memory,foo,bar	",
-			"fingerprint.blacklist": "  cpu	",
+			"fingerprint.allowlist": "  arch,memory,foo,bar	",
+			"fingerprint.denylist":  "  cpu	",
 		}
 	})
 	defer cleanup()
@@ -91,7 +94,39 @@ func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
 }
 
 func TestFingerprintManager_Run_Combination(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+	require := require.New(t)
+
+	testClient, cleanup := TestClient(t, func(c *config.Config) {
+		c.Options = map[string]string{
+			"fingerprint.allowlist": "  arch,cpu,memory,foo,bar	",
+			"fingerprint.denylist":  "  memory,host	",
+		}
+	})
+	defer cleanup()
+
+	fm := NewFingerprintManager(
+		testClient.config.PluginSingletonLoader,
+		testClient.GetConfig,
+		testClient.config.Node,
+		testClient.shutdownCh,
+		testClient.updateNodeFromFingerprint,
+		testClient.logger,
+	)
+
+	err := fm.Run()
+	require.Nil(err)
+
+	node := testClient.config.Node
+
+	require.NotEqual(node.Attributes["cpu.frequency"], "")
+	require.NotEqual(node.Attributes["cpu.arch"], "")
+	require.NotContains(node.Attributes, "memory.totalbytes")
+	require.NotContains(node.Attributes, "os.name")
+}
+
+func TestFingerprintManager_Run_CombinationLegacyNames(t *testing.T) {
+	ci.Parallel(t)
 	require := require.New(t)
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {

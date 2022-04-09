@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -19,11 +20,13 @@ func TestAllocRestartCommand_Implements(t *testing.T) {
 }
 
 func TestAllocRestartCommand_Fails(t *testing.T) {
+	ci.Parallel(t)
+
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
 	require := require.New(t)
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocRestartCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -91,6 +94,8 @@ func TestAllocRestartCommand_Fails(t *testing.T) {
 }
 
 func TestAllocRestartCommand_Run(t *testing.T) {
+	ci.Parallel(t)
+
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -113,7 +118,7 @@ func TestAllocRestartCommand_Run(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocRestartCommand{Meta: Meta{Ui: ui}}
 
 	jobID := "job1_sfx"
@@ -152,18 +157,20 @@ func TestAllocRestartCommand_Run(t *testing.T) {
 }
 
 func TestAllocRestartCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
+
 	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocRestartCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
-	assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	prefix := a.ID[:5]
 	args := complete.Args{Last: prefix}

@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Never embed client.alloc_dir in chroots to prevent infinite recursion from misconfiguration.
+```

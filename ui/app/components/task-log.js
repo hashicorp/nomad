@@ -1,17 +1,24 @@
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { action, computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import RSVP from 'rsvp';
 import { logger } from 'nomad-ui/utils/classes/log';
 import timeout from 'nomad-ui/utils/timeout';
-import { AbortController } from 'fetch';
 import { classNames } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
+
+class MockAbortController {
+  abort() {
+    /* noop */
+  }
+}
 
 @classic
 @classNames('boxed-section', 'task-log')
 export default class TaskLog extends Component {
   @service token;
+  @service userSettings;
 
   allocation = null;
   task = null;
@@ -28,7 +35,7 @@ export default class TaskLog extends Component {
   isStreaming = true;
   streamMode = 'streaming';
 
-  mode = 'stdout';
+  @alias('userSettings.logMode') mode;
 
   @computed('allocation.{id,node.httpAddr}', 'useServer')
   get logUrl() {
@@ -51,21 +58,23 @@ export default class TaskLog extends Component {
     // If the log request can't settle in one second, the client
     // must be unavailable and the server should be used instead
 
-    const aborter = new AbortController();
+    const aborter = window.AbortController
+      ? new AbortController()
+      : new MockAbortController();
     const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
 
     // Capture the state of useServer at logger create time to avoid a race
     // between the stdout logger and stderr logger running at once.
     const useServer = this.useServer;
-    return url =>
+    return (url) =>
       RSVP.race([
         this.token.authorizedRequest(url, { signal: aborter.signal }),
         timeout(timing),
       ]).then(
-        response => {
+        (response) => {
           return response;
         },
-        error => {
+        (error) => {
           aborter.abort();
           if (useServer) {
             this.set('noConnection', true);

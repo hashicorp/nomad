@@ -1,18 +1,22 @@
+import Link from 'next/link'
+import UseCases from '@hashicorp/react-use-cases'
+import CallToAction from '@hashicorp/react-call-to-action'
+import ComparisonCallouts from 'components/comparison-callouts'
+import TextSplitWithLogoGrid from '@hashicorp/react-text-split-with-logo-grid'
+import LearnCallout from '@hashicorp/react-learn-callout'
+
 import FeaturesList from 'components/features-list'
 import HomepageHero from 'components/homepage-hero'
 import CaseStudyCarousel from 'components/case-study-carousel'
-import UseCases from '@hashicorp/react-use-cases'
 import MiniCTA from 'components/mini-cta'
-import NomadEnterpriseInfo from 'components/enterprise-info/nomad'
-import LearnNomad from 'components/learn-nomad'
-import CallToAction from '@hashicorp/react-call-to-action'
 
 export default function Homepage() {
+  // Test comment to see if Vercel picks up this commit
   return (
     <div id="p-home">
       <HomepageHero
         title="Workload Orchestration Made Easy"
-        description="A simple and flexible workload orchestrator to deploy and manage containers and non-containerized applications across on-prem and clouds at scale."
+        description="A simple and flexible scheduler and workload orchestrator to deploy and manage containers and non-containerized applications across on-prem and clouds at scale."
         links={[
           {
             text: 'Download',
@@ -33,7 +37,7 @@ export default function Homepage() {
           {
             title: 'Simple and Lightweight',
             content:
-              'Single 35MB binary that integrates into existing infrastructure.  Easy to operate on-prem or in the cloud with minimal overhead.',
+              'Single binary that integrates into existing infrastructure. Easy to operate on-prem or in the cloud with minimal overhead.',
             icon: require('./img/why-nomad/simple-and-lightweight.svg'),
           },
           {
@@ -55,9 +59,9 @@ export default function Homepage() {
             icon: require('./img/why-nomad/federation.svg'),
           },
           {
-            title: 'Multi-Cloud with Ease',
+            title: 'Deploy and Scale with Ease',
             content:
-              'One single unified workflow for deploying to bare metal or cloud environments. Enable multi-cloud applications with ease.',
+              'Deploy to bare metal with the same ease as in cloud environments. Scale globally without complexity. Read <a href="https://www.hashicorp.com/c2m">the 2 Million Container Challenge</a>.',
             icon: require('./img/why-nomad/servers.svg'),
           },
           {
@@ -69,9 +73,62 @@ export default function Homepage() {
         ]}
       />
 
+      <ComparisonCallouts
+        heading="Nomad vs. Kubernetes"
+        details={
+          <p>
+            Choose an orchestrator based on how it fits into your project. Find
+            out{' '}
+            <Link href="/docs/nomad-vs-kubernetes">
+              <a>Nomad’s unique strengths relative to Kubernetes.</a>
+            </Link>
+          </p>
+        }
+        items={[
+          {
+            title: 'Alternative to Kubernetes',
+            description: 'Deploy and scale containers without complexity',
+            imageUrl: require('./img/nomad-vs-kubernetes/alternative.svg?url'),
+            link: {
+              url: '/docs/nomad-vs-kubernetes/alternative',
+              text: 'Learn more',
+              type: 'inbound',
+            },
+          },
+          {
+            title: 'Supplement to Kubernetes',
+            description: 'Implement a multi-orchestrator pattern',
+            imageUrl: require('./img/nomad-vs-kubernetes/supplement.svg?url'),
+            link: {
+              url: '/docs/nomad-vs-kubernetes/supplement',
+              text: 'Learn more',
+              type: 'inbound',
+            },
+          },
+        ]}
+      />
+
       <CaseStudyCarousel
         title="Trusted by startups and the world’s largest organizations"
         caseStudies={[
+          {
+            quote:
+              'After migrating to Nomad, our deployment is at least twice as fast as Kubernetes.',
+            caseStudyURL:
+              'https://www.hashicorp.com/resources/gitlab-nomad-gitops-internet-archive-migrated-from-kubernetes-nomad-consul',
+            person: {
+              firstName: 'Tracey',
+              lastName: 'Jaquith',
+              photo:
+                'https://www.datocms-assets.com/2885/1616436433-internetarhive.jpeg',
+              title: 'Software Architect',
+            },
+            company: {
+              name: 'Internet Archive',
+              logo:
+                'https://www.datocms-assets.com/2885/1616436427-artboard.png',
+            },
+          },
           {
             quote:
               'We deployed a dynamic task scheduling system with Nomad. It helped us improve the availability of distributed services across more than 200 edge cities worldwide.',
@@ -128,23 +185,6 @@ export default function Homepage() {
           },
           {
             quote:
-              'We have people who are first-time system administrators deploying applications. There is a guy on our team who worked in IT help desk for 8 years - just today he upgraded an entire cluster himself.',
-            caseStudyURL: 'https://www.hashicorp.com/case-studies/roblox/',
-            person: {
-              firstName: 'Rob',
-              lastName: 'Cameron',
-              photo:
-                'https://www.datocms-assets.com/2885/1582180216-rob-cameron.jpeg',
-              title: 'Technical Director of Infrastructure',
-            },
-            company: {
-              name: 'Roblox',
-              logo:
-                'https://www.datocms-assets.com/2885/1582180369-roblox-color.svg',
-            },
-          },
-          {
-            quote:
               'Our customers’ jobs are changing constantly. It’s challenging to dynamically predict demand, what types of jobs, and the resource requirements. We found that Nomad excelled in this area.',
             caseStudyURL:
               'https://www.hashicorp.com/resources/nomad-vault-circleci-security-scheduling',
@@ -163,19 +203,56 @@ export default function Homepage() {
           },
           {
             quote:
-              'Adopting Nomad did not require us to change our packaging format — we could continue to package Python in Docker and build binaries for the rest of our applications.',
+              "I know many teams doing incredible work with Kubernetes but I also have heard horror stories about what happens when it doesn't go well. We attribute our systems' stability to the simplicity and elegance of Nomad.",
             caseStudyURL:
-              'https://medium.com/@copyconstruct/schedulers-kubernetes-and-nomad-b0f2e14a896',
+              'https://www.hashicorp.com/resources/betterhelp-s-hashicorp-nomad-use-case/',
             person: {
-              firstName: 'Cindy',
-              lastName: 'Sridharan',
+              firstName: 'Michael',
+              lastName: 'Aldridge',
               photo:
-                'https://www.datocms-assets.com/2885/1582181517-cindy-sridharan.png',
-              title: 'Engineer',
+                'https://www.datocms-assets.com/2885/1592925323-1587510032-michael-alridge.jpeg',
+              title: 'Staff Systems Engineer',
             },
             company: {
-              name: 'imgix',
-              logo: 'https://www.datocms-assets.com/2885/1582181250-imgix.svg',
+              name: 'BetterHelp',
+              logo:
+                'https://www.datocms-assets.com/2885/1592925329-betterhelp-logo.png',
+            },
+          },
+          {
+            quote:
+              "Nomad gives us a unified control plane, enabling hardware and driver rollouts using vendor's drivers - be it a centrifuge, incubator, or mass spectrometer.",
+            caseStudyURL:
+              'https://thenewstack.io/applying-workload-orchestration-to-experimental-biology/',
+            person: {
+              firstName: 'Dhasharath',
+              lastName: 'Shrivathsa',
+              photo:
+                'https://www.datocms-assets.com/2885/1623450501-dhasharath-shrivathsa.jpg',
+              title: 'CEO',
+            },
+            company: {
+              name: 'Radix',
+              logo:
+                'https://www.datocms-assets.com/2885/1594233325-radix-logo-1.svg',
+            },
+          },
+          {
+            quote:
+              'Nomad has proven itself to be highly scalable, and we’re excited to scale our business alongside it.',
+            caseStudyURL:
+              'https://www.hashicorp.com/blog/how-nomad-powers-a-google-backed-indoor-farming-startup-to-disrupt-agtech/',
+            person: {
+              firstName: 'John',
+              lastName: 'Spencer',
+              photo:
+                'https://www.datocms-assets.com/2885/1594236857-johnspencer.jpeg',
+              title: 'Senior Site Reliability Engineer',
+            },
+            company: {
+              name: 'Bowery',
+              logo:
+                'https://www.datocms-assets.com/2885/1594242826-bowery-logo-2.png',
             },
           },
         ]}
@@ -184,11 +261,6 @@ export default function Homepage() {
             companyName: 'Trivago',
             url:
               'https://www.datocms-assets.com/2885/1582162317-trivago-monochromatic.svg',
-          },
-          {
-            companyName: 'Roblox',
-            url:
-              'https://www.datocms-assets.com/2885/1582180373-roblox-monochrome.svg',
           },
           {
             companyName: 'CircleCI',
@@ -206,18 +278,14 @@ export default function Homepage() {
               'https://www.datocms-assets.com/2885/1523044075-pandora-black.svg',
           },
           {
-            companyName: 'Citadel',
-            url:
-              'https://www.datocms-assets.com/2885/1582323352-logocitadelwhite-knockout.svg',
-          },
-          {
-            companyName: 'Jet',
-            url: 'https://www.datocms-assets.com/2885/1522341143-jet-black.svg',
-          },
-          {
             companyName: 'Deluxe',
             url:
               'https://www.datocms-assets.com/2885/1582323254-deluxe-logo.svg',
+          },
+          {
+            companyName: 'Radix',
+            url:
+              'https://www.datocms-assets.com/2885/1594233325-radix-logo-1.svg',
           },
         ]}
       />
@@ -234,7 +302,7 @@ export default function Homepage() {
       <div className="use-cases g-grid-container">
         <h2 className="g-type-display-2">Use Cases</h2>
         <UseCases
-          theme="nomad"
+          product="nomad"
           items={[
             {
               title: 'Simple Container Orchestration',
@@ -243,7 +311,7 @@ export default function Homepage() {
               image: {
                 alt: null,
                 format: 'png',
-                url: require('./img/use-cases/simple-container-orchestration.svg'),
+                url: require('./img/use-cases/simple_container_orchestration_icon.svg?url'),
               },
               link: {
                 external: false,
@@ -258,7 +326,7 @@ export default function Homepage() {
               image: {
                 alt: null,
                 format: 'png',
-                url: require('./img/use-cases/non-containerized-application-orchestration.svg'),
+                url: require('./img/use-cases/non-containerized_app_orch_icon.svg?url'),
               },
               link: {
                 external: false,
@@ -273,7 +341,7 @@ export default function Homepage() {
               image: {
                 alt: null,
                 format: 'png',
-                url: require('./img/use-cases/automated-service-networking-with-consul.svg'),
+                url: require('./img/use-cases/automated_service_networking_icon.svg?url'),
               },
               link: {
                 external: false,
@@ -285,34 +353,100 @@ export default function Homepage() {
         />
       </div>
 
-      <LearnNomad
+      <LearnCallout
+        headline="Learn the latest Nomad skills"
+        product="nomad"
         items={[
           {
             title: 'Getting Started',
             category: 'Step-by-Step Guides',
             time: '24 mins',
-            link:
-              'https://learn.hashicorp.com/nomad?track=getting-started#getting-started',
+            link: 'https://learn.hashicorp.com/collections/nomad/get-started',
             image: require('./img/learn-nomad/cap.svg'),
           },
           {
             title: 'Deploy and Manage Nomad Jobs',
             category: 'Step-by-Step Guides',
             time: '36 mins',
-            link:
-              'https://learn.hashicorp.com/nomad?track=managing-jobs#getting-started',
+            link: 'https://learn.hashicorp.com/collections/nomad/manage-jobs',
             image: require('./img/learn-nomad/cubes.svg'),
           },
         ]}
       />
 
-      <NomadEnterpriseInfo />
+      <TextSplitWithLogoGrid
+        textSplit={{
+          product: 'nomad',
+          heading: 'Nomad Ecosystem',
+          content:
+            'Enable end-to-end automation for your application deployment.',
+          linkStyle: 'links',
+          links: [
+            {
+              text: 'Explore the Nomad Ecosystem',
+              url: '/docs/ecosystem',
+              type: 'inbound',
+            },
+          ],
+        }}
+        logoGrid={[
+          {
+            url: require('@hashicorp/mktg-logos/product/consul/logomark/color.svg?url'),
+            alt: 'Consul',
+            linkUrl: '/docs/integrations/consul-integration',
+          },
+          {
+            url: require('@hashicorp/mktg-logos/product/vault/logomark/color.svg?url'),
+            alt: 'Vault',
+            linkUrl: '/docs/integrations/vault-integration',
+          },
+          {
+            url: require('./img/partner-logos/gitlab-logo-gray-stacked-rgb.svg?url'),
+            alt: 'Gitlab',
+            linkUrl:
+              'https://www.hashicorp.com/resources/nomad-ci-cd-developer-workflows-and-integrations',
+          },
+          {
+            url: require('./img/partner-logos/csi.svg?url'),
+            alt: 'Container Storage interface',
+            linkUrl: '/docs/internals/plugins/csi',
+          },
+          {
+            url: require('./img/partner-logos/cni.svg?url'),
+            alt: 'Container Network interface',
+            linkUrl: '/docs/integrations/consul-connect#cni-plugins',
+          },
+          {
+            url: require('./img/partner-logos/nvidia.svg?url'),
+            alt: 'NVIDIA',
+            linkUrl:
+              'https://www.hashicorp.com/resources/running-gpu-accelerated-applications-on-nomad',
+          },
+          {
+            url: require('./img/partner-logos/datadog.svg?url'),
+            alt: 'Datadog',
+            linkUrl: 'https://docs.datadoghq.com/integrations/nomad/',
+          },
+          {
+            url: require('./img/partner-logos/jfrog.svg?url'),
+            alt: 'JFrog Artifactory',
+            linkUrl:
+              'https://jfrog.com/blog/cluster-management-made-simple-with-jfrog-artifactory-and-hashicorp-nomad/',
+          },
+          {
+            url: require('./img/partner-logos/prometheus.svg?url'),
+            alt: 'Prometheus',
+            linkUrl:
+              'https://learn.hashicorp.com/tutorials/nomad/dynamic-application-sizing?in=nomad/nomad-1-0#start-prometheus',
+          },
+        ]}
+      />
 
       <CallToAction
         variant="compact"
         heading="Ready to get started?"
         content="Nomad Open Source addresses the technical complexity of managing a mixed type of workloads in production at scale by providing a simple and flexible workload orchestrator across distributed infrastructure and clouds."
-        brand="nomad"
+        product="nomad"
         links={[
           {
             text: 'Explore HashiCorp Learn',

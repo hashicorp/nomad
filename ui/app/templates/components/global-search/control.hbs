@@ -1,16 +1,17 @@
   <PowerSelect
     @tagName="div"
-    class="global-search"
     data-test-search
     @searchEnabled={{true}}
     @search={{perform this.search}}
+    @onInput={{action 'ensureMinimumLength'}}
     @onChange={{action 'selectOption'}}
     @onFocus={{action 'openOnClickOrTab'}}
+    @onClose={{action 'onCloseEvent'}}
     @dropdownClass="global-search-dropdown"
     @calculatePosition={{this.calculatePosition}}
     @searchMessageComponent="global-search/message"
     @triggerComponent="global-search/trigger"
     @registerAPI={{action 'storeSelect'}}
     as |option|>
-    {{option.name}}
+    {{option.label}}
   </PowerSelect>

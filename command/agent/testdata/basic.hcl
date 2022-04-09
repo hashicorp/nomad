@@ -106,7 +106,6 @@ server {
   authoritative_region          = "foobar"
   bootstrap_expect              = 5
   data_dir                      = "/tmp/data"
-  protocol_version              = 3
   raft_protocol                 = 3
   num_schedulers                = 2
   enabled_schedulers            = ["test"]
@@ -120,6 +119,7 @@ server {
   heartbeat_grace               = "30s"
   min_heartbeat_ttl             = "33s"
   max_heartbeats_per_second     = 11.0
+  failover_heartbeat_ttl        = "330s"
   retry_join                    = ["1.1.1.1", "2.2.2.2"]
   start_join                    = ["1.1.1.1", "2.2.2.2"]
   retry_max                     = 3
@@ -130,6 +130,8 @@ server {
   upgrade_version               = "0.8.0"
   encrypt                       = "abc"
   raft_multiplier               = 4
+  enable_event_broker           = false
+  event_buffer_size             = 200
 
   server_join {
     retry_join     = ["1.1.1.1", "2.2.2.2"]
@@ -146,6 +148,8 @@ server {
       service_scheduler_enabled = true
     }
   }
+
+  license_path = "/tmp/nomad.hclic"
 }
 
 acl {
@@ -177,15 +181,13 @@ audit {
 }
 
 telemetry {
-  statsite_address             = "127.0.0.1:1234"
-  statsd_address               = "127.0.0.1:2345"
-  prometheus_metrics           = true
-  disable_hostname             = true
-  collection_interval          = "3s"
-  publish_allocation_metrics   = true
-  publish_node_metrics         = true
-  disable_tagged_metrics       = true
-  backwards_compatible_metrics = true
+  statsite_address           = "127.0.0.1:1234"
+  statsd_address             = "127.0.0.1:2345"
+  prometheus_metrics         = true
+  disable_hostname           = true
+  collection_interval        = "3s"
+  publish_allocation_metrics = true
+  publish_node_metrics       = true
 }
 
 leave_on_interrupt = true

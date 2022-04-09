@@ -48,7 +48,6 @@ export default create({
     state: text('[data-test-state]'),
     message: text('[data-test-message]'),
     time: text('[data-test-time]'),
-    ports: text('[data-test-ports]'),
     volumes: text('[data-test-volumes]'),
 
     hasUnhealthyDriver: isPresent('[data-test-icon="unhealthy-driver"]'),
@@ -82,10 +81,12 @@ export default create({
   },
 
   preempted: isPresent('[data-test-preemptions]'),
-  ...allocations('[data-test-preemptions] [data-test-allocation]', 'preemptions'),
+  ...allocations(
+    '[data-test-preemptions] [data-test-allocation]',
+    'preemptions'
+  ),
 
   ports: collection('[data-test-allocation-port]', {
-    dynamic: text('[data-test-allocation-port-is-dynamic]'),
     name: text('[data-test-allocation-port-name]'),
     address: text('[data-test-allocation-port-address]'),
     to: text('[data-test-allocation-port-to]'),
@@ -95,6 +96,7 @@ export default create({
     name: text('[data-test-service-name]'),
     port: text('[data-test-service-port]'),
     tags: text('[data-test-service-tags]'),
+    onUpdate: text('[data-test-service-onupdate]'),
     connect: text('[data-test-service-connect]'),
     upstreams: text('[data-test-service-upstreams]'),
   }),

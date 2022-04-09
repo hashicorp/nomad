@@ -13,12 +13,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -66,16 +70,37 @@ func BenchmarkHTTPRequests(b *testing.B) {
 	})
 }
 
+func TestMultipleInterfaces(t *testing.T) {
+	ci.Parallel(t)
+
+	httpIps := []string{"127.0.0.1", "127.0.0.2"}
+
+	s := makeHTTPServer(t, func(c *Config) {
+		c.Addresses.HTTP = strings.Join(httpIps, " ")
+		c.ACL.Enabled = true
+	})
+	defer s.Shutdown()
+
+	httpPort := s.ports[0]
+	for _, ip := range httpIps {
+		resp, err := http.Get(fmt.Sprintf("http://%s:%d/", ip, httpPort))
+
+		assert.Nil(t, err)
+		assert.Equal(t, resp.StatusCode, 200)
+	}
+}
+
 // TestRootFallthrough tests rootFallthrough handler to
 // verify redirect and 404 behavior
 func TestRootFallthrough(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
-		desc         string
-		path         string
-		expectedPath string
-		expectedCode int
+		desc             string
+		path             string
+		expectedPath     string
+		expectedRawQuery string
+		expectedCode     int
 	}{
 		{
 			desc:         "unknown endpoint 404s",
@@ -87,6 +112,13 @@ func TestRootFallthrough(t *testing.T) {
 			path:         "/",
 			expectedPath: "/ui/",
 			expectedCode: 307,
+		},
+		{
+			desc:             "root path with one-time token redirects to ui",
+			path:             "/?ott=whatever",
+			expectedPath:     "/ui/",
+			expectedRawQuery: "ott=whatever",
+			expectedCode:     307,
 		},
 	}
 
@@ -113,13 +145,14 @@ func TestRootFallthrough(t *testing.T) {
 				loc, err := resp.Location()
 				require.NoError(t, err)
 				require.Equal(t, tc.expectedPath, loc.Path)
+				require.Equal(t, tc.expectedRawQuery, loc.RawQuery)
 			}
 		})
 	}
 }
 
 func TestSetIndex(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	resp := httptest.NewRecorder()
 	setIndex(resp, 1000)
 	header := resp.Header().Get("X-Nomad-Index")
@@ -133,7 +166,7 @@ func TestSetIndex(t *testing.T) {
 }
 
 func TestSetKnownLeader(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	resp := httptest.NewRecorder()
 	setKnownLeader(resp, true)
 	header := resp.Header().Get("X-Nomad-KnownLeader")
@@ -149,7 +182,7 @@ func TestSetKnownLeader(t *testing.T) {
 }
 
 func TestSetLastContact(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	resp := httptest.NewRecorder()
 	setLastContact(resp, 123456*time.Microsecond)
 	header := resp.Header().Get("X-Nomad-LastContact")
@@ -159,7 +192,7 @@ func TestSetLastContact(t *testing.T) {
 }
 
 func TestSetMeta(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	meta := structs.QueryMeta{
 		Index:       1000,
 		KnownLeader: true,
@@ -182,7 +215,7 @@ func TestSetMeta(t *testing.T) {
 }
 
 func TestSetHeaders(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := makeHTTPServer(t, nil)
 	s.Agent.config.HTTPAPIResponseHeaders = map[string]string{"foo": "bar"}
 	defer s.Shutdown()
@@ -203,7 +236,7 @@ func TestSetHeaders(t *testing.T) {
 }
 
 func TestContentTypeIsJSON(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
@@ -224,7 +257,7 @@ func TestContentTypeIsJSON(t *testing.T) {
 }
 
 func TestWrapNonJSON(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
@@ -243,7 +276,7 @@ func TestWrapNonJSON(t *testing.T) {
 }
 
 func TestWrapNonJSON_Error(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
@@ -278,17 +311,17 @@ func TestWrapNonJSON_Error(t *testing.T) {
 }
 
 func TestPrettyPrint(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testPrettyPrint("pretty=1", true, t)
 }
 
 func TestPrettyPrintOff(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testPrettyPrint("pretty=0", false, t)
 }
 
 func TestPrettyPrintBare(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testPrettyPrint("pretty", true, t)
 }
 
@@ -314,7 +347,7 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 		err = enc.Encode(r)
 		expected.WriteByte('\n')
 	} else {
-		enc := codec.NewEncoder(&expected, structs.JsonHandle)
+		enc := codec.NewEncoder(&expected, structs.JsonHandleWithExtensions)
 		err = enc.Encode(r)
 	}
 	if err != nil {
@@ -378,7 +411,7 @@ func TestTokenNotFound(t *testing.T) {
 }
 
 func TestParseWait(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -401,7 +434,7 @@ func TestParseWait(t *testing.T) {
 }
 
 func TestParseWait_InvalidTime(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -421,7 +454,7 @@ func TestParseWait_InvalidTime(t *testing.T) {
 }
 
 func TestParseWait_InvalidIndex(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -441,7 +474,7 @@ func TestParseWait_InvalidIndex(t *testing.T) {
 }
 
 func TestParseConsistency(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var b structs.QueryOptions
 
 	req, err := http.NewRequest("GET",
@@ -469,7 +502,7 @@ func TestParseConsistency(t *testing.T) {
 }
 
 func TestParseRegion(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
@@ -498,7 +531,7 @@ func TestParseRegion(t *testing.T) {
 }
 
 func TestParseToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
@@ -515,10 +548,147 @@ func TestParseToken(t *testing.T) {
 	}
 }
 
+func TestParseBool(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		Input    string
+		Expected *bool
+		Err      bool // true if an error should be expected
+	}{
+		{
+			Input:    "",
+			Expected: nil,
+		},
+		{
+			Input:    "true",
+			Expected: helper.BoolToPtr(true),
+		},
+		{
+			Input:    "false",
+			Expected: helper.BoolToPtr(false),
+		},
+		{
+			Input: "1234",
+			Err:   true,
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run("Input-"+tc.Input, func(t *testing.T) {
+			testURL, err := url.Parse("http://localhost/foo?resources=" + tc.Input)
+			require.NoError(t, err)
+			req := &http.Request{
+				URL: testURL,
+			}
+
+			result, err := parseBool(req, "resources")
+			if tc.Err {
+				require.Error(t, err)
+				require.Nil(t, result)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.Expected, result)
+			}
+		})
+	}
+}
+
+func Test_parseInt(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		Input    string
+		Expected *int
+		Err      bool
+	}{
+		{
+			Input:    "",
+			Expected: nil,
+		},
+		{
+			Input:    "13",
+			Expected: helper.IntToPtr(13),
+		},
+		{
+			Input:    "99",
+			Expected: helper.IntToPtr(99),
+		},
+		{
+			Input: "ten",
+			Err:   true,
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run("Input-"+tc.Input, func(t *testing.T) {
+			testURL, err := url.Parse("http://localhost/foo?eval_priority=" + tc.Input)
+			require.NoError(t, err)
+			req := &http.Request{
+				URL: testURL,
+			}
+
+			result, err := parseInt(req, "eval_priority")
+			if tc.Err {
+				require.Error(t, err)
+				require.Nil(t, result)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.Expected, result)
+			}
+		})
+	}
+}
+
+func TestParsePagination(t *testing.T) {
+	ci.Parallel(t)
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	cases := []struct {
+		Input             string
+		ExpectedNextToken string
+		ExpectedPerPage   int32
+	}{
+		{
+			Input: "",
+		},
+		{
+			Input:             "next_token=a&per_page=3",
+			ExpectedNextToken: "a",
+			ExpectedPerPage:   3,
+		},
+		{
+			Input:             "next_token=a&next_token=b",
+			ExpectedNextToken: "a",
+		},
+		{
+			Input: "per_page=a",
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run("Input-"+tc.Input, func(t *testing.T) {
+
+			req, err := http.NewRequest("GET",
+				"/v1/volumes/csi/external?"+tc.Input, nil)
+
+			require.NoError(t, err)
+			opts := &structs.QueryOptions{}
+			parsePagination(req, opts)
+			require.Equal(t, tc.ExpectedNextToken, opts.NextToken)
+			require.Equal(t, tc.ExpectedPerPage, opts.PerPage)
+		})
+	}
+}
+
 // TestHTTP_VerifyHTTPSClient asserts that a client certificate signed by the
 // appropriate CA is required when VerifyHTTPSClient=true.
 func TestHTTP_VerifyHTTPSClient(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	const (
 		cafile  = "../../helper/tlsutil/testdata/ca.pem"
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
@@ -602,7 +772,9 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected a *url.Error but received: %T -> %v", err, err)
 	}
-	opErr, ok := urlErr.Err.(*net.OpError)
+
+	var opErr *net.OpError
+	ok = errors.As(urlErr.Err, &opErr)
 	if !ok {
 		t.Fatalf("expected a *net.OpErr but received: %T -> %v", urlErr.Err, urlErr.Err)
 	}
@@ -637,7 +809,7 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 }
 
 func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -741,7 +913,7 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 // TestHTTPServer_Limits_Error asserts invalid Limits cause errors. This is the
 // HTTP counterpart to TestAgent_ServerConfig_Limits_Error.
 func TestHTTPServer_Limits_Error(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		tls         bool
@@ -791,16 +963,11 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 		tc := cases[i]
 		name := fmt.Sprintf("%d-tls-%t-timeout-%s-limit-%v", i, tc.tls, tc.timeout, tc.limit)
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			// Use a fake agent since the HTTP server should never start
-			agent := &Agent{
-				logger: testlog.HCLogger(t),
-			}
+			ci.Parallel(t)
 
 			conf := &Config{
-				normalizedAddrs: &Addresses{
-					HTTP: "localhost:0", // port is never used
+				normalizedAddrs: &NormalizedAddrs{
+					HTTP: []string{"localhost:0"}, // port is never used
 				},
 				TLSConfig: &config.TLSConfig{
 					EnableHTTP: tc.tls,
@@ -811,7 +978,14 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 				},
 			}
 
-			srv, err := NewHTTPServer(agent, conf)
+			// Use a fake agent since the HTTP server should never start
+			agent := &Agent{
+				logger:     testlog.HCLogger(t),
+				httpLogger: testlog.HCLogger(t),
+				config:     conf,
+			}
+
+			srv, err := NewHTTPServers(agent, conf)
 			require.Error(t, err)
 			require.Nil(t, srv)
 			require.Contains(t, err.Error(), tc.expectedErr)
@@ -819,15 +993,24 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 	}
 }
 
+func limitStr(limit *int) string {
+	if limit == nil {
+		return "none"
+	}
+	return strconv.Itoa(*limit)
+}
+
 // TestHTTPServer_Limits_OK asserts that all valid limits combinations
 // (tls/timeout/conns) work.
 func TestHTTPServer_Limits_OK(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	const (
 		cafile   = "../../helper/tlsutil/testdata/ca.pem"
 		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 		maxConns = 10 // limit must be < this for testing
+		bufSize  = 1  // enough to know if something was written
 	)
 
 	cases := []struct {
@@ -904,11 +1087,14 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 
 		conn, err := net.DialTimeout("tcp", a.Server.Addr, deadline)
 		require.NoError(t, err)
-		defer conn.Close()
+		defer func() {
+			require.NoError(t, conn.Close())
+		}()
 
 		buf := []byte{0}
 		readDeadline := time.Now().Add(deadline)
-		conn.SetReadDeadline(readDeadline)
+		err = conn.SetReadDeadline(readDeadline)
+		require.NoError(t, err)
 		n, err := conn.Read(buf)
 		require.Zero(t, n)
 		if assertTimeout {
@@ -927,6 +1113,8 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 			conf.Address = a.HTTPAddr()
 			conf.TLSConfig.Insecure = true
 			client, err := api.NewClient(conf)
+			defer client.Close()
+
 			require.NoError(t, err)
 
 			// Assert a blocking query isn't timed out by the
@@ -948,7 +1136,8 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		// timed out.
 		require.True(t, time.Now().After(readDeadline))
 
-		testutil.RequireDeadlineErr(t, err)
+		require.Truef(t, errors.Is(err, os.ErrDeadlineExceeded),
+			"error does not wrap os.ErrDeadlineExceeded: (%T) %v", err, err)
 	}
 
 	assertNoLimit := func(t *testing.T, addr string) {
@@ -960,12 +1149,12 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		for i := 0; i < maxConns; i++ {
 			conns[i], err = net.DialTimeout("tcp", addr, 1*time.Second)
 			require.NoError(t, err)
-			defer conns[i].Close()
 
 			go func(i int) {
 				buf := []byte{0}
 				readDeadline := time.Now().Add(1 * time.Second)
-				conns[i].SetReadDeadline(readDeadline)
+				err = conns[i].SetReadDeadline(readDeadline)
+				require.NoError(t, err)
 				n, err := conns[i].Read(buf)
 				if n > 0 {
 					errCh <- fmt.Errorf("n > 0: %d", n)
@@ -981,21 +1170,39 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 			case <-time.After(2 * time.Second):
 				t.Fatalf("timed out waiting for conn error %d", i)
 			case err := <-errCh:
-				testutil.RequireDeadlineErr(t, err)
+				require.Truef(t, errors.Is(err, os.ErrDeadlineExceeded),
+					"error does not wrap os.ErrDeadlineExceeded: (%T) %v", err, err)
 			}
+		}
+
+		for i := 0; i < maxConns; i++ {
+			require.NoError(t, conns[i].Close())
 		}
 	}
 
-	assertLimit := func(t *testing.T, addr string, limit int) {
+	dial := func(t *testing.T, addr string, useTLS bool) (net.Conn, error) {
+		if useTLS {
+			cert, err := tls.LoadX509KeyPair(foocert, fookey)
+			require.NoError(t, err)
+			return tls.Dial("tcp", addr, &tls.Config{
+				Certificates:       []tls.Certificate{cert},
+				InsecureSkipVerify: true, // good enough
+			})
+		} else {
+			return net.DialTimeout("tcp", addr, 1*time.Second)
+		}
+	}
+
+	assertLimit := func(t *testing.T, addr string, limit int, useTLS bool) {
 		var err error
 
 		// Create limit connections
 		conns := make([]net.Conn, limit)
 		errCh := make(chan error, limit)
 		for i := range conns {
-			conns[i], err = net.DialTimeout("tcp", addr, 1*time.Second)
+			conn, err := dial(t, addr, useTLS)
 			require.NoError(t, err)
-			defer conns[i].Close()
+			conns[i] = conn
 
 			go func(i int) {
 				buf := []byte{0}
@@ -1014,27 +1221,53 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		case <-time.After(500 * time.Millisecond):
 		}
 
-		// Assert a new connection is dropped
-		conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
-		require.NoError(t, err)
-		defer conn.Close()
+		// Create a new connection that will go over the connection limit.
+		limitConn, err := dial(t, addr, useTLS)
 
-		buf := []byte{0}
-		deadline := time.Now().Add(10 * time.Second)
-		conn.SetReadDeadline(deadline)
-		n, err := conn.Read(buf)
-		require.Zero(t, n)
+		// At this point, the state of the connection + handshake are up in the
+		// air.
+		//
+		// 1) dial failed, handshake never started
+		//     => Conn is nil + io.EOF
+		// 2) dial completed, handshake failed
+		//     => Conn is malformed + (net.OpError OR io.EOF)
+		// 3) dial completed, handshake succeeded
+		//     => Conn is not nil + no error, however using the Conn should
+		//        result in io.EOF
+		//
+		// At no point should Nomad actually write through the limited Conn.
 
-		// Soft-fail as following assertion helps with debugging
-		assert.Equal(t, io.EOF, err)
+		if limitConn == nil || err != nil {
+			// Case 1 or Case 2 - returned Conn is useless and the error should
+			// be one of:
+			//   "EOF"
+			//   "closed network connection"
+			//   "connection reset by peer"
+			msg := err.Error()
+			acceptable := strings.Contains(msg, "EOF") ||
+				strings.Contains(msg, "closed network connection") ||
+				strings.Contains(msg, "connection reset by peer")
+			require.True(t, acceptable)
+		} else {
+			// Case 3 - returned Conn is usable, but Nomad should not write
+			// anything before closing it.
+			buf := make([]byte, bufSize)
+			deadline := time.Now().Add(10 * time.Second)
+			require.NoError(t, limitConn.SetReadDeadline(deadline))
+			n, err := limitConn.Read(buf)
+			require.Equal(t, io.EOF, err)
+			require.Zero(t, n)
+			require.NoError(t, limitConn.Close())
+		}
 
 		// Assert existing connections are ok
 		require.Len(t, errCh, 0)
 
 		// Cleanup
 		for _, conn := range conns {
-			conn.Close()
+			require.NoError(t, conn.Close())
 		}
+
 		for range conns {
 			err := <-errCh
 			require.Contains(t, err.Error(), "use of closed network connection")
@@ -1043,9 +1276,9 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 
 	for i := range cases {
 		tc := cases[i]
-		name := fmt.Sprintf("%d-tls-%t-timeout-%s-limit-%v", i, tc.tls, tc.timeout, tc.limit)
+		name := fmt.Sprintf("%d-tls-%t-timeout-%s-limit-%v", i, tc.tls, tc.timeout, limitStr(tc.limit))
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
+			ci.Parallel(t)
 
 			if tc.limit != nil && *tc.limit >= maxConns {
 				t.Fatalf("test fixture failure: cannot assert limit (%d) >= max (%d)", *tc.limit, maxConns)
@@ -1062,21 +1295,24 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 				}
 				c.Limits.HTTPSHandshakeTimeout = tc.timeout
 				c.Limits.HTTPMaxConnsPerClient = tc.limit
+				c.LogLevel = "ERROR"
 			})
-			defer s.Shutdown()
+			defer func() {
+				require.NoError(t, s.Shutdown())
+			}()
 
 			assertTimeout(t, s, tc.assertTimeout, tc.timeout)
 
 			if tc.assertLimit {
 				// There's a race between assertTimeout(false) closing
 				// its connection and the HTTP server noticing and
-				// untracking it. Since there's no way to coordiante
+				// un-tracking it. Since there's no way to coordinate
 				// when this occurs, sleeping is the only way to avoid
 				// asserting limits before the timed out connection is
 				// untracked.
 				time.Sleep(1 * time.Second)
 
-				assertLimit(t, s.Server.Addr, *tc.limit)
+				assertLimit(t, s.Server.Addr, *tc.limit, tc.tls)
 			} else {
 				assertNoLimit(t, s.Server.Addr)
 			}
@@ -1084,7 +1320,60 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 	}
 }
 
+func TestHTTPServer_ResolveToken(t *testing.T) {
+	ci.Parallel(t)
+
+	// Setup two servers, one with ACL enabled and another with ACL disabled.
+	noACLServer := makeHTTPServer(t, func(c *Config) {
+		c.ACL = &ACLConfig{Enabled: false}
+	})
+	defer noACLServer.Shutdown()
+
+	ACLServer := makeHTTPServer(t, func(c *Config) {
+		c.ACL = &ACLConfig{Enabled: true}
+	})
+	defer ACLServer.Shutdown()
+
+	// Register sample token.
+	state := ACLServer.Agent.server.State()
+	token := mock.CreatePolicyAndToken(t, state, 1000, "node", mock.NodePolicy(acl.PolicyWrite))
+
+	// Tests cases.
+	t.Run("acl disabled", func(t *testing.T) {
+		req := &http.Request{Body: http.NoBody}
+		got, err := noACLServer.Server.ResolveToken(req)
+		require.NoError(t, err)
+		require.Nil(t, got)
+	})
+
+	t.Run("token not found", func(t *testing.T) {
+		req := &http.Request{
+			Body:   http.NoBody,
+			Header: make(map[string][]string),
+		}
+		setToken(req, mock.ACLToken())
+		got, err := ACLServer.Server.ResolveToken(req)
+		require.Nil(t, got)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "ACL token not found")
+	})
+
+	t.Run("set token", func(t *testing.T) {
+		req := &http.Request{
+			Body:   http.NoBody,
+			Header: make(map[string][]string),
+		}
+		setToken(req, token)
+		got, err := ACLServer.Server.ResolveToken(req)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.True(t, got.AllowNodeWrite())
+	})
+}
+
 func Test_IsAPIClientError(t *testing.T) {
+	ci.Parallel(t)
+
 	trueCases := []int{400, 403, 404, 499}
 	for _, c := range trueCases {
 		require.Truef(t, isAPIClientError(c), "code: %v", c)
@@ -1097,6 +1386,7 @@ func Test_IsAPIClientError(t *testing.T) {
 }
 
 func Test_decodeBody(t *testing.T) {
+	ci.Parallel(t)
 
 	testCases := []struct {
 		inputReq      *http.Request
@@ -1132,6 +1422,30 @@ func Test_decodeBody(t *testing.T) {
 	}
 }
 
+// BenchmarkHTTPServer_JSONEncodingWithExtensions benchmarks the performance of
+// encoding JSON objects using extensions
+func BenchmarkHTTPServer_JSONEncodingWithExtensions(b *testing.B) {
+	benchmarkJsonEncoding(b, structs.JsonHandleWithExtensions)
+}
+
+// BenchmarkHTTPServer_JSONEncodingWithoutExtensions benchmarks the performance of
+// encoding JSON objects using extensions
+func BenchmarkHTTPServer_JSONEncodingWithoutExtensions(b *testing.B) {
+	benchmarkJsonEncoding(b, structs.JsonHandle)
+}
+
+func benchmarkJsonEncoding(b *testing.B, handle *codec.JsonHandle) {
+	n := mock.Node()
+	var buf bytes.Buffer
+
+	enc := codec.NewEncoder(&buf, handle)
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		err := enc.Encode(n)
+		require.NoError(b, err)
+	}
+}
+
 func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 	s := makeHTTPServer(t, cb)
 	defer s.Shutdown()
@@ -1153,6 +1467,12 @@ func httpACLTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 
 func setToken(req *http.Request, token *structs.ACLToken) {
 	req.Header.Set("X-Nomad-Token", token.SecretID)
+}
+
+func setNamespace(req *http.Request, ns string) {
+	q := req.URL.Query()
+	q.Add("namespace", ns)
+	req.URL.RawQuery = q.Encode()
 }
 
 func encodeReq(obj interface{}) io.ReadCloser {

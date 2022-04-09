@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a panic when deployment monitor is invoked in some CI environments
+```

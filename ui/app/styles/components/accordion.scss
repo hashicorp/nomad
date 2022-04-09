@@ -15,6 +15,10 @@
       border-bottom-left-radius: $radius;
       border-bottom-right-radius: $radius;
     }
+
+    &.is-full-bleed {
+      padding: 0;
+    }
   }
 
   .accordion-head {
@@ -26,13 +30,14 @@
       background: $white;
     }
 
-    &.is-inactive {
-      color: $grey-light;
-    }
-
     .accordion-head-content {
       width: 100%;
       margin-right: 1.5em;
+
+      .tooltip {
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+      }
     }
 
     .accordion-toggle {

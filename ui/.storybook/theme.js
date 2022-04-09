@@ -18,7 +18,8 @@ export default create({
 
   // Typography
   // From variables.scss
-  fontBase: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif",
+  fontBase:
+    "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif",
   // From Bulma
   fontCode: 'monospace',
 

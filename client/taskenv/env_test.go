@@ -11,6 +11,8 @@ import (
 	hcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -61,6 +63,8 @@ func testEnvBuilder() *Builder {
 }
 
 func TestEnvironment_ParseAndReplace_Env(t *testing.T) {
+	ci.Parallel(t)
+
 	env := testEnvBuilder()
 
 	input := []string{fmt.Sprintf(`"${%v}"!`, envOneKey), fmt.Sprintf("${%s}${%s}", envOneKey, envTwoKey)}
@@ -73,6 +77,8 @@ func TestEnvironment_ParseAndReplace_Env(t *testing.T) {
 }
 
 func TestEnvironment_ParseAndReplace_Meta(t *testing.T) {
+	ci.Parallel(t)
+
 	input := []string{fmt.Sprintf("${%v%v}", nodeMetaPrefix, metaKey)}
 	exp := []string{metaVal}
 	env := testEnvBuilder()
@@ -84,6 +90,8 @@ func TestEnvironment_ParseAndReplace_Meta(t *testing.T) {
 }
 
 func TestEnvironment_ParseAndReplace_Attr(t *testing.T) {
+	ci.Parallel(t)
+
 	input := []string{fmt.Sprintf("${%v%v}", nodeAttributePrefix, attrKey)}
 	exp := []string{attrVal}
 	env := testEnvBuilder()
@@ -95,6 +103,8 @@ func TestEnvironment_ParseAndReplace_Attr(t *testing.T) {
 }
 
 func TestEnvironment_ParseAndReplace_Node(t *testing.T) {
+	ci.Parallel(t)
+
 	input := []string{fmt.Sprintf("${%v}", nodeNameKey), fmt.Sprintf("${%v}", nodeClassKey)}
 	exp := []string{nodeName, nodeClass}
 	env := testEnvBuilder()
@@ -106,6 +116,8 @@ func TestEnvironment_ParseAndReplace_Node(t *testing.T) {
 }
 
 func TestEnvironment_ParseAndReplace_Mixed(t *testing.T) {
+	ci.Parallel(t)
+
 	input := []string{
 		fmt.Sprintf("${%v}${%v%v}", nodeNameKey, nodeAttributePrefix, attrKey),
 		fmt.Sprintf("${%v}${%v%v}", nodeClassKey, nodeMetaPrefix, metaKey),
@@ -125,6 +137,8 @@ func TestEnvironment_ParseAndReplace_Mixed(t *testing.T) {
 }
 
 func TestEnvironment_ReplaceEnv_Mixed(t *testing.T) {
+	ci.Parallel(t)
+
 	input := fmt.Sprintf("${%v}${%v%v}", nodeNameKey, nodeAttributePrefix, attrKey)
 	exp := fmt.Sprintf("%v%v", nodeName, attrVal)
 	env := testEnvBuilder()
@@ -136,18 +150,32 @@ func TestEnvironment_ReplaceEnv_Mixed(t *testing.T) {
 }
 
 func TestEnvironment_AsList(t *testing.T) {
+	ci.Parallel(t)
+
 	n := mock.Node()
 	n.Meta = map[string]string{
 		"metaKey": "metaVal",
 	}
 	a := mock.Alloc()
-	a.AllocatedResources.Tasks["web"].Networks[0] = &structs.NetworkResource{
-		Device:        "eth0",
-		IP:            "127.0.0.1",
-		ReservedPorts: []structs.Port{{Label: "https", Value: 8080}},
-		MBits:         50,
-		DynamicPorts:  []structs.Port{{Label: "http", Value: 80}},
+	a.Job.ParentID = fmt.Sprintf("mock-parent-service-%s", uuid.Generate())
+	a.AllocatedResources.Tasks["web"] = &structs.AllocatedTaskResources{
+		Cpu: structs.AllocatedCpuResources{
+			CpuShares:     500,
+			ReservedCores: []uint16{0, 5, 6, 7},
+		},
+		Memory: structs.AllocatedMemoryResources{
+			MemoryMB:    256,
+			MemoryMaxMB: 512,
+		},
+		Networks: []*structs.NetworkResource{{
+			Device:        "eth0",
+			IP:            "127.0.0.1",
+			ReservedPorts: []structs.Port{{Label: "https", Value: 8080}},
+			MBits:         50,
+			DynamicPorts:  []structs.Port{{Label: "http", Value: 80}},
+		}},
 	}
+
 	a.AllocatedResources.Tasks["ssh"] = &structs.AllocatedTaskResources{
 		Networks: []*structs.NetworkResource{
 			{
@@ -190,10 +218,12 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_PORT_ssh_other=1234",
 		"NOMAD_PORT_ssh_ssh=22",
 		"NOMAD_CPU_LIMIT=500",
+		"NOMAD_CPU_CORES=0,5-7",
 		"NOMAD_DC=dc1",
 		"NOMAD_NAMESPACE=not-default",
 		"NOMAD_REGION=global",
 		"NOMAD_MEMORY_LIMIT=256",
+		"NOMAD_MEMORY_MAX_LIMIT=512",
 		"NOMAD_META_ELB_CHECK_INTERVAL=30s",
 		"NOMAD_META_ELB_CHECK_MIN=3",
 		"NOMAD_META_ELB_CHECK_TYPE=http",
@@ -204,123 +234,9 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_META_elb_check_type=http",
 		"NOMAD_META_foo=bar",
 		"NOMAD_META_owner=armon",
+		fmt.Sprintf("NOMAD_JOB_ID=%s", a.Job.ID),
 		"NOMAD_JOB_NAME=my-job",
-		fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID),
-		"NOMAD_ALLOC_INDEX=0",
-	}
-	sort.Strings(act)
-	sort.Strings(exp)
-	require.Equal(t, exp, act)
-}
-
-// COMPAT(0.11): Remove in 0.11
-func TestEnvironment_AsList_Old(t *testing.T) {
-	n := mock.Node()
-	n.Meta = map[string]string{
-		"metaKey": "metaVal",
-	}
-	a := mock.Alloc()
-	a.AllocatedResources = nil
-	a.Resources = &structs.Resources{
-		CPU:      500,
-		MemoryMB: 256,
-		DiskMB:   150,
-		Networks: []*structs.NetworkResource{
-			{
-				Device: "eth0",
-				IP:     "192.168.0.100",
-				ReservedPorts: []structs.Port{
-					{Label: "ssh", Value: 22},
-					{Label: "other", Value: 1234},
-				},
-				MBits:        50,
-				DynamicPorts: []structs.Port{{Label: "http", Value: 2000}},
-			},
-		},
-	}
-	a.TaskResources = map[string]*structs.Resources{
-		"web": {
-			CPU:      500,
-			MemoryMB: 256,
-			Networks: []*structs.NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "127.0.0.1",
-					ReservedPorts: []structs.Port{{Label: "https", Value: 8080}},
-					MBits:         50,
-					DynamicPorts:  []structs.Port{{Label: "http", Value: 80}},
-				},
-			},
-		},
-	}
-	a.TaskResources["ssh"] = &structs.Resources{
-		Networks: []*structs.NetworkResource{
-			{
-				Device: "eth0",
-				IP:     "192.168.0.100",
-				MBits:  50,
-				ReservedPorts: []structs.Port{
-					{Label: "ssh", Value: 22},
-					{Label: "other", Value: 1234},
-				},
-			},
-		},
-	}
-
-	// simulate canonicalization on restore or fetch
-	a.Canonicalize()
-
-	task := a.Job.TaskGroups[0].Tasks[0]
-	task.Env = map[string]string{
-		"taskEnvKey": "taskEnvVal",
-	}
-	task.Resources.Networks = []*structs.NetworkResource{
-		// Nomad 0.8 didn't fully populate the fields in task Resource Networks
-		{
-			IP:            "",
-			ReservedPorts: []structs.Port{{Label: "https"}},
-			DynamicPorts:  []structs.Port{{Label: "http"}},
-		},
-	}
-	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
-		&drivers.DriverNetwork{PortMap: map[string]int{"https": 443}},
-	)
-
-	act := env.Build().List()
-	exp := []string{
-		"taskEnvKey=taskEnvVal",
-		"NOMAD_ADDR_http=127.0.0.1:80",
-		"NOMAD_PORT_http=80",
-		"NOMAD_IP_http=127.0.0.1",
-		"NOMAD_ADDR_https=127.0.0.1:8080",
-		"NOMAD_PORT_https=443",
-		"NOMAD_IP_https=127.0.0.1",
-		"NOMAD_HOST_PORT_http=80",
-		"NOMAD_HOST_PORT_https=8080",
-		"NOMAD_TASK_NAME=web",
-		"NOMAD_GROUP_NAME=web",
-		"NOMAD_ADDR_ssh_other=192.168.0.100:1234",
-		"NOMAD_ADDR_ssh_ssh=192.168.0.100:22",
-		"NOMAD_IP_ssh_other=192.168.0.100",
-		"NOMAD_IP_ssh_ssh=192.168.0.100",
-		"NOMAD_PORT_ssh_other=1234",
-		"NOMAD_PORT_ssh_ssh=22",
-		"NOMAD_CPU_LIMIT=500",
-		"NOMAD_DC=dc1",
-		"NOMAD_NAMESPACE=default",
-		"NOMAD_REGION=global",
-		"NOMAD_MEMORY_LIMIT=256",
-		"NOMAD_META_ELB_CHECK_INTERVAL=30s",
-		"NOMAD_META_ELB_CHECK_MIN=3",
-		"NOMAD_META_ELB_CHECK_TYPE=http",
-		"NOMAD_META_FOO=bar",
-		"NOMAD_META_OWNER=armon",
-		"NOMAD_META_elb_check_interval=30s",
-		"NOMAD_META_elb_check_min=3",
-		"NOMAD_META_elb_check_type=http",
-		"NOMAD_META_foo=bar",
-		"NOMAD_META_owner=armon",
-		"NOMAD_JOB_NAME=my-job",
+		fmt.Sprintf("NOMAD_JOB_PARENT_ID=%s", a.Job.ParentID),
 		fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID),
 		"NOMAD_ALLOC_INDEX=0",
 	}
@@ -330,7 +246,7 @@ func TestEnvironment_AsList_Old(t *testing.T) {
 }
 
 func TestEnvironment_AllValues(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	n := mock.Node()
 	n.Meta = map[string]string{
@@ -338,7 +254,9 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"nested.meta.key":   "a",
 		"invalid...metakey": "b",
 	}
+	n.CgroupParent = "abc.slice"
 	a := mock.ConnectAlloc()
+	a.Job.ParentID = fmt.Sprintf("mock-parent-service-%s", uuid.Generate())
 	a.AllocatedResources.Tasks["web"].Networks[0] = &structs.NetworkResource{
 		Device:        "eth0",
 		IP:            "127.0.0.1",
@@ -346,6 +264,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 		MBits:         50,
 		DynamicPorts:  []structs.Port{{Label: "http", Value: 80}},
 	}
+	a.AllocatedResources.Tasks["web"].Cpu.ReservedCores = []uint16{0, 5, 6, 7}
 	a.AllocatedResources.Tasks["ssh"] = &structs.AllocatedTaskResources{
 		Networks: []*structs.NetworkResource{
 			{
@@ -393,9 +312,24 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"b.":                "b",
 		".":                 "c",
 	}
+	task.Meta = map[string]string{
+		"taskMetaKey-${NOMAD_TASK_NAME}": "taskMetaVal-${node.unique.id}",
+		"foo":                            "bar",
+	}
 	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
 		&drivers.DriverNetwork{PortMap: map[string]int{"https": 443}},
 	)
+
+	// Add a host environment variable which matches a task variable. It means
+	// we can test to ensure the allocation ID variable from the task overrides
+	// that found on the host. The second entry tests to ensure other host env
+	// vars are added as expected.
+	env.mu.Lock()
+	env.hostEnv = map[string]string{
+		AllocID:    "94fa69a3-73a5-4099-85c3-7a1b6e228796",
+		"LC_CTYPE": "C.UTF-8",
+	}
+	env.mu.Unlock()
 
 	values, errs, err := env.Build().AllValues()
 	require.NoError(t, err)
@@ -449,7 +383,9 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_PORT_ssh_other":                      "1234",
 		"NOMAD_PORT_ssh_ssh":                        "22",
 		"NOMAD_CPU_LIMIT":                           "500",
+		"NOMAD_CPU_CORES":                           "0,5-7",
 		"NOMAD_DC":                                  "dc1",
+		"NOMAD_PARENT_CGROUP":                       "abc.slice",
 		"NOMAD_NAMESPACE":                           "default",
 		"NOMAD_REGION":                              "global",
 		"NOMAD_MEMORY_LIMIT":                        "256",
@@ -463,7 +399,10 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_META_elb_check_type":                 "http",
 		"NOMAD_META_foo":                            "bar",
 		"NOMAD_META_owner":                          "armon",
+		"NOMAD_META_taskMetaKey_web":                "taskMetaVal-" + n.ID,
+		"NOMAD_JOB_ID":                              a.Job.ID,
 		"NOMAD_JOB_NAME":                            "my-job",
+		"NOMAD_JOB_PARENT_ID":                       a.Job.ParentID,
 		"NOMAD_ALLOC_ID":                            a.ID,
 		"NOMAD_ALLOC_INDEX":                         "0",
 		"NOMAD_PORT_connect_proxy_testconnect":      "9999",
@@ -479,6 +418,9 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_PORT_admin":                          "9000",
 		"NOMAD_ALLOC_PORT_admin":                    "9000",
 		"NOMAD_HOST_PORT_admin":                     "32000",
+
+		// Env vars from the host.
+		"LC_CTYPE": "C.UTF-8",
 
 		// 0.9 style env map
 		`env["taskEnvKey"]`:        "taskEnvVal",
@@ -505,12 +447,15 @@ func TestEnvironment_AllValues(t *testing.T) {
 			out := ""
 			diag = gohcl.DecodeExpression(expr, evalCtx, &out)
 			require.Empty(t, diag)
-			require.Equal(t, out, expectedVal)
+			require.Equal(t, expectedVal, out,
+				fmt.Sprintf("expected %q got %q", expectedVal, out))
 		})
 	}
 }
 
 func TestEnvironment_VaultToken(t *testing.T) {
+	ci.Parallel(t)
+
 	n := mock.Node()
 	a := mock.Alloc()
 	env := NewBuilder(n, a, a.Job.TaskGroups[0].Tasks[0], "global")
@@ -571,6 +516,8 @@ func TestEnvironment_VaultToken(t *testing.T) {
 }
 
 func TestEnvironment_Envvars(t *testing.T) {
+	ci.Parallel(t)
+
 	envMap := map[string]string{"foo": "baz", "bar": "bang"}
 	n := mock.Node()
 	a := mock.Alloc()
@@ -592,6 +539,8 @@ func TestEnvironment_Envvars(t *testing.T) {
 // TestEnvironment_HookVars asserts hook env vars are LWW and deletes of later
 // writes allow earlier hook's values to be visible.
 func TestEnvironment_HookVars(t *testing.T) {
+	ci.Parallel(t)
+
 	n := mock.Node()
 	a := mock.Alloc()
 	builder := NewBuilder(n, a, a.Job.TaskGroups[0].Tasks[0], "global")
@@ -628,6 +577,8 @@ func TestEnvironment_HookVars(t *testing.T) {
 // TestEnvironment_DeviceHookVars asserts device hook env vars are accessible
 // separately.
 func TestEnvironment_DeviceHookVars(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	n := mock.Node()
 	a := mock.Alloc()
@@ -653,6 +604,8 @@ func TestEnvironment_DeviceHookVars(t *testing.T) {
 }
 
 func TestEnvironment_Interpolate(t *testing.T) {
+	ci.Parallel(t)
+
 	n := mock.Node()
 	n.Attributes["arch"] = "x86"
 	n.NodeClass = "test class"
@@ -678,6 +631,8 @@ func TestEnvironment_Interpolate(t *testing.T) {
 }
 
 func TestEnvironment_AppendHostEnvvars(t *testing.T) {
+	ci.Parallel(t)
+
 	host := os.Environ()
 	if len(host) < 2 {
 		t.Skip("No host environment variables. Can't test")
@@ -700,6 +655,8 @@ func TestEnvironment_AppendHostEnvvars(t *testing.T) {
 // converted to underscores in environment variables.
 // See: https://github.com/hashicorp/nomad/issues/2405
 func TestEnvironment_DashesInTaskName(t *testing.T) {
+	ci.Parallel(t)
+
 	a := mock.Alloc()
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Env = map[string]string{
@@ -719,6 +676,8 @@ func TestEnvironment_DashesInTaskName(t *testing.T) {
 // TestEnvironment_UpdateTask asserts env vars and task meta are updated when a
 // task is updated.
 func TestEnvironment_UpdateTask(t *testing.T) {
+	ci.Parallel(t)
+
 	a := mock.Alloc()
 	a.Job.TaskGroups[0].Meta = map[string]string{"tgmeta": "tgmetaval"}
 	task := a.Job.TaskGroups[0].Tasks[0]
@@ -768,6 +727,8 @@ func TestEnvironment_UpdateTask(t *testing.T) {
 // job, if an optional meta field is not set, it will get interpolated as an
 // empty string.
 func TestEnvironment_InterpolateEmptyOptionalMeta(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	a := mock.Alloc()
 	a.Job.ParameterizedJob = &structs.ParameterizedJobConfig{
@@ -784,7 +745,7 @@ func TestEnvironment_InterpolateEmptyOptionalMeta(t *testing.T) {
 // TestEnvironment_Upsteams asserts that group.service.upstreams entries are
 // added to the environment.
 func TestEnvironment_Upstreams(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Add some upstreams to the mock alloc
 	a := mock.Alloc()
@@ -834,6 +795,8 @@ func TestEnvironment_Upstreams(t *testing.T) {
 }
 
 func TestEnvironment_SetPortMapEnvs(t *testing.T) {
+	ci.Parallel(t)
+
 	envs := map[string]string{
 		"foo":            "bar",
 		"NOMAD_PORT_ssh": "2342",
@@ -854,6 +817,8 @@ func TestEnvironment_SetPortMapEnvs(t *testing.T) {
 }
 
 func TestEnvironment_TasklessBuilder(t *testing.T) {
+	ci.Parallel(t)
+
 	node := mock.Node()
 	alloc := mock.Alloc()
 	alloc.Job.Meta["jobt"] = "foo"
@@ -866,4 +831,89 @@ func TestEnvironment_TasklessBuilder(t *testing.T) {
 
 	require.Equal("foo", taskEnv.ReplaceEnv("${NOMAD_META_jobt}"))
 	require.Equal("bar", taskEnv.ReplaceEnv("${NOMAD_META_groupt}"))
+}
+
+func TestTaskEnv_ClientPath(t *testing.T) {
+	ci.Parallel(t)
+
+	builder := testEnvBuilder()
+	builder.SetAllocDir("/tmp/testAlloc")
+	builder.SetClientSharedAllocDir("/tmp/testAlloc/alloc")
+	builder.SetClientTaskRoot("/tmp/testAlloc/testTask")
+	builder.SetClientTaskLocalDir("/tmp/testAlloc/testTask/local")
+	builder.SetClientTaskSecretsDir("/tmp/testAlloc/testTask/secrets")
+	env := builder.Build()
+
+	testCases := []struct {
+		label        string
+		input        string
+		joinOnEscape bool
+		escapes      bool
+		expected     string
+	}{
+		{
+			// this is useful behavior for exec-based tasks, allowing template or artifact
+			// destination anywhere in the chroot
+			label:        "join on escape if requested",
+			input:        "/tmp",
+			joinOnEscape: true,
+			expected:     "/tmp/testAlloc/testTask/tmp",
+			escapes:      false,
+		},
+		{
+			// template source behavior does not perform unconditional join
+			label:        "do not join on escape unless requested",
+			input:        "/tmp",
+			joinOnEscape: false,
+			expected:     "/tmp",
+			escapes:      true,
+		},
+		{
+			// relative paths are always joined to the task root dir
+			// escape from task root dir and shared alloc dir should be detected
+			label:        "detect escape for relative paths",
+			input:        "..",
+			joinOnEscape: true,
+			expected:     "/tmp/testAlloc",
+			escapes:      true,
+		},
+		{
+			// shared alloc dir should be available from ../alloc, for historical reasons
+			// this is not an escape
+			label:        "relative access to shared alloc dir",
+			input:        "../alloc/somefile",
+			joinOnEscape: true,
+			expected:     "/tmp/testAlloc/alloc/somefile",
+			escapes:      false,
+		},
+		{
+			label:        "interpolate shared alloc dir",
+			input:        "${NOMAD_ALLOC_DIR}/somefile",
+			joinOnEscape: false,
+			expected:     "/tmp/testAlloc/alloc/somefile",
+			escapes:      false,
+		},
+		{
+			label:        "interpolate task local dir",
+			input:        "${NOMAD_TASK_DIR}/somefile",
+			joinOnEscape: false,
+			expected:     "/tmp/testAlloc/testTask/local/somefile",
+			escapes:      false,
+		},
+		{
+			label:        "interpolate task secrts dir",
+			input:        "${NOMAD_SECRETS_DIR}/somefile",
+			joinOnEscape: false,
+			expected:     "/tmp/testAlloc/testTask/secrets/somefile",
+			escapes:      false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.label, func(t *testing.T) {
+			path, escapes := env.ClientPath(tc.input, tc.joinOnEscape)
+			assert.Equal(t, tc.escapes, escapes, "escape check")
+			assert.Equal(t, tc.expected, path, "interpolated path")
+		})
+	}
 }

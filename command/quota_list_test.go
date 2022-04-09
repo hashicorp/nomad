@@ -1,3 +1,4 @@
+//go:build ent
 // +build ent
 
 package command
@@ -6,18 +7,19 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestQuotaListCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &QuotaListCommand{}
 }
 
 func TestQuotaListCommand_Fails(t *testing.T) {
-	t.Parallel()
-	ui := new(cli.MockUi)
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
 	cmd := &QuotaListCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -39,14 +41,14 @@ func TestQuotaListCommand_Fails(t *testing.T) {
 }
 
 func TestQuotaListCommand_List(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &QuotaListCommand{Meta: Meta{Ui: ui}}
 
 	// Create a quota

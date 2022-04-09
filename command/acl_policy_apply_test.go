@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/mitchellh/cli"
@@ -13,8 +14,8 @@ import (
 )
 
 func TestACLPolicyApplyCommand(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	config := func(c *agent.Config) {
 		c.ACL.Enabled = true
 	}
@@ -26,7 +27,7 @@ func TestACLPolicyApplyCommand(t *testing.T) {
 	token := srv.RootToken
 	assert.NotNil(token, "failed to bootstrap ACL token")
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLPolicyApplyCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a test policy
@@ -42,13 +43,11 @@ func TestACLPolicyApplyCommand(t *testing.T) {
 	assert.Nil(err)
 
 	// Attempt to apply a policy without a valid management token
-	os.Setenv("NOMAD_TOKEN", "foo")
-	code := cmd.Run([]string{"-address=" + url, "test-policy", f.Name()})
+	code := cmd.Run([]string{"-address=" + url, "-token=foo", "test-policy", f.Name()})
 	assert.Equal(1, code)
 
 	// Apply a policy with a valid management token
-	os.Setenv("NOMAD_TOKEN", token.SecretID)
-	code = cmd.Run([]string{"-address=" + url, "test-policy", f.Name()})
+	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "test-policy", f.Name()})
 	assert.Equal(0, code)
 
 	// Check the output

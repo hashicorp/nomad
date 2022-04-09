@@ -7,14 +7,14 @@ job "group_service_proxy_expose" {
         sidecar_service {
           proxy {
             expose {
-              path = {
+              path {
                 path            = "/health"
                 protocol        = "http"
                 local_path_port = 2222
                 listener_port   = "healthcheck"
               }
 
-              path = {
+              path {
                 path            = "/metrics"
                 protocol        = "grpc"
                 local_path_port = 3000

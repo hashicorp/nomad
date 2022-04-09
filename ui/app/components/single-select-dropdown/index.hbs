@@ -1,0 +1,13 @@
+<div data-test-single-select-dropdown class="dropdown" ...attributes>
+  <PowerSelect
+    @options={{@options}}
+    @selected={{this.activeOption}}
+    @searchEnabled={{gt @options.length 10}}
+    @searchField="label"
+    @onChange={{action this.setSelection}}
+    @dropdownClass="dropdown-options"
+    as |option|>
+    <span class="ember-power-select-prefix">{{@label}}: </span>
+    <span class="dropdown-label" data-test-dropdown-option={{option.key}}>{{option.label}}</span>
+  </PowerSelect>
+</div>

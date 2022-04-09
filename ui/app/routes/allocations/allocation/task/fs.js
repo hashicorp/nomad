@@ -6,26 +6,26 @@ export default class FsRoute extends Route {
   model({ path = '/' }) {
     const decodedPath = decodeURIComponent(path);
     const taskState = this.modelFor('allocations.allocation.task');
-    const allocation = taskState.allocation;
 
+    if (!taskState || !taskState.allocation) return;
+
+    const allocation = taskState.allocation;
     const pathWithTaskName = `${taskState.name}${
       decodedPath.startsWith('/') ? '' : '/'
     }${decodedPath}`;
 
-    if (!taskState.isRunning) {
-      return {
-        path: decodedPath,
-        taskState,
-      };
-    }
-
-    return RSVP.all([allocation.stat(pathWithTaskName), taskState.get('allocation.node')])
+    return RSVP.all([
+      allocation.stat(pathWithTaskName),
+      taskState.get('allocation.node'),
+    ])
       .then(([statJson]) => {
         if (statJson.IsDir) {
           return RSVP.hash({
             path: decodedPath,
             taskState,
-            directoryEntries: allocation.ls(pathWithTaskName).catch(notifyError(this)),
+            directoryEntries: allocation
+              .ls(pathWithTaskName)
+              .catch(notifyError(this)),
             isFile: false,
           });
         } else {
@@ -40,8 +40,17 @@ export default class FsRoute extends Route {
       .catch(notifyError(this));
   }
 
-  setupController(controller, { path, taskState, directoryEntries, isFile, stat } = {}) {
+  setupController(
+    controller,
+    { path, taskState, directoryEntries, isFile, stat } = {}
+  ) {
     super.setupController(...arguments);
-    controller.setProperties({ path, taskState, directoryEntries, isFile, stat });
+    controller.setProperties({
+      path,
+      taskState,
+      directoryEntries,
+      isFile,
+      stat,
+    });
   }
 }

@@ -1,8 +1,8 @@
 import { computed } from '@ember/object';
 import { equal } from '@ember/object/computed';
-import Model from 'ember-data/model';
-import attr from 'ember-data/attr';
-import { hasMany } from 'ember-data/relationships';
+import Model from '@ember-data/model';
+import { attr } from '@ember-data/model';
+import { hasMany } from '@ember-data/model';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import shortUUIDProperty from '../utils/properties/short-uuid';
@@ -21,12 +21,13 @@ export default class Node extends Model {
   @attr('string') statusDescription;
   @shortUUIDProperty('id') shortId;
   @attr('number') modifyIndex;
+  @attr('string') version;
 
   // Available from single response
   @attr('string') httpAddr;
   @attr('boolean') tlsEnabled;
-  @fragment('node-attributes') attributes;
-  @fragment('node-attributes') meta;
+  @fragment('structured-attributes') attributes;
+  @fragment('structured-attributes') meta;
   @fragment('resources') resources;
   @fragment('resources') reserved;
   @fragment('drain-strategy') drainStrategy;
@@ -62,7 +63,9 @@ export default class Node extends Model {
 
   @computed('allocations.@each.{isMigrating,isRunning}')
   get migratingAllocations() {
-    return this.allocations.filter(alloc => alloc.isRunning && alloc.isMigrating);
+    return this.allocations.filter(
+      (alloc) => alloc.isRunning && alloc.isMigrating
+    );
   }
 
   @computed('allocations.@each.{isMigrating,isRunning,modifyTime}')
@@ -102,7 +105,9 @@ export default class Node extends Model {
   // Useful for coloring and sorting nodes
   @computed('isDraining', 'isEligible', 'status')
   get compositeStatus() {
-    if (this.isDraining) {
+    if (this.status === 'down') {
+      return 'down';
+    } else if (this.isDraining) {
       return 'draining';
     } else if (!this.isEligible) {
       return 'ineligible';

@@ -1,0 +1,78 @@
+---
+layout: docs
+page_title: 'Autoscaling Plugins: Threshold'
+description: The "threshold" strategy plugin uses metric value tiers to define scaling actions.
+---
+
+# Threshold Strategy Plugin
+
+The `threshold` strategy defines a range of metric values with a lower and an
+upper bound, and an action to take when the current metric value is considered
+to be within bounds.
+
+Multiple tiers can be defined by declaring more than one `check` in the
+same scaling policy. If there is any overlap between the bounds, the [safest
+`check`][internals_check] will be used.
+
+## Agent Configuration Options
+
+```hcl
+strategy "threshold" {
+  driver = "threshold"
+}
+```
+
+## Policy Configuration Options
+
+```hcl
+policy {
+  # ...
+  check "high-memory-usage" {
+    # ...
+    strategy "threshold" {
+      upper_bound = 100
+      lower_bound = 70
+      delta       = 1
+    }
+  }
+
+  check "low-memory-traffic" {
+    # ...
+    strategy "threshold" {
+      upper_bound = 30
+      lower_bound = 0
+      delta       = -1
+    }
+  }
+  # ...
+}
+```
+
+- `lower_bound` `(float: <optional>)` - The minimum value a metric must have
+  to be considered with bounds.
+
+- `upper_bound` `(float: <optional>)` - The maximum value a metric must have
+  to be considered within bounds.
+
+- `delta` `(int: <optional>)` - Specifies the relative amount to add (positive
+  value) or remove (negative value) from the current target count. Conflicts
+  with `percentage` and `value`.
+
+- `percentage` `(float: <optional>)` - Specifies a percentage value by which
+  the current count should be increased (positive value) or decreased (negative
+  value). Conflicts with `delta` and `value`.
+
+- `value` `(int: <optional>)` - Specifies an absolute value that should be set
+  as the new target count. Conflicts with `delta` and `percentage`.
+
+- `within_bounds_trigger` `(int: 5)` - The number of data points in the query
+  result time series that must be within the bound valus to trigger the action.
+
+At least one of `lower_bound` or `upper_bound` must be defined. If
+`lower_bound` is not defined, any value below `upper_bound` is considered
+within bounds. Similarly, if `upper_bound` is not defined, any value above
+`lower_bound` will be considered within bounds.
+
+One, and only one, of `delta`, `percentage`, or `value` must be defined.
+
+[internals_check]: /tools/autoscaling/internals/checks

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -16,9 +17,9 @@ import (
 )
 
 func TestHTTP_MetricsWithIllegalMethod(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
 
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("DELETE", "/v1/metrics", nil)
 		assert.Nil(err)
@@ -29,10 +30,44 @@ func TestHTTP_MetricsWithIllegalMethod(t *testing.T) {
 	})
 }
 
-func TestHTTP_Metrics(t *testing.T) {
+func TestHTTP_MetricsPrometheusDisabled(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
 
-	t.Parallel()
+	httpTest(t, func(c *Config) { c.Telemetry.PrometheusMetrics = false }, func(s *TestAgent) {
+		req, err := http.NewRequest("GET", "/v1/metrics?format=prometheus", nil)
+		assert.Nil(err)
+
+		resp, err := s.Server.MetricsRequest(nil, req)
+		assert.Nil(resp)
+		assert.Error(err, "Prometheus is not enabled")
+	})
+}
+
+func TestHTTP_MetricsPrometheusEnabled(t *testing.T) {
+	ci.Parallel(t)
+	assert := assert.New(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		req, err := http.NewRequest("GET", "/v1/metrics?format=prometheus", nil)
+		assert.Nil(err)
+		respW := httptest.NewRecorder()
+
+		resp, err := s.Server.MetricsRequest(respW, req)
+		assert.Nil(resp)
+		assert.Nil(err)
+
+		// Ensure the response body is not empty and that it contains something
+		// that looks like a metric we expect.
+		assert.NotNil(respW.Body)
+		assert.Contains(respW.Body.String(), "HELP go_gc_duration_seconds")
+	})
+}
+
+func TestHTTP_Metrics(t *testing.T) {
+	ci.Parallel(t)
+	assert := assert.New(t)
+
 	httpTest(t, nil, func(s *TestAgent) {
 		// make a separate HTTP request first, to ensure Nomad has written metrics
 		// and prevent a race condition
@@ -67,14 +102,14 @@ func TestHTTP_Metrics(t *testing.T) {
 //
 // **Cannot** be run in parallel as metrics are global.
 func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	numTasks := 10
 
 	httpTest(t, func(c *Config) {
 		c.Telemetry.PublishAllocationMetrics = true
 		c.Telemetry.PublishNodeMetrics = true
-		c.Telemetry.BackwardsCompatibleMetrics = false
-		c.Telemetry.DisableTaggedMetrics = false
 	}, func(s *TestAgent) {
 		// Create the job, wait for it to finish
 		job := mock.BatchJob()

@@ -1,6 +1,6 @@
 <div class="tabs is-subnav">
   <ul>
-    <li>{{#link-to "allocations.allocation.index" allocation activeClass="is-active"}}Overview{{/link-to}}</li>
-    <li>{{#link-to "allocations.allocation.fs-root" allocation class=(if filesLinkActive "is-active")}}Files{{/link-to}}</li>
+    <li><LinkTo @route="allocations.allocation.index" @model={{this.allocation}} @activeClass="is-active">Overview</LinkTo></li>
+    <li><LinkTo @route="allocations.allocation.fs-root" @model={{this.allocation}} class={{if this.filesLinkActive "is-active"}}>Files</LinkTo></li>
   </ul>
 </div>

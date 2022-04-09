@@ -13,6 +13,9 @@ import (
 const (
 	// EnvNomadCLINoColor is an env var that toggles colored UI output.
 	EnvNomadCLINoColor = `NOMAD_CLI_NO_COLOR`
+
+	// EnvNomadCLIForceColor is an env var that forces colored UI output.
+	EnvNomadCLIForceColor = `NOMAD_CLI_FORCE_COLOR`
 )
 
 // DeprecatedCommand is a command that wraps an existing command and prints a
@@ -201,6 +204,22 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"config": func() (cli.Command, error) {
+			return &ConfigCommand{
+				Meta: meta,
+			}, nil
+		},
+		"config validate": func() (cli.Command, error) {
+			return &ConfigValidateCommand{
+				Meta: meta,
+			}, nil
+		},
+		// operator debug was released in 0.12 as debug. This top-level alias preserves compatibility
+		"debug": func() (cli.Command, error) {
+			return &OperatorDebugCommand{
+				Meta: meta,
+			}, nil
+		},
 		"deployment": func() (cli.Command, error) {
 			return &DeploymentCommand{
 				Meta: meta,
@@ -246,6 +265,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"eval list": func() (cli.Command, error) {
+			return &EvalListCommand{
+				Meta: meta,
+			}, nil
+		},
 		"eval status": func() (cli.Command, error) {
 			return &EvalStatusCommand{
 				Meta: meta,
@@ -288,6 +312,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"job": func() (cli.Command, error) {
 			return &JobCommand{
+				Meta: meta,
+			}, nil
+		},
+		"job allocs": func() (cli.Command, error) {
+			return &JobAllocsCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -351,6 +380,16 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"job scale": func() (cli.Command, error) {
+			return &JobScaleCommand{
+				Meta: meta,
+			}, nil
+		},
+		"job scaling-events": func() (cli.Command, error) {
+			return &JobScalingEventsCommand{
+				Meta: meta,
+			}, nil
+		},
 		"job status": func() (cli.Command, error) {
 			return &JobStatusCommand{
 				Meta: meta,
@@ -373,11 +412,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"license get": func() (cli.Command, error) {
 			return &LicenseGetCommand{
-				Meta: meta,
-			}, nil
-		},
-		"license put": func() (cli.Command, error) {
-			return &LicensePutCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -462,6 +496,12 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"operator api": func() (cli.Command, error) {
+			return &OperatorAPICommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"operator autopilot": func() (cli.Command, error) {
 			return &OperatorAutopilotCommand{
 				Meta: meta,
@@ -479,6 +519,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator debug": func() (cli.Command, error) {
+			return &OperatorDebugCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator keygen": func() (cli.Command, error) {
 			return &OperatorKeygenCommand{
 				Meta: meta,
@@ -486,6 +531,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"operator keyring": func() (cli.Command, error) {
 			return &OperatorKeyringCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator metrics": func() (cli.Command, error) {
+			return &OperatorMetricsCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -506,6 +556,21 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator raft info": func() (cli.Command, error) {
+			return &OperatorRaftInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator raft logs": func() (cli.Command, error) {
+			return &OperatorRaftLogsCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator raft state": func() (cli.Command, error) {
+			return &OperatorRaftStateCommand{
+				Meta: meta,
+			}, nil
+		},
 
 		"operator snapshot": func() (cli.Command, error) {
 			return &OperatorSnapshotCommand{
@@ -519,6 +584,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"operator snapshot inspect": func() (cli.Command, error) {
 			return &OperatorSnapshotInspectCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator snapshot state": func() (cli.Command, error) {
+			return &OperatorSnapshotStateCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -587,8 +657,60 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"recommendation": func() (cli.Command, error) {
+			return &RecommendationCommand{
+				Meta: meta,
+			}, nil
+		},
+		"recommendation apply": func() (cli.Command, error) {
+			return &RecommendationApplyCommand{
+				RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+					Meta: meta,
+				},
+			}, nil
+		},
+		"recommendation dismiss": func() (cli.Command, error) {
+			return &RecommendationDismissCommand{
+				RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+					Meta: meta,
+				},
+			}, nil
+		},
+		"recommendation info": func() (cli.Command, error) {
+			return &RecommendationInfoCommand{
+				RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+					Meta: meta,
+				},
+			}, nil
+		},
+		"recommendation list": func() (cli.Command, error) {
+			return &RecommendationListCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"run": func() (cli.Command, error) {
 			return &JobRunCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling": func() (cli.Command, error) {
+			return &ScalingCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling policy": func() (cli.Command, error) {
+			return &ScalingPolicyCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling policy info": func() (cli.Command, error) {
+			return &ScalingPolicyInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling policy list": func() (cli.Command, error) {
+			return &ScalingPolicyListCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -652,6 +774,26 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"service": func() (cli.Command, error) {
+			return &ServiceCommand{
+				Meta: meta,
+			}, nil
+		},
+		"service list": func() (cli.Command, error) {
+			return &ServiceListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"service info": func() (cli.Command, error) {
+			return &ServiceInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"service delete": func() (cli.Command, error) {
+			return &ServiceDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
 		"status": func() (cli.Command, error) {
 			return &StatusCommand{
 				Meta: meta,
@@ -703,6 +845,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"volume init": func() (cli.Command, error) {
+			return &VolumeInitCommand{
+				Meta: meta,
+			}, nil
+		},
 		"volume status": func() (cli.Command, error) {
 			return &VolumeStatusCommand{
 				Meta: meta,
@@ -715,6 +862,41 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"volume deregister": func() (cli.Command, error) {
 			return &VolumeDeregisterCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume detach": func() (cli.Command, error) {
+			return &VolumeDetachCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume create": func() (cli.Command, error) {
+			return &VolumeCreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume delete": func() (cli.Command, error) {
+			return &VolumeDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume snapshot": func() (cli.Command, error) {
+			return &VolumeSnapshotCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume snapshot create": func() (cli.Command, error) {
+			return &VolumeSnapshotCreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume snapshot delete": func() (cli.Command, error) {
+			return &VolumeSnapshotDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume snapshot list": func() (cli.Command, error) {
+			return &VolumeSnapshotListCommand{
 				Meta: meta,
 			}, nil
 		},

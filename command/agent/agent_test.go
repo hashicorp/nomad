@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +28,7 @@ func tmpDir(t testing.TB) string {
 }
 
 func TestAgent_RPC_Ping(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	agent := NewTestAgent(t, t.Name(), nil)
 	defer agent.Shutdown()
 
@@ -39,7 +39,7 @@ func TestAgent_RPC_Ping(t *testing.T) {
 }
 
 func TestAgent_ServerConfig(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	conf := DefaultConfig()
 	conf.DevMode = true // allow localhost for advertise addrs
 	conf.Server.Enabled = true
@@ -56,6 +56,8 @@ func TestAgent_ServerConfig(t *testing.T) {
 	}
 	out, err := a.serverConfig()
 	require.NoError(t, err)
+
+	require.True(t, out.EnableEventBroker)
 
 	serfAddr := out.SerfConfig.MemberlistConfig.AdvertiseAddr
 	require.Equal(t, "127.0.0.1", serfAddr)
@@ -96,6 +98,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	require.NoError(t, conf.normalizeAddrs())
 
 	out, err = a.serverConfig()
+	require.NoError(t, err)
 	require.Equal(t, "127.0.0.2", out.RPCAddr.IP.String())
 	require.Equal(t, 4003, out.RPCAddr.Port)
 	require.Equal(t, "127.0.0.2", out.SerfConfig.MemberlistConfig.BindAddr)
@@ -103,7 +106,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	require.Equal(t, "127.0.0.2", conf.Addresses.HTTP)
 	require.Equal(t, "127.0.0.2", conf.Addresses.RPC)
 	require.Equal(t, "127.0.0.2", conf.Addresses.Serf)
-	require.Equal(t, "127.0.0.2:4646", conf.normalizedAddrs.HTTP)
+	require.Equal(t, []string{"127.0.0.2:4646"}, conf.normalizedAddrs.HTTP)
 	require.Equal(t, "127.0.0.2:4003", conf.normalizedAddrs.RPC)
 	require.Equal(t, "127.0.0.2:4004", conf.normalizedAddrs.Serf)
 	require.Equal(t, "10.0.0.10:4646", conf.AdvertiseAddrs.HTTP)
@@ -139,6 +142,11 @@ func TestAgent_ServerConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, float64(11.0), out.MaxHeartbeatsPerSecond)
 
+	conf.Server.FailoverHeartbeatTTL = 337 * time.Second
+	out, err = a.serverConfig()
+	require.NoError(t, err)
+	require.Equal(t, 337*time.Second, out.FailoverHeartbeatTTL)
+
 	// Defaults to the global bind addr
 	conf.Addresses.RPC = ""
 	conf.Addresses.Serf = ""
@@ -159,7 +167,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	require.Equal(t, "127.0.0.3", conf.Addresses.HTTP)
 	require.Equal(t, "127.0.0.3", conf.Addresses.RPC)
 	require.Equal(t, "127.0.0.3", conf.Addresses.Serf)
-	require.Equal(t, "127.0.0.3:4646", conf.normalizedAddrs.HTTP)
+	require.Equal(t, []string{"127.0.0.3:4646"}, conf.normalizedAddrs.HTTP)
 	require.Equal(t, "127.0.0.3:4647", conf.normalizedAddrs.RPC)
 	require.Equal(t, "127.0.0.3:4648", conf.normalizedAddrs.Serf)
 
@@ -176,6 +184,8 @@ func TestAgent_ServerConfig(t *testing.T) {
 }
 
 func TestAgent_ServerConfig_SchedulerFlags(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name     string
 		input    *structs.SchedulerConfiguration
@@ -242,17 +252,17 @@ func TestAgent_ServerConfig_SchedulerFlags(t *testing.T) {
 // cause errors. This is the server-only (RPC) counterpart to
 // TestHTTPServer_Limits_Error.
 func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		name        string
 		expectedErr string
-		limits      sconfig.Limits
+		limits      config.Limits
 	}{
 		{
 			name:        "Negative Timeout",
 			expectedErr: "rpc_handshake_timeout must be >= 0",
-			limits: sconfig.Limits{
+			limits: config.Limits{
 				RPCHandshakeTimeout:  "-5s",
 				RPCMaxConnsPerClient: helper.IntToPtr(100),
 			},
@@ -260,7 +270,7 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 		{
 			name:        "Invalid Timeout",
 			expectedErr: "error parsing rpc_handshake_timeout",
-			limits: sconfig.Limits{
+			limits: config.Limits{
 				RPCHandshakeTimeout:  "s",
 				RPCMaxConnsPerClient: helper.IntToPtr(100),
 			},
@@ -268,7 +278,7 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 		{
 			name:        "Missing Timeout",
 			expectedErr: "error parsing rpc_handshake_timeout",
-			limits: sconfig.Limits{
+			limits: config.Limits{
 				RPCHandshakeTimeout:  "",
 				RPCMaxConnsPerClient: helper.IntToPtr(100),
 			},
@@ -276,7 +286,7 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 		{
 			name:        "Negative Connection Limit",
 			expectedErr: "rpc_max_conns_per_client must be > 25; found: -100",
-			limits: sconfig.Limits{
+			limits: config.Limits{
 				RPCHandshakeTimeout:  "5s",
 				RPCMaxConnsPerClient: helper.IntToPtr(-100),
 			},
@@ -284,9 +294,9 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 		{
 			name:        "Low Connection Limit",
 			expectedErr: "rpc_max_conns_per_client must be > 25; found: 20",
-			limits: sconfig.Limits{
+			limits: config.Limits{
 				RPCHandshakeTimeout:  "5s",
-				RPCMaxConnsPerClient: helper.IntToPtr(sconfig.LimitsNonStreamingConnsPerClient),
+				RPCMaxConnsPerClient: helper.IntToPtr(config.LimitsNonStreamingConnsPerClient),
 			},
 		},
 	}
@@ -309,11 +319,11 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 // cause errors. This is the server-only (RPC) counterpart to
 // TestHTTPServer_Limits_OK.
 func TestAgent_ServerConfig_Limits_OK(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		name   string
-		limits sconfig.Limits
+		limits config.Limits
 	}{
 		{
 			name:   "Default",
@@ -321,28 +331,28 @@ func TestAgent_ServerConfig_Limits_OK(t *testing.T) {
 		},
 		{
 			name: "Zero+nil is valid to disable",
-			limits: sconfig.Limits{
+			limits: config.Limits{
 				RPCHandshakeTimeout:  "0",
 				RPCMaxConnsPerClient: nil,
 			},
 		},
 		{
 			name: "Zeros are valid",
-			limits: sconfig.Limits{
+			limits: config.Limits{
 				RPCHandshakeTimeout:  "0s",
 				RPCMaxConnsPerClient: helper.IntToPtr(0),
 			},
 		},
 		{
 			name: "Low limits are valid",
-			limits: sconfig.Limits{
+			limits: config.Limits{
 				RPCHandshakeTimeout:  "1ms",
 				RPCMaxConnsPerClient: helper.IntToPtr(26),
 			},
 		},
 		{
 			name: "High limits are valid",
-			limits: sconfig.Limits{
+			limits: config.Limits{
 				RPCHandshakeTimeout:  "5h",
 				RPCMaxConnsPerClient: helper.IntToPtr(100000),
 			},
@@ -364,7 +374,7 @@ func TestAgent_ServerConfig_Limits_OK(t *testing.T) {
 }
 
 func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		multiplier         *int
@@ -449,7 +459,7 @@ func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
 }
 
 func TestAgent_ServerConfig_RaftMultiplier_Bad(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []int{
 		-1,
@@ -471,7 +481,7 @@ func TestAgent_ServerConfig_RaftMultiplier_Bad(t *testing.T) {
 }
 
 func TestAgent_ClientConfig(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	conf := DefaultConfig()
 	conf.Client.Enabled = true
 
@@ -512,16 +522,37 @@ func TestAgent_ClientConfig(t *testing.T) {
 	if c.Node.HTTPAddr != expectedHttpAddr {
 		t.Fatalf("Expected http addr: %v, got: %v", expectedHttpAddr, c.Node.HTTPAddr)
 	}
+
+	// Test the default, and then custom setting of the client service
+	// discovery boolean.
+	require.True(t, c.NomadServiceDiscovery)
+	conf.Client.NomadServiceDiscovery = helper.BoolToPtr(false)
+	c, err = a.clientConfig()
+	require.NoError(t, err)
+	require.False(t, c.NomadServiceDiscovery)
+}
+
+func TestAgent_ClientConfig_ReservedCores(t *testing.T) {
+	ci.Parallel(t)
+	conf := DefaultConfig()
+	conf.Client.Enabled = true
+	conf.Client.ReserveableCores = "0-7"
+	conf.Client.Reserved.Cores = "0,2-3"
+	a := &Agent{config: conf}
+	c, err := a.clientConfig()
+	require.NoError(t, err)
+	require.Exactly(t, []uint16{0, 1, 2, 3, 4, 5, 6, 7}, c.ReservableCores)
+	require.Exactly(t, []uint16{0, 2, 3}, c.Node.ReservedResources.Cpu.ReservedCpuCores)
 }
 
 // Clients should inherit telemetry configuration
 func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
+	ci.Parallel(t)
+
 	assert := assert.New(t)
 
 	conf := DefaultConfig()
 	conf.DevMode = true
-	conf.Telemetry.DisableTaggedMetrics = true
-	conf.Telemetry.BackwardsCompatibleMetrics = true
 
 	a := &Agent{config: conf}
 
@@ -533,25 +564,23 @@ func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
 	assert.Equal(c.StatsCollectionInterval, telemetry.collectionInterval)
 	assert.Equal(c.PublishNodeMetrics, telemetry.PublishNodeMetrics)
 	assert.Equal(c.PublishAllocationMetrics, telemetry.PublishAllocationMetrics)
-	assert.Equal(c.DisableTaggedMetrics, telemetry.DisableTaggedMetrics)
-	assert.Equal(c.BackwardsCompatibleMetrics, telemetry.BackwardsCompatibleMetrics)
 }
 
 // TestAgent_HTTPCheck asserts Agent.agentHTTPCheck properly alters the HTTP
 // API health check depending on configuration.
 func TestAgent_HTTPCheck(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 	agent := func() *Agent {
 		return &Agent{
 			logger: logger,
 			config: &Config{
 				AdvertiseAddrs:  &AdvertiseAddrs{HTTP: "advertise:4646"},
-				normalizedAddrs: &Addresses{HTTP: "normalized:4646"},
-				Consul: &sconfig.ConsulConfig{
+				normalizedAddrs: &NormalizedAddrs{HTTP: []string{"normalized:4646"}},
+				Consul: &config.ConsulConfig{
 					ChecksUseAdvertise: helper.BoolToPtr(false),
 				},
-				TLSConfig: &sconfig.TLSConfig{EnableHTTP: false},
+				TLSConfig: &config.TLSConfig{EnableHTTP: false},
 			},
 		}
 	}
@@ -571,7 +600,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 		if check.Protocol != "http" {
 			t.Errorf("expected http proto not: %q", check.Protocol)
 		}
-		if expected := a.config.normalizedAddrs.HTTP; check.PortLabel != expected {
+		if expected := a.config.normalizedAddrs.HTTP[0]; check.PortLabel != expected {
 			t.Errorf("expected normalized addr not %q", check.PortLabel)
 		}
 	})
@@ -618,7 +647,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 // TestAgent_HTTPCheckPath asserts clients and servers use different endpoints
 // for healthchecks.
 func TestAgent_HTTPCheckPath(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Agent.agentHTTPCheck only needs a config and logger
 	a := &Agent{
 		config: DevConfig(nil),
@@ -653,7 +682,7 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 // reloaded. I can't find a good way to fetch this from the logger itself, so
 // we pull it only from the agents configuration struct, not the logger.
 func TestAgent_Reload_LogLevel(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
@@ -675,7 +704,7 @@ func TestAgent_Reload_LogLevel(t *testing.T) {
 // across the Agent, Server, and Client. This is essential for certificate
 // reloading to work.
 func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	// We will start out with a bad cert and then reload with a good one.
@@ -688,7 +717,7 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 	)
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
-		c.TLSConfig = &sconfig.TLSConfig{
+		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -708,7 +737,7 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 
 	// Switch to the correct certificates and reload
 	newConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -743,7 +772,7 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_Certificate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -755,7 +784,7 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 	)
 
 	agentConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -771,7 +800,7 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 	}
 
 	newConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -792,7 +821,7 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -804,7 +833,7 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 	)
 
 	agentConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -820,7 +849,7 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 	}
 
 	newConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -837,6 +866,8 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 }
 
 func Test_GetConfig(t *testing.T) {
+	ci.Parallel(t)
+
 	assert := assert.New(t)
 
 	agentConfig := &Config{
@@ -847,9 +878,9 @@ func Test_GetConfig(t *testing.T) {
 		Ports:          &Ports{},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
-		Vault:          &sconfig.VaultConfig{},
-		Consul:         &sconfig.ConsulConfig{},
-		Sentinel:       &sconfig.SentinelConfig{},
+		Vault:          &config.VaultConfig{},
+		Consul:         &config.ConsulConfig{},
+		Sentinel:       &config.SentinelConfig{},
 	}
 
 	agent := &Agent{
@@ -861,7 +892,7 @@ func Test_GetConfig(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_WithNilConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	logger := testlog.HCLogger(t)
@@ -877,7 +908,7 @@ func TestServer_Reload_TLS_WithNilConfiguration(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -891,7 +922,7 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	agentConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{},
+		TLSConfig: &config.TLSConfig{},
 	}
 
 	agent := &Agent{
@@ -901,7 +932,7 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	}
 
 	newConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -920,7 +951,7 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -934,7 +965,7 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	agentConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -951,7 +982,7 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	}
 
 	newConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{},
+		TLSConfig: &config.TLSConfig{},
 	}
 
 	assert.False(agentConfig.TLSConfig.IsEmpty())
@@ -963,7 +994,7 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -975,7 +1006,7 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	sameAgentConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -986,7 +1017,7 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 	}
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
-		c.TLSConfig = &sconfig.TLSConfig{
+		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -1003,7 +1034,7 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	const (
@@ -1015,7 +1046,7 @@ func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	sameAgentConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           false,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -1026,7 +1057,7 @@ func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
 	}
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
-		c.TLSConfig = &sconfig.TLSConfig{
+		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -1043,7 +1074,7 @@ func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -1055,7 +1086,7 @@ func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	sameAgentConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -1066,7 +1097,7 @@ func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
 	}
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
-		c.TLSConfig = &sconfig.TLSConfig{
+		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            false,
 			VerifyServerHostname: true,
@@ -1083,7 +1114,7 @@ func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	const (
@@ -1097,7 +1128,7 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
-		c.TLSConfig = &sconfig.TLSConfig{
+		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -1109,7 +1140,7 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 	defer agent.Shutdown()
 
 	newConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -1125,7 +1156,7 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	oldCertificate := `
@@ -1167,7 +1198,7 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	agentConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -1212,7 +1243,7 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 	require.Nil(err)
 
 	newAgentConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -1228,7 +1259,7 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	const (
@@ -1242,7 +1273,7 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	sameAgentConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -1253,7 +1284,7 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 	}
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
-		c.TLSConfig = &sconfig.TLSConfig{
+		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
@@ -1280,8 +1311,29 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 	}
 }
 
+func TestServer_ShouldReload_ReturnTrueForRPCUpgradeModeChanges(t *testing.T) {
+	ci.Parallel(t)
+
+	sameAgentConfig := &Config{
+		TLSConfig: &config.TLSConfig{
+			RPCUpgradeMode: true,
+		},
+	}
+
+	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.TLSConfig = &config.TLSConfig{
+			RPCUpgradeMode: false,
+		}
+	})
+	defer agent.Shutdown()
+
+	shouldReloadAgent, shouldReloadHTTP := agent.ShouldReload(sameAgentConfig)
+	require.True(t, shouldReloadAgent)
+	require.False(t, shouldReloadHTTP)
+}
+
 func TestAgent_ProxyRPC_Dev(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	agent := NewTestAgent(t, t.Name(), nil)
 	defer agent.Shutdown()
 

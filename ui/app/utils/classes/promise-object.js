@@ -3,4 +3,6 @@ import PromiseProxyMixin from '@ember/object/promise-proxy-mixin';
 import classic from 'ember-classic-decorator';
 
 @classic
-export default class PromiseObject extends ObjectProxy.extend(PromiseProxyMixin) {}
+export default class PromiseObject extends ObjectProxy.extend(
+  PromiseProxyMixin
+) {}

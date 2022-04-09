@@ -48,7 +48,6 @@ type Conn struct {
 	addr     net.Addr
 	session  *yamux.Session
 	lastUsed time.Time
-	version  int
 
 	pool *ConnPool
 
@@ -56,10 +55,19 @@ type Conn struct {
 	clientLock sync.Mutex
 }
 
-// markForUse does all the bookkeeping required to ready a connection for use.
+// markForUse does all the bookkeeping required to ready a connection for use,
+// and ensure that active connections don't get reaped.
 func (c *Conn) markForUse() {
 	c.lastUsed = time.Now()
 	atomic.AddInt32(&c.refCount, 1)
+}
+
+// releaseUse is the complement of `markForUse`, to free up the reference count
+func (c *Conn) releaseUse() {
+	refCount := atomic.AddInt32(&c.refCount, -1)
+	if refCount == 0 && atomic.LoadInt32(&c.shouldClose) == 1 {
+		c.Close()
+	}
 }
 
 func (c *Conn) Close() error {
@@ -122,6 +130,40 @@ func (c *Conn) returnClient(client *StreamClient) {
 	}
 }
 
+func (c *Conn) IsClosed() bool {
+	return c.session.IsClosed()
+}
+
+func (c *Conn) AcceptStream() (net.Conn, error) {
+	s, err := c.session.AcceptStream()
+	if err != nil {
+		return nil, err
+	}
+
+	c.markForUse()
+	return &incomingStream{
+		Stream: s,
+		parent: c,
+	}, nil
+}
+
+// incomingStream wraps yamux.Stream but frees the underlying yamux.Session
+// when closed
+type incomingStream struct {
+	*yamux.Stream
+
+	parent *Conn
+}
+
+func (s *incomingStream) Close() error {
+	err := s.Stream.Close()
+
+	// always release parent even if error
+	s.parent.releaseUse()
+
+	return err
+}
+
 // ConnPool is used to maintain a connection pool to other
 // Nomad servers. This is used to reduce the latency of
 // RPC requests between servers. It is only used to pool
@@ -157,7 +199,7 @@ type ConnPool struct {
 
 	// connListener is used to notify a potential listener of a new connection
 	// being made.
-	connListener chan<- *yamux.Session
+	connListener chan<- *Conn
 }
 
 // NewPool is used to make a new connection pool
@@ -220,7 +262,7 @@ func (p *ConnPool) ReloadTLS(tlsWrap tlsutil.RegionWrapper) {
 
 // SetConnListener is used to listen to new connections being made. The
 // channel will be closed when the conn pool is closed or a new listener is set.
-func (p *ConnPool) SetConnListener(l chan<- *yamux.Session) {
+func (p *ConnPool) SetConnListener(l chan<- *Conn) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -235,7 +277,7 @@ func (p *ConnPool) SetConnListener(l chan<- *yamux.Session) {
 
 // Acquire is used to get a connection that is
 // pooled or to return a new connection
-func (p *ConnPool) acquire(region string, addr net.Addr, version int) (*Conn, error) {
+func (p *ConnPool) acquire(region string, addr net.Addr) (*Conn, error) {
 	// Check to see if there's a pooled connection available. This is up
 	// here since it should the vastly more common case than the rest
 	// of the code here.
@@ -262,7 +304,7 @@ func (p *ConnPool) acquire(region string, addr net.Addr, version int) (*Conn, er
 	// If we are the lead thread, make the new connection and then wake
 	// everybody else up to see if we got it.
 	if isLeadThread {
-		c, err := p.getNewConn(region, addr, version)
+		c, err := p.getNewConn(region, addr)
 		p.Lock()
 		delete(p.limiter, addr.String())
 		close(wait)
@@ -276,7 +318,7 @@ func (p *ConnPool) acquire(region string, addr net.Addr, version int) (*Conn, er
 		// If there is a connection listener, notify them of the new connection.
 		if p.connListener != nil {
 			select {
-			case p.connListener <- c.session:
+			case p.connListener <- c:
 			default:
 			}
 		}
@@ -306,7 +348,7 @@ func (p *ConnPool) acquire(region string, addr net.Addr, version int) (*Conn, er
 }
 
 // getNewConn is used to return a new connection
-func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn, error) {
+func (p *ConnPool) getNewConn(region string, addr net.Addr) (*Conn, error) {
 	// Try to dial the conn
 	conn, err := net.DialTimeout("tcp", addr.String(), 10*time.Second)
 	if err != nil {
@@ -361,7 +403,6 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn,
 		session:  session,
 		clients:  list.New(),
 		lastUsed: time.Now(),
-		version:  version,
 		pool:     p,
 	}
 	return c, nil
@@ -386,20 +427,12 @@ func (p *ConnPool) clearConn(conn *Conn) {
 	}
 }
 
-// releaseConn is invoked when we are done with a conn to reduce the ref count
-func (p *ConnPool) releaseConn(conn *Conn) {
-	refCount := atomic.AddInt32(&conn.refCount, -1)
-	if refCount == 0 && atomic.LoadInt32(&conn.shouldClose) == 1 {
-		conn.Close()
-	}
-}
-
-// getClient is used to get a usable client for an address and protocol version
-func (p *ConnPool) getRPCClient(region string, addr net.Addr, version int) (*Conn, *StreamClient, error) {
+// getClient is used to get a usable client for an address
+func (p *ConnPool) getRPCClient(region string, addr net.Addr) (*Conn, *StreamClient, error) {
 	retries := 0
 START:
 	// Try to get a conn first
-	conn, err := p.acquire(region, addr, version)
+	conn, err := p.acquire(region, addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get conn: %v", err)
 	}
@@ -408,7 +441,7 @@ START:
 	client, err := conn.getRPCClient()
 	if err != nil {
 		p.clearConn(conn)
-		p.releaseConn(conn)
+		conn.releaseUse()
 
 		// Try to redial, possible that the TCP session closed due to timeout
 		if retries == 0 {
@@ -422,8 +455,8 @@ START:
 
 // StreamingRPC is used to make an streaming RPC call.  Callers must
 // close the connection when done.
-func (p *ConnPool) StreamingRPC(region string, addr net.Addr, version int) (net.Conn, error) {
-	conn, err := p.acquire(region, addr, version)
+func (p *ConnPool) StreamingRPC(region string, addr net.Addr) (net.Conn, error) {
+	conn, err := p.acquire(region, addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get conn: %v", err)
 	}
@@ -442,12 +475,13 @@ func (p *ConnPool) StreamingRPC(region string, addr net.Addr, version int) (net.
 }
 
 // RPC is used to make an RPC call to a remote host
-func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string, args interface{}, reply interface{}) error {
+func (p *ConnPool) RPC(region string, addr net.Addr, method string, args interface{}, reply interface{}) error {
 	// Get a usable client
-	conn, sc, err := p.getRPCClient(region, addr, version)
+	conn, sc, err := p.getRPCClient(region, addr)
 	if err != nil {
-		return fmt.Errorf("rpc error: %v", err)
+		return fmt.Errorf("rpc error: %w", err)
 	}
+	defer conn.releaseUse()
 
 	// Make the RPC call
 	err = msgpackrpc.CallWithCodec(sc.codec, method, args, reply)
@@ -461,8 +495,6 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 			p.clearConn(conn)
 		}
 
-		p.releaseConn(conn)
-
 		// If the error is an RPC Coded error
 		// return the coded error without wrapping
 		if structs.IsErrRPCCoded(err) {
@@ -470,12 +502,11 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 		}
 
 		// TODO wrap with RPCCoded error instead
-		return fmt.Errorf("rpc error: %v", err)
+		return fmt.Errorf("rpc error: %w", err)
 	}
 
 	// Done with the connection
 	conn.returnClient(sc)
-	p.releaseConn(conn)
 	return nil
 }
 

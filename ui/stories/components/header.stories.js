@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Header',
+  title: 'Components/Header',
 };
 
 export let Header = () => {
@@ -11,10 +11,10 @@ export let Header = () => {
       <nav class="navbar is-primary">
         <div class="navbar-brand">
           <span class="gutter-toggle" aria-label="menu">
-            {{partial "partials/hamburger-menu"}}
+            <HamburgerMenu />
           </span>
           <span class="navbar-item is-logo">
-            {{partial "partials/nomad-logo"}}
+            <NomadLogo />
           </span>
         </div>
         <div class="navbar-end">

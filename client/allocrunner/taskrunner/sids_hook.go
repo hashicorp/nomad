@@ -2,6 +2,8 @@ package taskrunner
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,7 +15,6 @@ import (
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -147,7 +148,7 @@ func (h *sidsHook) earlyExit() bool {
 func (h *sidsHook) writeToken(dir string, token string) error {
 	tokenPath := filepath.Join(dir, sidsTokenFile)
 	if err := ioutil.WriteFile(tokenPath, []byte(token), sidsTokenFilePerms); err != nil {
-		return errors.Wrap(err, "failed to write SI token")
+		return fmt.Errorf("failed to write SI token: %w", err)
 	}
 	return nil
 }
@@ -161,7 +162,7 @@ func (h *sidsHook) recoverToken(dir string) (string, error) {
 	if err != nil {
 		if !os.IsNotExist(err) {
 			h.logger.Error("failed to recover SI token", "error", err)
-			return "", errors.Wrap(err, "failed to recover SI token")
+			return "", fmt.Errorf("failed to recover SI token: %w", err)
 		}
 		h.logger.Trace("no pre-existing SI token to recover", "task", h.task.Name)
 		return "", nil // token file does not exist yet
@@ -195,7 +196,7 @@ func (h *sidsHook) deriveSIToken(ctx context.Context) (string, error) {
 		case result := <-resultCh:
 			if result.err != nil {
 				h.logger.Error("failed to derive SI token", "error", result.err)
-				h.kill(ctx, errors.Wrap(result.err, "failed to derive SI token"))
+				h.kill(ctx, fmt.Errorf("failed to derive SI token: %w", result.err))
 				return "", result.err
 			}
 			return result.token, nil

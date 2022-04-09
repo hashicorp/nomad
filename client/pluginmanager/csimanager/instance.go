@@ -73,12 +73,7 @@ func newInstanceManager(logger hclog.Logger, eventer TriggerNodeEvent, updater U
 }
 
 func (i *instanceManager) run() {
-	c, err := csi.NewClient(i.info.ConnectionInfo.SocketPath, i.logger)
-	if err != nil {
-		i.logger.Error("failed to setup instance manager client", "error", err)
-		close(i.shutdownCh)
-		return
-	}
+	c := csi.NewClient(i.info.ConnectionInfo.SocketPath, i.logger)
 	i.client = c
 	i.fp.client = c
 

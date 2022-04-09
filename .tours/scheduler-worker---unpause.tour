@@ -1,0 +1,51 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "Scheduler Worker - Unpause",
+  "steps": [
+    {
+      "file": "nomad/leader.go",
+      "description": "## revokeLeadership()\n\nAs a server transistions from leader to non-leader, the pausableWorkers are resumed since the other leader goroutines are stopped providing extra capacity.",
+      "line": 1040,
+      "selection": {
+        "start": {
+          "line": 1038,
+          "character": 10
+        },
+        "end": {
+          "line": 1038,
+          "character": 20
+        }
+      }
+    },
+    {
+      "file": "nomad/leader.go",
+      "description": "## handlePausableWorkers()\n\nThe handlePausableWorkers method is called with `false`. We fetch the pausableWorkers and call their SetPause method with `false`.\n",
+      "line": 443,
+      "selection": {
+        "start": {
+          "line": 443,
+          "character": 18
+        },
+        "end": {
+          "line": 443,
+          "character": 27
+        }
+      }
+    },
+    {
+      "file": "nomad/worker.go",
+      "description": "## Worker.SetPause()\n\nDuring unpause, p is false. We update w.paused in the mutex, and then call Broadcast on the cond. This wakes the goroutine sitting in the Wait() inside of `checkPaused()`",
+      "line": 91
+    },
+    {
+      "file": "nomad/worker.go",
+      "description": "## Worker.checkPaused()\n\nOnce the goroutine receives the `Broadcast()` message from `SetPause()`, execution continues here. Now that `w.paused == false`, we exit the loop and return to the caller (the `dequeueEvaluation()` function).",
+      "line": 104
+    },
+    {
+      "file": "nomad/worker.go",
+      "description": "## Worker.dequeueEvaluation\n\nWe return back into dequeueEvaluation after the call to checkPaused. At this point the worker will either stop (if that signal boolean has been set) or continue looping after returning to run().",
+      "line": 207
+    }
+  ]
+}

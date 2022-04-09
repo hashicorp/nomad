@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed an issue that prevented periodic and dispatch jobs in a non-default namespace to be properly rendered
+```

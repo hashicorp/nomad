@@ -5,7 +5,7 @@ export default class DefinitionRoute extends Route {
     const job = this.modelFor('jobs.job');
     if (!job) return;
 
-    return job.fetchRawDefinition().then(definition => ({
+    return job.fetchRawDefinition().then((definition) => ({
       job,
       definition,
     }));

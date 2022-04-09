@@ -1,5 +1,4 @@
 import {
-  attribute,
   clickable,
   create,
   collection,
@@ -14,6 +13,7 @@ import error from 'nomad-ui/tests/pages/components/error';
 import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 import stepperInput from 'nomad-ui/tests/pages/components/stepper-input';
 import LifecycleChart from 'nomad-ui/tests/pages/components/lifecycle-chart';
+import { multiFacet } from 'nomad-ui/tests/pages/components/facet';
 
 export default create({
   pageSize: 25,
@@ -23,25 +23,21 @@ export default create({
   search: fillable('.search-box input'),
 
   countStepper: stepperInput('[data-test-task-group-count-stepper]'),
+  incrementButton: { scope: '[data-test-stepper-increment]' },
 
   tasksCount: text('[data-test-task-group-tasks]'),
   cpu: text('[data-test-task-group-cpu]'),
   mem: text('[data-test-task-group-mem]'),
   disk: text('[data-test-task-group-disk]'),
 
-  breadcrumbs: collection('[data-test-breadcrumb]', {
-    id: attribute('data-test-breadcrumb'),
-    text: text(),
-    visit: clickable(),
-  }),
-
-  breadcrumbFor(id) {
-    return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
-  },
-
   ...allocations(),
 
   isEmpty: isPresent('[data-test-empty-allocations-list]'),
+
+  facets: {
+    status: multiFacet('[data-test-allocation-status-facet]'),
+    client: multiFacet('[data-test-allocation-client-facet]'),
+  },
 
   lifecycleChart: LifecycleChart,
 
@@ -52,6 +48,38 @@ export default create({
     source: text('[data-test-volume-source]'),
     permissions: text('[data-test-volume-permissions]'),
   }),
+
+  hasScaleEvents: isPresent('[data-test-scale-events]'),
+  scaleEvents: collection(
+    '[data-test-scale-events] [data-test-accordion-head]',
+    {
+      error: isPresent('[data-test-error]'),
+      time: text('[data-test-time]'),
+      count: text('[data-test-count]'),
+      countIcon: { scope: '[data-test-count-icon]' },
+      message: text('[data-test-message]'),
+
+      isToggleable: isPresent(
+        '[data-test-accordion-toggle]:not(.is-invisible)'
+      ),
+      toggle: clickable('[data-test-accordion-toggle]'),
+    }
+  ),
+
+  scaleEventBodies: collection(
+    '[data-test-scale-events] [data-test-accordion-body]',
+    {
+      meta: text(),
+    }
+  ),
+
+  hasScalingTimeline: isPresent('[data-test-scaling-timeline]'),
+  scalingAnnotations: collection(
+    '[data-test-scaling-timeline] [data-test-annotation]',
+    {
+      open: clickable('button'),
+    }
+  ),
 
   error: error(),
 

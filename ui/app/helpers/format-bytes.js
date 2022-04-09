@@ -1,24 +1,16 @@
 import Helper from '@ember/component/helper';
-
-const UNITS = ['Bytes', 'KiB', 'MiB'];
+import { formatBytes } from 'nomad-ui/utils/units';
 
 /**
  * Bytes Formatter
  *
- * Usage: {{format-bytes bytes}}
+ * Usage: {{format-bytes bytes start="KiB"}}
  *
  * Outputs the bytes reduced to the largest supported unit size for which
  * bytes is larger than one.
  */
-export function formatBytes([bytes]) {
-  bytes || (bytes = 0);
-  let unitIndex = 0;
-  while (bytes >= 1024 && unitIndex < UNITS.length - 1) {
-    bytes /= 1024;
-    unitIndex++;
-  }
-
-  return `${Math.floor(bytes)} ${UNITS[unitIndex]}`;
+function formatBytesHelper([bytes], { start }) {
+  return formatBytes(bytes, start);
 }
 
-export default Helper.helper(formatBytes);
+export default Helper.helper(formatBytesHelper);

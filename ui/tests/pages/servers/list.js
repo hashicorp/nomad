@@ -1,4 +1,10 @@
-import { create, collection, clickable, text, visitable } from 'ember-cli-page-object';
+import {
+  create,
+  collection,
+  clickable,
+  text,
+  visitable,
+} from 'ember-cli-page-object';
 
 export default create({
   pageSize: 8,
@@ -11,6 +17,7 @@ export default create({
     address: text('[data-test-server-address]'),
     serfPort: text('[data-test-server-port]'),
     datacenter: text('[data-test-server-datacenter]'),
+    version: text('[data-test-server-version]'),
 
     clickRow: clickable(),
     clickName: clickable('[data-test-server-name] a'),

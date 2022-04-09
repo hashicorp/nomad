@@ -1,11 +1,13 @@
 import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
+import { generateResources } from '../common';
+import { dasherize } from '@ember/string';
 
 const DISK_RESERVATIONS = [200, 500, 1000, 2000, 5000, 10000, 100000];
 
 export default Factory.extend({
-  name: id => `${faker.hacker.noun().dasherize()}-g-${id}`,
+  name: (id) => `${dasherize(faker.hacker.noun())}-g-${id}`,
   count: () => faker.random.number({ min: 1, max: 2 }),
 
   ephemeralDisk: () => ({
@@ -33,8 +35,15 @@ export default Factory.extend({
   // Directive used to control whether the task group should have services.
   withServices: false,
 
+  // Directive used to control whether dynamic application sizing recommendations
+  // should be created.
+  createRecommendations: false,
+
   // When true, only creates allocations
   shallow: false,
+
+  // When set, passed into tasks to set resource values
+  resourceSpec: null,
 
   afterCreate(group, server) {
     let taskIds = [];
@@ -66,18 +75,28 @@ export default Factory.extend({
     }
 
     if (!group.shallow) {
-      const tasks = provide(group.count, () => {
+      const resources =
+        group.resourceSpec &&
+        divide(group.count, parseResourceSpec(group.resourceSpec));
+      const tasks = provide(group.count, (_, idx) => {
         const mounts = faker.helpers
           .shuffle(volumes)
           .slice(0, faker.random.number({ min: 1, max: 3 }));
+
+        const maybeResources = {};
+        if (resources) {
+          maybeResources.originalResources = generateResources(resources[idx]);
+        }
         return server.create('task', {
           taskGroup: group,
-          volumeMounts: mounts.map(mount => ({
+          ...maybeResources,
+          volumeMounts: mounts.map((mount) => ({
             Volume: mount,
             Destination: `/${faker.internet.userName()}/${faker.internet.domainWord()}/${faker.internet.color()}`,
             PropagationMode: '',
             ReadOnly: faker.random.boolean(),
           })),
+          createRecommendations: group.createRecommendations,
         });
       });
       taskIds = tasks.mapBy('id');
@@ -85,7 +104,6 @@ export default Factory.extend({
 
     group.update({
       taskIds: taskIds,
-      task_ids: taskIds,
     });
 
     if (group.createAllocations) {
@@ -97,7 +115,9 @@ export default Factory.extend({
             namespace: group.job.namespace,
             taskGroup: group.name,
             name: `${group.name}.[${i}]`,
-            rescheduleSuccess: group.withRescheduling ? faker.random.boolean() : null,
+            rescheduleSuccess: group.withRescheduling
+              ? faker.random.boolean()
+              : null,
             rescheduleAttempts: group.withRescheduling
               ? faker.random.number({ min: 1, max: 5 })
               : 0,
@@ -116,7 +136,7 @@ export default Factory.extend({
         .fill(null)
         .forEach(() => {
           server.create('service', {
-            task_group: group,
+            taskGroup: group,
           });
         });
     }
@@ -136,4 +156,66 @@ function makeHostVolumes() {
     hash[volume.Name] = volume;
     return hash;
   }, {});
+}
+
+function parseResourceSpec(spec) {
+  const mapping = {
+    M: 'MemoryMB',
+    C: 'CPU',
+    D: 'DiskMB',
+    I: 'IOPS',
+  };
+
+  const terms = spec.split(',').map((t) => {
+    const [k, v] = t
+      .trim()
+      .split(':')
+      .map((kv) => kv.trim());
+    return [k, +v];
+  });
+
+  return terms.reduce((hash, term) => {
+    hash[mapping[term[0]]] = term[1];
+    return hash;
+  }, {});
+}
+
+// Split a single resources object into N resource objects where
+// the sum of each property of the new resources objects equals
+// the original resources properties
+// ex: divide(2, { Mem: 400, Cpu: 250 }) -> [{ Mem: 80, Cpu: 50 }, { Mem: 320, Cpu: 200 }]
+function divide(count, resources) {
+  const wheel = roulette(1, count);
+
+  const ret = provide(count, (_, idx) => {
+    return Object.keys(resources).reduce((hash, key) => {
+      hash[key] = Math.round(resources[key] * wheel[idx]);
+      return hash;
+    }, {});
+  });
+
+  return ret;
+}
+
+// Roulette splits a number into N divisions
+// Variance is a value between 0 and 1 that determines how much each division in
+// size. At 0 each division is even, at 1, it's entirely random but the sum of all
+// divisions is guaranteed to equal the total value.
+function roulette(total, divisions, variance = 0.8) {
+  let roulette = new Array(divisions).fill(total / divisions);
+  roulette.forEach((v, i) => {
+    if (i === roulette.length - 1) return;
+    roulette.splice(
+      i,
+      2,
+      ...rngDistribute(roulette[i], roulette[i + 1], variance)
+    );
+  });
+  return roulette;
+}
+
+function rngDistribute(a, b, variance = 0.8) {
+  const move =
+    a * faker.random.number({ min: 0, max: variance, precision: 0.01 });
+  return [a - move, b + move];
 }

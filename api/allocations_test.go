@@ -7,15 +7,17 @@ import (
 	"reflect"
 	"sort"
 	"testing"
-
 	"time"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAllocations_List(t *testing.T) {
-	t.Parallel()
-	c, s := makeClient(t, nil, nil)
+	testutil.Parallel(t)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
 	defer s.Stop()
 	a := c.Allocations()
 
@@ -31,37 +33,32 @@ func TestAllocations_List(t *testing.T) {
 		t.Fatalf("expected 0 allocs, got: %d", n)
 	}
 
-	// TODO: do something that causes an allocation to actually happen
-	// so we can query for them.
-	return
+	// Create a job and attempt to register it
+	job := testJob()
+	resp, wm, err := c.Jobs().Register(job, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotEmpty(t, resp.EvalID)
+	assertWriteMeta(t, wm)
 
-	//job := &Job{
-	//ID:   stringToPtr("job1"),
-	//Name: stringToPtr("Job #1"),
-	//Type: stringToPtr(JobTypeService),
-	//}
-	//eval, _, err := c.Jobs().Register(job, nil)
-	//if err != nil {
-	//t.Fatalf("err: %s", err)
-	//}
+	// List the allocations again
+	qo := &QueryOptions{
+		WaitIndex: wm.LastIndex,
+	}
+	allocs, qm, err = a.List(qo)
+	require.NoError(t, err)
+	require.NotZero(t, qm.LastIndex)
 
-	//// List the allocations again
-	//allocs, qm, err = a.List(nil)
-	//if err != nil {
-	//t.Fatalf("err: %s", err)
-	//}
-	//if qm.LastIndex == 0 {
-	//t.Fatalf("bad index: %d", qm.LastIndex)
-	//}
+	// Check that we got the allocation back
+	require.Len(t, allocs, 1)
+	require.Equal(t, resp.EvalID, allocs[0].EvalID)
 
-	//// Check that we got the allocation back
-	//if len(allocs) == 0 || allocs[0].EvalID != eval {
-	//t.Fatalf("bad: %#v", allocs)
-	//}
+	// Resources should be unset by default
+	require.Nil(t, allocs[0].AllocatedResources)
 }
 
 func TestAllocations_PrefixList(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Allocations()
@@ -108,8 +105,39 @@ func TestAllocations_PrefixList(t *testing.T) {
 	//}
 }
 
+func TestAllocations_List_Resources(t *testing.T) {
+	testutil.Parallel(t)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	a := c.Allocations()
+
+	// Create a job and register it
+	job := testJob()
+	resp, wm, err := c.Jobs().Register(job, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotEmpty(t, resp.EvalID)
+	assertWriteMeta(t, wm)
+
+	// List the allocations
+	qo := &QueryOptions{
+		Params:    map[string]string{"resources": "true"},
+		WaitIndex: wm.LastIndex,
+	}
+	allocs, qm, err := a.List(qo)
+	require.NoError(t, err)
+	require.NotZero(t, qm.LastIndex)
+
+	// Check that we got the allocation back with resources
+	require.Len(t, allocs, 1)
+	require.Equal(t, resp.EvalID, allocs[0].EvalID)
+	require.NotNil(t, allocs[0].AllocatedResources)
+}
+
 func TestAllocations_CreateIndexSort(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	allocs := []*AllocationListStub{
 		{CreateIndex: 2},
 		{CreateIndex: 1},
@@ -128,7 +156,7 @@ func TestAllocations_CreateIndexSort(t *testing.T) {
 }
 
 func TestAllocations_RescheduleInfo(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	// Create a job, task group and alloc
 	job := &Job{
 		Name:      stringToPtr("foo"),
@@ -288,9 +316,87 @@ func TestAllocations_ExecErrors(t *testing.T) {
 	require.Equal(t, err.Error(), fmt.Sprintf("Unknown allocation \"%s\"", allocID))
 }
 
+func TestAllocation_ServerTerminalStatus(t *testing.T) {
+	testutil.Parallel(t)
+
+	testCases := []struct {
+		inputAllocation *Allocation
+		expectedOutput  bool
+		name            string
+	}{
+		{
+			inputAllocation: &Allocation{DesiredStatus: AllocDesiredStatusEvict},
+			expectedOutput:  true,
+			name:            "alloc desired status evict",
+		},
+		{
+			inputAllocation: &Allocation{DesiredStatus: AllocDesiredStatusStop},
+			expectedOutput:  true,
+			name:            "alloc desired status stop",
+		},
+		{
+			inputAllocation: &Allocation{DesiredStatus: AllocDesiredStatusRun},
+			expectedOutput:  false,
+			name:            "alloc desired status run",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expectedOutput, tc.inputAllocation.ServerTerminalStatus(), tc.name)
+		})
+	}
+}
+
+func TestAllocation_ClientTerminalStatus(t *testing.T) {
+	testutil.Parallel(t)
+
+	testCases := []struct {
+		inputAllocation *Allocation
+		expectedOutput  bool
+		name            string
+	}{
+		{
+			inputAllocation: &Allocation{ClientStatus: AllocClientStatusLost},
+			expectedOutput:  true,
+			name:            "alloc client status lost",
+		},
+		{
+			inputAllocation: &Allocation{ClientStatus: AllocClientStatusFailed},
+			expectedOutput:  true,
+			name:            "alloc client status failed",
+		},
+		{
+			inputAllocation: &Allocation{ClientStatus: AllocClientStatusComplete},
+			expectedOutput:  true,
+			name:            "alloc client status complete",
+		},
+		{
+			inputAllocation: &Allocation{ClientStatus: AllocClientStatusRunning},
+			expectedOutput:  false,
+			name:            "alloc client status complete",
+		},
+		{
+			inputAllocation: &Allocation{ClientStatus: AllocClientStatusPending},
+			expectedOutput:  false,
+			name:            "alloc client status running",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expectedOutput, tc.inputAllocation.ClientTerminalStatus(), tc.name)
+		})
+	}
+}
+
 func TestAllocations_ShouldMigrate(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require.True(t, DesiredTransition{Migrate: boolToPtr(true)}.ShouldMigrate())
 	require.False(t, DesiredTransition{}.ShouldMigrate())
 	require.False(t, DesiredTransition{Migrate: boolToPtr(false)}.ShouldMigrate())
+}
+
+func TestAllocations_Services(t *testing.T) {
+	// TODO(jrasell) add tests once registration process is in place.
 }

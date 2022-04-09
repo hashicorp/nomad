@@ -7,17 +7,18 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
 
 func TestOperatorSnapshotInspect_Works(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	snapPath := generateSnapshotFile(t, nil)
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorSnapshotInspectCommand{Meta: Meta{Ui: ui}}
 
 	code := cmd.Run([]string{snapPath})
@@ -33,10 +34,10 @@ func TestOperatorSnapshotInspect_Works(t *testing.T) {
 	} {
 		require.Contains(t, output, key)
 	}
-
 }
+
 func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tmpDir, err := ioutil.TempDir("", "nomad-clitests-")
 	require.NoError(t, err)
@@ -49,7 +50,7 @@ func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("not found", func(t *testing.T) {
-		ui := new(cli.MockUi)
+		ui := cli.NewMockUi()
 		cmd := &OperatorSnapshotInspectCommand{Meta: Meta{Ui: ui}}
 
 		code := cmd.Run([]string{filepath.Join(tmpDir, "foo")})
@@ -58,18 +59,16 @@ func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
 	})
 
 	t.Run("invalid file", func(t *testing.T) {
-		ui := new(cli.MockUi)
+		ui := cli.NewMockUi()
 		cmd := &OperatorSnapshotInspectCommand{Meta: Meta{Ui: ui}}
 
 		code := cmd.Run([]string{filepath.Join(tmpDir, "invalid.snap")})
 		require.NotZero(t, code)
 		require.Contains(t, ui.ErrorWriter.String(), "Error verifying snapshot")
 	})
-
 }
 
 func generateSnapshotFile(t *testing.T, prepare func(srv *agent.TestAgent, client *api.Client, url string)) string {
-
 	tmpDir, err := ioutil.TempDir("", "nomad-tempdir")
 	require.NoError(t, err)
 
@@ -90,7 +89,7 @@ func generateSnapshotFile(t *testing.T, prepare func(srv *agent.TestAgent, clien
 		prepare(srv, api, url)
 	}
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorSnapshotSaveCommand{Meta: Meta{Ui: ui}}
 
 	dest := filepath.Join(tmpDir, "backup.snap")

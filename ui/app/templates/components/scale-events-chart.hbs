@@ -1,0 +1,42 @@
+<LineChart
+  @timeseries={{true}}
+  @xProp="time"
+  @yProp="count"
+  @data={{this.data}}>
+  <:svg as |c|>
+    <c.Area
+      @curve="stepAfter"
+      @data={{this.data}} />
+  </:svg>
+  <:after as |c|>
+    <c.Tooltip class="is-snappy" as |series datum|>
+      <li>
+        <span class="label"><span class="color-swatch is-primary" />{{datum.formattedX}}</span>
+        <span class="value">{{datum.formattedY}}</span>
+      </li>
+    </c.Tooltip>
+    <c.VAnnotations
+      @annotations={{this.annotations}}
+      @key="event.uid"
+      @activeAnnotation={{this.activeEvent}}
+      @annotationClick={{action this.toggleEvent}} />
+  </:after>
+</LineChart>
+{{#if this.activeEvent}}
+  <div data-test-event-details>
+    <div class="event">
+      <div data-test-type class="type">
+        {{#if this.activeEvent.event.error}}
+          {{x-icon "cancel-circle-fill" class="is-danger"}}
+        {{else}}
+          {{x-icon "info-circle-fill" class="is-grey"}}
+        {{/if}}
+      </div>
+      <div>
+        <p data-test-timestamp class="timestamp">{{format-month-ts this.activeEvent.event.time}}</p>
+        <p data-test-message class="message">{{this.activeEvent.event.message}}</p>
+      </div>
+    </div>
+    <JsonViewer @json={{this.activeEvent.event.meta}} @fluidHeight={{true}} />
+  </div>
+{{/if}}

@@ -1,11 +1,11 @@
 package command
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
-	"fmt"
-
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -16,13 +16,13 @@ import (
 )
 
 func TestJobEvalCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &JobEvalCommand{}
 }
 
 func TestJobEvalCommand_Fails(t *testing.T) {
-	t.Parallel()
-	ui := new(cli.MockUi)
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
 	cmd := &JobEvalCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -46,7 +46,7 @@ func TestJobEvalCommand_Fails(t *testing.T) {
 }
 
 func TestJobEvalCommand_Run(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -66,7 +66,7 @@ func TestJobEvalCommand_Run(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobEvalCommand{Meta: Meta{Ui: ui}}
 	require := require.New(t)
 
@@ -74,7 +74,7 @@ func TestJobEvalCommand_Run(t *testing.T) {
 
 	// Create a job
 	job := mock.Job()
-	err := state.UpsertJob(11, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 11, job)
 	require.Nil(err)
 
 	job, err = state.JobByID(nil, structs.DefaultNamespace, job.ID)
@@ -87,7 +87,7 @@ func TestJobEvalCommand_Run(t *testing.T) {
 	alloc.TaskGroup = job.TaskGroups[0].Name
 	alloc.Namespace = job.Namespace
 	alloc.ClientStatus = structs.AllocClientStatusFailed
-	err = state.UpsertAllocs(12, []*structs.Allocation{alloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 12, []*structs.Allocation{alloc})
 	require.Nil(err)
 
 	if code := cmd.Run([]string{"-address=" + url, "-force-reschedule", "-detach", job.ID}); code != 0 {
@@ -103,19 +103,19 @@ func TestJobEvalCommand_Run(t *testing.T) {
 }
 
 func TestJobEvalCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobEvalCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(1000, j))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}

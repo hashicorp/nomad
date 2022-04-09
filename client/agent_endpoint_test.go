@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -24,7 +25,8 @@ import (
 )
 
 func TestMonitor_Monitor(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// start server and client
@@ -105,7 +107,8 @@ OUTER:
 }
 
 func TestMonitor_Monitor_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// start server
@@ -217,7 +220,8 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 
 // Test that by default with no acl, endpoint is disabled
 func TestAgentProfile_DefaultDisabled(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// start server and client
@@ -243,7 +247,8 @@ func TestAgentProfile_DefaultDisabled(t *testing.T) {
 }
 
 func TestAgentProfile(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// start server and client
@@ -290,7 +295,8 @@ func TestAgentProfile(t *testing.T) {
 }
 
 func TestAgentProfile_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// start server
@@ -349,6 +355,90 @@ func TestAgentProfile_ACL(t *testing.T) {
 			} else {
 				require.NoError(err)
 				require.NotNil(reply.Payload)
+			}
+		})
+	}
+}
+
+func TestAgentHost(t *testing.T) {
+	ci.Parallel(t)
+
+	// start server and client
+	s1, cleanup := nomad.TestServer(t, nil)
+	defer cleanup()
+
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c, cleanupC := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s1.GetConfig().RPCAddr.String()}
+		c.EnableDebug = true
+	})
+	defer cleanupC()
+
+	req := structs.HostDataRequest{}
+	var resp structs.HostDataResponse
+
+	err := c.ClientRPC("Agent.Host", &req, &resp)
+	require.NoError(t, err)
+
+	require.NotNil(t, resp.HostData)
+	require.Equal(t, c.NodeID(), resp.AgentID)
+}
+
+func TestAgentHost_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
+	testutil.WaitForLeader(t, s.RPC)
+
+	c, cleanupC := TestClient(t, func(c *config.Config) {
+		c.ACLEnabled = true
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+	})
+	defer cleanupC()
+
+	policyGood := mock.AgentPolicy(acl.PolicyRead)
+	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1005, "valid", policyGood)
+
+	policyBad := mock.NodePolicy(acl.PolicyWrite)
+	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1009, "invalid", policyBad)
+
+	cases := []struct {
+		Name    string
+		Token   string
+		authErr bool
+	}{
+		{
+			Name:    "bad token",
+			Token:   tokenBad.SecretID,
+			authErr: true,
+		},
+		{
+			Name:  "good token",
+			Token: tokenGood.SecretID,
+		},
+		{
+			Name:  "root token",
+			Token: root.SecretID,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			req := structs.HostDataRequest{
+				QueryOptions: structs.QueryOptions{
+					AuthToken: tc.Token,
+				},
+			}
+			var resp structs.HostDataResponse
+
+			err := c.ClientRPC("Agent.Host", &req, &resp)
+			if tc.authErr {
+				require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+			} else {
+				require.NoError(t, err)
+				require.NotEmpty(t, resp.HostData)
 			}
 		})
 	}

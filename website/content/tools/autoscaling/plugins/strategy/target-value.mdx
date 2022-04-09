@@ -1,0 +1,38 @@
+---
+layout: docs
+page_title: 'Autoscaling Plugins: Target Value'
+description: The "target-value" strategy plugin tracks a target metric value.
+---
+
+# Target Value Strategy Plugin
+
+The `target-value` strategy plugin will perform count calculations in order to
+keep the value resulting from the APM query at or around a specified target.
+
+## Agent Configuration Options
+
+```hcl
+strategy "target-value" {
+  driver = "target-value"
+}
+```
+
+## Policy Configuration Options
+
+```hcl
+check "target-value-check" {
+  # ...
+  strategy "target-value" {
+    target    = 20
+    threshold = 0.0001
+  }
+  # ...
+}
+```
+
+- `target` `(float: <required>)` - Specifies the metric value the Autoscaler
+  should try to meet.
+
+- `threshold` `(float: 0.01)` - Specifies how significant a change in the input
+  metric should be considered. Small threshold values can lead to output
+  fluctuation.

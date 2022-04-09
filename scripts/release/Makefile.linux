@@ -22,6 +22,7 @@ build_releases:
 
 	@echo "======>> committing generated files"
 	git add -A .
+	find . -name '*.generated.go' -not -path './vendor/*' -exec git add -f '{}' \;
 # skip comitting files if there are no generated files
 # if prerelease process was a no-op
 	if ! git diff-index --quiet HEAD --; \

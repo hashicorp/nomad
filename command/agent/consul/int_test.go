@@ -4,18 +4,20 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/sdk/testutil"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
@@ -36,13 +38,15 @@ func (m *mockUpdater) TaskStateUpdated() {
 // TestConsul_Integration asserts TaskRunner properly registers and deregisters
 // services and checks with Consul using an embedded Consul agent.
 func TestConsul_Integration(t *testing.T) {
+	ci.Parallel(t)
+
 	if testing.Short() {
 		t.Skip("-short set; skipping")
 	}
-	require := require.New(t)
+	r := require.New(t)
 
 	// Create an embedded Consul server
-	testconsul, err := testutil.NewTestServerConfig(func(c *testutil.TestServerConfig) {
+	testconsul, err := testutil.NewTestServerConfigT(t, func(c *testutil.TestServerConfig) {
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
 			c.Stdout = ioutil.Discard
@@ -94,6 +98,7 @@ func TestConsul_Integration(t *testing.T) {
 			Name:      "httpd",
 			PortLabel: "http",
 			Tags:      []string{"nomad", "test", "http"},
+			Provider:  structs.ServiceProviderConsul,
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:     "httpd-http-check",
@@ -115,6 +120,7 @@ func TestConsul_Integration(t *testing.T) {
 		{
 			Name:      "httpd2",
 			PortLabel: "http",
+			Provider:  structs.ServiceProviderConsul,
 			Tags: []string{
 				"test",
 				// Use URL-unfriendly tags to test #3620
@@ -126,16 +132,17 @@ func TestConsul_Integration(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 	logUpdate := &mockUpdater{logger}
-	allocDir := allocdir.NewAllocDir(logger, filepath.Join(conf.AllocDir, alloc.ID))
+	allocDir := allocdir.NewAllocDir(logger, conf.AllocDir, alloc.ID)
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("error building alloc dir: %v", err)
 	}
 	taskDir := allocDir.NewTaskDir(task.Name)
 	vclient := vaultclient.NewMockVaultClient()
 	consulClient, err := consulapi.NewClient(consulConfig)
-	require.Nil(err)
+	r.Nil(err)
 
-	serviceClient := consul.NewServiceClient(consulClient.Agent(), testlog.HCLogger(t), true)
+	namespacesClient := consul.NewNamespacesClient(consulClient.Namespaces(), consulClient.Agent())
+	serviceClient := consul.NewServiceClient(consulClient.Agent(), namespacesClient, testlog.HCLogger(t), true)
 	defer serviceClient.Shutdown() // just-in-case cleanup
 	consulRan := make(chan struct{})
 	go func() {
@@ -162,10 +169,11 @@ func TestConsul_Integration(t *testing.T) {
 		DeviceManager:        devicemanager.NoopMockManager(),
 		DriverManager:        drivermanager.TestDriverManager(t),
 		StartConditionMetCtx: closedCh,
+		ServiceRegWrapper:    wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
 	}
 
 	tr, err := taskrunner.NewTaskRunner(config)
-	require.NoError(err)
+	r.NoError(err)
 	go tr.Run()
 	defer func() {
 		// Make sure we always shutdown task runner when the test exits
@@ -180,7 +188,7 @@ func TestConsul_Integration(t *testing.T) {
 	// Block waiting for the service to appear
 	catalog := consulClient.Catalog()
 	res, meta, err := catalog.Service("httpd2", "test", nil)
-	require.Nil(err)
+	r.Nil(err)
 
 	for i := 0; len(res) == 0 && i < 10; i++ {
 		//Expected initial request to fail, do a blocking query
@@ -189,7 +197,7 @@ func TestConsul_Integration(t *testing.T) {
 			t.Fatalf("error querying for service: %v", err)
 		}
 	}
-	require.Len(res, 1)
+	r.Len(res, 1)
 
 	// Truncate results
 	res = res[:]
@@ -197,16 +205,16 @@ func TestConsul_Integration(t *testing.T) {
 	// Assert the service with the checks exists
 	for i := 0; len(res) == 0 && i < 10; i++ {
 		res, meta, err = catalog.Service("httpd", "http", &consulapi.QueryOptions{WaitIndex: meta.LastIndex + 1, WaitTime: 3 * time.Second})
-		require.Nil(err)
+		r.Nil(err)
 	}
-	require.Len(res, 1)
+	r.Len(res, 1)
 
 	// Assert the script check passes (mock_driver script checks always
 	// pass) after having time to run once
 	time.Sleep(2 * time.Second)
 	checks, _, err := consulClient.Health().Checks("httpd", nil)
-	require.Nil(err)
-	require.Len(checks, 2)
+	r.Nil(err)
+	r.Len(checks, 2)
 
 	for _, check := range checks {
 		if expected := "httpd"; check.ServiceName != expected {
@@ -261,7 +269,7 @@ func TestConsul_Integration(t *testing.T) {
 
 	// Ensure Consul is clean
 	services, _, err := catalog.Services(nil)
-	require.Nil(err)
-	require.Len(services, 1)
-	require.Contains(services, "consul")
+	r.Nil(err)
+	r.Len(services, 1)
+	r.Contains(services, "consul")
 }

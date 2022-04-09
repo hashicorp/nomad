@@ -1,6 +1,11 @@
-job "redis" {
+job "podman-redis" {
   datacenters = ["dc1"]
   type        = "service"
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
 
   group "redis" {
     task "redis" {

@@ -12,8 +12,9 @@ job "group_service_check_script" {
     }
 
     service {
-      name = "foo-service"
-      port = "http"
+      name      = "foo-service"
+      port      = "http"
+      on_update = "ignore"
 
       check {
         name           = "check-name"
@@ -23,6 +24,8 @@ job "group_service_check_script" {
         timeout        = "2s"
         initial_status = "passing"
         task           = "foo"
+        on_update      = "ignore"
+        body           = "post body"
       }
     }
 

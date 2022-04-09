@@ -1,6 +1,9 @@
 import WatchableNamespaceIDs from './watchable-namespace-ids';
 import addToPath from 'nomad-ui/utils/add-to-path';
+import { base64EncodeString } from 'nomad-ui/utils/encode';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class JobAdapter extends WatchableNamespaceIDs {
   relationshipFallbackLinks = {
     summary: '/summary',
@@ -13,7 +16,10 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
   forcePeriodic(job) {
     if (job.get('periodic')) {
-      const url = addToPath(this.urlForFindRecord(job.get('id'), 'job'), '/periodic/force');
+      const url = addToPath(
+        this.urlForFindRecord(job.get('id'), 'job'),
+        '/periodic/force'
+      );
       return this.ajax(url, 'POST');
     }
   }
@@ -43,7 +49,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
         Job: job.get('_newDefinitionJSON'),
         Diff: true,
       },
-    }).then(json => {
+    }).then((json) => {
       json.ID = jobId;
       store.pushPayload('job-plan', { jobPlans: [json] });
       return store.peekRecord('job-plan', jobId);
@@ -69,18 +75,34 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     });
   }
 
-  scale(job, group, count, reason) {
-    const url = addToPath(this.urlForFindRecord(job.get('id'), 'job'), '/scale');
+  scale(job, group, count, message) {
+    const url = addToPath(
+      this.urlForFindRecord(job.get('id'), 'job'),
+      '/scale'
+    );
     return this.ajax(url, 'POST', {
       data: {
         Count: count,
-        Reason: reason,
+        Message: message,
         Target: {
           Group: group,
         },
         Meta: {
           Source: 'nomad-ui',
         },
+      },
+    });
+  }
+
+  dispatch(job, meta, payload) {
+    const url = addToPath(
+      this.urlForFindRecord(job.get('id'), 'job'),
+      '/dispatch'
+    );
+    return this.ajax(url, 'POST', {
+      data: {
+        Payload: base64EncodeString(payload),
+        Meta: meta,
       },
     });
   }

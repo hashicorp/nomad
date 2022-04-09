@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -48,7 +47,7 @@ func Parse(r io.Reader) (*api.Job, error) {
 	valid := []string{
 		"job",
 	}
-	if err := helper.CheckHCLKeys(list, valid); err != nil {
+	if err := checkHCLKeys(list, valid); err != nil {
 		return nil, err
 	}
 
@@ -100,7 +99,7 @@ func parseReschedulePolicy(final **api.ReschedulePolicy, list *ast.ObjectList) e
 		"max_delay",
 		"delay_function",
 	}
-	if err := helper.CheckHCLKeys(obj.Val, valid); err != nil {
+	if err := checkHCLKeys(obj.Val, valid); err != nil {
 		return err
 	}
 
@@ -140,7 +139,7 @@ func parseConstraints(result *[]*api.Constraint, list *ast.ObjectList) error {
 			"version",
 			"semver",
 		}
-		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return err
 		}
 
@@ -230,7 +229,7 @@ func parseAffinities(result *[]*api.Affinity, list *ast.ObjectList) error {
 			"semver",
 			"weight",
 		}
-		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return err
 		}
 
@@ -307,7 +306,7 @@ func parseSpread(result *[]*api.Spread, list *ast.ObjectList) error {
 			"weight",
 			"target",
 		}
-		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return err
 		}
 
@@ -333,7 +332,7 @@ func parseSpread(result *[]*api.Spread, list *ast.ObjectList) error {
 		// Parse spread target
 		if o := listVal.Filter("target"); len(o.Items) > 0 {
 			if err := parseSpreadTarget(&s.SpreadTarget, o); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("target ->"))
+				return multierror.Prefix(err, "target ->")
 			}
 		}
 
@@ -370,7 +369,7 @@ func parseSpreadTarget(result *[]*api.SpreadTarget, list *ast.ObjectList) error 
 			"percent",
 			"value",
 		}
-		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		if err := checkHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
 		}
 
@@ -395,11 +394,11 @@ func parseSpreadTarget(result *[]*api.SpreadTarget, list *ast.ObjectList) error 
 func parseBool(value interface{}) (bool, error) {
 	var enabled bool
 	var err error
-	switch value.(type) {
+	switch data := value.(type) {
 	case string:
-		enabled, err = strconv.ParseBool(value.(string))
+		enabled, err = strconv.ParseBool(data)
 	case bool:
-		enabled = value.(bool)
+		enabled = data
 	default:
 		err = fmt.Errorf("%v couldn't be converted to boolean value", value)
 	}
@@ -433,7 +432,7 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 		"auto_promote",
 		"canary",
 	}
-	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return err
 	}
 
@@ -469,7 +468,7 @@ func parseMigrate(result **api.MigrateStrategy, list *ast.ObjectList) error {
 		"min_healthy_time",
 		"healthy_deadline",
 	}
-	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return err
 	}
 
@@ -506,12 +505,14 @@ func parseVault(result *api.Vault, list *ast.ObjectList) error {
 
 	// Check for invalid keys
 	valid := []string{
+		"namespace",
 		"policies",
 		"env",
 		"change_mode",
 		"change_signal",
+		"entity_alias",
 	}
-	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+	if err := checkHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "vault ->")
 	}
 

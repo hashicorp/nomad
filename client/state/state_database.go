@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/boltdb/bolt"
-
 	hclog "github.com/hashicorp/go-hclog"
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
@@ -15,6 +13,7 @@ import (
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"go.etcd.io/bbolt"
 )
 
 /*
@@ -25,8 +24,9 @@ meta/
 |--> upgraded -> time.Now().Format(timeRFC3339)
 allocations/
 |--> <alloc-id>/
-   |--> alloc         -> allocEntry{*structs.Allocation}
-   |--> deploy_status -> deployStatusEntry{*structs.AllocDeploymentStatus}
+   |--> alloc          -> allocEntry{*structs.Allocation}
+	 |--> deploy_status  -> deployStatusEntry{*structs.AllocDeploymentStatus}
+	 |--> network_status -> networkStatusEntry{*structs.AllocNetworkStatus}
    |--> task-<name>/
       |--> local_state -> *trstate.LocalState # Local-only state
       |--> task_state  -> *structs.TaskState  # Sync'd to servers
@@ -51,7 +51,7 @@ var (
 	// metaVersion is the value of the state schema version to detect when
 	// an upgrade is needed. It skips the usual boltdd/msgpack backend to
 	// be as portable and futureproof as possible.
-	metaVersion = []byte{'2'}
+	metaVersion = []byte{'3'}
 
 	// metaUpgradedKey is the key that stores the timestamp of the last
 	// time the schema was upgraded.
@@ -69,6 +69,10 @@ var (
 	// stored under.
 	allocDeployStatusKey = []byte("deploy_status")
 
+	// allocNetworkStatusKey is the key *structs.AllocNetworkStatus is
+	// stored under
+	allocNetworkStatusKey = []byte("network_status")
+
 	// allocations -> $allocid -> task-$taskname -> the keys below
 	taskLocalStateKey = []byte("local_state")
 	taskStateKey      = []byte("task_state")
@@ -85,9 +89,9 @@ var (
 	// stored at
 	managerPluginStateKey = []byte("plugin_state")
 
-	// dynamicPluginBucket is the bucket name containing all dynamic plugin
+	// dynamicPluginBucketName is the bucket name containing all dynamic plugin
 	// registry data. each dynamic plugin registry will have its own subbucket.
-	dynamicPluginBucket = []byte("dynamicplugins")
+	dynamicPluginBucketName = []byte("dynamicplugins")
 
 	// registryStateKey is the key at which dynamic plugin registry state is stored
 	registryStateKey = []byte("registry_state")
@@ -134,11 +138,11 @@ func NewBoltStateDB(logger hclog.Logger, stateDir string) (StateDB, error) {
 	firstRun := fi == nil
 
 	// Timeout to force failure when accessing a data dir that is already in use
-	timeout := &bolt.Options{Timeout: 5 * time.Second}
+	timeout := &bbolt.Options{Timeout: 5 * time.Second}
 
 	// Create or open the boltdb state database
 	db, err := boltdd.Open(fn, 0600, timeout)
-	if err == bolt.ErrTimeout {
+	if err == bbolt.ErrTimeout {
 		return nil, fmt.Errorf("timed out while opening database, is another Nomad process accessing data_dir %s?", stateDir)
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to create state database: %v", err)
@@ -229,8 +233,8 @@ func (s *BoltStateDB) getAllAllocations(tx *boltdd.Tx) ([]*structs.Allocation, m
 }
 
 // PutAllocation stores an allocation or returns an error.
-func (s *BoltStateDB) PutAllocation(alloc *structs.Allocation) error {
-	return s.db.Update(func(tx *boltdd.Tx) error {
+func (s *BoltStateDB) PutAllocation(alloc *structs.Allocation, opts ...WriteOption) error {
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
 		// Retrieve the root allocations bucket
 		allocsBkt, err := tx.CreateBucketIfNotExists(allocationsBucketName)
 		if err != nil {
@@ -307,6 +311,64 @@ func (s *BoltStateDB) GetDeploymentStatus(allocID string) (*structs.AllocDeploym
 	}
 
 	return entry.DeploymentStatus, nil
+}
+
+// networkStatusEntry wraps values for NetworkStatus keys.
+type networkStatusEntry struct {
+	NetworkStatus *structs.AllocNetworkStatus
+}
+
+// PutNetworkStatus stores an allocation's DeploymentStatus or returns an
+// error.
+func (s *BoltStateDB) PutNetworkStatus(allocID string, ds *structs.AllocNetworkStatus, opts ...WriteOption) error {
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
+		return putNetworkStatusImpl(tx, allocID, ds)
+	})
+}
+
+func putNetworkStatusImpl(tx *boltdd.Tx, allocID string, ds *structs.AllocNetworkStatus) error {
+	allocBkt, err := getAllocationBucket(tx, allocID)
+	if err != nil {
+		return err
+	}
+
+	entry := networkStatusEntry{
+		NetworkStatus: ds,
+	}
+	return allocBkt.Put(allocNetworkStatusKey, &entry)
+}
+
+// GetNetworkStatus retrieves an allocation's NetworkStatus or returns an
+// error.
+func (s *BoltStateDB) GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, error) {
+	var entry networkStatusEntry
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		allAllocsBkt := tx.Bucket(allocationsBucketName)
+		if allAllocsBkt == nil {
+			// No state, return
+			return nil
+		}
+
+		allocBkt := allAllocsBkt.Bucket([]byte(allocID))
+		if allocBkt == nil {
+			// No state for alloc, return
+			return nil
+		}
+
+		return allocBkt.Get(allocNetworkStatusKey, &entry)
+	})
+
+	// It's valid for this field to be nil/missing
+	if boltdd.IsErrNotFound(err) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return entry.NetworkStatus, nil
 }
 
 // GetTaskRunnerState returns the LocalState and TaskState for a
@@ -430,8 +492,8 @@ func (s *BoltStateDB) DeleteTaskBucket(allocID, taskName string) error {
 }
 
 // DeleteAllocationBucket is used to delete an allocation bucket if it exists.
-func (s *BoltStateDB) DeleteAllocationBucket(allocID string) error {
-	return s.db.Update(func(tx *boltdd.Tx) error {
+func (s *BoltStateDB) DeleteAllocationBucket(allocID string, opts ...WriteOption) error {
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
 		// Retrieve the root allocations bucket
 		allocations := tx.Bucket(allocationsBucketName)
 		if allocations == nil {
@@ -614,7 +676,7 @@ func (s *BoltStateDB) GetDriverPluginState() (*driverstate.PluginState, error) {
 func (s *BoltStateDB) PutDynamicPluginRegistryState(ps *dynamicplugins.RegistryState) error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
 		// Retrieve the root dynamic plugin manager bucket
-		dynamicBkt, err := tx.CreateBucketIfNotExists(dynamicPluginBucket)
+		dynamicBkt, err := tx.CreateBucketIfNotExists(dynamicPluginBucketName)
 		if err != nil {
 			return err
 		}
@@ -628,7 +690,7 @@ func (s *BoltStateDB) GetDynamicPluginRegistryState() (*dynamicplugins.RegistryS
 	var ps *dynamicplugins.RegistryState
 
 	err := s.db.View(func(tx *boltdd.Tx) error {
-		dynamicBkt := tx.Bucket(dynamicPluginBucket)
+		dynamicBkt := tx.Bucket(dynamicPluginBucketName)
 		if dynamicBkt == nil {
 			// No state, return
 			return nil
@@ -662,15 +724,28 @@ func (s *BoltStateDB) init() error {
 	})
 }
 
+// updateWithOptions enables adjustments to db.Update operation, including Batch mode.
+func (s *BoltStateDB) updateWithOptions(opts []WriteOption, updateFn func(tx *boltdd.Tx) error) error {
+	writeOpts := mergeWriteOptions(opts)
+
+	if writeOpts.BatchMode {
+		// In Batch mode, BoltDB opportunistically combines multiple concurrent writes into one or
+		// several transactions. See boltdb.Batch() documentation for details.
+		return s.db.Batch(updateFn)
+	} else {
+		return s.db.Update(updateFn)
+	}
+}
+
 // Upgrade bolt state db from 0.8 schema to 0.9 schema. Noop if already using
 // 0.9 schema. Creates a backup before upgrading.
 func (s *BoltStateDB) Upgrade() error {
 	// Check to see if the underlying DB needs upgrading.
-	upgrade, err := NeedsUpgrade(s.db.BoltDB())
+	upgrade09, upgrade13, err := NeedsUpgrade(s.db.BoltDB())
 	if err != nil {
 		return err
 	}
-	if !upgrade {
+	if !upgrade09 && !upgrade13 {
 		// No upgrade needed!
 		return nil
 	}
@@ -683,8 +758,16 @@ func (s *BoltStateDB) Upgrade() error {
 
 	// Perform the upgrade
 	if err := s.db.Update(func(tx *boltdd.Tx) error {
-		if err := UpgradeAllocs(s.logger, tx); err != nil {
-			return err
+
+		if upgrade09 {
+			if err := UpgradeAllocs(s.logger, tx); err != nil {
+				return err
+			}
+		}
+		if upgrade13 {
+			if err := UpgradeDynamicPluginRegistry(s.logger, tx); err != nil {
+				return err
+			}
 		}
 
 		// Add standard metadata
@@ -697,6 +780,7 @@ func (s *BoltStateDB) Upgrade() error {
 		if err != nil {
 			return err
 		}
+
 		return bkt.Put(metaUpgradedKey, time.Now().Format(time.RFC3339))
 	}); err != nil {
 		return err

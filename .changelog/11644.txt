@@ -1,0 +1,3 @@
+```release-note:improvement
+api: Improve error message returned by `Operator.LicenseGet`
+```

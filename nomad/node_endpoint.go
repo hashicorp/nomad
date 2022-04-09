@@ -2,25 +2,24 @@ package nomad
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
-	vapi "github.com/hashicorp/vault/api"
-
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
-	"github.com/pkg/errors"
+	vapi "github.com/hashicorp/vault/api"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -34,7 +33,7 @@ const (
 	// NodeDrainEvents are the various drain messages
 	NodeDrainEventDrainSet      = "Node drain strategy set"
 	NodeDrainEventDrainDisabled = "Node drain disabled"
-	NodeDrainEventDrainUpdated  = "Node drain stategy updated"
+	NodeDrainEventDrainUpdated  = "Node drain strategy updated"
 
 	// NodeEligibilityEventEligible is used when the nodes eligiblity is marked
 	// eligible
@@ -52,7 +51,7 @@ const (
 // Node endpoint is used for client interactions
 type Node struct {
 	srv    *Server
-	logger log.Logger
+	logger hclog.Logger
 
 	// ctx provides context regarding the underlying connection
 	ctx *RPCContext
@@ -169,12 +168,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	reply.NodeModifyIndex = index
 
 	// Check if we should trigger evaluations
-	originalStatus := structs.NodeStatusInit
-	if originalNode != nil {
-		originalStatus = originalNode.Status
-	}
-	transitionToReady := transitionedToReady(args.Node.Status, originalStatus)
-	if structs.ShouldDrainNode(args.Node.Status) || transitionToReady {
+	if shouldCreateNodeEval(originalNode, args.Node) {
 		evalIDs, evalIndex, err := n.createNodeEvals(args.Node.ID, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)
@@ -211,6 +205,56 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	return nil
 }
 
+// shouldCreateNodeEval returns true if the node update may result into
+// allocation updates, so the node should be re-evaluating.
+//
+// Such cases might be:
+// * node health/drain status changes that may result into alloc rescheduling
+// * node drivers or attributes changing that may cause system job placement changes
+func shouldCreateNodeEval(original, updated *structs.Node) bool {
+	if structs.ShouldDrainNode(updated.Status) {
+		return true
+	}
+
+	if original == nil {
+		return transitionedToReady(updated.Status, structs.NodeStatusInit)
+	}
+
+	if transitionedToReady(updated.Status, original.Status) {
+		return true
+	}
+
+	// check fields used by the feasibility checks in ../scheduler/feasible.go,
+	// whether through a Constraint explicitly added by user or an implicit constraint
+	// added through a driver/volume check.
+	//
+	// Node Resources (e.g. CPU/Memory) are handled differently, using blocked evals,
+	// and not relevant in this check.
+	return !(original.ID == updated.ID &&
+		original.Datacenter == updated.Datacenter &&
+		original.Name == updated.Name &&
+		original.NodeClass == updated.NodeClass &&
+		reflect.DeepEqual(original.Attributes, updated.Attributes) &&
+		reflect.DeepEqual(original.Meta, updated.Meta) &&
+		reflect.DeepEqual(original.Drivers, updated.Drivers) &&
+		reflect.DeepEqual(original.HostVolumes, updated.HostVolumes) &&
+		equalDevices(original, updated))
+}
+
+func equalDevices(n1, n2 *structs.Node) bool {
+	// ignore super old nodes, mostly to avoid nil dereferencing
+	if n1.NodeResources == nil || n2.NodeResources == nil {
+		return n1.NodeResources == n2.NodeResources
+	}
+
+	// treat nil and empty value as equal
+	if len(n1.NodeResources.Devices) == 0 {
+		return len(n1.NodeResources.Devices) == len(n2.NodeResources.Devices)
+	}
+
+	return reflect.DeepEqual(n1.NodeResources.Devices, n2.NodeResources.Devices)
+}
+
 // updateNodeUpdateResponse assumes the n.srv.peerLock is held for reading.
 func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply *structs.NodeUpdateResponse) error {
 	reply.LeaderRPCAddr = string(n.srv.raft.Leader())
@@ -221,8 +265,6 @@ func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply 
 		reply.Servers = append(reply.Servers,
 			&structs.NodeServerInfo{
 				RPCAdvertiseAddr: v.RPCAddr.String(),
-				RPCMajorVersion:  int32(v.MajorVersion),
-				RPCMinorVersion:  int32(v.MinorVersion),
 				Datacenter:       v.Datacenter,
 			})
 	}
@@ -445,7 +487,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	// Check if we should trigger evaluations
 	transitionToReady := transitionedToReady(args.Status, node.Status)
-	if structs.ShouldDrainNode(args.Status) || transitionToReady {
+	if structs.ShouldDrainNode(args.Status) || transitionToReady || args.Status == structs.NodeStatusDisconnected {
 		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)
@@ -478,6 +520,35 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 			n.logger.Debug("revoking SI accessors on node due to down state", "num_accessors", l, "node_id", args.NodeID)
 			_ = n.srv.consulACLs.RevokeTokens(context.Background(), accessors, true)
 		}
+
+		// Identify the service registrations current placed on the downed
+		// node.
+		serviceRegistrations, err := n.srv.State().GetServiceRegistrationsByNodeID(ws, args.NodeID)
+		if err != nil {
+			n.logger.Error("looking up service registrations for node failed",
+				"node_id", args.NodeID, "error", err)
+			return err
+		}
+
+		// If the node has service registrations assigned to it, delete these
+		// via Raft.
+		if l := len(serviceRegistrations); l > 0 {
+			n.logger.Debug("deleting service registrations on node due to down state",
+				"num_service_registrations", l, "node_id", args.NodeID)
+
+			deleteRegReq := structs.ServiceRegistrationDeleteByNodeIDRequest{NodeID: args.NodeID}
+
+			_, index, err = n.srv.raftApply(structs.ServiceRegistrationDeleteByNodeIDRequestType, &deleteRegReq)
+			if err != nil {
+				n.logger.Error("failed to delete service registrations for node",
+					"node_id", args.NodeID, "error", err)
+				return err
+			}
+		}
+
+	case structs.NodeStatusDisconnected:
+		n.logger.Trace(fmt.Sprintf("heartbeat reset skipped for disconnected node %q", args.NodeID))
+
 	default:
 		ttl, err := n.srv.resetHeartbeatTimer(args.NodeID)
 		if err != nil {
@@ -504,7 +575,8 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 func transitionedToReady(newStatus, oldStatus string) bool {
 	initToReady := oldStatus == structs.NodeStatusInit && newStatus == structs.NodeStatusReady
 	terminalToReady := oldStatus == structs.NodeStatusDown && newStatus == structs.NodeStatusReady
-	return initToReady || terminalToReady
+	disconnectedToReady := oldStatus == structs.NodeStatusDisconnected && newStatus == structs.NodeStatusReady
+	return initToReady || terminalToReady || disconnectedToReady
 }
 
 // UpdateDrain is used to update the drain mode of a client node
@@ -547,16 +619,6 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 
 	// Update the timestamp of when the node status was updated
 	args.UpdatedAt = now.Unix()
-
-	// COMPAT: Remove in 0.9. Attempt to upgrade the request if it is of the old
-	// format.
-	if args.Drain && args.DrainStrategy == nil {
-		args.DrainStrategy = &structs.DrainStrategy{
-			DrainSpec: structs.DrainSpec{
-				Deadline: -1 * time.Second, // Force drain
-			},
-		}
-	}
 
 	// Setup drain strategy
 	if args.DrainStrategy != nil {
@@ -811,9 +873,8 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 
 			// Setup the output
 			if out != nil {
-				// Clear the secret ID
-				reply.Node = out.Copy()
-				reply.Node.SecretID = ""
+				out = out.Sanitize()
+				reply.Node = out
 				reply.Index = out.ModifyIndex
 			} else {
 				// Use the last index that affected the nodes table
@@ -1063,6 +1124,12 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 
 // UpdateAlloc is used to update the client status of an allocation
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
+	// Ensure the connection was initiated by another client if TLS is used.
+	err := validateTLSCertificateLevel(n.srv, n.ctx, tlsCertificateLevelClient)
+	if err != nil {
+		return err
+	}
+
 	if done, err := n.srv.forward("Node.UpdateAlloc", args, args, reply); done {
 		return err
 	}
@@ -1083,68 +1150,86 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	now := time.Now()
 	var evals []*structs.Evaluation
 
-	// A set of de-duplicated volumes that need their volume claims released.
-	// Later we'll apply this raft.
-	volumesToGC := newCSIBatchRelease(n.srv, n.logger, 100)
-
 	for _, allocToUpdate := range args.Alloc {
+		evalTriggerBy := ""
 		allocToUpdate.ModifyTime = now.UTC().UnixNano()
-
-		if !allocToUpdate.TerminalStatus() {
-			continue
-		}
 
 		alloc, _ := n.srv.State().AllocByID(nil, allocToUpdate.ID)
 		if alloc == nil {
 			continue
 		}
 
-		// if the job has been purged, this will always return error
-		job, err := n.srv.State().JobByID(nil, alloc.Namespace, alloc.JobID)
+		if !allocToUpdate.TerminalStatus() && alloc.ClientStatus != structs.AllocClientStatusUnknown {
+			continue
+		}
+
+		var job *structs.Job
+		var jobType string
+		var jobPriority int
+
+		job, err = n.srv.State().JobByID(nil, alloc.Namespace, alloc.JobID)
 		if err != nil {
 			n.logger.Debug("UpdateAlloc unable to find job", "job", alloc.JobID, "error", err)
 			continue
 		}
+
+		// If the job is nil it means it has been de-registered.
 		if job == nil {
-			n.logger.Debug("UpdateAlloc unable to find job", "job", alloc.JobID)
-			continue
+			jobType = alloc.Job.Type
+			jobPriority = alloc.Job.Priority
+			evalTriggerBy = structs.EvalTriggerJobDeregister
+			allocToUpdate.DesiredStatus = structs.AllocDesiredStatusStop
+			n.logger.Debug("UpdateAlloc unable to find job - shutting down alloc", "job", alloc.JobID)
 		}
 
-		taskGroup := job.LookupTaskGroup(alloc.TaskGroup)
-		if taskGroup == nil {
-			continue
+		var taskGroup *structs.TaskGroup
+		if job != nil {
+			jobType = job.Type
+			jobPriority = job.Priority
+			taskGroup = job.LookupTaskGroup(alloc.TaskGroup)
 		}
 
-		// If the terminal alloc has CSI volumes, add the volumes to the batch
-		// of volumes we'll release the claims of.
-		for _, vol := range taskGroup.Volumes {
-			if vol.Type == structs.VolumeTypeCSI {
-				volumesToGC.add(vol.Source, alloc.Namespace)
+		// If we cannot find the task group for a failed alloc we cannot continue, unless it is an orphan.
+		if evalTriggerBy != structs.EvalTriggerJobDeregister &&
+			allocToUpdate.ClientStatus == structs.AllocClientStatusFailed &&
+			alloc.FollowupEvalID == "" {
+
+			if taskGroup == nil {
+				n.logger.Debug("UpdateAlloc unable to find task group for job", "job", alloc.JobID, "alloc", alloc.ID, "task_group", alloc.TaskGroup)
+				continue
+			}
+
+			// Set trigger by failed if not an orphan.
+			if alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
+				evalTriggerBy = structs.EvalTriggerRetryFailedAlloc
 			}
 		}
 
-		// Add an evaluation if this is a failed alloc that is eligible for rescheduling
-		if allocToUpdate.ClientStatus == structs.AllocClientStatusFailed && alloc.FollowupEvalID == "" && alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
-			eval := &structs.Evaluation{
-				ID:          uuid.Generate(),
-				Namespace:   alloc.Namespace,
-				TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
-				JobID:       alloc.JobID,
-				Type:        job.Type,
-				Priority:    job.Priority,
-				Status:      structs.EvalStatusPending,
-				CreateTime:  now.UTC().UnixNano(),
-				ModifyTime:  now.UTC().UnixNano(),
-			}
-			evals = append(evals, eval)
+		var eval *structs.Evaluation
+		// If unknown, and not an orphan, set the trigger by.
+		if evalTriggerBy != structs.EvalTriggerJobDeregister &&
+			alloc.ClientStatus == structs.AllocClientStatusUnknown {
+			evalTriggerBy = structs.EvalTriggerReconnect
 		}
-	}
 
-	// Make a raft apply to release the CSI volume claims of terminal allocs.
-	var result *multierror.Error
-	err := volumesToGC.apply()
-	if err != nil {
-		result = multierror.Append(result, err)
+		// If we weren't able to determine one of our expected eval triggers,
+		// continue and don't create an eval.
+		if evalTriggerBy == "" {
+			continue
+		}
+
+		eval = &structs.Evaluation{
+			ID:          uuid.Generate(),
+			Namespace:   alloc.Namespace,
+			TriggeredBy: evalTriggerBy,
+			JobID:       alloc.JobID,
+			Type:        jobType,
+			Priority:    jobPriority,
+			Status:      structs.EvalStatusPending,
+			CreateTime:  now.UTC().UnixNano(),
+			ModifyTime:  now.UTC().UnixNano(),
+		}
+		evals = append(evals, eval)
 	}
 
 	// Add this to the batch
@@ -1163,8 +1248,13 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			updates := n.updates
 			evals := n.evals
 			future := n.updateFuture
-			n.updates = nil
-			n.evals = nil
+
+			// Assume future update patterns will be similar to
+			// current batch and set cap appropriately to avoid
+			// slice resizing.
+			n.updates = make([]*structs.Allocation, 0, len(updates))
+			n.evals = make([]*structs.Evaluation, 0, len(evals))
+
 			n.updateFuture = nil
 			n.updateTimer = nil
 			n.updatesLock.Unlock()
@@ -1177,17 +1267,17 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 	// Wait for the future
 	if err := future.Wait(); err != nil {
-		result = multierror.Append(result, err)
-		return result.ErrorOrNil()
+		return err
 	}
 
 	// Setup the response
 	reply.Index = future.Index()
-	return result.ErrorOrNil()
+	return nil
 }
 
 // batchUpdate is used to update all the allocations
 func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Allocation, evals []*structs.Evaluation) {
+	var mErr multierror.Error
 	// Group pending evals by jobID to prevent creating unnecessary evals
 	evalsByJobId := make(map[structs.NamespacedID]struct{})
 	var trimmedEvals []*structs.Evaluation
@@ -1217,7 +1307,6 @@ func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Alloc
 	}
 
 	// Commit this update via Raft
-	var mErr multierror.Error
 	_, index, err := n.srv.raftApply(structs.AllocClientUpdateRequestType, batch)
 	if err != nil {
 		n.logger.Error("alloc update failed", "error", err)
@@ -1315,7 +1404,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 					break
 				}
 				node := raw.(*structs.Node)
-				nodes = append(nodes, node.Stub())
+				nodes = append(nodes, node.Stub(args.Fields))
 			}
 			reply.Nodes = nodes
 
@@ -1367,15 +1456,15 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 	// Create an eval for each JobID affected
 	var evals []*structs.Evaluation
 	var evalIDs []string
-	jobIDs := make(map[string]struct{})
+	jobIDs := map[structs.NamespacedID]struct{}{}
 	now := time.Now().UTC().UnixNano()
 
 	for _, alloc := range allocs {
 		// Deduplicate on JobID
-		if _, ok := jobIDs[alloc.JobID]; ok {
+		if _, ok := jobIDs[alloc.JobNamespacedID()]; ok {
 			continue
 		}
-		jobIDs[alloc.JobID] = struct{}{}
+		jobIDs[alloc.JobNamespacedID()] = struct{}{}
 
 		// Create a new eval
 		eval := &structs.Evaluation{
@@ -1391,6 +1480,7 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 			CreateTime:      now,
 			ModifyTime:      now,
 		}
+
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
 	}
@@ -1398,10 +1488,10 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 	// Create an evaluation for each system job.
 	for _, job := range sysJobs {
 		// Still dedup on JobID as the node may already have the system job.
-		if _, ok := jobIDs[job.ID]; ok {
+		if _, ok := jobIDs[job.NamespacedID()]; ok {
 			continue
 		}
-		jobIDs[job.ID] = struct{}{}
+		jobIDs[job.NamespacedID()] = struct{}{}
 
 		// Create a new eval
 		eval := &structs.Evaluation{
@@ -1518,15 +1608,15 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest, reply *st
 		return nil
 	}
 
-	// Check the policies
-	policies := alloc.Job.VaultPolicies()
-	if policies == nil {
-		setError(fmt.Errorf("Job doesn't require Vault policies"), false)
+	// Check if alloc has Vault
+	vaultBlocks := alloc.Job.Vault()
+	if vaultBlocks == nil {
+		setError(fmt.Errorf("Job does not require Vault token"), false)
 		return nil
 	}
-	tg, ok := policies[alloc.TaskGroup]
+	tg, ok := vaultBlocks[alloc.TaskGroup]
 	if !ok {
-		setError(fmt.Errorf("Task group does not require Vault policies"), false)
+		setError(fmt.Errorf("Task group does not require Vault token"), false)
 		return nil
 	}
 
@@ -1709,11 +1799,11 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 		return nil
 	}
 	if node == nil {
-		setError(errors.Errorf("Node %q does not exist", args.NodeID), false)
+		setError(fmt.Errorf("Node %q does not exist", args.NodeID), false)
 		return nil
 	}
 	if node.SecretID != args.SecretID {
-		setError(errors.Errorf("SecretID mismatch"), false)
+		setError(errors.New("SecretID mismatch"), false)
 		return nil
 	}
 
@@ -1723,26 +1813,26 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 		return nil
 	}
 	if alloc == nil {
-		setError(errors.Errorf("Allocation %q does not exist", args.AllocID), false)
+		setError(fmt.Errorf("Allocation %q does not exist", args.AllocID), false)
 		return nil
 	}
 	if alloc.NodeID != args.NodeID {
-		setError(errors.Errorf("Allocation %q not running on node %q", args.AllocID, args.NodeID), false)
+		setError(fmt.Errorf("Allocation %q not running on node %q", args.AllocID, args.NodeID), false)
 		return nil
 	}
 	if alloc.TerminalStatus() {
-		setError(errors.Errorf("Cannot request SI token for terminal allocation"), false)
+		setError(errors.New("Cannot request SI token for terminal allocation"), false)
 		return nil
 	}
 
 	// make sure task group contains at least one connect enabled service
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
-		setError(errors.Errorf("Allocation %q does not contain TaskGroup %q", args.AllocID, alloc.TaskGroup), false)
+		setError(fmt.Errorf("Allocation %q does not contain TaskGroup %q", args.AllocID, alloc.TaskGroup), false)
 		return nil
 	}
 	if !tg.UsesConnect() {
-		setError(errors.Errorf("TaskGroup %q does not use Connect", tg.Name), false)
+		setError(fmt.Errorf("TaskGroup %q does not use Connect", tg.Name), false)
 		return nil
 	}
 
@@ -1785,10 +1875,11 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 						return nil
 					}
 					secret, err := n.srv.consulACLs.CreateToken(ctx, ServiceIdentityRequest{
-						TaskKind:  task.TaskKind,
-						TaskName:  task.TaskName,
-						ClusterID: clusterID,
-						AllocID:   alloc.ID,
+						ConsulNamespace: tg.Consul.GetNamespace(),
+						TaskKind:        task.TaskKind,
+						TaskName:        task.TaskName,
+						ClusterID:       clusterID,
+						AllocID:         alloc.ID,
 					})
 					if err != nil {
 						return err
@@ -1821,10 +1912,11 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	for task, secret := range results {
 		tokens[task] = secret.SecretID
 		accessor := &structs.SITokenAccessor{
-			NodeID:     alloc.NodeID,
-			AllocID:    alloc.ID,
-			TaskName:   task,
-			AccessorID: secret.AccessorID,
+			ConsulNamespace: tg.Consul.GetNamespace(),
+			NodeID:          alloc.NodeID,
+			AllocID:         alloc.ID,
+			TaskName:        task,
+			AccessorID:      secret.AccessorID,
 		}
 		accessors = append(accessors, accessor)
 	}
@@ -1889,11 +1981,16 @@ func taskUsesConnect(task *structs.Task) bool {
 		// not even in the task group
 		return false
 	}
-
-	return task.Kind.IsConnectProxy() || task.Kind.IsConnectNative()
+	return task.UsesConnect()
 }
 
 func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {
+	// Ensure the connection was initiated by another client if TLS is used.
+	err := validateTLSCertificateLevel(n.srv, n.ctx, tlsCertificateLevelClient)
+	if err != nil {
+		return err
+	}
+
 	if done, err := n.srv.forward("Node.EmitEvents", args, args, reply); done {
 		return err
 	}

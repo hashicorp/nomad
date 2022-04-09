@@ -56,6 +56,8 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 		return c.csiVolumeClaimGC(eval)
 	case structs.CoreJobCSIPluginGC:
 		return c.csiPluginGC(eval)
+	case structs.CoreJobOneTimeTokenGC:
+		return c.expiredOneTimeTokenGC(eval)
 	case structs.CoreJobForceGC:
 		return c.forceGC(eval)
 	default:
@@ -80,7 +82,9 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 	if err := c.csiVolumeClaimGC(eval); err != nil {
 		return err
 	}
-
+	if err := c.expiredOneTimeTokenGC(eval); err != nil {
+		return err
+	}
 	// Node GC must occur after the others to ensure the allocations are
 	// cleared.
 	return c.nodeGC(eval)
@@ -136,9 +140,7 @@ OUTER:
 			gc, allocs, err := c.gcEval(eval, oldThreshold, true)
 			if err != nil {
 				continue OUTER
-			}
-
-			if gc {
+			} else if gc {
 				jobEval = append(jobEval, eval.ID)
 				jobAlloc = append(jobAlloc, allocs...)
 			} else {
@@ -160,6 +162,7 @@ OUTER:
 	if len(gcEval) == 0 && len(gcAlloc) == 0 && len(gcJob) == 0 {
 		return nil
 	}
+
 	c.logger.Debug("job GC found eligible objects",
 		"jobs", len(gcJob), "evals", len(gcEval), "allocs", len(gcAlloc))
 
@@ -228,7 +231,7 @@ func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string) 
 func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 	// Iterate over the evaluations
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.Evals(ws)
+	iter, err := c.snap.Evals(ws, false)
 	if err != nil {
 		return err
 	}
@@ -542,7 +545,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
 	// Iterate over the deployments
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.Deployments(ws)
+	iter, err := c.snap.Deployments(ws, state.SortDefault)
 	if err != nil {
 		return err
 	}
@@ -723,10 +726,14 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 	gcClaims := func(ns, volID string) error {
 		req := &structs.CSIVolumeClaimRequest{
 			VolumeID: volID,
-			Claim:    structs.CSIVolumeClaimRelease,
+			Claim:    structs.CSIVolumeClaimGC,
+			State:    structs.CSIVolumeClaimStateUnpublishing,
+			WriteRequest: structs.WriteRequest{
+				Namespace: ns,
+				Region:    c.srv.Region(),
+				AuthToken: eval.LeaderACL,
+			},
 		}
-		req.Namespace = ns
-		req.Region = c.srv.config.Region
 		err := c.srv.RPC("CSIVolume.Claim", req, &structs.CSIVolumeClaimResponse{})
 		return err
 	}
@@ -760,13 +767,11 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.CSIVolumeClaimGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
+		c.logger.Debug("CSI volume claim GC scanning before cutoff index",
+			"index", oldThreshold,
+			"csi_volume_claim_gc_threshold", c.srv.config.CSIVolumeClaimGCThreshold)
 	}
 
-	c.logger.Debug("CSI volume claim GC scanning before cutoff index",
-		"index", oldThreshold,
-		"csi_volume_claim_gc_threshold", c.srv.config.CSIVolumeClaimGCThreshold)
-
-NEXT_VOLUME:
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		vol := i.(*structs.CSIVolume)
 
@@ -778,31 +783,9 @@ NEXT_VOLUME:
 		// we only call the claim release RPC if the volume has claims
 		// that no longer have valid allocations. otherwise we'd send
 		// out a lot of do-nothing RPCs.
-		for id := range vol.ReadClaims {
-			alloc, err := c.snap.AllocByID(ws, id)
-			if err != nil {
-				return err
-			}
-			if alloc == nil {
-				err = gcClaims(vol.Namespace, vol.ID)
-				if err != nil {
-					return err
-				}
-				goto NEXT_VOLUME
-			}
-		}
-		for id := range vol.WriteClaims {
-			alloc, err := c.snap.AllocByID(ws, id)
-			if err != nil {
-				return err
-			}
-			if alloc == nil {
-				err = gcClaims(vol.Namespace, vol.ID)
-				if err != nil {
-					return err
-				}
-				goto NEXT_VOLUME
-			}
+		vol, err := c.snap.CSIVolumeDenormalize(ws, vol)
+		if err != nil {
+			return err
 		}
 		if len(vol.PastClaims) > 0 {
 			err = gcClaims(vol.Namespace, vol.ID)
@@ -837,10 +820,9 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.CSIPluginGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
+		c.logger.Debug("CSI plugin GC scanning before cutoff index",
+			"index", oldThreshold, "csi_plugin_gc_threshold", c.srv.config.CSIPluginGCThreshold)
 	}
-
-	c.logger.Debug("CSI plugin GC scanning before cutoff index",
-		"index", oldThreshold, "csi_plugin_gc_threshold", c.srv.config.CSIPluginGCThreshold)
 
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		plugin := i.(*structs.CSIPlugin)
@@ -850,11 +832,14 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
 			continue
 		}
 
-		req := &structs.CSIPluginDeleteRequest{ID: plugin.ID}
-		req.Region = c.srv.Region()
+		req := &structs.CSIPluginDeleteRequest{ID: plugin.ID,
+			QueryOptions: structs.QueryOptions{
+				Region:    c.srv.Region(),
+				AuthToken: eval.LeaderACL,
+			}}
 		err := c.srv.RPC("CSIPlugin.Delete", req, &structs.CSIPluginDeleteResponse{})
 		if err != nil {
-			if err.Error() == "plugin in use" {
+			if strings.Contains(err.Error(), "plugin in use") {
 				continue
 			}
 			c.logger.Error("failed to GC plugin", "plugin_id", plugin.ID, "error", err)
@@ -862,4 +847,14 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
 		}
 	}
 	return nil
+}
+
+func (c *CoreScheduler) expiredOneTimeTokenGC(eval *structs.Evaluation) error {
+	req := &structs.OneTimeTokenExpireRequest{
+		WriteRequest: structs.WriteRequest{
+			Region:    c.srv.Region(),
+			AuthToken: eval.LeaderACL,
+		},
+	}
+	return c.srv.RPC("ACL.ExpireOneTimeTokens", req, &structs.GenericResponse{})
 }

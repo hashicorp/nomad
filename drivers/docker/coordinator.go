@@ -131,7 +131,8 @@ func newDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
 
 // PullImage is used to pull an image. It returns the pulled imaged ID or an
 // error that occurred during the pull
-func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration, callerID string, emitFn LogEventFn, pullActivityTimeout time.Duration) (imageID string, err error) {
+func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration, callerID string,
+	emitFn LogEventFn, pullTimeout, pullActivityTimeout time.Duration) (imageID string, err error) {
 	// Get the future
 	d.imageLock.Lock()
 	future, ok := d.pullFutures[image]
@@ -140,7 +141,7 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 		// Make the future
 		future = newPullFuture()
 		d.pullFutures[image] = future
-		go d.pullImageImpl(image, authOptions, pullActivityTimeout, future)
+		go d.pullImageImpl(image, authOptions, pullTimeout, pullActivityTimeout, future)
 	}
 	d.imageLock.Unlock()
 
@@ -153,9 +154,7 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 	// Delete the future since we don't need it and we don't want to cache an
 	// image being there if it has possibly been manually deleted (outside of
 	// Nomad).
-	if _, ok := d.pullFutures[image]; ok {
-		delete(d.pullFutures, image)
-	}
+	delete(d.pullFutures, image)
 
 	// If we are cleaning up, we increment the reference count on the image
 	if err == nil && d.cleanup {
@@ -167,11 +166,13 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 
 // pullImageImpl is the implementation of pulling an image. The results are
 // returned via the passed future
-func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.AuthConfiguration, pullActivityTimeout time.Duration, future *pullFuture) {
+func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.AuthConfiguration,
+	pullTimeout, pullActivityTimeout time.Duration, future *pullFuture) {
+
 	defer d.clearPullLogger(image)
 	// Parse the repo and tag
 	repo, tag := parseDockerImage(image)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), pullTimeout)
 	defer cancel()
 
 	pm := newImageProgressManager(image, cancel, pullActivityTimeout, d.handlePullInactivity,
@@ -217,7 +218,6 @@ func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.Auth
 	}
 
 	future.set(dockerImage.ID, nil)
-	return
 }
 
 // IncrementImageReference is used to increment an image reference count

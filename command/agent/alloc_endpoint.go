@@ -33,6 +33,26 @@ func (s *HTTPServer) AllocsRequest(resp http.ResponseWriter, req *http.Request) 
 		return nil, nil
 	}
 
+	// Parse resources and task_states field selection
+	resources, err := parseBool(req, "resources")
+	if err != nil {
+		return nil, err
+	}
+	taskStates, err := parseBool(req, "task_states")
+	if err != nil {
+		return nil, err
+	}
+
+	if resources != nil || taskStates != nil {
+		args.Fields = structs.NewAllocStubFields()
+		if resources != nil {
+			args.Fields.Resources = *resources
+		}
+		if taskStates != nil {
+			args.Fields.TaskStates = *taskStates
+		}
+	}
+
 	var out structs.AllocListResponse
 	if err := s.agent.RPC("Alloc.List", &args, &out); err != nil {
 		return nil, err
@@ -66,6 +86,8 @@ func (s *HTTPServer) AllocSpecificRequest(resp http.ResponseWriter, req *http.Re
 	switch tokens[1] {
 	case "stop":
 		return s.allocStop(allocID, resp, req)
+	case "services":
+		return s.allocServiceRegistrations(resp, req, allocID)
 	}
 
 	return nil, CodedError(404, resourceNotFoundErr)
@@ -94,6 +116,7 @@ func (s *HTTPServer) allocGet(allocID string, resp http.ResponseWriter, req *htt
 	}
 
 	// Decode the payload if there is any
+
 	alloc := out.Alloc
 	if alloc.Job != nil && len(alloc.Job.Payload) != 0 {
 		decoded, err := snappy.Decode(nil, alloc.Job.Payload)
@@ -105,6 +128,10 @@ func (s *HTTPServer) allocGet(allocID string, resp http.ResponseWriter, req *htt
 	}
 	alloc.SetEventDisplayMessages()
 
+	// Handle 0.12 ports upgrade path
+	alloc = alloc.Copy()
+	alloc.AllocatedResources.Canonicalize()
+
 	return alloc, nil
 }
 
@@ -113,8 +140,18 @@ func (s *HTTPServer) allocStop(allocID string, resp http.ResponseWriter, req *ht
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
+	noShutdownDelay := false
+	if noShutdownDelayQS := req.URL.Query().Get("no_shutdown_delay"); noShutdownDelayQS != "" {
+		var err error
+		noShutdownDelay, err = strconv.ParseBool(noShutdownDelayQS)
+		if err != nil {
+			return nil, fmt.Errorf("no_shutdown_delay value is not a boolean: %v", err)
+		}
+	}
+
 	sr := &structs.AllocStopRequest{
-		AllocID: allocID,
+		AllocID:         allocID,
+		NoShutdownDelay: noShutdownDelay,
 	}
 	s.parseWriteRequest(req, &sr.WriteRequest)
 
@@ -130,6 +167,39 @@ func (s *HTTPServer) allocStop(allocID string, resp http.ResponseWriter, req *ht
 
 	setIndex(resp, out.Index)
 	return &out, nil
+}
+
+// allocServiceRegistrations returns a list of all service registrations
+// assigned to the job identifier. It is callable via the
+// /v1/allocation/:alloc_id/services HTTP API and uses the
+// structs.AllocServiceRegistrationsRPCMethod RPC method.
+func (s *HTTPServer) allocServiceRegistrations(
+	resp http.ResponseWriter, req *http.Request, allocID string) (interface{}, error) {
+
+	// The endpoint only supports GET requests.
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	// Set up the request args and parse this to ensure the query options are
+	// set.
+	args := structs.AllocServiceRegistrationsRequest{AllocID: allocID}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	// Perform the RPC request.
+	var reply structs.AllocServiceRegistrationsResponse
+	if err := s.agent.RPC(structs.AllocServiceRegistrationsRPCMethod, &args, &reply); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &reply.QueryMeta)
+
+	if reply.Services == nil {
+		return nil, CodedError(http.StatusNotFound, allocNotFoundErr)
+	}
+	return reply.Services, nil
 }
 
 func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -490,13 +560,6 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 		go forwardExecInput(encoder, ws, errCh)
 
 		for {
-			select {
-			case <-ctx.Done():
-				errCh <- nil
-				return
-			default:
-			}
-
 			var res cstructs.StreamErrWrapper
 			err := decoder.Decode(&res)
 			if isClosedError(err) {
@@ -531,9 +594,13 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 	handler(handlerPipe)
 	// stop streaming background goroutines for streaming - but not websocket activity
 	cancel()
-	// retreieve any error and/or wait until goroutine stop and close errCh connection before
+	// retrieve any error and/or wait until goroutine stop and close errCh connection before
 	// closing websocket connection
 	codedErr := <-errCh
+
+	// we won't return an error on ws close, but at least make it available in
+	// the logs so we can trace spurious disconnects
+	s.logger.Debug("alloc exec channel closed with error", "error", codedErr)
 
 	if isClosedError(codedErr) {
 		codedErr = nil

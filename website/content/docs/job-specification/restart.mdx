@@ -1,0 +1,170 @@
+---
+layout: docs
+page_title: restart Stanza - Job Specification
+description: The "restart" stanza configures a group's behavior on task failure.
+---
+
+# `restart` Stanza
+
+<Placement
+  groups={[
+    ['job', 'group', 'restart'],
+    ['job', 'group', 'task', 'restart'],
+  ]}
+/>
+
+The `restart` stanza configures a tasks's behavior on task failure. Restarts
+happen on the client that is running the task.
+
+```hcl
+job "docs" {
+  group "example" {
+    restart {
+      attempts = 3
+      delay    = "30s"
+    }
+  }
+}
+```
+
+If specified at the group level, the configuration is inherited by all
+tasks in the group, including any [sidecar tasks][sidecar_task]. If
+also present on the task, the policy is merged with the restart policy
+from the encapsulating task group.
+
+For example, assuming that the task group restart policy is:
+
+```hcl
+restart {
+  interval = "30m"
+  attempts = 2
+  delay    = "15s"
+  mode     = "fail"
+}
+```
+
+and the individual task restart policy is:
+
+```hcl
+restart {
+  attempts = 5
+}
+```
+
+then the effective restart policy for the task will be:
+
+```hcl
+restart {
+  interval = "30m"
+  attempts = 5
+  delay    = "15s"
+  mode     = "fail"
+}
+```
+
+Because sidecar tasks don't accept a `restart` block, it's recommended
+that you set the `restart` for jobs with sidecar tasks at the task
+level, so that the Connect sidecar can inherit the default `restart`.
+
+## `restart` Parameters
+
+- `attempts` `(int: <varies>)` - Specifies the number of restarts allowed in the
+  configured interval. Defaults vary by job type, see below for more
+  information.
+
+- `delay` `(string: "15s")` - Specifies the duration to wait before restarting a
+  task. This is specified using a label suffix like "30s" or "1h". A random
+  jitter of up to 25% is added to the delay.
+
+- `interval` `(string: <varies>)` - Specifies the duration which begins when the
+  first task starts and ensures that only `attempts` number of restarts happens
+  within it. If more than `attempts` number of failures happen, behavior is
+  controlled by `mode`. This is specified using a label suffix like "30s" or
+  "1h". Defaults vary by job type, see below for more information.
+
+- `mode` `(string: "fail")` - Controls the behavior when the task fails more
+  than `attempts` times in an interval. For a detailed explanation of these
+  values and their behavior, please see the [mode values section](#mode-values).
+
+### `restart` Parameter Defaults
+
+The values for many of the `restart` parameters vary by job type. Here are the
+defaults by job type:
+
+- The default batch restart policy is:
+
+  ```hcl
+  restart {
+    attempts = 3
+    delay    = "15s"
+    interval = "24h"
+    mode     = "fail"
+  }
+  ```
+
+- The default service and system job restart policy is:
+
+  ```hcl
+  restart {
+    interval = "30m"
+    attempts = 2
+    delay    = "15s"
+    mode     = "fail"
+  }
+  ```
+
+### `mode` Values
+
+This section details the specific values for the "mode" parameter in the Nomad
+job specification for constraints. The mode is always specified as a string:
+
+```hcl
+restart {
+  mode = "..."
+}
+```
+
+- `"delay"` - Instructs the client to wait until another `interval`
+  before restarting the task.
+
+- `"fail"` - Instructs the client not to attempt to restart the task
+  once the number of `attempts` have been used. This is the default
+  behavior. This mode is useful for non-idempotent jobs which are
+  unlikely to succeed after a few failures. The allocation will be
+  marked as failed and the scheduler will attempt to reschedule the
+  allocation according to the
+  [`reschedule`] stanza.
+
+### `restart` Examples
+
+With the following `restart` block, a failing task will restart 3
+times with 15 seconds between attempts, and then wait 10 minutes
+before attempting another 3 attempts. The task restart will never fail
+the entire allocation.
+
+```hcl
+restart {
+  attempts = 3
+  delay    = "15s"
+  interval = "10m"
+  mode     = "delay"
+}
+```
+
+With the following `restart` block, a task that that fails after 1
+minute, after 2 minutes, and after 3 minutes will be restarted each
+time. If it fails again before 10 minutes, the entire allocation will
+be marked as failed and the scheduler will follow the group's
+[`reschedule`] specification, possibly resulting in a new evaluation.
+
+```hcl
+restart {
+  attempts = 3
+  delay    = "15s"
+  interval = "10m"
+  mode     = "fail"
+}
+```
+
+[sidecar_task]: /docs/job-specification/sidecar_task
+[`reschedule`]: /docs/job-specification/reschedule

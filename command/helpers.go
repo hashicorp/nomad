@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ import (
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/kr/text"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -378,13 +380,20 @@ READ:
 }
 
 type JobGetter struct {
+	hcl1 bool
+
 	// The fields below can be overwritten for tests
 	testStdin io.Reader
 }
 
-// StructJob returns the Job struct from jobfile.
+// ApiJob returns the Job struct from jobfile.
 func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
+	return j.ApiJobWithArgs(jpath, nil, nil, true)
+}
+
+func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []string, strict bool) (*api.Job, error) {
 	var jobfile io.Reader
+	pathName := filepath.Base(jpath)
 	switch jpath {
 	case "-":
 		if j.testStdin != nil {
@@ -392,6 +401,7 @@ func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 		} else {
 			jobfile = os.Stdin
 		}
+		pathName = "stdin.hcl"
 	default:
 		if len(jpath) == 0 {
 			return nil, fmt.Errorf("Error jobfile path has to be specified.")
@@ -432,9 +442,35 @@ func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 	}
 
 	// Parse the JobFile
-	jobStruct, err := jobspec.Parse(jobfile)
+	var jobStruct *api.Job
+	var err error
+	if j.hcl1 {
+		jobStruct, err = jobspec.Parse(jobfile)
+	} else {
+		var buf bytes.Buffer
+		_, err = io.Copy(&buf, jobfile)
+		if err != nil {
+			return nil, fmt.Errorf("Error reading job file from %s: %v", jpath, err)
+		}
+		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
+			Path:     pathName,
+			Body:     buf.Bytes(),
+			ArgVars:  vars,
+			AllowFS:  true,
+			VarFiles: varfiles,
+			Envs:     os.Environ(),
+			Strict:   strict,
+		})
+
+		if err != nil {
+			if _, merr := jobspec.Parse(&buf); merr == nil {
+				return nil, fmt.Errorf("Failed to parse using HCL 2. Use the HCL 1 parser with `nomad run -hcl1`, or address the following issues:\n%v", err)
+			}
+		}
+	}
+
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing job file from %s: %v", jpath, err)
+		return nil, fmt.Errorf("Error parsing job file from %s:\n%v", jpath, err)
 	}
 
 	return jobStruct, nil

@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where `plugin status` commands could choose the incorrect plugin if a plugin with a name that matched the same prefix existed.
+```

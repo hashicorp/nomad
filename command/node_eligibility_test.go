@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -12,16 +13,16 @@ import (
 )
 
 func TestNodeEligibilityCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &NodeEligibilityCommand{}
 }
 
 func TestNodeEligibilityCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NodeEligibilityCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -90,8 +91,8 @@ func TestNodeEligibilityCommand_Fails(t *testing.T) {
 }
 
 func TestNodeEligibilityCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -112,7 +113,7 @@ func TestNodeEligibilityCommand_AutocompleteArgs(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NodeEligibilityCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	prefix := nodeID[:len(nodeID)-5]

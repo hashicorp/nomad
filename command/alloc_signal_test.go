@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -15,18 +16,18 @@ import (
 )
 
 func TestAllocSignalCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &AllocSignalCommand{}
 }
 
 func TestAllocSignalCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
 	require := require.New(t)
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocSignalCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on lack of alloc ID
@@ -57,18 +58,20 @@ func TestAllocSignalCommand_Fails(t *testing.T) {
 }
 
 func TestAllocSignalCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
+
 	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocSignalCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
-	assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	prefix := a.ID[:5]
 	args := complete.Args{All: []string{"signal", prefix}, Last: prefix}
@@ -81,6 +84,8 @@ func TestAllocSignalCommand_AutocompleteArgs(t *testing.T) {
 }
 
 func TestAllocSignalCommand_Run(t *testing.T) {
+	ci.Parallel(t)
+
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -103,7 +108,7 @@ func TestAllocSignalCommand_Run(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocSignalCommand{Meta: Meta{Ui: ui}}
 
 	jobID := "job1_sfx"

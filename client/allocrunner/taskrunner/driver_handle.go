@@ -13,20 +13,22 @@ import (
 // NewDriverHandle returns a handle for task operations on a specific task
 func NewDriverHandle(driver drivers.DriverPlugin, taskID string, task *structs.Task, net *drivers.DriverNetwork) *DriverHandle {
 	return &DriverHandle{
-		driver: driver,
-		net:    net,
-		taskID: taskID,
-		task:   task,
+		driver:      driver,
+		net:         net,
+		taskID:      taskID,
+		killSignal:  task.KillSignal,
+		killTimeout: task.KillTimeout,
 	}
 }
 
 // DriverHandle encapsulates a driver plugin client and task identifier and exposes
 // an api to perform driver operations on the task
 type DriverHandle struct {
-	driver drivers.DriverPlugin
-	net    *drivers.DriverNetwork
-	task   *structs.Task
-	taskID string
+	driver      drivers.DriverPlugin
+	net         *drivers.DriverNetwork
+	taskID      string
+	killSignal  string
+	killTimeout time.Duration
 }
 
 func (h *DriverHandle) ID() string {
@@ -37,12 +39,13 @@ func (h *DriverHandle) WaitCh(ctx context.Context) (<-chan *drivers.ExitResult, 
 	return h.driver.WaitTask(ctx, h.taskID)
 }
 
-func (h *DriverHandle) Update(task *structs.Task) error {
-	return nil
+// SetKillSignal allows overriding the signal sent to kill the task.
+func (h *DriverHandle) SetKillSignal(signal string) {
+	h.killSignal = signal
 }
 
 func (h *DriverHandle) Kill() error {
-	return h.driver.StopTask(h.taskID, h.task.KillTimeout, h.task.KillSignal)
+	return h.driver.StopTask(h.taskID, h.killTimeout, h.killSignal)
 }
 
 func (h *DriverHandle) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {

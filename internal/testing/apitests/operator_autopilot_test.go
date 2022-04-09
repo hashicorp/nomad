@@ -1,18 +1,18 @@
 package apitests
 
 import (
-	"testing"
-
 	"fmt"
+	"testing"
 
 	"github.com/hashicorp/consul/sdk/testutil/retry"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAPI_OperatorAutopilotGetSetConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -37,7 +37,7 @@ func TestAPI_OperatorAutopilotGetSetConfiguration(t *testing.T) {
 }
 
 func TestAPI_OperatorAutopilotCASConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -75,7 +75,7 @@ func TestAPI_OperatorAutopilotCASConfiguration(t *testing.T) {
 }
 
 func TestAPI_OperatorAutopilotServerHealth(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.Server.RaftProtocol = 3
 	})

@@ -71,7 +71,7 @@ func NewFileRotator(path string, baseFile string, maxFiles int,
 		flushTicker: time.NewTicker(bufferFlushDuration),
 		logger:      logger,
 		purgeCh:     make(chan struct{}, 1),
-		doneCh:      make(chan struct{}, 1),
+		doneCh:      make(chan struct{}),
 	}
 
 	if err := rotator.lastFile(); err != nil {
@@ -237,8 +237,14 @@ func (f *FileRotator) createFile() error {
 // flushPeriodically flushes the buffered writer every 100ms to the underlying
 // file
 func (f *FileRotator) flushPeriodically() {
-	for range f.flushTicker.C {
-		f.flushBuffer()
+	for {
+		select {
+		case <-f.flushTicker.C:
+			f.flushBuffer()
+		case <-f.doneCh:
+			return
+		}
+
 	}
 }
 
@@ -251,9 +257,9 @@ func (f *FileRotator) Close() error {
 	f.flushTicker.Stop()
 	f.flushBuffer()
 
-	// Stop the purge go routine
+	// Stop the go routines
 	if !f.closed {
-		f.doneCh <- struct{}{}
+		close(f.doneCh)
 		close(f.purgeCh)
 		f.closed = true
 		f.currentFile.Close()
@@ -295,7 +301,7 @@ func (f *FileRotator) purgeOldFiles() {
 
 			// Sorting the file indexes so that we can purge the older files and keep
 			// only the number of files as configured by the user
-			sort.Sort(sort.IntSlice(fIndexes))
+			sort.Ints(fIndexes)
 			toDelete := fIndexes[0 : len(fIndexes)-f.MaxFiles]
 			for _, fIndex := range toDelete {
 				fname := filepath.Join(f.path, fmt.Sprintf("%s.%d", f.baseFileName, fIndex))

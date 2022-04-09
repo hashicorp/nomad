@@ -1,40 +1,40 @@
-{{title "Exec"}}
+{{page-title "Exec"}}
 <nav class="navbar is-popup">
   <div class="navbar-brand">
     <div class="navbar-item is-logo">
-      {{partial "partials/nomad-logo"}}
+      <NomadLogo />
     </div>
   </div>
-    {{#if system.shouldShowRegions}}
+    {{#if this.system.shouldShowRegions}}
       <div class="navbar-item">
         <span class="navbar-label">Region</span>
-        <span data-test-region>{{model.region}}</span>
+        <span data-test-region>{{this.model.region}}</span>
       </div>
     {{/if}}
 
-    {{#if system.shouldShowNamespaces}}
+    {{#if this.system.shouldShowNamespaces}}
       <div class="navbar-item">
         <span class="navbar-label">Namespace</span>
-        <span data-test-namespace>{{model.namespace.id}}</span>
+        <span data-test-namespace>{{this.model.namespace.id}}</span>
       </div>
     {{/if}}
 
     <div class="navbar-item">
       <span class="navbar-label">Job</span>
-      <span data-test-job>{{model.name}}</span>
+      <span data-test-job>{{this.model.name}}</span>
     </div>
   <div class="navbar-end">
-    <a href="https://nomadproject.io/docs" target="_blank" rel="noopener" class="navbar-item">Documentation</a>
+    <a href="https://nomadproject.io/docs" target="_blank" rel="noopener noreferrer" class="navbar-item">Documentation</a>
     {{x-icon "lock-closed"}}
   </div>
 </nav>
 
-{{#if (eq model.status "dead")}}
+{{#if (eq this.model.status "dead")}}
   <div class="exec-window" data-test-exec-job-dead>
     <div class="task-group-tree">
     </div>
     <div class="terminal-container" data-test-exec-job-dead-message>
-      Job <code>{{model.name}}</code> is dead and cannot host an exec session.
+      Job <code>{{this.model.name}}</code> is dead and cannot host an exec session.
     </div>
   </div>
 {{else}}
@@ -42,17 +42,17 @@
     <div class="task-group-tree">
       <h4 class="title is-6">Tasks</h4>
       <ul>
-        {{#each sortedTaskGroups as |taskGroup|}}
+        {{#each this.sortedTaskGroups as |taskGroup|}}
           <li data-test-task-group>
             <Exec::TaskGroupParent
               @taskGroup={{taskGroup}}
-              @shouldOpenInNewWindow={{socketOpen}}
-              @activeTaskName={{taskName}}
-              @activeTaskGroupName={{taskGroupName}} />
+              @shouldOpenInNewWindow={{this.socketOpen}}
+              @activeTaskName={{this.taskName}}
+              @activeTaskGroupName={{this.taskGroupName}} />
           </li>
         {{/each}}
       </ul>
     </div>
-    <ExecTerminal @terminal={{terminal}} />
+    <ExecTerminal @terminal={{this.terminal}} />
   </div>
 {{/if}}

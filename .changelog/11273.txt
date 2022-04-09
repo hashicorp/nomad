@@ -1,0 +1,3 @@
+```release-note:bug
+client: Removed spurious error log messages when tasks complete
+```

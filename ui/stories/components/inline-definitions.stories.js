@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Inline Definitions',
+  title: 'Components/Inline Definitions',
 };
 
 export let Standard = () => {

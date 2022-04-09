@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
@@ -12,7 +13,7 @@ import (
 )
 
 func TestAllocStopCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &AllocStopCommand{}
 }
 
@@ -21,7 +22,7 @@ func TestAllocStop_Fails(t *testing.T) {
 	defer srv.Shutdown()
 
 	require := require.New(t)
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStopCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -51,6 +52,8 @@ func TestAllocStop_Fails(t *testing.T) {
 }
 
 func TestAllocStop_Run(t *testing.T) {
+	ci.Parallel(t)
+
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -73,7 +76,7 @@ func TestAllocStop_Run(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStopCommand{Meta: Meta{Ui: ui}}
 
 	jobID := "job1_sfx"

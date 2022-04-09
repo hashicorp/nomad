@@ -19,9 +19,9 @@ const testCases = [
   },
 ];
 
-module('Unit | Util | addToPath', function() {
-  testCases.forEach(testCase => {
-    test(testCase.name, function(assert) {
+module('Unit | Util | addToPath', function () {
+  testCases.forEach((testCase) => {
+    test(testCase.name, function (assert) {
       assert.equal(
         addToPath.apply(null, testCase.in),
         testCase.out,

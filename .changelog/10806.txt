@@ -1,0 +1,3 @@
+```release-note:improvement
+dispatch jobs: Added optional idempotency token to `WriteOptions` which prevents Nomad from creating new dispatched jobs for retried requests.
+```

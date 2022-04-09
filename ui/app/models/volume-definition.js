@@ -1,5 +1,5 @@
 import { alias, equal } from '@ember/object/computed';
-import attr from 'ember-data/attr';
+import { attr } from '@ember-data/model';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 

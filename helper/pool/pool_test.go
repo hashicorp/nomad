@@ -8,8 +8,6 @@ import (
 
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/yamux"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,11 +45,11 @@ func TestConnPool_ConnListener(t *testing.T) {
 	pool := newTestPool(t)
 
 	// Setup a listener
-	c := make(chan *yamux.Session, 1)
+	c := make(chan *Conn, 1)
 	pool.SetConnListener(c)
 
 	// Make an RPC
-	_, err = pool.acquire("test", addr, structs.ApiMajorVersion)
+	_, err = pool.acquire("test", addr)
 	require.Nil(err)
 
 	// Assert we get a connection.

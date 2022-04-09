@@ -36,6 +36,9 @@ type legacyExecutorWrapper struct {
 	logger hclog.Logger
 }
 
+// validate that legacyExecutorWrapper is an executor
+var _ Executor = (*legacyExecutorWrapper)(nil)
+
 func (l *legacyExecutorWrapper) Launch(launchCmd *ExecCommand) (*ProcessState, error) {
 	return nil, fmt.Errorf("operation not supported for legacy exec wrapper")
 }
@@ -131,6 +134,11 @@ func (l *legacyExecutorWrapper) Signal(s os.Signal) error {
 
 func (l *legacyExecutorWrapper) Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error) {
 	return l.client.Exec(deadline, cmd, args)
+}
+
+func (l *legacyExecutorWrapper) ExecStreaming(ctx context.Context, cmd []string, tty bool,
+	stream drivers.ExecTaskStream) error {
+	return fmt.Errorf("operation not supported for legacy exec wrapper")
 }
 
 type pre09ExecutorRPC struct {

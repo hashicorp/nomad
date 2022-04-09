@@ -12,7 +12,6 @@ export default Mixin.create({
       // Since the setupController hook doesn't fire when transitioning up the
       // route hierarchy, the two sides of the namespace bindings need to be manipulated
       // in order for the jobs route model to reload.
-      this.set('system.activeNamespace', this.get('jobsController.jobNamespace'));
       this.set('jobsController.jobNamespace', namespace.get('id'));
       this.transitionToRoute('jobs');
     },

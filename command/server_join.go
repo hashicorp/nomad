@@ -23,7 +23,7 @@ Usage: nomad server join [options] <addr> [<addr>...]
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 	return strings.TrimSpace(helpText)
 }
 

@@ -3,34 +3,62 @@ import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
+import { dasherize } from '@ember/string';
 
+const REF_TIME = new Date();
 const JOB_PREFIXES = provide(5, faker.hacker.abbreviation);
-const JOB_TYPES = ['service', 'batch', 'system'];
+const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 const JOB_STATUSES = ['pending', 'running', 'dead'];
 
 export default Factory.extend({
-  id: i =>
-    `${faker.helpers.randomize(
-      JOB_PREFIXES
-    )}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase(),
+  id(i) {
+    if (this.parameterized && this.parentId) {
+      const shortUUID = faker.random.uuid().split('-')[0];
+      const dispatchId = `dispatch-${this.submitTime / 1000}-${shortUUID}`;
+      return `${this.parentId}/${dispatchId}`;
+    }
+
+    return `${faker.helpers.randomize(JOB_PREFIXES)}-${dasherize(
+      faker.hacker.noun()
+    )}-${i}`.toLowerCase();
+  },
 
   name() {
     return this.id;
   },
 
   version: 1,
+  submitTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
 
-  groupsCount: () => faker.random.number({ min: 1, max: 2 }),
+  // When provided, the resourceSpec will inform how many task groups to create
+  // and how much of each resource that task group reserves.
+  //
+  // One task group, 256 MiB memory and 500 MHz cpu
+  // resourceSpec: ['M: 256, C: 500']
+  //
+  // Two task groups
+  // resourceSpec: ['M: 256, C: 500', 'M: 1024, C: 1200']
+  resourceSpec: null,
+
+  groupsCount() {
+    return this.resourceSpec
+      ? this.resourceSpec.length
+      : faker.random.number({ min: 1, max: 2 });
+  },
 
   region: () => 'global',
   type: () => faker.helpers.randomize(JOB_TYPES),
   priority: () => faker.random.number(100),
-  all_at_once: faker.random.boolean,
+  allAtOnce: faker.random.boolean,
   status: () => faker.helpers.randomize(JOB_STATUSES),
   datacenters: () =>
-    faker.helpers.shuffle(DATACENTERS).slice(0, faker.random.number({ min: 1, max: 4 })),
+    faker.helpers
+      .shuffle(DATACENTERS)
+      .slice(0, faker.random.number({ min: 1, max: 4 })),
 
   childrenCount: () => faker.random.number({ min: 1, max: 2 }),
+
+  meta: null,
 
   periodic: trait({
     type: 'batch',
@@ -46,14 +74,40 @@ export default Factory.extend({
     }),
   }),
 
+  periodicSysbatch: trait({
+    type: 'sysbatch',
+    periodic: true,
+    // periodic details object
+    // serializer update for bool vs details object
+    periodicDetails: () => ({
+      Enabled: true,
+      ProhibitOverlap: true,
+      Spec: '*/5 * * * * *',
+      SpecType: 'cron',
+      TimeZone: 'UTC',
+    }),
+  }),
+
   parameterized: trait({
     type: 'batch',
     parameterized: true,
-    // parameterized details object
+    // parameterized job object
     // serializer update for bool vs details object
-    parameterizedDetails: () => ({
-      MetaOptional: null,
-      MetaRequired: null,
+    parameterizedJob: () => ({
+      MetaOptional: generateMetaFields(faker.random.number(10), 'optional'),
+      MetaRequired: generateMetaFields(faker.random.number(10), 'required'),
+      Payload: faker.random.boolean() ? 'required' : null,
+    }),
+  }),
+
+  parameterizedSysbatch: trait({
+    type: 'sysbatch',
+    parameterized: true,
+    // parameterized job object
+    // serializer update for bool vs details object
+    parameterizedJob: () => ({
+      MetaOptional: generateMetaFields(faker.random.number(10), 'optional'),
+      MetaRequired: generateMetaFields(faker.random.number(10), 'required'),
       Payload: faker.random.boolean() ? 'required' : null,
     }),
   }),
@@ -63,6 +117,13 @@ export default Factory.extend({
     // It is the Periodic job's responsibility to create
     // periodicChild jobs and provide a parent job.
     type: 'batch',
+  }),
+
+  periodicSysbatchChild: trait({
+    // Periodic children need a parent job,
+    // It is the Periodic job's responsibility to create
+    // periodicChild jobs and provide a parent job.
+    type: 'sysbatch',
   }),
 
   parameterizedChild: trait({
@@ -75,7 +136,24 @@ export default Factory.extend({
     payload: window.btoa(faker.lorem.sentence()),
   }),
 
-  createIndex: i => i,
+  parameterizedSysbatchChild: trait({
+    // Parameterized children need a parent job,
+    // It is the Parameterized job's responsibility to create
+    // parameterizedChild jobs and provide a parent job.
+    type: 'sysbatch',
+    parameterized: true,
+    dispatched: true,
+    payload: window.btoa(faker.lorem.sentence()),
+  }),
+
+  pack: trait({
+    meta: () => ({
+      'pack.name': faker.hacker.noun(),
+      'pack.version': faker.system.semver(),
+    }),
+  }),
+
+  createIndex: (i) => i,
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
 
   // Directive used to control sub-resources
@@ -107,12 +185,17 @@ export default Factory.extend({
   // When true, task groups will have services
   withGroupServices: false,
 
+  // When true, dynamic application sizing recommendations will be made
+  createRecommendations: false,
+
   // When true, only task groups and allocations are made
   shallow: false,
 
   afterCreate(job, server) {
     if (!job.namespaceId) {
-      const namespace = server.db.namespaces.length ? pickOne(server.db.namespaces).id : null;
+      const namespace = server.db.namespaces.length
+        ? pickOne(server.db.namespaces).id
+        : null;
       job.update({
         namespace,
         namespaceId: namespace,
@@ -128,6 +211,7 @@ export default Factory.extend({
       createAllocations: job.createAllocations,
       withRescheduling: job.withRescheduling,
       withServices: job.withGroupServices,
+      createRecommendations: job.createRecommendations,
       shallow: job.shallow,
     };
 
@@ -135,27 +219,57 @@ export default Factory.extend({
       groupProps.count = job.groupTaskCount;
     }
 
-    const groups = job.noHostVolumes
-      ? server.createList('task-group', job.groupsCount, 'noHostVolumes', groupProps)
-      : server.createList('task-group', job.groupsCount, groupProps);
+    let groups;
+    if (job.noHostVolumes) {
+      groups = provide(job.groupsCount, (_, idx) =>
+        server.create('task-group', 'noHostVolumes', {
+          ...groupProps,
+          resourceSpec:
+            job.resourceSpec &&
+            job.resourceSpec.length &&
+            job.resourceSpec[idx],
+        })
+      );
+    } else {
+      groups = provide(job.groupsCount, (_, idx) =>
+        server.create('task-group', {
+          ...groupProps,
+          resourceSpec:
+            job.resourceSpec &&
+            job.resourceSpec.length &&
+            job.resourceSpec[idx],
+        })
+      );
+    }
 
     job.update({
       taskGroupIds: groups.mapBy('id'),
-      task_group_ids: groups.mapBy('id'),
     });
 
     const hasChildren = job.periodic || (job.parameterized && !job.parentId);
-    const jobSummary = server.create('job-summary', hasChildren ? 'withChildren' : 'withSummary', {
-      groupNames: groups.mapBy('name'),
-      job,
-      job_id: job.id,
-      JobID: job.id,
-      namespace: job.namespace,
-    });
+    const jobSummary = server.create(
+      'job-summary',
+      hasChildren ? 'withChildren' : 'withSummary',
+      {
+        jobId: job.id,
+        groupNames: groups.mapBy('name'),
+        namespace: job.namespace,
+      }
+    );
 
     job.update({
       jobSummaryId: jobSummary.id,
-      job_summary_id: jobSummary.id,
+    });
+
+    const jobScale = server.create('job-scale', {
+      groupNames: groups.mapBy('name'),
+      jobId: job.id,
+      namespace: job.namespace,
+      shallow: job.shallow,
+    });
+
+    job.update({
+      jobScaleId: jobScale.id,
     });
 
     if (!job.noDeployments) {
@@ -203,25 +317,58 @@ export default Factory.extend({
     }
 
     if (job.periodic) {
-      // Create periodicChild jobs
-      server.createList('job', job.childrenCount, 'periodicChild', {
+      let childType;
+      switch (job.type) {
+        case 'batch':
+          childType = 'periodicChild';
+          break;
+        case 'sysbatch':
+          childType = 'periodicSysbatchChild';
+          break;
+      }
+
+      // Create child jobs
+      server.createList('job', job.childrenCount, childType, {
         parentId: job.id,
         namespaceId: job.namespaceId,
         namespace: job.namespace,
+        datacenters: job.datacenters,
         createAllocations: job.createAllocations,
         shallow: job.shallow,
       });
     }
 
     if (job.parameterized && !job.parentId) {
-      // Create parameterizedChild jobs
-      server.createList('job', job.childrenCount, 'parameterizedChild', {
+      let childType;
+      switch (job.type) {
+        case 'batch':
+          childType = 'parameterizedChild';
+          break;
+        case 'sysbatch':
+          childType = 'parameterizedSysbatchChild';
+          break;
+      }
+
+      // Create child jobs
+      server.createList('job', job.childrenCount, childType, {
         parentId: job.id,
         namespaceId: job.namespaceId,
         namespace: job.namespace,
+        datacenters: job.datacenters,
         createAllocations: job.createAllocations,
         shallow: job.shallow,
       });
     }
   },
 });
+
+function generateMetaFields(num, prefix = '') {
+  // Use an object to avoid duplicate meta fields.
+  // The prefix param helps to avoid duplicate entries across function calls.
+  let meta = {};
+  for (let i = 0; i < num; i++) {
+    const field = `${prefix}-${faker.hacker.noun()}`;
+    meta[field] = true;
+  }
+  return Object.keys(meta);
+}

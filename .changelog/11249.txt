@@ -1,0 +1,3 @@
+```release-note:improvement
+deps: Update `hashicorp/go-discover` to `20210818145131-c573d69da192`
+```

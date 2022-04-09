@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Allow configuring minimum and maximum host ports used for dynamic ports
+```

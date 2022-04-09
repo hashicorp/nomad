@@ -30,6 +30,7 @@ func (d *deploymentWatcherRaftShim) UpsertJob(job *structs.Job) (uint64, error) 
 	update := &structs.JobRegisterRequest{
 		Job: job,
 	}
+
 	fsmErrIntf, index, raftErr := d.apply(structs.JobRegisterRequestType, update)
 	return d.convertApplyErrors(fsmErrIntf, index, raftErr)
 }

@@ -5,11 +5,12 @@ import (
 
 	"github.com/hashicorp/consul/sdk/testutil/retry"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAPI_OperatorSchedulerGetSetConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -36,7 +37,8 @@ func TestAPI_OperatorSchedulerGetSetConfiguration(t *testing.T) {
 	resp, wm, err := operator.SchedulerSetConfiguration(newConf, nil)
 	require.Nil(err)
 	require.NotZero(wm.LastIndex)
-	require.False(resp.Updated)
+	// non CAS requests should update on success
+	require.True(resp.Updated)
 
 	config, _, err = operator.SchedulerGetConfiguration(nil)
 	require.Nil(err)
@@ -46,7 +48,7 @@ func TestAPI_OperatorSchedulerGetSetConfiguration(t *testing.T) {
 }
 
 func TestAPI_OperatorSchedulerCASConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -25,12 +26,12 @@ func testNodes(t *testing.T, state *state.StateStore) (drainingNode, runningNode
 		},
 		ForceDeadline: time.Now().Add(time.Minute),
 	}
-	require.Nil(t, state.UpsertNode(100, n1))
+	require.Nil(t, state.UpsertNode(structs.MsgTypeTestSetup, 100, n1))
 
 	// Create a non-draining node
 	n2 := mock.Node()
 	n2.Name = "running"
-	require.Nil(t, state.UpsertNode(101, n2))
+	require.Nil(t, state.UpsertNode(structs.MsgTypeTestSetup, 101, n2))
 	return n1, n2
 }
 
@@ -47,6 +48,8 @@ func testDrainingJobWatcher(t *testing.T, state *state.StateStore) (*drainingJob
 // TestDrainingJobWatcher_Interface is a compile-time assertion that we
 // implement the intended interface.
 func TestDrainingJobWatcher_Interface(t *testing.T) {
+	ci.Parallel(t)
+
 	w, cancel := testDrainingJobWatcher(t, state.TestStateStore(t))
 	cancel()
 	var _ DrainingJobWatcher = w
@@ -99,7 +102,7 @@ func assertJobWatcherOps(t *testing.T, jw DrainingJobWatcher, drained, migrated 
 // TestDrainingJobWatcher_DrainJobs asserts DrainingJobWatcher batches
 // allocation changes from multiple jobs.
 func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := state.TestStateStore(t)
@@ -128,7 +131,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		jnss[i] = structs.NamespacedID{Namespace: job.Namespace, ID: job.ID}
 		job.TaskGroups[0].Migrate.MaxParallel = 3
 		job.TaskGroups[0].Count = count
-		require.Nil(state.UpsertJob(index, job))
+		require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, index, job))
 		index++
 
 		var allocs []*structs.Allocation
@@ -140,7 +143,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 			allocs = append(allocs, a)
 		}
 
-		require.Nil(state.UpsertAllocs(index, allocs))
+		require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, allocs))
 		index++
 
 	}
@@ -162,7 +165,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		// create a copy so we can reuse this slice
 		drainedAllocs[i] = a.Copy()
 	}
-	require.Nil(state.UpsertAllocs(index, drainedAllocs))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, drainedAllocs))
 	drains.Resp.Respond(index, nil)
 	index++
 
@@ -189,7 +192,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		updates = append(updates, a, replacement)
 		replacements[i] = replacement.Copy()
 	}
-	require.Nil(state.UpsertAllocs(index, updates))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, updates))
 	index++
 
 	// The drained allocs stopping cause migrations but no new drains
@@ -203,7 +206,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 			Healthy: helper.BoolToPtr(true),
 		}
 	}
-	require.Nil(state.UpsertAllocs(index, replacements))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, replacements))
 	index++
 
 	require.NotEmpty(jobWatcher.drainingJobs())
@@ -219,7 +222,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		// create a copy so we can reuse this slice
 		drainedAllocs[i] = a.Copy()
 	}
-	require.Nil(state.UpsertAllocs(index, drainedAllocs))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, drainedAllocs))
 	drains.Resp.Respond(index, nil)
 	index++
 
@@ -235,7 +238,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		updates = append(updates, a, replacement)
 		replacements[i] = replacement.Copy()
 	}
-	require.Nil(state.UpsertAllocs(index, updates))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, updates))
 	index++
 
 	assertJobWatcherOps(t, jobWatcher, 0, 6)
@@ -246,7 +249,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 			Healthy: helper.BoolToPtr(true),
 		}
 	}
-	require.Nil(state.UpsertAllocs(index, replacements))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, replacements))
 	index++
 
 	require.NotEmpty(jobWatcher.drainingJobs())
@@ -262,7 +265,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		// create a copy so we can reuse this slice
 		drainedAllocs[i] = a.Copy()
 	}
-	require.Nil(state.UpsertAllocs(index, drainedAllocs))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, drainedAllocs))
 	drains.Resp.Respond(index, nil)
 	index++
 
@@ -278,7 +281,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		updates = append(updates, a, replacement)
 		replacements[i] = replacement.Copy()
 	}
-	require.Nil(state.UpsertAllocs(index, updates))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, updates))
 	index++
 
 	assertJobWatcherOps(t, jobWatcher, 0, 4)
@@ -289,7 +292,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 			Healthy: helper.BoolToPtr(true),
 		}
 	}
-	require.Nil(state.UpsertAllocs(index, replacements))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, replacements))
 
 	// No jobs should be left!
 	require.Empty(jobWatcher.drainingJobs())
@@ -326,6 +329,8 @@ type handleTaskGroupTestCase struct {
 }
 
 func TestHandeTaskGroup_Table(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []handleTaskGroupTestCase{
 		{
 			// All allocs on draining node
@@ -543,7 +548,8 @@ func TestHandeTaskGroup_Table(t *testing.T) {
 }
 
 func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
-	t.Parallel()
+	ci.Parallel(t)
+	
 	require := require.New(t)
 	assert := assert.New(t)
 
@@ -562,7 +568,7 @@ func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
 	if tc.MaxParallel > 0 {
 		job.TaskGroups[0].Migrate.MaxParallel = tc.MaxParallel
 	}
-	require.Nil(state.UpsertJob(102, job))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 102, job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -585,7 +591,7 @@ func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
 		allocs = append(allocs, a)
 	}
 
-	require.Nil(state.UpsertAllocs(103, allocs))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
 	snap, err := state.Snapshot()
 	require.Nil(err)
 
@@ -599,7 +605,7 @@ func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
 }
 
 func TestHandleTaskGroup_Migrations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Create a draining node
@@ -611,10 +617,10 @@ func TestHandleTaskGroup_Migrations(t *testing.T) {
 		},
 		ForceDeadline: time.Now().Add(1 * time.Minute),
 	}
-	require.Nil(state.UpsertNode(100, n))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 100, n))
 
 	job := mock.Job()
-	require.Nil(state.UpsertJob(101, job))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 101, job))
 
 	// Create 10 done allocs
 	var allocs []*structs.Allocation
@@ -634,7 +640,7 @@ func TestHandleTaskGroup_Migrations(t *testing.T) {
 		}
 		allocs = append(allocs, a)
 	}
-	require.Nil(state.UpsertAllocs(102, allocs))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
 
 	snap, err := state.Snapshot()
 	require.Nil(err)
@@ -668,7 +674,7 @@ func TestHandleTaskGroup_Migrations(t *testing.T) {
 // This test asserts that handle task group works when an allocation is on a
 // garbage collected node
 func TestHandleTaskGroup_GarbageCollectedNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Create a draining node
@@ -680,10 +686,10 @@ func TestHandleTaskGroup_GarbageCollectedNode(t *testing.T) {
 		},
 		ForceDeadline: time.Now().Add(1 * time.Minute),
 	}
-	require.Nil(state.UpsertNode(100, n))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 100, n))
 
 	job := mock.Job()
-	require.Nil(state.UpsertJob(101, job))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 101, job))
 
 	// Create 10 done allocs
 	var allocs []*structs.Allocation
@@ -706,7 +712,7 @@ func TestHandleTaskGroup_GarbageCollectedNode(t *testing.T) {
 
 	// Make the first one be on a GC'd node
 	allocs[0].NodeID = uuid.Generate()
-	require.Nil(state.UpsertAllocs(102, allocs))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
 
 	snap, err := state.Snapshot()
 	require.Nil(err)

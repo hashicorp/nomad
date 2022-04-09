@@ -1,0 +1,3 @@
+```release-note:security
+consul/connect: Fixed a bug causing the Nomad agent to panic if a mesh gateway was registered without a `proxy` block.
+```

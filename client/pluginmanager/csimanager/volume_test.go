@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/mount"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -39,7 +40,7 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name                 string
@@ -136,7 +137,7 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name         string
@@ -148,43 +149,45 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 		{
 			Name: "Returns an error when an invalid AttachmentMode is provided",
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
-				AttachmentMode: "nonsense",
+				ID: "foo",
 			},
-			UsageOptions: &UsageOptions{},
-			ExpectedErr:  errors.New("Unknown volume attachment mode: nonsense"),
+			UsageOptions: &UsageOptions{AttachmentMode: "nonsense"},
+			ExpectedErr:  errors.New("unknown volume attachment mode: nonsense"),
 		},
 		{
 			Name: "Returns an error when an invalid AccessMode is provided",
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
+				ID: "foo",
+			},
+			UsageOptions: &UsageOptions{
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     "nonsense",
 			},
-			UsageOptions: &UsageOptions{},
-			ExpectedErr:  errors.New("Unknown volume access mode: nonsense"),
+			ExpectedErr: errors.New("unknown volume access mode: nonsense"),
 		},
 		{
 			Name: "Returns an error when the plugin returns an error",
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
+				ID: "foo",
+			},
+			UsageOptions: &UsageOptions{
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 			},
-			UsageOptions: &UsageOptions{},
-			PluginErr:    errors.New("Some Unknown Error"),
-			ExpectedErr:  errors.New("Some Unknown Error"),
+			PluginErr:   errors.New("Some Unknown Error"),
+			ExpectedErr: errors.New("Some Unknown Error"),
 		},
 		{
 			Name: "Happy Path",
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
+				ID: "foo",
+			},
+			UsageOptions: &UsageOptions{
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 			},
-			UsageOptions: &UsageOptions{},
-			PluginErr:    nil,
-			ExpectedErr:  nil,
+			PluginErr:   nil,
+			ExpectedErr: nil,
 		},
 	}
 
@@ -215,7 +218,7 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name                 string
@@ -277,7 +280,8 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
+
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name                     string
@@ -293,11 +297,12 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			Name:       "Returns an error when the plugin returns an error",
 			Allocation: structs.MockAlloc(),
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
+				ID: "foo",
+			},
+			UsageOptions: &UsageOptions{
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 			},
-			UsageOptions:         &UsageOptions{},
 			PluginErr:            errors.New("Some Unknown Error"),
 			ExpectedErr:          errors.New("Some Unknown Error"),
 			ExpectedCSICallCount: 1,
@@ -306,11 +311,12 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			Name:       "Happy Path",
 			Allocation: structs.MockAlloc(),
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
+				ID: "foo",
+			},
+			UsageOptions: &UsageOptions{
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 			},
-			UsageOptions:         &UsageOptions{},
 			PluginErr:            nil,
 			ExpectedErr:          nil,
 			ExpectedCSICallCount: 1,
@@ -319,14 +325,15 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			Name:       "Mount options in the volume",
 			Allocation: structs.MockAlloc(),
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
-				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+				ID: "foo",
 				MountOptions: &structs.CSIMountOptions{
 					MountFlags: []string{"ro"},
 				},
 			},
-			UsageOptions:         &UsageOptions{},
+			UsageOptions: &UsageOptions{
+				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+			},
 			PluginErr:            nil,
 			ExpectedErr:          nil,
 			ExpectedCSICallCount: 1,
@@ -342,14 +349,14 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			Name:       "Mount options override in the request",
 			Allocation: structs.MockAlloc(),
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
-				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+				ID: "foo",
 				MountOptions: &structs.CSIMountOptions{
 					MountFlags: []string{"ro"},
 				},
 			},
 			UsageOptions: &UsageOptions{
+				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 				MountOptions: &structs.CSIMountOptions{
 					MountFlags: []string{"rw"},
 				},
@@ -392,7 +399,6 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			if tc.ExpectedVolumeCapability != nil {
 				require.Equal(t, tc.ExpectedVolumeCapability, csiFake.PrevVolumeCapability)
 			}
-
 		})
 	}
 }
@@ -401,7 +407,7 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name                 string
@@ -466,7 +472,7 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
+	ci.Parallel(t)
 
 	tmpPath := tmpDir(t)
 	defer os.RemoveAll(tmpPath)
@@ -481,26 +487,27 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
 	ctx := context.Background()
 	vol := &structs.CSIVolume{
-		ID:         "vol",
-		Namespace:  "ns",
-		AccessMode: structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+		ID:        "vol",
+		Namespace: "ns",
 	}
 	alloc := mock.Alloc()
-	usage := &UsageOptions{}
+	usage := &UsageOptions{
+		AccessMode: structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+	}
 	pubCtx := map[string]string{}
 
 	_, err := manager.MountVolume(ctx, vol, alloc, usage, pubCtx)
-	require.Error(t, err, "Unknown volume attachment mode: ")
+	require.Error(t, err, "unknown volume attachment mode: ")
 	require.Equal(t, 1, len(events))
 	e := events[0]
 	require.Equal(t, "Mount volume", e.Message)
 	require.Equal(t, "Storage", e.Subsystem)
 	require.Equal(t, "vol", e.Details["volume_id"])
 	require.Equal(t, "false", e.Details["success"])
-	require.Equal(t, "Unknown volume attachment mode: ", e.Details["error"])
+	require.Equal(t, "unknown volume attachment mode: ", e.Details["error"])
 	events = events[1:]
 
-	vol.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	usage.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 	_, err = manager.MountVolume(ctx, vol, alloc, usage, pubCtx)
 	require.NoError(t, err)
 

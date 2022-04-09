@@ -21,7 +21,7 @@ export default class OpenButton extends Component {
       job: this.job,
       taskGroup: this.taskGroup,
       task: this.task,
-      allocation: this.task,
+      allocation: this.allocation,
     });
   }
 }

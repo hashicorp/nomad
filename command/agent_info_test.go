@@ -4,20 +4,21 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 )
 
 func TestAgentInfoCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &AgentInfoCommand{}
 }
 
 func TestAgentInfoCommand_Run(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
 
 	code := cmd.Run([]string{"-address=" + url})
@@ -26,9 +27,43 @@ func TestAgentInfoCommand_Run(t *testing.T) {
 	}
 }
 
+func TestAgentInfoCommand_Run_JSON(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
+
+	code := cmd.Run([]string{"-address=" + url, "-json"})
+	if code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	if out := ui.OutputWriter.String(); !strings.Contains(out, "\"config\": {") {
+		t.Fatalf("expected config stanza in output json")
+	}
+}
+
+func TestAgentInfoCommand_Run_Gotemplate(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
+
+	code := cmd.Run([]string{"-address=" + url, "-t", "{{.Stats.raft}}"})
+	if code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	if out := ui.OutputWriter.String(); !strings.Contains(out, "last_log_index") {
+		t.Fatalf("expected raft stats in gotemplate output")
+	}
+}
+
 func TestAgentInfoCommand_Fails(t *testing.T) {
-	t.Parallel()
-	ui := new(cli.MockUi)
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
 	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse

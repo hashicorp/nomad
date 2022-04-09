@@ -3,12 +3,13 @@ package scheduler
 import (
 	"fmt"
 	"sync"
+	"testing"
 	"time"
 
-	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -17,6 +18,10 @@ import (
 // RejectPlan is used to always reject the entire plan and force a state refresh
 type RejectPlan struct {
 	Harness *Harness
+}
+
+func (r *RejectPlan) ServersMeetMinimumVersion(minVersion *version.Version, checkFailedServers bool) bool {
+	return r.Harness.serversMeetMinimumVersion
 }
 
 func (r *RejectPlan) SubmitPlan(*structs.Plan) (*structs.PlanResult, State, error) {
@@ -41,7 +46,7 @@ func (r *RejectPlan) ReblockEval(*structs.Evaluation) error {
 // store copy and provides the planner interface. It can be extended for various
 // testing uses or for invoking the scheduler without side effects.
 type Harness struct {
-	t     testing.T
+	t     testing.TB
 	State *state.StateStore
 
 	Planner  Planner
@@ -55,23 +60,25 @@ type Harness struct {
 	nextIndex     uint64
 	nextIndexLock sync.Mutex
 
-	optimizePlan bool
+	optimizePlan              bool
+	serversMeetMinimumVersion bool
 }
 
 // NewHarness is used to make a new testing harness
-func NewHarness(t testing.T) *Harness {
+func NewHarness(t testing.TB) *Harness {
 	state := state.TestStateStore(t)
 	h := &Harness{
-		t:         t,
-		State:     state,
-		nextIndex: 1,
+		t:                         t,
+		State:                     state,
+		nextIndex:                 1,
+		serversMeetMinimumVersion: true,
 	}
 	return h
 }
 
 // NewHarnessWithState creates a new harness with the given state for testing
 // purposes.
-func NewHarnessWithState(t testing.T, state *state.StateStore) *Harness {
+func NewHarnessWithState(t testing.TB, state *state.StateStore) *Harness {
 	return &Harness{
 		t:         t,
 		State:     state,
@@ -170,7 +177,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	}
 
 	// Apply the full plan
-	err := h.State.UpsertPlanResults(index, &req)
+	err := h.State.UpsertPlanResults(structs.MsgTypeTestSetup, index, &req)
 	return result, nil, err
 }
 
@@ -243,6 +250,10 @@ func (h *Harness) ReblockEval(eval *structs.Evaluation) error {
 	return nil
 }
 
+func (h *Harness) ServersMeetMinimumVersion(_ *version.Version, _ bool) bool {
+	return h.serversMeetMinimumVersion
+}
+
 // NextIndex returns the next index
 func (h *Harness) NextIndex() uint64 {
 	h.nextIndexLock.Lock()
@@ -262,7 +273,19 @@ func (h *Harness) Snapshot() State {
 // a snapshot of current state using the harness for planning.
 func (h *Harness) Scheduler(factory Factory) Scheduler {
 	logger := testlog.HCLogger(h.t)
-	return factory(logger, h.Snapshot(), h)
+	eventsCh := make(chan interface{})
+
+	// Listen for and log events from the scheduler.
+	go func() {
+		for e := range eventsCh {
+			switch event := e.(type) {
+			case *PortCollisionEvent:
+				h.t.Errorf("unexpected worker eval event: %v", event.Reason)
+			}
+		}
+	}()
+
+	return factory(logger, eventsCh, h.Snapshot(), h)
 }
 
 // Process is used to process an evaluation given a factory
@@ -272,7 +295,7 @@ func (h *Harness) Process(factory Factory, eval *structs.Evaluation) error {
 	return sched.Process(eval)
 }
 
-func (h *Harness) AssertEvalStatus(t testing.T, state string) {
+func (h *Harness) AssertEvalStatus(t testing.TB, state string) {
 	require.Len(t, h.Evals, 1)
 	update := h.Evals[0]
 	require.Equal(t, state, update.Status)

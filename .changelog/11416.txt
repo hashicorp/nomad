@@ -1,0 +1,3 @@
+```release-note:improvement
+core: Elevated rejected node plan log lines to help diagnose #9506
+```

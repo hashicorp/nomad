@@ -1,0 +1,53 @@
+---
+layout: docs
+page_title: 'Autoscaling Plugins: Nomad'
+description: The "nomad" target plugin scales a task group count.
+---
+
+# Nomad Task Group Target
+
+The Nomad task group target indicates the scalable resource is a Nomad job
+running on a Nomad cluster.
+
+## Agent Configuration Options
+
+The Nomad target is automatically launched by the Nomad Autoscaler and so the
+following setup is optional.
+
+```hcl
+target "nomad" {
+  driver = "nomad"
+}
+```
+
+## Policy Configuration Options
+
+If using the [Nomad job specification scaling stanza][nomad_scaling_stanza] to
+configure the scaling policy, the following section can be omitted as Nomad will
+populate them on job submission.
+
+```hcl
+check "example-check" {
+  ...
+  target "nomad" {
+    Namespace = "default"
+    Job       = "example"
+    Group     = "cache"
+  }
+  ...
+```
+
+- `Namespace` `(string: "")` - The namespace in which the job resides as defined
+  by the [`namespace` parameter][nomad_namespace_parameter] within the job
+  specification.
+
+- `Job` `(string: "")` - The job identifier which contains the task group to
+  scale as defined within the job specification [`job` stanza][nomad_job_stanza].
+
+- `Group` `(string: "")` - The name of the task group to scale as defined in the
+  job specification [`group` stanza][nomad_group_stanza].
+
+[nomad_job_stanza]: /docs/job-specification/job#job-stanza
+[nomad_group_stanza]: /docs/job-specification/group#group-stanza
+[nomad_namespace_parameter]: /docs/job-specification/job#namespace
+[nomad_scaling_stanza]: /docs/job-specification/scaling

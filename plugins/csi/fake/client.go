@@ -50,8 +50,30 @@ type Client struct {
 	NextControllerUnpublishVolumeErr      error
 	ControllerUnpublishVolumeCallCount    int64
 
+	NextControllerCreateVolumeResponse *csi.ControllerCreateVolumeResponse
+	NextControllerCreateVolumeErr      error
+	ControllerCreateVolumeCallCount    int64
+
+	NextControllerDeleteVolumeErr   error
+	ControllerDeleteVolumeCallCount int64
+
+	NextControllerListVolumesResponse *csi.ControllerListVolumesResponse
+	NextControllerListVolumesErr      error
+	ControllerListVolumesCallCount    int64
+
 	NextControllerValidateVolumeErr   error
 	ControllerValidateVolumeCallCount int64
+
+	NextControllerCreateSnapshotResponse *csi.ControllerCreateSnapshotResponse
+	NextControllerCreateSnapshotErr      error
+	ControllerCreateSnapshotCallCount    int64
+
+	NextControllerDeleteSnapshotErr   error
+	ControllerDeleteSnapshotCallCount int64
+
+	NextControllerListSnapshotsResponse *csi.ControllerListSnapshotsResponse
+	NextControllerListSnapshotsErr      error
+	ControllerListSnapshotsCallCount    int64
 
 	NextNodeGetCapabilitiesResponse *csi.NodeCapabilitySet
 	NextNodeGetCapabilitiesErr      error
@@ -168,6 +190,48 @@ func (c *Client) ControllerValidateCapabilities(ctx context.Context, req *csi.Co
 	return c.NextControllerValidateVolumeErr
 }
 
+func (c *Client) ControllerCreateVolume(ctx context.Context, in *csi.ControllerCreateVolumeRequest, opts ...grpc.CallOption) (*csi.ControllerCreateVolumeResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.ControllerCreateVolumeCallCount++
+	return c.NextControllerCreateVolumeResponse, c.NextControllerCreateVolumeErr
+}
+
+func (c *Client) ControllerDeleteVolume(ctx context.Context, req *csi.ControllerDeleteVolumeRequest, opts ...grpc.CallOption) error {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.ControllerDeleteVolumeCallCount++
+	return c.NextControllerDeleteVolumeErr
+}
+
+func (c *Client) ControllerListVolumes(ctx context.Context, req *csi.ControllerListVolumesRequest, opts ...grpc.CallOption) (*csi.ControllerListVolumesResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.ControllerListVolumesCallCount++
+	return c.NextControllerListVolumesResponse, c.NextControllerListVolumesErr
+}
+
+func (c *Client) ControllerCreateSnapshot(ctx context.Context, req *csi.ControllerCreateSnapshotRequest, opts ...grpc.CallOption) (*csi.ControllerCreateSnapshotResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.ControllerCreateSnapshotCallCount++
+	return c.NextControllerCreateSnapshotResponse, c.NextControllerCreateSnapshotErr
+}
+
+func (c *Client) ControllerDeleteSnapshot(ctx context.Context, req *csi.ControllerDeleteSnapshotRequest, opts ...grpc.CallOption) error {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.ControllerDeleteSnapshotCallCount++
+	return c.NextControllerDeleteSnapshotErr
+}
+
+func (c *Client) ControllerListSnapshots(ctx context.Context, req *csi.ControllerListSnapshotsRequest, opts ...grpc.CallOption) (*csi.ControllerListSnapshotsResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.ControllerListSnapshotsCallCount++
+	return c.NextControllerListSnapshotsResponse, c.NextControllerListSnapshotsErr
+}
+
 func (c *Client) NodeGetCapabilities(ctx context.Context) (*csi.NodeCapabilitySet, error) {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
@@ -233,7 +297,7 @@ func (c *Client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath s
 	return c.NextNodeUnpublishVolumeErr
 }
 
-// Shutdown the client and ensure any connections are cleaned up.
+// Close the client and ensure any connections are cleaned up.
 func (c *Client) Close() error {
 
 	c.NextPluginInfoResponse = nil

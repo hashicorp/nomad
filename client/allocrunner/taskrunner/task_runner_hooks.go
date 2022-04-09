@@ -3,7 +3,6 @@ package taskrunner
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -72,7 +71,15 @@ func (tr *TaskRunner) initHooks() {
 
 	// If the task has a CSI stanza, add the hook.
 	if task.CSIPluginConfig != nil {
-		tr.runnerHooks = append(tr.runnerHooks, newCSIPluginSupervisorHook(filepath.Join(tr.clientConfig.StateDir, "csi"), tr, tr, hookLogger))
+		tr.runnerHooks = append(tr.runnerHooks, newCSIPluginSupervisorHook(
+			&csiPluginSupervisorHookConfig{
+				clientStateDirPath: tr.clientConfig.StateDir,
+				events:             tr,
+				runner:             tr,
+				lifecycle:          tr,
+				capabilities:       tr.driverCapabilities,
+				logger:             hookLogger,
+			}))
 	}
 
 	// If Vault is enabled, add the hook
@@ -89,28 +96,37 @@ func (tr *TaskRunner) initHooks() {
 		}))
 	}
 
+	// Get the consul namespace for the TG of the allocation.
+	consulNamespace := tr.alloc.ConsulNamespace()
+
+	// Identify the service registration provider, which can differ from the
+	// Consul namespace depending on which provider is used.
+	serviceProviderNamespace := tr.alloc.ServiceProviderNamespace()
+
 	// If there are templates is enabled, add the hook
 	if len(task.Templates) != 0 {
 		tr.runnerHooks = append(tr.runnerHooks, newTemplateHook(&templateHookConfig{
-			logger:       hookLogger,
-			lifecycle:    tr,
-			events:       tr,
-			templates:    task.Templates,
-			clientConfig: tr.clientConfig,
-			envBuilder:   tr.envBuilder,
+			logger:          hookLogger,
+			lifecycle:       tr,
+			events:          tr,
+			templates:       task.Templates,
+			clientConfig:    tr.clientConfig,
+			envBuilder:      tr.envBuilder,
+			consulNamespace: consulNamespace,
+			nomadNamespace:  tr.alloc.Job.Namespace,
 		}))
 	}
 
-	// If there are any services, add the service hook
-	if len(task.Services) != 0 {
-		tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
-			alloc:     tr.Alloc(),
-			task:      tr.Task(),
-			consul:    tr.consulClient,
-			restarter: tr,
-			logger:    hookLogger,
-		}))
-	}
+	// Always add the service hook. A task with no services on initial registration
+	// may be updated to include services, which must be handled with this hook.
+	tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
+		alloc:             tr.Alloc(),
+		task:              tr.Task(),
+		namespace:         serviceProviderNamespace,
+		serviceRegWrapper: tr.serviceRegWrapper,
+		restarter:         tr,
+		logger:            hookLogger,
+	}))
 
 	// If this is a Connect sidecar proxy (or a Connect Native) service,
 	// add the sidsHook for requesting a Service Identity token (if ACLs).
@@ -127,20 +143,33 @@ func (tr *TaskRunner) initHooks() {
 			}))
 		}
 
-		// envoy bootstrap must execute after sidsHook maybe sets SI token
-		tr.runnerHooks = append(tr.runnerHooks, newEnvoyBootstrapHook(
-			newEnvoyBootstrapHookConfig(alloc, tr.clientConfig.ConsulConfig, hookLogger),
-		))
+		if task.UsesConnectSidecar() {
+			tr.runnerHooks = append(tr.runnerHooks,
+				newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, tr.consulProxiesClient, hookLogger)),
+				newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, tr.clientConfig.ConsulConfig, consulNamespace, hookLogger)),
+			)
+		} else if task.Kind.IsConnectNative() {
+			tr.runnerHooks = append(tr.runnerHooks, newConnectNativeHook(
+				newConnectNativeHookConfig(alloc, tr.clientConfig.ConsulConfig, hookLogger),
+			))
+		}
 	}
 
-	// If there are any script checks, add the hook
-	scriptCheckHook := newScriptCheckHook(scriptCheckHookConfig{
+	// Always add the script checks hook. A task with no script check hook on
+	// initial registration may be updated to include script checks, which must
+	// be handled with this hook.
+	tr.runnerHooks = append(tr.runnerHooks, newScriptCheckHook(scriptCheckHookConfig{
 		alloc:  tr.Alloc(),
 		task:   tr.Task(),
-		consul: tr.consulClient,
+		consul: tr.consulServiceClient,
 		logger: hookLogger,
-	})
-	tr.runnerHooks = append(tr.runnerHooks, scriptCheckHook)
+	}))
+
+	// If this task driver has remote capabilities, add the remote task
+	// hook.
+	if tr.driverCapabilities.RemoteTasks {
+		tr.runnerHooks = append(tr.runnerHooks, newRemoteTaskHook(tr, hookLogger))
+	}
 }
 
 func (tr *TaskRunner) emitHookError(err error, hookName string) {
@@ -159,8 +188,7 @@ func (tr *TaskRunner) emitHookError(err error, hookName string) {
 func (tr *TaskRunner) prestart() error {
 	// Determine if the allocation is terminal and we should avoid running
 	// prestart hooks.
-	alloc := tr.Alloc()
-	if alloc.TerminalStatus() {
+	if tr.shouldShutdown() {
 		tr.logger.Trace("skipping prestart hooks since allocation is terminal")
 		return nil
 	}
@@ -173,6 +201,11 @@ func (tr *TaskRunner) prestart() error {
 			tr.logger.Trace("finished prestart hooks", "end", end, "duration", end.Sub(start))
 		}()
 	}
+
+	// use a join context to allow any blocking pre-start hooks
+	// to be canceled by either killCtx or shutdownCtx
+	joinedCtx, joinedCancel := joincontext.Join(tr.killCtx, tr.shutdownCtx)
+	defer joinedCancel()
 
 	for _, hook := range tr.runnerHooks {
 		pre, ok := hook.(interfaces.TaskPrestartHook)
@@ -219,9 +252,6 @@ func (tr *TaskRunner) prestart() error {
 		}
 
 		// Run the prestart hook
-		// use a joint context to allow any blocking pre-start hooks
-		// to be canceled by either killCtx or shutdownCtx
-		joinedCtx, _ := joincontext.Join(tr.killCtx, tr.shutdownCtx)
 		var resp interfaces.TaskPrestartResponse
 		if err := pre.Prestart(joinedCtx, &req, &resp); err != nil {
 			tr.emitHookError(err, name)

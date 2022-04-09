@@ -190,8 +190,8 @@ func (w *deploymentWatcher) SetAllocHealth(
 			}
 
 			// Check if the group has autorevert set
-			group, ok := w.getDeployment().TaskGroups[alloc.TaskGroup]
-			if !ok || !group.AutoRevert {
+			dstate, ok := w.getDeployment().TaskGroups[alloc.TaskGroup]
+			if !ok || !dstate.AutoRevert {
 				continue
 			}
 
@@ -283,15 +283,22 @@ func (w *deploymentWatcher) autoPromoteDeployment(allocs []*structs.AllocListStu
 		return nil
 	}
 
-	// AutoPromote iff every task group is marked auto_promote and is healthy. The whole
+	// AutoPromote iff every task group with canaries is marked auto_promote and is healthy. The whole
 	// job version has been incremented, so we promote together. See also AutoRevert
-	for _, tv := range d.TaskGroups {
-		if !tv.AutoPromote || tv.DesiredCanaries != len(tv.PlacedCanaries) {
+	for _, dstate := range d.TaskGroups {
+
+		// skip auto promote canary validation if the task group has no canaries
+		// to prevent auto promote hanging on mixed canary/non-canary taskgroup deploys
+		if dstate.DesiredCanaries < 1 {
+			continue
+		}
+
+		if !dstate.AutoPromote || dstate.DesiredCanaries != len(dstate.PlacedCanaries) {
 			return nil
 		}
 
 		// Find the health status of each canary
-		for _, c := range tv.PlacedCanaries {
+		for _, c := range dstate.PlacedCanaries {
 			for _, a := range allocs {
 				if c == a.ID && !a.DeploymentStatus.IsHealthy() {
 					return nil
@@ -347,8 +354,8 @@ func (w *deploymentWatcher) FailDeployment(
 
 	// Determine if we should rollback
 	rollback := false
-	for _, state := range w.getDeployment().TaskGroups {
-		if state.AutoRevert {
+	for _, dstate := range w.getDeployment().TaskGroups {
+		if dstate.AutoRevert {
 			rollback = true
 			break
 		}
@@ -412,10 +419,11 @@ func (w *deploymentWatcher) watch() {
 			<-deadlineTimer.C
 		}
 	} else {
-		deadlineTimer = time.NewTimer(currentDeadline.Sub(time.Now()))
+		deadlineTimer = time.NewTimer(time.Until(currentDeadline))
 	}
 
 	allocIndex := uint64(1)
+	allocsCh := w.getAllocsCh(allocIndex)
 	var updates *allocUpdates
 
 	rollback, deadlineHit := false, false
@@ -427,10 +435,13 @@ FAIL:
 			// This is the successful case, and we stop the loop
 			return
 		case <-deadlineTimer.C:
-			// We have hit the progress deadline so fail the deployment. We need
-			// to determine whether we should roll back the job by inspecting
-			// which allocs as part of the deployment are healthy and which
-			// aren't.
+			// We have hit the progress deadline, so fail the deployment
+			// unless we're waiting for manual promotion. We need to determine
+			// whether we should roll back the job by inspecting which allocs
+			// as part of the deployment are healthy and which aren't. The
+			// deadlineHit flag is never reset, so even in the case of a
+			// manual promotion, we'll describe any failure as a progress
+			// deadline failure at this point.
 			deadlineHit = true
 			fail, rback, err := w.shouldFail()
 			if err != nil {
@@ -474,7 +485,8 @@ FAIL:
 				// rollout, the next progress deadline becomes zero, so we want
 				// to avoid resetting, causing a deployment failure.
 				if !next.IsZero() {
-					deadlineTimer.Reset(next.Sub(time.Now()))
+					deadlineTimer.Reset(time.Until(next))
+					w.logger.Trace("resetting deadline")
 				}
 			}
 
@@ -483,7 +495,7 @@ FAIL:
 				break FAIL
 			}
 
-		case updates = <-w.getAllocsCh(allocIndex):
+		case updates = <-allocsCh:
 			if err := updates.err; err != nil {
 				if err == context.Canceled || w.ctx.Err() == context.Canceled {
 					return
@@ -527,6 +539,9 @@ FAIL:
 			if res.createEval || len(res.allowReplacements) != 0 {
 				w.createBatchedUpdate(res.allowReplacements, allocIndex)
 			}
+
+			// only start a new blocking query if we haven't returned early
+			allocsCh = w.getAllocsCh(allocIndex)
 		}
 	}
 
@@ -653,14 +668,14 @@ func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
 	}
 
 	fail = false
-	for tg, state := range d.TaskGroups {
+	for tg, dstate := range d.TaskGroups {
 		// If we are in a canary state we fail if there aren't enough healthy
 		// allocs to satisfy DesiredCanaries
-		if state.DesiredCanaries > 0 && !state.Promoted {
-			if state.HealthyAllocs >= state.DesiredCanaries {
+		if dstate.DesiredCanaries > 0 && !dstate.Promoted {
+			if dstate.HealthyAllocs >= dstate.DesiredCanaries {
 				continue
 			}
-		} else if state.HealthyAllocs >= state.DesiredTotal {
+		} else if dstate.HealthyAllocs >= dstate.DesiredTotal {
 			continue
 		}
 
@@ -674,7 +689,7 @@ func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
 		}
 
 		// Unhealthy allocs and we need to autorevert
-		return true, true, nil
+		return fail, true, nil
 	}
 
 	return fail, false, nil
@@ -685,19 +700,19 @@ func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
 func (w *deploymentWatcher) getDeploymentProgressCutoff(d *structs.Deployment) time.Time {
 	var next time.Time
 	doneTGs := w.doneGroups(d)
-	for name, state := range d.TaskGroups {
+	for name, dstate := range d.TaskGroups {
 		// This task group is done so we don't have to concern ourselves with
 		// its progress deadline.
 		if done, ok := doneTGs[name]; ok && done {
 			continue
 		}
 
-		if state.RequireProgressBy.IsZero() {
+		if dstate.RequireProgressBy.IsZero() {
 			continue
 		}
 
-		if next.IsZero() || state.RequireProgressBy.Before(next) {
-			next = state.RequireProgressBy
+		if next.IsZero() || dstate.RequireProgressBy.Before(next) {
+			next = dstate.RequireProgressBy
 		}
 	}
 	return next
@@ -734,15 +749,15 @@ func (w *deploymentWatcher) doneGroups(d *structs.Deployment) map[string]bool {
 
 	// Go through each group and check if it done
 	groups := make(map[string]bool, len(d.TaskGroups))
-	for name, state := range d.TaskGroups {
+	for name, dstate := range d.TaskGroups {
 		// Requires promotion
-		if state.DesiredCanaries != 0 && !state.Promoted {
+		if dstate.DesiredCanaries != 0 && !dstate.Promoted {
 			groups[name] = false
 			continue
 		}
 
 		// Check we have enough healthy currently running allocations
-		groups[name] = healthy[name] >= state.DesiredTotal
+		groups[name] = healthy[name] >= dstate.DesiredTotal
 	}
 
 	return groups
@@ -816,10 +831,20 @@ func (w *deploymentWatcher) createBatchedUpdate(allowReplacements []string, forI
 // getEval returns an evaluation suitable for the deployment
 func (w *deploymentWatcher) getEval() *structs.Evaluation {
 	now := time.Now().UTC().UnixNano()
+
+	// During a server upgrade it's possible we end up with deployments created
+	// on the previous version that are then "watched" on a leader that's on
+	// the new version. This would result in an eval with its priority set to
+	// zero which would be bad. This therefore protects against that.
+	priority := w.d.EvalPriority
+	if priority == 0 {
+		priority = w.j.Priority
+	}
+
 	return &structs.Evaluation{
 		ID:           uuid.Generate(),
 		Namespace:    w.j.Namespace,
-		Priority:     w.j.Priority,
+		Priority:     priority,
 		Type:         w.j.Type,
 		TriggeredBy:  structs.EvalTriggerDeploymentWatcher,
 		JobID:        w.j.ID,
@@ -899,7 +924,7 @@ func (w *deploymentWatcher) getAllocsImpl(ws memdb.WatchSet, state *state.StateS
 	maxIndex := uint64(0)
 	stubs := make([]*structs.AllocListStub, 0, len(allocs))
 	for _, alloc := range allocs {
-		stubs = append(stubs, alloc.Stub())
+		stubs = append(stubs, alloc.Stub(nil))
 
 		if maxIndex < alloc.ModifyIndex {
 			maxIndex = alloc.ModifyIndex

@@ -1,4 +1,4 @@
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
 package docker
 
@@ -15,6 +15,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/freeport"
@@ -27,10 +28,9 @@ import (
 )
 
 func TestDockerDriver_User(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
+
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
 	task.User = "alice"
@@ -55,10 +55,9 @@ func TestDockerDriver_User(t *testing.T) {
 }
 
 func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
+
 	require := require.New(t)
 
 	// Because go-dockerclient doesn't provide api for query network aliases, just check that
@@ -104,9 +103,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 }
 
 func TestDockerDriver_NetworkMode_Host(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 	expected := "host"
 
@@ -148,9 +145,7 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 }
 
 func TestDockerDriver_CPUCFSPeriod(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -171,7 +166,9 @@ func TestDockerDriver_CPUCFSPeriod(t *testing.T) {
 }
 
 func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
+
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
 	expectedUlimits := map[string]string{
@@ -218,7 +215,9 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 }
 
 func TestDockerDriver_Sysctl_Ulimit_Errors(t *testing.T) {
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
+
 	brokenConfigs := []map[string]string{
 		{
 			"nofile": "",
@@ -261,8 +260,7 @@ func TestDockerDriver_Sysctl_Ulimit_Errors(t *testing.T) {
 // negative case for non existent mount paths. We should write a similar test
 // for windows.
 func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
-	t.Parallel()
-
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	allocDir := "/tmp/nomad/alloc-dir"
@@ -397,7 +395,7 @@ func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
 // an absolute path, changing path expansion behaviour. A similar test should
 // be written for windows.
 func TestDockerDriver_MountsSerialization(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	allocDir := "/tmp/nomad/alloc-dir"
@@ -409,7 +407,8 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 		expectedMounts  []docker.HostMount
 	}{
 		{
-			name: "basic volume",
+			name:            "basic volume",
+			requiresVolumes: true,
 			passedMounts: []DockerMount{
 				{
 					Target:   "/nomad",
@@ -565,7 +564,7 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 // and present in docker.CreateContainerOptions, and that it is appended
 // to any devices/mounts a user sets in the task config.
 func TestDockerDriver_CreateContainerConfig_MountsCombined(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -606,6 +605,7 @@ func TestDockerDriver_CreateContainerConfig_MountsCombined(t *testing.T) {
 
 	dh := dockerDriverHarness(t, nil)
 	driver := dh.Impl().(*Driver)
+	driver.config.Volumes.Enabled = true
 
 	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
 	require.NoError(t, err)
@@ -664,6 +664,7 @@ func TestDockerDriver_CreateContainerConfig_MountsCombined(t *testing.T) {
 // TestDockerDriver_Cleanup ensures Cleanup removes only downloaded images.
 // Doesn't run on windows because it requires an image variant
 func TestDockerDriver_Cleanup(t *testing.T) {
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	// using a small image and an specific point release to avoid accidental conflicts with other tasks
@@ -708,13 +709,12 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 
 // Tests that images prefixed with "https://" are supported
 func TestDockerDriver_Start_Image_HTTPS(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
-		Image: "https://gcr.io/google_containers/pause:0.8.0",
+		Image:            "https://gcr.io/google_containers/pause:0.8.0",
+		ImagePullTimeout: "5m",
 	}
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -746,10 +746,11 @@ func newTaskConfig(variant string, command []string) TaskConfig {
 	}
 
 	return TaskConfig{
-		Image:     image,
-		LoadImage: loadImage,
-		Command:   command[0],
-		Args:      command[1:],
+		Image:            image,
+		ImagePullTimeout: "5m",
+		LoadImage:        loadImage,
+		Command:          command[0],
+		Args:             command[1:],
 	}
 }
 
@@ -760,15 +761,15 @@ func copyImage(t *testing.T, taskDir *allocdir.TaskDir, image string) {
 
 // copyFile moves an existing file to the destination
 func copyFile(src, dst string, t *testing.T) {
+	t.Helper()
 	in, err := os.Open(src)
 	if err != nil {
 		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
 	}
 	defer in.Close()
 	out, err := os.Create(dst)
-	if err != nil {
-		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
-	}
+	require.NoError(t, err, "copying %v -> %v failed: %v", src, dst, err)
+
 	defer func() {
 		if err := out.Close(); err != nil {
 			t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
@@ -783,10 +784,13 @@ func copyFile(src, dst string, t *testing.T) {
 }
 
 func TestDocker_ExecTaskStreaming(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
+
+	// todo(shoenig) these fail maybe 50% of the time on GHA, and the test cases
+	//  are tricky to follow all the way through - maybe a decent candidate for
+	//  a generics re-write.
+	ci.SkipSlow(t, "flaky on GHA; #12358")
 
 	taskCfg := newTaskConfig("", []string{"/bin/sleep", "1000"})
 	task := &drivers.TaskConfig{
@@ -813,20 +817,15 @@ func TestDocker_ExecTaskStreaming(t *testing.T) {
 
 // Tests that a given DNSConfig properly configures dns
 func Test_dnsConfig(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
-	require := require.New(t)
-	harness := dockerDriverHarness(t, nil)
-	defer harness.Kill()
 
 	cases := []struct {
 		name string
 		cfg  *drivers.DNSConfig
 	}{
 		{
-			name: "nil DNSConfig",
+			name: "nil",
 		},
 		{
 			name: "basic",
@@ -845,24 +844,31 @@ func Test_dnsConfig(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		taskCfg := newTaskConfig("", []string{"/bin/sleep", "1000"})
-		task := &drivers.TaskConfig{
-			ID:        uuid.Generate(),
-			Name:      "nc-demo",
-			AllocID:   uuid.Generate(),
-			Resources: basicResources,
-			DNS:       c.cfg,
-		}
-		require.NoError(task.EncodeConcreteDriverConfig(&taskCfg))
+		t.Run(c.name, func(t *testing.T) {
+			harness := dockerDriverHarness(t, nil)
 
-		cleanup := harness.MkAllocDir(task, false)
-		defer cleanup()
+			taskCfg := newTaskConfig("", []string{"/bin/sleep", "1000"})
+			task := &drivers.TaskConfig{
+				ID:        uuid.Generate(),
+				Name:      "nc-demo",
+				AllocID:   uuid.Generate(),
+				Resources: basicResources,
+				DNS:       c.cfg,
+			}
+			require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
 
-		_, _, err := harness.StartTask(task)
-		require.NoError(err)
-		defer harness.DestroyTask(task.ID, true)
+			cleanup := harness.MkAllocDir(task, false)
 
-		dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)
+			_, _, err := harness.StartTask(task)
+			require.NoError(t, err)
+
+			dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)
+
+			// cleanup immediately before the next test case
+			require.NoError(t, harness.DestroyTask(task.ID, true))
+			cleanup()
+			harness.Kill()
+		})
 	}
 
 }

@@ -1,12 +1,14 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"net/rpc"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,16 +30,21 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/servers"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/nsd"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/helper/pool"
 	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -48,8 +55,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	vaultapi "github.com/hashicorp/vault/api"
-	"github.com/pkg/errors"
-	"github.com/shirou/gopsutil/host"
+	"github.com/shirou/gopsutil/v3/host"
 )
 
 const (
@@ -76,6 +82,10 @@ const (
 	// devModeRetryIntv is the retry interval used for development
 	devModeRetryIntv = time.Second
 
+	// noServerRetryIntv is the retry interval used when client has not
+	// connected to server yet
+	noServerRetryIntv = time.Second
+
 	// stateSnapshotIntv is how often the client snapshots state
 	stateSnapshotIntv = 60 * time.Second
 
@@ -96,14 +106,15 @@ const (
 	// the status of the allocation
 	allocSyncRetryIntv = 5 * time.Second
 
-	// defaultConnectSidecarImage is the image set in the node meta by default
-	// to be used by Consul Connect sidecar tasks
-	// Update sidecar_task.html when updating this.
-	defaultConnectSidecarImage = "envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09"
-
 	// defaultConnectLogLevel is the log level set in the node meta by default
-	// to be used by Consul Connect sidecar tasks
+	// to be used by Consul Connect sidecar tasks.
 	defaultConnectLogLevel = "info"
+
+	// defaultConnectProxyConcurrency is the default number of worker threads the
+	// connect sidecar should be configured to use.
+	//
+	// https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
+	defaultConnectProxyConcurrency = "1"
 )
 
 var (
@@ -147,6 +158,7 @@ type AllocRunner interface {
 
 	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
 	RestartAll(taskEvent *structs.TaskEvent) error
+	Reconnect(update *structs.Allocation) error
 
 	GetTaskExecHandler(taskName string) drivermanager.TaskExecHandler
 	GetTaskDriverCapabilities(taskName string) (*drivers.Capabilities, error)
@@ -216,9 +228,22 @@ type Client struct {
 	// allocUpdates stores allocations that need to be synced to the server.
 	allocUpdates chan *structs.Allocation
 
-	// consulService is Nomad's custom Consul client for managing services
+	// consulService is the Consul handler implementation for managing services
 	// and checks.
-	consulService consulApi.ConsulServiceAPI
+	consulService serviceregistration.Handler
+
+	// nomadService is the Nomad handler implementation for managing service
+	// registrations.
+	nomadService serviceregistration.Handler
+
+	// serviceRegWrapper wraps the consulService and nomadService
+	// implementations so that the alloc and task runner service hooks can call
+	// this without needing to identify which backend provider should be used.
+	serviceRegWrapper *wrapper.HandlerWrapper
+
+	// consulProxies is Nomad's custom Consul client for looking up supported
+	// envoy versions
+	consulProxies consulApi.SupportedProxiesAPI
 
 	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
 	consulCatalog consul.CatalogAPI
@@ -278,7 +303,7 @@ type Client struct {
 	batchNodeUpdates *batchNodeUpdates
 
 	// fpInitialized chan is closed when the first batch of fingerprints are
-	// applied to the node and the server is updated
+	// applied to the node
 	fpInitialized chan struct{}
 
 	// serversContactedCh is closed when GetClientAllocs and runAllocs have
@@ -289,6 +314,9 @@ type Client struct {
 	// dynamicRegistry provides access to plugins that are dynamically registered
 	// with a nomad client. Currently only used for CSI.
 	dynamicRegistry dynamicplugins.Registry
+
+	// cpusetManager configures cpusets on supported platforms
+	cpusetManager cgutil.CpusetManager
 
 	// EnterpriseClient is used to set and check enterprise features for clients
 	EnterpriseClient *EnterpriseClient
@@ -301,8 +329,12 @@ var (
 	noServersErr = errors.New("no servers")
 )
 
-// NewClient is used to create a new client from the given configuration
-func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulService consulApi.ConsulServiceAPI) (*Client, error) {
+// NewClient is used to create a new client from the given configuration.
+// `rpcs` is a map of RPC names to RPC structs that, if non-nil, will be
+// registered via https://golang.org/pkg/net/rpc/#Server.RegisterName in place
+// of the client's normal RPC handlers. This allows server tests to override
+// the behavior of the client.
+func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxies consulApi.SupportedProxiesAPI, consulService serviceregistration.Handler, rpcs map[string]interface{}) (*Client, error) {
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
@@ -327,6 +359,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c := &Client{
 		config:               cfg,
 		consulCatalog:        consulCatalog,
+		consulProxies:        consulProxies,
 		consulService:        consulService,
 		start:                time.Now(),
 		connPool:             pool.NewPool(logger, clientRPCCache, clientMaxStreams, tlsWrap),
@@ -344,6 +377,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		invalidAllocs:        make(map[string]struct{}),
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
+		cpusetManager:        cgutil.CreateCPUSetManager(cfg.CgroupParent, logger),
 		EnterpriseClient:     newEnterpriseClient(logger),
 	}
 
@@ -368,15 +402,15 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.dynamicRegistry =
 		dynamicplugins.NewRegistry(c.stateDB, map[string]dynamicplugins.PluginDispenser{
 			dynamicplugins.PluginTypeCSIController: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
-				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "controller"))
+				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "controller")), nil
 			},
 			dynamicplugins.PluginTypeCSINode: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
-				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "client"))
-			}, // TODO(tgross): refactor these dispenser constructors into csimanager to tidy it up
+				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "client")), nil
+			},
 		})
 
 	// Setup the clients RPC server
-	c.setupClientRpc()
+	c.setupClientRpc(rpcs)
 
 	// Initialize the ACL state
 	if err := c.clientACLResolver.init(); err != nil {
@@ -405,9 +439,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
 	}
 
-	// Build the white/blacklists of drivers.
-	allowlistDrivers := cfg.ReadStringListToMap("driver.whitelist")
-	blocklistDrivers := cfg.ReadStringListToMap("driver.blacklist")
+	// Build the allow/denylists of drivers.
+	// COMPAT(1.0) uses inclusive language. white/blacklist are there for backward compatible reasons only.
+	allowlistDrivers := cfg.ReadStringListToMap("driver.allowlist", "driver.whitelist")
+	blocklistDrivers := cfg.ReadStringListToMap("driver.denylist", "driver.blacklist")
 
 	// Setup the csi manager
 	csiConfig := &csimanager.Config{
@@ -447,6 +482,12 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	devManager := devicemanager.New(devConfig)
 	c.devicemanager = devManager
 	c.pluginManagers.RegisterAndRun(devManager)
+
+	// Set up the service registration wrapper using the Consul and Nomad
+	// implementations. The Nomad implementation is only ever used on the
+	// client, so we do that here rather than within the agent.
+	c.setupNomadServiceRegistrationHandler()
+	c.serviceRegWrapper = wrapper.NewHandlerWrapper(c.logger, c.consulService, c.nomadService)
 
 	// Batching of initial fingerprints is done to reduce the number of node
 	// updates sent to the server on startup. This is the first RPC to the servers
@@ -495,7 +536,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	}
 
 	if err := c.setupConsulTokenClient(); err != nil {
-		return nil, errors.Wrap(err, "failed to setup consul tokens client")
+		return nil, fmt.Errorf("failed to setup consul tokens client: %w", err)
 	}
 
 	// Setup the vault client for token and secret renewals
@@ -505,7 +546,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// wait until drivers are healthy before restoring or registering with servers
 	select {
-	case <-c.Ready():
+	case <-c.fpInitialized:
 	case <-time.After(batchFirstFingerprintsProcessingGrace):
 		logger.Warn("batch fingerprint operation timed out; proceeding to register with fingerprinted plugins so far")
 	}
@@ -547,7 +588,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 // Ready returns a chan that is closed when the client is fully initialized
 func (c *Client) Ready() <-chan struct{} {
-	return c.fpInitialized
+	return c.serversContactedCh
 }
 
 // init is used to initialize the client and perform any setup
@@ -619,11 +660,38 @@ func (c *Client) init() error {
 	}
 
 	c.logger.Info("using alloc directory", "alloc_dir", c.config.AllocDir)
+
+	reserved := "<none>"
+	if c.config.Node != nil && c.config.Node.ReservedResources != nil {
+		// Node should always be non-nil due to initialization in the
+		// agent package, but don't risk a panic just for a long line.
+		reserved = c.config.Node.ReservedResources.Networks.ReservedHostPorts
+	}
+	c.logger.Info("using dynamic ports",
+		"min", c.config.MinDynamicPort,
+		"max", c.config.MaxDynamicPort,
+		"reserved", reserved,
+	)
+
+	// Ensure cgroups are created on linux platform
+	if runtime.GOOS == "linux" && c.cpusetManager != nil {
+		// use the client configuration for reservable_cores if set
+		cores := c.config.ReservableCores
+		if len(cores) == 0 {
+			// otherwise lookup the effective cores from the parent cgroup
+			cores, _ = cgutil.GetCPUsFromCgroup(c.config.CgroupParent)
+		}
+		if cpuErr := c.cpusetManager.Init(cores); cpuErr != nil {
+			// If the client cannot initialize the cgroup then reserved cores will not be reported and the cpuset manager
+			// will be disabled. this is common when running in dev mode under a non-root user for example.
+			c.logger.Warn("failed to initialize cpuset cgroup subsystem, cpuset management disabled", "error", cpuErr)
+			c.cpusetManager = new(cgutil.NoopCpusetManager)
+		}
+	}
 	return nil
 }
 
-// reloadTLSConnections allows a client to reload its TLS configuration on the
-// fly
+// reloadTLSConnections allows a client to reload its TLS configuration on the fly
 func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	var tlsWrap tlsutil.RegionWrapper
 	if newConfig != nil && newConfig.EnableRPC {
@@ -703,18 +771,6 @@ func (c *Client) secretNodeID() string {
 	return c.config.Node.SecretID
 }
 
-// RPCMajorVersion returns the structs.ApiMajorVersion supported by the
-// client.
-func (c *Client) RPCMajorVersion() int {
-	return structs.ApiMajorVersion
-}
-
-// RPCMinorVersion returns the structs.ApiMinorVersion supported by the
-// client.
-func (c *Client) RPCMinorVersion() int {
-	return structs.ApiMinorVersion
-}
-
 // Shutdown is used to tear down the client
 func (c *Client) Shutdown() error {
 	c.shutdownLock.Lock()
@@ -749,6 +805,13 @@ func (c *Client) Shutdown() error {
 		}
 	}
 	arGroup.Wait()
+
+	// Assert the implementation, so we can trigger the shutdown call. This is
+	// the only place this occurs, so it's OK to store the interface rather
+	// than the implementation.
+	if h, ok := c.nomadService.(*nsd.ServiceRegistrationHandler); ok {
+		h.Shutdown()
+	}
 
 	// Shutdown the plugin managers
 	c.pluginManagers.Shutdown()
@@ -870,7 +933,7 @@ func (c *Client) GetAllocStats(allocID string) (interfaces.AllocStatsReporter, e
 	return ar.StatsReporter(), nil
 }
 
-// HostStats returns all the stats related to a Nomad client
+// LatestHostStats returns all the stats related to a Nomad client.
 func (c *Client) LatestHostStats() *stats.HostStats {
 	return c.hostStatsCollector.Stats()
 }
@@ -1076,7 +1139,7 @@ func (c *Client) restoreState() error {
 		// now.  If allocs should be run, they will be started when the client
 		// gets allocs from servers.
 		if !c.hasLocalState(alloc) {
-			c.logger.Warn("found a alloc without any local state, skipping restore", "alloc_id", alloc.ID)
+			c.logger.Warn("found an alloc without any local state, skipping restore", "alloc_id", alloc.ID)
 			continue
 		}
 
@@ -1096,14 +1159,17 @@ func (c *Client) restoreState() error {
 			DeviceStatsReporter: c,
 			Consul:              c.consulService,
 			ConsulSI:            c.tokensClient,
+			ConsulProxies:       c.consulProxies,
 			Vault:               c.vaultClient,
 			PrevAllocWatcher:    prevAllocWatcher,
 			PrevAllocMigrator:   prevAllocMigrator,
 			DynamicRegistry:     c.dynamicRegistry,
 			CSIManager:          c.csimanager,
+			CpusetManager:       c.cpusetManager,
 			DeviceManager:       c.devicemanager,
 			DriverManager:       c.drivermanager,
 			ServersContactedCh:  c.serversContactedCh,
+			ServiceRegWrapper:   c.serviceRegWrapper,
 			RPCClient:           c,
 		}
 		c.configLock.RUnlock()
@@ -1214,7 +1280,7 @@ func (c *Client) saveState() error {
 			if err != nil {
 				c.logger.Error("error saving alloc state", "error", err, "alloc_id", id)
 				l.Lock()
-				multierror.Append(&mErr, err)
+				_ = multierror.Append(&mErr, err)
 				l.Unlock()
 			}
 			wg.Done()
@@ -1349,6 +1415,8 @@ func (c *Client) setupNode() error {
 	}
 	if node.NodeResources == nil {
 		node.NodeResources = &structs.NodeResources{}
+		node.NodeResources.MinDynamicPort = c.config.MinDynamicPort
+		node.NodeResources.MaxDynamicPort = c.config.MaxDynamicPort
 	}
 	if node.ReservedResources == nil {
 		node.ReservedResources = &structs.NodeReservedResources{}
@@ -1365,6 +1433,7 @@ func (c *Client) setupNode() error {
 	if node.Name == "" {
 		node.Name, _ = os.Hostname()
 	}
+	node.CgroupParent = c.config.CgroupParent
 	if node.HostVolumes == nil {
 		if l := len(c.config.HostVolumes); l != 0 {
 			node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig, l)
@@ -1376,6 +1445,14 @@ func (c *Client) setupNode() error {
 			}
 		}
 	}
+	if node.HostNetworks == nil {
+		if l := len(c.config.HostNetworks); l != 0 {
+			node.HostNetworks = make(map[string]*structs.ClientHostNetworkConfig, l)
+			for k, v := range c.config.HostNetworks {
+				node.HostNetworks[k] = v.Copy()
+			}
+		}
+	}
 
 	if node.Name == "" {
 		node.Name = node.ID
@@ -1383,11 +1460,17 @@ func (c *Client) setupNode() error {
 	node.Status = structs.NodeStatusInit
 
 	// Setup default meta
-	if _, ok := node.Meta["connect.sidecar_image"]; !ok {
-		node.Meta["connect.sidecar_image"] = defaultConnectSidecarImage
+	if _, ok := node.Meta[envoy.SidecarMetaParam]; !ok {
+		node.Meta[envoy.SidecarMetaParam] = envoy.ImageFormat
+	}
+	if _, ok := node.Meta[envoy.GatewayMetaParam]; !ok {
+		node.Meta[envoy.GatewayMetaParam] = envoy.ImageFormat
 	}
 	if _, ok := node.Meta["connect.log_level"]; !ok {
 		node.Meta["connect.log_level"] = defaultConnectLogLevel
+	}
+	if _, ok := node.Meta["connect.proxy_concurrency"]; !ok {
+		node.Meta["connect.proxy_concurrency"] = defaultConnectProxyConcurrency
 	}
 
 	return nil
@@ -1454,6 +1537,14 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 			c.config.Node.NodeResources.Merge(response.NodeResources)
 			nodeHasChanged = true
 		}
+
+		response.NodeResources.MinDynamicPort = c.config.MinDynamicPort
+		response.NodeResources.MaxDynamicPort = c.config.MaxDynamicPort
+		if c.config.Node.NodeResources.MinDynamicPort != response.NodeResources.MinDynamicPort ||
+			c.config.Node.NodeResources.MaxDynamicPort != response.NodeResources.MaxDynamicPort {
+			nodeHasChanged = true
+		}
+
 	}
 
 	if nodeHasChanged {
@@ -1587,7 +1678,7 @@ func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
 	}
 
 	// Determine how much time we have left to heartbeat
-	left := last.Add(ttl).Sub(time.Now())
+	left := time.Until(last.Add(ttl))
 
 	// Logic for retrying is:
 	// * Do not retry faster than once a second
@@ -1734,15 +1825,17 @@ func (c *Client) retryRegisterNode() {
 			return
 		}
 
+		retryIntv := registerRetryIntv
 		if err == noServersErr {
 			c.logger.Debug("registration waiting on servers")
 			c.triggerDiscovery()
+			retryIntv = noServerRetryIntv
 		} else {
 			c.logger.Error("error registering", "error", err)
 		}
 		select {
 		case <-c.rpcRetryWatcher():
-		case <-time.After(c.retryIntv(registerRetryIntv)):
+		case <-time.After(c.retryIntv(retryIntv)):
 		case <-c.shutdownCh:
 			return
 		}
@@ -1879,6 +1972,7 @@ func (c *Client) AllocStateUpdated(alloc *structs.Allocation) {
 	stripped.ClientStatus = alloc.ClientStatus
 	stripped.ClientDescription = alloc.ClientDescription
 	stripped.DeploymentStatus = alloc.DeploymentStatus
+	stripped.NetworkStatus = alloc.NetworkStatus
 
 	select {
 	case c.allocUpdates <- stripped:
@@ -1886,10 +1980,14 @@ func (c *Client) AllocStateUpdated(alloc *structs.Allocation) {
 	}
 }
 
+// PutAllocation stores an allocation or returns an error if it could not be stored.
+func (c *Client) PutAllocation(alloc *structs.Allocation) error {
+	return c.stateDB.PutAllocation(alloc)
+}
+
 // allocSync is a long lived function that batches allocation updates to the
 // server.
 func (c *Client) allocSync() {
-	staggered := false
 	syncTicker := time.NewTicker(allocSyncIntv)
 	updates := make(map[string]*structs.Allocation)
 	for {
@@ -1918,19 +2016,24 @@ func (c *Client) allocSync() {
 			}
 
 			var resp structs.GenericResponse
-			if err := c.RPC("Node.UpdateAlloc", &args, &resp); err != nil {
+			err := c.RPC("Node.UpdateAlloc", &args, &resp)
+			if err != nil {
+				// Error updating allocations, do *not* clear
+				// updates and retry after backoff
 				c.logger.Error("error updating allocations", "error", err)
 				syncTicker.Stop()
 				syncTicker = time.NewTicker(c.retryIntv(allocSyncRetryIntv))
-				staggered = true
-			} else {
-				updates = make(map[string]*structs.Allocation)
-				if staggered {
-					syncTicker.Stop()
-					syncTicker = time.NewTicker(allocSyncIntv)
-					staggered = false
-				}
+				continue
 			}
+
+			// Successfully updated allocs, reset map and ticker.
+			// Always reset ticker to give loop time to receive
+			// alloc updates. If the RPC took the ticker interval
+			// we may call it in a tight loop before draining
+			// buffered updates.
+			updates = make(map[string]*structs.Allocation, len(updates))
+			syncTicker.Stop()
+			syncTicker = time.NewTicker(allocSyncIntv)
 		}
 	}
 }
@@ -1959,8 +2062,15 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 		NodeID:   c.NodeID(),
 		SecretID: c.secretNodeID(),
 		QueryOptions: structs.QueryOptions{
-			Region:     c.Region(),
-			AllowStale: true,
+			Region: c.Region(),
+
+			// Make a consistent read query when the client starts
+			// to avoid acting on stale data that predates this
+			// client state before a client restart.
+			//
+			// After the first request, only require monotonically
+			// increasing state.
+			AllowStale: false,
 		},
 	}
 	var resp structs.NodeClientAllocsResponse
@@ -2110,7 +2220,8 @@ OUTER:
 		c.logger.Debug("updated allocations", "index", resp.Index,
 			"total", len(resp.Allocs), "pulled", len(allocsResp.Allocs), "filtered", len(filtered))
 
-		// Update the query index.
+		// After the first request, only require monotonically increasing state.
+		req.AllowStale = true
 		if resp.Index > req.MinQueryIndex {
 			req.MinQueryIndex = resp.Index
 		}
@@ -2196,7 +2307,6 @@ func (c *Client) runAllocs(update *allocUpdates) {
 
 	// Update the existing allocations
 	for _, update := range diff.updated {
-		c.logger.Trace("updating alloc", "alloc_id", update.ID, "index", update.AllocModifyIndex)
 		c.updateAlloc(update)
 	}
 
@@ -2317,6 +2427,15 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 		return
 	}
 
+	// Reconnect unknown allocations
+	if update.ClientStatus == structs.AllocClientStatusUnknown && update.AllocModifyIndex > ar.Alloc().AllocModifyIndex {
+		err = ar.Reconnect(update)
+		if err != nil {
+			c.logger.Error("error reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex, "err", err)
+		}
+		return
+	}
+
 	// Update local copy of alloc
 	if err := c.stateDB.PutAllocation(update); err != nil {
 		c.logger.Error("error persisting updated alloc locally", "error", err, "alloc_id", update.ID)
@@ -2375,6 +2494,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		ClientConfig:        c.configCopy,
 		StateDB:             c.stateDB,
 		Consul:              c.consulService,
+		ConsulProxies:       c.consulProxies,
 		ConsulSI:            c.tokensClient,
 		Vault:               c.vaultClient,
 		StateUpdater:        c,
@@ -2383,8 +2503,10 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		PrevAllocMigrator:   prevAllocMigrator,
 		DynamicRegistry:     c.dynamicRegistry,
 		CSIManager:          c.csimanager,
+		CpusetManager:       c.cpusetManager,
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
+		ServiceRegWrapper:   c.serviceRegWrapper,
 		RPCClient:           c,
 	}
 	c.configLock.RUnlock()
@@ -2432,6 +2554,20 @@ func (c *Client) setupVaultClient() error {
 	return nil
 }
 
+// setupNomadServiceRegistrationHandler sets up the registration handler to use
+// for native service discovery.
+func (c *Client) setupNomadServiceRegistrationHandler() {
+	cfg := nsd.ServiceRegistrationHandlerCfg{
+		Datacenter: c.Datacenter(),
+		Enabled:    c.config.NomadServiceDiscovery,
+		NodeID:     c.NodeID(),
+		NodeSecret: c.secretNodeID(),
+		Region:     c.Region(),
+		RPCFn:      c.RPC,
+	}
+	c.nomadService = nsd.NewServiceRegistrationHandler(c.logger, &cfg)
+}
+
 // deriveToken takes in an allocation and a set of tasks and derives vault
 // tokens for each of the tasks, unwraps all of them using the supplied vault
 // client and returns a map of unwrapped tokens, indexed by the task name.
@@ -2457,6 +2593,7 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 	}
 
 	// Derive the tokens
+	// namespace is handled via nomad/vault
 	var resp structs.DeriveVaultTokenResponse
 	if err := c.RPC("Node.DeriveVaultToken", &req, &resp); err != nil {
 		vlogger.Error("error making derive token RPC", "error", err)
@@ -2601,11 +2738,13 @@ func taskIsPresent(taskName string, tasks []*structs.Task) bool {
 
 // triggerDiscovery causes a Consul discovery to begin (if one hasn't already)
 func (c *Client) triggerDiscovery() {
-	select {
-	case c.triggerDiscoveryCh <- struct{}{}:
-		// Discovery goroutine was released to execute
-	default:
-		// Discovery goroutine was already running
+	if c.configCopy.ConsulConfig.ClientAutoJoin != nil && *c.configCopy.ConsulConfig.ClientAutoJoin {
+		select {
+		case c.triggerDiscoveryCh <- struct{}{}:
+			// Discovery goroutine was released to execute
+		default:
+			// Discovery goroutine was already running
+		}
 	}
 }
 
@@ -2682,7 +2821,7 @@ DISCOLOOP:
 				continue
 			}
 			var peers []string
-			if err := c.connPool.RPC(region, addr, c.RPCMajorVersion(), "Status.Peers", rpcargs, &peers); err != nil {
+			if err := c.connPool.RPC(region, addr, "Status.Peers", rpcargs, &peers); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}
@@ -2752,11 +2891,9 @@ func (c *Client) emitStats() {
 			next.Reset(c.config.StatsCollectionInterval)
 			if err != nil {
 				c.logger.Warn("error fetching host resource usage stats", "error", err)
-			} else {
+			} else if c.config.PublishNodeMetrics {
 				// Publish Node metrics if operator has opted in
-				if c.config.PublishNodeMetrics {
-					c.emitHostStats()
-				}
+				c.emitHostStats()
 			}
 
 			c.emitClientMetrics()
@@ -2768,73 +2905,53 @@ func (c *Client) emitStats() {
 
 // setGaugeForMemoryStats proxies metrics for memory specific statistics
 func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *stats.HostStats, baseLabels []metrics.Label) {
-	if !c.config.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "total"}, float32(hStats.Memory.Total), baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "available"}, float32(hStats.Memory.Available), baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "used"}, float32(hStats.Memory.Used), baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "free"}, float32(hStats.Memory.Free), baseLabels)
-	}
-
-	if c.config.BackwardsCompatibleMetrics {
-		metrics.SetGauge([]string{"client", "host", "memory", nodeID, "total"}, float32(hStats.Memory.Total))
-		metrics.SetGauge([]string{"client", "host", "memory", nodeID, "available"}, float32(hStats.Memory.Available))
-		metrics.SetGauge([]string{"client", "host", "memory", nodeID, "used"}, float32(hStats.Memory.Used))
-		metrics.SetGauge([]string{"client", "host", "memory", nodeID, "free"}, float32(hStats.Memory.Free))
-	}
+	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "total"}, float32(hStats.Memory.Total), baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "available"}, float32(hStats.Memory.Available), baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "used"}, float32(hStats.Memory.Used), baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "free"}, float32(hStats.Memory.Free), baseLabels)
 }
 
 // setGaugeForCPUStats proxies metrics for CPU specific statistics
 func (c *Client) setGaugeForCPUStats(nodeID string, hStats *stats.HostStats, baseLabels []metrics.Label) {
+
+	labels := make([]metrics.Label, len(baseLabels))
+	copy(labels, baseLabels)
+
 	for _, cpu := range hStats.CPU {
-		if !c.config.DisableTaggedMetrics {
-			labels := append(baseLabels, metrics.Label{
-				Name:  "cpu",
-				Value: cpu.CPU,
-			})
+		labels := append(labels, metrics.Label{
+			Name:  "cpu",
+			Value: cpu.CPU,
+		})
 
-			metrics.SetGaugeWithLabels([]string{"client", "host", "cpu", "total"}, float32(cpu.Total), labels)
-			metrics.SetGaugeWithLabels([]string{"client", "host", "cpu", "user"}, float32(cpu.User), labels)
-			metrics.SetGaugeWithLabels([]string{"client", "host", "cpu", "idle"}, float32(cpu.Idle), labels)
-			metrics.SetGaugeWithLabels([]string{"client", "host", "cpu", "system"}, float32(cpu.System), labels)
-		}
-
-		if c.config.BackwardsCompatibleMetrics {
-			metrics.SetGauge([]string{"client", "host", "cpu", nodeID, cpu.CPU, "total"}, float32(cpu.Total))
-			metrics.SetGauge([]string{"client", "host", "cpu", nodeID, cpu.CPU, "user"}, float32(cpu.User))
-			metrics.SetGauge([]string{"client", "host", "cpu", nodeID, cpu.CPU, "idle"}, float32(cpu.Idle))
-			metrics.SetGauge([]string{"client", "host", "cpu", nodeID, cpu.CPU, "system"}, float32(cpu.System))
-		}
+		metrics.SetGaugeWithLabels([]string{"client", "host", "cpu", "total"}, float32(cpu.Total), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "cpu", "user"}, float32(cpu.User), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "cpu", "idle"}, float32(cpu.Idle), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "cpu", "system"}, float32(cpu.System), labels)
 	}
 }
 
 // setGaugeForDiskStats proxies metrics for disk specific statistics
 func (c *Client) setGaugeForDiskStats(nodeID string, hStats *stats.HostStats, baseLabels []metrics.Label) {
+
+	labels := make([]metrics.Label, len(baseLabels))
+	copy(labels, baseLabels)
+
 	for _, disk := range hStats.DiskStats {
-		if !c.config.DisableTaggedMetrics {
-			labels := append(baseLabels, metrics.Label{
-				Name:  "disk",
-				Value: disk.Device,
-			})
+		labels := append(labels, metrics.Label{
+			Name:  "disk",
+			Value: disk.Device,
+		})
 
-			metrics.SetGaugeWithLabels([]string{"client", "host", "disk", "size"}, float32(disk.Size), labels)
-			metrics.SetGaugeWithLabels([]string{"client", "host", "disk", "used"}, float32(disk.Used), labels)
-			metrics.SetGaugeWithLabels([]string{"client", "host", "disk", "available"}, float32(disk.Available), labels)
-			metrics.SetGaugeWithLabels([]string{"client", "host", "disk", "used_percent"}, float32(disk.UsedPercent), labels)
-			metrics.SetGaugeWithLabels([]string{"client", "host", "disk", "inodes_percent"}, float32(disk.InodesUsedPercent), labels)
-		}
-
-		if c.config.BackwardsCompatibleMetrics {
-			metrics.SetGauge([]string{"client", "host", "disk", nodeID, disk.Device, "size"}, float32(disk.Size))
-			metrics.SetGauge([]string{"client", "host", "disk", nodeID, disk.Device, "used"}, float32(disk.Used))
-			metrics.SetGauge([]string{"client", "host", "disk", nodeID, disk.Device, "available"}, float32(disk.Available))
-			metrics.SetGauge([]string{"client", "host", "disk", nodeID, disk.Device, "used_percent"}, float32(disk.UsedPercent))
-			metrics.SetGauge([]string{"client", "host", "disk", nodeID, disk.Device, "inodes_percent"}, float32(disk.InodesUsedPercent))
-		}
+		metrics.SetGaugeWithLabels([]string{"client", "host", "disk", "size"}, float32(disk.Size), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "disk", "used"}, float32(disk.Used), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "disk", "available"}, float32(disk.Available), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "disk", "used_percent"}, float32(disk.UsedPercent), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "disk", "inodes_percent"}, float32(disk.InodesUsedPercent), labels)
 	}
 }
 
 // setGaugeForAllocationStats proxies metrics for allocation specific statistics
-func (c *Client) setGaugeForAllocationStats(nodeID string) {
+func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.Label) {
 	c.configLock.RLock()
 	node := c.configCopy.Node
 	c.configLock.RUnlock()
@@ -2843,30 +2960,17 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 	allocated := c.getAllocatedResources(node)
 
 	// Emit allocated
-	if !c.config.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"client", "allocated", "memory"}, float32(allocated.Flattened.Memory.MemoryMB), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocated", "disk"}, float32(allocated.Shared.DiskMB), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocated", "cpu"}, float32(allocated.Flattened.Cpu.CpuShares), c.baseLabels)
-	}
-
-	if c.config.BackwardsCompatibleMetrics {
-		metrics.SetGauge([]string{"client", "allocated", "memory", nodeID}, float32(allocated.Flattened.Memory.MemoryMB))
-		metrics.SetGauge([]string{"client", "allocated", "disk", nodeID}, float32(allocated.Shared.DiskMB))
-		metrics.SetGauge([]string{"client", "allocated", "cpu", nodeID}, float32(allocated.Flattened.Cpu.CpuShares))
-	}
+	metrics.SetGaugeWithLabels([]string{"client", "allocated", "memory"}, float32(allocated.Flattened.Memory.MemoryMB), baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocated", "max_memory"}, float32(allocated.Flattened.Memory.MemoryMaxMB), baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocated", "disk"}, float32(allocated.Shared.DiskMB), baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocated", "cpu"}, float32(allocated.Flattened.Cpu.CpuShares), baseLabels)
 
 	for _, n := range allocated.Flattened.Networks {
-		if !c.config.DisableTaggedMetrics {
-			labels := append(c.baseLabels, metrics.Label{
-				Name:  "device",
-				Value: n.Device,
-			})
-			metrics.SetGaugeWithLabels([]string{"client", "allocated", "network"}, float32(n.MBits), labels)
-		}
-
-		if c.config.BackwardsCompatibleMetrics {
-			metrics.SetGauge([]string{"client", "allocated", "network", n.Device, nodeID}, float32(n.MBits))
-		}
+		labels := append(baseLabels, metrics.Label{ //nolint:gocritic
+			Name:  "device",
+			Value: n.Device,
+		})
+		metrics.SetGaugeWithLabels([]string{"client", "allocated", "network"}, float32(n.MBits), labels)
 	}
 
 	// Emit unallocated
@@ -2874,17 +2978,9 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 	unallocatedDisk := total.Disk.DiskMB - res.Disk.DiskMB - allocated.Shared.DiskMB
 	unallocatedCpu := total.Cpu.CpuShares - res.Cpu.CpuShares - allocated.Flattened.Cpu.CpuShares
 
-	if !c.config.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "memory"}, float32(unallocatedMem), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "disk"}, float32(unallocatedDisk), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "cpu"}, float32(unallocatedCpu), c.baseLabels)
-	}
-
-	if c.config.BackwardsCompatibleMetrics {
-		metrics.SetGauge([]string{"client", "unallocated", "memory", nodeID}, float32(unallocatedMem))
-		metrics.SetGauge([]string{"client", "unallocated", "disk", nodeID}, float32(unallocatedDisk))
-		metrics.SetGauge([]string{"client", "unallocated", "cpu", nodeID}, float32(unallocatedCpu))
-	}
+	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "memory"}, float32(unallocatedMem), baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "disk"}, float32(unallocatedDisk), baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "cpu"}, float32(unallocatedCpu), baseLabels)
 
 	totalComparable := total.Comparable()
 	for _, n := range totalComparable.Flattened.Networks {
@@ -2896,44 +2992,24 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 		}
 
 		unallocatedMbits := n.MBits - usedMbits
-		if !c.config.DisableTaggedMetrics {
-			labels := append(c.baseLabels, metrics.Label{
-				Name:  "device",
-				Value: n.Device,
-			})
-			metrics.SetGaugeWithLabels([]string{"client", "unallocated", "network"}, float32(unallocatedMbits), labels)
-		}
-
-		if c.config.BackwardsCompatibleMetrics {
-			metrics.SetGauge([]string{"client", "unallocated", "network", n.Device, nodeID}, float32(unallocatedMbits))
-		}
+		labels := append(baseLabels, metrics.Label{ //nolint:gocritic
+			Name:  "device",
+			Value: n.Device,
+		})
+		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "network"}, float32(unallocatedMbits), labels)
 	}
 }
 
 // No labels are required so we emit with only a key/value syntax
 func (c *Client) setGaugeForUptime(hStats *stats.HostStats, baseLabels []metrics.Label) {
-	if !c.config.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"client", "uptime"}, float32(hStats.Uptime), baseLabels)
-	}
-	if c.config.BackwardsCompatibleMetrics {
-		metrics.SetGauge([]string{"client", "uptime"}, float32(hStats.Uptime))
-	}
+	metrics.SetGaugeWithLabels([]string{"client", "uptime"}, float32(hStats.Uptime), baseLabels)
 }
 
 // emitHostStats pushes host resource usage stats to remote metrics collection sinks
 func (c *Client) emitHostStats() {
 	nodeID := c.NodeID()
 	hStats := c.hostStatsCollector.Stats()
-
-	c.configLock.RLock()
-	nodeStatus := c.configCopy.Node.Status
-	nodeEligibility := c.configCopy.Node.SchedulingEligibility
-	c.configLock.RUnlock()
-
-	labels := append(c.baseLabels,
-		metrics.Label{Name: "node_status", Value: nodeStatus},
-		metrics.Label{Name: "node_scheduling_eligibility", Value: nodeEligibility},
-	)
+	labels := c.labels()
 
 	c.setGaugeForMemoryStats(nodeID, hStats, labels)
 	c.setGaugeForUptime(hStats, labels)
@@ -2944,8 +3020,9 @@ func (c *Client) emitHostStats() {
 // emitClientMetrics emits lower volume client metrics
 func (c *Client) emitClientMetrics() {
 	nodeID := c.NodeID()
+	labels := c.labels()
 
-	c.setGaugeForAllocationStats(nodeID)
+	c.setGaugeForAllocationStats(nodeID, labels)
 
 	// Emit allocation metrics
 	blocked, migrating, pending, running, terminal := 0, 0, 0, 0, 0
@@ -2967,21 +3044,24 @@ func (c *Client) emitClientMetrics() {
 		}
 	}
 
-	if !c.config.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "migrating"}, float32(migrating), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "blocked"}, float32(blocked), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "pending"}, float32(pending), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "running"}, float32(running), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "terminal"}, float32(terminal), c.baseLabels)
-	}
+	metrics.SetGaugeWithLabels([]string{"client", "allocations", "migrating"}, float32(migrating), labels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocations", "blocked"}, float32(blocked), labels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocations", "pending"}, float32(pending), labels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocations", "running"}, float32(running), labels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocations", "terminal"}, float32(terminal), labels)
+}
 
-	if c.config.BackwardsCompatibleMetrics {
-		metrics.SetGauge([]string{"client", "allocations", "migrating", nodeID}, float32(migrating))
-		metrics.SetGauge([]string{"client", "allocations", "blocked", nodeID}, float32(blocked))
-		metrics.SetGauge([]string{"client", "allocations", "pending", nodeID}, float32(pending))
-		metrics.SetGauge([]string{"client", "allocations", "running", nodeID}, float32(running))
-		metrics.SetGauge([]string{"client", "allocations", "terminal", nodeID}, float32(terminal))
-	}
+// labels takes the base labels and appends the node state
+func (c *Client) labels() []metrics.Label {
+	c.configLock.RLock()
+	nodeStatus := c.configCopy.Node.Status
+	nodeEligibility := c.configCopy.Node.SchedulingEligibility
+	c.configLock.RUnlock()
+
+	return append(c.baseLabels,
+		metrics.Label{Name: "node_status", Value: nodeStatus},
+		metrics.Label{Name: "node_scheduling_eligibility", Value: nodeEligibility},
+	)
 }
 
 func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.ComparableResources {
@@ -3073,8 +3153,8 @@ func (g *group) Go(f func()) {
 	}()
 }
 
-func (c *group) AddCh(ch <-chan struct{}) {
-	c.Go(func() {
+func (g *group) AddCh(ch <-chan struct{}) {
+	g.Go(func() {
 		<-ch
 	})
 }

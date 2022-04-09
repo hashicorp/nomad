@@ -3,7 +3,9 @@ package allocrunner
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -27,9 +29,22 @@ func (m *mockNetworkIsolationSetter) SetNetworkIsolation(spec *drivers.NetworkIs
 	require.Exactly(m.t, m.expectedSpec, spec)
 }
 
+type mockNetworkStatusSetter struct {
+	t              *testing.T
+	expectedStatus *structs.AllocNetworkStatus
+	called         bool
+}
+
+func (m *mockNetworkStatusSetter) SetNetworkStatus(status *structs.AllocNetworkStatus) {
+	m.called = true
+	require.Exactly(m.t, m.expectedStatus, status)
+}
+
 // Test that the prerun and postrun hooks call the setter with the expected spec when
 // the network mode is not host
 func TestNetworkHook_Prerun_Postrun(t *testing.T) {
+	ci.Parallel(t)
+
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{
 		{
@@ -45,7 +60,7 @@ func TestNetworkHook_Prerun_Postrun(t *testing.T) {
 	destroyCalled := false
 	nm := &testutils.MockDriver{
 		MockNetworkManager: testutils.MockNetworkManager{
-			CreateNetworkF: func(allocID string) (*drivers.NetworkIsolationSpec, bool, error) {
+			CreateNetworkF: func(allocID string, req *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
 				require.Equal(t, alloc.ID, allocID)
 				return spec, false, nil
 			},
@@ -62,10 +77,16 @@ func TestNetworkHook_Prerun_Postrun(t *testing.T) {
 		t:            t,
 		expectedSpec: spec,
 	}
+	statusSetter := &mockNetworkStatusSetter{
+		t:              t,
+		expectedStatus: nil,
+	}
 	require := require.New(t)
 
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
 	logger := testlog.HCLogger(t)
-	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{})
+	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder.Build())
 	require.NoError(hook.Prerun())
 	require.True(setter.called)
 	require.False(destroyCalled)
@@ -76,11 +97,10 @@ func TestNetworkHook_Prerun_Postrun(t *testing.T) {
 	setter.called = false
 	destroyCalled = false
 	alloc.Job.TaskGroups[0].Networks[0].Mode = "host"
-	hook = newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{})
+	hook = newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder.Build())
 	require.NoError(hook.Prerun())
 	require.False(setter.called)
 	require.False(destroyCalled)
 	require.NoError(hook.Postrun())
 	require.False(destroyCalled)
-
 }

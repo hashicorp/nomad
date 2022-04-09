@@ -10,7 +10,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -26,7 +26,7 @@ const defaultShutdownWait = time.Minute
 type scriptCheckHookConfig struct {
 	alloc        *structs.Allocation
 	task         *structs.Task
-	consul       consul.ConsulServiceAPI
+	consul       serviceregistration.Handler
 	logger       log.Logger
 	shutdownWait time.Duration
 }
@@ -34,12 +34,13 @@ type scriptCheckHookConfig struct {
 // scriptCheckHook implements a task runner hook for running script
 // checks in the context of a task
 type scriptCheckHook struct {
-	consul       consul.ConsulServiceAPI
-	alloc        *structs.Allocation
-	task         *structs.Task
-	logger       log.Logger
-	shutdownWait time.Duration // max time to wait for scripts to shutdown
-	shutdownCh   chan struct{} // closed when all scripts should shutdown
+	consul          serviceregistration.Handler
+	consulNamespace string
+	alloc           *structs.Allocation
+	task            *structs.Task
+	logger          log.Logger
+	shutdownWait    time.Duration // max time to wait for scripts to shutdown
+	shutdownCh      chan struct{} // closed when all scripts should shutdown
 
 	// The following fields can be changed by Update()
 	driverExec tinterfaces.ScriptExecutor
@@ -59,13 +60,14 @@ type scriptCheckHook struct {
 // in Poststart() or Update()
 func newScriptCheckHook(c scriptCheckHookConfig) *scriptCheckHook {
 	h := &scriptCheckHook{
-		consul:         c.consul,
-		alloc:          c.alloc,
-		task:           c.task,
-		scripts:        make(map[string]*scriptCheck),
-		runningScripts: make(map[string]*taskletHandle),
-		shutdownWait:   defaultShutdownWait,
-		shutdownCh:     make(chan struct{}),
+		consul:          c.consul,
+		consulNamespace: c.alloc.Job.LookupTaskGroup(c.alloc.TaskGroup).Consul.GetNamespace(),
+		alloc:           c.alloc,
+		task:            c.task,
+		scripts:         make(map[string]*scriptCheck),
+		runningScripts:  make(map[string]*taskletHandle),
+		shutdownWait:    defaultShutdownWait,
+		shutdownCh:      make(chan struct{}),
 	}
 
 	if c.shutdownWait != 0 {
@@ -180,18 +182,19 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 			if check.Type != structs.ServiceCheckScript {
 				continue
 			}
-			serviceID := agentconsul.MakeAllocServiceID(
+			serviceID := serviceregistration.MakeAllocServiceID(
 				h.alloc.ID, h.task.Name, service)
 			sc := newScriptCheck(&scriptCheckConfig{
-				allocID:    h.alloc.ID,
-				taskName:   h.task.Name,
-				check:      check,
-				serviceID:  serviceID,
-				agent:      h.consul,
-				driverExec: h.driverExec,
-				taskEnv:    h.taskEnv,
-				logger:     h.logger,
-				shutdownCh: h.shutdownCh,
+				consulNamespace: h.consulNamespace,
+				allocID:         h.alloc.ID,
+				taskName:        h.task.Name,
+				check:           check,
+				serviceID:       serviceID,
+				ttlUpdater:      h.consul,
+				driverExec:      h.driverExec,
+				taskEnv:         h.taskEnv,
+				logger:          h.logger,
+				shutdownCh:      h.shutdownCh,
 			})
 			if sc != nil {
 				scriptChecks[sc.id] = sc
@@ -204,6 +207,10 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 	// for them. The group-level service and any check restart behaviors it
 	// needs are entirely encapsulated within the group service hook which
 	// watches Consul for status changes.
+	//
+	// The script check is associated with a group task if the service.task or
+	// service.check.task matches the task name. The service.check.task takes
+	// precedence.
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
 	interpolatedGroupServices := taskenv.InterpolateServices(h.taskEnv, tg.Services)
 	for _, service := range interpolatedGroupServices {
@@ -211,23 +218,24 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 			if check.Type != structs.ServiceCheckScript {
 				continue
 			}
-			if check.TaskName != h.task.Name {
+			if !h.associated(h.task.Name, service.TaskName, check.TaskName) {
 				continue
 			}
 			groupTaskName := "group-" + tg.Name
-			serviceID := agentconsul.MakeAllocServiceID(
+			serviceID := serviceregistration.MakeAllocServiceID(
 				h.alloc.ID, groupTaskName, service)
 			sc := newScriptCheck(&scriptCheckConfig{
-				allocID:    h.alloc.ID,
-				taskName:   groupTaskName,
-				check:      check,
-				serviceID:  serviceID,
-				agent:      h.consul,
-				driverExec: h.driverExec,
-				taskEnv:    h.taskEnv,
-				logger:     h.logger,
-				shutdownCh: h.shutdownCh,
-				isGroup:    true,
+				consulNamespace: h.consulNamespace,
+				allocID:         h.alloc.ID,
+				taskName:        groupTaskName,
+				check:           check,
+				serviceID:       serviceID,
+				ttlUpdater:      h.consul,
+				driverExec:      h.driverExec,
+				taskEnv:         h.taskEnv,
+				logger:          h.logger,
+				shutdownCh:      h.shutdownCh,
+				isGroup:         true,
 			})
 			if sc != nil {
 				scriptChecks[sc.id] = sc
@@ -237,34 +245,50 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 	return scriptChecks
 }
 
-// heartbeater is the subset of consul agent functionality needed by script
+// associated returns true if the script check is associated with the task. This
+// would be the case if the check.task is the same as task, or if the service.task
+// is the same as the task _and_ check.task is not configured (i.e. the check
+// inherits the task of the service).
+func (*scriptCheckHook) associated(task, serviceTask, checkTask string) bool {
+	if checkTask == task {
+		return true
+	}
+	if serviceTask == task && checkTask == "" {
+		return true
+	}
+	return false
+}
+
+// TTLUpdater is the subset of consul agent functionality needed by script
 // checks to heartbeat
-type heartbeater interface {
-	UpdateTTL(id, output, status string) error
+type TTLUpdater interface {
+	UpdateTTL(id, namespace, output, status string) error
 }
 
 // scriptCheck runs script checks via a interfaces.ScriptExecutor and updates the
 // appropriate check's TTL when the script succeeds.
 type scriptCheck struct {
-	id          string
-	agent       heartbeater
-	check       *structs.ServiceCheck
-	lastCheckOk bool // true if the last check was ok; otherwise false
+	id              string
+	consulNamespace string
+	ttlUpdater      TTLUpdater
+	check           *structs.ServiceCheck
+	lastCheckOk     bool // true if the last check was ok; otherwise false
 	tasklet
 }
 
 // scriptCheckConfig is a parameter struct for newScriptCheck
 type scriptCheckConfig struct {
-	allocID    string
-	taskName   string
-	serviceID  string
-	check      *structs.ServiceCheck
-	agent      heartbeater
-	driverExec tinterfaces.ScriptExecutor
-	taskEnv    *taskenv.TaskEnv
-	logger     log.Logger
-	shutdownCh chan struct{}
-	isGroup    bool
+	allocID         string
+	taskName        string
+	serviceID       string
+	consulNamespace string
+	check           *structs.ServiceCheck
+	ttlUpdater      TTLUpdater
+	driverExec      tinterfaces.ScriptExecutor
+	taskEnv         *taskenv.TaskEnv
+	logger          log.Logger
+	shutdownCh      chan struct{}
+	isGroup         bool
 }
 
 // newScriptCheck constructs a scriptCheck. we're only going to
@@ -281,7 +305,7 @@ func newScriptCheck(config *scriptCheckConfig) *scriptCheck {
 
 	orig := config.check
 	sc := &scriptCheck{
-		agent:       config.agent,
+		ttlUpdater:  config.ttlUpdater,
 		check:       config.check.Copy(),
 		lastCheckOk: true, // start logging on first failure
 	}
@@ -307,6 +331,7 @@ func newScriptCheck(config *scriptCheckConfig) *scriptCheck {
 	} else {
 		sc.id = agentconsul.MakeCheckID(config.serviceID, sc.check)
 	}
+	sc.consulNamespace = config.consulNamespace
 	return sc
 }
 
@@ -371,12 +396,12 @@ const (
 	updateTTLBackoffLimit    = 3 * time.Second
 )
 
-// updateTTL updates the state to Consul, performing an expontential backoff
+// updateTTL updates the state to Consul, performing an exponential backoff
 // in the case where the check isn't registered in Consul to avoid a race between
 // service registration and the first check.
-func (s *scriptCheck) updateTTL(ctx context.Context, msg, state string) error {
+func (sc *scriptCheck) updateTTL(ctx context.Context, msg, state string) error {
 	for attempts := 0; ; attempts++ {
-		err := s.agent.UpdateTTL(s.id, msg, state)
+		err := sc.ttlUpdater.UpdateTTL(sc.id, sc.consulNamespace, msg, state)
 		if err == nil {
 			return nil
 		}

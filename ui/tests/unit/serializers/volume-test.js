@@ -2,9 +2,9 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import VolumeModel from 'nomad-ui/models/volume';
 
-module('Unit | Serializer | Volume', function(hooks) {
+module('Unit | Serializer | Volume', function (hooks) {
   setupTest(hooks);
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.serializerFor('volume');
   });
@@ -16,8 +16,7 @@ module('Unit | Serializer | Volume', function(hooks) {
 
   const normalizationTestCases = [
     {
-      name:
-        '`default` is used as the namespace in the volume ID when there is no namespace in the payload',
+      name: '`default` is used as the namespace in the volume ID when there is no namespace in the payload',
       in: {
         ID: 'volume-id',
         Name: 'volume-id',
@@ -152,8 +151,7 @@ module('Unit | Serializer | Volume', function(hooks) {
     },
 
     {
-      name:
-        'Allocations are interpreted as embedded records and are properly normalized into included resources in a JSON API shape',
+      name: 'Allocations are interpreted as embedded records and are properly normalized into included resources in a JSON API shape',
       in: {
         ID: 'volume-id',
         Name: 'volume-id',
@@ -173,30 +171,38 @@ module('Unit | Serializer | Volume', function(hooks) {
         NodesExpected: 2,
         CreateIndex: 1,
         ModifyIndex: 38,
-        WriteAllocs: {
-          'alloc-id-1': {
+        Allocations: [
+          {
+            ID: 'alloc-id-1',
             TaskGroup: 'foobar',
             CreateTime: +REF_DATE * 1000000,
             ModifyTime: +REF_DATE * 1000000,
             JobID: 'the-job',
             Namespace: 'namespace-2',
           },
-          'alloc-id-2': {
+          {
+            ID: 'alloc-id-2',
             TaskGroup: 'write-here',
             CreateTime: +REF_DATE * 1000000,
             ModifyTime: +REF_DATE * 1000000,
             JobID: 'the-job',
             Namespace: 'namespace-2',
           },
-        },
-        ReadAllocs: {
-          'alloc-id-3': {
+          {
+            ID: 'alloc-id-3',
             TaskGroup: 'look-if-you-must',
             CreateTime: +REF_DATE * 1000000,
             ModifyTime: +REF_DATE * 1000000,
             JobID: 'the-job',
             Namespace: 'namespace-2',
           },
+        ],
+        WriteAllocs: {
+          'alloc-id-1': null,
+          'alloc-id-2': null,
+        },
+        ReadAllocs: {
+          'alloc-id-3': null,
         },
       },
       out: {
@@ -252,6 +258,7 @@ module('Unit | Serializer | Volume', function(hooks) {
             attributes: {
               createTime: REF_DATE,
               modifyTime: REF_DATE,
+              namespace: 'namespace-2',
               taskGroupName: 'foobar',
               wasPreempted: false,
               states: [],
@@ -284,6 +291,7 @@ module('Unit | Serializer | Volume', function(hooks) {
             attributes: {
               createTime: REF_DATE,
               modifyTime: REF_DATE,
+              namespace: 'namespace-2',
               taskGroupName: 'write-here',
               wasPreempted: false,
               states: [],
@@ -316,6 +324,7 @@ module('Unit | Serializer | Volume', function(hooks) {
             attributes: {
               createTime: REF_DATE,
               modifyTime: REF_DATE,
+              namespace: 'namespace-2',
               taskGroupName: 'look-if-you-must',
               wasPreempted: false,
               states: [],
@@ -347,9 +356,12 @@ module('Unit | Serializer | Volume', function(hooks) {
     },
   ];
 
-  normalizationTestCases.forEach(testCase => {
-    test(`normalization: ${testCase.name}`, async function(assert) {
-      assert.deepEqual(this.subject().normalize(VolumeModel, testCase.in), testCase.out);
+  normalizationTestCases.forEach((testCase) => {
+    test(`normalization: ${testCase.name}`, async function (assert) {
+      assert.deepEqual(
+        this.subject().normalize(VolumeModel, testCase.in),
+        testCase.out
+      );
     });
   });
 });

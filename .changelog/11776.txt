@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where volume claim releases that were not fully processed before a leadership transition would be ignored
+```

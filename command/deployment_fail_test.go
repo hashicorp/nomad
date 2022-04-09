@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -11,13 +12,13 @@ import (
 )
 
 func TestDeploymentFailCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &DeploymentFailCommand{}
 }
 
 func TestDeploymentFailCommand_Fails(t *testing.T) {
-	t.Parallel()
-	ui := new(cli.MockUi)
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
 	cmd := &DeploymentFailCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -39,13 +40,13 @@ func TestDeploymentFailCommand_Fails(t *testing.T) {
 }
 
 func TestDeploymentFailCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &DeploymentFailCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake deployment

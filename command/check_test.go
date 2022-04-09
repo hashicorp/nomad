@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 )
 
 func TestAgentCheckCommand_ServerHealth(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AgentCheckCommand{Meta: Meta{Ui: ui}}
 	address := fmt.Sprintf("-address=%s", url)
 
@@ -26,5 +27,4 @@ func TestAgentCheckCommand_ServerHealth(t *testing.T) {
 	if code != HealthCritical {
 		t.Fatalf("expected exitcode: %v, actual: %v", HealthCritical, code)
 	}
-
 }

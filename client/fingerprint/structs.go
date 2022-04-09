@@ -30,7 +30,7 @@ type FingerprintResponse struct {
 func (f *FingerprintResponse) AddAttribute(name, value string) {
 	// initialize Attributes if it has not been already
 	if f.Attributes == nil {
-		f.Attributes = make(map[string]string, 0)
+		f.Attributes = make(map[string]string)
 	}
 
 	f.Attributes[name] = value
@@ -41,7 +41,7 @@ func (f *FingerprintResponse) AddAttribute(name, value string) {
 func (f *FingerprintResponse) RemoveAttribute(name string) {
 	// initialize Attributes if it has not been already
 	if f.Attributes == nil {
-		f.Attributes = make(map[string]string, 0)
+		f.Attributes = make(map[string]string)
 	}
 
 	f.Attributes[name] = ""
@@ -51,7 +51,7 @@ func (f *FingerprintResponse) RemoveAttribute(name string) {
 func (f *FingerprintResponse) AddLink(name, value string) {
 	// initialize Links if it has not been already
 	if f.Links == nil {
-		f.Links = make(map[string]string, 0)
+		f.Links = make(map[string]string)
 	}
 
 	f.Links[name] = value
@@ -62,7 +62,7 @@ func (f *FingerprintResponse) AddLink(name, value string) {
 func (f *FingerprintResponse) RemoveLink(name string) {
 	// initialize Links if it has not been already
 	if f.Links == nil {
-		f.Links = make(map[string]string, 0)
+		f.Links = make(map[string]string)
 	}
 
 	f.Links[name] = ""

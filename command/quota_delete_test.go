@@ -1,3 +1,4 @@
+//go:build ent
 // +build ent
 
 package command
@@ -7,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -14,13 +16,13 @@ import (
 )
 
 func TestQuotaDeleteCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &QuotaDeleteCommand{}
 }
 
 func TestQuotaDeleteCommand_Fails(t *testing.T) {
-	t.Parallel()
-	ui := new(cli.MockUi)
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
 	cmd := &QuotaDeleteCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -42,13 +44,13 @@ func TestQuotaDeleteCommand_Fails(t *testing.T) {
 }
 
 func TestQuotaDeleteCommand_Good(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &QuotaDeleteCommand{Meta: Meta{Ui: ui}}
 
 	// Create a quota to delete
@@ -67,13 +69,13 @@ func TestQuotaDeleteCommand_Good(t *testing.T) {
 }
 
 func TestQuotaDeleteCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &QuotaDeleteCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a quota

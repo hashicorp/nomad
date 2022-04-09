@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -12,8 +13,9 @@ import (
 )
 
 func TestACLTokenUpdateCommand(t *testing.T) {
+	ci.Parallel(t)
+
 	assert := assert.New(t)
-	t.Parallel()
 	config := func(c *agent.Config) {
 		c.ACL.Enabled = true
 	}
@@ -25,7 +27,7 @@ func TestACLTokenUpdateCommand(t *testing.T) {
 	token := srv.RootToken
 	assert.NotNil(token, "failed to bootstrap ACL token")
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLTokenUpdateCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 	state := srv.Agent.Server().State()
 
@@ -33,7 +35,7 @@ func TestACLTokenUpdateCommand(t *testing.T) {
 	mockToken := mock.ACLToken()
 	mockToken.Policies = []string{acl.PolicyWrite}
 	mockToken.SetHash()
-	assert.Nil(state.UpsertACLTokens(1000, []*structs.ACLToken{mockToken}))
+	assert.Nil(state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{mockToken}))
 
 	// Request to update a new token without providing a valid management token
 	invalidToken := mock.ACLToken()

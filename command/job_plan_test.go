@@ -1,7 +1,6 @@
 package command
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -9,25 +8,26 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPlanCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &JobRunCommand{}
 }
 
 func TestPlanCommand_Fails(t *testing.T) {
-	t.Parallel()
-	ui := new(cli.MockUi)
-	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
+	ci.Parallel(t)
 
 	// Create a server
 	s := testutil.NewTestServer(t, nil)
 	defer s.Stop()
-	os.Setenv("NOMAD_ADDR", fmt.Sprintf("http://%s", s.HTTPAddr))
+
+	ui := cli.NewMockUi()
+	cmd := &JobPlanCommand{Meta: Meta{Ui: ui, flagAddress: "http://" + s.HTTPAddr}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 255 {
@@ -95,7 +95,7 @@ job "job1" {
 		count = 1
 		task "task1" {
 			driver = "exec"
-			resources = {
+			resources {
 				cpu = 1000
 				memory = 512
 			}
@@ -114,13 +114,13 @@ job "job1" {
 }
 
 func TestPlanCommand_From_STDIN(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobPlanCommand{
 		Meta:      Meta{Ui: ui},
 		JobGetter: JobGetter{testStdin: stdinR},
@@ -135,7 +135,7 @@ job "job1" {
                 count = 1
                 task "task1" {
                         driver = "exec"
-                        resources = {
+                        resources {
                                 cpu = 1000
                                 memory = 512
                         }
@@ -157,8 +157,8 @@ job "job1" {
 }
 
 func TestPlanCommand_From_URL(t *testing.T) {
-	t.Parallel()
-	ui := new(cli.MockUi)
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
 	cmd := &JobPlanCommand{
 		Meta: Meta{Ui: ui},
 	}
@@ -174,8 +174,8 @@ func TestPlanCommand_From_URL(t *testing.T) {
 }
 
 func TestPlanCommad_Preemptions(t *testing.T) {
-	t.Parallel()
-	ui := new(cli.MockUi)
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
 	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
 	require := require.New(t)
 

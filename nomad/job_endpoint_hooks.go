@@ -23,6 +23,17 @@ var (
 		RTarget: ">= 0.6.1",
 		Operand: structs.ConstraintSemver,
 	}
+
+	// nativeServiceDiscoveryConstraint is the constraint injected into task
+	// groups that utilise Nomad's native service discovery feature. This is
+	// needed, as operators can disable the client functionality, and therefore
+	// we need to ensure task groups are placed where they can run
+	// successfully.
+	nativeServiceDiscoveryConstraint = &structs.Constraint{
+		LTarget: "${attr.nomad.service_discovery}",
+		RTarget: "true",
+		Operand: "=",
+	}
 )
 
 type admissionController interface {
@@ -40,6 +51,8 @@ type jobValidator interface {
 }
 
 func (j *Job) admissionControllers(job *structs.Job) (out *structs.Job, warnings []error, err error) {
+	// Mutators run first before validators, so validators view the final rendered job.
+	// So, mutators must handle invalid jobs.
 	out, warnings, err = j.admissionMutators(job)
 	if err != nil {
 		return nil, nil, err
@@ -99,14 +112,8 @@ func (jobCanonicalizer) Name() string {
 }
 
 func (jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
-	err := job.Canonicalize()
-	if err == nil {
-		return job, nil, nil
-	}
-	if me, ok := err.(*multierror.Error); ok {
-		return job, me.Errors, nil
-	}
-	return job, []error{err}, nil
+	job.Canonicalize()
+	return job, nil, nil
 }
 
 // jobImpliedConstraints adds constraints to a job implied by other job fields
@@ -118,20 +125,23 @@ func (jobImpliedConstraints) Name() string {
 }
 
 func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, error) {
-	// Get the required Vault Policies
-	policies := j.VaultPolicies()
+	// Get the Vault blocks in the job
+	vaultBlocks := j.Vault()
 
 	// Get the required signals
 	signals := j.RequiredSignals()
 
+	// Identify which task groups are utilising Nomad native service discovery.
+	nativeServiceDisco := j.RequiredNativeServiceDiscovery()
+
 	// Hot path
-	if len(signals) == 0 && len(policies) == 0 {
+	if len(signals) == 0 && len(vaultBlocks) == 0 && len(nativeServiceDisco) == 0 {
 		return j, nil, nil
 	}
 
 	// Add Vault constraints if no Vault constraint exists
 	for _, tg := range j.TaskGroups {
-		_, ok := policies[tg.Name]
+		_, ok := vaultBlocks[tg.Name]
 		if !ok {
 			// Not requesting Vault
 			continue
@@ -154,7 +164,7 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	for _, tg := range j.TaskGroups {
 		tgSignals, ok := signals[tg.Name]
 		if !ok {
-			// Not requesting Vault
+			// Not requesting signal
 			continue
 		}
 
@@ -172,6 +182,25 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 
 		if !found {
 			tg.Constraints = append(tg.Constraints, sigConstraint)
+		}
+	}
+
+	// Add the Nomad service discovery constraints.
+	for _, tg := range j.TaskGroups {
+		if ok := nativeServiceDisco[tg.Name]; !ok {
+			continue
+		}
+
+		found := false
+		for _, c := range tg.Constraints {
+			if c.Equals(nativeServiceDiscoveryConstraint) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			tg.Constraints = append(tg.Constraints, nativeServiceDiscoveryConstraint)
 		}
 	}
 
@@ -216,4 +245,33 @@ func (jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 	}
 
 	return warnings, validationErrors.ErrorOrNil()
+}
+
+type memoryOversubscriptionValidate struct {
+	srv *Server
+}
+
+func (*memoryOversubscriptionValidate) Name() string {
+	return "memory_oversubscription"
+}
+
+func (v *memoryOversubscriptionValidate) Validate(job *structs.Job) (warnings []error, err error) {
+	_, c, err := v.srv.State().SchedulerConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	if c != nil && c.MemoryOversubscriptionEnabled {
+		return nil, nil
+	}
+
+	for _, tg := range job.TaskGroups {
+		for _, t := range tg.Tasks {
+			if t.Resources != nil && t.Resources.MemoryMaxMB != 0 {
+				warnings = append(warnings, fmt.Errorf("Memory oversubscription is not enabled; Task \"%v.%v\" memory_max value will be ignored. Update the Scheduler Configuration to allow oversubscription.", tg.Name, t.Name))
+			}
+		}
+	}
+
+	return warnings, err
 }

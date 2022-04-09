@@ -1,4 +1,5 @@
 import { Factory, trait } from 'ember-cli-mirage';
+import { dasherize } from '@ember/string';
 import faker from 'nomad-ui/mirage/faker';
 import { pickOne } from '../utils';
 
@@ -6,10 +7,7 @@ const REF_TIME = new Date();
 const TROUBLESOME_CHARACTERS = '🏆 💃 🤩 🙌🏿 🖨 ? ; %'.split(' ');
 const makeWord = () => (faker.random.number(10000000) + 50000).toString(36);
 const makeSentence = (count = 10) =>
-  new Array(count)
-    .fill(null)
-    .map(makeWord)
-    .join(' ');
+  new Array(count).fill(null).map(makeWord).join(' ');
 
 const fileTypeMapping = {
   svg: 'image/svg',
@@ -36,7 +34,9 @@ const fileBodyMapping = {
       .map((_, i) => {
         const date = new Date(2019, 6, 23);
         date.setSeconds(i * 5);
-        return `${date.toISOString()} ${makeSentence(faker.random.number({ max: 5 }) + 7)}`;
+        return `${date.toISOString()} ${makeSentence(
+          faker.random.number({ max: 5 }) + 7
+        )}`;
       })
       .join('\n'),
   json: () =>
@@ -52,7 +52,7 @@ const fileBodyMapping = {
 };
 
 export default Factory.extend({
-  id: i => i,
+  id: (i) => i,
 
   isDir: faker.random.boolean,
 
@@ -78,9 +78,9 @@ export default Factory.extend({
   },
 
   name() {
-    return `${faker.hacker.noun().dasherize()}-${pickOne(TROUBLESOME_CHARACTERS)}${
-      this.isDir ? '' : `.${this.fileType}`
-    }`;
+    return `${dasherize(faker.hacker.noun())}-${pickOne(
+      TROUBLESOME_CHARACTERS
+    )}${this.isDir ? '' : `.${this.fileType}`}`;
   },
 
   body() {
@@ -99,12 +99,20 @@ export default Factory.extend({
     afterCreate(allocFile, server) {
       // create files for the directory
       if (allocFile.depth > 0) {
-        server.create('allocFile', 'dir', { parent: allocFile, depth: allocFile.depth - 1 });
+        server.create('allocFile', 'dir', {
+          parent: allocFile,
+          depth: allocFile.depth - 1,
+        });
       }
 
-      server.createList('allocFile', faker.random.number({ min: 1, max: 3 }), 'file', {
-        parent: allocFile,
-      });
+      server.createList(
+        'allocFile',
+        faker.random.number({ min: 1, max: 3 }),
+        'file',
+        {
+          parent: allocFile,
+        }
+      );
     },
   }),
 

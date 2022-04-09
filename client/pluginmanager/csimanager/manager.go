@@ -55,7 +55,7 @@ func New(config *Config) Manager {
 
 type csiManager struct {
 	// instances should only be accessed from the run() goroutine and the shutdown
-	// fn. It is a map of PluginType : [PluginName : instanceManager]
+	// fn. It is a map of PluginType : [PluginName : *instanceManager]
 	instances map[string]map[string]*instanceManager
 
 	registry           dynamicplugins.Registry
@@ -167,11 +167,19 @@ func (c *csiManager) ensureInstance(plugin *dynamicplugins.PluginInfo) {
 	name := plugin.Name
 	ptype := plugin.Type
 	instances := c.instancesForType(ptype)
-	if _, ok := instances[name]; !ok {
-		c.logger.Debug("detected new CSI plugin", "name", name, "type", ptype)
+	mgr, ok := instances[name]
+	if !ok {
+		c.logger.Debug("detected new CSI plugin", "name", name, "type", ptype, "alloc", plugin.AllocID)
 		mgr := newInstanceManager(c.logger, c.eventer, c.updateNodeCSIInfoFunc, plugin)
 		instances[name] = mgr
 		mgr.run()
+	} else if mgr.allocID != plugin.AllocID {
+		mgr.shutdown()
+		c.logger.Debug("detected update for CSI plugin", "name", name, "type", ptype, "alloc", plugin.AllocID)
+		mgr := newInstanceManager(c.logger, c.eventer, c.updateNodeCSIInfoFunc, plugin)
+		instances[name] = mgr
+		mgr.run()
+
 	}
 }
 
@@ -182,9 +190,11 @@ func (c *csiManager) ensureNoInstance(plugin *dynamicplugins.PluginInfo) {
 	ptype := plugin.Type
 	instances := c.instancesForType(ptype)
 	if mgr, ok := instances[name]; ok {
-		c.logger.Debug("shutting down CSI plugin", "name", name, "type", ptype)
-		mgr.shutdown()
-		delete(instances, name)
+		if mgr.allocID == plugin.AllocID {
+			c.logger.Debug("shutting down CSI plugin", "name", name, "type", ptype, "alloc", plugin.AllocID)
+			mgr.shutdown()
+			delete(instances, name)
+		}
 	}
 }
 

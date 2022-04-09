@@ -12,6 +12,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -26,7 +27,7 @@ import (
 )
 
 func TestClientEndpoint_Register(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -89,7 +90,7 @@ func TestClientEndpoint_Register(t *testing.T) {
 // forwarded RPCs. This is essential otherwise we will think a Yamux session to
 // a Nomad server is actually the session to the node.
 func TestClientEndpoint_Register_NodeConn_Forwarded(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -180,7 +181,7 @@ func TestClientEndpoint_Register_NodeConn_Forwarded(t *testing.T) {
 }
 
 func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -210,7 +211,7 @@ func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
 
 // Test the deprecated single node deregistration path
 func TestClientEndpoint_DeregisterOne(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -256,7 +257,7 @@ func TestClientEndpoint_DeregisterOne(t *testing.T) {
 }
 
 func TestClientEndpoint_Deregister_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -267,10 +268,10 @@ func TestClientEndpoint_Deregister_ACL(t *testing.T) {
 	node := mock.Node()
 	node1 := mock.Node()
 	state := s1.fsm.State()
-	if err := state.UpsertNode(1, node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 1, node); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertNode(2, node1); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 2, node1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -322,7 +323,7 @@ func TestClientEndpoint_Deregister_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_Deregister_Vault(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -384,7 +385,7 @@ func TestClientEndpoint_Deregister_Vault(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -464,7 +465,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -523,7 +524,7 @@ func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_HeartbeatRecovery(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -574,7 +575,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatRecovery(t *testing.T) {
 }
 
 func TestClientEndpoint_Register_GetEvals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -584,7 +585,7 @@ func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 	// Register a system job.
 	job := mock.SystemJob()
 	state := s1.fsm.State()
-	if err := state.UpsertJob(1, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -669,7 +670,7 @@ func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -679,7 +680,7 @@ func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 	// Register a system job.
 	job := mock.SystemJob()
 	state := s1.fsm.State()
-	if err := state.UpsertJob(1, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -753,7 +754,7 @@ func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
@@ -831,7 +832,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_HeartbeatOnly_Advertise(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	advAddr := "127.0.1.1:1234"
@@ -869,8 +870,61 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly_Advertise(t *testing.T) {
 	require.Equal(resp.Servers[0].RPCAdvertiseAddr, advAddr)
 }
 
+func TestNode_UpdateStatus_ServiceRegistrations(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, serverCleanup := TestServer(t, nil)
+	defer serverCleanup()
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Create a node and upsert this into state.
+	node := mock.Node()
+	require.NoError(t, testServer.State().UpsertNode(structs.MsgTypeTestSetup, 10, node))
+
+	// Generate service registrations, ensuring the nodeID is set to the
+	// generated node from above.
+	services := mock.ServiceRegistrations()
+
+	for _, s := range services {
+		s.NodeID = node.ID
+	}
+
+	// Upsert the service registrations into state.
+	require.NoError(t, testServer.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 20, services))
+
+	// Check the service registrations are in state as we expect, so we can
+	// have confidence in the rest of the test.
+	ws := memdb.NewWatchSet()
+	nodeRegs, err := testServer.State().GetServiceRegistrationsByNodeID(ws, node.ID)
+	require.NoError(t, err)
+	require.Len(t, nodeRegs, 2)
+	require.Equal(t, nodeRegs[0].NodeID, node.ID)
+	require.Equal(t, nodeRegs[1].NodeID, node.ID)
+
+	// Generate and trigger a node down status update. This mimics what happens
+	// when the node fails its heart-beating.
+	args := structs.NodeUpdateStatusRequest{
+		NodeID:       node.ID,
+		Status:       structs.NodeStatusDown,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var reply structs.NodeUpdateResponse
+	require.NoError(t, testServer.staticEndpoints.Node.UpdateStatus(&args, &reply))
+
+	// Query our state, to ensure the node service registrations have been
+	// removed.
+	nodeRegs, err = testServer.State().GetServiceRegistrationsByNodeID(ws, node.ID)
+	require.NoError(t, err)
+	require.Len(t, nodeRegs, 0)
+}
+
+// TestClientEndpoint_UpdateDrain asserts the ability to initiate drain
+// against a node and cancel that drain. It also asserts:
+// * an evaluation is created when the node becomes eligible
+// * drain metadata is properly persisted in Node.LastDrain
 func TestClientEndpoint_UpdateDrain(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -903,6 +957,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	dereg := &structs.NodeUpdateDrainRequest{
 		NodeID:        node.ID,
 		DrainStrategy: strategy,
+		Meta:          map[string]string{"message": "this node is not needed"},
 		WriteRequest:  structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.NodeDrainUpdateResponse
@@ -914,10 +969,17 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
-	require.True(out.Drain)
+	require.NotNil(out.DrainStrategy)
 	require.Equal(strategy.Deadline, out.DrainStrategy.Deadline)
 	require.Len(out.Events, 2)
 	require.Equal(NodeDrainEventDrainSet, out.Events[1].Message)
+	require.NotNil(out.LastDrain)
+	require.Equal(structs.DrainMetadata{
+		StartedAt: out.LastDrain.UpdatedAt,
+		UpdatedAt: out.LastDrain.StartedAt,
+		Status:    structs.DrainStatusDraining,
+		Meta:      map[string]string{"message": "this node is not needed"},
+	}, *out.LastDrain)
 
 	// before+deadline should be before the forced deadline
 	require.True(beforeUpdate.Add(strategy.Deadline).Before(out.DrainStrategy.ForceDeadline))
@@ -938,11 +1000,12 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 
 	// Register a system job
 	job := mock.SystemJob()
-	require.Nil(s1.State().UpsertJob(10, job))
+	require.Nil(s1.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
 
 	// Update the eligibility and expect evals
 	dereg.DrainStrategy = nil
 	dereg.MarkEligible = true
+	dereg.Meta = map[string]string{"cancelled": "yes"}
 	var resp3 structs.NodeDrainUpdateResponse
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp3))
 	require.NotZero(resp3.Index)
@@ -955,6 +1018,15 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.NoError(err)
 	require.Len(out.Events, 4)
 	require.Equal(NodeDrainEventDrainDisabled, out.Events[3].Message)
+	require.NotNil(out.LastDrain)
+	require.NotNil(out.LastDrain)
+	require.False(out.LastDrain.UpdatedAt.Before(out.LastDrain.StartedAt))
+	require.Equal(structs.DrainMetadata{
+		StartedAt: out.LastDrain.StartedAt,
+		UpdatedAt: out.LastDrain.UpdatedAt,
+		Status:    structs.DrainStatusCanceled,
+		Meta:      map[string]string{"cancelled": "yes"},
+	}, *out.LastDrain)
 
 	// Check that calling UpdateDrain with the same DrainStrategy does not emit
 	// a node event.
@@ -965,8 +1037,193 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.Len(out.Events, 4)
 }
 
+// TestClientEndpoint_UpdatedDrainAndCompleted asserts that drain metadata
+// is properly persisted in Node.LastDrain as the node drain is updated and
+// completes.
+func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Disable drainer for now
+	s1.nodeDrainer.SetEnabled(false, nil)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+
+	strategy := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: 10 * time.Second,
+		},
+	}
+
+	// Update the status
+	dereg := &structs.NodeUpdateDrainRequest{
+		NodeID:        node.ID,
+		DrainStrategy: strategy,
+		Meta: map[string]string{
+			"message": "first drain",
+		},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.NodeDrainUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2))
+	require.NotZero(resp2.Index)
+
+	// Check for the node in the FSM
+	out, err := state.NodeByID(nil, node.ID)
+	require.Nil(err)
+	require.NotNil(out.DrainStrategy)
+	require.NotNil(out.LastDrain)
+	firstDrainUpdate := out.LastDrain.UpdatedAt
+	require.Equal(structs.DrainMetadata{
+		StartedAt: firstDrainUpdate,
+		UpdatedAt: firstDrainUpdate,
+		Status:    structs.DrainStatusDraining,
+		Meta:      map[string]string{"message": "first drain"},
+	}, *out.LastDrain)
+
+	time.Sleep(1 * time.Second)
+
+	// Update the drain
+	dereg.DrainStrategy.DrainSpec.Deadline *= 2
+	dereg.Meta["message"] = "second drain"
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2))
+	require.NotZero(resp2.Index)
+
+	out, err = state.NodeByID(nil, node.ID)
+	require.Nil(err)
+	require.NotNil(out.DrainStrategy)
+	require.NotNil(out.LastDrain)
+	secondDrainUpdate := out.LastDrain.UpdatedAt
+	require.True(secondDrainUpdate.After(firstDrainUpdate))
+	require.Equal(structs.DrainMetadata{
+		StartedAt: firstDrainUpdate,
+		UpdatedAt: secondDrainUpdate,
+		Status:    structs.DrainStatusDraining,
+		Meta:      map[string]string{"message": "second drain"},
+	}, *out.LastDrain)
+
+	time.Sleep(1 * time.Second)
+
+	// Enable the drainer, wait for completion
+	s1.nodeDrainer.SetEnabled(true, state)
+
+	testutil.WaitForResult(func() (bool, error) {
+		out, err = state.NodeByID(nil, node.ID)
+		if err != nil {
+			return false, err
+		}
+		if out == nil {
+			return false, fmt.Errorf("could not find node")
+		}
+		return out.DrainStrategy == nil, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	require.True(out.LastDrain.UpdatedAt.After(secondDrainUpdate))
+	require.Equal(structs.DrainMetadata{
+		StartedAt: firstDrainUpdate,
+		UpdatedAt: out.LastDrain.UpdatedAt,
+		Status:    structs.DrainStatusComplete,
+		Meta:      map[string]string{"message": "second drain"},
+	}, *out.LastDrain)
+}
+
+// TestClientEndpoint_UpdatedDrainNoop asserts that drain metadata is properly
+// persisted in Node.LastDrain when calls to Node.UpdateDrain() don't affect
+// the drain status.
+func TestClientEndpoint_UpdatedDrainNoop(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+
+	// Update the status
+	dereg := &structs.NodeUpdateDrainRequest{
+		NodeID: node.ID,
+		DrainStrategy: &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: 10 * time.Second,
+			},
+		},
+		Meta: map[string]string{
+			"message": "drain",
+		},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var drainResp structs.NodeDrainUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &drainResp))
+	require.NotZero(drainResp.Index)
+
+	var out *structs.Node
+	testutil.WaitForResult(func() (bool, error) {
+		var err error
+		out, err = state.NodeByID(nil, node.ID)
+		if err != nil {
+			return false, err
+		}
+		if out == nil {
+			return false, fmt.Errorf("could not find node")
+		}
+		return out.DrainStrategy == nil && out.SchedulingEligibility == structs.NodeSchedulingIneligible, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	require.Equal(structs.DrainStatusComplete, out.LastDrain.Status)
+	require.Equal(map[string]string{"message": "drain"}, out.LastDrain.Meta)
+	prevDrain := out.LastDrain
+
+	// call again with Drain Strategy nil; should be a no-op because drain is already complete
+	dereg.DrainStrategy = nil
+	dereg.Meta = map[string]string{
+		"new_message": "is new",
+	}
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &drainResp))
+	require.NotZero(drainResp.Index)
+
+	out, err := state.NodeByID(nil, node.ID)
+	require.Nil(err)
+	require.Nil(out.DrainStrategy)
+	require.NotNil(out.LastDrain)
+	require.Equal(prevDrain, out.LastDrain)
+}
+
+// TestClientEndpoint_UpdateDrain_ACL asserts that Node.UpdateDrain() enforces
+// node.write ACLs, and that token accessor ID is properly persisted in
+// Node.LastDrain.AccessorID
 func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -978,7 +1235,7 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	node := mock.Node()
 	state := s1.fsm.State()
 
-	require.Nil(state.UpsertNode(1, node), "UpsertNode")
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1, node), "UpsertNode")
 
 	// Create the policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
@@ -1006,6 +1263,9 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	{
 		var resp structs.NodeDrainUpdateResponse
 		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
+		out, err := state.NodeByID(nil, node.ID)
+		require.NoError(err)
+		require.Equal(validToken.AccessorID, out.LastDrain.AccessorID)
 	}
 
 	// Try with a invalid token
@@ -1018,17 +1278,21 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
+	dereg.DrainStrategy.DrainSpec.Deadline = 20 * time.Second
 	dereg.AuthToken = root.SecretID
 	{
 		var resp structs.NodeDrainUpdateResponse
 		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
+		out, err := state.NodeByID(nil, node.ID)
+		require.NoError(err)
+		require.Equal(root.AccessorID, out.LastDrain.AccessorID)
 	}
 }
 
 // This test ensures that Nomad marks client state of allocations which are in
 // pending/running state to lost when a node is marked as down.
 func TestClientEndpoint_Drain_Down(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1159,7 +1423,7 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateEligibility(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -1200,7 +1464,7 @@ func TestClientEndpoint_UpdateEligibility(t *testing.T) {
 
 	// Register a system job
 	job := mock.SystemJob()
-	require.Nil(s1.State().UpsertJob(10, job))
+	require.Nil(s1.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
 
 	// Update the eligibility and expect evals
 	elig.Eligibility = structs.NodeSchedulingEligible
@@ -1217,7 +1481,7 @@ func TestClientEndpoint_UpdateEligibility(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1229,7 +1493,7 @@ func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
 	node := mock.Node()
 	state := s1.fsm.State()
 
-	require.Nil(state.UpsertNode(1, node), "UpsertNode")
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1, node), "UpsertNode")
 
 	// Create the policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
@@ -1273,7 +1537,7 @@ func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_GetNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1316,9 +1580,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	node.StatusUpdatedAt = resp2.Node.StatusUpdatedAt
 	node.SecretID = ""
 	node.Events = resp2.Node.Events
-	if !reflect.DeepEqual(node, resp2.Node) {
-		t.Fatalf("bad: %#v \n %#v", node, resp2.Node)
-	}
+	require.Equal(t, node, resp2.Node)
 
 	// assert that the node register event was set correctly
 	if len(resp2.Node.Events) != 1 {
@@ -1342,7 +1604,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 }
 
 func TestClientEndpoint_GetNode_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1353,7 +1615,7 @@ func TestClientEndpoint_GetNode_ACL(t *testing.T) {
 	// Create the node
 	node := mock.Node()
 	state := s1.fsm.State()
-	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1, node), "UpsertNode")
 
 	// Create the policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyRead))
@@ -1406,7 +1668,7 @@ func TestClientEndpoint_GetNode_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1420,14 +1682,14 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 
 	// First create an unrelated node.
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertNode(100, node1); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, 100, node1); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
 
 	// Upsert the node we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
-		if err := state.UpsertNode(200, node2); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, 200, node2); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -1461,7 +1723,7 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 		nodeUpdate := mock.Node()
 		nodeUpdate.ID = node2.ID
 		nodeUpdate.Status = structs.NodeStatusDown
-		if err := state.UpsertNode(300, nodeUpdate); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, 300, nodeUpdate); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -1485,7 +1747,7 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 
 	// Node delete triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.DeleteNode(400, []string{node2.ID}); err != nil {
+		if err := state.DeleteNode(structs.MsgTypeTestSetup, 400, []string{node2.ID}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -1509,7 +1771,7 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 }
 
 func TestClientEndpoint_GetAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1536,7 +1798,7 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1572,7 +1834,7 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 }
 
 func TestClientEndpoint_GetAllocs_ACL_Basic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1585,10 +1847,10 @@ func TestClientEndpoint_GetAllocs_ACL_Basic(t *testing.T) {
 	node := mock.Node()
 	allocDefaultNS.NodeID = node.ID
 	state := s1.fsm.State()
-	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1, node), "UpsertNode")
 	assert.Nil(state.UpsertJobSummary(2, mock.JobSummary(allocDefaultNS.JobID)), "UpsertJobSummary")
 	allocs := []*structs.Allocation{allocDefaultNS}
-	assert.Nil(state.UpsertAllocs(5, allocs), "UpsertAllocs")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 5, allocs), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
 	validDefaultToken := mock.CreatePolicyAndToken(t, state, 1001, "test-default-valid", mock.NodePolicy(acl.PolicyRead)+
@@ -1646,8 +1908,104 @@ func TestClientEndpoint_GetAllocs_ACL_Basic(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_GetAllocs_ACL_Namespaces(t *testing.T) {
+	ci.Parallel(t)
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the namespaces
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	ns1.Name = "altnamespace"
+	ns2.Name = "should-only-be-displayed-for-root-ns"
+
+	// Create the allocs
+	allocDefaultNS := mock.Alloc()
+	allocAltNS := mock.Alloc()
+	allocAltNS.Namespace = ns1.Name
+	allocOtherNS := mock.Alloc()
+	allocOtherNS.Namespace = ns2.Name
+
+	node := mock.Node()
+	allocDefaultNS.NodeID = node.ID
+	allocAltNS.NodeID = node.ID
+	allocOtherNS.NodeID = node.ID
+	state := s1.fsm.State()
+	assert.Nil(state.UpsertNamespaces(1, []*structs.Namespace{ns1, ns2}), "UpsertNamespaces")
+	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 2, node), "UpsertNode")
+	assert.Nil(state.UpsertJobSummary(3, mock.JobSummary(allocDefaultNS.JobID)), "UpsertJobSummary")
+	assert.Nil(state.UpsertJobSummary(4, mock.JobSummary(allocAltNS.JobID)), "UpsertJobSummary")
+	assert.Nil(state.UpsertJobSummary(5, mock.JobSummary(allocOtherNS.JobID)), "UpsertJobSummary")
+	allocs := []*structs.Allocation{allocDefaultNS, allocAltNS, allocOtherNS}
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 6, allocs), "UpsertAllocs")
+
+	// Create the namespace policy and tokens
+	validDefaultToken := mock.CreatePolicyAndToken(t, state, 1001, "test-default-valid", mock.NodePolicy(acl.PolicyRead)+
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validNoNSToken := mock.CreatePolicyAndToken(t, state, 1003, "test-alt-valid", mock.NodePolicy(acl.PolicyRead))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1004, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	// Lookup the node without a token and expect failure
+	req := &structs.NodeSpecificRequest{
+		NodeID:       node.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	{
+		var resp structs.NodeAllocsResponse
+		err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a valid token for the default namespace
+	req.AuthToken = validDefaultToken.SecretID
+	{
+		var resp structs.NodeAllocsResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
+		assert.Len(resp.Allocs, 1)
+		assert.Equal(allocDefaultNS.ID, resp.Allocs[0].ID)
+	}
+
+	// Try with a valid token for a namespace with no allocs on this node
+	req.AuthToken = validNoNSToken.SecretID
+	{
+		var resp structs.NodeAllocsResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
+		assert.Len(resp.Allocs, 0)
+	}
+
+	// Try with a invalid token
+	req.AuthToken = invalidToken.SecretID
+	{
+		var resp structs.NodeAllocsResponse
+		err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a root token
+	req.AuthToken = root.SecretID
+	{
+		var resp structs.NodeAllocsResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
+		assert.Len(resp.Allocs, 3)
+		for _, alloc := range resp.Allocs {
+			switch alloc.ID {
+			case allocDefaultNS.ID, allocAltNS.ID, allocOtherNS.ID:
+				// expected
+			default:
+				t.Errorf("unexpected alloc %q for namespace %q", alloc.ID, alloc.Namespace)
+			}
+		}
+	}
+}
+
 func TestClientEndpoint_GetClientAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -1661,13 +2019,13 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	// Create the register request
 	node := mock.Node()
 	state := s1.fsm.State()
-	require.Nil(state.UpsertNode(98, node))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 98, node))
 
 	// Inject fake evaluations
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1727,7 +2085,7 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 }
 
 func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1754,11 +2112,11 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	alloc.ModifyTime = now
-	state := s1.fsm.State()
-	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	store := s1.fsm.State()
+	store.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	start := time.Now()
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+		err := store.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1792,7 +2150,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 		t.Fatalf("bad: %#v", resp2.Allocs)
 	}
 
-	iter, err := state.AllocsByIDPrefix(nil, structs.DefaultNamespace, alloc.ID)
+	iter, err := store.AllocsByIDPrefix(nil, structs.DefaultNamespace, alloc.ID, state.SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1824,8 +2182,8 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 		allocUpdate.NodeID = alloc.NodeID
 		allocUpdate.ID = alloc.ID
 		allocUpdate.ClientStatus = structs.AllocClientStatusRunning
-		state.UpsertJobSummary(199, mock.JobSummary(allocUpdate.JobID))
-		err := state.UpsertAllocs(200, []*structs.Allocation{allocUpdate})
+		store.UpsertJobSummary(199, mock.JobSummary(allocUpdate.JobID))
+		err := store.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{allocUpdate})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1849,7 +2207,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 }
 
 func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -1879,7 +2237,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 	state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
 	start := time.Now()
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.UpsertAllocs(100, []*structs.Allocation{alloc1, alloc2}))
+		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1, alloc2}))
 	})
 
 	// Lookup the allocs in a blocking query
@@ -1926,7 +2284,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 // A MigrateToken should not be created if an allocation shares the same node
 // with its previous allocation
 func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -1958,7 +2316,7 @@ func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
 	alloc.DesiredStatus = structs.AllocClientStatusComplete
 	state := s1.fsm.State()
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(100, []*structs.Allocation{prevAlloc, alloc})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{prevAlloc, alloc})
 	assert.Nil(err)
 
 	// Lookup the allocs
@@ -1979,7 +2337,7 @@ func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
 }
 
 func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2008,7 +2366,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	start := time.Now()
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -2048,7 +2406,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 		allocUpdate.ID = alloc.ID
 		allocUpdate.ClientStatus = structs.AllocClientStatusRunning
 		state.UpsertJobSummary(199, mock.JobSummary(allocUpdate.JobID))
-		err := state.UpdateAllocsFromClient(200, []*structs.Allocation{allocUpdate})
+		err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 200, []*structs.Allocation{allocUpdate})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -2072,7 +2430,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		// Disabling scheduling in this test so that we can
@@ -2103,7 +2461,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	// Inject mock job
 	job := mock.Job()
 	job.ID = "mytestjob"
-	err := state.UpsertJob(101, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 101, job)
 	require.Nil(err)
 
 	// Inject fake allocations
@@ -2121,7 +2479,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	require.Nil(err)
 	alloc2.TaskGroup = job.TaskGroups[0].Name
 
-	err = state.UpsertAllocs(100, []*structs.Allocation{alloc, alloc2})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc, alloc2})
 	require.Nil(err)
 
 	// Attempt updates of more than one alloc for the same job
@@ -2170,7 +2528,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 }
 
 func TestClientEndpoint_BatchUpdate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2195,7 +2553,7 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2228,7 +2586,7 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2257,7 +2615,7 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	if err := state.UpsertAllocs(100, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2271,7 +2629,7 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 	// Inject mock job
 	job := mock.Job()
 	job.ID = alloc.JobID
-	err := state.UpsertJob(101, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 101, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2313,134 +2671,8 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 	}
 }
 
-func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
-	t.Parallel()
-	srv, shutdown := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
-	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
-
-	codec := rpcClient(t, srv)
-	state := srv.fsm.State()
-
-	index := uint64(0)
-	ws := memdb.NewWatchSet()
-
-	// Create a client node, plugin, and volume
-	node := mock.Node()
-	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early version
-	node.CSINodePlugins = map[string]*structs.CSIInfo{
-		"csi-plugin-example": {PluginID: "csi-plugin-example",
-			Healthy:        true,
-			NodeInfo:       &structs.CSINodeInfo{},
-			ControllerInfo: &structs.CSIControllerInfo{},
-		},
-	}
-	index++
-	err := state.UpsertNode(index, node)
-	require.NoError(t, err)
-	volId0 := uuid.Generate()
-	ns := structs.DefaultNamespace
-	vols := []*structs.CSIVolume{{
-		ID:             volId0,
-		Namespace:      ns,
-		PluginID:       "csi-plugin-example",
-		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
-		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-	}}
-	index++
-	err = state.CSIVolumeRegister(index, vols)
-	require.NoError(t, err)
-	vol, err := state.CSIVolumeByID(ws, ns, volId0)
-	require.NoError(t, err)
-	require.Len(t, vol.ReadAllocs, 0)
-	require.Len(t, vol.WriteAllocs, 0)
-
-	// Create a job with 2 allocations
-	job := mock.Job()
-	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
-		"_": {
-			Name:     "someVolume",
-			Type:     structs.VolumeTypeCSI,
-			Source:   volId0,
-			ReadOnly: false,
-		},
-	}
-	index++
-	err = state.UpsertJob(index, job)
-	require.NoError(t, err)
-
-	alloc1 := mock.Alloc()
-	alloc1.JobID = job.ID
-	alloc1.NodeID = node.ID
-	index++
-	err = state.UpsertJobSummary(index, mock.JobSummary(alloc1.JobID))
-	require.NoError(t, err)
-	alloc1.TaskGroup = job.TaskGroups[0].Name
-
-	alloc2 := mock.Alloc()
-	alloc2.JobID = job.ID
-	alloc2.NodeID = node.ID
-	index++
-	err = state.UpsertJobSummary(index, mock.JobSummary(alloc2.JobID))
-	require.NoError(t, err)
-	alloc2.TaskGroup = job.TaskGroups[0].Name
-
-	index++
-	err = state.UpsertAllocs(index, []*structs.Allocation{alloc1, alloc2})
-	require.NoError(t, err)
-
-	// Claim the volumes and verify the claims were set. We need to
-	// apply this through the FSM so that we make sure the index is
-	// properly updated to test later
-	batch := &structs.CSIVolumeClaimBatchRequest{
-		Claims: []structs.CSIVolumeClaimRequest{
-			{
-				VolumeID:     volId0,
-				AllocationID: alloc1.ID,
-				NodeID:       alloc1.NodeID,
-				Claim:        structs.CSIVolumeClaimWrite,
-			},
-			{
-				VolumeID:     volId0,
-				AllocationID: alloc2.ID,
-				NodeID:       alloc2.NodeID,
-				Claim:        structs.CSIVolumeClaimRead,
-			},
-		}}
-	_, lastIndex, err := srv.raftApply(structs.CSIVolumeClaimBatchRequestType, batch)
-	require.NoError(t, err)
-
-	vol, err = state.CSIVolumeByID(ws, ns, volId0)
-	require.NoError(t, err)
-	require.Len(t, vol.ReadAllocs, 1)
-	require.Len(t, vol.WriteAllocs, 1)
-
-	// Update the 1st alloc as terminal/failed
-	alloc1.ClientStatus = structs.AllocClientStatusFailed
-	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc",
-		&structs.AllocUpdateRequest{
-			Alloc:        []*structs.Allocation{alloc1},
-			WriteRequest: structs.WriteRequest{Region: "global"},
-		}, &structs.NodeAllocsResponse{})
-	require.NoError(t, err)
-
-	// Lookup the alloc and verify status was updated
-	out, err := state.AllocByID(ws, alloc1.ID)
-	require.NoError(t, err)
-	require.Equal(t, structs.AllocClientStatusFailed, out.ClientStatus)
-
-	// Verify the index has been updated to trigger a volume claim release
-
-	req := &structs.CSIVolumeGetRequest{ID: volId0}
-	req.Region = "global"
-	getResp := &structs.CSIVolumeGetResponse{}
-	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req, getResp)
-	require.NoError(t, err)
-	require.Greater(t, getResp.Volume.ModifyIndex, lastIndex)
-}
-
 func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2450,13 +2682,13 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	alloc := mock.Alloc()
 	state := s1.fsm.State()
 	state.UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
-	if err := state.UpsertAllocs(2, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Inject a fake system job.
 	job := mock.SystemJob()
-	if err := state.UpsertJob(3, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 3, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2522,8 +2754,69 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	}
 }
 
+// TestClientEndpoint_CreateNodeEvals_MultipleNSes asserts that evals are made
+// for all jobs across namespaces
+func TestClientEndpoint_CreateNodeEvals_MultipleNSes(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	state := s1.fsm.State()
+
+	idx := uint64(3)
+	ns1 := mock.Namespace()
+	err := state.UpsertNamespaces(idx, []*structs.Namespace{ns1})
+	require.NoError(t, err)
+	idx++
+
+	node := mock.Node()
+	err = state.UpsertNode(structs.MsgTypeTestSetup, idx, node)
+	require.NoError(t, err)
+	idx++
+
+	// Inject a fake system job.
+	defaultJob := mock.SystemJob()
+	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, defaultJob)
+	require.NoError(t, err)
+	idx++
+
+	nsJob := mock.SystemJob()
+	nsJob.ID = defaultJob.ID
+	nsJob.Namespace = ns1.Name
+	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nsJob)
+	require.NoError(t, err)
+	idx++
+
+	// Create some evaluations
+	evalIDs, index, err := s1.staticEndpoints.Node.createNodeEvals(node.ID, 1)
+	require.NoError(t, err)
+	require.NotZero(t, index)
+	require.Len(t, evalIDs, 2)
+
+	byNS := map[string]*structs.Evaluation{}
+	for _, evalID := range evalIDs {
+		eval, err := state.EvalByID(nil, evalID)
+		require.NoError(t, err)
+		byNS[eval.Namespace] = eval
+	}
+
+	require.Len(t, byNS, 2)
+
+	defaultNSEval := byNS[defaultJob.Namespace]
+	require.NotNil(t, defaultNSEval)
+	require.Equal(t, defaultJob.ID, defaultNSEval.JobID)
+	require.Equal(t, defaultJob.Namespace, defaultNSEval.Namespace)
+
+	otherNSEval := byNS[nsJob.Namespace]
+	require.NotNil(t, otherNSEval)
+	require.Equal(t, nsJob.ID, otherNSEval.JobID)
+	require.Equal(t, nsJob.Namespace, otherNSEval.Namespace)
+}
+
 func TestClientEndpoint_Evaluate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -2537,12 +2830,12 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 	node := mock.Node()
 	node.ID = alloc.NodeID
 	state := s1.fsm.State()
-	err := state.UpsertNode(1, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	state.UpsertJobSummary(2, mock.JobSummary(alloc.JobID))
-	err = state.UpsertAllocs(3, []*structs.Allocation{alloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2611,7 +2904,7 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 }
 
 func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2625,9 +2918,9 @@ func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 	node.ID = alloc.NodeID
 	state := s1.fsm.State()
 
-	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1, node), "UpsertNode")
 	assert.Nil(state.UpsertJobSummary(2, mock.JobSummary(alloc.JobID)), "UpsertJobSummary")
-	assert.Nil(state.UpsertAllocs(3, []*structs.Allocation{alloc}), "UpsertAllocs")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc}), "UpsertAllocs")
 
 	// Create the policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
@@ -2670,7 +2963,7 @@ func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_ListNodes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2717,6 +3010,10 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 	// #7344 - Assert HostVolumes are included in stub
 	require.Equal(t, node.HostVolumes, resp2.Nodes[0].HostVolumes)
 
+	// #9055 - Assert Resources are *not* included by default
+	require.Nil(t, resp2.Nodes[0].NodeResources)
+	require.Nil(t, resp2.Nodes[0].ReservedResources)
+
 	// Lookup the node with prefix
 	get = &structs.NodeListRequest{
 		QueryOptions: structs.QueryOptions{Region: "global", Prefix: node.ID[:4]},
@@ -2737,8 +3034,45 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_ListNodes_Fields(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+	node.CreateIndex = resp.Index
+	node.ModifyIndex = resp.Index
+
+	// Lookup the node with fields
+	get := &structs.NodeListRequest{
+		QueryOptions: structs.QueryOptions{Region: "global"},
+		Fields: &structs.NodeStubFields{
+			Resources: true,
+		},
+	}
+	var resp2 structs.NodeListResponse
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.List", get, &resp2))
+	require.Equal(t, resp.Index, resp2.Index)
+	require.Len(t, resp2.Nodes, 1)
+	require.Equal(t, node.ID, resp2.Nodes[0].ID)
+	require.NotNil(t, resp2.Nodes[0].NodeResources)
+	require.NotNil(t, resp2.Nodes[0].ReservedResources)
+}
+
 func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2749,7 +3083,7 @@ func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
 	// Create the node
 	node := mock.Node()
 	state := s1.fsm.State()
-	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1, node), "UpsertNode")
 
 	// Create the namespace policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyRead))
@@ -2793,7 +3127,7 @@ func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2810,7 +3144,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 	// Node upsert triggers watches
 	errCh := make(chan error, 1)
 	timer := time.AfterFunc(100*time.Millisecond, func() {
-		errCh <- state.UpsertNode(2, node)
+		errCh <- state.UpsertNode(structs.MsgTypeTestSetup, 2, node)
 	})
 	defer timer.Stop()
 
@@ -2847,7 +3181,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 				Deadline: 10 * time.Second,
 			},
 		}
-		errCh <- state.UpdateNodeDrain(3, node.ID, s, false, 0, nil)
+		errCh <- state.UpdateNodeDrain(structs.MsgTypeTestSetup, 3, node.ID, s, false, 0, nil, nil, "")
 	})
 
 	req.MinQueryIndex = 2
@@ -2873,7 +3207,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 
 	// Node status update triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		errCh <- state.UpdateNodeStatus(40, node.ID, structs.NodeStatusDown, 0, nil)
+		errCh <- state.UpdateNodeStatus(structs.MsgTypeTestSetup, 40, node.ID, structs.NodeStatusDown, 0, nil)
 	})
 
 	req.MinQueryIndex = 38
@@ -2899,7 +3233,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 
 	// Node delete triggers watches.
 	time.AfterFunc(100*time.Millisecond, func() {
-		errCh <- state.DeleteNode(50, []string{node.ID})
+		errCh <- state.DeleteNode(structs.MsgTypeTestSetup, 50, []string{node.ID})
 	})
 
 	req.MinQueryIndex = 45
@@ -2925,7 +3259,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 }
 
 func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2935,7 +3269,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 
 	// Create the node
 	node := mock.Node()
-	if err := state.UpsertNode(2, node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 2, node); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2943,7 +3277,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	tasks := []string{task.Name}
-	if err := state.UpsertAllocs(3, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2979,7 +3313,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 
 	// Update to be running on the node
 	alloc.NodeID = node.ID
-	if err := state.UpsertAllocs(4, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2993,7 +3327,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 
 	// Update to be terminal
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
-	if err := state.UpsertAllocs(5, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 5, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -3007,7 +3341,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 }
 
 func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -3026,7 +3360,7 @@ func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 
 	// Create the node
 	node := mock.Node()
-	if err := state.UpsertNode(2, node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 2, node); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -3036,7 +3370,7 @@ func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	tasks := []string{task.Name}
 	task.Vault = &structs.Vault{Policies: []string{"a", "b"}}
-	if err := state.UpsertAllocs(3, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -3100,7 +3434,7 @@ func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 }
 
 func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -3119,7 +3453,7 @@ func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
 
 	// Create the node
 	node := mock.Node()
-	if err := state.UpsertNode(2, node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 2, node); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -3129,7 +3463,7 @@ func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	tasks := []string{task.Name}
 	task.Vault = &structs.Vault{Policies: []string{"a", "b"}}
-	if err := state.UpsertAllocs(3, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -3158,7 +3492,7 @@ func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
 }
 
 func TestClientEndpoint_taskUsesConnect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	try := func(t *testing.T, task *structs.Task, exp bool) {
 		result := taskUsesConnect(task)
@@ -3167,7 +3501,7 @@ func TestClientEndpoint_taskUsesConnect(t *testing.T) {
 
 	t.Run("task uses connect", func(t *testing.T) {
 		try(t, &structs.Task{
-			// see nomad.newConnectTask for how this works
+			// see nomad.newConnectSidecarTask for how this works
 			Name: "connect-proxy-myservice",
 			Kind: "connect-proxy:myservice",
 		}, true)
@@ -3186,7 +3520,7 @@ func TestClientEndpoint_taskUsesConnect(t *testing.T) {
 }
 
 func TestClientEndpoint_tasksNotUsingConnect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	taskGroup := &structs.TaskGroup{
 		Name: "testgroup",
@@ -3238,7 +3572,7 @@ func mutateConnectJob(t *testing.T, job *structs.Job) {
 }
 
 func TestClientEndpoint_DeriveSIToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil) // already sets consul mocks
@@ -3253,7 +3587,7 @@ func TestClientEndpoint_DeriveSIToken(t *testing.T) {
 
 	// Create the node
 	node := mock.Node()
-	err := state.UpsertNode(2, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 2, node)
 	r.NoError(err)
 
 	// Create an alloc with a typical connect service (sidecar) defined
@@ -3262,7 +3596,7 @@ func TestClientEndpoint_DeriveSIToken(t *testing.T) {
 	mutateConnectJob(t, alloc.Job) // appends sidecar task
 	sidecarTask := alloc.Job.TaskGroups[0].Tasks[1]
 
-	err = state.UpsertAllocs(3, []*structs.Allocation{alloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc})
 	r.NoError(err)
 
 	request := &structs.DeriveSITokenRequest{
@@ -3291,7 +3625,7 @@ func TestClientEndpoint_DeriveSIToken(t *testing.T) {
 }
 
 func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -3305,7 +3639,7 @@ func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
 
 	// Create the node
 	node := mock.Node()
-	err := state.UpsertNode(2, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 2, node)
 	r.NoError(err)
 
 	// Create an alloc with a typical connect service (sidecar) defined
@@ -3320,7 +3654,7 @@ func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
 	m := NewConsulACLsAPI(mockACLsAPI, s1.logger, nil)
 	s1.consulACLs = m
 
-	err = state.UpsertAllocs(3, []*structs.Allocation{alloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc})
 	r.NoError(err)
 
 	request := &structs.DeriveSITokenRequest{
@@ -3339,7 +3673,7 @@ func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
 }
 
 func TestClientEndpoint_EmitEvents(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -3350,7 +3684,7 @@ func TestClientEndpoint_EmitEvents(t *testing.T) {
 
 	// create a node that we can register our event to
 	node := mock.Node()
-	err := state.UpsertNode(2, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 2, node)
 	require.Nil(err)
 
 	nodeEvent := &structs.NodeEvent{
@@ -3375,4 +3709,234 @@ func TestClientEndpoint_EmitEvents(t *testing.T) {
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
 	require.False(len(out.Events) < 2)
+}
+
+func TestClientEndpoint_ShouldCreateNodeEval(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("spurious changes don't require eval", func(t *testing.T) {
+		n1 := mock.Node()
+		n2 := n1.Copy()
+		n2.SecretID = uuid.Generate()
+		n2.Links["vault"] = "links don't get interpolated"
+		n2.ModifyIndex++
+
+		require.False(t, shouldCreateNodeEval(n1, n2))
+	})
+
+	positiveCases := []struct {
+		name     string
+		updateFn func(n *structs.Node)
+	}{
+		{
+			"data center changes",
+			func(n *structs.Node) { n.Datacenter += "u" },
+		},
+		{
+			"attribute change",
+			func(n *structs.Node) { n.Attributes["test.attribute"] = "something" },
+		},
+		{
+			"meta change",
+			func(n *structs.Node) { n.Meta["test.meta"] = "something" },
+		},
+		{
+			"drivers health changed",
+			func(n *structs.Node) { n.Drivers["exec"].Detected = false },
+		},
+		{
+			"new drivers",
+			func(n *structs.Node) {
+				n.Drivers["newdriver"] = &structs.DriverInfo{
+					Detected: true,
+					Healthy:  true,
+				}
+			},
+		},
+	}
+
+	for _, c := range positiveCases {
+		t.Run(c.name, func(t *testing.T) {
+			n1 := mock.Node()
+			n2 := n1.Copy()
+			c.updateFn(n2)
+
+			require.Truef(t, shouldCreateNodeEval(n1, n2), "node changed but without node eval: %v", pretty.Diff(n1, n2))
+		})
+	}
+}
+
+func TestClientEndpoint_UpdateAlloc_Evals_ByTrigger(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name               string
+		clientStatus       string
+		serverClientStatus string
+		triggerBy          string
+		missingJob         bool
+		missingAlloc       bool
+		invalidTaskGroup   bool
+	}
+
+	testCases := []testCase{
+		{
+			name:               "failed-alloc",
+			clientStatus:       structs.AllocClientStatusFailed,
+			serverClientStatus: structs.AllocClientStatusRunning,
+			triggerBy:          structs.EvalTriggerRetryFailedAlloc,
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "unknown-alloc",
+			clientStatus:       structs.AllocClientStatusRunning,
+			serverClientStatus: structs.AllocClientStatusUnknown,
+			triggerBy:          structs.EvalTriggerReconnect,
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "orphaned-unknown-alloc",
+			clientStatus:       structs.AllocClientStatusRunning,
+			serverClientStatus: structs.AllocClientStatusUnknown,
+			triggerBy:          structs.EvalTriggerJobDeregister,
+			missingJob:         true,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "running-job",
+			clientStatus:       structs.AllocClientStatusRunning,
+			serverClientStatus: structs.AllocClientStatusRunning,
+			triggerBy:          "",
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "complete-job",
+			clientStatus:       structs.AllocClientStatusComplete,
+			serverClientStatus: structs.AllocClientStatusComplete,
+			triggerBy:          "",
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "no-alloc-at-server",
+			clientStatus:       structs.AllocClientStatusUnknown,
+			serverClientStatus: "",
+			triggerBy:          "",
+			missingJob:         false,
+			missingAlloc:       true,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "invalid-task-group",
+			clientStatus:       structs.AllocClientStatusUnknown,
+			serverClientStatus: structs.AllocClientStatusRunning,
+			triggerBy:          "",
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s1, cleanupS1 := TestServer(t, func(c *Config) {
+				// Disabling scheduling in this test so that we can
+				// ensure that the state store doesn't accumulate more evals
+				// than what we expect the unit test to add
+				c.NumSchedulers = 0
+			})
+
+			defer cleanupS1()
+			codec := rpcClient(t, s1)
+			testutil.WaitForLeader(t, s1.RPC)
+
+			// Create the register request
+			node := mock.Node()
+			reg := &structs.NodeRegisterRequest{
+				Node:         node,
+				WriteRequest: structs.WriteRequest{Region: "global"},
+			}
+
+			// Fetch the response
+			var nodeResp structs.GenericResponse
+			err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &nodeResp)
+			require.NoError(t, err)
+
+			fsmState := s1.fsm.State()
+
+			job := mock.Job()
+			job.ID = tc.name + "-test-job"
+
+			if !tc.missingJob {
+				err = fsmState.UpsertJob(structs.MsgTypeTestSetup, 101, job)
+				require.NoError(t, err)
+			}
+
+			serverAlloc := mock.Alloc()
+			serverAlloc.JobID = job.ID
+			serverAlloc.NodeID = node.ID
+			serverAlloc.ClientStatus = tc.serverClientStatus
+			serverAlloc.TaskGroup = job.TaskGroups[0].Name
+
+			// Create the incoming client alloc.
+			clientAlloc := serverAlloc.Copy()
+			clientAlloc.ClientStatus = tc.clientStatus
+
+			err = fsmState.UpsertJobSummary(99, mock.JobSummary(serverAlloc.JobID))
+			require.NoError(t, err)
+
+			if tc.invalidTaskGroup {
+				serverAlloc.TaskGroup = "invalid"
+			}
+
+			if !tc.missingAlloc {
+				err = fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{serverAlloc})
+				require.NoError(t, err)
+			}
+
+			updateReq := &structs.AllocUpdateRequest{
+				Alloc:        []*structs.Allocation{clientAlloc},
+				WriteRequest: structs.WriteRequest{Region: "global"},
+			}
+
+			var nodeAllocResp structs.NodeAllocsResponse
+			err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", updateReq, &nodeAllocResp)
+			require.NoError(t, err)
+			require.NotEqual(t, uint64(0), nodeAllocResp.Index)
+
+			// If no eval should be created validate, none were and return.
+			if tc.triggerBy == "" {
+				evaluations, err := fsmState.EvalsByJob(nil, job.Namespace, job.ID)
+				require.NoError(t, err)
+				require.Len(t, evaluations, 0)
+				return
+			}
+
+			// Lookup the alloc
+			updatedAlloc, err := fsmState.AllocByID(nil, serverAlloc.ID)
+			require.NoError(t, err)
+			require.Equal(t, tc.clientStatus, updatedAlloc.ClientStatus)
+
+			// Assert that exactly one eval with test case TriggeredBy exists
+			evaluations, err := fsmState.EvalsByJob(nil, job.Namespace, job.ID)
+			require.NoError(t, err)
+			require.Equal(t, 1, len(evaluations))
+			foundCount := 0
+			for _, resultEval := range evaluations {
+				if resultEval.TriggeredBy == tc.triggerBy && resultEval.WaitUntil.IsZero() {
+					foundCount++
+				}
+			}
+			require.Equal(t, 1, foundCount, "Should create exactly one eval for trigger by", tc.triggerBy)
+		})
+	}
+
 }

@@ -277,3 +277,42 @@ func (s *HTTPServer) aclTokenDelete(resp http.ResponseWriter, req *http.Request,
 	setIndex(resp, out.Index)
 	return nil, nil
 }
+
+func (s *HTTPServer) UpsertOneTimeToken(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	// Ensure this is a PUT or POST
+	if !(req.Method == "PUT" || req.Method == "POST") {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	// the request body is empty but we need to parse to get the auth token
+	args := structs.OneTimeTokenUpsertRequest{}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.OneTimeTokenUpsertResponse
+	if err := s.agent.RPC("ACL.UpsertOneTimeToken", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
+}
+
+func (s *HTTPServer) ExchangeOneTimeToken(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	// Ensure this is a PUT or POST
+	if !(req.Method == "PUT" || req.Method == "POST") {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var args structs.OneTimeTokenExchangeRequest
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(500, err.Error())
+	}
+
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.OneTimeTokenExchangeResponse
+	if err := s.agent.RPC("ACL.ExchangeOneTimeToken", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
+}

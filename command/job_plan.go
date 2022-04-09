@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/posener/complete"
 )
@@ -14,7 +15,7 @@ import (
 const (
 	jobModifyIndexHelp = `To submit the job with version verification run:
 
-nomad job run -check-index %d %s
+nomad job run -check-index %d %s%s
 
 When running the job with the check-index flag, the job will only be run if the
 job modify index given matches the server-side version. If the index has
@@ -49,6 +50,7 @@ Alias: nomad plan
   submitting the job using "nomad run -check-index", which will check that the job
   was not modified between the plan and run command before invoking the
   scheduler. This ensures the job has not been modified since the plan.
+  Multiregion jobs do not return a job modify index.
 
   A structured diff between the local and remote job is displayed to
   give insight into what the scheduler will attempt to do and why.
@@ -61,9 +63,12 @@ Alias: nomad plan
     * 1: Allocations created or destroyed.
     * 255: Error determining plan results.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job'
+  capability for the job's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Plan Options:
 
@@ -71,8 +76,22 @@ Plan Options:
     Determines whether the diff between the remote job and planned job is shown.
     Defaults to true.
 
+  -hcl1
+    Parses the job file as HCLv1.
+
+  -hcl2-strict
+    Whether an error should be produced from the HCL2 parser where a variable
+    has been supplied which is not defined within the root variables. Defaults
+    to true.
+
   -policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
+
+  -var 'key=value'
+    Variable for template, can be used multiple times.
+
+  -var-file=path
+    Path to HCL2 file containing user variables.
 
   -verbose
     Increase diff verbosity.
@@ -90,6 +109,10 @@ func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 			"-diff":            complete.PredictNothing,
 			"-policy-override": complete.PredictNothing,
 			"-verbose":         complete.PredictNothing,
+			"-hcl1":            complete.PredictNothing,
+			"-hcl2-strict":     complete.PredictNothing,
+			"-var":             complete.PredictAnything,
+			"-var-file":        complete.PredictFiles("*.var"),
 		})
 }
 
@@ -99,20 +122,25 @@ func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
-	var diff, policyOverride, verbose bool
+	var diff, policyOverride, verbose, hcl2Strict bool
+	var varArgs, varFiles flaghelper.StringFlag
 
-	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
-	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&diff, "diff", true, "")
-	flags.BoolVar(&policyOverride, "policy-override", false, "")
-	flags.BoolVar(&verbose, "verbose", false, "")
+	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
+	flagSet.BoolVar(&diff, "diff", true, "")
+	flagSet.BoolVar(&policyOverride, "policy-override", false, "")
+	flagSet.BoolVar(&verbose, "verbose", false, "")
+	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
+	flagSet.BoolVar(&hcl2Strict, "hcl2-strict", true, "")
+	flagSet.Var(&varArgs, "var", "")
+	flagSet.Var(&varFiles, "var-file", "")
 
-	if err := flags.Parse(args); err != nil {
+	if err := flagSet.Parse(args); err != nil {
 		return 255
 	}
 
 	// Check that we got exactly one job
-	args = flags.Args()
+	args = flagSet.Args()
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <path>")
 		c.Ui.Error(commandErrorText(c))
@@ -121,7 +149,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 
 	path := args[0]
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.ApiJob(args[0])
+	job, err := c.JobGetter.ApiJobWithArgs(args[0], varArgs, varFiles, hcl2Strict)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 255
@@ -153,12 +181,65 @@ func (c *JobPlanCommand) Run(args []string) int {
 		opts.PolicyOverride = true
 	}
 
+	if job.IsMultiregion() {
+		return c.multiregionPlan(client, job, opts, diff, verbose)
+	}
+
 	// Submit the job
 	resp, _, err := client.Jobs().PlanOpts(job, opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during plan: %s", err))
 		return 255
 	}
+
+	runArgs := strings.Builder{}
+	for _, varArg := range varArgs {
+		runArgs.WriteString(fmt.Sprintf("-var=%q ", varArg))
+	}
+
+	for _, varFile := range varFiles {
+		runArgs.WriteString(fmt.Sprintf("-var-file=%q ", varFile))
+	}
+
+	exitCode := c.outputPlannedJob(job, resp, diff, verbose)
+	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, runArgs.String(), path)))
+	return exitCode
+}
+
+func (c *JobPlanCommand) multiregionPlan(client *api.Client, job *api.Job, opts *api.PlanOptions, diff, verbose bool) int {
+
+	var exitCode int
+	plans := map[string]*api.JobPlanResponse{}
+
+	// collect all the plans first so that we can report all errors
+	for _, region := range job.Multiregion.Regions {
+		regionName := region.Name
+		client.SetRegion(regionName)
+
+		// Submit the job for this region
+		resp, _, err := client.Jobs().PlanOpts(job, opts, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error during plan for region %q: %s", regionName, err))
+			exitCode = 255
+		}
+		plans[regionName] = resp
+	}
+
+	if exitCode > 0 {
+		return exitCode
+	}
+
+	for regionName, resp := range plans {
+		c.Ui.Output(c.Colorize().Color(fmt.Sprintf("[bold]Region: %q[reset]", regionName)))
+		regionExitCode := c.outputPlannedJob(job, resp, diff, verbose)
+		if regionExitCode > exitCode {
+			exitCode = regionExitCode
+		}
+	}
+	return exitCode
+}
+
+func (c *JobPlanCommand) outputPlannedJob(job *api.Job, resp *api.JobPlanResponse, diff, verbose bool) int {
 
 	// Print the diff if not disabled
 	if diff {
@@ -182,8 +263,6 @@ func (c *JobPlanCommand) Run(args []string) int {
 		c.addPreemptions(resp)
 	}
 
-	// Print the job index info
-	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
 	return getExitCode(resp)
 }
 
@@ -192,7 +271,7 @@ func (c *JobPlanCommand) addPreemptions(resp *api.JobPlanResponse) {
 	c.Ui.Output(c.Colorize().Color("[bold][yellow]Preemptions:\n[reset]"))
 	if len(resp.Annotations.PreemptedAllocs) < preemptionDisplayThreshold {
 		var allocs []string
-		allocs = append(allocs, fmt.Sprintf("Alloc ID|Job ID|Task Group"))
+		allocs = append(allocs, "Alloc ID|Job ID|Task Group")
 		for _, alloc := range resp.Annotations.PreemptedAllocs {
 			allocs = append(allocs, fmt.Sprintf("%s|%s|%s", alloc.ID, alloc.JobID, alloc.TaskGroup))
 		}
@@ -221,7 +300,7 @@ func (c *JobPlanCommand) addPreemptions(resp *api.JobPlanResponse) {
 	// Show counts grouped by job ID if its less than a threshold
 	var output []string
 	if numJobs < preemptionDisplayThreshold {
-		output = append(output, fmt.Sprintf("Job ID|Namespace|Job Type|Preemptions"))
+		output = append(output, "Job ID|Namespace|Job Type|Preemptions")
 		for jobType, jobCounts := range allocDetails {
 			for jobId, count := range jobCounts {
 				output = append(output, fmt.Sprintf("%s|%s|%s|%d", jobId.id, jobId.namespace, jobType, count))
@@ -229,7 +308,7 @@ func (c *JobPlanCommand) addPreemptions(resp *api.JobPlanResponse) {
 		}
 	} else {
 		// Show counts grouped by job type
-		output = append(output, fmt.Sprintf("Job Type|Preemptions"))
+		output = append(output, "Job Type|Preemptions")
 		for jobType, jobCounts := range allocDetails {
 			total := 0
 			for _, count := range jobCounts {
@@ -263,8 +342,8 @@ func getExitCode(resp *api.JobPlanResponse) int {
 
 // formatJobModifyIndex produces a help string that displays the job modify
 // index and how to submit a job with it.
-func formatJobModifyIndex(jobModifyIndex uint64, jobName string) string {
-	help := fmt.Sprintf(jobModifyIndexHelp, jobModifyIndex, jobName)
+func formatJobModifyIndex(jobModifyIndex uint64, args string, jobName string) string {
+	help := fmt.Sprintf(jobModifyIndexHelp, jobModifyIndex, args, jobName)
 	out := fmt.Sprintf("[reset][bold]Job Modify Index: %d[reset]\n%s", jobModifyIndex, help)
 	return out
 }

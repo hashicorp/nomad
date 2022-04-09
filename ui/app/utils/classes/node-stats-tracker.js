@@ -11,14 +11,14 @@ const percent = (numerator, denominator) => {
   return numerator / denominator;
 };
 
-const empty = ts => ({ timestamp: ts, used: null, percent: null });
+const empty = (ts) => ({ timestamp: ts, used: null, percent: null });
 
 @classic
 class NodeStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   // Set via the stats computed property macro
   node = null;
 
-  @computed('node')
+  @computed('node.id')
   get url() {
     return `/v1/client/stats?node_id=${this.get('node.id')}`;
   }
@@ -53,12 +53,12 @@ class NodeStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
 
   // Dynamic figures, collected over time
   // []{ timestamp: Date, used: Number, percent: Number }
-  @computed('node')
+  @computed('bufferSize', 'node')
   get cpu() {
     return RollingArray(this.bufferSize);
   }
 
-  @computed('node')
+  @computed('bufferSize', 'node')
   get memory() {
     return RollingArray(this.bufferSize);
   }
@@ -67,7 +67,7 @@ class NodeStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
 export default NodeStatsTracker;
 
 export function stats(nodeProp, fetch) {
-  return computed(nodeProp, function() {
+  return computed(nodeProp, function () {
     return NodeStatsTracker.create({
       fetch: fetch.call(this),
       node: this.get(nodeProp),

@@ -315,10 +315,11 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 		return structs.ErrPermissionDenied
 	}
 
-	// All servers should be at or above 0.9.0 to apply this operatation
+	// All servers should be at or above 0.9.0 to apply this operation
 	if !ServersMeetMinimumVersion(op.srv.Members(), minSchedulerConfigVersion, false) {
 		return fmt.Errorf("All servers should be running version %v to update scheduler config", minSchedulerConfigVersion)
 	}
+
 	// Apply the update
 	resp, index, err := op.srv.raftApply(structs.SchedulerConfigRequestType, args)
 	if err != nil {
@@ -327,9 +328,9 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	} else if respErr, ok := resp.(error); ok {
 		return respErr
 	}
-
-	// Check if the return type is a bool
-	// Only applies to CAS requests
+	//  If CAS request, raft returns a boolean indicating if the update was applied.
+	// Otherwise, assume success
+	reply.Updated = true
 	if respBool, ok := resp.(bool); ok {
 		reply.Updated = respBool
 	}

@@ -1,0 +1,3 @@
+```release-note:bug
+rpc: Fixed scaling policy get index response when the policy is found
+```

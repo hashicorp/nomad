@@ -40,17 +40,16 @@ func (h delayedHeapImp) Len() int {
 	return len(h)
 }
 
+// Less sorts zero WaitUntil times at the end of the list, and normally
+// otherwise
 func (h delayedHeapImp) Less(i, j int) bool {
-	// Two zero times should return false.
-	// Otherwise, zero is "greater" than any other time.
-	// (To sort it at the end of the list.)
-	// Sort such that zero times are at the end of the list.
-	iZero, jZero := h[i].WaitUntil.IsZero(), h[j].WaitUntil.IsZero()
-	if iZero && jZero {
+	if h[i].WaitUntil.IsZero() {
+		// 0,? => ?,0
 		return false
-	} else if iZero {
-		return false
-	} else if jZero {
+	}
+
+	if h[j].WaitUntil.IsZero() {
+		// ?,0 => ?,0
 		return true
 	}
 

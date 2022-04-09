@@ -1,13 +1,13 @@
 package nomad
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
-	"fmt"
-
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/consul/sdk/testutil/retry"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -23,7 +23,7 @@ func wantPeers(s *Server, peers int) error {
 
 	n := autopilot.NumPeers(future.Configuration())
 	if got, want := n, peers; got != want {
-		return fmt.Errorf("got %d peers want %d", got, want)
+		return fmt.Errorf("server %v: got %d peers want %d\n\tservers: %#+v", s.config.NodeName, got, want, future.Configuration().Servers)
 	}
 	return nil
 }
@@ -67,10 +67,9 @@ func wantRaft(servers []*Server) error {
 }
 
 func TestAutopilot_CleanupDeadServer(t *testing.T) {
-	t.Parallel()
-	for i := 1; i <= 3; i++ {
-		testCleanupDeadServer(t, i)
-	}
+	ci.Parallel(t)
+	t.Run("raft_v2", func(t *testing.T) { testCleanupDeadServer(t, 2) })
+	t.Run("raft_v3", func(t *testing.T) { testCleanupDeadServer(t, 3) })
 }
 
 func testCleanupDeadServer(t *testing.T, raftVersion int) {
@@ -91,9 +90,10 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 	servers := []*Server{s1, s2, s3}
 
 	// Try to join
-	TestJoin(t, s1, s2, s3)
+	TestJoin(t, servers...)
 
 	for _, s := range servers {
+		testutil.WaitForLeader(t, s.RPC)
 		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(s, 3)) })
 	}
 
@@ -102,22 +102,39 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 	defer cleanupS4()
 
 	// Kill a non-leader server
-	s3.Shutdown()
-	retry.Run(t, func(r *retry.R) {
-		alive := 0
-		for _, m := range s1.Members() {
-			if m.Status == serf.StatusAlive {
-				alive++
-			}
+	killedIdx := 0
+	for i, s := range servers {
+		if !s.IsLeader() {
+			killedIdx = i
+			s.Shutdown()
+			break
 		}
-		if alive != 2 {
-			r.Fatal(nil)
+	}
+
+	retry.Run(t, func(r *retry.R) {
+		for i, s := range servers {
+			alive := 0
+			if i == killedIdx {
+				// Skip shutdown server
+				continue
+			}
+			for _, m := range s.Members() {
+				if m.Status == serf.StatusAlive {
+					alive++
+				}
+			}
+
+			if alive != 2 {
+				r.Fatalf("expected 2 alive servers but found %v", alive)
+			}
 		}
 	})
 
 	// Join the new server
-	TestJoin(t, s1, s4)
-	servers[2] = s4
+	servers[killedIdx] = s4
+	TestJoin(t, servers...)
+
+	waitForStableLeadership(t, servers)
 
 	// Make sure the dead server is removed and we're back to 3 total peers
 	for _, s := range servers {
@@ -126,7 +143,7 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 }
 
 func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	conf := func(c *Config) {
 		c.BootstrapExpect = 5
@@ -151,7 +168,7 @@ func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 
 	// Join the servers to s1, and wait until they are all promoted to
 	// voters.
-	TestJoin(t, s1, servers[1:]...)
+	TestJoin(t, servers...)
 	retry.Run(t, func(r *retry.R) {
 		r.Check(wantRaft(servers))
 		for _, s := range servers {
@@ -160,6 +177,9 @@ func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 	})
 
 	// Kill a non-leader server
+	if leader := waitForStableLeadership(t, servers); leader == s4 {
+		s1, s4 = s4, s1
+	}
 	s4.Shutdown()
 
 	// Should be removed from the peers automatically
@@ -173,7 +193,7 @@ func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 }
 
 func TestAutopilot_RollingUpdate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	conf := func(c *Config) {
 		c.BootstrapExpect = 3
@@ -250,7 +270,7 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 
 func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
 	t.Skip("TestAutopilot_CleanupDeadServer is very flaky, removing it for now")
-	t.Parallel()
+	ci.Parallel(t)
 
 	conf := func(c *Config) {
 		c.BootstrapExpect = 3
@@ -299,7 +319,7 @@ func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
 }
 
 func TestAutopilot_PromoteNonVoter(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3

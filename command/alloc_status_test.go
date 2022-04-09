@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -21,16 +22,16 @@ import (
 )
 
 func TestAllocStatusCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &AllocStatusCommand{}
 }
 
 func TestAllocStatusCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -88,7 +89,7 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 }
 
 func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -108,7 +109,7 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 	state := srv.Agent.Server().State()
 
@@ -133,12 +134,12 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 	a.TaskResources["init_task"] = a.TaskResources["web"]
 	a.TaskResources["prestart_sidecar"] = a.TaskResources["web"]
 	a.TaskStates = map[string]*structs.TaskState{
-		"web":              &structs.TaskState{State: "pending"},
-		"init_task":        &structs.TaskState{State: "running"},
-		"prestart_sidecar": &structs.TaskState{State: "running"},
+		"web":              {State: "pending"},
+		"init_task":        {State: "running"},
+		"prestart_sidecar": {State: "running"},
 	}
 
-	require.Nil(t, state.UpsertAllocs(1000, []*structs.Allocation{a}))
+	require.Nil(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	if code := cmd.Run([]string{"-address=" + url, a.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
@@ -151,7 +152,7 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 }
 
 func TestAllocStatusCommand_Run(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -172,7 +173,7 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 
 	jobID := "job1_sfx"
@@ -248,7 +249,7 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 }
 
 func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -268,7 +269,7 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 	// Test reschedule attempt info
 	require := require.New(t)
@@ -286,7 +287,7 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 			},
 		},
 	}
-	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	if code := cmd.Run([]string{"-address=" + url, a.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
@@ -297,7 +298,7 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 }
 
 func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -317,7 +318,7 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 	// Test node metrics
 	require := require.New(t)
@@ -343,7 +344,7 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 			},
 		},
 	}
-	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	if code := cmd.Run([]string{"-address=" + url, "-verbose", a.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
@@ -359,19 +360,19 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 }
 
 func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
-	assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	prefix := a.ID[:5]
 	args := complete.Args{Last: prefix}
@@ -383,7 +384,7 @@ func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 }
 
 func TestAllocStatusCommand_HostVolumes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// We have to create a tempdir for the host volume even though we're
 	// not going to use it b/c the server validates the config on startup
 	tmpDir, err := ioutil.TempDir("", "vol0")
@@ -429,7 +430,7 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 	// fakes the placement enough so that we have something to iterate
 	// on in 'nomad alloc status'
 	alloc.TaskStates = map[string]*structs.TaskState{
-		"web": &structs.TaskState{
+		"web": {
 			Events: []*structs.TaskEvent{
 				structs.NewTaskEvent("test event").SetMessage("test msg"),
 			},
@@ -437,9 +438,9 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 	}
 	summary := mock.JobSummary(alloc.JobID)
 	require.NoError(t, state.UpsertJobSummary(1004, summary))
-	require.NoError(t, state.UpsertAllocs(1005, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 	if code := cmd.Run([]string{"-address=" + url, "-verbose", alloc.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
@@ -451,7 +452,7 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 }
 
 func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	state := srv.Agent.Server().State()
@@ -466,7 +467,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
-	err := state.UpsertNode(1001, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1001, node)
 	require.NoError(t, err)
 
 	vols := []*structs.CSIVolume{{
@@ -479,7 +480,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 			Segments: map[string]string{"foo": "bar"},
 		}},
 	}}
-	err = state.CSIVolumeRegister(1002, vols)
+	err = state.UpsertCSIVolume(1002, vols)
 	require.NoError(t, err)
 
 	// Upsert the job and alloc
@@ -491,7 +492,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 		vol0: {
 			Name:   vol0,
 			Type:   structs.VolumeTypeCSI,
-			Source: "/tmp/vol0",
+			Source: vol0,
 		},
 	}
 	job.TaskGroups[0].Tasks[0].VolumeMounts = []*structs.VolumeMount{
@@ -504,7 +505,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 	}
 	// if we don't set a task state, there's nothing to iterate on alloc status
 	alloc.TaskStates = map[string]*structs.TaskState{
-		"web": &structs.TaskState{
+		"web": {
 			Events: []*structs.TaskEvent{
 				structs.NewTaskEvent("test event").SetMessage("test msg"),
 			},
@@ -512,9 +513,9 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 	}
 	summary := mock.JobSummary(alloc.JobID)
 	require.NoError(t, state.UpsertJobSummary(1004, summary))
-	require.NoError(t, state.UpsertAllocs(1005, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 	if code := cmd.Run([]string{"-address=" + url, "-verbose", alloc.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)

@@ -42,7 +42,7 @@ func MockNode() *Node {
 		Attributes: map[string]string{
 			"kernel.name":        "linux",
 			"arch":               "x86",
-			"nomad.version":      "0.5.0",
+			"nomad.version":      "1.0.0",
 			"driver.exec":        "1",
 			"driver.mock_driver": "1",
 		},
@@ -90,11 +90,14 @@ func MockNode() *Node {
 		Status:                NodeStatusReady,
 		SchedulingEligibility: NodeSchedulingEligible,
 	}
-	node.ComputeClass()
+	err := node.ComputeClass()
+	if err != nil {
+		panic(fmt.Sprintf("failed to compute node class: %v", err))
+	}
 	return node
 }
 
-// NvidiaNode returns a node with two instances of an Nvidia GPU
+// MockNvidiaNode returns a node with two instances of an Nvidia GPU
 func MockNvidiaNode() *Node {
 	n := MockNode()
 	n.NodeResources.Devices = []*NodeDeviceResource{
@@ -120,7 +123,10 @@ func MockNvidiaNode() *Node {
 			},
 		},
 	}
-	n.ComputeClass()
+	err := n.ComputeClass()
+	if err != nil {
+		panic(fmt.Sprintf("failed to compute node class: %v", err))
+	}
 	return n
 }
 

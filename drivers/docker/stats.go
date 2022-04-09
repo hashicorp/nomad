@@ -8,9 +8,9 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/hashicorp/nomad/client/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/util"
+	"github.com/hashicorp/nomad/helper"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -28,13 +28,13 @@ const (
 // sending and closing, and backpressures by dropping events if necessary.
 type usageSender struct {
 	closed bool
-	destCh chan<- *structs.TaskResourceUsage
+	destCh chan<- *cstructs.TaskResourceUsage
 	mu     sync.Mutex
 }
 
 // newStatsChanPipe returns a chan wrapped in a struct that supports concurrent
 // sending and closing, and the receiver end of the chan.
-func newStatsChanPipe() (*usageSender, <-chan *structs.TaskResourceUsage) {
+func newStatsChanPipe() (*usageSender, <-chan *cstructs.TaskResourceUsage) {
 	destCh := make(chan *cstructs.TaskResourceUsage, 1)
 	return &usageSender{
 		destCh: destCh,
@@ -92,19 +92,27 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 	defer destCh.close()
 
 	// backoff and retry used if the docker stats API returns an error
-	var backoff time.Duration
+	var backoff time.Duration = 0
 	var retry int
+
+	// create an interval timer
+	timer, stop := helper.NewSafeTimer(backoff)
+	defer stop()
+
 	// loops until doneCh is closed
 	for {
+		timer.Reset(backoff)
+
 		if backoff > 0 {
 			select {
-			case <-time.After(backoff):
+			case <-timer.C:
 			case <-ctx.Done():
 				return
 			case <-h.doneCh:
 				return
 			}
 		}
+
 		// make a channel for docker stats structs and start a collector to
 		// receive stats from docker and emit nomad stats
 		// statsCh will always be closed by docker client.

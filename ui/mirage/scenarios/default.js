@@ -1,4 +1,6 @@
 import config from 'nomad-ui/config/environment';
+import * as topoScenarios from './topo';
+import * as sysbatchScenarios from './sysbatch';
 import { pickOne } from '../utils';
 
 const withNamespaces = getConfigValue('mirageWithNamespaces', false);
@@ -14,9 +16,11 @@ const allScenarios = {
   allNodeTypes,
   everyFeature,
   emptyCluster,
+  ...topoScenarios,
+  ...sysbatchScenarios,
 };
 
-const scenario = getConfigValue('mirageScenario', 'emptyCluster');
+const scenario = getScenarioQueryParameter() || getConfigValue('mirageScenario', 'emptyCluster');
 
 export default function(server) {
   const activeScenario = allScenarios[scenario];
@@ -37,9 +41,10 @@ export default function(server) {
 // Scenarios
 
 function smallCluster(server) {
-  server.createList('agent', 3);
+  server.create('feature', { name: 'Dynamic Application Sizing' });
+  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node', 5);
-  server.createList('job', 5);
+  server.createList('job', 5, { createRecommendations: true });
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
   server.createList('csi-plugin', 2);
@@ -55,7 +60,7 @@ function smallCluster(server) {
 }
 
 function mediumCluster(server) {
-  server.createList('agent', 3);
+  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node', 50);
   server.createList('job', 25);
 }
@@ -74,7 +79,7 @@ function massiveCluster(server) {
 }
 
 function allJobTypes(server) {
-  server.createList('agent', 3);
+  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node', 5);
 
   server.create('job', { type: 'service' });
@@ -82,11 +87,13 @@ function allJobTypes(server) {
   server.create('job', { type: 'system' });
   server.create('job', 'periodic');
   server.create('job', 'parameterized');
+  server.create('job', 'periodicSysbatch');
+  server.create('job', 'parameterizedSysbatch');
   server.create('job', { failedPlacements: true });
 }
 
 function allNodeTypes(server) {
-  server.createList('agent', 3);
+  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
 
   server.create('node');
   server.create('node', 'forceIPv4');
@@ -99,7 +106,7 @@ function allNodeTypes(server) {
 }
 
 function everyFeature(server) {
-  server.createList('agent', 3);
+  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
 
   server.create('node', 'forceIPv4');
   server.create('node', 'draining');
@@ -166,5 +173,10 @@ function getConfigValue(variableName, defaultValue) {
     `No ENV.APP value set for "${variableName}". Defaulting to "${defaultValue}". To set a custom value, modify config/environment.js`
   );
   return defaultValue;
+}
+
+function getScenarioQueryParameter() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('mirage-scenario');
 }
 /* eslint-enable */

@@ -13,6 +13,10 @@
         opacity: 1;
       }
 
+      .clickable {
+        cursor: pointer;
+      }
+
       .inactive {
         opacity: 0.2;
       }
@@ -55,7 +59,6 @@
         display: block;
         background-color: transparent;
         transition: background-color 0.1s ease-in-out;
-        border: 1px solid $grey-blue;
         padding: 0.25em 0.75em;
         margin: 0.25em;
         border-radius: $radius;
@@ -63,19 +66,48 @@
         // Ensure two columns, but don't use the full width
         width: 35%;
 
-        .label,
-        .value {
-          display: inline;
-          font-weight: $weight-normal;
+        .legend-item {
+          display: flex;
+          align-items: center;
+
+          .color-swatch {
+            margin-right: 0.5rem;
+          }
+
+          .text {
+            flex-grow: 1;
+
+            .label,
+            .value {
+              display: inline;
+              font-weight: $weight-normal;
+            }
+          }
+
+          .icon {
+            width: 1.2rem;
+            height: 1.2rem;
+          }
         }
 
         &.is-active {
           background-color: rgba($info, 0.1);
         }
 
+        &.is-clickable {
+          a {
+            display: block;
+          }
+
+          &:not(.is-empty) {
+            &:hover {
+              background-color: rgba($info, 0.1);
+            }
+          }
+        }
+
         &.is-empty {
           color: darken($grey-blue, 20%);
-          border: none;
 
           .label {
             color: darken($grey-blue, 20%);

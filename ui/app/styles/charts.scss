@@ -1,8 +1,12 @@
 @import './charts/distribution-bar';
 @import './charts/gauge-chart';
 @import './charts/line-chart';
+@import './charts/recommendation-chart';
 @import './charts/tooltip';
 @import './charts/colors';
+@import './charts/chart-annotation';
+@import './charts/topo-viz';
+@import './charts/topo-viz-node';
 
 .inline-chart {
   height: 1.5rem;
@@ -20,4 +24,9 @@
   overflow: hidden;
   position: absolute;
   left: -100%;
+
+  .das-gradient {
+    --full-color: #{change-color($yellow-400, $alpha: 0.7)};
+    --faint-color: #{change-color($yellow-400, $alpha: 0.1)};
+  }
 }

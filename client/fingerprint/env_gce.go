@@ -166,7 +166,7 @@ func (f *EnvGCEFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 		}
 
 		// assume we want blank entries
-		key := "platform.gce." + strings.Replace(k, "/", ".", -1)
+		key := "platform.gce." + strings.ReplaceAll(k, "/", ".")
 		if unique {
 			key = structs.UniqueNamespace(key)
 		}

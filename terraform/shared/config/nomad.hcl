@@ -1,9 +1,9 @@
-data_dir = "/opt/nomad/data"
+data_dir  = "/opt/nomad/data"
 bind_addr = "0.0.0.0"
 
 # Enable the server
 server {
-  enabled = true
+  enabled          = true
   bootstrap_expect = SERVER_COUNT
 }
 
@@ -12,10 +12,10 @@ consul {
 }
 
 vault {
-  enabled = false
-  address = "http://active.vault.service.consul:8200"
-  task_token_ttl = "1h"
+  enabled          = false
+  address          = "http://active.vault.service.consul:8200"
+  task_token_ttl   = "1h"
   create_from_role = "nomad-cluster"
-  token = ""
+  token            = ""
 }
 

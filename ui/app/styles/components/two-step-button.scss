@@ -5,6 +5,28 @@
   font-size: $body-size;
   line-height: 1;
 
+  &.has-inline-text {
+    display: inline-flex;
+    align-items: center;
+
+    button {
+      margin-left: 0.5ch;
+    }
+
+    .confirmation-text {
+      position: absolute;
+      left: auto;
+      right: 0;
+      top: auto;
+      margin-right: 100%;
+    }
+  }
+
+  &.has-fading-background .confirmation-text {
+    padding: 0.5rem 0 0.5rem 4rem;
+    background: linear-gradient(to left, white, white 90%, transparent 100%);
+  }
+
   .confirmation-text {
     position: absolute;
     left: 0;

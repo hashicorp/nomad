@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
@@ -27,7 +28,7 @@ import (
 )
 
 func TestMonitor_Monitor_Remote_Client(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// start server and client
@@ -124,7 +125,7 @@ OUTER:
 }
 
 func TestMonitor_Monitor_RemoteServer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	foreignRegion := "foo"
 
 	// start servers
@@ -325,7 +326,7 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 }
 
 func TestMonitor_MonitorServer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// start server
@@ -419,7 +420,7 @@ OUTER:
 }
 
 func TestMonitor_Monitor_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// start server
@@ -524,7 +525,7 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 }
 
 func TestAgentProfile_RemoteClient(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// start server and client
@@ -548,6 +549,7 @@ func TestAgentProfile_RemoteClient(t *testing.T) {
 	})
 	defer cleanupC()
 
+	testutil.WaitForClient(t, s2.RPC, c.NodeID(), c.Region())
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s2.connectedNodes()
 		return len(nodes) == 1, nil
@@ -573,7 +575,6 @@ func TestAgentProfile_RemoteClient(t *testing.T) {
 // Test that we prevent a forwarding loop if the requested
 // serverID does not exist in the requested region
 func TestAgentProfile_RemoteRegionMisMatch(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// start server and client
@@ -611,7 +612,6 @@ func TestAgentProfile_RemoteRegionMisMatch(t *testing.T) {
 
 // Test that Agent.Profile can forward to a different region
 func TestAgentProfile_RemoteRegion(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// start server and client
@@ -649,8 +649,7 @@ func TestAgentProfile_RemoteRegion(t *testing.T) {
 }
 
 func TestAgentProfile_Server(t *testing.T) {
-	t.Parallel()
-
+	ci.Parallel(t)
 	// start servers
 	s1, cleanup := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
@@ -752,7 +751,7 @@ func TestAgentProfile_Server(t *testing.T) {
 }
 
 func TestAgentProfile_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// start server
@@ -808,4 +807,207 @@ func TestAgentProfile_ACL(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAgentHost_Server(t *testing.T) {
+	ci.Parallel(t)
+
+	// start servers
+	s1, cleanup := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.EnableDebug = true
+	})
+	defer cleanup()
+
+	s2, cleanup := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.EnableDebug = true
+	})
+	defer cleanup()
+
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
+
+	// determine leader and nonleader
+	servers := []*Server{s1, s2}
+	var nonLeader *Server
+	var leader *Server
+	for _, s := range servers {
+		if !s.IsLeader() {
+			nonLeader = s
+		} else {
+			leader = s
+		}
+	}
+
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s2.GetConfig().RPCAddr.String()}
+		c.EnableDebug = true
+	})
+	defer cleanupC()
+
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := s2.connectedNodes()
+		return len(nodes) == 1, nil
+	}, func(err error) {
+		t.Fatalf("should have a clients")
+	})
+
+	cases := []struct {
+		desc            string
+		serverID        string
+		nodeID          string
+		origin          *Server
+		expectedErr     string
+		expectedAgentID string
+	}{
+		{
+			desc:            "remote leader",
+			serverID:        "leader",
+			origin:          nonLeader,
+			expectedAgentID: leader.serf.LocalMember().Name,
+		},
+		{
+			desc:            "remote server",
+			serverID:        nonLeader.serf.LocalMember().Name,
+			origin:          leader,
+			expectedAgentID: nonLeader.serf.LocalMember().Name,
+		},
+		{
+			desc:            "serverID is current leader",
+			serverID:        "leader",
+			origin:          leader,
+			expectedAgentID: leader.serf.LocalMember().Name,
+		},
+		{
+			desc:            "serverID is current server",
+			serverID:        nonLeader.serf.LocalMember().Name,
+			origin:          nonLeader,
+			expectedAgentID: nonLeader.serf.LocalMember().Name,
+		},
+		{
+			desc:            "serverID is unknown",
+			serverID:        uuid.Generate(),
+			origin:          nonLeader,
+			expectedErr:     "unknown Nomad server",
+			expectedAgentID: "",
+		},
+		{
+			desc:            "local client",
+			nodeID:          c.NodeID(),
+			origin:          s2,
+			expectedErr:     "",
+			expectedAgentID: c.NodeID(),
+		},
+		{
+			desc:            "remote client",
+			nodeID:          c.NodeID(),
+			origin:          s1,
+			expectedErr:     "",
+			expectedAgentID: c.NodeID(),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			req := structs.HostDataRequest{
+				ServerID:     tc.serverID,
+				NodeID:       tc.nodeID,
+				QueryOptions: structs.QueryOptions{Region: "global"},
+			}
+
+			reply := structs.HostDataResponse{}
+
+			err := tc.origin.RPC("Agent.Host", &req, &reply)
+			if tc.expectedErr != "" {
+				require.Contains(t, err.Error(), tc.expectedErr)
+			} else {
+				require.Nil(t, err)
+				require.NotEmpty(t, reply.HostData)
+			}
+
+			require.Equal(t, tc.expectedAgentID, reply.AgentID)
+		})
+	}
+}
+
+func TestAgentHost_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	// start server
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
+	testutil.WaitForLeader(t, s.RPC)
+
+	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
+	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
+
+	policyGood := mock.AgentPolicy(acl.PolicyRead)
+	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid", policyGood)
+
+	cases := []struct {
+		Name        string
+		Token       string
+		ExpectedErr string
+	}{
+		{
+			Name:        "bad token",
+			Token:       tokenBad.SecretID,
+			ExpectedErr: "Permission denied",
+		},
+		{
+			Name:  "good token",
+			Token: tokenGood.SecretID,
+		},
+		{
+			Name:  "root token",
+			Token: root.SecretID,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			req := structs.HostDataRequest{
+				QueryOptions: structs.QueryOptions{
+					Namespace: structs.DefaultNamespace,
+					Region:    "global",
+					AuthToken: tc.Token,
+				},
+			}
+
+			var resp structs.HostDataResponse
+
+			err := s.RPC("Agent.Host", &req, &resp)
+			if tc.ExpectedErr != "" {
+				require.Equal(t, tc.ExpectedErr, err.Error())
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, resp.HostData)
+			}
+		})
+	}
+}
+
+func TestAgentHost_ACLDebugRequired(t *testing.T) {
+	ci.Parallel(t)
+
+	// start server
+	s, cleanupS := TestServer(t, func(c *Config) {
+		c.EnableDebug = false
+	})
+	defer cleanupS()
+	testutil.WaitForLeader(t, s.RPC)
+
+	req := structs.HostDataRequest{
+		QueryOptions: structs.QueryOptions{
+			Namespace: structs.DefaultNamespace,
+			Region:    "global",
+		},
+	}
+
+	var resp structs.HostDataResponse
+
+	err := s.RPC("Agent.Host", &req, &resp)
+	require.Equal(t, "Permission denied", err.Error())
 }

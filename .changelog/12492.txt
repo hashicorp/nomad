@@ -1,0 +1,3 @@
+```release-note:improvement
+api: default to using `DefaultPooledTransport` client to support keep-alive by default
+```

@@ -259,11 +259,14 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 	}
 
 	args.Config = structs.SchedulerConfiguration{
-		SchedulerAlgorithm: structs.SchedulerAlgorithm(conf.SchedulerAlgorithm),
+		SchedulerAlgorithm:            structs.SchedulerAlgorithm(conf.SchedulerAlgorithm),
+		MemoryOversubscriptionEnabled: conf.MemoryOversubscriptionEnabled,
+		RejectJobRegistration:         conf.RejectJobRegistration,
 		PreemptionConfig: structs.PreemptionConfig{
-			SystemSchedulerEnabled:  conf.PreemptionConfig.SystemSchedulerEnabled,
-			BatchSchedulerEnabled:   conf.PreemptionConfig.BatchSchedulerEnabled,
-			ServiceSchedulerEnabled: conf.PreemptionConfig.ServiceSchedulerEnabled},
+			SystemSchedulerEnabled:   conf.PreemptionConfig.SystemSchedulerEnabled,
+			SysBatchSchedulerEnabled: conf.PreemptionConfig.SysBatchSchedulerEnabled,
+			BatchSchedulerEnabled:    conf.PreemptionConfig.BatchSchedulerEnabled,
+			ServiceSchedulerEnabled:  conf.PreemptionConfig.ServiceSchedulerEnabled},
 	}
 
 	if err := args.Config.Validate(); err != nil {

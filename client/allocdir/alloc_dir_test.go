@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -47,13 +49,15 @@ var (
 
 // Test that AllocDir.Build builds just the alloc directory.
 func TestAllocDir_BuildAlloc(t *testing.T) {
+	ci.Parallel(t)
+
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.HCLogger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
 	d.NewTaskDir(t1.Name)
 	d.NewTaskDir(t2.Name)
@@ -96,14 +100,16 @@ func MountCompatible(t *testing.T) {
 }
 
 func TestAllocDir_MountSharedAlloc(t *testing.T) {
+	ci.Parallel(t)
 	MountCompatible(t)
+
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.HCLogger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
@@ -142,13 +148,15 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 }
 
 func TestAllocDir_Snapshot(t *testing.T) {
+	ci.Parallel(t)
+
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.HCLogger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
@@ -222,6 +230,8 @@ func TestAllocDir_Snapshot(t *testing.T) {
 }
 
 func TestAllocDir_Move(t *testing.T) {
+	ci.Parallel(t)
+
 	tmp1, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
@@ -235,13 +245,13 @@ func TestAllocDir_Move(t *testing.T) {
 	defer os.RemoveAll(tmp2)
 
 	// Create two alloc dirs
-	d1 := NewAllocDir(testlog.HCLogger(t), tmp1)
+	d1 := NewAllocDir(testlog.HCLogger(t), tmp1, "test")
 	if err := d1.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
 	defer d1.Destroy()
 
-	d2 := NewAllocDir(testlog.HCLogger(t), tmp2)
+	d2 := NewAllocDir(testlog.HCLogger(t), tmp2, "test")
 	if err := d2.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
@@ -290,13 +300,15 @@ func TestAllocDir_Move(t *testing.T) {
 }
 
 func TestAllocDir_EscapeChecking(t *testing.T) {
+	ci.Parallel(t)
+
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.HCLogger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
@@ -331,31 +343,36 @@ func TestAllocDir_EscapeChecking(t *testing.T) {
 
 // Test that `nomad fs` can't read secrets
 func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	ci.Parallel(t)
+	tmp := t.TempDir()
 
-	d := NewAllocDir(testlog.HCLogger(t), tmp)
-	if err := d.Build(); err != nil {
-		t.Fatalf("Build() failed: %v", err)
-	}
-	defer d.Destroy()
+	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
+	err := d.Build()
+	require.NoError(t, err)
+	defer func() {
+		_ = d.Destroy()
+	}()
 
 	td := d.NewTaskDir(t1.Name)
-	if err := td.Build(false, nil); err != nil {
-		t.Fatalf("TaskDir.Build() failed: %v", err)
-	}
+	err = td.Build(false, nil)
+	require.NoError(t, err)
 
-	// ReadAt of secret dir should fail
-	secret := filepath.Join(t1.Name, TaskSecrets, "test_file")
-	if _, err := d.ReadAt(secret, 0); err == nil || !strings.Contains(err.Error(), "secret file prohibited") {
-		t.Fatalf("ReadAt of secret file didn't error: %v", err)
-	}
+	// something to write and test reading
+	target := filepath.Join(t1.Name, TaskSecrets, "test_file")
+
+	// create target file in the task secrets dir
+	full := filepath.Join(d.AllocDir, target)
+	err = ioutil.WriteFile(full, []byte("hi"), 0600)
+	require.NoError(t, err)
+
+	// ReadAt of a file in the task secrets dir should fail
+	_, err = d.ReadAt(target, 0)
+	require.EqualError(t, err, "Reading secret file prohibited: web/secrets/test_file")
 }
 
 func TestAllocDir_SplitPath(t *testing.T) {
+	ci.Parallel(t)
+
 	dir, err := ioutil.TempDir("", "tmpdirtest")
 	if err != nil {
 		log.Fatal(err)
@@ -379,6 +396,7 @@ func TestAllocDir_SplitPath(t *testing.T) {
 }
 
 func TestAllocDir_CreateDir(t *testing.T) {
+	ci.Parallel(t)
 	if syscall.Geteuid() != 0 {
 		t.Skip("Must be root to run test")
 	}
@@ -419,26 +437,9 @@ func TestAllocDir_CreateDir(t *testing.T) {
 	}
 }
 
-// TestAllocDir_Copy asserts that AllocDir.Copy does a deep copy of itself and
-// all TaskDirs.
-func TestAllocDir_Copy(t *testing.T) {
-	a := NewAllocDir(testlog.HCLogger(t), "foo")
-	a.NewTaskDir("bar")
-	a.NewTaskDir("baz")
-
-	b := a.Copy()
-
-	// Clear the logger
-	require.Equal(t, a, b)
-
-	// Make sure TaskDirs map is copied
-	a.NewTaskDir("new")
-	if b.TaskDirs["new"] != nil {
-		t.Errorf("TaskDirs map shared between copied")
-	}
-}
-
 func TestPathFuncs(t *testing.T) {
+	ci.Parallel(t)
+
 	dir, err := ioutil.TempDir("", "nomadtest-pathfuncs")
 	if err != nil {
 		t.Fatalf("error creating temp dir: %v", err)
@@ -474,7 +475,9 @@ func TestPathFuncs(t *testing.T) {
 }
 
 func TestAllocDir_DetectContentType(t *testing.T) {
+	ci.Parallel(t)
 	require := require.New(t)
+
 	inputPath := "input/"
 	var testFiles []string
 	err := filepath.Walk(inputPath, func(path string, info os.FileInfo, err error) error {
@@ -493,11 +496,65 @@ func TestAllocDir_DetectContentType(t *testing.T) {
 		"input/test.json": "application/json",
 		"input/test.txt":  "text/plain; charset=utf-8",
 		"input/test.go":   "text/plain; charset=utf-8",
+		"input/test.hcl":  "text/plain; charset=utf-8",
 	}
 	for _, file := range testFiles {
 		fileInfo, err := os.Stat(file)
 		require.Nil(err)
 		res := detectContentType(fileInfo, file)
 		require.Equal(expectedEncodings[file], res, "unexpected output for %v", file)
+	}
+}
+
+// TestAllocDir_SkipAllocDir asserts that building a chroot which contains
+// itself will *not* infinitely recurse. AllocDirs should always skip embedding
+// themselves into chroots.
+//
+// Warning: If this test fails it may fill your disk before failing, so be
+// careful and/or confident.
+func TestAllocDir_SkipAllocDir(t *testing.T) {
+	ci.Parallel(t)
+	MountCompatible(t)
+
+	// Create root, alloc, and other dirs
+	rootDir := t.TempDir()
+
+	clientAllocDir := filepath.Join(rootDir, "nomad")
+	require.NoError(t, os.Mkdir(clientAllocDir, fs.ModeDir|0o777))
+
+	otherDir := filepath.Join(rootDir, "etc")
+	require.NoError(t, os.Mkdir(otherDir, fs.ModeDir|0o777))
+
+	// chroot contains client.alloc_dir! This could cause infinite
+	// recursion.
+	chroot := map[string]string{
+		rootDir: "/",
+	}
+
+	allocDir := NewAllocDir(testlog.HCLogger(t), clientAllocDir, "test")
+	taskDir := allocDir.NewTaskDir("testtask")
+
+	require.NoError(t, allocDir.Build())
+	defer allocDir.Destroy()
+
+	// Build chroot
+	err := taskDir.Build(true, chroot)
+	require.NoError(t, err)
+
+	// Assert other directory *was* embedded
+	embeddedOtherDir := filepath.Join(clientAllocDir, "test", "testtask", "etc")
+	if _, err := os.Stat(embeddedOtherDir); os.IsNotExist(err) {
+		t.Fatalf("expected other directory to exist at: %q", embeddedOtherDir)
+	}
+
+	// Assert client.alloc_dir was *not* embedded
+	embeddedChroot := filepath.Join(clientAllocDir, "test", "testtask", "nomad")
+	s, err := os.Stat(embeddedChroot)
+	if s != nil {
+		t.Logf("somehow you managed to embed the chroot without causing infinite recursion!")
+		t.Fatalf("expected chroot to not exist at: %q", embeddedChroot)
+	}
+	if !os.IsNotExist(err) {
+		t.Fatalf("expected chroot to not exist but error is: %v", err)
 	}
 }

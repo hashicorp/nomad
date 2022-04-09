@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/logutils"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +19,7 @@ const (
 )
 
 func TestLogFile_timeRotation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	tempDir, err := ioutil.TempDir("", "LogWriterTimeTest")
@@ -43,22 +44,44 @@ func TestLogFile_timeRotation(t *testing.T) {
 }
 
 func TestLogFile_openNew(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	tempDir, err := ioutil.TempDir("", "LogWriterOpenTest")
 	require.NoError(err)
 	defer os.Remove(tempDir)
 
-	logFile := logFile{fileName: testFileName, logPath: tempDir, duration: testDuration}
+	filt := LevelFilter()
+	filt.MinLevel = logutils.LogLevel("INFO")
+	logFile := logFile{
+		logFilter: filt,
+		fileName:  testFileName,
+		logPath:   tempDir,
+		MaxBytes:  testBytes,
+		duration:  24 * time.Hour,
+	}
 	require.NoError(logFile.openNew())
 
 	_, err = ioutil.ReadFile(logFile.FileInfo.Name())
 	require.NoError(err)
+
+	require.Equal(logFile.FileInfo.Name(), filepath.Join(tempDir, testFileName))
+
+	// Check if create time and bytes written are kept when opening the active
+	// log file again.
+	bytesWritten, err := logFile.Write([]byte("test"))
+	require.NoError(err)
+
+	time.Sleep(2 * time.Second)
+	require.NoError(logFile.openNew())
+
+	timeDelta := time.Now().Sub(logFile.LastCreated)
+	require.GreaterOrEqual(timeDelta, 2*time.Second)
+	require.Equal(logFile.BytesWritten, int64(bytesWritten))
 }
 
 func TestLogFile_byteRotation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	tempDir, err := ioutil.TempDir("", "LogWriterByteTest")
@@ -82,7 +105,7 @@ func TestLogFile_byteRotation(t *testing.T) {
 }
 
 func TestLogFile_logLevelFiltering(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	tempDir, err := ioutil.TempDir("", "LogWriterFilterTest")
@@ -105,7 +128,7 @@ func TestLogFile_logLevelFiltering(t *testing.T) {
 }
 
 func TestLogFile_deleteArchives(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	tempDir, err := ioutil.TempDir("", "LogWriterDeleteArchivesTest")
@@ -145,7 +168,7 @@ func TestLogFile_deleteArchives(t *testing.T) {
 }
 
 func TestLogFile_deleteArchivesDisabled(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 	tempDir, err := ioutil.TempDir("", "LogWriterDeleteArchivesDisabledTest")

@@ -50,6 +50,9 @@ type JobsParseRequest struct {
 	// JobHCL is an hcl jobspec
 	JobHCL string
 
+	// HCLv1 indicates whether the JobHCL should be parsed with the hcl v1 parser
+	HCLv1 bool `json:"hclv1,omitempty"`
+
 	// Canonicalize is a flag as to if the server should return default values
 	// for unset fields
 	Canonicalize bool
@@ -88,6 +91,7 @@ type RegisterOptions struct {
 	ModifyIndex    uint64
 	PolicyOverride bool
 	PreserveCounts bool
+	EvalPriority   int
 }
 
 // Register is used to register a new job. It returns the ID
@@ -102,8 +106,8 @@ func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (*
 	return j.RegisterOpts(job, &opts, q)
 }
 
-// Register is used to register a new job. It returns the ID
-// of the evaluation, along with any errors encountered.
+// RegisterOpts is used to register a new job with the passed RegisterOpts. It
+// returns the ID of the evaluation, along with any errors encountered.
 func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 	// Format the request
 	req := &JobRegisterRequest{
@@ -116,6 +120,7 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 		}
 		req.PolicyOverride = opts.PolicyOverride
 		req.PreserveCounts = opts.PreserveCounts
+		req.EvalPriority = opts.EvalPriority
 	}
 
 	var resp JobRegisterResponse
@@ -277,6 +282,52 @@ func (j *Jobs) Deregister(jobID string, purge bool, q *WriteOptions) (string, *W
 	return resp.EvalID, wm, nil
 }
 
+// DeregisterOptions is used to pass through job deregistration parameters
+type DeregisterOptions struct {
+	// If Purge is set to true, the job is deregistered and purged from the
+	// system versus still being queryable and eventually GC'ed from the
+	// system. Most callers should not specify purge.
+	Purge bool
+
+	// If Global is set to true, all regions of a multiregion job will be
+	// stopped.
+	Global bool
+
+	// EvalPriority is an optional priority to use on any evaluation created as
+	// a result on this job deregistration. This value must be between 1-100
+	// inclusively, where a larger value corresponds to a higher priority. This
+	// is useful when an operator wishes to push through a job deregistration
+	// in busy clusters with a large evaluation backlog.
+	EvalPriority int
+
+	// NoShutdownDelay, if set to true, will override the group and
+	// task shutdown_delay configuration and ignore the delay for any
+	// allocations stopped as a result of this Deregister call.
+	NoShutdownDelay bool
+}
+
+// DeregisterOpts is used to remove an existing job. See DeregisterOptions
+// for parameters.
+func (j *Jobs) DeregisterOpts(jobID string, opts *DeregisterOptions, q *WriteOptions) (string, *WriteMeta, error) {
+	var resp JobDeregisterResponse
+
+	// The base endpoint to add query params to.
+	endpoint := "/v1/job/" + url.PathEscape(jobID)
+
+	// Protect against nil opts. url.Values expects a string, and so using
+	// fmt.Sprintf is the best way to do this.
+	if opts != nil {
+		endpoint += fmt.Sprintf("?purge=%t&global=%t&eval_priority=%v&no_shutdown_delay=%t",
+			opts.Purge, opts.Global, opts.EvalPriority, opts.NoShutdownDelay)
+	}
+
+	wm, err := j.client.delete(endpoint, &resp, q)
+	if err != nil {
+		return "", nil, err
+	}
+	return resp.EvalID, wm, nil
+}
+
 // ForceEvaluate is used to force-evaluate an existing job.
 func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp JobRegisterResponse
@@ -408,6 +459,14 @@ func (j *Jobs) Stable(jobID string, version uint64, stable bool,
 	return &resp, wm, nil
 }
 
+// Services is used to return a list of service registrations associated to the
+// specified jobID.
+func (j *Jobs) Services(jobID string, q *QueryOptions) ([]*ServiceRegistration, *QueryMeta, error) {
+	var resp []*ServiceRegistration
+	qm, err := j.client.query("/v1/job/"+jobID+"/services", &resp, q)
+	return resp, qm, err
+}
+
 // periodicForceResponse is used to deserialize a force response
 type periodicForceResponse struct {
 	EvalID string
@@ -415,15 +474,15 @@ type periodicForceResponse struct {
 
 // UpdateStrategy defines a task groups update strategy.
 type UpdateStrategy struct {
-	Stagger          *time.Duration `mapstructure:"stagger"`
-	MaxParallel      *int           `mapstructure:"max_parallel"`
-	HealthCheck      *string        `mapstructure:"health_check"`
-	MinHealthyTime   *time.Duration `mapstructure:"min_healthy_time"`
-	HealthyDeadline  *time.Duration `mapstructure:"healthy_deadline"`
-	ProgressDeadline *time.Duration `mapstructure:"progress_deadline"`
-	Canary           *int           `mapstructure:"canary"`
-	AutoRevert       *bool          `mapstructure:"auto_revert"`
-	AutoPromote      *bool          `mapstructure:"auto_promote"`
+	Stagger          *time.Duration `mapstructure:"stagger" hcl:"stagger,optional"`
+	MaxParallel      *int           `mapstructure:"max_parallel" hcl:"max_parallel,optional"`
+	HealthCheck      *string        `mapstructure:"health_check" hcl:"health_check,optional"`
+	MinHealthyTime   *time.Duration `mapstructure:"min_healthy_time" hcl:"min_healthy_time,optional"`
+	HealthyDeadline  *time.Duration `mapstructure:"healthy_deadline" hcl:"healthy_deadline,optional"`
+	ProgressDeadline *time.Duration `mapstructure:"progress_deadline" hcl:"progress_deadline,optional"`
+	Canary           *int           `mapstructure:"canary" hcl:"canary,optional"`
+	AutoRevert       *bool          `mapstructure:"auto_revert" hcl:"auto_revert,optional"`
+	AutoPromote      *bool          `mapstructure:"auto_promote" hcl:"auto_promote,optional"`
 }
 
 // DefaultUpdateStrategy provides a baseline that can be used to upgrade
@@ -616,8 +675,8 @@ func (u *UpdateStrategy) Empty() bool {
 }
 
 type Multiregion struct {
-	Strategy *MultiregionStrategy
-	Regions  []*MultiregionRegion
+	Strategy *MultiregionStrategy `hcl:"strategy,block"`
+	Regions  []*MultiregionRegion `hcl:"region,block"`
 }
 
 func (m *Multiregion) Canonicalize() {
@@ -664,9 +723,7 @@ func (m *Multiregion) Copy() *Multiregion {
 		copyRegion := new(MultiregionRegion)
 		copyRegion.Name = region.Name
 		copyRegion.Count = intToPtr(*region.Count)
-		for _, dc := range region.Datacenters {
-			copyRegion.Datacenters = append(copyRegion.Datacenters, dc)
-		}
+		copyRegion.Datacenters = append(copyRegion.Datacenters, region.Datacenters...)
 		for k, v := range region.Meta {
 			copyRegion.Meta[k] = v
 		}
@@ -676,24 +733,24 @@ func (m *Multiregion) Copy() *Multiregion {
 }
 
 type MultiregionStrategy struct {
-	MaxParallel *int    `mapstructure:"max_parallel"`
-	OnFailure   *string `mapstructure:"on_failure"`
+	MaxParallel *int    `mapstructure:"max_parallel" hcl:"max_parallel,optional"`
+	OnFailure   *string `mapstructure:"on_failure" hcl:"on_failure,optional"`
 }
 
 type MultiregionRegion struct {
-	Name        string
-	Count       *int
-	Datacenters []string
-	Meta        map[string]string
+	Name        string            `hcl:",label"`
+	Count       *int              `hcl:"count,optional"`
+	Datacenters []string          `hcl:"datacenters,optional"`
+	Meta        map[string]string `hcl:"meta,block"`
 }
 
 // PeriodicConfig is for serializing periodic config for a job.
 type PeriodicConfig struct {
-	Enabled         *bool
-	Spec            *string
+	Enabled         *bool   `hcl:"enabled,optional"`
+	Spec            *string `hcl:"cron,optional"`
 	SpecType        *string
-	ProhibitOverlap *bool   `mapstructure:"prohibit_overlap"`
-	TimeZone        *string `mapstructure:"time_zone"`
+	ProhibitOverlap *bool   `mapstructure:"prohibit_overlap" hcl:"prohibit_overlap,optional"`
+	TimeZone        *string `mapstructure:"time_zone" hcl:"time_zone,optional"`
 }
 
 func (p *PeriodicConfig) Canonicalize() {
@@ -755,47 +812,55 @@ func (p *PeriodicConfig) GetLocation() (*time.Location, error) {
 
 // ParameterizedJobConfig is used to configure the parameterized job.
 type ParameterizedJobConfig struct {
-	Payload      string
-	MetaRequired []string `mapstructure:"meta_required"`
-	MetaOptional []string `mapstructure:"meta_optional"`
+	Payload      string   `hcl:"payload,optional"`
+	MetaRequired []string `mapstructure:"meta_required" hcl:"meta_required,optional"`
+	MetaOptional []string `mapstructure:"meta_optional" hcl:"meta_optional,optional"`
 }
 
 // Job is used to serialize a job.
 type Job struct {
-	Stop              *bool
-	Region            *string
-	Namespace         *string
-	ID                *string
-	ParentID          *string
-	Name              *string
-	Type              *string
-	Priority          *int
-	AllAtOnce         *bool `mapstructure:"all_at_once"`
-	Datacenters       []string
-	Constraints       []*Constraint
-	Affinities        []*Affinity
-	TaskGroups        []*TaskGroup
-	Update            *UpdateStrategy
-	Multiregion       *Multiregion
-	Spreads           []*Spread
-	Periodic          *PeriodicConfig
-	ParameterizedJob  *ParameterizedJobConfig
-	Dispatched        bool
-	Payload           []byte
-	Reschedule        *ReschedulePolicy
-	Migrate           *MigrateStrategy
-	Meta              map[string]string
-	ConsulToken       *string `mapstructure:"consul_token"`
-	VaultToken        *string `mapstructure:"vault_token"`
-	NomadTokenID      *string `mapstructure:"nomad_token_id"`
-	Status            *string
-	StatusDescription *string
-	Stable            *bool
-	Version           *uint64
-	SubmitTime        *int64
-	CreateIndex       *uint64
-	ModifyIndex       *uint64
-	JobModifyIndex    *uint64
+	/* Fields parsed from HCL config */
+
+	Region           *string                 `hcl:"region,optional"`
+	Namespace        *string                 `hcl:"namespace,optional"`
+	ID               *string                 `hcl:"id,optional"`
+	Name             *string                 `hcl:"name,optional"`
+	Type             *string                 `hcl:"type,optional"`
+	Priority         *int                    `hcl:"priority,optional"`
+	AllAtOnce        *bool                   `mapstructure:"all_at_once" hcl:"all_at_once,optional"`
+	Datacenters      []string                `hcl:"datacenters,optional"`
+	Constraints      []*Constraint           `hcl:"constraint,block"`
+	Affinities       []*Affinity             `hcl:"affinity,block"`
+	TaskGroups       []*TaskGroup            `hcl:"group,block"`
+	Update           *UpdateStrategy         `hcl:"update,block"`
+	Multiregion      *Multiregion            `hcl:"multiregion,block"`
+	Spreads          []*Spread               `hcl:"spread,block"`
+	Periodic         *PeriodicConfig         `hcl:"periodic,block"`
+	ParameterizedJob *ParameterizedJobConfig `hcl:"parameterized,block"`
+	Reschedule       *ReschedulePolicy       `hcl:"reschedule,block"`
+	Migrate          *MigrateStrategy        `hcl:"migrate,block"`
+	Meta             map[string]string       `hcl:"meta,block"`
+	ConsulToken      *string                 `mapstructure:"consul_token" hcl:"consul_token,optional"`
+	VaultToken       *string                 `mapstructure:"vault_token" hcl:"vault_token,optional"`
+
+	/* Fields set by server, not sourced from job config file */
+
+	Stop                     *bool
+	ParentID                 *string
+	Dispatched               bool
+	DispatchIdempotencyToken *string
+	Payload                  []byte
+	ConsulNamespace          *string `mapstructure:"consul_namespace"`
+	VaultNamespace           *string `mapstructure:"vault_namespace"`
+	NomadTokenID             *string `mapstructure:"nomad_token_id"`
+	Status                   *string
+	StatusDescription        *string
+	Stable                   *bool
+	Version                  *uint64
+	SubmitTime               *int64
+	CreateIndex              *uint64
+	ModifyIndex              *uint64
+	JobModifyIndex           *uint64
 }
 
 // IsPeriodic returns whether a job is periodic.
@@ -847,8 +912,14 @@ func (j *Job) Canonicalize() {
 	if j.ConsulToken == nil {
 		j.ConsulToken = stringToPtr("")
 	}
+	if j.ConsulNamespace == nil {
+		j.ConsulNamespace = stringToPtr("")
+	}
 	if j.VaultToken == nil {
 		j.VaultToken = stringToPtr("")
+	}
+	if j.VaultNamespace == nil {
+		j.VaultNamespace = stringToPtr("")
 	}
 	if j.NomadTokenID == nil {
 		j.NomadTokenID = stringToPtr("")
@@ -944,6 +1015,7 @@ type TaskGroupSummary struct {
 	Running  int
 	Starting int
 	Lost     int
+	Unknown  int
 }
 
 // JobListStub is used to return a subset of information about
@@ -995,6 +1067,13 @@ func NewServiceJob(id, name, region string, pri int) *Job {
 // with the relative job priority.
 func NewBatchJob(id, name, region string, pri int) *Job {
 	return newJob(id, name, region, JobTypeBatch, pri)
+}
+
+// NewSystemJob creates and returns a new system-style job for processes
+// designed to run on all clients, using the provided name and ID along with
+// the relative job priority.
+func NewSystemJob(id, name, region string, pri int) *Job {
+	return newJob(id, name, region, JobTypeSystem, pri)
 }
 
 // newJob is used to create a new Job struct.
@@ -1123,6 +1202,14 @@ type JobRegisterRequest struct {
 	JobModifyIndex uint64 `json:",omitempty"`
 	PolicyOverride bool   `json:",omitempty"`
 	PreserveCounts bool   `json:",omitempty"`
+
+	// EvalPriority is an optional priority to use on any evaluation created as
+	// a result on this job registration. This value must be between 1-100
+	// inclusively, where a larger value corresponds to a higher priority. This
+	// is useful when an operator wishes to push through a job registration in
+	// busy clusters with a large evaluation backlog. This avoids needing to
+	// change the job priority which also impacts preemption.
+	EvalPriority int `json:",omitempty"`
 
 	WriteRequest
 }

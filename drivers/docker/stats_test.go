@@ -7,14 +7,15 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDriver_DockerStatsCollector(t *testing.T) {
-	t.Parallel()
-
+	ci.Parallel(t)
 	require := require.New(t)
+
 	src := make(chan *docker.Stats)
 	defer close(src)
 	dst, recvCh := newStatsChanPipe()
@@ -27,6 +28,7 @@ func TestDriver_DockerStatsCollector(t *testing.T) {
 	stats.MemoryStats.Stats.Rss = 6537216
 	stats.MemoryStats.Stats.Cache = 1234
 	stats.MemoryStats.Stats.Swap = 0
+	stats.MemoryStats.Stats.MappedFile = 1024
 	stats.MemoryStats.Usage = 5651904
 	stats.MemoryStats.MaxUsage = 6651904
 	stats.MemoryStats.Commit = 123231
@@ -47,6 +49,7 @@ func TestDriver_DockerStatsCollector(t *testing.T) {
 			require.Equal(stats.MemoryStats.Stats.Rss, ru.ResourceUsage.MemoryStats.RSS)
 			require.Equal(stats.MemoryStats.Stats.Cache, ru.ResourceUsage.MemoryStats.Cache)
 			require.Equal(stats.MemoryStats.Stats.Swap, ru.ResourceUsage.MemoryStats.Swap)
+			require.Equal(stats.MemoryStats.Stats.MappedFile, ru.ResourceUsage.MemoryStats.MappedFile)
 			require.Equal(stats.MemoryStats.Usage, ru.ResourceUsage.MemoryStats.Usage)
 			require.Equal(stats.MemoryStats.MaxUsage, ru.ResourceUsage.MemoryStats.MaxUsage)
 			require.Equal(stats.CPUStats.ThrottlingData.ThrottledPeriods, ru.ResourceUsage.CpuStats.ThrottledPeriods)
@@ -67,7 +70,7 @@ func TestDriver_DockerStatsCollector(t *testing.T) {
 // TestDriver_DockerUsageSender asserts that the TaskResourceUsage chan wrapper
 // supports closing and sending on a chan from concurrent goroutines.
 func TestDriver_DockerUsageSender(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// sample payload
 	res := &cstructs.TaskResourceUsage{}

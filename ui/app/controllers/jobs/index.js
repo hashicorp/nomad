@@ -1,22 +1,28 @@
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
+import { set } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
-import Controller, { inject as controller } from '@ember/controller';
+import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
-import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
+import {
+  serialize,
+  deserializedQueryParam as selection,
+} from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 
 @classic
-export default class IndexController extends Controller.extend(Sortable, Searchable) {
+export default class IndexController extends Controller.extend(
+  Sortable,
+  Searchable
+) {
   @service system;
   @service userSettings;
-  @controller('jobs') jobsController;
 
-  @alias('jobsController.isForbidden') isForbidden;
+  isForbidden = false;
 
   queryParams = [
     {
@@ -42,6 +48,9 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
     },
     {
       qpPrefix: 'prefix',
+    },
+    {
+      qpNamespace: 'namespace',
     },
   ];
 
@@ -81,6 +90,7 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
       { key: 'periodic', label: 'Periodic' },
       { key: 'service', label: 'Service' },
       { key: 'system', label: 'System' },
+      { key: 'sysbatch', label: 'System Batch' },
     ];
   }
 
@@ -93,10 +103,12 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
     ];
   }
 
-  @computed('visibleJobs.[]')
+  @computed('selectionDatacenter', 'visibleJobs.[]')
   get optionsDatacenter() {
     const flatten = (acc, val) => acc.concat(val);
-    const allDatacenters = new Set(this.visibleJobs.mapBy('datacenters').reduce(flatten, []));
+    const allDatacenters = new Set(
+      this.visibleJobs.mapBy('datacenters').reduce(flatten, [])
+    );
 
     // Remove any invalid datacenters from the query param/selection
     const availableDatacenters = Array.from(allDatacenters).compact();
@@ -108,10 +120,10 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
       );
     });
 
-    return availableDatacenters.sort().map(dc => ({ key: dc, label: dc }));
+    return availableDatacenters.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
-  @computed('visibleJobs.[]')
+  @computed('selectionPrefix', 'visibleJobs.[]')
   get optionsPrefix() {
     // A prefix is defined as the start of a job name up to the first - or .
     // ex: mktg-analytics -> mktg, ds.supermodel.classifier -> ds
@@ -128,43 +140,65 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
     }, {});
 
     // Convert to an array
-    const nameTable = Object.keys(nameHistogram).map(key => ({
+    const nameTable = Object.keys(nameHistogram).map((key) => ({
       prefix: key,
       count: nameHistogram[key],
     }));
 
     // Only consider prefixes that match more than one name
-    const prefixes = nameTable.filter(name => name.count > 1);
+    const prefixes = nameTable.filter((name) => name.count > 1);
 
     // Remove any invalid prefixes from the query param/selection
     const availablePrefixes = prefixes.mapBy('prefix');
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpPrefix', serialize(intersection(availablePrefixes, this.selectionPrefix)));
+      this.set(
+        'qpPrefix',
+        serialize(intersection(availablePrefixes, this.selectionPrefix))
+      );
     });
 
     // Sort, format, and include the count in the label
-    return prefixes.sortBy('prefix').map(name => ({
+    return prefixes.sortBy('prefix').map((name) => ({
       key: name.prefix,
       label: `${name.prefix} (${name.count})`,
     }));
+  }
+
+  @computed('qpNamespace', 'model.namespaces.[]', 'system.cachedNamespace')
+  get optionsNamespaces() {
+    const availableNamespaces = this.model.namespaces.map((namespace) => ({
+      key: namespace.name,
+      label: namespace.name,
+    }));
+
+    availableNamespaces.unshift({
+      key: '*',
+      label: 'All (*)',
+    });
+
+    // Unset the namespace selection if it was server-side deleted
+    if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
+      scheduleOnce('actions', () => {
+        // eslint-disable-next-line ember/no-side-effects
+        this.set('qpNamespace', this.system.cachedNamespace || '*');
+      });
+    }
+
+    return availableNamespaces;
   }
 
   /**
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  @computed('model.{[],@each.parent}')
+  @computed('model.jobs.@each.parent')
   get visibleJobs() {
-    // Namespace related properties are ommitted from the dependent keys
-    // due to a prop invalidation bug caused by region switching.
-    const hasNamespaces = this.get('system.namespaces.length');
-    const activeNamespace = this.get('system.activeNamespace.id') || 'default';
-
-    return this.model
+    if (!this.model || !this.model.jobs) return [];
+    return this.model.jobs
       .compact()
-      .filter(job => !hasNamespaces || job.get('namespace.id') === activeNamespace)
-      .filter(job => !job.get('parent.content'));
+      .filter((job) => !job.isNew)
+      .filter((job) => !job.get('parent.content'));
   }
 
   @computed(
@@ -184,7 +218,7 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
 
     // A job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.
-    return this.visibleJobs.filter(job => {
+    return this.visibleJobs.filter((job) => {
       if (types.length && !types.includes(job.get('displayType'))) {
         return false;
       }
@@ -193,12 +227,18 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
         return false;
       }
 
-      if (datacenters.length && !job.get('datacenters').find(dc => datacenters.includes(dc))) {
+      if (
+        datacenters.length &&
+        !job.get('datacenters').find((dc) => datacenters.includes(dc))
+      ) {
         return false;
       }
 
       const name = job.get('name');
-      if (prefixes.length && !prefixes.find(prefix => name.startsWith(prefix))) {
+      if (
+        prefixes.length &&
+        !prefixes.find((prefix) => name.startsWith(prefix))
+      ) {
         return false;
       }
 
@@ -212,12 +252,12 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
 
   isShowingDeploymentDetails = false;
 
-  setFacetQueryParam(queryParam, selection) {
-    this.set(queryParam, serialize(selection));
+  @action
+  cacheNamespace(namespace) {
+    set(this, 'system.cachedNamespace', namespace);
   }
 
-  @action
-  gotoJob(job) {
-    this.transitionToRoute('jobs.job', job.get('plainId'));
+  setFacetQueryParam(queryParam, selection) {
+    this.set(queryParam, serialize(selection));
   }
 }

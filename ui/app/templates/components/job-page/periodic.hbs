@@ -1,27 +1,35 @@
-<JobPage::Parts::Body @job={{job}}>
-  <JobPage::Parts::Error @errorMessage={{errorMessage}} @onDismiss={{action "clearErrorMessage"}} />
-
-  <JobPage::Parts::Title @job={{job}} @title={{job.trimmedName}} @handleError={{action "handleError"}}>
-    <span class="tag is-hollow">periodic</span>
-    <button data-test-force-launch class="button is-warning is-small is-inline" onclick={{action "forceLaunch"}}>Force Launch</button>
-  </JobPage::Parts::Title>
-
-  <div class="boxed-section job-stats">
-    <div class="boxed-section-body">
-      <span data-test-job-stat="version"><strong>Version:</strong> {{job.version}} | </span>
-      <span data-test-job-stat="priority"><strong>Priority:</strong> {{job.priority}} </span>
-      {{#if (and job.namespace system.shouldShowNamespaces)}}
-        <span data-test-job-stat="namespace"> | <strong>Namespace:</strong> {{job.namespace.name}}</span>
-      {{/if}}
-      <span data-test-job-stat="cron"> | <strong>Cron:</strong> <code>{{job.periodicDetails.Spec}}</code></span>
-    </div>
-  </div>
-
-  <JobPage::Parts::Summary @job={{job}} />
-  <JobPage::Parts::Children
-    @job={{job}}
-    @sortProperty={{sortProperty}}
-    @sortDescending={{sortDescending}}
-    @currentPage={{currentPage}}
-    @gotoJob={{gotoJob}} />
-</JobPage::Parts::Body>
+<JobPage @job={{@job}} as |jobPage|>
+  <jobPage.ui.Body>
+    <jobPage.ui.Error />
+    <jobPage.ui.Title @title={{@job.trimmedName}}>
+      <span class="tag is-hollow">
+        periodic
+      </span>
+      <button
+        data-test-force-launch
+        class="button is-warning is-small is-inline"
+        onclick={{fn this.forceLaunch jobPage.fns.setError}}
+        type="button"
+      >
+        Force Launch
+      </button>
+    </jobPage.ui.Title>
+    <jobPage.ui.StatsBox>
+      <:after-namespace>
+        <span class="pair" data-test-job-stat="cron">
+          <span class="term">
+            Cron
+          </span>
+          {{@job.periodicDetails.Spec}}
+        </span>
+      </:after-namespace>
+    </jobPage.ui.StatsBox>
+    <jobPage.ui.Summary />
+    <jobPage.ui.Children
+      @sortProperty={{@sortProperty}}
+      @sortDescending={{@sortDescending}}
+      @currentPage={{@currentPage}}
+    />
+    <jobPage.ui.Meta />
+  </jobPage.ui.Body>
+</JobPage>

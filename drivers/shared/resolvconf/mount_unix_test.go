@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package resolvconf
@@ -8,12 +9,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	dresolvconf "github.com/docker/libnetwork/resolvconf"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_copySystemDNS(t *testing.T) {
 	require := require.New(t)
-	data, err := ioutil.ReadFile("/etc/resolv.conf")
+	data, err := ioutil.ReadFile(dresolvconf.Path())
 	require.NoError(err)
 
 	tmp, err := ioutil.TempDir("", "copySystemDNS_Test")

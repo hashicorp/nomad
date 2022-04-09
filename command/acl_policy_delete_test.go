@@ -2,11 +2,11 @@ package command
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -15,8 +15,8 @@ import (
 )
 
 func TestACLPolicyDeleteCommand(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	config := func(c *agent.Config) {
 		c.ACL.Enabled = true
 	}
@@ -35,20 +35,18 @@ func TestACLPolicyDeleteCommand(t *testing.T) {
 		Rules: acl.PolicyWrite,
 	}
 	policy.SetHash()
-	assert.Nil(state.UpsertACLPolicies(1000, []*structs.ACLPolicy{policy}))
+	assert.Nil(state.UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy}))
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLPolicyDeleteCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Delete the policy without a valid token fails
 	invalidToken := mock.ACLToken()
-	os.Setenv("NOMAD_TOKEN", invalidToken.SecretID)
-	code := cmd.Run([]string{"-address=" + url, policy.Name})
+	code := cmd.Run([]string{"-address=" + url, "-token=" + invalidToken.SecretID, policy.Name})
 	assert.Equal(1, code)
 
 	// Delete the policy with a valid management token
-	os.Setenv("NOMAD_TOKEN", token.SecretID)
-	code = cmd.Run([]string{"-address=" + url, policy.Name})
+	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, policy.Name})
 	assert.Equal(0, code)
 
 	// Check the output

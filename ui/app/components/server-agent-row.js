@@ -3,7 +3,11 @@ import { alias } from '@ember/object/computed';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { lazyClick } from '../helpers/lazy-click';
-import { classNames, classNameBindings, tagName } from '@ember-decorators/component';
+import {
+  classNames,
+  classNameBindings,
+  tagName,
+} from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 @classic
@@ -14,6 +18,7 @@ export default class ServerAgentRow extends Component {
   // TODO Switch back to the router service once the service behaves more like Route
   // https://github.com/emberjs/ember.js/issues/15801
   // router: inject.service('router'),
+  // eslint-disable-next-line ember/no-private-routing-service
   @service('-routing') _router;
   @alias('_router.router') router;
 
@@ -37,7 +42,8 @@ export default class ServerAgentRow extends Component {
   }
 
   click() {
-    const transition = () => this.router.transitionTo('servers.server', this.agent);
+    const transition = () =>
+      this.router.transitionTo('servers.server', this.agent);
     lazyClick([transition, event]);
   }
 }

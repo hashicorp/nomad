@@ -23,8 +23,12 @@ job "consul-example" {
     healthy_deadline = "5m"
   }
 
-  group "cache" {
+  group "group" {
     count = 3
+
+    network {
+      port "db" {}
+    }
 
     restart {
       attempts = 2
@@ -37,29 +41,24 @@ job "consul-example" {
       size = 300
     }
 
-    task "redis" {
+    task "example" {
       driver = "docker"
 
       config {
-        image = "redis:3.2"
+        image   = "busybox:1"
+        command = "nc"
+        args    = ["-ll", "-p", "1234", "-e", "/bin/cat"]
 
-        port_map {
-          db = 6379
-        }
+        ports = ["db"]
       }
 
       resources {
-        cpu    = 500 # 500 MHz
-        memory = 256 # 256MB
-
-        network {
-          mbits = 10
-          port "db" {}
-        }
+        cpu    = 100
+        memory = 100
       }
 
       service {
-        name = "redis-cache"
+        name = "consul-example"
         tags = ["global", "cache"]
         port = "db"
 

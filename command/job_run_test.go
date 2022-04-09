@@ -1,24 +1,24 @@
 package command
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 )
 
 func TestRunCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &JobRunCommand{}
 }
 
 func TestRunCommand_Output_Json(t *testing.T) {
-	t.Parallel()
-	ui := new(cli.MockUi)
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
 
 	fh, err := ioutil.TempFile("", "nomad")
@@ -34,7 +34,7 @@ job "job1" {
 		count = 1
 		task "task1" {
 			driver = "exec"
-			resources = {
+			resources {
 				cpu = 1000
 				memory = 512
 			}
@@ -53,14 +53,14 @@ job "job1" {
 }
 
 func TestRunCommand_Fails(t *testing.T) {
-	t.Parallel()
-	ui := new(cli.MockUi)
-	cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
+	ci.Parallel(t)
 
 	// Create a server
 	s := testutil.NewTestServer(t, nil)
 	defer s.Stop()
-	os.Setenv("NOMAD_ADDR", fmt.Sprintf("http://%s", s.HTTPAddr))
+
+	ui := cli.NewMockUi()
+	cmd := &JobRunCommand{Meta: Meta{Ui: ui, flagAddress: "http://" + s.HTTPAddr}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
@@ -128,7 +128,7 @@ job "job1" {
 		count = 1
 		task "task1" {
 			driver = "exec"
-			resources = {
+			resources {
 				cpu = 1000
 				memory = 512
 			}
@@ -157,13 +157,13 @@ job "job1" {
 }
 
 func TestRunCommand_From_STDIN(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{
 		Meta:      Meta{Ui: ui},
 		JobGetter: JobGetter{testStdin: stdinR},
@@ -178,7 +178,7 @@ job "job1" {
 		count = 1
 		task "task1" {
 			driver = "exec"
-			resources = {
+			resources {
 				cpu = 1000
 				memory = 512
 			}
@@ -200,8 +200,8 @@ job "job1" {
 }
 
 func TestRunCommand_From_URL(t *testing.T) {
-	t.Parallel()
-	ui := new(cli.MockUi)
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{
 		Meta: Meta{Ui: ui},
 	}

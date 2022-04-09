@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a memory leak in log collector when tasks restart
+```

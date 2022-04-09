@@ -1,8 +1,12 @@
 import Component from '@ember/component';
-import { run } from '@ember/runloop';
+import { scheduleOnce, once } from '@ember/runloop';
 import { task } from 'ember-concurrency';
 import WindowResizable from 'nomad-ui/mixins/window-resizable';
-import { classNames, tagName } from '@ember-decorators/component';
+import {
+  classNames,
+  tagName,
+  attributeBindings,
+} from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 const A_KEY = 65;
@@ -10,6 +14,7 @@ const A_KEY = 65;
 @classic
 @tagName('pre')
 @classNames('cli-window')
+@attributeBindings('data-test-log-cli')
 export default class StreamingFile extends Component.extend(WindowResizable) {
   'data-test-log-cli' = true;
 
@@ -22,11 +27,12 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
   requestFrame = true;
 
   didReceiveAttrs() {
+    super.didReceiveAttrs();
     if (!this.logger) {
       return;
     }
 
-    run.scheduleOnce('actions', this, this.performTask);
+    scheduleOnce('actions', this, this.performTask);
   }
 
   performTask() {
@@ -58,7 +64,10 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     if (this.requestFrame) {
       window.requestAnimationFrame(() => {
         // If the scroll position is close enough to the bottom, autoscroll to the bottom
-        this.set('follow', cli.scrollHeight - cli.scrollTop - cli.clientHeight < 20);
+        this.set(
+          'follow',
+          cli.scrollHeight - cli.scrollTop - cli.clientHeight < 20
+        );
         this.requestFrame = true;
       });
     }
@@ -79,6 +88,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
   }
 
   didInsertElement() {
+    super.didInsertElement(...arguments);
     this.fillAvailableHeight();
 
     this.set('_scrollHandler', this.scrollHandler.bind(this));
@@ -89,12 +99,13 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
   }
 
   willDestroyElement() {
+    super.willDestroyElement(...arguments);
     this.element.removeEventListener('scroll', this._scrollHandler);
     document.removeEventListener('keydown', this._keyDownHandler);
   }
 
   windowResizeHandler() {
-    run.once(this, this.fillAvailableHeight);
+    once(this, this.fillAvailableHeight);
   }
 
   fillAvailableHeight() {
@@ -102,12 +113,14 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     // of having the log window fill available height is worth the hack.
     const margins = 30; // Account for padding and margin on either side of the CLI
     const cliWindow = this.element;
-    cliWindow.style.height = `${window.innerHeight - cliWindow.offsetTop - margins}px`;
+    cliWindow.style.height = `${
+      window.innerHeight - cliWindow.offsetTop - margins
+    }px`;
   }
 
-  @task(function*() {
+  @task(function* () {
     yield this.get('logger.gotoHead').perform();
-    run.scheduleOnce('afterRender', this, this.scrollToTop);
+    scheduleOnce('afterRender', this, this.scrollToTop);
   })
   head;
 
@@ -115,7 +128,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     this.element.scrollTop = 0;
   }
 
-  @task(function*() {
+  @task(function* () {
     yield this.get('logger.gotoTail').perform();
   })
   tail;
@@ -126,7 +139,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     }
   }
 
-  @task(function*() {
+  @task(function* () {
     // Follow the log if the scroll position is near the bottom of the cli window
     this.logger.on('tick', this, 'scheduleScrollSynchronization');
 
@@ -136,10 +149,11 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
   stream;
 
   scheduleScrollSynchronization() {
-    run.scheduleOnce('afterRender', this, this.synchronizeScrollPosition);
+    scheduleOnce('afterRender', this, this.synchronizeScrollPosition);
   }
 
   willDestroy() {
+    super.willDestroy(...arguments);
     this.logger.stop();
   }
 }

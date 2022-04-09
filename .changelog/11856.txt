@@ -1,0 +1,3 @@
+```release-note:bug
+drivers: Fixed a bug where the `resolv.conf` copied from the system was not readable to unprivileged processes within the task
+```

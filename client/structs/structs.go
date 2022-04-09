@@ -206,6 +206,7 @@ type MemoryStats struct {
 	RSS            uint64
 	Cache          uint64
 	Swap           uint64
+	MappedFile     uint64
 	Usage          uint64
 	MaxUsage       uint64
 	KernelUsage    uint64
@@ -223,6 +224,7 @@ func (ms *MemoryStats) Add(other *MemoryStats) {
 	ms.RSS += other.RSS
 	ms.Cache += other.Cache
 	ms.Swap += other.Swap
+	ms.MappedFile += other.MappedFile
 	ms.Usage += other.Usage
 	ms.MaxUsage += other.MaxUsage
 	ms.KernelUsage += other.KernelUsage
@@ -331,7 +333,7 @@ type HealthCheckIntervalResponse struct {
 func (h *HealthCheckResponse) AddDriverInfo(name string, driverInfo *structs.DriverInfo) {
 	// initialize Drivers if it has not been already
 	if h.Drivers == nil {
-		h.Drivers = make(map[string]*structs.DriverInfo, 0)
+		h.Drivers = make(map[string]*structs.DriverInfo)
 	}
 
 	h.Drivers[name] = driverInfo

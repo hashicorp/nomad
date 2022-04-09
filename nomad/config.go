@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/scheduler"
@@ -25,23 +25,6 @@ const (
 	DefaultDC       = "dc1"
 	DefaultSerfPort = 4648
 )
-
-// These are the protocol versions that Nomad can understand
-const (
-	ProtocolVersionMin uint8 = 1
-	ProtocolVersionMax       = 1
-)
-
-// ProtocolVersionMap is the mapping of Nomad protocol versions
-// to Serf protocol versions. We mask the Serf protocols using
-// our own protocol version.
-var protocolVersionMap map[uint8]uint8
-
-func init() {
-	protocolVersionMap = map[uint8]uint8{
-		1: 4,
-	}
-}
 
 func DefaultRPCAddr() *net.TCPAddr {
 	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 4647}
@@ -78,16 +61,19 @@ type Config struct {
 	// in the absence of ACLs
 	EnableDebug bool
 
+	// EnableEventBroker is used to enable or disable state store
+	// event publishing
+	EnableEventBroker bool
+
+	// EventBufferSize is the amount of events to hold in memory.
+	EventBufferSize int64
+
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.
 	LogOutput io.Writer
 
 	// Logger is the logger used by the server.
 	Logger log.InterceptLogger
-
-	// ProtocolVersion is the protocol version to speak. This must be between
-	// ProtocolVersionMin and ProtocolVersionMax.
-	ProtocolVersion uint8
 
 	// RPCAddr is the RPC address used by Nomad. This should be reachable
 	// by the other servers and clients
@@ -206,6 +192,10 @@ type Config struct {
 	// eligible for GC. This gives users some time to debug volumes.
 	CSIVolumeClaimGCThreshold time.Duration
 
+	// OneTimeTokenGCInterval is how often we dispatch a job to GC
+	// one-time tokens.
+	OneTimeTokenGCInterval time.Duration
+
 	// EvalNackTimeout controls how long we allow a sub-scheduler to
 	// work on an evaluation before we consider it failed and Nack it.
 	// This allows that evaluation to be handed to another sub-scheduler
@@ -298,17 +288,9 @@ type Config struct {
 	// publishes metrics which are periodic in nature like updating gauges
 	StatsCollectionInterval time.Duration
 
-	// DisableTaggedMetrics determines whether metrics will be displayed via a
-	// key/value/tag format, or simply a key/value format
-	DisableTaggedMetrics bool
-
 	// DisableDispatchedJobSummaryMetrics allows for ignore dispatched jobs when
 	// publishing Job summary metrics
 	DisableDispatchedJobSummaryMetrics bool
-
-	// BackwardsCompatibleMetrics determines whether to show methods of
-	// displaying metrics for older versions, or to only show the new format
-	BackwardsCompatibleMetrics bool
 
 	// AutopilotConfig is used to apply the initial autopilot config when
 	// bootstrapping.
@@ -324,8 +306,8 @@ type Config struct {
 	AutopilotInterval time.Duration
 
 	// DefaultSchedulerConfig configures the initial scheduler config to be persisted in Raft.
-	// Once the cluster is bootstrapped, and Raft persists the config (from here or through API),
-	// This value is ignored.
+	// Once the cluster is bootstrapped, and Raft persists the config (from here or through API)
+	// and this value is ignored.
 	DefaultSchedulerConfig structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
 
 	// PluginLoader is used to load plugins.
@@ -351,18 +333,22 @@ type Config struct {
 
 	// LicenseConfig is a tunable knob for enterprise license testing.
 	LicenseConfig *LicenseConfig
-}
+	LicenseEnv    string
+	LicensePath   string
 
-// CheckVersion is used to check if the ProtocolVersion is valid
-func (c *Config) CheckVersion() error {
-	if c.ProtocolVersion < ProtocolVersionMin {
-		return fmt.Errorf("Protocol version '%d' too low. Must be in range: [%d, %d]",
-			c.ProtocolVersion, ProtocolVersionMin, ProtocolVersionMax)
-	} else if c.ProtocolVersion > ProtocolVersionMax {
-		return fmt.Errorf("Protocol version '%d' too high. Must be in range: [%d, %d]",
-			c.ProtocolVersion, ProtocolVersionMin, ProtocolVersionMax)
-	}
-	return nil
+	// SearchConfig provides knobs for Search API.
+	SearchConfig *structs.SearchConfig
+
+	// RaftBoltNoFreelistSync configures whether freelist syncing is enabled.
+	RaftBoltNoFreelistSync bool
+
+	// AgentShutdown is used to call agent.Shutdown from the context of a Server
+	// It is used primarily for licensing
+	AgentShutdown func() error
+
+	// DeploymentQueryRateLimit is in queries per second and is used by the
+	// DeploymentWatcher to throttle the amount of simultaneously deployments
+	DeploymentQueryRateLimit float64
 }
 
 // DefaultConfig returns the default configuration. Only used as the basis for
@@ -379,7 +365,6 @@ func DefaultConfig() *Config {
 		Datacenter:                       DefaultDC,
 		NodeName:                         hostname,
 		NodeID:                           uuid.Generate(),
-		ProtocolVersion:                  ProtocolVersionMax,
 		RaftConfig:                       raft.DefaultConfig(),
 		RaftTimeout:                      10 * time.Second,
 		LogOutput:                        os.Stderr,
@@ -398,7 +383,8 @@ func DefaultConfig() *Config {
 		CSIPluginGCInterval:              5 * time.Minute,
 		CSIPluginGCThreshold:             1 * time.Hour,
 		CSIVolumeClaimGCInterval:         5 * time.Minute,
-		CSIVolumeClaimGCThreshold:        1 * time.Hour,
+		CSIVolumeClaimGCThreshold:        5 * time.Minute,
+		OneTimeTokenGCInterval:           10 * time.Minute,
 		EvalNackTimeout:                  60 * time.Second,
 		EvalDeliveryLimit:                3,
 		EvalNackInitialReenqueueDelay:    1 * time.Second,
@@ -417,6 +403,8 @@ func DefaultConfig() *Config {
 		ReplicationBackoff:               30 * time.Second,
 		SentinelGCInterval:               30 * time.Second,
 		LicenseConfig:                    &LicenseConfig{},
+		EnableEventBroker:                true,
+		EventBufferSize:                  100,
 		AutopilotConfig: &structs.AutopilotConfig{
 			CleanupDeadServers:      true,
 			LastContactThreshold:    200 * time.Millisecond,
@@ -428,11 +416,13 @@ func DefaultConfig() *Config {
 		DefaultSchedulerConfig: structs.SchedulerConfiguration{
 			SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
 			PreemptionConfig: structs.PreemptionConfig{
-				SystemSchedulerEnabled:  true,
-				BatchSchedulerEnabled:   false,
-				ServiceSchedulerEnabled: false,
+				SystemSchedulerEnabled:   true,
+				SysBatchSchedulerEnabled: false,
+				BatchSchedulerEnabled:    false,
+				ServiceSchedulerEnabled:  false,
 			},
 		},
+		DeploymentQueryRateLimit: deploymentwatcher.LimitStateQueriesPerSecond,
 	}
 
 	// Enable all known schedulers by default
@@ -456,8 +446,8 @@ func DefaultConfig() *Config {
 	// Disable shutdown on removal
 	c.RaftConfig.ShutdownOnRemove = false
 
-	// Default to Raft v2, update to v3 to enable new Raft and autopilot features.
-	c.RaftConfig.ProtocolVersion = 2
+	// Default to Raft v3 since Nomad 1.3
+	c.RaftConfig.ProtocolVersion = 3
 
 	return c
 }

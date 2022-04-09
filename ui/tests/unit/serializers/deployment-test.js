@@ -2,9 +2,9 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import DeploymentModel from 'nomad-ui/models/deployment';
 
-module('Unit | Serializer | Deployment', function(hooks) {
+module('Unit | Serializer | Deployment', function (hooks) {
   setupTest(hooks);
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.serializerFor('deployment');
   });
@@ -119,9 +119,12 @@ module('Unit | Serializer | Deployment', function(hooks) {
     },
   ];
 
-  normalizationTestCases.forEach(testCase => {
-    test(`normalization: ${testCase.name}`, async function(assert) {
-      assert.deepEqual(this.subject().normalize(DeploymentModel, testCase.in), testCase.out);
+  normalizationTestCases.forEach((testCase) => {
+    test(`normalization: ${testCase.name}`, async function (assert) {
+      assert.deepEqual(
+        this.subject().normalize(DeploymentModel, testCase.in),
+        testCase.out
+      );
     });
   });
 });

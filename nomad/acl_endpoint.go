@@ -3,6 +3,7 @@ package nomad
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -652,6 +654,7 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 	}
 
 	// Setup the blocking query
+	sort := state.SortOption(args.Reverse)
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
@@ -659,27 +662,51 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 			// Iterate over all the tokens
 			var err error
 			var iter memdb.ResultIterator
+			var opts paginator.StructsTokenizerOptions
+
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.ACLTokenByAccessorIDPrefix(ws, prefix)
+				iter, err = state.ACLTokenByAccessorIDPrefix(ws, prefix, sort)
+				opts = paginator.StructsTokenizerOptions{
+					WithID: true,
+				}
 			} else if args.GlobalOnly {
-				iter, err = state.ACLTokensByGlobal(ws, true)
+				iter, err = state.ACLTokensByGlobal(ws, true, sort)
+				opts = paginator.StructsTokenizerOptions{
+					WithID: true,
+				}
 			} else {
-				iter, err = state.ACLTokens(ws)
+				iter, err = state.ACLTokens(ws, sort)
+				opts = paginator.StructsTokenizerOptions{
+					WithCreateIndex: true,
+					WithID:          true,
+				}
 			}
 			if err != nil {
 				return err
 			}
 
-			// Convert all the tokens to a list stub
-			reply.Tokens = nil
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				token := raw.(*structs.ACLToken)
-				reply.Tokens = append(reply.Tokens, token.Stub())
+			tokenizer := paginator.NewStructsTokenizer(iter, opts)
+
+			var tokens []*structs.ACLTokenListStub
+			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
+				func(raw interface{}) error {
+					token := raw.(*structs.ACLToken)
+					tokens = append(tokens, token.Stub())
+					return nil
+				})
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
+
+			nextToken, err := paginator.Page()
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to read result page: %v", err)
+			}
+
+			reply.QueryMeta.NextToken = nextToken
+			reply.Tokens = tokens
 
 			// Use the last index that affected the token table
 			index, err := state.Index("acl_token")
@@ -687,6 +714,7 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 				return err
 			}
 			reply.Index = index
+
 			return nil
 		}}
 	return a.srv.blockingRPC(&opts)
@@ -837,5 +865,148 @@ func (a *ACL) ResolveToken(args *structs.ResolveACLTokenRequest, reply *structs.
 		}
 		reply.Index = index
 	}
+	return nil
+}
+
+func (a *ACL) UpsertOneTimeToken(args *structs.OneTimeTokenUpsertRequest, reply *structs.OneTimeTokenUpsertResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	if done, err := a.srv.forward(
+		"ACL.UpsertOneTimeToken", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince(
+		[]string{"nomad", "acl", "upsert_one_time_token"}, time.Now())
+
+	if !ServersMeetMinimumVersion(a.srv.Members(), minOneTimeAuthenticationTokenVersion, false) {
+		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minAutopilotVersion)
+	}
+
+	// Snapshot the state
+	state, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Look up the token; there's no capability check as you can only
+	// request a OTT for your own ACL token
+	aclToken, err := state.ACLTokenBySecretID(nil, args.AuthToken)
+	if err != nil {
+		return err
+	}
+	if aclToken == nil {
+		return structs.ErrPermissionDenied
+	}
+
+	ott := &structs.OneTimeToken{
+		OneTimeSecretID: uuid.Generate(),
+		AccessorID:      aclToken.AccessorID,
+		ExpiresAt:       time.Now().Add(10 * time.Minute),
+	}
+
+	// Update via Raft
+	_, index, err := a.srv.raftApply(structs.OneTimeTokenUpsertRequestType, ott)
+	if err != nil {
+		return err
+	}
+
+	ott.ModifyIndex = index
+	ott.CreateIndex = index
+	reply.OneTimeToken = ott
+	reply.Index = index
+	return nil
+}
+
+// ExchangeOneTimeToken provides a one-time token's secret ID to exchange it
+// for the ACL token that created that one-time token
+func (a *ACL) ExchangeOneTimeToken(args *structs.OneTimeTokenExchangeRequest, reply *structs.OneTimeTokenExchangeResponse) error {
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+	if done, err := a.srv.forward(
+		"ACL.ExchangeOneTimeToken", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince(
+		[]string{"nomad", "acl", "exchange_one_time_token"}, time.Now())
+
+	if !ServersMeetMinimumVersion(a.srv.Members(), minOneTimeAuthenticationTokenVersion, false) {
+		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minAutopilotVersion)
+	}
+
+	// Snapshot the state
+	state, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ott, err := state.OneTimeTokenBySecret(nil, args.OneTimeSecretID)
+	if err != nil {
+		return err
+	}
+	if ott == nil {
+		return structs.ErrPermissionDenied
+	}
+	if ott.ExpiresAt.Before(time.Now()) {
+		// we return early and leave cleaning up the expired token for GC
+		return structs.ErrPermissionDenied
+	}
+
+	// Look for the token; it may have been deleted, in which case, 403
+	aclToken, err := state.ACLTokenByAccessorID(nil, ott.AccessorID)
+	if err != nil {
+		return err
+	}
+	if aclToken == nil {
+		return structs.ErrPermissionDenied
+	}
+
+	// Expire token via raft; because this is the only write in the RPC the
+	// caller can safely retry with the same token if the raft write fails
+	_, index, err := a.srv.raftApply(structs.OneTimeTokenDeleteRequestType,
+		&structs.OneTimeTokenDeleteRequest{
+			AccessorIDs: []string{ott.AccessorID},
+		})
+	if err != nil {
+		return err
+	}
+
+	reply.Token = aclToken
+	reply.Index = index
+	return nil
+}
+
+// ExpireOneTimeTokens removes all expired tokens from the state store. It is
+// called only by garbage collection
+func (a *ACL) ExpireOneTimeTokens(args *structs.OneTimeTokenExpireRequest, reply *structs.GenericResponse) error {
+
+	if done, err := a.srv.forward(
+		"ACL.ExpireOneTimeTokens", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince(
+		[]string{"nomad", "acl", "expire_one_time_tokens"}, time.Now())
+
+	if !ServersMeetMinimumVersion(a.srv.Members(), minOneTimeAuthenticationTokenVersion, false) {
+		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minAutopilotVersion)
+	}
+
+	// Check management level permissions
+	if a.srv.config.ACLEnabled {
+		if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+			return err
+		} else if acl == nil || !acl.IsManagement() {
+			return structs.ErrPermissionDenied
+		}
+	}
+
+	// Expire token via raft; because this is the only write in the RPC the
+	// caller can safely retry with the same token if the raft write fails
+	_, index, err := a.srv.raftApply(structs.OneTimeTokenExpireRequestType, args)
+	if err != nil {
+		return err
+	}
+	reply.Index = index
 	return nil
 }

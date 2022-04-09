@@ -23,3 +23,7 @@ code {
 .is-interactive {
   cursor: pointer;
 }
+
+.is-faded {
+  color: darken($grey-blue, 20%);
+}

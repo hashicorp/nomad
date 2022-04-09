@@ -19,7 +19,7 @@ Usage: nomad acl token update <token_accessor_id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Update Options:
 

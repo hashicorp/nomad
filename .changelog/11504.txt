@@ -1,0 +1,3 @@
+```release-note:improvement
+deps: Update `armon/go-metrics` to `v0.3.10`
+```

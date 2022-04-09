@@ -133,7 +133,7 @@ func NewBoolAttribute(b bool) *Attribute {
 	}
 }
 
-// NewIntergerAttribute returns a new integer attribute. The unit is not checked
+// NewIntAttribute returns a new integer attribute. The unit is not checked
 // to be valid.
 func NewIntAttribute(i int64, unit string) *Attribute {
 	return &Attribute{
@@ -296,16 +296,11 @@ func (a *Attribute) Comparable(b *Attribute) bool {
 	}
 
 	if a.String != nil {
-		if b.String != nil {
-			return true
-		}
-		return false
+		return b.String != nil
 	}
+
 	if a.Bool != nil {
-		if b.Bool != nil {
-			return true
-		}
-		return false
+		return b.Bool != nil
 	}
 
 	return true

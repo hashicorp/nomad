@@ -8,7 +8,7 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/v3/cpu"
 )
 
 const (
@@ -60,7 +60,7 @@ func Init() error {
 	return initErr
 }
 
-// CPUModelName returns the number of CPU cores available
+// CPUNumCores returns the number of CPU cores available
 func CPUNumCores() int {
 	return cpuNumCores
 }

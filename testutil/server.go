@@ -145,7 +145,7 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 		t.Skipf("nomad not found, skipping: %v", err)
 	}
 
-	// Do a sanity check that we are actually running nomad
+	// Check that we are actually running nomad
 	vcmd := exec.Command(path, "-version")
 	vcmd.Stdout = nil
 	vcmd.Stderr = nil

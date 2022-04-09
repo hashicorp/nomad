@@ -20,9 +20,12 @@ Usage: nomad job periodic force <job id>
   This is used to immediately run a periodic job, even if it violates the job's
   prohibit_overlap setting.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job'
+  and 'list-jobs' capabilities for the job's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Periodic Force Options:
 
@@ -148,5 +151,5 @@ func (c *JobPeriodicForceCommand) Run(args []string) int {
 
 	// Detach was not specified, so start monitoring
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(evalID, false)
+	return mon.monitor(evalID)
 }

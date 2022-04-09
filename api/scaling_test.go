@@ -3,11 +3,12 @@ package api
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestScalingPolicies_ListPolicies(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -23,7 +24,7 @@ func TestScalingPolicies_ListPolicies(t *testing.T) {
 	// Register a job with a scaling policy
 	job := testJob()
 	job.TaskGroups[0].Scaling = &ScalingPolicy{
-		Max: 100,
+		Max: int64ToPtr(100),
 	}
 	_, _, err = jobs.Register(job, nil)
 	require.NoError(err)
@@ -49,10 +50,13 @@ func TestScalingPolicies_ListPolicies(t *testing.T) {
 
 	// Check that the scaling policy references the right group
 	require.Equal(policy.Target["Group"], *job.TaskGroups[0].Name)
+
+	// Check that the scaling policy has the right type
+	require.Equal(ScalingPolicyTypeHorizontal, policy.Type)
 }
 
 func TestScalingPolicies_GetPolicy(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -75,7 +79,7 @@ func TestScalingPolicies_GetPolicy(t *testing.T) {
 	policy := &ScalingPolicy{
 		Enabled: boolToPtr(true),
 		Min:     int64ToPtr(1),
-		Max:     1,
+		Max:     int64ToPtr(1),
 		Policy: map[string]interface{}{
 			"key": "value",
 		},
@@ -117,4 +121,5 @@ func TestScalingPolicies_GetPolicy(t *testing.T) {
 	require.Equal(policy.Enabled, resp.Enabled)
 	require.Equal(*policy.Min, *resp.Min)
 	require.Equal(policy.Max, resp.Max)
+	require.Equal(ScalingPolicyTypeHorizontal, resp.Type)
 }

@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-secure-stdlib/listenerutil"
 	sockaddr "github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/go-sockaddr/template"
 	client "github.com/hashicorp/nomad/client/config"
@@ -85,7 +86,7 @@ type Config struct {
 	Addresses *Addresses `hcl:"addresses"`
 
 	// normalizedAddr is set to the Address+Port by normalizeAddrs()
-	normalizedAddrs *Addresses
+	normalizedAddrs *NormalizedAddrs
 
 	// AdvertiseAddrs is used to control the addresses we advertise.
 	AdvertiseAddrs *AdvertiseAddrs `hcl:"advertise"`
@@ -131,6 +132,9 @@ type Config struct {
 	// Vault contains the configuration for the Vault Agent and
 	// parameters necessary to derive tokens.
 	Vault *config.VaultConfig `hcl:"vault"`
+
+	// UI is used to configure the web UI
+	UI *config.UIConfig `hcl:"ui"`
 
 	// NomadConfig is used to override the default config.
 	// This is largely used for testing purposes.
@@ -219,6 +223,9 @@ type ClientConfig struct {
 	// MemoryMB is used to override any detected or default total memory.
 	MemoryMB int `hcl:"memory_total_mb"`
 
+	// ReservableCores is used to override detected reservable cpu cores.
+	ReserveableCores string `hcl:"reservable_cores"`
+
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout.
 	MaxKillTimeout string `hcl:"max_kill_timeout"`
 
@@ -229,6 +236,14 @@ type ClientConfig struct {
 	// ClientMinPort is the lower range of the ports that the client uses for
 	// communicating with plugin subsystems
 	ClientMinPort int `hcl:"client_min_port"`
+
+	// MaxDynamicPort is the upper range of the dynamic ports that the client
+	// uses for allocations
+	MaxDynamicPort int `hcl:"max_dynamic_port"`
+
+	// MinDynamicPort is the lower range of the dynamic ports that the client
+	// uses for allocations
+	MinDynamicPort int `hcl:"min_dynamic_port"`
 
 	// Reserved is used to reserve resources from being used by Nomad. This can
 	// be used to target a certain utilization or to prevent Nomad from using a
@@ -264,7 +279,7 @@ type ClientConfig struct {
 	DisableRemoteExec bool `hcl:"disable_remote_exec"`
 
 	// TemplateConfig includes configuration for template rendering
-	TemplateConfig *ClientTemplateConfig `hcl:"template"`
+	TemplateConfig *client.ClientTemplateConfig `hcl:"template"`
 
 	// ServerJoin contains information that is used to attempt to join servers
 	ServerJoin *ServerJoin `hcl:"server_join"`
@@ -277,6 +292,10 @@ type ClientConfig struct {
 	// specified colon delimited
 	CNIPath string `hcl:"cni_path"`
 
+	// CNIConfigDir is the directory where CNI network configuration is located. The
+	// client will use this path when fingerprinting CNI networks.
+	CNIConfigDir string `hcl:"cni_config_dir"`
+
 	// BridgeNetworkName is the name of the bridge to create when using the
 	// bridge network mode
 	BridgeNetworkName string `hcl:"bridge_network_name"`
@@ -286,24 +305,27 @@ type ClientConfig struct {
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
 
+	// HostNetworks describes the different host networks available to the host
+	// if the host uses multiple interfaces
 	HostNetworks []*structs.ClientHostNetworkConfig `hcl:"host_network"`
+
+	// BindWildcardDefaultHostNetwork toggles if when there are no host networks,
+	// should the port mapping rules match the default network address (false) or
+	// matching any destination address (true). Defaults to true
+	BindWildcardDefaultHostNetwork bool `hcl:"bind_wildcard_default_host_network"`
+
+	// CgroupParent sets the parent cgroup for subsystems managed by Nomad. If the cgroup
+	// doest not exist Nomad will attempt to create it during startup. Defaults to '/nomad'
+	CgroupParent string `hcl:"cgroup_parent"`
+
+	// NomadServiceDiscovery is a boolean parameter which allows operators to
+	// enable/disable to Nomad native service discovery feature on the client.
+	// This parameter is exposed via the Nomad fingerprinter and used to ensure
+	// correct scheduling decisions on allocations which require this.
+	NomadServiceDiscovery *bool `hcl:"nomad_service_discovery"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
-}
-
-// ClientTemplateConfig is configuration on the client specific to template
-// rendering
-type ClientTemplateConfig struct {
-
-	// FunctionBlacklist disables functions in consul-template that
-	// are unsafe because they expose information from the client host.
-	FunctionBlacklist []string `hcl:"function_blacklist"`
-
-	// DisableSandbox allows templates to access arbitrary files on the
-	// client host. By default templates can access files only within
-	// the task directory.
-	DisableSandbox bool `hcl:"disable_file_sandbox"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -352,7 +374,9 @@ type ServerConfig struct {
 
 	// ProtocolVersion is the protocol version to speak. This must be between
 	// ProtocolVersionMin and ProtocolVersionMax.
-	ProtocolVersion int `hcl:"protocol_version"`
+	//
+	// Deprecated: This has never been used and will emit a warning if nonzero.
+	ProtocolVersion int `hcl:"protocol_version" json:"-"`
 
 	// RaftProtocol is the Raft protocol version to speak. This must be from [1-3].
 	RaftProtocol int `hcl:"raft_protocol"`
@@ -419,6 +443,12 @@ type ServerConfig struct {
 	// to meet the target rate.
 	MaxHeartbeatsPerSecond float64 `hcl:"max_heartbeats_per_second"`
 
+	// FailoverHeartbeatTTL is the TTL applied to heartbeats after
+	// a new leader is elected, since we no longer know the status
+	// of all the heartbeats.
+	FailoverHeartbeatTTL    time.Duration
+	FailoverHeartbeatTTLHCL string `hcl:"failover_heartbeat_ttl" json:"-"`
+
 	// StartJoin is a list of addresses to attempt to join when the
 	// agent starts. If Serf is unable to communicate with any of these
 	// addresses, then the agent will error and exit.
@@ -470,8 +500,85 @@ type ServerConfig struct {
 	// This value is ignored.
 	DefaultSchedulerConfig *structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
 
+	// EnableEventBroker configures whether this server's state store
+	// will generate events for its event stream.
+	EnableEventBroker *bool `hcl:"enable_event_broker"`
+
+	// EventBufferSize configure the amount of events to be held in memory.
+	// If EnableEventBroker is set to true, the minimum allowable value
+	// for the EventBufferSize is 1.
+	EventBufferSize *int `hcl:"event_buffer_size"`
+
+	// LicensePath is the path to search for an enterprise license.
+	LicensePath string `hcl:"license_path"`
+
+	// LicenseEnv is the full enterprise license.  If NOMAD_LICENSE
+	// is set, LicenseEnv will be set to the value at startup.
+	LicenseEnv string
+
+	// licenseAdditionalPublicKeys is an internal-only field used to
+	// setup test licenses.
+	licenseAdditionalPublicKeys []string
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	// Search configures UI search features.
+	Search *Search `hcl:"search"`
+
+	// DeploymentQueryRateLimit is in queries per second and is used by the
+	// DeploymentWatcher to throttle the amount of simultaneously deployments
+	DeploymentQueryRateLimit float64 `hcl:"deploy_query_rate_limit"`
+
+	// RaftBoltConfig configures boltdb as used by raft.
+	RaftBoltConfig *RaftBoltConfig `hcl:"raft_boltdb"`
+}
+
+// RaftBoltConfig is used in servers to configure parameters of the boltdb
+// used for raft consensus.
+type RaftBoltConfig struct {
+	// NoFreelistSync toggles whether the underlying raft storage should sync its
+	// freelist to disk within the bolt .db file. When disabled, IO performance
+	// will be improved but at the expense of longer startup times.
+	//
+	// Default: false.
+	NoFreelistSync bool `hcl:"no_freelist_sync"`
+}
+
+// Search is used in servers to configure search API options.
+type Search struct {
+	// FuzzyEnabled toggles whether the FuzzySearch API is enabled. If not
+	// enabled, requests to /v1/search/fuzzy will reply with a 404 response code.
+	//
+	// Default: enabled.
+	FuzzyEnabled bool `hcl:"fuzzy_enabled"`
+
+	// LimitQuery limits the number of objects searched in the FuzzySearch API.
+	// The results are indicated as truncated if the limit is reached.
+	//
+	// Lowering this value can reduce resource consumption of Nomad server when
+	// the FuzzySearch API is enabled.
+	//
+	// Default value: 20.
+	LimitQuery int `hcl:"limit_query"`
+
+	// LimitResults limits the number of results provided by the FuzzySearch API.
+	// The results are indicated as truncate if the limit is reached.
+	//
+	// Lowering this value can reduce resource consumption of Nomad server per
+	// fuzzy search request when the FuzzySearch API is enabled.
+	//
+	// Default value: 100.
+	LimitResults int `hcl:"limit_results"`
+
+	// MinTermLength is the minimum length of Text required before the FuzzySearch
+	// API will return results.
+	//
+	// Increasing this value can avoid resource consumption on Nomad server by
+	// reducing searches with less meaningful results.
+	//
+	// Default value: 2.
+	MinTermLength int `hcl:"min_term_length"`
 }
 
 // ServerJoin is used in both clients and servers to bootstrap connections to
@@ -546,14 +653,6 @@ type Telemetry struct {
 	collectionInterval       time.Duration `hcl:"-"`
 	PublishAllocationMetrics bool          `hcl:"publish_allocation_metrics"`
 	PublishNodeMetrics       bool          `hcl:"publish_node_metrics"`
-
-	// DisableTaggedMetrics disables a new version of generating metrics which
-	// uses tags
-	DisableTaggedMetrics bool `hcl:"disable_tagged_metrics"`
-
-	// BackwardsCompatibleMetrics allows for generating metrics in a simple
-	// key/value structure as done in older versions of Nomad
-	BackwardsCompatibleMetrics bool `hcl:"backwards_compatible_metrics"`
 
 	// PrefixFilter allows for filtering out metrics from being collected
 	PrefixFilter []string `hcl:"prefix_filter"`
@@ -644,8 +743,8 @@ type Telemetry struct {
 }
 
 // PrefixFilters parses the PrefixFilter field and returns a list of allowed and blocked filters
-func (t *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
-	for _, rule := range t.PrefixFilter {
+func (a *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
+	for _, rule := range a.PrefixFilter {
 		if rule == "" {
 			continue
 		}
@@ -684,6 +783,15 @@ type Addresses struct {
 // AdvertiseAddrs is used to control the addresses we advertise out for
 // different network services. All are optional and default to BindAddr and
 // their default Port.
+type NormalizedAddrs struct {
+	HTTP []string
+	RPC  string
+	Serf string
+}
+
+// AdvertiseAddrs is used to control the addresses we advertise out for
+// different network services. All are optional and default to BindAddr and
+// their default Port.
 type AdvertiseAddrs struct {
 	HTTP string `hcl:"http"`
 	RPC  string `hcl:"rpc"`
@@ -697,16 +805,9 @@ type Resources struct {
 	MemoryMB      int    `hcl:"memory"`
 	DiskMB        int    `hcl:"disk"`
 	ReservedPorts string `hcl:"reserved_ports"`
+	Cores         string `hcl:"cores"`
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
-}
-
-// CanParseReserved returns if the reserved ports specification is parsable.
-// The supported syntax is comma separated integers or ranges separated by
-// hyphens. For example, "80,120-150,160"
-func (r *Resources) CanParseReserved() error {
-	_, err := structs.ParsePortRanges(r.ReservedPorts)
-	return err
 }
 
 // devModeConfig holds the config for the -dev and -dev-connect flags
@@ -778,7 +879,7 @@ func (mode *devModeConfig) networkConfig() error {
 			return fmt.Errorf(errMsg, err)
 		}
 		if len(ifAddrs) < 1 {
-			return fmt.Errorf(errMsg, "could not find public network inteface")
+			return fmt.Errorf(errMsg, "could not find public network interface")
 		}
 		iface := ifAddrs[0].Name
 		mode.iface = iface
@@ -815,10 +916,12 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.GCDiskUsageThreshold = 99
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
-	conf.Client.TemplateConfig = &ClientTemplateConfig{
-		FunctionBlacklist: []string{"plugin"},
-		DisableSandbox:    false,
+	conf.Client.TemplateConfig = &client.ClientTemplateConfig{
+		FunctionDenylist: client.DefaultTemplateFunctionDenylist,
+		DisableSandbox:   false,
 	}
+	conf.Client.BindWildcardDefaultHostNetwork = true
+	conf.Client.NomadServiceDiscovery = helper.BoolToPtr(true)
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
@@ -842,11 +945,14 @@ func DefaultConfig() *Config {
 		AdvertiseAddrs: &AdvertiseAddrs{},
 		Consul:         config.DefaultConsulConfig(),
 		Vault:          config.DefaultVaultConfig(),
+		UI:             config.DefaultUIConfig(),
 		Client: &ClientConfig{
 			Enabled:               false,
 			MaxKillTimeout:        "30s",
 			ClientMinPort:         14000,
 			ClientMaxPort:         14512,
+			MinDynamicPort:        20000,
+			MaxDynamicPort:        32000,
 			Reserved:              &Resources{},
 			GCInterval:            1 * time.Minute,
 			GCParallelDestroys:    2,
@@ -860,18 +966,31 @@ func DefaultConfig() *Config {
 				RetryInterval:    30 * time.Second,
 				RetryMaxAttempts: 0,
 			},
-			TemplateConfig: &ClientTemplateConfig{
-				FunctionBlacklist: []string{"plugin"},
-				DisableSandbox:    false,
+			TemplateConfig: &client.ClientTemplateConfig{
+				FunctionDenylist: client.DefaultTemplateFunctionDenylist,
+				DisableSandbox:   false,
 			},
+			BindWildcardDefaultHostNetwork: true,
+			CNIPath:                        "/opt/cni/bin",
+			CNIConfigDir:                   "/opt/cni/config",
+			NomadServiceDiscovery:          helper.BoolToPtr(true),
 		},
 		Server: &ServerConfig{
-			Enabled:   false,
-			StartJoin: []string{},
+			Enabled:           false,
+			EnableEventBroker: helper.BoolToPtr(true),
+			EventBufferSize:   helper.IntToPtr(100),
+			RaftProtocol:      3,
+			StartJoin:         []string{},
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
 				RetryMaxAttempts: 0,
+			},
+			Search: &Search{
+				FuzzyEnabled:  true,
+				LimitQuery:    20,
+				LimitResults:  100,
+				MinTermLength: 2,
 			},
 		},
 		ACL: &ACLConfig{
@@ -1067,6 +1186,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Vault = result.Vault.Merge(b.Vault)
 	}
 
+	// Apply the UI Configuration
+	if result.UI == nil && b.UI != nil {
+		uiConfig := *b.UI
+		result.UI = &uiConfig
+	} else if b.UI != nil {
+		result.UI = result.UI.Merge(b.UI)
+	}
+
 	// Apply the sentinel config
 	if result.Sentinel == nil && b.Sentinel != nil {
 		server := *b.Sentinel
@@ -1109,23 +1236,23 @@ func (c *Config) Merge(b *Config) *Config {
 }
 
 // normalizeAddrs normalizes Addresses and AdvertiseAddrs to always be
-// initialized and have sane defaults.
+// initialized and have reasonable defaults.
 func (c *Config) normalizeAddrs() error {
 	if c.BindAddr != "" {
-		ipStr, err := parseSingleIPTemplate(c.BindAddr)
+		ipStr, err := listenerutil.ParseSingleIPTemplate(c.BindAddr)
 		if err != nil {
 			return fmt.Errorf("Bind address resolution failed: %v", err)
 		}
 		c.BindAddr = ipStr
 	}
 
-	addr, err := normalizeBind(c.Addresses.HTTP, c.BindAddr)
+	httpAddrs, err := normalizeMultipleBind(c.Addresses.HTTP, c.BindAddr)
 	if err != nil {
 		return fmt.Errorf("Failed to parse HTTP address: %v", err)
 	}
-	c.Addresses.HTTP = addr
+	c.Addresses.HTTP = strings.Join(httpAddrs, " ")
 
-	addr, err = normalizeBind(c.Addresses.RPC, c.BindAddr)
+	addr, err := normalizeBind(c.Addresses.RPC, c.BindAddr)
 	if err != nil {
 		return fmt.Errorf("Failed to parse RPC address: %v", err)
 	}
@@ -1137,13 +1264,13 @@ func (c *Config) normalizeAddrs() error {
 	}
 	c.Addresses.Serf = addr
 
-	c.normalizedAddrs = &Addresses{
-		HTTP: net.JoinHostPort(c.Addresses.HTTP, strconv.Itoa(c.Ports.HTTP)),
+	c.normalizedAddrs = &NormalizedAddrs{
+		HTTP: joinHostPorts(httpAddrs, strconv.Itoa(c.Ports.HTTP)),
 		RPC:  net.JoinHostPort(c.Addresses.RPC, strconv.Itoa(c.Ports.RPC)),
 		Serf: net.JoinHostPort(c.Addresses.Serf, strconv.Itoa(c.Ports.Serf)),
 	}
 
-	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode)
+	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, httpAddrs[0], c.Ports.HTTP, c.DevMode)
 	if err != nil {
 		return fmt.Errorf("Failed to parse HTTP advertise address (%v, %v, %v, %v): %v", c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode, err)
 	}
@@ -1164,26 +1291,63 @@ func (c *Config) normalizeAddrs() error {
 		c.AdvertiseAddrs.Serf = addr
 	}
 
+	// Skip network_interface evaluation if not a client
+	if c.Client != nil && c.Client.Enabled && c.Client.NetworkInterface != "" {
+		parsed, err := parseSingleInterfaceTemplate(c.Client.NetworkInterface)
+		if err != nil {
+			return fmt.Errorf("Failed to parse network-interface: %v", err)
+		}
+
+		c.Client.NetworkInterface = parsed
+	}
+
 	return nil
 }
 
-// parseSingleIPTemplate is used as a helper function to parse out a single IP
-// address from a config parameter.
-func parseSingleIPTemplate(ipTmpl string) (string, error) {
+// parseSingleInterfaceTemplate parses a go-sockaddr template and returns an
+// error if it doesn't result in a single value.
+func parseSingleInterfaceTemplate(tpl string) (string, error) {
+	out, err := template.Parse(tpl)
+	if err != nil {
+		// Typically something like:
+		// unable to parse template "{{printfl \"en50\"}}": template: sockaddr.Parse:1: function "printfl" not defined
+		return "", err
+	}
+
+	// Remove any extra empty space around the rendered result and check if the
+	// result is also not empty if the user provided a template.
+	out = strings.TrimSpace(out)
+	if tpl != "" && out == "" {
+		return "", fmt.Errorf("template %q evaluated to empty result", tpl)
+	}
+
+	// `template.Parse` returns a space-separated list of results, but on
+	// Windows network interfaces are allowed to have spaces, so there is no
+	// guaranteed separators that we can use to test if the template returned
+	// multiple interfaces.
+	// The test below checks if the template results to a single valid interface.
+	_, err = net.InterfaceByName(out)
+	if err != nil {
+		return "", fmt.Errorf("invalid interface name %q", out)
+	}
+
+	return out, nil
+}
+
+// parseMultipleIPTemplate is used as a helper function to parse out a multiple IP
+// addresses from a config parameter.
+func parseMultipleIPTemplate(ipTmpl string) ([]string, error) {
 	out, err := template.Parse(ipTmpl)
 	if err != nil {
-		return "", fmt.Errorf("Unable to parse address template %q: %v", ipTmpl, err)
+		return []string{}, fmt.Errorf("Unable to parse address template %q: %v", ipTmpl, err)
 	}
 
 	ips := strings.Split(out, " ")
-	switch len(ips) {
-	case 0:
-		return "", errors.New("No addresses found, please configure one.")
-	case 1:
-		return ips[0], nil
-	default:
-		return "", fmt.Errorf("Multiple addresses found (%q), please configure one.", out)
+	if len(ips) == 0 {
+		return []string{}, errors.New("No addresses found, please configure one.")
 	}
+
+	return deduplicateAddrs(ips), nil
 }
 
 // normalizeBind returns a normalized bind address.
@@ -1193,7 +1357,17 @@ func normalizeBind(addr, bind string) (string, error) {
 	if addr == "" {
 		return bind, nil
 	}
-	return parseSingleIPTemplate(addr)
+	return listenerutil.ParseSingleIPTemplate(addr)
+}
+
+// normalizeMultipleBind returns normalized bind addresses.
+//
+// If addr is set it is used, if not the default bind address is used.
+func normalizeMultipleBind(addr, bind string) ([]string, error) {
+	if addr == "" {
+		return []string{bind}, nil
+	}
+	return parseMultipleIPTemplate(addr)
 }
 
 // normalizeAdvertise returns a normalized advertise address.
@@ -1209,7 +1383,7 @@ func normalizeBind(addr, bind string) (string, error) {
 //
 // Loopback is only considered a valid advertise address in dev mode.
 func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string, error) {
-	addr, err := parseSingleIPTemplate(addr)
+	addr, err := listenerutil.ParseSingleIPTemplate(addr)
 	if err != nil {
 		return "", fmt.Errorf("Error parsing advertise address template: %v", err)
 	}
@@ -1250,7 +1424,7 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 	}
 
 	// Bind is not localhost but not a valid advertise IP, use first private IP
-	addr, err = parseSingleIPTemplate("{{ GetPrivateIP }}")
+	addr, err = listenerutil.ParseSingleIPTemplate("{{ GetPrivateIP }}")
 	if err != nil {
 		return "", fmt.Errorf("Unable to parse default advertise address: %v", err)
 	}
@@ -1299,8 +1473,8 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 }
 
 // Merge is used to merge two server configs together
-func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
-	result := *a
+func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
+	result := *s
 
 	if b.Enabled {
 		result.Enabled = true
@@ -1363,6 +1537,12 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.MaxHeartbeatsPerSecond != 0.0 {
 		result.MaxHeartbeatsPerSecond = b.MaxHeartbeatsPerSecond
 	}
+	if b.FailoverHeartbeatTTL != 0 {
+		result.FailoverHeartbeatTTL = b.FailoverHeartbeatTTL
+	}
+	if b.FailoverHeartbeatTTLHCL != "" {
+		result.FailoverHeartbeatTTLHCL = b.FailoverHeartbeatTTLHCL
+	}
 	if b.RetryMaxAttempts != 0 {
 		result.RetryMaxAttempts = b.RetryMaxAttempts
 	}
@@ -1390,23 +1570,57 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.ServerJoin != nil {
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
 	}
+	if b.LicensePath != "" {
+		result.LicensePath = b.LicensePath
+	}
+
+	if b.EnableEventBroker != nil {
+		result.EnableEventBroker = b.EnableEventBroker
+	}
+
+	if b.EventBufferSize != nil {
+		result.EventBufferSize = b.EventBufferSize
+	}
 
 	if b.DefaultSchedulerConfig != nil {
 		c := *b.DefaultSchedulerConfig
 		result.DefaultSchedulerConfig = &c
 	}
 
+	if b.DeploymentQueryRateLimit != 0 {
+		result.DeploymentQueryRateLimit = b.DeploymentQueryRateLimit
+	}
+
+	if b.Search != nil {
+		result.Search = &Search{FuzzyEnabled: b.Search.FuzzyEnabled}
+		if b.Search.LimitQuery > 0 {
+			result.Search.LimitQuery = b.Search.LimitQuery
+		}
+		if b.Search.LimitResults > 0 {
+			result.Search.LimitResults = b.Search.LimitResults
+		}
+		if b.Search.MinTermLength > 0 {
+			result.Search.MinTermLength = b.Search.MinTermLength
+		}
+	}
+
+	if b.RaftBoltConfig != nil {
+		result.RaftBoltConfig = &RaftBoltConfig{
+			NoFreelistSync: b.RaftBoltConfig.NoFreelistSync,
+		}
+	}
+
 	// Add the schedulers
 	result.EnabledSchedulers = append(result.EnabledSchedulers, b.EnabledSchedulers...)
 
 	// Copy the start join addresses
-	result.StartJoin = make([]string, 0, len(a.StartJoin)+len(b.StartJoin))
-	result.StartJoin = append(result.StartJoin, a.StartJoin...)
+	result.StartJoin = make([]string, 0, len(s.StartJoin)+len(b.StartJoin))
+	result.StartJoin = append(result.StartJoin, s.StartJoin...)
 	result.StartJoin = append(result.StartJoin, b.StartJoin...)
 
 	// Copy the retry join addresses
-	result.RetryJoin = make([]string, 0, len(a.RetryJoin)+len(b.RetryJoin))
-	result.RetryJoin = append(result.RetryJoin, a.RetryJoin...)
+	result.RetryJoin = make([]string, 0, len(s.RetryJoin)+len(b.RetryJoin))
+	result.RetryJoin = append(result.RetryJoin, s.RetryJoin...)
 	result.RetryJoin = append(result.RetryJoin, b.RetryJoin...)
 
 	return &result
@@ -1449,11 +1663,20 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.ClientMinPort != 0 {
 		result.ClientMinPort = b.ClientMinPort
 	}
+	if b.MaxDynamicPort != 0 {
+		result.MaxDynamicPort = b.MaxDynamicPort
+	}
+	if b.MinDynamicPort != 0 {
+		result.MinDynamicPort = b.MinDynamicPort
+	}
 	if result.Reserved == nil && b.Reserved != nil {
 		reserved := *b.Reserved
 		result.Reserved = &reserved
 	} else if b.Reserved != nil {
 		result.Reserved = result.Reserved.Merge(b.Reserved)
+	}
+	if b.ReserveableCores != "" {
+		result.ReserveableCores = b.ReserveableCores
 	}
 	if b.GCInterval != 0 {
 		result.GCInterval = b.GCInterval
@@ -1482,8 +1705,11 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.DisableRemoteExec = b.DisableRemoteExec
 	}
 
-	if b.TemplateConfig != nil {
-		result.TemplateConfig = b.TemplateConfig
+	if result.TemplateConfig == nil && b.TemplateConfig != nil {
+		templateConfig := *b.TemplateConfig
+		result.TemplateConfig = &templateConfig
+	} else if b.TemplateConfig != nil {
+		result.TemplateConfig = result.TemplateConfig.Merge(b.TemplateConfig)
 	}
 
 	// Add the servers
@@ -1526,6 +1752,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.CNIPath != "" {
 		result.CNIPath = b.CNIPath
 	}
+	if b.CNIConfigDir != "" {
+		result.CNIConfigDir = b.CNIConfigDir
+	}
 	if b.BridgeNetworkName != "" {
 		result.BridgeNetworkName = b.BridgeNetworkName
 	}
@@ -1533,10 +1762,24 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.BridgeNetworkSubnet = b.BridgeNetworkSubnet
 	}
 
+	result.HostNetworks = a.HostNetworks
+
 	if len(b.HostNetworks) != 0 {
-		result.HostNetworks = append(a.HostNetworks, b.HostNetworks...)
-	} else {
-		result.HostNetworks = a.HostNetworks
+		result.HostNetworks = append(result.HostNetworks, b.HostNetworks...)
+	}
+
+	if b.BindWildcardDefaultHostNetwork {
+		result.BindWildcardDefaultHostNetwork = true
+	}
+
+	// This value is a pointer, therefore if it is not nil the user has
+	// supplied an override value.
+	if b.NomadServiceDiscovery != nil {
+		result.NomadServiceDiscovery = b.NomadServiceDiscovery
+	}
+
+	if b.CgroupParent != "" {
+		result.CgroupParent = b.CgroupParent
 	}
 
 	return &result
@@ -1620,14 +1863,6 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 		result.CirconusBrokerSelectTag = b.CirconusBrokerSelectTag
 	}
 
-	if b.DisableTaggedMetrics {
-		result.DisableTaggedMetrics = b.DisableTaggedMetrics
-	}
-
-	if b.BackwardsCompatibleMetrics {
-		result.BackwardsCompatibleMetrics = b.BackwardsCompatibleMetrics
-	}
-
 	if b.PrefixFilter != nil {
 		result.PrefixFilter = b.PrefixFilter
 	}
@@ -1704,6 +1939,9 @@ func (r *Resources) Merge(b *Resources) *Resources {
 	}
 	if b.ReservedPorts != "" {
 		result.ReservedPorts = b.ReservedPorts
+	}
+	if b.Cores != "" {
+		result.Cores = b.Cores
 	}
 	return &result
 }
@@ -1806,6 +2044,17 @@ func LoadConfigDir(dir string) (*Config, error) {
 	return result, nil
 }
 
+// joinHostPorts joins every addr in addrs with the specified port
+func joinHostPorts(addrs []string, port string) []string {
+	localAddrs := make([]string, len(addrs))
+	for i, k := range addrs {
+		localAddrs[i] = net.JoinHostPort(k, port)
+
+	}
+
+	return localAddrs
+}
+
 // isTemporaryFile returns true or false depending on whether the
 // provided file name is a temporary file for the following editors:
 // emacs or vim.
@@ -1813,4 +2062,17 @@ func isTemporaryFile(name string) bool {
 	return strings.HasSuffix(name, "~") || // vim
 		strings.HasPrefix(name, ".#") || // emacs
 		(strings.HasPrefix(name, "#") && strings.HasSuffix(name, "#")) // emacs
+}
+
+func deduplicateAddrs(addrs []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+
+	for _, entry := range addrs {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }

@@ -283,13 +283,13 @@ func (m *manager) cleanupStalePlugins() error {
 	for name, c := range s.ReattachConfigs {
 		rc, err := pstructs.ReattachConfigToGoPlugin(c)
 		if err != nil {
-			multierror.Append(&mErr, fmt.Errorf("failed to convert reattach config: %v", err))
+			_ = multierror.Append(&mErr, fmt.Errorf("failed to convert reattach config: %v", err))
 			continue
 		}
 
 		instance, err := m.loader.Reattach(name, base.PluginTypeDevice, rc)
 		if err != nil {
-			multierror.Append(&mErr, fmt.Errorf("failed to reattach to plugin %q: %v", name, err))
+			_ = multierror.Append(&mErr, fmt.Errorf("failed to reattach to plugin %q: %v", name, err))
 			continue
 		}
 

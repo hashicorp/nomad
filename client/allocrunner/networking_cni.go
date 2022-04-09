@@ -1,7 +1,13 @@
+// For now CNI is supported only on Linux.
+//
+//go:build linux
+// +build linux
+
 package allocrunner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -33,27 +39,29 @@ const (
 )
 
 type cniNetworkConfigurator struct {
-	cni     cni.CNI
-	cniConf []byte
+	cni                     cni.CNI
+	cniConf                 []byte
+	ignorePortMappingHostIP bool
 
 	rand   *rand.Rand
 	logger log.Logger
 }
 
-func newCNINetworkConfigurator(logger log.Logger, cniPath, cniInterfacePrefix, cniConfDir, networkName string) (*cniNetworkConfigurator, error) {
+func newCNINetworkConfigurator(logger log.Logger, cniPath, cniInterfacePrefix, cniConfDir, networkName string, ignorePortMappingHostIP bool) (*cniNetworkConfigurator, error) {
 	cniConf, err := loadCNIConf(cniConfDir, networkName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load CNI config: %v", err)
 	}
 
-	return newCNINetworkConfiguratorWithConf(logger, cniPath, cniInterfacePrefix, cniConf)
+	return newCNINetworkConfiguratorWithConf(logger, cniPath, cniInterfacePrefix, ignorePortMappingHostIP, cniConf)
 }
 
-func newCNINetworkConfiguratorWithConf(logger log.Logger, cniPath, cniInterfacePrefix string, cniConf []byte) (*cniNetworkConfigurator, error) {
+func newCNINetworkConfiguratorWithConf(logger log.Logger, cniPath, cniInterfacePrefix string, ignorePortMappingHostIP bool, cniConf []byte) (*cniNetworkConfigurator, error) {
 	conf := &cniNetworkConfigurator{
-		cniConf: cniConf,
-		rand:    rand.New(rand.NewSource(time.Now().Unix())),
-		logger:  logger,
+		cniConf:                 cniConf,
+		rand:                    rand.New(rand.NewSource(time.Now().Unix())),
+		logger:                  logger,
+		ignorePortMappingHostIP: ignorePortMappingHostIP,
 	}
 	if cniPath == "" {
 		if cniPath = os.Getenv(envCNIPath); cniPath == "" {
@@ -76,9 +84,9 @@ func newCNINetworkConfiguratorWithConf(logger log.Logger, cniPath, cniInterfaceP
 }
 
 // Setup calls the CNI plugins with the add action
-func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {
+func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error) {
 	if err := c.ensureCNIInitialized(); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Depending on the version of bridge cni plugin used, a known race could occure
@@ -86,15 +94,16 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	// in one of them to fail. This rety attempts to overcome those erroneous failures.
 	const retry = 3
 	var firstError error
+	var res *cni.CNIResult
 	for attempt := 1; ; attempt++ {
-		//TODO eventually returning the IP from the result would be nice to have in the alloc
-		if _, err := c.cni.Setup(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc))); err != nil {
+		var err error
+		if res, err = c.cni.Setup(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP))); err != nil {
 			c.logger.Warn("failed to configure network", "err", err, "attempt", attempt)
 			switch attempt {
 			case 1:
 				firstError = err
 			case retry:
-				return fmt.Errorf("failed to configure network: %v", firstError)
+				return nil, fmt.Errorf("failed to configure network: %v", firstError)
 			}
 
 			// Sleep for 1 second + jitter
@@ -104,8 +113,76 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 		break
 	}
 
-	return nil
+	if c.logger.IsDebug() {
+		resultJSON, _ := json.Marshal(res)
+		c.logger.Debug("received result from CNI", "result", string(resultJSON))
+	}
 
+	return c.cniToAllocNet(res)
+
+}
+
+// cniToAllocNet converts a CNIResult to an AllocNetworkStatus or returns an
+// error. The first interface and IP with a sandbox and address set are
+// preferred. Failing that the first interface with an IP is selected.
+//
+// Unfortunately the go-cni library returns interfaces in an unordered map so
+// the results may be nondeterministic depending on CNI plugin output.
+func (c *cniNetworkConfigurator) cniToAllocNet(res *cni.CNIResult) (*structs.AllocNetworkStatus, error) {
+	netStatus := new(structs.AllocNetworkStatus)
+
+	// Use the first sandbox interface with an IP address
+	if len(res.Interfaces) > 0 {
+		for name, iface := range res.Interfaces {
+			if iface == nil {
+				// this should never happen but this value is coming from external
+				// plugins so we should guard against it
+				delete(res.Interfaces, name)
+			}
+
+			if iface.Sandbox != "" && len(iface.IPConfigs) > 0 {
+				netStatus.Address = iface.IPConfigs[0].IP.String()
+				netStatus.InterfaceName = name
+				break
+			}
+		}
+	}
+
+	// If no IP address was found, use the first interface with an address
+	// found as a fallback
+	if netStatus.Address == "" {
+		var found bool
+		for name, iface := range res.Interfaces {
+			if len(iface.IPConfigs) > 0 {
+				ip := iface.IPConfigs[0].IP.String()
+				c.logger.Debug("no sandbox interface with an address found CNI result, using first available", "interface", name, "ip", ip)
+				netStatus.Address = ip
+				netStatus.InterfaceName = name
+				found = true
+				break
+			}
+		}
+		if !found {
+			c.logger.Warn("no address could be found from CNI result")
+		}
+	}
+
+	// If no IP address could be found, return an error
+	if netStatus.Address == "" {
+		return nil, fmt.Errorf("failed to configure network: no interface with an address")
+
+	}
+
+	// Use the first DNS results.
+	if len(res.DNS) > 0 {
+		netStatus.DNS = &structs.DNSConfig{
+			Servers:  res.DNS[0].Nameservers,
+			Searches: res.DNS[0].Search,
+			Options:  res.DNS[0].Options,
+		}
+	}
+
+	return netStatus, nil
 }
 
 func loadCNIConf(confDir, name string) ([]byte, error) {
@@ -149,7 +226,7 @@ func (c *cniNetworkConfigurator) Teardown(ctx context.Context, alloc *structs.Al
 		return err
 	}
 
-	return c.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc)))
+	return c.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP)))
 }
 
 func (c *cniNetworkConfigurator) ensureCNIInitialized() error {
@@ -162,7 +239,7 @@ func (c *cniNetworkConfigurator) ensureCNIInitialized() error {
 
 // getPortMapping builds a list of portMapping structs that are used as the
 // portmapping capability arguments for the portmap CNI plugin
-func getPortMapping(alloc *structs.Allocation) []cni.PortMapping {
+func getPortMapping(alloc *structs.Allocation, ignoreHostIP bool) []cni.PortMapping {
 	ports := []cni.PortMapping{}
 
 	if len(alloc.AllocatedResources.Shared.Ports) == 0 && len(alloc.AllocatedResources.Shared.Networks) > 0 {
@@ -186,12 +263,15 @@ func getPortMapping(alloc *structs.Allocation) []cni.PortMapping {
 				port.To = port.Value
 			}
 			for _, proto := range []string{"tcp", "udp"} {
-				ports = append(ports, cni.PortMapping{
+				portMapping := cni.PortMapping{
 					HostPort:      int32(port.Value),
 					ContainerPort: int32(port.To),
 					Protocol:      proto,
-					HostIP:        port.HostIP,
-				})
+				}
+				if !ignoreHostIP {
+					portMapping.HostIP = port.HostIP
+				}
+				ports = append(ports, portMapping)
 			}
 		}
 	}

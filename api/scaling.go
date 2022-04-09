@@ -1,5 +1,10 @@
 package api
 
+const (
+	// ScalingPolicyTypeHorizontal indicates a policy that does horizontal scaling.
+	ScalingPolicyTypeHorizontal = "horizontal"
+)
+
 // Scaling is used to query scaling-related API endpoints
 type Scaling struct {
 	client *Client
@@ -19,9 +24,9 @@ func (s *Scaling) ListPolicies(q *QueryOptions) ([]*ScalingPolicyListStub, *Quer
 	return resp, qm, nil
 }
 
-func (s *Scaling) GetPolicy(ID string, q *QueryOptions) (*ScalingPolicy, *QueryMeta, error) {
+func (s *Scaling) GetPolicy(id string, q *QueryOptions) (*ScalingPolicy, *QueryMeta, error) {
 	var policy ScalingPolicy
-	qm, err := s.client.query("/v1/scaling/policy/"+ID, &policy, q)
+	qm, err := s.client.query("/v1/scaling/policy/"+id, &policy, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -35,6 +40,9 @@ func (p *ScalingPolicy) Canonicalize(taskGroupCount int) {
 	if p.Min == nil {
 		var m int64 = int64(taskGroupCount)
 		p.Min = &m
+	}
+	if p.Type == "" {
+		p.Type = ScalingPolicyTypeHorizontal
 	}
 }
 
@@ -52,13 +60,19 @@ type ScalingRequest struct {
 
 // ScalingPolicy is the user-specified API object for an autoscaling policy
 type ScalingPolicy struct {
+	/* fields set by user in HCL config */
+
+	Min     *int64                 `hcl:"min,optional"`
+	Max     *int64                 `hcl:"max,optional"`
+	Policy  map[string]interface{} `hcl:"policy,block"`
+	Enabled *bool                  `hcl:"enabled,optional"`
+	Type    string                 `hcl:"type,optional"`
+
+	/* fields set by server */
+
 	ID          string
 	Namespace   string
 	Target      map[string]string
-	Min         *int64
-	Max         int64
-	Policy      map[string]interface{}
-	Enabled     *bool
 	CreateIndex uint64
 	ModifyIndex uint64
 }
@@ -68,6 +82,7 @@ type ScalingPolicy struct {
 type ScalingPolicyListStub struct {
 	ID          string
 	Enabled     bool
+	Type        string
 	Target      map[string]string
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -76,6 +91,7 @@ type ScalingPolicyListStub struct {
 // JobScaleStatusResponse is used to return information about job scaling status
 type JobScaleStatusResponse struct {
 	JobID          string
+	Namespace      string
 	JobCreateIndex uint64
 	JobModifyIndex uint64
 	JobStopped     bool

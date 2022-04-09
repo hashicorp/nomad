@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Add network interface name to log output during fingerprint
+```

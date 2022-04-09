@@ -1,0 +1,3 @@
+```release-note:bug
+deps: Updated `hashicorp/go-plugin` to v1.4.3 to fix handles leakage on Windows platforms
+```

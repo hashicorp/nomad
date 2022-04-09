@@ -1,6 +1,7 @@
 import { inject as service } from '@ember/service';
-import { computed, get } from '@ember/object';
-import RESTAdapter from 'ember-data/adapters/rest';
+import { computed } from '@ember/object';
+import { camelize } from '@ember/string';
+import RESTAdapter from '@ember-data/adapter/rest';
 import codesForError from '../utils/codes-for-error';
 import removeRecord from '../utils/remove-record';
 import { default as NoLeaderError, NO_LEADER } from '../utils/no-leader-error';
@@ -35,7 +36,7 @@ export default class ApplicationAdapter extends RESTAdapter {
   }
 
   findAll() {
-    return super.findAll(...arguments).catch(error => {
+    return super.findAll(...arguments).catch((error) => {
       const errorCodes = codesForError(error);
 
       const isNotImplemented = errorCodes.includes('501');
@@ -49,28 +50,31 @@ export default class ApplicationAdapter extends RESTAdapter {
     });
   }
 
-  ajaxOptions(url, type, options = {}) {
+  ajaxOptions(url, verb, options = {}) {
     options.data || (options.data = {});
     if (this.get('system.shouldIncludeRegion')) {
+      // Region should only ever be a query param. The default ajaxOptions
+      // behavior is to include data attributes in the requestBody for PUT
+      // and POST requests. This works around that.
       const region = this.get('system.activeRegion');
       if (region) {
-        options.data.region = region;
+        url = associateRegion(url, region);
       }
     }
-    return super.ajaxOptions(url, type, options);
+    return super.ajaxOptions(url, verb, options);
   }
 
   // In order to remove stale records from the store, findHasMany has to unload
   // all records related to the request in question.
   findHasMany(store, snapshot, link, relationship) {
-    return super.findHasMany(...arguments).then(payload => {
+    return super.findHasMany(...arguments).then((payload) => {
       const relationshipType = relationship.type;
       const inverse = snapshot.record.inverseFor(relationship.key);
       if (inverse) {
         store
           .peekAll(relationshipType)
-          .filter(record => record.get(`${inverse.name}.id`) === snapshot.id)
-          .forEach(record => {
+          .filter((record) => record.get(`${inverse.name}.id`) === snapshot.id)
+          .forEach((record) => {
             removeRecord(store, record);
           });
       }
@@ -89,11 +93,11 @@ export default class ApplicationAdapter extends RESTAdapter {
   urlForFindRecord(id, modelName) {
     let path;
     let url = [];
-    let host = get(this, 'host');
+    let host = this.host;
     let prefix = this.urlPrefix();
 
     if (modelName) {
-      path = modelName.camelize();
+      path = camelize(modelName);
       if (path) {
         url.push(path);
       }
@@ -118,4 +122,10 @@ export default class ApplicationAdapter extends RESTAdapter {
   urlForUpdateRecord() {
     return this.urlForFindRecord(...arguments);
   }
+}
+
+function associateRegion(url, region) {
+  return url.indexOf('?') !== -1
+    ? `${url}&region=${region}`
+    : `${url}?region=${region}`;
 }

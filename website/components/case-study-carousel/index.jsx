@@ -13,10 +13,10 @@ import RightArrow from './img/right-arrow-control.svg?include'
 export default function CaseStudyCarousel({
   caseStudies,
   title,
-  featuredLogos
+  featuredLogos,
 }) {
   const [slideIndex, setSlideIndex] = useState(0)
-  const caseStudySlides = caseStudies.map(caseStudy => (
+  const caseStudySlides = caseStudies.map((caseStudy) => (
     <CaseSlide key={caseStudy.quote} caseStudy={caseStudy} />
   ))
   function renderControls() {
@@ -69,14 +69,14 @@ export default function CaseStudyCarousel({
           renderCenterRightControls={({ nextSlide }) => {
             return sideControls(RightArrow, nextSlide)
           }}
-          afterSlide={slideIndex => setSlideIndex(slideIndex)}
+          afterSlide={(slideIndex) => setSlideIndex(slideIndex)}
         >
           {caseStudySlides}
         </Carousel>
       ) : null}
       <div className="background-section">
         <div className="mono-logos">
-          {featuredLogos.map(featuredLogo => (
+          {featuredLogos.map((featuredLogo) => (
             <Image
               key={featuredLogo.url}
               url={featuredLogo.url}

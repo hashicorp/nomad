@@ -17,23 +17,6 @@ type Status struct {
 	logger log.Logger
 }
 
-// Version is used to allow clients to determine the capabilities
-// of the server
-func (s *Status) Version(args *structs.GenericRequest, reply *structs.VersionResponse) error {
-	if done, err := s.srv.forward("Status.Version", args, args, reply); done {
-		return err
-	}
-
-	conf := s.srv.config
-	reply.Build = conf.Build
-	reply.Versions = map[string]int{
-		structs.ProtocolVersion: int(conf.ProtocolVersion),
-		structs.APIMajorVersion: structs.ApiMajorVersion,
-		structs.APIMinorVersion: structs.ApiMinorVersion,
-	}
-	return nil
-}
-
 // Ping is used to just check for connectivity
 func (s *Status) Ping(args struct{}, reply *struct{}) error {
 	return nil
@@ -113,7 +96,7 @@ func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMemb
 	return nil
 }
 
-// Used by Autopilot to query the raft stats of the local server.
+// RaftStats is used by Autopilot to query the raft stats of the local server.
 func (s *Status) RaftStats(args struct{}, reply *autopilot.ServerStats) error {
 	stats := s.srv.raft.Stats()
 

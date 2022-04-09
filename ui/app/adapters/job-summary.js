@@ -1,12 +1,9 @@
-import Watchable from './watchable';
+import WatchableNamespaceIDs from './watchable-namespace-ids';
+import classic from 'ember-classic-decorator';
 
-export default class JobSummaryAdapter extends Watchable {
+@classic
+export default class JobSummaryAdapter extends WatchableNamespaceIDs {
   urlForFindRecord(id, type, hash) {
-    const [name, namespace] = JSON.parse(id);
-    let url = super.urlForFindRecord(name, 'job', hash) + '/summary';
-    if (namespace && namespace !== 'default') {
-      url += `?namespace=${namespace}`;
-    }
-    return url;
+    return super.urlForFindRecord(id, 'job', hash, 'summary');
   }
 }

@@ -1,5 +1,11 @@
 package structs
 
+import (
+	"fmt"
+
+	multierror "github.com/hashicorp/go-multierror"
+)
+
 const (
 	VolumeTypeHost = "host"
 )
@@ -86,11 +92,92 @@ func HostVolumeSliceMerge(a, b []*ClientHostVolumeConfig) []*ClientHostVolumeCon
 
 // VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
 type VolumeRequest struct {
-	Name         string
-	Type         string
-	Source       string
-	ReadOnly     bool
-	MountOptions *CSIMountOptions
+	Name           string
+	Type           string
+	Source         string
+	ReadOnly       bool
+	AccessMode     CSIVolumeAccessMode
+	AttachmentMode CSIVolumeAttachmentMode
+	MountOptions   *CSIMountOptions
+	PerAlloc       bool
+}
+
+func (v *VolumeRequest) Validate(taskGroupCount, canaries int) error {
+	if !(v.Type == VolumeTypeHost ||
+		v.Type == VolumeTypeCSI) {
+		return fmt.Errorf("volume has unrecognized type %s", v.Type)
+	}
+
+	var mErr multierror.Error
+	addErr := func(msg string, args ...interface{}) {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf(msg, args...))
+	}
+
+	if v.Source == "" {
+		addErr("volume has an empty source")
+	}
+
+	switch v.Type {
+
+	case VolumeTypeHost:
+		if v.AttachmentMode != CSIVolumeAttachmentModeUnknown {
+			addErr("host volumes cannot have an attachment mode")
+		}
+		if v.AccessMode != CSIVolumeAccessModeUnknown {
+			addErr("host volumes cannot have an access mode")
+		}
+		if v.MountOptions != nil {
+			addErr("host volumes cannot have mount options")
+		}
+		if v.PerAlloc {
+			addErr("host volumes do not support per_alloc")
+		}
+
+	case VolumeTypeCSI:
+
+		switch v.AttachmentMode {
+		case CSIVolumeAttachmentModeUnknown:
+			addErr("CSI volumes must have an attachment mode")
+		case CSIVolumeAttachmentModeBlockDevice:
+			if v.MountOptions != nil {
+				addErr("block devices cannot have mount options")
+			}
+		}
+
+		switch v.AccessMode {
+		case CSIVolumeAccessModeUnknown:
+			addErr("CSI volumes must have an access mode")
+		case CSIVolumeAccessModeSingleNodeReader:
+			if !v.ReadOnly {
+				addErr("%s volumes must be read-only", v.AccessMode)
+			}
+			if taskGroupCount > 1 && !v.PerAlloc {
+				addErr("volume with %s access mode allows only one reader", v.AccessMode)
+			}
+		case CSIVolumeAccessModeSingleNodeWriter:
+			// note: we allow read-only mount of this volume, but only one
+			if taskGroupCount > 1 && !v.PerAlloc {
+				addErr("volume with %s access mode allows only one reader or writer", v.AccessMode)
+			}
+		case CSIVolumeAccessModeMultiNodeReader:
+			if !v.ReadOnly {
+				addErr("%s volumes must be read-only", v.AccessMode)
+			}
+		case CSIVolumeAccessModeMultiNodeSingleWriter:
+			if !v.ReadOnly && taskGroupCount > 1 && !v.PerAlloc {
+				addErr("volume with %s access mode allows only one writer", v.AccessMode)
+			}
+		case CSIVolumeAccessModeMultiNodeMultiWriter:
+			// note: we intentionally allow read-only mount of this mode
+		}
+
+		if v.PerAlloc && canaries > 0 {
+			addErr("volume cannot be per_alloc when canaries are in use")
+		}
+
+	}
+
+	return mErr.ErrorOrNil()
 }
 
 func (v *VolumeRequest) Copy() *VolumeRequest {
@@ -100,11 +187,9 @@ func (v *VolumeRequest) Copy() *VolumeRequest {
 	nv := new(VolumeRequest)
 	*nv = *v
 
-	if v.MountOptions == nil {
-		return nv
+	if v.MountOptions != nil {
+		nv.MountOptions = v.MountOptions.Copy()
 	}
-
-	nv.MountOptions = &(*v.MountOptions)
 
 	return nv
 }

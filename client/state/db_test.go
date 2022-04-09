@@ -4,8 +4,11 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"sync"
 	"testing"
+	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
@@ -57,10 +60,10 @@ func testDB(t *testing.T, f func(*testing.T, StateDB)) {
 	}
 }
 
-// TestStateDB asserts the behavior of GetAllAllocations, PutAllocation, and
+// TestStateDB_Allocations asserts the behavior of GetAllAllocations, PutAllocation, and
 // DeleteAllocationBucket for all operational StateDB implementations.
 func TestStateDB_Allocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -137,10 +140,123 @@ func TestStateDB_Allocations(t *testing.T) {
 	})
 }
 
+// Integer division, rounded up.
+func ceilDiv(a, b int) int {
+	return (a + b - 1) / b
+}
+
+// TestStateDB_Batch asserts the behavior of PutAllocation, PutNetworkStatus and
+// DeleteAllocationBucket in batch mode, for all operational StateDB implementations.
+func TestStateDB_Batch(t *testing.T) {
+	ci.Parallel(t)
+
+	testDB(t, func(t *testing.T, db StateDB) {
+		require := require.New(t)
+
+		// For BoltDB, get initial tx_id
+		var getTxID func() int
+		var prevTxID int
+		var batchDelay time.Duration
+		var batchSize int
+		if boltStateDB, ok := db.(*BoltStateDB); ok {
+			boltdb := boltStateDB.DB().BoltDB()
+			getTxID = func() int {
+				tx, err := boltdb.Begin(true)
+				require.NoError(err)
+				defer tx.Rollback()
+				return tx.ID()
+			}
+			prevTxID = getTxID()
+			batchDelay = boltdb.MaxBatchDelay
+			batchSize = boltdb.MaxBatchSize
+		}
+
+		// Write 1000 allocations and network statuses in batch mode
+		startTime := time.Now()
+		const numAllocs = 1000
+		var allocs []*structs.Allocation
+		for i := 0; i < numAllocs; i++ {
+			allocs = append(allocs, mock.Alloc())
+		}
+		var wg sync.WaitGroup
+		for _, alloc := range allocs {
+			wg.Add(1)
+			go func(alloc *structs.Allocation) {
+				require.NoError(db.PutNetworkStatus(alloc.ID, mock.AllocNetworkStatus(), WithBatchMode()))
+				require.NoError(db.PutAllocation(alloc, WithBatchMode()))
+				wg.Done()
+			}(alloc)
+		}
+		wg.Wait()
+
+		// Check BoltDB actually combined PutAllocation calls into much fewer transactions.
+		// The actual number of transactions depends on how fast the goroutines are spawned,
+		// with every batchDelay (10ms by default) period saved in a separate transaction,
+		// plus each transaction is limited to batchSize writes (1000 by default).
+		// See boltdb MaxBatchDelay and MaxBatchSize parameters for more details.
+		if getTxID != nil {
+			numTransactions := getTxID() - prevTxID
+			writeTime := time.Now().Sub(startTime)
+			expectedNumTransactions := ceilDiv(2*numAllocs, batchSize) + ceilDiv(int(writeTime), int(batchDelay))
+			require.LessOrEqual(numTransactions, expectedNumTransactions)
+			prevTxID = getTxID()
+		}
+
+		// Retrieve allocs and make sure they are the same (order can differ)
+		readAllocs, errs, err := db.GetAllAllocations()
+		require.NoError(err)
+		require.NotNil(readAllocs)
+		require.Len(readAllocs, len(allocs))
+		require.NotNil(errs)
+		require.Empty(errs)
+
+		readAllocsById := make(map[string]*structs.Allocation)
+		for _, readAlloc := range readAllocs {
+			readAllocsById[readAlloc.ID] = readAlloc
+		}
+		for _, alloc := range allocs {
+			readAlloc, ok := readAllocsById[alloc.ID]
+			if !ok {
+				t.Fatalf("no alloc with ID=%q", alloc.ID)
+			}
+			if !reflect.DeepEqual(readAlloc, alloc) {
+				pretty.Ldiff(t, readAlloc, alloc)
+				t.Fatalf("alloc %q unequal", alloc.ID)
+			}
+		}
+
+		// Delete all allocs in batch mode
+		startTime = time.Now()
+		for _, alloc := range allocs {
+			wg.Add(1)
+			go func(alloc *structs.Allocation) {
+				require.NoError(db.DeleteAllocationBucket(alloc.ID, WithBatchMode()))
+				wg.Done()
+			}(alloc)
+		}
+		wg.Wait()
+
+		// Check BoltDB combined DeleteAllocationBucket calls into much fewer transactions.
+		if getTxID != nil {
+			numTransactions := getTxID() - prevTxID
+			writeTime := time.Now().Sub(startTime)
+			expectedNumTransactions := ceilDiv(numAllocs, batchSize) + ceilDiv(int(writeTime), int(batchDelay))
+			require.LessOrEqual(numTransactions, expectedNumTransactions)
+			prevTxID = getTxID()
+		}
+
+		// Check all allocs were deleted.
+		readAllocs, errs, err = db.GetAllAllocations()
+		require.NoError(err)
+		require.Empty(readAllocs)
+		require.Empty(errs)
+	})
+}
+
 // TestStateDB_TaskState asserts the behavior of task state related StateDB
 // methods.
 func TestStateDB_TaskState(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -192,7 +308,7 @@ func TestStateDB_TaskState(t *testing.T) {
 // TestStateDB_DeviceManager asserts the behavior of device manager state related StateDB
 // methods.
 func TestStateDB_DeviceManager(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -217,7 +333,7 @@ func TestStateDB_DeviceManager(t *testing.T) {
 // TestStateDB_DriverManager asserts the behavior of device manager state related StateDB
 // methods.
 func TestStateDB_DriverManager(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -242,7 +358,7 @@ func TestStateDB_DriverManager(t *testing.T) {
 // TestStateDB_DynamicRegistry asserts the behavior of dynamic registry state related StateDB
 // methods.
 func TestStateDB_DynamicRegistry(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -267,7 +383,7 @@ func TestStateDB_DynamicRegistry(t *testing.T) {
 // TestStateDB_Upgrade asserts calling Upgrade on new databases always
 // succeeds.
 func TestStateDB_Upgrade(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require.NoError(t, db.Upgrade())

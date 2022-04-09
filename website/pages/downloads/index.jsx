@@ -1,41 +1,30 @@
-import VERSION from 'data/version.js'
-import ProductDownloader from '@hashicorp/react-product-downloader'
-import Head from 'next/head'
-import HashiHead from '@hashicorp/react-head'
+import VERSION from 'data/version'
+import { productSlug } from 'data/metadata'
+import ProductDownloadsPage from '@hashicorp/react-product-downloads-page'
+import { generateStaticProps } from '@hashicorp/react-product-downloads-page/server'
+import baseProps from 'components/downloads-props'
+import s from './style.module.css'
 
-export default function DownloadsPage({ releaseData }) {
-  return (
-    <div id="p-downloads" className="g-container">
-      <HashiHead is={Head} title="Downloads | Nomad by HashiCorp" />
-      <ProductDownloader
-        product="Nomad"
-        version={VERSION}
-        releaseData={releaseData}
-        community="/resources"
-        prerelease={{
-          type: 'Beta 1',
-          name: 'v0.12.0',
-          version: '0.12.0-beta1'
-        }}
-
-      />
-    </div>
-  )
+export default function DownloadsPage(staticProps) {
+  return <ProductDownloadsPage
+    {...baseProps()}
+    merchandisingSlot={
+      <div className={s.releaseCandidate}>
+        <p>
+          A beta for Nomad v1.3.0 is available! The release can be{' '}
+          <a href="https://releases.hashicorp.com/nomad/1.3.0-beta.1/">
+          downloaded here.
+          </a>
+        </p>
+      </div>
+    }
+    {...staticProps}
+  />
 }
 
 export async function getStaticProps() {
-  return fetch(`https://releases.hashicorp.com/nomad/${VERSION}/index.json`)
-    .then((res) => res.json())
-    .then((releaseData) => ({ props: { releaseData } }))
-    .catch(() => {
-      throw new Error(
-        `--------------------------------------------------------
-        Unable to resolve version ${VERSION} on releases.hashicorp.com from link
-        <https://releases.hashicorp.com/nomad/${VERSION}/index.json>. Usually this
-        means that the specified version has not yet been released. The downloads page
-        version can only be updated after the new version has been released, to ensure
-        that it works for all users.
-        ----------------------------------------------------------`
-      )
-    })
+  return generateStaticProps({
+    product: productSlug,
+    latestVersion: VERSION,
+  })
 }

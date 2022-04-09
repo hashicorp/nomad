@@ -1,0 +1,3 @@
+```release-note:improvement
+server: Make num_schedulers and enabled_schedulers hot reloadable; add agent API endpoint to enable dynamic modifications of these values.
+```

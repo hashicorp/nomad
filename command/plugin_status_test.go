@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -11,13 +12,13 @@ import (
 )
 
 func TestPluginStatusCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &PluginStatusCommand{}
 }
 
 func TestPluginStatusCommand_Fails(t *testing.T) {
-	t.Parallel()
-	ui := new(cli.MockUi)
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
 	cmd := &PluginStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -27,15 +28,23 @@ func TestPluginStatusCommand_Fails(t *testing.T) {
 	out := ui.ErrorWriter.String()
 	require.Contains(t, out, commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
+
+	// Test an unsupported plugin type.
+	code = cmd.Run([]string{"-type=not-a-plugin"})
+	require.Equal(t, 1, code)
+
+	out = ui.ErrorWriter.String()
+	require.Contains(t, out, "Unsupported plugin type: not-a-plugin")
+	ui.ErrorWriter.Reset()
 }
 
 func TestPluginStatusCommand_AutocompleteArgs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &PluginStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a plugin

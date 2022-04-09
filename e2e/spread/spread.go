@@ -1,10 +1,14 @@
 package spread
 
 import (
-	"github.com/hashicorp/nomad/e2e/framework"
+	"fmt"
+	"strings"
+
 	"github.com/stretchr/testify/require"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
+	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
 )
 
@@ -66,6 +70,7 @@ func (tc *SpreadTest) TestMultipleSpreads(f *framework.F) {
 	jobAllocs := nomadClient.Allocations()
 	dcToAllocs := make(map[string]int)
 	rackToAllocs := make(map[string]int)
+	allocMetrics := make(map[string]*api.AllocationMetric)
 
 	require := require.New(f.T())
 	// Verify spread score and alloc distribution
@@ -74,6 +79,7 @@ func (tc *SpreadTest) TestMultipleSpreads(f *framework.F) {
 
 		require.Nil(err)
 		require.NotEmpty(alloc.Metrics.ScoreMetaData)
+		allocMetrics[allocStub.ID] = alloc.Metrics
 
 		node, _, err := nomadClient.Nodes().Info(alloc.NodeID, nil)
 		require.Nil(err)
@@ -87,13 +93,33 @@ func (tc *SpreadTest) TestMultipleSpreads(f *framework.F) {
 	expectedDcToAllocs := make(map[string]int)
 	expectedDcToAllocs["dc1"] = 5
 	expectedDcToAllocs["dc2"] = 5
-	require.Equal(expectedDcToAllocs, dcToAllocs)
+	require.Equal(expectedDcToAllocs, dcToAllocs, report(allocMetrics))
 
 	expectedRackToAllocs := make(map[string]int)
 	expectedRackToAllocs["r1"] = 7
 	expectedRackToAllocs["r2"] = 3
-	require.Equal(expectedRackToAllocs, rackToAllocs)
+	require.Equal(expectedRackToAllocs, rackToAllocs, report(allocMetrics))
 
+}
+
+func report(metrics map[string]*api.AllocationMetric) string {
+	var s strings.Builder
+	for allocID, m := range metrics {
+		s.WriteString("Alloc ID: " + allocID + "\n")
+		s.WriteString(fmt.Sprintf("  NodesEvaluated: %d\n", m.NodesEvaluated))
+		s.WriteString(fmt.Sprintf("  NodesAvailable: %#v\n", m.NodesAvailable))
+		s.WriteString(fmt.Sprintf("  ClassFiltered: %#v\n", m.ClassFiltered))
+		s.WriteString(fmt.Sprintf("  ConstraintFiltered: %#v\n", m.ConstraintFiltered))
+		s.WriteString(fmt.Sprintf("  NodesExhausted: %d\n", m.NodesExhausted))
+		s.WriteString(fmt.Sprintf("  ClassExhausted: %#v\n", m.ClassExhausted))
+		s.WriteString(fmt.Sprintf("  DimensionExhausted: %#v\n", m.DimensionExhausted))
+		s.WriteString(fmt.Sprintf("  QuotaExhausted: %#v\n", m.QuotaExhausted))
+		for _, nodeMeta := range m.ScoreMetaData {
+			s.WriteString(fmt.Sprintf("    NodeID: %s, NormScore: %f, Scores: %#v\n",
+				nodeMeta.NodeID, nodeMeta.NormScore, nodeMeta.Scores))
+		}
+	}
+	return s.String()
 }
 
 func (tc *SpreadTest) AfterEach(f *framework.F) {

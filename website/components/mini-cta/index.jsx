@@ -13,7 +13,7 @@ export default function MiniCTA({ title, description, link }) {
           theme={{
             variant: 'tertiary-neutral',
             brand: 'neutral',
-            background: 'light'
+            background: 'light',
           }}
           linkType={link.type}
         />

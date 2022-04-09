@@ -1,0 +1,104 @@
+---
+layout: docs
+page_title: Frequently Asked Questions
+description: Frequently asked questions and answers for Nomad
+---
+
+# Frequently Asked Questions
+
+## Q: What is Checkpoint? / Does Nomad call home?
+
+Nomad makes use of a HashiCorp service called [Checkpoint](https://checkpoint.hashicorp.com)
+which is used to check for updates and critical security bulletins.
+Only anonymous information, which cannot be used to identify the user or host, is
+sent to Checkpoint. An anonymous ID is sent which helps de-duplicate warning messages.
+This anonymous ID can be disabled. Using the Checkpoint service is optional and can be disabled.
+
+See [`disable_anonymous_signature`](/docs/configuration#disable_anonymous_signature)
+and [`disable_update_check`](/docs/configuration#disable_update_check).
+
+## Q: Is Nomad eventually or strongly consistent?
+
+Nomad makes use of both a [consensus protocol](/docs/internals/consensus) and
+a [gossip protocol](/docs/internals/gossip). The consensus protocol is strongly
+consistent, and is used for all state replication and scheduling. The gossip protocol
+is used to manage the addresses of servers for automatic clustering and multi-region
+federation. This means all data that is managed by Nomad is strongly consistent.
+
+## Q: Is Nomad's `datacenter` parameter the same as Consul's?
+
+No. For those familiar with Consul, [Consul's notion of a
+datacenter][consul_dc] is more equivalent to a [Nomad region][nomad_region].
+Nomad supports grouping nodes into multiple datacenters, which should reflect
+nodes being colocated, while being managed by a single set of Nomad servers.
+
+Consul on the other hand does not have this two-tier approach to servers and
+agents and instead [relies on federation to create larger logical
+clusters][consul_fed].
+
+## Q: What is "bootstrapping" a Nomad cluster? ((#bootstrapping))
+
+Bootstrapping is the process when a Nomad cluster elects its first leader
+and writes the initial cluster state to that leader's state store. Bootstrapping
+will not occur until at least a given number of servers, defined by
+[`bootstrap_expect`], have connected to each other. Once this process has
+completed, the cluster is said to be bootstrapped and is ready to use.
+
+Certain configuration options are only used to influence the creation of the
+initial cluster state during bootstrapping and are not consulted again so long
+as the state data remains intact. These typically are values that must be
+consistent across server members. For example, the [`default_scheduler_config`]
+option allows an operator to set the SchedulerConfig to non-default values
+during this bootstrap process rather than requiring an immediate call to the API
+once the cluster is up and running.
+
+If the state is completely destroyed, whether intentionally or accidentally, on
+all of the Nomad servers in the same outage, the cluster will re-bootstrap based
+on the Nomad defaults and any configuration present that impacts the bootstrap
+process.
+
+## Q: How to connect to my host network when using Docker Desktop (Windows and MacOS)?
+
+Since Docker is based on Linux-native technologies, Docker Desktop for Windows
+and MacOS uses a small Linux virtual machine to run containers. This extra step
+adds a layer of indirection between the network of your host (the computer you
+are currently using) and the network of the VM running your containers.
+
+This means that, by default, your Docker tasks will not be able to access
+endpoints that are available in your host network, such as a local Consul agent.
+
+In order to properly setup this connection you will need to explicitly bind
+the Nomad client to a non-loopback network interface, and anything else you
+would like to access must also be in the same interface.
+
+On Windows, we recommend you to start with the [WSL2 backend for Docker
+Desktop][wsl2-docker]. Once you are more familiarized with Nomad you can start
+running it natively.
+
+To use the network named `en0` that has the IP address `192.168.0.10`, you can
+start Nomad with this command.
+
+```shell-session
+$ sudo nomad agent -dev -bind=0.0.0.0 -network-interface=en0
+```
+
+To start Consul in the same network, you can run this command.
+
+```shell-session
+$ consul agent -dev -client=0.0.0.0 -bind=192.168.0.10
+```
+
+Now your services will be registered in Consul using the right IP and your
+tasks will be able to reach each other. To access your tasks from your host
+machine you will need to use the network interface IP address.
+
+```shell-session
+$ curl http://192.168.0.10:8080
+```
+
+[consul_dc]: https://www.consul.io/docs/agent/options#_datacenter
+[consul_fed]: https://learn.hashicorp.com/tutorials/consul/federarion-gossip-wan
+[nomad_region]: /docs/configuration#datacenter
+[`bootstrap_expect`]: /docs/configuration/server#bootstrap_expect
+[`default_scheduler_config`]: /docs/configuration/server#default_scheduler_config
+[wsl2-docker]: https://docs.docker.com/docker-for-windows/wsl/

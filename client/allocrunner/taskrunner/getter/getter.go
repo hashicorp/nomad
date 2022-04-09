@@ -1,25 +1,25 @@
 package getter
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
-	"sync"
 
+	"github.com/hashicorp/go-cleanhttp"
 	gg "github.com/hashicorp/go-getter"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-var (
-	// getters is the map of getters suitable for Nomad. It is initialized once
-	// and the lock is used to guard access to it.
-	getters map[string]gg.Getter
-	lock    sync.Mutex
-
-	// supported is the set of download schemes supported by Nomad
-	supported = []string{"http", "https", "s3", "hg", "git", "gcs"}
-)
+// httpClient is a shared HTTP client for use across all http/https Getter
+// instantiations. The HTTP client is designed to be thread-safe, and using a pooled
+// transport will help reduce excessive connections when clients are downloading lots
+// of artifacts.
+var httpClient = &http.Client{
+	Transport: cleanhttp.DefaultPooledTransport(),
+}
 
 const (
 	// gitSSHPrefix is the prefix for downloading via git using ssh
@@ -30,29 +30,38 @@ const (
 // is usually satisfied by taskenv.TaskEnv.
 type EnvReplacer interface {
 	ReplaceEnv(string) string
+	ClientPath(string, bool) (string, bool)
 }
 
 // getClient returns a client that is suitable for Nomad downloading artifacts.
-func getClient(src string, mode gg.ClientMode, dst string) *gg.Client {
-	lock.Lock()
-	defer lock.Unlock()
-
-	// Return the pre-initialized client
-	if getters == nil {
-		getters = make(map[string]gg.Getter, len(supported))
-		for _, getter := range supported {
-			if impl, ok := gg.Getters[getter]; ok {
-				getters[getter] = impl
-			}
-		}
-	}
-
+func getClient(src string, headers http.Header, mode gg.ClientMode, dst string) *gg.Client {
 	return &gg.Client{
 		Src:     src,
 		Dst:     dst,
 		Mode:    mode,
-		Getters: getters,
 		Umask:   060000000,
+		Getters: createGetters(headers),
+	}
+}
+
+func createGetters(header http.Header) map[string]gg.Getter {
+	httpGetter := &gg.HttpGetter{
+		Netrc:  true,
+		Client: httpClient,
+		Header: header,
+	}
+	// Explicitly create fresh set of supported Getter for each Client, because
+	// go-getter is not thread-safe. Use a shared HTTP client for http/https Getter,
+	// with pooled transport which is thread-safe.
+	//
+	// If a getter type is not listed here, it is not supported (e.g. file).
+	return map[string]gg.Getter{
+		"git":   new(gg.GitGetter),
+		"gcs":   new(gg.GCSGetter),
+		"hg":    new(gg.HgGetter),
+		"s3":    new(gg.S3Getter),
+		"http":  httpGetter,
+		"https": httpGetter,
 	}
 }
 
@@ -81,23 +90,40 @@ func getGetterUrl(taskEnv EnvReplacer, artifact *structs.TaskArtifact) (string, 
 	u.RawQuery = q.Encode()
 
 	// Add the prefix back
-	url := u.String()
+	ggURL := u.String()
 	if gitSSH {
-		url = fmt.Sprintf("%s%s", gitSSHPrefix, url)
+		ggURL = fmt.Sprintf("%s%s", gitSSHPrefix, ggURL)
 	}
 
-	return url, nil
+	return ggURL, nil
+}
+
+func getHeaders(env EnvReplacer, m map[string]string) http.Header {
+	if len(m) == 0 {
+		return nil
+	}
+
+	headers := make(http.Header, len(m))
+	for k, v := range m {
+		headers.Set(k, env.ReplaceEnv(v))
+	}
+	return headers
 }
 
 // GetArtifact downloads an artifact into the specified task directory.
-func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir string) error {
-	url, err := getGetterUrl(taskEnv, artifact)
+func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact) error {
+	ggURL, err := getGetterUrl(taskEnv, artifact)
 	if err != nil {
 		return newGetError(artifact.GetterSource, err, false)
 	}
 
-	// Download the artifact
-	dest := filepath.Join(taskDir, artifact.RelativeDest)
+	dest, escapes := taskEnv.ClientPath(artifact.RelativeDest, true)
+	// Verify the destination is still in the task sandbox after interpolation
+	if escapes {
+		return newGetError(artifact.RelativeDest,
+			errors.New("artifact destination path escapes the alloc directory"),
+			false)
+	}
 
 	// Convert from string getter mode to go-getter const
 	mode := gg.ClientModeAny
@@ -108,8 +134,9 @@ func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir st
 		mode = gg.ClientModeDir
 	}
 
-	if err := getClient(url, mode, dest).Get(); err != nil {
-		return newGetError(url, err, true)
+	headers := getHeaders(taskEnv, artifact.GetterHeaders)
+	if err := getClient(ggURL, headers, mode, dest).Get(); err != nil {
+		return newGetError(ggURL, err, true)
 	}
 
 	return nil

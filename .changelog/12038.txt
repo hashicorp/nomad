@@ -1,0 +1,3 @@
+```release-note:security
+Add ACL requirement and HCL validation to the job parse API endpoint to prevent excessive CPU usage. [CVE-2022-24685](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24685)
+```

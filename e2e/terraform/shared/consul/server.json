@@ -1,8 +1,0 @@
-{
-  "server": true,
-  "ui": true,
-  "bootstrap_expect": SERVER_COUNT,
-  "service": {
-    "name": "consul"
-  }
-}

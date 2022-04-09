@@ -10,10 +10,11 @@ import {
   value,
 } from 'ember-cli-page-object';
 
-export default scope => ({
+export default (scope) => ({
   scope,
 
   label: text('[data-test-stepper-label]'),
+  clickLabel: clickable('[data-test-stepper-label]'),
 
   input: {
     scope: '[data-test-stepper-input]',
@@ -21,7 +22,7 @@ export default scope => ({
     focus: focusable(),
     blur: blurrable(),
     value: value(),
-    esc: triggerable('keydown', '', { eventProperties: { keyCode: 27 } }),
+    esc: triggerable('keyup', '', { eventProperties: { keyCode: 27 } }),
     isDisabled: attribute('disabled'),
   },
 

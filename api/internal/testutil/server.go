@@ -42,6 +42,7 @@ type TestServerConfig struct {
 	Client            *ClientConfig `json:"client,omitempty"`
 	Vault             *VaultConfig  `json:"vault,omitempty"`
 	ACL               *ACLConfig    `json:"acl,omitempty"`
+	Telemetry         *Telemetry    `json:"telemetry,omitempty"`
 	DevMode           bool          `json:"-"`
 	Stdout, Stderr    io.Writer     `json:"-"`
 }
@@ -76,7 +77,8 @@ type ServerConfig struct {
 
 // ClientConfig is used to configure the client
 type ClientConfig struct {
-	Enabled bool `json:"enabled"`
+	Enabled bool              `json:"enabled"`
+	Options map[string]string `json:"options,omitempty"`
 }
 
 // VaultConfig is used to configure Vault
@@ -89,6 +91,11 @@ type ACLConfig struct {
 	Enabled bool `json:"enabled"`
 }
 
+// Telemetry is used to configure the Nomad telemetry setup.
+type Telemetry struct {
+	PrometheusMetrics bool `json:"prometheus_metrics"`
+}
+
 // ServerConfigCallback is a function interface which can be
 // passed to NewTestServerConfig to modify the server config.
 type ServerConfigCallback func(c *TestServerConfig)
@@ -97,10 +104,16 @@ type ServerConfigCallback func(c *TestServerConfig)
 // with all of the listen ports incremented by one.
 func defaultServerConfig(t testing.T) *TestServerConfig {
 	ports := freeport.GetT(t, 3)
+
+	logLevel := "DEBUG"
+	if envLogLevel := os.Getenv("NOMAD_TEST_LOG_LEVEL"); envLogLevel != "" {
+		logLevel = envLogLevel
+	}
+
 	return &TestServerConfig{
 		NodeName:          fmt.Sprintf("node-%d", ports[0]),
 		DisableCheckpoint: true,
-		LogLevel:          "DEBUG",
+		LogLevel:          logLevel,
 		Ports: &PortsConfig{
 			HTTP: ports[0],
 			RPC:  ports[1],
@@ -141,7 +154,7 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 		t.Skipf("nomad not found, skipping: %v", err)
 	}
 
-	// Do a sanity check that we are actually running nomad
+	// Check that we are actually running nomad
 	vcmd := exec.Command(path, "-version")
 	vcmd.Stdout = nil
 	vcmd.Stderr = nil
@@ -166,6 +179,13 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 
 	if cb != nil {
 		cb(nomadConfig)
+	}
+
+	if nomadConfig.DevMode {
+		if nomadConfig.Client.Options == nil {
+			nomadConfig.Client.Options = map[string]string{}
+		}
+		nomadConfig.Client.Options["test.tighten_network_timeouts"] = "true"
 	}
 
 	configContent, err := json.Marshal(nomadConfig)

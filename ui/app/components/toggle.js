@@ -1,11 +1,17 @@
 import Component from '@ember/component';
-import { classNames, classNameBindings, tagName } from '@ember-decorators/component';
+import {
+  classNames,
+  classNameBindings,
+  tagName,
+  attributeBindings,
+} from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 @classic
 @tagName('label')
 @classNames('toggle')
 @classNameBindings('isDisabled:is-disabled', 'isActive:is-active')
+@attributeBindings('data-test-label')
 export default class Toggle extends Component {
   'data-test-label' = true;
 

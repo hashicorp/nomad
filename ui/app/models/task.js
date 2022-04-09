@@ -1,6 +1,10 @@
-import attr from 'ember-data/attr';
+import { attr } from '@ember-data/model';
 import Fragment from 'ember-data-model-fragments/fragment';
-import { fragment, fragmentArray, fragmentOwner } from 'ember-data-model-fragments/attributes';
+import {
+  fragment,
+  fragmentArray,
+  fragmentOwner,
+} from 'ember-data-model-fragments/attributes';
 import { computed } from '@ember/object';
 
 export default class Task extends Fragment {
@@ -10,16 +14,37 @@ export default class Task extends Fragment {
   @attr('string') driver;
   @attr('string') kind;
 
+  @attr() meta;
+
+  @computed('taskGroup.mergedMeta', 'meta')
+  get mergedMeta() {
+    return {
+      ...this.taskGroup.mergedMeta,
+      ...this.meta,
+    };
+  }
+
   @fragment('lifecycle') lifecycle;
 
   @computed('lifecycle', 'lifecycle.sidecar')
   get lifecycleName() {
-    if (this.lifecycle && this.lifecycle.sidecar) return 'sidecar';
-    if (this.lifecycle && this.lifecycle.hook === 'prestart') return 'prestart';
+    if (this.lifecycle) {
+      const { hook, sidecar } = this.lifecycle;
+
+      if (hook === 'prestart') {
+        return sidecar ? 'prestart-sidecar' : 'prestart-ephemeral';
+      } else if (hook === 'poststart') {
+        return sidecar ? 'poststart-sidecar' : 'poststart-ephemeral';
+      } else if (hook === 'poststop') {
+        return 'poststop';
+      }
+    }
+
     return 'main';
   }
 
   @attr('number') reservedMemory;
+  @attr('number') reservedMemoryMax;
   @attr('number') reservedCPU;
   @attr('number') reservedDisk;
   @attr('number') reservedEphemeralDisk;

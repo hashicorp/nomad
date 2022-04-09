@@ -1,18 +1,18 @@
 package command
 
 import (
-	"os"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestACLTokenCreateCommand(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	config := func(c *agent.Config) {
 		c.ACL.Enabled = true
 	}
@@ -24,17 +24,15 @@ func TestACLTokenCreateCommand(t *testing.T) {
 	token := srv.RootToken
 	assert.NotNil(token, "failed to bootstrap ACL token")
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLTokenCreateCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Request to create a new token without providing a valid management token
-	os.Setenv("NOMAD_TOKEN", "foo")
-	code := cmd.Run([]string{"-address=" + url, "-policy=foo", "-type=client"})
+	code := cmd.Run([]string{"-address=" + url, "-token=foo", "-policy=foo", "-type=client"})
 	assert.Equal(1, code)
 
 	// Request to create a new token with a valid management token
-	os.Setenv("NOMAD_TOKEN", token.SecretID)
-	code = cmd.Run([]string{"-address=" + url, "-policy=foo", "-type=client"})
+	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-policy=foo", "-type=client"})
 	assert.Equal(0, code)
 
 	// Check the output

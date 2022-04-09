@@ -1,15 +1,18 @@
 package pluginmanager
 
 import (
+	"context"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPluginGroup_RegisterAndRun(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	var hasRun bool
@@ -27,7 +30,7 @@ func TestPluginGroup_RegisterAndRun(t *testing.T) {
 }
 
 func TestPluginGroup_Shutdown(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	var stack []int
@@ -61,4 +64,59 @@ func TestPluginGroup_Shutdown(t *testing.T) {
 	require.Empty(stack)
 
 	require.Error(group.RegisterAndRun(&MockPluginManager{}))
+}
+
+func TestPluginGroup_WaitForFirstFingerprint(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	managerCh := make(chan struct{})
+	manager := &MockPluginManager{
+		RunF:                      func() {},
+		WaitForFirstFingerprintCh: managerCh,
+	}
+
+	// close immediately to beat the context timeout
+	close(managerCh)
+
+	group := New(testlog.HCLogger(t))
+	require.NoError(group.RegisterAndRun(manager))
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	groupCh, err := group.WaitForFirstFingerprint(ctx)
+	require.NoError(err)
+
+	select {
+	case <-groupCh:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("expected groupCh to be closed")
+	}
+}
+
+func TestPluginGroup_WaitForFirstFingerprint_Timeout(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	managerCh := make(chan struct{})
+	manager := &MockPluginManager{
+		RunF:                      func() {},
+		WaitForFirstFingerprintCh: managerCh,
+	}
+
+	group := New(testlog.HCLogger(t))
+	require.NoError(group.RegisterAndRun(manager))
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
+
+	groupCh, err := group.WaitForFirstFingerprint(ctx)
+
+	select {
+	case <-groupCh:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("expected groupCh to be closed due to context timeout")
+	}
+	require.NoError(err)
 }

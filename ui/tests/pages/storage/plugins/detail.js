@@ -1,7 +1,5 @@
 import {
-  attribute,
   clickable,
-  collection,
   create,
   isPresent,
   text,
@@ -20,25 +18,21 @@ export default create({
   nodeHealth: text('[data-test-plugin-node-health]'),
   provider: text('[data-test-plugin-provider]'),
 
-  controllerAvailabilityIsPresent: isPresent('[data-test-plugin-controller-availability]'),
+  controllerAvailabilityIsPresent: isPresent(
+    '[data-test-plugin-controller-availability]'
+  ),
   nodeAvailabilityIsPresent: isPresent('[data-test-plugin-node-availability]'),
-
-  breadcrumbs: collection('[data-test-breadcrumb]', {
-    id: attribute('data-test-breadcrumb'),
-    text: text(),
-    visit: clickable(),
-  }),
-
-  breadcrumbFor(id) {
-    return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
-  },
 
   ...allocations('[data-test-controller-allocation]', 'controllerAllocations'),
   ...allocations('[data-test-node-allocation]', 'nodeAllocations'),
 
-  goToControllerAllocations: clickable('[data-test-go-to-controller-allocations]'),
+  goToControllerAllocations: clickable(
+    '[data-test-go-to-controller-allocations]'
+  ),
   goToNodeAllocations: clickable('[data-test-go-to-node-allocations]'),
-  goToControllerAllocationsText: text('[data-test-go-to-controller-allocations]'),
+  goToControllerAllocationsText: text(
+    '[data-test-go-to-controller-allocations]'
+  ),
   goToNodeAllocationsText: text('[data-test-go-to-node-allocations]'),
 
   controllerTableIsPresent: isPresent('[data-test-controller-allocations]'),

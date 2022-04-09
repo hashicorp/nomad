@@ -19,7 +19,7 @@ Usage: nomad namespace <subcommand> [options] [args]
   This command groups subcommands for interacting with namespaces. Namespaces
   allow jobs and their associated objects to be segmented from each other and
   other users of the cluster. For a full guide on namespaces see:
-  https://www.nomadproject.io/guides/namespaces.html
+  https://learn.hashicorp.com/tutorials/nomad/namespaces
 
   Create or update a namespace:
 

@@ -1,14 +1,18 @@
 package fingerprint
 
 import (
+	"strconv"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestCPUFingerprint(t *testing.T) {
+	ci.Parallel(t)
+
 	f := NewCPUFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -57,6 +61,8 @@ func TestCPUFingerprint(t *testing.T) {
 // TestCPUFingerprint_OverrideCompute asserts that setting cpu_total_compute in
 // the client config overrides the detected CPU freq (if any).
 func TestCPUFingerprint_OverrideCompute(t *testing.T) {
+	ci.Parallel(t)
+
 	f := NewCPUFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -101,6 +107,9 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 		}
 		if response.NodeResources.Cpu.CpuShares != int64(cfg.CpuCompute) {
 			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.NodeResources.Cpu.CpuShares)
+		}
+		if response.Attributes["cpu.totalcompute"] != strconv.Itoa(cfg.CpuCompute) {
+			t.Fatalf("expected override cpu.totalcompute of %d but found %s", cfg.CpuCompute, response.Attributes["cpu.totalcompute"])
 		}
 	}
 }

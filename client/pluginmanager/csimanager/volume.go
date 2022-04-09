@@ -2,6 +2,7 @@ package csimanager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -67,7 +68,11 @@ func (v *volumeManager) stagingDirForVolume(root string, volID string, usage *Us
 	return filepath.Join(root, StagingDirName, volID, usage.ToFS())
 }
 
-func (v *volumeManager) allocDirForVolume(root string, volID, allocID string, usage *UsageOptions) string {
+func (v *volumeManager) allocDirForVolume(root string, volID, allocID string) string {
+	return filepath.Join(root, AllocSpecificDirName, allocID, volID)
+}
+
+func (v *volumeManager) targetForVolume(root string, volID, allocID string, usage *UsageOptions) string {
 	return filepath.Join(root, AllocSpecificDirName, allocID, volID, usage.ToFS())
 }
 
@@ -103,29 +108,30 @@ func (v *volumeManager) ensureStagingDir(vol *structs.CSIVolume, usage *UsageOpt
 // Returns whether the directory is a pre-existing mountpoint, the publish path,
 // and any errors that occurred.
 func (v *volumeManager) ensureAllocDir(vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions) (string, bool, error) {
-	allocPath := v.allocDirForVolume(v.mountRoot, vol.ID, alloc.ID, usage)
+	allocPath := v.allocDirForVolume(v.mountRoot, vol.ID, alloc.ID)
 
 	// Make the alloc path, owned by the Nomad User
 	if err := os.MkdirAll(allocPath, 0700); err != nil && !os.IsExist(err) {
 		return "", false, fmt.Errorf("failed to create allocation directory for volume (%s): %v", vol.ID, err)
 	}
 
-	// Validate that it is not already a mount point
+	// Validate that the target is not already a mount point
+	targetPath := v.targetForVolume(v.mountRoot, vol.ID, alloc.ID, usage)
+
 	m := mount.New()
-	isNotMount, err := m.IsNotAMountPoint(allocPath)
-	if err != nil {
+	isNotMount, err := m.IsNotAMountPoint(targetPath)
+
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		// ignore; path does not exist and as such is not a mount
+	case err != nil:
 		return "", false, fmt.Errorf("mount point detection failed for volume (%s): %v", vol.ID, err)
 	}
 
-	return allocPath, !isNotMount, nil
+	return targetPath, !isNotMount, nil
 }
 
 func volumeCapability(vol *structs.CSIVolume, usage *UsageOptions) (*csi.VolumeCapability, error) {
-	capability, err := csi.VolumeCapabilityFromStructs(vol.AttachmentMode, vol.AccessMode)
-	if err != nil {
-		return nil, err
-	}
-
 	var opts *structs.CSIMountOptions
 	if vol.MountOptions == nil {
 		opts = usage.MountOptions
@@ -134,7 +140,10 @@ func volumeCapability(vol *structs.CSIVolume, usage *UsageOptions) (*csi.VolumeC
 		opts.Merge(usage.MountOptions)
 	}
 
-	capability.MountVolume = opts
+	capability, err := csi.VolumeCapabilityFromStructs(usage.AttachmentMode, usage.AccessMode, opts)
+	if err != nil {
+		return nil, err
+	}
 
 	return capability, nil
 }
@@ -192,7 +201,7 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 	if err != nil {
 		return nil, err
 	}
-	pluginTargetPath := v.allocDirForVolume(v.containerMountPoint, vol.ID, alloc.ID, usage)
+	pluginTargetPath := v.targetForVolume(v.containerMountPoint, vol.ID, alloc.ID, usage)
 
 	if isMount {
 		logger.Debug("Re-using existing published volume for allocation")
@@ -296,7 +305,7 @@ func combineErrors(maybeErrs ...error) error {
 }
 
 func (v *volumeManager) unpublishVolume(ctx context.Context, volID, remoteID, allocID string, usage *UsageOptions) error {
-	pluginTargetPath := v.allocDirForVolume(v.containerMountPoint, volID, allocID, usage)
+	pluginTargetPath := v.targetForVolume(v.containerMountPoint, volID, allocID, usage)
 
 	// CSI NodeUnpublishVolume errors for timeout, codes.Unavailable and
 	// codes.ResourceExhausted are retried; all other errors are fatal.
@@ -306,13 +315,13 @@ func (v *volumeManager) unpublishVolume(ctx context.Context, volID, remoteID, al
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)),
 	)
 
-	hostTargetPath := v.allocDirForVolume(v.mountRoot, volID, allocID, usage)
+	hostTargetPath := v.targetForVolume(v.mountRoot, volID, allocID, usage)
 	if _, err := os.Stat(hostTargetPath); os.IsNotExist(err) {
 		if rpcErr != nil && strings.Contains(rpcErr.Error(), "no mount point") {
 			// host target path was already destroyed, nothing to do here.
 			// this helps us in the case that a previous GC attempt cleaned
 			// up the volume on the node but the controller RPCs failed
-			return nil
+			rpcErr = fmt.Errorf("%w: %v", structs.ErrCSIClientRPCIgnorable, rpcErr)
 		}
 		return rpcErr
 	}
@@ -327,9 +336,8 @@ func (v *volumeManager) unpublishVolume(ctx context.Context, volID, remoteID, al
 
 	// We successfully removed the directory, return any rpcErrors that were
 	// encountered, but because we got here, they were probably flaky or was
-	// cleaned up externally. We might want to just return `nil` here in the
-	// future.
-	return rpcErr
+	// cleaned up externally.
+	return fmt.Errorf("%w: %v", structs.ErrCSIClientRPCIgnorable, rpcErr)
 }
 
 func (v *volumeManager) UnmountVolume(ctx context.Context, volID, remoteID, allocID string, usage *UsageOptions) (err error) {
@@ -338,11 +346,16 @@ func (v *volumeManager) UnmountVolume(ctx context.Context, volID, remoteID, allo
 
 	err = v.unpublishVolume(ctx, volID, remoteID, allocID, usage)
 
-	if err == nil {
+	if err == nil || errors.Is(err, structs.ErrCSIClientRPCIgnorable) {
 		canRelease := v.usageTracker.Free(allocID, volID, usage)
 		if v.requiresStaging && canRelease {
 			err = v.unstageVolume(ctx, volID, remoteID, usage)
 		}
+	}
+
+	if errors.Is(err, structs.ErrCSIClientRPCIgnorable) {
+		logger.Trace("unmounting volume failed with ignorable error", "error", err)
+		err = nil
 	}
 
 	event := structs.NewNodeEvent().

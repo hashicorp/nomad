@@ -1,0 +1,225 @@
+.recommendation-card {
+  display: grid;
+  grid-template-columns: [overview] 55% [active-task] 45%;
+  grid-template-rows: [top] auto [headings] auto [diffs] auto [narrative] auto [main] auto [actions];
+
+  border: 1px solid $ui-gray-200;
+  margin-bottom: 1.5em;
+
+  .overview {
+    grid-column: overview;
+    border-right: 1px solid $ui-gray-200;
+  }
+
+  .active-task {
+    grid-column: active-task;
+  }
+
+  .active-task-group {
+    // Allow the active task section to be in a grouped test selector container
+    display: contents;
+  }
+
+  .top {
+    grid-row: top;
+
+    &.active-task {
+      display: flex;
+      justify-content: flex-end;
+
+      .accordion-toggle {
+        margin-left: 1em;
+      }
+    }
+  }
+
+  header {
+    grid-row: headings;
+  }
+
+  .diffs {
+    grid-row: diffs;
+  }
+
+  .main {
+    grid-row: main;
+
+    &.overview {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    &.active-task {
+      > li:first-child {
+        margin-bottom: 2em;
+      }
+    }
+  }
+
+  .actions {
+    grid-row: actions;
+
+    .button {
+      margin-bottom: 2em;
+      margin-right: 0.5em;
+    }
+  }
+
+  h3 {
+    font-size: $size-4;
+    font-weight: $weight-semibold;
+
+    .group {
+      color: $cool-gray-500;
+      font-weight: $weight-normal;
+
+      &:before {
+        content: '/';
+        padding: 0 0.25em 0 0.1em;
+      }
+    }
+  }
+
+  .namespace {
+    color: $cool-gray-500;
+
+    .namespace-label {
+      font-weight: $weight-semibold;
+    }
+  }
+
+  .increase {
+    color: $red-500;
+  }
+
+  .decrease {
+    color: $teal-500;
+  }
+
+  .inner-container {
+    padding: 1em 2em;
+
+    &.task-toggles {
+      padding-right: 0;
+    }
+  }
+
+  .diffs-table {
+    th,
+    td {
+      padding-right: 0.5em;
+    }
+
+    td.diff {
+      color: $cool-gray-500;
+    }
+  }
+
+  .active-task th.diff {
+    display: none;
+  }
+
+  .copy-button {
+    display: flex;
+    flex-direction: row-reverse;
+
+    .button {
+      display: flex;
+      flex-direction: row-reverse;
+      color: $ui-gray-400;
+
+      .icon {
+        margin-left: 0.75em;
+      }
+    }
+  }
+
+  .task-toggles {
+    table {
+      width: calc(100% + 1px); // To remove a mysterious 1px gap between this and the pane border
+    }
+
+    th {
+      vertical-align: bottom;
+      font-size: $size-7;
+
+      &.toggle-cell .toggle {
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: center;
+        padding-bottom: 2px;
+
+        .label-wrapper {
+          margin-bottom: 6px;
+        }
+      }
+    }
+
+    .toggle-all {
+      text-align: right;
+    }
+
+    tr {
+      border-bottom: 1px solid $ui-gray-200;
+    }
+
+    tbody tr:not(.active):hover {
+      background: $ui-gray-100;
+      cursor: pointer;
+    }
+
+    tr.active {
+      color: $blue;
+      font-weight: bold;
+
+      // When there’s only one task, it doesn’t need highlighting
+      &:first-child:last-child {
+        color: inherit;
+        font-weight: inherit;
+      }
+
+      td:last-child {
+        position: relative;
+      }
+
+      svg {
+        position: absolute;
+        top: -1px;
+        left: calc(100% - 1px); // To balance out the table width calc above
+
+        .border-cover {
+          fill: white;
+          width: 2px;
+        }
+
+        .triangle {
+          fill: transparent;
+          stroke: $ui-gray-200;
+        }
+      }
+    }
+
+    th,
+    td {
+      padding: 0.75em 0;
+
+      &:first-child {
+        padding-left: 5px;
+      }
+
+      &:last-child {
+        padding-right: 2em;
+      }
+    }
+
+    .task-cell {
+      width: 100%;
+    }
+
+    .toggle-cell {
+      text-align: center;
+      padding: 0.75em;
+    }
+  }
+}

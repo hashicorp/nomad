@@ -14,6 +14,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	templateHookName = "template"
+)
+
 type templateHookConfig struct {
 	// logger is used to log
 	logger log.Logger
@@ -32,6 +36,12 @@ type templateHookConfig struct {
 
 	// envBuilder is the environment variable builder for the task.
 	envBuilder *taskenv.Builder
+
+	// consulNamespace is the current Consul namespace
+	consulNamespace string
+
+	// nomadNamespace is the job's Nomad namespace
+	nomadNamespace string
 }
 
 type templateHook struct {
@@ -44,23 +54,29 @@ type templateHook struct {
 	templateManager *template.TaskTemplateManager
 	managerLock     sync.Mutex
 
+	// consulNamespace is the current Consul namespace
+	consulNamespace string
+
 	// vaultToken is the current Vault token
 	vaultToken string
+
+	// vaultNamespace is the current Vault namespace
+	vaultNamespace string
 
 	// taskDir is the task directory
 	taskDir string
 }
 
 func newTemplateHook(config *templateHookConfig) *templateHook {
-	h := &templateHook{
-		config: config,
+	return &templateHook{
+		config:          config,
+		consulNamespace: config.consulNamespace,
+		logger:          config.logger.Named(templateHookName),
 	}
-	h.logger = config.logger.Named(h.Name())
-	return h
 }
 
 func (*templateHook) Name() string {
-	return "template"
+	return templateHookName
 }
 
 func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
@@ -75,6 +91,12 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	// Store the current Vault token and the task directory
 	h.taskDir = req.TaskDir.Dir
 	h.vaultToken = req.VaultToken
+
+	// Set vault namespace if specified
+	if req.Task.Vault != nil {
+		h.vaultNamespace = req.Task.Vault.Namespace
+	}
+
 	unblockCh, err := h.newManager()
 	if err != nil {
 		return err
@@ -97,10 +119,13 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		Events:               h.config.events,
 		Templates:            h.config.templates,
 		ClientConfig:         h.config.clientConfig,
+		ConsulNamespace:      h.config.consulNamespace,
 		VaultToken:           h.vaultToken,
+		VaultNamespace:       h.vaultNamespace,
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.config.envBuilder,
 		MaxTemplateEventRate: template.DefaultMaxTemplateEventRate,
+		NomadNamespace:       h.config.nomadNamespace,
 	})
 	if err != nil {
 		h.logger.Error("failed to create template manager", "error", err)

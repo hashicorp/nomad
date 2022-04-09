@@ -83,7 +83,10 @@ var (
 	}
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
-	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{})
+	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"image_paths":    hclspec.NewAttr("image_paths", "list(string)", false),
+		"args_allowlist": hclspec.NewAttr("args_allowlist", "list(string)", false),
+	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a taskConfig within a job. It is returned in the TaskConfigSchema RPC
@@ -98,9 +101,13 @@ var (
 	// capabilities is returned by the Capabilities RPC and indicates what
 	// optional features this driver supports
 	capabilities = &drivers.Capabilities{
-		SendSignals:  false,
-		Exec:         false,
-		FSIsolation:  drivers.FSIsolationImage,
+		SendSignals: false,
+		Exec:        false,
+		FSIsolation: drivers.FSIsolationImage,
+		NetIsolationModes: []drivers.NetIsolationMode{
+			drivers.NetIsolationModeHost,
+			drivers.NetIsolationModeGroup,
+		},
 		MountConfigs: drivers.MountConfigSupportNone,
 	}
 
@@ -126,11 +133,25 @@ type TaskState struct {
 	StartedAt      time.Time
 }
 
+// Config is the driver configuration set by SetConfig RPC call
+type Config struct {
+	// ImagePaths is an allow-list of paths qemu is allowed to load an image from
+	ImagePaths []string `codec:"image_paths"`
+
+	// ArgsAllowList is an allow-list of arguments the jobspec can
+	// include in arguments to qemu, so that cluster operators can can
+	// prevent access to devices
+	ArgsAllowList []string `codec:"args_allowlist"`
+}
+
 // Driver is a driver for running images via Qemu
 type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
+
+	// config is the driver configuration set by the SetConfig RPC
+	config Config
 
 	// tasks is the in memory datastore mapping taskIDs to qemuTaskHandle
 	tasks *taskStore
@@ -165,6 +186,14 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 func (d *Driver) SetConfig(cfg *base.Config) error {
+	var config Config
+	if len(cfg.PluginConfig) != 0 {
+		if err := base.MsgPackDecode(cfg.PluginConfig, &config); err != nil {
+			return err
+		}
+	}
+
+	d.config = config
 	if cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
 	}
@@ -290,6 +319,51 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
+func isAllowedImagePath(allowedPaths []string, allocDir, imagePath string) bool {
+	if !filepath.IsAbs(imagePath) {
+		imagePath = filepath.Join(allocDir, imagePath)
+	}
+
+	isParent := func(parent, path string) bool {
+		rel, err := filepath.Rel(parent, path)
+		return err == nil && !strings.HasPrefix(rel, "..")
+	}
+
+	// check if path is under alloc dir
+	if isParent(allocDir, imagePath) {
+		return true
+	}
+
+	// check allowed paths
+	for _, ap := range allowedPaths {
+		if isParent(ap, imagePath) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// validateArgs ensures that all QEMU command line params are in the
+// allowlist. This function must be called after all interpolation has
+// taken place.
+func validateArgs(pluginConfigAllowList, args []string) error {
+	if len(pluginConfigAllowList) > 0 {
+		allowed := map[string]struct{}{}
+		for _, arg := range pluginConfigAllowList {
+			allowed[arg] = struct{}{}
+		}
+		for _, arg := range args {
+			if strings.HasPrefix(strings.TrimSpace(arg), "-") {
+				if _, ok := allowed[arg]; !ok {
+					return fmt.Errorf("%q is not in args_allowlist", arg)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("taskConfig with ID '%s' already started", cfg.ID)
@@ -307,12 +381,20 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
 
+	if err := validateArgs(d.config.ArgsAllowList, driverConfig.Args); err != nil {
+		return nil, nil, err
+	}
+
 	// Get the image source
 	vmPath := driverConfig.ImagePath
 	if vmPath == "" {
 		return nil, nil, fmt.Errorf("image_path must be set")
 	}
 	vmID := filepath.Base(vmPath)
+
+	if !isAllowedImagePath(d.config.ImagePaths, cfg.AllocDir, vmPath) {
+		return nil, nil, fmt.Errorf("image_path is not in the allowed paths")
+	}
 
 	// Parse configuration arguments
 	// Create the base arguments
@@ -419,9 +501,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		args = append(args,
 			"-enable-kvm",
 			"-cpu", "host",
-			// Do we have cores information available to the Driver?
-			// "-smp", fmt.Sprintf("%d", cores),
 		)
+
+		if cfg.Resources.LinuxResources != nil && cfg.Resources.LinuxResources.CpusetCpus != "" {
+			cores := strings.Split(cfg.Resources.LinuxResources.CpusetCpus, ",")
+			args = append(args,
+				"-smp", fmt.Sprintf("%d", len(cores)),
+			)
+		}
 	}
 	d.logger.Debug("starting QemuVM command ", "args", strings.Join(args, " "))
 
@@ -439,13 +526,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:        args[0],
-		Args:       args[1:],
-		Env:        cfg.EnvList(),
-		User:       cfg.User,
-		TaskDir:    cfg.TaskDir().Dir,
-		StdoutPath: cfg.StdoutPath,
-		StderrPath: cfg.StderrPath,
+		Cmd:              args[0],
+		Args:             args[1:],
+		Env:              cfg.EnvList(),
+		User:             cfg.User,
+		TaskDir:          cfg.TaskDir().Dir,
+		StdoutPath:       cfg.StdoutPath,
+		StderrPath:       cfg.StderrPath,
+		NetworkIsolation: cfg.NetworkIsolation,
 	}
 	ps, err := execImpl.Launch(execCmd)
 	if err != nil {
@@ -632,7 +720,7 @@ func (d *Driver) getMonitorPath(dir string, fingerPrint *drivers.Fingerprint) (s
 		d.logger.Debug("long socket paths available in this version of QEMU", "version", currentQemuVer)
 	}
 	fullSocketPath := fmt.Sprintf("%s/%s", dir, qemuMonitorSocketName)
-	if len(fullSocketPath) > qemuLegacyMaxMonitorPathLen && longPathSupport == false {
+	if len(fullSocketPath) > qemuLegacyMaxMonitorPathLen && !longPathSupport {
 		return "", fmt.Errorf("monitor path is too long for this version of qemu")
 	}
 	return fullSocketPath, nil

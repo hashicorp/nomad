@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hashicorp/nomad/api/contexts"
-	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	"github.com/hashicorp/nomad/api"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
 )
 
@@ -24,13 +24,20 @@ Usage: nomad job dispatch [options] <parameterized job> [input source]
   path to a file. Metadata can be supplied by using the meta flag one or more
   times.
 
+  An optional idempotency token can be used to prevent more than one instance
+  of the job to be dispatched. If an instance with the same token already
+  exists, the command returns without any action.
+
   Upon successful creation, the dispatched job ID will be printed and the
   triggered evaluation will be monitored. This can be disabled by supplying the
   detach flag.
 
+  When ACLs are enabled, this command requires a token with the 'dispatch-job'
+  capability for the job's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Dispatch Options:
 
@@ -46,6 +53,10 @@ Dispatch Options:
     the evaluation ID will be printed to the screen, which can be used to
     examine the evaluation using the eval-status command.
 
+  -idempotency-token
+    Optional identifier used to prevent more than one instance of the job from
+    being dispatched.
+
   -verbose
     Display full information.
 `
@@ -59,9 +70,10 @@ func (c *JobDispatchCommand) Synopsis() string {
 func (c *JobDispatchCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-meta":    complete.PredictAnything,
-			"-detach":  complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
+			"-meta":              complete.PredictAnything,
+			"-detach":            complete.PredictNothing,
+			"-idempotency-token": complete.PredictAnything,
+			"-verbose":           complete.PredictNothing,
 		})
 }
 
@@ -72,11 +84,20 @@ func (c *JobDispatchCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
+		resp, _, err := client.Jobs().PrefixList(a.Last)
 		if err != nil {
 			return []string{}
 		}
-		return resp.Matches[contexts.Jobs]
+
+		// filter by parameterized jobs
+		matches := make([]string, 0, len(resp))
+		for _, job := range resp {
+			if job.ParameterizedJob {
+				matches = append(matches, job.ID)
+			}
+		}
+		return matches
+
 	})
 }
 
@@ -84,12 +105,14 @@ func (c *JobDispatchCommand) Name() string { return "job dispatch" }
 
 func (c *JobDispatchCommand) Run(args []string) int {
 	var detach, verbose bool
+	var idempotencyToken string
 	var meta []string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.StringVar(&idempotencyToken, "idempotency-token", "", "")
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -148,7 +171,10 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	}
 
 	// Dispatch the job
-	resp, _, err := client.Jobs().Dispatch(job, metaMap, payload, nil)
+	w := &api.WriteOptions{
+		IdempotencyToken: idempotencyToken,
+	}
+	resp, _, err := client.Jobs().Dispatch(job, metaMap, payload, w)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to dispatch job: %s", err))
 		return 1
@@ -173,5 +199,5 @@ func (c *JobDispatchCommand) Run(args []string) int {
 
 	c.Ui.Output("")
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(resp.EvalID, false)
+	return mon.monitor(resp.EvalID)
 }

@@ -3,16 +3,16 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import Pretender from 'pretender';
 
-module('Unit | Service | Token', function(hooks) {
+module('Unit | Service | Token', function (hooks) {
   setupTest(hooks);
 
-  hooks.beforeEach(function() {
-    this.subject = function() {
+  hooks.beforeEach(function () {
+    this.subject = function () {
       return this.owner.factoryFor('service:token').create();
     };
   });
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     const mockSystem = Service.extend({
       activeRegion: 'region-1',
       shouldIncludeRegion: true,
@@ -21,16 +21,16 @@ module('Unit | Service | Token', function(hooks) {
     this.owner.register('service:system', mockSystem);
     this.system = this.owner.lookup('service:system');
 
-    this.server = new Pretender(function() {
+    this.server = new Pretender(function () {
       this.get('/path', () => [200, {}, null]);
     });
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
   });
 
-  test('authorizedRequest includes the region param when the system service says to', function(assert) {
+  test('authorizedRequest includes the region param when the system service says to', function (assert) {
     const token = this.subject();
 
     token.authorizedRequest('/path');
@@ -50,7 +50,18 @@ module('Unit | Service | Token', function(hooks) {
     );
   });
 
-  test('authorizedRawRequest bypasses adding the region param', function(assert) {
+  test('authorizedRequest does not include the region param when the region param is already in the URL', function (assert) {
+    const token = this.subject();
+
+    token.authorizedRequest('/path?query=param&region=already-here');
+    assert.equal(
+      this.server.handledRequests.pop().url,
+      '/path?query=param&region=already-here',
+      'The region param that is already in the URL takes precedence over the region in the service'
+    );
+  });
+
+  test('authorizedRawRequest bypasses adding the region param', function (assert) {
     const token = this.subject();
 
     token.authorizedRawRequest('/path');

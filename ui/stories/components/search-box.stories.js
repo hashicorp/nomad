@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Search Box',
+  title: 'Components/Search Box',
 };
 
 export let Standard = () => {

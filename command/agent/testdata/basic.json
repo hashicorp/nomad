@@ -261,6 +261,8 @@
       "data_dir": "/tmp/data",
       "deployment_gc_threshold": "12h",
       "enabled": true,
+      "enable_event_broker": false,
+      "event_buffer_size": 200,
       "enabled_schedulers": [
         "test"
       ],
@@ -271,10 +273,10 @@
       "job_gc_threshold": "12h",
       "max_heartbeats_per_second": 11,
       "min_heartbeat_ttl": "33s",
+      "failover_heartbeat_ttl": "330s",
       "node_gc_threshold": "12h",
       "non_voting_server": true,
       "num_schedulers": 2,
-      "protocol_version": 3,
       "raft_protocol": 3,
       "raft_multiplier": 4,
       "redundancy_zone": "foo",
@@ -307,16 +309,15 @@
           "service_scheduler_enabled": true
         }]
       }],
-      "upgrade_version": "0.8.0"
+      "upgrade_version": "0.8.0",
+      "license_path": "/tmp/nomad.hclic"
     }
   ],
   "syslog_facility": "LOCAL1",
   "telemetry": [
     {
-      "backwards_compatible_metrics": true,
       "collection_interval": "3s",
       "disable_hostname": true,
-      "disable_tagged_metrics": true,
       "prometheus_metrics": true,
       "publish_allocation_metrics": true,
       "publish_node_metrics": true,

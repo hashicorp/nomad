@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
@@ -27,6 +28,8 @@ type NodeStatusCommand struct {
 	Meta
 	length      int
 	short       bool
+	os          bool
+	quiet       bool
 	verbose     bool
 	list_allocs bool
 	self        bool
@@ -48,9 +51,12 @@ Usage: nomad node status [options] <node>
   short-hand list of all nodes will be displayed. The -self flag is useful to
   quickly access the status of the local node.
 
+  If ACLs are enabled, this option requires a token with the 'node:read'
+  capability.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Node Status Options:
 
@@ -69,6 +75,12 @@ Node Status Options:
 
   -verbose
     Display full information.
+
+  -os
+    Display operating system name.
+
+  -quiet
+    Display only node IDs.
 
   -json
     Output the node in its JSON format.
@@ -92,6 +104,8 @@ func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
 			"-short":   complete.PredictNothing,
 			"-stats":   complete.PredictNothing,
 			"-t":       complete.PredictAnything,
+			"-os":      complete.PredictAnything,
+			"-quiet":   complete.PredictAnything,
 			"-verbose": complete.PredictNothing,
 		})
 }
@@ -118,6 +132,8 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&c.short, "short", false, "")
+	flags.BoolVar(&c.os, "os", false, "")
+	flags.BoolVar(&c.quiet, "quiet", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
 	flags.BoolVar(&c.list_allocs, "allocs", false, "")
 	flags.BoolVar(&c.self, "self", false, "")
@@ -152,6 +168,10 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 	// Use list mode if no node name was provided
 	if len(args) == 0 && !c.self {
+		if c.quiet && (c.verbose || c.json) {
+			c.Ui.Error("-quiet cannot be used with -verbose or -json")
+			return 1
+		}
 
 		// Query the node info
 		nodes, _, err := client.Nodes().List(nil)
@@ -177,10 +197,29 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			return 0
 		}
 
+		var size int
+		if c.quiet {
+			size = len(nodes)
+		} else {
+			size = len(nodes) + 1
+		}
+
 		// Format the nodes list
-		out := make([]string, len(nodes)+1)
+		out := make([]string, size)
+
+		if c.quiet {
+			for i, node := range nodes {
+				out[i] = node.ID
+			}
+			c.Ui.Output(formatList(out))
+			return 0
+		}
 
 		out[0] = "ID|DC|Name|Class|"
+
+		if c.os {
+			out[0] += "OS|"
+		}
 
 		if c.verbose {
 			out[0] += "Address|Version|"
@@ -192,12 +231,25 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			out[0] += "|Running Allocs"
 		}
 
+		queryOptions := &api.QueryOptions{AllowStale: true}
+		var nodeInfo *api.Node
+
 		for i, node := range nodes {
+			if c.os {
+				nodeInfo, _, err = client.Nodes().Info(node.ID, queryOptions)
+				if err != nil {
+					c.Ui.Error(fmt.Sprintf("Error getting node info: %s", err))
+					return 1
+				}
+			}
 			out[i+1] = fmt.Sprintf("%s|%s|%s|%s",
 				limit(node.ID, c.length),
 				node.Datacenter,
 				node.Name,
 				node.NodeClass)
+			if c.os {
+				out[i+1] += fmt.Sprintf("|%s", nodeInfo.Attributes["os.name"])
+			}
 			if c.verbose {
 				out[i+1] += fmt.Sprintf("|%s|%s",
 					node.Address, node.Version)
@@ -235,7 +287,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 	}
 	if len(nodeID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
+		c.Ui.Error("Identifier must contain at least two characters.")
 		return 1
 	}
 
@@ -326,7 +378,9 @@ func nodeCSIVolumeNames(n *api.Node, allocs []*api.Allocation) []string {
 		}
 
 		for _, v := range tg.Volumes {
-			names = append(names, v.Name)
+			if v.Type == structs.VolumeTypeCSI {
+				names = append(names, v.Name)
+			}
 		}
 	}
 	sort.Strings(names)
@@ -341,6 +395,16 @@ func nodeVolumeNames(n *api.Node) []string {
 
 	sort.Strings(volumes)
 	return volumes
+}
+
+func nodeNetworkNames(n *api.Node) []string {
+	var networks []string
+	for name := range n.HostNetworks {
+		networks = append(networks, name)
+	}
+
+	sort.Strings(networks)
+	return networks
 }
 
 func formatDrain(n *api.Node) string {
@@ -394,6 +458,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 
 	if c.short {
 		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
+		basic = append(basic, fmt.Sprintf("Host Networks|%s", strings.Join(nodeNetworkNames(node), ",")))
 		basic = append(basic, fmt.Sprintf("CSI Volumes|%s", strings.Join(nodeCSIVolumeNames(node, runningAllocs), ",")))
 		basic = append(basic, fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")))
 		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
@@ -422,6 +487,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	// driver info in the basic output
 	if !c.verbose {
 		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
+		basic = append(basic, fmt.Sprintf("Host Networks|%s", strings.Join(nodeNetworkNames(node), ",")))
 		basic = append(basic, fmt.Sprintf("CSI Volumes|%s", strings.Join(nodeCSIVolumeNames(node, runningAllocs), ",")))
 		driverStatus := fmt.Sprintf("Driver Status| %s", c.outputTruncatedNodeDriverInfo(node))
 		basic = append(basic, driverStatus)
@@ -433,6 +499,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	// If we're running in verbose mode, include full host volume and driver info
 	if c.verbose {
 		c.outputNodeVolumeInfo(node)
+		c.outputNodeNetworkInfo(node)
 		c.outputNodeCSIVolumeInfo(client, node, runningAllocs)
 		c.outputNodeDriverInfo(node)
 	}
@@ -518,7 +585,6 @@ func (c *NodeStatusCommand) outputTruncatedNodeDriverInfo(node *api.Node) string
 }
 
 func (c *NodeStatusCommand) outputNodeVolumeInfo(node *api.Node) {
-	c.Ui.Output(c.Colorize().Color("\n[bold]Host Volumes"))
 
 	names := make([]string, 0, len(node.HostVolumes))
 	for name := range node.HostVolumes {
@@ -529,15 +595,38 @@ func (c *NodeStatusCommand) outputNodeVolumeInfo(node *api.Node) {
 	output := make([]string, 0, len(names)+1)
 	output = append(output, "Name|ReadOnly|Source")
 
-	for _, volName := range names {
-		info := node.HostVolumes[volName]
-		output = append(output, fmt.Sprintf("%s|%v|%s", volName, info.ReadOnly, info.Path))
+	if len(names) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Host Volumes"))
+		for _, volName := range names {
+			info := node.HostVolumes[volName]
+			output = append(output, fmt.Sprintf("%s|%v|%s", volName, info.ReadOnly, info.Path))
+		}
+		c.Ui.Output(formatList(output))
 	}
-	c.Ui.Output(formatList(output))
+}
+
+func (c *NodeStatusCommand) outputNodeNetworkInfo(node *api.Node) {
+
+	names := make([]string, 0, len(node.HostNetworks))
+	for name := range node.HostNetworks {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	output := make([]string, 0, len(names)+1)
+	output = append(output, "Name|CIDR|Interface|ReservedPorts")
+
+	if len(names) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Host Networks"))
+		for _, hostNetworkName := range names {
+			info := node.HostNetworks[hostNetworkName]
+			output = append(output, fmt.Sprintf("%s|%v|%s|%s", hostNetworkName, info.CIDR, info.Interface, info.ReservedPorts))
+		}
+		c.Ui.Output(formatList(output))
+	}
 }
 
 func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *api.Node, runningAllocs []*api.Allocation) {
-	c.Ui.Output(c.Colorize().Color("\n[bold]CSI Volumes"))
 
 	// Duplicate nodeCSIVolumeNames to sort by name but also index volume names to ids
 	var names []string
@@ -549,8 +638,10 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 		}
 
 		for _, v := range tg.Volumes {
-			names = append(names, v.Name)
-			requests[v.Source] = v
+			if v.Type == structs.VolumeTypeCSI {
+				names = append(names, v.Name)
+				requests[v.Source] = v
+			}
 		}
 	}
 	if len(names) == 0 {
@@ -563,27 +654,35 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 	volumes := map[string]*api.CSIVolumeListStub{}
 	vs, _ := client.Nodes().CSIVolumes(node.ID, nil)
 	for _, v := range vs {
-		n := requests[v.ID].Name
-		volumes[n] = v
+		n, ok := requests[v.ID]
+		if ok {
+			volumes[n.Name] = v
+		}
 	}
 
-	// Output the volumes in name order
-	output := make([]string, 0, len(names)+1)
-	output = append(output, "ID|Name|Plugin ID|Schedulable|Provider|Access Mode")
-	for _, name := range names {
-		v := volumes[name]
-		output = append(output, fmt.Sprintf(
-			"%s|%s|%s|%t|%s|%s",
-			v.ID,
-			name,
-			v.PluginID,
-			v.Schedulable,
-			v.Provider,
-			v.AccessMode,
-		))
-	}
+	if len(names) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]CSI Volumes"))
 
-	c.Ui.Output(formatList(output))
+		// Output the volumes in name order
+		output := make([]string, 0, len(names)+1)
+		output = append(output, "ID|Name|Plugin ID|Schedulable|Provider|Access Mode")
+		for _, name := range names {
+			v, ok := volumes[name]
+			if ok {
+				output = append(output, fmt.Sprintf(
+					"%s|%s|%s|%t|%s|%s",
+					v.ID,
+					name,
+					v.PluginID,
+					v.Schedulable,
+					v.Provider,
+					v.AccessMode,
+				))
+			}
+		}
+
+		c.Ui.Output(formatList(output))
+	}
 }
 
 func (c *NodeStatusCommand) outputNodeDriverInfo(node *api.Node) {

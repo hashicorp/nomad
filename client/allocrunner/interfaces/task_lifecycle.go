@@ -89,7 +89,9 @@ type TaskPrestartHook interface {
 	// Prestart is called before the task is started including after every
 	// restart. Prestart is not called if the allocation is terminal.
 	//
-	// The context is cancelled if the task is killed or shutdown.
+	// The context is cancelled if the task is killed or shutdown but
+	// should not be stored any persistent goroutines this Prestart
+	// creates.
 	Prestart(context.Context, *TaskPrestartRequest, *TaskPrestartResponse) error
 }
 

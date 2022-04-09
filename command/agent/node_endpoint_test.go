@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ import (
 )
 
 func TestHTTP_NodesList(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
 			// Create the node
@@ -43,13 +44,13 @@ func TestHTTP_NodesList(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Header().Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Header().Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Header().Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -62,7 +63,7 @@ func TestHTTP_NodesList(t *testing.T) {
 }
 
 func TestHTTP_NodesPrefixList(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		ids := []string{
 			"12345678-abcd-efab-cdef-123456789abc",
@@ -100,13 +101,13 @@ func TestHTTP_NodesPrefixList(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Header().Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Header().Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Header().Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -119,7 +120,7 @@ func TestHTTP_NodesPrefixList(t *testing.T) {
 }
 
 func TestHTTP_NodeForceEval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the node
 		node := mock.Node()
@@ -139,7 +140,7 @@ func TestHTTP_NodeForceEval(t *testing.T) {
 		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc1.JobID)); err != nil {
 			t.Fatal(err)
 		}
-		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -158,7 +159,7 @@ func TestHTTP_NodeForceEval(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Header().Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -171,7 +172,7 @@ func TestHTTP_NodeForceEval(t *testing.T) {
 }
 
 func TestHTTP_NodeAllocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		node := mock.Node()
@@ -199,7 +200,7 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 		alloc1.TaskStates = make(map[string]*structs.TaskState)
 		alloc1.TaskStates["test"] = taskState
 
-		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -218,13 +219,13 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Header().Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Header().Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Header().Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -240,7 +241,7 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 }
 
 func TestHTTP_NodeDrain(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the node
@@ -257,7 +258,12 @@ func TestHTTP_NodeDrain(t *testing.T) {
 			DrainSpec: &api.DrainSpec{
 				Deadline: 10 * time.Second,
 			},
+			Meta: map[string]string{
+				"reason": "drain",
+			},
 		}
+
+		beforeDrain := time.Unix(time.Now().Unix(), 0)
 
 		// Make the HTTP request
 		buf := encodeReq(drainReq)
@@ -270,13 +276,13 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		require.Nil(err)
 
 		// Check for the index
-		require.NotZero(respW.HeaderMap.Get("X-Nomad-Index"))
+		require.NotEmpty(respW.Header().Get("X-Nomad-Index"))
 
 		// Check the response
 		dresp, ok := obj.(structs.NodeDrainUpdateResponse)
 		require.True(ok)
 
-		t.Logf("response index=%v node_update_index=0x%x", respW.HeaderMap.Get("X-Nomad-Index"),
+		t.Logf("response index=%v node_update_index=0x%x", respW.Header().Get("X-Nomad-Index"),
 			dresp.NodeModifyIndex)
 
 		// Check that the node has been updated
@@ -284,18 +290,24 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		out, err := state.NodeByID(nil, node.ID)
 		require.Nil(err)
 
-		// the node must either be in drain mode or in elligible
+		// the node must either be in drain mode or ineligible
 		// once the node is recognize as not having any running allocs
-		if out.Drain {
-			require.True(out.Drain)
-			require.NotNil(out.DrainStrategy)
+		if out.DrainStrategy != nil {
 			require.Equal(10*time.Second, out.DrainStrategy.Deadline)
 		} else {
 			require.Equal(structs.NodeSchedulingIneligible, out.SchedulingEligibility)
 		}
 
+		require.NotNil(out.LastDrain)
+		require.Equal(map[string]string{
+			"reason": "drain",
+		}, out.LastDrain.Meta)
+
 		// Make the HTTP request to unset drain
 		drainReq.DrainSpec = nil
+		drainReq.Meta = map[string]string{
+			"cancel_reason": "changed my mind",
+		}
 		buf = encodeReq(drainReq)
 		req, err = http.NewRequest("POST", "/v1/node/"+node.ID+"/drain", buf)
 		require.Nil(err)
@@ -307,13 +319,25 @@ func TestHTTP_NodeDrain(t *testing.T) {
 
 		out, err = state.NodeByID(nil, node.ID)
 		require.Nil(err)
-		require.False(out.Drain)
 		require.Nil(out.DrainStrategy)
+		require.NotNil(out.LastDrain)
+		require.False(out.LastDrain.StartedAt.Before(beforeDrain))
+		require.False(out.LastDrain.UpdatedAt.Before(out.LastDrain.StartedAt))
+		require.Contains([]structs.DrainStatus{structs.DrainStatusCanceled, structs.DrainStatusComplete}, out.LastDrain.Status)
+		if out.LastDrain.Status == structs.DrainStatusComplete {
+			require.Equal(map[string]string{
+				"reason": "drain",
+			}, out.LastDrain.Meta)
+		} else if out.LastDrain.Status == structs.DrainStatusCanceled {
+			require.Equal(map[string]string{
+				"cancel_reason": "changed my mind",
+			}, out.LastDrain.Meta)
+		}
 	})
 }
 
 func TestHTTP_NodeEligible(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the node
@@ -340,7 +364,7 @@ func TestHTTP_NodeEligible(t *testing.T) {
 		require.Nil(err)
 
 		// Check for the index
-		require.NotZero(respW.HeaderMap.Get("X-Nomad-Index"))
+		require.NotZero(respW.Header().Get("X-Nomad-Index"))
 
 		// Check the response
 		_, ok := obj.(structs.NodeEligibilityUpdateResponse)
@@ -367,7 +391,7 @@ func TestHTTP_NodeEligible(t *testing.T) {
 }
 
 func TestHTTP_NodePurge(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the node
 		node := mock.Node()
@@ -387,7 +411,7 @@ func TestHTTP_NodePurge(t *testing.T) {
 		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc1.JobID)); err != nil {
 			t.Fatal(err)
 		}
-		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -406,7 +430,7 @@ func TestHTTP_NodePurge(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Header().Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -432,7 +456,7 @@ func TestHTTP_NodePurge(t *testing.T) {
 }
 
 func TestHTTP_NodeQuery(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		node := mock.Node()
@@ -459,13 +483,13 @@ func TestHTTP_NodeQuery(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Header().Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Header().Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Header().Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 

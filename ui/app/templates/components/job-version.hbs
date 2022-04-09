@@ -1,21 +1,52 @@
 <div class="boxed-section-head is-light inline-definitions">
-  Version #{{version.number}}
+  Version #{{this.version.number}}
   <span class="bumper-left pair is-faded">
     <span class="term">Stable</span>
-    <span class="badge is-light is-faded" data-test-version-stability><code>{{version.stable}}</code></span>
+    <span class="badge is-light is-faded" data-test-version-stability><code>{{this.version.stable}}</code></span>
   </span>
   <span class="pair is-faded">
     <span class="term">Submitted</span>
-    <span data-test-version-submit-time class="submit-date">{{format-ts version.submitTime}}</span>
+    <span data-test-version-submit-time class="submit-date">{{format-ts this.version.submitTime}}</span>
   </span>
-  {{#if version.diff}}
-    <button class="button is-light is-compact pull-right" {{action "toggleDiff"}}>{{changeCount}} {{pluralize "Change" changeCount}}</button>
-  {{else}}
-    <span class="pull-right">No Changes</span>
-  {{/if}}
+  <div class="pull-right">
+    {{#unless this.isCurrent}}
+      {{#if (can "run job" namespace=this.version.job.namespace)}}
+        <TwoStepButton
+          data-test-revert-to
+          @classes={{hash
+            idleButton="is-warning is-outlined"
+            confirmButton="is-warning"}}
+          @alignRight={{true}}
+          @idleText="Revert Version"
+          @cancelText="Cancel"
+          @confirmText="Yes, Revert Version"
+          @confirmationMessage="Are you sure you want to revert to this version?"
+          @inlineText={{true}}
+          @fadingBackground={{true}}
+          @awaitingConfirmation={{this.revertTo.isRunning}}
+          @onConfirm={{perform this.revertTo}} />
+      {{else}}
+        <button
+          data-test-revert-to
+          type="button"
+          class="button is-warning is-outlined is-small tooltip"
+          disabled
+          aria-label="You don’t have permission to revert"
+        >
+          Revert
+        </button>
+      {{/if}}
+    {{/unless}}
+
+    {{#if this.version.diff}}
+      <button class="button is-light is-small is-fixed-width" {{action "toggleDiff"}} type="button">{{this.changeCount}} {{pluralize "Change" this.changeCount}}</button>
+    {{else}}
+      <div class="is-fixed-width is-size-7 has-text-centered">No Changes</div>
+    {{/if}}
+  </div>
 </div>
-{{#if isOpen}}
+{{#if this.isOpen}}
   <div class="boxed-section-body is-dark">
-    <JobDiff @diff={{version.diff}} @verbose={{verbose}} />
+    <JobDiff @diff={{this.version.diff}} @verbose={{this.verbose}} />
   </div>
 {{/if}}

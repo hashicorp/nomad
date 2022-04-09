@@ -4,20 +4,21 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 )
 
 func TestOperator_Raft_ListPeers_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &OperatorRaftListCommand{}
 }
 
 func TestOperator_Raft_ListPeers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	c := &OperatorRaftListCommand{Meta: Meta{Ui: ui}}
 	args := []string{"-address=" + addr}
 

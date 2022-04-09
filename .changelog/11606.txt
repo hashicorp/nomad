@@ -1,0 +1,6 @@
+```release-note:improvement
+template: Expose consul-template configuration options at the client level for `consul_retry`,
+`vault_retry`, `max_stale`, `block_query_wait` and `wait`. Expose per-template configuration
+for wait that will override the client level configuration. Add `wait_bounds` to
+allow operators to constrain per-template overrides at the client level.
+```

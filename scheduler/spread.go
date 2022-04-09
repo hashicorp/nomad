@@ -71,6 +71,12 @@ func (iter *SpreadIterator) SetJob(job *structs.Job) {
 	if job.Spreads != nil {
 		iter.jobSpreads = job.Spreads
 	}
+
+	// reset group spread/property so that when we temporarily SetJob
+	// to an older version to calculate stops we don't leak old
+	// versions of spread/properties to the new job version
+	iter.tgSpreadInfo = make(map[string]spreadAttributeMap)
+	iter.groupPropertySets = make(map[string][]*propertySet)
 }
 
 func (iter *SpreadIterator) SetTaskGroup(tg *structs.TaskGroup) {
@@ -133,6 +139,15 @@ func (iter *SpreadIterator) Next() *RankedNode {
 			}
 			spreadAttributeMap := iter.tgSpreadInfo[tgName]
 			spreadDetails := spreadAttributeMap[pset.targetAttribute]
+
+			if spreadDetails == nil {
+				iter.ctx.Logger().Named("spread").Error(
+					"error reading spread attribute map for task group",
+					"task_group", tgName,
+					"target", pset.targetAttribute,
+				)
+				continue
+			}
 
 			if len(spreadDetails.desiredCounts) == 0 {
 				// When desired counts map is empty the user didn't specify any targets

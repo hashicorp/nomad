@@ -21,12 +21,15 @@ func (c *PluginStatusCommand) Help() string {
 	helpText := `
 Usage nomad plugin status [options] <plugin>
 
-    Display status information about a plugin. If no plugin id is given,
-    a list of all plugins will be displayed.
+  Display status information about a plugin. If no plugin id is given,
+  a list of all plugins will be displayed.
+
+  If ACLs are enabled, this command requires a token with the 'plugin:read'
+  capability.
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Status Options:
 
@@ -107,13 +110,22 @@ func (c *PluginStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	typeArg = strings.ToLower(typeArg)
-
 	// Check that we either got no arguments or exactly one.
 	args = flags.Args()
 	if len(args) > 1 {
 		c.Ui.Error("This command takes either no arguments or one: <plugin>")
 		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+
+	typeArg = strings.ToLower(typeArg)
+
+	// Check that the plugin type flag is supported. Empty implies we are
+	// querying all plugins, otherwise we currently only support "csi".
+	switch typeArg {
+	case "", "csi":
+	default:
+		c.Ui.Error(fmt.Sprintf("Unsupported plugin type: %s", typeArg))
 		return 1
 	}
 

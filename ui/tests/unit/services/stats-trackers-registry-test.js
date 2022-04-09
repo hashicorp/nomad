@@ -8,16 +8,16 @@ import sinon from 'sinon';
 import fetch from 'nomad-ui/utils/fetch';
 import NodeStatsTracker from 'nomad-ui/utils/classes/node-stats-tracker';
 
-module('Unit | Service | Stats Trackers Registry', function(hooks) {
+module('Unit | Service | Stats Trackers Registry', function (hooks) {
   setupTest(hooks);
 
-  hooks.beforeEach(function() {
-    this.subject = function() {
+  hooks.beforeEach(function () {
+    this.subject = function () {
       return this.owner.factoryFor('service:stats-trackers-registry').create();
     };
   });
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     // Inject a mock token service
     const authorizedRequestSpy = (this.tokenAuthorizedRequestSpy = sinon.spy());
     const mockToken = Service.extend({
@@ -29,7 +29,7 @@ module('Unit | Service | Stats Trackers Registry', function(hooks) {
 
     this.owner.register('service:token', mockToken);
     this.token = this.owner.lookup('service:token');
-    this.server = new Pretender(function() {
+    this.server = new Pretender(function () {
       this.get('/v1/client/stats', () => [
         200,
         {},
@@ -44,7 +44,7 @@ module('Unit | Service | Stats Trackers Registry', function(hooks) {
     });
   });
 
-  hooks.afterEach(function() {
+  hooks.afterEach(function () {
     this.server.shutdown();
   });
 
@@ -56,15 +56,26 @@ module('Unit | Service | Stats Trackers Registry', function(hooks) {
 
   const mockNode = makeModelMock('node', { id: 'test' });
 
-  test('Creates a tracker when one isn’t found', function(assert) {
+  test('Creates a tracker when one isn’t found', function (assert) {
     const registry = this.subject();
     const id = 'id';
 
-    assert.equal(registry.get('registryRef').size, 0, 'Nothing in the registry yet');
+    assert.equal(
+      registry.get('registryRef').size,
+      0,
+      'Nothing in the registry yet'
+    );
 
     const tracker = registry.getTracker(mockNode.create({ id }));
-    assert.ok(tracker instanceof NodeStatsTracker, 'The correct type of tracker is made');
-    assert.equal(registry.get('registryRef').size, 1, 'The tracker was added to the registry');
+    assert.ok(
+      tracker instanceof NodeStatsTracker,
+      'The correct type of tracker is made'
+    );
+    assert.equal(
+      registry.get('registryRef').size,
+      1,
+      'The tracker was added to the registry'
+    );
     assert.deepEqual(
       Array.from(registry.get('registryRef').keys()),
       [`node:${id}`],
@@ -72,18 +83,26 @@ module('Unit | Service | Stats Trackers Registry', function(hooks) {
     );
   });
 
-  test('Returns an existing tracker when one is found', function(assert) {
+  test('Returns an existing tracker when one is found', function (assert) {
     const registry = this.subject();
     const node = mockNode.create();
 
     const tracker1 = registry.getTracker(node);
     const tracker2 = registry.getTracker(node);
 
-    assert.equal(tracker1, tracker2, 'Returns an existing tracker for the same resource');
-    assert.equal(registry.get('registryRef').size, 1, 'Only one tracker in the registry');
+    assert.equal(
+      tracker1,
+      tracker2,
+      'Returns an existing tracker for the same resource'
+    );
+    assert.equal(
+      registry.get('registryRef').size,
+      1,
+      'Only one tracker in the registry'
+    );
   });
 
-  test('Registry does not depend on persistent object references', function(assert) {
+  test('Registry does not depend on persistent object references', function (assert) {
     const registry = this.subject();
     const id = 'some-id';
 
@@ -98,11 +117,19 @@ module('Unit | Service | Stats Trackers Registry', function(hooks) {
       'And the same className'
     );
 
-    assert.equal(registry.getTracker(node1), registry.getTracker(node2), 'Return the same tracker');
-    assert.equal(registry.get('registryRef').size, 1, 'Only one tracker in the registry');
+    assert.equal(
+      registry.getTracker(node1),
+      registry.getTracker(node2),
+      'Return the same tracker'
+    );
+    assert.equal(
+      registry.get('registryRef').size,
+      1,
+      'Only one tracker in the registry'
+    );
   });
 
-  test('Has a max size', function(assert) {
+  test('Has a max size', function (assert) {
     const registry = this.subject();
     const ref = registry.get('registryRef');
 
@@ -111,7 +138,7 @@ module('Unit | Service | Stats Trackers Registry', function(hooks) {
     assert.ok(ref.limit < Infinity, `A limit (${ref.limit}) is set`);
   });
 
-  test('Registry re-attaches deleted resources to cached trackers', function(assert) {
+  test('Registry re-attaches deleted resources to cached trackers', function (assert) {
     const registry = this.subject();
     const id = 'some-id';
 
@@ -131,7 +158,7 @@ module('Unit | Service | Stats Trackers Registry', function(hooks) {
     );
   });
 
-  test('Registry re-attaches destroyed resources to cached trackers', async function(assert) {
+  test('Registry re-attaches destroyed resources to cached trackers', async function (assert) {
     const registry = this.subject();
     const id = 'some-id';
 
@@ -154,7 +181,7 @@ module('Unit | Service | Stats Trackers Registry', function(hooks) {
     );
   });
 
-  test('Removes least recently used when something needs to be removed', function(assert) {
+  test('Removes least recently used when something needs to be removed', function (assert) {
     const registry = this.subject();
     const activeNode = mockNode.create({ id: 'active' });
     const inactiveNode = mockNode.create({ id: 'inactive' });
@@ -186,7 +213,7 @@ module('Unit | Service | Stats Trackers Registry', function(hooks) {
     );
   });
 
-  test('Trackers are created using the token authorizedRequest', function(assert) {
+  test('Trackers are created using the token authorizedRequest', function (assert) {
     const registry = this.subject();
     const node = mockNode.create();
 
@@ -194,7 +221,9 @@ module('Unit | Service | Stats Trackers Registry', function(hooks) {
 
     tracker.get('poll').perform();
     assert.ok(
-      this.tokenAuthorizedRequestSpy.calledWith(`/v1/client/stats?node_id=${node.get('id')}`),
+      this.tokenAuthorizedRequestSpy.calledWith(
+        `/v1/client/stats?node_id=${node.get('id')}`
+      ),
       'The token service authorizedRequest function was used'
     );
 

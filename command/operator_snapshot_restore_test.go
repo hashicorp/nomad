@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
@@ -15,7 +16,7 @@ import (
 )
 
 func TestOperatorSnapshotRestore_Works(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	tmpDir, err := ioutil.TempDir("", "nomad-tempdir")
 	require.NoError(t, err)
@@ -30,7 +31,7 @@ job "snapshot-test-job" {
 		count = 1
 		task "task1" {
 			driver = "exec"
-			resources = {
+			resources {
 				cpu = 1000
 				memory = 512
 			}
@@ -39,7 +40,7 @@ job "snapshot-test-job" {
 
 }`
 
-		ui := new(cli.MockUi)
+		ui := cli.NewMockUi()
 		cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
 		cmd.JobGetter.testStdin = strings.NewReader(sampleJob)
 
@@ -63,7 +64,7 @@ job "snapshot-test-job" {
 	require.NoError(t, err)
 	require.Nil(t, j)
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorSnapshotRestoreCommand{Meta: Meta{Ui: ui}}
 
 	code := cmd.Run([]string{"--address=" + url, snapshotPath})
@@ -77,9 +78,9 @@ job "snapshot-test-job" {
 }
 
 func TestOperatorSnapshotRestore_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorSnapshotRestoreCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse

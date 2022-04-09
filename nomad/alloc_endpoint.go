@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -20,6 +22,9 @@ import (
 type Alloc struct {
 	srv    *Server
 	logger log.Logger
+
+	// ctx provides context regarding the underlying connection
+	ctx *RPCContext
 }
 
 // List is used to list the allocations in the system
@@ -29,54 +34,103 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "list"}, time.Now())
 
+	namespace := args.RequestNamespace()
+	var allow func(string) bool
+
 	// Check namespace read-job permissions
 	aclObj, err := a.srv.ResolveToken(args.AuthToken)
-	if err != nil {
+
+	switch {
+	case err != nil:
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	case aclObj == nil:
+		allow = func(string) bool {
+			return true
+		}
+	case namespace == structs.AllNamespacesSentinel:
+		allow = func(ns string) bool {
+			return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
+		}
+	case !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob):
 		return structs.ErrPermissionDenied
+	default:
+		allow = func(string) bool {
+			return true
+		}
 	}
 
 	// Setup the blocking query
+	sort := state.SortOption(args.Reverse)
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Capture all the allocations
+			// Scan all the allocations
 			var err error
 			var iter memdb.ResultIterator
+			var opts paginator.StructsTokenizerOptions
 
-			prefix := args.QueryOptions.Prefix
-			if args.RequestNamespace() == structs.AllNamespacesSentinel {
-				allowedNSes, err := allowedNSes(aclObj, state)
-				if err != nil {
-					return err
-				}
-				iter, err = state.AllocsByIDPrefixInNSes(ws, allowedNSes, prefix)
-				if err != nil {
-					return err
-				}
-			} else if prefix != "" {
-				iter, err = state.AllocsByIDPrefix(ws, args.RequestNamespace(), prefix)
-			} else {
-				iter, err = state.AllocsByNamespace(ws, args.RequestNamespace())
-			}
-			if err != nil {
+			// get list of accessible namespaces
+			allowableNamespaces, err := allowedNSes(aclObj, state, allow)
+			if err == structs.ErrPermissionDenied {
+				// return empty allocation if token is not authorized for any
+				// namespace, matching other endpoints
+				reply.Allocations = make([]*structs.AllocListStub, 0)
+			} else if err != nil {
 				return err
-			}
-
-			var allocs []*structs.AllocListStub
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
+			} else {
+				if prefix := args.QueryOptions.Prefix; prefix != "" {
+					iter, err = state.AllocsByIDPrefix(ws, namespace, prefix, sort)
+					opts = paginator.StructsTokenizerOptions{
+						WithID: true,
+					}
+				} else if namespace != structs.AllNamespacesSentinel {
+					iter, err = state.AllocsByNamespaceOrdered(ws, namespace, sort)
+					opts = paginator.StructsTokenizerOptions{
+						WithCreateIndex: true,
+						WithID:          true,
+					}
+				} else {
+					iter, err = state.Allocs(ws, sort)
+					opts = paginator.StructsTokenizerOptions{
+						WithCreateIndex: true,
+						WithID:          true,
+					}
 				}
-				alloc := raw.(*structs.Allocation)
-				allocs = append(allocs, alloc.Stub())
-			}
-			reply.Allocations = allocs
+				if err != nil {
+					return err
+				}
 
-			// Use the last index that affected the jobs table
+				tokenizer := paginator.NewStructsTokenizer(iter, opts)
+				filters := []paginator.Filter{
+					paginator.NamespaceFilter{
+						AllowableNamespaces: allowableNamespaces,
+					},
+				}
+
+				var stubs []*structs.AllocListStub
+				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+					func(raw interface{}) error {
+						allocation := raw.(*structs.Allocation)
+						stubs = append(stubs, allocation.Stub(args.Fields))
+						return nil
+					})
+				if err != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to create result paginator: %v", err)
+				}
+
+				nextToken, err := paginator.Page()
+				if err != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to read result page: %v", err)
+				}
+
+				reply.QueryMeta.NextToken = nextToken
+				reply.Allocations = stubs
+			}
+
+			// Use the last index that affected the allocs table
 			index, err := state.Index("allocs")
 			if err != nil {
 				return err
@@ -162,6 +216,13 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 // GetAllocs is used to lookup a set of allocations
 func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	reply *structs.AllocsGetResponse) error {
+
+	// Ensure the connection was initiated by a client if TLS is used.
+	err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelClient)
+	if err != nil {
+		return err
+	}
+
 	if done, err := a.srv.forward("Alloc.GetAllocs", args, args, reply); done {
 		return err
 	}
@@ -263,7 +324,8 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 		Evals: []*structs.Evaluation{eval},
 		Allocs: map[string]*structs.DesiredTransition{
 			args.AllocID: {
-				Migrate: helper.BoolToPtr(true),
+				Migrate:         helper.BoolToPtr(true),
+				NoShutdownDelay: helper.BoolToPtr(args.NoShutdownDelay),
 			},
 		},
 	}
@@ -311,4 +373,68 @@ func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransiti
 	// Setup the response
 	reply.Index = index
 	return nil
+}
+
+// GetServiceRegistrations returns a list of service registrations which belong
+// to the passed allocation ID.
+func (a *Alloc) GetServiceRegistrations(
+	args *structs.AllocServiceRegistrationsRequest,
+	reply *structs.AllocServiceRegistrationsResponse) error {
+
+	if done, err := a.srv.forward(structs.AllocServiceRegistrationsRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_service_registrations"}, time.Now())
+
+	// If ACLs are enabled, ensure the caller has the read-job namespace
+	// capability.
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if aclObj != nil {
+		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+			return structs.ErrPermissionDenied
+		}
+	}
+
+	// Set up the blocking query.
+	return a.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			// Read the allocation to ensure its namespace matches the request
+			// args.
+			alloc, err := stateStore.AllocByID(ws, args.AllocID)
+			if err != nil {
+				return err
+			}
+
+			// Guard against the alloc not-existing or that the namespace does
+			// not match the request arguments.
+			if alloc == nil || alloc.Namespace != args.RequestNamespace() {
+				return nil
+			}
+
+			// Perform the state query to get an iterator.
+			iter, err := stateStore.GetServiceRegistrationsByAllocID(ws, args.AllocID)
+			if err != nil {
+				return err
+			}
+
+			// Set up our output after we have checked the error.
+			services := make([]*structs.ServiceRegistration, 0)
+
+			// Iterate the iterator, appending all service registrations
+			// returned to the reply.
+			for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				services = append(services, raw.(*structs.ServiceRegistration))
+			}
+			reply.Services = services
+
+			// Use the index table to populate the query meta as we have no way
+			// of tracking the max index on deletes.
+			return a.srv.setReplyQueryMeta(stateStore, state.TableServiceRegistrations, &reply.QueryMeta)
+		},
+	})
 }

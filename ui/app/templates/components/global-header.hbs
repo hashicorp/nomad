@@ -1,25 +1,75 @@
-<nav class="navbar is-primary">
+{{! template-lint-disable no-duplicate-landmark-elements }}
+<nav class="navbar is-primary" title="navigation">
   <div class="navbar-brand">
-    <span data-test-header-gutter-toggle class="gutter-toggle" aria-label="menu" onclick={{action onHamburgerClick}}>
-      {{partial "partials/hamburger-menu"}}
+    <span
+      data-test-header-gutter-toggle
+      class="gutter-toggle"
+      aria-label="menu"
+      onclick={{action this.onHamburgerClick}}
+    >
+      <HamburgerMenu />
     </span>
-    <LinkTo @route="jobs" class="navbar-item is-logo">
-      {{partial "partials/nomad-logo"}}
+    <LinkTo @route="jobs" class="navbar-item is-logo" aria-label="Home">
+      <NomadLogo />
     </LinkTo>
   </div>
-  {{#unless (media "isMobile")}}
-    <GlobalSearch::Control />
-  {{/unless}}
+  {{#if this.system.fuzzySearchEnabled}}
+    {{! template-lint-disable simple-unless }}
+    {{#unless (media "isMobile")}}
+      <GlobalSearch::Control />
+    {{/unless}}
+  {{/if}}
   <div class="navbar-end">
-    <a href="https://nomadproject.io/docs" class="navbar-item">Documentation</a>
-    <LinkTo @route="settings.tokens" class="navbar-item">ACL Tokens</LinkTo>
+    {{#if this.config.APP.showStorybookLink}}
+      <a
+        href="/storybook/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="navbar-item"
+      >
+        Storybook
+      </a>
+    {{/if}}
+    {{#if this.system.agent.config.UI.Consul.BaseUIURL}}
+      <a
+        data-test-header-consul-link
+        href={{this.system.agent.config.UI.Consul.BaseUIURL}}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="navbar-item"
+      >
+        Consul
+      </a>
+    {{/if}}
+    {{#if this.system.agent.config.UI.Vault.BaseUIURL}}
+      <a
+        data-test-header-vault-link
+        href={{this.system.agent.config.UI.Vault.BaseUIURL}}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="navbar-item"
+      >
+        Vault
+      </a>
+    {{/if}}
+    <a
+      href="https://nomadproject.io/docs"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="navbar-item"
+    >
+      Documentation
+    </a>
+    <LinkTo @route="settings.tokens" class="navbar-item">
+      ACL Tokens
+    </LinkTo>
   </div>
 </nav>
 <div class="navbar is-secondary">
   <div class="navbar-item is-gutter">
     <RegionSwitcher @decoration="is-outlined" />
   </div>
-  <nav class="breadcrumb is-large">
+  <nav class="breadcrumb is-large" title="breadcrumb navigation">
     <ul>
       {{yield}}
     </ul>

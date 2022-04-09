@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	colorable "github.com/mattn/go-colorable"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 	"github.com/posener/complete"
@@ -39,6 +40,9 @@ type Meta struct {
 	// Whether to not-colorize output
 	noColor bool
 
+	// Whether to force colorized output
+	forceColor bool
+
 	// The region to send API requests
 	region string
 
@@ -70,6 +74,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 		f.StringVar(&m.region, "region", "", "")
 		f.StringVar(&m.namespace, "namespace", "", "")
 		f.BoolVar(&m.noColor, "no-color", false, "")
+		f.BoolVar(&m.forceColor, "force-color", false, "")
 		f.StringVar(&m.caCert, "ca-cert", "", "")
 		f.StringVar(&m.caPath, "ca-path", "", "")
 		f.StringVar(&m.clientCert, "client-cert", "", "")
@@ -97,6 +102,7 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 		"-region":          complete.PredictAnything,
 		"-namespace":       NamespacePredictor(m.Client, nil),
 		"-no-color":        complete.PredictNothing,
+		"-force-color":     complete.PredictNothing,
 		"-ca-cert":         complete.PredictFiles("*"),
 		"-ca-path":         complete.PredictDirs("*"),
 		"-client-cert":     complete.PredictFiles("*"),
@@ -115,6 +121,7 @@ type ApiClientFactory func() (*api.Client, error)
 // the default command line arguments and env vars.
 func (m *Meta) clientConfig() *api.Config {
 	config := api.DefaultConfig()
+
 	if m.flagAddress != "" {
 		config.Address = m.flagAddress
 	}
@@ -125,21 +132,34 @@ func (m *Meta) clientConfig() *api.Config {
 		config.Namespace = m.namespace
 	}
 
-	// If we need custom TLS configuration, then set it
-	if m.caCert != "" || m.caPath != "" || m.clientCert != "" || m.clientKey != "" || m.tlsServerName != "" || m.insecure {
-		t := &api.TLSConfig{
-			CACert:        m.caCert,
-			CAPath:        m.caPath,
-			ClientCert:    m.clientCert,
-			ClientKey:     m.clientKey,
-			TLSServerName: m.tlsServerName,
-			Insecure:      m.insecure,
-		}
-		config.TLSConfig = t
-	}
-
 	if m.token != "" {
 		config.SecretID = m.token
+	}
+
+	// Override TLS configuration fields we may have received from env vars with
+	// flag arguments from the user only if they're provided.
+	if m.caCert != "" {
+		config.TLSConfig.CACert = m.caCert
+	}
+
+	if m.caPath != "" {
+		config.TLSConfig.CAPath = m.caPath
+	}
+
+	if m.clientCert != "" {
+		config.TLSConfig.ClientCert = m.clientCert
+	}
+
+	if m.clientKey != "" {
+		config.TLSConfig.ClientKey = m.clientKey
+	}
+
+	if m.tlsServerName != "" {
+		config.TLSConfig.TLSServerName = m.tlsServerName
+	}
+
+	if m.insecure {
+		config.TLSConfig.Insecure = m.insecure
 	}
 
 	return config
@@ -154,15 +174,58 @@ func (m *Meta) allNamespaces() bool {
 }
 
 func (m *Meta) Colorize() *colorstring.Colorize {
+	_, coloredUi := m.Ui.(*cli.ColoredUi)
+
 	return &colorstring.Colorize{
 		Colors:  colorstring.DefaultColors,
-		Disable: m.noColor || !terminal.IsTerminal(int(os.Stdout.Fd())),
+		Disable: !coloredUi,
 		Reset:   true,
 	}
 }
 
+func (m *Meta) SetupUi(args []string) {
+	noColor := os.Getenv(EnvNomadCLINoColor) != ""
+	forceColor := os.Getenv(EnvNomadCLIForceColor) != ""
+
+	for _, arg := range args {
+		// Check if color is set
+		if arg == "-no-color" || arg == "--no-color" {
+			noColor = true
+		} else if arg == "-force-color" || arg == "--force-color" {
+			forceColor = true
+		}
+	}
+
+	m.Ui = &cli.BasicUi{
+		Reader:      os.Stdin,
+		Writer:      colorable.NewColorableStdout(),
+		ErrorWriter: colorable.NewColorableStderr(),
+	}
+
+	// Only use colored UI if not disabled and stdout is a tty or colors are
+	// forced.
+	isTerminal := terminal.IsTerminal(int(os.Stdout.Fd()))
+	useColor := !noColor && (isTerminal || forceColor)
+	if useColor {
+		m.Ui = &cli.ColoredUi{
+			ErrorColor: cli.UiColorRed,
+			WarnColor:  cli.UiColorYellow,
+			InfoColor:  cli.UiColorGreen,
+			Ui:         m.Ui,
+		}
+	}
+}
+
+type usageOptsFlags uint8
+
+const (
+	usageOptsDefault     usageOptsFlags = 0
+	usageOptsNoNamespace                = 1 << iota
+)
+
 // generalOptionsUsage returns the help string for the global options.
-func generalOptionsUsage() string {
+func generalOptionsUsage(usageOpts usageOptsFlags) string {
+
 	helpText := `
   -address=<addr>
     The address of the Nomad server.
@@ -173,19 +236,33 @@ func generalOptionsUsage() string {
     The region of the Nomad servers to forward commands to.
     Overrides the NOMAD_REGION environment variable if set.
     Defaults to the Agent's local region.
+`
 
+	namespaceText := `
   -namespace=<namespace>
     The target namespace for queries and actions bound to a namespace.
     Overrides the NOMAD_NAMESPACE environment variable if set.
+    If set to '*', subcommands which support this functionality query
+    all namespaces authorized to user.
     Defaults to the "default" namespace.
+`
 
+	// note: that although very few commands use color explicitly, all of them
+	// return red-colored text on error so we want the color flags to always be
+	// present in the help messages.
+	remainingText := `
   -no-color
     Disables colored command output. Alternatively, NOMAD_CLI_NO_COLOR may be
-    set.
+    set. This option takes precedence over -force-color.
+
+  -force-color
+    Forces colored command output. This can be used in cases where the usual
+    terminal detection fails. Alternatively, NOMAD_CLI_FORCE_COLOR may be set.
+    This option has no effect if -no-color is also used.
 
   -ca-cert=<path>
     Path to a PEM encoded CA cert file to use to verify the
-    Nomad server SSL certificate.  Overrides the NOMAD_CACERT
+    Nomad server SSL certificate. Overrides the NOMAD_CACERT
     environment variable if set.
 
   -ca-path=<path>
@@ -203,9 +280,9 @@ func generalOptionsUsage() string {
     Path to an unencrypted PEM encoded private key matching the
     client certificate from -client-cert. Overrides the
     NOMAD_CLIENT_KEY environment variable if set.
-	
+
   -tls-server-name=<value>
-    The server name to use as the SNI host when connecting via 
+    The server name to use as the SNI host when connecting via
     TLS. Overrides the NOMAD_TLS_SERVER_NAME environment variable if set.
 
   -tls-skip-verify
@@ -216,6 +293,12 @@ func generalOptionsUsage() string {
     The SecretID of an ACL token to use to authenticate API requests with.
     Overrides the NOMAD_TOKEN environment variable if set.
 `
+
+	if usageOpts&usageOptsNoNamespace == 0 {
+		helpText = helpText + namespaceText
+	}
+
+	helpText = helpText + remainingText
 	return strings.TrimSpace(helpText)
 }
 

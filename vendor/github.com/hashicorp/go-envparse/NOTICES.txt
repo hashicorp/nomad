@@ -1,2 +1,0 @@
-go-envparse
-Copyright 2017 HashiCorp, Inc.

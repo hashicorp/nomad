@@ -12,6 +12,10 @@ version.
 
 | Nomad Version | Go Version |
 |:-------------:|:----------:|
+| 1.2           | 1.17       |
+| 1.1           | 1.16       |
+| 1.0           | 1.15       |
+| 0.12          | 1.14       |
 | 0.11          | 1.14       |
 | 0.10          | 1.12       |
 | 0.9           | 1.11       |
@@ -19,10 +23,10 @@ version.
 ## Code
 
 The
-[`update_golang_version.sh`](https://github.com/hashicorp/nomad/blob/master/scripts/update_golang_version.sh)
+[`update_golang_version.sh`](https://github.com/hashicorp/nomad/blob/main/scripts/update_golang_version.sh)
 script is used to update the Go version for all build tools.
 
-The [Changelog](https://github.com/hashicorp/nomad/blob/v0.10.2/CHANGELOG.md)
+The [Changelog](https://github.com/hashicorp/nomad/blob/main/CHANGELOG.md)
 will note when the Go version has changed in the Improvements section:
 
 ```

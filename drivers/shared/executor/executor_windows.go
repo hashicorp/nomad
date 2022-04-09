@@ -1,3 +1,5 @@
+//go:build windows
+
 package executor
 
 import (
@@ -17,7 +19,7 @@ func (e *UniversalExecutor) setNewProcessGroup() error {
 }
 
 // Cleanup any still hanging user processes
-func (e *UniversalExecutor) cleanupChildProcesses(proc *os.Process) error {
+func (e *UniversalExecutor) killProcessTree(proc *os.Process) error {
 	// We must first verify if the process is still running.
 	// (Windows process often lingered around after being reported as killed).
 	handle, err := syscall.OpenProcess(syscall.PROCESS_TERMINATE|syscall.SYNCHRONIZE|syscall.PROCESS_QUERY_INFORMATION, false, uint32(proc.Pid))

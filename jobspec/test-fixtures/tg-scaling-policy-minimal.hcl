@@ -1,5 +1,7 @@
 job "elastic" {
   group "group" {
-    scaling {}
+    scaling {
+      max = 10
+    }
   }
 }

@@ -1,0 +1,3 @@
+```release-note:bug
+core: Fix missing fields in Node.Copy()
+```

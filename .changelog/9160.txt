@@ -1,0 +1,3 @@
+```release-note:feature
+**System Batch scheduler**: Run batch jobs cluster-wide with the new 'sysbatch' scheduler.
+```

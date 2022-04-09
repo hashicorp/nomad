@@ -166,26 +166,29 @@ func annotateTask(diff *structs.TaskDiff, parent *structs.TaskGroupDiff) {
 	// All changes to primitive fields result in a destructive update except
 	// KillTimeout
 	destructive := false
+FieldsLoop:
 	for _, fDiff := range diff.Fields {
 		switch fDiff.Name {
 		case "KillTimeout":
 			continue
 		default:
 			destructive = true
-			break
+			break FieldsLoop
 		}
 	}
 
 	// Object changes that can be done in-place are log configs, services,
 	// constraints.
+
 	if !destructive {
+	ObjectsLoop:
 		for _, oDiff := range diff.Objects {
 			switch oDiff.Name {
 			case "LogConfig", "Service", "Constraint":
 				continue
 			default:
 				destructive = true
-				break
+				break ObjectsLoop
 			}
 		}
 	}

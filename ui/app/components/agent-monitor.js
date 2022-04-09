@@ -23,7 +23,7 @@ export default class AgentMonitor extends Component {
   isStreaming = true;
   logger = null;
 
-  @computed('level', 'client.id', 'server.id')
+  @computed('client.id', 'level', 'server.{id,region}')
   get monitorParams() {
     assert(
       'Provide a client OR a server to AgentMonitor, not both.',
@@ -33,13 +33,20 @@ export default class AgentMonitor extends Component {
     const type = this.server ? 'server_id' : 'client_id';
     const id = this.server ? this.server.id : this.client && this.client.id;
 
-    return {
+    const params = {
       log_level: this.level,
       [type]: id,
     };
+
+    if (this.server) {
+      params.region = this.server.region;
+    }
+
+    return params;
   }
 
   didInsertElement() {
+    super.didInsertElement(...arguments);
     this.updateLogger();
   }
 
@@ -51,7 +58,7 @@ export default class AgentMonitor extends Component {
     this.set(
       'logger',
       Log.create({
-        logFetch: url => this.token.authorizedRequest(url),
+        logFetch: (url) => this.token.authorizedRequest(url),
         params: this.monitorParams,
         url: this.monitorUrl,
         tail: currentTail,

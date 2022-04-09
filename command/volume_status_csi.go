@@ -1,7 +1,9 @@
 package command
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 
@@ -18,26 +20,31 @@ func (c *VolumeStatusCommand) csiBanner() {
 func (c *VolumeStatusCommand) csiStatus(client *api.Client, id string) int {
 	// Invoke list mode if no volume id
 	if id == "" {
-		c.csiBanner()
-		vols, _, err := client.CSIVolumes().List(nil)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
-			return 1
-		}
+		return c.listVolumes(client)
+	}
 
-		if len(vols) == 0 {
-			// No output if we have no volumes
-			c.Ui.Error("No CSI volumes")
-		} else {
-			str, err := c.csiFormatVolumes(vols)
+	// Prefix search for the volume
+	vols, _, err := client.CSIVolumes().List(&api.QueryOptions{Prefix: id})
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
+		return 1
+	}
+	if len(vols) == 0 {
+		c.Ui.Error(fmt.Sprintf("No volumes(s) with prefix or ID %q found", id))
+		return 1
+	}
+	if len(vols) > 1 {
+		if (id != vols[0].ID) || (c.allNamespaces() && vols[0].ID == vols[1].ID) {
+			out, err := c.csiFormatVolumes(vols)
 			if err != nil {
 				c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
 				return 1
 			}
-			c.Ui.Output(str)
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple volumes\n\n%s", out))
+			return 1
 		}
-		return 0
 	}
+	id = vols[0].ID
 
 	// Try querying the volume
 	vol, _, err := client.CSIVolumes().Info(id, nil)
@@ -56,6 +63,91 @@ func (c *VolumeStatusCommand) csiStatus(client *api.Client, id string) int {
 	return 0
 }
 
+func (c *VolumeStatusCommand) listVolumes(client *api.Client) int {
+
+	c.csiBanner()
+	vols, _, err := client.CSIVolumes().List(nil)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
+		return 1
+	}
+
+	if len(vols) == 0 {
+		// No output if we have no volumes
+		c.Ui.Error("No CSI volumes")
+	} else {
+		str, err := c.csiFormatVolumes(vols)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
+			return 1
+		}
+		c.Ui.Output(str)
+	}
+	if !c.verbose {
+		return 0
+	}
+
+	plugins, _, err := client.CSIPlugins().List(nil)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying CSI plugins: %s", err))
+		return 1
+	}
+
+	if len(plugins) == 0 {
+		return 0 // No more output if we have no plugins
+	}
+
+	var code int
+	q := &api.QueryOptions{PerPage: 30} // TODO: tune page size
+
+NEXT_PLUGIN:
+	for _, plugin := range plugins {
+		if !plugin.ControllerRequired || plugin.ControllersHealthy < 1 {
+			continue // only controller plugins can support this query
+		}
+		for {
+			externalList, _, err := client.CSIVolumes().ListExternal(plugin.ID, q)
+			if err != nil && !errors.Is(err, io.EOF) {
+				c.Ui.Error(fmt.Sprintf(
+					"Error querying CSI external volumes for plugin %q: %s", plugin.ID, err))
+				// we'll stop querying this plugin, but there may be more to
+				// query, so report and set the error code but move on to the
+				// next plugin
+				code = 1
+				continue NEXT_PLUGIN
+			}
+			if externalList == nil || len(externalList.Volumes) == 0 {
+				// several plugins return EOF once you hit the end of the page,
+				// rather than an empty list
+				continue NEXT_PLUGIN
+			}
+			rows := []string{"External ID|Condition|Nodes"}
+			for _, v := range externalList.Volumes {
+				condition := "OK"
+				if v.IsAbnormal {
+					condition = fmt.Sprintf("Abnormal (%v)", v.Status)
+				}
+				rows = append(rows, fmt.Sprintf("%s|%s|%s",
+					limit(v.ExternalID, c.length),
+					limit(condition, 20),
+					strings.Join(v.PublishedExternalNodeIDs, ","),
+				))
+			}
+			c.Ui.Output(formatList(rows))
+
+			q.NextToken = externalList.NextToken
+			if q.NextToken == "" {
+				break
+			}
+			// we can't know the shape of arbitrarily-sized lists of volumes,
+			// so break after each page
+			c.Ui.Output("...")
+		}
+	}
+
+	return code
+}
+
 func (c *VolumeStatusCommand) csiFormatVolumes(vols []*api.CSIVolumeListStub) (string, error) {
 	// Sort the output by volume id
 	sort.Slice(vols, func(i, j int) bool { return vols[i].ID < vols[j].ID })
@@ -68,11 +160,16 @@ func (c *VolumeStatusCommand) csiFormatVolumes(vols []*api.CSIVolumeListStub) (s
 		return out, nil
 	}
 
+	return csiFormatSortedVolumes(vols)
+}
+
+// Format the volumes, assumes that we're already sorted by volume ID
+func csiFormatSortedVolumes(vols []*api.CSIVolumeListStub) (string, error) {
 	rows := make([]string, len(vols)+1)
 	rows[0] = "ID|Name|Plugin ID|Schedulable|Access Mode"
 	for i, v := range vols {
 		rows[i+1] = fmt.Sprintf("%s|%s|%s|%t|%s",
-			limit(v.ID, c.length),
+			v.ID,
 			v.Name,
 			v.PluginID,
 			v.Schedulable,
@@ -115,43 +212,42 @@ func (c *VolumeStatusCommand) formatBasic(vol *api.CSIVolume) (string, error) {
 		return formatKV(output), nil
 	}
 
+	full := []string{formatKV(output)}
+
+	if len(vol.Topologies) > 0 {
+		topoBanner := c.Colorize().Color("\n[bold]Topologies[reset]")
+		topo := c.formatTopology(vol)
+		full = append(full, topoBanner)
+		full = append(full, topo)
+	}
+
 	// Format the allocs
 	banner := c.Colorize().Color("\n[bold]Allocations[reset]")
 	allocs := formatAllocListStubs(vol.Allocations, c.verbose, c.length)
-	full := []string{formatKV(output), banner, allocs}
+	full = append(full, banner)
+	full = append(full, allocs)
+
 	return strings.Join(full, "\n"), nil
 }
 
-func (c *VolumeStatusCommand) formatTopologies(vol *api.CSIVolume) string {
-	var out []string
-
-	// Find the union of all the keys
-	head := map[string]string{}
-	for _, t := range vol.Topologies {
-		for key := range t.Segments {
-			if _, ok := head[key]; !ok {
-				head[key] = ""
-			}
+func (c *VolumeStatusCommand) formatTopology(vol *api.CSIVolume) string {
+	rows := []string{"Topology|Segments"}
+	for i, t := range vol.Topologies {
+		segmentPairs := make([]string, 0, len(t.Segments))
+		for k, v := range t.Segments {
+			segmentPairs = append(segmentPairs, fmt.Sprintf("%s=%s", k, v))
 		}
+		// note: this looks awkward because we don't have any other
+		// place where we list collections of arbitrary k/v's like
+		// this without just dumping JSON formatted outputs. It's likely
+		// the spec will expand to add extra fields, in which case we'll
+		// add them here and drop the first column
+		rows = append(rows, fmt.Sprintf("%02d|%v", i, strings.Join(segmentPairs, ", ")))
 	}
-
-	// Append the header
-	var line []string
-	for key := range head {
-		line = append(line, key)
+	if len(rows) == 1 {
+		return ""
 	}
-	out = append(out, strings.Join(line, " "))
-
-	// Append each topology
-	for _, t := range vol.Topologies {
-		line = []string{}
-		for key := range head {
-			line = append(line, t.Segments[key])
-		}
-		out = append(out, strings.Join(line, " "))
-	}
-
-	return strings.Join(out, "\n")
+	return formatList(rows)
 }
 
 func csiVolMountOption(volume, request *api.CSIMountOptions) string {

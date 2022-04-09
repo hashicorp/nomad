@@ -1,19 +1,10 @@
+/* eslint-disable ember/no-controller-access-in-routes */
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import EmberError from '@ember/error';
 
 export default class TaskRoute extends Route {
   @service store;
-
-  breadcrumbs(model) {
-    if (!model) return [];
-    return [
-      {
-        label: model.get('name'),
-        args: ['allocations.allocation.task', model.get('allocation'), model],
-      },
-    ];
-  }
 
   model({ name }) {
     const allocation = this.modelFor('allocations.allocation');
@@ -25,7 +16,9 @@ export default class TaskRoute extends Route {
     const task = allocation.get('states').findBy('name', name);
 
     if (!task) {
-      const err = new EmberError(`Task ${name} not found for allocation ${allocation.get('id')}`);
+      const err = new EmberError(
+        `Task ${name} not found for allocation ${allocation.get('id')}`
+      );
       err.code = '404';
       this.controllerFor('application').set('error', err);
     }

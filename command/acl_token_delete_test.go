@@ -2,11 +2,11 @@ package command
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -15,8 +15,8 @@ import (
 )
 
 func TestACLTokenDeleteCommand_ViaEnvVariable(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	config := func(c *agent.Config) {
 		c.ACL.Enabled = true
 	}
@@ -28,7 +28,7 @@ func TestACLTokenDeleteCommand_ViaEnvVariable(t *testing.T) {
 	token := srv.RootToken
 	assert.NotNil(token, "failed to bootstrap ACL token")
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLTokenDeleteCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 	state := srv.Agent.Server().State()
 
@@ -36,18 +36,16 @@ func TestACLTokenDeleteCommand_ViaEnvVariable(t *testing.T) {
 	mockToken := mock.ACLToken()
 	mockToken.Policies = []string{acl.PolicyWrite}
 	mockToken.SetHash()
-	assert.Nil(state.UpsertACLTokens(1000, []*structs.ACLToken{mockToken}))
+	assert.Nil(state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{mockToken}))
 
 	// Attempt to delete a token without providing a valid token with delete
 	// permissions
-	os.Setenv("NOMAD_TOKEN", "foo")
-	code := cmd.Run([]string{"-address=" + url, mockToken.AccessorID})
+	code := cmd.Run([]string{"-address=" + url, "-token=foo", mockToken.AccessorID})
 	assert.Equal(1, code)
 
 	// Delete a token using a valid management token set via an environment
 	// variable
-	os.Setenv("NOMAD_TOKEN", token.SecretID)
-	code = cmd.Run([]string{"-address=" + url, mockToken.AccessorID})
+	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, mockToken.AccessorID})
 	assert.Equal(0, code)
 
 	// Check the output

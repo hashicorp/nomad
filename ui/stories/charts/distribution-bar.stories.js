@@ -6,7 +6,7 @@ import { on } from '@ember/object/evented';
 import DelayedTruth from '../utils/delayed-truth';
 
 export default {
-  title: 'Charts|Distribution Bar',
+  title: 'Charts/Distribution Bar',
 };
 
 export let Standard = () => {
@@ -98,7 +98,7 @@ export let LiveUpdating = () => {
       controller: EmberObject.extend({
         timerTicks: 0,
 
-        startTimer: on('init', function() {
+        startTimer: on('init', function () {
           this.set(
             'timer',
             setInterval(() => {
@@ -111,7 +111,7 @@ export let LiveUpdating = () => {
           clearInterval(this.timer);
         },
 
-        distributionBarDataRotating: computed('timerTicks', function() {
+        distributionBarDataRotating: computed('timerTicks', function () {
           return [
             { label: 'one', value: Math.round(Math.random() * 50) },
             { label: 'two', value: Math.round(Math.random() * 50) },

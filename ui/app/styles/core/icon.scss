@@ -46,4 +46,9 @@ $icon-dimensions-large: 2rem;
       color: $color;
     }
   }
+
+  &.is-grey {
+    fill: $grey;
+    color: $grey;
+  }
 }

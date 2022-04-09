@@ -10,7 +10,6 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 type hookResourceSetter interface {
@@ -39,23 +38,6 @@ func (a *allocHookResourceSetter) SetAllocHookResources(res *cstructs.AllocHookR
 	// TODO: Refactor so TR's pull state from AR?
 	for _, tr := range a.ar.tasks {
 		tr.SetAllocHookResources(res)
-	}
-}
-
-type networkIsolationSetter interface {
-	SetNetworkIsolation(*drivers.NetworkIsolationSpec)
-}
-
-// allocNetworkIsolationSetter is a shim to allow the alloc network hook to
-// set the alloc network isolation configuration without full access
-// to the alloc runner
-type allocNetworkIsolationSetter struct {
-	ar *allocRunner
-}
-
-func (a *allocNetworkIsolationSetter) SetNetworkIsolation(n *drivers.NetworkIsolationSpec) {
-	for _, tr := range a.ar.tasks {
-		tr.SetNetworkIsolation(n)
 	}
 }
 
@@ -151,24 +133,37 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		return fmt.Errorf("failed to initialize network configurator: %v", err)
 	}
 
+	// Create a new taskenv.Builder which is used and mutated by networkHook.
+	envBuilder := taskenv.NewBuilder(
+		config.Node, ar.Alloc(), nil, config.Region).SetAllocDir(ar.allocDir.AllocDir)
+
+	// Create a taskenv.TaskEnv which is used for read only purposes by the
+	// newNetworkHook.
+	builtTaskEnv := envBuilder.Build()
+
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
 	alloc := ar.Alloc()
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newAllocDirHook(hookLogger, ar.allocDir),
+		newCgroupHook(ar.Alloc(), ar.cpusetManager),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, alloc, hs, ar.Listener(), ar.consulClient),
-		newNetworkHook(hookLogger, ns, alloc, nm, nc),
+		newNetworkHook(hookLogger, ns, alloc, nm, nc, ar, builtTaskEnv),
 		newGroupServiceHook(groupServiceHookConfig{
-			alloc:          alloc,
-			consul:         ar.consulClient,
-			restarter:      ar,
-			taskEnvBuilder: taskenv.NewBuilder(config.Node, ar.Alloc(), nil, config.Region).SetAllocDir(ar.allocDir.AllocDir),
-			logger:         hookLogger,
+			alloc:               alloc,
+			namespace:           alloc.ServiceProviderNamespace(),
+			serviceRegWrapper:   ar.serviceRegWrapper,
+			restarter:           ar,
+			taskEnvBuilder:      envBuilder,
+			networkStatusGetter: ar,
+			logger:              hookLogger,
+			shutdownDelayCtx:    ar.shutdownDelayCtx,
 		}),
-		newConsulSockHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
-		newCSIHook(ar, hookLogger, alloc, ar.rpcClient, ar.csiManager, hrs),
+		newConsulGRPCSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
+		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
+		newCSIHook(alloc, hookLogger, ar.csiManager, ar.rpcClient, ar, hrs, ar.clientConfig.Node.SecretID),
 	}
 
 	return nil
@@ -373,6 +368,31 @@ func (ar *allocRunner) shutdownHooks() {
 		if ar.logger.IsTrace() {
 			end := time.Now()
 			ar.logger.Trace("finished shutdown hooks", "name", name, "end", end, "duration", end.Sub(start))
+		}
+	}
+}
+
+func (ar *allocRunner) taskRestartHooks() {
+	for _, hook := range ar.runnerHooks {
+		re, ok := hook.(interfaces.RunnerTaskRestartHook)
+		if !ok {
+			continue
+		}
+
+		name := re.Name()
+		var start time.Time
+		if ar.logger.IsTrace() {
+			start = time.Now()
+			ar.logger.Trace("running alloc task restart hook",
+				"name", name, "start", start)
+		}
+
+		re.PreTaskRestart()
+
+		if ar.logger.IsTrace() {
+			end := time.Now()
+			ar.logger.Trace("finished alloc task restart hook",
+				"name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
 }

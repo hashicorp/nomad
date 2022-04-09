@@ -39,7 +39,7 @@ type bridgeNetworkConfigurator struct {
 	logger hclog.Logger
 }
 
-func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange, cniPath string) (*bridgeNetworkConfigurator, error) {
+func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange, cniPath string, ignorePortMappingHostIP bool) (*bridgeNetworkConfigurator, error) {
 	b := &bridgeNetworkConfigurator{
 		bridgeName:  bridgeName,
 		allocSubnet: ipRange,
@@ -54,7 +54,7 @@ func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange, cniPath
 		b.allocSubnet = defaultNomadAllocSubnet
 	}
 
-	c, err := newCNINetworkConfiguratorWithConf(log, cniPath, bridgeNetworkAllocIfPrefix, buildNomadBridgeNetConfig(b.bridgeName, b.allocSubnet))
+	c, err := newCNINetworkConfiguratorWithConf(log, cniPath, bridgeNetworkAllocIfPrefix, ignorePortMappingHostIP, buildNomadBridgeNetConfig(b.bridgeName, b.allocSubnet))
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
 		return err
 	}
 
-	if err := ensureFirstChainRule(ipt, cniAdminChainName, b.generateAdminChainRule()); err != nil {
+	if err := appendChainRule(ipt, cniAdminChainName, b.generateAdminChainRule()); err != nil {
 		return err
 	}
 
@@ -105,12 +105,11 @@ func ensureChain(ipt *iptables.IPTables, table, chain string) error {
 	return err
 }
 
-// ensureFirstChainRule ensures the given rule exists as the first rule in the chain
-func ensureFirstChainRule(ipt *iptables.IPTables, chain string, rule []string) error {
+// appendChainRule adds the given rule to the chain
+func appendChainRule(ipt *iptables.IPTables, chain string, rule []string) error {
 	exists, err := ipt.Exists("filter", chain, rule...)
 	if !exists && err == nil {
-		// iptables rules are 1-indexed
-		err = ipt.Insert("filter", chain, 1, rule...)
+		err = ipt.Append("filter", chain, rule...)
 	}
 	return err
 }
@@ -122,9 +121,9 @@ func (b *bridgeNetworkConfigurator) generateAdminChainRule() []string {
 }
 
 // Setup calls the CNI plugins with the add action
-func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {
+func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error) {
 	if err := b.ensureForwardingRules(); err != nil {
-		return fmt.Errorf("failed to initialize table forwarding rules: %v", err)
+		return nil, fmt.Errorf("failed to initialize table forwarding rules: %v", err)
 	}
 
 	return b.cni.Setup(ctx, alloc, spec)

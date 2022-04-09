@@ -1,4 +1,4 @@
-{{title "Tokens"}}
+{{page-title "Tokens"}}
 <section class="section">
   <h1 class="title">Access Control Tokens</h1>
   <div class="columns">
@@ -12,30 +12,32 @@
             <p>Tokens are stored client-side in <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage">local storage</a>. This will persist your token across sessions. You can manually clear your token here.</p>
           </div>
           <div class="column is-centered is-minimum">
-            <button class="button is-info" {{action "clearTokenProperties"}}>Clear Token</button>
+            <button data-test-token-clear class="button is-info" {{action "clearTokenProperties"}} type="button">Clear Token</button>
           </div>
         </div>
       </div>
 
-      {{#if (not tokenIsValid)}}
+      {{#unless this.tokenIsValid}}
         <div class="field">
-          <label class="label">Secret ID</label>
+          <label class="label" for="token-input">Secret ID</label>
           <div class="control">
             <input
+              id="token-input"
               class="input"
               type="text"
               placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-              value={{token.secret}}
-              oninput={{action (mut secret) value="target.value"}}
+              {{!-- FIXME this placeholder gets read out by VoiceOver sans dashes 😵 --}}
+              value={{this.token.secret}}
+              oninput={{action (mut this.secret) value="target.value"}}
               data-test-token-secret>
           </div>
           <p class="help">Sent with every request to determine authorization</p>
         </div>
 
-        <p class="content"><button data-test-token-submit class="button is-primary" {{action "verifyToken"}}>Set Token</button></p>
-      {{/if}}
+        <p class="content"><button data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">Set Token</button></p>
+      {{/unless}}
 
-      {{#if tokenIsValid}}
+      {{#if this.tokenIsValid}}
         <div data-test-token-success class="notification is-success">
           <div class="columns">
             <div class="column">
@@ -46,7 +48,7 @@
         </div>
       {{/if}}
 
-      {{#if tokenIsInvalid}}
+      {{#if this.tokenIsInvalid}}
         <div data-test-token-error class="notification is-danger">
           <div class="columns">
             <div class="column">
@@ -57,21 +59,21 @@
         </div>
       {{/if}}
 
-      {{#if tokenRecord}}
-        <h3 class="title is-4">Token: {{tokenRecord.name}}</h3>
+      {{#if this.tokenRecord}}
+        <h3 class="title is-4">Token: {{this.tokenRecord.name}}</h3>
         <div class="content">
-          <div>AccessorID: <code>{{tokenRecord.accessor}}</code></div>
-          <div>SecretID: <code>{{tokenRecord.secret}}</code></div>
+          <div>AccessorID: <code>{{this.tokenRecord.accessor}}</code></div>
+          <div>SecretID: <code>{{this.tokenRecord.secret}}</code></div>
         </div>
         <h3 class="title is-4">Policies</h3>
-        {{#if (eq tokenRecord.type "management")}}
+        {{#if (eq this.tokenRecord.type "management")}}
           <div data-test-token-management-message class="boxed-section">
             <div class="boxed-section-body has-centered-text">
               The management token has all permissions
             </div>
           </div>
         {{else}}
-          {{#each tokenRecord.policies as |policy|}}
+          {{#each this.tokenRecord.policies as |policy|}}
             <div data-test-token-policy class="boxed-section">
               <div data-test-policy-name class="boxed-section-head">
                 {{policy.name}}

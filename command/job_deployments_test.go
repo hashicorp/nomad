@@ -4,20 +4,22 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestJobDeploymentsCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &JobDeploymentsCommand{}
 }
 
 func TestJobDeploymentsCommand_Fails(t *testing.T) {
-	t.Parallel()
-	ui := new(cli.MockUi)
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
 	cmd := &JobDeploymentsCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -39,12 +41,13 @@ func TestJobDeploymentsCommand_Fails(t *testing.T) {
 }
 
 func TestJobDeploymentsCommand_Run(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	assert := assert.New(t)
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobDeploymentsCommand{Meta: Meta{Ui: ui}}
 
 	// Should return an error message for no job match
@@ -55,7 +58,7 @@ func TestJobDeploymentsCommand_Run(t *testing.T) {
 	// Create a job without a deployment
 	job := mock.Job()
 	state := srv.Agent.Server().State()
-	assert.Nil(state.UpsertJob(100, job))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 100, job))
 
 	// Should display no match if the job doesn't have deployments
 	if code := cmd.Run([]string{"-address=" + url, job.ID}); code != 0 {
@@ -83,12 +86,12 @@ func TestJobDeploymentsCommand_Run(t *testing.T) {
 }
 
 func TestJobDeploymentsCommand_Run_Latest(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobDeploymentsCommand{Meta: Meta{Ui: ui}}
 
 	// Should return an error message for no job match
@@ -99,7 +102,7 @@ func TestJobDeploymentsCommand_Run_Latest(t *testing.T) {
 	// Create a job without a deployment
 	job := mock.Job()
 	state := srv.Agent.Server().State()
-	assert.Nil(state.UpsertJob(100, job))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 100, job))
 
 	// Should display no match if the job doesn't have deployments
 	if code := cmd.Run([]string{"-address=" + url, "-latest", job.ID}); code != 0 {
@@ -127,19 +130,19 @@ func TestJobDeploymentsCommand_Run_Latest(t *testing.T) {
 }
 
 func TestJobDeploymentsCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobDeploymentsCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(1000, j))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}

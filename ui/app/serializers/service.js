@@ -1,15 +1,11 @@
 import ApplicationSerializer from './application';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class ServiceSerializer extends ApplicationSerializer {
   attrs = {
     connect: 'Connect',
   };
 
-  normalize(typeHash, hash) {
-    if (!hash.Tags) {
-      hash.Tags = [];
-    }
-
-    return super.normalize(typeHash, hash);
-  }
+  arrayNullOverrides = ['Tags'];
 }

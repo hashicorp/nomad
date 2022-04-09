@@ -45,6 +45,30 @@ type CSIPlugin interface {
 	// supports the requested capability.
 	ControllerValidateCapabilities(ctx context.Context, req *ControllerValidateVolumeRequest, opts ...grpc.CallOption) error
 
+	// ControllerCreateVolume is used to create a remote volume in the
+	// external storage provider
+	ControllerCreateVolume(ctx context.Context, req *ControllerCreateVolumeRequest, opts ...grpc.CallOption) (*ControllerCreateVolumeResponse, error)
+
+	// ControllerDeleteVolume is used to delete a remote volume in the
+	// external storage provider
+	ControllerDeleteVolume(ctx context.Context, req *ControllerDeleteVolumeRequest, opts ...grpc.CallOption) error
+
+	// ControllerListVolumes is used to list all volumes available in the
+	// external storage provider
+	ControllerListVolumes(ctx context.Context, req *ControllerListVolumesRequest, opts ...grpc.CallOption) (*ControllerListVolumesResponse, error)
+
+	// ControllerCreateSnapshot is used to create a volume snapshot in the
+	// external storage provider
+	ControllerCreateSnapshot(ctx context.Context, req *ControllerCreateSnapshotRequest, opts ...grpc.CallOption) (*ControllerCreateSnapshotResponse, error)
+
+	// ControllerDeleteSnapshot is used to delete a volume snapshot from the
+	// external storage provider
+	ControllerDeleteSnapshot(ctx context.Context, req *ControllerDeleteSnapshotRequest, opts ...grpc.CallOption) error
+
+	// ControllerListSnapshots is used to list all volume snapshots available
+	// in the external storage provider
+	ControllerListSnapshots(ctx context.Context, req *ControllerListSnapshotsRequest, opts ...grpc.CallOption) (*ControllerListSnapshotsResponse, error)
+
 	// NodeGetCapabilities is used to return the available capabilities from the
 	// Node Service.
 	NodeGetCapabilities(ctx context.Context) (*NodeCapabilitySet, error)
@@ -226,7 +250,7 @@ func (p *PluginCapabilitySet) HasControllerService() bool {
 	return p.hasControllerService
 }
 
-// HasTopologies indicates whether the volumes for this plugin are equally
+// HasToplogies indicates whether the volumes for this plugin are equally
 // accessible by all nodes in the cluster.
 // If true, we MUST use the topology information when scheduling workloads.
 func (p *PluginCapabilitySet) HasToplogies() bool {
@@ -268,10 +292,18 @@ func NewPluginCapabilitySet(capabilities *csipbv1.GetPluginCapabilitiesResponse)
 }
 
 type ControllerCapabilitySet struct {
+	HasCreateDeleteVolume        bool
 	HasPublishUnpublishVolume    bool
-	HasPublishReadonly           bool
 	HasListVolumes               bool
+	HasGetCapacity               bool
+	HasCreateDeleteSnapshot      bool
+	HasListSnapshots             bool
+	HasCloneVolume               bool
+	HasPublishReadonly           bool
+	HasExpandVolume              bool
 	HasListVolumesPublishedNodes bool
+	HasVolumeCondition           bool
+	HasGetVolume                 bool
 }
 
 func NewControllerCapabilitySet(resp *csipbv1.ControllerGetCapabilitiesResponse) *ControllerCapabilitySet {
@@ -281,14 +313,30 @@ func NewControllerCapabilitySet(resp *csipbv1.ControllerGetCapabilitiesResponse)
 	for _, pcap := range pluginCapabilities {
 		if c := pcap.GetRpc(); c != nil {
 			switch c.Type {
+			case csipbv1.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME:
+				cs.HasCreateDeleteVolume = true
 			case csipbv1.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME:
 				cs.HasPublishUnpublishVolume = true
-			case csipbv1.ControllerServiceCapability_RPC_PUBLISH_READONLY:
-				cs.HasPublishReadonly = true
 			case csipbv1.ControllerServiceCapability_RPC_LIST_VOLUMES:
 				cs.HasListVolumes = true
+			case csipbv1.ControllerServiceCapability_RPC_GET_CAPACITY:
+				cs.HasGetCapacity = true
+			case csipbv1.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT:
+				cs.HasCreateDeleteSnapshot = true
+			case csipbv1.ControllerServiceCapability_RPC_LIST_SNAPSHOTS:
+				cs.HasListSnapshots = true
+			case csipbv1.ControllerServiceCapability_RPC_CLONE_VOLUME:
+				cs.HasCloneVolume = true
+			case csipbv1.ControllerServiceCapability_RPC_PUBLISH_READONLY:
+				cs.HasPublishReadonly = true
+			case csipbv1.ControllerServiceCapability_RPC_EXPAND_VOLUME:
+				cs.HasExpandVolume = true
 			case csipbv1.ControllerServiceCapability_RPC_LIST_VOLUMES_PUBLISHED_NODES:
 				cs.HasListVolumesPublishedNodes = true
+			case csipbv1.ControllerServiceCapability_RPC_VOLUME_CONDITION:
+				cs.HasVolumeCondition = true
+			case csipbv1.ControllerServiceCapability_RPC_GET_VOLUME:
+				cs.HasGetVolume = true
 			default:
 				continue
 			}
@@ -301,7 +349,7 @@ func NewControllerCapabilitySet(resp *csipbv1.ControllerGetCapabilitiesResponse)
 type ControllerValidateVolumeRequest struct {
 	ExternalID   string
 	Secrets      structs.CSISecrets
-	Capabilities *VolumeCapability
+	Capabilities []*VolumeCapability
 	Parameters   map[string]string
 	Context      map[string]string
 }
@@ -311,14 +359,17 @@ func (r *ControllerValidateVolumeRequest) ToCSIRepresentation() *csipbv1.Validat
 		return nil
 	}
 
+	caps := make([]*csipbv1.VolumeCapability, 0, len(r.Capabilities))
+	for _, cap := range r.Capabilities {
+		caps = append(caps, cap.ToCSIRepresentation())
+	}
+
 	return &csipbv1.ValidateVolumeCapabilitiesRequest{
-		VolumeId:      r.ExternalID,
-		VolumeContext: r.Context,
-		VolumeCapabilities: []*csipbv1.VolumeCapability{
-			r.Capabilities.ToCSIRepresentation(),
-		},
-		Parameters: r.Parameters,
-		Secrets:    r.Secrets,
+		VolumeId:           r.ExternalID,
+		VolumeContext:      r.Context,
+		VolumeCapabilities: caps,
+		Parameters:         r.Parameters,
+		Secrets:            r.Secrets,
 	}
 }
 
@@ -392,8 +443,377 @@ func (r *ControllerUnpublishVolumeRequest) Validate() error {
 
 type ControllerUnpublishVolumeResponse struct{}
 
+type ControllerCreateVolumeRequest struct {
+	// note that Name is intentionally differentiated from both CSIVolume.ID
+	// and ExternalVolumeID. This name is only a recommendation for the
+	// storage provider, and many will discard this suggestion
+	Name                      string
+	CapacityRange             *CapacityRange
+	VolumeCapabilities        []*VolumeCapability
+	Parameters                map[string]string
+	Secrets                   structs.CSISecrets
+	ContentSource             *VolumeContentSource
+	AccessibilityRequirements *TopologyRequirement
+}
+
+func (r *ControllerCreateVolumeRequest) ToCSIRepresentation() *csipbv1.CreateVolumeRequest {
+	if r == nil {
+		return nil
+	}
+	caps := make([]*csipbv1.VolumeCapability, 0, len(r.VolumeCapabilities))
+	for _, cap := range r.VolumeCapabilities {
+		caps = append(caps, cap.ToCSIRepresentation())
+	}
+	req := &csipbv1.CreateVolumeRequest{
+		Name:                      r.Name,
+		CapacityRange:             r.CapacityRange.ToCSIRepresentation(),
+		VolumeCapabilities:        caps,
+		Parameters:                r.Parameters,
+		Secrets:                   r.Secrets,
+		VolumeContentSource:       r.ContentSource.ToCSIRepresentation(),
+		AccessibilityRequirements: r.AccessibilityRequirements.ToCSIRepresentation(),
+	}
+
+	return req
+}
+
+func (r *ControllerCreateVolumeRequest) Validate() error {
+	if r.Name == "" {
+		return errors.New("missing Name")
+	}
+	if r.VolumeCapabilities == nil {
+		return errors.New("missing VolumeCapabilities")
+	}
+	if r.CapacityRange != nil {
+		if r.CapacityRange.LimitBytes == 0 && r.CapacityRange.RequiredBytes == 0 {
+			return errors.New(
+				"one of LimitBytes or RequiredBytes must be set if CapacityRange is set")
+		}
+		if r.CapacityRange.LimitBytes < r.CapacityRange.RequiredBytes {
+			return errors.New("LimitBytes cannot be less than RequiredBytes")
+		}
+	}
+	if r.ContentSource != nil {
+		if r.ContentSource.CloneID != "" && r.ContentSource.SnapshotID != "" {
+			return errors.New(
+				"one of SnapshotID or CloneID must be set if ContentSource is set")
+		}
+	}
+	return nil
+}
+
+// VolumeContentSource is snapshot or volume that the plugin will use to
+// create the new volume. At most one of these fields can be set, but nil (and
+// not an empty struct) is expected by CSI plugins if neither field is set.
+type VolumeContentSource struct {
+	SnapshotID string
+	CloneID    string
+}
+
+func (vcr *VolumeContentSource) ToCSIRepresentation() *csipbv1.VolumeContentSource {
+	if vcr == nil {
+		return nil
+	}
+	if vcr.CloneID != "" {
+		return &csipbv1.VolumeContentSource{
+			Type: &csipbv1.VolumeContentSource_Volume{
+				Volume: &csipbv1.VolumeContentSource_VolumeSource{
+					VolumeId: vcr.CloneID,
+				},
+			},
+		}
+	} else if vcr.SnapshotID != "" {
+		return &csipbv1.VolumeContentSource{
+			Type: &csipbv1.VolumeContentSource_Snapshot{
+				Snapshot: &csipbv1.VolumeContentSource_SnapshotSource{
+					SnapshotId: vcr.SnapshotID,
+				},
+			},
+		}
+	}
+	// Nomad's RPCs will hand us an empty struct, not nil
+	return nil
+}
+
+func newVolumeContentSource(src *csipbv1.VolumeContentSource) *VolumeContentSource {
+	return &VolumeContentSource{
+		SnapshotID: src.GetSnapshot().GetSnapshotId(),
+		CloneID:    src.GetVolume().GetVolumeId(),
+	}
+}
+
+type TopologyRequirement struct {
+	Requisite []*Topology
+	Preferred []*Topology
+}
+
+func (tr *TopologyRequirement) ToCSIRepresentation() *csipbv1.TopologyRequirement {
+	if tr == nil {
+		return nil
+	}
+	result := &csipbv1.TopologyRequirement{
+		Requisite: []*csipbv1.Topology{},
+		Preferred: []*csipbv1.Topology{},
+	}
+	for _, topo := range tr.Requisite {
+		result.Requisite = append(result.Requisite,
+			&csipbv1.Topology{Segments: topo.Segments})
+	}
+	for _, topo := range tr.Preferred {
+		result.Preferred = append(result.Preferred,
+			&csipbv1.Topology{Segments: topo.Segments})
+	}
+	return result
+}
+
+func newTopologies(src []*csipbv1.Topology) []*Topology {
+	t := []*Topology{}
+	for _, topo := range src {
+		t = append(t, &Topology{Segments: topo.Segments})
+	}
+	return t
+}
+
+type ControllerCreateVolumeResponse struct {
+	Volume *Volume
+}
+
+func NewCreateVolumeResponse(resp *csipbv1.CreateVolumeResponse) *ControllerCreateVolumeResponse {
+	vol := resp.GetVolume()
+	return &ControllerCreateVolumeResponse{Volume: &Volume{
+		CapacityBytes:      vol.GetCapacityBytes(),
+		ExternalVolumeID:   vol.GetVolumeId(),
+		VolumeContext:      vol.GetVolumeContext(),
+		ContentSource:      newVolumeContentSource(vol.GetContentSource()),
+		AccessibleTopology: newTopologies(vol.GetAccessibleTopology()),
+	}}
+}
+
+type Volume struct {
+	CapacityBytes int64
+
+	// this is differentiated from VolumeID so as not to create confusion
+	// between the Nomad CSIVolume.ID and the storage provider's ID.
+	ExternalVolumeID   string
+	VolumeContext      map[string]string
+	ContentSource      *VolumeContentSource
+	AccessibleTopology []*Topology
+}
+
+type ControllerDeleteVolumeRequest struct {
+	ExternalVolumeID string
+	Secrets          structs.CSISecrets
+}
+
+func (r *ControllerDeleteVolumeRequest) ToCSIRepresentation() *csipbv1.DeleteVolumeRequest {
+	if r == nil {
+		return nil
+	}
+	return &csipbv1.DeleteVolumeRequest{
+		VolumeId: r.ExternalVolumeID,
+		Secrets:  r.Secrets,
+	}
+}
+
+func (r *ControllerDeleteVolumeRequest) Validate() error {
+	if r.ExternalVolumeID == "" {
+		return errors.New("missing ExternalVolumeID")
+	}
+	return nil
+}
+
+type ControllerListVolumesRequest struct {
+	MaxEntries    int32
+	StartingToken string
+}
+
+func (r *ControllerListVolumesRequest) ToCSIRepresentation() *csipbv1.ListVolumesRequest {
+	if r == nil {
+		return nil
+	}
+	return &csipbv1.ListVolumesRequest{
+		MaxEntries:    r.MaxEntries,
+		StartingToken: r.StartingToken,
+	}
+}
+
+func (r *ControllerListVolumesRequest) Validate() error {
+	if r.MaxEntries < 0 {
+		return errors.New("MaxEntries cannot be negative")
+	}
+	return nil
+}
+
+type ControllerListVolumesResponse struct {
+	Entries   []*ListVolumesResponse_Entry
+	NextToken string
+}
+
+func NewListVolumesResponse(resp *csipbv1.ListVolumesResponse) *ControllerListVolumesResponse {
+	if resp == nil {
+		return &ControllerListVolumesResponse{}
+	}
+	entries := []*ListVolumesResponse_Entry{}
+	if resp.Entries != nil {
+		for _, entry := range resp.Entries {
+			vol := entry.GetVolume()
+			status := entry.GetStatus()
+			entries = append(entries, &ListVolumesResponse_Entry{
+				Volume: &Volume{
+					CapacityBytes:      vol.CapacityBytes,
+					ExternalVolumeID:   vol.VolumeId,
+					VolumeContext:      vol.VolumeContext,
+					ContentSource:      newVolumeContentSource(vol.ContentSource),
+					AccessibleTopology: newTopologies(vol.AccessibleTopology),
+				},
+				Status: &ListVolumesResponse_VolumeStatus{
+					PublishedNodeIds: status.GetPublishedNodeIds(),
+					VolumeCondition: &VolumeCondition{
+						Abnormal: status.GetVolumeCondition().GetAbnormal(),
+						Message:  status.GetVolumeCondition().GetMessage(),
+					},
+				},
+			})
+		}
+	}
+	return &ControllerListVolumesResponse{
+		Entries:   entries,
+		NextToken: resp.NextToken,
+	}
+}
+
+type ListVolumesResponse_Entry struct {
+	Volume *Volume
+	Status *ListVolumesResponse_VolumeStatus
+}
+
+type ListVolumesResponse_VolumeStatus struct {
+	PublishedNodeIds []string
+	VolumeCondition  *VolumeCondition
+}
+
+type VolumeCondition struct {
+	Abnormal bool
+	Message  string
+}
+
+type ControllerCreateSnapshotRequest struct {
+	VolumeID   string
+	Name       string
+	Secrets    structs.CSISecrets
+	Parameters map[string]string
+}
+
+func (r *ControllerCreateSnapshotRequest) ToCSIRepresentation() *csipbv1.CreateSnapshotRequest {
+	return &csipbv1.CreateSnapshotRequest{
+		SourceVolumeId: r.VolumeID,
+		Name:           r.Name,
+		Secrets:        r.Secrets,
+		Parameters:     r.Parameters,
+	}
+}
+
+func (r *ControllerCreateSnapshotRequest) Validate() error {
+	if r.VolumeID == "" {
+		return errors.New("missing VolumeID")
+	}
+	if r.Name == "" {
+		return errors.New("missing Name")
+	}
+	return nil
+}
+
+type ControllerCreateSnapshotResponse struct {
+	Snapshot *Snapshot
+}
+
+type Snapshot struct {
+	ID             string
+	SourceVolumeID string
+	SizeBytes      int64
+	CreateTime     int64
+	IsReady        bool
+}
+
+type ControllerDeleteSnapshotRequest struct {
+	SnapshotID string
+	Secrets    structs.CSISecrets
+}
+
+func (r *ControllerDeleteSnapshotRequest) ToCSIRepresentation() *csipbv1.DeleteSnapshotRequest {
+	return &csipbv1.DeleteSnapshotRequest{
+		SnapshotId: r.SnapshotID,
+		Secrets:    r.Secrets,
+	}
+}
+
+func (r *ControllerDeleteSnapshotRequest) Validate() error {
+	if r.SnapshotID == "" {
+		return errors.New("missing SnapshotID")
+	}
+	return nil
+}
+
+type ControllerListSnapshotsRequest struct {
+	MaxEntries    int32
+	StartingToken string
+	Secrets       structs.CSISecrets
+}
+
+func (r *ControllerListSnapshotsRequest) ToCSIRepresentation() *csipbv1.ListSnapshotsRequest {
+	return &csipbv1.ListSnapshotsRequest{
+		MaxEntries:    r.MaxEntries,
+		StartingToken: r.StartingToken,
+		Secrets:       r.Secrets,
+	}
+}
+
+func (r *ControllerListSnapshotsRequest) Validate() error {
+	if r.MaxEntries < 0 {
+		return errors.New("MaxEntries cannot be negative")
+	}
+	return nil
+}
+
+func NewListSnapshotsResponse(resp *csipbv1.ListSnapshotsResponse) *ControllerListSnapshotsResponse {
+	if resp == nil {
+		return &ControllerListSnapshotsResponse{}
+	}
+	entries := []*ListSnapshotsResponse_Entry{}
+	if resp.Entries != nil {
+		for _, entry := range resp.Entries {
+			snap := entry.GetSnapshot()
+			entries = append(entries, &ListSnapshotsResponse_Entry{
+				Snapshot: &Snapshot{
+					SizeBytes:      snap.GetSizeBytes(),
+					ID:             snap.GetSnapshotId(),
+					SourceVolumeID: snap.GetSourceVolumeId(),
+					CreateTime:     snap.GetCreationTime().GetSeconds(),
+					IsReady:        snap.GetReadyToUse(),
+				},
+			})
+		}
+	}
+	return &ControllerListSnapshotsResponse{
+		Entries:   entries,
+		NextToken: resp.NextToken,
+	}
+}
+
+type ControllerListSnapshotsResponse struct {
+	Entries   []*ListSnapshotsResponse_Entry
+	NextToken string
+}
+
+type ListSnapshotsResponse_Entry struct {
+	Snapshot *Snapshot
+}
+
 type NodeCapabilitySet struct {
 	HasStageUnstageVolume bool
+	HasGetVolumeStats     bool
+	HasExpandVolume       bool
+	HasVolumeCondition    bool
 }
 
 func NewNodeCapabilitySet(resp *csipbv1.NodeGetCapabilitiesResponse) *NodeCapabilitySet {
@@ -404,6 +824,12 @@ func NewNodeCapabilitySet(resp *csipbv1.NodeGetCapabilitiesResponse) *NodeCapabi
 			switch c.Type {
 			case csipbv1.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME:
 				cs.HasStageUnstageVolume = true
+			case csipbv1.NodeServiceCapability_RPC_GET_VOLUME_STATS:
+				cs.HasGetVolumeStats = true
+			case csipbv1.NodeServiceCapability_RPC_EXPAND_VOLUME:
+				cs.HasExpandVolume = true
+			case csipbv1.NodeServiceCapability_RPC_VOLUME_CONDITION:
+				cs.HasVolumeCondition = true
 			default:
 				continue
 			}
@@ -466,7 +892,7 @@ type VolumeCapability struct {
 	MountVolume *structs.CSIMountOptions
 }
 
-func VolumeCapabilityFromStructs(sAccessType structs.CSIVolumeAttachmentMode, sAccessMode structs.CSIVolumeAccessMode) (*VolumeCapability, error) {
+func VolumeCapabilityFromStructs(sAccessType structs.CSIVolumeAttachmentMode, sAccessMode structs.CSIVolumeAccessMode, sMountOptions *structs.CSIMountOptions) (*VolumeCapability, error) {
 	var accessType VolumeAccessType
 	switch sAccessType {
 	case structs.CSIVolumeAttachmentModeBlockDevice:
@@ -478,7 +904,7 @@ func VolumeCapabilityFromStructs(sAccessType structs.CSIVolumeAttachmentMode, sA
 		// final check during transformation into the requisite CSI Data type to
 		// defend against development bugs and corrupted state - and incompatible
 		// nomad versions in the future.
-		return nil, fmt.Errorf("Unknown volume attachment mode: %s", sAccessType)
+		return nil, fmt.Errorf("unknown volume attachment mode: %s", sAccessType)
 	}
 
 	var accessMode VolumeAccessMode
@@ -498,12 +924,13 @@ func VolumeCapabilityFromStructs(sAccessType structs.CSIVolumeAttachmentMode, sA
 		// final check during transformation into the requisite CSI Data type to
 		// defend against development bugs and corrupted state - and incompatible
 		// nomad versions in the future.
-		return nil, fmt.Errorf("Unknown volume access mode: %v", sAccessMode)
+		return nil, fmt.Errorf("unknown volume access mode: %v", sAccessMode)
 	}
 
 	return &VolumeCapability{
-		AccessType: accessType,
-		AccessMode: accessMode,
+		AccessType:  accessType,
+		AccessMode:  accessMode,
+		MountVolume: sMountOptions,
 	}, nil
 }
 
@@ -530,4 +957,19 @@ func (c *VolumeCapability) ToCSIRepresentation() *csipbv1.VolumeCapability {
 	}
 
 	return vc
+}
+
+type CapacityRange struct {
+	RequiredBytes int64
+	LimitBytes    int64
+}
+
+func (c *CapacityRange) ToCSIRepresentation() *csipbv1.CapacityRange {
+	if c == nil {
+		return nil
+	}
+	return &csipbv1.CapacityRange{
+		RequiredBytes: c.RequiredBytes,
+		LimitBytes:    c.LimitBytes,
+	}
 }

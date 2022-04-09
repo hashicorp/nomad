@@ -1,9 +1,24 @@
 import Watchable from './watchable';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class DeploymentAdapter extends Watchable {
+  fail(deployment) {
+    const id = deployment.get('id');
+    const url = urlForAction(this.urlForFindRecord(id, 'deployment'), '/fail');
+    return this.ajax(url, 'POST', {
+      data: {
+        DeploymentId: id,
+      },
+    });
+  }
+
   promote(deployment) {
     const id = deployment.get('id');
-    const url = urlForAction(this.urlForFindRecord(id, 'deployment'), '/promote');
+    const url = urlForAction(
+      this.urlForFindRecord(id, 'deployment'),
+      '/promote'
+    );
     return this.ajax(url, 'POST', {
       data: {
         DeploymentId: id,

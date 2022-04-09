@@ -1,12 +1,4 @@
-import {
-  attribute,
-  clickable,
-  collection,
-  create,
-  isPresent,
-  text,
-  visitable,
-} from 'ember-cli-page-object';
+import { create, isPresent, text, visitable } from 'ember-cli-page-object';
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 
@@ -20,16 +12,6 @@ export default create({
   externalId: text('[data-test-volume-external-id]'),
   hasNamespace: isPresent('[data-test-volume-namespace]'),
   namespace: text('[data-test-volume-namespace]'),
-
-  breadcrumbs: collection('[data-test-breadcrumb]', {
-    id: attribute('data-test-breadcrumb'),
-    text: text(),
-    visit: clickable(),
-  }),
-
-  breadcrumbFor(id) {
-    return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
-  },
 
   ...allocations('[data-test-read-allocation]', 'readAllocations'),
   ...allocations('[data-test-write-allocation]', 'writeAllocations'),

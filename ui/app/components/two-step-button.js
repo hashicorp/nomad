@@ -4,11 +4,15 @@ import { next } from '@ember/runloop';
 import { equal } from '@ember/object/computed';
 import { task, waitForEvent } from 'ember-concurrency';
 import RSVP from 'rsvp';
-import { classNames } from '@ember-decorators/component';
+import { classNames, classNameBindings } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 @classic
 @classNames('two-step-button')
+@classNameBindings(
+  'inlineText:has-inline-text',
+  'fadingBackground:has-fading-background'
+)
 export default class TwoStepButton extends Component {
   idleText = '';
   cancelText = '';
@@ -17,7 +21,7 @@ export default class TwoStepButton extends Component {
   awaitingConfirmation = false;
   disabled = false;
   alignRight = false;
-  isInfoAction = false;
+  inlineText = false;
   onConfirm() {}
   onCancel() {}
 
@@ -25,7 +29,7 @@ export default class TwoStepButton extends Component {
   @equal('state', 'idle') isIdle;
   @equal('state', 'prompt') isPendingConfirmation;
 
-  @task(function*() {
+  @task(function* () {
     while (true) {
       let ev = yield waitForEvent(document.body, 'click');
       if (!this.element.contains(ev.target) && !this.awaitingConfirmation) {

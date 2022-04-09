@@ -42,10 +42,11 @@ func TestEscapingReader_Static(t *testing.T) {
 		{"\n~.", "\n", "."},
 		{"~", "~", ""},
 		{"\r~.", "\r", "."},
+		{"b\n~\n~.q", "b\n~\nq", "."},
 	}
 
 	for _, c := range cases {
-		t.Run("sanity check naive implementation", func(t *testing.T) {
+		t.Run("validate naive implementation", func(t *testing.T) {
 			h := &testHandler{}
 
 			processed := naiveEscapeCharacters(c.input, '~', h.handler)

@@ -1,9 +1,11 @@
+//go:build linux
 // +build linux
 
 package mount
 
 import (
-	docker_mount "github.com/docker/docker/pkg/mount"
+	"github.com/moby/sys/mount"
+	"github.com/moby/sys/mountinfo"
 )
 
 // mounter provides the default implementation of mount.Mounter
@@ -20,12 +22,12 @@ func New() Mounter {
 // IsNotAMountPoint determines if a directory is not a mountpoint.
 // It does this by checking the path against the contents of /proc/self/mountinfo
 func (m *mounter) IsNotAMountPoint(path string) (bool, error) {
-	isMount, err := docker_mount.Mounted(path)
+	isMount, err := mountinfo.Mounted(path)
 	return !isMount, err
 }
 
 func (m *mounter) Mount(device, target, mountType, options string) error {
 	// Defer to the docker implementation of `Mount`, it's correct enough for our
 	// usecase and avoids us needing to shell out to the `mount` utility.
-	return docker_mount.Mount(device, target, mountType, options)
+	return mount.Mount(device, target, mountType, options)
 }

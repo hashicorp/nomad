@@ -62,6 +62,50 @@ func (t *CSITopology) Equal(o *CSITopology) bool {
 	return helper.CompareMapStringString(t.Segments, o.Segments)
 }
 
+func (t *CSITopology) MatchFound(o []*CSITopology) bool {
+	if t == nil || o == nil || len(o) == 0 {
+		return false
+	}
+
+	for _, other := range o {
+		if t.Equal(other) {
+			return true
+		}
+	}
+	return false
+}
+
+// CSITopologyRequest are the topologies submitted as options to the
+// storage provider at the time the volume was created. The storage
+// provider will return a single topology.
+type CSITopologyRequest struct {
+	Required  []*CSITopology
+	Preferred []*CSITopology
+}
+
+func (tr *CSITopologyRequest) Equal(o *CSITopologyRequest) bool {
+	if tr == nil && o == nil {
+		return true
+	}
+	if tr == nil && o != nil || tr != nil && o == nil {
+		return false
+	}
+	if len(tr.Required) != len(o.Required) || len(tr.Preferred) != len(o.Preferred) {
+		return false
+	}
+	for i, topo := range tr.Required {
+		if !topo.Equal(o.Required[i]) {
+			return false
+		}
+	}
+	for i, topo := range tr.Preferred {
+		if !topo.Equal(o.Preferred[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 // CSINodeInfo is the fingerprinted data from a CSI Plugin that is specific to
 // the Node API.
 type CSINodeInfo struct {
@@ -95,6 +139,15 @@ type CSINodeInfo struct {
 	// RequiresNodeStageVolume indicates whether the client should Stage/Unstage
 	// volumes on this node.
 	RequiresNodeStageVolume bool
+
+	// SupportsStats indicates plugin support for GET_VOLUME_STATS
+	SupportsStats bool
+
+	// SupportsExpand indicates plugin support for EXPAND_VOLUME
+	SupportsExpand bool
+
+	// SupportsCondition indicates plugin support for VOLUME_CONDITION
+	SupportsCondition bool
 }
 
 func (n *CSINodeInfo) Copy() *CSINodeInfo {
@@ -112,23 +165,50 @@ func (n *CSINodeInfo) Copy() *CSINodeInfo {
 // CSIControllerInfo is the fingerprinted data from a CSI Plugin that is specific to
 // the Controller API.
 type CSIControllerInfo struct {
+
+	// SupportsCreateDelete indicates plugin support for CREATE_DELETE_VOLUME
+	SupportsCreateDelete bool
+
+	// SupportsPublishVolume is true when the controller implements the
+	// methods required to attach and detach volumes. If this is false Nomad
+	// should skip the controller attachment flow.
+	SupportsAttachDetach bool
+
+	// SupportsListVolumes is true when the controller implements the
+	// ListVolumes RPC. NOTE: This does not guarantee that attached nodes will
+	// be returned unless SupportsListVolumesAttachedNodes is also true.
+	SupportsListVolumes bool
+
+	// SupportsGetCapacity indicates plugin support for GET_CAPACITY
+	SupportsGetCapacity bool
+
+	// SupportsCreateDeleteSnapshot indicates plugin support for
+	// CREATE_DELETE_SNAPSHOT
+	SupportsCreateDeleteSnapshot bool
+
+	// SupportsListSnapshots indicates plugin support for LIST_SNAPSHOTS
+	SupportsListSnapshots bool
+
+	// SupportsClone indicates plugin support for CLONE_VOLUME
+	SupportsClone bool
+
 	// SupportsReadOnlyAttach is set to true when the controller returns the
 	// ATTACH_READONLY capability.
 	SupportsReadOnlyAttach bool
 
-	// SupportsPublishVolume is true when the controller implements the methods
-	// required to attach and detach volumes. If this is false Nomad should skip
-	// the controller attachment flow.
-	SupportsAttachDetach bool
+	// SupportsExpand indicates plugin support for EXPAND_VOLUME
+	SupportsExpand bool
 
-	// SupportsListVolumes is true when the controller implements the ListVolumes
-	// RPC. NOTE: This does not guaruntee that attached nodes will be returned
-	// unless SupportsListVolumesAttachedNodes is also true.
-	SupportsListVolumes bool
-
-	// SupportsListVolumesAttachedNodes indicates whether the plugin will return
-	// attached nodes data when making ListVolume RPCs
+	// SupportsListVolumesAttachedNodes indicates whether the plugin will
+	// return attached nodes data when making ListVolume RPCs (plugin support
+	// for LIST_VOLUMES_PUBLISHED_NODES)
 	SupportsListVolumesAttachedNodes bool
+
+	// SupportsCondition indicates plugin support for VOLUME_CONDITION
+	SupportsCondition bool
+
+	// SupportsGet indicates plugin support for GET_VOLUME
+	SupportsGet bool
 }
 
 func (c *CSIControllerInfo) Copy() *CSIControllerInfo {
@@ -247,15 +327,15 @@ func (di *DriverInfo) MergeHealthCheck(other *DriverInfo) {
 	di.UpdateTime = other.UpdateTime
 }
 
-// MergeFingerprint merges information from fingerprinting a node for a driver
-// into a node's driver info for that driver.
+// MergeFingerprintInfo merges information from fingerprinting a node for a
+// driver into a node's driver info for that driver.
 func (di *DriverInfo) MergeFingerprintInfo(other *DriverInfo) {
 	di.Detected = other.Detected
 	di.Attributes = other.Attributes
 }
 
-// DriverInfo determines if two driver info objects are equal..As this is used
-// in the process of health checking, we only check the fields that are
+// HealthCheckEquals determines if two driver info objects are equal. As this
+// is used in the process of health checking, we only check the fields that are
 // computed by the health checker. In the future, this will be merged.
 func (di *DriverInfo) HealthCheckEquals(other *DriverInfo) bool {
 	if di == nil && other == nil {

@@ -55,8 +55,7 @@ func createSecretDir(dir string) error {
 			return nil
 		}
 
-		var flags uintptr
-		flags = syscall.MS_NOEXEC
+		flags := uintptr(syscall.MS_NOEXEC)
 		options := fmt.Sprintf("size=%dm", secretDirTmpfsSize)
 		if err := syscall.Mount("tmpfs", dir, "tmpfs", flags, options); err != nil {
 			return os.NewSyscallError("mount", err)

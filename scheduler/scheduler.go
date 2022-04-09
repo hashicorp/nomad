@@ -6,6 +6,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -21,14 +22,15 @@ const (
 // BuiltinSchedulers contains the built in registered schedulers
 // which are available
 var BuiltinSchedulers = map[string]Factory{
-	"service": NewServiceScheduler,
-	"batch":   NewBatchScheduler,
-	"system":  NewSystemScheduler,
+	"service":  NewServiceScheduler,
+	"batch":    NewBatchScheduler,
+	"system":   NewSystemScheduler,
+	"sysbatch": NewSysBatchScheduler,
 }
 
 // NewScheduler is used to instantiate and return a new scheduler
 // given the scheduler name, initial state, and planner.
-func NewScheduler(name string, logger log.Logger, state State, planner Planner) (Scheduler, error) {
+func NewScheduler(name string, logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) (Scheduler, error) {
 	// Lookup the factory function
 	factory, ok := BuiltinSchedulers[name]
 	if !ok {
@@ -36,12 +38,12 @@ func NewScheduler(name string, logger log.Logger, state State, planner Planner) 
 	}
 
 	// Instantiate the scheduler
-	sched := factory(logger, state, planner)
+	sched := factory(logger, eventsCh, state, planner)
 	return sched, nil
 }
 
 // Factory is used to instantiate a new Scheduler
-type Factory func(log.Logger, State, Planner) Scheduler
+type Factory func(log.Logger, chan<- interface{}, State, Planner) Scheduler
 
 // Scheduler is the top level instance for a scheduler. A scheduler is
 // meant to only encapsulate business logic, pushing the various plumbing
@@ -88,6 +90,12 @@ type State interface {
 	// GetJobByID is used to lookup a job by ID
 	JobByID(ws memdb.WatchSet, namespace, id string) (*structs.Job, error)
 
+	// DeploymentsByJobID returns the deployments associated with the job
+	DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID string, all bool) ([]*structs.Deployment, error)
+
+	// JobByIDAndVersion returns the job associated with id and specific version
+	JobByIDAndVersion(ws memdb.WatchSet, namespace, id string, version uint64) (*structs.Job, error)
+
 	// LatestDeploymentByJobID returns the latest deployment matching the given
 	// job ID
 	LatestDeploymentByJobID(ws memdb.WatchSet, namespace, jobID string) (*structs.Deployment, error)
@@ -99,7 +107,10 @@ type State interface {
 	CSIVolumeByID(memdb.WatchSet, string, string) (*structs.CSIVolume, error)
 
 	// CSIVolumeByID fetch CSI volumes, containing controller jobs
-	CSIVolumesByNodeID(memdb.WatchSet, string) (memdb.ResultIterator, error)
+	CSIVolumesByNodeID(memdb.WatchSet, string, string) (memdb.ResultIterator, error)
+
+	// LatestIndex returns the greatest index value for all indexes.
+	LatestIndex() (uint64, error)
 }
 
 // Planner interface is used to submit a task allocation plan.
@@ -122,4 +133,9 @@ type Planner interface {
 	// evaluation must exist in a blocked state prior to this being called such
 	// that on leader changes, the evaluation will be reblocked properly.
 	ReblockEval(*structs.Evaluation) error
+
+	// ServersMeetMinimumVersion returns whether the Nomad servers are at least on the
+	// given Nomad version. The checkFailedServers parameter specifies whether version
+	// for the failed servers should be verified.
+	ServersMeetMinimumVersion(minVersion *version.Version, checkFailedServers bool) bool
 }

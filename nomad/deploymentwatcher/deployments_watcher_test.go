@@ -6,6 +6,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -29,7 +30,7 @@ func defaultTestDeploymentWatcher(t *testing.T) (*Watcher, *mockBackend) {
 
 // Tests that the watcher properly watches for deployments and reconciles them
 func TestWatcher_WatchDeployments(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -39,9 +40,9 @@ func TestWatcher_WatchDeployments(t *testing.T) {
 
 	// Create three jobs
 	j1, j2, j3 := mock.Job(), mock.Job(), mock.Job()
-	require.Nil(m.state.UpsertJob(100, j1))
-	require.Nil(m.state.UpsertJob(101, j2))
-	require.Nil(m.state.UpsertJob(102, j3))
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, 100, j1))
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, 101, j2))
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, 102, j3))
 
 	// Create three deployments all running
 	d1, d2, d3 := mock.Deployment(), mock.Deployment(), mock.Deployment()
@@ -84,7 +85,7 @@ func TestWatcher_WatchDeployments(t *testing.T) {
 
 // Tests that calls against an unknown deployment fail
 func TestWatcher_UnknownDeployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
@@ -141,7 +142,7 @@ func TestWatcher_UnknownDeployment(t *testing.T) {
 
 // Test setting an unknown allocation's health
 func TestWatcher_SetAllocHealth_Unknown(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
@@ -154,7 +155,7 @@ func TestWatcher_SetAllocHealth_Unknown(t *testing.T) {
 	j := mock.Job()
 	d := mock.Deployment()
 	d.JobID = j.ID
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
 	// require that we get a call to UpsertDeploymentAllocHealth
@@ -186,7 +187,7 @@ func TestWatcher_SetAllocHealth_Unknown(t *testing.T) {
 
 // Test setting allocation health
 func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -200,9 +201,9 @@ func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
 	d.JobID = j.ID
 	a := mock.Alloc()
 	a.DeploymentID = d.ID
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// require that we get a call to UpsertDeploymentAllocHealth
 	matchConfig := &matchDeploymentAllocHealthRequestConfig{
@@ -231,7 +232,7 @@ func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
 
 // Test setting allocation unhealthy
 func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -245,9 +246,9 @@ func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
 	d.JobID = j.ID
 	a := mock.Alloc()
 	a.DeploymentID = d.ID
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// require that we get a call to UpsertDeploymentAllocHealth
 	matchConfig := &matchDeploymentAllocHealthRequestConfig{
@@ -283,7 +284,7 @@ func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
 
 // Test setting allocation unhealthy and that there should be a rollback
 func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -303,9 +304,9 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 	d.TaskGroups["web"].AutoRevert = true
 	a := mock.Alloc()
 	a.DeploymentID = d.ID
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Upsert the job again to get a new version
 	j2 := j.Copy()
@@ -313,7 +314,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 	// Modify the job to make its specification different
 	j2.Meta["foo"] = "bar"
 
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob2")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j2), "UpsertJob2")
 
 	// require that we get a call to UpsertDeploymentAllocHealth
 	matchConfig := &matchDeploymentAllocHealthRequestConfig{
@@ -350,7 +351,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 
 // Test setting allocation unhealthy on job with identical spec and there should be no rollback
 func TestWatcher_SetAllocHealth_Unhealthy_NoRollback(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -370,15 +371,15 @@ func TestWatcher_SetAllocHealth_Unhealthy_NoRollback(t *testing.T) {
 	d.TaskGroups["web"].AutoRevert = true
 	a := mock.Alloc()
 	a.DeploymentID = d.ID
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Upsert the job again to get a new version
 	j2 := j.Copy()
 	j2.Stable = false
 
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob2")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j2), "UpsertJob2")
 
 	// require that we get a call to UpsertDeploymentAllocHealth
 	matchConfig := &matchDeploymentAllocHealthRequestConfig{
@@ -415,7 +416,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_NoRollback(t *testing.T) {
 
 // Test promoting a deployment
 func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -438,9 +439,9 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 		Healthy: helper.BoolToPtr(true),
 	}
 	a.DeploymentID = d.ID
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// require that we get a call to UpsertDeploymentPromotion
 	matchConfig := &matchDeploymentPromoteRequestConfig{
@@ -475,7 +476,7 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 
 // Test promoting a deployment with unhealthy canaries
 func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -495,9 +496,9 @@ func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
 	d.TaskGroups[a.TaskGroup].DesiredCanaries = 2
 	a.DeploymentID = d.ID
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// require that we get a call to UpsertDeploymentPromotion
 	matchConfig := &matchDeploymentPromoteRequestConfig{
@@ -531,19 +532,23 @@ func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 }
 
 func TestWatcher_AutoPromoteDeployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	w, m := defaultTestDeploymentWatcher(t)
 	now := time.Now()
 
-	// Create 1 UpdateStrategy, 1 job (1 TaskGroup), 2 canaries, and 1 deployment
-	upd := structs.DefaultUpdateStrategy.Copy()
-	upd.AutoPromote = true
-	upd.MaxParallel = 2
-	upd.Canary = 2
-	upd.ProgressDeadline = 5 * time.Second
+	// Create 1 UpdateStrategy, 1 job (2 TaskGroups), 2 canaries, and 1 deployment
+	canaryUpd := structs.DefaultUpdateStrategy.Copy()
+	canaryUpd.AutoPromote = true
+	canaryUpd.MaxParallel = 2
+	canaryUpd.Canary = 2
+	canaryUpd.ProgressDeadline = 5 * time.Second
 
-	j := mock.Job()
-	j.TaskGroups[0].Update = upd
+	rollingUpd := structs.DefaultUpdateStrategy.Copy()
+	rollingUpd.ProgressDeadline = 5 * time.Second
+
+	j := mock.MultiTaskGroupJob()
+	j.TaskGroups[0].Update = canaryUpd
+	j.TaskGroups[1].Update = rollingUpd
 
 	d := mock.Deployment()
 	d.JobID = j.ID
@@ -551,14 +556,20 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 	// UpdateStrategy are copied in
 	d.TaskGroups = map[string]*structs.DeploymentState{
 		"web": {
-			AutoPromote:      upd.AutoPromote,
-			AutoRevert:       upd.AutoRevert,
-			ProgressDeadline: upd.ProgressDeadline,
+			AutoPromote:      canaryUpd.AutoPromote,
+			AutoRevert:       canaryUpd.AutoRevert,
+			ProgressDeadline: canaryUpd.ProgressDeadline,
+			DesiredTotal:     2,
+		},
+		"api": {
+			AutoPromote:      rollingUpd.AutoPromote,
+			AutoRevert:       rollingUpd.AutoRevert,
+			ProgressDeadline: rollingUpd.ProgressDeadline,
 			DesiredTotal:     2,
 		},
 	}
 
-	alloc := func() *structs.Allocation {
+	canaryAlloc := func() *structs.Allocation {
 		a := mock.Alloc()
 		a.DeploymentID = d.ID
 		a.CreateTime = now.UnixNano()
@@ -569,14 +580,36 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 		return a
 	}
 
-	a := alloc()
-	b := alloc()
+	rollingAlloc := func() *structs.Allocation {
+		a := mock.Alloc()
+		a.DeploymentID = d.ID
+		a.CreateTime = now.UnixNano()
+		a.ModifyTime = now.UnixNano()
+		a.TaskGroup = "api"
+		a.AllocatedResources.Tasks["api"] = a.AllocatedResources.Tasks["web"].Copy()
+		delete(a.AllocatedResources.Tasks, "web")
+		a.TaskResources["api"] = a.TaskResources["web"].Copy()
+		delete(a.TaskResources, "web")
+		a.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Canary: false,
+		}
+		return a
+	}
 
-	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID, b.ID}
-	d.TaskGroups[a.TaskGroup].DesiredCanaries = 2
-	require.NoError(t, m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	// Web taskgroup (0)
+	ca1 := canaryAlloc()
+	ca2 := canaryAlloc()
+
+	// Api taskgroup (1)
+	ra1 := rollingAlloc()
+	ra2 := rollingAlloc()
+
+	d.TaskGroups[ca1.TaskGroup].PlacedCanaries = []string{ca1.ID, ca2.ID}
+	d.TaskGroups[ca1.TaskGroup].DesiredCanaries = 2
+	d.TaskGroups[ra1.TaskGroup].PlacedAllocs = 2
+	require.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.NoError(t, m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a, b}), "UpsertAllocs")
+	require.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{ca1, ca2, ra1, ra2}), "UpsertAllocs")
 
 	// =============================================================
 	// Support method calls
@@ -595,7 +628,7 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 
 	matchConfig1 := &matchDeploymentAllocHealthRequestConfig{
 		DeploymentID: d.ID,
-		Healthy:      []string{a.ID, b.ID},
+		Healthy:      []string{ca1.ID, ca2.ID, ra1.ID, ra2.ID},
 		Eval:         true,
 	}
 	matcher1 := matchDeploymentAllocHealthRequest(matchConfig1)
@@ -614,13 +647,22 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 
 	// Start the deployment
 	w.SetEnabled(true, m.state)
-	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
-		func(err error) { require.Equal(t, 1, len(w.watchers), "Should have 1 deployment") })
+	testutil.WaitForResult(func() (bool, error) {
+		w.l.RLock()
+		defer w.l.RUnlock()
+		return 1 == len(w.watchers), nil
+	},
+		func(err error) {
+			w.l.RLock()
+			defer w.l.RUnlock()
+			require.Equal(t, 1, len(w.watchers), "Should have 1 deployment")
+		},
+	)
 
 	// Mark the canaries healthy
 	req := &structs.DeploymentAllocHealthRequest{
 		DeploymentID:         d.ID,
-		HealthyAllocationIDs: []string{a.ID, b.ID},
+		HealthyAllocationIDs: []string{ca1.ID, ca2.ID, ra1.ID, ra2.ID},
 	}
 	var resp structs.DeploymentUpdateResponse
 	// Calls w.raft.UpdateDeploymentAllocHealth, which is implemented by StateStore in
@@ -645,18 +687,18 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 	require.Equal(t, "running", d.Status)
 	require.True(t, d.TaskGroups["web"].Promoted)
 
-	a1, _ := m.state.AllocByID(ws, a.ID)
+	a1, _ := m.state.AllocByID(ws, ca1.ID)
 	require.False(t, a1.DeploymentStatus.Canary)
 	require.Equal(t, "pending", a1.ClientStatus)
 	require.Equal(t, "run", a1.DesiredStatus)
 
-	b1, _ := m.state.AllocByID(ws, b.ID)
+	b1, _ := m.state.AllocByID(ws, ca2.ID)
 	require.False(t, b1.DeploymentStatus.Canary)
 }
 
 // Test pausing a deployment that is running
 func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -667,7 +709,7 @@ func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
 	j := mock.Job()
 	d := mock.Deployment()
 	d.JobID = j.ID
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
 	// require that we get a call to UpsertDeploymentStatusUpdate
@@ -698,7 +740,7 @@ func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
 
 // Test pausing a deployment that is paused
 func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -710,7 +752,7 @@ func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	d.Status = structs.DeploymentStatusPaused
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
 	// require that we get a call to UpsertDeploymentStatusUpdate
@@ -741,7 +783,7 @@ func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
 
 // Test unpausing a deployment that is paused
 func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -750,7 +792,7 @@ func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	d.Status = structs.DeploymentStatusPaused
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
 	// require that we get a call to UpsertDeploymentStatusUpdate
@@ -782,7 +824,7 @@ func TestWatcher_PauseDeployment_Unpause_Paused(t *testing.T) {
 
 // Test unpausing a deployment that is running
 func TestWatcher_PauseDeployment_Unpause_Running(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -790,7 +832,7 @@ func TestWatcher_PauseDeployment_Unpause_Running(t *testing.T) {
 	j := mock.Job()
 	d := mock.Deployment()
 	d.JobID = j.ID
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
 	// require that we get a call to UpsertDeploymentStatusUpdate
@@ -822,7 +864,7 @@ func TestWatcher_PauseDeployment_Unpause_Running(t *testing.T) {
 
 // Test failing a deployment that is running
 func TestWatcher_FailDeployment_Running(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
@@ -830,7 +872,7 @@ func TestWatcher_FailDeployment_Running(t *testing.T) {
 	j := mock.Job()
 	d := mock.Deployment()
 	d.JobID = j.ID
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
 	// require that we get a call to UpsertDeploymentStatusUpdate
@@ -862,7 +904,7 @@ func TestWatcher_FailDeployment_Running(t *testing.T) {
 // Tests that the watcher properly watches for allocation changes and takes the
 // proper actions
 func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -878,16 +920,16 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 	d.TaskGroups["web"].AutoRevert = true
 	a := mock.Alloc()
 	a.DeploymentID = d.ID
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Upsert the job again to get a new version
 	j2 := j.Copy()
 	// Modify the job to make its specification different
 	j2.Meta["foo"] = "bar"
 	j2.Stable = false
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob2")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j2), "UpsertJob2")
 
 	// require that we will get a update allocation call only once. This will
 	// verify that the watcher is batching allocation changes
@@ -917,7 +959,7 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 				HealthyAllocationIDs: []string{a.ID},
 			},
 		}
-		require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
+		require.Nil(m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, m.nextIndex(), req), "UpsertDeploymentAllocHealth")
 	}
 
 	// Wait for there to be one eval
@@ -945,7 +987,7 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 			UnhealthyAllocationIDs: []string{a.ID},
 		},
 	}
-	require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
+	require.Nil(m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
 
 	// Wait for there to be one eval
 	testutil.WaitForResult(func() (bool, error) {
@@ -982,7 +1024,7 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 }
 
 func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -1000,9 +1042,9 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 	a.CreateTime = now.UnixNano()
 	a.ModifyTime = now.UnixNano()
 	a.DeploymentID = d.ID
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// require that we get a call to UpsertDeploymentStatusUpdate
 	c := &matchDeploymentStatusUpdateConfig{
@@ -1024,7 +1066,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 		Healthy:   helper.BoolToPtr(false),
 		Timestamp: now,
 	}
-	require.Nil(m.state.UpdateAllocsFromClient(100, []*structs.Allocation{a2}))
+	require.Nil(m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 100, []*structs.Allocation{a2}))
 
 	// Wait for the deployment to be failed
 	testutil.WaitForResult(func() (bool, error) {
@@ -1058,7 +1100,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 
 // Test that progress deadline handling works when there are multiple groups
 func TestDeploymentWatcher_ProgressCutoff(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -1095,9 +1137,9 @@ func TestDeploymentWatcher_ProgressCutoff(t *testing.T) {
 	a2.ModifyTime = now.UnixNano()
 	a2.DeploymentID = d.ID
 
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a, a2}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a, a2}), "UpsertAllocs")
 
 	// We may get an update for the desired transition.
 	m1 := matchUpdateAllocDesiredTransitions([]string{d.ID})
@@ -1126,7 +1168,7 @@ func TestDeploymentWatcher_ProgressCutoff(t *testing.T) {
 	// Update the first allocation to be healthy
 	a3 := a.Copy()
 	a3.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: helper.BoolToPtr(true)}
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a3}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a3}), "UpsertAllocs")
 
 	// Get the updated deployment
 	d2, err := m.state.DeploymentByID(nil, d.ID)
@@ -1145,7 +1187,7 @@ func TestDeploymentWatcher_ProgressCutoff(t *testing.T) {
 	// Update the second allocation to be healthy
 	a4 := a2.Copy()
 	a4.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: helper.BoolToPtr(true)}
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a4}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a4}), "UpsertAllocs")
 
 	// Get the updated deployment
 	d3, err := m.state.DeploymentByID(nil, d.ID)
@@ -1164,7 +1206,7 @@ func TestDeploymentWatcher_ProgressCutoff(t *testing.T) {
 // Test that we will allow the progress deadline to be reached when the canaries
 // are healthy but we haven't promoted
 func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -1189,9 +1231,9 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 	a.CreateTime = now.UnixNano()
 	a.ModifyTime = now.UnixNano()
 	a.DeploymentID = d.ID
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// require that we will get a createEvaluation call only once. This will
 	// verify that the watcher is batching allocation changes
@@ -1208,7 +1250,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 		Healthy:   helper.BoolToPtr(true),
 		Timestamp: now,
 	}
-	require.Nil(m.state.UpdateAllocsFromClient(m.nextIndex(), []*structs.Allocation{a2}))
+	require.Nil(m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}))
 
 	// Wait for the deployment to cross the deadline
 	dout, err := m.state.DeploymentByID(nil, d.ID)
@@ -1246,7 +1288,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 // Test that a promoted deployment with alloc healthy updates create
 // evals to move the deployment forward
 func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -1281,9 +1323,9 @@ func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
 		Healthy:   helper.BoolToPtr(true),
 		Timestamp: now,
 	}
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == watchersCount(w), nil },
@@ -1306,7 +1348,7 @@ func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 	// Wait until batch eval period passes before updating another alloc
 	time.Sleep(1 * time.Second)
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a2}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}), "UpsertAllocs")
 
 	// Wait for the deployment to cross the deadline
 	dout, err := m.state.DeploymentByID(nil, d.ID)
@@ -1334,10 +1376,216 @@ func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
 	})
 }
 
+func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+	mtype := structs.MsgTypeTestSetup
+
+	w, m := defaultTestDeploymentWatcher(t)
+	w.SetEnabled(true, m.state)
+
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
+
+	progressTimeout := time.Millisecond * 1000
+	j := mock.Job()
+	j.TaskGroups[0].Name = "group1"
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.MaxParallel = 2
+	j.TaskGroups[0].Update.AutoRevert = false
+	j.TaskGroups[0].Update.ProgressDeadline = progressTimeout
+	j.TaskGroups = append(j.TaskGroups, j.TaskGroups[0].Copy())
+	j.TaskGroups[0].Name = "group2"
+
+	d := mock.Deployment()
+	d.JobID = j.ID
+	d.TaskGroups = map[string]*structs.DeploymentState{
+		"group1": {
+			ProgressDeadline: progressTimeout,
+			Promoted:         false,
+			PlacedCanaries:   []string{},
+			DesiredCanaries:  1,
+			DesiredTotal:     3,
+			PlacedAllocs:     0,
+			HealthyAllocs:    0,
+			UnhealthyAllocs:  0,
+		},
+		"group2": {
+			ProgressDeadline: progressTimeout,
+			Promoted:         false,
+			PlacedCanaries:   []string{},
+			DesiredCanaries:  1,
+			DesiredTotal:     1,
+			PlacedAllocs:     0,
+			HealthyAllocs:    0,
+			UnhealthyAllocs:  0,
+		},
+	}
+
+	require.NoError(m.state.UpsertJob(mtype, m.nextIndex(), j))
+	require.NoError(m.state.UpsertDeployment(m.nextIndex(), d))
+
+	// require that we get a call to UpsertDeploymentPromotion
+	matchConfig := &matchDeploymentPromoteRequestConfig{
+		Promotion: &structs.DeploymentPromoteRequest{
+			DeploymentID: d.ID,
+			All:          true,
+		},
+		Eval: true,
+	}
+	matcher := matchDeploymentPromoteRequest(matchConfig)
+	m.On("UpdateDeploymentPromotion", mocker.MatchedBy(matcher)).Return(nil)
+	m1 := matchUpdateAllocDesiredTransitions([]string{d.ID})
+	m.On("UpdateAllocDesiredTransition", mocker.MatchedBy(m1)).Return(nil)
+
+	// create canaries
+
+	now := time.Now()
+
+	canary1 := mock.Alloc()
+	canary1.Job = j
+	canary1.DeploymentID = d.ID
+	canary1.TaskGroup = "group1"
+	canary1.DesiredStatus = structs.AllocDesiredStatusRun
+	canary1.ModifyTime = now.UnixNano()
+
+	canary2 := mock.Alloc()
+	canary2.Job = j
+	canary2.DeploymentID = d.ID
+	canary2.TaskGroup = "group2"
+	canary2.DesiredStatus = structs.AllocDesiredStatusRun
+	canary2.ModifyTime = now.UnixNano()
+
+	allocs := []*structs.Allocation{canary1, canary2}
+	err := m.state.UpsertAllocs(mtype, m.nextIndex(), allocs)
+	require.NoError(err)
+
+	// 2nd group's canary becomes healthy
+
+	now = time.Now()
+
+	canary2 = canary2.Copy()
+	canary2.ModifyTime = now.UnixNano()
+	canary2.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Canary:    true,
+		Healthy:   helper.BoolToPtr(true),
+		Timestamp: now,
+	}
+
+	allocs = []*structs.Allocation{canary2}
+	err = m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), allocs)
+	require.NoError(err)
+
+	// wait for long enough to ensure we read deployment update channel
+	// this sleep creates the race condition associated with #7058
+	time.Sleep(50 * time.Millisecond)
+
+	// 1st group's canary becomes healthy
+	now = time.Now()
+
+	canary1 = canary1.Copy()
+	canary1.ModifyTime = now.UnixNano()
+	canary1.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Canary:    true,
+		Healthy:   helper.BoolToPtr(true),
+		Timestamp: now,
+	}
+
+	allocs = []*structs.Allocation{canary1}
+	err = m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), allocs)
+	require.NoError(err)
+
+	// ensure progress_deadline has definitely expired
+	time.Sleep(progressTimeout)
+
+	// promote the deployment
+
+	req := &structs.DeploymentPromoteRequest{
+		DeploymentID: d.ID,
+		All:          true,
+	}
+	err = w.PromoteDeployment(req, &structs.DeploymentUpdateResponse{})
+	require.NoError(err)
+
+	// wait for long enough to ensure we read deployment update channel
+	time.Sleep(50 * time.Millisecond)
+
+	// create new allocs for promoted deployment
+	// (these come from plan_apply, not a client update)
+	now = time.Now()
+
+	alloc1a := mock.Alloc()
+	alloc1a.Job = j
+	alloc1a.DeploymentID = d.ID
+	alloc1a.TaskGroup = "group1"
+	alloc1a.ClientStatus = structs.AllocClientStatusPending
+	alloc1a.DesiredStatus = structs.AllocDesiredStatusRun
+	alloc1a.ModifyTime = now.UnixNano()
+
+	alloc1b := mock.Alloc()
+	alloc1b.Job = j
+	alloc1b.DeploymentID = d.ID
+	alloc1b.TaskGroup = "group1"
+	alloc1b.ClientStatus = structs.AllocClientStatusPending
+	alloc1b.DesiredStatus = structs.AllocDesiredStatusRun
+	alloc1b.ModifyTime = now.UnixNano()
+
+	allocs = []*structs.Allocation{alloc1a, alloc1b}
+	err = m.state.UpsertAllocs(mtype, m.nextIndex(), allocs)
+	require.NoError(err)
+
+	// allocs become healthy
+
+	now = time.Now()
+
+	alloc1a = alloc1a.Copy()
+	alloc1a.ClientStatus = structs.AllocClientStatusRunning
+	alloc1a.ModifyTime = now.UnixNano()
+	alloc1a.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Canary:    false,
+		Healthy:   helper.BoolToPtr(true),
+		Timestamp: now,
+	}
+
+	alloc1b = alloc1b.Copy()
+	alloc1b.ClientStatus = structs.AllocClientStatusRunning
+	alloc1b.ModifyTime = now.UnixNano()
+	alloc1b.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Canary:    false,
+		Healthy:   helper.BoolToPtr(true),
+		Timestamp: now,
+	}
+
+	allocs = []*structs.Allocation{alloc1a, alloc1b}
+	err = m.state.UpdateAllocsFromClient(mtype, m.nextIndex(), allocs)
+	require.NoError(err)
+
+	// ensure any progress deadline has expired
+	time.Sleep(progressTimeout)
+
+	// without a scheduler running we'll never mark the deployment as
+	// successful, so test that healthy == desired and that we haven't failed
+	deployment, err := m.state.DeploymentByID(nil, d.ID)
+	require.NoError(err)
+	require.Equal(structs.DeploymentStatusRunning, deployment.Status)
+
+	group1 := deployment.TaskGroups["group1"]
+
+	require.Equal(group1.DesiredTotal, group1.HealthyAllocs, "not enough healthy")
+	require.Equal(group1.DesiredTotal, group1.PlacedAllocs, "not enough placed")
+	require.Equal(0, group1.UnhealthyAllocs)
+
+	group2 := deployment.TaskGroups["group2"]
+	require.Equal(group2.DesiredTotal, group2.HealthyAllocs, "not enough healthy")
+	require.Equal(group2.DesiredTotal, group2.PlacedAllocs, "not enough placed")
+	require.Equal(0, group2.UnhealthyAllocs)
+}
+
 // Test scenario where deployment initially has no progress deadline
 // After the deployment is updated, a failed alloc's DesiredTransition should be set
 func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -1354,14 +1602,14 @@ func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
 
 	a := mock.Alloc()
 	a.CreateTime = time.Now().UnixNano()
 	a.DeploymentID = d.ID
 
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	d.TaskGroups["web"].ProgressDeadline = 500 * time.Millisecond
 	// Update the deployment with a progress deadline
@@ -1381,7 +1629,7 @@ func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
 		Healthy:   helper.BoolToPtr(false),
 		Timestamp: time.Now(),
 	}
-	require.Nil(m.state.UpdateAllocsFromClient(m.nextIndex(), []*structs.Allocation{a2}))
+	require.Nil(m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}))
 
 	// Wait for the alloc's DesiredState to set reschedule
 	testutil.WaitForResult(func() (bool, error) {
@@ -1399,7 +1647,7 @@ func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
 
 // Tests that the watcher fails rollback when the spec hasn't changed
 func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
@@ -1415,15 +1663,15 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 	d.TaskGroups["web"].AutoRevert = true
 	a := mock.Alloc()
 	a.DeploymentID = d.ID
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Upsert the job again to get a new version
 	j2 := j.Copy()
 	// Modify the job to make its specification different
 	j2.Stable = false
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob2")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j2), "UpsertJob2")
 
 	// require that we will get a createEvaluation call only once. This will
 	// verify that the watcher is batching allocation changes
@@ -1453,7 +1701,7 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 				HealthyAllocationIDs: []string{a.ID},
 			},
 		}
-		require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
+		require.Nil(m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, m.nextIndex(), req), "UpsertDeploymentAllocHealth")
 	}
 
 	// Wait for there to be one eval
@@ -1481,7 +1729,7 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 			UnhealthyAllocationIDs: []string{a.ID},
 		},
 	}
-	require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
+	require.Nil(m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
 
 	// Wait for there to be one eval
 	testutil.WaitForResult(func() (bool, error) {
@@ -1509,7 +1757,7 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 
 // Test allocation updates and evaluation creation is batched between watchers
 func TestWatcher_BatchAllocUpdates(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Second)
 
@@ -1538,12 +1786,12 @@ func TestWatcher_BatchAllocUpdates(t *testing.T) {
 	a2.JobID = j2.ID
 	a2.DeploymentID = d2.ID
 
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j1), "UpsertJob")
-	require.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j1), "UpsertJob")
+	require.Nil(m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j2), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d1), "UpsertDeployment")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d2), "UpsertDeployment")
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a1}), "UpsertAllocs")
-	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a2}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a1}), "UpsertAllocs")
+	require.Nil(m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}), "UpsertAllocs")
 
 	// require that we will get a createEvaluation call only once and it contains
 	// both deployments. This will verify that the watcher is batching
@@ -1562,7 +1810,7 @@ func TestWatcher_BatchAllocUpdates(t *testing.T) {
 			HealthyAllocationIDs: []string{a1.ID},
 		},
 	}
-	require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
+	require.Nil(m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, m.nextIndex(), req), "UpsertDeploymentAllocHealth")
 
 	req2 := &structs.ApplyDeploymentAllocHealthRequest{
 		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
@@ -1570,7 +1818,7 @@ func TestWatcher_BatchAllocUpdates(t *testing.T) {
 			HealthyAllocationIDs: []string{a2.ID},
 		},
 	}
-	require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
+	require.Nil(m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
 
 	// Wait for there to be one eval for each job
 	testutil.WaitForResult(func() (bool, error) {

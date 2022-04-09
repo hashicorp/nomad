@@ -5,7 +5,9 @@ import { AbortError } from '@ember-data/adapter/error';
 import queryString from 'query-string';
 import ApplicationAdapter from './application';
 import removeRecord from '../utils/remove-record';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class Watchable extends ApplicationAdapter {
   @service watchList;
   @service store;
@@ -40,7 +42,10 @@ export default class Watchable extends ApplicationAdapter {
       params.index = this.watchList.getIndexFor(url);
     }
 
-    const signal = get(snapshotRecordArray || {}, 'adapterOptions.abortController.signal');
+    const signal = get(
+      snapshotRecordArray || {},
+      'adapterOptions.abortController.signal'
+    );
     return this.ajax(url, 'GET', {
       signal,
       data: params,
@@ -48,46 +53,72 @@ export default class Watchable extends ApplicationAdapter {
   }
 
   findRecord(store, type, id, snapshot, additionalParams = {}) {
-    let [url, params] = this.buildURL(type.modelName, id, snapshot, 'findRecord').split('?');
-    params = assign(queryString.parse(params) || {}, this.buildQuery(), additionalParams);
+    const originalUrl = this.buildURL(
+      type.modelName,
+      id,
+      snapshot,
+      'findRecord'
+    );
+    let [url, params] = originalUrl.split('?');
+    params = assign(
+      queryString.parse(params) || {},
+      this.buildQuery(),
+      additionalParams
+    );
 
     if (get(snapshot || {}, 'adapterOptions.watch')) {
-      params.index = this.watchList.getIndexFor(url);
+      params.index = this.watchList.getIndexFor(originalUrl);
     }
 
     const signal = get(snapshot || {}, 'adapterOptions.abortController.signal');
     return this.ajax(url, 'GET', {
       signal,
       data: params,
-    }).catch(error => {
-      if (error instanceof AbortError) {
+    }).catch((error) => {
+      if (error instanceof AbortError || error.name == 'AbortError') {
         return;
       }
       throw error;
     });
   }
 
-  query(store, type, query, snapshotRecordArray, options, additionalParams = {}) {
+  query(
+    store,
+    type,
+    query,
+    snapshotRecordArray,
+    options,
+    additionalParams = {}
+  ) {
     const url = this.buildURL(type.modelName, null, null, 'query', query);
     let [urlPath, params] = url.split('?');
-    params = assign(queryString.parse(params) || {}, this.buildQuery(), additionalParams, query);
+    params = assign(
+      queryString.parse(params) || {},
+      this.buildQuery(),
+      additionalParams,
+      query
+    );
 
     if (get(options, 'adapterOptions.watch')) {
       // The intended query without additional blocking query params is used
       // to track the appropriate query index.
-      params.index = this.watchList.getIndexFor(`${urlPath}?${queryString.stringify(query)}`);
+      params.index = this.watchList.getIndexFor(
+        `${urlPath}?${queryString.stringify(query)}`
+      );
     }
 
     const signal = get(options, 'adapterOptions.abortController.signal');
     return this.ajax(urlPath, 'GET', {
       signal,
       data: params,
-    }).then(payload => {
+    }).then((payload) => {
       const adapter = store.adapterFor(type.modelName);
 
       // Query params may not necessarily map one-to-one to attribute names.
       // Adapters are responsible for declaring param mappings.
-      const queryParamsToAttrs = Object.keys(adapter.queryParamsToAttrs || {}).map(key => ({
+      const queryParamsToAttrs = Object.keys(
+        adapter.queryParamsToAttrs || {}
+      ).map((key) => ({
         queryParam: key,
         attr: adapter.queryParamsToAttrs[key],
       }));
@@ -96,12 +127,12 @@ export default class Watchable extends ApplicationAdapter {
       // deletes have occurred, the store won't have stale records.
       store
         .peekAll(type.modelName)
-        .filter(record =>
+        .filter((record) =>
           queryParamsToAttrs.some(
-            mapping => get(record, mapping.attr) === query[mapping.queryParam]
+            (mapping) => get(record, mapping.attr) === query[mapping.queryParam]
           )
         )
-        .forEach(record => {
+        .forEach((record) => {
           removeRecord(store, record);
         });
 
@@ -109,7 +140,11 @@ export default class Watchable extends ApplicationAdapter {
     });
   }
 
-  reloadRelationship(model, relationshipName, options = { watch: false, abortController: null }) {
+  reloadRelationship(
+    model,
+    relationshipName,
+    options = { watch: false, abortController: null }
+  ) {
     const { watch, abortController } = options;
     const relationship = model.relationshipFor(relationshipName);
     if (relationship.kind !== 'belongsTo' && relationship.kind !== 'hasMany') {
@@ -128,7 +163,7 @@ export default class Watchable extends ApplicationAdapter {
       // in the URL and in options.data
       if (url.includes('?')) {
         const paramsInUrl = queryString.parse(url.split('?')[1]);
-        Object.keys(paramsInUrl).forEach(key => {
+        Object.keys(paramsInUrl).forEach((key) => {
           delete params[key];
         });
       }
@@ -137,7 +172,7 @@ export default class Watchable extends ApplicationAdapter {
         signal: abortController && abortController.signal,
         data: params,
       }).then(
-        json => {
+        (json) => {
           const store = this.store;
           const normalizeMethod =
             relationship.kind === 'belongsTo'
@@ -145,11 +180,15 @@ export default class Watchable extends ApplicationAdapter {
               : 'normalizeFindHasManyResponse';
           const serializer = store.serializerFor(relationship.type);
           const modelClass = store.modelFor(relationship.type);
-          const normalizedData = serializer[normalizeMethod](store, modelClass, json);
+          const normalizedData = serializer[normalizeMethod](
+            store,
+            modelClass,
+            json
+          );
           store.push(normalizedData);
         },
-        error => {
-          if (error instanceof AbortError) {
+        (error) => {
+          if (error instanceof AbortError || error.name === 'AbortError') {
             return relationship.kind === 'belongsTo' ? {} : [];
           }
           throw error;

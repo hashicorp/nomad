@@ -4,14 +4,10 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"os"
 	"sync/atomic"
+	"testing"
 	"time"
 
-	testing "github.com/mitchellh/go-testing-interface"
-	"github.com/pkg/errors"
-
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
@@ -20,13 +16,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
+	"github.com/stretchr/testify/require"
 )
 
 var (
-	nodeNumber uint32 = 0
+	nodeNumber int32 = 0
 )
 
-func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken, func()) {
+func TestACLServer(t *testing.T, cb func(*Config)) (*Server, *structs.ACLToken, func()) {
 	server, cleanup := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 		if cb != nil {
@@ -34,35 +31,35 @@ func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken, f
 		}
 	})
 	token := mock.ACLManagementToken()
-	err := server.State().BootstrapACLTokens(1, 0, token)
+	err := server.State().BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, token)
 	if err != nil {
 		t.Fatalf("failed to bootstrap ACL token: %v", err)
 	}
 	return server, token, cleanup
 }
 
-func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
+func TestServer(t *testing.T, cb func(*Config)) (*Server, func()) {
+	s, c, err := TestServerErr(t, cb)
+	require.NoError(t, err, "failed to start test server")
+	return s, c
+}
+
+func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 	// Setup the default settings
 	config := DefaultConfig()
-	config.Logger = testlog.HCLogger(t)
+
+	// Setup default enterprise-specific settings, including license
+	defaultEnterpriseTestConfig(config)
+
 	config.Build = version.Version + "+unittest"
 	config.DevMode = true
+	config.EnableEventBroker = true
 	config.BootstrapExpect = 1
-	nodeNum := atomic.AddUint32(&nodeNumber, 1)
+	nodeNum := atomic.AddInt32(&nodeNumber, 1)
 	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNum)
 
-	// configer logger
-	level := hclog.Trace
-	if envLogLevel := os.Getenv("NOMAD_TEST_LOG_LEVEL"); envLogLevel != "" {
-		level = hclog.LevelFromString(envLogLevel)
-	}
-	opts := &hclog.LoggerOptions{
-		Level:           level,
-		Output:          testlog.NewPrefixWriter(t, config.NodeName+" "),
-		IncludeLocation: true,
-	}
-	config.Logger = hclog.NewInterceptLogger(opts)
-	config.LogOutput = opts.Output
+	// configure logger
+	config.Logger, config.LogOutput = testlog.HCLoggerNode(t, nodeNum)
 
 	// Tighten the Serf timing
 	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"
@@ -94,14 +91,22 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	// Disable consul autojoining: tests typically join servers directly
 	config.ConsulConfig.ServerAutoJoin = &f
 
+	// Enable fuzzy search API
+	config.SearchConfig = &structs.SearchConfig{
+		FuzzyEnabled:  true,
+		LimitQuery:    20,
+		LimitResults:  100,
+		MinTermLength: 2,
+	}
+
 	// Invoke the callback if any
 	if cb != nil {
 		cb(config)
 	}
 
-	catalog := consul.NewMockCatalog(config.Logger)
-
-	acls := consul.NewMockACLsAPI(config.Logger)
+	cCatalog := consul.NewMockCatalog(config.Logger)
+	cConfigs := consul.NewMockConfigsAPI(config.Logger)
+	cACLs := consul.NewMockACLsAPI(config.Logger)
 
 	for i := 10; i >= 0; i-- {
 		// Get random ports, need to cleanup later
@@ -114,7 +119,7 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 		config.SerfConfig.MemberlistConfig.BindPort = ports[1]
 
 		// Create server
-		server, err := NewServer(config, catalog, acls)
+		server, err := NewServer(config, cCatalog, cConfigs, cACLs)
 		if err == nil {
 			return server, func() {
 				ch := make(chan error)
@@ -124,7 +129,7 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 					// Shutdown server
 					err := server.Shutdown()
 					if err != nil {
-						ch <- errors.Wrap(err, "failed to shutdown server")
+						ch <- fmt.Errorf("failed to shutdown server: %w", err)
 					}
 
 					freeport.Return(ports)
@@ -138,10 +143,10 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 				case <-time.After(1 * time.Minute):
 					t.Fatal("timed out while shutting down server")
 				}
-			}
+			}, nil
 		} else if i == 0 {
 			freeport.Return(ports)
-			t.Fatalf("err: %v", err)
+			return nil, nil, err
 		} else {
 			if server != nil {
 				_ = server.Shutdown()
@@ -152,17 +157,22 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 		}
 	}
 
-	return nil, nil
+	return nil, nil, nil
 }
 
-func TestJoin(t testing.T, s1 *Server, other ...*Server) {
-	addr := fmt.Sprintf("127.0.0.1:%d",
-		s1.config.SerfConfig.MemberlistConfig.BindPort)
-	for _, s2 := range other {
-		if num, err := s2.Join([]string{addr}); err != nil {
-			t.Fatalf("err: %v", err)
-		} else if num != 1 {
-			t.Fatalf("bad: %d", num)
+func TestJoin(t *testing.T, servers ...*Server) {
+	for i := 0; i < len(servers)-1; i++ {
+		addr := fmt.Sprintf("127.0.0.1:%d",
+			servers[i].config.SerfConfig.MemberlistConfig.BindPort)
+
+		for j := i + 1; j < len(servers); j++ {
+			num, err := servers[j].Join([]string{addr})
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+			if num != 1 {
+				t.Fatalf("bad: %d", num)
+			}
 		}
 	}
 }

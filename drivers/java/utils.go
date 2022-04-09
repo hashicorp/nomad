@@ -5,13 +5,37 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	rt "runtime"
 	"strings"
 )
 
 var javaVersionCommand = []string{"java", "-version"}
+var macOSJavaTestCommand = "/usr/libexec/java_home"
+
+func checkForMacJVM() (ok bool, err error) {
+	// test for java differently because of the shim application
+	var out bytes.Buffer
+	cmd := exec.Command(macOSJavaTestCommand)
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	err = cmd.Run()
+	if err != nil {
+		err = fmt.Errorf("failed check for macOS jvm: %v, out: %v", err, strings.ReplaceAll(strings.ReplaceAll(out.String(), "\n", " "), `"`, `\"`))
+		return false, err
+	}
+	return true, nil
+}
 
 func javaVersionInfo() (version, runtime, vm string, err error) {
 	var out bytes.Buffer
+
+	if rt.GOOS == "darwin" {
+		_, err = checkForMacJVM()
+		if err != nil {
+			err = fmt.Errorf("failed to check java version: %v", err)
+			return
+		}
+	}
 
 	cmd := exec.Command(javaVersionCommand[0], javaVersionCommand[1:]...)
 	cmd.Stdout = &out
@@ -25,6 +49,10 @@ func javaVersionInfo() (version, runtime, vm string, err error) {
 	version, runtime, vm = parseJavaVersionOutput(out.String())
 	return
 }
+
+var (
+	javaVersionRe = regexp.MustCompile(`([.\d_]+)`)
+)
 
 func parseJavaVersionOutput(infoString string) (version, runtime, vm string) {
 	infoString = strings.TrimSpace(infoString)
@@ -41,8 +69,7 @@ func parseJavaVersionOutput(infoString string) (version, runtime, vm string) {
 
 	versionString := strings.TrimSpace(lines[0])
 
-	re := regexp.MustCompile(`version "([^"]*)"`)
-	if match := re.FindStringSubmatch(lines[0]); len(match) == 2 {
+	if match := javaVersionRe.FindStringSubmatch(versionString); len(match) == 2 {
 		versionString = match[1]
 	}
 

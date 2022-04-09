@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
 )
@@ -30,9 +29,12 @@ Usage: nomad quota apply [options] <input>
   will be read from stdin by specifying "-", otherwise a path to the file is
   expected.
 
+  If ACLs are enabled, this command requires a token with the 'quota:write'
+  capability.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Apply Options:
 
@@ -262,7 +264,7 @@ func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
 	valid := []string{
 		"cpu",
 		"memory",
-		"network",
+		"memory_max",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "resources ->")
@@ -275,21 +277,6 @@ func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
 
 	if err := mapstructure.WeakDecode(m, result); err != nil {
 		return err
-	}
-
-	// Find the network ObjectList, parse it
-	nw := listVal.Filter("network")
-	if len(nw.Items) > 0 {
-		rl, err := jobspec.ParseNetwork(nw)
-		if err != nil {
-			return multierror.Prefix(err, "resources ->")
-		}
-		if rl != nil {
-			if rl.Mode != "" || rl.HasPorts() {
-				return fmt.Errorf("resources -> network only allows mbits")
-			}
-			result.Networks = []*api.NetworkResource{rl}
-		}
 	}
 
 	return nil

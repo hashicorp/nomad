@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -10,11 +11,13 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
@@ -50,11 +53,13 @@ func testFSM(t *testing.T) *nomadFSM {
 	dispatcher, _ := testPeriodicDispatcher(t)
 	logger := testlog.HCLogger(t)
 	fsmConfig := &FSMConfig{
-		EvalBroker: broker,
-		Periodic:   dispatcher,
-		Blocked:    NewBlockedEvals(broker, logger),
-		Logger:     logger,
-		Region:     "global",
+		EvalBroker:        broker,
+		Periodic:          dispatcher,
+		Blocked:           NewBlockedEvals(broker, logger),
+		Logger:            logger,
+		Region:            "global",
+		EnableEventBroker: true,
+		EventBufferSize:   100,
 	}
 	fsm, err := NewFSM(fsmConfig)
 	if err != nil {
@@ -63,7 +68,6 @@ func testFSM(t *testing.T) *nomadFSM {
 	if fsm == nil {
 		t.Fatalf("missing fsm")
 	}
-	state.TestInitState(t, fsm.state)
 	return fsm
 }
 
@@ -77,14 +81,14 @@ func makeLog(buf []byte) *raft.Log {
 }
 
 func TestFSM_UpsertNodeEvents(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	fsm := testFSM(t)
 	state := fsm.State()
 
 	node := mock.Node()
 
-	err := state.UpsertNode(1000, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -121,7 +125,7 @@ func TestFSM_UpsertNodeEvents(t *testing.T) {
 }
 
 func TestFSM_UpsertNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
@@ -178,13 +182,13 @@ func TestFSM_UpsertNode(t *testing.T) {
 }
 
 func TestFSM_UpsertNode_Canonicalize(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
-	// Setup a node without eligibility
+	// Setup a node without eligibility, ensure that upsert/canonicalize put it back
 	node := mock.Node()
 	node.SchedulingEligibility = ""
 
@@ -194,20 +198,45 @@ func TestFSM_UpsertNode_Canonicalize(t *testing.T) {
 	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
 	require.Nil(err)
 
-	resp := fsm.Apply(makeLog(buf))
-	require.Nil(resp)
+	require.Nil(fsm.Apply(makeLog(buf)))
 
 	// Verify we are registered
-	ws := memdb.NewWatchSet()
-	n, err := fsm.State().NodeByID(ws, req.Node.ID)
+	n, err := fsm.State().NodeByID(nil, req.Node.ID)
 	require.Nil(err)
 	require.NotNil(n)
 	require.EqualValues(1, n.CreateIndex)
 	require.Equal(structs.NodeSchedulingEligible, n.SchedulingEligibility)
 }
 
+func TestFSM_UpsertNode_Canonicalize_Ineligible(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
+
+	// Setup a node without eligibility, ensure that upsert/canonicalize put it back
+	node := mock.DrainNode()
+	node.SchedulingEligibility = ""
+
+	req := structs.NodeRegisterRequest{
+		Node: node,
+	}
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	require.Nil(err)
+
+	require.Nil(fsm.Apply(makeLog(buf)))
+
+	// Verify we are registered
+	n, err := fsm.State().NodeByID(nil, req.Node.ID)
+	require.Nil(err)
+	require.NotNil(n)
+	require.EqualValues(1, n.CreateIndex)
+	require.Equal(structs.NodeSchedulingIneligible, n.SchedulingEligibility)
+}
+
 func TestFSM_DeregisterNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	node := mock.Node()
@@ -249,7 +278,7 @@ func TestFSM_DeregisterNode(t *testing.T) {
 }
 
 func TestFSM_UpdateNodeStatus(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
@@ -306,7 +335,7 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 }
 
 func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	fsm := testFSM(t)
 
@@ -350,13 +379,12 @@ func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	node, err = fsm.State().NodeByID(ws, req.Node.ID)
 	require.Nil(err)
-	require.True(node.Drain)
 	require.Equal(node.DrainStrategy, strategy)
 	require.Len(node.Events, 2)
 }
 
 func TestFSM_UpdateNodeDrain(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	fsm := testFSM(t)
 
@@ -394,48 +422,12 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	node, err = fsm.State().NodeByID(ws, req.Node.ID)
 	require.Nil(err)
-	require.True(node.Drain)
 	require.Equal(node.DrainStrategy, strategy)
 	require.Len(node.Events, 2)
 }
 
-func TestFSM_UpdateNodeDrain_Pre08_Compatibility(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-	fsm := testFSM(t)
-
-	// Force a node into the state store without eligiblity
-	node := mock.Node()
-	node.SchedulingEligibility = ""
-	require.Nil(fsm.State().UpsertNode(1, node))
-
-	// Do an old style drain
-	req := structs.NodeUpdateDrainRequest{
-		NodeID: node.ID,
-		Drain:  true,
-	}
-	buf, err := structs.Encode(structs.NodeUpdateDrainRequestType, req)
-	require.Nil(err)
-
-	resp := fsm.Apply(makeLog(buf))
-	require.Nil(resp)
-
-	// Verify we have upgraded to a force drain
-	ws := memdb.NewWatchSet()
-	node, err = fsm.State().NodeByID(ws, req.NodeID)
-	require.Nil(err)
-	require.True(node.Drain)
-
-	expected := &structs.DrainStrategy{
-		DrainSpec: structs.DrainSpec{
-			Deadline: -1 * time.Second,
-		},
-	}
-	require.Equal(expected, node.DrainStrategy)
-}
-
 func TestFSM_UpdateNodeEligibility(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	fsm := testFSM(t)
 
@@ -505,7 +497,7 @@ func TestFSM_UpdateNodeEligibility(t *testing.T) {
 }
 
 func TestFSM_UpdateNodeEligibility_Unblock(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	fsm := testFSM(t)
 
@@ -559,7 +551,7 @@ func TestFSM_UpdateNodeEligibility_Unblock(t *testing.T) {
 }
 
 func TestFSM_RegisterJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	job := mock.PeriodicJob()
@@ -615,7 +607,7 @@ func TestFSM_RegisterJob(t *testing.T) {
 }
 
 func TestFSM_RegisterPeriodicJob_NonLeader(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	// Disable the dispatcher
@@ -674,7 +666,7 @@ func TestFSM_RegisterPeriodicJob_NonLeader(t *testing.T) {
 }
 
 func TestFSM_RegisterJob_BadNamespace(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	job := mock.Job()
@@ -713,8 +705,31 @@ func TestFSM_RegisterJob_BadNamespace(t *testing.T) {
 	}
 }
 
+func TestFSM_DeregisterJob_Error(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	job := mock.Job()
+
+	deregReq := structs.JobDeregisterRequest{
+		JobID: job.ID,
+		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
+	}
+	buf, err := structs.Encode(structs.JobDeregisterRequestType, deregReq)
+	require.NoError(t, err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.NotNil(t, resp)
+	respErr, ok := resp.(error)
+	require.Truef(t, ok, "expected response to be an error but found: %T", resp)
+	require.Error(t, respErr)
+}
+
 func TestFSM_DeregisterJob_Purge(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	job := mock.PeriodicJob()
@@ -781,7 +796,7 @@ func TestFSM_DeregisterJob_Purge(t *testing.T) {
 }
 
 func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	job := mock.PeriodicJob()
@@ -851,7 +866,7 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 }
 
 func TestFSM_BatchDeregisterJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	fsm := testFSM(t)
 
@@ -929,7 +944,7 @@ func TestFSM_BatchDeregisterJob(t *testing.T) {
 }
 
 func TestFSM_UpdateEval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 
@@ -967,7 +982,7 @@ func TestFSM_UpdateEval(t *testing.T) {
 }
 
 func TestFSM_UpdateEval_Blocked(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	fsm.blockedEvals.SetEnabled(true)
@@ -1016,7 +1031,7 @@ func TestFSM_UpdateEval_Blocked(t *testing.T) {
 }
 
 func TestFSM_UpdateEval_Untrack(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	fsm.blockedEvals.SetEnabled(true)
@@ -1071,7 +1086,7 @@ func TestFSM_UpdateEval_Untrack(t *testing.T) {
 }
 
 func TestFSM_UpdateEval_NoUntrack(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	fsm.blockedEvals.SetEnabled(true)
@@ -1128,7 +1143,7 @@ func TestFSM_UpdateEval_NoUntrack(t *testing.T) {
 }
 
 func TestFSM_DeleteEval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	eval := mock.Eval()
@@ -1170,7 +1185,7 @@ func TestFSM_DeleteEval(t *testing.T) {
 }
 
 func TestFSM_UpsertAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
@@ -1229,7 +1244,7 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 }
 
 func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
@@ -1302,7 +1317,7 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 
 // COMPAT(0.11): Remove in 0.11
 func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
@@ -1373,6 +1388,7 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 
 	// Resources should be recomputed
 	origResources.DiskMB = alloc.Job.TaskGroups[0].EphemeralDisk.SizeMB
+	origResources.MemoryMaxMB = origResources.MemoryMB
 	alloc.Resources = origResources
 	if !reflect.DeepEqual(alloc, out) {
 		t.Fatalf("not equal: % #v", pretty.Diff(alloc, out))
@@ -1382,7 +1398,7 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 // TestFSM_UpsertAllocs_Canonicalize asserts that allocations are Canonicalized
 // to handle logs emited by servers running old versions
 func TestFSM_UpsertAllocs_Canonicalize(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
@@ -1419,13 +1435,13 @@ func TestFSM_UpsertAllocs_Canonicalize(t *testing.T) {
 }
 
 func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 	state := fsm.State()
 
 	node := mock.Node()
-	state.UpsertNode(1, node)
+	state.UpsertNode(structs.MsgTypeTestSetup, 1, node)
 
 	// Mark an eval as blocked.
 	eval := mock.Eval()
@@ -1444,7 +1460,7 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	alloc2.NodeID = node.ID
 	state.UpsertJobSummary(8, mock.JobSummary(alloc.JobID))
 	state.UpsertJobSummary(9, mock.JobSummary(alloc2.JobID))
-	state.UpsertAllocs(10, []*structs.Allocation{alloc, alloc2})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc, alloc2})
 
 	clientAlloc := new(structs.Allocation)
 	*clientAlloc = *alloc
@@ -1504,14 +1520,14 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 }
 
 func TestFSM_UpdateAllocFromClient(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	state := fsm.State()
 	require := require.New(t)
 
 	alloc := mock.Alloc()
 	state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(10, []*structs.Allocation{alloc})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc})
 
 	clientAlloc := new(structs.Allocation)
 	*clientAlloc = *alloc
@@ -1552,7 +1568,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 }
 
 func TestFSM_UpdateAllocDesiredTransition(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	state := fsm.State()
 	require := require.New(t)
@@ -1562,7 +1578,7 @@ func TestFSM_UpdateAllocDesiredTransition(t *testing.T) {
 	alloc2.Job = alloc.Job
 	alloc2.JobID = alloc.JobID
 	state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(10, []*structs.Allocation{alloc, alloc2})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc, alloc2})
 
 	t1 := &structs.DesiredTransition{
 		Migrate: helper.BoolToPtr(true),
@@ -1609,7 +1625,7 @@ func TestFSM_UpdateAllocDesiredTransition(t *testing.T) {
 }
 
 func TestFSM_UpsertVaultAccessor(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
@@ -1659,7 +1675,7 @@ func TestFSM_UpsertVaultAccessor(t *testing.T) {
 }
 
 func TestFSM_DeregisterVaultAccessor(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
@@ -1702,7 +1718,7 @@ func TestFSM_DeregisterVaultAccessor(t *testing.T) {
 }
 
 func TestFSM_UpsertSITokenAccessor(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	fsm := testFSM(t)
@@ -1737,7 +1753,7 @@ func TestFSM_UpsertSITokenAccessor(t *testing.T) {
 }
 
 func TestFSM_DeregisterSITokenAccessor(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	fsm := testFSM(t)
@@ -1775,7 +1791,7 @@ func TestFSM_DeregisterSITokenAccessor(t *testing.T) {
 }
 
 func TestFSM_ApplyPlanResults(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	// Create the request and create a deployment
@@ -1793,7 +1809,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 
 	eval := mock.Eval()
 	eval.JobID = job.ID
-	fsm.State().UpsertEvals(1, []*structs.Evaluation{eval})
+	fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval})
 
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 
@@ -1811,7 +1827,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	alloc2.JobID = job2.ID
 	alloc2.PreemptedByAllocation = alloc.ID
 
-	fsm.State().UpsertAllocs(1, []*structs.Allocation{alloc1, alloc2})
+	fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 1, []*structs.Allocation{alloc1, alloc2})
 
 	// evals for preempted jobs
 	eval1 := mock.Eval()
@@ -1884,7 +1900,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	eval = mock.Eval()
 	eval.JobID = job.ID
 
-	fsm.State().UpsertEvals(2, []*structs.Evaluation{eval})
+	fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2, []*structs.Evaluation{eval})
 
 	evictAlloc.Job = nil
 	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
@@ -1918,7 +1934,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 }
 
 func TestFSM_DeploymentStatusUpdate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	state := fsm.State()
@@ -1987,14 +2003,14 @@ func TestFSM_DeploymentStatusUpdate(t *testing.T) {
 }
 
 func TestFSM_JobStabilityUpdate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	state := fsm.State()
 
 	// Upsert a deployment
 	job := mock.Job()
-	if err := state.UpsertJob(1, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -2028,7 +2044,7 @@ func TestFSM_JobStabilityUpdate(t *testing.T) {
 }
 
 func TestFSM_DeploymentPromotion(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	state := fsm.State()
@@ -2039,7 +2055,7 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	if err := state.UpsertJob(1, j); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, j); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -2077,7 +2093,7 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 		Healthy: helper.BoolToPtr(true),
 	}
 
-	if err := state.UpsertAllocs(3, []*structs.Allocation{c1, c2}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2133,7 +2149,7 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 }
 
 func TestFSM_DeploymentAllocHealth(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	state := fsm.State()
@@ -2149,7 +2165,7 @@ func TestFSM_DeploymentAllocHealth(t *testing.T) {
 	a1.DeploymentID = d.ID
 	a2 := mock.Alloc()
 	a2.DeploymentID = d.ID
-	if err := state.UpsertAllocs(2, []*structs.Allocation{a1, a2}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{a1, a2}); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -2240,7 +2256,7 @@ func TestFSM_DeploymentAllocHealth(t *testing.T) {
 }
 
 func TestFSM_DeleteDeployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 	state := fsm.State()
 
@@ -2275,7 +2291,7 @@ func TestFSM_DeleteDeployment(t *testing.T) {
 }
 
 func TestFSM_UpsertACLPolicies(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	policy := mock.ACLPolicy()
@@ -2300,11 +2316,11 @@ func TestFSM_UpsertACLPolicies(t *testing.T) {
 }
 
 func TestFSM_DeleteACLPolicies(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	policy := mock.ACLPolicy()
-	err := fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{policy})
+	err := fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy})
 	assert.Nil(t, err)
 
 	req := structs.ACLPolicyDeleteRequest{
@@ -2328,7 +2344,7 @@ func TestFSM_DeleteACLPolicies(t *testing.T) {
 }
 
 func TestFSM_BootstrapACLTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	token := mock.ACLToken()
@@ -2373,7 +2389,7 @@ func TestFSM_BootstrapACLTokens(t *testing.T) {
 }
 
 func TestFSM_UpsertACLTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	token := mock.ACLToken()
@@ -2398,11 +2414,11 @@ func TestFSM_UpsertACLTokens(t *testing.T) {
 }
 
 func TestFSM_DeleteACLTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	token := mock.ACLToken()
-	err := fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token})
+	err := fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token})
 	assert.Nil(t, err)
 
 	req := structs.ACLTokenDeleteRequest{
@@ -2465,41 +2481,31 @@ func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 }
 
 func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
-	node1 := mock.Node()
-	state.UpsertNode(1000, node1)
-
-	// Upgrade this node
-	node2 := mock.Node()
-	node2.SchedulingEligibility = ""
-	state.UpsertNode(1001, node2)
+	node := mock.Node()
+	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.NodeByID(nil, node1.ID)
-	out2, _ := state2.NodeByID(nil, node2.ID)
-	node2.SchedulingEligibility = structs.NodeSchedulingEligible
-	if !reflect.DeepEqual(node1, out1) {
-		t.Fatalf("bad: \n%#v\n%#v", out1, node1)
-	}
-	if !reflect.DeepEqual(node2, out2) {
-		t.Fatalf("bad: \n%#v\n%#v", out2, node2)
+	out, _ := state2.NodeByID(nil, node.ID)
+	if !reflect.DeepEqual(node, out) {
+		t.Fatalf("bad: \n%#v\n%#v", out, node)
 	}
 }
 
 func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
 	job1 := mock.Job()
-	state.UpsertJob(1000, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 	job2 := mock.Job()
-	state.UpsertJob(1001, job2)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2)
 
 	// Verify the contents
 	ws := memdb.NewWatchSet()
@@ -2516,14 +2522,14 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Evals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
 	eval1 := mock.Eval()
-	state.UpsertEvals(1000, []*structs.Evaluation{eval1})
+	state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
 	eval2 := mock.Eval()
-	state.UpsertEvals(1001, []*structs.Evaluation{eval2})
+	state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2540,7 +2546,7 @@ func TestFSM_SnapshotRestore_Evals(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2548,8 +2554,8 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	alloc2 := mock.Alloc()
 	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
-	state.UpsertAllocs(1001, []*structs.Allocation{alloc2})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2566,7 +2572,7 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Allocs_Canonicalize(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2576,7 +2582,7 @@ func TestFSM_SnapshotRestore_Allocs_Canonicalize(t *testing.T) {
 	alloc.AllocatedResources = nil
 
 	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2593,12 +2599,12 @@ func TestFSM_SnapshotRestore_Allocs_Canonicalize(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
 	node1 := mock.Node()
-	state.UpsertNode(1000, node1)
+	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2614,7 +2620,7 @@ func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_TimeTable(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 
@@ -2636,7 +2642,7 @@ func TestFSM_SnapshotRestore_TimeTable(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_PeriodicLaunches(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2671,18 +2677,18 @@ func TestFSM_SnapshotRestore_PeriodicLaunches(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
 
 	job1 := mock.Job()
-	state.UpsertJob(1000, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 	ws := memdb.NewWatchSet()
 	js1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
 
 	job2 := mock.Job()
-	state.UpsertJob(1001, job2)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2)
 	js2, _ := state.JobSummaryByID(ws, job2.Namespace, job2.ID)
 
 	// Verify the contents
@@ -2699,7 +2705,7 @@ func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_VaultAccessors(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2722,15 +2728,15 @@ func TestFSM_SnapshotRestore_VaultAccessors(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_JobVersions(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
 	job1 := mock.Job()
-	state.UpsertJob(1000, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 	job2 := mock.Job()
 	job2.ID = job1.ID
-	state.UpsertJob(1001, job2)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2)
 
 	// Verify the contents
 	ws := memdb.NewWatchSet()
@@ -2750,7 +2756,7 @@ func TestFSM_SnapshotRestore_JobVersions(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2761,7 +2767,7 @@ func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
 	d1.JobID = j.ID
 	d2.JobID = j.ID
 
-	state.UpsertJob(999, j)
+	state.UpsertJob(structs.MsgTypeTestSetup, 999, j)
 	state.UpsertDeployment(1000, d1)
 	state.UpsertDeployment(1001, d2)
 
@@ -2780,13 +2786,13 @@ func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_ACLPolicy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
 	p1 := mock.ACLPolicy()
 	p2 := mock.ACLPolicy()
-	state.UpsertACLPolicies(1000, []*structs.ACLPolicy{p1, p2})
+	state.UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{p1, p2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2799,13 +2805,13 @@ func TestFSM_SnapshotRestore_ACLPolicy(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_ACLTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
 	tk1 := mock.ACLToken()
 	tk2 := mock.ACLToken()
-	state.UpsertACLTokens(1000, []*structs.ACLToken{tk1, tk2})
+	state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{tk1, tk2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2818,7 +2824,7 @@ func TestFSM_SnapshotRestore_ACLTokens(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_SchedulerConfiguration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2841,7 +2847,7 @@ func TestFSM_SnapshotRestore_SchedulerConfiguration(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_ClusterMetadata(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2854,35 +2860,35 @@ func TestFSM_SnapshotRestore_ClusterMetadata(t *testing.T) {
 	require := require.New(t)
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out, err := state2.ClusterMetadata()
+	out, err := state2.ClusterMetadata(memdb.NewWatchSet())
 	require.NoError(err)
 	require.Equal(clusterID, out.ClusterID)
 }
 
 func TestFSM_ReconcileSummaries(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
 
 	// Add a node
 	node := mock.Node()
-	state.UpsertNode(800, node)
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 800, node))
 
 	// Make a job so that none of the tasks can be placed
 	job1 := mock.Job()
 	job1.TaskGroups[0].Tasks[0].Resources.CPU = 5000
-	state.UpsertJob(1000, job1)
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1))
 
 	// make a job which can make partial progress
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	state.UpsertJob(1010, alloc.Job)
-	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1010, alloc.Job))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
 
 	// Delete the summaries
-	state.DeleteJobSummary(1030, job1.Namespace, job1.ID)
-	state.DeleteJobSummary(1040, alloc.Namespace, alloc.Job.ID)
+	require.NoError(t, state.DeleteJobSummary(1030, job1.Namespace, job1.ID))
+	require.NoError(t, state.DeleteJobSummary(1040, alloc.Namespace, alloc.Job.ID))
 
 	req := structs.GenericRequest{}
 	buf, err := structs.Encode(structs.ReconcileJobSummariesRequestType, req)
@@ -2896,7 +2902,9 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	out1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
+	out1, err := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
+	require.NoError(t, err)
+
 	expected := structs.JobSummary{
 		JobID:     job1.ID,
 		Namespace: job1.Namespace,
@@ -2915,7 +2923,9 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	// This exercises the code path which adds the allocations made by the
 	// planner and the number of unplaced allocations in the reconcile summaries
 	// codepath
-	out2, _ := state.JobSummaryByID(ws, alloc.Namespace, alloc.Job.ID)
+	out2, err := state.JobSummaryByID(ws, alloc.Namespace, alloc.Job.ID)
+	require.NoError(t, err)
+
 	expected = structs.JobSummary{
 		JobID:     alloc.Job.ID,
 		Namespace: alloc.Job.Namespace,
@@ -2936,7 +2946,7 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 // COMPAT: Remove in 0.11
 func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 	// This test exercises code to handle https://github.com/hashicorp/nomad/issues/3886
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 	// Add some state
@@ -2945,7 +2955,7 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 
 	// Add a node
 	node := mock.Node()
-	state.UpsertNode(800, node)
+	state.UpsertNode(structs.MsgTypeTestSetup, 800, node)
 
 	// Make a parameterized job
 	job1 := mock.BatchJob()
@@ -2954,7 +2964,7 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 		Payload: "random",
 	}
 	job1.TaskGroups[0].Count = 1
-	state.UpsertJob(1000, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 
 	// Make a child job
 	childJob := job1.Copy()
@@ -2970,8 +2980,8 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 	alloc.JobID = childJob.ID
 	alloc.ClientStatus = structs.AllocClientStatusRunning
 
-	state.UpsertJob(1010, childJob)
-	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
+	state.UpsertJob(structs.MsgTypeTestSetup, 1010, childJob)
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc})
 
 	// Make the summary incorrect in the state store
 	summary, err := state.JobSummaryByID(nil, job1.Namespace, job1.ID)
@@ -3006,7 +3016,7 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 }
 
 func TestFSM_LeakedDeployments(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Add some state
@@ -3024,7 +3034,7 @@ func TestFSM_LeakedDeployments(t *testing.T) {
 }
 
 func TestFSM_Autopilot(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	// Set the autopilot config using a request.
@@ -3087,7 +3097,7 @@ func TestFSM_Autopilot(t *testing.T) {
 }
 
 func TestFSM_SchedulerConfig(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	fsm := testFSM(t)
 
 	require := require.New(t)
@@ -3136,7 +3146,7 @@ func TestFSM_SchedulerConfig(t *testing.T) {
 }
 
 func TestFSM_ClusterMetadata(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	fsm := testFSM(t)
@@ -3153,11 +3163,12 @@ func TestFSM_ClusterMetadata(t *testing.T) {
 	r.Nil(result)
 
 	// Verify the clusterID is set directly in the state store
-	storedMetadata, err := fsm.state.ClusterMetadata()
+	ws := memdb.NewWatchSet()
+	storedMetadata, err := fsm.state.ClusterMetadata(ws)
 	r.NoError(err)
 	r.Equal(clusterID, storedMetadata.ClusterID)
 
-	// Check that the sanity check prevents accidental UUID regeneration
+	// Assert cluster ID cannot be overwritten and is not regenerated
 	erroneous := structs.ClusterMetadata{
 		ClusterID: "99999999-9999-9999-9999-9999999999",
 	}
@@ -3167,8 +3178,367 @@ func TestFSM_ClusterMetadata(t *testing.T) {
 	result = fsm.Apply(makeLog(buf))
 	r.Error(result.(error))
 
-	storedMetadata, err = fsm.state.ClusterMetadata()
+	storedMetadata, err = fsm.state.ClusterMetadata(ws)
 	r.NoError(err)
 	r.Equal(clusterID, storedMetadata.ClusterID)
 	r.Equal(now, storedMetadata.CreateTime)
+}
+
+func TestFSM_UpsertNamespaces(t *testing.T) {
+	assert := assert.New(t)
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	req := structs.NamespaceUpsertRequest{
+		Namespaces: []*structs.Namespace{ns1, ns2},
+	}
+	buf, err := structs.Encode(structs.NamespaceUpsertRequestType, req)
+	assert.Nil(err)
+	assert.Nil(fsm.Apply(makeLog(buf)))
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().NamespaceByName(ws, ns1.Name)
+	assert.Nil(err)
+	assert.NotNil(out)
+
+	out, err = fsm.State().NamespaceByName(ws, ns2.Name)
+	assert.Nil(err)
+	assert.NotNil(out)
+}
+
+func TestFSM_DeleteNamespaces(t *testing.T) {
+	assert := assert.New(t)
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	assert.Nil(fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2}))
+
+	req := structs.NamespaceDeleteRequest{
+		Namespaces: []string{ns1.Name, ns2.Name},
+	}
+	buf, err := structs.Encode(structs.NamespaceDeleteRequestType, req)
+	assert.Nil(err)
+	assert.Nil(fsm.Apply(makeLog(buf)))
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().NamespaceByName(ws, ns1.Name)
+	assert.Nil(err)
+	assert.Nil(out)
+
+	out, err = fsm.State().NamespaceByName(ws, ns2.Name)
+	assert.Nil(err)
+	assert.Nil(out)
+}
+
+func TestFSM_SnapshotRestore_Namespaces(t *testing.T) {
+	ci.Parallel(t)
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	state.UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2})
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	ws := memdb.NewWatchSet()
+	out1, _ := state2.NamespaceByName(ws, ns1.Name)
+	out2, _ := state2.NamespaceByName(ws, ns2.Name)
+	if !reflect.DeepEqual(ns1, out1) {
+		t.Fatalf("bad: \n%#v\n%#v", out1, ns1)
+	}
+	if !reflect.DeepEqual(ns2, out2) {
+		t.Fatalf("bad: \n%#v\n%#v", out2, ns2)
+	}
+}
+
+func TestFSM_UpsertServiceRegistrations(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	// Generate our test service registrations.
+	services := mock.ServiceRegistrations()
+
+	// Build and apply our message.
+	req := structs.ServiceRegistrationUpsertRequest{Services: services}
+	buf, err := structs.Encode(structs.ServiceRegistrationUpsertRequestType, req)
+	assert.Nil(t, err)
+	assert.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// Check that both services are found within state.
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().GetServiceRegistrationByID(ws, services[0].Namespace, services[0].ID)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+
+	out, err = fsm.State().GetServiceRegistrationByID(ws, services[1].Namespace, services[1].ID)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+}
+
+func TestFSM_DeleteServiceRegistrationsByID(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	// Generate our test service registrations.
+	services := mock.ServiceRegistrations()
+
+	// Upsert the services.
+	assert.NoError(t, fsm.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, uint64(10), services))
+
+	// Build and apply our message.
+	req := structs.ServiceRegistrationDeleteByIDRequest{ID: services[0].ID}
+	buf, err := structs.Encode(structs.ServiceRegistrationDeleteByIDRequestType, req)
+	assert.Nil(t, err)
+	assert.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// Check that the service has been deleted, whilst the other is still
+	// available.
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().GetServiceRegistrationByID(ws, services[0].Namespace, services[0].ID)
+	assert.Nil(t, err)
+	assert.Nil(t, out)
+
+	out, err = fsm.State().GetServiceRegistrationByID(ws, services[1].Namespace, services[1].ID)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+}
+
+func TestFSM_DeleteServiceRegistrationsByNodeID(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	// Generate our test service registrations. Set them both to have the same
+	// node ID.
+	services := mock.ServiceRegistrations()
+	services[1].NodeID = services[0].NodeID
+
+	// Upsert the services.
+	assert.NoError(t, fsm.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, uint64(10), services))
+
+	// Build and apply our message.
+	req := structs.ServiceRegistrationDeleteByNodeIDRequest{NodeID: services[0].NodeID}
+	buf, err := structs.Encode(structs.ServiceRegistrationDeleteByNodeIDRequestType, req)
+	assert.Nil(t, err)
+	assert.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// Check both services have been removed.
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().GetServiceRegistrationByID(ws, services[0].Namespace, services[0].ID)
+	assert.Nil(t, err)
+	assert.Nil(t, out)
+
+	out, err = fsm.State().GetServiceRegistrationByID(ws, services[1].Namespace, services[1].ID)
+	assert.Nil(t, err)
+	assert.Nil(t, out)
+}
+
+func TestFSM_ACLEvents(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		desc     string
+		setupfn  func(t *testing.T, fsm *nomadFSM)
+		raftReq  func(t *testing.T) []byte
+		reqTopic structs.Topic
+		eventfn  func(t *testing.T, e []structs.Event)
+	}{
+		{
+			desc: "ACLToken upserted",
+			raftReq: func(t *testing.T) []byte {
+				req := structs.ACLTokenUpsertRequest{
+					Tokens: []*structs.ACLToken{mock.ACLToken()},
+				}
+				buf, err := structs.Encode(structs.ACLTokenUpsertRequestType, req)
+				require.NoError(t, err)
+				return buf
+			},
+			reqTopic: structs.TopicACLToken,
+			eventfn: func(t *testing.T, e []structs.Event) {
+				require.Len(t, e, 1)
+				require.Equal(t, e[0].Topic, structs.TopicACLToken)
+				require.Empty(t, e[0].Payload.(*structs.ACLTokenEvent).ACLToken.SecretID)
+				require.Equal(t, e[0].Type, structs.TypeACLTokenUpserted)
+			},
+		},
+		{
+			desc: "ACLToken deleted",
+			setupfn: func(t *testing.T, fsm *nomadFSM) {
+				token := mock.ACLToken()
+				token.SecretID = "26be01d3-df3a-45e9-9f49-4487a3dc3496"
+				token.AccessorID = "b971acba-bbe5-4274-bdfa-8bb1f542a8c1"
+
+				require.NoError(t,
+					fsm.State().UpsertACLTokens(
+						structs.MsgTypeTestSetup, 10, []*structs.ACLToken{token}))
+			},
+			raftReq: func(t *testing.T) []byte {
+				req := structs.ACLTokenDeleteRequest{
+					AccessorIDs: []string{"b971acba-bbe5-4274-bdfa-8bb1f542a8c1"},
+				}
+				buf, err := structs.Encode(structs.ACLTokenDeleteRequestType, req)
+				require.NoError(t, err)
+				return buf
+			},
+			reqTopic: structs.TopicACLToken,
+			eventfn: func(t *testing.T, e []structs.Event) {
+				require.Len(t, e, 1)
+				require.Equal(t, e[0].Topic, structs.TopicACLToken)
+				require.Empty(t, e[0].Payload.(*structs.ACLTokenEvent).ACLToken.SecretID)
+				require.Equal(t, e[0].Type, structs.TypeACLTokenDeleted)
+			},
+		},
+		{
+			desc: "ACLPolicy upserted",
+			raftReq: func(t *testing.T) []byte {
+				req := structs.ACLPolicyUpsertRequest{
+					Policies: []*structs.ACLPolicy{mock.ACLPolicy()},
+				}
+				buf, err := structs.Encode(structs.ACLPolicyUpsertRequestType, req)
+				require.NoError(t, err)
+				return buf
+			},
+			reqTopic: structs.TopicACLPolicy,
+			eventfn: func(t *testing.T, e []structs.Event) {
+				require.Len(t, e, 1)
+				require.Equal(t, e[0].Topic, structs.TopicACLPolicy)
+				require.Equal(t, e[0].Type, structs.TypeACLPolicyUpserted)
+			},
+		},
+		{
+			desc: "ACLPolicy deleted",
+			setupfn: func(t *testing.T, fsm *nomadFSM) {
+				policy := mock.ACLPolicy()
+				policy.Name = "some-policy"
+
+				require.NoError(t,
+					fsm.State().UpsertACLPolicies(
+						structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy}))
+			},
+			raftReq: func(t *testing.T) []byte {
+				req := structs.ACLPolicyDeleteRequest{
+					Names: []string{"some-policy"},
+				}
+				buf, err := structs.Encode(structs.ACLPolicyDeleteRequestType, req)
+				require.NoError(t, err)
+				return buf
+			},
+			reqTopic: structs.TopicACLPolicy,
+			eventfn: func(t *testing.T, e []structs.Event) {
+				require.Len(t, e, 1)
+				require.Equal(t, e[0].Topic, structs.TopicACLPolicy)
+				require.Equal(t, e[0].Type, structs.TypeACLPolicyDeleted)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			fsm := testFSM(t)
+
+			// Setup any state necessary
+			if tc.setupfn != nil {
+				tc.setupfn(t, fsm)
+			}
+
+			// Apply the log
+			resp := fsm.Apply(makeLog(tc.raftReq(t)))
+			require.Nil(t, resp)
+
+			broker, err := fsm.State().EventBroker()
+			require.NoError(t, err)
+
+			subReq := &stream.SubscribeRequest{
+				Topics: map[structs.Topic][]string{
+					tc.reqTopic: {"*"},
+				},
+				Namespace: "default",
+			}
+
+			sub, err := broker.Subscribe(subReq)
+			require.NoError(t, err)
+
+			var events []structs.Event
+
+			testutil.WaitForResult(func() (bool, error) {
+				out, err := sub.NextNoBlock()
+				require.NoError(t, err)
+
+				if out == nil {
+					return false, fmt.Errorf("expected events got nil")
+				}
+
+				events = out
+				return true, nil
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+
+			tc.eventfn(t, events)
+		})
+	}
+}
+
+// TestFSM_EventBroker_JobRegisterFSMEvents asserts that only a single job
+// register event is emitted when registering a job
+func TestFSM_EventBroker_JobRegisterFSMEvents(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	job := mock.Job()
+	eval := mock.Eval()
+	eval.JobID = job.ID
+
+	req := structs.JobRegisterRequest{
+		Job:  job,
+		Eval: eval,
+	}
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
+	require.NoError(t, err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(t, resp)
+
+	broker, err := fsm.State().EventBroker()
+	require.NoError(t, err)
+
+	subReq := &stream.SubscribeRequest{
+		Topics: map[structs.Topic][]string{
+			structs.TopicJob: {"*"},
+		},
+		Namespace: "default",
+	}
+
+	sub, err := broker.Subscribe(subReq)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(500*time.Millisecond))
+	defer cancel()
+
+	// consume the queue
+	var events []structs.Event
+	for {
+		out, err := sub.Next(ctx)
+		if len(out.Events) == 0 {
+			break
+		}
+
+		// consume the queue until the deadline has exceeded or until we've
+		// received more events than  expected
+		if err == context.DeadlineExceeded || len(events) > 1 {
+			break
+		}
+
+		events = append(events, out.Events...)
+	}
+
+	require.Len(t, events, 1)
+	require.Equal(t, structs.TypeJobRegistered, events[0].Type)
 }

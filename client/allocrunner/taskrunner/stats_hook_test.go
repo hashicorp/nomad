@@ -2,9 +2,11 @@ package taskrunner
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -36,11 +38,15 @@ func (m *mockStatsUpdater) UpdateStats(ru *cstructs.TaskResourceUsage) {
 }
 
 type mockDriverStats struct {
+	called uint32
+
 	// err is returned by Stats if it is non-nil
 	err error
 }
 
 func (m *mockDriverStats) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
+	atomic.AddUint32(&m.called, 1)
+
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -70,10 +76,14 @@ func (m *mockDriverStats) Stats(ctx context.Context, interval time.Duration) (<-
 	return ch, nil
 }
 
+func (m *mockDriverStats) Called() int {
+	return int(atomic.LoadUint32(&m.called))
+}
+
 // TestTaskRunner_StatsHook_PoststartExited asserts the stats hook starts and
 // stops.
 func TestTaskRunner_StatsHook_PoststartExited(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 	logger := testlog.HCLogger(t)
@@ -105,7 +115,7 @@ func TestTaskRunner_StatsHook_PoststartExited(t *testing.T) {
 // TestTaskRunner_StatsHook_Periodic asserts the stats hook collects stats on
 // an interval.
 func TestTaskRunner_StatsHook_Periodic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 	logger := testlog.HCLogger(t)
@@ -150,10 +160,19 @@ func TestTaskRunner_StatsHook_Periodic(t *testing.T) {
 	require.NoError(h.Exited(context.Background(), nil, nil))
 
 	// Should *not* get another update in ~500ms (see interval above)
+	// we may get a single update due to race with exit
+	timeout := time.After(2 * interval)
+	firstUpdate := true
+
+WAITING:
 	select {
 	case ru := <-su.Ch:
+		if firstUpdate {
+			firstUpdate = false
+			goto WAITING
+		}
 		t.Fatalf("unexpected update after exit (firstrun=%v; update=%v", firstrun, ru.Timestamp)
-	case <-time.After(2 * interval):
+	case <-timeout:
 		// Ok! No update after exit as expected.
 	}
 }
@@ -161,7 +180,7 @@ func TestTaskRunner_StatsHook_Periodic(t *testing.T) {
 // TestTaskRunner_StatsHook_NotImplemented asserts the stats hook stops if the
 // driver returns NotImplemented.
 func TestTaskRunner_StatsHook_NotImplemented(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 	logger := testlog.HCLogger(t)
@@ -185,4 +204,35 @@ func TestTaskRunner_StatsHook_NotImplemented(t *testing.T) {
 	case <-time.After(500 * time.Millisecond):
 		// Ok! No update received because error was returned
 	}
+}
+
+// TestTaskRunner_StatsHook_Backoff asserts that stats hook does some backoff
+// even if the driver doesn't support intervals well
+func TestTaskRunner_StatsHook_Backoff(t *testing.T) {
+	ci.Parallel(t)
+
+	logger := testlog.HCLogger(t)
+	su := newMockStatsUpdater()
+	ds := &mockDriverStats{}
+
+	poststartReq := &interfaces.TaskPoststartRequest{DriverStats: ds}
+
+	h := newStatsHook(su, time.Minute, logger)
+	defer h.Exited(context.Background(), nil, nil)
+
+	// Run prestart
+	require.NoError(t, h.Poststart(context.Background(), poststartReq, nil))
+
+	timeout := time.After(500 * time.Millisecond)
+
+DRAIN:
+	for {
+		select {
+		case <-su.Ch:
+		case <-timeout:
+			break DRAIN
+		}
+	}
+
+	require.Equal(t, ds.Called(), 1)
 }

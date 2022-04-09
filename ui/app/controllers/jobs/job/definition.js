@@ -4,7 +4,9 @@ import { alias } from '@ember/object/computed';
 import classic from 'ember-classic-decorator';
 
 @classic
-export default class DefinitionController extends Controller.extend(WithNamespaceResetting) {
+export default class DefinitionController extends Controller.extend(
+  WithNamespaceResetting
+) {
   @alias('model.job') job;
   @alias('model.definition') definition;
 
@@ -19,9 +21,9 @@ export default class DefinitionController extends Controller.extend(WithNamespac
     this.set('isEditing', false);
   }
 
-  onSubmit(id, namespace) {
+  onSubmit(id, jobNamespace) {
     this.transitionToRoute('jobs.job', id, {
-      queryParams: { jobNamespace: namespace },
+      queryParams: { jobNamespace },
     });
   }
 }

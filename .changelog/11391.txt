@@ -1,0 +1,3 @@
+```release-note:bug
+core: Fix a bug to stop running system job allocations once their datacenters are removed from the job
+```

@@ -13,11 +13,13 @@ const (
 	errNoRegionPath               = "No path to region"
 	errTokenNotFound              = "ACL token not found"
 	errPermissionDenied           = "Permission denied"
+	errJobRegistrationDisabled    = "Job registration, dispatch, and scale are disabled by the scheduler configuration"
 	errNoNodeConn                 = "No path to node"
 	errUnknownMethod              = "Unknown rpc method"
 	errUnknownNomadVersion        = "Unable to determine Nomad version"
 	errNodeLacksRpc               = "Node does not support RPC; requires 0.8 or later"
 	errMissingAllocID             = "Missing allocation ID"
+	errIncompatibleFiltering      = "Filter expression cannot be used with other filter parameters"
 
 	// Prefix based errors that are used to check if the error is of a given
 	// type. These errors should be created with the associated constructor.
@@ -46,11 +48,15 @@ var (
 	ErrNoRegionPath               = errors.New(errNoRegionPath)
 	ErrTokenNotFound              = errors.New(errTokenNotFound)
 	ErrPermissionDenied           = errors.New(errPermissionDenied)
+	ErrJobRegistrationDisabled    = errors.New(errJobRegistrationDisabled)
 	ErrNoNodeConn                 = errors.New(errNoNodeConn)
 	ErrUnknownMethod              = errors.New(errUnknownMethod)
 	ErrUnknownNomadVersion        = errors.New(errUnknownNomadVersion)
 	ErrNodeLacksRpc               = errors.New(errNodeLacksRpc)
 	ErrMissingAllocID             = errors.New(errMissingAllocID)
+	ErrIncompatibleFiltering      = errors.New(errIncompatibleFiltering)
+
+	ErrUnknownNode = errors.New(ErrUnknownNodePrefix)
 
 	ErrDeploymentTerminalNoCancel    = errors.New(errDeploymentTerminalNoCancel)
 	ErrDeploymentTerminalNoFail      = errors.New(errDeploymentTerminalNoFail)
@@ -61,6 +67,11 @@ var (
 	ErrDeploymentTerminalNoRun       = errors.New(errDeploymentTerminalNoRun)
 	ErrDeploymentTerminalNoSetHealth = errors.New(errDeploymentTerminalNoSetHealth)
 	ErrDeploymentRunningNoUnblock    = errors.New(errDeploymentRunningNoUnblock)
+
+	ErrCSIClientRPCIgnorable  = errors.New("CSI client error (ignorable)")
+	ErrCSIClientRPCRetryable  = errors.New("CSI client error (retryable)")
+	ErrCSIVolumeMaxClaims     = errors.New("volume max claims reached")
+	ErrCSIVolumeUnschedulable = errors.New("volume is currently unschedulable")
 )
 
 // IsErrNoLeader returns whether the error is due to there being no leader.
@@ -172,14 +183,18 @@ func IsErrNodeLacksRpc(err error) bool {
 	return err != nil && strings.Contains(err.Error(), errNodeLacksRpc)
 }
 
+func IsErrNoSuchFileOrDirectory(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "no such file or directory")
+}
+
 // NewErrRPCCoded wraps an RPC error with a code to be converted to HTTP status
 // code
 func NewErrRPCCoded(code int, msg string) error {
 	return fmt.Errorf("%s%d,%s", errRPCCodedErrorPrefix, code, msg)
 }
 
-// NewErrRPCCoded wraps an RPC error with a code to be converted to HTTP status
-// code
+// NewErrRPCCodedf wraps an RPC error with a code to be converted to HTTP
+// status code.
 func NewErrRPCCodedf(code int, format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
 	return fmt.Errorf("%s%d,%s", errRPCCodedErrorPrefix, code, msg)

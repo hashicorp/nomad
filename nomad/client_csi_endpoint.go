@@ -3,6 +3,7 @@ package nomad
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -20,21 +21,11 @@ type ClientCSI struct {
 
 func (a *ClientCSI) ControllerAttachVolume(args *cstructs.ClientCSIControllerAttachVolumeRequest, reply *cstructs.ClientCSIControllerAttachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "attach_volume"}, time.Now())
-	// Get a Nomad client node for the controller
-	nodeID, err := a.nodeForController(args.PluginID, args.ControllerNodeID)
-	if err != nil {
-		return err
-	}
-	args.ControllerNodeID = nodeID
 
-	// Get the connection to the client
-	state, ok := a.srv.getNodeConn(args.ControllerNodeID)
-	if !ok {
-		return findNodeConnAndForward(a.srv, args.ControllerNodeID, "ClientCSI.ControllerAttachVolume", args, reply)
-	}
-
-	// Make the RPC
-	err = NodeRpc(state.Session, "CSI.ControllerAttachVolume", args, reply)
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerAttachVolume",
+		"ClientCSI.ControllerAttachVolume",
+		args, reply)
 	if err != nil {
 		return fmt.Errorf("controller attach volume: %v", err)
 	}
@@ -44,23 +35,12 @@ func (a *ClientCSI) ControllerAttachVolume(args *cstructs.ClientCSIControllerAtt
 func (a *ClientCSI) ControllerValidateVolume(args *cstructs.ClientCSIControllerValidateVolumeRequest, reply *cstructs.ClientCSIControllerValidateVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "validate_volume"}, time.Now())
 
-	// Get a Nomad client node for the controller
-	nodeID, err := a.nodeForController(args.PluginID, args.ControllerNodeID)
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerValidateVolume",
+		"ClientCSI.ControllerValidateVolume",
+		args, reply)
 	if err != nil {
-		return err
-	}
-	args.ControllerNodeID = nodeID
-
-	// Get the connection to the client
-	state, ok := a.srv.getNodeConn(args.ControllerNodeID)
-	if !ok {
-		return findNodeConnAndForward(a.srv, args.ControllerNodeID, "ClientCSI.ControllerValidateVolume", args, reply)
-	}
-
-	// Make the RPC
-	err = NodeRpc(state.Session, "CSI.ControllerValidateVolume", args, reply)
-	if err != nil {
-		return fmt.Errorf("validate volume: %v", err)
+		return fmt.Errorf("controller validate volume: %v", err)
 	}
 	return nil
 }
@@ -68,26 +48,132 @@ func (a *ClientCSI) ControllerValidateVolume(args *cstructs.ClientCSIControllerV
 func (a *ClientCSI) ControllerDetachVolume(args *cstructs.ClientCSIControllerDetachVolumeRequest, reply *cstructs.ClientCSIControllerDetachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "detach_volume"}, time.Now())
 
-	// Get a Nomad client node for the controller
-	nodeID, err := a.nodeForController(args.PluginID, args.ControllerNodeID)
-	if err != nil {
-		return err
-	}
-	args.ControllerNodeID = nodeID
-
-	// Get the connection to the client
-	state, ok := a.srv.getNodeConn(args.ControllerNodeID)
-	if !ok {
-		return findNodeConnAndForward(a.srv, args.ControllerNodeID, "ClientCSI.ControllerDetachVolume", args, reply)
-	}
-
-	// Make the RPC
-	err = NodeRpc(state.Session, "CSI.ControllerDetachVolume", args, reply)
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerDetachVolume",
+		"ClientCSI.ControllerDetachVolume",
+		args, reply)
 	if err != nil {
 		return fmt.Errorf("controller detach volume: %v", err)
 	}
 	return nil
+}
 
+func (a *ClientCSI) ControllerCreateVolume(args *cstructs.ClientCSIControllerCreateVolumeRequest, reply *cstructs.ClientCSIControllerCreateVolumeResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "create_volume"}, time.Now())
+
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerCreateVolume",
+		"ClientCSI.ControllerCreateVolume",
+		args, reply)
+	if err != nil {
+		return fmt.Errorf("controller create volume: %v", err)
+	}
+	return nil
+}
+
+func (a *ClientCSI) ControllerDeleteVolume(args *cstructs.ClientCSIControllerDeleteVolumeRequest, reply *cstructs.ClientCSIControllerDeleteVolumeResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "delete_volume"}, time.Now())
+
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerDeleteVolume",
+		"ClientCSI.ControllerDeleteVolume",
+		args, reply)
+	if err != nil {
+		return fmt.Errorf("controller delete volume: %v", err)
+	}
+	return nil
+}
+
+func (a *ClientCSI) ControllerListVolumes(args *cstructs.ClientCSIControllerListVolumesRequest, reply *cstructs.ClientCSIControllerListVolumesResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "list_volumes"}, time.Now())
+
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerListVolumes",
+		"ClientCSI.ControllerListVolumes",
+		args, reply)
+	if err != nil {
+		return fmt.Errorf("controller list volumes: %v", err)
+	}
+	return nil
+}
+
+func (a *ClientCSI) ControllerCreateSnapshot(args *cstructs.ClientCSIControllerCreateSnapshotRequest, reply *cstructs.ClientCSIControllerCreateSnapshotResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "create_snapshot"}, time.Now())
+
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerCreateSnapshot",
+		"ClientCSI.ControllerCreateSnapshot",
+		args, reply)
+	if err != nil {
+		return fmt.Errorf("controller create snapshot: %v", err)
+	}
+	return nil
+}
+
+func (a *ClientCSI) ControllerDeleteSnapshot(args *cstructs.ClientCSIControllerDeleteSnapshotRequest, reply *cstructs.ClientCSIControllerDeleteSnapshotResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "delete_snapshot"}, time.Now())
+
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerDeleteSnapshot",
+		"ClientCSI.ControllerDeleteSnapshot",
+		args, reply)
+	if err != nil {
+		return fmt.Errorf("controller delete snapshot: %v", err)
+	}
+	return nil
+}
+
+func (a *ClientCSI) ControllerListSnapshots(args *cstructs.ClientCSIControllerListSnapshotsRequest, reply *cstructs.ClientCSIControllerListSnapshotsResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "list_snapshots"}, time.Now())
+
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerListSnapshots",
+		"ClientCSI.ControllerListSnapshots",
+		args, reply)
+	if err != nil {
+		return fmt.Errorf("controller list snapshots: %v", err)
+	}
+	return nil
+}
+
+func (a *ClientCSI) sendCSIControllerRPC(pluginID, method, fwdMethod string, args cstructs.CSIControllerRequest, reply interface{}) error {
+
+	clientIDs, err := a.clientIDsForController(pluginID)
+	if err != nil {
+		return err
+	}
+
+	for _, clientID := range clientIDs {
+		args.SetControllerNodeID(clientID)
+
+		state, ok := a.srv.getNodeConn(clientID)
+		if !ok {
+			return findNodeConnAndForward(a.srv,
+				clientID, fwdMethod, args, reply)
+		}
+
+		err = NodeRpc(state.Session, method, args, reply)
+		if err == nil {
+			return nil
+		}
+		if a.isRetryable(err) {
+			a.logger.Debug("failed to reach controller on client",
+				"nodeID", clientID, "err", err)
+			continue
+		}
+		return err
+	}
+	return err
+}
+
+// we can retry the same RPC on a different controller in the cases where the
+// client has stopped and been GC'd, or where the controller has stopped but
+// we don't have the fingerprint update yet
+func (a *ClientCSI) isRetryable(err error) bool {
+	// TODO: msgpack-rpc mangles the error so we lose the wrapping,
+	// but if that can be fixed upstream we should use that here instead
+	return strings.Contains(err.Error(), "CSI client error (retryable)") ||
+		strings.Contains(err.Error(), "Unknown node")
 }
 
 func (a *ClientCSI) NodeDetachVolume(args *cstructs.ClientCSINodeDetachVolumeRequest, reply *cstructs.ClientCSINodeDetachVolumeResponse) error {
@@ -119,29 +205,17 @@ func (a *ClientCSI) NodeDetachVolume(args *cstructs.ClientCSINodeDetachVolumeReq
 
 }
 
-// nodeForController validates that the Nomad client node ID for
-// a plugin exists and is new enough to support client RPC. If no node
-// ID is passed, select a random node ID for the controller to load-balance
-// long blocking RPCs across client nodes.
-func (a *ClientCSI) nodeForController(pluginID, nodeID string) (string, error) {
+// clientIDsForController returns a shuffled list of client IDs where the
+// controller plugin is expected to be running.
+func (a *ClientCSI) clientIDsForController(pluginID string) ([]string, error) {
 
 	snap, err := a.srv.State().Snapshot()
 	if err != nil {
-		return "", err
-	}
-
-	if nodeID != "" {
-		_, err = getNodeForRpc(snap, nodeID)
-		if err == nil {
-			return nodeID, nil
-		} else {
-			// we'll fall-through and select a node at random
-			a.logger.Trace("could not be used for client RPC", "node", nodeID, "error", err)
-		}
+		return nil, err
 	}
 
 	if pluginID == "" {
-		return "", fmt.Errorf("missing plugin ID")
+		return nil, fmt.Errorf("missing plugin ID")
 	}
 
 	ws := memdb.NewWatchSet()
@@ -151,43 +225,37 @@ func (a *ClientCSI) nodeForController(pluginID, nodeID string) (string, error) {
 	// region/DC for the volume.
 	plugin, err := snap.CSIPluginByID(ws, pluginID)
 	if err != nil {
-		return "", fmt.Errorf("error getting plugin: %s, %v", pluginID, err)
+		return nil, fmt.Errorf("error getting plugin: %s, %v", pluginID, err)
 	}
 	if plugin == nil {
-		return "", fmt.Errorf("plugin missing: %s %v", pluginID, err)
-	}
-	count := len(plugin.Controllers)
-	if count == 0 {
-		return "", fmt.Errorf("no controllers available for plugin %q", plugin.ID)
+		return nil, fmt.Errorf("plugin missing: %s", pluginID)
 	}
 
 	// iterating maps is "random" but unspecified and isn't particularly
 	// random with small maps, so not well-suited for load balancing.
 	// so we shuffle the keys and iterate over them.
-	clientIDs := make([]string, 0, count)
-	for clientID := range plugin.Controllers {
-		clientIDs = append(clientIDs, clientID)
-	}
-	rand.Shuffle(count, func(i, j int) {
-		clientIDs[i], clientIDs[j] = clientIDs[j], clientIDs[i]
-	})
+	clientIDs := []string{}
 
-	for _, clientID := range clientIDs {
-		controller := plugin.Controllers[clientID]
+	for clientID, controller := range plugin.Controllers {
 		if !controller.IsController() {
 			// we don't have separate types for CSIInfo depending on
 			// whether it's a controller or node. this error shouldn't
 			// make it to production but is to aid developers during
 			// development
-			err = fmt.Errorf("plugin is not a controller")
 			continue
 		}
-		_, err = getNodeForRpc(snap, clientID)
-		if err != nil {
-			continue
+		node, err := getNodeForRpc(snap, clientID)
+		if err == nil && node != nil && node.Ready() {
+			clientIDs = append(clientIDs, clientID)
 		}
-		return clientID, nil
+	}
+	if len(clientIDs) == 0 {
+		return nil, fmt.Errorf("failed to find clients running controller plugin %q", pluginID)
 	}
 
-	return "", err
+	rand.Shuffle(len(clientIDs), func(i, j int) {
+		clientIDs[i], clientIDs[j] = clientIDs[j], clientIDs[i]
+	})
+
+	return clientIDs, nil
 }

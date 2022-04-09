@@ -13,7 +13,7 @@ import (
 )
 
 func TestJobs_Register(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -45,7 +45,7 @@ func TestJobs_Register(t *testing.T) {
 }
 
 func TestJobs_Register_PreserveCounts(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -117,7 +117,7 @@ func TestJobs_Register_PreserveCounts(t *testing.T) {
 }
 
 func TestJobs_Register_NoPreserveCounts(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -181,13 +181,68 @@ func TestJobs_Register_NoPreserveCounts(t *testing.T) {
 	// Query the job scale status
 	status, _, err := jobs.ScaleStatus(*job.ID, nil)
 	require.NoError(err)
+	require.Equal("default", status.Namespace)
 	require.Equal(0, status.TaskGroups["group1"].Desired) // present => as specified
 	require.Equal(1, status.TaskGroups["group2"].Desired) // nil     => default (1)
 	require.Equal(3, status.TaskGroups["group3"].Desired) // new     => as specified
 }
 
+func TestJobs_Register_EvalPriority(t *testing.T) {
+	testutil.Parallel(t)
+	requireAssert := require.New(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	// Listing jobs before registering returns nothing
+	listResp, _, err := c.Jobs().List(nil)
+	requireAssert.Nil(err)
+	requireAssert.Len(listResp, 0)
+
+	// Create a job and register it with an eval priority.
+	job := testJob()
+	registerResp, wm, err := c.Jobs().RegisterOpts(job, &RegisterOptions{EvalPriority: 99}, nil)
+	requireAssert.Nil(err)
+	requireAssert.NotNil(registerResp)
+	requireAssert.NotEmpty(registerResp.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Check the created job evaluation has a priority that matches our desired
+	// value.
+	evalInfo, _, err := c.Evaluations().Info(registerResp.EvalID, nil)
+	requireAssert.NoError(err)
+	requireAssert.Equal(99, evalInfo.Priority)
+}
+
+func TestJobs_Register_NoEvalPriority(t *testing.T) {
+	testutil.Parallel(t)
+	requireAssert := require.New(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	// Listing jobs before registering returns nothing
+	listResp, _, err := c.Jobs().List(nil)
+	requireAssert.Nil(err)
+	requireAssert.Len(listResp, 0)
+
+	// Create a job and register it with an eval priority.
+	job := testJob()
+	registerResp, wm, err := c.Jobs().RegisterOpts(job, nil, nil)
+	requireAssert.Nil(err)
+	requireAssert.NotNil(registerResp)
+	requireAssert.NotEmpty(registerResp.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Check the created job evaluation has a priority that matches the job
+	// priority.
+	evalInfo, _, err := c.Evaluations().Info(registerResp.EvalID, nil)
+	requireAssert.NoError(err)
+	requireAssert.Equal(*job.Priority, evalInfo.Priority)
+}
+
 func TestJobs_Validate(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -215,7 +270,7 @@ func TestJobs_Validate(t *testing.T) {
 }
 
 func TestJobs_Canonicalize(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	testCases := []struct {
 		name     string
 		expected *Job
@@ -242,7 +297,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
 				Status:            stringToPtr(""),
 				StatusDescription: stringToPtr(""),
@@ -285,6 +342,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(30 * time.Second),
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
+						},
+						Consul: &Consul{
+							Namespace: "",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          timeToPtr(30 * time.Second),
@@ -332,7 +392,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
 				Status:            stringToPtr(""),
 				StatusDescription: stringToPtr(""),
@@ -364,6 +426,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(5 * time.Second),
 							MaxDelay:      timeToPtr(0),
 							Unlimited:     boolToPtr(false),
+						},
+						Consul: &Consul{
+							Namespace: "",
 						},
 						Tasks: []*Task{
 							{
@@ -405,7 +470,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
@@ -448,6 +515,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(30 * time.Second),
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
+						},
+						Consul: &Consul{
+							Namespace: "",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          timeToPtr(30 * time.Second),
@@ -571,7 +641,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Type:              stringToPtr("service"),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
@@ -616,7 +688,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Migrate: boolToPtr(false),
 							SizeMB:  intToPtr(300),
 						},
-
+						Consul: &Consul{
+							Namespace: "",
+						},
 						Update: &UpdateStrategy{
 							Stagger:          timeToPtr(30 * time.Second),
 							MaxParallel:      intToPtr(1),
@@ -647,6 +721,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 								},
 								Resources: &Resources{
 									CPU:      intToPtr(500),
+									Cores:    intToPtr(0),
 									MemoryMB: intToPtr(256),
 									Networks: []*NetworkResource{
 										{
@@ -666,12 +741,15 @@ func TestJobs_Canonicalize(t *testing.T) {
 										CanaryTags:  []string{"canary", "global", "cache"},
 										PortLabel:   "db",
 										AddressMode: "auto",
+										OnUpdate:    "require_healthy",
+										Provider:    "consul",
 										Checks: []ServiceCheck{
 											{
 												Name:     "alive",
 												Type:     "tcp",
 												Interval: 10 * time.Second,
 												Timeout:  2 * time.Second,
+												OnUpdate: "require_healthy",
 											},
 										},
 									},
@@ -729,7 +807,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
@@ -780,6 +860,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				TaskGroups: []*TaskGroup{
 					{
 						Name: stringToPtr("bar"),
+						Consul: &Consul{
+							Namespace: "",
+						},
 						Update: &UpdateStrategy{
 							Stagger:        timeToPtr(2 * time.Second),
 							MaxParallel:    intToPtr(2),
@@ -815,7 +898,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
@@ -858,6 +943,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(30 * time.Second),
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
+						},
+						Consul: &Consul{
+							Namespace: "",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          timeToPtr(2 * time.Second),
@@ -902,6 +990,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(30 * time.Second),
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
+						},
+						Consul: &Consul{
+							Namespace: "",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          timeToPtr(1 * time.Second),
@@ -962,6 +1053,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Interval: timeToPtr(30 * time.Minute),
 							Mode:     stringToPtr("fail"),
 						},
+						Consul: &Consul{
+							Namespace: "",
+						},
 						Tasks: []*Task{
 							{
 								Name: "task1",
@@ -980,7 +1074,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
@@ -1023,6 +1119,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(30 * time.Second),
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
+						},
+						Consul: &Consul{
+							Namespace: "",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          timeToPtr(30 * time.Second),
@@ -1072,6 +1171,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(30 * time.Second),
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
+						},
+						Consul: &Consul{
+							Namespace: "",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          timeToPtr(30 * time.Second),
@@ -1143,7 +1245,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
@@ -1179,7 +1283,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 }
 
 func TestJobs_EnforceRegister(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -1225,7 +1329,7 @@ func TestJobs_EnforceRegister(t *testing.T) {
 }
 
 func TestJobs_Revert(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1275,14 +1379,14 @@ func TestJobs_Revert(t *testing.T) {
 }
 
 func TestJobs_Info(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
 	// Trying to retrieve a job by ID before it exists
 	// returns an error
-	id := "job-id/with\\troublesome:characters\n?&字\000"
+	id := "job-id/with\\troublesome:characters\n?&字"
 	_, _, err := jobs.Info(id, nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
@@ -1311,7 +1415,7 @@ func TestJobs_Info(t *testing.T) {
 }
 
 func TestJobs_ScaleInvalidAction(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -1351,7 +1455,7 @@ func TestJobs_ScaleInvalidAction(t *testing.T) {
 }
 
 func TestJobs_Versions(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1384,7 +1488,7 @@ func TestJobs_Versions(t *testing.T) {
 }
 
 func TestJobs_PrefixList(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1420,7 +1524,7 @@ func TestJobs_PrefixList(t *testing.T) {
 }
 
 func TestJobs_List(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1456,7 +1560,7 @@ func TestJobs_List(t *testing.T) {
 }
 
 func TestJobs_Allocations(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1478,7 +1582,7 @@ func TestJobs_Allocations(t *testing.T) {
 }
 
 func TestJobs_Evaluations(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1520,7 +1624,7 @@ func TestJobs_Evaluations(t *testing.T) {
 }
 
 func TestJobs_Deregister(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1579,8 +1683,70 @@ func TestJobs_Deregister(t *testing.T) {
 	}
 }
 
+func TestJobs_Deregister_EvalPriority(t *testing.T) {
+	testutil.Parallel(t)
+	requireAssert := require.New(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	// Listing jobs before registering returns nothing
+	listResp, _, err := c.Jobs().List(nil)
+	requireAssert.Nil(err)
+	requireAssert.Len(listResp, 0)
+
+	// Create a job and register it.
+	job := testJob()
+	registerResp, wm, err := c.Jobs().Register(job, nil)
+	requireAssert.Nil(err)
+	requireAssert.NotNil(registerResp)
+	requireAssert.NotEmpty(registerResp.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Deregister the job with an eval priority.
+	evalID, _, err := c.Jobs().DeregisterOpts(*job.ID, &DeregisterOptions{EvalPriority: 97}, nil)
+	requireAssert.NoError(err)
+	requireAssert.NotEmpty(t, evalID)
+
+	// Lookup the eval and check the priority on it.
+	evalInfo, _, err := c.Evaluations().Info(evalID, nil)
+	requireAssert.NoError(err)
+	requireAssert.Equal(97, evalInfo.Priority)
+}
+
+func TestJobs_Deregister_NoEvalPriority(t *testing.T) {
+	testutil.Parallel(t)
+	requireAssert := require.New(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	// Listing jobs before registering returns nothing
+	listResp, _, err := c.Jobs().List(nil)
+	requireAssert.Nil(err)
+	requireAssert.Len(listResp, 0)
+
+	// Create a job and register it.
+	job := testJob()
+	registerResp, wm, err := c.Jobs().Register(job, nil)
+	requireAssert.Nil(err)
+	requireAssert.NotNil(registerResp)
+	requireAssert.NotEmpty(registerResp.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Deregister the job with an eval priority.
+	evalID, _, err := c.Jobs().DeregisterOpts(*job.ID, &DeregisterOptions{}, nil)
+	requireAssert.NoError(err)
+	requireAssert.NotEmpty(t, evalID)
+
+	// Lookup the eval and check the priority on it.
+	evalInfo, _, err := c.Evaluations().Info(evalID, nil)
+	requireAssert.NoError(err)
+	requireAssert.Equal(*job.Priority, evalInfo.Priority)
+}
+
 func TestJobs_ForceEvaluate(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1620,7 +1786,7 @@ func TestJobs_ForceEvaluate(t *testing.T) {
 }
 
 func TestJobs_PeriodicForce(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1673,7 +1839,7 @@ func TestJobs_PeriodicForce(t *testing.T) {
 }
 
 func TestJobs_Plan(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1745,7 +1911,7 @@ func TestJobs_Plan(t *testing.T) {
 }
 
 func TestJobs_JobSummary(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1783,7 +1949,7 @@ func TestJobs_JobSummary(t *testing.T) {
 }
 
 func TestJobs_NewBatchJob(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	job := NewBatchJob("job1", "myjob", "global", 5)
 	expect := &Job{
 		Region:   stringToPtr("global"),
@@ -1798,7 +1964,7 @@ func TestJobs_NewBatchJob(t *testing.T) {
 }
 
 func TestJobs_NewServiceJob(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	job := NewServiceJob("job1", "myjob", "global", 5)
 	expect := &Job{
 		Region:   stringToPtr("global"),
@@ -1812,8 +1978,23 @@ func TestJobs_NewServiceJob(t *testing.T) {
 	}
 }
 
+func TestJobs_NewSystemJob(t *testing.T) {
+	testutil.Parallel(t)
+	job := NewSystemJob("job1", "myjob", "global", 5)
+	expect := &Job{
+		Region:   stringToPtr("global"),
+		ID:       stringToPtr("job1"),
+		Name:     stringToPtr("myjob"),
+		Type:     stringToPtr(JobTypeSystem),
+		Priority: intToPtr(5),
+	}
+	if !reflect.DeepEqual(job, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, job)
+	}
+}
+
 func TestJobs_SetMeta(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	job := &Job{Meta: nil}
 
 	// Initializes a nil map
@@ -1836,7 +2017,7 @@ func TestJobs_SetMeta(t *testing.T) {
 }
 
 func TestJobs_Constrain(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	job := &Job{Constraints: nil}
 
 	// Create and add a constraint
@@ -1870,7 +2051,7 @@ func TestJobs_Constrain(t *testing.T) {
 }
 
 func TestJobs_AddAffinity(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	job := &Job{Affinities: nil}
 
 	// Create and add an affinity
@@ -1906,7 +2087,7 @@ func TestJobs_AddAffinity(t *testing.T) {
 }
 
 func TestJobs_Sort(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	jobs := []*JobListStub{
 		{ID: "job2"},
 		{ID: "job0"},
@@ -1925,7 +2106,7 @@ func TestJobs_Sort(t *testing.T) {
 }
 
 func TestJobs_AddSpread(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	job := &Job{Spreads: nil}
 
 	// Create and add a Spread
@@ -1977,14 +2158,14 @@ func TestJobs_AddSpread(t *testing.T) {
 
 // TestJobs_ScaleAction tests the scale target for task group count
 func TestJobs_ScaleAction(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	id := "job-id/with\\troublesome:characters\n?&字\000"
+	id := "job-id/with\\troublesome:characters\n?&字"
 	job := testJobWithScalingPolicy()
 	job.ID = &id
 	groupName := *job.TaskGroups[0].Name
@@ -2038,14 +2219,14 @@ func TestJobs_ScaleAction(t *testing.T) {
 }
 
 func TestJobs_ScaleAction_Error(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	id := "job-id/with\\troublesome:characters\n?&字\000"
+	id := "job-id/with\\troublesome:characters\n?&字"
 	job := testJobWithScalingPolicy()
 	job.ID = &id
 	groupName := *job.TaskGroups[0].Name
@@ -2090,14 +2271,14 @@ func TestJobs_ScaleAction_Error(t *testing.T) {
 }
 
 func TestJobs_ScaleAction_Noop(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	id := "job-id/with\\troublesome:characters\n?&字\000"
+	id := "job-id/with\\troublesome:characters\n?&字"
 	job := testJobWithScalingPolicy()
 	job.ID = &id
 	groupName := *job.TaskGroups[0].Name
@@ -2143,7 +2324,7 @@ func TestJobs_ScaleAction_Noop(t *testing.T) {
 
 // TestJobs_ScaleStatus tests the /scale status endpoint for task group count
 func TestJobs_ScaleStatus(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	require := require.New(t)
 
@@ -2152,7 +2333,7 @@ func TestJobs_ScaleStatus(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Trying to retrieve a status before it exists returns an error
-	id := "job-id/with\\troublesome:characters\n?&字\000"
+	id := "job-id/with\\troublesome:characters\n?&字"
 	_, _, err := jobs.ScaleStatus(id, nil)
 	require.Error(err)
 	require.Contains(err.Error(), "not found")
@@ -2175,4 +2356,8 @@ func TestJobs_ScaleStatus(t *testing.T) {
 
 	// Check that the result is what we expect
 	require.Equal(groupCount, result.TaskGroups[groupName].Desired)
+}
+
+func TestJobs_Services(t *testing.T) {
+	// TODO(jrasell) add tests once registration process is in place.
 }

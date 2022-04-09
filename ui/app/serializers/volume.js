@@ -1,6 +1,8 @@
 import { set, get } from '@ember/object';
 import ApplicationSerializer from './application';
-
+import classic from 'ember-classic-decorator';
+import { capitalize } from '@ember/string';
+@classic
 export default class VolumeSerializer extends ApplicationSerializer {
   attrs = {
     externalId: 'ExternalID',
@@ -23,25 +25,38 @@ export default class VolumeSerializer extends ApplicationSerializer {
     hash.ID = JSON.stringify([`csi/${hash.ID}`, hash.NamespaceID || 'default']);
     hash.PluginID = `csi/${hash.PluginID}`;
 
-    // Convert hash-based allocation embeds to lists
+    // Populate read/write allocation lists from aggregate allocation list
     const readAllocs = hash.ReadAllocs || {};
     const writeAllocs = hash.WriteAllocs || {};
-    const bindIDToAlloc = hash => id => {
-      const alloc = hash[id];
-      alloc.ID = id;
-      return alloc;
-    };
 
-    hash.ReadAllocations = Object.keys(readAllocs).map(bindIDToAlloc(readAllocs));
-    hash.WriteAllocations = Object.keys(writeAllocs).map(bindIDToAlloc(writeAllocs));
+    hash.ReadAllocations = [];
+    hash.WriteAllocations = [];
+
+    if (hash.Allocations) {
+      hash.Allocations.forEach(function (alloc) {
+        const id = alloc.ID;
+        if (id in readAllocs) {
+          hash.ReadAllocations.push(alloc);
+        }
+        if (id in writeAllocs) {
+          hash.WriteAllocations.push(alloc);
+        }
+      });
+      delete hash.Allocations;
+    }
 
     const normalizedHash = super.normalize(typeHash, hash);
-    return this.extractEmbeddedRecords(this, this.store, typeHash, normalizedHash);
+    return this.extractEmbeddedRecords(
+      this,
+      this.store,
+      typeHash,
+      normalizedHash
+    );
   }
 
   keyForRelationship(attr, relationshipType) {
     //Embedded relationship attributes don't end in IDs
-    if (this.embeddedRelationships.includes(attr)) return attr.capitalize();
+    if (this.embeddedRelationships.includes(attr)) return capitalize(attr);
     return super.keyForRelationship(attr, relationshipType);
   }
 
@@ -49,7 +64,7 @@ export default class VolumeSerializer extends ApplicationSerializer {
   extractEmbeddedRecords(serializer, store, typeHash, partial) {
     partial.included = partial.included || [];
 
-    this.embeddedRelationships.forEach(embed => {
+    this.embeddedRelationships.forEach((embed) => {
       const relationshipMeta = typeHash.relationshipsByName.get(embed);
       const relationship = get(partial, `data.relationships.${embed}.data`);
 

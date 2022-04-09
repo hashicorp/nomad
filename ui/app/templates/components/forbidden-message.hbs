@@ -1,22 +1,28 @@
 <div data-test-error class="empty-message">
   <h3 data-test-error-title class="empty-message-headline">Not Authorized</h3>
   <p data-test-error-message class="empty-message-body">
-    {{#if token.secret}}
+    {{#if this.token.secret}}
       Your <LinkTo @route="settings.tokens">ACL token</LinkTo> does not provide the
-      {{#if permission}}
-        <code>{{permission}}</code>
+      {{#if this.permission}}
+        <code>{{this.permission}}</code>
       {{else}}
         required
       {{/if}}
       permission. Contact your administrator if this is an error.
     {{else}}
       Provide an <LinkTo @route="settings.tokens">ACL token</LinkTo> with the
-      {{#if permission}}
-      <code>{{permission}}</code>
+      {{#if this.permission}}
+      <code>{{this.permission}}</code>
       {{else}}
         requisite
       {{/if}}
       permission to view this.
     {{/if}}
+  </p>
+  <p class="empty-message-body">
+    If you have an ACL token configured for the CLI, authenticate with:
+    <div class='terminal-container'>
+      <pre class='terminal'><span class='prompt'>$</span> nomad ui -authenticate</pre>
+    </div>
   </p>
 </div>

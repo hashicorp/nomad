@@ -9,6 +9,21 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	tableIndex = "index"
+
+	TableNamespaces           = "namespaces"
+	TableServiceRegistrations = "service_registrations"
+)
+
+const (
+	indexID          = "id"
+	indexJob         = "job"
+	indexNodeID      = "node_id"
+	indexAllocID     = "alloc_id"
+	indexServiceName = "service_name"
+)
+
 var (
 	schemaFactories SchemaFactories
 	factoriesLock   sync.Mutex
@@ -45,6 +60,7 @@ func init() {
 		siTokenAccessorTableSchema,
 		aclPolicyTableSchema,
 		aclTokenTableSchema,
+		oneTimeTokenTableSchema,
 		autopilotConfigTableSchema,
 		schedulerConfigTableSchema,
 		clusterMetaTableSchema,
@@ -52,6 +68,8 @@ func init() {
 		csiPluginTableSchema,
 		scalingPolicyTableSchema,
 		scalingEventTableSchema,
+		namespaceTableSchema,
+		serviceRegistrationsTableSchema,
 	}...)
 }
 
@@ -265,13 +283,16 @@ func jobIsGCable(obj interface{}) (bool, error) {
 		return true, nil
 	}
 
-	// Otherwise, only batch jobs are eligible because they complete on their
-	// own without a user stopping them.
-	if j.Type != structs.JobTypeBatch {
+	switch j.Type {
+	// Otherwise, batch and sysbatch jobs are eligible because they complete on
+	// their own without a user stopping them.
+	case structs.JobTypeBatch, structs.JobTypeSysBatch:
+		return true, nil
+
+	default:
+		// other job types may not be GC until stopped
 		return false, nil
 	}
-
-	return true, nil
 }
 
 // jobIsPeriodic satisfies the ConditionalIndexFunc interface and creates an index
@@ -282,7 +303,7 @@ func jobIsPeriodic(obj interface{}) (bool, error) {
 		return false, fmt.Errorf("Unexpected type: %v", obj)
 	}
 
-	if j.Periodic != nil && j.Periodic.Enabled == true {
+	if j.Periodic != nil && j.Periodic.Enabled {
 		return true, nil
 	}
 
@@ -294,6 +315,7 @@ func deploymentSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "deployment",
 		Indexes: map[string]*memdb.IndexSchema{
+			// id index is used for direct lookup of an deployment by ID.
 			"id": {
 				Name:         "id",
 				AllowMissing: false,
@@ -303,6 +325,27 @@ func deploymentSchema() *memdb.TableSchema {
 				},
 			},
 
+			// create index is used for listing deploy, ordering them by
+			// creation chronology. (Use a reverse iterator for newest first).
+			//
+			// There may be more than one deployment per CreateIndex.
+			"create": {
+				Name:         "create",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.UintFieldIndex{
+							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
+				},
+			},
+
+			// namespace is used to lookup evaluations by namespace.
 			"namespace": {
 				Name:         "namespace",
 				AllowMissing: false,
@@ -312,7 +355,34 @@ func deploymentSchema() *memdb.TableSchema {
 				},
 			},
 
-			// Job index is used to lookup deployments by job
+			// namespace_create index is used to lookup deployments by namespace
+			// in their original chronological order based on CreateIndex.
+			//
+			// Use a prefix iterator (namespace_create_prefix) to iterate deployments
+			// of a Namespace in order of CreateIndex.
+			//
+			// There may be more than one deployment per CreateIndex.
+			"namespace_create": {
+				Name:         "namespace_create",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					AllowMissing: false,
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.UintFieldIndex{
+							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
+				},
+			},
+
+			// job index is used to lookup deployments by job
 			"job": {
 				Name:         "job",
 				AllowMissing: false,
@@ -375,7 +445,7 @@ func evalTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "evals",
 		Indexes: map[string]*memdb.IndexSchema{
-			// Primary index is used for direct lookup.
+			// id index is used for direct lookup of an evaluation by ID.
 			"id": {
 				Name:         "id",
 				AllowMissing: false,
@@ -385,16 +455,25 @@ func evalTableSchema() *memdb.TableSchema {
 				},
 			},
 
-			"namespace": {
-				Name:         "namespace",
+			// create index is used for listing evaluations, ordering them by
+			// creation chronology. (Use a reverse iterator for newest first).
+			"create": {
+				Name:         "create",
 				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "Namespace",
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.UintFieldIndex{
+							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
 				},
 			},
 
-			// Job index is used to lookup allocations by job
+			// job index is used to lookup evaluations by job ID.
 			"job": {
 				Name:         "job",
 				AllowMissing: false,
@@ -417,6 +496,41 @@ func evalTableSchema() *memdb.TableSchema {
 					},
 				},
 			},
+
+			// namespace is used to lookup evaluations by namespace.
+			"namespace": {
+				Name:         "namespace",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Namespace",
+				},
+			},
+
+			// namespace_create index is used to lookup evaluations by namespace
+			// in their original chronological order based on CreateIndex.
+			//
+			// Use a prefix iterator (namespace_prefix) on a Namespace to iterate
+			// those evaluations in order of CreateIndex.
+			"namespace_create": {
+				Name:         "namespace_create",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					AllowMissing: false,
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.UintFieldIndex{
+							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -428,7 +542,7 @@ func allocTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "allocs",
 		Indexes: map[string]*memdb.IndexSchema{
-			// Primary index is a UUID
+			// id index is used for direct lookup of allocation by ID.
 			"id": {
 				Name:         "id",
 				AllowMissing: false,
@@ -438,12 +552,57 @@ func allocTableSchema() *memdb.TableSchema {
 				},
 			},
 
+			// create index is used for listing allocations, ordering them by
+			// creation chronology. (Use a reverse iterator for newest first).
+			"create": {
+				Name:         "create",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.UintFieldIndex{
+							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
+				},
+			},
+
+			// namespace is used to lookup evaluations by namespace.
+			// todo(shoenig): i think we can deprecate this and other like it
 			"namespace": {
 				Name:         "namespace",
 				AllowMissing: false,
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "Namespace",
+				},
+			},
+
+			// namespace_create index is used to lookup evaluations by namespace
+			// in their original chronological order based on CreateIndex.
+			//
+			// Use a prefix iterator (namespace_prefix) on a Namespace to iterate
+			// those evaluations in order of CreateIndex.
+			"namespace_create": {
+				Name:         "namespace_create",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					AllowMissing: false,
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.UintFieldIndex{
+							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
 				},
 			},
 
@@ -626,6 +785,21 @@ func aclTokenTableSchema() *memdb.TableSchema {
 					Field: "AccessorID",
 				},
 			},
+			"create": {
+				Name:         "create",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.UintFieldIndex{
+							Field: "CreateIndex",
+						},
+						&memdb.StringFieldIndex{
+							Field: "AccessorID",
+						},
+					},
+				},
+			},
 			"secret": {
 				Name:         "secret",
 				AllowMissing: false,
@@ -640,6 +814,32 @@ func aclTokenTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.FieldSetIndex{
 					Field: "Global",
+				},
+			},
+		},
+	}
+}
+
+// oneTimeTokenTableSchema returns the MemDB schema for the tokens table.
+// This table is used to store one-time tokens for ACL tokens
+func oneTimeTokenTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "one_time_token",
+		Indexes: map[string]*memdb.IndexSchema{
+			"secret": {
+				Name:         "secret",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "OneTimeSecretID",
+				},
+			},
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "AccessorID",
 				},
 			},
 		},
@@ -736,6 +936,10 @@ func csiPluginTableSchema() *memdb.TableSchema {
 // using reflection and builds an index on that field.
 type ScalingPolicyTargetFieldIndex struct {
 	Field string
+
+	// AllowMissing controls if the field should be ignored if the field is
+	// not provided.
+	AllowMissing bool
 }
 
 // FromObject is used to extract an index value from an
@@ -751,7 +955,7 @@ func (s *ScalingPolicyTargetFieldIndex) FromObject(obj interface{}) (bool, []byt
 	}
 
 	val, ok := policy.Target[s.Field]
-	if !ok {
+	if !ok && !s.AllowMissing {
 		return false, nil, nil
 	}
 
@@ -808,26 +1012,42 @@ func scalingPolicyTableSchema() *memdb.TableSchema {
 			// Target index is used for listing by namespace or job, or looking up a specific target.
 			// A given task group can have only a single scaling policies, so this is guaranteed to be unique.
 			"target": {
-				Name:         "target",
-				AllowMissing: false,
-				Unique:       true,
+				Name:   "target",
+				Unique: false,
 
-				// Use a compound index so the tuple of (Namespace, Job, Group) is
-				// uniquely identifying
+				// Use a compound index so the tuple of (Namespace, Job, Group, Task) is
+				// used when looking for a policy
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
 						&ScalingPolicyTargetFieldIndex{
-							Field: "Namespace",
+							Field:        "Namespace",
+							AllowMissing: true,
 						},
 
 						&ScalingPolicyTargetFieldIndex{
-							Field: "Job",
+							Field:        "Job",
+							AllowMissing: true,
 						},
 
 						&ScalingPolicyTargetFieldIndex{
-							Field: "Group",
+							Field:        "Group",
+							AllowMissing: true,
+						},
+
+						&ScalingPolicyTargetFieldIndex{
+							Field:        "Task",
+							AllowMissing: true,
 						},
 					},
+				},
+			},
+			// Type index is used for listing by policy type
+			"type": {
+				Name:         "type",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Type",
 				},
 			},
 			// Used to filter by enabled
@@ -877,6 +1097,108 @@ func scalingEventTableSchema() *memdb.TableSchema {
 			// 		Field: "Error",
 			// 	},
 			// },
+		},
+	}
+}
+
+// namespaceTableSchema returns the MemDB schema for the namespace table.
+func namespaceTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableNamespaces,
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Name",
+				},
+			},
+			"quota": {
+				Name:         "quota",
+				AllowMissing: true,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Quota",
+				},
+			},
+		},
+	}
+}
+
+// serviceRegistrationsTableSchema returns the MemDB schema for Nomad native
+// service registrations.
+func serviceRegistrationsTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableServiceRegistrations,
+		Indexes: map[string]*memdb.IndexSchema{
+			// The serviceID in combination with namespace forms a unique
+			// identifier for a service registration. This is used to look up
+			// and delete services in individual isolation.
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
+				},
+			},
+			indexServiceName: {
+				Name:         indexServiceName,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ServiceName",
+						},
+					},
+				},
+			},
+			indexJob: {
+				Name:         indexJob,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "JobID",
+						},
+					},
+				},
+			},
+			// The nodeID index allows lookups and deletions to be performed
+			// for an entire node. This is primarily used when a node becomes
+			// lost.
+			indexNodeID: {
+				Name:         indexNodeID,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "NodeID",
+				},
+			},
+			indexAllocID: {
+				Name:         indexAllocID,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "AllocID",
+				},
+			},
 		},
 	}
 }

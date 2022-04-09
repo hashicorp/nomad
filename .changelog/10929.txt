@@ -1,0 +1,3 @@
+```release-note:bug
+driver/docker: Fixed a bug in the authentication config where not all fields were set
+```

@@ -2,15 +2,140 @@ package api
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 )
+
+// ServiceRegistration is an instance of a single allocation advertising itself
+// as a named service with a specific address. Each registration is constructed
+// from the job specification Service block. Whether the service is registered
+// within Nomad, and therefore generates a ServiceRegistration is controlled by
+// the Service.Provider parameter.
+type ServiceRegistration struct {
+
+	// ID is the unique identifier for this registration. It currently follows
+	// the Consul service registration format to provide consistency between
+	// the two solutions.
+	ID string
+
+	// ServiceName is the human friendly identifier for this service
+	// registration.
+	ServiceName string
+
+	// Namespace represents the namespace within which this service is
+	// registered.
+	Namespace string
+
+	// NodeID is Node.ID on which this service registration is currently
+	// running.
+	NodeID string
+
+	// Datacenter is the DC identifier of the node as identified by
+	// Node.Datacenter.
+	Datacenter string
+
+	// JobID is Job.ID and represents the job which contained the service block
+	// which resulted in this service registration.
+	JobID string
+
+	// AllocID is Allocation.ID and represents the allocation within which this
+	// service is running.
+	AllocID string
+
+	// Tags are determined from either Service.Tags or Service.CanaryTags and
+	// help identify this service. Tags can also be used to perform lookups of
+	// services depending on their state and role.
+	Tags []string
+
+	// Address is the IP address of this service registration. This information
+	// comes from the client and is not guaranteed to be routable; this depends
+	// on cluster network topology.
+	Address string
+
+	// Port is the port number on which this service registration is bound. It
+	// is determined by a combination of factors on the client.
+	Port int
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// ServiceRegistrationListStub represents all service registrations held within a
+// single namespace.
+type ServiceRegistrationListStub struct {
+
+	// Namespace details the namespace in which these services have been
+	// registered.
+	Namespace string
+
+	// Services is a list of services found within the namespace.
+	Services []*ServiceRegistrationStub
+}
+
+// ServiceRegistrationStub is the stub object describing an individual
+// namespaced service. The object is built in a manner which would allow us to
+// add additional fields in the future, if we wanted.
+type ServiceRegistrationStub struct {
+
+	// ServiceName is the human friendly name for this service as specified
+	// within Service.Name.
+	ServiceName string
+
+	// Tags is a list of unique tags found for this service. The list is
+	// de-duplicated automatically by Nomad.
+	Tags []string
+}
+
+
+// Services is used to query the service endpoints.
+type Services struct {
+	client *Client
+}
+
+// Services returns a new handle on the services endpoints.
+func (c *Client) Services() *Services {
+	return &Services{client: c}
+}
+
+// List can be used to list all service registrations currently stored within
+// the target namespace. It returns a stub response object.
+func (s *Services) List(q *QueryOptions) ([]*ServiceRegistrationListStub, *QueryMeta, error) {
+	var resp []*ServiceRegistrationListStub
+	qm, err := s.client.query("/v1/services", &resp, q)
+	if err != nil {
+		return nil, qm, err
+	}
+	return resp, qm, nil
+}
+
+// Get is used to return a list of service registrations whose name matches the
+// specified parameter.
+func (s *Services) Get(serviceName string, q *QueryOptions) ([]*ServiceRegistration, *QueryMeta, error) {
+	var resp []*ServiceRegistration
+	qm, err := s.client.query("/v1/service/"+url.PathEscape(serviceName), &resp, q)
+	if err != nil {
+		return nil, qm, err
+	}
+	return resp, qm, nil
+}
+
+// Delete can be used to delete an individual service registration as defined
+// by its service name and service ID.
+func (s *Services) Delete(serviceName, serviceID string, q *WriteOptions) (*WriteMeta, error) {
+	path := fmt.Sprintf("/v1/service/%s/%s", url.PathEscape(serviceName), url.PathEscape(serviceID))
+	wm, err := s.client.delete(path, nil, q)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
 
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
 type CheckRestart struct {
-	Limit          int            `mapstructure:"limit"`
-	Grace          *time.Duration `mapstructure:"grace"`
-	IgnoreWarnings bool           `mapstructure:"ignore_warnings"`
+	Limit          int            `mapstructure:"limit" hcl:"limit,optional"`
+	Grace          *time.Duration `mapstructure:"grace" hcl:"grace,optional"`
+	IgnoreWarnings bool           `mapstructure:"ignore_warnings" hcl:"ignore_warnings,optional"`
 }
 
 // Canonicalize CheckRestart fields if not nil.
@@ -73,44 +198,65 @@ func (c *CheckRestart) Merge(o *CheckRestart) *CheckRestart {
 // ServiceCheck represents the consul health check that Nomad registers.
 type ServiceCheck struct {
 	//FIXME Id is unused. Remove?
-	Id            string
-	Name          string
-	Type          string
-	Command       string
-	Args          []string
-	Path          string
-	Protocol      string
-	PortLabel     string `mapstructure:"port"`
-	Expose        bool
-	AddressMode   string `mapstructure:"address_mode"`
-	Interval      time.Duration
-	Timeout       time.Duration
-	InitialStatus string `mapstructure:"initial_status"`
-	TLSSkipVerify bool   `mapstructure:"tls_skip_verify"`
-	Header        map[string][]string
-	Method        string
-	CheckRestart  *CheckRestart `mapstructure:"check_restart"`
-	GRPCService   string        `mapstructure:"grpc_service"`
-	GRPCUseTLS    bool          `mapstructure:"grpc_use_tls"`
-	TaskName      string        `mapstructure:"task"`
+	Id                     string              `hcl:"id,optional"`
+	Name                   string              `hcl:"name,optional"`
+	Type                   string              `hcl:"type,optional"`
+	Command                string              `hcl:"command,optional"`
+	Args                   []string            `hcl:"args,optional"`
+	Path                   string              `hcl:"path,optional"`
+	Protocol               string              `hcl:"protocol,optional"`
+	PortLabel              string              `mapstructure:"port" hcl:"port,optional"`
+	Expose                 bool                `hcl:"expose,optional"`
+	AddressMode            string              `mapstructure:"address_mode" hcl:"address_mode,optional"`
+	Interval               time.Duration       `hcl:"interval,optional"`
+	Timeout                time.Duration       `hcl:"timeout,optional"`
+	InitialStatus          string              `mapstructure:"initial_status" hcl:"initial_status,optional"`
+	TLSSkipVerify          bool                `mapstructure:"tls_skip_verify" hcl:"tls_skip_verify,optional"`
+	Header                 map[string][]string `hcl:"header,block"`
+	Method                 string              `hcl:"method,optional"`
+	CheckRestart           *CheckRestart       `mapstructure:"check_restart" hcl:"check_restart,block"`
+	GRPCService            string              `mapstructure:"grpc_service" hcl:"grpc_service,optional"`
+	GRPCUseTLS             bool                `mapstructure:"grpc_use_tls" hcl:"grpc_use_tls,optional"`
+	TaskName               string              `mapstructure:"task" hcl:"task,optional"`
+	SuccessBeforePassing   int                 `mapstructure:"success_before_passing" hcl:"success_before_passing,optional"`
+	FailuresBeforeCritical int                 `mapstructure:"failures_before_critical" hcl:"failures_before_critical,optional"`
+	Body                   string              `hcl:"body,optional"`
+	OnUpdate               string              `mapstructure:"on_update" hcl:"on_update,optional"`
 }
 
 // Service represents a Consul service definition.
 type Service struct {
 	//FIXME Id is unused. Remove?
-	Id                string
-	Name              string
-	Tags              []string
-	CanaryTags        []string `mapstructure:"canary_tags"`
-	EnableTagOverride bool     `mapstructure:"enable_tag_override"`
-	PortLabel         string   `mapstructure:"port"`
-	AddressMode       string   `mapstructure:"address_mode"`
-	Checks            []ServiceCheck
-	CheckRestart      *CheckRestart `mapstructure:"check_restart"`
-	Connect           *ConsulConnect
-	Meta              map[string]string
-	CanaryMeta        map[string]string
+	Id                string            `hcl:"id,optional"`
+	Name              string            `hcl:"name,optional"`
+	Tags              []string          `hcl:"tags,optional"`
+	CanaryTags        []string          `mapstructure:"canary_tags" hcl:"canary_tags,optional"`
+	EnableTagOverride bool              `mapstructure:"enable_tag_override" hcl:"enable_tag_override,optional"`
+	PortLabel         string            `mapstructure:"port" hcl:"port,optional"`
+	AddressMode       string            `mapstructure:"address_mode" hcl:"address_mode,optional"`
+	Checks            []ServiceCheck    `hcl:"check,block"`
+	CheckRestart      *CheckRestart     `mapstructure:"check_restart" hcl:"check_restart,block"`
+	Connect           *ConsulConnect    `hcl:"connect,block"`
+	Meta              map[string]string `hcl:"meta,block"`
+	CanaryMeta        map[string]string `hcl:"canary_meta,block"`
+	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
+	OnUpdate          string            `mapstructure:"on_update" hcl:"on_update,optional"`
+
+	// Provider defines which backend system provides the service registration
+	// mechanism for this service. This supports either structs.ProviderConsul
+	// or structs.ProviderNomad and defaults for the former.
+	Provider string `hcl:"provider,optional"`
 }
+
+const (
+	OnUpdateRequireHealthy = "require_healthy"
+	OnUpdateIgnoreWarn     = "ignore_warnings"
+	OnUpdateIgnore         = "ignore"
+
+	// ServiceProviderConsul is the default provider for services when no
+	// parameter is set.
+	ServiceProviderConsul = "consul"
+)
 
 // Canonicalize the Service by ensuring its name and address mode are set. Task
 // will be nil for group services.
@@ -128,6 +274,16 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 		s.AddressMode = "auto"
 	}
 
+	// Default to OnUpdateRequireHealthy
+	if s.OnUpdate == "" {
+		s.OnUpdate = OnUpdateRequireHealthy
+	}
+
+	// Default the service provider.
+	if s.Provider == "" {
+		s.Provider = ServiceProviderConsul
+	}
+
 	s.Connect.Canonicalize()
 
 	// Canonicalize CheckRestart on Checks and merge Service.CheckRestart
@@ -135,147 +291,18 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	for i, check := range s.Checks {
 		s.Checks[i].CheckRestart = s.CheckRestart.Merge(check.CheckRestart)
 		s.Checks[i].CheckRestart.Canonicalize()
+
+		if s.Checks[i].SuccessBeforePassing < 0 {
+			s.Checks[i].SuccessBeforePassing = 0
+		}
+
+		if s.Checks[i].FailuresBeforeCritical < 0 {
+			s.Checks[i].FailuresBeforeCritical = 0
+		}
+
+		// Inhert Service
+		if s.Checks[i].OnUpdate == "" {
+			s.Checks[i].OnUpdate = s.OnUpdate
+		}
 	}
-}
-
-// ConsulConnect represents a Consul Connect jobspec stanza.
-type ConsulConnect struct {
-	Native         bool
-	SidecarService *ConsulSidecarService `mapstructure:"sidecar_service"`
-	SidecarTask    *SidecarTask          `mapstructure:"sidecar_task"`
-}
-
-func (cc *ConsulConnect) Canonicalize() {
-	if cc == nil {
-		return
-	}
-
-	cc.SidecarService.Canonicalize()
-	cc.SidecarTask.Canonicalize()
-}
-
-// ConsulSidecarService represents a Consul Connect SidecarService jobspec
-// stanza.
-type ConsulSidecarService struct {
-	Tags  []string
-	Port  string
-	Proxy *ConsulProxy
-}
-
-func (css *ConsulSidecarService) Canonicalize() {
-	if css == nil {
-		return
-	}
-
-	if len(css.Tags) == 0 {
-		css.Tags = nil
-	}
-
-	css.Proxy.Canonicalize()
-}
-
-// SidecarTask represents a subset of Task fields that can be set to override
-// the fields of the Task generated for the sidecar
-type SidecarTask struct {
-	Name          string
-	Driver        string
-	User          string
-	Config        map[string]interface{}
-	Env           map[string]string
-	Resources     *Resources
-	Meta          map[string]string
-	KillTimeout   *time.Duration `mapstructure:"kill_timeout"`
-	LogConfig     *LogConfig     `mapstructure:"logs"`
-	ShutdownDelay *time.Duration `mapstructure:"shutdown_delay"`
-	KillSignal    string         `mapstructure:"kill_signal"`
-}
-
-func (st *SidecarTask) Canonicalize() {
-	if st == nil {
-		return
-	}
-
-	if len(st.Config) == 0 {
-		st.Config = nil
-	}
-
-	if len(st.Env) == 0 {
-		st.Env = nil
-	}
-
-	if st.Resources == nil {
-		st.Resources = DefaultResources()
-	} else {
-		st.Resources.Canonicalize()
-	}
-
-	if st.LogConfig == nil {
-		st.LogConfig = DefaultLogConfig()
-	} else {
-		st.LogConfig.Canonicalize()
-	}
-
-	if len(st.Meta) == 0 {
-		st.Meta = nil
-	}
-
-	if st.KillTimeout == nil {
-		st.KillTimeout = timeToPtr(5 * time.Second)
-	}
-
-	if st.ShutdownDelay == nil {
-		st.ShutdownDelay = timeToPtr(0)
-	}
-}
-
-// ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
-type ConsulProxy struct {
-	LocalServiceAddress string              `mapstructure:"local_service_address"`
-	LocalServicePort    int                 `mapstructure:"local_service_port"`
-	ExposeConfig        *ConsulExposeConfig `mapstructure:"expose"`
-	Upstreams           []*ConsulUpstream
-	Config              map[string]interface{}
-}
-
-func (cp *ConsulProxy) Canonicalize() {
-	if cp == nil {
-		return
-	}
-
-	cp.ExposeConfig.Canonicalize()
-
-	if len(cp.Upstreams) == 0 {
-		cp.Upstreams = nil
-	}
-
-	if len(cp.Config) == 0 {
-		cp.Config = nil
-	}
-}
-
-// ConsulUpstream represents a Consul Connect upstream jobspec stanza.
-type ConsulUpstream struct {
-	DestinationName string `mapstructure:"destination_name"`
-	LocalBindPort   int    `mapstructure:"local_bind_port"`
-}
-
-type ConsulExposeConfig struct {
-	Path []*ConsulExposePath `mapstructure:"path"`
-}
-
-func (cec *ConsulExposeConfig) Canonicalize() {
-	if cec == nil {
-		return
-	}
-
-	if len(cec.Path) == 0 {
-		cec.Path = nil
-	}
-}
-
-type ConsulExposePath struct {
-	Path          string
-	Protocol      string
-	LocalPathPort int    `mapstructure:"local_path_port"`
-	ListenerPort  string `mapstructure:"listener_port"`
 }

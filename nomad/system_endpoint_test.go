@@ -8,6 +8,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -15,7 +16,7 @@ import (
 )
 
 func TestSystemEndpoint_GarbageCollect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -27,14 +28,14 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.Stop = true
-	if err := state.UpsertJob(1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("UpsertJob() failed: %v", err)
 	}
 
 	eval := mock.Eval()
 	eval.Status = structs.EvalStatusComplete
 	eval.JobID = job.ID
-	if err := state.UpsertEvals(1001, []*structs.Evaluation{eval}); err != nil {
+	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval}); err != nil {
 		t.Fatalf("UpsertEvals() failed: %v", err)
 	}
 
@@ -66,7 +67,7 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 }
 
 func TestSystemEndpoint_GarbageCollect_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -111,7 +112,7 @@ func TestSystemEndpoint_GarbageCollect_ACL(t *testing.T) {
 }
 
 func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -122,7 +123,7 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 	state := s1.fsm.State()
 	s1.fsm.State()
 	job := mock.Job()
-	if err := state.UpsertJob(1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("UpsertJob() failed: %v", err)
 	}
 
@@ -174,7 +175,7 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 }
 
 func TestSystemEndpoint_ReconcileJobSummaries_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()

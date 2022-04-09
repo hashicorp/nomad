@@ -2,11 +2,20 @@
   "builders": [{
     "type": "amazon-ebs",
     "region": "us-east-1",
-    "source_ami": "ami-80861296",
+    "source_ami_filter": {
+      "filters": {
+        "virtualization-type": "hvm",
+        "architecture": "x86_64",
+        "name": "ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-*",
+        "block-device-mapping.volume-type": "gp2",
+        "root-device-type": "ebs"
+      },
+      "owners": ["099720109477"],
+      "most_recent": true
+    },
     "instance_type": "t2.medium",
     "ssh_username": "ubuntu",
-    "ami_name": "hashistack {{timestamp}}",
-    "ami_groups": ["all"]
+    "ami_name": "hashistack {{timestamp}}"
   }],
   "provisioners":  [
   {

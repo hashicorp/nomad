@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Allow interpolation of the network.dns block
+```

@@ -1,0 +1,16 @@
+rules:
+  - id: "time-after-leak"
+    patterns:
+      - pattern: |
+          select {
+          case <- time.After(...): ...
+          }
+    message: "Potential leak of time.Timer, consider using NewSafeTimer instead"
+    languages:
+      - "go"
+    severity: "WARNING"
+    paths:
+      exclude:
+        - "testutil/*"
+        - "*testing.go"
+        - "*_test.go"

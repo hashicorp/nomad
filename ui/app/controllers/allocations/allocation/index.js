@@ -9,11 +9,13 @@ import { task } from 'ember-concurrency';
 import Sortable from 'nomad-ui/mixins/sortable';
 import { lazyClick } from 'nomad-ui/helpers/lazy-click';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';
+import messageForError from 'nomad-ui/utils/message-from-adapter-error';
 import classic from 'ember-classic-decorator';
 
 @classic
 export default class IndexController extends Controller.extend(Sortable) {
   @service token;
+  @service store;
 
   queryParams = [
     {
@@ -33,17 +35,20 @@ export default class IndexController extends Controller.extend(Sortable) {
   // Set in the route
   preempter = null;
 
-  @overridable(function() {
+  @overridable(function () {
     // { title, description }
     return null;
   })
   error;
 
-  @alias('model.allocatedResources.networks.firstObject') network;
+  @computed('model.allocatedResources.ports.@each.label')
+  get ports() {
+    return (this.get('model.allocatedResources.ports') || []).sortBy('label');
+  }
 
   @computed('model.taskGroup.services.@each.name')
   get services() {
-    return this.get('model.taskGroup.services').sortBy('name');
+    return (this.get('model.taskGroup.services') || []).sortBy('name');
   }
 
   onDismiss() {
@@ -62,7 +67,7 @@ export default class IndexController extends Controller.extend(Sortable) {
     }
   }
 
-  @task(function*() {
+  @task(function* () {
     try {
       yield this.model.stop();
       // Eagerly update the allocation clientStatus to avoid flickering
@@ -70,19 +75,19 @@ export default class IndexController extends Controller.extend(Sortable) {
     } catch (err) {
       this.set('error', {
         title: 'Could Not Stop Allocation',
-        description: 'Your ACL token does not grant allocation lifecycle permissions.',
+        description: messageForError(err, 'manage allocation lifecycle'),
       });
     }
   })
   stopAllocation;
 
-  @task(function*() {
+  @task(function* () {
     try {
       yield this.model.restart();
     } catch (err) {
       this.set('error', {
         title: 'Could Not Restart Allocation',
-        description: 'Your ACL token does not grant allocation lifecycle permissions.',
+        description: messageForError(err, 'manage allocation lifecycle'),
       });
     }
   })

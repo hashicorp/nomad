@@ -2,16 +2,20 @@ package structs
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"testing"
 
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRemoveAllocs(t *testing.T) {
+	ci.Parallel(t)
+
 	l := []*Allocation{
 		{ID: "foo"},
 		{ID: "bar"},
@@ -29,6 +33,8 @@ func TestRemoveAllocs(t *testing.T) {
 }
 
 func TestFilterTerminalAllocs(t *testing.T) {
+	ci.Parallel(t)
+
 	l := []*Allocation{
 		{
 			ID:            "bar",
@@ -80,6 +86,8 @@ func TestFilterTerminalAllocs(t *testing.T) {
 
 // COMPAT(0.11): Remove in 0.11
 func TestAllocsFit_PortsOvercommitted_Old(t *testing.T) {
+	ci.Parallel(t)
+
 	n := &Node{
 		Resources: &Resources{
 			Networks: []*NetworkResource{
@@ -136,6 +144,8 @@ func TestAllocsFit_PortsOvercommitted_Old(t *testing.T) {
 
 // COMPAT(0.11): Remove in 0.11
 func TestAllocsFit_Old(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	n := &Node{
@@ -186,8 +196,6 @@ func TestAllocsFit_Old(t *testing.T) {
 	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
-
-	// Sanity check the used resources
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -195,14 +203,14 @@ func TestAllocsFit_Old(t *testing.T) {
 	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
 	require.NoError(err)
 	require.False(fit)
-
-	// Sanity check the used resources
 	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
 }
 
 // COMPAT(0.11): Remove in 0.11
 func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	n := &Node{
@@ -253,8 +261,6 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
-
-	// Sanity check the used resources
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -264,19 +270,21 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
 	require.NoError(err)
 	require.True(fit)
-
-	// Sanity check the used resources
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 }
 
 func TestAllocsFit(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	n := &Node{
 		NodeResources: &NodeResources{
 			Cpu: NodeCpuResources{
-				CpuShares: 2000,
+				CpuShares:          2000,
+				TotalCpuCores:      2,
+				ReservableCpuCores: []uint16{0, 1},
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 2048,
@@ -289,6 +297,17 @@ func TestAllocsFit(t *testing.T) {
 					Device: "eth0",
 					CIDR:   "10.0.0.0/8",
 					MBits:  100,
+				},
+			},
+			NodeNetworks: []*NodeNetworkResource{
+				{
+					Mode:   "host",
+					Device: "eth0",
+					Addresses: []NodeNetworkAddress{
+						{
+							Address: "10.0.0.1",
+						},
+					},
 				},
 			},
 		},
@@ -313,33 +332,38 @@ func TestAllocsFit(t *testing.T) {
 			Tasks: map[string]*AllocatedTaskResources{
 				"web": {
 					Cpu: AllocatedCpuResources{
-						CpuShares: 1000,
+						CpuShares:     1000,
+						ReservedCores: []uint16{},
 					},
 					Memory: AllocatedMemoryResources{
 						MemoryMB: 1024,
-					},
-					Networks: []*NetworkResource{
-						{
-							Device:        "eth0",
-							IP:            "10.0.0.1",
-							MBits:         50,
-							ReservedPorts: []Port{{"main", 8000, 0, ""}},
-						},
 					},
 				},
 			},
 			Shared: AllocatedSharedResources{
 				DiskMB: 5000,
+				Networks: Networks{
+					{
+						Mode:          "host",
+						IP:            "10.0.0.1",
+						ReservedPorts: []Port{{"main", 8000, 0, ""}},
+					},
+				},
+				Ports: AllocatedPorts{
+					{
+						Label:  "main",
+						Value:  8000,
+						HostIP: "10.0.0.1",
+					},
+				},
 			},
 		},
 	}
 
 	// Should fit one allocation
-	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
+	fit, dim, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
-	require.True(fit)
-
-	// Sanity check the used resources
+	require.True(fit, "failed for dimension %q", dim)
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -347,13 +371,55 @@ func TestAllocsFit(t *testing.T) {
 	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
 	require.NoError(err)
 	require.False(fit)
-
-	// Sanity check the used resources
 	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
+
+	a2 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu: AllocatedCpuResources{
+						CpuShares:     500,
+						ReservedCores: []uint16{0},
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 512,
+					},
+				},
+			},
+			Shared: AllocatedSharedResources{
+				DiskMB: 1000,
+				Networks: Networks{
+					{
+						Mode: "host",
+						IP:   "10.0.0.1",
+					},
+				},
+			},
+		},
+	}
+
+	// Should fit one allocation
+	fit, dim, used, err = AllocsFit(n, []*Allocation{a2}, nil, false)
+	require.NoError(err)
+	require.True(fit, "failed for dimension %q", dim)
+	require.EqualValues(500, used.Flattened.Cpu.CpuShares)
+	require.EqualValues([]uint16{0}, used.Flattened.Cpu.ReservedCores)
+	require.EqualValues(512, used.Flattened.Memory.MemoryMB)
+
+	// Should not fit second allocation
+	fit, dim, used, err = AllocsFit(n, []*Allocation{a2, a2}, nil, false)
+	require.NoError(err)
+	require.False(fit)
+	require.EqualValues("cores", dim)
+	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
+	require.EqualValues([]uint16{0}, used.Flattened.Cpu.ReservedCores)
+	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 }
 
 func TestAllocsFit_TerminalAlloc(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	n := &Node{
@@ -422,8 +488,6 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
-
-	// Sanity check the used resources
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -433,14 +497,14 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	fit, dim, used, err := AllocsFit(n, []*Allocation{a1, a2}, nil, false)
 	require.NoError(err)
 	require.True(fit, dim)
-
-	// Sanity check the used resources
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 }
 
 // Tests that AllocsFit detects device collisions
 func TestAllocsFit_Devices(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	n := MockNvidiaNode()
@@ -505,8 +569,67 @@ func TestAllocsFit_Devices(t *testing.T) {
 	require.True(fit)
 }
 
+// TestAllocsFit_MemoryOversubscription asserts that only reserved memory is
+// used for capacity
+func TestAllocsFit_MemoryOversubscription(t *testing.T) {
+	ci.Parallel(t)
+
+	n := &Node{
+		NodeResources: &NodeResources{
+			Cpu: NodeCpuResources{
+				CpuShares: 2000,
+			},
+			Memory: NodeMemoryResources{
+				MemoryMB: 2048,
+			},
+		},
+	}
+
+	a1 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu: AllocatedCpuResources{
+						CpuShares: 100,
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB:    1000,
+						MemoryMaxMB: 4000,
+					},
+				},
+			},
+		},
+	}
+
+	// Should fit one allocation
+	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
+	require.NoError(t, err)
+	require.True(t, fit)
+	require.EqualValues(t, 100, used.Flattened.Cpu.CpuShares)
+	require.EqualValues(t, 1000, used.Flattened.Memory.MemoryMB)
+	require.EqualValues(t, 4000, used.Flattened.Memory.MemoryMaxMB)
+
+	// Should fit second allocation
+	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
+	require.NoError(t, err)
+	require.True(t, fit)
+	require.EqualValues(t, 200, used.Flattened.Cpu.CpuShares)
+	require.EqualValues(t, 2000, used.Flattened.Memory.MemoryMB)
+	require.EqualValues(t, 8000, used.Flattened.Memory.MemoryMaxMB)
+
+	// Should not fit a third allocation
+	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1, a1}, nil, false)
+	require.NoError(t, err)
+	require.False(t, fit)
+	require.EqualValues(t, 300, used.Flattened.Cpu.CpuShares)
+	require.EqualValues(t, 3000, used.Flattened.Memory.MemoryMB)
+	require.EqualValues(t, 12000, used.Flattened.Memory.MemoryMaxMB)
+}
+
 // COMPAT(0.11): Remove in 0.11
 func TestScoreFitBinPack_Old(t *testing.T) {
+	ci.Parallel(t)
+
 	node := &Node{}
 	node.Resources = &Resources{
 		CPU:      4096,
@@ -567,6 +690,8 @@ func TestScoreFitBinPack_Old(t *testing.T) {
 }
 
 func TestScoreFitBinPack(t *testing.T) {
+	ci.Parallel(t)
+
 	node := &Node{}
 	node.NodeResources = &NodeResources{
 		Cpu: NodeCpuResources{
@@ -636,6 +761,8 @@ func TestScoreFitBinPack(t *testing.T) {
 }
 
 func TestACLPolicyListHash(t *testing.T) {
+	ci.Parallel(t)
+
 	h1 := ACLPolicyListHash(nil)
 	assert.NotEqual(t, "", h1)
 
@@ -682,6 +809,8 @@ func TestACLPolicyListHash(t *testing.T) {
 }
 
 func TestCompileACLObject(t *testing.T) {
+	ci.Parallel(t)
+
 	p1 := &ACLPolicy{
 		Name:        fmt.Sprintf("policy-%s", uuid.Generate()),
 		Description: "Super cool policy!",
@@ -741,6 +870,8 @@ func TestCompileACLObject(t *testing.T) {
 // TestGenerateMigrateToken asserts the migrate token is valid for use in HTTP
 // headers and CompareMigrateToken works as expected.
 func TestGenerateMigrateToken(t *testing.T) {
+	ci.Parallel(t)
+
 	assert := assert.New(t)
 	allocID := uuid.Generate()
 	nodeSecret := uuid.Generate()
@@ -758,4 +889,214 @@ func TestGenerateMigrateToken(t *testing.T) {
 	assert.Nil(err)
 	assert.False(CompareMigrateToken(allocID, nodeSecret, token2))
 	assert.True(CompareMigrateToken("x", nodeSecret, token2))
+}
+
+func TestMergeMultierrorWarnings(t *testing.T) {
+	ci.Parallel(t)
+
+	var errs []error
+
+	// empty
+	str := MergeMultierrorWarnings(errs...)
+	require.Equal(t, "", str)
+
+	// non-empty
+	errs = []error{
+		errors.New("foo"),
+		nil,
+		errors.New("bar"),
+	}
+
+	str = MergeMultierrorWarnings(errs...)
+
+	require.Equal(t, "2 warning(s):\n\n* foo\n* bar", str)
+}
+
+func TestVaultPoliciesSet(t *testing.T) {
+	input := map[string]map[string]*Vault{
+		"tg1": {
+			"task1": {
+				Policies: []string{"policy1-1"},
+			},
+			"task2": {
+				Policies: []string{"policy1-2"},
+			},
+		},
+		"tg2": {
+			"task1": {
+				Policies: []string{"policy2"},
+			},
+			"task2": {
+				Policies: []string{"policy2"},
+			},
+		},
+		"tg3": {
+			"task1": {
+				Policies: []string{"policy3-1"},
+			},
+		},
+		"tg4": {
+			"task1": nil,
+		},
+		"tg5": {
+			"task1": {
+				Policies: []string{"policy2"},
+			},
+		},
+		"tg6": {
+			"task1": {},
+		},
+		"tg7": {
+			"task1": {
+				Policies: []string{"policy7", "policy7"},
+			},
+		},
+		"tg8": {
+			"task1": {
+				Policies: []string{"policy8-1-1", "policy8-1-2"},
+			},
+		},
+	}
+	expected := []string{
+		"policy1-1",
+		"policy1-2",
+		"policy2",
+		"policy3-1",
+		"policy7",
+		"policy8-1-1",
+		"policy8-1-2",
+	}
+	got := VaultPoliciesSet(input)
+	require.ElementsMatch(t, expected, got)
+}
+
+func TestVaultNamespaceSet(t *testing.T) {
+	input := map[string]map[string]*Vault{
+		"tg1": {
+			"task1": {
+				Namespace: "ns1-1",
+			},
+			"task2": {
+				Namespace: "ns1-2",
+			},
+		},
+		"tg2": {
+			"task1": {
+				Namespace: "ns2",
+			},
+			"task2": {
+				Namespace: "ns2",
+			},
+		},
+		"tg3": {
+			"task1": {
+				Namespace: "ns3-1",
+			},
+		},
+		"tg4": {
+			"task1": nil,
+		},
+		"tg5": {
+			"task1": {
+				Namespace: "ns2",
+			},
+		},
+		"tg6": {
+			"task1": {},
+		},
+	}
+	expected := []string{
+		"ns1-1",
+		"ns1-2",
+		"ns2",
+		"ns3-1",
+	}
+	got := VaultNamespaceSet(input)
+	require.ElementsMatch(t, expected, got)
+}
+
+func TestVaultEntityAliasesSet(t *testing.T) {
+	input := map[string]map[string]*Vault{
+		"tg1": {
+			"task1": {
+				EntityAlias: "alias1-1",
+			},
+			"task2": {
+				EntityAlias: "alias1-2",
+			},
+		},
+		"tg2": {
+			"task1": {
+				EntityAlias: "alias2",
+			},
+			"task2": {
+				EntityAlias: "alias2",
+			},
+		},
+		"tg3": {
+			"task1": {
+				EntityAlias: "alias3-1",
+			},
+		},
+		"tg4": {
+			"task1": nil,
+		},
+		"tg5": {
+			"task1": {
+				EntityAlias: "alias2",
+			},
+		},
+		"tg6": {
+			"task1": {},
+		},
+	}
+	expected := []string{
+		"alias1-1",
+		"alias1-2",
+		"alias2",
+		"alias3-1",
+	}
+	got := VaultEntityAliasesSet(input)
+	require.ElementsMatch(t, expected, got)
+}
+
+// TestParsePortRanges asserts ParsePortRanges errors on invalid port ranges.
+func TestParsePortRanges(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name string
+		spec string
+		err  string
+	}{
+		{
+			name: "UnmatchedDash",
+			spec: "-1",
+			err:  `strconv.ParseUint: parsing "": invalid syntax`,
+		},
+		{
+			name: "Zero",
+			spec: "0",
+			err:  "port must be > 0",
+		},
+		{
+			name: "TooBig",
+			spec: fmt.Sprintf("1-%d", MaxValidPort+1),
+			err:  "port must be < 65536 but found 65537",
+		},
+		{
+			name: "WayTooBig",           // would OOM if not caught early enough
+			spec: "9223372036854775807", // (2**63)-1
+			err:  "port must be < 65536 but found 9223372036854775807",
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			results, err := ParsePortRanges(tc.spec)
+			require.Nil(t, results)
+			require.EqualError(t, err, tc.err)
+		})
+	}
 }

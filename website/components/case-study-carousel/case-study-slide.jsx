@@ -4,7 +4,7 @@ import Button from '@hashicorp/react-button'
 import QuoteMarksIcon from './img/quote.svg?include'
 
 export default function CaseStudySlide({
-  caseStudy: { person, quote, company, caseStudyURL }
+  caseStudy: { person, quote, company, caseStudyURL },
 }) {
   return (
     <blockquote className="g-grid-container case-slide">
@@ -35,7 +35,7 @@ export default function CaseStudySlide({
         theme={{
           variant: 'tertiary',
           brand: 'nomad',
-          background: 'light'
+          background: 'light',
         }}
         linkType="outbound"
       />

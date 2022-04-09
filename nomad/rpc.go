@@ -7,20 +7,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	golog "log"
 	"math/rand"
 	"net"
 	"net/rpc"
 	"strings"
 	"time"
 
-	golog "log"
-
 	metrics "github.com/armon/go-metrics"
+	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-
-	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -31,13 +29,6 @@ import (
 )
 
 const (
-	// maxQueryTime is used to bound the limit of a blocking query
-	maxQueryTime = 300 * time.Second
-
-	// defaultQueryTime is the amount of time we block waiting for a change
-	// if no time is specified. Previously we would wait the maxQueryTime.
-	defaultQueryTime = 300 * time.Second
-
 	// Warn if the Raft command is larger than this.
 	// If it's over 1MB something is probably being abusive.
 	raftWarnSize = 1024 * 1024
@@ -112,6 +103,38 @@ type RPCContext struct {
 
 	// NodeID marks the NodeID that initiated the connection.
 	NodeID string
+}
+
+// Certificate returns the first certificate available in the chain.
+func (ctx *RPCContext) Certificate() *x509.Certificate {
+	if ctx == nil || len(ctx.VerifiedChains) == 0 || len(ctx.VerifiedChains[0]) == 0 {
+		return nil
+	}
+
+	return ctx.VerifiedChains[0][0]
+}
+
+// ValidateCertificateForName returns true if the RPC context certificate is valid
+// for the given domain name.
+func (ctx *RPCContext) ValidateCertificateForName(name string) error {
+	if ctx == nil || !ctx.TLS {
+		return nil
+	}
+
+	cert := ctx.Certificate()
+	if cert == nil {
+		return errors.New("missing certificate information")
+	}
+
+	validNames := []string{cert.Subject.CommonName}
+	validNames = append(validNames, cert.DNSNames...)
+	for _, valid := range validNames {
+		if name == valid {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("invalid certificate, %s not in %s", name, strings.Join(validNames, ","))
 }
 
 // listen is used to listen for incoming RPC connections
@@ -245,6 +268,11 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 
 	case pool.RpcRaft:
 		metrics.IncrCounter([]string{"nomad", "rpc", "raft_handoff"}, 1)
+		// Ensure that when TLS is configured, only certificates from `server.<region>.nomad` are accepted for Raft connections.
+		if err := r.validateRaftTLS(rpcCtx); err != nil {
+			conn.Close()
+			return
+		}
 		r.raftLayer.Handoff(ctx, conn)
 
 	case pool.RpcMultiplex:
@@ -566,7 +594,7 @@ CHECK_LEADER:
 	if firstCheck.IsZero() {
 		firstCheck = time.Now()
 	}
-	if time.Now().Sub(firstCheck) < r.config.RPCHoldTimeout {
+	if time.Since(firstCheck) < r.config.RPCHoldTimeout {
 		jitter := lib.RandomStagger(r.config.RPCHoldTimeout / structs.JitterFraction)
 		select {
 		case <-time.After(jitter):
@@ -614,7 +642,7 @@ func (r *rpcHandler) forwardLeader(server *serverParts, method string, args inte
 	if server == nil {
 		return structs.ErrNoLeader
 	}
-	return r.connPool.RPC(r.config.Region, server.Addr, server.MajorVersion, method, args, reply)
+	return r.connPool.RPC(r.config.Region, server.Addr, method, args, reply)
 }
 
 // forwardServer is used to forward an RPC call to a particular server
@@ -623,7 +651,7 @@ func (r *rpcHandler) forwardServer(server *serverParts, method string, args inte
 	if server == nil {
 		return errors.New("must be given a valid server address")
 	}
-	return r.connPool.RPC(r.config.Region, server.Addr, server.MajorVersion, method, args, reply)
+	return r.connPool.RPC(r.config.Region, server.Addr, method, args, reply)
 }
 
 func (r *rpcHandler) findRegionServer(region string) (*serverParts, error) {
@@ -650,7 +678,7 @@ func (r *rpcHandler) forwardRegion(region, method string, args interface{}, repl
 
 	// Forward to remote Nomad
 	metrics.IncrCounter([]string{"nomad", "rpc", "cross-region", region}, 1)
-	return r.connPool.RPC(region, server.Addr, server.MajorVersion, method, args, reply)
+	return r.connPool.RPC(region, server.Addr, method, args, reply)
 }
 
 func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
@@ -678,7 +706,7 @@ func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
 // initial handshake, returning the connection or an error. It is the callers
 // responsibility to close the connection if there is no returned error.
 func (r *rpcHandler) streamingRpc(server *serverParts, method string) (net.Conn, error) {
-	c, err := r.connPool.StreamingRPC(r.config.Region, server.Addr, server.MajorVersion)
+	c, err := r.connPool.StreamingRPC(r.config.Region, server.Addr)
 	if err != nil {
 		return nil, err
 	}
@@ -756,7 +784,7 @@ func (r *rpcHandler) setQueryMeta(m *structs.QueryMeta) {
 		m.LastContact = 0
 		m.KnownLeader = true
 	} else {
-		m.LastContact = time.Now().Sub(r.raft.LastContact())
+		m.LastContact = time.Since(r.raft.LastContact())
 		m.KnownLeader = (r.raft.Leader() != "")
 	}
 }
@@ -787,12 +815,7 @@ func (r *rpcHandler) blockingRPC(opts *blockingOptions) error {
 		goto RUN_QUERY
 	}
 
-	// Restrict the max query time, and ensure there is always one
-	if opts.queryOpts.MaxQueryTime > maxQueryTime {
-		opts.queryOpts.MaxQueryTime = maxQueryTime
-	} else if opts.queryOpts.MaxQueryTime <= 0 {
-		opts.queryOpts.MaxQueryTime = defaultQueryTime
-	}
+	opts.queryOpts.MaxQueryTime = opts.queryOpts.TimeToBlock()
 
 	// Apply a small amount of jitter to the request
 	opts.queryOpts.MaxQueryTime += lib.RandomStagger(opts.queryOpts.MaxQueryTime / structs.JitterFraction)
@@ -836,4 +859,27 @@ RUN_QUERY:
 		}
 	}
 	return err
+}
+
+func (r *rpcHandler) validateRaftTLS(rpcCtx *RPCContext) error {
+	// TLS is not configured or not to be enforced
+	tlsConf := r.config.TLSConfig
+	if !tlsConf.EnableRPC || !tlsConf.VerifyServerHostname || tlsConf.RPCUpgradeMode {
+		return nil
+	}
+
+	// check that `server.<region>.nomad` is present in cert
+	expected := "server." + r.Region() + ".nomad"
+	err := rpcCtx.ValidateCertificateForName(expected)
+	if err != nil {
+		cert := rpcCtx.Certificate()
+		if cert != nil {
+			err = fmt.Errorf("request certificate is only valid for %s: %v", cert.DNSNames, err)
+		}
+
+		return fmt.Errorf("unauthorized raft connection from %s: %v", rpcCtx.Conn.RemoteAddr(), err)
+	}
+
+	// Certificate is valid for the expected name
+	return nil
 }

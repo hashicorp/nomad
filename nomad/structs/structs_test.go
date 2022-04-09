@@ -10,6 +10,8 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 
 	"github.com/kr/pretty"
@@ -18,33 +20,20 @@ import (
 )
 
 func TestJob_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	j := &Job{}
 	err := j.Validate()
-	mErr := err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "job region") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[1].Error(), "job ID") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[2].Error(), "job name") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[3].Error(), "namespace") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[4].Error(), "job type") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[5].Error(), "priority") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[6].Error(), "datacenters") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[7].Error(), "task groups") {
-		t.Fatalf("err: %s", err)
-	}
+	requireErrors(t, err,
+		"datacenters",
+		"job ID",
+		"job name",
+		"job region",
+		"job type",
+		"namespace",
+		"priority",
+		"task groups",
+	)
 
 	j = &Job{
 		Type: "invalid-job-type",
@@ -61,10 +50,7 @@ func TestJob_Validate(t *testing.T) {
 		},
 	}
 	err = j.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Error(), "Periodic") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "Periodic")
 
 	j = &Job{
 		Region:      "global",
@@ -101,33 +87,27 @@ func TestJob_Validate(t *testing.T) {
 		},
 	}
 	err = j.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "2 redefines 'web' from group 1") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[1].Error(), "group 3 missing name") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Task group web validation failed") {
-		t.Fatalf("err: %s", err)
-	}
-
+	requireErrors(t, err,
+		"2 redefines 'web' from group 1",
+		"group 3 missing name",
+		"Task group web validation failed",
+	)
 	// test for empty datacenters
 	j = &Job{
 		Datacenters: []string{""},
 	}
 	err = j.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Error(), "datacenter must be non-empty string") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "datacenter must be non-empty string")
 }
 
 func TestJob_ValidateScaling(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	p := &ScalingPolicy{
 		Policy:  nil, // allowed to be nil
+		Type:    ScalingPolicyTypeHorizontal,
 		Min:     5,
 		Max:     5,
 		Enabled: true,
@@ -142,36 +122,59 @@ func TestJob_ValidateScaling(t *testing.T) {
 	p.Max = 0
 	p.Min = 10
 	err := job.Validate()
-	require.Error(err)
-	mErr := err.(*multierror.Error)
-	require.Len(mErr.Errors, 1)
-	require.Contains(mErr.Errors[0].Error(), "maximum count must not be less than minimum count")
-	require.Contains(mErr.Errors[0].Error(), "task group count must not be less than minimum count in scaling policy")
-	require.Contains(mErr.Errors[0].Error(), "task group count must not be greater than maximum count in scaling policy")
+	requireErrors(t, err,
+		"task group count must not be less than minimum count in scaling policy",
+		"task group count must not be greater than maximum count in scaling policy",
+	)
 
 	// count <= max
 	p.Max = 0
 	p.Min = 5
 	job.TaskGroups[0].Count = 5
 	err = job.Validate()
-	require.Error(err)
-	mErr = err.(*multierror.Error)
-	require.Len(mErr.Errors, 1)
-	require.Contains(mErr.Errors[0].Error(), "maximum count must not be less than minimum count")
-	require.Contains(mErr.Errors[0].Error(), "task group count must not be greater than maximum count in scaling policy")
+	require.Error(err,
+		"task group count must not be greater than maximum count in scaling policy",
+	)
 
 	// min <= count
 	job.TaskGroups[0].Count = 0
 	p.Min = 5
 	p.Max = 5
 	err = job.Validate()
-	require.Error(err)
-	mErr = err.(*multierror.Error)
-	require.Len(mErr.Errors, 1)
-	require.Contains(mErr.Errors[0].Error(), "task group count must not be less than minimum count in scaling policy")
+	require.Error(err,
+		"task group count must not be less than minimum count in scaling policy",
+	)
+}
+
+func TestJob_ValidateNullChar(t *testing.T) {
+	ci.Parallel(t)
+
+	assert := assert.New(t)
+
+	// job id should not allow null characters
+	job := testJob()
+	job.ID = "id_with\000null_character"
+	assert.Error(job.Validate(), "null character in job ID should not validate")
+
+	// job name should not allow null characters
+	job.ID = "happy_little_job_id"
+	job.Name = "my job name with \000 characters"
+	assert.Error(job.Validate(), "null character in job name should not validate")
+
+	// task group name should not allow null characters
+	job.Name = "my job"
+	job.TaskGroups[0].Name = "oh_no_another_\000_char"
+	assert.Error(job.Validate(), "null character in task group name should not validate")
+
+	// task name should not allow null characters
+	job.TaskGroups[0].Name = "so_much_better"
+	job.TaskGroups[0].Tasks[0].Name = "ive_had_it_with_these_\000_chars_in_these_names"
+	assert.Error(job.Validate(), "null character in task name should not validate")
 }
 
 func TestJob_Warnings(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name     string
 		Job      *Job
@@ -207,6 +210,27 @@ func TestJob_Warnings(t *testing.T) {
 					{
 						Update: &UpdateStrategy{
 							AutoPromote: false,
+							Canary:      1,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "no error for mixed but implied AutoPromote",
+			Expected: []string{},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Update: &UpdateStrategy{
+							AutoPromote: true,
+						},
+					},
+					{
+						Update: &UpdateStrategy{
+							AutoPromote: false,
+							Canary:      0,
 						},
 					},
 				},
@@ -240,9 +264,8 @@ func TestJob_Warnings(t *testing.T) {
 			if warnings == nil {
 				if len(c.Expected) == 0 {
 					return
-				} else {
-					t.Fatal("Got no warnings when they were expected")
 				}
+				t.Fatal("Got no warnings when they were expected")
 			}
 
 			a := warnings.Error()
@@ -256,6 +279,8 @@ func TestJob_Warnings(t *testing.T) {
 }
 
 func TestJob_SpecChanged(t *testing.T) {
+	ci.Parallel(t)
+
 	// Get a base test job
 	base := testJob()
 
@@ -285,6 +310,18 @@ func TestJob_SpecChanged(t *testing.T) {
 			Changed:  true,
 			Original: base,
 			New:      change,
+		},
+		{
+			Name:     "With Constraints",
+			Changed:  false,
+			Original: &Job{Constraints: []*Constraint{{"A", "B", "="}}},
+			New:      &Job{Constraints: []*Constraint{{"A", "B", "="}}},
+		},
+		{
+			Name:     "With Affinities",
+			Changed:  false,
+			Original: &Job{Affinities: []*Affinity{{"A", "B", "=", 1}}},
+			New:      &Job{Affinities: []*Affinity{{"A", "B", "=", 1}}},
 		},
 	}
 
@@ -334,6 +371,20 @@ func testJob() *Job {
 					Delay:         5 * time.Second,
 					DelayFunction: "constant",
 				},
+				Networks: []*NetworkResource{
+					{
+						DynamicPorts: []Port{
+							{Label: "http"},
+						},
+					},
+				},
+				Services: []*Service{
+					{
+						Name:      "${TASK}-frontend",
+						PortLabel: "http",
+						Provider:  "consul",
+					},
+				},
 				Tasks: []*Task{
 					{
 						Name:   "web",
@@ -349,21 +400,9 @@ func testJob() *Job {
 								GetterSource: "http://foo.com",
 							},
 						},
-						Services: []*Service{
-							{
-								Name:      "${TASK}-frontend",
-								PortLabel: "http",
-							},
-						},
 						Resources: &Resources{
 							CPU:      500,
 							MemoryMB: 256,
-							Networks: []*NetworkResource{
-								{
-									MBits:        50,
-									DynamicPorts: []Port{{Label: "http"}},
-								},
-							},
 						},
 						LogConfig: &LogConfig{
 							MaxFiles:      10,
@@ -385,6 +424,8 @@ func testJob() *Job {
 }
 
 func TestJob_Copy(t *testing.T) {
+	ci.Parallel(t)
+
 	j := testJob()
 	c := j.Copy()
 	if !reflect.DeepEqual(j, c) {
@@ -393,6 +434,8 @@ func TestJob_Copy(t *testing.T) {
 }
 
 func TestJob_IsPeriodic(t *testing.T) {
+	ci.Parallel(t)
+
 	j := &Job{
 		Type: JobTypeService,
 		Periodic: &PeriodicConfig{
@@ -412,6 +455,8 @@ func TestJob_IsPeriodic(t *testing.T) {
 }
 
 func TestJob_IsPeriodicActive(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		job    *Job
 		active bool
@@ -521,7 +566,9 @@ func TestJob_SystemJob_Validate(t *testing.T) {
 
 }
 
-func TestJob_VaultPolicies(t *testing.T) {
+func TestJob_Vault(t *testing.T) {
+	ci.Parallel(t)
+
 	j0 := &Job{}
 	e0 := make(map[string]map[string]*Vault, 0)
 
@@ -541,6 +588,7 @@ func TestJob_VaultPolicies(t *testing.T) {
 		Policies: []string{
 			"p5",
 		},
+		EntityAlias: "alias1",
 	}
 	j1 := &Job{
 		TaskGroups: []*TaskGroup{
@@ -597,7 +645,7 @@ func TestJob_VaultPolicies(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		got := c.Job.VaultPolicies()
+		got := c.Job.Vault()
 		if !reflect.DeepEqual(got, c.Expected) {
 			t.Fatalf("case %d: got %#v; want %#v", i+1, got, c.Expected)
 		}
@@ -605,11 +653,8 @@ func TestJob_VaultPolicies(t *testing.T) {
 }
 
 func TestJob_ConnectTasks(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
-
-	// todo(shoenig): this will need some updates when we support connect native
-	//  tasks, which will have a different Kind format, probably.
 
 	j0 := &Job{
 		TaskGroups: []*TaskGroup{{
@@ -633,19 +678,48 @@ func TestJob_ConnectTasks(t *testing.T) {
 				Name: "connect-proxy-task2",
 				Kind: "connect-proxy:task2",
 			}},
+		}, {
+			Name: "tg3",
+			Tasks: []*Task{{
+				Name: "ingress",
+				Kind: "connect-ingress:ingress",
+			}},
+		}, {
+			Name: "tg4",
+			Tasks: []*Task{{
+				Name: "frontend",
+				Kind: "connect-native:uuid-fe",
+			}, {
+				Name: "generator",
+				Kind: "connect-native:uuid-api",
+			}},
+		}, {
+			Name: "tg5",
+			Tasks: []*Task{{
+				Name: "t1000",
+				Kind: "connect-terminating:t1000",
+			}},
 		}},
 	}
 
 	connectTasks := j0.ConnectTasks()
 
-	exp := map[string][]string{
-		"tg1": {"connect-proxy-task1", "connect-proxy-task3"},
-		"tg2": {"connect-proxy-task2"},
+	exp := []TaskKind{
+		NewTaskKind(ConnectProxyPrefix, "task1"),
+		NewTaskKind(ConnectProxyPrefix, "task3"),
+		NewTaskKind(ConnectProxyPrefix, "task2"),
+		NewTaskKind(ConnectIngressPrefix, "ingress"),
+		NewTaskKind(ConnectNativePrefix, "uuid-fe"),
+		NewTaskKind(ConnectNativePrefix, "uuid-api"),
+		NewTaskKind(ConnectTerminatingPrefix, "t1000"),
 	}
+
 	r.Equal(exp, connectTasks)
 }
 
 func TestJob_RequiredSignals(t *testing.T) {
+	ci.Parallel(t)
+
 	j0 := &Job{}
 	e0 := make(map[string]map[string][]string, 0)
 
@@ -758,6 +832,8 @@ func TestJob_RequiredSignals(t *testing.T) {
 
 // test new Equal comparisons for components of Jobs
 func TestJob_PartEqual(t *testing.T) {
+	ci.Parallel(t)
+
 	ns := &Networks{}
 	require.True(t, ns.Equals(&Networks{}))
 
@@ -780,30 +856,30 @@ func TestJob_PartEqual(t *testing.T) {
 	}))
 
 	cs := &Constraints{
-		&Constraint{"left0", "right0", "=", ""},
-		&Constraint{"left1", "right1", "=", ""},
-		&Constraint{"left2", "right2", "=", ""},
+		&Constraint{"left0", "right0", "="},
+		&Constraint{"left1", "right1", "="},
+		&Constraint{"left2", "right2", "="},
 	}
 	require.True(t, cs.Equals(&Constraints{
-		&Constraint{"left0", "right0", "=", ""},
-		&Constraint{"left2", "right2", "=", ""},
-		&Constraint{"left1", "right1", "=", ""},
+		&Constraint{"left0", "right0", "="},
+		&Constraint{"left2", "right2", "="},
+		&Constraint{"left1", "right1", "="},
 	}))
 
 	as := &Affinities{
-		&Affinity{"left0", "right0", "=", 0, ""},
-		&Affinity{"left1", "right1", "=", 0, ""},
-		&Affinity{"left2", "right2", "=", 0, ""},
+		&Affinity{"left0", "right0", "=", 0},
+		&Affinity{"left1", "right1", "=", 0},
+		&Affinity{"left2", "right2", "=", 0},
 	}
 	require.True(t, as.Equals(&Affinities{
-		&Affinity{"left0", "right0", "=", 0, ""},
-		&Affinity{"left2", "right2", "=", 0, ""},
-		&Affinity{"left1", "right1", "=", 0, ""},
+		&Affinity{"left0", "right0", "=", 0},
+		&Affinity{"left2", "right2", "=", 0},
+		&Affinity{"left1", "right1", "=", 0},
 	}))
 }
 
 func TestTask_UsesConnect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("normal task", func(t *testing.T) {
 		task := testJob().TaskGroups[0].Tasks[0]
@@ -814,17 +890,42 @@ func TestTask_UsesConnect(t *testing.T) {
 	t.Run("sidecar proxy", func(t *testing.T) {
 		task := &Task{
 			Name: "connect-proxy-task1",
-			Kind: "connect-proxy:task1",
+			Kind: NewTaskKind(ConnectProxyPrefix, "task1"),
 		}
 		usesConnect := task.UsesConnect()
 		require.True(t, usesConnect)
 	})
 
-	// todo(shoenig): add native case
+	t.Run("native task", func(t *testing.T) {
+		task := &Task{
+			Name: "task1",
+			Kind: NewTaskKind(ConnectNativePrefix, "task1"),
+		}
+		usesConnect := task.UsesConnect()
+		require.True(t, usesConnect)
+	})
+
+	t.Run("ingress gateway", func(t *testing.T) {
+		task := &Task{
+			Name: "task1",
+			Kind: NewTaskKind(ConnectIngressPrefix, "task1"),
+		}
+		usesConnect := task.UsesConnect()
+		require.True(t, usesConnect)
+	})
+
+	t.Run("terminating gateway", func(t *testing.T) {
+		task := &Task{
+			Name: "task1",
+			Kind: NewTaskKind(ConnectTerminatingPrefix, "task1"),
+		}
+		usesConnect := task.UsesConnect()
+		require.True(t, usesConnect)
+	})
 }
 
 func TestTaskGroup_UsesConnect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	try := func(t *testing.T, tg *TaskGroup, exp bool) {
 		result := tg.UsesConnect()
@@ -852,6 +953,16 @@ func TestTaskGroup_UsesConnect(t *testing.T) {
 		}, true)
 	})
 
+	t.Run("tg uses gateway", func(t *testing.T) {
+		try(t, &TaskGroup{
+			Services: []*Service{{
+				Connect: &ConsulConnect{
+					Gateway: consulIngressGateway1,
+				},
+			}},
+		}, true)
+	})
+
 	t.Run("tg does not use connect", func(t *testing.T) {
 		try(t, &TaskGroup{
 			Services: []*Service{
@@ -862,6 +973,8 @@ func TestTaskGroup_UsesConnect(t *testing.T) {
 }
 
 func TestTaskGroup_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	j := testJob()
 	tg := &TaskGroup{
 		Count: -1,
@@ -878,16 +991,11 @@ func TestTaskGroup_Validate(t *testing.T) {
 		},
 	}
 	err := tg.Validate(j)
-	mErr := err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "group name") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[1].Error(), "count can't be negative") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Missing tasks") {
-		t.Fatalf("err: %s", err)
-	}
+	requireErrors(t, err,
+		"group name",
+		"count can't be negative",
+		"Missing tasks",
+	)
 
 	tg = &TaskGroup{
 		Tasks: []*Task{
@@ -965,22 +1073,13 @@ func TestTaskGroup_Validate(t *testing.T) {
 	}
 
 	err = tg.Validate(j)
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "should have an ephemeral disk object") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[1].Error(), "2 redefines 'web' from task 1") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Task 3 missing name") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[3].Error(), "Only one task may be marked as leader") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[4].Error(), "Task web validation failed") {
-		t.Fatalf("err: %s", err)
-	}
+	requireErrors(t, err,
+		"should have an ephemeral disk object",
+		"2 redefines 'web' from task 1",
+		"Task 3 missing name",
+		"Only one task may be marked as leader",
+		"Task web validation failed",
+	)
 
 	tg = &TaskGroup{
 		Name:  "web",
@@ -992,9 +1091,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 	}
 	j.Type = JobTypeBatch
 	err = tg.Validate(j)
-	if !strings.Contains(err.Error(), "does not allow update block") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "does not allow update block")
 
 	tg = &TaskGroup{
 		Count: -1,
@@ -1052,7 +1149,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 		},
 	}
 	err = tg.Validate(&Job{})
-	require.Contains(t, err.Error(), `Volume foo has unrecognised type nothost`)
+	require.Contains(t, err.Error(), `volume has unrecognized type nothost`)
 
 	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{
@@ -1068,7 +1165,31 @@ func TestTaskGroup_Validate(t *testing.T) {
 		},
 	}
 	err = tg.Validate(&Job{})
-	require.Contains(t, err.Error(), `Volume foo has an empty source`)
+	require.Contains(t, err.Error(), `volume has an empty source`)
+
+	tg = &TaskGroup{
+		Name: "group-a",
+		Update: &UpdateStrategy{
+			Canary: 1,
+		},
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Type:     "csi",
+				PerAlloc: true,
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	require.Contains(t, err.Error(), `volume has an empty source`)
+	require.Contains(t, err.Error(), `volume cannot be per_alloc when canaries are in use`)
+	require.Contains(t, err.Error(), `CSI volumes must have an attachment mode`)
+	require.Contains(t, err.Error(), `CSI volumes must have an access mode`)
 
 	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{
@@ -1109,7 +1230,8 @@ func TestTaskGroup_Validate(t *testing.T) {
 		Name: "group-a",
 		Services: []*Service{
 			{
-				Name: "service-a",
+				Name:     "service-a",
+				Provider: "consul",
 				Checks: []*ServiceCheck{
 					{
 						Name:      "check-a",
@@ -1131,29 +1253,327 @@ func TestTaskGroup_Validate(t *testing.T) {
 	expected = `Check check-a invalid: only script and gRPC checks should have tasks`
 	require.Contains(t, err.Error(), expected)
 
+	tg = &TaskGroup{
+		Name: "group-a",
+		Services: []*Service{
+			{
+				Name:     "service-a",
+				Provider: "nomad",
+			},
+			{
+				Name:     "service-b",
+				Provider: "consul",
+			},
+		},
+		Tasks: []*Task{{Name: "task-a"}},
+	}
+	err = tg.Validate(&Job{})
+	expected = "Multiple service providers used: task group services must use the same provider"
+	require.Contains(t, err.Error(), expected)
+
+	tg = &TaskGroup{
+		Name: "group-a",
+		Services: []*Service{
+			{
+				Name:     "service-a",
+				Provider: "nomad",
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name: "task-a",
+				Services: []*Service{
+					{
+						Name:     "service-b",
+						Provider: "consul",
+					},
+				},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	expected = "Multiple service providers used: task group services must use the same provider"
+	require.Contains(t, err.Error(), expected)
+}
+
+func TestTaskGroupNetwork_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		TG          *TaskGroup
+		ErrContains string
+	}{
+		{
+			TG: &TaskGroup{
+				Name: "group-static-value-ok",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "ok",
+								Value: 65535,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-dynamic-value-ok",
+				Networks: Networks{
+					&NetworkResource{
+						DynamicPorts: []Port{
+							{
+								Label: "ok",
+								Value: 65535,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-static-to-ok",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "ok",
+								To:    65535,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-dynamic-to-ok",
+				Networks: Networks{
+					&NetworkResource{
+						DynamicPorts: []Port{
+							{
+								Label: "ok",
+								To:    65535,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-static-value-too-high",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "too-high",
+								Value: 65536,
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "greater than",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-dynamic-value-too-high",
+				Networks: Networks{
+					&NetworkResource{
+						DynamicPorts: []Port{
+							{
+								Label: "too-high",
+								Value: 65536,
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "greater than",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-static-to-too-high",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "too-high",
+								To:    65536,
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "greater than",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-dynamic-to-too-high",
+				Networks: Networks{
+					&NetworkResource{
+						DynamicPorts: []Port{
+							{
+								Label: "too-high",
+								To:    65536,
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "greater than",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-same-static-port-different-host_network",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label:       "net1_http",
+								Value:       80,
+								HostNetwork: "net1",
+							},
+							{
+								Label:       "net2_http",
+								Value:       80,
+								HostNetwork: "net2",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "mixing-group-task-ports",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "group_http",
+								Value: 80,
+							},
+						},
+					},
+				},
+				Tasks: []*Task{
+					{
+						Name: "task1",
+						Resources: &Resources{
+							Networks: Networks{
+								&NetworkResource{
+									ReservedPorts: []Port{
+										{
+											Label: "task_http",
+											Value: 80,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "already reserved by",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "mixing-group-task-ports-with-host_network",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label:       "group_http",
+								Value:       80,
+								HostNetwork: "net1",
+							},
+						},
+					},
+				},
+				Tasks: []*Task{
+					{
+						Name: "task1",
+						Resources: &Resources{
+							Networks: Networks{
+								&NetworkResource{
+									ReservedPorts: []Port{
+										{
+											Label: "task_http",
+											Value: 80,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Tasks: []*Task{
+					{Driver: "docker"},
+				},
+				Networks: []*NetworkResource{
+					{
+						Mode:     "bridge",
+						Hostname: "foobar",
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Tasks: []*Task{
+					{Name: "hostname-invalid-dns-name"},
+				},
+				Networks: []*NetworkResource{
+					{
+						Mode:     "bridge",
+						Hostname: "............",
+					},
+				},
+			},
+			ErrContains: "Hostname is not a valid DNS name",
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.TG.Name, func(t *testing.T) {
+			err := tc.TG.validateNetworks()
+			t.Logf("%s -> %v", tc.TG.Name, err)
+			if tc.ErrContains == "" {
+				require.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.ErrContains)
+		})
+	}
 }
 
 func TestTask_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	task := &Task{}
 	ephemeralDisk := DefaultEphemeralDisk()
-	err := task.Validate(ephemeralDisk, JobTypeBatch, nil)
-	mErr := err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "task name") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[1].Error(), "task driver") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[2].Error(), "task resources") {
-		t.Fatalf("err: %s", err)
-	}
+	err := task.Validate(ephemeralDisk, JobTypeBatch, nil, nil)
+	requireErrors(t, err,
+		"task name",
+		"task driver",
+		"task resources",
+	)
 
 	task = &Task{Name: "web/foo"}
-	err = task.Validate(ephemeralDisk, JobTypeBatch, nil)
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "slashes") {
-		t.Fatalf("err: %s", err)
-	}
+	err = task.Validate(ephemeralDisk, JobTypeBatch, nil, nil)
+	require.Error(t, err, "slashes")
 
 	task = &Task{
 		Name:   "web",
@@ -1165,7 +1585,7 @@ func TestTask_Validate(t *testing.T) {
 		LogConfig: DefaultLogConfig(),
 	}
 	ephemeralDisk.SizeMB = 200
-	err = task.Validate(ephemeralDisk, JobTypeBatch, nil)
+	err = task.Validate(ephemeralDisk, JobTypeBatch, nil, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -1179,19 +1599,176 @@ func TestTask_Validate(t *testing.T) {
 			LTarget: "${meta.rack}",
 		})
 
-	err = task.Validate(ephemeralDisk, JobTypeBatch, nil)
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "task level: distinct_hosts") {
-		t.Fatalf("err: %s", err)
+	err = task.Validate(ephemeralDisk, JobTypeBatch, nil, nil)
+	requireErrors(t, err,
+		"task level: distinct_hosts",
+		"task level: distinct_property",
+	)
+}
+
+func TestTask_Validate_Resources(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name string
+		res  *Resources
+		err  string
+	}{
+		{
+			name: "Minimum",
+			res:  MinResources(),
+		},
+		{
+			name: "Default",
+			res:  DefaultResources(),
+		},
+		{
+			name: "Full",
+			res: &Resources{
+				CPU:         1000,
+				MemoryMB:    1000,
+				MemoryMaxMB: 2000,
+				IOPS:        1000,
+				Networks: []*NetworkResource{
+					{
+						Mode:   "host",
+						Device: "localhost",
+						CIDR:   "127.0.0.0/8",
+						IP:     "127.0.0.1",
+						MBits:  1000,
+						DNS: &DNSConfig{
+							Servers:  []string{"localhost"},
+							Searches: []string{"localdomain"},
+							Options:  []string{"ndots:5"},
+						},
+						ReservedPorts: []Port{
+							{
+								Label:       "reserved",
+								Value:       1234,
+								To:          1234,
+								HostNetwork: "loopback",
+							},
+						},
+						DynamicPorts: []Port{
+							{
+								Label:       "dynamic",
+								Value:       5678,
+								To:          5678,
+								HostNetwork: "loopback",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "too little cpu",
+			res: &Resources{
+				CPU:      0,
+				MemoryMB: 200,
+			},
+			err: "minimum CPU value is 1",
+		},
+		{
+			name: "too little memory",
+			res: &Resources{
+				CPU:      100,
+				MemoryMB: 1,
+			},
+			err: "minimum MemoryMB value is 10; got 1",
+		},
+		{
+			name: "too little memory max",
+			res: &Resources{
+				CPU:         100,
+				MemoryMB:    200,
+				MemoryMaxMB: 10,
+			},
+			err: "MemoryMaxMB value (10) should be larger than MemoryMB value (200",
+		},
 	}
-	if !strings.Contains(mErr.Errors[1].Error(), "task level: distinct_property") {
-		t.Fatalf("err: %s", err)
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.res.Validate()
+			if tc.err == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.err)
+			}
+		})
+	}
+}
+
+func TestNetworkResource_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		inputNetworkResource *NetworkResource
+		name                 string
+	}{
+		{
+			inputNetworkResource: nil,
+			name:                 "nil input check",
+		},
+		{
+			inputNetworkResource: &NetworkResource{
+				Mode:     "bridge",
+				Device:   "eth0",
+				CIDR:     "10.0.0.1/8",
+				IP:       "10.1.1.13",
+				Hostname: "foobar",
+				MBits:    1000,
+				DNS: &DNSConfig{
+					Servers:  []string{"8.8.8.8", "8.8.4.4"},
+					Searches: []string{"example.com"},
+					Options:  []string{"ndot:2"},
+				},
+				ReservedPorts: []Port{
+					{
+						Label:       "foo",
+						Value:       1313,
+						To:          1313,
+						HostNetwork: "private",
+					},
+				},
+				DynamicPorts: []Port{
+					{
+						Label:       "bar",
+						To:          1414,
+						HostNetwork: "public",
+					},
+				},
+			},
+			name: "fully populated input check",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			output := tc.inputNetworkResource.Copy()
+			assert.Equal(t, tc.inputNetworkResource, output, tc.name)
+
+			if output == nil {
+				return
+			}
+
+			// Assert changes to the copy aren't propagated to the
+			// original
+			output.DNS.Servers[1] = "foo"
+			assert.NotEqual(t, tc.inputNetworkResource, output, tc.name)
+		})
 	}
 }
 
 func TestTask_Validate_Services(t *testing.T) {
+	ci.Parallel(t)
+
 	s1 := &Service{
 		Name:      "service-name",
+		Provider:  "consul",
 		PortLabel: "bar",
 		Checks: []*ServiceCheck{
 			{
@@ -1214,15 +1791,18 @@ func TestTask_Validate_Services(t *testing.T) {
 
 	s2 := &Service{
 		Name:      "service-name",
+		Provider:  "consul",
 		PortLabel: "bar",
 	}
 
 	s3 := &Service{
 		Name:      "service-A",
+		Provider:  "consul",
 		PortLabel: "a",
 	}
 	s4 := &Service{
 		Name:      "service-A",
+		Provider:  "consul",
 		PortLabel: "b",
 	}
 
@@ -1245,7 +1825,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		Services:  []*Service{s3, s4},
 		LogConfig: DefaultLogConfig(),
 	}
-	task1.Resources.Networks = []*NetworkResource{
+	tgNetworks := []*NetworkResource{
 		{
 			MBits: 10,
 			DynamicPorts: []Port{
@@ -1261,7 +1841,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		},
 	}
 
-	err := task.Validate(ephemeralDisk, JobTypeService, nil)
+	err := task.Validate(ephemeralDisk, JobTypeService, nil, tgNetworks)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -1282,12 +1862,14 @@ func TestTask_Validate_Services(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if err = task1.Validate(ephemeralDisk, JobTypeService, nil); err != nil {
+	if err = task1.Validate(ephemeralDisk, JobTypeService, nil, tgNetworks); err != nil {
 		t.Fatalf("err : %v", err)
 	}
 }
 
 func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
+	ci.Parallel(t)
+
 	ephemeralDisk := DefaultEphemeralDisk()
 	getTask := func(s *Service) *Task {
 		task := &Task{
@@ -1297,43 +1879,48 @@ func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
 			Services:  []*Service{s},
 			LogConfig: DefaultLogConfig(),
 		}
-		task.Resources.Networks = []*NetworkResource{
-			{
-				MBits: 10,
-				DynamicPorts: []Port{
-					{
-						Label: "http",
-						Value: 80,
-					},
+
+		return task
+	}
+	tgNetworks := []*NetworkResource{
+		{
+			DynamicPorts: []Port{
+				{
+					Label: "http",
+					Value: 80,
 				},
 			},
-		}
-		return task
+		},
 	}
 
 	cases := []*Service{
 		{
 			// https://github.com/hashicorp/nomad/issues/3681#issuecomment-357274177
 			Name:        "DriverModeWithLabel",
+			Provider:    "consul",
 			PortLabel:   "http",
 			AddressMode: AddressModeDriver,
 		},
 		{
 			Name:        "DriverModeWithPort",
+			Provider:    "consul",
 			PortLabel:   "80",
 			AddressMode: AddressModeDriver,
 		},
 		{
 			Name:        "HostModeWithLabel",
+			Provider:    "consul",
 			PortLabel:   "http",
 			AddressMode: AddressModeHost,
 		},
 		{
 			Name:        "HostModeWithoutLabel",
+			Provider:    "consul",
 			AddressMode: AddressModeHost,
 		},
 		{
 			Name:        "DriverModeWithoutLabel",
+			Provider:    "consul",
 			AddressMode: AddressModeDriver,
 		},
 	}
@@ -1341,7 +1928,7 @@ func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
 	for _, service := range cases {
 		task := getTask(service)
 		t.Run(service.Name, func(t *testing.T) {
-			if err := task.Validate(ephemeralDisk, JobTypeService, nil); err != nil {
+			if err := task.Validate(ephemeralDisk, JobTypeService, nil, tgNetworks); err != nil {
 				t.Fatalf("unexpected err: %v", err)
 			}
 		})
@@ -1349,27 +1936,27 @@ func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
 }
 
 func TestTask_Validate_Service_AddressMode_Bad(t *testing.T) {
+	ci.Parallel(t)
+
 	ephemeralDisk := DefaultEphemeralDisk()
 	getTask := func(s *Service) *Task {
-		task := &Task{
+		return &Task{
 			Name:      "web",
 			Driver:    "docker",
 			Resources: DefaultResources(),
 			Services:  []*Service{s},
 			LogConfig: DefaultLogConfig(),
 		}
-		task.Resources.Networks = []*NetworkResource{
-			{
-				MBits: 10,
-				DynamicPorts: []Port{
-					{
-						Label: "http",
-						Value: 80,
-					},
+	}
+	tgNetworks := []*NetworkResource{
+		{
+			DynamicPorts: []Port{
+				{
+					Label: "http",
+					Value: 80,
 				},
 			},
-		}
-		return task
+		},
 	}
 
 	cases := []*Service{
@@ -1394,7 +1981,7 @@ func TestTask_Validate_Service_AddressMode_Bad(t *testing.T) {
 	for _, service := range cases {
 		task := getTask(service)
 		t.Run(service.Name, func(t *testing.T) {
-			err := task.Validate(ephemeralDisk, JobTypeService, nil)
+			err := task.Validate(ephemeralDisk, JobTypeService, nil, tgNetworks)
 			if err == nil {
 				t.Fatalf("expected an error")
 			}
@@ -1404,6 +1991,7 @@ func TestTask_Validate_Service_AddressMode_Bad(t *testing.T) {
 }
 
 func TestTask_Validate_Service_Check(t *testing.T) {
+	ci.Parallel(t)
 
 	invalidCheck := ServiceCheck{
 		Name:     "check-name",
@@ -1511,9 +2099,12 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 // TestTask_Validate_Service_Check_AddressMode asserts that checks do not
 // inherit address mode but do inherit ports.
 func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
-	getTask := func(s *Service) *Task {
+	ci.Parallel(t)
+
+	getTask := func(s *Service) (*Task, *TaskGroup) {
 		return &Task{
-			Resources: &Resources{
+				Services: []*Service{s},
+			}, &TaskGroup{
 				Networks: []*NetworkResource{
 					{
 						DynamicPorts: []Port{
@@ -1524,9 +2115,7 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 						},
 					},
 				},
-			},
-			Services: []*Service{s},
-		}
+			}
 	}
 
 	cases := []struct {
@@ -1536,6 +2125,7 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 		{
 			Service: &Service{
 				Name:        "invalid-driver",
+				Provider:    "consul",
 				PortLabel:   "80",
 				AddressMode: "host",
 			},
@@ -1560,6 +2150,7 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 		{
 			Service: &Service{
 				Name:        "http-driver-fail-2",
+				Provider:    "consul",
 				PortLabel:   "80",
 				AddressMode: "driver",
 				Checks: []*ServiceCheck{
@@ -1577,6 +2168,7 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 		{
 			Service: &Service{
 				Name:        "http-driver-fail-3",
+				Provider:    "consul",
 				PortLabel:   "80",
 				AddressMode: "driver",
 				Checks: []*ServiceCheck{
@@ -1594,6 +2186,7 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 		{
 			Service: &Service{
 				Name:        "http-driver-passes",
+				Provider:    "consul",
 				PortLabel:   "80",
 				AddressMode: "driver",
 				Checks: []*ServiceCheck{
@@ -1623,7 +2216,8 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 		},
 		{
 			Service: &Service{
-				Name: "empty-address-3673-passes-1",
+				Name:     "empty-address-3673-passes-1",
+				Provider: "consul",
 				Checks: []*ServiceCheck{
 					{
 						Name:      "valid-port-label",
@@ -1649,7 +2243,8 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 		},
 		{
 			Service: &Service{
-				Name: "empty-address-3673-fails",
+				Name:     "empty-address-3673-fails",
+				Provider: "consul",
 				Checks: []*ServiceCheck{
 					{
 						Name:     "empty-is-not-ok",
@@ -1661,13 +2256,20 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 			},
 			ErrContains: `invalid: check requires a port but neither check nor service`,
 		},
+		{
+			Service: &Service{
+				Name:    "conect-block-on-task-level",
+				Connect: &ConsulConnect{SidecarService: &ConsulSidecarService{}},
+			},
+			ErrContains: `cannot have "connect" block`,
+		},
 	}
 
 	for _, tc := range cases {
 		tc := tc
-		task := getTask(tc.Service)
+		task, tg := getTask(tc.Service)
 		t.Run(tc.Service.Name, func(t *testing.T) {
-			err := validateServices(task)
+			err := validateServices(task, tg.Networks)
 			if err == nil && tc.ErrContains == "" {
 				// Ok!
 				return
@@ -1683,7 +2285,7 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 }
 
 func TestTask_Validate_Service_Check_GRPC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Bad (no port)
 	invalidGRPC := &ServiceCheck{
 		Type:     ServiceCheckGRPC,
@@ -1691,8 +2293,9 @@ func TestTask_Validate_Service_Check_GRPC(t *testing.T) {
 		Timeout:  time.Second,
 	}
 	service := &Service{
-		Name:   "test",
-		Checks: []*ServiceCheck{invalidGRPC},
+		Name:     "test",
+		Provider: "consul",
+		Checks:   []*ServiceCheck{invalidGRPC},
 	}
 
 	assert.Error(t, service.Validate())
@@ -1709,7 +2312,7 @@ func TestTask_Validate_Service_Check_GRPC(t *testing.T) {
 }
 
 func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	invalidCheckRestart := &CheckRestart{
 		Limit: -1,
 		Grace: -1,
@@ -1728,6 +2331,8 @@ func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {
 }
 
 func TestTask_Validate_ConnectProxyKind(t *testing.T) {
+	ci.Parallel(t)
+
 	ephemeralDisk := DefaultEphemeralDisk()
 	getTask := func(kind TaskKind, leader bool) *Task {
 		task := &Task{
@@ -1823,7 +2428,7 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 			task.Services = []*Service{tc.Service}
 		}
 		t.Run(tc.Desc, func(t *testing.T) {
-			err := task.Validate(ephemeralDisk, "service", tc.TgService)
+			err := task.Validate(ephemeralDisk, "service", tc.TgService, nil)
 			if err == nil && tc.ErrContains == "" {
 				// Ok!
 				return
@@ -1835,6 +2440,8 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 
 }
 func TestTask_Validate_LogConfig(t *testing.T) {
+	ci.Parallel(t)
+
 	task := &Task{
 		LogConfig: DefaultLogConfig(),
 	}
@@ -1842,22 +2449,57 @@ func TestTask_Validate_LogConfig(t *testing.T) {
 		SizeMB: 1,
 	}
 
-	err := task.Validate(ephemeralDisk, JobTypeService, nil)
-	mErr := err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[3].Error(), "log storage") {
-		t.Fatalf("err: %s", err)
-	}
+	err := task.Validate(ephemeralDisk, JobTypeService, nil, nil)
+	require.Error(t, err, "log storage")
+}
+
+func TestLogConfig_Equals(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("both nil", func(t *testing.T) {
+		a := (*LogConfig)(nil)
+		b := (*LogConfig)(nil)
+		require.True(t, a.Equals(b))
+	})
+
+	t.Run("one nil", func(t *testing.T) {
+		a := new(LogConfig)
+		b := (*LogConfig)(nil)
+		require.False(t, a.Equals(b))
+	})
+
+	t.Run("max files", func(t *testing.T) {
+		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
+		b := &LogConfig{MaxFiles: 2, MaxFileSizeMB: 200}
+		require.False(t, a.Equals(b))
+	})
+
+	t.Run("max file size", func(t *testing.T) {
+		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 100}
+		b := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
+		require.False(t, a.Equals(b))
+	})
+
+	t.Run("same", func(t *testing.T) {
+		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
+		b := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
+		require.True(t, a.Equals(b))
+	})
 }
 
 func TestTask_Validate_CSIPluginConfig(t *testing.T) {
+	ci.Parallel(t)
+
 	table := []struct {
-		name        string
-		pc          *TaskCSIPluginConfig
-		expectedErr string
+		name          string
+		pc            *TaskCSIPluginConfig
+		expectedErr   string
+		unexpectedErr string
 	}{
 		{
-			name: "no errors when not specified",
-			pc:   nil,
+			name:          "no errors when not specified",
+			pc:            nil,
+			unexpectedErr: "CSIPluginConfig",
 		},
 		{
 			name:        "requires non-empty plugin id",
@@ -1876,29 +2518,25 @@ func TestTask_Validate_CSIPluginConfig(t *testing.T) {
 
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
-			task := &Task{
-				CSIPluginConfig: tt.pc,
-			}
+			task := testJob().TaskGroups[0].Tasks[0]
+			task.CSIPluginConfig = tt.pc
 			ephemeralDisk := &EphemeralDisk{
-				SizeMB: 1,
+				SizeMB: 100,
 			}
 
-			err := task.Validate(ephemeralDisk, JobTypeService, nil)
-			mErr := err.(*multierror.Error)
+			err := task.Validate(ephemeralDisk, JobTypeService, nil, nil)
 			if tt.expectedErr != "" {
-				if !strings.Contains(mErr.Errors[4].Error(), tt.expectedErr) {
-					t.Fatalf("err: %s", err)
-				}
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.expectedErr)
 			} else {
-				if len(mErr.Errors) != 4 {
-					t.Fatalf("unexpected err: %s", mErr.Errors[4])
-				}
+				require.NoError(t, err)
 			}
 		})
 	}
 }
 
 func TestTask_Validate_Template(t *testing.T) {
+	ci.Parallel(t)
 
 	bad := &Template{}
 	task := &Task{
@@ -1908,7 +2546,7 @@ func TestTask_Validate_Template(t *testing.T) {
 		SizeMB: 1,
 	}
 
-	err := task.Validate(ephemeralDisk, JobTypeService, nil)
+	err := task.Validate(ephemeralDisk, JobTypeService, nil, nil)
 	if !strings.Contains(err.Error(), "Template 1 validation failed") {
 		t.Fatalf("err: %s", err)
 	}
@@ -1921,7 +2559,7 @@ func TestTask_Validate_Template(t *testing.T) {
 	}
 
 	task.Templates = []*Template{good, good}
-	err = task.Validate(ephemeralDisk, JobTypeService, nil)
+	err = task.Validate(ephemeralDisk, JobTypeService, nil, nil)
 	if !strings.Contains(err.Error(), "same destination as") {
 		t.Fatalf("err: %s", err)
 	}
@@ -1934,7 +2572,7 @@ func TestTask_Validate_Template(t *testing.T) {
 		},
 	}
 
-	err = task.Validate(ephemeralDisk, JobTypeService, nil)
+	err = task.Validate(ephemeralDisk, JobTypeService, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error from Template.Validate")
 	}
@@ -1944,6 +2582,8 @@ func TestTask_Validate_Template(t *testing.T) {
 }
 
 func TestTemplate_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Tmpl         *Template
 		Fail         bool
@@ -2025,6 +2665,45 @@ func TestTemplate_Validate(t *testing.T) {
 				"as octal",
 			},
 		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "local/foo",
+				ChangeMode: "noop",
+				Wait: &WaitConfig{
+					Min: helper.TimeToPtr(10 * time.Second),
+					Max: helper.TimeToPtr(5 * time.Second),
+				},
+			},
+			Fail: true,
+			ContainsErrs: []string{
+				"greater than",
+			},
+		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "local/foo",
+				ChangeMode: "noop",
+				Wait: &WaitConfig{
+					Min: helper.TimeToPtr(5 * time.Second),
+					Max: helper.TimeToPtr(5 * time.Second),
+				},
+			},
+			Fail: false,
+		},
+		{
+			Tmpl: &Template{
+				SourcePath: "foo",
+				DestPath:   "local/foo",
+				ChangeMode: "noop",
+				Wait: &WaitConfig{
+					Min: helper.TimeToPtr(5 * time.Second),
+					Max: helper.TimeToPtr(10 * time.Second),
+				},
+			},
+			Fail: false,
+		},
 	}
 
 	for i, c := range cases {
@@ -2046,13 +2725,63 @@ func TestTemplate_Validate(t *testing.T) {
 	}
 }
 
+func TestTaskWaitConfig_Equals(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name     string
+		config   *WaitConfig
+		expected *WaitConfig
+	}{
+		{
+			name: "all-fields",
+			config: &WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(10 * time.Second),
+			},
+			expected: &WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(10 * time.Second),
+			},
+		},
+		{
+			name:     "no-fields",
+			config:   &WaitConfig{},
+			expected: &WaitConfig{},
+		},
+		{
+			name: "min-only",
+			config: &WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+			},
+			expected: &WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+			},
+		},
+		{
+			name: "max-only",
+			config: &WaitConfig{
+				Max: helper.TimeToPtr(10 * time.Second),
+			},
+			expected: &WaitConfig{
+				Max: helper.TimeToPtr(10 * time.Second),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.True(t, tc.config.Equals(tc.expected))
+		})
+	}
+}
+
 func TestConstraint_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	c := &Constraint{}
 	err := c.Validate()
-	mErr := err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "Missing constraint operand") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "Missing constraint operand")
 
 	c = &Constraint{
 		LTarget: "$attr.kernel.name",
@@ -2066,25 +2795,18 @@ func TestConstraint_Validate(t *testing.T) {
 	c.Operand = ConstraintRegex
 	c.RTarget = "(foo"
 	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "missing closing") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "missing closing")
 
 	// Perform version validation
 	c.Operand = ConstraintVersion
 	c.RTarget = "~> foo"
 	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "Malformed constraint") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "Malformed constraint")
 
 	// Perform semver validation
 	c.Operand = ConstraintSemver
 	err = c.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Malformed constraint")
+	require.Error(t, err, "Malformed constraint")
 
 	c.RTarget = ">= 0.6.1"
 	require.NoError(t, c.Validate())
@@ -2093,17 +2815,11 @@ func TestConstraint_Validate(t *testing.T) {
 	c.Operand = ConstraintDistinctProperty
 	c.RTarget = "0"
 	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "count of 1 or greater") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "count of 1 or greater")
 
 	c.RTarget = "-1"
 	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "to uint64") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "to uint64")
 
 	// Perform distinct_hosts validation
 	c.Operand = ConstraintDistinctHosts
@@ -2118,10 +2834,7 @@ func TestConstraint_Validate(t *testing.T) {
 	for _, o := range []string{ConstraintSetContains, ConstraintSetContainsAll, ConstraintSetContainsAny} {
 		c.Operand = o
 		err = c.Validate()
-		mErr = err.(*multierror.Error)
-		if !strings.Contains(mErr.Errors[0].Error(), "requires an RTarget") {
-			t.Fatalf("err: %s", err)
-		}
+		require.Error(t, err, "requires an RTarget")
 	}
 
 	// Perform LTarget validation
@@ -2129,28 +2842,22 @@ func TestConstraint_Validate(t *testing.T) {
 	c.RTarget = "foo"
 	c.LTarget = ""
 	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "No LTarget") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "No LTarget")
 
 	// Perform constraint type validation
 	c.Operand = "foo"
 	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "Unknown constraint type") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "Unknown constraint type")
 }
 
 func TestAffinity_Validate(t *testing.T) {
+	ci.Parallel(t)
 
 	type tc struct {
 		affinity *Affinity
 		err      error
 		name     string
 	}
-
 	testCases := []tc{
 		{
 			affinity: &Affinity{},
@@ -2232,6 +2939,8 @@ func TestAffinity_Validate(t *testing.T) {
 }
 
 func TestUpdateStrategy_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	u := &UpdateStrategy{
 		MaxParallel:      -1,
 		HealthCheck:      "foo",
@@ -2243,34 +2952,21 @@ func TestUpdateStrategy_Validate(t *testing.T) {
 	}
 
 	err := u.Validate()
-	mErr := err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "Invalid health check given") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[1].Error(), "Max parallel can not be less than zero") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Canary count can not be less than zero") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[3].Error(), "Minimum healthy time may not be less than zero") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[4].Error(), "Healthy deadline must be greater than zero") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[5].Error(), "Progress deadline must be zero or greater") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[6].Error(), "Minimum healthy time must be less than healthy deadline") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[7].Error(), "Healthy deadline must be less than progress deadline") {
-		t.Fatalf("err: %s", err)
-	}
+	requireErrors(t, err,
+		"Invalid health check given",
+		"Max parallel can not be less than zero",
+		"Canary count can not be less than zero",
+		"Minimum healthy time may not be less than zero",
+		"Healthy deadline must be greater than zero",
+		"Progress deadline must be zero or greater",
+		"Minimum healthy time must be less than healthy deadline",
+		"Healthy deadline must be less than progress deadline",
+	)
 }
 
 func TestResource_NetIndex(t *testing.T) {
+	ci.Parallel(t)
+
 	r := &Resources{
 		Networks: []*NetworkResource{
 			{Device: "eth0"},
@@ -2289,33 +2985,9 @@ func TestResource_NetIndex(t *testing.T) {
 	}
 }
 
-func TestResource_Superset(t *testing.T) {
-	r1 := &Resources{
-		CPU:      2000,
-		MemoryMB: 2048,
-		DiskMB:   10000,
-	}
-	r2 := &Resources{
-		CPU:      2000,
-		MemoryMB: 1024,
-		DiskMB:   5000,
-	}
-
-	if s, _ := r1.Superset(r1); !s {
-		t.Fatalf("bad")
-	}
-	if s, _ := r1.Superset(r2); !s {
-		t.Fatalf("bad")
-	}
-	if s, _ := r2.Superset(r1); s {
-		t.Fatalf("bad")
-	}
-	if s, _ := r2.Superset(r2); !s {
-		t.Fatalf("bad")
-	}
-}
-
 func TestResource_Add(t *testing.T) {
+	ci.Parallel(t)
+
 	r1 := &Resources{
 		CPU:      2000,
 		MemoryMB: 2048,
@@ -2341,10 +3013,7 @@ func TestResource_Add(t *testing.T) {
 		},
 	}
 
-	err := r1.Add(r2)
-	if err != nil {
-		t.Fatalf("Err: %v", err)
-	}
+	r1.Add(r2)
 
 	expect := &Resources{
 		CPU:      3000,
@@ -2365,6 +3034,8 @@ func TestResource_Add(t *testing.T) {
 }
 
 func TestResource_Add_Network(t *testing.T) {
+	ci.Parallel(t)
+
 	r1 := &Resources{}
 	r2 := &Resources{
 		Networks: []*NetworkResource{
@@ -2383,14 +3054,8 @@ func TestResource_Add_Network(t *testing.T) {
 		},
 	}
 
-	err := r1.Add(r2)
-	if err != nil {
-		t.Fatalf("Err: %v", err)
-	}
-	err = r1.Add(r3)
-	if err != nil {
-		t.Fatalf("Err: %v", err)
-	}
+	r1.Add(r2)
+	r1.Add(r3)
 
 	expect := &Resources{
 		Networks: []*NetworkResource{
@@ -2407,13 +3072,17 @@ func TestResource_Add_Network(t *testing.T) {
 }
 
 func TestComparableResources_Subtract(t *testing.T) {
+	ci.Parallel(t)
+
 	r1 := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: 2000,
+				CpuShares:     2000,
+				ReservedCores: []uint16{0, 1},
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: 2048,
+				MemoryMB:    2048,
+				MemoryMaxMB: 3048,
 			},
 			Networks: []*NetworkResource{
 				{
@@ -2431,10 +3100,12 @@ func TestComparableResources_Subtract(t *testing.T) {
 	r2 := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: 1000,
+				CpuShares:     1000,
+				ReservedCores: []uint16{0},
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: 1024,
+				MemoryMB:    1024,
+				MemoryMaxMB: 1524,
 			},
 			Networks: []*NetworkResource{
 				{
@@ -2453,10 +3124,12 @@ func TestComparableResources_Subtract(t *testing.T) {
 	expect := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: 1000,
+				CpuShares:     1000,
+				ReservedCores: []uint16{1},
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: 1024,
+				MemoryMB:    1024,
+				MemoryMaxMB: 1524,
 			},
 			Networks: []*NetworkResource{
 				{
@@ -2475,7 +3148,66 @@ func TestComparableResources_Subtract(t *testing.T) {
 	require.Equal(expect, r1)
 }
 
+func TestMemoryResources_Add(t *testing.T) {
+	ci.Parallel(t)
+
+	r := &AllocatedMemoryResources{}
+
+	// adding plain no max
+	r.Add(&AllocatedMemoryResources{
+		MemoryMB: 100,
+	})
+	require.Equal(t, &AllocatedMemoryResources{
+		MemoryMB:    100,
+		MemoryMaxMB: 100,
+	}, r)
+
+	// adding with max
+	r.Add(&AllocatedMemoryResources{
+		MemoryMB:    100,
+		MemoryMaxMB: 200,
+	})
+	require.Equal(t, &AllocatedMemoryResources{
+		MemoryMB:    200,
+		MemoryMaxMB: 300,
+	}, r)
+}
+
+func TestNodeNetworkResource_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	netResource := &NodeNetworkResource{
+		Mode:       "host",
+		Device:     "eth0",
+		MacAddress: "00:00:00:00:00:00",
+		Speed:      1000,
+		Addresses: []NodeNetworkAddress{
+			{
+				Family:        NodeNetworkAF_IPv4,
+				Alias:         "default",
+				Address:       "192.168.0.2",
+				ReservedPorts: "22",
+				Gateway:       "192.168.0.1",
+			},
+		},
+	}
+
+	// Copy must be equal.
+	netResourceCopy := netResource.Copy()
+	require.Equal(t, netResource, netResourceCopy)
+
+	// Modifying copy should not modify original value.
+	netResourceCopy.Mode = "alloc"
+	netResourceCopy.Device = "eth1"
+	netResourceCopy.MacAddress = "11:11:11:11:11:11"
+	netResourceCopy.Speed = 500
+	netResourceCopy.Addresses[0].Alias = "copy"
+	require.NotEqual(t, netResource, netResourceCopy)
+}
+
 func TestEncodeDecode(t *testing.T) {
+	ci.Parallel(t)
+
 	type FooRequest struct {
 		Foo string
 		Bar int
@@ -2520,8 +3252,11 @@ func BenchmarkEncodeDecode(b *testing.B) {
 }
 
 func TestInvalidServiceCheck(t *testing.T) {
+	ci.Parallel(t)
+
 	s := Service{
 		Name:      "service-name",
+		Provider:  "consul",
 		PortLabel: "bar",
 		Checks: []*ServiceCheck{
 			{
@@ -2536,6 +3271,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 
 	s = Service{
 		Name:      "service.name",
+		Provider:  "consul",
 		PortLabel: "bar",
 	}
 	if err := s.ValidateName(s.Name); err == nil {
@@ -2544,6 +3280,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 
 	s = Service{
 		Name:      "-my-service",
+		Provider:  "consul",
 		PortLabel: "bar",
 	}
 	if err := s.Validate(); err == nil {
@@ -2552,6 +3289,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 
 	s = Service{
 		Name:      "my-service-${NOMAD_META_FOO}",
+		Provider:  "consul",
 		PortLabel: "bar",
 	}
 	if err := s.Validate(); err != nil {
@@ -2560,6 +3298,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 
 	s = Service{
 		Name:      "my_service-${NOMAD_META_FOO}",
+		Provider:  "consul",
 		PortLabel: "bar",
 	}
 	if err := s.Validate(); err == nil {
@@ -2568,6 +3307,7 @@ func TestInvalidServiceCheck(t *testing.T) {
 
 	s = Service{
 		Name:      "abcdef0123456789-abcdef0123456789-abcdef0123456789-abcdef0123456",
+		Provider:  "consul",
 		PortLabel: "bar",
 	}
 	if err := s.ValidateName(s.Name); err == nil {
@@ -2575,7 +3315,8 @@ func TestInvalidServiceCheck(t *testing.T) {
 	}
 
 	s = Service{
-		Name: "service-name",
+		Name:     "service-name",
+		Provider: "consul",
 		Checks: []*ServiceCheck{
 			{
 				Name:     "check-tcp",
@@ -2597,7 +3338,8 @@ func TestInvalidServiceCheck(t *testing.T) {
 	}
 
 	s = Service{
-		Name: "service-name",
+		Name:     "service-name",
+		Provider: "consul",
 		Checks: []*ServiceCheck{
 			{
 				Name:     "check-script",
@@ -2613,7 +3355,8 @@ func TestInvalidServiceCheck(t *testing.T) {
 	}
 
 	s = Service{
-		Name: "service-name",
+		Name:     "service-name",
+		Provider: "consul",
 		Checks: []*ServiceCheck{
 			{
 				Name:     "tcp-check",
@@ -2630,6 +3373,8 @@ func TestInvalidServiceCheck(t *testing.T) {
 }
 
 func TestDistinctCheckID(t *testing.T) {
+	ci.Parallel(t)
+
 	c1 := ServiceCheck{
 		Name:     "web-health",
 		Type:     "http",
@@ -2664,66 +3409,212 @@ func TestDistinctCheckID(t *testing.T) {
 }
 
 func TestService_Canonicalize(t *testing.T) {
-	job := "example"
-	taskGroup := "cache"
-	task := "redis"
+	ci.Parallel(t)
 
-	s := Service{
-		Name: "${TASK}-db",
+	testCases := []struct {
+		inputService          *Service
+		inputJob              string
+		inputTaskGroup        string
+		inputTask             string
+		inputJobNamespace     string
+		expectedOutputService *Service
+		name                  string
+	}{
+		{
+			inputService: &Service{
+				Name: "${TASK}-db",
+			},
+			inputJob:          "example",
+			inputTaskGroup:    "cache",
+			inputTask:         "redis",
+			inputJobNamespace: "platform",
+			expectedOutputService: &Service{
+				Name:      "redis-db",
+				Provider:  "consul",
+				Namespace: "default",
+			},
+			name: "interpolate task in name",
+		},
+		{
+			inputService: &Service{
+				Name: "db",
+			},
+			inputJob:          "example",
+			inputTaskGroup:    "cache",
+			inputTask:         "redis",
+			inputJobNamespace: "platform",
+			expectedOutputService: &Service{
+				Name:      "db",
+				Provider:  "consul",
+				Namespace: "default",
+			},
+			name: "no interpolation in name",
+		},
+		{
+			inputService: &Service{
+				Name: "${JOB}-${TASKGROUP}-${TASK}-db",
+			},
+			inputJob:          "example",
+			inputTaskGroup:    "cache",
+			inputTask:         "redis",
+			inputJobNamespace: "platform",
+			expectedOutputService: &Service{
+				Name:      "example-cache-redis-db",
+				Provider:  "consul",
+				Namespace: "default",
+			},
+			name: "interpolate job, taskgroup and task in name",
+		},
+		{
+			inputService: &Service{
+				Name: "${BASE}-db",
+			},
+			inputJob:          "example",
+			inputTaskGroup:    "cache",
+			inputTask:         "redis",
+			inputJobNamespace: "platform",
+			expectedOutputService: &Service{
+				Name:      "example-cache-redis-db",
+				Provider:  "consul",
+				Namespace: "default",
+			},
+			name: "interpolate base in name",
+		},
+		{
+			inputService: &Service{
+				Name:     "db",
+				Provider: "nomad",
+			},
+			inputJob:          "example",
+			inputTaskGroup:    "cache",
+			inputTask:         "redis",
+			inputJobNamespace: "platform",
+			expectedOutputService: &Service{
+				Name:      "db",
+				Provider:  "nomad",
+				Namespace: "platform",
+			},
+			name: "nomad provider",
+		},
 	}
 
-	s.Canonicalize(job, taskGroup, task)
-	if s.Name != "redis-db" {
-		t.Fatalf("Expected name: %v, Actual: %v", "redis-db", s.Name)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.inputService.Canonicalize(tc.inputJob, tc.inputTaskGroup, tc.inputTask, tc.inputJobNamespace)
+			assert.Equal(t, tc.expectedOutputService, tc.inputService)
+		})
 	}
-
-	s.Name = "db"
-	s.Canonicalize(job, taskGroup, task)
-	if s.Name != "db" {
-		t.Fatalf("Expected name: %v, Actual: %v", "redis-db", s.Name)
-	}
-
-	s.Name = "${JOB}-${TASKGROUP}-${TASK}-db"
-	s.Canonicalize(job, taskGroup, task)
-	if s.Name != "example-cache-redis-db" {
-		t.Fatalf("Expected name: %v, Actual: %v", "example-cache-redis-db", s.Name)
-	}
-
-	s.Name = "${BASE}-db"
-	s.Canonicalize(job, taskGroup, task)
-	if s.Name != "example-cache-redis-db" {
-		t.Fatalf("Expected name: %v, Actual: %v", "example-cache-redis-db", s.Name)
-	}
-
 }
 
 func TestService_Validate(t *testing.T) {
-	s := Service{
-		Name: "testservice",
+	ci.Parallel(t)
+
+	testCases := []struct {
+		inputService          *Service
+		expectedError         bool
+		expectedErrorContains string
+		name                  string
+	}{
+		{
+			inputService: &Service{
+				Name: "testservice",
+			},
+			expectedError: false,
+			name:          "base service",
+		},
+		{
+			inputService: &Service{
+				Name: "testservice",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			expectedError:         true,
+			expectedErrorContains: "Connect Native and requires setting the task",
+			name:                  "Native Connect without task name",
+		},
+		{
+			inputService: &Service{
+				Name:     "testservice",
+				TaskName: "testtask",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			expectedError: false,
+			name:          "Native Connect with task name",
+		},
+		{
+			inputService: &Service{
+				Name:     "testservice",
+				TaskName: "testtask",
+				Connect: &ConsulConnect{
+					Native:         true,
+					SidecarService: &ConsulSidecarService{},
+				},
+			},
+			expectedError:         true,
+			expectedErrorContains: "Consul Connect must be exclusively native",
+			name:                  "Native Connect with Sidecar",
+		},
+		{
+			inputService: &Service{
+				Name:     "testservice",
+				Provider: "nomad",
+				Checks: []*ServiceCheck{
+					{
+						Name: "servicecheck",
+					},
+				},
+			},
+			expectedError:         true,
+			expectedErrorContains: "Service with provider nomad cannot include Check blocks",
+			name:                  "provider nomad with checks",
+		},
+		{
+			inputService: &Service{
+				Name:     "testservice",
+				Provider: "nomad",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			expectedError:         true,
+			expectedErrorContains: "Service with provider nomad cannot include Connect blocks",
+			name:                  "provider nomad with connect",
+		},
+		{
+			inputService: &Service{
+				Name:     "testservice",
+				Provider: "nomad",
+			},
+			expectedError: false,
+			name:          "provider nomad valid",
+		},
 	}
 
-	s.Canonicalize("testjob", "testgroup", "testtask")
-
-	// Base service should be valid
-	require.NoError(t, s.Validate())
-
-	// Native Connect should be valid
-	s.Connect = &ConsulConnect{
-		Native: true,
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.inputService.Canonicalize("testjob", "testgroup", "testtask", "testnamespace")
+			err := tc.inputService.Validate()
+			if tc.expectedError {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expectedErrorContains)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
-	require.NoError(t, s.Validate())
-
-	// Native Connect + Sidecar should be invalid
-	s.Connect.SidecarService = &ConsulSidecarService{}
-	require.Error(t, s.Validate())
 }
 
 func TestService_Equals(t *testing.T) {
+	ci.Parallel(t)
+
 	s := Service{
 		Name: "testservice",
 	}
 
-	s.Canonicalize("testjob", "testgroup", "testtask")
+	s.Canonicalize("testjob", "testgroup", "testtask", "default")
 
 	o := s.Copy()
 
@@ -2761,9 +3652,14 @@ func TestService_Equals(t *testing.T) {
 
 	o.EnableTagOverride = true
 	assertDiff()
+
+	o.Provider = "nomad"
+	assertDiff()
 }
 
 func TestJob_ExpandServiceNames(t *testing.T) {
+	ci.Parallel(t)
+
 	j := &Job{
 		Name: "my-job",
 		TaskGroups: []*TaskGroup{
@@ -2809,6 +3705,8 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 }
 
 func TestJob_CombinedTaskMeta(t *testing.T) {
+	ci.Parallel(t)
+
 	j := &Job{
 		Meta: map[string]string{
 			"job_test":   "job",
@@ -2854,6 +3752,8 @@ func TestJob_CombinedTaskMeta(t *testing.T) {
 }
 
 func TestPeriodicConfig_EnabledInvalid(t *testing.T) {
+	ci.Parallel(t)
+
 	// Create a config that is enabled but with no interval specified.
 	p := &PeriodicConfig{Enabled: true}
 	if err := p.Validate(); err == nil {
@@ -2880,6 +3780,8 @@ func TestPeriodicConfig_EnabledInvalid(t *testing.T) {
 }
 
 func TestPeriodicConfig_InvalidCron(t *testing.T) {
+	ci.Parallel(t)
+
 	specs := []string{"foo", "* *", "@foo"}
 	for _, spec := range specs {
 		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
@@ -2891,6 +3793,8 @@ func TestPeriodicConfig_InvalidCron(t *testing.T) {
 }
 
 func TestPeriodicConfig_ValidCron(t *testing.T) {
+	ci.Parallel(t)
+
 	specs := []string{"0 0 29 2 *", "@hourly", "0 0-15 * * *"}
 	for _, spec := range specs {
 		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
@@ -2902,6 +3806,8 @@ func TestPeriodicConfig_ValidCron(t *testing.T) {
 }
 
 func TestPeriodicConfig_NextCron(t *testing.T) {
+	ci.Parallel(t)
+
 	from := time.Date(2009, time.November, 10, 23, 22, 30, 0, time.UTC)
 
 	cases := []struct {
@@ -2942,6 +3848,8 @@ func TestPeriodicConfig_NextCron(t *testing.T) {
 }
 
 func TestPeriodicConfig_ValidTimeZone(t *testing.T) {
+	ci.Parallel(t)
+
 	zones := []string{"Africa/Abidjan", "America/Chicago", "Europe/Minsk", "UTC"}
 	for _, zone := range zones {
 		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: "0 0 29 2 * 1980", TimeZone: zone}
@@ -2953,6 +3861,8 @@ func TestPeriodicConfig_ValidTimeZone(t *testing.T) {
 }
 
 func TestPeriodicConfig_DST(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// On Sun, Mar 12, 2:00 am 2017: +1 hour UTC
@@ -2982,6 +3892,8 @@ func TestPeriodicConfig_DST(t *testing.T) {
 }
 
 func TestTaskLifecycleConfig_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	testCases := []struct {
 		name string
 		tlc  *TaskLifecycleConfig
@@ -3027,6 +3939,8 @@ func TestTaskLifecycleConfig_Validate(t *testing.T) {
 }
 
 func TestRestartPolicy_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	// Policy with acceptable restart options passes
 	p := &RestartPolicy{
 		Mode:     RestartPolicyModeFail,
@@ -3081,12 +3995,12 @@ func TestRestartPolicy_Validate(t *testing.T) {
 }
 
 func TestReschedulePolicy_Validate(t *testing.T) {
+	ci.Parallel(t)
 	type testCase struct {
 		desc             string
 		ReschedulePolicy *ReschedulePolicy
 		errors           []error
 	}
-
 	testCases := []testCase{
 		{
 			desc: "Nil",
@@ -3273,6 +4187,8 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 }
 
 func TestAllocation_Index(t *testing.T) {
+	ci.Parallel(t)
+
 	a1 := Allocation{
 		Name:      "example.cache[1]",
 		TaskGroup: "cache",
@@ -3292,6 +4208,8 @@ func TestAllocation_Index(t *testing.T) {
 }
 
 func TestTaskArtifact_Validate_Source(t *testing.T) {
+	ci.Parallel(t)
+
 	valid := &TaskArtifact{GetterSource: "google.com"}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -3299,6 +4217,8 @@ func TestTaskArtifact_Validate_Source(t *testing.T) {
 }
 
 func TestTaskArtifact_Validate_Dest(t *testing.T) {
+	ci.Parallel(t)
+
 	valid := &TaskArtifact{GetterSource: "google.com"}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -3323,7 +4243,7 @@ func TestTaskArtifact_Validate_Dest(t *testing.T) {
 // TestTaskArtifact_Hash asserts an artifact's hash changes when any of the
 // fields change.
 func TestTaskArtifact_Hash(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []TaskArtifact{
 		{},
@@ -3408,6 +4328,8 @@ func TestTaskArtifact_Hash(t *testing.T) {
 }
 
 func TestAllocation_ShouldMigrate(t *testing.T) {
+	ci.Parallel(t)
+
 	alloc := Allocation{
 		PreviousAllocation: "123",
 		TaskGroup:          "foo",
@@ -3503,6 +4425,8 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 }
 
 func TestTaskArtifact_Validate_Checksum(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Input *TaskArtifact
 		Err   bool
@@ -3555,7 +4479,7 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 }
 
 func TestPlan_NormalizeAllocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	plan := &Plan{
 		NodeUpdate:      make(map[string][]*Allocation),
 		NodePreemptions: make(map[string][]*Allocation),
@@ -3586,7 +4510,7 @@ func TestPlan_NormalizeAllocations(t *testing.T) {
 }
 
 func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	plan := &Plan{
 		NodeUpdate: make(map[string][]*Allocation),
 	}
@@ -3615,7 +4539,7 @@ func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 }
 
 func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	plan := &Plan{
 		NodePreemptions: make(map[string][]*Allocation),
 	}
@@ -3640,7 +4564,7 @@ func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 }
 
 func TestAllocation_MsgPackTags(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	planType := reflect.TypeOf(Allocation{})
 
 	msgPackTags, _ := planType.FieldByName("_struct")
@@ -3649,7 +4573,7 @@ func TestAllocation_MsgPackTags(t *testing.T) {
 }
 
 func TestEvaluation_MsgPackTags(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	planType := reflect.TypeOf(Evaluation{})
 
 	msgPackTags, _ := planType.FieldByName("_struct")
@@ -3658,12 +4582,12 @@ func TestEvaluation_MsgPackTags(t *testing.T) {
 }
 
 func TestAllocation_Terminated(t *testing.T) {
+	ci.Parallel(t)
 	type desiredState struct {
 		ClientStatus  string
 		DesiredStatus string
 		Terminated    bool
 	}
-
 	harness := []desiredState{
 		{
 			ClientStatus:  AllocClientStatusPending,
@@ -3698,6 +4622,7 @@ func TestAllocation_Terminated(t *testing.T) {
 }
 
 func TestAllocation_ShouldReschedule(t *testing.T) {
+	ci.Parallel(t)
 	type testCase struct {
 		Desc               string
 		FailTime           time.Time
@@ -3707,7 +4632,6 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 		RescheduleTrackers []*RescheduleEvent
 		ShouldReschedule   bool
 	}
-
 	fail := time.Now()
 
 	harness := []testCase{
@@ -3835,12 +4759,12 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 }
 
 func TestAllocation_LastEventTime(t *testing.T) {
+	ci.Parallel(t)
 	type testCase struct {
 		desc                  string
 		taskState             map[string]*TaskState
 		expectedLastEventTime time.Time
 	}
-
 	t1 := time.Now().UTC()
 
 	testCases := []testCase{
@@ -3898,6 +4822,7 @@ func TestAllocation_LastEventTime(t *testing.T) {
 }
 
 func TestAllocation_NextDelay(t *testing.T) {
+	ci.Parallel(t)
 	type testCase struct {
 		desc                       string
 		reschedulePolicy           *ReschedulePolicy
@@ -4381,6 +5306,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 }
 
 func TestAllocation_WaitClientStop(t *testing.T) {
+	ci.Parallel(t)
 	type testCase struct {
 		desc                   string
 		stop                   time.Duration
@@ -4439,7 +5365,335 @@ func TestAllocation_WaitClientStop(t *testing.T) {
 	}
 }
 
+func TestAllocation_DisconnectTimeout(t *testing.T) {
+	type testCase struct {
+		desc          string
+		maxDisconnect *time.Duration
+	}
+
+	testCases := []testCase{
+		{
+			desc:          "no max_client_disconnect",
+			maxDisconnect: nil,
+		},
+		{
+			desc:          "has max_client_disconnect",
+			maxDisconnect: helper.TimeToPtr(30 * time.Second),
+		},
+		{
+			desc:          "zero max_client_disconnect",
+			maxDisconnect: helper.TimeToPtr(0 * time.Second),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			j := testJob()
+			a := &Allocation{
+				Job: j,
+			}
+
+			j.TaskGroups[0].MaxClientDisconnect = tc.maxDisconnect
+			a.TaskGroup = j.TaskGroups[0].Name
+
+			now := time.Now()
+
+			reschedTime := a.DisconnectTimeout(now)
+
+			if tc.maxDisconnect == nil {
+				require.Equal(t, now, reschedTime, "expected to be now")
+			} else {
+				difference := reschedTime.Sub(now)
+				require.Equal(t, *tc.maxDisconnect, difference, "expected durations to be equal")
+			}
+
+		})
+	}
+}
+
+func TestAllocation_Expired(t *testing.T) {
+	type testCase struct {
+		name             string
+		maxDisconnect    string
+		ellapsed         int
+		expected         bool
+		nilJob           bool
+		badTaskGroup     bool
+		mixedUTC         bool
+		noReconnectEvent bool
+		status           string
+	}
+
+	testCases := []testCase{
+		{
+			name:          "has-expired",
+			maxDisconnect: "5s",
+			ellapsed:      10,
+			expected:      true,
+		},
+		{
+			name:          "has-not-expired",
+			maxDisconnect: "5s",
+			ellapsed:      3,
+			expected:      false,
+		},
+		{
+			name:          "are-equal",
+			maxDisconnect: "5s",
+			ellapsed:      5,
+			expected:      true,
+		},
+		{
+			name:          "nil-job",
+			maxDisconnect: "5s",
+			ellapsed:      10,
+			expected:      false,
+			nilJob:        true,
+		},
+		{
+			name:          "wrong-status",
+			maxDisconnect: "5s",
+			ellapsed:      10,
+			expected:      false,
+			status:        AllocClientStatusRunning,
+		},
+		{
+			name:          "bad-task-group",
+			maxDisconnect: "",
+			badTaskGroup:  true,
+			ellapsed:      10,
+			expected:      false,
+		},
+		{
+			name:          "no-max-disconnect",
+			maxDisconnect: "",
+			ellapsed:      10,
+			expected:      false,
+		},
+		{
+			name:          "mixed-utc-has-expired",
+			maxDisconnect: "5s",
+			ellapsed:      10,
+			mixedUTC:      true,
+			expected:      true,
+		},
+		{
+			name:          "mixed-utc-has-not-expired",
+			maxDisconnect: "5s",
+			ellapsed:      3,
+			mixedUTC:      true,
+			expected:      false,
+		},
+		{
+			name:             "no-reconnect-event",
+			maxDisconnect:    "5s",
+			ellapsed:         2,
+			expected:         false,
+			noReconnectEvent: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc := MockAlloc()
+			var err error
+			var maxDisconnect time.Duration
+
+			if tc.maxDisconnect != "" {
+				maxDisconnect, err = time.ParseDuration(tc.maxDisconnect)
+				require.NoError(t, err)
+				alloc.Job.TaskGroups[0].MaxClientDisconnect = &maxDisconnect
+			}
+
+			if tc.nilJob {
+				alloc.Job = nil
+			}
+
+			if tc.badTaskGroup {
+				alloc.TaskGroup = "bad"
+			}
+
+			alloc.ClientStatus = AllocClientStatusUnknown
+			if tc.status != "" {
+				alloc.ClientStatus = tc.status
+			}
+
+			alloc.AllocStates = []*AllocState{{
+				Field: AllocStateFieldClientStatus,
+				Value: AllocClientStatusUnknown,
+				Time:  time.Now(),
+			}}
+
+			require.NoError(t, err)
+			now := time.Now().UTC()
+			if tc.mixedUTC {
+				now = time.Now()
+			}
+
+			if !tc.noReconnectEvent {
+				event := NewTaskEvent(TaskClientReconnected)
+				event.Time = now.UnixNano()
+
+				alloc.TaskStates = map[string]*TaskState{
+					"web": {
+						Events: []*TaskEvent{event},
+					},
+				}
+			}
+
+			ellapsedDuration := time.Duration(tc.ellapsed) * time.Second
+			now = now.Add(ellapsedDuration)
+
+			require.Equal(t, tc.expected, alloc.Expired(now))
+		})
+	}
+}
+
+func TestAllocation_Reconnected(t *testing.T) {
+	type testCase struct {
+		name             string
+		maxDisconnect    string
+		elapsed          int
+		reconnected      bool
+		expired          bool
+		nilJob           bool
+		badTaskGroup     bool
+		mixedTZ          bool
+		noReconnectEvent bool
+		status           string
+	}
+
+	testCases := []testCase{
+		{
+			name:          "has-expired",
+			maxDisconnect: "5s",
+			elapsed:       10,
+			reconnected:   true,
+			expired:       true,
+		},
+		{
+			name:          "has-not-expired",
+			maxDisconnect: "5s",
+			elapsed:       3,
+			reconnected:   true,
+			expired:       false,
+		},
+		{
+			name:          "are-equal",
+			maxDisconnect: "5s",
+			elapsed:       5,
+			reconnected:   true,
+			expired:       true,
+		},
+		{
+			name:          "nil-job",
+			maxDisconnect: "5s",
+			elapsed:       10,
+			reconnected:   true,
+			expired:       false,
+			nilJob:        true,
+		},
+		{
+			name:          "bad-task-group",
+			maxDisconnect: "",
+			elapsed:       10,
+			reconnected:   true,
+			expired:       false,
+			badTaskGroup:  true,
+		},
+		{
+			name:          "no-max-disconnect",
+			maxDisconnect: "",
+			elapsed:       10,
+			reconnected:   true,
+			expired:       false,
+		},
+		{
+			name:          "mixed-utc-has-expired",
+			maxDisconnect: "5s",
+			elapsed:       10,
+			reconnected:   true,
+			expired:       true,
+			mixedTZ:       true,
+		},
+		{
+			name:          "mixed-utc-has-not-expired",
+			maxDisconnect: "5s",
+			elapsed:       3,
+			reconnected:   true,
+			expired:       false,
+			mixedTZ:       true,
+		},
+		{
+			name:             "no-reconnect-event",
+			maxDisconnect:    "5s",
+			elapsed:          2,
+			reconnected:      false,
+			expired:          false,
+			noReconnectEvent: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc := MockAlloc()
+			var err error
+			var maxDisconnect time.Duration
+
+			if tc.maxDisconnect != "" {
+				maxDisconnect, err = time.ParseDuration(tc.maxDisconnect)
+				require.NoError(t, err)
+				alloc.Job.TaskGroups[0].MaxClientDisconnect = &maxDisconnect
+			}
+
+			if tc.nilJob {
+				alloc.Job = nil
+			}
+
+			if tc.badTaskGroup {
+				alloc.TaskGroup = "bad"
+			}
+
+			alloc.ClientStatus = AllocClientStatusUnknown
+			if tc.status != "" {
+				alloc.ClientStatus = tc.status
+			}
+
+			alloc.AllocStates = []*AllocState{{
+				Field: AllocStateFieldClientStatus,
+				Value: AllocClientStatusUnknown,
+				Time:  time.Now().UTC(),
+			}}
+
+			now := time.Now().UTC()
+			if tc.mixedTZ {
+				var loc *time.Location
+				loc, err = time.LoadLocation("America/New_York")
+				require.NoError(t, err)
+				now = time.Now().In(loc)
+			}
+
+			ellapsedDuration := time.Duration(tc.elapsed) * time.Second
+			now = now.Add(ellapsedDuration)
+
+			if !tc.noReconnectEvent {
+				event := NewTaskEvent(TaskClientReconnected)
+				event.Time = now.UnixNano()
+
+				alloc.TaskStates = map[string]*TaskState{
+					"web": {
+						Events: []*TaskEvent{event},
+					},
+				}
+			}
+
+			reconnected, expired := alloc.Reconnected()
+			require.Equal(t, tc.reconnected, reconnected)
+			require.Equal(t, tc.expired, expired)
+		})
+	}
+}
+
 func TestAllocation_Canonicalize_Old(t *testing.T) {
+	ci.Parallel(t)
+
 	alloc := MockAlloc()
 	alloc.AllocatedResources = nil
 	alloc.TaskResources = map[string]*Resources{
@@ -4493,6 +5747,8 @@ func TestAllocation_Canonicalize_Old(t *testing.T) {
 // TestAllocation_Canonicalize_New asserts that an alloc with latest
 // schema isn't modified with Canonicalize
 func TestAllocation_Canonicalize_New(t *testing.T) {
+	ci.Parallel(t)
+
 	alloc := MockAlloc()
 	copy := alloc.Copy()
 
@@ -4501,11 +5757,11 @@ func TestAllocation_Canonicalize_New(t *testing.T) {
 }
 
 func TestRescheduleTracker_Copy(t *testing.T) {
+	ci.Parallel(t)
 	type testCase struct {
 		original *RescheduleTracker
 		expected *RescheduleTracker
 	}
-
 	cases := []testCase{
 		{nil, nil},
 		{&RescheduleTracker{Events: []*RescheduleEvent{
@@ -4529,6 +5785,8 @@ func TestRescheduleTracker_Copy(t *testing.T) {
 }
 
 func TestVault_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	v := &Vault{
 		Env:        true,
 		ChangeMode: VaultChangeModeNoop,
@@ -4554,7 +5812,40 @@ func TestVault_Validate(t *testing.T) {
 	}
 }
 
+func TestVault_Copy(t *testing.T) {
+	v := &Vault{
+		Policies:     []string{"policy1", "policy2"},
+		Namespace:    "ns1",
+		Env:          false,
+		ChangeMode:   "noop",
+		ChangeSignal: "SIGKILL",
+		EntityAlias:  "alias1",
+	}
+
+	// Copy and modify.
+	vc := v.Copy()
+	vc.Policies[0] = "policy0"
+	vc.Namespace = "ns2"
+	vc.Env = true
+	vc.ChangeMode = "signal"
+	vc.ChangeSignal = "SIGHUP"
+	vc.EntityAlias = "alias2"
+
+	require.NotEqual(t, v, vc)
+}
+
+func TestVault_Canonicalize(t *testing.T) {
+	v := &Vault{
+		ChangeSignal: "sighup",
+	}
+	v.Canonicalize()
+	require.Equal(t, "SIGHUP", v.ChangeSignal)
+	require.Equal(t, VaultChangeModeRestart, v.ChangeMode)
+}
+
 func TestParameterizedJobConfig_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	d := &ParameterizedJobConfig{
 		Payload: "foo",
 	}
@@ -4573,6 +5864,8 @@ func TestParameterizedJobConfig_Validate(t *testing.T) {
 }
 
 func TestParameterizedJobConfig_Validate_NonBatch(t *testing.T) {
+	ci.Parallel(t)
+
 	job := testJob()
 	job.ParameterizedJob = &ParameterizedJobConfig{
 		Payload: DispatchPayloadOptional,
@@ -4584,7 +5877,57 @@ func TestParameterizedJobConfig_Validate_NonBatch(t *testing.T) {
 	}
 }
 
+func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
+	ci.Parallel(t)
+	// Setup a system Job with stop_after_client_disconnect set, which is invalid
+	job := testJob()
+	job.Type = JobTypeSystem
+	stop := 1 * time.Minute
+	job.TaskGroups[0].StopAfterClientDisconnect = &stop
+
+	err := job.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "stop_after_client_disconnect can only be set in batch and service jobs")
+
+	// Modify the job to a batch job with an invalid stop_after_client_disconnect value
+	job.Type = JobTypeBatch
+	invalid := -1 * time.Minute
+	job.TaskGroups[0].StopAfterClientDisconnect = &invalid
+
+	err = job.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "stop_after_client_disconnect must be a positive value")
+
+	// Modify the job to a batch job with a valid stop_after_client_disconnect value
+	job.Type = JobTypeBatch
+	job.TaskGroups[0].StopAfterClientDisconnect = &stop
+	err = job.Validate()
+	require.NoError(t, err)
+}
+
+func TestJobConfig_Validate_MaxClientDisconnect(t *testing.T) {
+	// Set up a job with an invalid max_client_disconnect value
+	job := testJob()
+	timeout := -1 * time.Minute
+	job.TaskGroups[0].MaxClientDisconnect = &timeout
+	job.TaskGroups[0].StopAfterClientDisconnect = &timeout
+
+	err := job.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "max_client_disconnect cannot be negative")
+	require.Contains(t, err.Error(), "Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect")
+
+	// Modify the job with a valid max_client_disconnect value
+	timeout = 1 * time.Minute
+	job.TaskGroups[0].MaxClientDisconnect = &timeout
+	job.TaskGroups[0].StopAfterClientDisconnect = nil
+	err = job.Validate()
+	require.NoError(t, err)
+}
+
 func TestParameterizedJobConfig_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
 	d := &ParameterizedJobConfig{}
 	d.Canonicalize()
 	if d.Payload != DispatchPayloadOptional {
@@ -4593,6 +5936,8 @@ func TestParameterizedJobConfig_Canonicalize(t *testing.T) {
 }
 
 func TestDispatchPayloadConfig_Validate(t *testing.T) {
+	ci.Parallel(t)
+
 	d := &DispatchPayloadConfig{
 		File: "foo",
 	}
@@ -4615,7 +5960,177 @@ func TestDispatchPayloadConfig_Validate(t *testing.T) {
 	}
 }
 
+func TestScalingPolicy_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name     string
+		input    *ScalingPolicy
+		expected *ScalingPolicy
+	}{
+		{
+			name:     "empty policy",
+			input:    &ScalingPolicy{},
+			expected: &ScalingPolicy{Type: ScalingPolicyTypeHorizontal},
+		},
+		{
+			name:     "policy with type",
+			input:    &ScalingPolicy{Type: "other-type"},
+			expected: &ScalingPolicy{Type: "other-type"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require := require.New(t)
+
+			c.input.Canonicalize()
+			require.Equal(c.expected, c.input)
+		})
+	}
+}
+
+func TestScalingPolicy_Validate(t *testing.T) {
+	ci.Parallel(t)
+	type testCase struct {
+		name        string
+		input       *ScalingPolicy
+		expectedErr string
+	}
+	cases := []testCase{
+		{
+			name: "full horizontal policy",
+			input: &ScalingPolicy{
+				Policy: map[string]interface{}{
+					"key": "value",
+				},
+				Type:    ScalingPolicyTypeHorizontal,
+				Min:     5,
+				Max:     5,
+				Enabled: true,
+				Target: map[string]string{
+					ScalingTargetNamespace: "my-namespace",
+					ScalingTargetJob:       "my-job",
+					ScalingTargetGroup:     "my-task-group",
+				},
+			},
+		},
+		{
+			name:        "missing type",
+			input:       &ScalingPolicy{},
+			expectedErr: "missing scaling policy type",
+		},
+		{
+			name: "invalid type",
+			input: &ScalingPolicy{
+				Type: "not valid",
+			},
+			expectedErr: `scaling policy type "not valid" is not valid`,
+		},
+		{
+			name: "min < 0",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  -1,
+				Max:  5,
+			},
+			expectedErr: "minimum count must be specified and non-negative",
+		},
+		{
+			name: "max < 0",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  5,
+				Max:  -1,
+			},
+			expectedErr: "maximum count must be specified and non-negative",
+		},
+		{
+			name: "min > max",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  10,
+				Max:  0,
+			},
+			expectedErr: "maximum count must not be less than minimum count",
+		},
+		{
+			name: "min == max",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  10,
+				Max:  10,
+			},
+		},
+		{
+			name: "min == 0",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  0,
+				Max:  10,
+			},
+		},
+		{
+			name: "max == 0",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  0,
+				Max:  0,
+			},
+		},
+		{
+			name: "horizontal missing namespace",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Target: map[string]string{
+					ScalingTargetJob:   "my-job",
+					ScalingTargetGroup: "my-group",
+				},
+			},
+			expectedErr: "missing target namespace",
+		},
+		{
+			name: "horizontal missing job",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Target: map[string]string{
+					ScalingTargetNamespace: "my-namespace",
+					ScalingTargetGroup:     "my-group",
+				},
+			},
+			expectedErr: "missing target job",
+		},
+		{
+			name: "horizontal missing group",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Target: map[string]string{
+					ScalingTargetNamespace: "my-namespace",
+					ScalingTargetJob:       "my-job",
+				},
+			},
+			expectedErr: "missing target group",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require := require.New(t)
+
+			err := c.input.Validate()
+
+			if len(c.expectedErr) > 0 {
+				require.Error(err, c.expectedErr)
+			} else {
+				require.NoError(err)
+			}
+		})
+	}
+}
+
 func TestIsRecoverable(t *testing.T) {
+	ci.Parallel(t)
+
 	if IsRecoverable(nil) {
 		t.Errorf("nil should not be recoverable")
 	}
@@ -4634,6 +6149,8 @@ func TestIsRecoverable(t *testing.T) {
 }
 
 func TestACLTokenValidate(t *testing.T) {
+	ci.Parallel(t)
+
 	tk := &ACLToken{}
 
 	// Missing a type
@@ -4679,6 +6196,8 @@ func TestACLTokenValidate(t *testing.T) {
 }
 
 func TestACLTokenPolicySubset(t *testing.T) {
+	ci.Parallel(t)
+
 	tk := &ACLToken{
 		Type:     ACLClientToken,
 		Policies: []string{"foo", "bar", "baz"},
@@ -4704,6 +6223,8 @@ func TestACLTokenPolicySubset(t *testing.T) {
 }
 
 func TestACLTokenSetHash(t *testing.T) {
+	ci.Parallel(t)
+
 	tk := &ACLToken{
 		Name:     "foo",
 		Type:     ACLClientToken,
@@ -4724,6 +6245,8 @@ func TestACLTokenSetHash(t *testing.T) {
 }
 
 func TestACLPolicySetHash(t *testing.T) {
+	ci.Parallel(t)
+
 	ap := &ACLPolicy{
 		Name:        "foo",
 		Description: "great policy",
@@ -4743,6 +6266,8 @@ func TestACLPolicySetHash(t *testing.T) {
 }
 
 func TestTaskEventPopulate(t *testing.T) {
+	ci.Parallel(t)
+
 	prepopulatedEvent := NewTaskEvent(TaskSetup)
 	prepopulatedEvent.DisplayMessage = "Hola"
 	testcases := []struct {
@@ -4781,7 +6306,8 @@ func TestTaskEventPopulate(t *testing.T) {
 		{NewTaskEvent(TaskSignaling).SetTaskSignal(os.Interrupt).SetTaskSignalReason("process interrupted"), "Task being sent signal interrupt: process interrupted"},
 		{NewTaskEvent(TaskRestartSignal), "Task signaled to restart"},
 		{NewTaskEvent(TaskRestartSignal).SetRestartReason("Chaos Monkey restarted it"), "Chaos Monkey restarted it"},
-		{NewTaskEvent(TaskDriverMessage).SetDriverMessage("YOLO"), "YOLO"},
+		{NewTaskEvent(TaskClientReconnected), "Client reconnected"},
+		{NewTaskEvent(TaskLeaderDead), "Leader Task in Group dead"},
 		{NewTaskEvent("Unknown Type, No message"), ""},
 		{NewTaskEvent("Unknown Type").SetMessage("Hello world"), "Hello world"},
 	}
@@ -4795,6 +6321,8 @@ func TestTaskEventPopulate(t *testing.T) {
 }
 
 func TestNetworkResourcesEquals(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	var networkResourcesTest = []struct {
 		input    []*NetworkResource
@@ -4954,7 +6482,7 @@ func TestNetworkResourcesEquals(t *testing.T) {
 }
 
 func TestNode_Canonicalize(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Make sure the eligiblity is set properly
@@ -4963,14 +6491,18 @@ func TestNode_Canonicalize(t *testing.T) {
 	require.Equal(NodeSchedulingEligible, node.SchedulingEligibility)
 
 	node = &Node{
-		Drain: true,
+		DrainStrategy: &DrainStrategy{
+			DrainSpec: DrainSpec{
+				Deadline: 30000,
+			},
+		},
 	}
 	node.Canonicalize()
 	require.Equal(NodeSchedulingIneligible, node.SchedulingEligibility)
 }
 
 func TestNode_Copy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	node := &Node{
@@ -5012,7 +6544,9 @@ func TestNode_Copy(t *testing.T) {
 		},
 		NodeResources: &NodeResources{
 			Cpu: NodeCpuResources{
-				CpuShares: 4000,
+				CpuShares:          4000,
+				TotalCpuCores:      4,
+				ReservableCpuCores: []uint16{0, 1, 2, 3},
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 8192,
@@ -5030,7 +6564,8 @@ func TestNode_Copy(t *testing.T) {
 		},
 		ReservedResources: &NodeReservedResources{
 			Cpu: NodeReservedCpuResources{
-				CpuShares: 100,
+				CpuShares:        100,
+				ReservedCpuCores: []uint16{0},
 			},
 			Memory: NodeReservedMemoryResources{
 				MemoryMB: 256,
@@ -5077,13 +6612,40 @@ func TestNode_Copy(t *testing.T) {
 	require.Equal(node.Drivers, node2.Drivers)
 }
 
+func TestNode_Sanitize(t *testing.T) {
+	ci.Parallel(t)
+
+	require := require.New(t)
+
+	testCases := []*Node{
+		nil,
+		{
+			ID:       uuid.Generate(),
+			SecretID: "",
+		},
+		{
+			ID:       uuid.Generate(),
+			SecretID: uuid.Generate(),
+		},
+	}
+	for _, tc := range testCases {
+		sanitized := tc.Sanitize()
+		if tc == nil {
+			require.Nil(sanitized)
+		} else {
+			require.NotNil(sanitized)
+			require.Empty(sanitized.SecretID)
+		}
+	}
+}
+
 func TestSpread_Validate(t *testing.T) {
+	ci.Parallel(t)
 	type tc struct {
 		spread *Spread
 		err    error
 		name   string
 	}
-
 	testCases := []tc{
 		{
 			spread: &Spread{},
@@ -5194,6 +6756,8 @@ func TestSpread_Validate(t *testing.T) {
 }
 
 func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	cases := []struct {
 		Input  string
@@ -5240,6 +6804,8 @@ func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
 }
 
 func TestMultiregion_CopyCanonicalize(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	emptyOld := &Multiregion{}
@@ -5280,68 +6846,61 @@ func TestMultiregion_CopyCanonicalize(t *testing.T) {
 	require.False(old.Diff(nonEmptyOld))
 }
 
-func TestMultiregion_Starter(t *testing.T) {
-	require := require.New(t)
+func TestNodeResources_Copy(t *testing.T) {
+	ci.Parallel(t)
 
-	j := &Job{}
-	j.Type = "service"
-	j.Region = "north"
-	require.True(j.IsMultiregionStarter())
-
-	tc := &Multiregion{
-		Strategy: &MultiregionStrategy{},
-		Regions: []*MultiregionRegion{
-			{Name: "north"},
-			{Name: "south"},
-			{Name: "east"},
-			{Name: "west"},
+	orig := &NodeResources{
+		Cpu: NodeCpuResources{
+			CpuShares:          int64(32000),
+			TotalCpuCores:      32,
+			ReservableCpuCores: []uint16{1, 2, 3, 9},
+		},
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(64000),
+		},
+		Networks: Networks{
+			{
+				Device: "foo",
+			},
+		},
+		NodeNetworks: []*NodeNetworkResource{
+			{
+				Mode:       "host",
+				Device:     "eth0",
+				MacAddress: "00:00:00:00:00:00",
+				Speed:      1000,
+				Addresses: []NodeNetworkAddress{
+					{
+						Family:        NodeNetworkAF_IPv4,
+						Alias:         "private",
+						Address:       "192.168.0.100",
+						ReservedPorts: "22,80",
+						Gateway:       "192.168.0.1",
+					},
+				},
+			},
 		},
 	}
 
-	b := &Job{}
-	b.Type = "batch"
-	b.Multiregion = tc
-	b.Region = "west"
-	require.True(j.IsMultiregionStarter())
+	kopy := orig.Copy()
+	assert.Equal(t, orig, kopy)
 
-	j.Multiregion = tc
-	j.Region = "north"
-	require.True(j.IsMultiregionStarter())
-	j.Region = "south"
-	require.True(j.IsMultiregionStarter())
-	j.Region = "east"
-	require.True(j.IsMultiregionStarter())
-	j.Region = "west"
-	require.True(j.IsMultiregionStarter())
+	// Make sure slices aren't shared
+	kopy.Cpu.ReservableCpuCores[1] = 9000
+	assert.NotEqual(t, orig.Cpu.ReservableCpuCores, kopy.Cpu.ReservableCpuCores)
 
-	tc.Strategy = &MultiregionStrategy{MaxParallel: 1}
-	j.Multiregion = tc
-	j.Region = "north"
-	require.True(j.IsMultiregionStarter())
-	j.Region = "south"
-	require.False(j.IsMultiregionStarter())
-	j.Region = "east"
-	require.False(j.IsMultiregionStarter())
-	j.Region = "west"
-	require.False(j.IsMultiregionStarter())
-
-	tc.Strategy = &MultiregionStrategy{MaxParallel: 2}
-	j.Multiregion = tc
-	j.Region = "north"
-	require.True(j.IsMultiregionStarter())
-	j.Region = "south"
-	require.True(j.IsMultiregionStarter())
-	j.Region = "east"
-	require.False(j.IsMultiregionStarter())
-	j.Region = "west"
-	require.False(j.IsMultiregionStarter())
-
+	kopy.NodeNetworks[0].MacAddress = "11:11:11:11:11:11"
+	kopy.NodeNetworks[0].Addresses[0].Alias = "public"
+	assert.NotEqual(t, orig.NodeNetworks[0], kopy.NodeNetworks[0])
 }
 
 func TestNodeResources_Merge(t *testing.T) {
+	ci.Parallel(t)
+
 	res := &NodeResources{
 		Cpu: NodeCpuResources{
-			CpuShares: int64(32000),
+			CpuShares:     int64(32000),
+			TotalCpuCores: 32,
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(64000),
@@ -5354,6 +6913,7 @@ func TestNodeResources_Merge(t *testing.T) {
 	}
 
 	res.Merge(&NodeResources{
+		Cpu: NodeCpuResources{ReservableCpuCores: []uint16{0, 1, 2, 3}},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(100000),
 		},
@@ -5366,7 +6926,9 @@ func TestNodeResources_Merge(t *testing.T) {
 
 	require.Exactly(t, &NodeResources{
 		Cpu: NodeCpuResources{
-			CpuShares: int64(32000),
+			CpuShares:          int64(32000),
+			TotalCpuCores:      32,
+			ReservableCpuCores: []uint16{0, 1, 2, 3},
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(100000),
@@ -5382,86 +6944,298 @@ func TestNodeResources_Merge(t *testing.T) {
 	}, res)
 }
 
-func TestMultiregion_Validate(t *testing.T) {
-	require := require.New(t)
+func TestAllocatedResources_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := map[string]struct {
+		input    *AllocatedResources
+		expected *AllocatedResources
+	}{
+		"base": {
+			input: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"task": {
+						Networks: Networks{
+							{
+								IP:           "127.0.0.1",
+								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+							},
+						},
+					},
+				},
+			},
+			expected: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"task": {
+						Networks: Networks{
+							{
+								IP:           "127.0.0.1",
+								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+							},
+						},
+					},
+				},
+				Shared: AllocatedSharedResources{
+					Ports: AllocatedPorts{
+						{
+							Label:  "admin",
+							Value:  8080,
+							To:     0,
+							HostIP: "127.0.0.1",
+						},
+					},
+				},
+			},
+		},
+		"base with existing": {
+			input: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"task": {
+						Networks: Networks{
+							{
+								IP:           "127.0.0.1",
+								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+							},
+						},
+					},
+				},
+				Shared: AllocatedSharedResources{
+					Ports: AllocatedPorts{
+						{
+							Label:  "http",
+							Value:  80,
+							To:     8080,
+							HostIP: "127.0.0.1",
+						},
+					},
+				},
+			},
+			expected: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"task": {
+						Networks: Networks{
+							{
+								IP:           "127.0.0.1",
+								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+							},
+						},
+					},
+				},
+				Shared: AllocatedSharedResources{
+					Ports: AllocatedPorts{
+						{
+							Label:  "http",
+							Value:  80,
+							To:     8080,
+							HostIP: "127.0.0.1",
+						},
+						{
+							Label:  "admin",
+							Value:  8080,
+							To:     0,
+							HostIP: "127.0.0.1",
+						},
+					},
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		tc.input.Canonicalize()
+		require.Exactly(t, tc.expected, tc.input, "case %s did not match", name)
+	}
+}
+
+func TestAllocatedSharedResources_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
+	a := &AllocatedSharedResources{
+		Networks: []*NetworkResource{
+			{
+				IP: "127.0.0.1",
+				DynamicPorts: []Port{
+					{
+						Label: "http",
+						Value: 22222,
+						To:    8080,
+					},
+				},
+				ReservedPorts: []Port{
+					{
+						Label: "redis",
+						Value: 6783,
+						To:    6783,
+					},
+				},
+			},
+		},
+	}
+
+	a.Canonicalize()
+	require.Exactly(t, AllocatedPorts{
+		{
+			Label:  "http",
+			Value:  22222,
+			To:     8080,
+			HostIP: "127.0.0.1",
+		},
+		{
+			Label:  "redis",
+			Value:  6783,
+			To:     6783,
+			HostIP: "127.0.0.1",
+		},
+	}, a.Ports)
+}
+
+func TestTaskGroup_validateScriptChecksInGroupServices(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("service task not set", func(t *testing.T) {
+		tg := &TaskGroup{
+			Name: "group1",
+			Services: []*Service{{
+				Name:     "service1",
+				TaskName: "", // unset
+				Checks: []*ServiceCheck{{
+					Name:     "check1",
+					Type:     "script",
+					TaskName: "", // unset
+				}, {
+					Name: "check2",
+					Type: "ttl", // not script
+				}, {
+					Name:     "check3",
+					Type:     "script",
+					TaskName: "", // unset
+				}},
+			}, {
+				Name: "service2",
+				Checks: []*ServiceCheck{{
+					Type:     "script",
+					TaskName: "task1", // set
+				}},
+			}, {
+				Name:     "service3",
+				TaskName: "", // unset
+				Checks: []*ServiceCheck{{
+					Name:     "check1",
+					Type:     "script",
+					TaskName: "", // unset
+				}},
+			}},
+		}
+
+		errStr := tg.validateScriptChecksInGroupServices().Error()
+		require.Contains(t, errStr, "Service [group1]->service1 or Check check1 must specify task parameter")
+		require.Contains(t, errStr, "Service [group1]->service1 or Check check3 must specify task parameter")
+		require.Contains(t, errStr, "Service [group1]->service3 or Check check1 must specify task parameter")
+	})
+
+	t.Run("service task set", func(t *testing.T) {
+		tgOK := &TaskGroup{
+			Name: "group1",
+			Services: []*Service{{
+				Name:     "service1",
+				TaskName: "task1",
+				Checks: []*ServiceCheck{{
+					Name: "check1",
+					Type: "script",
+				}, {
+					Name: "check2",
+					Type: "ttl",
+				}, {
+					Name: "check3",
+					Type: "script",
+				}},
+			}},
+		}
+
+		mErrOK := tgOK.validateScriptChecksInGroupServices()
+		require.Nil(t, mErrOK)
+	})
+}
+
+func TestComparableResources_Superset(t *testing.T) {
+	ci.Parallel(t)
+
+	base := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares:     4000,
+				ReservedCores: []uint16{0, 1, 2, 3},
+			},
+			Memory: AllocatedMemoryResources{MemoryMB: 4096},
+		},
+		Shared: AllocatedSharedResources{DiskMB: 10000},
+	}
 	cases := []struct {
-		Name    string
-		JobType string
-		Case    *Multiregion
-		Errors  []string
+		a         *ComparableResources
+		b         *ComparableResources
+		dimension string
 	}{
 		{
-			Name:    "empty valid multiregion spec",
-			JobType: JobTypeService,
-			Case:    &Multiregion{},
-			Errors:  []string{},
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 1000, ReservedCores: []uint16{0}},
+				},
+			},
 		},
-
 		{
-			Name:    "non-empty valid multiregion spec",
-			JobType: JobTypeService,
-			Case: &Multiregion{
-				Strategy: &MultiregionStrategy{
-					MaxParallel: 2,
-					OnFailure:   "fail_all",
-				},
-				Regions: []*MultiregionRegion{
-					{
-
-						Count:       2,
-						Datacenters: []string{"west-1", "west-2"},
-						Meta:        map[string]string{},
-					},
-					{
-						Name:        "east",
-						Count:       1,
-						Datacenters: []string{"east-1"},
-						Meta:        map[string]string{},
-					},
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 4000, ReservedCores: []uint16{0, 1, 2, 3}},
 				},
 			},
-			Errors: []string{},
 		},
-
 		{
-			Name:    "repeated region, wrong strategy, missing DCs",
-			JobType: JobTypeBatch,
-			Case: &Multiregion{
-				Strategy: &MultiregionStrategy{
-					MaxParallel: 2,
-				},
-				Regions: []*MultiregionRegion{
-					{
-						Name:        "west",
-						Datacenters: []string{"west-1", "west-2"},
-					},
-
-					{
-						Name: "west",
-					},
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 5000},
 				},
 			},
-			Errors: []string{
-				"Multiregion region \"west\" can't be listed twice",
-				"Multiregion region \"west\" must have at least 1 datacenter",
-				"Multiregion batch jobs can't have an update strategy",
+			dimension: "cpu",
+		},
+		{
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 1000, ReservedCores: []uint16{3, 4}},
+				},
 			},
+			dimension: "cores",
 		},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.Name, func(t *testing.T) {
-			err := tc.Case.Validate(tc.JobType)
-			if len(tc.Errors) == 0 {
-				require.NoError(err)
-			} else {
-				mErr := err.(*multierror.Error)
-				for i, expectedErr := range tc.Errors {
-					if !strings.Contains(mErr.Errors[i].Error(), expectedErr) {
-						t.Fatalf("err: %s, expected: %s", err, expectedErr)
-					}
-				}
+	for _, c := range cases {
+		fit, dim := c.a.Superset(c.b)
+		if c.dimension == "" {
+			require.True(t, fit)
+		} else {
+			require.False(t, fit)
+			require.Equal(t, c.dimension, dim)
+		}
+	}
+}
+
+func requireErrors(t *testing.T, err error, expected ...string) {
+	t.Helper()
+	require.Error(t, err)
+	mErr, ok := err.(*multierror.Error)
+	require.True(t, ok)
+
+	var found []string
+	for _, e := range expected {
+		for _, actual := range mErr.Errors {
+			if strings.Contains(actual.Error(), e) {
+				found = append(found, e)
+				break
 			}
-		})
+		}
 	}
+
+	require.Equal(t, expected, found)
 }

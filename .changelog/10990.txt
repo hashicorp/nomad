@@ -1,0 +1,3 @@
+```release-note:bug
+server: Fixed a bug where planning job update reports spurious in-place updates even if the update includes no changes
+```

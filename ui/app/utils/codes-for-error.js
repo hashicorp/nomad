@@ -3,7 +3,7 @@ export default function codesForError(error) {
   const codes = [error.code];
 
   if (error.errors) {
-    error.errors.forEach(err => {
+    error.errors.forEach((err) => {
       codes.push(err.status);
     });
   }
@@ -11,5 +11,5 @@ export default function codesForError(error) {
   return codes
     .compact()
     .uniq()
-    .map(code => '' + code);
+    .map((code) => '' + code);
 }

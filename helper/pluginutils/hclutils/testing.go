@@ -71,7 +71,14 @@ func (b *HCLParser) parse(t *testing.T, config, out interface{}) {
 	require.Empty(t, diags)
 
 	ctyValue, diag, errs := ParseHclInterface(config, decSpec, b.vars)
-	require.Nil(t, errs)
+	if len(errs) > 1 {
+		t.Error("unexpected errors parsing file")
+		for _, err := range errs {
+			t.Errorf(" * %v", err)
+
+		}
+		t.FailNow()
+	}
 	require.Empty(t, diag)
 
 	// encode

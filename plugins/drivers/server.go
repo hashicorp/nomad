@@ -3,6 +3,7 @@ package drivers
 import (
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/golang/protobuf/ptypes"
 	plugin "github.com/hashicorp/go-plugin"
@@ -43,6 +44,7 @@ func (b *driverPluginServer) Capabilities(ctx context.Context, req *proto.Capabi
 			Exec:                  caps.Exec,
 			MustCreateNetwork:     caps.MustInitiateNetwork,
 			NetworkIsolationModes: []proto.NetworkIsolationSpec_NetworkIsolationMode{},
+			RemoteTasks:           caps.RemoteTasks,
 		},
 	}
 
@@ -124,6 +126,9 @@ func (b *driverPluginServer) StartTask(ctx context.Context, req *proto.StartTask
 			AutoAdvertise: net.AutoAdvertise,
 		}
 		for k, v := range net.PortMap {
+			if v > math.MaxInt32 {
+				return nil, fmt.Errorf("port map out of bounds")
+			}
 			pbNet.PortMap[k] = int32(v)
 		}
 	}
@@ -387,7 +392,7 @@ func (b *driverPluginServer) CreateNetwork(ctx context.Context, req *proto.Creat
 		return nil, fmt.Errorf("CreateNetwork RPC not supported by driver")
 	}
 
-	spec, created, err := nm.CreateNetwork(req.AllocId)
+	spec, created, err := nm.CreateNetwork(req.GetAllocId(), networkCreateRequestFromProto(req))
 	if err != nil {
 		return nil, err
 	}
@@ -396,7 +401,6 @@ func (b *driverPluginServer) CreateNetwork(ctx context.Context, req *proto.Creat
 		IsolationSpec: NetworkIsolationSpecToProto(spec),
 		Created:       created,
 	}, nil
-
 }
 
 func (b *driverPluginServer) DestroyNetwork(ctx context.Context, req *proto.DestroyNetworkRequest) (*proto.DestroyNetworkResponse, error) {

@@ -1,0 +1,3 @@
+```release-note:bug
+client: Added `NOMAD_LICENSE` to default environment variable deny list.
+```

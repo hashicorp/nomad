@@ -3,6 +3,7 @@ package api
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -12,7 +13,7 @@ import (
 // 1. Expose the test server RPC server and force a Node.Update to fingerprint a plugin
 // 2. Build and deploy a dummy CSI plugin via a job, and have it really fingerprint
 func TestCSIVolumes_CRUD(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s, root := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	v := c.CSIVolumes()
@@ -86,7 +87,7 @@ func TestCSIVolumes_CRUD(t *testing.T) {
 	require.Equal(t, "bar", vol.Topologies[0].Segments["foo"])
 
 	// Deregister the volume
-	err = v.Deregister(id, wpts)
+	err = v.Deregister(id, true, wpts)
 	require.NoError(t, err)
 
 	// Successful empty result

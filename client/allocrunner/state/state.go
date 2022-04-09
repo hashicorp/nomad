@@ -20,6 +20,9 @@ type State struct {
 
 	// TaskStates is a snapshot of task states.
 	TaskStates map[string]*structs.TaskState
+
+	// NetworkStatus captures network details not known until runtime
+	NetworkStatus *structs.AllocNetworkStatus
 }
 
 // SetDeploymentStatus is a helper for updating the client-controlled
@@ -57,12 +60,13 @@ func (s *State) Copy() *State {
 		ClientDescription: s.ClientDescription,
 		DeploymentStatus:  s.DeploymentStatus.Copy(),
 		TaskStates:        taskStates,
+		NetworkStatus:     s.NetworkStatus.Copy(),
 	}
 }
 
 // ClientTerminalStatus returns if the client status is terminal and will no longer transition
-func (a *State) ClientTerminalStatus() bool {
-	switch a.ClientStatus {
+func (s *State) ClientTerminalStatus() bool {
+	switch s.ClientStatus {
 	case structs.AllocClientStatusComplete, structs.AllocClientStatusFailed, structs.AllocClientStatusLost:
 		return true
 	default:

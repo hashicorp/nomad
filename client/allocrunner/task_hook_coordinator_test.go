@@ -1,18 +1,21 @@
 package allocrunner
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
-	"github.com/hashicorp/nomad/nomad/structs"
-
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTaskHookCoordinator_OnlyMainApp(t *testing.T) {
+	ci.Parallel(t)
+
 	alloc := mock.Alloc()
 	tasks := alloc.Job.TaskGroups[0].Tasks
 	task := tasks[0]
@@ -26,6 +29,8 @@ func TestTaskHookCoordinator_OnlyMainApp(t *testing.T) {
 }
 
 func TestTaskHookCoordinator_PrestartRunsBeforeMain(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 
 	alloc := mock.LifecycleAlloc()
@@ -46,6 +51,8 @@ func TestTaskHookCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 }
 
 func TestTaskHookCoordinator_MainRunsAfterPrestart(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 
 	alloc := mock.LifecycleAlloc()
@@ -90,6 +97,8 @@ func TestTaskHookCoordinator_MainRunsAfterPrestart(t *testing.T) {
 }
 
 func TestTaskHookCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 
 	alloc := mock.LifecycleAlloc()
@@ -135,6 +144,8 @@ func TestTaskHookCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
 }
 
 func TestTaskHookCoordinator_FailedInitTask(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 
 	alloc := mock.LifecycleAlloc()
@@ -180,6 +191,8 @@ func TestTaskHookCoordinator_FailedInitTask(t *testing.T) {
 }
 
 func TestTaskHookCoordinator_SidecarNeverStarts(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 
 	alloc := mock.LifecycleAlloc()
@@ -222,6 +235,54 @@ func TestTaskHookCoordinator_SidecarNeverStarts(t *testing.T) {
 	require.Falsef(t, isChannelClosed(mainCh), "%s channel was closed, should be open", mainTask.Name)
 }
 
+func TestTaskHookCoordinator_PoststartStartsAfterMain(t *testing.T) {
+	ci.Parallel(t)
+
+	logger := testlog.HCLogger(t)
+
+	alloc := mock.LifecycleAlloc()
+	tasks := alloc.Job.TaskGroups[0].Tasks
+
+	mainTask := tasks[0]
+	sideTask := tasks[1]
+	postTask := tasks[2]
+
+	// Make the the third task a poststart hook
+	postTask.Lifecycle.Hook = structs.TaskLifecycleHookPoststart
+
+	coord := newTaskHookCoordinator(logger, tasks)
+	postCh := coord.startConditionForTask(postTask)
+	sideCh := coord.startConditionForTask(sideTask)
+	mainCh := coord.startConditionForTask(mainTask)
+
+	require.Truef(t, isChannelClosed(sideCh), "%s channel was open, should be closed", sideTask.Name)
+	require.Falsef(t, isChannelClosed(mainCh), "%s channel was closed, should be open", mainTask.Name)
+	require.Falsef(t, isChannelClosed(mainCh), "%s channel was closed, should be open", postTask.Name)
+
+	states := map[string]*structs.TaskState{
+		postTask.Name: {
+			State:  structs.TaskStatePending,
+			Failed: false,
+		},
+		mainTask.Name: {
+			State:     structs.TaskStateRunning,
+			Failed:    false,
+			StartedAt: time.Now(),
+		},
+		sideTask.Name: {
+			State:     structs.TaskStateRunning,
+			Failed:    false,
+			StartedAt: time.Now(),
+		},
+	}
+
+	coord.taskStateUpdated(states)
+
+	require.Truef(t, isChannelClosed(postCh), "%s channel was open, should be closed", postTask.Name)
+	require.Truef(t, isChannelClosed(sideCh), "%s channel was open, should be closed", sideTask.Name)
+	require.Truef(t, isChannelClosed(mainCh), "%s channel was open, should be closed", mainTask.Name)
+}
+
 func isChannelClosed(ch <-chan struct{}) bool {
 	select {
 	case <-ch:
@@ -229,4 +290,92 @@ func isChannelClosed(ch <-chan struct{}) bool {
 	default:
 		return false
 	}
+}
+
+func TestHasSidecarTasks(t *testing.T) {
+	ci.Parallel(t)
+
+	falseV, trueV := false, true
+
+	cases := []struct {
+		name string
+		// nil if main task, false if non-sidecar hook, true if sidecar hook
+		indicators []*bool
+
+		hasSidecars    bool
+		hasNonsidecars bool
+	}{
+		{
+			name:           "all sidecar - one",
+			indicators:     []*bool{&trueV},
+			hasSidecars:    true,
+			hasNonsidecars: false,
+		},
+		{
+			name:           "all sidecar - multiple",
+			indicators:     []*bool{&trueV, &trueV, &trueV},
+			hasSidecars:    true,
+			hasNonsidecars: false,
+		},
+		{
+			name:           "some sidecars, some others",
+			indicators:     []*bool{nil, &falseV, &trueV},
+			hasSidecars:    true,
+			hasNonsidecars: true,
+		},
+		{
+			name:           "no sidecars",
+			indicators:     []*bool{nil, &falseV, nil},
+			hasSidecars:    false,
+			hasNonsidecars: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			alloc := allocWithSidecarIndicators(c.indicators)
+			arConf, cleanup := testAllocRunnerConfig(t, alloc)
+			defer cleanup()
+
+			ar, err := NewAllocRunner(arConf)
+			require.NoError(t, err)
+
+			require.Equal(t, c.hasSidecars, hasSidecarTasks(ar.tasks), "sidecars")
+
+			runners := []*taskrunner.TaskRunner{}
+			for _, r := range ar.tasks {
+				runners = append(runners, r)
+			}
+			require.Equal(t, c.hasNonsidecars, hasNonSidecarTasks(runners), "non-sidecars")
+
+		})
+	}
+}
+
+func allocWithSidecarIndicators(indicators []*bool) *structs.Allocation {
+	alloc := mock.BatchAlloc()
+
+	tasks := []*structs.Task{}
+	resources := map[string]*structs.AllocatedTaskResources{}
+
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
+
+	for i, indicator := range indicators {
+		task := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+		task.Name = fmt.Sprintf("task%d", i)
+		if indicator != nil {
+			task.Lifecycle = &structs.TaskLifecycleConfig{
+				Hook:    structs.TaskLifecycleHookPrestart,
+				Sidecar: *indicator,
+			}
+		}
+		tasks = append(tasks, task)
+		resources[task.Name] = tr
+	}
+
+	alloc.Job.TaskGroups[0].Tasks = tasks
+
+	alloc.AllocatedResources.Tasks = resources
+	return alloc
+
 }

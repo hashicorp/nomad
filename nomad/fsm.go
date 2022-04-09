@@ -7,16 +7,16 @@ import (
 	"sync"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -32,26 +32,30 @@ const (
 type SnapshotType byte
 
 const (
-	NodeSnapshot SnapshotType = iota
-	JobSnapshot
-	IndexSnapshot
-	EvalSnapshot
-	AllocSnapshot
-	TimeTableSnapshot
-	PeriodicLaunchSnapshot
-	JobSummarySnapshot
-	VaultAccessorSnapshot
-	JobVersionSnapshot
-	DeploymentSnapshot
-	ACLPolicySnapshot
-	ACLTokenSnapshot
-	SchedulerConfigSnapshot
-	ClusterMetadataSnapshot
-	ServiceIdentityTokenAccessorSnapshot
-	ScalingPolicySnapshot
-	CSIPluginSnapshot
-	CSIVolumeSnapshot
-	ScalingEventsSnapshot
+	NodeSnapshot                         SnapshotType = 0
+	JobSnapshot                          SnapshotType = 1
+	IndexSnapshot                        SnapshotType = 2
+	EvalSnapshot                         SnapshotType = 3
+	AllocSnapshot                        SnapshotType = 4
+	TimeTableSnapshot                    SnapshotType = 5
+	PeriodicLaunchSnapshot               SnapshotType = 6
+	JobSummarySnapshot                   SnapshotType = 7
+	VaultAccessorSnapshot                SnapshotType = 8
+	JobVersionSnapshot                   SnapshotType = 9
+	DeploymentSnapshot                   SnapshotType = 10
+	ACLPolicySnapshot                    SnapshotType = 11
+	ACLTokenSnapshot                     SnapshotType = 12
+	SchedulerConfigSnapshot              SnapshotType = 13
+	ClusterMetadataSnapshot              SnapshotType = 14
+	ServiceIdentityTokenAccessorSnapshot SnapshotType = 15
+	ScalingPolicySnapshot                SnapshotType = 16
+	CSIPluginSnapshot                    SnapshotType = 17
+	CSIVolumeSnapshot                    SnapshotType = 18
+	ScalingEventsSnapshot                SnapshotType = 19
+	EventSinkSnapshot                    SnapshotType = 20
+	ServiceRegistrationSnapshot          SnapshotType = 21
+	// Namespace appliers were moved from enterprise and therefore start at 64
+	NamespaceSnapshot SnapshotType = 64
 )
 
 // LogApplier is the definition of a function that can apply a Raft log
@@ -75,7 +79,7 @@ type nomadFSM struct {
 	evalBroker         *EvalBroker
 	blockedEvals       *BlockedEvals
 	periodicDispatcher *PeriodicDispatch
-	logger             log.Logger
+	logger             hclog.Logger
 	state              *state.StateStore
 	timetable          *TimeTable
 
@@ -121,18 +125,27 @@ type FSMConfig struct {
 	Blocked *BlockedEvals
 
 	// Logger is the logger used by the FSM
-	Logger log.Logger
+	Logger hclog.Logger
 
 	// Region is the region of the server embedding the FSM
 	Region string
+
+	// EnableEventBroker specifies if the FSMs state store should enable
+	// it's event publisher.
+	EnableEventBroker bool
+
+	// EventBufferSize is the amount of messages to hold in memory
+	EventBufferSize int64
 }
 
-// NewFSMPath is used to construct a new FSM with a blank state
+// NewFSM is used to construct a new FSM with a blank state.
 func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 	// Create a state store
 	sconfig := &state.StateStoreConfig{
-		Logger: config.Logger,
-		Region: config.Region,
+		Logger:          config.Logger,
+		Region:          config.Region,
+		EnablePublisher: config.EnableEventBroker,
+		EventBufferSize: config.EventBufferSize,
 	}
 	state, err := state.NewStateStore(sconfig)
 	if err != nil {
@@ -162,6 +175,7 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 
 // Close is used to cleanup resources associated with the FSM
 func (n *nomadFSM) Close() error {
+	n.state.StopEventBroker()
 	return nil
 }
 
@@ -195,25 +209,25 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 
 	switch msgType {
 	case structs.NodeRegisterRequestType:
-		return n.applyUpsertNode(buf[1:], log.Index)
+		return n.applyUpsertNode(msgType, buf[1:], log.Index)
 	case structs.NodeDeregisterRequestType:
-		return n.applyDeregisterNode(buf[1:], log.Index)
+		return n.applyDeregisterNode(msgType, buf[1:], log.Index)
 	case structs.NodeUpdateStatusRequestType:
-		return n.applyStatusUpdate(buf[1:], log.Index)
+		return n.applyStatusUpdate(msgType, buf[1:], log.Index)
 	case structs.NodeUpdateDrainRequestType:
-		return n.applyDrainUpdate(buf[1:], log.Index)
+		return n.applyDrainUpdate(msgType, buf[1:], log.Index)
 	case structs.JobRegisterRequestType:
-		return n.applyUpsertJob(buf[1:], log.Index)
+		return n.applyUpsertJob(msgType, buf[1:], log.Index)
 	case structs.JobDeregisterRequestType:
-		return n.applyDeregisterJob(buf[1:], log.Index)
+		return n.applyDeregisterJob(msgType, buf[1:], log.Index)
 	case structs.EvalUpdateRequestType:
-		return n.applyUpdateEval(buf[1:], log.Index)
+		return n.applyUpdateEval(msgType, buf[1:], log.Index)
 	case structs.EvalDeleteRequestType:
 		return n.applyDeleteEval(buf[1:], log.Index)
 	case structs.AllocUpdateRequestType:
-		return n.applyAllocUpdate(buf[1:], log.Index)
+		return n.applyAllocUpdate(msgType, buf[1:], log.Index)
 	case structs.AllocClientUpdateRequestType:
-		return n.applyAllocClientUpdate(buf[1:], log.Index)
+		return n.applyAllocClientUpdate(msgType, buf[1:], log.Index)
 	case structs.ReconcileJobSummariesRequestType:
 		return n.applyReconcileSummaries(buf[1:], log.Index)
 	case structs.VaultAccessorRegisterRequestType:
@@ -221,43 +235,43 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.VaultAccessorDeregisterRequestType:
 		return n.applyDeregisterVaultAccessor(buf[1:], log.Index)
 	case structs.ApplyPlanResultsRequestType:
-		return n.applyPlanResults(buf[1:], log.Index)
+		return n.applyPlanResults(msgType, buf[1:], log.Index)
 	case structs.DeploymentStatusUpdateRequestType:
-		return n.applyDeploymentStatusUpdate(buf[1:], log.Index)
+		return n.applyDeploymentStatusUpdate(msgType, buf[1:], log.Index)
 	case structs.DeploymentPromoteRequestType:
-		return n.applyDeploymentPromotion(buf[1:], log.Index)
+		return n.applyDeploymentPromotion(msgType, buf[1:], log.Index)
 	case structs.DeploymentAllocHealthRequestType:
-		return n.applyDeploymentAllocHealth(buf[1:], log.Index)
+		return n.applyDeploymentAllocHealth(msgType, buf[1:], log.Index)
 	case structs.DeploymentDeleteRequestType:
 		return n.applyDeploymentDelete(buf[1:], log.Index)
 	case structs.JobStabilityRequestType:
 		return n.applyJobStability(buf[1:], log.Index)
 	case structs.ACLPolicyUpsertRequestType:
-		return n.applyACLPolicyUpsert(buf[1:], log.Index)
+		return n.applyACLPolicyUpsert(msgType, buf[1:], log.Index)
 	case structs.ACLPolicyDeleteRequestType:
-		return n.applyACLPolicyDelete(buf[1:], log.Index)
+		return n.applyACLPolicyDelete(msgType, buf[1:], log.Index)
 	case structs.ACLTokenUpsertRequestType:
-		return n.applyACLTokenUpsert(buf[1:], log.Index)
+		return n.applyACLTokenUpsert(msgType, buf[1:], log.Index)
 	case structs.ACLTokenDeleteRequestType:
-		return n.applyACLTokenDelete(buf[1:], log.Index)
+		return n.applyACLTokenDelete(msgType, buf[1:], log.Index)
 	case structs.ACLTokenBootstrapRequestType:
-		return n.applyACLTokenBootstrap(buf[1:], log.Index)
+		return n.applyACLTokenBootstrap(msgType, buf[1:], log.Index)
 	case structs.AutopilotRequestType:
 		return n.applyAutopilotUpdate(buf[1:], log.Index)
 	case structs.UpsertNodeEventsType:
-		return n.applyUpsertNodeEvent(buf[1:], log.Index)
+		return n.applyUpsertNodeEvent(msgType, buf[1:], log.Index)
 	case structs.JobBatchDeregisterRequestType:
-		return n.applyBatchDeregisterJob(buf[1:], log.Index)
+		return n.applyBatchDeregisterJob(msgType, buf[1:], log.Index)
 	case structs.AllocUpdateDesiredTransitionRequestType:
-		return n.applyAllocUpdateDesiredTransition(buf[1:], log.Index)
+		return n.applyAllocUpdateDesiredTransition(msgType, buf[1:], log.Index)
 	case structs.NodeUpdateEligibilityRequestType:
-		return n.applyNodeEligibilityUpdate(buf[1:], log.Index)
+		return n.applyNodeEligibilityUpdate(msgType, buf[1:], log.Index)
 	case structs.BatchNodeUpdateDrainRequestType:
-		return n.applyBatchDrainUpdate(buf[1:], log.Index)
+		return n.applyBatchDrainUpdate(msgType, buf[1:], log.Index)
 	case structs.SchedulerConfigRequestType:
 		return n.applySchedulerConfigUpdate(buf[1:], log.Index)
 	case structs.NodeBatchDeregisterRequestType:
-		return n.applyDeregisterNodeBatch(buf[1:], log.Index)
+		return n.applyDeregisterNodeBatch(msgType, buf[1:], log.Index)
 	case structs.ClusterMetadataRequestType:
 		return n.applyClusterMetadata(buf[1:], log.Index)
 	case structs.ServiceIdentityAccessorRegisterRequestType:
@@ -276,6 +290,28 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyCSIVolumeBatchClaim(buf[1:], log.Index)
 	case structs.CSIPluginDeleteRequestType:
 		return n.applyCSIPluginDelete(buf[1:], log.Index)
+	case structs.NamespaceUpsertRequestType:
+		return n.applyNamespaceUpsert(buf[1:], log.Index)
+	case structs.NamespaceDeleteRequestType:
+		return n.applyNamespaceDelete(buf[1:], log.Index)
+	// COMPAT(1.0): These messages were added and removed during the 1.0-beta
+	// series and should not be immediately reused for other purposes
+	case structs.EventSinkUpsertRequestType,
+		structs.EventSinkDeleteRequestType,
+		structs.BatchEventSinkUpdateProgressType:
+		return nil
+	case structs.OneTimeTokenUpsertRequestType:
+		return n.applyOneTimeTokenUpsert(msgType, buf[1:], log.Index)
+	case structs.OneTimeTokenDeleteRequestType:
+		return n.applyOneTimeTokenDelete(msgType, buf[1:], log.Index)
+	case structs.OneTimeTokenExpireRequestType:
+		return n.applyOneTimeTokenExpire(msgType, buf[1:], log.Index)
+	case structs.ServiceRegistrationUpsertRequestType:
+		return n.applyUpsertServiceRegistrations(msgType, buf[1:], log.Index)
+	case structs.ServiceRegistrationDeleteByIDRequestType:
+		return n.applyDeleteServiceRegistrationByID(msgType, buf[1:], log.Index)
+	case structs.ServiceRegistrationDeleteByNodeIDRequestType:
+		return n.applyDeleteServiceRegistrationByNodeID(msgType, buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -310,7 +346,7 @@ func (n *nomadFSM) applyClusterMetadata(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyUpsertNode(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpsertNode(reqType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "register_node"}, time.Now())
 	var req structs.NodeRegisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -320,7 +356,7 @@ func (n *nomadFSM) applyUpsertNode(buf []byte, index uint64) interface{} {
 	// Handle upgrade paths
 	req.Node.Canonicalize()
 
-	if err := n.state.UpsertNode(index, req.Node); err != nil {
+	if err := n.state.UpsertNode(reqType, index, req.Node); err != nil {
 		n.logger.Error("UpsertNode failed", "error", err)
 		return err
 	}
@@ -334,14 +370,14 @@ func (n *nomadFSM) applyUpsertNode(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyDeregisterNode(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeregisterNode(reqType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "deregister_node"}, time.Now())
 	var req structs.NodeDeregisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteNode(index, []string{req.NodeID}); err != nil {
+	if err := n.state.DeleteNode(reqType, index, []string{req.NodeID}); err != nil {
 		n.logger.Error("DeleteNode failed", "error", err)
 		return err
 	}
@@ -349,14 +385,14 @@ func (n *nomadFSM) applyDeregisterNode(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyDeregisterNodeBatch(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeregisterNodeBatch(reqType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "batch_deregister_node"}, time.Now())
 	var req structs.NodeBatchDeregisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteNode(index, req.NodeIDs); err != nil {
+	if err := n.state.DeleteNode(reqType, index, req.NodeIDs); err != nil {
 		n.logger.Error("DeleteNode failed", "error", err)
 		return err
 	}
@@ -364,14 +400,14 @@ func (n *nomadFSM) applyDeregisterNodeBatch(buf []byte, index uint64) interface{
 	return nil
 }
 
-func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyStatusUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_status_update"}, time.Now())
 	var req structs.NodeUpdateStatusRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateNodeStatus(index, req.NodeID, req.Status, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeStatus(msgType, index, req.NodeID, req.Status, req.UpdatedAt, req.NodeEvent); err != nil {
 		n.logger.Error("UpdateNodeStatus failed", "error", err)
 		return err
 	}
@@ -393,49 +429,50 @@ func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_drain_update"}, time.Now())
 	var req structs.NodeUpdateDrainRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	// COMPAT Remove in version 0.10
-	// As part of Nomad 0.8 we have deprecated the drain boolean in favor of a
-	// drain strategy but we need to handle the upgrade path where the Raft log
-	// contains drain updates with just the drain boolean being manipulated.
-	if req.Drain && req.DrainStrategy == nil {
-		// Mark the drain strategy as a force to imitate the old style drain
-		// functionality.
-		req.DrainStrategy = &structs.DrainStrategy{
-			DrainSpec: structs.DrainSpec{
-				Deadline: -1 * time.Second,
-			},
+	accessorId := ""
+	if req.AuthToken != "" {
+		token, err := n.state.ACLTokenBySecretID(nil, req.AuthToken)
+		if err != nil {
+			n.logger.Error("error looking up ACL token from drain update", "error", err)
+			return fmt.Errorf("error looking up ACL token: %v", err)
 		}
+		if token == nil {
+			n.logger.Error("token did not exist during node drain update")
+			return fmt.Errorf("token did not exist during node drain update")
+		}
+		accessorId = token.AccessorID
 	}
 
-	if err := n.state.UpdateNodeDrain(index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeDrain(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt,
+		req.NodeEvent, req.Meta, accessorId); err != nil {
 		n.logger.Error("UpdateNodeDrain failed", "error", err)
 		return err
 	}
 	return nil
 }
 
-func (n *nomadFSM) applyBatchDrainUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyBatchDrainUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "batch_node_drain_update"}, time.Now())
 	var req structs.BatchNodeUpdateDrainRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.BatchUpdateNodeDrain(index, req.UpdatedAt, req.Updates, req.NodeEvents); err != nil {
+	if err := n.state.BatchUpdateNodeDrain(msgType, index, req.UpdatedAt, req.Updates, req.NodeEvents); err != nil {
 		n.logger.Error("BatchUpdateNodeDrain failed", "error", err)
 		return err
 	}
 	return nil
 }
 
-func (n *nomadFSM) applyNodeEligibilityUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyNodeEligibilityUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_eligibility_update"}, time.Now())
 	var req structs.NodeUpdateEligibilityRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -449,7 +486,7 @@ func (n *nomadFSM) applyNodeEligibilityUpdate(buf []byte, index uint64) interfac
 		return err
 	}
 
-	if err := n.state.UpdateNodeEligibility(index, req.NodeID, req.Eligibility, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeEligibility(msgType, index, req.NodeID, req.Eligibility, req.UpdatedAt, req.NodeEvent); err != nil {
 		n.logger.Error("UpdateNodeEligibility failed", "error", err)
 		return err
 	}
@@ -465,7 +502,7 @@ func (n *nomadFSM) applyNodeEligibilityUpdate(buf []byte, index uint64) interfac
 	return nil
 }
 
-func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "register_job"}, time.Now())
 	var req structs.JobRegisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -481,7 +518,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	 */
 	req.Job.Canonicalize()
 
-	if err := n.state.UpsertJob(index, req.Job); err != nil {
+	if err := n.state.UpsertJob(msgType, index, req.Job); err != nil {
 		n.logger.Error("UpsertJob failed", "error", err)
 		return err
 	}
@@ -555,27 +592,55 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		}
 	}
 
+	// COMPAT: Prior to Nomad 0.12.x evaluations were submitted in a separate Raft log,
+	// so this may be nil during server upgrades.
+	if req.Eval != nil {
+		req.Eval.JobModifyIndex = index
+		if err := n.upsertEvals(msgType, index, []*structs.Evaluation{req.Eval}); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeregisterJob(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "deregister_job"}, time.Now())
 	var req structs.JobDeregisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	return n.state.WithWriteTransaction(func(tx state.Txn) error {
-		if err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, tx); err != nil {
-			n.logger.Error("deregistering job failed", "error", err)
+	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
+		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, req.NoShutdownDelay, tx)
+
+		if err != nil {
+			n.logger.Error("deregistering job failed",
+				"error", err, "job", req.JobID, "namespace", req.Namespace)
 			return err
 		}
 
 		return nil
 	})
+
+	// COMPAT: Prior to Nomad 0.12.x evaluations were submitted in a separate Raft log,
+	// so this may be nil during server upgrades.
+	// always attempt upsert eval even if job deregister fail
+	if req.Eval != nil {
+		req.Eval.JobModifyIndex = index
+		if err := n.upsertEvals(msgType, index, []*structs.Evaluation{req.Eval}); err != nil {
+			return err
+		}
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "batch_deregister_job"}, time.Now())
 	var req structs.JobBatchDeregisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -585,10 +650,10 @@ func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{}
 	// Perform all store updates atomically to ensure a consistent view for store readers.
 	// A partial update may increment the snapshot index, allowing eval brokers to process
 	// evals for jobs whose deregistering didn't get committed yet.
-	err := n.state.WithWriteTransaction(func(tx state.Txn) error {
+	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
 		for jobNS, options := range req.Jobs {
-			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, tx); err != nil {
-				n.logger.Error("deregistering job failed", "job", jobNS, "error", err)
+			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, false, tx); err != nil {
+				n.logger.Error("deregistering job failed", "job", jobNS.ID, "error", err)
 				return err
 			}
 		}
@@ -610,18 +675,36 @@ func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{}
 	return nil
 }
 
-// handleJobDeregister is used to deregister a job.
-func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, tx state.Txn) error {
+// handleJobDeregister is used to deregister a job. Leaves error logging up to
+// caller.
+func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, noShutdownDelay bool, tx state.Txn) error {
 	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
-		n.logger.Error("periodicDispatcher.Remove failed", "error", err)
-		return err
+		return fmt.Errorf("periodicDispatcher.Remove failed: %w", err)
+	}
+
+	if noShutdownDelay {
+		ws := memdb.NewWatchSet()
+		allocs, err := n.state.AllocsByJob(ws, namespace, jobID, false)
+		if err != nil {
+			return err
+		}
+		transition := &structs.DesiredTransition{NoShutdownDelay: helper.BoolToPtr(true)}
+		for _, alloc := range allocs {
+			err := n.state.UpdateAllocDesiredTransitionTxn(tx, index, alloc.ID, transition)
+			if err != nil {
+				return err
+			}
+			err = tx.Insert("index", &state.IndexEntry{Key: "allocs", Value: index})
+			if err != nil {
+				return fmt.Errorf("index update failed: %v", err)
+			}
+		}
 	}
 
 	if purge {
 		if err := n.state.DeleteJobTxn(index, namespace, jobID, tx); err != nil {
-			n.logger.Error("DeleteJob failed", "error", err)
-			return err
+			return fmt.Errorf("DeleteJob failed: %w", err)
 		}
 
 		// We always delete from the periodic launch table because it is possible that
@@ -633,8 +716,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		ws := memdb.NewWatchSet()
 		current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
 		if err != nil {
-			n.logger.Error("JobByID lookup failed", "error", err)
-			return err
+			return fmt.Errorf("JobByID lookup failed: %w", err)
 		}
 
 		if current == nil {
@@ -645,25 +727,25 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		stopped.Stop = true
 
 		if err := n.state.UpsertJobTxn(index, stopped, tx); err != nil {
-			n.logger.Error("UpsertJob failed", "error", err)
-			return err
+			return fmt.Errorf("UpsertJob failed: %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (n *nomadFSM) applyUpdateEval(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpdateEval(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "update_eval"}, time.Now())
 	var req structs.EvalUpdateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
-	return n.upsertEvals(index, req.Evals)
+
+	return n.upsertEvals(msgType, index, req.Evals)
 }
 
-func (n *nomadFSM) upsertEvals(index uint64, evals []*structs.Evaluation) error {
-	if err := n.state.UpsertEvals(index, evals); err != nil {
+func (n *nomadFSM) upsertEvals(msgType structs.MessageType, index uint64, evals []*structs.Evaluation) error {
+	if err := n.state.UpsertEvals(msgType, index, evals); err != nil {
 		n.logger.Error("UpsertEvals failed", "error", err)
 		return err
 	}
@@ -712,7 +794,7 @@ func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyAllocUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_update"}, time.Now())
 	var req structs.AllocUpdateRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -743,14 +825,14 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 		alloc.Canonicalize()
 	}
 
-	if err := n.state.UpsertAllocs(index, req.Alloc); err != nil {
+	if err := n.state.UpsertAllocs(msgType, index, req.Alloc); err != nil {
 		n.logger.Error("UpsertAllocs failed", "error", err)
 		return err
 	}
 	return nil
 }
 
-func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_client_update"}, time.Now())
 	var req structs.AllocUpdateRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -772,14 +854,14 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 	}
 
 	// Update all the client allocations
-	if err := n.state.UpdateAllocsFromClient(index, req.Alloc); err != nil {
+	if err := n.state.UpdateAllocsFromClient(msgType, index, req.Alloc); err != nil {
 		n.logger.Error("UpdateAllocFromClient failed", "error", err)
 		return err
 	}
 
 	// Update any evals
 	if len(req.Evals) > 0 {
-		if err := n.upsertEvals(index, req.Evals); err != nil {
+		if err := n.upsertEvals(msgType, index, req.Evals); err != nil {
 			n.logger.Error("applyAllocClientUpdate failed to update evaluations", "error", err)
 			return err
 		}
@@ -815,14 +897,14 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 
 // applyAllocUpdateDesiredTransition is used to update the desired transitions
 // of a set of allocations.
-func (n *nomadFSM) applyAllocUpdateDesiredTransition(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyAllocUpdateDesiredTransition(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_update_desired_transition"}, time.Now())
 	var req structs.AllocUpdateDesiredTransitionRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateAllocsDesiredTransitions(index, req.Allocs, req.Evals); err != nil {
+	if err := n.state.UpdateAllocsDesiredTransitions(msgType, index, req.Allocs, req.Evals); err != nil {
 		n.logger.Error("UpdateAllocsDesiredTransitions failed", "error", err)
 		return err
 	}
@@ -840,14 +922,14 @@ func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{}
 }
 
 // applyUpsertNodeEvent tracks the given node events.
-func (n *nomadFSM) applyUpsertNodeEvent(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpsertNodeEvent(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_node_events"}, time.Now())
 	var req structs.EmitNodeEventsRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode EmitNodeEventsRequest: %v", err))
 	}
 
-	if err := n.state.UpsertNodeEvents(index, req.NodeEvents); err != nil {
+	if err := n.state.UpsertNodeEvents(msgType, index, req.NodeEvents); err != nil {
 		n.logger.Error("failed to add node events", "error", err)
 		return err
 	}
@@ -892,7 +974,7 @@ func (n *nomadFSM) applyUpsertSIAccessor(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_si_accessor"}, time.Now())
 	var request structs.SITokenAccessorsRequest
 	if err := structs.Decode(buf, &request); err != nil {
-		panic(errors.Wrap(err, "failed to decode request"))
+		panic(fmt.Errorf("failed to decode request: %w", err))
 	}
 
 	if err := n.state.UpsertSITokenAccessors(index, request.Accessors); err != nil {
@@ -907,7 +989,7 @@ func (n *nomadFSM) applyDeregisterSIAccessor(buf []byte, index uint64) interface
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "deregister_si_accessor"}, time.Now())
 	var request structs.SITokenAccessorsRequest
 	if err := structs.Decode(buf, &request); err != nil {
-		panic(errors.Wrap(err, "failed to decode request"))
+		panic(fmt.Errorf("failed to decode request: %w", err))
 	}
 
 	if err := n.state.DeleteSITokenAccessors(index, request.Accessors); err != nil {
@@ -919,14 +1001,14 @@ func (n *nomadFSM) applyDeregisterSIAccessor(buf []byte, index uint64) interface
 }
 
 // applyPlanApply applies the results of a plan application
-func (n *nomadFSM) applyPlanResults(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyPlanResults(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_plan_results"}, time.Now())
 	var req structs.ApplyPlanResultsRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertPlanResults(index, &req); err != nil {
+	if err := n.state.UpsertPlanResults(msgType, index, &req); err != nil {
 		n.logger.Error("ApplyPlan failed", "error", err)
 		return err
 	}
@@ -938,14 +1020,14 @@ func (n *nomadFSM) applyPlanResults(buf []byte, index uint64) interface{} {
 
 // applyDeploymentStatusUpdate is used to update the status of an existing
 // deployment
-func (n *nomadFSM) applyDeploymentStatusUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeploymentStatusUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_status_update"}, time.Now())
 	var req structs.DeploymentStatusUpdateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateDeploymentStatus(index, &req); err != nil {
+	if err := n.state.UpdateDeploymentStatus(msgType, index, &req); err != nil {
 		n.logger.Error("UpsertDeploymentStatusUpdate failed", "error", err)
 		return err
 	}
@@ -955,14 +1037,14 @@ func (n *nomadFSM) applyDeploymentStatusUpdate(buf []byte, index uint64) interfa
 }
 
 // applyDeploymentPromotion is used to promote canaries in a deployment
-func (n *nomadFSM) applyDeploymentPromotion(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeploymentPromotion(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_promotion"}, time.Now())
 	var req structs.ApplyDeploymentPromoteRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateDeploymentPromotion(index, &req); err != nil {
+	if err := n.state.UpdateDeploymentPromotion(msgType, index, &req); err != nil {
 		n.logger.Error("UpsertDeploymentPromotion failed", "error", err)
 		return err
 	}
@@ -973,14 +1055,14 @@ func (n *nomadFSM) applyDeploymentPromotion(buf []byte, index uint64) interface{
 
 // applyDeploymentAllocHealth is used to set the health of allocations as part
 // of a deployment
-func (n *nomadFSM) applyDeploymentAllocHealth(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeploymentAllocHealth(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_alloc_health"}, time.Now())
 	var req structs.ApplyDeploymentAllocHealthRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateDeploymentAllocHealth(index, &req); err != nil {
+	if err := n.state.UpdateDeploymentAllocHealth(msgType, index, &req); err != nil {
 		n.logger.Error("UpsertDeploymentAllocHealth failed", "error", err)
 		return err
 	}
@@ -1022,14 +1104,14 @@ func (n *nomadFSM) applyJobStability(buf []byte, index uint64) interface{} {
 }
 
 // applyACLPolicyUpsert is used to upsert a set of policies
-func (n *nomadFSM) applyACLPolicyUpsert(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLPolicyUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_policy_upsert"}, time.Now())
 	var req structs.ACLPolicyUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertACLPolicies(index, req.Policies); err != nil {
+	if err := n.state.UpsertACLPolicies(msgType, index, req.Policies); err != nil {
 		n.logger.Error("UpsertACLPolicies failed", "error", err)
 		return err
 	}
@@ -1037,14 +1119,14 @@ func (n *nomadFSM) applyACLPolicyUpsert(buf []byte, index uint64) interface{} {
 }
 
 // applyACLPolicyDelete is used to delete a set of policies
-func (n *nomadFSM) applyACLPolicyDelete(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLPolicyDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_policy_delete"}, time.Now())
 	var req structs.ACLPolicyDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteACLPolicies(index, req.Names); err != nil {
+	if err := n.state.DeleteACLPolicies(msgType, index, req.Names); err != nil {
 		n.logger.Error("DeleteACLPolicies failed", "error", err)
 		return err
 	}
@@ -1052,14 +1134,14 @@ func (n *nomadFSM) applyACLPolicyDelete(buf []byte, index uint64) interface{} {
 }
 
 // applyACLTokenUpsert is used to upsert a set of policies
-func (n *nomadFSM) applyACLTokenUpsert(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLTokenUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_upsert"}, time.Now())
 	var req structs.ACLTokenUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertACLTokens(index, req.Tokens); err != nil {
+	if err := n.state.UpsertACLTokens(msgType, index, req.Tokens); err != nil {
 		n.logger.Error("UpsertACLTokens failed", "error", err)
 		return err
 	}
@@ -1067,14 +1149,14 @@ func (n *nomadFSM) applyACLTokenUpsert(buf []byte, index uint64) interface{} {
 }
 
 // applyACLTokenDelete is used to delete a set of policies
-func (n *nomadFSM) applyACLTokenDelete(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLTokenDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_delete"}, time.Now())
 	var req structs.ACLTokenDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteACLTokens(index, req.AccessorIDs); err != nil {
+	if err := n.state.DeleteACLTokens(msgType, index, req.AccessorIDs); err != nil {
 		n.logger.Error("DeleteACLTokens failed", "error", err)
 		return err
 	}
@@ -1082,15 +1164,60 @@ func (n *nomadFSM) applyACLTokenDelete(buf []byte, index uint64) interface{} {
 }
 
 // applyACLTokenBootstrap is used to bootstrap an ACL token
-func (n *nomadFSM) applyACLTokenBootstrap(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLTokenBootstrap(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_bootstrap"}, time.Now())
 	var req structs.ACLTokenBootstrapRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.BootstrapACLTokens(index, req.ResetIndex, req.Token); err != nil {
+	if err := n.state.BootstrapACLTokens(msgType, index, req.ResetIndex, req.Token); err != nil {
 		n.logger.Error("BootstrapACLToken failed", "error", err)
+		return err
+	}
+	return nil
+}
+
+// applyOneTimeTokenUpsert is used to upsert a one-time token
+func (n *nomadFSM) applyOneTimeTokenUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_one_time_token_upsert"}, time.Now())
+	var req structs.OneTimeToken
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertOneTimeToken(msgType, index, &req); err != nil {
+		n.logger.Error("UpsertOneTimeToken failed", "error", err)
+		return err
+	}
+	return nil
+}
+
+// applyOneTimeTokenDelete is used to delete a set of one-time tokens
+func (n *nomadFSM) applyOneTimeTokenDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_one_time_token_delete"}, time.Now())
+	var req structs.OneTimeTokenDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteOneTimeTokens(msgType, index, req.AccessorIDs); err != nil {
+		n.logger.Error("DeleteOneTimeTokens failed", "error", err)
+		return err
+	}
+	return nil
+}
+
+// applyOneTimeTokenExpire is used to delete a set of one-time tokens
+func (n *nomadFSM) applyOneTimeTokenExpire(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_one_time_token_expire"}, time.Now())
+	var req structs.OneTimeTokenExpireRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.ExpireOneTimeTokens(msgType, index); err != nil {
+		n.logger.Error("ExpireOneTimeTokens failed", "error", err)
 		return err
 	}
 	return nil
@@ -1139,7 +1266,7 @@ func (n *nomadFSM) applyCSIVolumeRegister(buf []byte, index uint64) interface{} 
 	}
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_register"}, time.Now())
 
-	if err := n.state.CSIVolumeRegister(index, req.Volumes); err != nil {
+	if err := n.state.UpsertCSIVolume(index, req.Volumes); err != nil {
 		n.logger.Error("CSIVolumeRegister failed", "error", err)
 		return err
 	}
@@ -1154,7 +1281,7 @@ func (n *nomadFSM) applyCSIVolumeDeregister(buf []byte, index uint64) interface{
 	}
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_deregister"}, time.Now())
 
-	if err := n.state.CSIVolumeDeregister(index, req.RequestNamespace(), req.VolumeIDs); err != nil {
+	if err := n.state.CSIVolumeDeregister(index, req.RequestNamespace(), req.VolumeIDs, req.Force); err != nil {
 		n.logger.Error("CSIVolumeDeregister failed", "error", err)
 		return err
 	}
@@ -1212,6 +1339,57 @@ func (n *nomadFSM) applyCSIPluginDelete(buf []byte, index uint64) interface{} {
 	return nil
 }
 
+// applyNamespaceUpsert is used to upsert a set of namespaces
+func (n *nomadFSM) applyNamespaceUpsert(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_namespace_upsert"}, time.Now())
+	var req structs.NamespaceUpsertRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	var trigger []string
+	for _, ns := range req.Namespaces {
+		old, err := n.state.NamespaceByName(nil, ns.Name)
+		if err != nil {
+			n.logger.Error("namespace lookup failed", "error", err)
+			return err
+		}
+
+		// If we are changing the quota on a namespace trigger evals for the
+		// older quota.
+		if old != nil && old.Quota != "" && old.Quota != ns.Quota {
+			trigger = append(trigger, old.Quota)
+		}
+	}
+
+	if err := n.state.UpsertNamespaces(index, req.Namespaces); err != nil {
+		n.logger.Error("UpsertNamespaces failed", "error", err)
+		return err
+	}
+
+	// Send the unblocks
+	for _, quota := range trigger {
+		n.blockedEvals.UnblockQuota(quota, index)
+	}
+
+	return nil
+}
+
+// applyNamespaceDelete is used to delete a set of namespaces
+func (n *nomadFSM) applyNamespaceDelete(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_namespace_delete"}, time.Now())
+	var req structs.NamespaceDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteNamespaces(index, req.Namespaces); err != nil {
+		n.logger.Error("DeleteNamespaces failed", "error", err)
+	}
+
+	return nil
+}
+
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()
@@ -1231,8 +1409,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 
 	// Create a new state store
 	config := &state.StateStoreConfig{
-		Logger: n.config.Logger,
-		Region: n.config.Region,
+		Logger:          n.config.Logger,
+		Region:          n.config.Region,
+		EnablePublisher: n.config.EnableEventBroker,
+		EventBufferSize: n.config.EventBufferSize,
 	}
 	newState, err := state.NewStateStore(config)
 	if err != nil {
@@ -1449,6 +1629,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+			// Handle upgrade path:
+			//   - Set policy type if empty
+			scalingPolicy.Canonicalize()
+
 			if err := restore.ScalingPolicyRestore(scalingPolicy); err != nil {
 				return err
 			}
@@ -1473,6 +1657,34 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		case NamespaceSnapshot:
+			namespace := new(structs.Namespace)
+			if err := dec.Decode(namespace); err != nil {
+				return err
+			}
+			if err := restore.NamespaceRestore(namespace); err != nil {
+				return err
+			}
+
+		// COMPAT(1.0): Allow 1.0-beta clusterers to gracefully handle
+		case EventSinkSnapshot:
+			return nil
+
+		case ServiceRegistrationSnapshot:
+
+			// Create a new ServiceRegistration object, so we can decode the
+			// message into it.
+			serviceRegistration := new(structs.ServiceRegistration)
+
+			if err := dec.Decode(serviceRegistration); err != nil {
+				return err
+			}
+
+			// Perform the restoration.
+			if err := restore.ServiceRegistrationRestore(serviceRegistration); err != nil {
+				return err
+			}
+
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
@@ -1487,7 +1699,9 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 		}
 	}
 
-	restore.Commit()
+	if err := restore.Commit(); err != nil {
+		return err
+	}
 
 	// COMPAT Remove in 0.10
 	// Clean up active deployments that do not have a job
@@ -1512,16 +1726,16 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 
 // failLeakedDeployments is used to fail deployments that do not have a job.
 // This state is a broken invariant that should not occur since 0.8.X.
-func (n *nomadFSM) failLeakedDeployments(state *state.StateStore) error {
+func (n *nomadFSM) failLeakedDeployments(store *state.StateStore) error {
 	// Scan for deployments that are referencing a job that no longer exists.
 	// This could happen if multiple deployments were created for a given job
 	// and thus the older deployment leaks and then the job is removed.
-	iter, err := state.Deployments(nil)
+	iter, err := store.Deployments(nil, state.SortDefault)
 	if err != nil {
 		return fmt.Errorf("failed to query deployments: %v", err)
 	}
 
-	dindex, err := state.Index("deployment")
+	dindex, err := store.Index("deployment")
 	if err != nil {
 		return fmt.Errorf("couldn't fetch index of deployments table: %v", err)
 	}
@@ -1541,7 +1755,7 @@ func (n *nomadFSM) failLeakedDeployments(state *state.StateStore) error {
 		}
 
 		// Find the job
-		job, err := state.JobByID(nil, d.Namespace, d.JobID)
+		job, err := store.JobByID(nil, d.Namespace, d.JobID)
 		if err != nil {
 			return fmt.Errorf("failed to lookup job %s from deployment %q: %v", d.JobID, d.ID, err)
 		}
@@ -1555,7 +1769,7 @@ func (n *nomadFSM) failLeakedDeployments(state *state.StateStore) error {
 		failed := d.Copy()
 		failed.Status = structs.DeploymentStatusCancelled
 		failed.StatusDescription = structs.DeploymentStatusDescriptionStoppedJob
-		if err := state.UpsertDeployment(dindex, failed); err != nil {
+		if err := store.UpsertDeployment(dindex, failed); err != nil {
 			return fmt.Errorf("failed to mark leaked deployment %q as failed: %v", failed.ID, err)
 		}
 	}
@@ -1606,9 +1820,10 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 			Status:         structs.EvalStatusPending,
 			AnnotatePlan:   true,
 		}
-		snap.UpsertEvals(100, []*structs.Evaluation{eval})
+		// Ignore eval event creation during snapshot restore
+		snap.UpsertEvals(structs.IgnoreUnknownTypeFlag, 100, []*structs.Evaluation{eval})
 		// Create the scheduler and run it
-		sched, err := scheduler.NewScheduler(eval.Type, n.logger, snap, planner)
+		sched, err := scheduler.NewScheduler(eval.Type, n.logger, nil, snap, planner)
 		if err != nil {
 			return err
 		}
@@ -1678,6 +1893,51 @@ func (n *nomadFSM) applyUpsertScalingEvent(buf []byte, index uint64) interface{}
 
 	if err := n.state.UpsertScalingEvent(index, &req); err != nil {
 		n.logger.Error("UpsertScalingEvent failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyUpsertServiceRegistrations(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_service_registration_upsert"}, time.Now())
+	var req structs.ServiceRegistrationUpsertRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertServiceRegistrations(msgType, index, req.Services); err != nil {
+		n.logger.Error("UpsertServiceRegistrations failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyDeleteServiceRegistrationByID(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_service_registration_delete_id"}, time.Now())
+	var req structs.ServiceRegistrationDeleteByIDRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteServiceRegistrationByID(msgType, index, req.RequestNamespace(), req.ID); err != nil {
+		n.logger.Error("DeleteServiceRegistrationByID failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyDeleteServiceRegistrationByNodeID(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_service_registration_delete_node_id"}, time.Now())
+	var req structs.ServiceRegistrationDeleteByNodeIDRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteServiceRegistrationByNodeID(msgType, index, req.NodeID); err != nil {
+		n.logger.Error("DeleteServiceRegistrationByNodeID failed", "error", err)
 		return err
 	}
 
@@ -1769,6 +2029,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistACLTokens(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistNamespaces(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -1874,7 +2138,7 @@ func (s *nomadSnapshot) persistEvals(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the evaluations
 	ws := memdb.NewWatchSet()
-	evals, err := s.snap.Evals(ws)
+	evals, err := s.snap.Evals(ws, false)
 	if err != nil {
 		return err
 	}
@@ -1902,7 +2166,7 @@ func (s *nomadSnapshot) persistAllocs(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the allocations
 	ws := memdb.NewWatchSet()
-	allocs, err := s.snap.Allocs(ws)
+	allocs, err := s.snap.Allocs(ws, state.SortDefault)
 	if err != nil {
 		return err
 	}
@@ -2053,7 +2317,7 @@ func (s *nomadSnapshot) persistDeployments(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the jobs
 	ws := memdb.NewWatchSet()
-	deployments, err := s.snap.Deployments(ws)
+	deployments, err := s.snap.Deployments(ws, state.SortDefault)
 	if err != nil {
 		return err
 	}
@@ -2109,7 +2373,7 @@ func (s *nomadSnapshot) persistACLTokens(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the policies
 	ws := memdb.NewWatchSet()
-	tokens, err := s.snap.ACLTokens(ws)
+	tokens, err := s.snap.ACLTokens(ws, state.SortDefault)
 	if err != nil {
 		return err
 	}
@@ -2127,6 +2391,34 @@ func (s *nomadSnapshot) persistACLTokens(sink raft.SnapshotSink,
 		// Write out a token registration
 		sink.Write([]byte{byte(ACLTokenSnapshot)})
 		if err := encoder.Encode(token); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// persistNamespaces persists all the namespaces.
+func (s *nomadSnapshot) persistNamespaces(sink raft.SnapshotSink, encoder *codec.Encoder) error {
+	// Get all the jobs
+	ws := memdb.NewWatchSet()
+	namespaces, err := s.snap.Namespaces(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := namespaces.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		namespace := raw.(*structs.Namespace)
+
+		// Write out a namespace registration
+		sink.Write([]byte{byte(NamespaceSnapshot)})
+		if err := encoder.Encode(namespace); err != nil {
 			return err
 		}
 	}
@@ -2155,7 +2447,8 @@ func (s *nomadSnapshot) persistClusterMetadata(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 
 	// Get the cluster metadata
-	clusterMetadata, err := s.snap.ClusterMetadata()
+	ws := memdb.NewWatchSet()
+	clusterMetadata, err := s.snap.ClusterMetadata(ws)
 	if err != nil {
 		return err
 	}

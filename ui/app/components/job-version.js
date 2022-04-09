@@ -1,6 +1,9 @@
 import Component from '@ember/component';
 import { action, computed } from '@ember/object';
 import { classNames } from '@ember-decorators/component';
+import { inject as service } from '@ember/service';
+import { task } from 'ember-concurrency';
+import messageForError from 'nomad-ui/utils/message-from-adapter-error';
 import classic from 'ember-classic-decorator';
 
 const changeTypes = ['Added', 'Deleted', 'Edited'];
@@ -14,6 +17,8 @@ export default class JobVersion extends Component {
   // Passes through to the job-diff component
   verbose = true;
 
+  @service router;
+
   @computed('version.diff')
   get changeCount() {
     const diff = this.get('version.diff');
@@ -26,18 +31,59 @@ export default class JobVersion extends Component {
     return (
       fieldChanges(diff) +
       taskGroups.reduce(arrayOfFieldChanges, 0) +
-      (taskGroups.mapBy('Tasks') || []).reduce(flatten, []).reduce(arrayOfFieldChanges, 0)
+      (taskGroups.mapBy('Tasks') || [])
+        .reduce(flatten, [])
+        .reduce(arrayOfFieldChanges, 0)
     );
+  }
+
+  @computed('version.{number,job.version}')
+  get isCurrent() {
+    return this.get('version.number') === this.get('version.job.version');
   }
 
   @action
   toggleDiff() {
     this.toggleProperty('isOpen');
   }
+
+  @task(function* () {
+    try {
+      const versionBeforeReversion = this.get('version.job.version');
+
+      yield this.version.revertTo();
+      yield this.version.job.reload();
+
+      const versionAfterReversion = this.get('version.job.version');
+
+      if (versionBeforeReversion === versionAfterReversion) {
+        this.handleError({
+          level: 'warn',
+          title: 'Reversion Had No Effect',
+          description:
+            'Reverting to an identical older version doesn’t produce a new version',
+        });
+      } else {
+        const job = this.get('version.job');
+
+        this.router.transitionTo('jobs.job', job.get('plainId'), {
+          queryParams: { namespace: job.get('namespace.name') },
+        });
+      }
+    } catch (e) {
+      this.handleError({
+        level: 'danger',
+        title: 'Could Not Revert',
+        description: messageForError(e, 'revert'),
+      });
+    }
+  })
+  revertTo;
 }
 
 const flatten = (accumulator, array) => accumulator.concat(array);
-const countChanges = (total, field) => (changeTypes.includes(field.Type) ? total + 1 : total);
+const countChanges = (total, field) =>
+  changeTypes.includes(field.Type) ? total + 1 : total;
 
 function fieldChanges(diff) {
   return (

@@ -3,6 +3,7 @@ package nomad
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -23,6 +25,8 @@ import (
 )
 
 func TestLeader_LeftServer(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 	})
@@ -85,6 +89,8 @@ func TestLeader_LeftServer(t *testing.T) {
 }
 
 func TestLeader_LeftLeader(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 	})
@@ -112,16 +118,8 @@ func TestLeader_LeftLeader(t *testing.T) {
 	}
 
 	// Kill the leader!
-	var leader *Server
-	for _, s := range servers {
-		if s.IsLeader() {
-			leader = s
-			break
-		}
-	}
-	if leader == nil {
-		t.Fatalf("Should have a leader")
-	}
+	leader := waitForStableLeadership(t, servers)
+
 	leader.Leave()
 	leader.Shutdown()
 
@@ -139,6 +137,8 @@ func TestLeader_LeftLeader(t *testing.T) {
 }
 
 func TestLeader_MultiBootstrap(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 
@@ -169,6 +169,8 @@ func TestLeader_MultiBootstrap(t *testing.T) {
 }
 
 func TestLeader_PlanQueue_Reset(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 	})
@@ -225,6 +227,8 @@ func TestLeader_PlanQueue_Reset(t *testing.T) {
 }
 
 func TestLeader_EvalBroker_Reset(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
@@ -283,6 +287,8 @@ func TestLeader_EvalBroker_Reset(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
@@ -373,6 +379,8 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
@@ -429,6 +437,8 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
@@ -486,6 +496,8 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatch(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EvalGCInterval = 5 * time.Millisecond
@@ -506,6 +518,8 @@ func TestLeader_PeriodicDispatch(t *testing.T) {
 }
 
 func TestLeader_ReapFailedEval(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EvalDeliveryLimit = 1
@@ -584,6 +598,8 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 }
 
 func TestLeader_ReapDuplicateEval(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
@@ -614,6 +630,8 @@ func TestLeader_ReapDuplicateEval(t *testing.T) {
 }
 
 func TestLeader_revokeVaultAccessorsOnRestore(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
@@ -642,7 +660,7 @@ func TestLeader_revokeVaultAccessorsOnRestore(t *testing.T) {
 }
 
 func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -651,7 +669,7 @@ func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// replace consul ACLs api with a mock for tracking calls
+	// replace consul ACLs API with a mock for tracking calls in tests
 	var consulACLsAPI mockConsulACLsAPI
 	s1.consulACLs = &consulACLsAPI
 
@@ -674,7 +692,7 @@ func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
 }
 
 func TestLeader_ClusterID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -690,7 +708,7 @@ func TestLeader_ClusterID(t *testing.T) {
 }
 
 func TestLeader_ClusterID_upgradePath(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	before := version.Must(version.NewVersion("0.10.1")).String()
 	after := minClusterIDVersion.String()
@@ -798,7 +816,7 @@ func TestLeader_ClusterID_upgradePath(t *testing.T) {
 }
 
 func TestLeader_ClusterID_noUpgrade(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	type server struct {
 		s       *Server
@@ -863,7 +881,7 @@ func agreeClusterID(t *testing.T, servers []*Server) {
 }
 
 func TestLeader_ReplicateACLPolicies(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.Region = "region1"
@@ -885,7 +903,7 @@ func TestLeader_ReplicateACLPolicies(t *testing.T) {
 
 	// Write a policy to the authoritative region
 	p1 := mock.ACLPolicy()
-	if err := s1.State().UpsertACLPolicies(100, []*structs.ACLPolicy{p1}); err != nil {
+	if err := s1.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{p1}); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -900,7 +918,7 @@ func TestLeader_ReplicateACLPolicies(t *testing.T) {
 }
 
 func TestLeader_DiffACLPolicies(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := state.TestStateStore(t)
 
@@ -908,7 +926,7 @@ func TestLeader_DiffACLPolicies(t *testing.T) {
 	p1 := mock.ACLPolicy()
 	p2 := mock.ACLPolicy()
 	p3 := mock.ACLPolicy()
-	assert.Nil(t, state.UpsertACLPolicies(100, []*structs.ACLPolicy{p1, p2, p3}))
+	assert.Nil(t, state.UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{p1, p2, p3}))
 
 	// Simulate a remote list
 	p2Stub := p2.Stub()
@@ -932,7 +950,7 @@ func TestLeader_DiffACLPolicies(t *testing.T) {
 }
 
 func TestLeader_ReplicateACLTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.Region = "region1"
@@ -955,7 +973,7 @@ func TestLeader_ReplicateACLTokens(t *testing.T) {
 	// Write a token to the authoritative region
 	p1 := mock.ACLToken()
 	p1.Global = true
-	if err := s1.State().UpsertACLTokens(100, []*structs.ACLToken{p1}); err != nil {
+	if err := s1.State().UpsertACLTokens(structs.MsgTypeTestSetup, 100, []*structs.ACLToken{p1}); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -970,7 +988,7 @@ func TestLeader_ReplicateACLTokens(t *testing.T) {
 }
 
 func TestLeader_DiffACLTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := state.TestStateStore(t)
 
@@ -982,7 +1000,7 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 	p2.Global = true
 	p3 := mock.ACLToken()
 	p3.Global = true
-	assert.Nil(t, state.UpsertACLTokens(100, []*structs.ACLToken{p0, p1, p2, p3}))
+	assert.Nil(t, state.UpsertACLTokens(structs.MsgTypeTestSetup, 100, []*structs.ACLToken{p0, p1, p2, p3}))
 
 	// Simulate a remote list
 	p2Stub := p2.Stub()
@@ -1008,7 +1026,7 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 }
 
 func TestLeader_UpgradeRaftVersion(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Datacenter = "dc1"
@@ -1098,9 +1116,11 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 }
 
 func TestLeader_Reelection(t *testing.T) {
+	ci.Parallel(t)
+
 	raftProtocols := []int{1, 2, 3}
 	for _, p := range raftProtocols {
-		t.Run("Leader Election - Protocol version "+string(p), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Leader Election - Protocol version %d", p), func(t *testing.T) {
 			leaderElectionTest(t, raft.ProtocolVersion(p))
 		})
 	}
@@ -1165,7 +1185,8 @@ func leaderElectionTest(t *testing.T, raftProtocol raft.ProtocolVersion) {
 }
 
 func TestLeader_RollRaftServer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+	ci.SkipSlow(t, "flaky on GHA; #12358")
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 2
@@ -1196,7 +1217,9 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	// Kill the first v2 server
 	s1.Shutdown()
 
-	for _, s := range []*Server{s1, s3} {
+	for _, s := range []*Server{s2, s3} {
+		s.RemoveFailedNode(s1.config.NodeID)
+
 		retry.Run(t, func(r *retry.R) {
 			minVer, err := s.autopilot.MinRaftProtocol()
 			if err != nil {
@@ -1204,6 +1227,14 @@ func TestLeader_RollRaftServer(t *testing.T) {
 			}
 			if got, want := minVer, 2; got != want {
 				r.Fatalf("got min raft version %d want %d", got, want)
+			}
+
+			configFuture := s.raft.GetConfiguration()
+			if err != nil {
+				r.Fatal(err)
+			}
+			if len(configFuture.Configuration().Servers) != 2 {
+				r.Fatalf("expected 2 servers, got %d", len(configFuture.Configuration().Servers))
 			}
 		})
 	}
@@ -1214,20 +1245,33 @@ func TestLeader_RollRaftServer(t *testing.T) {
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS4()
-	TestJoin(t, s4, s2)
+	TestJoin(t, s2, s3, s4)
 	servers[0] = s4
 
 	// Kill the second v2 server
 	s2.Shutdown()
 
 	for _, s := range []*Server{s3, s4} {
-		retry.Run(t, func(r *retry.R) {
+		s.RemoveFailedNode(s2.config.NodeID)
+
+		retry.RunWith(&retry.Counter{
+			Count: int(10 * testutil.TestMultiplier()),
+			Wait:  time.Duration(testutil.TestMultiplier()) * time.Second,
+		}, t, func(r *retry.R) {
 			minVer, err := s.autopilot.MinRaftProtocol()
 			if err != nil {
 				r.Fatal(err)
 			}
 			if got, want := minVer, 2; got != want {
 				r.Fatalf("got min raft version %d want %d", got, want)
+			}
+
+			configFuture := s.raft.GetConfiguration()
+			if err != nil {
+				r.Fatal(err)
+			}
+			if len(configFuture.Configuration().Servers) != 2 {
+				r.Fatalf("expected 2 servers, got %d", len(configFuture.Configuration().Servers))
 			}
 		})
 	}
@@ -1237,20 +1281,33 @@ func TestLeader_RollRaftServer(t *testing.T) {
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS5()
-	TestJoin(t, s5, s4)
+	TestJoin(t, s3, s4, s5)
 	servers[1] = s5
 
 	// Kill the last v2 server, now minRaftProtocol should be 3
 	s3.Shutdown()
 
 	for _, s := range []*Server{s4, s5} {
-		retry.Run(t, func(r *retry.R) {
+		s.RemoveFailedNode(s2.config.NodeID)
+
+		retry.RunWith(&retry.Counter{
+			Count: int(10 * testutil.TestMultiplier()),
+			Wait:  time.Duration(testutil.TestMultiplier()) * time.Second,
+		}, t, func(r *retry.R) {
 			minVer, err := s.autopilot.MinRaftProtocol()
 			if err != nil {
 				r.Fatal(err)
 			}
 			if got, want := minVer, 3; got != want {
 				r.Fatalf("got min raft version %d want %d", got, want)
+			}
+
+			configFuture := s.raft.GetConfiguration()
+			if err != nil {
+				r.Fatal(err)
+			}
+			if len(configFuture.Configuration().Servers) != 2 {
+				r.Fatalf("expected 2 servers, got %d", len(configFuture.Configuration().Servers))
 			}
 		})
 	}
@@ -1291,6 +1348,8 @@ func TestLeader_RollRaftServer(t *testing.T) {
 }
 
 func TestLeader_RevokeLeadership_MultipleTimes(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1307,6 +1366,8 @@ func TestLeader_RevokeLeadership_MultipleTimes(t *testing.T) {
 }
 
 func TestLeader_TransitionsUpdateConsistencyRead(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1328,6 +1389,8 @@ func TestLeader_TransitionsUpdateConsistencyRead(t *testing.T) {
 // TestLeader_PausingWorkers asserts that scheduling workers are paused
 // (and unpaused) upon leader elections (and step downs).
 func TestLeader_PausingWorkers(t *testing.T) {
+	ci.Parallel(t)
+
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 12
 	})
@@ -1335,32 +1398,38 @@ func TestLeader_PausingWorkers(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	require.Len(t, s1.workers, 12)
 
-	pausedWorkers := func() int {
-		c := 0
-		for _, w := range s1.workers {
-			w.pauseLock.Lock()
-			if w.paused {
-				c++
+	// this satisfies the require.Eventually test interface
+	checkPaused := func(count int) func() bool {
+		return func() bool {
+			pausedWorkers := func() int {
+				c := 0
+				for _, w := range s1.workers {
+					if w.IsPaused() {
+						c++
+					}
+				}
+				return c
 			}
-			w.pauseLock.Unlock()
+
+			return pausedWorkers() == count
 		}
-		return c
 	}
 
-	// pause 3/4 of the workers
-	require.Equal(t, 9, pausedWorkers())
+	// acquiring leadership should have paused 3/4 of the workers
+	require.Eventually(t, checkPaused(9), 1*time.Second, 10*time.Millisecond, "scheduler workers did not pause within a second at leadership change")
 
 	err := s1.revokeLeadership()
 	require.NoError(t, err)
 
-	require.Zero(t, pausedWorkers())
+	// unpausing is a relatively quick activity
+	require.Eventually(t, checkPaused(0), 50*time.Millisecond, 10*time.Millisecond, "scheduler workers should have unpaused after losing leadership")
 }
 
 // Test doing an inplace upgrade on a server from raft protocol 2 to 3
 // This verifies that removing the server and adding it back with a uuid works
 // even if the server's address stays the same.
 func TestServer_ReconcileMember(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Create a three node cluster
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -1457,6 +1526,86 @@ func TestServer_ReconcileMember(t *testing.T) {
 	}
 }
 
+func TestLeader_ReplicateNamespaces(t *testing.T) {
+	ci.Parallel(t)
+	assert := assert.New(t)
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
+		c.Region = "region1"
+		c.AuthoritativeRegion = "region1"
+		c.ACLEnabled = true
+	})
+	defer cleanupS1()
+	s2, _, cleanupS2 := TestACLServer(t, func(c *Config) {
+		c.Region = "region2"
+		c.AuthoritativeRegion = "region1"
+		c.ACLEnabled = true
+		c.ReplicationBackoff = 20 * time.Millisecond
+		c.ReplicationToken = root.SecretID
+	})
+	defer cleanupS2()
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
+
+	// Write a namespace to the authoritative region
+	ns1 := mock.Namespace()
+	assert.Nil(s1.State().UpsertNamespaces(100, []*structs.Namespace{ns1}))
+
+	// Wait for the namespace to replicate
+	testutil.WaitForResult(func() (bool, error) {
+		state := s2.State()
+		out, err := state.NamespaceByName(nil, ns1.Name)
+		return out != nil, err
+	}, func(err error) {
+		t.Fatalf("should replicate namespace")
+	})
+
+	// Delete the namespace at the authoritative region
+	assert.Nil(s1.State().DeleteNamespaces(200, []string{ns1.Name}))
+
+	// Wait for the namespace deletion to replicate
+	testutil.WaitForResult(func() (bool, error) {
+		state := s2.State()
+		out, err := state.NamespaceByName(nil, ns1.Name)
+		return out == nil, err
+	}, func(err error) {
+		t.Fatalf("should replicate namespace deletion")
+	})
+}
+
+func TestLeader_DiffNamespaces(t *testing.T) {
+	ci.Parallel(t)
+
+	state := state.TestStateStore(t)
+
+	// Populate the local state
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	ns3 := mock.Namespace()
+	assert.Nil(t, state.UpsertNamespaces(100, []*structs.Namespace{ns1, ns2, ns3}))
+
+	// Simulate a remote list
+	rns2 := ns2.Copy()
+	rns2.ModifyIndex = 50 // Ignored, same index
+	rns3 := ns3.Copy()
+	rns3.ModifyIndex = 100 // Updated, higher index
+	rns3.Hash = []byte{0, 1, 2, 3}
+	ns4 := mock.Namespace()
+	remoteList := []*structs.Namespace{
+		rns2,
+		rns3,
+		ns4,
+	}
+	delete, update := diffNamespaces(state, 50, remoteList)
+	sort.Strings(delete)
+
+	// ns1 does not exist on the remote side, should delete
+	assert.Equal(t, []string{structs.DefaultNamespace, ns1.Name}, delete)
+
+	// ns2 is un-modified - ignore. ns3 modified, ns4 new.
+	assert.Equal(t, []string{ns3.Name, ns4.Name}, update)
+}
+
 // waitForStableLeadership waits until a leader is elected and all servers
 // get promoted as voting members, returns the leader
 func waitForStableLeadership(t *testing.T, servers []*Server) *Server {
@@ -1466,7 +1615,11 @@ func waitForStableLeadership(t *testing.T, servers []*Server) *Server {
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
 			peers, _ := s.numPeers()
-			return peers == 3, fmt.Errorf("should find %d peers but found %d", nPeers, peers)
+			if peers != nPeers {
+				return false, fmt.Errorf("should find %d peers but found %d", nPeers, peers)
+			}
+
+			return true, nil
 		}, func(err error) {
 			require.NoError(t, err)
 		})

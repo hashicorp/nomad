@@ -1,11 +1,15 @@
 import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 import queryString from 'query-string';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class JobSerializer extends ApplicationSerializer {
   attrs = {
     parameterized: 'ParameterizedJob',
   };
+
+  separateNanos = ['SubmitTime'];
 
   normalize(typeHash, hash) {
     hash.NamespaceID = hash.Namespace;
@@ -18,7 +22,10 @@ export default class JobSerializer extends ApplicationSerializer {
     if (!hash.ParentID) {
       hash.ParentID = null;
     } else {
-      hash.ParentID = JSON.stringify([hash.ParentID, hash.NamespaceID || 'default']);
+      hash.ParentID = JSON.stringify([
+        hash.ParentID,
+        hash.NamespaceID || 'default',
+      ]);
     }
 
     // Job Summary is always at /:job-id/summary, but since it can also come from
@@ -50,8 +57,14 @@ export default class JobSerializer extends ApplicationSerializer {
 
   extractRelationships(modelClass, hash) {
     const namespace =
-      !hash.NamespaceID || hash.NamespaceID === 'default' ? undefined : hash.NamespaceID;
+      !hash.NamespaceID || hash.NamespaceID === 'default'
+        ? undefined
+        : hash.NamespaceID;
     const { modelName } = modelClass;
+
+    const apiNamespace = this.store
+      .adapterFor(modelClass.modelName)
+      .get('namespace');
 
     const [jobURL] = this.store
       .adapterFor(modelName)
@@ -82,6 +95,19 @@ export default class JobSerializer extends ApplicationSerializer {
       evaluations: {
         links: {
           related: buildURL(`${jobURL}/evaluations`, { namespace }),
+        },
+      },
+      scaleState: {
+        links: {
+          related: buildURL(`${jobURL}/scale`, { namespace }),
+        },
+      },
+      recommendationSummaries: {
+        links: {
+          related: buildURL(`/${apiNamespace}/recommendations`, {
+            job: hash.PlainId,
+            namespace: hash.NamespaceID || 'default',
+          }),
         },
       },
     });

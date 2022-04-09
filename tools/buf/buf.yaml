@@ -1,0 +1,50 @@
+version: v1beta1
+build:
+  roots:
+    - .
+  excludes:
+    - vendor
+lint:
+  use:
+    - DEFAULT
+  allow_comment_ignores: true
+  ignore_only:
+    ENUM_VALUE_PREFIX:
+      - plugins/base/proto/base.proto
+      - plugins/drivers/proto/driver.proto
+    ENUM_ZERO_VALUE_SUFFIX:
+      - plugins/base/proto/base.proto
+      - plugins/drivers/proto/driver.proto
+    PACKAGE_DIRECTORY_MATCH:
+      - client/logmon/proto/logmon.proto
+      - drivers/docker/docklog/proto/docker_logger.proto
+      - drivers/shared/executor/proto/executor.proto
+      - plugins/base/proto/base.proto
+      - plugins/device/proto/device.proto
+      - plugins/drivers/proto/driver.proto
+      - plugins/shared/hclspec/hcl_spec.proto
+      - plugins/shared/structs/proto/attribute.proto
+      - plugins/shared/structs/proto/recoverable_error.proto
+      - plugins/shared/structs/proto/stats.proto
+    PACKAGE_VERSION_SUFFIX:
+      - client/logmon/proto/logmon.proto
+      - drivers/docker/docklog/proto/docker_logger.proto
+      - drivers/shared/executor/proto/executor.proto
+      - plugins/base/proto/base.proto
+      - plugins/device/proto/device.proto
+      - plugins/drivers/proto/driver.proto
+      - plugins/shared/hclspec/hcl_spec.proto
+      - plugins/shared/structs/proto/attribute.proto
+      - plugins/shared/structs/proto/recoverable_error.proto
+      - plugins/shared/structs/proto/stats.proto
+    SERVICE_SUFFIX:
+      - client/logmon/proto/logmon.proto
+      - drivers/docker/docklog/proto/docker_logger.proto
+      - drivers/shared/executor/proto/executor.proto
+      - plugins/base/proto/base.proto
+      - plugins/device/proto/device.proto
+      - plugins/drivers/proto/driver.proto
+
+breaking:
+  use:
+    - WIRE_JSON

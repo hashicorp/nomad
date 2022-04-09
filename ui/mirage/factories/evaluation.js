@@ -91,7 +91,9 @@ export default Factory.extend({
   }),
 
   afterCreate(evaluation, server) {
-    assignJob(evaluation, server);
+    if (!evaluation.nodeId) {
+      assignJob(evaluation, server);
+    }
   },
 });
 
@@ -104,7 +106,6 @@ function assignJob(evaluation, server) {
   const job = evaluation.jobId ? server.db.jobs.find(evaluation.jobId) : pickOne(server.db.jobs);
   evaluation.update({
     jobId: job.id,
-    job_id: job.id,
   });
 }
 

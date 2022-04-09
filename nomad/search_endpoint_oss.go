@@ -1,3 +1,4 @@
+//go:build !ent
 // +build !ent
 
 package nomad
@@ -35,14 +36,23 @@ func getEnterpriseResourceIter(context structs.Context, _ *acl.ACL, namespace, p
 	return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
 }
 
-// anySearchPerms returns true if the provided ACL has access to any
-// capabilities required for prefix searching. Returns true if aclObj is nil.
-func anySearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) bool {
+// getEnterpriseFuzzyResourceIter is used to retrieve an iterator over an enterprise
+// only table.
+func getEnterpriseFuzzyResourceIter(context structs.Context, _ *acl.ACL, _ string, _ memdb.WatchSet, _ *state.StateStore) (memdb.ResultIterator, error) {
+	return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
+}
+
+// sufficientSearchPerms returns true if the provided ACL has access to each
+// capability required for prefix searching for the given context.
+//
+// Returns true if aclObj is nil.
+func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) bool {
 	if aclObj == nil {
 		return true
 	}
 
 	nodeRead := aclObj.AllowNodeRead()
+	allowNS := aclObj.AllowNamespace(namespace)
 	jobRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIListVolume,
 		acl.NamespaceCapabilityCSIReadVolume,
@@ -50,7 +60,7 @@ func anySearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) 
 		acl.NamespaceCapabilityReadJob)
 	volRead := allowVolume(aclObj, namespace)
 
-	if !nodeRead && !jobRead && !volRead {
+	if !nodeRead && !jobRead && !volRead && !allowNS {
 		return false
 	}
 
@@ -60,6 +70,10 @@ func anySearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) 
 	if !nodeRead && context == structs.Nodes {
 		return false
 	}
+	if !allowNS && context == structs.Namespaces {
+		return false
+	}
+
 	if !jobRead {
 		switch context {
 		case structs.Allocs, structs.Deployments, structs.Evals, structs.Jobs:
@@ -73,22 +87,16 @@ func anySearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) 
 	return true
 }
 
-// searchContexts returns the contexts the aclObj is valid for. If aclObj is
-// nil all contexts are returned.
-func searchContexts(aclObj *acl.ACL, namespace string, context structs.Context) []structs.Context {
-	var all []structs.Context
-
-	switch context {
-	case structs.All:
-		all = make([]structs.Context, len(allContexts))
-		copy(all, allContexts)
-	default:
-		all = []structs.Context{context}
-	}
+// filteredSearchContexts returns the expanded set of contexts, filtered down
+// to the subset of contexts the aclObj is valid for.
+//
+// If aclObj is nil, no contexts are filtered out.
+func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.Context) []structs.Context {
+	desired := expandContext(context)
 
 	// If ACLs aren't enabled return all contexts
 	if aclObj == nil {
-		return all
+		return desired
 	}
 
 	jobRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
@@ -97,13 +105,22 @@ func searchContexts(aclObj *acl.ACL, namespace string, context structs.Context) 
 		acl.NamespaceCapabilityListJobs,
 		acl.NamespaceCapabilityReadJob)
 	volRead := allowVolume(aclObj, namespace)
+	policyRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListScalingPolicies)
 
 	// Filter contexts down to those the ACL grants access to
-	available := make([]structs.Context, 0, len(all))
-	for _, c := range all {
+	available := make([]structs.Context, 0, len(desired))
+	for _, c := range desired {
 		switch c {
 		case structs.Allocs, structs.Jobs, structs.Evals, structs.Deployments:
 			if jobRead {
+				available = append(available, c)
+			}
+		case structs.ScalingPolicies:
+			if policyRead || jobRead {
+				available = append(available, c)
+			}
+		case structs.Namespaces:
+			if aclObj.AllowNamespace(namespace) {
 				available = append(available, c)
 			}
 		case structs.Nodes:

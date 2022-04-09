@@ -1,7 +1,6 @@
 import { computed } from '@ember/object';
-import Model from 'ember-data/model';
-import attr from 'ember-data/attr';
-import { belongsTo, hasMany } from 'ember-data/relationships';
+import Model from '@ember-data/model';
+import { attr, belongsTo, hasMany } from '@ember-data/model';
 
 export default class Volume extends Model {
   @attr('string') plainId;
@@ -15,7 +14,18 @@ export default class Volume extends Model {
 
   @computed('writeAllocations.[]', 'readAllocations.[]')
   get allocations() {
-    return [...this.writeAllocations.toArray(), ...this.readAllocations.toArray()];
+    return [
+      ...this.writeAllocations.toArray(),
+      ...this.readAllocations.toArray(),
+    ];
+  }
+
+  @attr('number') currentWriters;
+  @attr('number') currentReaders;
+
+  @computed('currentWriters', 'currentReaders')
+  get allocationCount() {
+    return this.currentWriters + this.currentReaders;
   }
 
   @attr('string') externalId;
@@ -29,6 +39,13 @@ export default class Volume extends Model {
   @attr('boolean') controllerRequired;
   @attr('number') controllersHealthy;
   @attr('number') controllersExpected;
+
+  @computed('plainId')
+  get idWithNamespace() {
+    // does this handle default namespace -- I think the backend handles this for us
+    // but the client would always need to recreate that logic
+    return `${this.plainId}@${this.belongsTo('namespace').id()}`;
+  }
 
   @computed('controllersHealthy', 'controllersExpected')
   get controllersHealthyProportion() {

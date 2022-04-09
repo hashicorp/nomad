@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Log Stream',
+  title: 'Components/Log Stream',
 };
 
 export let LogStream = () => {

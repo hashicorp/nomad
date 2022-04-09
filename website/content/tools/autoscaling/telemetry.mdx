@@ -1,0 +1,271 @@
+---
+layout: docs
+page_title: Telemetry
+description: >
+  Overview of runtime metrics available in the Nomad Autoscaler.
+---
+
+# Nomad Autoscaler Telemetry
+
+The Nomad Autoscaler agent collects various runtime metrics about the performance
+of different libraries and subsystems. These metrics are aggregated on a ten
+second interval and are retained for one minute. To configure the telemetry output
+please see the [agent configuration][agent_telemetry_config].
+
+This data can be accessed via the `/v1/metrics` HTTP endpoint, via sending a
+signal to the Nomad Autoscaler process or via a number of integrations.
+
+To view this data via sending a signal to the Nomad Autoscaler process: on Unix,
+this is `USR1` while on Windows it is `BREAK`. Once Nomad Autoscaler receives
+the signal, it will dump the current telemetry information to the agent's `stderr`.
+
+This telemetry information can be used for debugging or otherwise
+getting a better view of what Nomad is doing.
+
+Below is sample output of a telemetry dump:
+
+```text
+[2020-08-25 10:01:20 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.sys_bytes': 74793216.000
+[2020-08-25 10:01:20 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.malloc_count': 219856.000
+[2020-08-25 10:01:20 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.free_count': 183613.000
+[2020-08-25 10:01:20 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.total_gc_pause_ns': 348822.000
+[2020-08-25 10:01:20 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.total_gc_runs': 5.000
+[2020-08-25 10:01:20 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.num_goroutines': 12.000
+[2020-08-25 10:01:20 +0100 BST][G] 'nomad-autoscaler.pathfinder.policy.total_num': 0.000
+[2020-08-25 10:01:20 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.alloc_bytes': 4316568.000
+[2020-08-25 10:01:20 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.heap_objects': 36243.000
+[2020-08-25 10:01:20 +0100 BST][S] 'nomad-autoscaler.runtime.gc_pause_ns': Count: 5 Min: 38083.000 Mean: 69764.400 Max: 122291.000 Stddev: 31487.808 Sum: 348822.000 LastUpdated: 2020-08-25 10:01:26.574809 +0100 BST m=+1.241576679
+[2020-08-25 10:01:30 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.alloc_bytes': 4370504.000
+[2020-08-25 10:01:30 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.malloc_count': 220853.000
+[2020-08-25 10:01:30 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.free_count': 183613.000
+[2020-08-25 10:01:30 +0100 BST][G] 'nomad-autoscaler.pathfinder.policy.total_num': 0.000
+[2020-08-25 10:01:30 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.num_goroutines': 12.000
+[2020-08-25 10:01:30 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.total_gc_pause_ns': 348822.000
+[2020-08-25 10:01:30 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.total_gc_runs': 5.000
+[2020-08-25 10:01:30 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.sys_bytes': 74793216.000
+[2020-08-25 10:01:30 +0100 BST][G] 'nomad-autoscaler.pathfinder.runtime.heap_objects': 37240.000
+```
+
+## Runtime Metrics
+
+The runtime metrics help understand the Nomad Autoscaler agent's memory and load
+pressure performance.
+
+<table>
+  <thead>
+    <tr>
+      <th>Metric</th>
+      <th>Description</th>
+      <th>Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.runtime.num_goroutines</code>
+      </td>
+      <td>Number of running goroutines</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.runtime.alloc_bytes</code>
+      </td>
+      <td>The number of allocated heap bytes</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.runtime.sys_bytes</code>
+      </td>
+      <td>The total bytes of memory obtained from the OS</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.runtime.malloc_count</code>
+      </td>
+      <td>Cumulative count of heap objects allocated</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.runtime.free_count</code>
+      </td>
+      <td>Cumulative count of heap objects freed</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.runtime.heap_objects</code>
+      </td>
+      <td>Number of allocated heap objects</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.runtime.total_gc_pause_ns</code>
+      </td>
+      <td>Cumulative nanoseconds in GC stop-the-world pauses</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.runtime.total_gc_runs</code>
+      </td>
+      <td>Number of completed GC cycles</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.runtime.gc_pause_ns</code>
+      </td>
+      <td>Number of nanoseconds to complete the last GC cycle</td>
+      <td>Timer</td>
+    </tr>
+  </tbody>
+</table>
+
+## Policy Metrics
+
+Policy metrics provide insights into the performance of the Nomad Autoscaler's
+policy handling.
+
+<table>
+  <thead>
+    <tr>
+      <th>Metric</th>
+      <th>Description</th>
+      <th>Type</th>
+      <th>Labels</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.policy.total_num</code>
+      </td>
+      <td>The number of policies currently held within the autoscaler</td>
+      <td>Gauge</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.policy.source.error_count</code>
+      </td>
+      <td>Tracks the number of errors generated by the policy sources</td>
+      <td>Counter</td>
+      <td>policy_source</td>
+    </tr>
+  </tbody>
+</table>
+
+## Scaling Metrics
+
+Scaling metrics provide insight into the performance of scaling actions as well
+as overall success and failure counters.
+
+<table>
+  <thead>
+    <tr>
+      <th>Metric</th>
+      <th>Description</th>
+      <th>Type</th>
+      <th>Labels</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.scale.evaluate_ms</code>
+      </td>
+      <td>The time taken to evaluate the checks within a single policy</td>
+      <td>Timer</td>
+      <td>policy_id, target_name</td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.scale.invoke_ms</code>
+      </td>
+      <td>The time taken to invoke scaling based on the scaling evaluations</td>
+      <td>Timer</td>
+      <td>policy_id, target_name</td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.scale.invoke.success_count</code>
+      </td>
+      <td>Tracks the number of successful scaling actions triggered</td>
+      <td>Counter</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.scale.invoke.error_count</code>
+      </td>
+      <td>Tracks the number of unsuccessful scaling actions triggered</td>
+      <td>Counter</td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+## Plugin Metrics
+
+Plugin metrics provide insight into the performance of Nomad Autoscaler plugins
+and help identify potential bottle necks or latency issues.
+
+<table>
+  <thead>
+    <tr>
+      <th>Metric</th>
+      <th>Description</th>
+      <th>Type</th>
+      <th>Labels</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.plugin.manager.access_ms</code>
+      </td>
+      <td>The time taken to dispense a plugin</td>
+      <td>Timer</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.target.status.invoke_ms</code>
+      </td>
+      <td>The time taken to perform the target plugin status call</td>
+      <td>Timer</td>
+      <td>policy_id, plugin_name</td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.target.scale.invoke_ms</code>
+      </td>
+      <td>The time taken to perform the target plugin scale call</td>
+      <td>Timer</td>
+      <td>policy_id, plugin_name</td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.apm.query.invoke_ms</code>
+      </td>
+      <td>The time taken to perform the APM plugin query call</td>
+      <td>Timer</td>
+      <td>policy_id, plugin_name</td>
+    </tr>
+    <tr>
+      <td>
+        <code>nomad-autoscaler.strategy.run.invoke_ms</code>
+      </td>
+      <td>The time taken to perform the strategy plugin run call</td>
+      <td>Timer</td>
+      <td>policy_id, plugin_name</td>
+    </tr>
+  </tbody>
+</table>
+
+[agent_telemetry_config]: /tools/autoscaling/agent#telemetry-block

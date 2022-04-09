@@ -1,9 +1,10 @@
-// +build linux
+//go:build linux
 
 package executor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,8 +19,11 @@ import (
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/resources"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -27,19 +31,20 @@ import (
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/devices"
 	ldevices "github.com/opencontainers/runc/libcontainer/devices"
+	"github.com/opencontainers/runc/libcontainer/specconv"
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
-	"github.com/syndtr/gocapability/capability"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
 )
 
-const (
-	defaultCgroupParent = "/nomad"
-)
-
 var (
-	// ExecutorCgroupMeasuredMemStats is the list of memory stats captured by the executor
-	ExecutorCgroupMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
+	// ExecutorCgroupV1MeasuredMemStats is the list of memory stats captured by the executor with cgroup-v1
+	ExecutorCgroupV1MeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
+
+	// ExecutorCgroupV2MeasuredMemStats is the list of memory stats captured by the executor with cgroup-v2. cgroup-v2 exposes different memory stats and no longer reports rss or max usage.
+	ExecutorCgroupV2MeasuredMemStats = []string{"Cache", "Swap", "Usage"}
 
 	// ExecutorCgroupMeasuredCpuStats is the list of CPU stats captures by the executor
 	ExecutorCgroupMeasuredCpuStats = []string{"System Mode", "User Mode", "Throttled Periods", "Throttled Time", "Percent"}
@@ -69,7 +74,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 		logger.Error("unable to initialize stats", "error", err)
 	}
 	return &LibcontainerExecutor{
-		id:             strings.Replace(uuid.Generate(), "-", "_", -1),
+		id:             strings.ReplaceAll(uuid.Generate(), "-", "_"),
 		logger:         logger,
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
@@ -196,21 +201,16 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}, nil
 }
 
-func (l *LibcontainerExecutor) getAllPids() (map[int]*nomadPid, error) {
+func (l *LibcontainerExecutor) getAllPids() (resources.PIDs, error) {
 	pids, err := l.container.Processes()
 	if err != nil {
 		return nil, err
 	}
-	nPids := make(map[int]*nomadPid)
+	m := make(resources.PIDs, 1)
 	for _, pid := range pids {
-		nPids[pid] = &nomadPid{
-			pid:           pid,
-			cpuStatsTotal: stats.NewCpuStats(),
-			cpuStatsUser:  stats.NewCpuStats(),
-			cpuStatsSys:   stats.NewCpuStats(),
-		}
+		m[pid] = resources.NewPID(pid)
 	}
-	return nPids, nil
+	return m, nil
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
@@ -306,7 +306,8 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 			}
 		}
 	} else {
-		if err := l.container.Signal(os.Kill, true); err != nil {
+		err := l.container.Signal(os.Kill, true)
+		if err != nil {
 			return err
 		}
 	}
@@ -340,6 +341,12 @@ func (l *LibcontainerExecutor) Stats(ctx context.Context, interval time.Duration
 func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx context.Context, interval time.Duration) {
 	defer close(ch)
 	timer := time.NewTimer(0)
+
+	measuredMemStats := ExecutorCgroupV1MeasuredMemStats
+	if cgroups.IsCgroup2UnifiedMode() {
+		measuredMemStats = ExecutorCgroupV2MeasuredMemStats
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -369,15 +376,17 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 		maxUsage := stats.MemoryStats.Usage.MaxUsage
 		rss := stats.MemoryStats.Stats["rss"]
 		cache := stats.MemoryStats.Stats["cache"]
+		mapped_file := stats.MemoryStats.Stats["mapped_file"]
 		ms := &cstructs.MemoryStats{
 			RSS:            rss,
 			Cache:          cache,
 			Swap:           swap.Usage,
+			MappedFile:     mapped_file,
 			Usage:          stats.MemoryStats.Usage.Usage,
 			MaxUsage:       maxUsage,
 			KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
 			KernelMaxUsage: stats.MemoryStats.KernelUsage.MaxUsage,
-			Measured:       ExecutorCgroupMeasuredMemStats,
+			Measured:       measuredMemStats,
 		}
 
 		// CPU Related Stats
@@ -520,44 +529,36 @@ func (l *LibcontainerExecutor) handleExecWait(ch chan *waitResult, process *libc
 	ch <- &waitResult{ps, err}
 }
 
-func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) error {
-	// TODO: allow better control of these
-	// use capabilities list as prior to adopting libcontainer in 0.9
-	allCaps := supportedCaps()
-
-	// match capabilities used in Nomad 0.8
-	if command.User == "root" {
+func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
+	switch command.User {
+	case "root":
+		// when running as root, use the legacy set of system capabilities, so
+		// that we do not break existing nomad clusters using this "feature"
+		legacyCaps := capabilities.LegacySupported().Slice(true)
 		cfg.Capabilities = &lconfigs.Capabilities{
-			Bounding:    allCaps,
-			Permitted:   allCaps,
-			Effective:   allCaps,
+			Bounding:    legacyCaps,
+			Permitted:   legacyCaps,
+			Effective:   legacyCaps,
 			Ambient:     nil,
 			Inheritable: nil,
 		}
-	} else {
+	default:
+		// otherwise apply the plugin + task capability configuration
 		cfg.Capabilities = &lconfigs.Capabilities{
-			Bounding: allCaps,
+			Bounding: command.Capabilities,
 		}
 	}
-
-	return nil
 }
 
-// supportedCaps returns a list of all supported capabilities in kernel
-func supportedCaps() []string {
-	allCaps := []string{}
-	last := capability.CAP_LAST_CAP
-	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
-	if last == capability.Cap(63) {
-		last = capability.CAP_BLOCK_SUSPEND
+func configureNamespaces(pidMode, ipcMode string) lconfigs.Namespaces {
+	namespaces := lconfigs.Namespaces{{Type: lconfigs.NEWNS}}
+	if pidMode == IsolationModePrivate {
+		namespaces = append(namespaces, lconfigs.Namespace{Type: lconfigs.NEWPID})
 	}
-	for _, cap := range capability.List() {
-		if cap > last {
-			continue
-		}
-		allCaps = append(allCaps, fmt.Sprintf("CAP_%s", strings.ToUpper(cap.String())))
+	if ipcMode == IsolationModePrivate {
+		namespaces = append(namespaces, lconfigs.Namespace{Type: lconfigs.NEWIPC})
 	}
-	return allCaps
+	return namespaces
 }
 
 // configureIsolation prepares the isolation primitives of the container.
@@ -576,10 +577,8 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	// disable pivot_root if set in the driver's configuration
 	cfg.NoPivotRoot = command.NoPivotRoot
 
-	// launch with mount namespace
-	cfg.Namespaces = lconfigs.Namespaces{
-		{Type: lconfigs.NEWNS},
-	}
+	// set up default namespaces as configured
+	cfg.Namespaces = configureNamespaces(command.ModePID, command.ModeIPC)
 
 	if command.NetworkIsolation != nil {
 		cfg.Namespaces = append(cfg.Namespaces, lconfigs.Namespace{
@@ -599,7 +598,7 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 		"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
 	}
 
-	cfg.Devices = lconfigs.DefaultAutoCreatedDevices
+	cfg.Devices = specconv.AllowedDevices
 	if len(command.Devices) > 0 {
 		devs, err := cmdDevices(command.Devices)
 		if err != nil {
@@ -658,109 +657,109 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 }
 
 func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
-
 	// If resources are not limited then manually create cgroups needed
 	if !command.ResourceLimits {
-		return configureBasicCgroups(cfg)
+		return cgutil.ConfigureBasicCgroups(cfg)
 	}
 
-	id := uuid.Generate()
-	cfg.Cgroups.Path = filepath.Join("/", defaultCgroupParent, id)
+	// set cgroups path
+	if cgutil.UseV2 {
+		// in v2, the cgroup must have been created by the client already,
+		// which breaks a lot of existing tests that run drivers without a client
+		if command.Resources == nil || command.Resources.LinuxResources == nil || command.Resources.LinuxResources.CpusetCgroupPath == "" {
+			return errors.New("cgroup path must be set")
+		}
+		parent, cgroup := cgutil.SplitPath(command.Resources.LinuxResources.CpusetCgroupPath)
+		cfg.Cgroups.Path = filepath.Join("/", parent, cgroup)
+	} else {
+		// in v1, the cgroup is created using /nomad, which is a bug because it
+		// does not respect the cgroup_parent client configuration
+		// (but makes testing easy)
+		id := uuid.Generate()
+		cfg.Cgroups.Path = filepath.Join("/", cgutil.DefaultCgroupV1Parent, id)
+	}
 
 	if command.Resources == nil || command.Resources.NomadResources == nil {
 		return nil
 	}
 
-	if mb := command.Resources.NomadResources.Memory.MemoryMB; mb > 0 {
-		// Total amount of memory allowed to consume
-		cfg.Cgroups.Resources.Memory = mb * 1024 * 1024
+	// Total amount of memory allowed to consume
+	res := command.Resources.NomadResources
+	memHard, memSoft := res.Memory.MemoryMaxMB, res.Memory.MemoryMB
+	if memHard <= 0 {
+		memHard = res.Memory.MemoryMB
+		memSoft = 0
+	}
+
+	if memHard > 0 {
+		cfg.Cgroups.Resources.Memory = memHard * 1024 * 1024
+		cfg.Cgroups.Resources.MemoryReservation = memSoft * 1024 * 1024
+
 		// Disable swap to avoid issues on the machine
 		var memSwappiness uint64
 		cfg.Cgroups.Resources.MemorySwappiness = &memSwappiness
 	}
 
-	cpuShares := command.Resources.NomadResources.Cpu.CpuShares
+	cpuShares := res.Cpu.CpuShares
 	if cpuShares < 2 {
 		return fmt.Errorf("resources.Cpu.CpuShares must be equal to or greater than 2: %v", cpuShares)
 	}
 
-	// Set the relative CPU shares for this cgroup.
+	// Set the relative CPU shares for this cgroup, and convert for cgroupv2
 	cfg.Cgroups.Resources.CpuShares = uint64(cpuShares)
+	cfg.Cgroups.Resources.CpuWeight = cgroups.ConvertCPUSharesToCgroupV2Value(uint64(cpuShares))
+
+	if command.Resources.LinuxResources != nil && command.Resources.LinuxResources.CpusetCgroupPath != "" {
+		cfg.Hooks = lconfigs.Hooks{
+			lconfigs.CreateRuntime: lconfigs.HookList{
+				newSetCPUSetCgroupHook(command.Resources.LinuxResources.CpusetCgroupPath),
+			},
+		}
+	}
 
 	return nil
-}
-
-func configureBasicCgroups(cfg *lconfigs.Config) error {
-	id := uuid.Generate()
-
-	// Manually create freezer cgroup
-
-	subsystem := "freezer"
-
-	path, err := getCgroupPathHelper(subsystem, filepath.Join(defaultCgroupParent, id))
-	if err != nil {
-		return fmt.Errorf("failed to find %s cgroup mountpoint: %v", subsystem, err)
-	}
-
-	if err = os.MkdirAll(path, 0755); err != nil {
-		return err
-	}
-
-	cfg.Cgroups.Paths = map[string]string{
-		subsystem: path,
-	}
-	return nil
-}
-
-func getCgroupPathHelper(subsystem, cgroup string) (string, error) {
-	mnt, root, err := cgroups.FindCgroupMountpointAndRoot("", subsystem)
-	if err != nil {
-		return "", err
-	}
-
-	// This is needed for nested containers, because in /proc/self/cgroup we
-	// see paths from host, which don't exist in container.
-	relCgroup, err := filepath.Rel(root, cgroup)
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Join(mnt, relCgroup), nil
 }
 
 func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 	cfg := &lconfigs.Config{
 		Cgroups: &lconfigs.Cgroup{
 			Resources: &lconfigs.Resources{
-				AllowAllDevices:  nil,
 				MemorySwappiness: nil,
-				AllowedDevices:   lconfigs.DefaultAllowedDevices,
 			},
 		},
 		Version: "1.0.0",
 	}
 
-	if err := configureCapabilities(cfg, command); err != nil {
-		return nil, err
+	for _, device := range specconv.AllowedDevices {
+		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.Rule)
 	}
+
+	configureCapabilities(cfg, command)
+
+	// children should not inherit Nomad agent oom_score_adj value
+	oomScoreAdj := 0
+	cfg.OomScoreAdj = &oomScoreAdj
+
 	if err := configureIsolation(cfg, command); err != nil {
 		return nil, err
 	}
+
 	if err := configureCgroups(cfg, command); err != nil {
 		return nil, err
 	}
+
 	return cfg, nil
 }
 
 // cmdDevices converts a list of driver.DeviceConfigs into excutor.Devices.
-func cmdDevices(devices []*drivers.DeviceConfig) ([]*lconfigs.Device, error) {
-	if len(devices) == 0 {
+func cmdDevices(driverDevices []*drivers.DeviceConfig) ([]*devices.Device, error) {
+	if len(driverDevices) == 0 {
 		return nil, nil
 	}
 
-	r := make([]*lconfigs.Device, len(devices))
+	r := make([]*devices.Device, len(driverDevices))
 
-	for i, d := range devices {
+	for i, d := range driverDevices {
 		ed, err := ldevices.DeviceFromPath(d.HostPath, d.Permissions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to make device out for %s: %v", d.HostPath, err)
@@ -830,13 +829,7 @@ func lookupTaskBin(command *ExecCommand) (string, error) {
 		return "", fmt.Errorf("file %s not found under path %s", bin, taskDir)
 	}
 
-	// Find the PATH
 	path := "/usr/local/bin:/usr/bin:/bin"
-	for _, e := range command.Env {
-		if strings.HasPrefix("PATH=", e) {
-			path = e[5:]
-		}
-	}
 
 	return lookPathIn(path, taskDir, bin)
 }
@@ -859,4 +852,10 @@ func lookPathIn(path string, root string, bin string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("file %s not found under path %s", bin, root)
+}
+
+func newSetCPUSetCgroupHook(cgroupPath string) lconfigs.Hook {
+	return lconfigs.NewFunctionHook(func(state *specs.State) error {
+		return cgroups.WriteCgroupProc(cgroupPath, state.Pid)
+	})
 }

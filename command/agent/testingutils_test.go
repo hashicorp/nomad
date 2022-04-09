@@ -37,6 +37,12 @@ func MockJob() *api.Job {
 					Delay:    helper.TimeToPtr(1 * time.Minute),
 					Mode:     helper.StringToPtr("delay"),
 				},
+				Networks: []*api.NetworkResource{
+					{
+						Mode:         "host",
+						DynamicPorts: []api.Port{{Label: "http"}, {Label: "admin"}},
+					},
+				},
 				Tasks: []*api.Task{
 					{
 						Name:   "web",
@@ -72,12 +78,6 @@ func MockJob() *api.Job {
 						Resources: &api.Resources{
 							CPU:      helper.IntToPtr(500),
 							MemoryMB: helper.IntToPtr(256),
-							Networks: []*api.NetworkResource{
-								{
-									MBits:        helper.IntToPtr(50),
-									DynamicPorts: []api.Port{{Label: "http"}, {Label: "admin"}},
-								},
-							},
 						},
 						Meta: map[string]string{
 							"foo": "bar",

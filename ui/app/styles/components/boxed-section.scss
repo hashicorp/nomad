@@ -19,6 +19,20 @@
       margin-left: auto;
     }
 
+    .is-subsection {
+      display: flex;
+      align-items: baseline;
+
+      .is-padded {
+        padding: 0em 0em 0em 1em;
+      }
+    }
+
+    .is-fixed-width {
+      display: inline-block;
+      width: 8em;
+    }
+
     &.is-compact {
       padding: 0.75em;
     }

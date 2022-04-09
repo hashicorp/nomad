@@ -5,10 +5,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestParse(t *testing.T) {
+	ci.Parallel(t)
+
 	type tcase struct {
 		Raw    string
 		ErrStr string
@@ -29,6 +32,7 @@ func TestParse(t *testing.T) {
 						Policy: PolicyRead,
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
+							NamespaceCapabilityParseJob,
 							NamespaceCapabilityReadJob,
 							NamespaceCapabilityCSIListVolume,
 							NamespaceCapabilityCSIReadVolume,
@@ -78,6 +82,7 @@ func TestParse(t *testing.T) {
 						Policy: PolicyRead,
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
+							NamespaceCapabilityParseJob,
 							NamespaceCapabilityReadJob,
 							NamespaceCapabilityCSIListVolume,
 							NamespaceCapabilityCSIReadVolume,
@@ -91,6 +96,7 @@ func TestParse(t *testing.T) {
 						Policy: PolicyWrite,
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
+							NamespaceCapabilityParseJob,
 							NamespaceCapabilityReadJob,
 							NamespaceCapabilityCSIListVolume,
 							NamespaceCapabilityCSIReadVolume,
@@ -106,6 +112,7 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityAllocLifecycle,
 							NamespaceCapabilityCSIMountVolume,
 							NamespaceCapabilityCSIWriteVolume,
+							NamespaceCapabilitySubmitRecommendation,
 						},
 					},
 					{
@@ -324,6 +331,21 @@ func TestParse(t *testing.T) {
 			}
 			tc.Expect.Raw = tc.Raw
 			assert.EqualValues(t, tc.Expect, p)
+		})
+	}
+}
+
+func TestParse_BadInput(t *testing.T) {
+	ci.Parallel(t)
+
+	inputs := []string{
+		`namespace "\500" {}`,
+	}
+
+	for i, c := range inputs {
+		t.Run(fmt.Sprintf("%d: %v", i, c), func(t *testing.T) {
+			_, err := Parse(c)
+			assert.Error(t, err)
 		})
 	}
 }

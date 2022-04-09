@@ -1,6 +1,6 @@
 # Nomad Test Certificate
 
-Using [cfssl 1.2.0](https://github.com/cloudflare/cfssl)
+Using [cfssl 1.6.0](https://github.com/cloudflare/cfssl)
 
 | File                | Description               |
 |---------------------|---------------------------|
@@ -16,17 +16,24 @@ Using [cfssl 1.2.0](https://github.com/cloudflare/cfssl)
 
 ## Generating self-signed certs
 ```sh
-# Write defaults and update
+# Write defaults and update.
+# NOTE: this doesn't need to be run if regenerating old certificates and
+# shouldn't as it overrides non-default values.
 cfssl print-defaults csr > ca-csr.json
+cfssl print-defaults csr > ca-bad-csr.json
 cfssl print-defaults config > ca-config.json
 
-# Generate CA certificate and key
-cfssl gencert -config ca-config.json -initca ca-csr.json | cfssljson -bare ca -
+# Generate CA certificates and keys.
+#
+# 1. Generates ca.csr, ca.pem, and ca-key.pem.
+# 2. Generates ca-bad.csr, ca-bad.pem, and ca-bad-key.pem.
+cfssl gencert -loglevel=5 -config ca-config.json -initca ca-csr.json | cfssljson -bare ca -
+cfssl gencert -loglevel=5 -config ca-config.json -initca ca-bad-csr.json | cfssljson -bare ca-bad -
 
-# Generate Nomad certificate and key
-cfssl gencert -ca ca.pem -ca-key ca-key.pem -config ca-config.json nomad-foo-csr.json | cfssljson -bare nomad-foo
-
-# Generate bad region CA and certificate
-cfssl gencert -config ca-config.json -initca ca-bad-csr.json | cfssljson -bare ca-bad -
-cfssl gencert -ca ca-bad.pem -ca-key ca-bad-key.pem -config ca-config.json nomad-bad-csr.json | cfssljson -bare nomad-bad
+# Generate certificates and keys.
+#
+# 1. Generates nomad-foo.csr, nomad-foo.pem, and nomad-foo-key.pem.
+# 1. Generates nomad-bad.csr, nomad-bad.pem, and nomad-bad-key.pem.
+cfssl gencert -loglevel=5 -ca ca.pem -ca-key ca-key.pem -config ca-config.json nomad-foo-csr.json | cfssljson -bare nomad-foo
+cfssl gencert -loglevel=5 -ca ca-bad.pem -ca-key ca-bad-key.pem -config ca-config.json nomad-bad-csr.json | cfssljson -bare nomad-bad
 ```

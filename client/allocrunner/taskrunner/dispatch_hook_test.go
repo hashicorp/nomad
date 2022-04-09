@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/golang/snappy"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -21,17 +22,18 @@ var _ interfaces.TaskPrestartHook = (*dispatchHook)(nil)
 // TestTaskRunner_DispatchHook_NoPayload asserts that the hook is a noop and is
 // marked as done if there is no dispatch payload.
 func TestTaskRunner_DispatchHook_NoPayload(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 	ctx := context.Background()
 	logger := testlog.HCLogger(t)
-	allocDir := allocdir.NewAllocDir(logger, "nomadtest_nopayload")
-	defer allocDir.Destroy()
 
 	// Default mock alloc/job is not a dispatch job
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	allocDir := allocdir.NewAllocDir(logger, "nomadtest_nopayload", alloc.ID)
+	defer allocDir.Destroy()
 	taskDir := allocDir.NewTaskDir(task.Name)
 	require.NoError(taskDir.Build(false, nil))
 
@@ -56,13 +58,11 @@ func TestTaskRunner_DispatchHook_NoPayload(t *testing.T) {
 // TestTaskRunner_DispatchHook_Ok asserts that dispatch payloads are written to
 // a file in the task dir.
 func TestTaskRunner_DispatchHook_Ok(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 	ctx := context.Background()
 	logger := testlog.HCLogger(t)
-	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatchok")
-	defer allocDir.Destroy()
 
 	// Default mock alloc/job is not a dispatch job; update it
 	alloc := mock.BatchAlloc()
@@ -77,6 +77,9 @@ func TestTaskRunner_DispatchHook_Ok(t *testing.T) {
 	task.DispatchPayload = &structs.DispatchPayloadConfig{
 		File: "out",
 	}
+
+	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatchok", alloc.ID)
+	defer allocDir.Destroy()
 	taskDir := allocDir.NewTaskDir(task.Name)
 	require.NoError(taskDir.Build(false, nil))
 
@@ -99,13 +102,11 @@ func TestTaskRunner_DispatchHook_Ok(t *testing.T) {
 // TestTaskRunner_DispatchHook_Error asserts that on an error dispatch payloads
 // are not written and Done=false.
 func TestTaskRunner_DispatchHook_Error(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	require := require.New(t)
 	ctx := context.Background()
 	logger := testlog.HCLogger(t)
-	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatcherr")
-	defer allocDir.Destroy()
 
 	// Default mock alloc/job is not a dispatch job; update it
 	alloc := mock.BatchAlloc()
@@ -121,6 +122,9 @@ func TestTaskRunner_DispatchHook_Error(t *testing.T) {
 	task.DispatchPayload = &structs.DispatchPayloadConfig{
 		File: "out",
 	}
+
+	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatcherr", alloc.ID)
+	defer allocDir.Destroy()
 	taskDir := allocDir.NewTaskDir(task.Name)
 	require.NoError(taskDir.Build(false, nil))
 

@@ -1,0 +1,99 @@
+---
+layout: docs
+page_title: Nomad Enterprise Licensing
+description: >-
+  Learn about how Nomad Enterprise licensing works.
+---
+
+## Nomad Enterprise Licensing
+
+Licensing capabilities were added to Nomad Enterprise v0.12.0. Each server in
+the cluster must have its own license. Nomad Enterprise can be downloaded from
+the [releases site].
+
+Click [here](https://www.hashicorp.com/go/nomad-enterprise) to set up a demo of Nomad Enterprise
+or [here](https://nomadproject.io/trial) to get a trial license.
+
+~> **Note:** A Nomad Enterprise cluster cannot be downgraded to the open
+source version of Nomad. Servers running the open source version of Nomad will
+panic if they are joined to a Nomad Enterprise cluster. See issue [gh-9958]
+for more details.
+
+## Expiring Licenses
+
+Nomad Enterprise license have an expiration time. You can read the license on
+a server with the `nomad license get` command:
+
+```
+$ nomad license get
+Product        = nomad
+License Status = valid
+License ID     = eaaecbd5-b598-4fa4-b649-bb234bf49fa3
+Customer ID    = ae94bdd0-39bf-4c58-bf80-8a9468b0467c
+Issued At      = 2021-03-29 14:47:29.024191 -0400 EDT
+Expires At     = 2021-03-29 20:47:29.024191 -0400 EDT
+Datacenter     = *
+Modules:
+        governance-policy
+        multicluster-and-efficiency
+Licensed Features:
+        Automated Upgrades
+        Enhanced Read Scalability
+        Redundancy Zones
+        Namespaces
+        Resource Quotas
+        Audit Logging
+        Sentinel Policies
+        Multiregion Deployments
+        Automated Backups
+        Multi-Vault Namespaces
+        Dynamic Application Sizing
+```
+
+As a Nomad Enterprise license approaches its expiration time, Nomad servers
+will periodically log a warning message about the approaching
+expiration. Below shows log excerpts of the warnings.
+
+```
+    2021-03-29T15:02:28.100-0400 [WARN]  nomad.licensing: license expiring: time_left=5m0s
+    2021-03-29T15:03:28.103-0400 [WARN]  nomad.licensing: license expiring: time_left=4m0s
+    2021-03-29T15:04:28.106-0400 [WARN]  nomad.licensing: license expiring: time_left=3m0s
+    2021-03-29T15:05:28.109-0400 [WARN]  nomad.licensing: license expiring: time_left=2m0s
+    2021-03-29T15:06:28.112-0400 [WARN]  nomad.licensing: license expiring: time_left=1m0s
+    2021-03-29T15:07:28.114-0400 [WARN]  nomad.licensing: license expiring: time_left=0s
+    2021-03-29T15:07:58.104-0400 [ERROR] nomad.licensing: license expired, please update license: error="invalid license or license is expired"
+```
+
+When the license expires, enterprise functionality will become limited. Only
+read operations on enterprise endpoints will be supported, and write
+operations will return an error.
+
+Note that if the server is restarted with an expired license, it will
+immediately stop.
+
+## Configuring the License
+
+See the server [license configuration] reference documentation on all the
+options to set an enterprise license. Nomad will load the license file from
+disk or environment when it starts.
+
+~> **Note:** An Enterprise license [tutorial](https://learn.hashicorp.com/tutorials/nomad/hashicorp-enterprise-license?in=nomad/enterprise) is available to help you install the license on the server.
+
+In order to immediately alert operators of a bad configuration setting, if a
+license configuration option is an invalid or expired license, the Nomad server
+will exit with an error.
+
+```
+NOMAD_LICENSE=misconfigured nomad agent -dev
+==> No configuration files loaded
+==> Starting Nomad agent...
+==> Error starting agent: server setup failed: failed to initialize enterprise licensing: a file license was configured but the license is invalid: error decoding version: expected integer
+```
+
+See the [License commands](/docs/commands/license) for more information on
+interacting with the Enterprise License.
+
+[gh-9958]: https://github.com/hashicorp/nomad/issues/9958
+[releases site]: https://releases.hashicorp.com/nomad
+[license configuration]: /docs/configuration/server#license_path
+[license endpoint]: /api-docs/operator/license#updating-the-nomad-enterprise-license

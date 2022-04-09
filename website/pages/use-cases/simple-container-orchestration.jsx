@@ -1,9 +1,30 @@
-import UseCasesLayout from 'layouts/use-cases'
+import UseCasesLayout from 'components/use-case-page'
 import TextSplitWithCode from '@hashicorp/react-text-split-with-code'
 import TextSplitWithImage from '@hashicorp/react-text-split-with-image'
-import FeaturedSliderSection from 'components/featured-slider-section'
+import FeaturedSlider from '@hashicorp/react-featured-slider'
+// Imports below are used in getStaticProps only
+import highlightData from '@hashicorp/platform-code-highlighting/highlight-data'
 
-export default function SimpleContainerOrchestrationPage() {
+export async function getStaticProps() {
+  const codeBlocksRaw = {
+    containerOrchestration: {
+      code:
+        'task "webservice" {\n  driver = "docker"\n\n  config {\n    image = "redis:3.2"\n    labels {\n      group = "webservice-cache"\n    }\n  }\n}',
+      language: 'hcl',
+    },
+    windowsSupport: {
+      code:
+        'sc.exe start "Nomad"\n\nSERVICE_NAME: Nomad\n      TYPE               : 10  WIN32_OWN_PROCESS\n      STATE              : 4  RUNNING\n                              (STOPPABLE, NOT_PAUSABLE, ACCEPTS_SHUTDOWN)\n      WIN32_EXIT_CODE    : 0  (0x0)\n      SERVICE_EXIT_CODE  : 0  (0x0)\n      CHECKPOINT         : 0x0\n      WAIT_HINT          : 0x0\n      PID                : 8008\n      FLAGS              :',
+    },
+    multiRegionFederation: {
+      code: 'nomad server join 1.2.3.4:4648',
+    },
+  }
+  const codeBlocks = await highlightData(codeBlocksRaw)
+  return { props: { codeBlocks } }
+}
+
+export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
   return (
     <UseCasesLayout
       title="Simple Container Orchestration"
@@ -18,36 +39,23 @@ export default function SimpleContainerOrchestrationPage() {
           links: [
             {
               text: 'Read More',
-              url:
-                'https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs',
+              url: 'https://learn.hashicorp.com/collections/nomad/manage-jobs',
               type: 'outbound',
             },
           ],
         }}
-        codeBlock={{
-          code: `task "webservice" {
-  driver = "docker"
-
-  config {
-    image = "redis:3.2"
-    labels {
-      group = "webservice-cache"
-    }
-  }
-}`,
-          language: 'hcl',
-        }}
+        codeBlock={codeBlocks.containerOrchestration}
       />
 
       <TextSplitWithImage
         textSplit={{
-          heading: 'Run on-premise with ease',
+          heading: 'Run On-Premise with Ease',
           textSide: 'left',
           content:
             'Install and run Nomad easily on bare metal as a single binary and with the same ease as on cloud.',
         }}
         image={{
-          url: require('./img/on-prem-with-ease.svg'),
+          url: require('./img/run-on-prem-with-ease.png'),
           alt: '',
         }}
       />
@@ -67,20 +75,7 @@ export default function SimpleContainerOrchestrationPage() {
             },
           ],
         }}
-        codeBlock={{
-          code: `sc.exe start "Nomad"
-
-SERVICE_NAME: Nomad
-      TYPE               : 10  WIN32_OWN_PROCESS
-      STATE              : 4  RUNNING
-                              (STOPPABLE, NOT_PAUSABLE, ACCEPTS_SHUTDOWN)
-      WIN32_EXIT_CODE    : 0  (0x0)
-      SERVICE_EXIT_CODE  : 0  (0x0)
-      CHECKPOINT         : 0x0
-      WAIT_HINT          : 0x0
-      PID                : 8008
-      FLAGS              :`,
-        }}
+        codeBlock={codeBlocks.windowsSupport}
       />
 
       <TextSplitWithCode
@@ -92,32 +87,26 @@ SERVICE_NAME: Nomad
           links: [
             {
               text: 'Read more',
-              url:
-                'https://learn.hashicorp.com/nomad/operating-nomad/federation',
+              url: 'https://learn.hashicorp.com/tutorials/nomad/federation',
               type: 'outbound',
             },
           ],
         }}
-        codeBlock={{
-          code: 'nomad server join 1.2.3.4:4648',
-          prefix: 'dollar',
-        }}
+        codeBlock={codeBlocks.multiRegionFederation}
       />
 
-      <div className="with-border">
-        <TextSplitWithImage
-          textSplit={{
-            heading: 'Edge Deployment with Simple Topology',
-            content:
-              'Deploy Nomad with a simple cluster topology on hybrid infrastructure to place workloads to the cloud or at the edge.',
-            textSide: 'right',
-          }}
-          image={{
-            url: require('./img/edge-deployment.svg'),
-            alt: '',
-          }}
-        />
-      </div>
+      <TextSplitWithImage
+        textSplit={{
+          heading: 'Edge Deployment with Simple Topology',
+          content:
+            'Deploy Nomad with a simple cluster topology on hybrid infrastructure to place workloads to the cloud or at the edge.',
+          textSide: 'right',
+        }}
+        image={{
+          url: require('./img/edge.png'),
+          alt: '',
+        }}
+      />
 
       <TextSplitWithImage
         textSplit={{
@@ -128,39 +117,37 @@ SERVICE_NAME: Nomad
           links: [
             {
               text: 'Read more',
-              url: 'https://learn.hashicorp.com/nomad/update-strategies',
+              url: 'https://learn.hashicorp.com/collections/nomad/job-updates',
               type: 'outbound',
             },
           ],
         }}
         image={{
-          url: require('./img/zero-downtime-deployments.png'),
+          url: require('./img/zero-downtime.png'),
           alt: 'Zero Downtime Deployments',
         }}
       />
 
-      <div className="with-border">
-        <TextSplitWithImage
-          textSplit={{
-            heading: 'High Performance Batch Workloads',
-            content:
-              'Run batch jobs with proven scalability of thousands of deployments per second via the batch scheduler.',
-            textSide: 'right',
-            links: [
-              {
-                text: 'Watch tech presentation from Citadel',
-                url:
-                  'https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel',
-                type: 'outbound',
-              },
-            ],
-          }}
-          image={{
-            url: require('./img/high-performance-batch-workloads.png'),
-            alt: '',
-          }}
-        />
-      </div>
+      <TextSplitWithImage
+        textSplit={{
+          heading: 'High Performance Batch Workloads',
+          content:
+            'Run batch jobs with proven scalability of thousands of deployments per second via the batch scheduler.',
+          textSide: 'right',
+          links: [
+            {
+              text: 'Watch tech presentation from Citadel',
+              url:
+                'https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel',
+              type: 'outbound',
+            },
+          ],
+        }}
+        image={{
+          url: require('./img/batch-workloads@3x.png'),
+          alt: '',
+        }}
+      />
 
       <TextSplitWithImage
         textSplit={{
@@ -184,40 +171,33 @@ SERVICE_NAME: Nomad
 
       <TextSplitWithImage
         textSplit={{
-          heading: 'Run stateful workloads',
+          heading: 'Run Stateful Workloads',
           content:
             'Natively connect and run stateful services with storage volumes from third-party providers via the Container Storage Interface plugin system.',
           textSide: 'right',
         }}
         image={{
-          url: require('./img/csi.svg'),
+          url: require('./img/stateful-workloads.png'),
           alt: 'Stateful Workloads',
         }}
       />
 
-      <FeaturedSliderSection
+      <TextSplitWithImage
+        textSplit={{
+          heading: 'Flexible Networking Capabilities',
+          content:
+            'Deploy containerized applications with customized network configurations from third-party vendors via Container Network Interface plugin system',
+        }}
+        image={{
+          url: require('./img/networking-capabilities.png'),
+          alt: 'Flexible Networking Capabilities',
+        }}
+      />
+
+      <FeaturedSlider
         heading="Case Studies"
+        theme="dark"
         features={[
-          {
-            logo: {
-              url:
-                'https://www.datocms-assets.com/2885/1582097215-roblox-white.svg',
-              alt: 'Roblox',
-            },
-            image: {
-              url:
-                'https://www.datocms-assets.com/2885/1582096961-roblox-case-study.jpg',
-              alt: 'Roblox Nomad Case Study',
-            },
-            heading: 'Roblox',
-            content:
-              'Scale a global gaming platform easily and reliably with Nomad to serve 100 million monthly active users',
-            link: {
-              text: 'Read Case Study',
-              url: 'https://www.hashicorp.com/case-studies/roblox',
-              type: 'outbound',
-            },
-          },
           {
             logo: {
               url:
@@ -242,20 +222,21 @@ SERVICE_NAME: Nomad
           {
             logo: {
               url:
-                'https://www.datocms-assets.com/2885/1522341147-jet-white.svg',
-              alt: 'Jet',
+                'https://www.datocms-assets.com/2885/1594247944-better-help-white.png',
+              alt: 'BetterHelp',
             },
             image: {
               url:
-                'https://www.datocms-assets.com/2885/1523635589-mohitarora.jpg',
-              alt: 'Jet Presentation',
+                'https://www.datocms-assets.com/2885/1594247996-betterhelp-case-study-screen.png',
+              alt: 'BetterHelp Presentation',
             },
-            heading: 'Jet.com',
-            content: 'Running Windows Microservices on Nomad',
+            heading: 'BetterHelp',
+            content:
+              'From 6 dedicated servers in a colocation facility to a cloud-based deployment workflow with Nomad',
             link: {
               text: 'Learn More',
               url:
-                'https://www.hashicorp.com/resources/running-windows-microservices-on-nomad-at-jet-com',
+                'https://www.hashicorp.com/resources/betterhelp-s-hashicorp-nomad-use-case/',
               type: 'outbound',
             },
           },

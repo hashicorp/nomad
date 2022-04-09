@@ -1,3 +1,4 @@
+//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package executor
@@ -9,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/kr/pty"
+	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
 )
 
@@ -17,7 +18,6 @@ func sessionCmdAttr(tty *os.File) *syscall.SysProcAttr {
 	return &syscall.SysProcAttr{
 		Setsid:  true,
 		Setctty: true,
-		Ctty:    int(tty.Fd()),
 	}
 }
 

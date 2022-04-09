@@ -14,7 +14,7 @@ import (
 )
 
 func TestNodes_List(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -43,7 +43,7 @@ func TestNodes_List(t *testing.T) {
 }
 
 func TestNodes_PrefixList(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -83,8 +83,47 @@ func TestNodes_PrefixList(t *testing.T) {
 	assertQueryMeta(t, qm)
 }
 
+// TestNodes_List_Resources asserts that ?resources=true includes allocated and
+// reserved resources in the response.
+func TestNodes_List_Resources(t *testing.T) {
+	testutil.Parallel(t)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	nodes := c.Nodes()
+
+	var out []*NodeListStub
+	var err error
+
+	testutil.WaitForResult(func() (bool, error) {
+		out, _, err = nodes.List(nil)
+		if err != nil {
+			return false, err
+		}
+		if n := len(out); n != 1 {
+			return false, fmt.Errorf("expected 1 node, got: %d", n)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// By default resources should *not* be included
+	require.Nil(t, out[0].NodeResources)
+	require.Nil(t, out[0].ReservedResources)
+
+	qo := &QueryOptions{
+		Params: map[string]string{"resources": "true"},
+	}
+	out, _, err = nodes.List(qo)
+	require.NoError(t, err)
+	require.NotNil(t, out[0].NodeResources)
+	require.NotNil(t, out[0].ReservedResources)
+}
+
 func TestNodes_Info(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	startTime := time.Now().Unix()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
@@ -129,6 +168,9 @@ func TestNodes_Info(t *testing.T) {
 			result.ID, result.Datacenter)
 	}
 
+	require.Equal(t, 20000, result.NodeResources.MinDynamicPort)
+	require.Equal(t, 32000, result.NodeResources.MaxDynamicPort)
+
 	// Check that the StatusUpdatedAt field is being populated correctly
 	if result.StatusUpdatedAt < startTime {
 		t.Fatalf("start time: %v, status updated: %v", startTime, result.StatusUpdatedAt)
@@ -139,8 +181,42 @@ func TestNodes_Info(t *testing.T) {
 	}
 }
 
+func TestNodes_NoSecretID(t *testing.T) {
+	testutil.Parallel(t)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	nodes := c.Nodes()
+
+	// Get the node ID
+	var nodeID string
+	testutil.WaitForResult(func() (bool, error) {
+		out, _, err := nodes.List(nil)
+		if err != nil {
+			return false, err
+		}
+		if n := len(out); n != 1 {
+			return false, fmt.Errorf("expected 1 node, got: %d", n)
+		}
+		nodeID = out[0].ID
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// perform a raw http call and make sure that:
+	// - "ID" to make sure that raw decoding is working correctly
+	// - "SecretID" to make sure it's not present
+	resp := make(map[string]interface{})
+	_, err := c.query("/v1/node/"+nodeID, &resp, nil)
+	require.NoError(t, err)
+	require.Equal(t, nodeID, resp["ID"])
+	require.Empty(t, resp["SecretID"])
+}
+
 func TestNodes_ToggleDrain(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
@@ -167,23 +243,66 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	// Check for drain mode
 	out, _, err := nodes.Info(nodeID, nil)
 	require.Nil(err)
-	if out.Drain {
-		t.Fatalf("drain mode should be off")
-	}
+	require.False(out.Drain)
+	require.Nil(out.LastDrain)
 
 	// Toggle it on
+	timeBeforeDrain := time.Now().Add(-1 * time.Second)
 	spec := &DrainSpec{
 		Deadline: 10 * time.Second,
 	}
-	drainOut, err := nodes.UpdateDrain(nodeID, spec, false, nil)
+	drainMeta := map[string]string{
+		"reason": "this node needs to go",
+	}
+	drainOut, err := nodes.UpdateDrainOpts(nodeID, &DrainOptions{
+		DrainSpec:    spec,
+		MarkEligible: false,
+		Meta:         drainMeta,
+	}, nil)
 	require.Nil(err)
 	assertWriteMeta(t, &drainOut.WriteMeta)
 
-	// Check again
-	out, _, err = nodes.Info(nodeID, nil)
-	require.Nil(err)
-	if out.SchedulingEligibility != NodeSchedulingIneligible {
-		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, NodeSchedulingIneligible)
+	// Drain may have completed before we can check, use event stream
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	streamCh, err := c.EventStream().Stream(ctx, map[Topic][]string{
+		TopicNode: {nodeID},
+	}, 0, nil)
+	require.NoError(err)
+
+	// we expect to see the node change to Drain:true and then back to Drain:false+ineligible
+	var sawDraining, sawDrainComplete uint64
+	for sawDrainComplete == 0 {
+		select {
+		case events := <-streamCh:
+			require.NoError(events.Err)
+			for _, e := range events.Events {
+				node, err := e.Node()
+				require.NoError(err)
+				require.Equal(node.DrainStrategy != nil, node.Drain)
+				require.True(!node.Drain || node.SchedulingEligibility == NodeSchedulingIneligible) // node.Drain => "ineligible"
+				if node.Drain && node.SchedulingEligibility == NodeSchedulingIneligible {
+					require.NotNil(node.LastDrain)
+					require.Equal(DrainStatusDraining, node.LastDrain.Status)
+					now := time.Now()
+					require.False(node.LastDrain.StartedAt.Before(timeBeforeDrain),
+						"wanted %v <= %v", node.LastDrain.StartedAt, timeBeforeDrain)
+					require.False(node.LastDrain.StartedAt.After(now),
+						"wanted %v <= %v", node.LastDrain.StartedAt, now)
+					require.Equal(drainMeta, node.LastDrain.Meta)
+					sawDraining = node.ModifyIndex
+				} else if sawDraining != 0 && !node.Drain && node.SchedulingEligibility == NodeSchedulingIneligible {
+					require.NotNil(node.LastDrain)
+					require.Equal(DrainStatusComplete, node.LastDrain.Status)
+					require.True(!node.LastDrain.UpdatedAt.Before(node.LastDrain.StartedAt))
+					require.Equal(drainMeta, node.LastDrain.Meta)
+					sawDrainComplete = node.ModifyIndex
+				}
+			}
+		case <-time.After(5 * time.Second):
+			require.Fail("failed waiting for event stream event")
+		}
 	}
 
 	// Toggle off again
@@ -194,19 +313,13 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
 	require.Nil(err)
-	if out.Drain {
-		t.Fatalf("drain mode should be off")
-	}
-	if out.DrainStrategy != nil {
-		t.Fatalf("drain strategy should be unset")
-	}
-	if out.SchedulingEligibility != NodeSchedulingEligible {
-		t.Fatalf("should be eligible")
-	}
+	require.False(out.Drain)
+	require.Nil(out.DrainStrategy)
+	require.Equal(NodeSchedulingEligible, out.SchedulingEligibility)
 }
 
 func TestNodes_ToggleEligibility(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -275,7 +388,7 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 }
 
 func TestNodes_Allocations(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	nodes := c.Nodes()
@@ -294,7 +407,7 @@ func TestNodes_Allocations(t *testing.T) {
 }
 
 func TestNodes_ForceEvaluate(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -333,7 +446,7 @@ func TestNodes_ForceEvaluate(t *testing.T) {
 }
 
 func TestNodes_Sort(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	nodes := []*NodeListStub{
 		{CreateIndex: 2},
 		{CreateIndex: 1},
@@ -353,7 +466,7 @@ func TestNodes_Sort(t *testing.T) {
 
 // Unittest monitorDrainMultiplex when an error occurs
 func TestNodes_MonitorDrain_Multiplex_Bad(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	ctx := context.Background()
@@ -405,7 +518,7 @@ func TestNodes_MonitorDrain_Multiplex_Bad(t *testing.T) {
 
 // Unittest monitorDrainMultiplex when drain finishes
 func TestNodes_MonitorDrain_Multiplex_Good(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	ctx := context.Background()
@@ -470,7 +583,7 @@ func TestNodes_MonitorDrain_Multiplex_Good(t *testing.T) {
 }
 
 func TestNodes_DrainStrategy_Equal(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	require := require.New(t)
 
 	// nil
@@ -506,8 +619,49 @@ func TestNodes_DrainStrategy_Equal(t *testing.T) {
 	require.True(d.Equal(o))
 }
 
+func TestNodes_Purge(t *testing.T) {
+	testutil.Parallel(t)
+	require := require.New(t)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+
+	// Purge on a nonexistent node fails.
+	_, _, err := c.Nodes().Purge("12345678-abcd-efab-cdef-123456789abc", nil)
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error, got: %#v", err)
+	}
+
+	// Wait for node registration and get the ID so we can attempt to purge a
+	// node that exists.
+	var nodeID string
+	testutil.WaitForResult(func() (bool, error) {
+		out, _, err := c.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		if n := len(out); n != 1 {
+			return false, fmt.Errorf("expected 1 node, got: %d", n)
+		}
+		nodeID = out[0].ID
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// Perform the node purge and check the response objects.
+	out, meta, err := c.Nodes().Purge(nodeID, nil)
+	require.Nil(err)
+	require.NotNil(out)
+
+	// We can't use assertQueryMeta here, as the RPC response does not populate
+	// the known leader field.
+	require.Greater(meta.LastIndex, uint64(0))
+}
+
 func TestNodeStatValueFormatting(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 
 	cases := []struct {
 		expected string

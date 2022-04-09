@@ -1,0 +1,46 @@
+---
+layout: docs
+page_title: 'Task Driver Plugins: Community Supported'
+description: A list of community supported Task Driver Plugins.
+---
+
+# Community Supported
+
+If you have authored a task driver plugin that you believe will be useful to the
+broader Nomad community and you are committed to maintaining the plugin, please
+file a PR to add your plugin to this page.
+
+For details on authoring a task driver plugin, please refer to the [plugin
+authoring guide][plugin_guide].
+
+## Task Driver Plugins
+
+Nomad has a plugin system for defining task drivers. External task driver
+plugins will have the same user experience as built in drivers.
+
+Below is a list of community-supported task drivers you can use with Nomad:
+
+- [containerd][nomad-driver-containerd]
+- [Firecracker][firecracker-task-driver]
+- [Jail task driver][jail-task-driver]
+- [Lightrun][lightrun]
+- [LXC][lxc]
+- [Pot][pot]
+- [Rkt][rkt]
+- [Rookout][rookout]
+- [Singularity][singularity]
+- [systemd-nspawn][nspawn-driver]
+- [Windows IIS][nomad-driver-iis]
+
+[rookout]: /plugins/drivers/community/rookout
+[lxc]: /plugins/drivers/community/lxc
+[rkt]: /plugins/drivers/community/rkt
+[plugin_guide]: /docs/internals/plugins
+[singularity]: /plugins/drivers/community/singularity
+[jail-task-driver]: /plugins/drivers/community/jail-task-driver
+[pot]: /plugins/drivers/community/pot
+[firecracker-task-driver]: /plugins/drivers/community/firecracker-task-driver
+[nspawn-driver]: /plugins/drivers/community/nspawn
+[nomad-driver-iis]: /plugins/drivers/community/iis
+[nomad-driver-containerd]: /plugins/drivers/community/containerd
+[lightrun]: /plugins/drivers/community/lightrun

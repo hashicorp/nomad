@@ -20,6 +20,9 @@ type MemDB struct {
 	// alloc_id -> value
 	deployStatus map[string]*structs.AllocDeploymentStatus
 
+	// alloc_id -> value
+	networkStatus map[string]*structs.AllocNetworkStatus
+
 	// alloc_id -> task_name -> value
 	localTaskState map[string]map[string]*state.LocalState
 	taskState      map[string]map[string]*structs.TaskState
@@ -43,6 +46,7 @@ func NewMemDB(logger hclog.Logger) *MemDB {
 	return &MemDB{
 		allocs:         make(map[string]*structs.Allocation),
 		deployStatus:   make(map[string]*structs.AllocDeploymentStatus),
+		networkStatus:  make(map[string]*structs.AllocNetworkStatus),
 		localTaskState: make(map[string]map[string]*state.LocalState),
 		taskState:      make(map[string]map[string]*structs.TaskState),
 		logger:         logger,
@@ -69,7 +73,7 @@ func (m *MemDB) GetAllAllocations() ([]*structs.Allocation, map[string]error, er
 	return allocs, map[string]error{}, nil
 }
 
-func (m *MemDB) PutAllocation(alloc *structs.Allocation) error {
+func (m *MemDB) PutAllocation(alloc *structs.Allocation, opts ...WriteOption) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.allocs[alloc.ID] = alloc
@@ -85,6 +89,19 @@ func (m *MemDB) GetDeploymentStatus(allocID string) (*structs.AllocDeploymentSta
 func (m *MemDB) PutDeploymentStatus(allocID string, ds *structs.AllocDeploymentStatus) error {
 	m.mu.Lock()
 	m.deployStatus[allocID] = ds
+	defer m.mu.Unlock()
+	return nil
+}
+
+func (m *MemDB) GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.networkStatus[allocID], nil
+}
+
+func (m *MemDB) PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus, opts ...WriteOption) error {
+	m.mu.Lock()
+	m.networkStatus[allocID] = ns
 	defer m.mu.Unlock()
 	return nil
 }
@@ -158,7 +175,7 @@ func (m *MemDB) DeleteTaskBucket(allocID, taskName string) error {
 	return nil
 }
 
-func (m *MemDB) DeleteAllocationBucket(allocID string) error {
+func (m *MemDB) DeleteAllocationBucket(allocID string, opts ...WriteOption) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

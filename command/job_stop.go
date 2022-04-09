@@ -18,15 +18,18 @@ func (c *JobStopCommand) Help() string {
 Usage: nomad job stop [options] <job>
 Alias: nomad stop
 
-  Stop an existing job. This command is used to signal allocations
-  to shut down for the given job ID. Upon successful deregistration,
-  an interactive monitor session will start to display log lines as
-  the job unwinds its allocations and completes shutting down. It
-  is safe to exit the monitor early using ctrl+c.
+  Stop an existing job. This command is used to signal allocations to shut
+  down for the given job ID. Upon successful deregistration, an interactive
+  monitor session will start to display log lines as the job unwinds its
+  allocations and completes shutting down. It is safe to exit the monitor
+  early using ctrl+c.
+
+  When ACLs are enabled, this command requires a token with the 'submit-job',
+  'read-job', and 'list-jobs' capabilities for the job's namespace.
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Stop Options:
 
@@ -36,13 +39,23 @@ Stop Options:
     screen, which can be used to examine the evaluation using the eval-status
     command.
 
-  -purge
-    Purge is used to stop the job and purge it from the system. If not set, the
-    job will still be queryable and will be purged by the garbage collector.
+  -eval-priority
+    Override the priority of the evaluations produced as a result of this job
+    deregistration. By default, this is set to the priority of the job.
 
   -global
     Stop a multi-region job in all its regions. By default job stop will stop
     only a single region at a time. Ignored for single-region jobs.
+
+  -no-shutdown-delay
+	Ignore the the group and task shutdown_delay configuration so that there is no
+    delay between service deregistration and task shutdown. Note that using
+    this flag will result in failed network connections to the allocations
+    being stopped.
+
+  -purge
+    Purge is used to stop the job and purge it from the system. If not set, the
+    job will still be queryable and will be purged by the garbage collector.
 
   -yes
     Automatic yes to prompts.
@@ -60,11 +73,13 @@ func (c *JobStopCommand) Synopsis() string {
 func (c *JobStopCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-detach":  complete.PredictNothing,
-			"-purge":   complete.PredictNothing,
-			"-global":  complete.PredictNothing,
-			"-yes":     complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
+			"-detach":            complete.PredictNothing,
+			"-eval-priority":     complete.PredictNothing,
+			"-purge":             complete.PredictNothing,
+			"-global":            complete.PredictNothing,
+			"-no-shutdown-delay": complete.PredictNothing,
+			"-yes":               complete.PredictNothing,
+			"-verbose":           complete.PredictNothing,
 		})
 }
 
@@ -86,15 +101,18 @@ func (c *JobStopCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobStopCommand) Name() string { return "job stop" }
 
 func (c *JobStopCommand) Run(args []string) int {
-	var detach, purge, verbose, global, autoYes bool
+	var detach, purge, verbose, global, autoYes, noShutdownDelay bool
+	var evalPriority int
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&global, "global", false, "")
+	flags.BoolVar(&noShutdownDelay, "no-shutdown-delay", false, "")
 	flags.BoolVar(&autoYes, "yes", false, "")
 	flags.BoolVar(&purge, "purge", false, "")
+	flags.IntVar(&evalPriority, "eval-priority", 0, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -113,7 +131,7 @@ func (c *JobStopCommand) Run(args []string) int {
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-	jobID := args[0]
+	jobID := strings.TrimSpace(args[0])
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -132,10 +150,13 @@ func (c *JobStopCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
 		return 1
 	}
-	if len(jobs) > 1 && (c.allNamespaces() || strings.TrimSpace(jobID) != jobs[0].ID) {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
-		return 1
+	if len(jobs) > 1 {
+		if (jobID != jobs[0].ID) || (c.allNamespaces() && jobs[0].ID == jobs[1].ID) {
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
+			return 1
+		}
 	}
+
 	// Prefix lookup matched a single job
 	q := &api.QueryOptions{Namespace: jobs[0].JobSummary.Namespace}
 	job, _, err := client.Jobs().Info(jobs[0].ID, q)
@@ -185,24 +206,10 @@ func (c *JobStopCommand) Run(args []string) int {
 		}
 	}
 
-	// Scatter-gather job stop for multi-region jobs
-	if global && job.IsMultiregion() {
-		for _, region := range job.Multiregion.Regions {
-			// Invoke the stop
-			wq := &api.WriteOptions{Namespace: jobs[0].JobSummary.Namespace, Region: region.Name}
-			evalID, _, err := client.Jobs().Deregister(*job.ID, purge, wq)
-			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error deregistering job in %q: %s", region.Name, err))
-				return 1
-			}
-			c.Ui.Output(evalID)
-		}
-		return 0
-	}
-
 	// Invoke the stop
+	opts := &api.DeregisterOptions{Purge: purge, Global: global, EvalPriority: evalPriority, NoShutdownDelay: noShutdownDelay}
 	wq := &api.WriteOptions{Namespace: jobs[0].JobSummary.Namespace}
-	evalID, _, err := client.Jobs().Deregister(*job.ID, purge, wq)
+	evalID, _, err := client.Jobs().DeregisterOpts(*job.ID, opts, wq)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
 		return 1
@@ -220,5 +227,5 @@ func (c *JobStopCommand) Run(args []string) int {
 
 	// Start monitoring the stop eval
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(evalID, false)
+	return mon.monitor(evalID)
 }

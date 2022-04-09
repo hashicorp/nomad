@@ -29,7 +29,15 @@ object. Supported identifiers are jobs, allocations and nodes.
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault) + `
+
+UI Options
+
+  -authenticate: Exchange your Nomad ACL token for a one-time token in the
+    web UI, if ACLs are enabled.
+
+  -show-url: Show the Nomad UI URL instead of opening with the default browser.
+`
 
 	return strings.TrimSpace(helpText)
 }
@@ -75,8 +83,13 @@ func (c *UiCommand) Synopsis() string {
 func (c *UiCommand) Name() string { return "ui" }
 
 func (c *UiCommand) Run(args []string) int {
+	var authenticate bool
+	var showUrl bool
+
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&authenticate, "authenticate", false, "")
+	flags.BoolVar(&showUrl, "show-url", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -101,6 +114,27 @@ func (c *UiCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing Nomad address %q: %s", client.Address(), err))
 		return 1
+	}
+
+	// Set query params if necessary
+	qp := url.Query()
+	if ns := c.clientConfig().Namespace; ns != "" {
+		qp.Add("namespace", ns)
+	}
+	if region := c.clientConfig().Region; region != "" {
+		qp.Add("region", region)
+	}
+	url.RawQuery = qp.Encode()
+
+	// Set one-time secret
+	var ottSecret string
+	if authenticate {
+		ott, _, err := client.ACLTokens().UpsertOneTimeToken(nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Could not get one-time token: %s", err))
+			return 1
+		}
+		ottSecret = ott.OneTimeSecretID
 	}
 
 	// We were given an id so look it up
@@ -148,7 +182,7 @@ func (c *UiCommand) Run(args []string) int {
 
 		switch match {
 		case contexts.Nodes:
-			url.Path = fmt.Sprintf("ui/nodes/%s", fullID)
+			url.Path = fmt.Sprintf("ui/clients/%s", fullID)
 		case contexts.Allocs:
 			url.Path = fmt.Sprintf("ui/allocations/%s", fullID)
 		case contexts.Jobs:
@@ -159,12 +193,26 @@ func (c *UiCommand) Run(args []string) int {
 		}
 	}
 
-	c.Ui.Output(fmt.Sprintf("Opening URL %q", url.String()))
+	var output string
+	if authenticate && ottSecret != "" {
+		output = fmt.Sprintf("Opening URL %q with one-time token", url.String())
+		qp := url.Query()
+		qp.Add("ott", ottSecret)
+		url.RawQuery = qp.Encode()
+	} else {
+		output = fmt.Sprintf("Opening URL %q", url.String())
+	}
+
+	if showUrl {
+		c.Ui.Output(fmt.Sprintf("URL for web UI: %s", url.String()))
+		return 0
+	}
+
+	c.Ui.Output(output)
 	if err := open.Start(url.String()); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error opening URL: %s", err))
 		return 1
 	}
-
 	return 0
 }
 
@@ -182,6 +230,6 @@ func (c *UiCommand) logMultiMatchError(id string, matches map[contexts.Context][
 		}
 
 		c.Ui.Error(fmt.Sprintf("\n%s:", strings.Title(string(ctx))))
-		c.Ui.Error(fmt.Sprintf("%s", strings.Join(vers, ", ")))
+		c.Ui.Error(strings.Join(vers, ", "))
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -11,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHearbeatStop_allocHook(t *testing.T) {
-	t.Parallel()
+func TestHeartbeatStop_allocHook(t *testing.T) {
+	ci.Parallel(t)
 
 	server, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()

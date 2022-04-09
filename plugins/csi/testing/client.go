@@ -2,6 +2,7 @@ package testing
 
 import (
 	"context"
+	"fmt"
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
@@ -49,6 +50,12 @@ type ControllerClient struct {
 	NextPublishVolumeResponse              *csipbv1.ControllerPublishVolumeResponse
 	NextUnpublishVolumeResponse            *csipbv1.ControllerUnpublishVolumeResponse
 	NextValidateVolumeCapabilitiesResponse *csipbv1.ValidateVolumeCapabilitiesResponse
+	NextCreateVolumeResponse               *csipbv1.CreateVolumeResponse
+	NextDeleteVolumeResponse               *csipbv1.DeleteVolumeResponse
+	NextListVolumesResponse                *csipbv1.ListVolumesResponse
+	NextCreateSnapshotResponse             *csipbv1.CreateSnapshotResponse
+	NextDeleteSnapshotResponse             *csipbv1.DeleteSnapshotResponse
+	NextListSnapshotsResponse              *csipbv1.ListSnapshotsResponse
 }
 
 // NewControllerClient returns a new ControllerClient
@@ -56,12 +63,18 @@ func NewControllerClient() *ControllerClient {
 	return &ControllerClient{}
 }
 
-func (f *ControllerClient) Reset() {
-	f.NextErr = nil
-	f.NextCapabilitiesResponse = nil
-	f.NextPublishVolumeResponse = nil
-	f.NextUnpublishVolumeResponse = nil
-	f.NextValidateVolumeCapabilitiesResponse = nil
+func (c *ControllerClient) Reset() {
+	c.NextErr = nil
+	c.NextCapabilitiesResponse = nil
+	c.NextPublishVolumeResponse = nil
+	c.NextUnpublishVolumeResponse = nil
+	c.NextValidateVolumeCapabilitiesResponse = nil
+	c.NextCreateVolumeResponse = nil
+	c.NextDeleteVolumeResponse = nil
+	c.NextListVolumesResponse = nil
+	c.NextCreateSnapshotResponse = nil
+	c.NextDeleteSnapshotResponse = nil
+	c.NextListSnapshotsResponse = nil
 }
 
 func (c *ControllerClient) ControllerGetCapabilities(ctx context.Context, in *csipbv1.ControllerGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.ControllerGetCapabilitiesResponse, error) {
@@ -80,6 +93,41 @@ func (c *ControllerClient) ValidateVolumeCapabilities(ctx context.Context, in *c
 	return c.NextValidateVolumeCapabilitiesResponse, c.NextErr
 }
 
+func (c *ControllerClient) CreateVolume(ctx context.Context, in *csipbv1.CreateVolumeRequest, opts ...grpc.CallOption) (*csipbv1.CreateVolumeResponse, error) {
+	if in.VolumeContentSource != nil {
+		if in.VolumeContentSource.Type == nil || (in.VolumeContentSource.Type ==
+			&csipbv1.VolumeContentSource_Volume{
+				Volume: &csipbv1.VolumeContentSource_VolumeSource{VolumeId: ""},
+			}) || (in.VolumeContentSource.Type ==
+			&csipbv1.VolumeContentSource_Snapshot{
+				Snapshot: &csipbv1.VolumeContentSource_SnapshotSource{SnapshotId: ""},
+			}) {
+			return nil, fmt.Errorf("empty content source should be nil")
+		}
+	}
+	return c.NextCreateVolumeResponse, c.NextErr
+}
+
+func (c *ControllerClient) DeleteVolume(ctx context.Context, in *csipbv1.DeleteVolumeRequest, opts ...grpc.CallOption) (*csipbv1.DeleteVolumeResponse, error) {
+	return c.NextDeleteVolumeResponse, c.NextErr
+}
+
+func (c *ControllerClient) ListVolumes(ctx context.Context, in *csipbv1.ListVolumesRequest, opts ...grpc.CallOption) (*csipbv1.ListVolumesResponse, error) {
+	return c.NextListVolumesResponse, c.NextErr
+}
+
+func (c *ControllerClient) CreateSnapshot(ctx context.Context, in *csipbv1.CreateSnapshotRequest, opts ...grpc.CallOption) (*csipbv1.CreateSnapshotResponse, error) {
+	return c.NextCreateSnapshotResponse, c.NextErr
+}
+
+func (c *ControllerClient) DeleteSnapshot(ctx context.Context, in *csipbv1.DeleteSnapshotRequest, opts ...grpc.CallOption) (*csipbv1.DeleteSnapshotResponse, error) {
+	return c.NextDeleteSnapshotResponse, c.NextErr
+}
+
+func (c *ControllerClient) ListSnapshots(ctx context.Context, in *csipbv1.ListSnapshotsRequest, opts ...grpc.CallOption) (*csipbv1.ListSnapshotsResponse, error) {
+	return c.NextListSnapshotsResponse, c.NextErr
+}
+
 // NodeClient is a CSI Node client used for testing
 type NodeClient struct {
 	NextErr                     error
@@ -96,14 +144,14 @@ func NewNodeClient() *NodeClient {
 	return &NodeClient{}
 }
 
-func (f *NodeClient) Reset() {
-	f.NextErr = nil
-	f.NextCapabilitiesResponse = nil
-	f.NextGetInfoResponse = nil
-	f.NextStageVolumeResponse = nil
-	f.NextUnstageVolumeResponse = nil
-	f.NextPublishVolumeResponse = nil
-	f.NextUnpublishVolumeResponse = nil
+func (c *NodeClient) Reset() {
+	c.NextErr = nil
+	c.NextCapabilitiesResponse = nil
+	c.NextGetInfoResponse = nil
+	c.NextStageVolumeResponse = nil
+	c.NextUnstageVolumeResponse = nil
+	c.NextPublishVolumeResponse = nil
+	c.NextUnpublishVolumeResponse = nil
 }
 
 func (c *NodeClient) NodeGetCapabilities(ctx context.Context, in *csipbv1.NodeGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetCapabilitiesResponse, error) {

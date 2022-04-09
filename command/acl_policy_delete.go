@@ -17,9 +17,11 @@ Usage: nomad acl policy delete <name>
 
   Delete is used to delete an existing ACL policy.
 
+  This command requires a management ACL token.
+
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 
 	return strings.TrimSpace(helpText)
 }

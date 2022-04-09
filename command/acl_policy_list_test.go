@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -13,8 +14,8 @@ import (
 )
 
 func TestACLPolicyListCommand(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	config := func(c *agent.Config) {
 		c.ACL.Enabled = true
 	}
@@ -33,9 +34,9 @@ func TestACLPolicyListCommand(t *testing.T) {
 		Rules: acl.PolicyWrite,
 	}
 	policy.SetHash()
-	assert.Nil(state.UpsertACLPolicies(1000, []*structs.ACLPolicy{policy}))
+	assert.Nil(state.UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy}))
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLPolicyListCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Attempt to list policies without a valid management token

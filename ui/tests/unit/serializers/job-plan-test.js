@@ -2,9 +2,9 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import JobPlanModel from 'nomad-ui/models/job-plan';
 
-module('Unit | Serializer | JobPlan', function(hooks) {
+module('Unit | Serializer | JobPlan', function (hooks) {
   setupTest(hooks);
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.serializerFor('job-plan');
   });
@@ -138,9 +138,12 @@ module('Unit | Serializer | JobPlan', function(hooks) {
     },
   ];
 
-  normalizationTestCases.forEach(testCase => {
-    test(`normalization: ${testCase.name}`, async function(assert) {
-      assert.deepEqual(this.subject().normalize(JobPlanModel, testCase.in), testCase.out);
+  normalizationTestCases.forEach((testCase) => {
+    test(`normalization: ${testCase.name}`, async function (assert) {
+      assert.deepEqual(
+        this.subject().normalize(JobPlanModel, testCase.in),
+        testCase.out
+      );
     });
   });
 });

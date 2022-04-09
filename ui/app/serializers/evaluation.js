@@ -1,6 +1,5 @@
 import { inject as service } from '@ember/service';
 import { get } from '@ember/object';
-import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 import classic from 'ember-classic-decorator';
 
@@ -8,27 +7,45 @@ import classic from 'ember-classic-decorator';
 export default class Evaluation extends ApplicationSerializer {
   @service system;
 
-  normalize(typeHash, hash) {
-    const failures = hash.FailedTGAllocs || {};
-    hash.FailedTGAllocs = Object.keys(failures).map(key => {
-      const propertiesForKey = failures[key] || {};
-      return assign({ Name: key }, propertiesForKey);
-    });
+  mapToArray = ['FailedTGAllocs'];
+  separateNanos = ['CreateTime', 'ModifyTime'];
 
+  normalize(typeHash, hash) {
     hash.PlainJobId = hash.JobID;
-    hash.Namespace =
-      hash.Namespace ||
-      get(hash, 'Job.Namespace') ||
-      this.get('system.activeNamespace.id') ||
-      'default';
+    hash.Namespace = hash.Namespace || get(hash, 'Job.Namespace') || 'default';
     hash.JobID = JSON.stringify([hash.JobID, hash.Namespace]);
 
-    hash.ModifyTimeNanos = hash.ModifyTime % 1000000;
-    hash.ModifyTime = Math.floor(hash.ModifyTime / 1000000);
+    const relatedEvals = hash.RelatedEvals;
 
-    hash.CreateTimeNanos = hash.CreateTime % 1000000;
-    hash.CreateTime = Math.floor(hash.CreateTime / 1000000);
+    const normalizedHash = super.normalize(typeHash, hash);
 
-    return super.normalize(typeHash, hash);
+    if (relatedEvals?.length) {
+      this._handleRelatedEvalsRelationshipData(relatedEvals, normalizedHash);
+    }
+
+    return normalizedHash;
+  }
+
+  _handleRelatedEvalsRelationshipData(relatedEvals, normalizedHash) {
+    normalizedHash.data.relationships = normalizedHash.data.relationships || {};
+
+    normalizedHash.data.relationships.relatedEvals = {
+      data: relatedEvals.map((evaluationStub) => {
+        return { id: evaluationStub.ID, type: 'evaluation-stub' };
+      }),
+    };
+
+    normalizedHash.included = normalizedHash.included || [];
+
+    const included = relatedEvals.reduce((acc, evaluationStub) => {
+      const jsonDocument = this.normalize(
+        this.store.modelFor('evaluation-stub'),
+        evaluationStub
+      );
+
+      return [...acc, jsonDocument.data];
+    }, normalizedHash.included);
+
+    normalizedHash.included = included;
   }
 }

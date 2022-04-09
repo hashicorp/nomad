@@ -18,13 +18,17 @@ func (c *JobEvalCommand) Help() string {
 	helpText := `
 Usage: nomad job eval [options] <job_id>
 
-  Force an evaluation of the provided job ID. Forcing an evaluation will trigger the scheduler
-  to re-evaluate the job. The force flags allow operators to force the scheduler to create
-  new allocations under certain scenarios.
+  Force an evaluation of the provided job ID. Forcing an evaluation will
+  trigger the scheduler to re-evaluate the job. The force flags allow
+  operators to force the scheduler to create new allocations under certain
+  scenarios.
+
+  When ACLs are enabled, this command requires a token with the 'submit-job'
+  capability for the job's namespace.
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Eval Options:
 
@@ -124,5 +128,5 @@ func (c *JobEvalCommand) Run(args []string) int {
 	}
 
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(evalId, false)
+	return mon.monitor(evalId)
 }

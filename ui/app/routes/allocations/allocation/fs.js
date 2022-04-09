@@ -7,12 +7,7 @@ export default class FsRoute extends Route {
     const decodedPath = decodeURIComponent(path);
     const allocation = this.modelFor('allocations.allocation');
 
-    if (!allocation.isRunning) {
-      return {
-        path: decodedPath,
-        allocation,
-      };
-    }
+    if (!allocation) return;
 
     return RSVP.all([allocation.stat(decodedPath), allocation.get('node')])
       .then(([statJson]) => {
@@ -20,7 +15,9 @@ export default class FsRoute extends Route {
           return RSVP.hash({
             path: decodedPath,
             allocation,
-            directoryEntries: allocation.ls(decodedPath).catch(notifyError(this)),
+            directoryEntries: allocation
+              .ls(decodedPath)
+              .catch(notifyError(this)),
             isFile: false,
           });
         } else {
@@ -35,8 +32,17 @@ export default class FsRoute extends Route {
       .catch(notifyError(this));
   }
 
-  setupController(controller, { path, allocation, directoryEntries, isFile, stat } = {}) {
+  setupController(
+    controller,
+    { path, allocation, directoryEntries, isFile, stat } = {}
+  ) {
     super.setupController(...arguments);
-    controller.setProperties({ path, allocation, directoryEntries, isFile, stat });
+    controller.setProperties({
+      path,
+      allocation,
+      directoryEntries,
+      isFile,
+      stat,
+    });
   }
 }

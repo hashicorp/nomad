@@ -1,0 +1,3 @@
+```release-note:improvement
+api: return HTTP204 on CORS pre-flight checks and allow dot in CORS header keys.
+```

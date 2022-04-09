@@ -32,16 +32,6 @@ export default create({
     scope: '[data-test-exec-button]',
   },
 
-  breadcrumbs: collection('[data-test-breadcrumb]', {
-    id: attribute('data-test-breadcrumb'),
-    text: text(),
-    visit: clickable(),
-  }),
-
-  breadcrumbFor(id) {
-    return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
-  },
-
   resourceCharts: collection('[data-test-primary-metric]', {
     name: text('[data-test-primary-metric-title]'),
     chartClass: attribute('class', '[data-test-percentage-chart] progress'),
@@ -55,13 +45,6 @@ export default create({
     state: text('[data-test-state]'),
     lifecycle: text('[data-test-lifecycle]'),
     isBlocking: isPresent('.icon-is-warning'),
-  }),
-
-  hasAddresses: isPresent('[data-test-task-addresses]'),
-  addresses: collection('[data-test-task-address]', {
-    name: text('[data-test-task-address-name]'),
-    isDynamic: text('[data-test-task-address-is-dynamic]'),
-    address: text('[data-test-task-address-address]'),
   }),
 
   hasVolumes: isPresent('[data-test-volumes]'),

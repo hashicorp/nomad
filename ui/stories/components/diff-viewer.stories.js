@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Diff Viewer',
+  title: 'Components/Diff Viewer',
 };
 
 export let DiffViewerWithInsertions = () => {
@@ -10,16 +10,40 @@ export let DiffViewerWithInsertions = () => {
       <h5 class="title is-5">Diff Viewer with insertions</h5>
       <div class="boxed-section">
         <div class="boxed-section-body is-dark">
-          {{job-diff diff=insertionsOnly}}
+          <JobDiff @diff={{insertionsOnly}} />
         </div>
       </div>
       `,
     context: {
       insertionsOnly: generateDiff([
-        { Annotations: null, Name: 'Attempts', New: '15', Old: '15', Type: 'None' },
-        { Annotations: null, Name: 'Delay', New: '25000000000', Old: '', Type: 'Added' },
-        { Annotations: null, Name: 'Interval', New: '900000000000', Old: '', Type: 'Added' },
-        { Annotations: null, Name: 'Mode', New: 'delay', Old: 'delay', Type: 'None' },
+        {
+          Annotations: null,
+          Name: 'Attempts',
+          New: '15',
+          Old: '15',
+          Type: 'None',
+        },
+        {
+          Annotations: null,
+          Name: 'Delay',
+          New: '25000000000',
+          Old: '',
+          Type: 'Added',
+        },
+        {
+          Annotations: null,
+          Name: 'Interval',
+          New: '900000000000',
+          Old: '',
+          Type: 'Added',
+        },
+        {
+          Annotations: null,
+          Name: 'Mode',
+          New: 'delay',
+          Old: 'delay',
+          Type: 'None',
+        },
       ]),
     },
   };
@@ -31,13 +55,19 @@ export let DiffViewerWithDeletions = () => {
       <h5 class="title is-5">Diff Viewer with deletions</h5>
       <div class="boxed-section">
         <div class="boxed-section-body is-dark">
-          {{job-diff diff=deletionsOnly}}
+          <JobDiff @diff={{deletionsOnly}} />
         </div>
       </div>
       `,
     context: {
       deletionsOnly: generateDiff([
-        { Annotations: null, Name: 'Attempts', New: '15', Old: '15', Type: 'None' },
+        {
+          Annotations: null,
+          Name: 'Attempts',
+          New: '15',
+          Old: '15',
+          Type: 'None',
+        },
         {
           Annotations: null,
           Name: 'Delay',
@@ -52,7 +82,13 @@ export let DiffViewerWithDeletions = () => {
           Old: '900000000000',
           Type: 'None',
         },
-        { Annotations: null, Name: 'Mode', New: '', Old: 'delay', Type: 'Deleted' },
+        {
+          Annotations: null,
+          Name: 'Mode',
+          New: '',
+          Old: 'delay',
+          Type: 'Deleted',
+        },
       ]),
     },
   };
@@ -64,14 +100,20 @@ export let DiffViewerWithEdits = () => {
       <h5 class="title is-5">Diff Viewer with edits</h5>
       <div class="boxed-section">
         <div class="boxed-section-body is-dark">
-          {{job-diff diff=editsOnly}}
+          <JobDiff @diff={{editsOnly}} />
         </div>
         <p class="annotation">Often times a diff will only have a couple lines. Minor tweaks to a job spec result in small diffs.</p>
       </div>
       `,
     context: {
       editsOnly: generateDiff([
-        { Annotations: null, Name: 'Attempts', New: '15', Old: '15', Type: 'None' },
+        {
+          Annotations: null,
+          Name: 'Attempts',
+          New: '15',
+          Old: '15',
+          Type: 'None',
+        },
         {
           Annotations: null,
           Name: 'Delay',
@@ -86,7 +128,13 @@ export let DiffViewerWithEdits = () => {
           Old: '250000000000',
           Type: 'Edited',
         },
-        { Annotations: null, Name: 'Mode', New: 'delay', Old: 'delay', Type: 'None' },
+        {
+          Annotations: null,
+          Name: 'Mode',
+          New: 'delay',
+          Old: 'delay',
+          Type: 'None',
+        },
       ]),
     },
   };
@@ -98,7 +146,7 @@ export let DiffViewerWithManyChanges = () => {
       <h5 class="title is-5">Diff Viewer with many changes</h5>
       <div class="boxed-section">
         <div class="boxed-section-body is-dark">
-          {{job-diff diff=largeDiff}}
+          <JobDiff @diff={{largeDiff}} />
         </div>
       </div>
       `,
@@ -156,9 +204,27 @@ export let DiffViewerWithManyChanges = () => {
                   },
                   {
                     Fields: [
-                      { Annotations: null, Name: 'CPU', New: '1000', Old: '500', Type: 'Edited' },
-                      { Annotations: null, Name: 'DiskMB', New: '0', Old: '0', Type: 'None' },
-                      { Annotations: null, Name: 'IOPS', New: '0', Old: '0', Type: 'None' },
+                      {
+                        Annotations: null,
+                        Name: 'CPU',
+                        New: '1000',
+                        Old: '500',
+                        Type: 'Edited',
+                      },
+                      {
+                        Annotations: null,
+                        Name: 'DiskMB',
+                        New: '0',
+                        Old: '0',
+                        Type: 'None',
+                      },
+                      {
+                        Annotations: null,
+                        Name: 'IOPS',
+                        New: '0',
+                        Old: '0',
+                        Type: 'None',
+                      },
                       {
                         Annotations: null,
                         Name: 'MemoryMB',
@@ -171,7 +237,13 @@ export let DiffViewerWithManyChanges = () => {
                     Objects: [
                       {
                         Fields: [
-                          { Annotations: null, Name: 'MBits', New: '100', Old: '', Type: 'Added' },
+                          {
+                            Annotations: null,
+                            Name: 'MBits',
+                            New: '100',
+                            Old: '',
+                            Type: 'Added',
+                          },
                         ],
                         Name: 'Network',
                         Objects: [
@@ -194,7 +266,13 @@ export let DiffViewerWithManyChanges = () => {
                       },
                       {
                         Fields: [
-                          { Annotations: null, Name: 'MBits', New: '', Old: '10', Type: 'Deleted' },
+                          {
+                            Annotations: null,
+                            Name: 'MBits',
+                            New: '',
+                            Old: '10',
+                            Type: 'Deleted',
+                          },
                         ],
                         Name: 'Network',
                         Objects: [
@@ -234,13 +312,25 @@ export let DiffViewerWithManyChanges = () => {
                         Old: 'redis-cache',
                         Type: 'None',
                       },
-                      { Annotations: null, Name: 'PortLabel', New: 'db', Old: 'db', Type: 'None' },
+                      {
+                        Annotations: null,
+                        Name: 'PortLabel',
+                        New: 'db',
+                        Old: 'db',
+                        Type: 'None',
+                      },
                     ],
                     Name: 'Service',
                     Objects: [
                       {
                         Fields: [
-                          { Annotations: null, Name: 'Tags', New: 'redis', Old: '', Type: 'Added' },
+                          {
+                            Annotations: null,
+                            Name: 'Tags',
+                            New: 'redis',
+                            Old: '',
+                            Type: 'Added',
+                          },
                           {
                             Annotations: null,
                             Name: 'Tags',
@@ -269,7 +359,13 @@ export let DiffViewerWithManyChanges = () => {
                             Old: '',
                             Type: 'None',
                           },
-                          { Annotations: null, Name: 'Command', New: '', Old: '', Type: 'None' },
+                          {
+                            Annotations: null,
+                            Name: 'Command',
+                            New: '',
+                            Old: '',
+                            Type: 'None',
+                          },
                           {
                             Annotations: null,
                             Name: 'GRPCService',
@@ -298,7 +394,13 @@ export let DiffViewerWithManyChanges = () => {
                             Old: '10000000000',
                             Type: 'Edited',
                           },
-                          { Annotations: null, Name: 'Method', New: '', Old: '', Type: 'None' },
+                          {
+                            Annotations: null,
+                            Name: 'Method',
+                            New: '',
+                            Old: '',
+                            Type: 'None',
+                          },
                           {
                             Annotations: null,
                             Name: 'Name',
@@ -306,9 +408,27 @@ export let DiffViewerWithManyChanges = () => {
                             Old: 'alive',
                             Type: 'None',
                           },
-                          { Annotations: null, Name: 'Path', New: '', Old: '', Type: 'None' },
-                          { Annotations: null, Name: 'PortLabel', New: '', Old: '', Type: 'None' },
-                          { Annotations: null, Name: 'Protocol', New: '', Old: '', Type: 'None' },
+                          {
+                            Annotations: null,
+                            Name: 'Path',
+                            New: '',
+                            Old: '',
+                            Type: 'None',
+                          },
+                          {
+                            Annotations: null,
+                            Name: 'PortLabel',
+                            New: '',
+                            Old: '',
+                            Type: 'None',
+                          },
+                          {
+                            Annotations: null,
+                            Name: 'Protocol',
+                            New: '',
+                            Old: '',
+                            Type: 'None',
+                          },
                           {
                             Annotations: null,
                             Name: 'TLSSkipVerify',
@@ -323,7 +443,13 @@ export let DiffViewerWithManyChanges = () => {
                             Old: '2000000000',
                             Type: 'Edited',
                           },
-                          { Annotations: null, Name: 'Type', New: 'tcp', Old: 'tcp', Type: 'None' },
+                          {
+                            Annotations: null,
+                            Name: 'Type',
+                            New: 'tcp',
+                            Old: 'tcp',
+                            Type: 'None',
+                          },
                         ],
                         Name: 'Check',
                         Objects: null,
@@ -341,16 +467,46 @@ export let DiffViewerWithManyChanges = () => {
           },
           {
             Fields: [
-              { Annotations: null, Name: 'Count', New: '1', Old: '', Type: 'Added' },
-              { Annotations: null, Name: 'Meta[key]', New: 'value', Old: '', Type: 'Added' },
-              { Annotations: null, Name: 'Meta[red]', New: 'fish', Old: '', Type: 'Added' },
+              {
+                Annotations: null,
+                Name: 'Count',
+                New: '1',
+                Old: '',
+                Type: 'Added',
+              },
+              {
+                Annotations: null,
+                Name: 'Meta[key]',
+                New: 'value',
+                Old: '',
+                Type: 'Added',
+              },
+              {
+                Annotations: null,
+                Name: 'Meta[red]',
+                New: 'fish',
+                Old: '',
+                Type: 'Added',
+              },
             ],
             Name: 'cache2',
             Objects: [
               {
                 Fields: [
-                  { Annotations: null, Name: 'Attempts', New: '2', Old: '', Type: 'Added' },
-                  { Annotations: null, Name: 'Delay', New: '15000000000', Old: '', Type: 'Added' },
+                  {
+                    Annotations: null,
+                    Name: 'Attempts',
+                    New: '2',
+                    Old: '',
+                    Type: 'Added',
+                  },
+                  {
+                    Annotations: null,
+                    Name: 'Delay',
+                    New: '15000000000',
+                    Old: '',
+                    Type: 'Added',
+                  },
                   {
                     Annotations: null,
                     Name: 'Interval',
@@ -358,7 +514,13 @@ export let DiffViewerWithManyChanges = () => {
                     Old: '',
                     Type: 'Added',
                   },
-                  { Annotations: null, Name: 'Mode', New: 'fail', Old: '', Type: 'Added' },
+                  {
+                    Annotations: null,
+                    Name: 'Mode',
+                    New: 'fail',
+                    Old: '',
+                    Type: 'Added',
+                  },
                 ],
                 Name: 'RestartPolicy',
                 Objects: null,
@@ -366,9 +528,27 @@ export let DiffViewerWithManyChanges = () => {
               },
               {
                 Fields: [
-                  { Annotations: null, Name: 'Migrate', New: 'false', Old: '', Type: 'Added' },
-                  { Annotations: null, Name: 'SizeMB', New: '300', Old: '', Type: 'Added' },
-                  { Annotations: null, Name: 'Sticky', New: 'false', Old: '', Type: 'Added' },
+                  {
+                    Annotations: null,
+                    Name: 'Migrate',
+                    New: 'false',
+                    Old: '',
+                    Type: 'Added',
+                  },
+                  {
+                    Annotations: null,
+                    Name: 'SizeMB',
+                    New: '300',
+                    Old: '',
+                    Type: 'Added',
+                  },
+                  {
+                    Annotations: null,
+                    Name: 'Sticky',
+                    New: 'false',
+                    Old: '',
+                    Type: 'Added',
+                  },
                 ],
                 Name: 'EphemeralDisk',
                 Objects: null,
@@ -379,7 +559,13 @@ export let DiffViewerWithManyChanges = () => {
               {
                 Annotations: null,
                 Fields: [
-                  { Annotations: null, Name: 'Driver', New: 'docker', Old: '', Type: 'Added' },
+                  {
+                    Annotations: null,
+                    Name: 'Driver',
+                    New: 'docker',
+                    Old: '',
+                    Type: 'Added',
+                  },
                   {
                     Annotations: null,
                     Name: 'KillTimeout',
@@ -387,8 +573,20 @@ export let DiffViewerWithManyChanges = () => {
                     Old: '',
                     Type: 'Added',
                   },
-                  { Annotations: null, Name: 'Leader', New: 'false', Old: '', Type: 'Added' },
-                  { Annotations: null, Name: 'ShutdownDelay', New: '0', Old: '', Type: 'Added' },
+                  {
+                    Annotations: null,
+                    Name: 'Leader',
+                    New: 'false',
+                    Old: '',
+                    Type: 'Added',
+                  },
+                  {
+                    Annotations: null,
+                    Name: 'ShutdownDelay',
+                    New: '0',
+                    Old: '',
+                    Type: 'Added',
+                  },
                 ],
                 Name: 'redis',
                 Objects: [
@@ -415,16 +613,46 @@ export let DiffViewerWithManyChanges = () => {
                   },
                   {
                     Fields: [
-                      { Annotations: null, Name: 'CPU', New: '500', Old: '', Type: 'Added' },
-                      { Annotations: null, Name: 'DiskMB', New: '0', Old: '', Type: 'Added' },
-                      { Annotations: null, Name: 'IOPS', New: '0', Old: '', Type: 'Added' },
-                      { Annotations: null, Name: 'MemoryMB', New: '256', Old: '', Type: 'Added' },
+                      {
+                        Annotations: null,
+                        Name: 'CPU',
+                        New: '500',
+                        Old: '',
+                        Type: 'Added',
+                      },
+                      {
+                        Annotations: null,
+                        Name: 'DiskMB',
+                        New: '0',
+                        Old: '',
+                        Type: 'Added',
+                      },
+                      {
+                        Annotations: null,
+                        Name: 'IOPS',
+                        New: '0',
+                        Old: '',
+                        Type: 'Added',
+                      },
+                      {
+                        Annotations: null,
+                        Name: 'MemoryMB',
+                        New: '256',
+                        Old: '',
+                        Type: 'Added',
+                      },
                     ],
                     Name: 'Resources',
                     Objects: [
                       {
                         Fields: [
-                          { Annotations: null, Name: 'MBits', New: '10', Old: '', Type: 'Added' },
+                          {
+                            Annotations: null,
+                            Name: 'MBits',
+                            New: '10',
+                            Old: '',
+                            Type: 'Added',
+                          },
                         ],
                         Name: 'Network',
                         Objects: [
@@ -469,7 +697,15 @@ function generateDiff(changeset) {
     Objects: null,
     TaskGroups: [
       {
-        Fields: [{ Annotations: null, Name: 'Count', New: '2', Old: '2', Type: 'None' }],
+        Fields: [
+          {
+            Annotations: null,
+            Name: 'Count',
+            New: '2',
+            Old: '2',
+            Type: 'None',
+          },
+        ],
         Name: 'cache',
         Objects: [
           {

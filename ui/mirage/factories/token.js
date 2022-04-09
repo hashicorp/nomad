@@ -11,6 +11,8 @@ export default Factory.extend({
   global: () => faker.random.boolean(),
   type: i => (i === 0 ? 'management' : 'client'),
 
+  oneTimeSecret: () => faker.random.uuid(),
+
   afterCreate(token, server) {
     const policyIds = Array(faker.random.number({ min: 1, max: 5 }))
       .fill(0)

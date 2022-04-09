@@ -14,53 +14,72 @@ export default class LifecycleChart extends Component {
   get lifecyclePhases() {
     const tasksOrStates = this.taskStates || this.tasks;
     const lifecycles = {
-      prestarts: [],
-      sidecars: [],
+      'prestart-ephemerals': [],
+      'prestart-sidecars': [],
+      'poststart-ephemerals': [],
+      'poststart-sidecars': [],
+      poststops: [],
       mains: [],
     };
 
-    tasksOrStates.forEach(taskOrState => {
+    tasksOrStates.forEach((taskOrState) => {
       const task = taskOrState.task || taskOrState;
-      lifecycles[`${task.lifecycleName}s`].push(taskOrState);
+
+      if (task.lifecycleName) {
+        lifecycles[`${task.lifecycleName}s`].push(taskOrState);
+      }
     });
 
     const phases = [];
+    const stateActiveIterator = (state) => state.state === 'running';
 
-    if (lifecycles.prestarts.length || lifecycles.sidecars.length) {
+    if (lifecycles.mains.length < tasksOrStates.length) {
       phases.push({
         name: 'Prestart',
-        isActive: lifecycles.prestarts.some(state => state.state === 'running'),
+        isActive: lifecycles['prestart-ephemerals'].some(stateActiveIterator),
       });
-    }
 
-    if (lifecycles.sidecars.length || lifecycles.mains.length) {
       phases.push({
         name: 'Main',
-        isActive: lifecycles.mains.some(state => state.state === 'running'),
+        isActive:
+          lifecycles.mains.some(stateActiveIterator) ||
+          lifecycles['poststart-ephemerals'].some(stateActiveIterator),
+      });
+
+      // Poststart is rendered as a subphase of main and therefore has no independent active state
+      phases.push({
+        name: 'Poststart',
+      });
+
+      phases.push({
+        name: 'Poststop',
+        isActive: lifecycles.poststops.some(stateActiveIterator),
       });
     }
 
     return phases;
   }
 
-  @sort('taskStates', function(a, b) {
+  @sort('taskStates', function (a, b) {
     return getTaskSortPrefix(a.task).localeCompare(getTaskSortPrefix(b.task));
   })
   sortedLifecycleTaskStates;
 
-  @sort('tasks', function(a, b) {
+  @sort('tasks', function (a, b) {
     return getTaskSortPrefix(a).localeCompare(getTaskSortPrefix(b));
   })
   sortedLifecycleTasks;
 }
 
 const lifecycleNameSortPrefix = {
-  prestart: 0,
-  sidecar: 1,
+  'prestart-ephemeral': 0,
+  'prestart-sidecar': 1,
   main: 2,
+  'poststart-sidecar': 3,
+  'poststart-ephemeral': 4,
+  poststop: 5,
 };
 
 function getTaskSortPrefix(task) {
-  // Prestarts first, then sidecars, then mains
   return `${lifecycleNameSortPrefix[task.lifecycleName]}-${task.name}`;
 }

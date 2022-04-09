@@ -3,6 +3,7 @@ package helper
 import (
 	"crypto/sha512"
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -19,6 +20,16 @@ var validUUID = regexp.MustCompile(`(?i)^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f
 // string must begin with one or more non-dot characters which may be followed
 // by sequences containing a dot followed by a one or more non-dot characters.
 var validInterpVarKey = regexp.MustCompile(`^[^.]+(\.[^.]+)*$`)
+
+// invalidFilename is the minimum set of characters which must be removed or
+// replaced to produce a valid filename
+var invalidFilename = regexp.MustCompile(`[/\\<>:"|?*]`)
+
+// invalidFilenameNonASCII = invalidFilename plus all non-ASCII characters
+var invalidFilenameNonASCII = regexp.MustCompile(`[[:^ascii:]/\\<>:"|?*]`)
+
+// invalidFilenameStrict = invalidFilename plus additional punctuation
+var invalidFilenameStrict = regexp.MustCompile(`[/\\<>:"|?*$()+=[\];#@~,&']`)
 
 // IsUUID returns true if the given string is a valid UUID.
 func IsUUID(str string) bool {
@@ -57,7 +68,7 @@ func HashUUID(input string) (output string, hashed bool) {
 	return output, true
 }
 
-// boolToPtr returns the pointer to a boolean
+// BoolToPtr returns the pointer to a boolean.
 func BoolToPtr(b bool) *bool {
 	return &b
 }
@@ -72,7 +83,12 @@ func Int8ToPtr(i int8) *int8 {
 	return &i
 }
 
-// Int64ToPtr returns the pointer to an int
+// Int32ToPtr returns the pointer to an int32
+func Int32ToPtr(i int32) *int32 {
+	return &i
+}
+
+// Int64ToPtr returns the pointer to an int64
 func Int64ToPtr(i int64) *int64 {
 	return &i
 }
@@ -92,9 +108,17 @@ func StringToPtr(str string) *string {
 	return &str
 }
 
-// TimeToPtr returns the pointer to a time stamp
+// TimeToPtr returns the pointer to a time.Duration.
 func TimeToPtr(t time.Duration) *time.Duration {
 	return &t
+}
+
+// CompareTimePtrs return true if a is the same as b.
+func CompareTimePtrs(a, b *time.Duration) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
 }
 
 // Float64ToPtr returns the pointer to an float64
@@ -147,6 +171,14 @@ func SliceStringToSet(s []string) map[string]struct{} {
 	return m
 }
 
+func SetToSliceString(set map[string]struct{}) []string {
+	flattened := make([]string, 0, len(set))
+	for x := range set {
+		flattened = append(flattened, x)
+	}
+	return flattened
+}
+
 // SliceStringIsSubset returns whether the smaller set of strings is a subset of
 // the larger. If the smaller slice is not a subset, the offending elements are
 // returned.
@@ -166,6 +198,36 @@ func SliceStringIsSubset(larger, smaller []string) (bool, []string) {
 	}
 
 	return subset, offending
+}
+
+// SliceStringContains returns whether item exists at least once in list.
+func SliceStringContains(list []string, item string) bool {
+	for _, s := range list {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+// SliceStringHasPrefix returns true if any string in list starts with prefix
+func SliceStringHasPrefix(list []string, prefix string) bool {
+	for _, s := range list {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// StringHasPrefixInSlice returns true if string starts with any prefix in list
+func StringHasPrefixInSlice(s string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func SliceSetDisjoint(first, second []string) (bool, []string) {
@@ -249,7 +311,8 @@ func CompareMapStringString(a, b map[string]string) bool {
 	return true
 }
 
-// Helpers for copying generic structures.
+// Below is helpers for copying generic structures.
+
 func CopyMapStringString(m map[string]string) map[string]string {
 	l := len(m)
 	if l == 0 {
@@ -274,6 +337,42 @@ func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
 		c[k] = struct{}{}
 	}
 	return c
+}
+
+func CopyMapStringInterface(m map[string]interface{}) map[string]interface{} {
+	l := len(m)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]interface{}, l)
+	for k, v := range m {
+		c[k] = v
+	}
+	return c
+}
+
+// MergeMapStringString will merge two maps into one. If a duplicate key exists
+// the value in the second map will replace the value in the first map. If both
+// maps are empty or nil this returns an empty map.
+func MergeMapStringString(m map[string]string, n map[string]string) map[string]string {
+	if len(m) == 0 && len(n) == 0 {
+		return map[string]string{}
+	}
+	if len(m) == 0 {
+		return n
+	}
+	if len(n) == 0 {
+		return m
+	}
+
+	result := CopyMapStringString(m)
+
+	for k, v := range n {
+		result[k] = v
+	}
+
+	return result
 }
 
 func CopyMapStringInt(m map[string]int) map[string]int {
@@ -324,9 +423,7 @@ func CopySliceString(s []string) []string {
 	}
 
 	c := make([]string, l)
-	for i, v := range s {
-		c[i] = v
-	}
+	copy(c, s)
 	return c
 }
 
@@ -337,9 +434,7 @@ func CopySliceInt(s []int) []int {
 	}
 
 	c := make([]int, l)
-	for i, v := range s {
-		c[i] = v
-	}
+	copy(c, s)
 	return c
 }
 
@@ -360,6 +455,24 @@ func CleanEnvVar(s string, r byte) string {
 		}
 	}
 	return string(b)
+}
+
+// CleanFilename replaces invalid characters in filename
+func CleanFilename(filename string, replace string) string {
+	clean := invalidFilename.ReplaceAllLiteralString(filename, replace)
+	return clean
+}
+
+// CleanFilenameASCIIOnly replaces invalid and non-ASCII characters in filename
+func CleanFilenameASCIIOnly(filename string, replace string) string {
+	clean := invalidFilenameNonASCII.ReplaceAllLiteralString(filename, replace)
+	return clean
+}
+
+// CleanFilenameStrict replaces invalid and punctuation characters in filename
+func CleanFilenameStrict(filename string, replace string) string {
+	clean := invalidFilenameStrict.ReplaceAllLiteralString(filename, replace)
+	return clean
 }
 
 func CheckHCLKeys(node ast.Node, valid []string) error {
@@ -460,4 +573,65 @@ func RemoveEqualFold(xs *[]string, search string) {
 			return
 		}
 	}
+}
+
+// CheckNamespaceScope ensures that the provided namespace is equal to
+// or a parent of the requested namespaces. Returns requested namespaces
+// which are not equal to or a child of the provided namespace.
+func CheckNamespaceScope(provided string, requested []string) []string {
+	var offending []string
+	for _, ns := range requested {
+		rel, err := filepath.Rel(provided, ns)
+		if err != nil {
+			offending = append(offending, ns)
+			// If relative path requires ".." it's not a child
+		} else if strings.Contains(rel, "..") {
+			offending = append(offending, ns)
+		}
+	}
+	if len(offending) > 0 {
+		return offending
+	}
+	return nil
+}
+
+// PathEscapesSandbox returns whether previously cleaned path inside the
+// sandbox directory (typically this will be the allocation directory)
+// escapes.
+func PathEscapesSandbox(sandboxDir, path string) bool {
+	rel, err := filepath.Rel(sandboxDir, path)
+	if err != nil {
+		return true
+	}
+	if strings.HasPrefix(rel, "..") {
+		return true
+	}
+	return false
+}
+
+// StopFunc is used to stop a time.Timer created with NewSafeTimer
+type StopFunc func()
+
+// NewSafeTimer creates a time.Timer but does not panic if duration is <= 0.
+//
+// Using a time.Timer is recommended instead of time.After when it is necessary
+// to avoid leaking goroutines (e.g. in a select inside a loop).
+//
+// Returns the time.Timer and also a StopFunc, forcing the caller to deal
+// with stopping the time.Timer to avoid leaking a goroutine.
+func NewSafeTimer(duration time.Duration) (*time.Timer, StopFunc) {
+	if duration <= 0 {
+		// Avoid panic by using the smallest positive value. This is close enough
+		// to the behavior of time.After(0), which this helper is intended to
+		// replace.
+		// https://go.dev/play/p/EIkm9MsPbHY
+		duration = 1
+	}
+
+	t := time.NewTimer(duration)
+	cancel := func() {
+		t.Stop()
+	}
+
+	return t, cancel
 }

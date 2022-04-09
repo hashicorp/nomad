@@ -16,7 +16,7 @@ type StatusCommand struct {
 	verbose bool
 }
 
-func (s *StatusCommand) Help() string {
+func (c *StatusCommand) Help() string {
 	helpText := `
 Usage: nomad status [options] <identifier>
 
@@ -26,7 +26,7 @@ Usage: nomad status [options] <identifier>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Status Options:
 
@@ -184,6 +184,6 @@ func (c *StatusCommand) logMultiMatchError(id string, matches map[contexts.Conte
 		}
 
 		c.Ui.Error(fmt.Sprintf("\n%s:", strings.Title(string(ctx))))
-		c.Ui.Error(fmt.Sprintf("%s", strings.Join(vers, ", ")))
+		c.Ui.Error(strings.Join(vers, ", "))
 	}
 }

@@ -111,7 +111,7 @@ resource "azurerm_network_interface" "hashistack-server-ni" {
     name                          = "hashistack-ipc"
     subnet_id                     = "${azurerm_subnet.hashistack-sn.id}"
     private_ip_address_allocation = "dynamic"
-    public_ip_address_id          = "${element(azurerm_public_ip.hashistack-server-public-ip.*.id,count.index)}"
+    public_ip_address_id          = "${element(azurerm_public_ip.hashistack-server-public-ip.*.id, count.index)}"
   }
 
   tags {
@@ -123,7 +123,7 @@ resource "azurerm_virtual_machine" "server" {
   name                  = "hashistack-server-${count.index}"
   location              = "${var.location}"
   resource_group_name   = "${azurerm_resource_group.hashistack.name}"
-  network_interface_ids = ["${element(azurerm_network_interface.hashistack-server-ni.*.id,count.index)}"]
+  network_interface_ids = ["${element(azurerm_network_interface.hashistack-server-ni.*.id, count.index)}"]
   vm_size               = "${var.vm_size}"
   count                 = "${var.server_count}"
 
@@ -189,7 +189,7 @@ resource "azurerm_network_interface" "hashistack-client-ni" {
     name                          = "hashistack-ipc"
     subnet_id                     = "${azurerm_subnet.hashistack-sn.id}"
     private_ip_address_allocation = "dynamic"
-    public_ip_address_id          = "${element(azurerm_public_ip.hashistack-client-public-ip.*.id,count.index)}"
+    public_ip_address_id          = "${element(azurerm_public_ip.hashistack-client-public-ip.*.id, count.index)}"
   }
 
   tags {
@@ -201,7 +201,7 @@ resource "azurerm_virtual_machine" "client" {
   name                  = "hashistack-client-${count.index}"
   location              = "${var.location}"
   resource_group_name   = "${azurerm_resource_group.hashistack.name}"
-  network_interface_ids = ["${element(azurerm_network_interface.hashistack-client-ni.*.id,count.index)}"]
+  network_interface_ids = ["${element(azurerm_network_interface.hashistack-client-ni.*.id, count.index)}"]
   vm_size               = "${var.vm_size}"
   count                 = "${var.client_count}"
   depends_on            = ["azurerm_virtual_machine.server"]

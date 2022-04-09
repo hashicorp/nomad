@@ -1,7 +1,5 @@
-{{title "Run a job"}}
+<Breadcrumb @crumb={{hash label="Run" args=(array "jobs.run")}} />
+{{page-title "Run a job"}}
 <section class="section">
-  <JobEditor
-    @job={{model}}
-    @context="new"
-    @onSubmit={{action onSubmit}} />
+  <JobEditor @job={{this.model}} @context="new" @onSubmit={{action this.onSubmit}} />
 </section>
