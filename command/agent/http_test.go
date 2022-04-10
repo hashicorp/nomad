@@ -535,16 +535,47 @@ func TestParseToken(t *testing.T) {
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
-	req, err := http.NewRequest("GET", "/v1/jobs", nil)
-	req.Header.Add("X-Nomad-Token", "foobar")
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	cases := []struct {
+		Name          string
+		HeaderKey     string
+		HeaderValue   string
+		ExpectedToken string
+	}{
+		{
+			Name:          "Parses token from X-Nomad-Token",
+			HeaderKey:     "X-Nomad-Token",
+			HeaderValue:   "foobar",
+			ExpectedToken: "foobar",
+		},
+		{
+			Name:          "Parses token from bearer authentication",
+			HeaderKey:     "Authorization",
+			HeaderValue:   "Bearer foobar",
+			ExpectedToken: "foobar",
+		},
+		{
+			Name:          "Fails to parse token from bad bearer authentication",
+			HeaderKey:     "Authorization",
+			HeaderValue:   "foobar",
+			ExpectedToken: "",
+		},
 	}
 
-	var token string
-	s.Server.parseToken(req, &token)
-	if token != "foobar" {
-		t.Fatalf("bad %s", token)
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/v1/jobs", nil)
+			req.Header.Add(tc.HeaderKey, tc.HeaderValue)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+
+			var token string
+			s.Server.parseToken(req, &token)
+			if token != tc.ExpectedToken {
+				t.Fatalf("bad %s", token)
+			}
+		})
 	}
 }
 
