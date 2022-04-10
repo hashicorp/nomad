@@ -806,6 +806,27 @@ func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 		*token = other
 		return
 	}
+
+	if other := req.Header.Get("Authorization"); other != "" {
+		// HTTP Authorization headers are in the format: <Scheme>[SPACE]<Value>
+		// Ref. https://tools.ietf.org/html/rfc7236#section-3
+		parts := strings.Split(other, " ")
+
+		// Authorization Header is invalid if containing 1 or 0 parts, e.g.:
+		// "" || "<Scheme><Value>" || "<Scheme>" || "<Value>"
+		if len(parts) > 1 {
+			scheme := parts[0]
+			// Everything after "<Scheme>" is "<Value>", trimmed
+			value := strings.TrimSpace(strings.Join(parts[1:], " "))
+
+			// <Scheme> must be "Bearer"
+			if strings.ToLower(scheme) == "bearer" {
+				// Since Bearer tokens shouldn't contain spaces (rfc6750#section-2.1)
+				// "value" is tokenized, only the first item is used
+				*token = strings.TrimSpace(strings.Split(value, " ")[0])
+			}
+		}
+	}
 }
 
 // parse is a convenience method for endpoints that need to parse multiple flags
