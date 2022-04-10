@@ -89,8 +89,7 @@ func (c *ACLBootstrapCommand) Run(args []string) int {
 	}
 
 	// LANCES HACK!!!!! BEWARE
-	var BootStrapSecret map[string]string
-	BootStrapSecret = make(map[string]string)
+	BootStrapSecret := make(map[string]string)
 	BootStrapSecret["bootstraptoken"] = tkn
 	btkn := api.BootstrapRequest{}
 	btkn.Secrets = BootStrapSecret
