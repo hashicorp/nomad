@@ -34,7 +34,7 @@ func TestConnect_newConnect(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
-		asr, err := newConnect("", "", nil, nil, nil)
+		asr, err := newConnect("", "", nil, nil, nil, "")
 		require.NoError(t, err)
 		require.Nil(t, asr)
 	})
@@ -42,7 +42,7 @@ func TestConnect_newConnect(t *testing.T) {
 	t.Run("native", func(t *testing.T) {
 		asr, err := newConnect("", "", &structs.ConsulConnect{
 			Native: true,
-		}, nil, nil)
+		}, nil, nil, "")
 		require.NoError(t, err)
 		require.True(t, asr.Native)
 		require.Nil(t, asr.SidecarService)
@@ -55,7 +55,7 @@ func TestConnect_newConnect(t *testing.T) {
 				Tags: []string{"foo", "bar"},
 				Port: "connect-proxy-redis",
 			},
-		}, testConnectNetwork, testConnectPorts)
+		}, testConnectNetwork, testConnectPorts, "redis-alloc-id")
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceRegistration{
 			Tags:    []string{"foo", "bar"},
@@ -63,8 +63,9 @@ func TestConnect_newConnect(t *testing.T) {
 			Address: "192.168.30.1",
 			Proxy: &api.AgentServiceConnectProxyConfig{
 				Config: map[string]interface{}{
-					"bind_address": "0.0.0.0",
-					"bind_port":    3000,
+					"bind_address":     "0.0.0.0",
+					"bind_port":        3000,
+					"envoy_stats_tags": []string{"alloc_id=redis-alloc-id"},
 				},
 			},
 			Checks: api.AgentServiceChecks{
@@ -89,7 +90,7 @@ func TestConnect_newConnect(t *testing.T) {
 				Port:                   "connect-proxy-redis",
 				DisableDefaultTCPCheck: true,
 			},
-		}, testConnectNetwork, testConnectPorts)
+		}, testConnectNetwork, testConnectPorts, "redis-alloc-id")
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceRegistration{
 			Tags:    []string{"foo", "bar"},
@@ -97,8 +98,9 @@ func TestConnect_newConnect(t *testing.T) {
 			Address: "192.168.30.1",
 			Proxy: &api.AgentServiceConnectProxyConfig{
 				Config: map[string]interface{}{
-					"bind_address": "0.0.0.0",
-					"bind_port":    3000,
+					"bind_address":     "0.0.0.0",
+					"bind_port":        3000,
+					"envoy_stats_tags": []string{"alloc_id=redis-alloc-id"},
 				},
 			},
 			Checks: api.AgentServiceChecks{
@@ -115,7 +117,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
-		sidecarReg, err := connectSidecarRegistration("", nil, testConnectNetwork, testConnectPorts)
+		sidecarReg, err := connectSidecarRegistration("", nil, testConnectNetwork, testConnectPorts, "")
 		require.NoError(t, err)
 		require.Nil(t, sidecarReg)
 	})
@@ -123,7 +125,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 	t.Run("no service port", func(t *testing.T) {
 		_, err := connectSidecarRegistration("unknown-id", &structs.ConsulSidecarService{
 			Port: "unknown-label",
-		}, testConnectNetwork, testConnectPorts)
+		}, testConnectNetwork, testConnectPorts, "")
 		require.EqualError(t, err, `No port of label "unknown-label" defined`)
 	})
 
@@ -137,7 +139,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 					}},
 				},
 			},
-		}, testConnectNetwork, testConnectPorts)
+		}, testConnectNetwork, testConnectPorts, "")
 		require.EqualError(t, err, `No port of label "badPort" defined`)
 	})
 
@@ -145,7 +147,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 		proxy, err := connectSidecarRegistration("redis-service-id", &structs.ConsulSidecarService{
 			Tags: []string{"foo", "bar"},
 			Port: "connect-proxy-redis",
-		}, testConnectNetwork, testConnectPorts)
+		}, testConnectNetwork, testConnectPorts, "")
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceRegistration{
 			Tags:    []string{"foo", "bar"},
@@ -178,7 +180,7 @@ func TestConnect_connectProxy(t *testing.T) {
 	// If the input proxy is nil, we expect the output to be a proxy with its
 	// config set to default values.
 	t.Run("nil proxy", func(t *testing.T) {
-		proxy, err := connectSidecarProxy(nil, 2000, testConnectNetwork)
+		proxy, err := connectSidecarProxy(nil, 2000, testConnectNetwork, "")
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceConnectProxyConfig{
 			LocalServiceAddress: "",
@@ -203,7 +205,7 @@ func TestConnect_connectProxy(t *testing.T) {
 				}},
 			},
 			Config: nil,
-		}, 2000, testConnectNetwork)
+		}, 2000, testConnectNetwork, "")
 		require.EqualError(t, err, `No port of label "badPort" defined`)
 	})
 
@@ -221,7 +223,7 @@ func TestConnect_connectProxy(t *testing.T) {
 				}},
 			},
 			Config: nil,
-		}, 2000, testConnectNetwork)
+		}, 2000, testConnectNetwork, "")
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceConnectProxyConfig{
 			LocalServiceAddress: "0.0.0.0",
@@ -368,19 +370,28 @@ func TestConnect_connectProxyConfig(t *testing.T) {
 
 	t.Run("nil map", func(t *testing.T) {
 		require.Equal(t, map[string]interface{}{
-			"bind_address": "0.0.0.0",
-			"bind_port":    42,
-		}, connectProxyConfig(nil, 42))
+			"bind_address":     "0.0.0.0",
+			"bind_port":        42,
+			"envoy_stats_tags": []string{"alloc_id=test_alloc1"},
+		}, connectProxyConfig(nil, 42, "test_alloc1"))
 	})
 
 	t.Run("pre-existing map", func(t *testing.T) {
 		require.Equal(t, map[string]interface{}{
-			"bind_address": "0.0.0.0",
-			"bind_port":    42,
-			"foo":          "bar",
+			"bind_address":     "0.0.0.0",
+			"bind_port":        42,
+			"foo":              "bar",
+			"envoy_stats_tags": []string{"alloc_id=test_alloc2"},
 		}, connectProxyConfig(map[string]interface{}{
 			"foo": "bar",
-		}, 42))
+		}, 42, "test_alloc2"))
+	})
+
+	t.Run("emtpy alloc id", func(t *testing.T) {
+		require.Equal(t, map[string]interface{}{
+			"bind_address": "0.0.0.0",
+			"bind_port":    42,
+		}, connectProxyConfig(nil, 42, ""))
 	})
 }
 

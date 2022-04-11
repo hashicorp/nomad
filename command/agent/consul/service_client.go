@@ -964,7 +964,7 @@ func (c *ServiceClient) serviceRegs(
 	}
 
 	// newConnect returns (nil, nil) if there's no Connect-enabled service.
-	connect, err := newConnect(id, service.Name, service.Connect, workload.Networks, workload.Ports)
+	connect, err := newConnect(id, service.Name, service.Connect, workload.Networks, workload.Ports, workload.AllocID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}

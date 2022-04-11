@@ -13,7 +13,7 @@ import (
 // newConnect creates a new Consul AgentServiceConnect struct based on a Nomad
 // Connect struct. If the nomad Connect struct is nil, nil will be returned to
 // disable Connect for this service.
-func newConnect(serviceId string, serviceName string, nc *structs.ConsulConnect, networks structs.Networks, ports structs.AllocatedPorts) (*api.AgentServiceConnect, error) {
+func newConnect(serviceId string, serviceName string, nc *structs.ConsulConnect, networks structs.Networks, ports structs.AllocatedPorts, allocId string) (*api.AgentServiceConnect, error) {
 	switch {
 	case nc == nil:
 		// no connect stanza means there is no connect service to register
@@ -32,7 +32,7 @@ func newConnect(serviceId string, serviceName string, nc *structs.ConsulConnect,
 		if nc.SidecarService.Port == "" {
 			nc.SidecarService.Port = fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, serviceName)
 		}
-		sidecarReg, err := connectSidecarRegistration(serviceId, nc.SidecarService, networks, ports)
+		sidecarReg, err := connectSidecarRegistration(serviceId, nc.SidecarService, networks, ports, allocId)
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +89,7 @@ func newConnectGateway(serviceName string, connect *structs.ConsulConnect) *api.
 	return &api.AgentServiceConnectProxyConfig{Config: envoyConfig}
 }
 
-func connectSidecarRegistration(serviceId string, css *structs.ConsulSidecarService, networks structs.Networks, ports structs.AllocatedPorts) (*api.AgentServiceRegistration, error) {
+func connectSidecarRegistration(serviceId string, css *structs.ConsulSidecarService, networks structs.Networks, ports structs.AllocatedPorts, allocId string) (*api.AgentServiceRegistration, error) {
 	if css == nil {
 		// no sidecar stanza means there is no sidecar service to register
 		return nil, nil
@@ -100,7 +100,7 @@ func connectSidecarRegistration(serviceId string, css *structs.ConsulSidecarServ
 		return nil, err
 	}
 
-	proxy, err := connectSidecarProxy(css.Proxy, cMapping.To, networks)
+	proxy, err := connectSidecarProxy(css.Proxy, cMapping.To, networks, allocId)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func connectSidecarRegistration(serviceId string, css *structs.ConsulSidecarServ
 	}, nil
 }
 
-func connectSidecarProxy(proxy *structs.ConsulProxy, cPort int, networks structs.Networks) (*api.AgentServiceConnectProxyConfig, error) {
+func connectSidecarProxy(proxy *structs.ConsulProxy, cPort int, networks structs.Networks, allocId string) (*api.AgentServiceConnectProxyConfig, error) {
 	if proxy == nil {
 		proxy = new(structs.ConsulProxy)
 	}
@@ -142,7 +142,7 @@ func connectSidecarProxy(proxy *structs.ConsulProxy, cPort int, networks structs
 	return &api.AgentServiceConnectProxyConfig{
 		LocalServiceAddress: proxy.LocalServiceAddress,
 		LocalServicePort:    proxy.LocalServicePort,
-		Config:              connectProxyConfig(proxy.Config, cPort),
+		Config:              connectProxyConfig(proxy.Config, cPort, allocId),
 		Upstreams:           connectUpstreams(proxy.Upstreams),
 		Expose:              expose,
 	}, nil
@@ -228,12 +228,16 @@ func connectMeshGateway(in *structs.ConsulMeshGateway) api.MeshGatewayConfig {
 	return gw
 }
 
-func connectProxyConfig(cfg map[string]interface{}, port int) map[string]interface{} {
+func connectProxyConfig(cfg map[string]interface{}, port int, allocId string) map[string]interface{} {
 	if cfg == nil {
 		cfg = make(map[string]interface{})
 	}
 	cfg["bind_address"] = "0.0.0.0"
 	cfg["bind_port"] = port
+	if allocId != "" {
+		cfg["envoy_stats_tags"] = []string{"alloc_id=" + allocId}
+	}
+
 	return cfg
 }
 
