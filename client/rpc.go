@@ -109,8 +109,11 @@ TRY:
 	}
 
 	// Wait to avoid thundering herd
+	timer, cancel := helper.NewSafeTimer(helper.RandomStagger(c.config.RPCHoldTimeout / structs.JitterFraction))
+	defer cancel()
+
 	select {
-	case <-time.After(helper.RandomStagger(c.config.RPCHoldTimeout / structs.JitterFraction)):
+	case <-timer.C:
 		// If we are going to retry a blocking query we need to update the time to block so it finishes by our deadline.
 		if info, ok := args.(structs.RPCInfo); ok && info.TimeToBlock() > 0 {
 			newBlockTime := time.Until(deadline)
