@@ -398,7 +398,7 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 		CreateTime: time.Now().UTC(),
 	}
 
-	//if a token has been passed in from the comand line overwrite the created one.
+	// if a token has been passed in from the API overwrite the generated one.
 	if providedTokenID != "" {
 		args.Token.SecretID = providedTokenID
 	}

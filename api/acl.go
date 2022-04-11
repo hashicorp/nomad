@@ -73,12 +73,13 @@ func (c *Client) ACLTokens() *ACLTokens {
 	return &ACLTokens{client: c}
 }
 
-// CSISecrets contain optional additional credentials that may be needed by
+// ACLSecrets contain optional additional credentials that may be needed by
 // the Bootstrap Command.
 // TODO
 // These values will be redacted when reported in the
 // API or in Nomad's logs
 type ACLSecrets map[string]string
+
 type BootstrapRequest struct {
 	Secrets ACLSecrets
 	WriteRequest
@@ -92,10 +93,10 @@ func (q *WriteOptions) SetHeadersFromBootstrapSecrets(secrets ACLSecrets) {
 	if q.Headers == nil {
 		q.Headers = map[string]string{}
 	}
-	q.Headers["X-Nomad-BOOT-Secrets"] = strings.Join(pairs, ",")
+	q.Headers["X-Nomad-Boostrap-Token"] = strings.Join(pairs, ",")
 }
 
-// Bootstrap is used to get the initial bootstrap token
+// Bootstrap is used to get the initial bootstrap token or pass in the one that was provided in the API
 func (a *ACLTokens) Bootstrap(req *BootstrapRequest, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	if q == nil {
 		q = &WriteOptions{}

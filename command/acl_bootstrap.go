@@ -30,7 +30,7 @@ Bootstrap Options:
   -t
     Format and display the bootstrap response using a Go template.
 
-  -tkn
+  -bootstrap-token
     Provide an operator generated management token.
 
 `
@@ -40,9 +40,9 @@ Bootstrap Options:
 func (c *ACLBootstrapCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json": complete.PredictNothing,
-			"-t":    complete.PredictAnything,
-			"-tkn":  complete.PredictAnything,
+			"-json":            complete.PredictNothing,
+			"-t":               complete.PredictAnything,
+			"-bootstrap-token": complete.PredictAnything,
 		})
 }
 
@@ -59,16 +59,16 @@ func (c *ACLBootstrapCommand) Name() string { return "acl bootstrap" }
 func (c *ACLBootstrapCommand) Run(args []string) int {
 
 	var (
-		json bool
-		tmpl string
-		tkn  string
+		json           bool
+		tmpl           string
+		bootstraptoken string
 	)
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
-	flags.StringVar(&tkn, "tkn", "", "")
+	flags.StringVar(&bootstraptoken, "bootstrap-token", "", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -88,9 +88,9 @@ func (c *ACLBootstrapCommand) Run(args []string) int {
 		return 1
 	}
 
-	// LANCES HACK!!!!! BEWARE
+	// Take the provided token and prepare it for the query.
 	BootStrapSecret := make(map[string]string)
-	BootStrapSecret["bootstraptoken"] = tkn
+	BootStrapSecret["bootstraptoken"] = bootstraptoken
 	btkn := api.BootstrapRequest{}
 	btkn.Secrets = BootStrapSecret
 
