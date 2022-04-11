@@ -10,6 +10,37 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 )
 
+// AgentDisconnect is a test helper function that runs a raw_exec job
+// that will disconnect a client at the network level and reconnect it
+// after the specified period of time.
+//
+// Returns once the job is registered with the job ID of the restart
+// job and any registration errors, not after the duration, so that
+// callers can take actions while the client is down.
+func AgentDisconnect(nodeID string, after time.Duration) (string, error) {
+	jobID := "disconnect-" + nodeID
+	vars := []string{"-var", "nodeID=" + nodeID}
+	if after > 0 {
+		vars = append(vars, "-var", fmt.Sprintf("time=%d", int(after.Seconds())))
+	}
+
+	jobFilePath := "../e2eutil/input/disconnect-node.nomad"
+
+	// TODO: temporary hack around having older tests running on the
+	// framework vs new tests not, as the framework has a different
+	// working directory
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	if filepath.Base(dir) == "e2e" {
+		jobFilePath = "e2eutil/input/disconnect-node.nomad"
+	}
+
+	err = RegisterWithArgs(jobID, jobFilePath, vars...)
+	return jobID, err
+}
+
 // AgentRestartAfter is a test helper function that runs a raw_exec
 // job that will stop a client and restart it after the specified
 // period of time. The node must be running under systemd.

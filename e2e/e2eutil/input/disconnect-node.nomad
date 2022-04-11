@@ -7,7 +7,7 @@ variable "time" {
   default = "0"
 }
 
-job "restart-node" {
+job "disconnect-node" {
   type        = "batch"
   datacenters = ["dc1", "dc2"]
 
@@ -34,7 +34,7 @@ job "restart-node" {
           # before disconnecting, we need to sleep long enough for the
           # task to register itself, otherwise we end up trying to
           # re-run the task immediately on reconnect
-        "sleep 5; systemctl stop nomad; sleep ${var.time}; systemctl start nomad"]
+        "sleep 5; iptables -I OUTPUT -p tcp --dport 4647 -j DROP; sleep ${var.time}; iptables -D OUTPUT -p tcp --dport 4647 -j DROP"]
       }
     }
 
