@@ -323,7 +323,7 @@ func (s *HTTPServer) ExchangeOneTimeToken(resp http.ResponseWriter, req *http.Re
 // parseACLSecrets extracts a map of k/v pairs from the ACL secrets
 // header. Silently ignores invalid secrets
 func parseACLSecrets(req *http.Request) structs.ACLSecrets {
-	secretsHeader := req.Header.Get("X-Nomad-Boostrap-Token")
+	secretsHeader := req.Header.Get("X-Nomad-Bootstrap-Token")
 	if secretsHeader == "" {
 		return nil
 	}
