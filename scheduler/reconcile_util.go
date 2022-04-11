@@ -216,7 +216,7 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 // 4. Those that are on nodes that are disconnected, but have not had their ClientState set to unknown
 // 5. Those that are on a node that has reconnected.
 // 6. Those that are in a state that results in a noop.
-func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, supportsDisconnectedClients bool, now time.Time) (untainted, migrate, lost, disconnecting, reconnecting, ignore allocSet) {
+func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverSupportsDisconnectedClients bool, now time.Time) (untainted, migrate, lost, disconnecting, reconnecting, ignore allocSet) {
 	untainted = make(map[string]*structs.Allocation)
 	migrate = make(map[string]*structs.Allocation)
 	lost = make(map[string]*structs.Allocation)
@@ -224,7 +224,20 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 	reconnecting = make(map[string]*structs.Allocation)
 	ignore = make(map[string]*structs.Allocation)
 
+	supportsDisconnectedClients := serverSupportsDisconnectedClients
+
 	for _, alloc := range a {
+
+		// make sure we don't apply any reconnect logic to task groups
+		// without max_client_disconnect
+		if alloc.Job != nil {
+			tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+			if tg != nil {
+				supportsDisconnectedClients = serverSupportsDisconnectedClients &&
+					tg.MaxClientDisconnect != nil
+			}
+		}
+
 		reconnected := false
 		expired := false
 
@@ -303,13 +316,18 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, support
 			// Group disconnecting/reconnecting
 			switch taintedNode.Status {
 			case structs.NodeStatusDisconnected:
-				// Filter running allocs on a node that is disconnected to be marked as unknown.
-				if supportsDisconnectedClients && alloc.ClientStatus == structs.AllocClientStatusRunning {
-					disconnecting[alloc.ID] = alloc
-					continue
-				}
-				// Filter pending allocs on a node that is disconnected to be marked as lost.
-				if alloc.ClientStatus == structs.AllocClientStatusPending {
+				if supportsDisconnectedClients {
+					// Filter running allocs on a node that is disconnected to be marked as unknown.
+					if alloc.ClientStatus == structs.AllocClientStatusRunning {
+						disconnecting[alloc.ID] = alloc
+						continue
+					}
+					// Filter pending allocs on a node that is disconnected to be marked as lost.
+					if alloc.ClientStatus == structs.AllocClientStatusPending {
+						lost[alloc.ID] = alloc
+						continue
+					}
+				} else {
 					lost[alloc.ID] = alloc
 					continue
 				}
