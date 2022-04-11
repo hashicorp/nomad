@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 if [[ "$USER" != "vagrant" ]]; then
     echo "WARNING: This script is intended to be run from Nomad's Vagrant"
     read -rsp $'Press any key to continue anyway...\n' -n1
