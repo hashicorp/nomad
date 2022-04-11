@@ -84,33 +84,15 @@ func testMultiProvider(t *testing.T) {
 
 	// Lookup the service registration in Nomad and assert this matches what we
 	// expected.
-	require.Eventually(t, func() bool {
-		services, _, err := nomadClient.Services().Get("http-api-nomad", nil)
-		if err != nil {
-			return false
-		}
-
-		// Perform the checks.
-		if len(services) != 1 {
-			return false
-		}
-		if services[0].ServiceName != "http-api-nomad" {
-			return false
-		}
-		if services[0].Namespace != api.DefaultNamespace {
-			return false
-		}
-		if services[0].Datacenter != "dc1" {
-			return false
-		}
-		if services[0].JobID != jobID {
-			return false
-		}
-		if services[0].AllocID != nomadProviderAllocID {
-			return false
-		}
-		return reflect.DeepEqual(services[0].Tags, []string{"foo", "bar"})
-	}, defaultWaitForTime, defaultTickTime)
+	expectedNomadService := api.ServiceRegistration{
+		ServiceName: "http-api-nomad",
+		Namespace:   api.DefaultNamespace,
+		Datacenter:  "dc1",
+		JobID:       jobID,
+		AllocID:     nomadProviderAllocID,
+		Tags:        []string{"foo", "bar"},
+	}
+	requireEventuallyNomadService(t, &expectedNomadService)
 
 	// Lookup the service registration in Consul and assert this matches what
 	// we expected.
@@ -251,33 +233,15 @@ func testUpdateProvider(t *testing.T) {
 		// List all registrations using the service name and check the return
 		// object is as expected. There are some details we cannot assert, such as
 		// node ID and address.
-		require.Eventually(t, func() bool {
-			services, _, err := nomadClient.Services().Get(serviceName, nil)
-			if err != nil {
-				return false
-			}
-
-			// Perform the checks.
-			if len(services) != 1 {
-				return false
-			}
-			if services[0].ServiceName != serviceName {
-				return false
-			}
-			if services[0].Namespace != api.DefaultNamespace {
-				return false
-			}
-			if services[0].Datacenter != "dc1" {
-				return false
-			}
-			if services[0].JobID != jobID {
-				return false
-			}
-			if services[0].AllocID != nomadProviderAllocID {
-				return false
-			}
-			return reflect.DeepEqual(services[0].Tags, []string{"foo", "bar"})
-		}, defaultWaitForTime, defaultTickTime)
+		expectedNomadService := api.ServiceRegistration{
+			ServiceName: serviceName,
+			Namespace:   api.DefaultNamespace,
+			Datacenter:  "dc1",
+			JobID:       jobID,
+			AllocID:     nomadProviderAllocID,
+			Tags:        []string{"foo", "bar"},
+		}
+		requireEventuallyNomadService(t, &expectedNomadService)
 	}
 	nomadServiceTestFn()
 
@@ -349,5 +313,39 @@ func testUpdateProvider(t *testing.T) {
 			return false
 		}
 		return len(services) == 0
+	}, defaultWaitForTime, defaultTickTime)
+}
+
+// requireEventuallyNomadService is a helper which performs an eventual check
+// against Nomad for a single service. Test cases which expect more than a
+// single response should implement their own assertion, to handle ordering
+// problems.
+func requireEventuallyNomadService(t *testing.T, expected *api.ServiceRegistration) {
+	require.Eventually(t, func() bool {
+		services, _, err := e2eutil.NomadClient(t).Services().Get(expected.ServiceName, nil)
+		if err != nil {
+			return false
+		}
+
+		// Perform the checks.
+		if len(services) != 1 {
+			return false
+		}
+		if services[0].ServiceName != expected.ServiceName {
+			return false
+		}
+		if services[0].Namespace != api.DefaultNamespace {
+			return false
+		}
+		if services[0].Datacenter != "dc1" {
+			return false
+		}
+		if services[0].JobID != expected.JobID {
+			return false
+		}
+		if services[0].AllocID != expected.AllocID {
+			return false
+		}
+		return reflect.DeepEqual(services[0].Tags, expected.Tags)
 	}, defaultWaitForTime, defaultTickTime)
 }
