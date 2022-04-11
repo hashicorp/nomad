@@ -248,3 +248,24 @@ func CleanupJobsAndGC(t *testing.T, jobIDs *[]string) func() {
 		assert.NoError(t, err)
 	}
 }
+
+// CleanupJobsAndGCWithContext stops and purges the list of jobIDs and runs a
+// system gc. The passed context allows callers to cancel the execution of the
+// cleanup as they desire. This is useful for tests which attempt to remove the
+// job as part of their run, but may fail before that point is reached.
+func CleanupJobsAndGCWithContext(t *testing.T, ctx context.Context, jobIDs *[]string) {
+
+	// Check the context before continuing. If this has been closed return,
+	// otherwise fallthrough and complete the work.
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+	for _, jobID := range *jobIDs {
+		err := StopJob(jobID, "-purge", "-detach")
+		assert.NoError(t, err)
+	}
+	_, err := Command("nomad", "system", "gc")
+	assert.NoError(t, err)
+}
