@@ -9,7 +9,6 @@ const STATUS = [
   'degraded',
   'failed',
   'lost',
-  'unknown',
 ];
 
 // An Ember.Computed property that computes the aggregated status of a job in a
