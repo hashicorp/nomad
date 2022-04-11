@@ -93,7 +93,7 @@ func (q *WriteOptions) SetHeadersFromBootstrapSecrets(secrets ACLSecrets) {
 	if q.Headers == nil {
 		q.Headers = map[string]string{}
 	}
-	q.Headers["X-Nomad-Boostrap-Token"] = strings.Join(pairs, ",")
+	q.Headers["X-Nomad-Bootstrap-Token"] = strings.Join(pairs, ",")
 }
 
 // Bootstrap is used to get the initial bootstrap token or pass in the one that was provided in the API
