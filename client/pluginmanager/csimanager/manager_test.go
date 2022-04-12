@@ -65,13 +65,8 @@ func TestManager_RegisterPlugin(t *testing.T) {
 	pm.Run()
 
 	require.Eventually(t, func() bool {
-		pmap, ok := pm.instances[fakePlugin.Type]
-		if !ok {
-			return false
-		}
-
-		_, ok = pmap[fakePlugin.Name]
-		return ok
+		im := instanceManagerByTypeAndName(pm, fakePlugin.Type, fakePlugin.Name)
+		return im != nil
 	}, 5*time.Second, 10*time.Millisecond)
 }
 
@@ -98,16 +93,16 @@ func TestManager_DeregisterPlugin(t *testing.T) {
 	pm.Run()
 
 	require.Eventually(t, func() bool {
-		_, ok := pm.instances[fakePlugin.Type][fakePlugin.Name]
-		return ok
+		im := instanceManagerByTypeAndName(pm, fakePlugin.Type, fakePlugin.Name)
+		return im != nil
 	}, 5*time.Second, 10*time.Millisecond)
 
 	err = registry.DeregisterPlugin(fakePlugin.Type, fakePlugin.Name)
 	require.Nil(t, err)
 
 	require.Eventually(t, func() bool {
-		_, ok := pm.instances[fakePlugin.Type][fakePlugin.Name]
-		return !ok
+		im := instanceManagerByTypeAndName(pm, fakePlugin.Type, fakePlugin.Name)
+		return im == nil
 	}, 5*time.Second, 10*time.Millisecond)
 }
 
@@ -142,20 +137,30 @@ func TestManager_MultiplePlugins(t *testing.T) {
 	pm.Run()
 
 	require.Eventually(t, func() bool {
-		_, ok := pm.instances[fakePlugin.Type][fakePlugin.Name]
-		return ok
+		im := instanceManagerByTypeAndName(pm, fakePlugin.Type, fakePlugin.Name)
+		return im != nil
 	}, 5*time.Second, 10*time.Millisecond)
 
 	require.Eventually(t, func() bool {
-		_, ok := pm.instances[fakeNodePlugin.Type][fakeNodePlugin.Name]
-		return ok
+		im := instanceManagerByTypeAndName(pm, fakeNodePlugin.Type, fakeNodePlugin.Name)
+		return im != nil
 	}, 5*time.Second, 10*time.Millisecond)
 
 	err = registry.DeregisterPlugin(fakePlugin.Type, fakePlugin.Name)
 	require.Nil(t, err)
 
 	require.Eventually(t, func() bool {
-		_, ok := pm.instances[fakePlugin.Type][fakePlugin.Name]
-		return !ok
+		im := instanceManagerByTypeAndName(pm, fakePlugin.Type, fakePlugin.Name)
+		return im == nil
 	}, 5*time.Second, 10*time.Millisecond)
+}
+
+// instanceManagerByTypeAndName is a test helper to get the instance
+// manager for the plugin, protected by the lock that the csiManager
+// will normally do internally
+func instanceManagerByTypeAndName(mgr *csiManager, pluginType, pluginName string) *instanceManager {
+	mgr.instancesLock.RLock()
+	defer mgr.instancesLock.RUnlock()
+	im, _ := mgr.instances[pluginType][pluginName]
+	return im
 }
