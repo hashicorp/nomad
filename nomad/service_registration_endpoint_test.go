@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/go-memdb"
@@ -1072,6 +1073,106 @@ func TestServiceRegistration_GetService(t *testing.T) {
 				}, serviceRegResp.Services)
 			},
 			name: "ACLs enabled using node secret",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				server, cleanup := TestServer(t, nil)
+				return server, nil, cleanup
+			},
+			testFn: func(t *testing.T, s *Server, _ *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				// Generate mock services then upsert them individually using different indexes.
+				services := mock.ServiceRegistrations()
+				require.NoError(t, s.fsm.State().UpsertServiceRegistrations(
+					structs.MsgTypeTestSetup, 10, services))
+
+				// Generate a second set of mocks. Set the datacenter to the
+				// opposite or the mock, (dc1,dc2) which will be used to test
+				// filtering and alter the ID.
+				nextServices := mock.ServiceRegistrations()
+				nextServices[0].ID += "_next"
+				nextServices[0].Datacenter = "dc2"
+				nextServices[1].ID += "_next"
+				nextServices[1].Datacenter = "dc1"
+				require.NoError(t, s.fsm.State().UpsertServiceRegistrations(
+					structs.MsgTypeTestSetup, 20, nextServices))
+
+				// Create and test a request where we filter for service
+				// registrations in the default namespace, running within
+				// datacenter "dc2" only.
+				serviceRegReq := &structs.ServiceRegistrationByNameRequest{
+					ServiceName: services[0].ServiceName,
+					QueryOptions: structs.QueryOptions{
+						Namespace: structs.DefaultNamespace,
+						Region:    DefaultRegion,
+						Filter:    `Datacenter == "dc2"`,
+					},
+				}
+				var serviceRegResp structs.ServiceRegistrationByNameResponse
+				err := msgpackrpc.CallWithCodec(
+					codec, structs.ServiceRegistrationGetServiceRPCMethod, serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+				require.ElementsMatch(t, []*structs.ServiceRegistration{nextServices[0]}, serviceRegResp.Services)
+
+				// Create a test function which can be used for each namespace
+				// to ensure cross-namespace functionality of pagination.
+				namespaceTestFn := func(
+					req *structs.ServiceRegistrationByNameRequest,
+					resp *structs.ServiceRegistrationByNameResponse) {
+
+					// We have two service registrations, therefore loop twice in
+					// order to check the return array and pagination details.
+					for i := 0; i < 2; i++ {
+
+						// The message makes debugging test failures easier as we
+						// are inside a loop.
+						msg := fmt.Sprintf("iteration %v of 2", i)
+
+						err2 := msgpackrpc.CallWithCodec(
+							codec, structs.ServiceRegistrationGetServiceRPCMethod, req, resp)
+						require.NoError(t, err2, msg)
+						require.Len(t, resp.Services, 1, msg)
+
+						// Anything but the first iteration should result in an
+						// empty token as we only have two entries.
+						switch i {
+						case 1:
+							require.Empty(t, resp.NextToken)
+						default:
+							require.NotEmpty(t, resp.NextToken)
+							req.NextToken = resp.NextToken
+						}
+					}
+				}
+
+				// Test the default namespace pagnination.
+				serviceRegReq2 := structs.ServiceRegistrationByNameRequest{
+					ServiceName: services[0].ServiceName,
+					QueryOptions: structs.QueryOptions{
+						Namespace: structs.DefaultNamespace,
+						Region:    DefaultRegion,
+						PerPage:   1,
+					},
+				}
+				var serviceRegResp2 structs.ServiceRegistrationByNameResponse
+				namespaceTestFn(&serviceRegReq2, &serviceRegResp2)
+
+				// Test the platform namespace pagnination.
+				serviceRegReq3 := structs.ServiceRegistrationByNameRequest{
+					ServiceName: services[1].ServiceName,
+					QueryOptions: structs.QueryOptions{
+						Namespace: services[1].Namespace,
+						Region:    DefaultRegion,
+						PerPage:   1,
+					},
+				}
+				var serviceRegResp3 structs.ServiceRegistrationByNameResponse
+				namespaceTestFn(&serviceRegReq3, &serviceRegResp3)
+
+			},
+			name: "filtering and pagination",
 		},
 	}
 

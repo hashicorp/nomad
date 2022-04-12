@@ -382,6 +382,62 @@ func TestServiceRegistration_Equal(t *testing.T) {
 	}
 }
 
+func TestServiceRegistration_GetID(t *testing.T) {
+	testCases := []struct {
+		inputServiceRegistration *ServiceRegistration
+		expectedOutput           string
+		name                     string
+	}{
+		{
+			inputServiceRegistration: nil,
+			expectedOutput:           "",
+			name:                     "nil input",
+		},
+		{
+			inputServiceRegistration: &ServiceRegistration{
+				ID: "_nomad-task-2873cf75-42e5-7c45-ca1c-415f3e18be3d-group-cache-example-cache-db",
+			},
+			expectedOutput: "_nomad-task-2873cf75-42e5-7c45-ca1c-415f3e18be3d-group-cache-example-cache-db",
+			name:           "generic input 1",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputServiceRegistration.GetID()
+			require.Equal(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
+func TestServiceRegistration_GetNamespace(t *testing.T) {
+	testCases := []struct {
+		inputServiceRegistration *ServiceRegistration
+		expectedOutput           string
+		name                     string
+	}{
+		{
+			inputServiceRegistration: nil,
+			expectedOutput:           "",
+			name:                     "nil input",
+		},
+		{
+			inputServiceRegistration: &ServiceRegistration{
+				Namespace: "platform",
+			},
+			expectedOutput: "platform",
+			name:           "generic input 1",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputServiceRegistration.GetNamespace()
+			require.Equal(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
 func TestServiceRegistrationListRequest_StaleReadSupport(t *testing.T) {
 	req := &ServiceRegistrationListRequest{}
 	require.True(t, req.IsRead())
