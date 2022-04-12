@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # setup script for Ubuntu Linux 18.04. Assumes that Packer has placed
 # build-time config files at /tmp/linux
 
