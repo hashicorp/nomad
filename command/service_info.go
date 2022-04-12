@@ -37,6 +37,9 @@ Service Info Options:
   -verbose
     Display full information.
 
+  -filter
+    Specifies an expression used to filter query results.
+
   -json
     Output the service in JSON format.
 
@@ -55,6 +58,7 @@ func (s *ServiceInfoCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(s.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-json":    complete.PredictNothing,
+			"-filter":  complete.PredictAnything,
 			"-t":       complete.PredictAnything,
 			"-verbose": complete.PredictNothing,
 		})
@@ -67,7 +71,7 @@ func (s *ServiceInfoCommand) Name() string { return "service info" }
 func (s *ServiceInfoCommand) Run(args []string) int {
 	var (
 		json, verbose bool
-		tmpl          string
+		tmpl, filter  string
 	)
 
 	flags := s.Meta.FlagSet(s.Name(), FlagSetClient)
@@ -75,6 +79,7 @@ func (s *ServiceInfoCommand) Run(args []string) int {
 	flags.BoolVar(&json, "json", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
+	flags.StringVar(&filter, "filter", "", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -92,7 +97,12 @@ func (s *ServiceInfoCommand) Run(args []string) int {
 		return 1
 	}
 
-	serviceInfo, _, err := client.Services().Get(args[0], nil)
+	// Set up the options to capture any filter passed.
+	opts := api.QueryOptions{
+		Filter: filter,
+	}
+
+	serviceInfo, _, err := client.Services().Get(args[0], &opts)
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("Error listing service registrations: %s", err))
 		return 1
