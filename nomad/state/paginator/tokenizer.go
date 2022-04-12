@@ -45,7 +45,7 @@ type StructsTokenizer struct {
 }
 
 // NewStructsTokenizer returns a new StructsTokenizer.
-func NewStructsTokenizer(it Iterator, opts StructsTokenizerOptions) StructsTokenizer {
+func NewStructsTokenizer(_ Iterator, opts StructsTokenizerOptions) StructsTokenizer {
 	return StructsTokenizer{
 		opts: opts,
 	}
