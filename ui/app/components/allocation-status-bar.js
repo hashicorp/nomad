@@ -25,7 +25,7 @@ export default class AllocationStatusBar extends DistributionBar {
   }
 
   @computed(
-    'allocationContainer.{queuedAllocs,completeAllocs,failedAllocs,runningAllocs,startingAllocs,unknownAllocs}',
+    'allocationContainer.{queuedAllocs,completeAllocs,failedAllocs,runningAllocs,startingAllocs,lostAllocs,unknownAllocs}',
     'job.namespace'
   )
   get data() {
