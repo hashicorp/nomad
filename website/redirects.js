@@ -1384,33 +1384,13 @@ module.exports = [
 
   // Redirects for exact versioned-docs to respective generic versions
   {
-    source: '/:base(docs|api-docs)/v1.2.(\\d)',
-    destination: '/:base/v1.2.x',
+    source: '/:base(docs|api-docs)/v1.:minor([0-2]{1,}).(\\d)',
+    destination: '/:base/v1.:minor.x',
     permanent: true,
   },
   {
-    source: '/:base(docs|api-docs)/v1.2.(\\d)/:path*',
-    destination: '/:base/v1.2.x/:path',
-    permanent: true,
-  },
-  {
-    source: '/:base(docs|api-docs)/v1.1.(\\d)',
-    destination: '/:base/v1.1.x',
-    permanent: true,
-  },
-  {
-    source: '/:base(docs|api-docs)/v1.1.(\\d)/:path*',
-    destination: '/:base/v1.1.x/:path',
-    permanent: true,
-  },
-  {
-    source: '/:base(docs|api-docs)/v1.0.(\\d)',
-    destination: '/:base/v1.0.x',
-    permanent: true,
-  },
-  {
-    source: '/:base(docs|api-docs)/v1.0.(\\d)/:path*',
-    destination: '/:base/v1.0.x/:path',
+    source: '/:base(docs|api-docs)/v1.:minor([0-2]{1,}).(\\d)/:path*',
+    destination: '/:base/v1.:minor.x/:path',
     permanent: true,
   },
 ]
