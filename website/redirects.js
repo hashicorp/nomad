@@ -1393,27 +1393,27 @@ module.exports = [
   //   permanent: true
   // }
   {
-    source: '/:base(docs|api-docs)/v1.2.(?\\d)',
+    source: '/:base(docs|api-docs)/v1.2.(\\d)',
     destination: '/:base/v1.2.x',
     permanent: true,
   },
   // {
-  //   source: '/:base(docs|api-docs)/v1.2.(?\\d)/:path*',
+  //   source: '/:base(docs|api-docs)/v1.2.(\\d)/:path*',
   //   destination: '/:base/v1.2.x/:path',
   //   permanent: true,
   // },
   {
-    source: '/:base(docs|api-docs)/v1.1.(?\\d)',
+    source: '/:base(docs|api-docs)/v1.1.(\\d)',
     destination: '/:base/v1.2.x',
     permanent: true,
   },
   // {
-  //   source: '/:base(docs|api-docs)/v1.1.(?\\d)/:path*',
+  //   source: '/:base(docs|api-docs)/v1.1.(\\d)/:path*',
   //   destination: '/:base/v1.2.x/:path',
   //   permanent: true,
   // },
   {
-    source: '/:base(docs|api-docs)/v1.0.(?\\d)',
+    source: '/:base(docs|api-docs)/v1.0.(\\d)',
     destination: '/:base/v1.2.x',
     permanent: true,
   },
