@@ -2132,3 +2132,410 @@ func TestSystemSched_canHandle(t *testing.T) {
 		require.False(t, s.canHandle(structs.EvalTriggerPeriodicJob))
 	})
 }
+
+func TestSystemSched_NodeDisconnected(t *testing.T) {
+	ci.Parallel(t)
+
+	systemJob := mock.SystemJob()
+	systemAlloc := mock.SystemAlloc()
+	systemAlloc.Name = fmt.Sprintf("my-job.%s[0]", systemJob.TaskGroups[0].Name)
+
+	sysBatchJob := mock.SystemBatchJob()
+	sysBatchJob.TaskGroups[0].Tasks[0].Env = make(map[string]string)
+	sysBatchJob.TaskGroups[0].Tasks[0].Env["foo"] = "bar"
+	sysBatchAlloc := mock.SysBatchAlloc()
+	sysBatchAlloc.Name = fmt.Sprintf("my-sysbatch.%s[0]", sysBatchJob.TaskGroups[0].Name)
+
+	now := time.Now().UTC()
+
+	unknownAllocState := []*structs.AllocState{{
+		Field: structs.AllocStateFieldClientStatus,
+		Value: structs.AllocClientStatusUnknown,
+		Time:  now,
+	}}
+
+	expiredAllocState := []*structs.AllocState{{
+		Field: structs.AllocStateFieldClientStatus,
+		Value: structs.AllocClientStatusUnknown,
+		Time:  now.Add(-60 * time.Second),
+	}}
+
+	reconnectedEvent := structs.NewTaskEvent(structs.TaskClientReconnected)
+	reconnectedEvent.Time = time.Now().UnixNano()
+	systemJobReconnectTaskState := map[string]*structs.TaskState{
+		systemJob.TaskGroups[0].Tasks[0].Name: {
+			Events: []*structs.TaskEvent{reconnectedEvent},
+		},
+	}
+
+	sysBatchJobReconnectTaskState := map[string]*structs.TaskState{
+		sysBatchJob.TaskGroups[0].Tasks[0].Name: {
+			Events: []*structs.TaskEvent{reconnectedEvent},
+		},
+	}
+
+	type testCase struct {
+		name                        string
+		jobType                     string
+		required                    bool
+		migrate                     bool
+		nodeStatus                  string
+		clientStatus                string
+		desiredStatus               string
+		allocState                  []*structs.AllocState
+		taskState                   map[string]*structs.TaskState
+		expectedPlanCount           int
+		expectedNodeAllocationCount int
+		expectedNodeUpdateCount     int
+		expectedDesiredStatus       string
+		expectedClientStatus        string
+	}
+
+	testCases := []testCase{
+		{
+			name:                        "system-running-disconnect",
+			jobType:                     structs.JobTypeSystem,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusDisconnected,
+			migrate:                     false,
+			clientStatus:                structs.AllocClientStatusRunning,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			allocState:                  nil,
+			taskState:                   nil,
+			expectedPlanCount:           1,
+			expectedNodeAllocationCount: 1,
+			expectedNodeUpdateCount:     0,
+			expectedClientStatus:        structs.AllocClientStatusUnknown,
+			expectedDesiredStatus:       structs.AllocDesiredStatusRun,
+		},
+		{
+			name:                        "system-running-reconnect",
+			jobType:                     structs.JobTypeSystem,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusReady,
+			migrate:                     false,
+			clientStatus:                structs.AllocClientStatusRunning,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			allocState:                  unknownAllocState,
+			taskState:                   systemJobReconnectTaskState,
+			expectedPlanCount:           0,
+			expectedNodeAllocationCount: 0,
+			expectedNodeUpdateCount:     0,
+			expectedClientStatus:        structs.AllocClientStatusRunning,
+			expectedDesiredStatus:       structs.AllocDesiredStatusRun,
+		},
+		{
+			name:                        "system-unknown-expired",
+			jobType:                     structs.JobTypeSystem,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusDisconnected,
+			migrate:                     false,
+			clientStatus:                structs.AllocClientStatusUnknown,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			allocState:                  expiredAllocState,
+			taskState:                   systemJobReconnectTaskState,
+			expectedPlanCount:           1,
+			expectedNodeAllocationCount: 0,
+			expectedNodeUpdateCount:     1,
+			expectedClientStatus:        structs.AllocClientStatusLost,
+			expectedDesiredStatus:       structs.AllocDesiredStatusStop,
+		},
+		{
+			name:                        "system-migrate",
+			jobType:                     structs.JobTypeSysBatch,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusReady,
+			migrate:                     true,
+			clientStatus:                structs.AllocClientStatusRunning,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			allocState:                  nil,
+			taskState:                   nil,
+			expectedPlanCount:           1,
+			expectedNodeAllocationCount: 0,
+			expectedNodeUpdateCount:     1,
+			expectedClientStatus:        structs.AllocClientStatusRunning,
+			expectedDesiredStatus:       structs.AllocDesiredStatusStop,
+		},
+		{
+			name:                        "sysbatch-running-unknown",
+			jobType:                     structs.JobTypeSysBatch,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusDisconnected,
+			migrate:                     false,
+			clientStatus:                structs.AllocClientStatusRunning,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			allocState:                  nil,
+			taskState:                   nil,
+			expectedPlanCount:           1,
+			expectedNodeAllocationCount: 1,
+			expectedNodeUpdateCount:     0,
+			expectedClientStatus:        structs.AllocClientStatusUnknown,
+			expectedDesiredStatus:       structs.AllocDesiredStatusRun,
+		},
+		{
+			name:                        "system-ignore-unknown",
+			jobType:                     structs.JobTypeSystem,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusDisconnected,
+			migrate:                     false,
+			clientStatus:                structs.AllocClientStatusUnknown,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			allocState:                  unknownAllocState,
+			taskState:                   nil,
+			expectedPlanCount:           0,
+			expectedNodeAllocationCount: 0,
+			expectedNodeUpdateCount:     0,
+			expectedClientStatus:        structs.AllocClientStatusUnknown,
+			expectedDesiredStatus:       structs.AllocDesiredStatusRun,
+		},
+		{
+			name:                        "sysbatch-ignore-unknown",
+			jobType:                     structs.JobTypeSysBatch,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusDisconnected,
+			migrate:                     false,
+			clientStatus:                structs.AllocClientStatusUnknown,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			allocState:                  unknownAllocState,
+			taskState:                   nil,
+			expectedPlanCount:           0,
+			expectedNodeAllocationCount: 0,
+			expectedNodeUpdateCount:     0,
+			expectedClientStatus:        structs.AllocClientStatusUnknown,
+			expectedDesiredStatus:       structs.AllocDesiredStatusRun,
+		},
+		{
+			name:                        "sysbatch-ignore-complete-disconnected",
+			jobType:                     structs.JobTypeSysBatch,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusDisconnected,
+			migrate:                     false,
+			clientStatus:                structs.AllocClientStatusComplete,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			allocState:                  unknownAllocState,
+			taskState:                   nil,
+			expectedPlanCount:           0,
+			expectedNodeAllocationCount: 0,
+			expectedNodeUpdateCount:     0,
+			expectedClientStatus:        structs.AllocClientStatusComplete,
+			expectedDesiredStatus:       structs.AllocDesiredStatusRun,
+		},
+		{
+			name:                        "sysbatch-running-reconnect",
+			jobType:                     structs.JobTypeSysBatch,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusReady,
+			migrate:                     false,
+			clientStatus:                structs.AllocClientStatusRunning,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			allocState:                  unknownAllocState,
+			taskState:                   sysBatchJobReconnectTaskState,
+			expectedPlanCount:           0,
+			expectedNodeAllocationCount: 0,
+			expectedNodeUpdateCount:     0,
+			expectedClientStatus:        structs.AllocClientStatusRunning,
+			expectedDesiredStatus:       structs.AllocDesiredStatusRun,
+		},
+		{
+			name:                        "sysbatch-failed-reconnect",
+			jobType:                     structs.JobTypeSysBatch,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusReady,
+			migrate:                     false,
+			clientStatus:                structs.AllocClientStatusFailed,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			allocState:                  unknownAllocState,
+			taskState:                   sysBatchJobReconnectTaskState,
+			expectedPlanCount:           0,
+			expectedNodeAllocationCount: 0,
+			expectedNodeUpdateCount:     0,
+			expectedClientStatus:        structs.AllocClientStatusFailed,
+			expectedDesiredStatus:       structs.AllocDesiredStatusRun,
+		},
+		{
+			name:                        "sysbatch-complete-reconnect",
+			jobType:                     structs.JobTypeSysBatch,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusReady,
+			migrate:                     false,
+			clientStatus:                structs.AllocClientStatusComplete,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			allocState:                  unknownAllocState,
+			taskState:                   sysBatchJobReconnectTaskState,
+			expectedPlanCount:           0,
+			expectedNodeAllocationCount: 0,
+			expectedNodeUpdateCount:     0,
+			expectedClientStatus:        structs.AllocClientStatusComplete,
+			expectedDesiredStatus:       structs.AllocDesiredStatusRun,
+		},
+		{
+			name:                        "sysbatch-unknown-expired",
+			jobType:                     structs.JobTypeSysBatch,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusReady,
+			migrate:                     false,
+			clientStatus:                structs.AllocClientStatusUnknown,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			allocState:                  expiredAllocState,
+			taskState:                   sysBatchJobReconnectTaskState,
+			expectedPlanCount:           1,
+			expectedNodeAllocationCount: 0,
+			expectedNodeUpdateCount:     1,
+			expectedClientStatus:        structs.AllocClientStatusLost,
+			expectedDesiredStatus:       structs.AllocDesiredStatusStop,
+		},
+		{
+			name:                        "sysbatch-migrate",
+			jobType:                     structs.JobTypeSysBatch,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusReady,
+			migrate:                     true,
+			clientStatus:                structs.AllocClientStatusRunning,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			expectedPlanCount:           1,
+			expectedNodeAllocationCount: 0,
+			expectedNodeUpdateCount:     1,
+			expectedClientStatus:        structs.AllocClientStatusRunning,
+			expectedDesiredStatus:       structs.AllocDesiredStatusStop,
+		},
+		{
+			name:                        "system-stopped",
+			jobType:                     structs.JobTypeSysBatch,
+			required:                    false,
+			nodeStatus:                  structs.NodeStatusReady,
+			migrate:                     false,
+			clientStatus:                structs.AllocClientStatusRunning,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			expectedPlanCount:           1,
+			expectedNodeAllocationCount: 0,
+			expectedNodeUpdateCount:     1,
+			expectedClientStatus:        structs.AllocClientStatusRunning,
+			expectedDesiredStatus:       structs.AllocDesiredStatusStop,
+		},
+		{
+			name:                        "system-lost",
+			jobType:                     structs.JobTypeSystem,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusDown,
+			migrate:                     false,
+			clientStatus:                structs.AllocClientStatusRunning,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			expectedPlanCount:           1,
+			expectedNodeAllocationCount: 0,
+			expectedNodeUpdateCount:     1,
+			expectedClientStatus:        structs.AllocClientStatusLost,
+			expectedDesiredStatus:       structs.AllocDesiredStatusStop,
+		},
+		{
+			name:                        "sysbatch-lost",
+			jobType:                     structs.JobTypeSysBatch,
+			required:                    true,
+			nodeStatus:                  structs.NodeStatusDown,
+			migrate:                     false,
+			clientStatus:                structs.AllocClientStatusRunning,
+			desiredStatus:               structs.AllocDesiredStatusRun,
+			expectedPlanCount:           1,
+			expectedNodeAllocationCount: 0,
+			expectedNodeUpdateCount:     1,
+			expectedClientStatus:        structs.AllocClientStatusLost,
+			expectedDesiredStatus:       structs.AllocDesiredStatusStop,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := NewHarness(t)
+
+			// Register a down node
+			node := mock.Node()
+			node.Status = tc.nodeStatus
+			require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+			// Generate a fake job allocated on that node.
+			var job *structs.Job
+			var alloc *structs.Allocation
+			switch tc.jobType {
+			case structs.JobTypeSystem:
+				job = systemJob.Copy()
+				alloc = systemAlloc.Copy()
+			case structs.JobTypeSysBatch:
+				job = sysBatchJob.Copy()
+				alloc = sysBatchAlloc.Copy()
+			default:
+				require.FailNow(t, "invalid jobType")
+			}
+
+			if !tc.required {
+				job.Stop = true
+			}
+
+			require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+
+			job.TaskGroups[0].MaxClientDisconnect = helper.TimeToPtr(5 * time.Second)
+
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = node.ID
+			alloc.TaskGroup = job.TaskGroups[0].Name
+			alloc.ClientStatus = tc.clientStatus
+			alloc.DesiredStatus = tc.desiredStatus
+			alloc.DesiredTransition.Migrate = helper.BoolToPtr(tc.migrate)
+			alloc.AllocStates = tc.allocState
+			alloc.TaskStates = tc.taskState
+
+			require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
+
+			// Create a mock evaluation to deal with disconnect
+			eval := &structs.Evaluation{
+				Namespace:   structs.DefaultNamespace,
+				ID:          uuid.Generate(),
+				Priority:    50,
+				TriggeredBy: structs.EvalTriggerNodeUpdate,
+				JobID:       job.ID,
+				NodeID:      node.ID,
+				Status:      structs.EvalStatusPending,
+			}
+			require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+			// Process the evaluation
+			err := h.Process(NewSystemScheduler, eval)
+			require.NoError(t, err)
+
+			// Ensure a single plan
+			require.Len(t, h.Plans, tc.expectedPlanCount)
+			if tc.expectedPlanCount == 0 {
+				return
+			}
+
+			plan := h.Plans[0]
+
+			// Ensure the plan creates the expected plan
+			require.Len(t, plan.NodeAllocation[node.ID], tc.expectedNodeAllocationCount)
+			require.Len(t, plan.NodeUpdate[node.ID], tc.expectedNodeUpdateCount)
+
+			// Ensure the plan updated the allocation.
+			planned := make([]*structs.Allocation, 0)
+
+			if tc.expectedNodeAllocationCount > 0 {
+				for _, allocList := range plan.NodeAllocation {
+					planned = append(planned, allocList...)
+				}
+				require.Len(t, planned, 1)
+			}
+
+			if tc.expectedNodeUpdateCount > 0 {
+				for _, allocList := range plan.NodeUpdate {
+					planned = append(planned, allocList...)
+				}
+				require.Len(t, planned, 1)
+			}
+
+			// Ensure the allocations has the expected status.
+			p := planned[0]
+			require.Equal(t, tc.expectedDesiredStatus, p.DesiredStatus)
+			require.Equal(t, tc.expectedClientStatus, p.ClientStatus)
+
+			h.AssertEvalStatus(t, structs.EvalStatusComplete)
+		})
+	}
+}
