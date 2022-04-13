@@ -1381,4 +1381,45 @@ module.exports = [
     destination: '/api-docs/:path*',
     permanent: true,
   },
+
+  // Redirects for exact versioned-docs to respective generic versions
+  //   /docs/v1.2.5            -> /docs/v1.2.x
+  //   /docs/v1.2.5/install    -> /docs/v1.2.x/install
+  //   /api-docs/v1.2.5        -> /api-docs/v1.2.x
+  //   /api-docs/v1.2.5/client -> /api-docs/v1.2.x/client
+  // {
+  //   source: '/:base(docs|api-docs)/((?<majorMinor>\\d\.\\d)\.(?!x))/:path*'
+  //   destination: '/:base/:majorMinor.x/:path'
+  //   permanent: true
+  // }
+  {
+    source: '/:base(docs|api-docs)/v1.2.(?\\d)',
+    destination: '/:base/v1.2.x',
+    permanent: true,
+  },
+  // {
+  //   source: '/:base(docs|api-docs)/v1.2.(?\\d)/:path*',
+  //   destination: '/:base/v1.2.x/:path',
+  //   permanent: true,
+  // },
+  {
+    source: '/:base(docs|api-docs)/v1.1.(?\\d)',
+    destination: '/:base/v1.2.x',
+    permanent: true,
+  },
+  // {
+  //   source: '/:base(docs|api-docs)/v1.1.(?\\d)/:path*',
+  //   destination: '/:base/v1.2.x/:path',
+  //   permanent: true,
+  // },
+  {
+    source: '/:base(docs|api-docs)/v1.0.(?\\d)',
+    destination: '/:base/v1.2.x',
+    permanent: true,
+  },
+  // {
+  //   source: '/:base(docs|api-docs)/v1.0.(?\\d)/:path*',
+  //   destination: '/:base/v1.2.x/:path',
+  //   permanent: true,
+  // },
 ]
