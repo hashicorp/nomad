@@ -29,6 +29,7 @@ module('Integration | Component | job-client-status-bar', function (hooks) {
         failed: [],
         lost: [],
         notScheduled: [],
+        unknown: [],
       },
     },
     isNarrow: true,

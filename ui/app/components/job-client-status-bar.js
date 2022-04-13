@@ -23,7 +23,7 @@ export default class JobClientStatusBar extends DistributionBar {
       failed,
       lost,
       notScheduled,
-      disconnected,
+      unknown,
     } = this.jobClientStatus.byStatus;
 
     return [
@@ -73,12 +73,12 @@ export default class JobClientStatusBar extends DistributionBar {
         },
       },
       {
-        label: 'Disconnected',
-        value: disconnected.length,
-        className: 'disconnected',
+        label: 'Unknown',
+        value: unknown.length,
+        className: 'unknown',
         legendLink: {
           queryParams: {
-            status: JSON.stringify(['disconnected']),
+            status: JSON.stringify(['unknown']),
             namespace: this.job.namespace.get('id'),
           },
         },
