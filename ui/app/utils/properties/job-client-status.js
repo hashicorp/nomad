@@ -138,5 +138,9 @@ function jobStatus(allocs, expected) {
     return 'running';
   }
 
+  if (summary['unknown'] > 0) {
+    return 'unknown';
+  }
+
   return 'starting';
 }

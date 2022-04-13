@@ -141,6 +141,7 @@ export default class ClientsController extends Controller.extend(
       { key: 'degraded', label: 'Degraded' },
       { key: 'failed', label: 'Failed' },
       { key: 'lost', label: 'Lost' },
+      { key: 'unknown', label: 'Unknown' },
     ];
   }
 
