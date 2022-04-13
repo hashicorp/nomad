@@ -153,6 +153,24 @@ func (s *ServiceRegistration) Validate() error {
 	return nil
 }
 
+// GetID is a helper for getting the ID when the object may be nil and is
+// required for pagination.
+func (s *ServiceRegistration) GetID() string {
+	if s == nil {
+		return ""
+	}
+	return s.ID
+}
+
+// GetNamespace is a helper for getting the namespace when the object may be
+// nil and is required for pagination.
+func (s *ServiceRegistration) GetNamespace() string {
+	if s == nil {
+		return ""
+	}
+	return s.Namespace
+}
+
 // ServiceRegistrationUpsertRequest is the request object used to upsert one or
 // more service registrations.
 type ServiceRegistrationUpsertRequest struct {

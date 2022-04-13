@@ -34,7 +34,9 @@ type Paginator struct {
 	appendFunc func(interface{}) error
 }
 
-// NewPaginator returns a new Paginator.
+// NewPaginator returns a new Paginator. Any error creating the paginator is
+// due to bad user filter input, RPC functions should therefore return a 400
+// error code along with an appropriate message.
 func NewPaginator(iter Iterator, tokenizer Tokenizer, filters []Filter,
 	opts structs.QueryOptions, appendFunc func(interface{}) error) (*Paginator, error) {
 

@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -8,6 +9,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -389,15 +391,41 @@ func (s *ServiceRegistration) GetService(
 				return err
 			}
 
+			// Generate the tokenizer to use for pagination using namespace and
+			// ID to ensure complete uniqueness.
+			tokenizer := paginator.NewStructsTokenizer(iter,
+				paginator.StructsTokenizerOptions{
+					WithNamespace: true,
+					WithID:        true,
+				},
+			)
+
 			// Set up our output after we have checked the error.
 			var services []*structs.ServiceRegistration
 
-			// Iterate the iterator, appending all service registrations
-			// returned to the reply.
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				services = append(services, raw.(*structs.ServiceRegistration))
+			// Build the paginator. This includes the function that is
+			// responsible for appending a registration to the services array.
+			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
+				func(raw interface{}) error {
+					services = append(services, raw.(*structs.ServiceRegistration))
+					return nil
+				})
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
+
+			// Calling page populates our output services array as well as
+			// returns the next token.
+			nextToken, err := paginatorImpl.Page()
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to read result page: %v", err)
+			}
+
+			// Populate the reply.
 			reply.Services = services
+			reply.NextToken = nextToken
 
 			// Use the index table to populate the query meta as we have no way
 			// of tracking the max index on deletes.
