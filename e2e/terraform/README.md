@@ -36,7 +36,7 @@ values for `VAULT_TOKEN`, `VAULT_ADDR`, and `VAULT_NAMESPACE`:
 ```
 cd ./hcp-vault-auth
 terraform apply --auto-approve
-$(terraform output environment --raw)
+$(terraform output --raw environment)
 ```
 
 Optionally, edit the `terraform.tfvars` file to change the number of
