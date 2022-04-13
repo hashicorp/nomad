@@ -50,7 +50,8 @@ $canceled: $dark;
     fill: $degraded;
   }
 
-  .unknown {
+  .unknown,
+  .disconnected {
     fill: $unknown;
   }
 }
@@ -118,7 +119,8 @@ $canceled: $dark;
     background: $lost;
   }
 
-  &.unknown {
+  &.unknown,
+  &.disconnected {
     background: $unknown;
   }
 

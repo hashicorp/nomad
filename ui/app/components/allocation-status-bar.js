@@ -73,7 +73,7 @@ export default class AllocationStatusBar extends DistributionBar {
         value: allocs.unknownAllocs,
         className: 'unknown',
         legendLink: this.generateLegendLink(this.job, 'unknown'),
-        help: 'Some allocations for this job have lost connectivity and their status is unknown',
+        help: 'Allocation is unknown since its node is disconnected.',
       },
       {
         label: 'Failed',
