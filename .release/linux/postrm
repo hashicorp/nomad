@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if [ "$1" = "purge" ]; then
+  userdel nomad
+fi
+
+exit 0
