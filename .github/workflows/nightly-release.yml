@@ -7,16 +7,15 @@
 name: Nightly Release
 
 on:
-  push:
   schedule:
-    #   #   # Runs against the default branch every day at midnight
+    # Runs against the default branch every day at midnight
     - cron: "0 0 * * *"
   workflow_dispatch:
 
 jobs:
   # Build a fresh set of artifacts
   build-artifacts:
-    uses: hashicorp/nomad/.github/workflows/build.yml@main
+    uses: hashicorp/nomad/.github/workflows/build.yml@add-nightlies
   github-release:
     needs: build-artifacts
     runs-on: ubuntu-latest
