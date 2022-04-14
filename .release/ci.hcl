@@ -3,13 +3,15 @@ schema = "1"
 project "nomad" {
   team = "nomad"
   slack {
+    // #feed-nomad-releases
+    notification_channel = "C03B5EWFW01"
     // #proj-nomad-releases
-    notification_channel = "CUYKT2A73"
+    // notification_channel = "CUYKT2A73"
   }
   github {
     organization     = "hashicorp"
     repository       = "nomad"
-    release_branches = ["release/1.1.x"]
+    release_branches = ["release/1.0.x"]
   }
 }
 
