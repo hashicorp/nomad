@@ -257,11 +257,6 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		s.plan.AppendUnknownAlloc(e.Alloc)
 	}
 
-	// Log reconnect updates. They will be pulled by the client when it reconnects.
-	for _, e := range diff.reconnecting {
-		s.logger.Trace("reconnecting alloc", "alloc_id", e.Alloc.ID, "alloc_modify_index", e.Alloc.AllocModifyIndex)
-	}
-
 	// Attempt to do the upgrades in place
 	destructiveUpdates, inplaceUpdates := inplaceUpdate(s.ctx, s.eval, s.job, s.stack, diff.update)
 	diff.update = destructiveUpdates

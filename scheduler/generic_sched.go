@@ -429,11 +429,6 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		s.ctx.Plan().AppendAlloc(update, nil)
 	}
 
-	// Log reconnect updates. They will be pulled by the client when it reconnects.
-	for _, update := range results.reconnectUpdates {
-		s.logger.Trace("reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex)
-	}
-
 	// Nothing remaining to do if placement is not required
 	if len(results.place)+len(results.destructiveUpdate) == 0 {
 		// If the job has been purged we don't have access to the job. Otherwise

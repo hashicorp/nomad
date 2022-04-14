@@ -174,7 +174,7 @@ func diffSystemAllocsForNode(
 			// lost as the work was already successfully finished. However for
 			// service/system jobs, tasks should never complete. The check of
 			// batch type, defends against client bugs.
-			if exist.Job.Type == structs.JobTypeBatch && exist.RanSuccessfully() {
+			if exist.Job.Type == structs.JobTypeSysBatch && exist.RanSuccessfully() {
 				goto IGNORE
 			}
 
