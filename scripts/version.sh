@@ -6,7 +6,6 @@ version=$(awk '$1 == "Version" && $2 == "=" { gsub(/"/, "", $3); print $3 }' <"$
 prerelease=$(awk '$1 == "VersionPrerelease" && $2 == "=" { gsub(/"/, "", $3); print $3 }' <"${version_file}")
 metadata=$(awk '$1 == "VersionMetadata" && $2 == "=" { gsub(/"/, "", $3); print $3 }' <"${version_metadata_file}")
 
-if [ -n "$prerelease" ]; then
 if [ -n "$metadata" ] && [ -n "$prerelease" ]; then
     echo "${version}-${prerelease}+${metadata}"
 elif [ -n "$metadata" ]; then
