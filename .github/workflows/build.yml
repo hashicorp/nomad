@@ -1,10 +1,9 @@
 name: build
 
 on:
-  push:
+  [workflow_dispatch, push, workflow_call]
     branches:
       - "main"
-  workflow_dispatch:
 
 env:
   PKG_NAME: "nomad"
