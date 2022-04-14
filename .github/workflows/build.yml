@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       make-prerelease:
-        description: "Run prerelease to generate files?"
+        description: "Run prerelease to generate files"
         type: "boolean"
         required: false
         default: false
