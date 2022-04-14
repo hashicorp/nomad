@@ -14,6 +14,7 @@ After=network-online.target
 EnvironmentFile=-/etc/nomad.d/nomad.env
 ExecReload=/bin/kill -HUP $MAINPID
 ExecStart=/usr/bin/nomad agent -config /etc/nomad.d
+KillMode=process
 KillSignal=SIGINT
 LimitNOFILE=65536
 LimitNPROC=infinity
