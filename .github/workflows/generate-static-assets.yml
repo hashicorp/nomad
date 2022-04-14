@@ -1,0 +1,67 @@
+name: Generate Static Assets
+
+on:
+  workflow_dispatch:
+
+env:
+  GO_TAGS: "ui codegen_generated release"
+
+jobs:
+  get-go-version:
+    runs-on: ubuntu-latest
+    outputs:
+      go-version: ${{ steps.get-go-version.outputs.go-version }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Determine Go version
+        id: get-go-version
+        # We use .go-version as our source of truth for current Go
+        # version, because "goenv" can react to it automatically.
+        run: |
+          echo "Building with Go $(cat .go-version)"
+          echo "::set-output name=go-version::$(cat .go-version)"
+  generate-metadata:
+    runs-on: ubuntu-latest
+    needs: get-go-version
+    name: generate-metadata
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
+
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+          cache-dependency-path: "ui/yarn.lock"
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+      - uses: actions/checkout@v2
+      - name: Generate static assets
+        id: generate-static-assets
+        run: |
+          make deps
+          make prerelease
+      - name: Commit and push changes
+        id: commit-change-push
+        run: |
+          git add -A .
+          find . -name '*.generated.go' -not -path './vendor/*' -exec git add -f '{}' \;
+          if ! git diff-index --quiet HEAD --;
+          then
+            git config --global user.email "github-team-nomad-core@hashicorp.com"
+            git config --global user.name "hc-github-team-nomad-core"
+            git commit --message "Generate files for release"
+            git push origin "$(git rev-parse --abbrev-ref HEAD)"
+            echo "committing generated files"
+          else
+            echo "no files were updated"
+          fi
+      - name: Invoke build workflow
+        uses: benc-uk/workflow-dispatch@4c044c1613fabbe5250deadc65452d54c4ad4fc7
+        with:
+          workflow: build
+          token: ${{ secrets.ELEVATED_GITHUB_TOKEN}}

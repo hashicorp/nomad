@@ -1,0 +1,322 @@
+name: build
+
+on:
+  push:
+    branches:
+      - "release/1.1.x"
+  workflow_dispatch:
+    inputs:
+      make-prerelease:
+        description: "Run prerelease to generate files"
+        type: "boolean"
+        required: false
+        default: false
+
+env:
+  PKG_NAME: "nomad"
+  GO_TAGS: "ui codegen_generated release"
+
+jobs:
+  get-go-version:
+    runs-on: ubuntu-latest
+    outputs:
+      go-version: ${{ steps.get-go-version.outputs.go-version }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Determine Go version
+        id: get-go-version
+        # We use .go-version as our source of truth for current Go
+        # version, because "goenv" can react to it automatically.
+        run: |
+          echo "Building with Go $(cat .go-version)"
+          echo "::set-output name=go-version::$(cat .go-version)"
+  get-product-version:
+    runs-on: ubuntu-latest
+    outputs:
+      product-version: ${{ steps.get-product-version.outputs.product-version }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: get product version
+        id: get-product-version
+        run: |
+          make version
+          echo "::set-output name=product-version::$(make version)"
+  generate-metadata-file:
+    needs: get-product-version
+    runs-on: ubuntu-latest
+    outputs:
+      filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
+    steps:
+      - name: "Checkout directory"
+        uses: actions/checkout@v2
+      - name: Generate metadata file
+        id: generate-metadata-file
+        uses: hashicorp/actions-generate-metadata@v1
+        with:
+          version: ${{ needs.get-product-version.outputs.product-version }}
+          product: ${{ env.PKG_NAME }}
+          repositoryOwner: "hashicorp"
+      - uses: actions/upload-artifact@v2
+        with:
+          name: metadata.json
+          path: ${{ steps.generate-metadata-file.outputs.filepath }}
+  generate-ld-flags:
+    needs: get-product-version
+    runs-on: ubuntu-latest
+    outputs:
+      ldflags: ${{ steps.generate-ld-flags.outputs.ldflags }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: "Generate ld flags"
+        id: generate-ld-flags
+        run: |
+          project="$(go list -m)"
+          sha="$(git rev-parse --short HEAD)"
+          echo "::set-output name=ldflags::"-s -w -X \'$project/version.Name=${{ env.PKG_NAME }}\' \
+          -X \'$project/version.GitDescribe=v$(make version base=1)\'""
+
+  build-other:
+    needs: [get-go-version, get-product-version, generate-ld-flags]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [windows]
+        goarch: ["386", "amd64"]
+      fail-fast: true
+
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
+
+      - name: Build dependencies
+        run: make deps
+
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+          cache-dependency-path: "ui/yarn.lock"
+
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+
+      - name: Build prerelease
+        run: make prerelease
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GO_TAGS: ${{ env.GO_TAGS }}
+          GO_LDFLAGS: ${{ needs.generate-ld-flags.outputs.ldflags }}
+          CGO_ENABLED: 1
+        run: |
+          make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+
+  build-linux:
+    needs: [get-go-version, get-product-version, generate-ld-flags]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux]
+        goarch: ["arm", "arm64", "386", "amd64"]
+      fail-fast: true
+
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
+
+      - name: Build dependencies
+        run: make deps
+
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+          cache-dependency-path: "ui/yarn.lock"
+
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+
+      - name: Build prerelease
+        run: make prerelease
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
+
+
+      - name: Install Linux build utilties
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y \
+            libc6-dev-i386 \
+            libpcre3-dev \
+            linux-libc-dev:i386
+          sudo apt-get install -y \
+            binutils-aarch64-linux-gnu \
+            binutils-arm-linux-gnueabihf \
+            gcc-aarch64-linux-gnu \
+            gcc-arm-linux-gnueabihf \
+            gcc-multilib-arm-linux-gnueabihf
+
+      - name: Set gcc
+        run: |
+          if [ "${{ matrix.goarch }}" == "arm" ]; then
+            echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          elif [ "${{ matrix.goarch }}" == "arm64" ]; then
+            echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          fi
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GO_TAGS: ${{ env.GO_TAGS }}
+          GO_LDFLAGS: ${{ needs.generate-ld-flags.outputs.ldflags }}
+          CGO_ENABLED: 1
+        run: |
+          make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+
+      - name: Package
+        uses: hashicorp/actions-packaging-linux@v1
+        with:
+          name: ${{ env.PKG_NAME }}
+          description: "Nomad is an easy-to-use, flexible, and performant workload orchestrator that can deploy a mix of microservice, batch, containerized, and non-containerized applications."
+          arch: ${{ matrix.goarch }}
+          version: ${{ needs.get-product-version.outputs.product-version }}
+          maintainer: "HashiCorp"
+          homepage: "https://github.com/hashicorp/nomad"
+          license: "MPL-2.0"
+          binary: "pkg/${{ matrix.goos }}_${{ matrix.goarch }}/${{ env.PKG_NAME }}"
+          deb_depends: "openssl"
+          rpm_depends: "openssl"
+          config_dir: ".release/linux/package/"
+          preinstall: ".release/linux/preinst"
+          postremove: ".release/linux/postrm"
+
+      - name: Set Package Names
+        run: |
+          echo "RPM_PACKAGE=$(basename out/*.rpm)" >> $GITHUB_ENV
+          echo "DEB_PACKAGE=$(basename out/*.deb)" >> $GITHUB_ENV
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.RPM_PACKAGE }}
+          path: out/${{ env.RPM_PACKAGE }}
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.DEB_PACKAGE }}
+          path: out/${{ env.DEB_PACKAGE }}
+
+  build-darwin:
+    needs: [get-go-version, get-product-version, generate-ld-flags]
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        goos: [darwin]
+        goarch: ["arm64", "amd64"]
+      fail-fast: true
+
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
+
+      - name: Build dependencies
+        run: make deps
+
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+          cache-dependency-path: "ui/yarn.lock"
+
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+
+      - name: Build prerelease
+        run: make prerelease
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GO_TAGS: "${{ env.GO_TAGS }} netcgo"
+          GO_LDFLAGS: ${{ needs.generate-ld-flags.outputs.ldflags }}
+          CGO_ENABLED: 1
+        run: |
+          make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+
+  # This placed here for when the Nomad team is ready to build docker images.
+  # Please reach out the RDX team for assistance or refer to the CRT Self-Serve Onboarding doc.
+
+  # build-docker-default:
+  #   name: Docker ${{ matrix.arch }} default release build
+  #   needs:
+  #     - get-product-version
+  #     - build
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       arch: ["arm", "arm64", "386", "amd64"]
+  #   env:
+  #     repo: ${{github.event.repository.name}}
+  #     version: ${{needs.get-product-version.outputs.product-version}}
+
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Docker Build (Action)
+  #       uses: hashicorp/actions-docker-build@v1
+  #       with:
+  #         # Add smoke test here. Below is a sample smoke test that runs the built image
+  #         # and validates the version.
+  #         smoke_test: |
+  #           TEST_VERSION="$(docker run "${IMAGE_NAME}" | awk '/CLI version/{print $3}')"
+  #           if [ "${TEST_VERSION}" != "${version}" ]; then
+  #             echo "Test FAILED"
+  #             exit 1
+  #           fi
+  #           echo "Test PASSED"
+  #         version: ${{env.version}}
+  #         target: release-default
+  #         arch: ${{matrix.arch}}
+  #         tags: |
+  #           docker.io/hashicorp/${{env.repo}}:${{env.version}}
+  #           986891699432.dkr.ecr.us-east-1.amazonaws.com/hashicorp/${{env.repo}}:${{env.version}}
