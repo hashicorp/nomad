@@ -749,7 +749,6 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 	ci.Parallel(t)
 
 	require := require.New(t)
-	ci.Parallel(t)
 	ctx := setupFake(t)
 	// can be short because we're intentionally blocking, but needs to
 	// be longer than the time we'll block Consul so we can be sure
