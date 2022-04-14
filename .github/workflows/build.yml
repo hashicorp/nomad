@@ -106,14 +106,6 @@ jobs:
         run: |
           npm install -g yarn
 
-      - name: Install tools
-        shell: bash
-        run: sudo bash scripts/ci-install-deps.sh ${{ matrix.goos }} ${{ matrix.goarch }}
-
-      - name: Add buf to PATH
-        shell: bash
-        run: echo "/usr/local/bin/buf" >> $GITHUB_PATH
-
       - name: Build prerelease
         run: make prerelease
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
@@ -164,23 +156,32 @@ jobs:
         run: |
           npm install -g yarn
 
-      - name: Install tools
-        run: sudo bash scripts/ci-install-deps.sh ${{ matrix.goos }} ${{ matrix.goarch }}
-
-      - name: Add buf to PATH
-        run: echo "/usr/local/bin/buf/bin/buf" >> $GITHUB_PATH
-
       - name: Build prerelease
         run: make prerelease
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
 
-      - name: Add arm compiler to PATH
-        shell: bash
+      - name: Install Linux build utilties
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y \
+            libc6-dev-i386 \
+            libpcre3-dev \
+            linux-libc-dev:i386
+          sudo apt-get install -y \
+            binutils-aarch64-linux-gnu \
+            binutils-arm-linux-gnueabihf \
+            gcc-5-aarch64-linux-gnu \
+            gcc-5-arm-linux-gnueabihf \
+            gcc-5-multilib-arm-linux-gnueabihf
+      - name: Set gcc
         run: |
           if [ "${{ matrix.goarch }}" == "arm" ]; then
-            echo "/usr/bin/gcc-5-arm-linux-gnueabihf" >> $GITHUB_PATH
+            echo "CC=gcc-5-arm-linux-gnueabihf" >> $GITHUB_ENV
           elif [ "${{ matrix.goarch }}" == "arm64" ]; then
-            echo "/usr/bin/aarch64-linux-gnu-gcc-5" >> $GITHUB_PATH
+            echo "CC=aarch64-linux-gnu-gcc-5" >> $GITHUB_ENV
           fi
 
       - name: Build
@@ -261,12 +262,6 @@ jobs:
       - name: Install Yarn
         run: |
           npm install -g yarn
-
-      - name: Install tools
-        run: sudo bash scripts/ci-install-deps.sh ${{ matrix.goos }} ${{ matrix.goarch }}
-
-      - name: Add buf to PATH
-        run: echo "/usr/local/bin/buf" >> $GITHUB_PATH
 
       - name: Build prerelease
         run: make prerelease
