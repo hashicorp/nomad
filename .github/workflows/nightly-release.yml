@@ -7,9 +7,9 @@
 name: Nightly Release
 
 on:
-  # schedule:
-  #   # Runs against the default branch every day at midnight
-  #   - cron: "0 0 * * *"
+  schedule:
+    #   # Runs against the default branch every day at midnight
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 jobs:
@@ -104,5 +104,6 @@ jobs:
               ]
             }
         env:
+          # the slack webhook url links to #feed-nomad-releases
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
