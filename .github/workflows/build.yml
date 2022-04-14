@@ -5,6 +5,12 @@ on:
     branches:
       - "release/1.0.x"
   workflow_dispatch:
+    inputs:
+      make-prerelease:
+        description: "Run prerelease to generate files?"
+        type: "boolean"
+        required: false
+        default: false
 
 env:
   PKG_NAME: "nomad"
@@ -110,7 +116,7 @@ jobs:
 
       - name: Build prerelease
         run: make prerelease
-        if: ${{ github.event_name != 'workflow_dispatch' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
 
       - name: Build
         env:
@@ -166,7 +172,7 @@ jobs:
 
       - name: Build prerelease
         run: make prerelease
-        if: ${{ github.event_name != 'workflow_dispatch' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
 
       - name: Add arm compiler to PATH
         shell: bash
@@ -264,7 +270,7 @@ jobs:
 
       - name: Build prerelease
         run: make prerelease
-        if: ${{ github.event_name != 'workflow_dispatch' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
 
       - name: Build
         env:
