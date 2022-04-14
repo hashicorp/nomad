@@ -7,8 +7,9 @@
 name: Nightly Release
 
 on:
+  push:
   schedule:
-    #   # Runs against the default branch every day at midnight
+    #   #   # Runs against the default branch every day at midnight
     - cron: "0 0 * * *"
   workflow_dispatch:
 
