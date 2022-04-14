@@ -31,7 +31,7 @@ func TestPluginEventBroadcaster_SendsMessagesToAllClients(t *testing.T) {
 		for {
 			select {
 			case <-ctx.Done():
-				t.Fail()
+				t.Errorf("did not receive event on both subscriptions before timeout")
 				return
 			case <-ch1:
 				rcv1 = true
@@ -53,7 +53,6 @@ func TestPluginEventBroadcaster_UnsubscribeWorks(t *testing.T) {
 
 	b := newPluginEventBroadcaster()
 	defer close(b.stopCh)
-	var rcv1 bool
 
 	ch1 := b.subscribe()
 
@@ -67,13 +66,10 @@ func TestPluginEventBroadcaster_UnsubscribeWorks(t *testing.T) {
 		for {
 			select {
 			case <-ctx.Done():
-				t.Fail()
+				t.Errorf("did not receive unsubscribe event on subscription before timeout")
 				return
 			case <-ch1:
-				rcv1 = true
-				if rcv1 {
-					return
-				}
+				return // done!
 			}
 		}
 	}()
@@ -100,7 +96,7 @@ func TestDynamicRegistry_RegisterPlugin_SendsUpdateEvents(t *testing.T) {
 		for {
 			select {
 			case <-ctx.Done():
-				t.Fail()
+				t.Errorf("did not receive registration event on subscription before timeout")
 				return
 			case e := <-ch:
 				if e != nil && e.EventType == EventTypeRegistered {
@@ -137,7 +133,7 @@ func TestDynamicRegistry_DeregisterPlugin_SendsUpdateEvents(t *testing.T) {
 		for {
 			select {
 			case <-ctx.Done():
-				t.Fail()
+				t.Errorf("did not receive deregistration event on subscription before timeout")
 				return
 			case e := <-ch:
 				if e != nil && e.EventType == EventTypeDeregistered {
