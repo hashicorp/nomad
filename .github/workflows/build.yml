@@ -8,7 +8,7 @@ on:
 
 env:
   PKG_NAME: "nomad"
-  GO_TAGS: "release"
+  GO_TAGS: "ui codegen_generated release"
 
 jobs:
   get-go-version:
