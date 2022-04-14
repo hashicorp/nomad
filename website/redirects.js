@@ -1384,7 +1384,7 @@ module.exports = [
 
   // Redirects for exact versioned-docs to respective generic versions
   {
-    source: '/:base(docs|api-docs)/v1.:minor([0-2]{1,}).(\\d)',
+    source: '/:base(docs|api-docs)/v1.:minor([0-2]{1,}).(\\d+)',
     destination: '/:base/v1.:minor.x',
     permanent: true,
   },
