@@ -1,6 +1,9 @@
 name: build
 
 on:
+  push:
+    branches:
+      - "release/1.0.x"
   workflow_dispatch:
 
 env:
@@ -84,6 +87,9 @@ jobs:
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
+      - name: Build dependencies
+        run: make deps
+
       - name: Setup node and yarn
         uses: actions/setup-node@v2
         with:
@@ -93,9 +99,6 @@ jobs:
       - name: Install Yarn
         run: |
           npm install -g yarn
-
-      - name: Build dependencies
-        run: make deps
 
       - name: Install tools
         shell: bash
@@ -107,6 +110,7 @@ jobs:
 
       - name: Build prerelease
         run: make prerelease
+        if: ${{ github.event_name != 'workflow_dispatch' }}
 
       - name: Build
         env:
@@ -141,6 +145,9 @@ jobs:
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
+      - name: Build dependencies
+        run: make deps
+
       - name: Setup node and yarn
         uses: actions/setup-node@v2
         with:
@@ -151,9 +158,6 @@ jobs:
         run: |
           npm install -g yarn
 
-      - name: Build dependencies
-        run: make deps
-
       - name: Install tools
         run: sudo bash scripts/ci-install-deps.sh ${{ matrix.goos }} ${{ matrix.goarch }}
 
@@ -162,6 +166,7 @@ jobs:
 
       - name: Build prerelease
         run: make prerelease
+        if: ${{ github.event_name != 'workflow_dispatch' }}
 
       - name: Add arm compiler to PATH
         shell: bash
@@ -238,6 +243,9 @@ jobs:
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
+      - name: Build dependencies
+        run: make deps
+
       - name: Setup node and yarn
         uses: actions/setup-node@v2
         with:
@@ -248,9 +256,6 @@ jobs:
         run: |
           npm install -g yarn
 
-      - name: Build dependencies
-        run: make deps
-
       - name: Install tools
         run: sudo bash scripts/ci-install-deps.sh ${{ matrix.goos }} ${{ matrix.goarch }}
 
@@ -259,6 +264,7 @@ jobs:
 
       - name: Build prerelease
         run: make prerelease
+        if: ${{ github.event_name != 'workflow_dispatch' }}
 
       - name: Build
         env:
