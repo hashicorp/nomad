@@ -2192,13 +2192,8 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 
 	addr, _, _ := net.SplitHostPort(n.HTTPAddr)
 
-	// Fetch key attributes from the main Attributes map.
-	m := make(map[string]string)
-	m["os.name"] = n.Attributes["os.name"]
-
 	s := &NodeListStub{
 		Address:               addr,
-		Attributes:            m,
 		ID:                    n.ID,
 		Datacenter:            n.Datacenter,
 		Name:                  n.Name,
@@ -2220,6 +2215,13 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 			s.NodeResources = n.NodeResources
 			s.ReservedResources = n.ReservedResources
 		}
+
+		// Fetch key attributes from the main Attributes map.
+		if fields.OS {
+			m := make(map[string]string)
+			m["os.name"] = n.Attributes["os.name"]
+			s.Attributes = m
+		}
 	}
 
 	return s
@@ -2230,7 +2232,7 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 type NodeListStub struct {
 	Address               string
 	ID                    string
-	Attributes            map[string]string
+	Attributes            map[string]string `json:",omitempty"`
 	Datacenter            string
 	Name                  string
 	NodeClass             string
@@ -2251,6 +2253,7 @@ type NodeListStub struct {
 // NodeStubFields defines which fields are included in the NodeListStub.
 type NodeStubFields struct {
 	Resources bool
+	OS        bool
 }
 
 // Resources is used to define the resources available

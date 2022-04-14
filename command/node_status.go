@@ -173,8 +173,13 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			return 1
 		}
 
+		var q *api.QueryOptions
+		if c.os {
+			q = &api.QueryOptions{Params: map[string]string{"os": "true"}}
+		}
+
 		// Query the node info
-		nodes, _, err := client.Nodes().List(nil)
+		nodes, _, err := client.Nodes().List(q)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node status: %s", err))
 			return 1
