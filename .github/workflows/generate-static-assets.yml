@@ -1,9 +1,8 @@
 name: Generate Static Assets
 
 on:
-  push:
-    branches:
-      - release/1.1.x
+  workflow_dispatch:
+
 env:
   GO_TAGS: "release"
 
@@ -49,7 +48,7 @@ jobs:
       - name: Commit and push changes
         id: commit-change-push
         run: |
-          git add -A . 
+          git add -A .
           find . -name '*.generated.go' -not -path './vendor/*' -exec git add -f '{}' \;
           if ! git diff-index --quiet HEAD --;
           then

@@ -1,7 +1,16 @@
 name: build
 
 on:
+  push:
+    branches:
+      - "release/1.1.x"
   workflow_dispatch:
+    inputs:
+      make-prerelease:
+        description: "Run prerelease to generate files"
+        type: "boolean"
+        required: false
+        default: false
 
 env:
   PKG_NAME: "nomad"
@@ -84,6 +93,23 @@ jobs:
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
+      - name: Build dependencies
+        run: make deps
+
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+          cache-dependency-path: "ui/yarn.lock"
+
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+
+      - name: Build prerelease
+        run: make prerelease
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
+
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
@@ -117,6 +143,24 @@ jobs:
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
+      - name: Build dependencies
+        run: make deps
+
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+          cache-dependency-path: "ui/yarn.lock"
+
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+
+      - name: Build prerelease
+        run: make prerelease
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
+
+
       - name: Install Linux build utilties
         run: |
           sudo apt-get update
@@ -126,7 +170,7 @@ jobs:
           sudo apt-get install -y \
             libc6-dev-i386 \
             libpcre3-dev \
-            linux-libc-dev:i386 
+            linux-libc-dev:i386
           sudo apt-get install -y \
             binutils-aarch64-linux-gnu \
             binutils-arm-linux-gnueabihf \
@@ -185,7 +229,6 @@ jobs:
           path: out/${{ env.RPM_PACKAGE }}
 
       - uses: actions/upload-artifact@v2
-        if: ${{ matrix.goos == 'linux' }}
         with:
           name: ${{ env.DEB_PACKAGE }}
           path: out/${{ env.DEB_PACKAGE }}
@@ -208,6 +251,23 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
+
+      - name: Build dependencies
+        run: make deps
+
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+          cache-dependency-path: "ui/yarn.lock"
+
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+
+      - name: Build prerelease
+        run: make prerelease
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
 
       - name: Build
         env:
