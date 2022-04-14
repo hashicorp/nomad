@@ -1,11 +1,10 @@
 name: Generate Static Assets
 
 on:
-  push:
-    branches:
-      - release/1.0.x
+  workflow_dispatch:
+
 env:
-  GO_TAGS: "release"
+  GO_TAGS: "ui codegen_generated release"
 
 jobs:
   get-go-version:
@@ -21,9 +20,20 @@ jobs:
         run: |
           echo "Building with Go $(cat .go-version)"
           echo "::set-output name=go-version::$(cat .go-version)"
+  get-product-version:
+    runs-on: ubuntu-latest
+    outputs:
+      product-version: ${{ steps.get-product-version.outputs.product-version }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: get product version
+        id: get-product-version
+        run: |
+          make version
+          echo "::set-output name=product-version::$(make version)"
   generate-metadata:
     runs-on: ubuntu-latest
-    needs: get-go-version
+    needs: [get-go-version, get-product-version]
     name: generate-metadata
     steps:
       - uses: actions/checkout@v2
@@ -61,13 +71,13 @@ jobs:
       - name: Commit and push changes
         id: commit-change-push
         run: |
-          git add -A . 
+          git add -A .
           find . -name '*.generated.go' -not -path './vendor/*' -exec git add -f '{}' \;
           if ! git diff-index --quiet HEAD --;
           then
             git config --global user.email "github-team-nomad-core@hashicorp.com"
             git config --global user.name "hc-github-team-nomad-core"
-            git commit --message "Generate files for $(NOMAD_VERSION) release"
+            git commit --message "Generate files for ${{ needs.get-product-version.outputs.product-version }} release"
             git push origin "$(git rev-parse --abbrev-ref HEAD)"
             echo "committing generated files"
           else
