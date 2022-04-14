@@ -216,6 +216,13 @@ func waitForAllocStatusMap(jobID, disconnectedAllocID, unchangedAllocID string, 
 			}
 		}
 		if merr != nil {
+			fmt.Printf("test failed, printing allocation status of all %q allocs for analysis\n", jobID)
+			fmt.Println("----------------")
+			for _, alloc := range allocs {
+				out, _ := e2eutil.Command("nomad", "alloc", "status", alloc["ID"])
+				fmt.Println(out)
+				fmt.Println("----------------")
+			}
 			return false, merr.ErrorOrNil()
 		}
 
