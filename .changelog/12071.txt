@@ -1,4 +1,3 @@
 ```release-note:bug
-template: Fixes a bug in config loading that resulted in the default `function_denylist`
-always being appended to whatever the user specified.
+template: Fixed a bug where the default `function_denylist` would be appended to a specified list
 ```
