@@ -43,10 +43,14 @@ export default class EvaluationsIndexRoute extends Route {
         : null;
       const typeFilter =
         type === 'client' ? `NodeID is not empty` : `NodeID is empty`;
+      const triggeredByFilter = `TriggeredBy contains "${triggeredBy}"`;
 
       if (searchTerm && type) return `${searchFilter} ${typeFilter}`;
+      if (searchTerm && triggeredBy)
+        return `${searchFilter} ${triggeredByFilter}`;
       if (searchTerm) return searchFilter;
       if (type) return typeFilter;
+      if (triggeredBy) return triggeredByFilter;
 
       return null;
     };
@@ -58,7 +62,6 @@ export default class EvaluationsIndexRoute extends Route {
       per_page: pageSize,
       next_token: nextToken,
       status,
-      triggeredBy,
       filter: generateFilter(),
     });
   }
