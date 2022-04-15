@@ -67,7 +67,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 			},
 		}
 
-		diff := diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal)
+		diff := diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
 		require.Empty(t, diff.place)
 		require.Empty(t, diff.update)
 		require.Empty(t, diff.stop)
@@ -93,7 +93,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 		expAlloc := terminal["node1"]["my-sysbatch.pinger[0]"]
 		expAlloc.NodeID = "node1"
 
-		diff := diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal)
+		diff := diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
 		require.Empty(t, diff.place)
 		require.Len(t, diff.update, 1)
 		require.Empty(t, diff.stop)
@@ -199,7 +199,7 @@ func TestDiffSystemAllocsForNode(t *testing.T) {
 		},
 	}
 
-	diff := diffSystemAllocsForNode(job, "zip", eligible, nil, tainted, required, allocs, terminal)
+	diff := diffSystemAllocsForNode(job, "zip", eligible, nil, tainted, required, allocs, terminal, true)
 
 	// We should update the first alloc
 	require.Len(t, diff.update, 1)
@@ -282,7 +282,7 @@ func TestDiffSystemAllocsForNode_ExistingAllocIneligibleNode(t *testing.T) {
 	// No terminal allocs
 	terminal := make(structs.TerminalByNodeByName)
 
-	diff := diffSystemAllocsForNode(job, eligibleNode.ID, eligible, nil, tainted, required, allocs, terminal)
+	diff := diffSystemAllocsForNode(job, eligibleNode.ID, eligible, nil, tainted, required, allocs, terminal, true)
 
 	require.Len(t, diff.place, 0)
 	require.Len(t, diff.update, 1)
@@ -364,7 +364,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 		},
 	}
 
-	diff := diffSystemAllocs(job, nodes, nil, tainted, allocs, terminal)
+	diff := diffSystemAllocs(job, nodes, nil, tainted, allocs, terminal, true)
 
 	// We should update the first alloc
 	require.Len(t, diff.update, 1)

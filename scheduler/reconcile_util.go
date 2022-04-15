@@ -224,19 +224,11 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 	reconnecting = make(map[string]*structs.Allocation)
 	ignore = make(map[string]*structs.Allocation)
 
-	supportsDisconnectedClients := serverSupportsDisconnectedClients
-
 	for _, alloc := range a {
 
 		// make sure we don't apply any reconnect logic to task groups
 		// without max_client_disconnect
-		if alloc.Job != nil {
-			tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-			if tg != nil {
-				supportsDisconnectedClients = serverSupportsDisconnectedClients &&
-					tg.MaxClientDisconnect != nil
-			}
-		}
+		supportsDisconnectedClients := alloc.SupportsDisconnectedClients(serverSupportsDisconnectedClients)
 
 		reconnected := false
 		expired := false

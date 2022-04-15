@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
@@ -38,12 +39,12 @@ func materializeTaskGroups(job *structs.Job) map[string]*structs.TaskGroup {
 
 // diffResult is used to return the sets that result from the diff
 type diffResult struct {
-	place, update, migrate, stop, ignore, lost []allocTuple
+	place, update, migrate, stop, ignore, lost, disconnecting, reconnecting []allocTuple
 }
 
 func (d *diffResult) GoString() string {
-	return fmt.Sprintf("allocs: (place %d) (update %d) (migrate %d) (stop %d) (ignore %d) (lost %d)",
-		len(d.place), len(d.update), len(d.migrate), len(d.stop), len(d.ignore), len(d.lost))
+	return fmt.Sprintf("allocs: (place %d) (update %d) (migrate %d) (stop %d) (ignore %d) (lost %d) (disconnecting %d) (reconnecting %d)",
+		len(d.place), len(d.update), len(d.migrate), len(d.stop), len(d.ignore), len(d.lost), len(d.disconnecting), len(d.reconnecting))
 }
 
 func (d *diffResult) Append(other *diffResult) {
@@ -53,15 +54,19 @@ func (d *diffResult) Append(other *diffResult) {
 	d.stop = append(d.stop, other.stop...)
 	d.ignore = append(d.ignore, other.ignore...)
 	d.lost = append(d.lost, other.lost...)
+	d.disconnecting = append(d.disconnecting, other.disconnecting...)
+	d.reconnecting = append(d.reconnecting, other.reconnecting...)
 }
 
 // diffSystemAllocsForNode is used to do a set difference between the target allocations
-// and the existing allocations for a particular node. This returns 6 sets of results,
+// and the existing allocations for a particular node. This returns 8 sets of results,
 // the list of named task groups that need to be placed (no existing allocation), the
 // allocations that need to be updated (job definition is newer), allocs that
 // need to be migrated (node is draining), the allocs that need to be evicted
-// (no longer required), those that should be ignored and those that are lost
-// that need to be replaced (running on a lost node).
+// (no longer required), those that should be ignored, those that are lost
+// that need to be replaced (running on a lost node), those that are running on
+// a disconnected node but may resume, and those that may still be running on
+// a node that has resumed reconnected.
 func diffSystemAllocsForNode(
 	job *structs.Job, // job whose allocs are going to be diff-ed
 	nodeID string,
@@ -71,6 +76,7 @@ func diffSystemAllocsForNode(
 	required map[string]*structs.TaskGroup, // set of allocations that must exist
 	allocs []*structs.Allocation, // non-terminal allocations that exist
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
+	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *diffResult {
 	result := new(diffResult)
 
@@ -94,6 +100,16 @@ func diffSystemAllocsForNode(
 			continue
 		}
 
+		supportsDisconnectedClients := exist.SupportsDisconnectedClients(serverSupportsDisconnectedClients)
+
+		reconnected := false
+		// Only compute reconnected for unknown and running since they need to go through the reconnect process.
+		if supportsDisconnectedClients &&
+			(exist.ClientStatus == structs.AllocClientStatusUnknown ||
+				exist.ClientStatus == structs.AllocClientStatusRunning) {
+			reconnected, _ = exist.Reconnected()
+		}
+
 		// If we have been marked for migration and aren't terminal, migrate
 		if !exist.TerminalStatus() && exist.DesiredTransition.ShouldMigrate() {
 			result.migrate = append(result.migrate, allocTuple{
@@ -114,16 +130,70 @@ func diffSystemAllocsForNode(
 			continue
 		}
 
+		// Expired unknown allocs are lost. Expired checks that status is unknown.
+		if supportsDisconnectedClients && exist.Expired(time.Now().UTC()) {
+			result.lost = append(result.lost, allocTuple{
+				Name:      name,
+				TaskGroup: tg,
+				Alloc:     exist,
+			})
+			continue
+		}
+
+		// Ignore unknown allocs that we want to reconnect eventually.
+		if supportsDisconnectedClients &&
+			exist.ClientStatus == structs.AllocClientStatusUnknown &&
+			exist.DesiredStatus == structs.AllocDesiredStatusRun {
+			result.ignore = append(result.ignore, allocTuple{
+				Name:      name,
+				TaskGroup: tg,
+				Alloc:     exist,
+			})
+			continue
+		}
+
+		node, nodeIsTainted := taintedNodes[exist.NodeID]
+
+		// Filter allocs on a node that is now re-connected to reconnecting.
+		if supportsDisconnectedClients &&
+			!nodeIsTainted &&
+			reconnected {
+			result.reconnecting = append(result.reconnecting, allocTuple{
+				Name:      name,
+				TaskGroup: tg,
+				Alloc:     exist,
+			})
+			continue
+		}
+
 		// If we are on a tainted node, we must migrate if we are a service or
 		// if the batch allocation did not finish
-		if node, ok := taintedNodes[exist.NodeID]; ok {
+		if nodeIsTainted {
 			// If the job is batch and finished successfully, the fact that the
 			// node is tainted does not mean it should be migrated or marked as
 			// lost as the work was already successfully finished. However for
 			// service/system jobs, tasks should never complete. The check of
 			// batch type, defends against client bugs.
-			if exist.Job.Type == structs.JobTypeBatch && exist.RanSuccessfully() {
+			if exist.Job.Type == structs.JobTypeSysBatch && exist.RanSuccessfully() {
 				goto IGNORE
+			}
+
+			// Filter running allocs on a node that is disconnected to be marked as unknown.
+			if node != nil &&
+				supportsDisconnectedClients &&
+				node.Status == structs.NodeStatusDisconnected &&
+				exist.ClientStatus == structs.AllocClientStatusRunning {
+
+				disconnect := exist.Copy()
+				disconnect.ClientStatus = structs.AllocClientStatusUnknown
+				disconnect.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
+				disconnect.ClientDescription = allocUnknown
+				result.disconnecting = append(result.disconnecting, allocTuple{
+					Name:      name,
+					TaskGroup: tg,
+					Alloc:     disconnect,
+				})
+				continue
 			}
 
 			if !exist.TerminalStatus() && (node == nil || node.TerminalStatus()) {
@@ -141,13 +211,13 @@ func diffSystemAllocsForNode(
 
 		// For an existing allocation, if the nodeID is no longer
 		// eligible, the diff should be ignored
-		if _, ok := notReadyNodes[nodeID]; ok {
+		if _, ineligible := notReadyNodes[nodeID]; ineligible {
 			goto IGNORE
 		}
 
 		// Existing allocations on nodes that are no longer targeted
 		// should be stopped
-		if _, ok := eligibleNodes[nodeID]; !ok {
+		if _, eligible := eligibleNodes[nodeID]; !eligible {
 			result.stop = append(result.stop, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
@@ -247,6 +317,7 @@ func diffSystemAllocs(
 	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by node id)
 	allocs []*structs.Allocation, // non-terminal allocations
 	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node id)
+	serverSupportsDisconnectedClients bool, // flag indicating whether to apply disconnected client logic
 ) *diffResult {
 
 	// Build a mapping of nodes to all their allocs.
@@ -268,7 +339,7 @@ func diffSystemAllocs(
 
 	result := new(diffResult)
 	for nodeID, allocs := range nodeAllocs {
-		diff := diffSystemAllocsForNode(job, nodeID, eligibleNodes, notReadyNodes, taintedNodes, required, allocs, terminal)
+		diff := diffSystemAllocsForNode(job, nodeID, eligibleNodes, notReadyNodes, taintedNodes, required, allocs, terminal, serverSupportsDisconnectedClients)
 		result.Append(diff)
 	}
 

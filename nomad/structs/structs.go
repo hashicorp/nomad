@@ -9935,6 +9935,24 @@ func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 	return now.Add(*timeout)
 }
 
+// SupportsDisconnectedClients determines whether both the server and the task group
+// are configured to allow the allocation to reconnect after network connectivity
+// has been lost and then restored.
+func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClients bool) bool {
+	if !serverSupportsDisconnectedClients {
+		return false
+	}
+
+	if a.Job != nil {
+		tg := a.Job.LookupTaskGroup(a.TaskGroup)
+		if tg != nil {
+			return tg.MaxClientDisconnect != nil
+		}
+	}
+
+	return false
+}
+
 // NextDelay returns a duration after which the allocation can be rescheduled.
 // It is calculated according to the delay function and previous reschedule attempts.
 func (a *Allocation) NextDelay() time.Duration {
