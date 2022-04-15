@@ -37,6 +37,7 @@ func (c *VolumeStatusCommand) csiStatus(client *api.Client, id string) int {
 	var ns string
 
 	if len(vols) == 1 {
+		// need to set id from the actual ID because it might be a prefix
 		id = vols[0].ID
 		ns = vols[0].Namespace
 	}
