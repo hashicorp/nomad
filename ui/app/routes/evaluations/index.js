@@ -32,9 +32,7 @@ export default class EvaluationsIndexRoute extends Route {
     nextToken,
     pageSize,
     searchTerm,
-    // eslint-disable-next-line no-unused-vars
     status,
-    // eslint-disable-next-line no-unused-vars
     triggeredBy,
     type,
     qpNamespace: namespace,
@@ -59,9 +57,8 @@ export default class EvaluationsIndexRoute extends Route {
       namespace,
       per_page: pageSize,
       next_token: nextToken,
-      // TODO: add support for status and triggeredBy filters
-      //status,
-      //triggeredBy,
+      status,
+      triggeredBy,
       filter: generateFilter(),
     });
   }
