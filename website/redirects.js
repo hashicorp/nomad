@@ -1389,7 +1389,7 @@ module.exports = [
     permanent: true,
   },
   {
-    source: '/:base(docs|api-docs)/v1.:minor([0-2]{1,}).(\\d)/:path*',
+    source: '/:base(docs|api-docs)/v1.:minor([0-2]{1,}).(\\d+)/:path*',
     destination: '/:base/v1.:minor.x/:path',
     permanent: true,
   },
