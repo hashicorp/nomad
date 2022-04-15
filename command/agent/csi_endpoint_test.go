@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -30,7 +29,7 @@ func TestHTTP_CSIEndpointPlugin(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 200, resp.Code)
 
-		out, ok := obj.(*api.CSIPlugin)
+		out, ok := obj.(*structs.CSIPlugin)
 		require.True(t, ok)
 
 		// ControllersExpected is 0 because this plugin was created without a job,
@@ -68,20 +67,6 @@ func TestHTTP_CSIParseSecrets(t *testing.T) {
 	}
 }
 
-func TestHTTP_CSIEndpointUtils(t *testing.T) {
-	secrets := structsCSISecretsToApi(structs.CSISecrets{
-		"foo": "bar",
-	})
-
-	require.Equal(t, "bar", secrets["foo"])
-
-	tops := structsCSITopolgiesToApi([]*structs.CSITopology{{
-		Segments: map[string]string{"foo": "bar"},
-	}})
-
-	require.Equal(t, "bar", tops[0].Segments["foo"])
-}
-
 func TestHTTP_CSIEndpointRegisterVolume(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
@@ -111,7 +96,7 @@ func TestHTTP_CSIEndpointRegisterVolume(t *testing.T) {
 		resp = httptest.NewRecorder()
 		raw, err := s.Server.CSIVolumeSpecificRequest(resp, req)
 		require.NoError(t, err, "get error")
-		out, ok := raw.(*api.CSIVolume)
+		out, ok := raw.(*structs.CSIVolume)
 		require.True(t, ok)
 		require.Equal(t, 1, out.ControllersHealthy)
 		require.Equal(t, 2, out.NodesHealthy)
@@ -177,25 +162,4 @@ func TestHTTP_CSIEndpointSnapshot(t *testing.T) {
 		_, err = s.Server.CSISnapshotsRequest(resp, req)
 		require.Error(t, err, "no such volume: bar")
 	})
-}
-
-// TestHTTP_CSIEndpoint_Cast is a smoke test for converting from structs to
-// API structs
-func TestHTTP_CSIEndpoint_Cast(t *testing.T) {
-	ci.Parallel(t)
-
-	plugin := mock.CSIPlugin()
-	plugin.Nodes["node1"] = &structs.CSIInfo{
-		PluginID: plugin.ID,
-		AllocID:  "alloc1",
-		NodeInfo: &structs.CSINodeInfo{ID: "instance-1", MaxVolumes: 3},
-	}
-	apiPlugin := structsCSIPluginToApi(plugin)
-	require.Equal(t,
-		plugin.Nodes["node1"].NodeInfo.MaxVolumes,
-		apiPlugin.Nodes["node1"].NodeInfo.MaxVolumes)
-
-	vol := mock.CSIVolume(plugin)
-	apiVol := structsCSIVolumeToApi(vol)
-	require.Equal(t, vol.MountOptions.MountFlags, apiVol.MountOptions.MountFlags)
 }

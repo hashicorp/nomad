@@ -297,9 +297,9 @@ type CSIVolume struct {
 	ReadAllocs  map[string]*Allocation // AllocID -> Allocation
 	WriteAllocs map[string]*Allocation // AllocID -> Allocation
 
-	ReadClaims  map[string]*CSIVolumeClaim // AllocID -> claim
-	WriteClaims map[string]*CSIVolumeClaim // AllocID -> claim
-	PastClaims  map[string]*CSIVolumeClaim // AllocID -> claim
+	ReadClaims  map[string]*CSIVolumeClaim `json:"-"` // AllocID -> claim
+	WriteClaims map[string]*CSIVolumeClaim `json:"-"` // AllocID -> claim
+	PastClaims  map[string]*CSIVolumeClaim `json:"-"` // AllocID -> claim
 
 	// Schedulable is true if all the denormalized plugin health fields are true, and the
 	// volume has not been marked for garbage collection
