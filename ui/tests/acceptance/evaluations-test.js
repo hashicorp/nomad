@@ -144,7 +144,6 @@ module('Acceptance | evaluations list', function (hooks) {
           next_token: '',
           filter: '',
           status: '',
-          triggeredBy: '',
         },
         'Forwards the correct query parameters on default query when route initially loads'
       );
@@ -177,7 +176,6 @@ module('Acceptance | evaluations list', function (hooks) {
             per_page: '25',
             status: 'pending',
             next_token: '',
-            triggeredBy: '',
             filter: '',
           },
           'It makes another server request using the options selected by the user'
@@ -209,7 +207,6 @@ module('Acceptance | evaluations list', function (hooks) {
             next_token: '',
             filter: '',
             status: '',
-            triggeredBy: '',
           },
           'It makes another server request using the options selected by the user'
         );
@@ -239,8 +236,7 @@ module('Acceptance | evaluations list', function (hooks) {
             per_page: '25',
             status: '',
             next_token: '',
-            triggeredBy: 'periodic-job',
-            filter: '',
+            filter: `TriggeredBy contains "periodic-job"`,
           },
           'It makes another server request using the options selected by the user'
         );
@@ -273,7 +269,6 @@ module('Acceptance | evaluations list', function (hooks) {
             per_page: '25',
             status: '',
             next_token: '',
-            triggeredBy: '',
             filter: 'NodeID is not empty',
           },
           'It makes another server request using the options selected by the user'
@@ -306,7 +301,6 @@ module('Acceptance | evaluations list', function (hooks) {
             next_token: '',
             filter: `ID contains "${searchTerm}" or JobID contains "${searchTerm}" or NodeID contains "${searchTerm}" or TriggeredBy contains "${searchTerm}"`,
             status: '',
-            triggeredBy: '',
           },
           'It makes another server request using the options selected by the user'
         );
@@ -344,7 +338,6 @@ module('Acceptance | evaluations list', function (hooks) {
             next_token: '',
             filter: '',
             status: '',
-            triggeredBy: '',
           },
           'It makes a request with the per_page set by the user'
         );
@@ -379,7 +372,6 @@ module('Acceptance | evaluations list', function (hooks) {
             next_token: 'next-token-1',
             filter: '',
             status: '',
-            triggeredBy: '',
           },
           'It makes another server request using the options selected by the user'
         );
@@ -406,7 +398,6 @@ module('Acceptance | evaluations list', function (hooks) {
             next_token: 'next-token-2',
             filter: '',
             status: '',
-            triggeredBy: '',
           },
           'It makes another server request using the options selected by the user'
         );
@@ -433,7 +424,6 @@ module('Acceptance | evaluations list', function (hooks) {
             next_token: 'next-token-1',
             filter: '',
             status: '',
-            triggeredBy: '',
           },
           'It makes a request using the stored old token.'
         );
@@ -455,7 +445,6 @@ module('Acceptance | evaluations list', function (hooks) {
             next_token: '',
             filter: '',
             status: '',
-            triggeredBy: '',
           },
           'When there are no more stored previous tokens, we will request with no next-token.'
         );
@@ -499,7 +488,6 @@ module('Acceptance | evaluations list', function (hooks) {
             per_page: '25',
             status: '',
             next_token: '',
-            triggeredBy: '',
             filter: '',
           },
           'It clears all query parameters when making a refresh'
@@ -548,7 +536,6 @@ module('Acceptance | evaluations list', function (hooks) {
             per_page: '25',
             status: 'pending',
             next_token: '',
-            triggeredBy: '',
             filter: '',
           },
           'It clears all next token when filtered request is made'
