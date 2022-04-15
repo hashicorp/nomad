@@ -217,10 +217,10 @@ func shouldCreateNodeEval(original, updated *structs.Node) bool {
 	}
 
 	if original == nil {
-		return transitionedToReady(updated.Status, structs.NodeStatusInit)
+		return nodeStatusTransitionRequiresEval(updated.Status, structs.NodeStatusInit)
 	}
 
-	if transitionedToReady(updated.Status, original.Status) {
+	if nodeStatusTransitionRequiresEval(updated.Status, original.Status) {
 		return true
 	}
 
@@ -486,8 +486,8 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	}
 
 	// Check if we should trigger evaluations
-	transitionToReady := transitionedToReady(args.Status, node.Status)
-	if structs.ShouldDrainNode(args.Status) || transitionToReady || args.Status == structs.NodeStatusDisconnected {
+	if structs.ShouldDrainNode(args.Status) ||
+		nodeStatusTransitionRequiresEval(args.Status, node.Status) {
 		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)
@@ -546,9 +546,6 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 			}
 		}
 
-	case structs.NodeStatusDisconnected:
-		n.logger.Trace(fmt.Sprintf("heartbeat reset skipped for disconnected node %q", args.NodeID))
-
 	default:
 		ttl, err := n.srv.resetHeartbeatTimer(args.NodeID)
 		if err != nil {
@@ -570,13 +567,13 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	return nil
 }
 
-// transitionedToReady is a helper that takes a nodes new and old status and
+// nodeStatusTransitionRequiresEval is a helper that takes a nodes new and old status and
 // returns whether it has transitioned to ready.
-func transitionedToReady(newStatus, oldStatus string) bool {
+func nodeStatusTransitionRequiresEval(newStatus, oldStatus string) bool {
 	initToReady := oldStatus == structs.NodeStatusInit && newStatus == structs.NodeStatusReady
 	terminalToReady := oldStatus == structs.NodeStatusDown && newStatus == structs.NodeStatusReady
-	disconnectedToReady := oldStatus == structs.NodeStatusDisconnected && newStatus == structs.NodeStatusReady
-	return initToReady || terminalToReady || disconnectedToReady
+	disconnectedToOther := oldStatus == structs.NodeStatusDisconnected && newStatus != structs.NodeStatusDisconnected
+	return initToReady || terminalToReady || disconnectedToOther
 }
 
 // UpdateDrain is used to update the drain mode of a client node

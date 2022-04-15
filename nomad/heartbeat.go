@@ -152,6 +152,8 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 
 	h.logger.Warn("node TTL expired", "node_id", id)
 
+	canDisconnect, hasPendingReconnects := h.disconnectState(id)
+
 	// Make a request to update the node status
 	req := structs.NodeUpdateStatusRequest{
 		NodeID:    id,
@@ -162,7 +164,7 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 		},
 	}
 
-	if h.shouldDisconnect(id) {
+	if canDisconnect && hasPendingReconnects {
 		req.Status = structs.NodeStatusDisconnected
 	}
 
@@ -172,21 +174,46 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 	}
 }
 
-func (h *nodeHeartbeater) shouldDisconnect(id string) bool {
+func (h *nodeHeartbeater) disconnectState(id string) (bool, bool) {
+	node, err := h.State().NodeByID(nil, id)
+	if err != nil {
+		h.logger.Error("error retrieving node by id", "error", err)
+		return false, false
+	}
+
+	// Exit if this is the node already in a state other than ready.
+	if node.Status != structs.NodeStatusReady {
+		return false, false
+	}
+
 	allocs, err := h.State().AllocsByNode(nil, id)
 	if err != nil {
 		h.logger.Error("error retrieving allocs by node", "error", err)
-		return false
+		return false, false
 	}
 
 	now := time.Now().UTC()
+	// Check if the node has any allocs that are configured with max_client_disconnect,
+	// that are past the disconnect window, and if so, whether it has at least one
+	// alloc that isn't yet expired.
+	nodeCanDisconnect := false
 	for _, alloc := range allocs {
-		if alloc.DisconnectTimeout(now).After(now) {
-			return true
+		allocCanDisconnect := alloc.DisconnectTimeout(now).After(now)
+		// Only process this until we find that at least one alloc is configured
+		// with max_client_disconnect.
+		if !nodeCanDisconnect && allocCanDisconnect {
+			nodeCanDisconnect = true
+		}
+		// Only process this until we find one that we want to run and has not
+		// yet expired.
+		if allocCanDisconnect &&
+			alloc.DesiredStatus == structs.AllocDesiredStatusRun &&
+			!alloc.Expired(now) {
+			return true, true
 		}
 	}
 
-	return false
+	return nodeCanDisconnect, false
 }
 
 // clearHeartbeatTimer is used to clear the heartbeat time for
