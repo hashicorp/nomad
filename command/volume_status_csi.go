@@ -33,8 +33,27 @@ func (c *VolumeStatusCommand) csiStatus(client *api.Client, id string) int {
 		c.Ui.Error(fmt.Sprintf("No volumes(s) with prefix or ID %q found", id))
 		return 1
 	}
+
+	var ns string
+
+	if len(vols) == 1 {
+		// need to set id from the actual ID because it might be a prefix
+		id = vols[0].ID
+		ns = vols[0].Namespace
+	}
+
+	// List sorts by CreateIndex, not by ID, so we need to search for
+	// exact matches but account for multiple exact ID matches across
+	// namespaces
 	if len(vols) > 1 {
-		if (id != vols[0].ID) || (c.allNamespaces() && vols[0].ID == vols[1].ID) {
+		exactMatchesCount := 0
+		for _, vol := range vols {
+			if vol.ID == id {
+				exactMatchesCount++
+				ns = vol.Namespace
+			}
+		}
+		if exactMatchesCount != 1 {
 			out, err := c.csiFormatVolumes(vols)
 			if err != nil {
 				c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
@@ -44,9 +63,9 @@ func (c *VolumeStatusCommand) csiStatus(client *api.Client, id string) int {
 			return 1
 		}
 	}
-	id = vols[0].ID
 
 	// Try querying the volume
+	client.SetNamespace(ns)
 	vol, _, err := client.CSIVolumes().Info(id, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying volume: %s", err))
