@@ -255,3 +255,19 @@ func TestPlanCommad_Preemptions(t *testing.T) {
 	require.Contains(out, "batch")
 	require.Contains(out, "service")
 }
+
+func TestPlanCommad_JSON(t *testing.T) {
+	ui := cli.NewMockUi()
+	cmd := &JobPlanCommand{
+		Meta: Meta{Ui: ui},
+	}
+
+	args := []string{
+		"-address=http://nope",
+		"-json",
+		"testdata/example-short.json",
+	}
+	code := cmd.Run(args)
+	require.Equal(t, 255, code)
+	require.Contains(t, ui.ErrorWriter.String(), "Error during plan: Put")
+}

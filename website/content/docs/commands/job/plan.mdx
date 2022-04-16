@@ -63,6 +63,10 @@ capability for the job's namespace.
 - `-policy-override`: Sets the flag to force override any soft mandatory
   Sentinel policies.
 
+- `-json`: Parses the job file as JSON. If the outer object has a Job field,
+  such as from "nomad job inspect" or "nomad run -output", the value of the
+  field is used as the job.
+
 - `-hcl1`: If set, HCL1 parser is used for parsing the job spec.
 
 - `-hcl2-strict`: Whether an error should be produced from the HCL2 parser where

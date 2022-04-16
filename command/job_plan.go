@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/posener/complete"
 )
@@ -76,6 +75,11 @@ Plan Options:
     Determines whether the diff between the remote job and planned job is shown.
     Defaults to true.
 
+  -json
+    Parses the job file as JSON. If the outer object has a Job field, such as
+    from "nomad job inspect" or "nomad run -output", the value of the field is
+    used as the job.
+
   -hcl1
     Parses the job file as HCLv1.
 
@@ -109,6 +113,7 @@ func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 			"-diff":            complete.PredictNothing,
 			"-policy-override": complete.PredictNothing,
 			"-verbose":         complete.PredictNothing,
+			"-json":            complete.PredictNothing,
 			"-hcl1":            complete.PredictNothing,
 			"-hcl2-strict":     complete.PredictNothing,
 			"-var":             complete.PredictAnything,
@@ -117,23 +122,27 @@ func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictOr(complete.PredictFiles("*.nomad"), complete.PredictFiles("*.hcl"))
+	return complete.PredictOr(
+		complete.PredictFiles("*.nomad"),
+		complete.PredictFiles("*.hcl"),
+		complete.PredictFiles("*.json"),
+	)
 }
 
 func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
-	var diff, policyOverride, verbose, hcl2Strict bool
-	var varArgs, varFiles flaghelper.StringFlag
+	var diff, policyOverride, verbose bool
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
 	flagSet.BoolVar(&diff, "diff", true, "")
 	flagSet.BoolVar(&policyOverride, "policy-override", false, "")
 	flagSet.BoolVar(&verbose, "verbose", false, "")
-	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
-	flagSet.BoolVar(&hcl2Strict, "hcl2-strict", true, "")
-	flagSet.Var(&varArgs, "var", "")
-	flagSet.Var(&varFiles, "var-file", "")
+	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
+	flagSet.BoolVar(&c.JobGetter.HCL1, "hcl1", false, "")
+	flagSet.BoolVar(&c.JobGetter.Strict, "hcl2-strict", true, "")
+	flagSet.Var(&c.JobGetter.Vars, "var", "")
+	flagSet.Var(&c.JobGetter.VarFiles, "var-file", "")
 
 	if err := flagSet.Parse(args); err != nil {
 		return 255
@@ -147,9 +156,14 @@ func (c *JobPlanCommand) Run(args []string) int {
 		return 255
 	}
 
+	if err := c.JobGetter.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("Invalid job options: %s", err))
+		return 1
+	}
+
 	path := args[0]
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.ApiJobWithArgs(args[0], varArgs, varFiles, hcl2Strict)
+	job, err := c.JobGetter.Get(path)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 255
@@ -193,11 +207,11 @@ func (c *JobPlanCommand) Run(args []string) int {
 	}
 
 	runArgs := strings.Builder{}
-	for _, varArg := range varArgs {
+	for _, varArg := range c.JobGetter.Vars {
 		runArgs.WriteString(fmt.Sprintf("-var=%q ", varArg))
 	}
 
-	for _, varFile := range varFiles {
+	for _, varFile := range c.JobGetter.VarFiles {
 		runArgs.WriteString(fmt.Sprintf("-var-file=%q ", varFile))
 	}
 

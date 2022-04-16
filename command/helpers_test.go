@@ -451,6 +451,84 @@ func TestJobGetter_HTTPServer(t *testing.T) {
 	}
 }
 
+func TestJobGetter_Validate(t *testing.T) {
+	cases := []struct {
+		name        string
+		jg          JobGetter
+		errContains string
+	}{
+		{
+			"StrictAndHCL1",
+			JobGetter{
+				HCL1:   true,
+				Strict: true,
+			},
+			"HCLv1 and HCLv2 strict",
+		},
+		{
+			"JSONandHCL1",
+			JobGetter{
+				HCL1: true,
+				JSON: true,
+			},
+			"HCL and JSON",
+		},
+		{
+			"VarsAndHCL1",
+			JobGetter{
+				HCL1: true,
+				Vars: []string{"foo"},
+			},
+			"variables with HCLv1",
+		},
+		{
+			"VarFilesAndHCL1",
+			JobGetter{
+				HCL1:     true,
+				VarFiles: []string{"foo.var"},
+			},
+			"variables with HCLv1",
+		},
+		{
+			"VarsAndJSON",
+			JobGetter{
+				JSON: true,
+				Vars: []string{"foo"},
+			},
+			"variables with JSON",
+		},
+		{
+			"VarFilesAndJSON",
+			JobGetter{
+				JSON:     true,
+				VarFiles: []string{"foo.var"},
+			},
+			"variables with JSON files",
+		},
+		{
+			"JSON_OK",
+			JobGetter{
+				JSON: true,
+			},
+			"",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.jg.Validate()
+
+			switch tc.errContains {
+			case "":
+				require.NoError(t, err)
+			default:
+				require.ErrorContains(t, err, tc.errContains)
+			}
+
+		})
+	}
+}
+
 func TestPrettyTimeDiff(t *testing.T) {
 	// Grab the time and truncate to the nearest second. This allows our tests
 	// to be deterministic since we don't have to worry about rounding.
