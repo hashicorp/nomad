@@ -34,6 +34,9 @@ The table below shows this endpoint's support for
 - `resources` `(bool: false)` - Specifies whether or not to include the
   `NodeResources` and `ReservedResources` fields in the response.
 
+- `os` `(bool: false)` - Specifies whether or not to include special attributes
+   such as operating system name in the response.
+
 ### Sample Request
 
 ```shell-session
@@ -46,12 +49,20 @@ $ curl \
     http://localhost:4646/v1/nodes?prefix=f7476465
 ```
 
+```shell-session
+$ curl \
+    http://localhost:4646/v1/nodes?os=true
+```
+
 ### Sample Response
 
 ```json
 [
   {
     "Address": "10.138.0.5",
+    "Attributes": {
+      "os.name": "ubuntu"
+    },
     "CreateIndex": 6,
     "Datacenter": "dc1",
     "Drain": false,

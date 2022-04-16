@@ -173,8 +173,13 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			return 1
 		}
 
+		var q *api.QueryOptions
+		if c.os {
+			q = &api.QueryOptions{Params: map[string]string{"os": "true"}}
+		}
+
 		// Query the node info
-		nodes, _, err := client.Nodes().List(nil)
+		nodes, _, err := client.Nodes().List(q)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node status: %s", err))
 			return 1
@@ -231,24 +236,14 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			out[0] += "|Running Allocs"
 		}
 
-		queryOptions := &api.QueryOptions{AllowStale: true}
-		var nodeInfo *api.Node
-
 		for i, node := range nodes {
-			if c.os {
-				nodeInfo, _, err = client.Nodes().Info(node.ID, queryOptions)
-				if err != nil {
-					c.Ui.Error(fmt.Sprintf("Error getting node info: %s", err))
-					return 1
-				}
-			}
 			out[i+1] = fmt.Sprintf("%s|%s|%s|%s",
 				limit(node.ID, c.length),
 				node.Datacenter,
 				node.Name,
 				node.NodeClass)
 			if c.os {
-				out[i+1] += fmt.Sprintf("|%s", nodeInfo.Attributes["os.name"])
+				out[i+1] += fmt.Sprintf("|%s", node.Attributes["os.name"])
 			}
 			if c.verbose {
 				out[i+1] += fmt.Sprintf("|%s|%s",

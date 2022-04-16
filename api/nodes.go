@@ -906,6 +906,7 @@ func (v *StatValue) String() string {
 type NodeListStub struct {
 	Address               string
 	ID                    string
+	Attributes            map[string]string `json:",omitempty"`
 	Datacenter            string
 	Name                  string
 	NodeClass             string
