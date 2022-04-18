@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where clients that retry blocking queries would not reset the correct blocking duration
+```
