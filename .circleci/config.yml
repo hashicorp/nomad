@@ -557,7 +557,6 @@ workflows:
             branches:
               ignore:
                 - stable-website
-                - /^.-ui\b.*/
 
       - lint-go:
           # check branches are almost all the backend branches
