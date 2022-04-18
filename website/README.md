@@ -1,6 +1,6 @@
 # Nomad Documentation Website
 
-This subdirectory contains the entire source for the [Nomad Website](https://nomadproject.io/). This is a [NextJS](https://nextjs.org/) project, which builds a static site from these source files.
+This subdirectory contains the content for the [Nomad Website](https://nomadproject.io/).
 
 <!--
   This readme file contains several blocks of generated text, to make it easier to share common information
