@@ -278,6 +278,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			DriverManager:        ar.driverManager,
 			ServersContactedCh:   ar.serversContactedCh,
 			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
+			EndConditionMetCtx:   ar.taskHookCoordinator.endConditionForTask(task),
 			ShutdownDelayCtx:     ar.shutdownDelayCtx,
 			ServiceRegWrapper:    ar.serviceRegWrapper,
 		}
