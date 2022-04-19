@@ -621,19 +621,70 @@ type CSITopology struct {
 // CSINodeInfo is the fingerprinted data from a CSI Plugin that is specific to
 // the Node API.
 type CSINodeInfo struct {
-	ID                      string
-	MaxVolumes              int64
-	AccessibleTopology      *CSITopology
+	ID                 string
+	MaxVolumes         int64
+	AccessibleTopology *CSITopology
+
+	// RequiresNodeStageVolume indicates whether the client should Stage/Unstage
+	// volumes on this node.
 	RequiresNodeStageVolume bool
+
+	// SupportsStats indicates plugin support for GET_VOLUME_STATS
+	SupportsStats bool
+
+	// SupportsExpand indicates plugin support for EXPAND_VOLUME
+	SupportsExpand bool
+
+	// SupportsCondition indicates plugin support for VOLUME_CONDITION
+	SupportsCondition bool
 }
 
 // CSIControllerInfo is the fingerprinted data from a CSI Plugin that is specific to
 // the Controller API.
 type CSIControllerInfo struct {
-	SupportsReadOnlyAttach           bool
-	SupportsAttachDetach             bool
-	SupportsListVolumes              bool
+	// SupportsCreateDelete indicates plugin support for CREATE_DELETE_VOLUME
+	SupportsCreateDelete bool
+
+	// SupportsPublishVolume is true when the controller implements the
+	// methods required to attach and detach volumes. If this is false Nomad
+	// should skip the controller attachment flow.
+	SupportsAttachDetach bool
+
+	// SupportsListVolumes is true when the controller implements the
+	// ListVolumes RPC. NOTE: This does not guarantee that attached nodes will
+	// be returned unless SupportsListVolumesAttachedNodes is also true.
+	SupportsListVolumes bool
+
+	// SupportsGetCapacity indicates plugin support for GET_CAPACITY
+	SupportsGetCapacity bool
+
+	// SupportsCreateDeleteSnapshot indicates plugin support for
+	// CREATE_DELETE_SNAPSHOT
+	SupportsCreateDeleteSnapshot bool
+
+	// SupportsListSnapshots indicates plugin support for LIST_SNAPSHOTS
+	SupportsListSnapshots bool
+
+	// SupportsClone indicates plugin support for CLONE_VOLUME
+	SupportsClone bool
+
+	// SupportsReadOnlyAttach is set to true when the controller returns the
+	// ATTACH_READONLY capability.
+	SupportsReadOnlyAttach bool
+
+	// SupportsExpand indicates plugin support for EXPAND_VOLUME
+	SupportsExpand bool
+
+	// SupportsListVolumesAttachedNodes indicates whether the plugin will
+	// return attached nodes data when making ListVolume RPCs (plugin support
+	// for LIST_VOLUMES_PUBLISHED_NODES)
 	SupportsListVolumesAttachedNodes bool
+
+	// SupportsCondition indicates plugin support for VOLUME_CONDITION
+	SupportsCondition bool
+
+	// SupportsGet indicates plugin support for GET_VOLUME
+	SupportsGet bool
 }
 
 // CSIInfo is the current state of a single CSI Plugin. This is updated regularly
