@@ -3,13 +3,10 @@ package structs
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestVolumeRequest_Validate(t *testing.T) {
-	ci.Parallel(t)
-
 	testCases := []struct {
 		name           string
 		expected       []string
