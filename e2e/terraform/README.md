@@ -84,6 +84,27 @@ folder and upload them to the cluster during provisioning.
 * `etc/consul.d` are the Consul agent configuration files.
 * `etc/acls` are ACL policy files for Consul and Vault.
 
+## Web UI
+
+To access the web UI, deploy a reverse proxy to the cluster. All
+clients have a TLS proxy certificate at `/etc/nomad.d/tls_proxy.crt`
+and a self-signed cert at `/etc/nomad.d/self_signed.crt`. See
+`../ui/inputs/proxy.nomad` for an example of using this. Deploy as follows:
+
+```sh
+nomad namespace apply proxy
+nomad job run ../ui/input/proxy.nomad
+```
+
+You can get the public IP for the proxy allocation from the following
+nested query:
+
+```sh
+nomad node status -json -verbose \
+    $(nomad operator api '/v1/allocations?namespace=proxy' | jq -r '.[] | select(.JobID == "nomad-proxy") | .NodeID') \
+    | jq '.Attributes."unique.platform.aws.public-ipv4"'
+```
+
 ## Outputs
 
 After deploying the infrastructure, you can get connection information

@@ -130,7 +130,24 @@ resource "null_resource" "upload_nomad_configs" {
     destination = "/tmp/agent-${var.instance.public_ip}.crt"
   }
   provisioner "file" {
+    source      = "keys/tls_api_client.key"
+    destination = "/tmp/tls_proxy.key"
+  }
+  provisioner "file" {
+    source      = "keys/tls_api_client.crt"
+    destination = "/tmp/tls_proxy.crt"
+  }
+  provisioner "file" {
     source      = "keys/tls_ca.crt"
     destination = "/tmp/ca.crt"
   }
+  provisioner "file" {
+    source      = "keys/self_signed.key"
+    destination = "/tmp/self_signed.key"
+  }
+  provisioner "file" {
+    source      = "keys/self_signed.crt"
+    destination = "/tmp/self_signed.crt"
+  }
+
 }
