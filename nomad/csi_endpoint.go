@@ -129,10 +129,12 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 				iter, err = snap.CSIVolumesByNodeID(ws, prefix, args.NodeID)
 			} else if args.PluginID != "" {
 				iter, err = snap.CSIVolumesByPluginID(ws, ns, prefix, args.PluginID)
-			} else if ns == structs.AllNamespacesSentinel {
-				iter, err = snap.CSIVolumes(ws)
-			} else {
+			} else if prefix != "" {
+				iter, err = snap.CSIVolumesByIDPrefix(ws, ns, prefix)
+			} else if ns != structs.AllNamespacesSentinel {
 				iter, err = snap.CSIVolumesByNamespace(ws, ns, prefix)
+			} else {
+				iter, err = snap.CSIVolumes(ws)
 			}
 
 			if err != nil {
