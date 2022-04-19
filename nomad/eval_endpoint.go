@@ -85,15 +85,17 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 // Dequeue is used to dequeue a pending evaluation
 func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	reply *structs.EvalDequeueResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Dequeue", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "dequeue"}, time.Now())
-
-	// Ensure the connection was initiated by another server if TLS is used.
-	if err := validateLocalServerTLSCertificate(e.srv, e.ctx); err != nil {
-		return fmt.Errorf("invalid server connection in region %s: %v", e.srv.Region(), err)
-	}
 
 	// Ensure there is at least one scheduler
 	if len(args.Schedulers) == 0 {
@@ -175,15 +177,17 @@ func (e *Eval) getWaitIndex(namespace, job string, evalModifyIndex uint64) (uint
 // Ack is used to acknowledge completion of a dequeued evaluation
 func (e *Eval) Ack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Ack", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "ack"}, time.Now())
-
-	// Ensure the connection was initiated by another server if TLS is used.
-	if err := validateLocalServerTLSCertificate(e.srv, e.ctx); err != nil {
-		return fmt.Errorf("invalid server connection in region %s: %v", e.srv.Region(), err)
-	}
 
 	// Ack the EvalID
 	if err := e.srv.evalBroker.Ack(args.EvalID, args.Token); err != nil {
@@ -195,15 +199,17 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 // Nack is used to negative acknowledge completion of a dequeued evaluation.
 func (e *Eval) Nack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Nack", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "nack"}, time.Now())
-
-	// Ensure the connection was initiated by another server if TLS is used.
-	if err := validateLocalServerTLSCertificate(e.srv, e.ctx); err != nil {
-		return fmt.Errorf("invalid server connection in region %s: %v", e.srv.Region(), err)
-	}
 
 	// Nack the EvalID
 	if err := e.srv.evalBroker.Nack(args.EvalID, args.Token); err != nil {
@@ -215,15 +221,17 @@ func (e *Eval) Nack(args *structs.EvalAckRequest,
 // Update is used to perform an update of an Eval if it is outstanding.
 func (e *Eval) Update(args *structs.EvalUpdateRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Update", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "update"}, time.Now())
-
-	// Ensure the connection was initiated by another server if TLS is used.
-	if err := validateLocalServerTLSCertificate(e.srv, e.ctx); err != nil {
-		return fmt.Errorf("invalid server connection in region %s: %v", e.srv.Region(), err)
-	}
 
 	// Ensure there is only a single update with token
 	if len(args.Evals) != 1 {
@@ -250,15 +258,17 @@ func (e *Eval) Update(args *structs.EvalUpdateRequest,
 // Create is used to make a new evaluation
 func (e *Eval) Create(args *structs.EvalUpdateRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Create", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "create"}, time.Now())
-
-	// Ensure the connection was initiated by another server if TLS is used.
-	if err := validateLocalServerTLSCertificate(e.srv, e.ctx); err != nil {
-		return fmt.Errorf("invalid server connection in region %s: %v", e.srv.Region(), err)
-	}
 
 	// Ensure there is only a single update with token
 	if len(args.Evals) != 1 {
@@ -300,15 +310,16 @@ func (e *Eval) Create(args *structs.EvalUpdateRequest,
 // Reblock is used to reinsert an existing blocked evaluation into the blocked
 // evaluation tracker.
 func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericResponse) error {
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Reblock", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "reblock"}, time.Now())
-
-	// Ensure the connection was initiated by another server if TLS is used.
-	if err := validateLocalServerTLSCertificate(e.srv, e.ctx); err != nil {
-		return fmt.Errorf("invalid server connection in region %s: %v", e.srv.Region(), err)
-	}
 
 	// Ensure there is only a single update with token
 	if len(args.Evals) != 1 {
@@ -347,15 +358,17 @@ func (e *Eval) Reblock(args *structs.EvalUpdateRequest, reply *structs.GenericRe
 // Reap is used to cleanup dead evaluations and allocations
 func (e *Eval) Reap(args *structs.EvalDeleteRequest,
 	reply *structs.GenericResponse) error {
+
+	// Ensure the connection was initiated by another server if TLS is used.
+	err := validateTLSCertificateLevel(e.srv, e.ctx, tlsCertificateLevelServer)
+	if err != nil {
+		return err
+	}
+
 	if done, err := e.srv.forward("Eval.Reap", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "reap"}, time.Now())
-
-	// Ensure the connection was initiated by another server if TLS is used.
-	if err := validateLocalServerTLSCertificate(e.srv, e.ctx); err != nil {
-		return fmt.Errorf("invalid server connection in region %s: %v", e.srv.Region(), err)
-	}
 
 	// Update via Raft
 	_, index, err := e.srv.raftApply(structs.EvalDeleteRequestType, args)
