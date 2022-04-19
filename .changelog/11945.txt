@@ -1,0 +1,3 @@
+```release-note:bug
+Fixed a bug where successful poststart tasks were marked as unhealthy
+```

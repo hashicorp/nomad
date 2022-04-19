@@ -284,6 +284,12 @@ func (t *Tracker) watchTaskEvents() {
 				continue
 			}
 
+			// If this is a poststart task which has already succeeded, we
+			// should skip evaluation.
+			if t.lifecycleTasks[taskName] == structs.TaskLifecycleHookPoststart && state.Successful() {
+				continue
+			}
+
 			// One of the tasks has failed so we can exit watching
 			if state.Failed || (!state.FinishedAt.IsZero() && t.lifecycleTasks[taskName] != structs.TaskLifecycleHookPrestart) {
 				t.setTaskHealth(false, true)

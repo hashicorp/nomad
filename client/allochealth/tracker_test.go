@@ -129,6 +129,47 @@ func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
 	}
 }
 
+func TestTracker_Succeeded_PostStart_Healthy(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.LifecycleAllocWithPoststartDeploy()
+	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = time.Millisecond * 1
+	// Synthesize running alloc and tasks
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc.TaskStates = map[string]*structs.TaskState{
+		"web": {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(),
+		},
+		"post": {
+			State:      structs.TaskStateDead,
+			StartedAt:  time.Now(),
+			FinishedAt: time.Now().Add(alloc.Job.TaskGroups[0].Migrate.MinHealthyTime / 2),
+		},
+	}
+
+	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
+	defer b.Close()
+
+	consul := consul.NewMockConsulServiceClient(t, logger)
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+
+	checkInterval := 10 * time.Millisecond
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
+		alloc.Job.TaskGroups[0].Migrate.MinHealthyTime, true)
+	tracker.checkLookupInterval = checkInterval
+	tracker.Start()
+
+	select {
+	case <-time.After(alloc.Job.TaskGroups[0].Migrate.MinHealthyTime * 2):
+		require.Fail(t, "timed out while waiting for health")
+	case h := <-tracker.HealthyCh():
+		require.True(t, h)
+	}
+}
+
 func TestTracker_Checks_Unhealthy(t *testing.T) {
 	t.Parallel()
 
