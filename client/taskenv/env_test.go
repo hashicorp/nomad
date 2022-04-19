@@ -238,6 +238,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_JOB_NAME=my-job",
 		fmt.Sprintf("NOMAD_JOB_PARENT_ID=%s", a.Job.ParentID),
 		fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID),
+		fmt.Sprintf("NOMAD_SHORT_ALLOC_ID=%s", a.ID[:8]),
 		"NOMAD_ALLOC_INDEX=0",
 	}
 	sort.Strings(act)
@@ -404,6 +405,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_JOB_NAME":                            "my-job",
 		"NOMAD_JOB_PARENT_ID":                       a.Job.ParentID,
 		"NOMAD_ALLOC_ID":                            a.ID,
+		"NOMAD_SHORT_ALLOC_ID":                      a.ID[:8],
 		"NOMAD_ALLOC_INDEX":                         "0",
 		"NOMAD_PORT_connect_proxy_testconnect":      "9999",
 		"NOMAD_HOST_PORT_connect_proxy_testconnect": "9999",
