@@ -1091,6 +1091,7 @@ func TestCSIVolumeEndpoint_ListExternal(t *testing.T) {
 	// List external volumes; note that none of these exist in the state store
 
 	req := &structs.CSIVolumeExternalListRequest{
+		PluginID: "minnie",
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
 			Namespace: structs.DefaultNamespace,
@@ -1362,8 +1363,8 @@ func TestCSIVolumeEndpoint_ListSnapshots(t *testing.T) {
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
 	// List snapshots
-
 	req := &structs.CSISnapshotListRequest{
+		PluginID: "minnie",
 		Secrets: structs.CSISecrets{
 			"secret-key-1": "secret-val-1",
 		},
