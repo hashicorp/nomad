@@ -2178,6 +2178,39 @@ func CSIVolume(plugin *structs.CSIPlugin) *structs.CSIVolume {
 	}
 }
 
+func CSIPluginJob(pluginType structs.CSIPluginType, pluginID string) *structs.Job {
+
+	job := new(structs.Job)
+
+	switch pluginType {
+	case structs.CSIPluginTypeController:
+		job = Job()
+		job.ID = fmt.Sprintf("mock-controller-%s", pluginID)
+		job.Name = "job-plugin-controller"
+		job.TaskGroups[0].Count = 2
+	case structs.CSIPluginTypeNode:
+		job = SystemJob()
+		job.ID = fmt.Sprintf("mock-node-%s", pluginID)
+		job.Name = "job-plugin-node"
+	case structs.CSIPluginTypeMonolith:
+		job = SystemJob()
+		job.ID = fmt.Sprintf("mock-monolith-%s", pluginID)
+		job.Name = "job-plugin-monolith"
+	}
+
+	job.TaskGroups[0].Name = "plugin"
+	job.TaskGroups[0].Tasks[0].Name = "plugin"
+	job.TaskGroups[0].Tasks[0].Driver = "docker"
+	job.TaskGroups[0].Tasks[0].Services = nil
+	job.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
+		ID:       pluginID,
+		Type:     pluginType,
+		MountDir: "/csi",
+	}
+	job.Canonicalize()
+	return job
+}
+
 func Events(index uint64) *structs.Events {
 	return &structs.Events{
 		Index: index,
