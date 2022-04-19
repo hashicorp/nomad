@@ -47,19 +47,19 @@ resource "local_sensitive_file" "consul_ca_file" {
 resource "local_sensitive_file" "consul_config_file" {
   content         = base64decode(data.hcp_consul_cluster.e2e_shared_consul.consul_config_file)
   filename        = "uploads/shared/consul.d/consul_client.json"
-  file_permission = "0744"
+  file_permission = "0644"
 }
 
 resource "local_sensitive_file" "consul_base_config_file" {
   content         = templatefile("${path.root}/etc/consul.d/clients.json", {})
   filename        = "uploads/shared/consul.d/consul_client_base.json"
-  file_permission = "0744"
+  file_permission = "0644"
 }
 
 resource "local_sensitive_file" "consul_systemd_unit_file" {
   content         = templatefile("${path.root}/etc/consul.d/consul.service", {})
   filename        = "uploads/shared/consul.d/consul.service"
-  file_permission = "0744"
+  file_permission = "0644"
 }
 
 # Nomad servers configuration for Consul

@@ -1,7 +1,7 @@
 resource "local_sensitive_file" "nomad_systemd_unit_file" {
   content         = templatefile("etc/nomad.d/nomad-${var.role}.service", {})
   filename        = "${local.upload_dir}/nomad.d/nomad.service"
-  file_permission = "0700"
+  file_permission = "0600"
 }
 
 resource "null_resource" "install_nomad_binary_linux" {
