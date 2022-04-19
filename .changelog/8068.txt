@@ -6,5 +6,5 @@ of sufficient node and service read permissions.
 ```
 
 ```release-note:breaking-change
-The minimum Consul version supported by Nomad's Connect integration is now Consul v1.8.0.
+connect: The minimum Consul version supported by Nomad's Connect integration is now Consul v1.8.0.
 ```
