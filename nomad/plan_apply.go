@@ -657,14 +657,21 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 		return false, "node does not exist", nil
 	} else if node.Status != structs.NodeStatusReady {
 		return false, "node is not ready for placements", nil
-	} else if node.SchedulingEligibility == structs.NodeSchedulingIneligible {
-		return false, "node is not eligible", nil
 	}
 
 	// Get the existing allocations that are non-terminal
 	existingAlloc, err := snap.AllocsByNodeTerminal(ws, nodeID, false)
 	if err != nil {
 		return false, "", fmt.Errorf("failed to get existing allocations for '%s': %v", nodeID, err)
+	}
+
+	// If nodeAllocations is a subset of the existing allocations we can continue,
+	// even if the node is not eligible, as only in-place updates or stop/evict are performed
+	if structs.AllocSubset(existingAlloc, plan.NodeAllocation[nodeID]) {
+		return true, "", nil
+	}
+	if node.SchedulingEligibility == structs.NodeSchedulingIneligible {
+		return false, "node is not eligible", nil
 	}
 
 	// Determine the proposed allocation by first removing allocations

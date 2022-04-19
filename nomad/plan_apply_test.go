@@ -886,6 +886,39 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 	}
 }
 
+func TestPlanApply_EvalNodePlan_UpdateExisting_Ineligible(t *testing.T) {
+	t.Parallel()
+	alloc := mock.Alloc()
+	state := testStateStore(t)
+	node := mock.Node()
+	node.ReservedResources = nil
+	node.Reserved = nil
+	node.SchedulingEligibility = structs.NodeSchedulingIneligible
+	alloc.NodeID = node.ID
+	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
+	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
+	snap, _ := state.Snapshot()
+
+	plan := &structs.Plan{
+		Job: alloc.Job,
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: {alloc},
+		},
+	}
+
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !fit {
+		t.Fatalf("bad")
+	}
+	if reason != "" {
+		t.Fatalf("bad")
+	}
+}
+
 func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 	t.Parallel()
 	alloc := mock.Alloc()
