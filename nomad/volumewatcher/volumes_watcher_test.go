@@ -183,7 +183,9 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 		AllocationID: alloc1.ID,
 		NodeID:       node.ID,
 		Mode:         structs.CSIVolumeClaimRead,
+		AccessMode:   structs.CSIVolumeAccessModeMultiNodeReader,
 	}
+
 	index++
 	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
 	require.NoError(err)

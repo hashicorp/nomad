@@ -39,18 +39,24 @@ func testNode(plugin *structs.CSIPlugin, s *state.StateStore) *structs.Node {
 	return node
 }
 
-// Create a test volume with claim info
+// Create a test volume with existing claim info
 func testVolume(plugin *structs.CSIPlugin, alloc *structs.Allocation, nodeID string) *structs.CSIVolume {
 	vol := mock.CSIVolume(plugin)
 	vol.ControllerRequired = plugin.ControllerRequired
 
+	// these modes were set by the previous claim
+	vol.AccessMode = structs.CSIVolumeAccessModeMultiNodeReader
+	vol.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+
 	vol.ReadAllocs = map[string]*structs.Allocation{alloc.ID: alloc}
 	vol.ReadClaims = map[string]*structs.CSIVolumeClaim{
 		alloc.ID: {
-			AllocationID: alloc.ID,
-			NodeID:       nodeID,
-			Mode:         structs.CSIVolumeClaimRead,
-			State:        structs.CSIVolumeClaimStateTaken,
+			AllocationID:   alloc.ID,
+			NodeID:         nodeID,
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+			Mode:           structs.CSIVolumeClaimRead,
+			State:          structs.CSIVolumeClaimStateTaken,
 		},
 	}
 	return vol
