@@ -3,6 +3,7 @@ package allocrunner
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +29,7 @@ type csiHook struct {
 	nodeSecret           string
 
 	volumeRequests     map[string]*volumeAndRequest
+	minBackoffInterval time.Duration
 	maxBackoffInterval time.Duration
 	maxBackoffDuration time.Duration
 }
@@ -47,6 +49,7 @@ func newCSIHook(alloc *structs.Allocation, logger hclog.Logger, csi csimanager.M
 		updater:              updater,
 		nodeSecret:           nodeSecret,
 		volumeRequests:       map[string]*volumeAndRequest{},
+		minBackoffInterval:   time.Second,
 		maxBackoffInterval:   time.Minute,
 		maxBackoffDuration:   time.Hour * 24,
 	}
@@ -213,11 +216,10 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 			},
 		}
 
-		var resp structs.CSIVolumeClaimResponse
-		if err := c.rpcClient.RPC("CSIVolume.Claim", req, &resp); err != nil {
+		resp, err := c.claimWithRetry(req)
+		if err != nil {
 			return nil, fmt.Errorf("could not claim volume %s: %w", req.VolumeID, err)
 		}
-
 		if resp.Volume == nil {
 			return nil, fmt.Errorf("Unexpected nil volume returned for ID: %v", pair.request.Source)
 		}
@@ -228,6 +230,74 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 	}
 
 	return result, nil
+}
+
+// claimWithRetry tries to claim the volume on the server, retrying
+// with exponential backoff capped to a maximum interval
+func (c *csiHook) claimWithRetry(req *structs.CSIVolumeClaimRequest) (*structs.CSIVolumeClaimResponse, error) {
+
+	// note: allocrunner hooks don't have access to the client's
+	// shutdown context, just the allocrunner's shutdown; if we make
+	// it available in the future we should thread it through here so
+	// that retry can exit gracefully instead of dropping the
+	// in-flight goroutine
+	ctx, cancel := context.WithTimeout(context.TODO(), c.maxBackoffDuration)
+	defer cancel()
+
+	var resp structs.CSIVolumeClaimResponse
+	var err error
+	backoff := c.minBackoffInterval
+	t, stop := helper.NewSafeTimer(0)
+	defer stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, err
+		case <-t.C:
+		}
+
+		err = c.rpcClient.RPC("CSIVolume.Claim", req, &resp)
+		if err == nil {
+			break
+		}
+
+		if !isRetryableClaimRPCError(err) {
+			break
+		}
+
+		if backoff < c.maxBackoffInterval {
+			backoff = backoff * 2
+			if backoff > c.maxBackoffInterval {
+				backoff = c.maxBackoffInterval
+			}
+		}
+		c.logger.Debug(
+			"volume could not be claimed because it is in use, retrying in %v", backoff)
+		t.Reset(backoff)
+	}
+	return &resp, err
+}
+
+// isRetryableClaimRPCError looks for errors where we need to retry
+// with backoff because we expect them to be eventually resolved.
+func isRetryableClaimRPCError(err error) bool {
+
+	// note: because these errors are returned via RPC which breaks error
+	// wrapping, we can't check with errors.Is and need to read the string
+	errMsg := err.Error()
+	if strings.Contains(errMsg, structs.ErrCSIVolumeMaxClaims.Error()) {
+		return true
+	}
+	if strings.Contains(errMsg, structs.ErrCSIClientRPCRetryable.Error()) {
+		return true
+	}
+	if strings.Contains(errMsg, "no servers") {
+		return true
+	}
+	if strings.Contains(errMsg, structs.ErrNoLeader.Error()) {
+		return true
+	}
+	return false
 }
 
 func (c *csiHook) shouldRun() bool {
@@ -286,7 +356,7 @@ func (c *csiHook) unmountWithRetry(pair *volumeAndRequest) error {
 	ctx, cancel := context.WithTimeout(context.TODO(), c.maxBackoffDuration)
 	defer cancel()
 	var err error
-	backoff := time.Second
+	backoff := c.minBackoffInterval
 	t, stop := helper.NewSafeTimer(0)
 	defer stop()
 	for {
@@ -307,6 +377,8 @@ func (c *csiHook) unmountWithRetry(pair *volumeAndRequest) error {
 				backoff = c.maxBackoffInterval
 			}
 		}
+		c.logger.Debug(
+			"volume could not be unmounted, retrying in %v", backoff)
 		t.Reset(backoff)
 	}
 	return nil
