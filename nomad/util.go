@@ -302,18 +302,56 @@ func getAlloc(state AllocGetter, allocID string) (*structs.Allocation, error) {
 	return alloc, nil
 }
 
+// tlsCertificateLevel represents a role level for mTLS certificates.
+type tlsCertificateLevel int8
+
+const (
+	tlsCertificateLevelServer tlsCertificateLevel = iota
+	tlsCertificateLevelClient
+)
+
+// validateTLSCertificateLevel checks if the provided RPC connection was
+// initiated with a certificate that matches the given TLS role level.
+//
+// - tlsCertificateLevelServer requires a server certificate.
+// - tlsCertificateLevelServer requires a client or server certificate.
+func validateTLSCertificateLevel(srv *Server, ctx *RPCContext, lvl tlsCertificateLevel) error {
+	switch lvl {
+	case tlsCertificateLevelClient:
+		err := validateLocalClientTLSCertificate(srv, ctx)
+		if err != nil {
+			return validateLocalServerTLSCertificate(srv, ctx)
+		}
+		return nil
+	case tlsCertificateLevelServer:
+		return validateLocalServerTLSCertificate(srv, ctx)
+	}
+
+	return fmt.Errorf("invalid TLS certificate level %v", lvl)
+}
+
 // validateLocalClientTLSCertificate checks if the provided RPC connection was
 // initiated by a client in the same region as the target server.
 func validateLocalClientTLSCertificate(srv *Server, ctx *RPCContext) error {
 	expected := fmt.Sprintf("client.%s.nomad", srv.Region())
-	return validateTLSCertificate(srv, ctx, expected)
+
+	err := validateTLSCertificate(srv, ctx, expected)
+	if err != nil {
+		return fmt.Errorf("invalid client connection in region %s: %v", srv.Region(), err)
+	}
+	return nil
 }
 
 // validateLocalServerTLSCertificate checks if the provided RPC connection was
 // initiated by a server in the same region as the target server.
 func validateLocalServerTLSCertificate(srv *Server, ctx *RPCContext) error {
 	expected := fmt.Sprintf("server.%s.nomad", srv.Region())
-	return validateTLSCertificate(srv, ctx, expected)
+
+	err := validateTLSCertificate(srv, ctx, expected)
+	if err != nil {
+		return fmt.Errorf("invalid server connection in region %s: %v", srv.Region(), err)
+	}
+	return nil
 }
 
 // validateTLSCertificate checks if the RPC connection mTLS certificates are
