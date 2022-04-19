@@ -76,6 +76,7 @@ func (tr *TaskRunner) initHooks() {
 				clientStateDirPath: tr.clientConfig.StateDir,
 				events:             tr,
 				runner:             tr,
+				lifecycle:          tr,
 				capabilities:       tr.driverCapabilities,
 				logger:             hookLogger,
 			}))
