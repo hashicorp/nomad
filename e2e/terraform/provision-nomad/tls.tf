@@ -4,7 +4,6 @@ resource "tls_private_key" "nomad" {
 }
 
 resource "tls_cert_request" "nomad" {
-  key_algorithm   = "ECDSA"
   private_key_pem = tls_private_key.nomad.private_key_pem
   ip_addresses    = [var.instance.public_ip, var.instance.private_ip, "127.0.0.1"]
   dns_names       = ["${var.role}.global.nomad"]
@@ -16,7 +15,6 @@ resource "tls_cert_request" "nomad" {
 
 resource "tls_locally_signed_cert" "nomad" {
   cert_request_pem   = tls_cert_request.nomad.cert_request_pem
-  ca_key_algorithm   = var.tls_ca_algorithm
   ca_private_key_pem = var.tls_ca_key
   ca_cert_pem        = var.tls_ca_cert
 
@@ -31,12 +29,12 @@ resource "tls_locally_signed_cert" "nomad" {
   ]
 }
 
-resource "local_file" "nomad_client_key" {
-  sensitive_content = tls_private_key.nomad.private_key_pem
-  filename          = "keys/agent-${var.instance.public_ip}.key"
+resource "local_sensitive_file" "nomad_client_key" {
+  content  = tls_private_key.nomad.private_key_pem
+  filename = "keys/agent-${var.instance.public_ip}.key"
 }
 
-resource "local_file" "nomad_client_cert" {
-  sensitive_content = tls_locally_signed_cert.nomad.cert_pem
-  filename          = "keys/agent-${var.instance.public_ip}.crt"
+resource "local_sensitive_file" "nomad_client_cert" {
+  content  = tls_locally_signed_cert.nomad.cert_pem
+  filename = "keys/agent-${var.instance.public_ip}.crt"
 }
