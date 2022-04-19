@@ -468,7 +468,9 @@ func (d *driverPluginClient) ExecTaskStreamingRaw(ctx context.Context,
 	}
 }
 
-func (d *driverPluginClient) CreateNetwork(allocID string) (*NetworkIsolationSpec, bool, error) {
+var _ DriverNetworkManager = (*driverPluginClient)(nil)
+
+func (d *driverPluginClient) CreateNetwork(allocID string, _ *NetworkCreateRequest) (*NetworkIsolationSpec, bool, error) {
 	req := &proto.CreateNetworkRequest{
 		AllocId: allocID,
 	}
