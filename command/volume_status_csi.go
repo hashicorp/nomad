@@ -29,18 +29,20 @@ func (c *VolumeStatusCommand) csiStatus(client *api.Client, id string) int {
 		c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
 		return 1
 	}
-	if len(vols) > 1 {
-		out, err := c.csiFormatVolumes(vols)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
-			return 1
-		}
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple volumes\n\n%s", out))
-		return 1
-	}
 	if len(vols) == 0 {
 		c.Ui.Error(fmt.Sprintf("No volumes(s) with prefix or ID %q found", id))
 		return 1
+	}
+	if len(vols) > 1 {
+		if (id != vols[0].ID) || (c.allNamespaces() && vols[0].ID == vols[1].ID) {
+			out, err := c.csiFormatVolumes(vols)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
+				return 1
+			}
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple volumes\n\n%s", out))
+			return 1
+		}
 	}
 	id = vols[0].ID
 
