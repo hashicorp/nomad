@@ -9,6 +9,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -286,13 +287,13 @@ func (c *csiHook) unmountWithRetry(pair *volumeAndRequest) error {
 	defer cancel()
 	var err error
 	backoff := time.Second
-	ticker := time.NewTicker(backoff)
-	defer ticker.Stop()
+	t, stop := helper.NewSafeTimer(0)
+	defer stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return err
-		case <-ticker.C:
+		case <-t.C:
 		}
 
 		err = c.unmountImpl(pair)
@@ -306,7 +307,7 @@ func (c *csiHook) unmountWithRetry(pair *volumeAndRequest) error {
 				backoff = c.maxBackoffInterval
 			}
 		}
-		ticker.Reset(backoff)
+		t.Reset(backoff)
 	}
 	return nil
 }
