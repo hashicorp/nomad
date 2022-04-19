@@ -535,15 +535,19 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 	w, m := defaultTestDeploymentWatcher(t)
 	now := time.Now()
 
-	// Create 1 UpdateStrategy, 1 job (1 TaskGroup), 2 canaries, and 1 deployment
-	upd := structs.DefaultUpdateStrategy.Copy()
-	upd.AutoPromote = true
-	upd.MaxParallel = 2
-	upd.Canary = 2
-	upd.ProgressDeadline = 5 * time.Second
+	// Create 1 UpdateStrategy, 1 job (2 TaskGroups), 2 canaries, and 1 deployment
+	canaryUpd := structs.DefaultUpdateStrategy.Copy()
+	canaryUpd.AutoPromote = true
+	canaryUpd.MaxParallel = 2
+	canaryUpd.Canary = 2
+	canaryUpd.ProgressDeadline = 5 * time.Second
 
-	j := mock.Job()
-	j.TaskGroups[0].Update = upd
+	rollingUpd := structs.DefaultUpdateStrategy.Copy()
+	rollingUpd.ProgressDeadline = 5 * time.Second
+
+	j := mock.MultiTaskGroupJob()
+	j.TaskGroups[0].Update = canaryUpd
+	j.TaskGroups[1].Update = rollingUpd
 
 	d := mock.Deployment()
 	d.JobID = j.ID
@@ -551,14 +555,20 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 	// UpdateStrategy are copied in
 	d.TaskGroups = map[string]*structs.DeploymentState{
 		"web": {
-			AutoPromote:      upd.AutoPromote,
-			AutoRevert:       upd.AutoRevert,
-			ProgressDeadline: upd.ProgressDeadline,
+			AutoPromote:      canaryUpd.AutoPromote,
+			AutoRevert:       canaryUpd.AutoRevert,
+			ProgressDeadline: canaryUpd.ProgressDeadline,
+			DesiredTotal:     2,
+		},
+		"api": {
+			AutoPromote:      rollingUpd.AutoPromote,
+			AutoRevert:       rollingUpd.AutoRevert,
+			ProgressDeadline: rollingUpd.ProgressDeadline,
 			DesiredTotal:     2,
 		},
 	}
 
-	alloc := func() *structs.Allocation {
+	canaryAlloc := func() *structs.Allocation {
 		a := mock.Alloc()
 		a.DeploymentID = d.ID
 		a.CreateTime = now.UnixNano()
@@ -569,14 +579,36 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 		return a
 	}
 
-	a := alloc()
-	b := alloc()
+	rollingAlloc := func() *structs.Allocation {
+		a := mock.Alloc()
+		a.DeploymentID = d.ID
+		a.CreateTime = now.UnixNano()
+		a.ModifyTime = now.UnixNano()
+		a.TaskGroup = "api"
+		a.AllocatedResources.Tasks["api"] = a.AllocatedResources.Tasks["web"].Copy()
+		delete(a.AllocatedResources.Tasks, "web")
+		a.TaskResources["api"] = a.TaskResources["web"].Copy()
+		delete(a.TaskResources, "web")
+		a.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Canary: false,
+		}
+		return a
+	}
 
-	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID, b.ID}
-	d.TaskGroups[a.TaskGroup].DesiredCanaries = 2
+	// Web taskgroup (0)
+	ca1 := canaryAlloc()
+	ca2 := canaryAlloc()
+
+	// Api taskgroup (1)
+	ra1 := rollingAlloc()
+	ra2 := rollingAlloc()
+
+	d.TaskGroups[ca1.TaskGroup].PlacedCanaries = []string{ca1.ID, ca2.ID}
+	d.TaskGroups[ca1.TaskGroup].DesiredCanaries = 2
+	d.TaskGroups[ra1.TaskGroup].PlacedAllocs = 2
 	require.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), j), "UpsertJob")
 	require.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
-	require.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a, b}), "UpsertAllocs")
+	require.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{ca1, ca2, ra1, ra2}), "UpsertAllocs")
 
 	// =============================================================
 	// Support method calls
@@ -595,7 +627,7 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 
 	matchConfig1 := &matchDeploymentAllocHealthRequestConfig{
 		DeploymentID: d.ID,
-		Healthy:      []string{a.ID, b.ID},
+		Healthy:      []string{ca1.ID, ca2.ID, ra1.ID, ra2.ID},
 		Eval:         true,
 	}
 	matcher1 := matchDeploymentAllocHealthRequest(matchConfig1)
@@ -629,7 +661,7 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 	// Mark the canaries healthy
 	req := &structs.DeploymentAllocHealthRequest{
 		DeploymentID:         d.ID,
-		HealthyAllocationIDs: []string{a.ID, b.ID},
+		HealthyAllocationIDs: []string{ca1.ID, ca2.ID, ra1.ID, ra2.ID},
 	}
 	var resp structs.DeploymentUpdateResponse
 	// Calls w.raft.UpdateDeploymentAllocHealth, which is implemented by StateStore in
@@ -654,12 +686,12 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 	require.Equal(t, "running", d.Status)
 	require.True(t, d.TaskGroups["web"].Promoted)
 
-	a1, _ := m.state.AllocByID(ws, a.ID)
+	a1, _ := m.state.AllocByID(ws, ca1.ID)
 	require.False(t, a1.DeploymentStatus.Canary)
 	require.Equal(t, "pending", a1.ClientStatus)
 	require.Equal(t, "run", a1.DesiredStatus)
 
-	b1, _ := m.state.AllocByID(ws, b.ID)
+	b1, _ := m.state.AllocByID(ws, ca2.ID)
 	require.False(t, b1.DeploymentStatus.Canary)
 }
 
