@@ -411,6 +411,26 @@ func (v *CSIVolume) WriteSchedulable() bool {
 	return false
 }
 
+// HasFreeReadClaims determines if there are any free read claims available
+func (v *CSIVolume) HasFreeReadClaims() bool {
+	switch v.AccessMode {
+	case CSIVolumeAccessModeSingleNodeReader:
+		return len(v.ReadClaims) == 0
+	case CSIVolumeAccessModeSingleNodeWriter:
+		return len(v.ReadClaims) == 0 && len(v.WriteClaims) == 0
+	case CSIVolumeAccessModeUnknown:
+		// This volume was created but not yet claimed, so its
+		// capabilities have been checked in ReadSchedulable
+		return true
+	default:
+		// For multi-node AccessModes, the CSI spec doesn't allow for
+		// setting a max number of readers we track node resource
+		// exhaustion through v.ResourceExhausted which is checked in
+		// ReadSchedulable
+		return true
+	}
+}
+
 // HasFreeWriteClaims determines if there are any free write claims available
 func (v *CSIVolume) HasFreeWriteClaims() bool {
 	switch v.AccessMode {
@@ -422,24 +442,13 @@ func (v *CSIVolume) HasFreeWriteClaims() bool {
 		// which is checked in WriteSchedulable
 		return true
 	case CSIVolumeAccessModeUnknown:
-		// this volume was created but not yet claimed, so we check what it's
-		// capable of, not what it's been assigned
-		if len(v.RequestedCapabilities) == 0 {
-			// COMPAT: a volume that was registered before 1.1.0 and has not
-			// had a change in claims could have no requested caps. It will
-			// get corrected on the first claim.
-			return true
-		}
-		for _, cap := range v.RequestedCapabilities {
-			switch cap.AccessMode {
-			case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter:
-				return len(v.WriteClaims) == 0
-			case CSIVolumeAccessModeMultiNodeMultiWriter:
-				return true
-			}
-		}
+		// This volume was created but not yet claimed, so its
+		// capabilities have been checked in WriteSchedulable
+		return true
+	default:
+		// Reader modes never have free write claims
+		return false
 	}
-	return false
 }
 
 // InUse tests whether any allocations are actively using the volume
@@ -538,6 +547,10 @@ func (v *CSIVolume) claimRead(claim *CSIVolumeClaim, alloc *Allocation) error {
 		return ErrCSIVolumeUnschedulable
 	}
 
+	if !v.HasFreeReadClaims() {
+		return ErrCSIVolumeMaxClaims
+	}
+
 	// Allocations are copy on write, so we want to keep the id but don't need the
 	// pointer. We'll get it from the db in denormalize.
 	v.ReadAllocs[claim.AllocationID] = nil
@@ -565,12 +578,7 @@ func (v *CSIVolume) claimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
 	}
 
 	if !v.HasFreeWriteClaims() {
-		// Check the blocking allocations to see if they belong to this job
-		for _, a := range v.WriteAllocs {
-			if a != nil && (a.Namespace != alloc.Namespace || a.JobID != alloc.JobID) {
-				return ErrCSIVolumeMaxClaims
-			}
-		}
+		return ErrCSIVolumeMaxClaims
 	}
 
 	// Allocations are copy on write, so we want to keep the id but don't need the
