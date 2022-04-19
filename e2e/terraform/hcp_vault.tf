@@ -38,8 +38,8 @@ resource "vault_token_auth_backend_role" "nomad_cluster" {
   token_max_ttl       = "0"
 }
 
-resource "local_file" "nomad_config_for_vault" {
-  sensitive_content = templatefile("etc/nomad.d/vault.hcl", {
+resource "local_sensitive_file" "nomad_config_for_vault" {
+  content = templatefile("etc/nomad.d/vault.hcl", {
     token     = vault_token.nomad.client_token
     url       = data.hcp_vault_cluster.e2e_shared_vault.vault_private_endpoint_url
     namespace = var.hcp_vault_namespace
