@@ -32,22 +32,37 @@ func (*artifactHook) Name() string {
 }
 
 func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	var (
+		isDone = true
+	)
+
 	if len(req.Task.Artifacts) == 0 {
-		resp.Done = true
+		resp.Done = isDone
 		return nil
 	}
 
-	// Initialize hook state to store download progress
+	// Initialize hook state to store download progress.
 	resp.State = make(map[string]string, len(req.Task.Artifacts))
-
-	h.eventEmitter.EmitEvent(structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
 
 	for _, artifact := range req.Task.Artifacts {
 		aid := artifact.Hash()
-		if req.PreviousState[aid] != "" {
+		if req.PreviousState[aid] != "" && !artifact.AlwaysFetch {
 			h.logger.Trace("skipping already downloaded artifact", "artifact", artifact.GetterSource)
 			resp.State[aid] = req.PreviousState[aid]
 			continue
+		}
+
+		// If there are any artifacts that should always be fetched before starting a task,
+		// then this hook must rerun on restarts, so it can't be marked as done.
+		if artifact.AlwaysFetch {
+			isDone = false
+		}
+
+		// Emit the event based on the flag.
+		if artifact.AlwaysFetch && req.PreviousState[aid] != "" {
+			h.eventEmitter.EmitEvent(structs.NewTaskEvent(structs.TaskReDownloadingArtifacts))
+		} else {
+			h.eventEmitter.EmitEvent(structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
 		}
 
 		h.logger.Debug("downloading artifact", "artifact", artifact.GetterSource)
@@ -69,6 +84,6 @@ func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		resp.State[aid] = "1"
 	}
 
-	resp.Done = true
+	resp.Done = isDone
 	return nil
 }

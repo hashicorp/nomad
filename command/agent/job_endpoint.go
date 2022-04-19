@@ -1192,6 +1192,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 					GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
 					GetterMode:    *ta.GetterMode,
 					RelativeDest:  *ta.RelativeDest,
+					AlwaysFetch:   *ta.AlwaysFetch,
 				})
 		}
 	}

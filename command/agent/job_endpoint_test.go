@@ -2714,6 +2714,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								},
 								GetterMode:   helper.StringToPtr("dir"),
 								RelativeDest: helper.StringToPtr("dest"),
+								AlwaysFetch:  helper.BoolToPtr(false),
 							},
 						},
 						Vault: &api.Vault{
