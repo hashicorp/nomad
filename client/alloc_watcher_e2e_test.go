@@ -72,6 +72,8 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 			Operand: "=",
 		},
 	}
+	job.TaskGroups[0].Constraints = nil
+	job.TaskGroups[0].Tasks[0].Services = nil
 	job.TaskGroups[0].Count = 1
 	job.TaskGroups[0].EphemeralDisk.Sticky = true
 	job.TaskGroups[0].EphemeralDisk.Migrate = true

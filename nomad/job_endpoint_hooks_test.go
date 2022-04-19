@@ -556,6 +556,155 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			expectedOutputError:    nil,
 			name:                   "task group nomad discovery other constraints",
 		},
+		{
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Services: []*structs.Service{
+							{
+								Name:     "example-group-service-1",
+								Provider: structs.ServiceProviderConsul,
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Services: []*structs.Service{
+							{
+								Name:     "example-group-service-1",
+								Provider: structs.ServiceProviderConsul,
+							},
+						},
+						Constraints: []*structs.Constraint{consulServiceDiscoveryConstraint},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+			name:                   "task group Consul discovery",
+		},
+		{
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Services: []*structs.Service{
+							{
+								Name:     "example-group-service-1",
+								Provider: structs.ServiceProviderConsul,
+							},
+						},
+						Constraints: []*structs.Constraint{consulServiceDiscoveryConstraint},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Services: []*structs.Service{
+							{
+								Name:     "example-group-service-1",
+								Provider: structs.ServiceProviderConsul,
+							},
+						},
+						Constraints: []*structs.Constraint{consulServiceDiscoveryConstraint},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+			name:                   "task group Consul discovery constraint found",
+		},
+		{
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Services: []*structs.Service{
+							{
+								Name:     "example-group-service-1",
+								Provider: structs.ServiceProviderConsul,
+							},
+						},
+						Constraints: []*structs.Constraint{
+							{
+								LTarget: "${node.class}",
+								RTarget: "high-memory",
+								Operand: "=",
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Services: []*structs.Service{
+							{
+								Name:     "example-group-service-1",
+								Provider: structs.ServiceProviderConsul,
+							},
+						},
+						Constraints: []*structs.Constraint{
+							{
+								LTarget: "${node.class}",
+								RTarget: "high-memory",
+								Operand: "=",
+							},
+							consulServiceDiscoveryConstraint,
+						},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+			name:                   "task group Consul discovery other constraints",
+		},
+		{
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Services: []*structs.Service{
+							{
+								Name: "example-group-service-1",
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Services: []*structs.Service{
+							{
+								Name: "example-group-service-1",
+							},
+						},
+						Constraints: []*structs.Constraint{consulServiceDiscoveryConstraint},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+			name:                   "task group with empty provider",
+		},
 	}
 
 	for _, tc := range testCases {

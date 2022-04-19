@@ -1646,15 +1646,13 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 		t.Fatalf("vault token not cleared")
 	}
 
-	// Check that an implicit constraint was created
+	// Check that an implicit constraints were created for Vault and Consul.
 	constraints := out.TaskGroups[0].Constraints
-	if l := len(constraints); l != 1 {
+	if l := len(constraints); l != 2 {
 		t.Fatalf("Unexpected number of tests: %v", l)
 	}
 
-	if !constraints[0].Equal(vaultConstraint) {
-		t.Fatalf("bad constraint; got %#v; want %#v", constraints[0], vaultConstraint)
-	}
+	require.ElementsMatch(t, constraints, []*structs.Constraint{consulServiceDiscoveryConstraint, vaultConstraint})
 
 	// Create the register request with another job asking for a vault policy but
 	// send the root Vault token
@@ -6482,15 +6480,11 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 		t.Fatalf("index mis-match")
 	}
 
-	// Check that there is an implicit vault constraint
-	constraints := out.TaskGroups[0].Constraints
-	if len(constraints) != 1 {
-		t.Fatalf("Expected an implicit constraint")
-	}
-
-	if !constraints[0].Equal(vaultConstraint) {
-		t.Fatalf("Expected implicit vault constraint")
-	}
+	// Check that there is an implicit Vault and Consul constraint.
+	require.Len(t, out.TaskGroups[0].Constraints, 2)
+	require.ElementsMatch(t, out.TaskGroups[0].Constraints, []*structs.Constraint{
+		consulServiceDiscoveryConstraint, vaultConstraint,
+	})
 }
 
 func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
@@ -6640,20 +6634,11 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 		t.Fatalf("index mis-match")
 	}
 
-	// Check that there is an implicit signal constraint
-	constraints := out.TaskGroups[0].Constraints
-	if len(constraints) != 1 {
-		t.Fatalf("Expected an implicit constraint")
-	}
-
-	sigConstraint := getSignalConstraint([]string{signal1, signal2})
-	if !strings.HasPrefix(sigConstraint.RTarget, "SIGHUP") {
-		t.Fatalf("signals not sorted: %v", sigConstraint.RTarget)
-	}
-
-	if !constraints[0].Equal(sigConstraint) {
-		t.Fatalf("Expected implicit vault constraint")
-	}
+	// Check that there is an implicit signal and Consul constraint.
+	require.Len(t, out.TaskGroups[0].Constraints, 2)
+	require.ElementsMatch(t, out.TaskGroups[0].Constraints, []*structs.Constraint{
+		getSignalConstraint([]string{signal1, signal2}), consulServiceDiscoveryConstraint},
+	)
 }
 
 func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
