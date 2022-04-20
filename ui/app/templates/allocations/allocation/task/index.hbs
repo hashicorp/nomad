@@ -161,7 +161,6 @@
               </td>
               <td data-test-volume-client-source>
                 {{#if row.model.isCSI}}
-                {{log "ah heck" row.model}}
                   <LinkTo
                     @route="csi.volumes.volume"
                     @model={{concat row.model.source (if row.model.volumeDeclaration.perAlloc this.model.allocation.volumeExtension) "@" row.model.namespace.id
