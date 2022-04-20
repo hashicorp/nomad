@@ -119,6 +119,13 @@ export default class Allocation extends Model {
     return [];
   }
 
+  // When per_alloc is set to true on a volume, the volumes are duplicated between active allocations.
+  // We differentiate them with a [#] suffix, inferred from a volume's allocation's name property.
+  @computed('name')
+  get volumeExtension() {
+    return this.name.substring(this.name.lastIndexOf('['));
+  }
+
   @fragmentArray('task-state') states;
   @fragmentArray('reschedule-event') rescheduleEvents;
 

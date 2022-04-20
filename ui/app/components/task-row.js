@@ -31,14 +31,6 @@ export default class TaskRow extends Component {
     return !Ember.testing;
   }
 
-  // When per_alloc is set to true on a volume, the volumes are duplicated between active allocations.
-  // We differentiate them with a [#] suffix, inferred from a volume's allocation's name property.
-  @computed('task.allocation.name')
-  get volumeExtension() {
-    let allocName = this.task.allocation.name;
-    return allocName.substring(allocName.lastIndexOf('['));
-  }
-
   // Since all tasks for an allocation share the same tracker, use the registry
   @computed('task.{allocation,isRunning}')
   get stats() {
