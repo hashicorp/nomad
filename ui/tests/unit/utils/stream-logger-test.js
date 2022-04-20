@@ -43,6 +43,11 @@ module('Unit | Util | StreamLogger', function () {
     assert.notOk(logger.poll.isRunning);
     assert.equal(fetchMock.reader.readSpy.callCount, 1);
   });
+
+  test('disable streaming if not supported', async function (assert) {
+    window.ReadableStream = null;
+    assert.false(StreamLogger.isSupported);
+  });
 });
 
 class FetchMock {
