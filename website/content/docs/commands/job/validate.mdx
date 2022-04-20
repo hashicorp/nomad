@@ -54,16 +54,13 @@ Defaults to true.
 
 ## Examples
 
-Validate a job with invalid syntax:
+Validate a JSON job with invalid syntax:
 
 ```shell-session
-$ nomad job validate example.nomad
+$ nomad job validate -json example.json
 Job validation errors:
-1 error(s) occurred:
-
-* group "cache" -> task "redis" -> config: 1 error(s) occurred:
-
-* field "image" is required
+1 error occurred:
+        * Missing job datacenters
 ```
 
 Validate a job that has a configuration that causes warnings:
