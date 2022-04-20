@@ -120,6 +120,7 @@ export default class EvaluationsController extends Controller {
       { key: 'rolling-update', label: 'Rolling Update' },
       { key: 'deployment-watcher', label: 'Deployment Watcher' },
       { key: 'failed-follow-up', label: 'Failed Follow Up' },
+      { key: 'max-disconnect-timeout', label: 'Max Disconnect Timeout' },
       { key: 'max-plan-attempts', label: 'Max Plan Attempts' },
       { key: 'alloc-failure', label: 'Allocation Failure' },
       { key: 'queued-allocs', label: 'Queued Allocations' },
