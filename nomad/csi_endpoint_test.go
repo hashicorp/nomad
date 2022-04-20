@@ -256,7 +256,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	}
 	claimResp := &structs.CSIVolumeClaimResponse{}
 	err := msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
-	require.EqualError(t, err, fmt.Sprintf("controller publish: volume not found: %s", id0),
+	require.EqualError(t, err, fmt.Sprintf("volume not found: %s", id0),
 		"expected 'volume not found' error because volume hasn't yet been created")
 
 	// Create a plugin and volume
@@ -448,14 +448,14 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	claimResp := &structs.CSIVolumeClaimResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
 	// Because the node is not registered
-	require.EqualError(t, err, "controller publish: attach volume: controller attach volume: No path to node")
+	require.EqualError(t, err, "controller publish: controller attach volume: No path to node")
 
 	// The node SecretID is authorized for all policies
 	claimReq.AuthToken = node.SecretID
 	claimReq.Namespace = ""
 	claimResp = &structs.CSIVolumeClaimResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
-	require.EqualError(t, err, "controller publish: attach volume: controller attach volume: No path to node")
+	require.EqualError(t, err, "controller publish: controller attach volume: No path to node")
 }
 
 func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
@@ -514,7 +514,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 		{
 			name:           "first unpublish",
 			startingState:  structs.CSIVolumeClaimStateTaken,
-			expectedErrMsg: "could not detach from node: No path to node",
+			expectedErrMsg: "could not detach from controller: controller detach volume: No path to node",
 		},
 	}
 

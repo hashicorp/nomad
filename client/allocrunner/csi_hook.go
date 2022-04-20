@@ -272,7 +272,7 @@ func (c *csiHook) claimWithRetry(req *structs.CSIVolumeClaimRequest) (*structs.C
 			}
 		}
 		c.logger.Debug(
-			"volume could not be claimed because it is in use, retrying in %v", backoff)
+			"volume could not be claimed because it is in use", "retry_in", backoff)
 		t.Reset(backoff)
 	}
 	return &resp, err
@@ -377,8 +377,7 @@ func (c *csiHook) unmountWithRetry(pair *volumeAndRequest) error {
 				backoff = c.maxBackoffInterval
 			}
 		}
-		c.logger.Debug(
-			"volume could not be unmounted, retrying in %v", backoff)
+		c.logger.Debug("volume could not be unmounted", "retry_in", backoff)
 		t.Reset(backoff)
 	}
 	return nil
