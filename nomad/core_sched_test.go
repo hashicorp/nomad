@@ -2375,11 +2375,11 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim",
 		req, &structs.CSIVolumeClaimResponse{})
-	require.NoError(t, err, "unpublishing claim should succeed")
+	require.NoError(err, "unpublishing claim should succeed")
 
-	require.Eventually(t, func() bool {
-		vol, err := store.CSIVolumeByID(ws, ns, volID)
-		require.NoError(t, err)
+	require.Eventually(func() bool {
+		vol, err := state.CSIVolumeByID(ws, ns, volID)
+		require.NoError(err)
 		return len(vol.WriteClaims) == 1 &&
 			len(vol.WriteAllocs) == 1 &&
 			len(vol.PastClaims) == 0
@@ -2389,7 +2389,7 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	// At this point we can guarantee that volumewatcher is waiting
 	// for new work. Delete allocation and job so that the next pass
 	// thru volumewatcher has more work to do
-	index, _ = store.LatestIndex()
+	index, _ = state.LatestIndex()
 	index++
 	err = state.DeleteJob(index, ns, job.ID)
 	require.NoError(err)
@@ -2399,7 +2399,7 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	require.NoError(err)
 
 	// Create a core scheduler and attempt the volume claim GC
-	snap, err := store.Snapshot()
+	snap, err := state.Snapshot()
 	require.NoError(err)
 
 	core := NewCoreScheduler(srv, snap)
