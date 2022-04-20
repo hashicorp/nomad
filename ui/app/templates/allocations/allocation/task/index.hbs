@@ -166,7 +166,7 @@
                     @model={{concat row.model.source (if row.model.volumeDeclaration.perAlloc this.model.allocation.volumeExtension) "@" row.model.namespace.id
                     }}
                   >
-                    {{row.model.source}}
+                    {{row.model.source}}{{#if row.model.volumeDeclaration.perAlloc}}{{this.model.allocation.volumeExtension}}{{/if}}
                   </LinkTo>
                 {{else}}
                   {{row.model.source}}

@@ -49,7 +49,7 @@
             @route="csi.volumes.volume"
             @model={{concat volume.source (if volume.volumeDeclaration.perAlloc this.task.allocation.volumeExtension) "@" volume.namespace.id}}
           >
-            {{volume.source}}
+            {{volume.source}}{{#if volume.volumeDeclaration.perAlloc}}{{this.task.allocation.volumeExtension}}{{/if}}
           </LinkTo>
         {{else}}
           {{volume.source}}
