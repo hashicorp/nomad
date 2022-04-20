@@ -573,7 +573,8 @@ func nodeStatusTransitionRequiresEval(newStatus, oldStatus string) bool {
 	initToReady := oldStatus == structs.NodeStatusInit && newStatus == structs.NodeStatusReady
 	terminalToReady := oldStatus == structs.NodeStatusDown && newStatus == structs.NodeStatusReady
 	disconnectedToOther := oldStatus == structs.NodeStatusDisconnected && newStatus != structs.NodeStatusDisconnected
-	return initToReady || terminalToReady || disconnectedToOther
+	otherToDisconnected := oldStatus != structs.NodeStatusDisconnected && newStatus == structs.NodeStatusDisconnected
+	return initToReady || terminalToReady || disconnectedToOther || otherToDisconnected
 }
 
 // UpdateDrain is used to update the drain mode of a client node
