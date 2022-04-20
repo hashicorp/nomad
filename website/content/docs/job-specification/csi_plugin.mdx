@@ -51,17 +51,18 @@ option.
 
 ## Recommendations for Deploying CSI Plugins
 
-CSI plugins run as Nomad jobs but after mounting the volume are not in the
-data path for the volume. Jobs that mount volumes write and read directly to
+CSI plugins run as Nomad tasks, but after mounting the volume are not in the
+data path for the volume. Tasks that mount volumes write and read directly to
 the volume via a bind-mount and there is no communication between the job and
 the CSI plugin. But when an allocation that mounts a volume stops, Nomad will
 need to communicate with the plugin on that allocation's node to unmount the
 volume. This has implications on how to deploy CSI plugins:
 
-* During node drains, jobs that claim volumes must be moved before the `node`
-  or `monolith` plugin for those volumes. You should run `node` or `monolith`
-  plugins as [`system`][system] jobs and use the `-ignore-system` flag on
-  `nomad node drain` to ensure that the plugins are running while the node is
+* If you are stopping jobs on a node, you must stop tasks that claim
+  volumes before stopping the `node` or `monolith` plugin for those
+  volumes. You should run `node` or `monolith` plugins as
+  [`system`][system] jobs and use the `-ignore-system` flag on `nomad
+  node drain` to ensure that the plugins are running while the node is
   being drained.
 
 * Only one plugin instance of a given plugin ID and type (controller or node)
