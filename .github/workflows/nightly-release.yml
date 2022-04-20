@@ -8,7 +8,6 @@ name: Nightly Release
 
 on:
   # TODO: remove the push event before merging this PR; this is for testing purposes
-  push:
   schedule:
     # Runs against the default branch every day at midnight
     - cron: "0 0 * * *"
@@ -108,5 +107,5 @@ jobs:
             }
         env:
           # the slack webhook url links to #feed-nomad-releases
-          SLACK_WEBHOOK_URL: ${{ secrets.TEST_SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
