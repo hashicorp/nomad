@@ -46,12 +46,6 @@ vault {
   compatibility. It is recommended to set the `create_from_role` field if Nomad
   is deriving child tokens from a role.
 
-- `create_with_entity_alias` `(string: "")` - Specifies the entity alias to use
-  when creating tokens. If empty, tasks that don't define their own entity
-  alias will receive a token not associated with any entity. The role set in
-  `create_from_role`, or the Nomad server token role, must have this entity
-  alias in its [`allowed_entity_aliases`] list.
-
 - `task_token_ttl` `(string: "72h")` - Specifies the TTL of created tokens when
   using a root token. This is specified using a label suffix like "30s" or "1h".
 
@@ -154,6 +148,5 @@ The Vault configuration can be reloaded on servers. This can be useful if a new
 token needs to be given to the servers without having to restart them. A reload
 can be accomplished by sending the process a `SIGHUP` signal.
 
-[`allowed_entity_aliases`]: https://www.vaultproject.io/api-docs/auth/token#allowed_entity_aliases
 [vault]: https://www.vaultproject.io/ 'Vault by HashiCorp'
 [nomad-vault]: /docs/vault-integration 'Nomad Vault Integration'

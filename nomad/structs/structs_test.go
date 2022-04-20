@@ -588,7 +588,6 @@ func TestJob_Vault(t *testing.T) {
 		Policies: []string{
 			"p5",
 		},
-		EntityAlias: "alias1",
 	}
 	j1 := &Job{
 		TaskGroups: []*TaskGroup{
@@ -5819,7 +5818,6 @@ func TestVault_Copy(t *testing.T) {
 		Env:          false,
 		ChangeMode:   "noop",
 		ChangeSignal: "SIGKILL",
-		EntityAlias:  "alias1",
 	}
 
 	// Copy and modify.
@@ -5829,7 +5827,6 @@ func TestVault_Copy(t *testing.T) {
 	vc.Env = true
 	vc.ChangeMode = "signal"
 	vc.ChangeSignal = "SIGHUP"
-	vc.EntityAlias = "alias2"
 
 	require.NotEqual(t, v, vc)
 }

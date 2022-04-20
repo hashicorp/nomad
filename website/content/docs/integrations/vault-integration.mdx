@@ -137,17 +137,11 @@ not in the `disallowed_policies` list. There are trade-offs to both approaches
 but generally it is easier to use the denylist approach and add policies that
 you would not like tasks to have access to into the `disallowed_policies` list.
 
-For tasks to receive tokens associated with a Vault entity, the role must
-include a list of `allowed_entity_aliases` indicating the entity aliases
-allowed for use. This field supports globbing to cover multiple entity aliases,
-refer to the Vault documentation for more information.
-
 An example token role definition is given below:
 
 ```json
 {
   "disallowed_policies": "nomad-server",
-  "allowed_entity_aliases": ["nomad-cluster", "nomad-app-*"],
   "token_explicit_max_ttl": 0,
   "name": "nomad-cluster",
   "orphan": true,
@@ -179,12 +173,6 @@ documentation for all possible fields and more complete documentation.
   token role with `disallowed_policies` such that it is not usable with
   Nomad. This was remedied in 0.6.5 and does not effect earlier versions
   of Vault.
-
-- `allowed_entity_aliases` - Specifies the entity aliases that can be used to
-  create a token for the task. This list must include any entity alias expected
-  to be used in a job [`vault.entity_alias`] field and, if defined, the alias
-  set in the [`create_with_entity_alias`] server configuration. This field
-  supports globbing for matching multiple values.
 
 - `token_explicit_max_ttl` - Specifies the max TTL of a token. **Must be set to `0`** to
   allow periodic tokens.
@@ -475,11 +463,9 @@ $ VAULT_TOKEN=s.H39hfS7eHSbb1GpkdzOQLTmz.fvuLy nomad job run vault.nomad
 [auth]: https://www.vaultproject.io/docs/auth/token 'Vault Authentication Backend'
 [config]: /docs/configuration/vault 'Nomad Vault Configuration Block'
 [createfromrole]: /docs/configuration/vault#create_from_role 'Nomad vault create_from_role Configuration Flag'
-[`create_with_entity_alias`]: /docs/configuration/vault#create_with_entity_alias
 [template]: /docs/job-specification/template 'Nomad template Job Specification'
 [vault]: https://www.vaultproject.io/ 'Vault by HashiCorp'
 [vault-spec]: /docs/job-specification/vault 'Nomad Vault Job Specification'
-[`vault.entity_alias`]: /docs/job-specification/vault#entity_alias
 [tokenhierarchy]: https://www.vaultproject.io/docs/concepts/tokens#token-hierarchies-and-orphan-tokens 'Vault Tokens - Token Hierarchies and Orphan Tokens'
 [vault-secrets-version]: https://www.vaultproject.io/docs/secrets/kv 'KV Secrets Engine'
 [vault-kv-templates]: /docs/job-specification/template#vault-kv-api-v1 'Vault KV API v1'

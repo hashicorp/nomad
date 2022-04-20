@@ -58,12 +58,6 @@ func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
 		return nil, err
 	}
 
-	// Check entity aliases.
-	err = h.validateEntityAliases(vaultBlocks, tokenSecret)
-	if err != nil {
-		return nil, err
-	}
-
 	return nil, nil
 }
 
@@ -95,93 +89,5 @@ func (jobVaultHook) validatePolicies(
 			strings.Join(offending, ", "))
 	}
 
-	return nil
-}
-
-// validateEntityAliases returns an error if the job contains Vault blocks that
-// use an entity alias that are not allowed to be used.
-//
-// In order to use entity aliases in a job, the following conditions must
-// be met:
-//   - the token used to submit the job and the Nomad server configuration
-//     must have a role
-//   - both roles must allow access to all entity aliases defined in the job
-//
-// If the Nomad server is configured with a default entity alias, it will
-// use that for any Vault block that don't specify one, so:
-//   - the token used to submit the job must be allowed to use the default
-//     entity alias
-//   - except if all Vault blocks in the job define an alias, since in this
-//     case the server alias would not be used.
-func (h jobVaultHook) validateEntityAliases(
-	blocks map[string]map[string]*structs.Vault,
-	token *vapi.Secret,
-) error {
-
-	// Assign the default entity alias from the server to any vault block with
-	// no entity alias already set
-	vconf := h.srv.config.VaultConfig
-	if vconf.EntityAlias != "" {
-		for _, task := range blocks {
-			for _, v := range task {
-				if v.EntityAlias == "" {
-					v.EntityAlias = vconf.EntityAlias
-				}
-			}
-		}
-	}
-
-	aliases := structs.VaultEntityAliasesSet(blocks)
-	if len(aliases) == 0 {
-		return nil
-	}
-
-	var tokenData structs.VaultTokenData
-	if err := structs.DecodeVaultSecretData(token, &tokenData); err != nil {
-		return fmt.Errorf("failed to parse Vault token data: %v", err)
-	}
-
-	// Check if user token allows requested entity aliases.
-	if tokenData.Role == "" {
-		return fmt.Errorf("jobs with Vault entity aliases require the Vault token to have a role")
-	}
-	if err := h.validateRole(tokenData.Role, aliases); err != nil {
-		return fmt.Errorf("failed to validate entity alias against Vault token: %v", err)
-	}
-
-	// Check if Nomad server role allows requested entity aliases.
-	if vconf.Role == "" {
-		return fmt.Errorf("jobs with Vault entity aliases require the Nomad server to have a Vault role")
-	}
-	if err := h.validateRole(vconf.Role, aliases); err != nil {
-		return fmt.Errorf("failed to validate entity alias against Nomad server configuration: %v", err)
-	}
-
-	return nil
-}
-
-// validateRole returns an error if the given role doesn't allow some of the
-// aliases to be used.
-func (h jobVaultHook) validateRole(role string, aliases []string) error {
-	s, err := h.srv.vault.LookupTokenRole(context.Background(), role)
-	if err != nil {
-		return err
-	}
-
-	var data structs.VaultTokenRoleData
-	if err := structs.DecodeVaultSecretData(s, &data); err != nil {
-		return fmt.Errorf("failed to parse role data: %v", err)
-	}
-
-	invalidAliases := []string{}
-	for _, a := range aliases {
-		if !data.AllowsEntityAlias(a) {
-			invalidAliases = append(invalidAliases, a)
-		}
-	}
-	if len(invalidAliases) > 0 {
-		return fmt.Errorf("role doesn't allow access to the following entity aliases: %s",
-			strings.Join(invalidAliases, ", "))
-	}
 	return nil
 }

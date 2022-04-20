@@ -2,7 +2,6 @@ package structs
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/go-secure-stdlib/strutil"
 	vapi "github.com/hashicorp/vault/api"
@@ -49,16 +48,6 @@ type VaultTokenRoleData struct {
 	DisallowedPolicies   []string `mapstructure:"disallowed_policies"`
 	AllowedEntityAliases []string `mapstructure:"allowed_entity_aliases"`
 	AllowedPolicies      []string `mapstructure:"allowed_policies"`
-}
-
-// AllowsEntityAlias returns true if the token role allows the given entity
-// alias to be used when creating a token.
-// It applies the same checks as in:
-// https://github.com/hashicorp/vault/blob/v1.10.0/vault/token_store.go#L2569-L2578
-func (d VaultTokenRoleData) AllowsEntityAlias(alias string) bool {
-	lowcaseAlias := strings.ToLower(alias)
-	return strutil.StrListContains(d.AllowedEntityAliases, lowcaseAlias) ||
-		strutil.StrListContainsGlob(d.AllowedEntityAliases, lowcaseAlias)
 }
 
 // DecodeVaultSecretData decodes a Vault sercret Data map into a struct.
