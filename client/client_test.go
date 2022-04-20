@@ -441,6 +441,7 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 	job := mock.Job()
 	// allow running job on any node including self client, that may not be a Linux box
 	job.Constraints = nil
+	job.TaskGroups[0].Constraints = nil
 	job.TaskGroups[0].Count = 1
 	task := job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"

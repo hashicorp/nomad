@@ -53,7 +53,7 @@ func TestIntegration_Command_RoundTripJob(t *testing.T) {
 	defer srv.Shutdown()
 
 	{
-		cmd := exec.Command("nomad", "job", "init")
+		cmd := exec.Command("nomad", "job", "init", "-short")
 		cmd.Dir = tmpDir
 		assert.Nil(cmd.Run())
 	}

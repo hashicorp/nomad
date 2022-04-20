@@ -34,6 +34,7 @@ func Node() *structs.Node {
 			"nomad.version":      "0.5.0",
 			"driver.exec":        "1",
 			"driver.mock_driver": "1",
+			"consul.version":     "1.11.4",
 		},
 
 		// TODO Remove once clientv2 gets merged
@@ -251,6 +252,13 @@ func Job() *structs.Job {
 			{
 				Name:  "web",
 				Count: 10,
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${attr.consul.version}",
+						RTarget: ">= 1.7.0",
+						Operand: structs.ConstraintSemver,
+					},
+				},
 				EphemeralDisk: &structs.EphemeralDisk{
 					SizeMB: 150,
 				},
