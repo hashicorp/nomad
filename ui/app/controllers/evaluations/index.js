@@ -152,6 +152,45 @@ export default class EvaluationsController extends Controller {
     ];
   }
 
+  filters = ['status', 'qpNamespace', 'type', 'triggeredBy', 'searchTerm'];
+
+  get hasFiltersApplied() {
+    return this.filters.reduce((result, filter) => {
+      if (this[filter]) {
+        result = true;
+      }
+      return result;
+    }, false);
+  }
+
+  get currentFilters() {
+    const result = [];
+    for (const filter of this.filters) {
+      if (this[filter]) {
+        result.push({ [filter]: this[filter] });
+      }
+    }
+    return result;
+  }
+
+  get noMatchText() {
+    let text = '';
+    if (this.hasFiltersApplied) {
+      for (let i = 0; i < this.currentFilters.length; i++) {
+        const filter = this.currentFilters[i];
+        const [filterName] = Object.keys(filter);
+        const filterValue = filter[filterName];
+        if (i !== 0 && i !== this.currentFilters.length - 1)
+          text = text.concat(`, ${filterName}: ${filterValue}`);
+        if (i === 0) text = text.concat(`${filterName}: ${filterValue}`);
+        if (i === this.currentFilters.length - 1)
+          text = text.concat(`, ${filterName}: ${filterValue}.`);
+      }
+    }
+
+    return text;
+  }
+
   @tracked pageSize = this.userSettings.pageSize;
   @tracked nextToken = null;
   @tracked previousTokens = [];
