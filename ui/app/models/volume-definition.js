@@ -7,6 +7,7 @@ export default class VolumeDefinition extends Fragment {
   @fragmentOwner() taskGroup;
 
   @attr('string') name;
+  @attr('boolean') perAlloc;
 
   @attr('string') source;
   @attr('string') type;
