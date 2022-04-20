@@ -183,7 +183,7 @@ func (s *ServiceInfoCommand) formatOutput(jobIDs []string, jobServices map[strin
 			outputTable = append(outputTable, fmt.Sprintf(
 				"%s|%s|[%s]|%s|%s",
 				service.JobID,
-				fmt.Sprintf("%s:%v", service.Address, service.Port),
+				formatAddress(service.Address, service.Port),
 				strings.Join(service.Tags, ","),
 				limit(service.NodeID, shortId),
 				limit(service.AllocID, shortId),
@@ -191,6 +191,13 @@ func (s *ServiceInfoCommand) formatOutput(jobIDs []string, jobServices map[strin
 		}
 	}
 	s.Ui.Output(formatList(outputTable))
+}
+
+func formatAddress(address string, port int) string {
+	if port == 0 {
+		return address
+	}
+	return fmt.Sprintf("%s:%d", address, port)
 }
 
 // formatOutput produces the verbose output of service registration info for a
