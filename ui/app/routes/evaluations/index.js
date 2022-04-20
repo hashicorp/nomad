@@ -37,6 +37,10 @@ export default class EvaluationsIndexRoute extends Route {
     type,
     qpNamespace: namespace,
   }) {
+    /*
+    We use our own DSL for filter expressions. This function takes our query parameters and builds a query that matches our DSL.
+    Documentation can be found here:  https://www.nomadproject.io/api-docs#filtering
+    */
     const generateFilterExpression = () => {
       const searchFilter = searchTerm
         ? `ID contains "${searchTerm}" or JobID contains "${searchTerm}" or NodeID contains "${searchTerm}" or TriggeredBy contains "${searchTerm}"`
