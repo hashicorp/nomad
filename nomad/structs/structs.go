@@ -298,7 +298,7 @@ func (q QueryOptions) TimeToBlock() time.Duration {
 	return q.MaxQueryTime
 }
 
-func (q QueryOptions) SetTimeToBlock(t time.Duration) {
+func (q *QueryOptions) SetTimeToBlock(t time.Duration) {
 	q.MaxQueryTime = t
 }
 
