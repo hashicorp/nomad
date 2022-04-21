@@ -255,19 +255,18 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 			// Group disconnecting/reconnecting
 			switch taintedNode.Status {
 			case structs.NodeStatusDisconnected:
-				// Allocs that aren't part of disconnected client support are lost
-				if !supportsDisconnectedClients {
-					lost[alloc.ID] = alloc
-					continue
-				}
-				// Filter running allocs on a node that is disconnected to be marked as unknown.
-				if alloc.DesiredStatus == structs.AllocDesiredStatusRun &&
-					alloc.ClientStatus == structs.AllocClientStatusRunning {
-					disconnecting[alloc.ID] = alloc
-					continue
-				}
-				// Filter pending allocs on a node that is disconnected to be marked as lost.
-				if alloc.ClientStatus == structs.AllocClientStatusPending {
+				if supportsDisconnectedClients {
+					// Filter running allocs on a node that is disconnected to be marked as unknown.
+					if alloc.ClientStatus == structs.AllocClientStatusRunning {
+						disconnecting[alloc.ID] = alloc
+						continue
+					}
+					// Filter pending allocs on a node that is disconnected to be marked as lost.
+					if alloc.ClientStatus == structs.AllocClientStatusPending {
+						lost[alloc.ID] = alloc
+						continue
+					}
+				} else {
 					lost[alloc.ID] = alloc
 					continue
 				}
