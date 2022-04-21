@@ -1,4 +1,4 @@
-import Helper from '@ember/component/helper';
+import { helper } from '@ember/component/helper';
 
 /**
  * Volume Name Formatter
@@ -8,8 +8,11 @@ import Helper from '@ember/component/helper';
  * Outputs a title/link for volumes that are per_alloc-aware.
  * (when a volume is per_alloc, its route location requires an additional extension)
  */
-function formatVolumeName(_, { source, isPerAlloc, volumeExtension }, b, c) {
+export function formatVolumeName(
+  _,
+  { source = '', isPerAlloc, volumeExtension }
+) {
   return `${source}${isPerAlloc ? volumeExtension : ''}`;
 }
 
-export default Helper.helper(formatVolumeName);
+export default helper(formatVolumeName);
