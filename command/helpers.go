@@ -3,9 +3,9 @@ package command
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -14,6 +14,7 @@ import (
 
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/kr/text"
@@ -379,11 +380,38 @@ READ:
 	return l.ReadCloser.Read(p)
 }
 
+// JobGetter provides helpers for retrieving and parsing a jobpsec.
 type JobGetter struct {
-	hcl1 bool
+	HCL1     bool
+	Vars     flaghelper.StringFlag
+	VarFiles flaghelper.StringFlag
+	Strict   bool
+	JSON     bool
 
 	// The fields below can be overwritten for tests
 	testStdin io.Reader
+}
+
+func (j *JobGetter) Validate() error {
+	if j.HCL1 && j.Strict {
+		return fmt.Errorf("cannot parse job file as HCLv1 and HCLv2 strict.")
+	}
+	if j.HCL1 && j.JSON {
+		return fmt.Errorf("cannot parse job file as HCL and JSON.")
+	}
+	if len(j.Vars) > 0 && j.JSON {
+		return fmt.Errorf("cannot use variables with JSON files.")
+	}
+	if len(j.VarFiles) > 0 && j.JSON {
+		return fmt.Errorf("cannot use variables with JSON files.")
+	}
+	if len(j.Vars) > 0 && j.HCL1 {
+		return fmt.Errorf("cannot use variables with HCLv1.")
+	}
+	if len(j.VarFiles) > 0 && j.HCL1 {
+		return fmt.Errorf("cannot use variables with HCLv1.")
+	}
+	return nil
 }
 
 // ApiJob returns the Job struct from jobfile.
@@ -392,6 +420,14 @@ func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 }
 
 func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []string, strict bool) (*api.Job, error) {
+	j.Vars = vars
+	j.VarFiles = varfiles
+	j.Strict = strict
+
+	return j.Get(jpath)
+}
+
+func (j *JobGetter) Get(jpath string) (*api.Job, error) {
 	var jobfile io.Reader
 	pathName := filepath.Base(jpath)
 	switch jpath {
@@ -401,19 +437,19 @@ func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []strin
 		} else {
 			jobfile = os.Stdin
 		}
-		pathName = "stdin.hcl"
+		pathName = "stdin"
 	default:
 		if len(jpath) == 0 {
 			return nil, fmt.Errorf("Error jobfile path has to be specified.")
 		}
 
-		job, err := ioutil.TempFile("", "jobfile")
+		jobFile, err := os.CreateTemp("", "jobfile")
 		if err != nil {
 			return nil, err
 		}
-		defer os.Remove(job.Name())
+		defer os.Remove(jobFile.Name())
 
-		if err := job.Close(); err != nil {
+		if err := jobFile.Close(); err != nil {
 			return nil, err
 		}
 
@@ -426,13 +462,13 @@ func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []strin
 		client := &gg.Client{
 			Src: jpath,
 			Pwd: pwd,
-			Dst: job.Name(),
+			Dst: jobFile.Name(),
 		}
 
 		if err := client.Get(); err != nil {
 			return nil, fmt.Errorf("Error getting jobfile from %q: %v", jpath, err)
 		} else {
-			file, err := os.Open(job.Name())
+			file, err := os.Open(jobFile.Name())
 			if err != nil {
 				return nil, fmt.Errorf("Error opening file %q: %v", jpath, err)
 			}
@@ -444,9 +480,27 @@ func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []strin
 	// Parse the JobFile
 	var jobStruct *api.Job
 	var err error
-	if j.hcl1 {
+	switch {
+	case j.HCL1:
 		jobStruct, err = jobspec.Parse(jobfile)
-	} else {
+	case j.JSON:
+		// Support JSON files with both a top-level Job key as well as
+		// ones without.
+		eitherJob := struct {
+			NestedJob *api.Job `json:"Job"`
+			api.Job
+		}{}
+
+		if err := json.NewDecoder(jobfile).Decode(&eitherJob); err != nil {
+			return nil, fmt.Errorf("Failed to parse JSON job: %w", err)
+		}
+
+		if eitherJob.NestedJob != nil {
+			jobStruct = eitherJob.NestedJob
+		} else {
+			jobStruct = &eitherJob.Job
+		}
+	default:
 		var buf bytes.Buffer
 		_, err = io.Copy(&buf, jobfile)
 		if err != nil {
@@ -455,11 +509,11 @@ func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []strin
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
 			Path:     pathName,
 			Body:     buf.Bytes(),
-			ArgVars:  vars,
+			ArgVars:  j.Vars,
 			AllowFS:  true,
-			VarFiles: varfiles,
+			VarFiles: j.VarFiles,
 			Envs:     os.Environ(),
-			Strict:   strict,
+			Strict:   j.Strict,
 		})
 
 		if err != nil {
