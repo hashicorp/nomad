@@ -3940,3 +3940,157 @@ func TestClientEndpoint_UpdateAlloc_Evals_ByTrigger(t *testing.T) {
 	}
 
 }
+
+func TestNode_List_PaginationFiltering(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Build a set of nodes in various datacenters and states. This allows us
+	// to test different filter queries along with pagination.
+	mocks := []struct {
+		id     string
+		dc     string
+		status string
+	}{
+		{
+			id:     "aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+			dc:     "dc2",
+			status: structs.NodeStatusDisconnected,
+		},
+		{
+			id:     "aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			dc:     "dc1",
+			status: structs.NodeStatusReady,
+		},
+		{
+			id:     "aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			dc:     "dc3",
+			status: structs.NodeStatusReady,
+		},
+		{
+			id:     "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			dc:     "dc2",
+			status: structs.NodeStatusDown,
+		},
+		{
+			id:     "aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			dc:     "dc3",
+			status: structs.NodeStatusDown,
+		},
+		{
+			id:     "aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
+			dc:     "dc1",
+			status: structs.NodeStatusReady,
+		},
+	}
+
+	testState := s1.fsm.State()
+
+	for i, m := range mocks {
+		index := 1000 + uint64(i)
+		mockNode := mock.Node()
+		mockNode.ID = m.id
+		mockNode.Datacenter = m.dc
+		mockNode.Status = m.status
+		mockNode.CreateIndex = index
+		require.NoError(t, testState.UpsertNode(structs.MsgTypeTestSetup, index, mockNode))
+	}
+
+	// The server is running with ACLs enabled, so generate an adequate token
+	// to use.
+	aclToken := mock.CreatePolicyAndToken(t, testState, 1100, "test-valid-read",
+		mock.NodePolicy(acl.PolicyRead)).SecretID
+
+	cases := []struct {
+		name              string
+		filter            string
+		nextToken         string
+		pageSize          int32
+		expectedNextToken string
+		expectedIDs       []string
+		expectedError     string
+	}{
+		{
+			name:              "pagination no filter",
+			pageSize:          2,
+			expectedNextToken: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "pagination no filter with next token",
+			pageSize:          2,
+			nextToken:         "aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "pagination no filter with next token end of pages",
+			pageSize:          2,
+			nextToken:         "aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "",
+			expectedIDs: []string{
+				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:   "filter no pagination",
+			filter: `Datacenter == "dc3"`,
+			expectedIDs: []string{
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "filter and pagination",
+			filter:            `Status != "ready"`,
+			pageSize:          2,
+			expectedNextToken: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.NodeListRequest{
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Filter:    tc.filter,
+					PerPage:   tc.pageSize,
+					NextToken: tc.nextToken,
+				},
+			}
+			req.AuthToken = aclToken
+			var resp structs.NodeListResponse
+			err := msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp)
+			if tc.expectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedError)
+				return
+			}
+
+			actualIDs := []string{}
+
+			for _, node := range resp.Nodes {
+				actualIDs = append(actualIDs, node.ID)
+			}
+			require.Equal(t, tc.expectedIDs, actualIDs, "unexpected page of nodes")
+			require.Equal(t, tc.expectedNextToken, resp.QueryMeta.NextToken, "unexpected NextToken")
+		})
+	}
+}

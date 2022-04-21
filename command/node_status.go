@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"math"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,6 +36,9 @@ type NodeStatusCommand struct {
 	self        bool
 	stats       bool
 	json        bool
+	perPage     int
+	pageToken   string
+	filter      string
 	tmpl        string
 }
 
@@ -76,6 +80,15 @@ Node Status Options:
   -verbose
     Display full information.
 
+  -per-page
+    How many results to show per page.
+
+  -page-token
+    Where to start pagination.
+
+  -filter
+    Specifies an expression used to filter query results.
+
   -os
     Display operating system name.
 
@@ -98,15 +111,18 @@ func (c *NodeStatusCommand) Synopsis() string {
 func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-allocs":  complete.PredictNothing,
-			"-json":    complete.PredictNothing,
-			"-self":    complete.PredictNothing,
-			"-short":   complete.PredictNothing,
-			"-stats":   complete.PredictNothing,
-			"-t":       complete.PredictAnything,
-			"-os":      complete.PredictAnything,
-			"-quiet":   complete.PredictAnything,
-			"-verbose": complete.PredictNothing,
+			"-allocs":     complete.PredictNothing,
+			"-filter":     complete.PredictAnything,
+			"-json":       complete.PredictNothing,
+			"-per-page":   complete.PredictAnything,
+			"-page-token": complete.PredictAnything,
+			"-self":       complete.PredictNothing,
+			"-short":      complete.PredictNothing,
+			"-stats":      complete.PredictNothing,
+			"-t":          complete.PredictAnything,
+			"-os":         complete.PredictAnything,
+			"-quiet":      complete.PredictAnything,
+			"-verbose":    complete.PredictNothing,
 		})
 }
 
@@ -140,6 +156,9 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	flags.BoolVar(&c.stats, "stats", false, "")
 	flags.BoolVar(&c.json, "json", false, "")
 	flags.StringVar(&c.tmpl, "t", "", "")
+	flags.StringVar(&c.filter, "filter", "", "")
+	flags.IntVar(&c.perPage, "per-page", 0, "")
+	flags.StringVar(&c.pageToken, "page-token", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -173,13 +192,22 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			return 1
 		}
 
-		var q *api.QueryOptions
+		// Set up the options to capture any filter passed and pagination
+		// details.
+		opts := api.QueryOptions{
+			Filter:    c.filter,
+			PerPage:   int32(c.perPage),
+			NextToken: c.pageToken,
+		}
+
+		// If the user requested showing the node OS, include this within the
+		// query params.
 		if c.os {
-			q = &api.QueryOptions{Params: map[string]string{"os": "true"}}
+			opts.Params = map[string]string{"os": "true"}
 		}
 
 		// Query the node info
-		nodes, _, err := client.Nodes().List(q)
+		nodes, qm, err := client.Nodes().List(&opts)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node status: %s", err))
 			return 1
@@ -267,6 +295,14 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 		// Dump the output
 		c.Ui.Output(formatList(out))
+
+		if qm.NextToken != "" {
+			c.Ui.Output(fmt.Sprintf(`
+Results have been paginated. To get the next page run:
+
+%s -page-token %s`, argsWithoutPageToken(os.Args), qm.NextToken))
+		}
+
 		return 0
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	vapi "github.com/hashicorp/vault/api"
@@ -1378,12 +1380,12 @@ func (n *Node) List(args *structs.NodeListRequest,
 		return structs.ErrPermissionDenied
 	}
 
-	// Setup the blocking query
+	// Set up the blocking query.
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Capture all the nodes
+
 			var err error
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
@@ -1395,16 +1397,36 @@ func (n *Node) List(args *structs.NodeListRequest,
 				return err
 			}
 
+			// Generate the tokenizer to use for pagination using the populated
+			// paginatorOpts object. The ID of a node must be unique within the
+			// region, therefore we only need WithID on the paginator options.
+			tokenizer := paginator.NewStructsTokenizer(iter, paginator.StructsTokenizerOptions{WithID: true})
+
 			var nodes []*structs.NodeListStub
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				node := raw.(*structs.Node)
-				nodes = append(nodes, node.Stub(args.Fields))
+
+			// Build the paginator. This includes the function that is
+			// responsible for appending a node to the nodes array.
+			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
+				func(raw interface{}) error {
+					nodes = append(nodes, raw.(*structs.Node).Stub(args.Fields))
+					return nil
+				})
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
+
+			// Calling page populates our output nodes array as well as returns
+			// the next token.
+			nextToken, err := paginatorImpl.Page()
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to read result page: %v", err)
+			}
+
+			// Populate the reply.
 			reply.Nodes = nodes
+			reply.NextToken = nextToken
 
 			// Use the last index that affected the jobs table
 			index, err := state.Index("nodes")
