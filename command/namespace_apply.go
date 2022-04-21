@@ -27,7 +27,7 @@ Usage: nomad namespace apply [options] <input>
   Apply is used to create or update a namespace. The specification file
   will be read from stdin by specifying "-", otherwise a path to the file is
   expected.
-  
+
   Instead of a file, you may instead pass the namespace name to create
   or update as the only argument.
 
@@ -114,7 +114,7 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 		return 1
 	}
 
-	if _, err = os.Stat(file); file == "-" || err == nil {
+	if fi, err := os.Stat(file); (file == "-" || err == nil) && !fi.IsDir() {
 		if quota != nil || description != nil {
 			c.Ui.Warn("Flags are ignored when a file is specified!")
 		}
