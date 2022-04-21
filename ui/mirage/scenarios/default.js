@@ -101,105 +101,31 @@ function smallCluster(server) {
 
   // Linear: a long line of 5 related evaluations
 
-  const rootLinearEval = server.create('evaluation', {
-    id: 'linear_1',
-    status: 'failed',
-  });
-  const secondLinearEval = server.create('evaluation', {
-    id: 'linear_2',
-    status: 'failed',
-    previousEval: rootLinearEval.id,
-  });
-  const thirdLinearEval = server.create('evaluation', {
-    id: 'linear_3',
-    status: 'failed',
-    previousEval: secondLinearEval.id,
-  });
-  const fourthLinearEval = server.create('evaluation', {
-    id: 'linear_4',
-    status: 'failed',
-    previousEval: thirdLinearEval.id,
-  });
-  const fifthLinearEval = server.create('evaluation', {
-    id: 'linear_5',
-    status: 'failed',
-    previousEval: fourthLinearEval.id,
-  });
+  const NUM_LINEAR_EVALUATIONS = 20;
+  Array(NUM_LINEAR_EVALUATIONS)
+    .fill()
+    .map((_, i) => {
+      return {
+        evaluation: server.create('evaluation', {
+          id: `linear_${i}`,
+          status: 'failed',
+          previousEval: i > 0 ? `linear_${i - 1}` : '',
+        }),
 
-  const rootLinearEvalStub = server.create('evaluation-stub', {
-    id: rootLinearEval.id,
-    previousEval: '',
-    nextEval: secondLinearEval.id,
-    status: 'failed',
-  });
-
-  const secondLinearEvalStub = server.create('evaluation-stub', {
-    id: secondLinearEval.id,
-    previousEval: rootLinearEval.id,
-    nextEval: thirdLinearEval.id,
-    status: 'failed',
-  });
-
-  const thirdLinearEvalStub = server.create('evaluation-stub', {
-    id: thirdLinearEval.id,
-    previousEval: secondLinearEval.id,
-    nextEval: fourthLinearEval.id,
-    status: 'failed',
-  });
-
-  const fourthLinearEvalStub = server.create('evaluation-stub', {
-    id: fourthLinearEval.id,
-    previousEval: thirdLinearEval.id,
-    nextEval: fifthLinearEval.id,
-    status: 'failed',
-  });
-
-  const fifthLinearEvalStub = server.create('evaluation-stub', {
-    id: fifthLinearEval.id,
-    previousEval: fourthLinearEval.id,
-    status: 'failed',
-  });
-
-  rootLinearEval.update({
-    relatedEvals: [
-      secondLinearEvalStub,
-      thirdLinearEvalStub,
-      fourthLinearEvalStub,
-      fifthLinearEvalStub,
-    ],
-  });
-  secondLinearEval.update({
-    relatedEvals: [
-      rootLinearEvalStub,
-      thirdLinearEvalStub,
-      fourthLinearEvalStub,
-      fifthLinearEvalStub,
-    ],
-  });
-  thirdLinearEval.update({
-    relatedEvals: [
-      rootLinearEvalStub,
-      secondLinearEvalStub,
-      fourthLinearEvalStub,
-      fifthLinearEvalStub,
-    ],
-  });
-  fourthLinearEval.update({
-    relatedEvals: [
-      rootLinearEvalStub,
-      secondLinearEvalStub,
-      thirdLinearEvalStub,
-      fifthLinearEvalStub,
-    ],
-  });
-  fifthLinearEval.update({
-    relatedEvals: [
-      rootLinearEvalStub,
-      secondLinearEvalStub,
-      thirdLinearEvalStub,
-      fourthLinearEvalStub,
-    ],
-  });
+        evaluationStub: server.create('evaluation-stub', {
+          id: `linear_${i}`,
+          previousEval: i > 0 ? `linear_${i - 1}` : '',
+          nextEval: `linear_${i + 1}`,
+          status: 'failed',
+        }),
+      };
+    })
+    .map((x, i, all) => {
+      x.evaluation.update({
+        relatedEvals: all.filter((_, j) => i !== j).map((x) => x.evaluation),
+      });
+      return x;
+    });
 
   // #endregion evaluations
 
