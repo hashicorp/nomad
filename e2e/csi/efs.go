@@ -60,8 +60,8 @@ func (tc *CSINodeOnlyPluginEFSTest) TestEFSVolumeClaim(f *framework.F) {
 				}
 			}
 			return true
-		}, nil,
-	))
+		}, pluginAllocWait,
+	), "plugin job should be running")
 
 	f.NoError(waitForPluginStatusMinNodeCount(efsPluginID, 2, pluginWait),
 		"aws-efs0 node plugins did not become healthy")
