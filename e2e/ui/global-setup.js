@@ -3,7 +3,7 @@ const { chromium } = require('@playwright/test');
 module.exports = async config => {
 
   var NOMAD_TOKEN = process.env.NOMAD_TOKEN;
-  if (NOMAD_TOKEN == undefined || NOMAD_TOKEN == "") {
+  if (NOMAD_TOKEN === undefined || NOMAD_TOKEN === "") {
     return
   }
 
