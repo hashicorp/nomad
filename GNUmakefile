@@ -102,6 +102,7 @@ deps:  ## Install build and development dependencies
 	GO111MODULE=on cd tools && go get github.com/hashicorp/hcl/v2/cmd/hclfmt@v2.5.1
 	GO111MODULE=on cd tools && go get github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	GO111MODULE=on cd tools && go get github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+	GO111MODULE=on cd tools && go get github.com/bufbuild/buf/cmd/buf@v0.36.0
 	GO111MODULE=on cd tools && go get github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 
 .PHONY: lint-deps
