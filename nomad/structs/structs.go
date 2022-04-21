@@ -1962,6 +1962,15 @@ type Node struct {
 	ModifyIndex uint64
 }
 
+// GetID is a helper for getting the ID when the object may be nil and is
+// required for pagination.
+func (n *Node) GetID() string {
+	if n == nil {
+		return ""
+	}
+	return n.ID
+}
+
 // Sanitize returns a copy of the Node omitting confidential fields
 // It only returns a copy if the Node contains the confidential fields
 func (n *Node) Sanitize() *Node {

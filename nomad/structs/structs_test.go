@@ -6612,6 +6612,32 @@ func TestNode_Copy(t *testing.T) {
 	require.Equal(node.Drivers, node2.Drivers)
 }
 
+func TestNode_GetID(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		inputNode      *Node
+		expectedOutput string
+		name           string
+	}{
+		{
+			inputNode:      nil,
+			expectedOutput: "",
+			name:           "nil input node",
+		},
+		{
+			inputNode:      &Node{ID: "someid"},
+			expectedOutput: "someid",
+			name:           "nil input node",
+		},
+	}
+
+	for _, tc := range testCases {
+		actualOutput := tc.inputNode.GetID()
+		require.Equal(t, tc.expectedOutput, actualOutput)
+	}
+}
+
 func TestNode_Sanitize(t *testing.T) {
 	ci.Parallel(t)
 
