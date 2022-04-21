@@ -705,10 +705,6 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 // The plan is only valid for disconnected nodes if it only contains
 // updates to mark allocations as unknown.
 func isValidForDisconnectedNode(plan *structs.Plan, nodeID string) bool {
-	if len(plan.NodeUpdate[nodeID]) != 0 || len(plan.NodePreemptions[nodeID]) != 0 {
-		return false
-	}
-
 	for _, alloc := range plan.NodeAllocation[nodeID] {
 		if alloc.ClientStatus != structs.AllocClientStatusUnknown {
 			return false

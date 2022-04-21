@@ -344,12 +344,13 @@ func (a *allocReconciler) handleStop(m allocMatrix) {
 // filterAndStopAll stops all allocations in an allocSet. This is useful in when
 // stopping an entire job or task group.
 func (a *allocReconciler) filterAndStopAll(set allocSet) uint64 {
-	untainted, migrate, lost, disconnecting, reconnecting, _ := set.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
+	untainted, migrate, lost, disconnecting, reconnecting, ignore := set.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
 	a.markStop(untainted, "", allocNotNeeded)
 	a.markStop(migrate, "", allocNotNeeded)
 	a.markStop(lost, structs.AllocClientStatusLost, allocLost)
 	a.markStop(disconnecting, "", allocNotNeeded)
 	a.markStop(reconnecting, "", allocNotNeeded)
+	a.markStop(ignore.filterByClientStatus(structs.AllocClientStatusUnknown), "", allocNotNeeded)
 	return uint64(len(set))
 }
 
@@ -462,7 +463,6 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	if isCanarying {
 		untainted = untainted.difference(canaries)
 	}
-
 	requiresCanaries := a.requiresCanaries(tg, dstate, destructive, canaries)
 	if requiresCanaries {
 		a.computeCanaries(tg, dstate, destructive, canaries, desiredChanges, nameIndex)
@@ -619,6 +619,9 @@ func (a *allocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 
 		canaries = all.fromKeys(canaryIDs)
 		untainted, migrate, lost, _, _, _ := canaries.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
+		// We don't add these stops to desiredChanges because the deployment is
+		// still active. DesiredChanges is used to report deployment progress/final
+		// state. These transient failures aren't meaningful.
 		a.markStop(migrate, "", allocMigrating)
 		a.markStop(lost, structs.AllocClientStatusLost, allocLost)
 

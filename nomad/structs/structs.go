@@ -11305,8 +11305,6 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string)
 
 // AppendUnknownAlloc marks an allocation as unknown.
 func (p *Plan) AppendUnknownAlloc(alloc *Allocation) {
-	// Strip the job as it's set once on the ApplyPlanResultRequest.
-	alloc.Job = nil
 	// Strip the resources as they can be rebuilt.
 	alloc.Resources = nil
 

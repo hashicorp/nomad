@@ -5549,6 +5549,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 					alloc.ClientStatus = tc.disconnectedAllocStatus
 					// Set the node id on all the disconnected allocs to the node under test.
 					alloc.NodeID = testNode.ID
+					alloc.NodeName = "disconnected"
 
 					alloc.AllocStates = []*structs.AllocState{{
 						Field: structs.AllocStateFieldClientStatus,
@@ -5627,6 +5628,369 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 				}
 
 				require.Equal(t, job.Version, stopResult.alloc.Job.Version)
+			}
+		})
+	}
+}
+
+// Tests that a client disconnect while a canary is in progress generates the result.
+func TestReconciler_Client_Disconnect_Canaries(t *testing.T) {
+
+	type testCase struct {
+		name            string
+		nodes           []string
+		deploymentState *structs.DeploymentState
+		deployedAllocs  map[*structs.Node][]*structs.Allocation
+		canaryAllocs    map[*structs.Node][]*structs.Allocation
+		expectedResult  *resultExpectation
+	}
+
+	running := structs.AllocClientStatusRunning
+	complete := structs.AllocClientStatusComplete
+	unknown := structs.AllocClientStatusUnknown
+	pending := structs.AllocClientStatusPending
+	run := structs.AllocDesiredStatusRun
+	stop := structs.AllocDesiredStatusStop
+
+	maxClientDisconnect := 10 * time.Minute
+
+	readyNode := mock.Node()
+	readyNode.Name = "ready-" + readyNode.ID
+	readyNode.Status = structs.NodeStatusReady
+
+	disconnectedNode := mock.Node()
+	disconnectedNode.Name = "disconnected-" + disconnectedNode.ID
+	disconnectedNode.Status = structs.NodeStatusDisconnected
+
+	// Job with allocations and max_client_disconnect
+	job := mock.Job()
+
+	updatedJob := job.Copy()
+	updatedJob.Version = updatedJob.Version + 1
+
+	testCases := []testCase{
+		{
+			name: "3-placed-1-disconnect",
+			deploymentState: &structs.DeploymentState{
+				AutoRevert:        false,
+				AutoPromote:       false,
+				Promoted:          false,
+				ProgressDeadline:  5 * time.Minute,
+				RequireProgressBy: time.Now().Add(5 * time.Minute),
+				PlacedCanaries:    []string{},
+				DesiredCanaries:   1,
+				DesiredTotal:      6,
+				PlacedAllocs:      3,
+				HealthyAllocs:     2,
+				UnhealthyAllocs:   0,
+			},
+			deployedAllocs: map[*structs.Node][]*structs.Allocation{
+				readyNode: {
+					// filtered as terminal
+					{Name: "my-job.web[0]", ClientStatus: complete, DesiredStatus: stop},
+					// Ignored
+					{Name: "my-job.web[2]", ClientStatus: running, DesiredStatus: stop},
+					// destructive, but discarded because canarying
+					{Name: "my-job.web[4]", ClientStatus: running, DesiredStatus: run},
+				},
+				disconnectedNode: {
+					// filtered as terminal
+					{Name: "my-job.web[1]", ClientStatus: complete, DesiredStatus: stop},
+					// Gets a placement, and a disconnect update
+					{Name: "my-job.web[3]", ClientStatus: running, DesiredStatus: run},
+					// Gets a placement, and a disconnect update
+					{Name: "my-job.web[5]", ClientStatus: running, DesiredStatus: run},
+				},
+			},
+			canaryAllocs: map[*structs.Node][]*structs.Allocation{
+				readyNode: {
+					// Ignored
+					{Name: "my-job.web[0]", ClientStatus: running, DesiredStatus: run},
+					// Ignored
+					{Name: "my-job.web[2]", ClientStatus: pending, DesiredStatus: run},
+				},
+				disconnectedNode: {
+					// Gets a placement, and a disconnect update
+					{Name: "my-job.web[1]", ClientStatus: running, DesiredStatus: run},
+				},
+			},
+			expectedResult: &resultExpectation{
+				createDeployment:  nil,
+				deploymentUpdates: nil,
+				place:             3,
+				destructive:       0,
+				stop:              0,
+				inplace:           0,
+				attributeUpdates:  0,
+				disconnectUpdates: 3,
+				reconnectUpdates:  0,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					updatedJob.TaskGroups[0].Name: {
+						Place:  3,
+						Canary: 0,
+						Ignore: 3,
+					},
+				},
+			},
+		},
+		{
+			name: "ignore-unknown",
+			deploymentState: &structs.DeploymentState{
+				AutoRevert:        false,
+				AutoPromote:       false,
+				Promoted:          false,
+				ProgressDeadline:  5 * time.Minute,
+				RequireProgressBy: time.Now().Add(5 * time.Minute),
+				PlacedCanaries:    []string{},
+				DesiredCanaries:   1,
+				DesiredTotal:      6,
+				PlacedAllocs:      3,
+				HealthyAllocs:     2,
+				UnhealthyAllocs:   0,
+			},
+			deployedAllocs: map[*structs.Node][]*structs.Allocation{
+				readyNode: {
+					// filtered as terminal
+					{Name: "my-job.web[0]", ClientStatus: complete, DesiredStatus: stop},
+					// Ignored
+					{Name: "my-job.web[2]", ClientStatus: running, DesiredStatus: stop},
+					// destructive, but discarded because canarying
+					{Name: "my-job.web[4]", ClientStatus: running, DesiredStatus: run},
+				},
+				disconnectedNode: {
+					// filtered as terminal
+					{Name: "my-job.web[1]", ClientStatus: complete, DesiredStatus: stop},
+					// Gets a placement, and a disconnect update
+					{Name: "my-job.web[3]", ClientStatus: running, DesiredStatus: run},
+					// Gets a placement, and a disconnect update
+					{Name: "my-job.web[5]", ClientStatus: running, DesiredStatus: run},
+				},
+			},
+			canaryAllocs: map[*structs.Node][]*structs.Allocation{
+				readyNode: {
+					// Ignored
+					{Name: "my-job.web[0]", ClientStatus: running, DesiredStatus: run},
+					// Ignored
+					{Name: "my-job.web[2]", ClientStatus: pending, DesiredStatus: run},
+				},
+				disconnectedNode: {
+					// Ignored
+					{Name: "my-job.web[1]", ClientStatus: unknown, DesiredStatus: run},
+				},
+			},
+			expectedResult: &resultExpectation{
+				createDeployment:  nil,
+				deploymentUpdates: nil,
+				place:             2,
+				destructive:       0,
+				stop:              0,
+				inplace:           0,
+				attributeUpdates:  0,
+				disconnectUpdates: 2,
+				reconnectUpdates:  0,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					updatedJob.TaskGroups[0].Name: {
+						Place:  2,
+						Canary: 0,
+						Ignore: 4,
+					},
+				},
+			},
+		},
+		{
+			name: "4-placed-2-pending-lost",
+			deploymentState: &structs.DeploymentState{
+				AutoRevert:        false,
+				AutoPromote:       false,
+				Promoted:          false,
+				ProgressDeadline:  5 * time.Minute,
+				RequireProgressBy: time.Now().Add(5 * time.Minute),
+				PlacedCanaries:    []string{},
+				DesiredCanaries:   2,
+				DesiredTotal:      6,
+				PlacedAllocs:      4,
+				HealthyAllocs:     2,
+				UnhealthyAllocs:   0,
+			},
+			deployedAllocs: map[*structs.Node][]*structs.Allocation{
+				readyNode: {
+					// filtered as terminal
+					{Name: "my-job.web[0]", ClientStatus: complete, DesiredStatus: stop},
+					// filtered as terminal
+					{Name: "my-job.web[2]", ClientStatus: complete, DesiredStatus: stop},
+					// destructive, but discarded because canarying
+					{Name: "my-job.web[4]", ClientStatus: running, DesiredStatus: run},
+				},
+				disconnectedNode: {
+					// filtered as terminal
+					{Name: "my-job.web[1]", ClientStatus: complete, DesiredStatus: stop},
+					// Gets a placement, and a disconnect update
+					{Name: "my-job.web[3]", ClientStatus: running, DesiredStatus: run},
+					// Gets a placement, and a disconnect update
+					{Name: "my-job.web[5]", ClientStatus: running, DesiredStatus: run},
+				},
+			},
+			canaryAllocs: map[*structs.Node][]*structs.Allocation{
+				readyNode: {
+					// Ignored
+					{Name: "my-job.web[0]", ClientStatus: running, DesiredStatus: run},
+					// Ignored
+					{Name: "my-job.web[2]", ClientStatus: running, DesiredStatus: run},
+				},
+				disconnectedNode: {
+					// Stop/Lost because pending
+					{Name: "my-job.web[1]", ClientStatus: pending, DesiredStatus: run},
+					// Stop/Lost because pending
+					{Name: "my-job.web[3]", ClientStatus: pending, DesiredStatus: run},
+				},
+			},
+			expectedResult: &resultExpectation{
+				createDeployment:  nil,
+				deploymentUpdates: nil,
+				place:             2,
+				destructive:       0,
+				stop:              2,
+				inplace:           0,
+				attributeUpdates:  0,
+				disconnectUpdates: 2,
+				reconnectUpdates:  0,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					updatedJob.TaskGroups[0].Name: {
+						Place:  2,
+						Canary: 0,
+						Ignore: 3,
+						// The 2 stops in this test are transient failures, but
+						// the deployment can still progress. We don't include
+						// them in the stop count since DesiredTGUpdates is used
+						// to report deployment progress or final deployment state.
+						Stop: 0,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Set the count dynamically to the number from the original deployment.
+			job.TaskGroups[0].Count = len(tc.deployedAllocs[readyNode]) + len(tc.deployedAllocs[disconnectedNode])
+			job.TaskGroups[0].MaxClientDisconnect = &maxClientDisconnect
+			job.TaskGroups[0].Update = &structs.UpdateStrategy{
+				MaxParallel:     1,
+				Canary:          tc.deploymentState.DesiredCanaries,
+				MinHealthyTime:  3 * time.Second,
+				HealthyDeadline: 20 * time.Second,
+				AutoRevert:      true,
+				AutoPromote:     true,
+			}
+
+			updatedJob.TaskGroups[0].Count = len(tc.deployedAllocs[readyNode]) + len(tc.deployedAllocs[disconnectedNode])
+			updatedJob.TaskGroups[0].MaxClientDisconnect = &maxClientDisconnect
+			updatedJob.TaskGroups[0].Update = &structs.UpdateStrategy{
+				MaxParallel:     1,
+				Canary:          tc.deploymentState.DesiredCanaries,
+				MinHealthyTime:  3 * time.Second,
+				HealthyDeadline: 20 * time.Second,
+				AutoRevert:      true,
+				AutoPromote:     true,
+			}
+
+			// Populate Alloc IDS, Node IDs, Job on deployed allocs
+			allocsConfigured := 0
+			for node, allocs := range tc.deployedAllocs {
+				for _, alloc := range allocs {
+					alloc.ID = uuid.Generate()
+					alloc.NodeID = node.ID
+					alloc.NodeName = node.Name
+					alloc.JobID = job.ID
+					alloc.Job = job
+					alloc.TaskGroup = job.TaskGroups[0].Name
+					allocsConfigured++
+				}
+			}
+
+			require.Equal(t, tc.deploymentState.DesiredTotal, allocsConfigured, "invalid alloc configuration: expect %d got %d", tc.deploymentState.DesiredTotal, allocsConfigured)
+
+			// Populate Alloc IDS, Node IDs, Job on canaries
+			canariesConfigured := 0
+			handled := make(map[string]allocUpdateType)
+			for node, allocs := range tc.canaryAllocs {
+				for _, alloc := range allocs {
+					alloc.ID = uuid.Generate()
+					alloc.NodeID = node.ID
+					alloc.NodeName = node.Name
+					alloc.JobID = updatedJob.ID
+					alloc.Job = updatedJob
+					alloc.TaskGroup = updatedJob.TaskGroups[0].Name
+					alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+						Canary: true,
+					}
+					if alloc.ClientStatus == structs.AllocClientStatusRunning {
+						alloc.DeploymentStatus.Healthy = helper.BoolToPtr(true)
+					}
+					tc.deploymentState.PlacedCanaries = append(tc.deploymentState.PlacedCanaries, alloc.ID)
+					handled[alloc.ID] = allocUpdateFnIgnore
+					canariesConfigured++
+				}
+			}
+
+			// Validate tc.canaryAllocs against tc.deploymentState
+			require.Equal(t, tc.deploymentState.PlacedAllocs, canariesConfigured, "invalid canary configuration: expect %d got %d", tc.deploymentState.PlacedAllocs, canariesConfigured)
+
+			deployment := structs.NewDeployment(updatedJob, 50)
+			deployment.TaskGroups[updatedJob.TaskGroups[0].Name] = tc.deploymentState
+
+			// Build a map of tainted nodes that contains the last canary
+			tainted := make(map[string]*structs.Node, 1)
+			tainted[disconnectedNode.ID] = disconnectedNode
+
+			allocs := make([]*structs.Allocation, 0)
+
+			allocs = append(allocs, tc.deployedAllocs[readyNode]...)
+			allocs = append(allocs, tc.deployedAllocs[disconnectedNode]...)
+			allocs = append(allocs, tc.canaryAllocs[readyNode]...)
+			allocs = append(allocs, tc.canaryAllocs[disconnectedNode]...)
+
+			mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, updatedJob.ID, updatedJob,
+				deployment, allocs, tainted, "", 50, true)
+			result := reconciler.Compute()
+
+			// Assert the correct results
+			assertResults(t, result, tc.expectedResult)
+
+			// Validate that placements are either for placed canaries for the
+			// updated job, or for disconnected allocs for the original job
+			// and that they have a disconnect update.
+			for _, placeResult := range result.place {
+				found := false
+				require.NotNil(t, placeResult.previousAlloc)
+				for _, deployed := range tc.deployedAllocs[disconnectedNode] {
+					if deployed.ID == placeResult.previousAlloc.ID {
+						found = true
+						require.Equal(t, job.Version, placeResult.previousAlloc.Job.Version)
+						require.Equal(t, disconnectedNode.ID, placeResult.previousAlloc.NodeID)
+						_, exists := result.disconnectUpdates[placeResult.previousAlloc.ID]
+						require.True(t, exists)
+						break
+					}
+				}
+				for _, canary := range tc.canaryAllocs[disconnectedNode] {
+					if canary.ID == placeResult.previousAlloc.ID {
+						found = true
+						require.Equal(t, updatedJob.Version, placeResult.previousAlloc.Job.Version)
+						require.Equal(t, disconnectedNode.ID, placeResult.previousAlloc.NodeID)
+						_, exists := result.disconnectUpdates[placeResult.previousAlloc.ID]
+						require.True(t, exists)
+						break
+					}
+				}
+				require.True(t, found)
+			}
+
+			// Validate that stops are for pending disconnects
+			for _, stopResult := range result.stop {
+				require.Equal(t, pending, stopResult.alloc.ClientStatus)
 			}
 		})
 	}
