@@ -120,3 +120,58 @@ func TestServiceInfoCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 }
+
+func Test_argsWithNewPageToken(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		inputOsArgs    []string
+		inputNextToken string
+		expectedOutput string
+		name           string
+	}{
+		{
+			inputOsArgs:    []string{"nomad", "service", "info", "-page-token=abcdef", "example-cache"},
+			inputNextToken: "ghijkl",
+			expectedOutput: "nomad service info -page-token=ghijkl example-cache",
+			name:           "page token with equals sign",
+		},
+		{
+			inputOsArgs:    []string{"nomad", "service", "info", "-page-token", "abcdef", "example-cache"},
+			inputNextToken: "ghijkl",
+			expectedOutput: "nomad service info -page-token ghijkl example-cache",
+			name:           "page token with whitespace gap",
+		},
+		{
+			inputOsArgs:    []string{"nomad", "service", "info", "-per-page", "3", "-page-token", "abcdef", "example-cache"},
+			inputNextToken: "ghijkl",
+			expectedOutput: "nomad service info -per-page 3 -page-token ghijkl example-cache",
+			name:           "per page and page token",
+		},
+		{
+			inputOsArgs:    []string{"nomad", "service", "info", "-page-token", "abcdef", "-per-page", "3", "example-cache"},
+			inputNextToken: "ghijkl",
+			expectedOutput: "nomad service info -page-token ghijkl -per-page 3 example-cache",
+			name:           "page token and per page",
+		},
+		{
+			inputOsArgs:    []string{"nomad", "service", "info", "-page-token", "abcdef", "-per-page=3", "example-cache"},
+			inputNextToken: "ghijkl",
+			expectedOutput: "nomad service info -page-token ghijkl -per-page=3 example-cache",
+			name:           "page token and per page with equal",
+		},
+		{
+			inputOsArgs:    []string{"nomad", "service", "info", "-verbose", "-page-token", "abcdef", "-per-page=3", "example-cache"},
+			inputNextToken: "ghijkl",
+			expectedOutput: "nomad service info -verbose -page-token ghijkl -per-page=3 example-cache",
+			name:           "page token per page with verbose",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := argsWithNewPageToken(tc.inputOsArgs, tc.inputNextToken)
+			require.Equal(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
