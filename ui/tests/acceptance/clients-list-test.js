@@ -276,6 +276,7 @@ module('Acceptance | clients list', function (hooks) {
       'Down',
       'Ineligible',
       'Draining',
+      'Disconnected',
     ],
     async beforeEach() {
       server.create('agent');
