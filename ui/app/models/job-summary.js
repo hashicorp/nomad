@@ -26,7 +26,8 @@ export default class JobSummary extends Model {
     'runningAllocs',
     'completeAllocs',
     'failedAllocs',
-    'lostAllocs'
+    'lostAllocs',
+    'unknownAllocs'
   )
   allocsList;
 
