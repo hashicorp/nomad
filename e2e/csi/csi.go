@@ -34,8 +34,9 @@ func init() {
 
 const ns = ""
 
-var pluginWait = &e2e.WaitConfig{Interval: 5 * time.Second, Retries: 36} // 3min
-var reapWait = &e2e.WaitConfig{Interval: 5 * time.Second, Retries: 36}   // 3min
+var pluginAllocWait = &e2e.WaitConfig{Interval: 5 * time.Second, Retries: 12} // 1min
+var pluginWait = &e2e.WaitConfig{Interval: 5 * time.Second, Retries: 36}      // 3min
+var reapWait = &e2e.WaitConfig{Interval: 5 * time.Second, Retries: 36}        // 3min
 
 // assertNoErrorElseDump calls a non-halting assert on the error and dumps the
 // plugin logs if it fails.
