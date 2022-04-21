@@ -242,14 +242,11 @@ func (h *taskHandle) run() {
 	if ierr != nil {
 		h.logger.Error("failed to inspect container", "error", ierr)
 	} else if container.State.OOMKilled {
+		// Note that with cgroups.v2 the cgroup OOM killer is not
+		// observed by docker container status. But we can't test the
+		// exit code, as 137 is used for any SIGKILL
 		oom = true
 		werr = fmt.Errorf("OOM Killed")
-	} else if container.State.ExitCode == 137 {
-		// With cgroups.v2 it seems the cgroup OOM killer is not observed by docker
-		// container status. So just fudge the connection for now.
-		// [Mon Mar 21 19:48:21 2022] Memory cgroup out of memory: Killed process 92768 (sh) [...]
-		oom = true
-		werr = fmt.Errorf("OOM Killed (137)")
 	}
 
 	// Shutdown stats collection
