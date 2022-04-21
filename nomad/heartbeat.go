@@ -180,8 +180,8 @@ func (h *nodeHeartbeater) disconnectState(id string) (bool, bool) {
 		return false, false
 	}
 
-	// Exit if the node is already down.
-	if node.Status == structs.NodeStatusDown {
+	// Exit if the node is already down or just initializing.
+	if node.Status == structs.NodeStatusDown || node.Status == structs.NodeStatusInit {
 		return false, false
 	}
 
