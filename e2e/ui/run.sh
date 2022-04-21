@@ -30,6 +30,9 @@ EOF
 
 IMAGE="mcr.microsoft.com/playwright:v1.21.0-focal"
 
+realpath=$(which realpath || which grealpath) # macOS compat
+thisdir="$( cd "$( dirname $($realpath "${BASH_SOURCE[0]}") )" >/dev/null 2>&1 && pwd )"
+
 run_tests() {
     run bash script.sh $@
 }
@@ -40,7 +43,7 @@ run_shell() {
 
 run() {
     exec docker run -it --rm \
-           -v $(pwd):/src \
+           -v ${thisdir}:/src \
            -w /src \
            -e NOMAD_ADDR=$NOMAD_ADDR \
            -e NOMAD_TOKEN=$NOMAD_TOKEN \
@@ -51,8 +54,6 @@ run() {
 }
 
 run_proxy() {
-    thisdir="$( cd "$( dirname $(grealpath "${BASH_SOURCE[0]}") )" >/dev/null 2>&1 && pwd )"
-
     nomad namespace apply proxy
     nomad job run "${thisdir}/input/proxy.nomad"
     IP=$(nomad node status -json -verbose \
