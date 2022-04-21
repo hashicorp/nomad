@@ -47,9 +47,19 @@
         {{#if volume.isCSI}}
           <LinkTo
             @route="csi.volumes.volume"
-            @model={{concat volume.source "@" volume.namespace.id}}
+            @model={{concat
+              (format-volume-name
+                source=volume.source
+                isPerAlloc=volume.volumeDeclaration.perAlloc
+                volumeExtension=this.task.allocation.volumeExtension)
+              "@"
+              volume.namespace.id
+            }}
           >
-            {{volume.source}}
+          {{format-volume-name
+            source=volume.source
+            isPerAlloc=volume.volumeDeclaration.perAlloc
+            volumeExtension=this.task.allocation.volumeExtension}}
           </LinkTo>
         {{else}}
           {{volume.source}}
