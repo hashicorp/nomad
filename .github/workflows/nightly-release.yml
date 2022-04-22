@@ -7,16 +7,14 @@
 name: Nightly Release
 
 on:
-  # TODO: remove the push event before merging this PR; this is for testing purposes
   schedule:
     # Runs against the default branch every day at midnight
-    - cron: "0 0 * * *"
+    - cron: "18 3 * * *"
   workflow_dispatch:
 
 jobs:
   # Build a fresh set of artifacts
   build-artifacts:
-    # TODO: change branch from add-nightlies to main before merging this PR
     uses: hashicorp/nomad/.github/workflows/build.yml@main
   github-release:
     needs: build-artifacts
