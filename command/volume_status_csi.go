@@ -252,6 +252,9 @@ func (c *VolumeStatusCommand) formatBasic(vol *api.CSIVolume) (string, error) {
 func (c *VolumeStatusCommand) formatTopology(vol *api.CSIVolume) string {
 	rows := []string{"Topology|Segments"}
 	for i, t := range vol.Topologies {
+		if t == nil {
+			continue
+		}
 		segmentPairs := make([]string, 0, len(t.Segments))
 		for k, v := range t.Segments {
 			segmentPairs = append(segmentPairs, fmt.Sprintf("%s=%s", k, v))
