@@ -99,7 +99,7 @@ func (s *HTTPServer) serviceGetRequest(
 	if err := s.agent.RPC(structs.ServiceRegistrationGetServiceRPCMethod, &args, &reply); err != nil {
 		return nil, err
 	}
-	setIndex(resp, reply.Index)
+	setMeta(resp, &reply.QueryMeta)
 
 	if reply.Services == nil {
 		reply.Services = make([]*structs.ServiceRegistration, 0)
