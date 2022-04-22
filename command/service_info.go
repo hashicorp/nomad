@@ -197,7 +197,7 @@ func formatAddress(address string, port int) string {
 	if port == 0 {
 		return address
 	}
-	return fmt.Sprintf("%s:%d", address, port)
+	return net.JoinHostPort(address, strconv.Itoa(port))
 }
 
 // formatOutput produces the verbose output of service registration info for a
