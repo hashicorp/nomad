@@ -144,6 +144,14 @@ node_prefix    "" { policy = "read" }
 
 The minimum version of Consul supported by Nomad's Connect integration is now Consul v1.8.0.
 
+#### Changes to task groups that utilise Consul services and checks
+
+Starting with Nomad 1.3.0, services and checks that utilise Consul will have an
+automatic constraint placed upon the task group. This ensures they are placed
+on a client with a Consul agent running that meets a minimum version
+requirement. The minimum version of Consul supported by Nomad's service and
+check stanzas is now Consul v1.7.0.
+
 #### Linux Control Groups Version 2
 
 Starting with Nomad 1.3.0, Linux systems configured to use [cgroups v2][cgroups2]
