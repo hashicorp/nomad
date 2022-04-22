@@ -103,6 +103,7 @@ export default class IndexController extends Controller.extend(
       { key: 'down', label: 'Down' },
       { key: 'ineligible', label: 'Ineligible' },
       { key: 'draining', label: 'Draining' },
+      { key: 'disconnected', label: 'Disconnected' },
     ];
   }
 

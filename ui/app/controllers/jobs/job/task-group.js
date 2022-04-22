@@ -139,6 +139,7 @@ export default class TaskGroupController extends Controller.extend(
       { key: 'complete', label: 'Complete' },
       { key: 'failed', label: 'Failed' },
       { key: 'lost', label: 'Lost' },
+      { key: 'unknown', label: 'Unknown' },
     ];
   }
 

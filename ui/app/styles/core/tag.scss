@@ -39,6 +39,11 @@
     color: $orange-invert;
   }
 
+  &.is-unknown {
+    background: $unknown;
+    color: $primary-invert;
+  }
+
   &.is-hollow {
     font-weight: $weight-semibold;
     color: darken($grey-blue, 20%);

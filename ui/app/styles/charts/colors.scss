@@ -49,6 +49,10 @@ $canceled: $dark;
   .degraded {
     fill: $degraded;
   }
+
+  .unknown {
+    fill: $unknown;
+  }
 }
 
 .color-swatch {
@@ -112,6 +116,10 @@ $canceled: $dark;
 
   &.lost {
     background: $lost;
+  }
+
+  &.unknown {
+    background: $unknown;
   }
 
   &.not-scheduled {

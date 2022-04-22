@@ -9,6 +9,7 @@ const STATUS = [
   'degraded',
   'failed',
   'lost',
+  'unknown',
 ];
 
 // An Ember.Computed property that computes the aggregated status of a job in a
@@ -135,6 +136,10 @@ function jobStatus(allocs, expected) {
 
   if (summary['running'] > 0) {
     return 'running';
+  }
+
+  if (summary['unknown'] > 0) {
+    return 'unknown';
   }
 
   return 'starting';
