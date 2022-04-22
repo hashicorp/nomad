@@ -1,5 +1,6 @@
-import { Model, hasMany } from 'ember-cli-mirage';
+import { Model, hasMany, belongsTo } from 'ember-cli-mirage';
 
 export default Model.extend({
   relatedEvals: hasMany('evaluation-stub'),
+  job: belongsTo('job'),
 });
