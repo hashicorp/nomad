@@ -74,10 +74,6 @@ with Vault as well.
   to use for the task. The Nomad client will retrieve a Vault token that is scoped to
   this particular namespace.
 
-- `entity_alias` `(string: "")` - Specifies the entity alias to use when creating
-  Vault tokens for the task. This allows multiple tokens to be created as a single
-  [Vault client][vault_client].
-
 - `policies` `(array<string>: [])` - Specifies the set of Vault policies that
   the task requires. The Nomad client will retrieve a Vault token that is
   limited to those policies.
@@ -113,19 +109,6 @@ vault {
 }
 ```
 
-### Entity Alias
-
-This example shows a task that will receive a token created with a specified
-entity alias. If [`allow_unauthenticated`] is set to `true`, the token used to
-register this job must be allowed to use the `frontend` entity alias.
-
-```hcl
-vault {
-  policies     = ["frontend"]
-  entity_alias = "frontend"
-}
-```
-
 ### Vault Namespace
 
 This example shows specifying a particular Vault namespace for a given task.
@@ -142,8 +125,6 @@ vault {
 }
 ```
 
-[`allow_unauthenticated`]: /docs/configuration/vault#allow_unauthenticated
 [restart]: /docs/job-specification/restart 'Nomad restart Job Specification'
 [template]: /docs/job-specification/template 'Nomad template Job Specification'
 [vault]: https://www.vaultproject.io/ 'Vault by HashiCorp'
-[vault_client]: https://www.vaultproject.io/docs/concepts/client-count

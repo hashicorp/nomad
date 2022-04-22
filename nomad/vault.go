@@ -118,9 +118,6 @@ type VaultClient interface {
 	// LookupToken takes a token string and returns its capabilities.
 	LookupToken(ctx context.Context, token string) (*vapi.Secret, error)
 
-	// LookupTokenRole takes a role name string and returns its data.
-	LookupTokenRole(ctx context.Context, role string) (*vapi.Secret, error)
-
 	// RevokeTokens takes a set of tokens accessor and revokes the tokens
 	RevokeTokens(ctx context.Context, accessors []*structs.VaultAccessor, committed bool) error
 
@@ -730,9 +727,7 @@ func (v *vaultClient) parseSelfToken() error {
 	//     1) Must allow tokens to be renewed
 	//     2) Must not have an explicit max TTL
 	//     3) Must have non-zero period
-	//     4) Must allow entity alias if one is defined
-	// 5) Must have a role if an entity alias is defined
-	// 6) If not configured against a role, the token must be root
+	// 5) If not configured against a role, the token must be root
 
 	var mErr multierror.Error
 	role := v.getRole()
@@ -777,9 +772,6 @@ func (v *vaultClient) parseSelfToken() error {
 		if err := v.validateRole(role); err != nil {
 			_ = multierror.Append(&mErr, err)
 		}
-	} else if v.config.EntityAlias != "" {
-		// If entity alias is defined the server must also have a role.
-		_ = multierror.Append(&mErr, fmt.Errorf("Role must be set to create tokens using an entity alias"))
 	}
 
 	return mErr.ErrorOrNil()
@@ -929,12 +921,6 @@ func (v *vaultClient) validateRole(role string) error {
 		_ = multierror.Append(&mErr, fmt.Errorf("Role must have a non-zero period to make tokens periodic."))
 	}
 
-	// If an entity alias is used, the role must be allowed to use it.
-	alias := v.config.EntityAlias
-	if alias != "" && !data.AllowsEntityAlias(alias) {
-		_ = multierror.Append(&mErr, fmt.Errorf("Role must allow entity alias %s to be used.", alias))
-	}
-
 	return mErr.ErrorOrNil()
 }
 
@@ -1013,21 +999,6 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		DisplayName: fmt.Sprintf("%s-%s", a.ID, task),
 	}
 
-	// If the task defines an entity alias, the Nomad server must have a role
-	// to be able to derive a token.
-	role := v.getRole()
-	if taskVault.EntityAlias != "" {
-		if role == "" {
-			return nil, fmt.Errorf("task defines a Vault entity alias, but the Nomad server does not have a Vault role")
-		}
-		req.EntityAlias = taskVault.EntityAlias
-	} else if v.config.EntityAlias != "" {
-		if role == "" {
-			return nil, fmt.Errorf("Vault configuration defines an entity alias, but the Nomad server does not have a Vault role")
-		}
-		req.EntityAlias = v.config.EntityAlias
-	}
-
 	// Ensure we are under our rate limit
 	if err := v.limiter.Wait(ctx); err != nil {
 		return nil, err
@@ -1037,6 +1008,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 	// token or a role based token
 	var secret *vapi.Secret
 	var err error
+	role := v.getRole()
 
 	// Fetch client for task
 	taskClient, err := v.entHandler.clientForTask(v, namespaceForTask)
@@ -1109,43 +1081,6 @@ func (v *vaultClient) LookupToken(ctx context.Context, token string) (*vapi.Secr
 
 	// Lookup the token
 	return v.auth.Lookup(token)
-}
-
-// LookupTokenRole takes a Vault token role and does a lookup against Vault.
-// The call is rate limited and may be canceled with passed context.
-func (v *vaultClient) LookupTokenRole(ctx context.Context, role string) (*vapi.Secret, error) {
-	if !v.Enabled() {
-		return nil, fmt.Errorf("Vault integration disabled")
-	}
-
-	if !v.Active() {
-		return nil, fmt.Errorf("Vault client not active")
-	}
-
-	// Check if we have established a connection with Vault
-	if established, err := v.ConnectionEstablished(); !established && err == nil {
-		return nil, structs.NewRecoverableError(fmt.Errorf("Connection to Vault has not been established"), true)
-	} else if err != nil {
-		return nil, err
-	}
-
-	// Track how long the request takes
-	defer metrics.MeasureSince([]string{"nomad", "vault", "lookup_token_role"}, time.Now())
-
-	// Ensure we are under our rate limit
-	if err := v.limiter.Wait(ctx); err != nil {
-		return nil, err
-	}
-
-	resp, err := v.client.Logical().Read(fmt.Sprintf("auth/token/roles/%s", role))
-	if err != nil {
-		return nil, fmt.Errorf("failed to lookup role: %v", err)
-	}
-	if resp == nil {
-		return nil, fmt.Errorf("role %q does not exist", role)
-	}
-
-	return resp, nil
 }
 
 // RevokeTokens revokes the passed set of accessors. If committed is set, the
