@@ -76,7 +76,7 @@ that volume.
 
 - `-json`: Parses the job file as JSON. If the outer object has a Job field,
   such as from "nomad job inspect" or "nomad run -output", the value of the
-  field is used as the job.
+  field is used as the job. See [JSON Jobs] for details.
 
 - `-hcl1`: If set, HCL1 parser is used for parsing the job spec.
 
@@ -235,13 +235,14 @@ $ nomad job run example.nomad
 ==> 2021-06-14T09:25:09-07:00: Evaluation "88a91284" finished with status "complete"
 ```
 
-[`go-getter`]: https://github.com/hashicorp/go-getter
-[deployment status]: /docs/commands/deployment#status
 [`batch`]: /docs/schedulers#batch
-[`system`]: /docs/schedulers#system
-[`job plan` command]: /docs/commands/job/plan
-[eval status]: /docs/commands/eval-status
-[job specification]: /docs/job-specification
 [`consul` stanza `allow_unauthenticated`]: /docs/configuration/consul#allow_unauthenticated
+[deployment status]: /docs/commands/deployment#status
+[eval status]: /docs/commands/eval-status
+[`go-getter`]: https://github.com/hashicorp/go-getter
+[`job plan` command]: /docs/commands/job/plan
+[job specification]: /docs/job-specification
+[JSON jobs]: /api-docs/json-jobs
+[`system`]: /docs/schedulers#system
 [`vault` stanza `allow_unauthenticated`]: /docs/configuration/vault#allow_unauthenticated
 [`vault_token`]: /docs/job-specification/job#vault_token
