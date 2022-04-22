@@ -271,7 +271,7 @@ func (s *ServiceRegistrationHandler) generateNomadServiceRegistration(
 
 	// Determine the address to advertise based on the mode.
 	ip, port, err := serviceregistration.GetAddress(
-		addrMode, serviceSpec.PortLabel, workload.Networks,
+		serviceSpec.Address, addrMode, serviceSpec.PortLabel, workload.Networks,
 		workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get address for service %q: %v", serviceSpec.Name, err)

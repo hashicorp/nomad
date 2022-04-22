@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/mitchellh/copystructure"
@@ -49,7 +49,7 @@ type ServiceCheck struct {
 	Protocol               string              // Protocol to use if check is http, defaults to http
 	PortLabel              string              // The port to use for tcp/http checks
 	Expose                 bool                // Whether to have Envoy expose the check path (connect-enabled group-services only)
-	AddressMode            string              // 'host' to use host ip:port or 'driver' to use driver's
+	AddressMode            string              // Must be empty, "alloc", "host", or "driver"
 	Interval               time.Duration       // Interval of the check
 	Timeout                time.Duration       // Timeout of the response from the check before consul fails the check
 	InitialStatus          string              // Initial status of the check
@@ -449,9 +449,13 @@ type Service struct {
 	// address, specify an empty host in the PortLabel (e.g. `:port`).
 	PortLabel string
 
-	// AddressMode specifies whether or not to use the host ip:port for
-	// this service.
+	// AddressMode specifies how the address in service registration is
+	// determined. Must be "auto" (default), "host", "driver", or "alloc".
 	AddressMode string
+
+	// Address enables explicitly setting a custom address to use in service
+	// registration. AddressMode must be "auto" if Address is set.
+	Address string
 
 	// EnableTagOverride will disable Consul's anti-entropy mechanism for the
 	// tags of this service. External updates to the service definition via
@@ -577,8 +581,11 @@ func (s *Service) Validate() error {
 	}
 
 	switch s.AddressMode {
-	case "", AddressModeAuto, AddressModeHost, AddressModeDriver, AddressModeAlloc:
-		// OK
+	case "", AddressModeAuto:
+	case AddressModeHost, AddressModeDriver, AddressModeAlloc:
+		if s.Address != "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q if address is set", AddressModeAuto))
+		}
 	default:
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))
 	}
@@ -685,6 +692,7 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	hashString(h, s.Name)
 	hashString(h, s.PortLabel)
 	hashString(h, s.AddressMode)
+	hashString(h, s.Address)
 	hashTags(h, s.Tags)
 	hashTags(h, s.CanaryTags)
 	hashBool(h, canary, "Canary")
@@ -764,6 +772,10 @@ func (s *Service) Equals(o *Service) bool {
 	}
 
 	if s.AddressMode != o.AddressMode {
+		return false
+	}
+
+	if s.Address != o.Address {
 		return false
 	}
 

@@ -2843,6 +2843,12 @@ func TestTaskGroupDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeNone,
+								Name: "Address",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "AddressMode",
 								Old:  "",
 								New:  "",
@@ -5636,6 +5642,7 @@ func TestTaskDiff(t *testing.T) {
 						Name:        "foo",
 						PortLabel:   "bar",
 						AddressMode: "driver",
+						Address:     "a.example.com",
 						TaskName:    "task1",
 					},
 				},
@@ -5647,6 +5654,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "Service",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Address",
+								Old:  "",
+								New:  "a.example.com",
+							},
 							{
 								Type: DiffTypeAdded,
 								Name: "AddressMode",
@@ -5805,6 +5818,10 @@ func TestTaskDiff(t *testing.T) {
 							},
 						},
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "Address",
+							},
 							{
 								Type: DiffTypeNone,
 								Name: "AddressMode",
@@ -6320,6 +6337,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "Service",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "Address",
+								Old:  "",
+								New:  "",
+							},
 							{
 								Type: DiffTypeNone,
 								Name: "AddressMode",
@@ -7421,6 +7444,7 @@ func TestServicesDiff(t *testing.T) {
 					Name:              "webapp",
 					PortLabel:         "http",
 					AddressMode:       "host",
+					Address:           "a.example.com",
 					EnableTagOverride: true,
 					Tags:              []string{"prod"},
 					CanaryTags:        []string{"canary"},
@@ -7431,6 +7455,7 @@ func TestServicesDiff(t *testing.T) {
 					Name:              "webapp-2",
 					PortLabel:         "https",
 					AddressMode:       "alloc",
+					Address:           "b.example.com",
 					EnableTagOverride: false,
 					Tags:              []string{"prod", "dev"},
 					CanaryTags:        []string{"qa"},
@@ -7441,6 +7466,12 @@ func TestServicesDiff(t *testing.T) {
 					Type: DiffTypeEdited,
 					Name: "Service",
 					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeEdited,
+							Name: "Address",
+							Old:  "a.example.com",
+							New:  "b.example.com",
+						},
 						{
 							Type: DiffTypeEdited,
 							Name: "AddressMode",
@@ -7537,6 +7568,10 @@ func TestServicesDiff(t *testing.T) {
 					Fields: []*FieldDiff{
 						{
 							Type: DiffTypeNone,
+							Name: "Address",
+						},
+						{
+							Type: DiffTypeNone,
 							Name: "AddressMode",
 						},
 						{
@@ -7598,6 +7633,10 @@ func TestServicesDiff(t *testing.T) {
 					Type: DiffTypeAdded,
 					Name: "Service",
 					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "Address",
+						},
 						{
 							Type: DiffTypeNone,
 							Name: "AddressMode",
@@ -7665,6 +7704,10 @@ func TestServicesDiff(t *testing.T) {
 					Type: DiffTypeEdited,
 					Name: "Service",
 					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "Address",
+						},
 						{
 							Type: DiffTypeNone,
 							Name: "AddressMode",
@@ -7738,6 +7781,10 @@ func TestServicesDiff(t *testing.T) {
 					Type: DiffTypeEdited,
 					Name: "Service",
 					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "Address",
+						},
 						{
 							Type: DiffTypeNone,
 							Name: "AddressMode",
@@ -7821,6 +7868,10 @@ func TestServicesDiff(t *testing.T) {
 					Type: DiffTypeEdited,
 					Name: "Service",
 					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "Address",
+						},
 						{
 							Type: DiffTypeNone,
 							Name: "AddressMode",

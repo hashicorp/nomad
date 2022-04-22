@@ -1374,6 +1374,7 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			CanaryTags:        s.CanaryTags,
 			EnableTagOverride: s.EnableTagOverride,
 			AddressMode:       s.AddressMode,
+			Address:           s.Address,
 			Meta:              helper.CopyMapStringString(s.Meta),
 			CanaryMeta:        helper.CopyMapStringString(s.CanaryMeta),
 			OnUpdate:          s.OnUpdate,

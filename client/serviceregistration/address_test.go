@@ -14,7 +14,8 @@ func Test_GetAddress(t *testing.T) {
 	testCases := []struct {
 		name string
 
-		// Parameters
+		// Inputs
+		advertise string
 		mode      string
 		portLabel string
 		host      map[string]int // will be converted to structs.Networks
@@ -22,10 +23,10 @@ func Test_GetAddress(t *testing.T) {
 		ports     structs.AllocatedPorts
 		status    *structs.AllocNetworkStatus
 
-		// Results
-		expectedIP   string
-		expectedPort int
-		expectedErr  string
+		// Expectations
+		expIP   string
+		expPort int
+		expErr  string
 	}{
 		// Valid Configurations
 		{
@@ -37,8 +38,8 @@ func Test_GetAddress(t *testing.T) {
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
-			expectedIP:   HostIP,
-			expectedPort: 12435,
+			expIP:   HostIP,
+			expPort: 12435,
 		},
 		{
 			name:      "host",
@@ -49,8 +50,8 @@ func Test_GetAddress(t *testing.T) {
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
-			expectedIP:   HostIP,
-			expectedPort: 12345,
+			expIP:   HostIP,
+			expPort: 12345,
 		},
 		{
 			name:      "driver",
@@ -61,8 +62,8 @@ func Test_GetAddress(t *testing.T) {
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
-			expectedIP:   "10.1.2.3",
-			expectedPort: 6379,
+			expIP:   "10.1.2.3",
+			expPort: 6379,
 		},
 		{
 			name:      "AutoDriver",
@@ -74,8 +75,8 @@ func Test_GetAddress(t *testing.T) {
 				IP:            "10.1.2.3",
 				AutoAdvertise: true,
 			},
-			expectedIP:   "10.1.2.3",
-			expectedPort: 6379,
+			expIP:   "10.1.2.3",
+			expPort: 6379,
 		},
 		{
 			name:      "DriverCustomPort",
@@ -86,18 +87,18 @@ func Test_GetAddress(t *testing.T) {
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
-			expectedIP:   "10.1.2.3",
-			expectedPort: 7890,
+			expIP:   "10.1.2.3",
+			expPort: 7890,
 		},
 
 		// Invalid Configurations
 		{
-			name:        "DriverWithoutNetwork",
-			mode:        structs.AddressModeDriver,
-			portLabel:   "db",
-			host:        map[string]int{"db": 12345},
-			driver:      nil,
-			expectedErr: "no driver network exists",
+			name:      "DriverWithoutNetwork",
+			mode:      structs.AddressModeDriver,
+			portLabel: "db",
+			host:      map[string]int{"db": 12345},
+			driver:    nil,
+			expErr:    "no driver network exists",
 		},
 		{
 			name:      "DriverBadPort",
@@ -108,7 +109,7 @@ func Test_GetAddress(t *testing.T) {
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
-			expectedErr: "invalid port",
+			expErr: "invalid port",
 		},
 		{
 			name:      "DriverZeroPort",
@@ -117,29 +118,29 @@ func Test_GetAddress(t *testing.T) {
 			driver: &drivers.DriverNetwork{
 				IP: "10.1.2.3",
 			},
-			expectedErr: "invalid port",
+			expErr: "invalid port",
 		},
 		{
-			name:        "HostBadPort",
-			mode:        structs.AddressModeHost,
-			portLabel:   "bad-port-label",
-			expectedErr: "invalid port",
+			name:      "HostBadPort",
+			mode:      structs.AddressModeHost,
+			portLabel: "bad-port-label",
+			expErr:    "invalid port",
 		},
 		{
-			name:        "InvalidMode",
-			mode:        "invalid-mode",
-			portLabel:   "80",
-			expectedErr: "invalid address mode",
+			name:      "InvalidMode",
+			mode:      "invalid-mode",
+			portLabel: "80",
+			expErr:    "invalid address mode",
 		},
 		{
-			name:       "NoPort_AutoMode",
-			mode:       structs.AddressModeAuto,
-			expectedIP: HostIP,
+			name:  "NoPort_AutoMode",
+			mode:  structs.AddressModeAuto,
+			expIP: HostIP,
 		},
 		{
-			name:       "NoPort_HostMode",
-			mode:       structs.AddressModeHost,
-			expectedIP: HostIP,
+			name:  "NoPort_HostMode",
+			mode:  structs.AddressModeHost,
+			expIP: HostIP,
 		},
 		{
 			name: "NoPort_DriverMode",
@@ -147,7 +148,7 @@ func Test_GetAddress(t *testing.T) {
 			driver: &drivers.DriverNetwork{
 				IP: "10.1.2.3",
 			},
-			expectedIP: "10.1.2.3",
+			expIP: "10.1.2.3",
 		},
 
 		// Scenarios using port 0.12 networking fields (NetworkStatus, AllocatedPortMapping)
@@ -167,8 +168,8 @@ func Test_GetAddress(t *testing.T) {
 				InterfaceName: "eth0",
 				Address:       "172.26.0.1",
 			},
-			expectedIP:   HostIP,
-			expectedPort: 12435,
+			expIP:   HostIP,
+			expPort: 12435,
 		},
 		{
 			name:      "Host_withAllocatedPorts",
@@ -186,8 +187,8 @@ func Test_GetAddress(t *testing.T) {
 				InterfaceName: "eth0",
 				Address:       "172.26.0.1",
 			},
-			expectedIP:   HostIP,
-			expectedPort: 12345,
+			expIP:   HostIP,
+			expPort: 12345,
 		},
 		{
 			name:      "Driver_withAllocatedPorts",
@@ -208,8 +209,8 @@ func Test_GetAddress(t *testing.T) {
 				InterfaceName: "eth0",
 				Address:       "172.26.0.1",
 			},
-			expectedIP:   "10.1.2.3",
-			expectedPort: 6379,
+			expIP:   "10.1.2.3",
+			expPort: 6379,
 		},
 		{
 			name:      "AutoDriver_withAllocatedPorts",
@@ -231,8 +232,8 @@ func Test_GetAddress(t *testing.T) {
 				InterfaceName: "eth0",
 				Address:       "172.26.0.1",
 			},
-			expectedIP:   "10.1.2.3",
-			expectedPort: 6379,
+			expIP:   "10.1.2.3",
+			expPort: 6379,
 		},
 		{
 			name:      "DriverCustomPort_withAllocatedPorts",
@@ -253,8 +254,8 @@ func Test_GetAddress(t *testing.T) {
 				InterfaceName: "eth0",
 				Address:       "172.26.0.1",
 			},
-			expectedIP:   "10.1.2.3",
-			expectedPort: 7890,
+			expIP:   "10.1.2.3",
+			expPort: 7890,
 		},
 		{
 			name:      "Host_MultiHostInterface",
@@ -272,8 +273,8 @@ func Test_GetAddress(t *testing.T) {
 				InterfaceName: "eth0",
 				Address:       "172.26.0.1",
 			},
-			expectedIP:   "127.0.0.100",
-			expectedPort: 12345,
+			expIP:   "127.0.0.100",
+			expPort: 12345,
 		},
 		{
 			name:      "Alloc",
@@ -291,8 +292,8 @@ func Test_GetAddress(t *testing.T) {
 				InterfaceName: "eth0",
 				Address:       "172.26.0.1",
 			},
-			expectedIP:   "172.26.0.1",
-			expectedPort: 6379,
+			expIP:   "172.26.0.1",
+			expPort: 6379,
 		},
 		{
 			name:      "Alloc no to value",
@@ -309,8 +310,8 @@ func Test_GetAddress(t *testing.T) {
 				InterfaceName: "eth0",
 				Address:       "172.26.0.1",
 			},
-			expectedIP:   "172.26.0.1",
-			expectedPort: 12345,
+			expIP:   "172.26.0.1",
+			expPort: 12345,
 		},
 		{
 			name:      "AllocCustomPort",
@@ -320,8 +321,64 @@ func Test_GetAddress(t *testing.T) {
 				InterfaceName: "eth0",
 				Address:       "172.26.0.1",
 			},
-			expectedIP:   "172.26.0.1",
-			expectedPort: 6379,
+			expIP:   "172.26.0.1",
+			expPort: 6379,
+		},
+		// Cases for setting the address field
+		{
+			name:      "Address",
+			mode:      structs.AddressModeAuto,
+			advertise: "example.com",
+			expIP:     "example.com",
+			expPort:   0,
+		},
+		{
+			name:      "Address with numeric port",
+			mode:      structs.AddressModeAuto,
+			advertise: "example.com",
+			portLabel: "8080",
+			expIP:     "example.com",
+			expPort:   8080,
+		},
+		{
+			name:      "Address with mapped port",
+			mode:      structs.AddressModeAuto,
+			portLabel: "web",
+			advertise: "example.com",
+			ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "web",
+					Value:  12345,
+					HostIP: HostIP,
+				},
+			},
+			expIP:   "example.com",
+			expPort: 12345,
+		},
+		{
+			name:      "Address with invalid mapped port",
+			mode:      structs.AddressModeAuto,
+			advertise: "example.com",
+			portLabel: "foobar",
+			expErr:    `invalid port: "foobar": not a valid port mapping or numeric port`,
+		},
+		{
+			name:      "Address with host mode",
+			mode:      structs.AddressModeHost,
+			advertise: "example.com",
+			expErr:    `cannot use custom advertise address with "host" address mode`,
+		},
+		{
+			name:      "Address with driver mode",
+			mode:      structs.AddressModeDriver,
+			advertise: "example.com",
+			expErr:    `cannot use custom advertise address with "driver" address mode`,
+		},
+		{
+			name:      "Address with alloc mode",
+			mode:      structs.AddressModeAlloc,
+			advertise: "example.com",
+			expErr:    `cannot use custom advertise address with "alloc" address mode`,
 		},
 	}
 
@@ -345,16 +402,23 @@ func Test_GetAddress(t *testing.T) {
 
 			// Run the GetAddress function.
 			actualIP, actualPort, actualErr := GetAddress(
-				tc.mode, tc.portLabel, networks, tc.driver, tc.ports, tc.status)
+				tc.advertise,
+				tc.mode,
+				tc.portLabel,
+				networks,
+				tc.driver,
+				tc.ports,
+				tc.status,
+			)
 
 			// Assert the results
-			require.Equal(t, tc.expectedIP, actualIP, "IP mismatch")
-			require.Equal(t, tc.expectedPort, actualPort, "Port mismatch")
-			if tc.expectedErr == "" {
+			require.Equal(t, tc.expIP, actualIP, "IP mismatch")
+			require.Equal(t, tc.expPort, actualPort, "Port mismatch")
+			if tc.expErr == "" {
 				require.Nil(t, actualErr)
 			} else {
 				require.Error(t, actualErr)
-				require.Contains(t, actualErr.Error(), tc.expectedErr)
+				require.Contains(t, actualErr.Error(), tc.expErr)
 			}
 		})
 	}
