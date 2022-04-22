@@ -198,37 +198,42 @@ func waitForAllocStatusMap(jobID, disconnectedAllocID, unchangedAllocID string, 
 			case disconnectedAllocID:
 				if allocStatus != expected.disconnected {
 					merr = multierror.Append(merr, fmt.Errorf(
-						"disconnected alloc should be %q, got %q",
-						expected.disconnected, allocStatus))
+						"disconnected alloc %q on node %q should be %q, got %q",
+						allocID, alloc["Node ID"], expected.disconnected, allocStatus))
 				}
 			case unchangedAllocID:
 				if allocStatus != expected.unchanged {
 					merr = multierror.Append(merr, fmt.Errorf(
-						"unchanged alloc should be %q, got %q",
-						expected.unchanged, allocStatus))
+						"unchanged alloc %q on node %q should be %q, got %q",
+						allocID, alloc["Node ID"], expected.unchanged, allocStatus))
 				}
 			default:
 				if allocStatus != expected.replacement {
 					merr = multierror.Append(merr, fmt.Errorf(
-						"replacement alloc should be %q, got %q",
-						expected.replacement, allocStatus))
+						"replacement alloc %q on node %q should be %q, got %q",
+						allocID, alloc["Node ID"], expected.replacement, allocStatus))
 				}
 			}
 		}
 		if merr != nil {
-			fmt.Printf("test failed, printing allocation status of all %q allocs for analysis\n", jobID)
-			fmt.Println("----------------")
-			for _, alloc := range allocs {
-				out, _ := e2eutil.Command("nomad", "alloc", "status", alloc["ID"])
-				fmt.Println(out)
-				fmt.Println("----------------")
-			}
 			return false, merr.ErrorOrNil()
 		}
-
 		return true, nil
 	}, func(e error) {
 		err = e
 	})
+
+	// TODO(tgross): remove this block once this test has stabilized
+	if err != nil {
+		fmt.Printf("test failed, printing allocation status of all %q allocs for analysis\n", jobID)
+		fmt.Println("----------------")
+		allocs, _ := e2eutil.AllocsForJob(jobID, ns)
+		for _, alloc := range allocs {
+			out, _ := e2eutil.Command("nomad", "alloc", "status", alloc["ID"])
+			fmt.Println(out)
+			fmt.Println("----------------")
+		}
+	}
+
 	return err
 }
