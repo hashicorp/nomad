@@ -111,10 +111,10 @@ func (*csiPluginSupervisorHook) Name() string {
 }
 
 // Prestart is called before the task is started including after every
-// restart (but not after restore). This requires that the mount paths
-// for a plugin be idempotent, despite us not knowing the name of the
-// plugin ahead of time.  Because of this, we use the allocid_taskname
-// as the unique identifier for a plugin on the filesystem.
+// restart. This requires that the mount paths for a plugin be
+// idempotent, despite us not knowing the name of the plugin ahead of
+// time.  Because of this, we use the allocid_taskname as the unique
+// identifier for a plugin on the filesystem.
 func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 
@@ -156,9 +156,11 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	mounts := ensureMountpointInserted(h.runner.hookResources.getMounts(), configMount)
 	mounts = ensureMountpointInserted(mounts, devMount)
 
+	// we normally would set resp.Mounts here but without setting the
+	// hookResources before returning we can get a postrun hook that's
+	// missing resources.
 	h.runner.hookResources.setMounts(mounts)
 
-	resp.Done = true
 	return nil
 }
 
