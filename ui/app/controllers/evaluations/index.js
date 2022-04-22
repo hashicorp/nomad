@@ -156,7 +156,9 @@ export default class EvaluationsController extends Controller {
 
   get hasFiltersApplied() {
     return this.filters.reduce((result, filter) => {
-      if (this[filter]) {
+      // By default we always set qpNamespace to the '*' wildcard
+      // We need to ensure that if namespace is the only filter, that we send the correct error message to the user
+      if (this[filter] && filter !== 'qpNamespace') {
         result = true;
       }
       return result;
@@ -166,7 +168,9 @@ export default class EvaluationsController extends Controller {
   get currentFilters() {
     const result = [];
     for (const filter of this.filters) {
-      if (this[filter]) {
+      const isNamespaceWildcard =
+        filter === 'qpNamespace' && this[filter] === '*';
+      if (this[filter] && !isNamespaceWildcard) {
         result.push({ [filter]: this[filter] });
       }
     }
@@ -175,16 +179,27 @@ export default class EvaluationsController extends Controller {
 
   get noMatchText() {
     let text = '';
+    const cleanNames = {
+      status: 'Status',
+      qpNamespace: 'Namespace',
+      type: 'Type',
+      triggeredBy: 'Triggered By',
+      searchTerm: 'Search Term',
+    };
     if (this.hasFiltersApplied) {
       for (let i = 0; i < this.currentFilters.length; i++) {
         const filter = this.currentFilters[i];
-        const [filterName] = Object.keys(filter);
-        const filterValue = filter[filterName];
+        const [name] = Object.keys(filter);
+        const filterName = cleanNames[name];
+        const filterValue = filter[name];
+        if (this.currentFilters.length === 1)
+          return `${filterName}: ${filterValue}.`;
         if (i !== 0 && i !== this.currentFilters.length - 1)
           text = text.concat(`, ${filterName}: ${filterValue}`);
         if (i === 0) text = text.concat(`${filterName}: ${filterValue}`);
-        if (i === this.currentFilters.length - 1)
-          text = text.concat(`, ${filterName}: ${filterValue}.`);
+        if (i === this.currentFilters.length - 1) {
+          return text.concat(`, ${filterName}: ${filterValue}.`);
+        }
       }
     }
 
