@@ -49,7 +49,7 @@ type ServiceCheck struct {
 	Protocol               string              // Protocol to use if check is http, defaults to http
 	PortLabel              string              // The port to use for tcp/http checks
 	Expose                 bool                // Whether to have Envoy expose the check path (connect-enabled group-services only)
-	AddressMode            string              // Must be empty, "alloc", "host", or "driver'
+	AddressMode            string              // Must be empty, "alloc", "host", or "driver"
 	Interval               time.Duration       // Interval of the check
 	Timeout                time.Duration       // Timeout of the response from the check before consul fails the check
 	InitialStatus          string              // Initial status of the check
@@ -449,12 +449,12 @@ type Service struct {
 	// address, specify an empty host in the PortLabel (e.g. `:port`).
 	PortLabel string
 
-	// AddressMode specifies how the Advertise address used in service registration
-	// is determined. Must be "auto" (default), "host", "driver", or "alloc".
+	// AddressMode specifies how the address in service registration is
+	// determined. Must be "auto" (default), "host", "driver", or "alloc".
 	AddressMode string
 
-	// Advertise enables explicitly setting and advertise address used in service
-	// registration. AddressMode must be "auto" if Advertise is set.
+	// Address enables explicitly setting a custom address to use in service
+	// registration. AddressMode must be "auto" if Address is set.
 	Address string
 
 	// EnableTagOverride will disable Consul's anti-entropy mechanism for the

@@ -142,8 +142,9 @@ Connect][connect] integration.
   for more information. Only available where `provider = "consul"`.
 
 - `address` `(string: <optional>)` - Specifies a custom address to advertise in
-  Consul or Nomad service registration. Can be an IP address or domain name. If
-  set, `address_mode` must be in `auto` mode.
+  Consul or Nomad service registration. If set, `address_mode` must be in `auto`
+  mode. Useful with interpolation - for example to advertise the public IP address
+  of an AWS EC2 instance set this to `${attr.unique.platform.aws.public-ipv4}`.
 
 - `address_mode` `(string: "auto")` - Specifies which address (host, alloc or
   driver-specific) this service should advertise. See [below for

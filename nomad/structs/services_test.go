@@ -247,7 +247,7 @@ func TestService_Hash(t *testing.T) {
 	// these tests use tweaker to modify 1 field and make the false assertion
 	// on comparing the resulting hash output
 
-	t.Run("mod advertise", func(t *testing.T) {
+	t.Run("mod address", func(t *testing.T) {
 		try(t, func(s *svc) { s.Address = "example.com" })
 	})
 

@@ -9,8 +9,9 @@ import (
 )
 
 // GetAddress returns the IP (or custom advertise address) and port to use for a
-// service or check registration. If no port label is specified (an empty value),
-// zero values are returned because no address could be resolved.
+// service or check registration. If no port label is specified (an empty value)
+// and no custom address is specified, zero values are returned because no address
+// could be resolved.
 func GetAddress(
 	address, // custom address, if set
 	addressMode,
@@ -30,7 +31,7 @@ func GetAddress(
 			}
 			// A custom advertise address can be used with a port map; using the
 			// Value and ignoring the IP. The routing from your custom address to
-			// the group network address is DIY.
+			// the group network address is DIY. (e.g. EC2 public address)
 			if mapping, exists := ports.Get(portLabel); exists {
 				return address, mapping.Value, nil
 			}
