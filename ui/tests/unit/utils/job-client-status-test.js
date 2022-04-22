@@ -74,6 +74,7 @@ module('Unit | Util | JobClientStatus', function () {
         notScheduled: [],
         queued: [],
         starting: [],
+        unknown: [],
       },
       totalNodes: 1,
     };
@@ -110,6 +111,7 @@ module('Unit | Util | JobClientStatus', function () {
         notScheduled: [],
         queued: [],
         starting: [],
+        unknown: [],
       },
       totalNodes: 1,
     };
@@ -146,6 +148,7 @@ module('Unit | Util | JobClientStatus', function () {
         notScheduled: [],
         queued: [],
         starting: [],
+        unknown: [],
       },
       totalNodes: 1,
     };
@@ -182,6 +185,7 @@ module('Unit | Util | JobClientStatus', function () {
         notScheduled: [],
         queued: [],
         starting: [],
+        unknown: [],
       },
       totalNodes: 1,
     };
@@ -218,6 +222,7 @@ module('Unit | Util | JobClientStatus', function () {
         notScheduled: [],
         queued: [],
         starting: [],
+        unknown: [],
       },
       totalNodes: 1,
     };
@@ -250,6 +255,7 @@ module('Unit | Util | JobClientStatus', function () {
         notScheduled: ['node-1'],
         queued: [],
         starting: [],
+        unknown: [],
       },
       totalNodes: 1,
     };
@@ -286,6 +292,7 @@ module('Unit | Util | JobClientStatus', function () {
         notScheduled: [],
         queued: ['node-1'],
         starting: [],
+        unknown: [],
       },
       totalNodes: 1,
     };
@@ -323,6 +330,7 @@ module('Unit | Util | JobClientStatus', function () {
         notScheduled: [],
         queued: [],
         starting: [],
+        unknown: [],
       },
       totalNodes: 1,
     };

@@ -15,15 +15,12 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
@@ -41,6 +38,9 @@ import (
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type MockTaskStateUpdater struct {
@@ -92,10 +92,26 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	}
 	taskDir := allocDir.NewTaskDir(taskName)
 
+	// Compute the name of the v2 cgroup in case we need it in creation, configuration, and cleanup
+	cgroup := filepath.Join(cgutil.CgroupRoot, "testing.slice", cgutil.CgroupScope(alloc.ID, taskName))
+
+	// Create the cgroup if we are in v2 mode
+	if cgutil.UseV2 {
+		if err := os.MkdirAll(cgroup, 0755); err != nil {
+			t.Fatalf("failed to setup v2 cgroup for test: %v:", err)
+		}
+	}
+
 	trCleanup := func() {
 		if err := allocDir.Destroy(); err != nil {
 			t.Logf("error destroying alloc dir: %v", err)
 		}
+
+		// Cleanup the cgroup if we are in v2 mode
+		if cgutil.UseV2 {
+			_ = os.RemoveAll(cgroup)
+		}
+
 		cleanup()
 	}
 
@@ -130,6 +146,14 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ShutdownDelayCancelFn: shutdownDelayCancelFn,
 		ServiceRegWrapper:     wrapperMock,
 	}
+
+	// Set the cgroup path getter if we are in v2 mode
+	if cgutil.UseV2 {
+		conf.CpusetCgroupPathGetter = func(context.Context) (string, error) {
+			return filepath.Join(cgutil.CgroupRoot, "testing.slice", alloc.ID, thisTask.Name), nil
+		}
+	}
+
 	return conf, trCleanup
 }
 
@@ -587,7 +611,6 @@ func TestTaskRunner_TaskEnv_Interpolated(t *testing.T) {
 func TestTaskRunner_TaskEnv_Chroot(t *testing.T) {
 	ctestutil.ExecCompatible(t)
 	ci.Parallel(t)
-	require := require.New(t)
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -611,33 +634,27 @@ func TestTaskRunner_TaskEnv_Chroot(t *testing.T) {
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
 
-	// Remove /sbin and /usr from chroot
-	conf.ClientConfig.ChrootEnv = map[string]string{
-		"/bin":            "/bin",
-		"/etc":            "/etc",
-		"/lib":            "/lib",
-		"/lib32":          "/lib32",
-		"/lib64":          "/lib64",
-		"/run/resolvconf": "/run/resolvconf",
-	}
-
 	tr, err := NewTaskRunner(conf)
-	require.NoError(err)
+	require.NoError(t, err)
 	go tr.Run()
 	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
 	// Wait for task to exit
+	timeout := 15 * time.Second
+	if testutil.IsCI() {
+		timeout = 120 * time.Second
+	}
 	select {
 	case <-tr.WaitCh():
-	case <-time.After(15 * time.Second):
-		require.Fail("timeout waiting for task to exit")
+	case <-time.After(timeout):
+		require.Fail(t, "timeout waiting for task to exit")
 	}
 
 	// Read stdout
 	p := filepath.Join(conf.TaskDir.LogDir, task.Name+".stdout.0")
 	stdout, err := ioutil.ReadFile(p)
-	require.NoError(err)
-	require.Equalf(exp, string(stdout), "expected: %s\n\nactual: %s\n", exp, stdout)
+	require.NoError(t, err)
+	require.Equalf(t, exp, string(stdout), "expected: %s\n\nactual: %s\n", exp, stdout)
 }
 
 // TestTaskRunner_TaskEnv_Image asserts image drivers use chroot paths and
@@ -1722,6 +1739,7 @@ func TestTaskRunner_Download_ChrootExec(t *testing.T) {
 	task.Config = map[string]interface{}{
 		"command": "noop.sh",
 	}
+
 	task.Artifacts = []*structs.TaskArtifact{
 		{
 			GetterSource: fmt.Sprintf("%s/testdata/noop.sh", ts.URL),

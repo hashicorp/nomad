@@ -152,11 +152,20 @@ module('Acceptance | job allocations', function (hooks) {
   testFacet('Status', {
     facet: Allocations.facets.status,
     paramName: 'status',
-    expectedOptions: ['Pending', 'Running', 'Complete', 'Failed', 'Lost'],
+    expectedOptions: [
+      'Pending',
+      'Running',
+      'Complete',
+      'Failed',
+      'Lost',
+      'Unknown',
+    ],
     async beforeEach() {
-      ['pending', 'running', 'complete', 'failed', 'lost'].forEach((s) => {
-        server.createList('allocation', 5, { clientStatus: s });
-      });
+      ['pending', 'running', 'complete', 'failed', 'lost', 'unknown'].forEach(
+        (s) => {
+          server.createList('allocation', 5, { clientStatus: s });
+        }
+      );
       await Allocations.visit({ id: job.id });
     },
     filter: (alloc, selection) =>

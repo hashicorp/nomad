@@ -948,7 +948,7 @@ func (c *ServiceClient) serviceRegs(
 
 	// Determine the address to advertise based on the mode
 	ip, port, err := serviceregistration.GetAddress(
-		addrMode, service.PortLabel, workload.Networks, workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
+		service.Address, addrMode, service.PortLabel, workload.Networks, workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get address for service %q: %v", service.Name, err)
 	}
@@ -1073,13 +1073,19 @@ func (c *ServiceClient) checkRegs(serviceID string, service *structs.Service,
 
 			addrMode := check.AddressMode
 			if addrMode == "" {
-				// pre-#3380 compat
-				addrMode = structs.AddressModeHost
+				if service.Address != "" {
+					// if the service is using a custom address, enable the check
+					// to use that address
+					addrMode = structs.AddressModeAuto
+				} else {
+					// otherwise default to the host address
+					addrMode = structs.AddressModeHost
+				}
 			}
 
 			var err error
 			ip, port, err = serviceregistration.GetAddress(
-				addrMode, portLabel, workload.Networks, workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
+				service.Address, addrMode, portLabel, workload.Networks, workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
 			if err != nil {
 				return nil, fmt.Errorf("error getting address for check %q: %v", check.Name, err)
 			}

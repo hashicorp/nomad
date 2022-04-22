@@ -200,6 +200,7 @@ module('Acceptance | job clients', function (hooks) {
       'Degraded',
       'Failed',
       'Lost',
+      'Unknown',
     ],
     async beforeEach() {
       await Clients.visit({ id: job.id });

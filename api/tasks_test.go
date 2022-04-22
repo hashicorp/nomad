@@ -506,7 +506,6 @@ func TestTask_Canonicalize_Vault(t *testing.T) {
 			expected: &Vault{
 				Env:          boolToPtr(true),
 				Namespace:    stringToPtr(""),
-				EntityAlias:  stringToPtr(""),
 				ChangeMode:   stringToPtr("restart"),
 				ChangeSignal: stringToPtr("SIGHUP"),
 			},

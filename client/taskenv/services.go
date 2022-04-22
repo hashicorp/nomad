@@ -36,6 +36,7 @@ func InterpolateServices(taskEnv *TaskEnv, services []*structs.Service) []*struc
 
 		service.Name = taskEnv.ReplaceEnv(service.Name)
 		service.PortLabel = taskEnv.ReplaceEnv(service.PortLabel)
+		service.Address = taskEnv.ReplaceEnv(service.Address)
 		service.Tags = taskEnv.ParseAndReplace(service.Tags)
 		service.CanaryTags = taskEnv.ParseAndReplace(service.CanaryTags)
 		service.Meta = interpolateMapStringString(taskEnv, service.Meta)

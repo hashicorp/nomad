@@ -293,12 +293,17 @@
             <tr data-test-volume>
               <td data-test-volume-name>
                 {{#if row.model.isCSI}}
-                  <LinkTo
-                    @route="csi.volumes.volume"
-                    @model={{concat row.model.source "@" row.model.namespace.id}}
-                  >
-                    {{row.model.name}}
-                  </LinkTo>
+                  {{!-- if volume is per_alloc=true, there's no one specific volume. So, link to the volumes index with an active query --}}
+                  {{#if row.model.perAlloc}}
+                    <LinkTo @route="csi.volumes.index" @query={{hash search=row.model.source}}>{{row.model.name}}</LinkTo>
+                  {{else}}
+                    <LinkTo
+                      @route="csi.volumes.volume"
+                      @model={{concat row.model.source "@" row.model.namespace.id}}
+                    >
+                      {{row.model.name}}
+                    </LinkTo>
+                  {{/if}}
                 {{else}}
                   {{row.model.name}}
                 {{/if}}

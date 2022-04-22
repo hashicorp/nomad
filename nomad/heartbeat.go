@@ -167,7 +167,6 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 	if canDisconnect && hasPendingReconnects {
 		req.Status = structs.NodeStatusDisconnected
 	}
-
 	var resp structs.NodeUpdateResponse
 	if err := h.staticEndpoints.Node.UpdateStatus(&req, &resp); err != nil {
 		h.logger.Error("update node status failed", "error", err)
@@ -181,8 +180,8 @@ func (h *nodeHeartbeater) disconnectState(id string) (bool, bool) {
 		return false, false
 	}
 
-	// Exit if this is the node already in a state other than ready.
-	if node.Status != structs.NodeStatusReady {
+	// Exit if the node is already down or just initializing.
+	if node.Status == structs.NodeStatusDown || node.Status == structs.NodeStatusInit {
 		return false, false
 	}
 

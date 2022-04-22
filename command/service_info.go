@@ -2,7 +2,10 @@ package command
 
 import (
 	"fmt"
+	"net"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -37,6 +40,12 @@ Service Info Options:
   -verbose
     Display full information.
 
+  -per-page
+    How many results to show per page.
+
+  -page-token
+    Where to start pagination.
+
   -filter
     Specifies an expression used to filter query results.
 
@@ -57,10 +66,12 @@ func (s *ServiceInfoCommand) Synopsis() string {
 func (s *ServiceInfoCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(s.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json":    complete.PredictNothing,
-			"-filter":  complete.PredictAnything,
-			"-t":       complete.PredictAnything,
-			"-verbose": complete.PredictNothing,
+			"-json":       complete.PredictNothing,
+			"-filter":     complete.PredictAnything,
+			"-per-page":   complete.PredictAnything,
+			"-page-token": complete.PredictAnything,
+			"-t":          complete.PredictAnything,
+			"-verbose":    complete.PredictNothing,
 		})
 }
 
@@ -70,8 +81,9 @@ func (s *ServiceInfoCommand) Name() string { return "service info" }
 // Run satisfies the cli.Command Run function.
 func (s *ServiceInfoCommand) Run(args []string) int {
 	var (
-		json, verbose bool
-		tmpl, filter  string
+		json, verbose           bool
+		perPage                 int
+		tmpl, filter, pageToken string
 	)
 
 	flags := s.Meta.FlagSet(s.Name(), FlagSetClient)
@@ -80,6 +92,8 @@ func (s *ServiceInfoCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
 	flags.StringVar(&filter, "filter", "", "")
+	flags.IntVar(&perPage, "per-page", 0, "")
+	flags.StringVar(&pageToken, "page-token", "", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -99,10 +113,12 @@ func (s *ServiceInfoCommand) Run(args []string) int {
 
 	// Set up the options to capture any filter passed.
 	opts := api.QueryOptions{
-		Filter: filter,
+		Filter:    filter,
+		PerPage:   int32(perPage),
+		NextToken: pageToken,
 	}
 
-	serviceInfo, _, err := client.Services().Get(args[0], &opts)
+	serviceInfo, qm, err := client.Services().Get(args[0], &opts)
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("Error listing service registrations: %s", err))
 		return 1
@@ -147,6 +163,12 @@ func (s *ServiceInfoCommand) Run(args []string) int {
 	} else {
 		s.formatOutput(sortedJobID, jobIDServices)
 	}
+
+	if qm.NextToken != "" {
+		s.Ui.Output(fmt.Sprintf("\nResults have been paginated. To get the next page run: \n\n%s ",
+			argsWithNewPageToken(os.Args, qm.NextToken)))
+	}
+
 	return 0
 }
 
@@ -163,7 +185,7 @@ func (s *ServiceInfoCommand) formatOutput(jobIDs []string, jobServices map[strin
 			outputTable = append(outputTable, fmt.Sprintf(
 				"%s|%s|[%s]|%s|%s",
 				service.JobID,
-				fmt.Sprintf("%s:%v", service.Address, service.Port),
+				formatAddress(service.Address, service.Port),
 				strings.Join(service.Tags, ","),
 				limit(service.NodeID, shortId),
 				limit(service.AllocID, shortId),
@@ -171,6 +193,13 @@ func (s *ServiceInfoCommand) formatOutput(jobIDs []string, jobServices map[strin
 		}
 	}
 	s.Ui.Output(formatList(outputTable))
+}
+
+func formatAddress(address string, port int) string {
+	if port == 0 {
+		return address
+	}
+	return net.JoinHostPort(address, strconv.Itoa(port))
 }
 
 // formatOutput produces the verbose output of service registration info for a
@@ -193,4 +222,42 @@ func (s *ServiceInfoCommand) formatVerboseOutput(jobIDs []string, jobServices ma
 			s.Ui.Output("")
 		}
 	}
+}
+
+// argsWithNewPageToken takes the arguments which called the CLI and modifies
+// them to include the correct next token. The function ensures the argument
+// ordering is maintained which is vital when using pagination on info related
+// calls which have an identifier as their final argument.
+func argsWithNewPageToken(osArgs []string, nextToken string) string {
+
+	// Copy the arguments into a new array which will be modified and make a
+	// note of the original length as we may need to modify the length if this
+	// is the first pagination call without a next token.
+	newArgs := osArgs
+	numArgs := len(newArgs)
+
+	for i := 0; i < numArgs; i++ {
+
+		// If the caller already included a pagination token, replace this
+		// occurrence with the new next token and exit as we don't need to
+		// modify any other arguments.
+		if strings.HasPrefix(newArgs[i], "-page-token") {
+			if strings.Contains(newArgs[i], "=") {
+				newArgs[i] = "-page-token=" + nextToken
+			} else {
+				newArgs[i+1] = nextToken
+			}
+			break
+		}
+
+		// If we have reached the final argument (service name) and are still
+		// looping we have not added the next token argument. Add this while
+		// ensuring the service name if the final argument on the command.
+		if i == numArgs-1 {
+			serviceName := newArgs[i]
+			newArgs[i] = "-page-token=" + nextToken
+			newArgs = append(newArgs, serviceName)
+		}
+	}
+	return strings.Join(newArgs, " ")
 }

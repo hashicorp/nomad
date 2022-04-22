@@ -163,10 +163,19 @@
                 {{#if row.model.isCSI}}
                   <LinkTo
                     @route="csi.volumes.volume"
-                    @model={{concat row.model.volume "@" row.model.namespace.id
+                    @model={{concat
+                    (format-volume-name
+                      source=row.model.source
+                      isPerAlloc=row.model.volumeDeclaration.perAlloc
+                      volumeExtension=this.model.allocation.volumeExtension)
+                    "@"
+                    row.model.namespace.id
                     }}
                   >
-                    {{row.model.volume}}
+                  {{format-volume-name
+                    source=row.model.source
+                    isPerAlloc=row.model.volumeDeclaration.perAlloc
+                    volumeExtension=this.model.allocation.volumeExtension}}
                   </LinkTo>
                 {{else}}
                   {{row.model.source}}

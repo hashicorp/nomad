@@ -8,22 +8,50 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-// GetAddress returns the IP and port to use for a service or check. If no port
-// label is specified (an empty value), zero values are returned because no
-// address could be resolved.
+// GetAddress returns the IP (or custom advertise address) and port to use for a
+// service or check registration. If no port label is specified (an empty value)
+// and no custom address is specified, zero values are returned because no address
+// could be resolved.
 func GetAddress(
-	addrMode, portLabel string, networks structs.Networks, driverNet *drivers.DriverNetwork,
-	ports structs.AllocatedPorts, netStatus *structs.AllocNetworkStatus) (string, int, error) {
-
-	switch addrMode {
+	address, // custom address, if set
+	addressMode,
+	portLabel string,
+	networks structs.Networks,
+	driverNet *drivers.DriverNetwork,
+	ports structs.AllocatedPorts,
+	netStatus *structs.AllocNetworkStatus,
+) (string, int, error) {
+	switch addressMode {
 	case structs.AddressModeAuto:
-		if driverNet.Advertise() {
-			addrMode = structs.AddressModeDriver
-		} else {
-			addrMode = structs.AddressModeHost
+		switch {
+		case address != "":
+			// No port no problem, just return the advertise address.
+			if portLabel == "" {
+				return address, 0, nil
+			}
+			// A custom advertise address can be used with a port map; using the
+			// Value and ignoring the IP. The routing from your custom address to
+			// the group network address is DIY. (e.g. EC2 public address)
+			if mapping, exists := ports.Get(portLabel); exists {
+				return address, mapping.Value, nil
+			}
+			// If not a port map we can interpolate a numeric port for you.
+			port, err := strconv.Atoi(portLabel)
+			if err != nil {
+				return "", 0, fmt.Errorf("invalid port: %q: not a valid port mapping or numeric port", portLabel)
+			}
+			return address, port, nil
+		case driverNet.Advertise():
+			return GetAddress("", structs.AddressModeDriver, portLabel, networks, driverNet, ports, netStatus)
+		default:
+			return GetAddress("", structs.AddressModeHost, portLabel, networks, driverNet, ports, netStatus)
 		}
-		return GetAddress(addrMode, portLabel, networks, driverNet, ports, netStatus)
 	case structs.AddressModeHost:
+		// Cannot use address mode host with custom advertise address.
+		if address != "" {
+			return "", 0, fmt.Errorf("cannot use custom advertise address with %q address mode", structs.AddressModeHost)
+		}
+
 		if portLabel == "" {
 			if len(networks) != 1 {
 				// If no networks are specified return zero
@@ -32,7 +60,6 @@ func GetAddress(
 				// some people rely on.
 				return "", 0, nil
 			}
-
 			return networks[0].IP, 0, nil
 		}
 
@@ -65,6 +92,11 @@ func GetAddress(
 		return mapping.HostIP, mapping.Value, nil
 
 	case structs.AddressModeDriver:
+		// Cannot use address mode driver with custom advertise address.
+		if address != "" {
+			return "", 0, fmt.Errorf("cannot use custom advertise address with %q address mode", structs.AddressModeDriver)
+		}
+
 		// Require a driver network if driver address mode is used
 		if driverNet == nil {
 			return "", 0, fmt.Errorf(`cannot use address_mode="driver": no driver network exists`)
@@ -100,6 +132,12 @@ func GetAddress(
 		return driverNet.IP, port, nil
 
 	case structs.AddressModeAlloc:
+		// Cannot use address mode alloc with custom advertise address.
+		if address != "" {
+			return "", 0, fmt.Errorf("cannot use custom advertise address with %q address mode", structs.AddressModeAlloc)
+		}
+
+		// Going to need a network for this.
 		if netStatus == nil {
 			return "", 0, fmt.Errorf(`cannot use address_mode="alloc": no allocation network status reported`)
 		}
@@ -131,6 +169,6 @@ func GetAddress(
 
 	default:
 		// Shouldn't happen due to validation, but enforce invariants
-		return "", 0, fmt.Errorf("invalid address mode %q", addrMode)
+		return "", 0, fmt.Errorf("invalid address mode %q", addressMode)
 	}
 }

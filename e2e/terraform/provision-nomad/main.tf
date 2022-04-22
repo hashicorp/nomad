@@ -6,38 +6,38 @@ locals {
 }
 
 # if nomad_license is unset, it'll be a harmless empty license file
-resource "local_file" "nomad_environment" {
-  sensitive_content = templatefile("etc/nomad.d/.environment", {
+resource "local_sensitive_file" "nomad_environment" {
+  content = templatefile("etc/nomad.d/.environment", {
     license = var.nomad_license
   })
   filename        = "${local.upload_dir}/nomad.d/.environment"
   file_permission = "0600"
 }
 
-resource "local_file" "nomad_base_config" {
-  sensitive_content = templatefile("etc/nomad.d/base.hcl", {
+resource "local_sensitive_file" "nomad_base_config" {
+  content = templatefile("etc/nomad.d/base.hcl", {
     data_dir = var.platform != "windows" ? "/opt/nomad/data" : "C://opt/nomad/data"
   })
   filename        = "${local.upload_dir}/nomad.d/base.hcl"
   file_permission = "0600"
 }
 
-resource "local_file" "nomad_role_config" {
-  sensitive_content = templatefile("etc/nomad.d/${var.role}-${var.platform}.hcl", {})
-  filename          = "${local.upload_dir}/nomad.d/${var.role}.hcl"
-  file_permission   = "0600"
+resource "local_sensitive_file" "nomad_role_config" {
+  content         = templatefile("etc/nomad.d/${var.role}-${var.platform}.hcl", {})
+  filename        = "${local.upload_dir}/nomad.d/${var.role}.hcl"
+  file_permission = "0600"
 }
 
-resource "local_file" "nomad_indexed_config" {
-  sensitive_content = templatefile(local.indexed_config_path, {})
-  filename          = "${local.upload_dir}/nomad.d/${var.role}-${var.platform}-${var.index}.hcl"
-  file_permission   = "0600"
+resource "local_sensitive_file" "nomad_indexed_config" {
+  content         = templatefile(local.indexed_config_path, {})
+  filename        = "${local.upload_dir}/nomad.d/${var.role}-${var.platform}-${var.index}.hcl"
+  file_permission = "0600"
 }
 
-resource "local_file" "nomad_tls_config" {
-  sensitive_content = templatefile("etc/nomad.d/tls.hcl", {})
-  filename          = "${local.upload_dir}/nomad.d/tls.hcl"
-  file_permission   = "0600"
+resource "local_sensitive_file" "nomad_tls_config" {
+  content         = templatefile("etc/nomad.d/tls.hcl", {})
+  filename        = "${local.upload_dir}/nomad.d/tls.hcl"
+  file_permission = "0600"
 }
 
 resource "null_resource" "upload_consul_configs" {
@@ -98,39 +98,56 @@ resource "null_resource" "upload_nomad_configs" {
   }
 
   provisioner "file" {
-    source      = local_file.nomad_environment.filename
+    source      = local_sensitive_file.nomad_environment.filename
     destination = "/tmp/.environment"
   }
   provisioner "file" {
-    source      = local_file.nomad_base_config.filename
+    source      = local_sensitive_file.nomad_base_config.filename
     destination = "/tmp/base.hcl"
   }
   provisioner "file" {
-    source      = local_file.nomad_role_config.filename
+    source      = local_sensitive_file.nomad_role_config.filename
     destination = "/tmp/${var.role}-${var.platform}.hcl"
   }
   provisioner "file" {
-    source      = local_file.nomad_indexed_config.filename
+    source      = local_sensitive_file.nomad_indexed_config.filename
     destination = "/tmp/${var.role}-${var.platform}-${var.index}.hcl"
   }
   provisioner "file" {
-    source      = local_file.nomad_tls_config.filename
+    source      = local_sensitive_file.nomad_tls_config.filename
     destination = "/tmp/tls.hcl"
   }
   provisioner "file" {
-    source      = local_file.nomad_systemd_unit_file.filename
+    source      = local_sensitive_file.nomad_systemd_unit_file.filename
     destination = "/tmp/nomad.service"
   }
   provisioner "file" {
-    source      = local_file.nomad_client_key.filename
+    source      = local_sensitive_file.nomad_client_key.filename
     destination = "/tmp/agent-${var.instance.public_ip}.key"
   }
   provisioner "file" {
-    source      = local_file.nomad_client_cert.filename
+    source      = local_sensitive_file.nomad_client_cert.filename
     destination = "/tmp/agent-${var.instance.public_ip}.crt"
+  }
+  provisioner "file" {
+    source      = "keys/tls_api_client.key"
+    destination = "/tmp/tls_proxy.key"
+  }
+  provisioner "file" {
+    source      = "keys/tls_api_client.crt"
+    destination = "/tmp/tls_proxy.crt"
   }
   provisioner "file" {
     source      = "keys/tls_ca.crt"
     destination = "/tmp/ca.crt"
   }
+  provisioner "file" {
+    source      = "keys/self_signed.key"
+    destination = "/tmp/self_signed.key"
+  }
+  provisioner "file" {
+    source      = "keys/self_signed.crt"
+    destination = "/tmp/self_signed.crt"
+  }
+
 }

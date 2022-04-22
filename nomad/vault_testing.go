@@ -21,14 +21,6 @@ type TestVaultClient struct {
 	// by the LookupToken call
 	LookupTokenSecret map[string]*vapi.Secret
 
-	// LookupTokenRoleErrors maps a token role name to an error that will be
-	// returned by the LookupTokenRole call
-	LookupTokenRoleErrors map[string]error
-
-	// LookupTokenRoleSecret maps a token role name to the Vault secret that
-	// will be returned by the LookupTokenRole call
-	LookupTokenRoleSecret map[string]*vapi.Secret
-
 	// CreateTokenErrors maps a token to an error that will be returned by the
 	// CreateToken call
 	CreateTokenErrors map[string]map[string]error
@@ -49,20 +41,6 @@ func (v *TestVaultClient) LookupToken(ctx context.Context, token string) (*vapi.
 	}
 	if v.LookupTokenErrors != nil {
 		err = v.LookupTokenErrors[token]
-	}
-
-	return secret, err
-}
-
-func (v *TestVaultClient) LookupTokenRole(ctx context.Context, role string) (*vapi.Secret, error) {
-	var secret *vapi.Secret
-	var err error
-
-	if v.LookupTokenRoleSecret != nil {
-		secret = v.LookupTokenRoleSecret[role]
-	}
-	if v.LookupTokenRoleErrors != nil {
-		err = v.LookupTokenRoleErrors[role]
 	}
 
 	return secret, err
@@ -98,25 +76,6 @@ func (v *TestVaultClient) SetLookupTokenAllowedPolicies(token string, policies [
 	}
 
 	v.SetLookupTokenSecret(token, s)
-}
-
-// SetLookupTokenRoleError sets the error that will be returned by the role
-// lookup.
-func (v *TestVaultClient) SetLookupTokenRoleError(token string, err error) {
-	if v.LookupTokenRoleErrors == nil {
-		v.LookupTokenRoleErrors = make(map[string]error)
-	}
-
-	v.LookupTokenRoleErrors[token] = err
-}
-
-// SetLookupTokenRoleSecret sets the secret that will be returned by the role
-// lookup.
-func (v *TestVaultClient) SetLookupTokenRoleSecret(role string, secret *vapi.Secret) {
-	if v.LookupTokenRoleSecret == nil {
-		v.LookupTokenRoleSecret = make(map[string]*vapi.Secret)
-	}
-	v.LookupTokenRoleSecret[role] = secret
 }
 
 func (v *TestVaultClient) CreateToken(ctx context.Context, a *structs.Allocation, task string) (*vapi.Secret, error) {

@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
-	vapi "github.com/hashicorp/vault/api"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1646,15 +1645,13 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 		t.Fatalf("vault token not cleared")
 	}
 
-	// Check that an implicit constraint was created
+	// Check that an implicit constraints were created for Vault and Consul.
 	constraints := out.TaskGroups[0].Constraints
-	if l := len(constraints); l != 1 {
+	if l := len(constraints); l != 2 {
 		t.Fatalf("Unexpected number of tests: %v", l)
 	}
 
-	if !constraints[0].Equal(vaultConstraint) {
-		t.Fatalf("bad constraint; got %#v; want %#v", constraints[0], vaultConstraint)
-	}
+	require.ElementsMatch(t, constraints, []*structs.Constraint{consulServiceDiscoveryConstraint, vaultConstraint})
 
 	// Create the register request with another job asking for a vault policy but
 	// send the root Vault token
@@ -1742,265 +1739,6 @@ func TestJobEndpoint_Register_Vault_MultiNamespaces(t *testing.T) {
 		require.Contains(t, err.Error(), ErrMultipleNamespaces.Error())
 	} else {
 		require.NoError(t, err)
-	}
-}
-
-func TestJobEndpoint_Register_Vault_EntityAlias(t *testing.T) {
-	ci.Parallel(t)
-
-	// Create test jobs.
-	jobNoVault := mock.Job()
-	jobNoVault.TaskGroups[0].Tasks[0].Vault = nil
-
-	jobNoAlias := mock.Job()
-	jobNoVault.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
-		Policies: []string{"nomad"},
-	}
-
-	jobApp1 := mock.Job()
-	jobApp1.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
-		Policies:    []string{"nomad"},
-		EntityAlias: "app1",
-	}
-
-	jobApp2 := mock.Job()
-	jobApp2.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
-		Policies:    []string{"nomad"},
-		EntityAlias: "app2",
-	}
-
-	jobApp1App2 := mock.Job()
-	jobApp1App2.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
-		Policies:    []string{"nomad"},
-		EntityAlias: "app1",
-	}
-	jobApp1App2.TaskGroups[0].Tasks = append(
-		jobApp1App2.TaskGroups[0].Tasks,
-		jobApp1App2.TaskGroups[0].Tasks[0].Copy())
-	jobApp1App2.TaskGroups[0].Tasks[1].Name = "web2"
-	jobApp1App2.TaskGroups[0].Tasks[1].Vault.EntityAlias = "app2"
-
-	// Create test Vault server.
-	tvc := &TestVaultClient{}
-
-	// Load Vault roles
-	tvc.SetLookupTokenRoleSecret("nomad-cluster", &vapi.Secret{
-		Data: map[string]interface{}{
-			"allowed_entity_aliases": []string{"nomad", "app1", "app2"},
-		},
-	})
-	tvc.SetLookupTokenRoleSecret("nomad-app1", &vapi.Secret{
-		Data: map[string]interface{}{
-			"allowed_entity_aliases": []string{"nomad", "app1"},
-		},
-	})
-	tvc.SetLookupTokenRoleSecret("nomad-app2", &vapi.Secret{
-		Data: map[string]interface{}{
-			"allowed_entity_aliases": []string{"app2"},
-		},
-	})
-	tvc.SetLookupTokenRoleSecret("not-nomad", &vapi.Secret{
-		Data: map[string]interface{}{
-			"allowed_entity_aliases": []string{"not-nomad"},
-		},
-	})
-	tvc.SetLookupTokenRoleSecret("no-alias", &vapi.Secret{
-		Data: map[string]interface{}{
-			"allowed_entity_aliases": []string{},
-		},
-	})
-
-	// Load Vault tokens
-	tvc.SetLookupTokenSecret("root", &vapi.Secret{
-		Data: map[string]interface{}{
-			"policies": []string{"root"},
-		},
-	})
-	tvc.SetLookupTokenSecret("nomad-server", &vapi.Secret{
-		Data: map[string]interface{}{
-			"policies": []string{"root"},
-			"role":     "nomad-server",
-		},
-	})
-	tvc.SetLookupTokenSecret("user-app1", &vapi.Secret{
-		Data: map[string]interface{}{
-			"policies": []string{"nomad"},
-			"role":     "nomad-app1",
-		},
-	})
-	tvc.SetLookupTokenSecret("user-app2", &vapi.Secret{
-		Data: map[string]interface{}{
-			"policies": []string{"nomad"},
-			"role":     "nomad-app2",
-		},
-	})
-	tvc.SetLookupTokenSecret("not-allowed", &vapi.Secret{
-		Data: map[string]interface{}{
-			"policies": []string{"nomad"},
-			"role":     "not-nomad",
-		},
-	})
-	tvc.SetLookupTokenSecret("no-role", &vapi.Secret{
-		Data: map[string]interface{}{
-			"policies": []string{"nomad"},
-			"role":     "",
-		},
-	})
-
-	testCases := []struct {
-		name          string
-		token         string
-		job           *structs.Job
-		serverConfig  func(*Config)
-		expectedError string
-	}{
-		{
-			name:  "no vault",
-			token: "not-allowed",
-			job:   jobNoVault,
-		},
-		{
-			name:  "no entity alias",
-			token: "not-allowed",
-			job:   jobNoAlias,
-		},
-		{
-			name:  "allowed",
-			token: "user-app1",
-			job:   jobApp1,
-		},
-		{
-			name:  "allowed with multiple of same aliases",
-			token: "user-app1",
-			job: func() *structs.Job {
-				j := jobApp1App2.Copy()
-				j.TaskGroups[0].Tasks[1].Vault.EntityAlias = "app1"
-				return j
-			}(),
-		},
-		{
-			name:          "token without role",
-			token:         "no-role",
-			job:           jobApp1,
-			expectedError: "jobs with Vault entity aliases require the Vault token to have a role",
-		},
-		{
-			name:          "token without access to alias",
-			token:         "not-allowed",
-			job:           jobApp1,
-			expectedError: "role doesn't allow access to the following entity aliases: app1",
-		},
-		{
-			name:          "token without access to any aliases",
-			token:         "not-allowed",
-			job:           jobApp1App2,
-			expectedError: "role doesn't allow access to the following entity aliases",
-		},
-		{
-			name:          "token without access to one of the aliases",
-			token:         "user-app1",
-			job:           jobApp1App2,
-			expectedError: "role doesn't allow access to the following entity aliases: app2",
-		},
-		{
-			name:          "root taken can't submit without role",
-			token:         "root",
-			job:           jobApp1,
-			expectedError: "jobs with Vault entity aliases require the Vault token to have a role",
-		},
-		{
-			name:  "server without role",
-			token: "user-app1",
-			job:   jobApp1,
-			serverConfig: func(c *Config) {
-				c.VaultConfig.Token = "root"
-				c.VaultConfig.Role = ""
-			},
-			expectedError: "jobs with Vault entity aliases require the Nomad server to have a Vault role",
-		},
-		{
-			name:  "server without alias",
-			token: "user-app1",
-			job:   jobApp1,
-			serverConfig: func(c *Config) {
-				c.VaultConfig.Token = "nomad-server"
-				c.VaultConfig.Role = "not-nomad"
-			},
-			expectedError: "failed to validate entity alias against Nomad server configuration",
-		},
-		{
-			name:  "server with default entity alias and token is allowed to use it",
-			token: "user-app1",
-			job: func() *structs.Job {
-				j := jobApp1.Copy()
-				j.TaskGroups[0].Tasks[0].Vault.EntityAlias = ""
-				return j
-			}(),
-		},
-		{
-			name:  "server with default entity alias but token is not allowed to use it",
-			token: "user-app2",
-			job: func() *structs.Job {
-				j := jobApp1App2.Copy()
-				j.TaskGroups[0].Tasks[0].Vault.EntityAlias = ""
-				return j
-			}(),
-			serverConfig: func(c *Config) {
-				c.VaultConfig.EntityAlias = "nomad"
-			},
-			expectedError: "role doesn't allow access to the following entity aliases: nomad",
-		},
-		{
-			name:  "server with default entity alias but job doesn't use it",
-			token: "user-app2",
-			job:   jobApp2,
-			serverConfig: func(c *Config) {
-				c.VaultConfig.EntityAlias = "nomad"
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			s, cleanup := TestServer(t, func(c *Config) {
-				c.VaultConfig.Token = "nomad-server"
-				c.VaultConfig.Role = "nomad-cluster"
-
-				if tc.serverConfig != nil {
-					tc.serverConfig(c)
-				}
-			})
-			defer cleanup()
-			codec := rpcClient(t, s)
-			testutil.WaitForLeader(t, s.RPC)
-
-			// Enable vault
-			s.config.VaultConfig.Enabled = helper.BoolToPtr(true)
-			s.config.VaultConfig.AllowUnauthenticated = helper.BoolToPtr(false)
-
-			// Replace the Vault Client on the server
-			s.vault = tvc
-
-			job := tc.job.Copy()
-			job.VaultToken = tc.token
-
-			req := &structs.JobRegisterRequest{
-				Job: job,
-				WriteRequest: structs.WriteRequest{
-					Region:    "global",
-					Namespace: job.Namespace,
-				},
-			}
-
-			var resp structs.JobRegisterResponse
-			err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-			if tc.expectedError != "" {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.expectedError)
-			} else {
-				require.NoError(t, err)
-			}
-		})
 	}
 }
 
@@ -6482,15 +6220,11 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 		t.Fatalf("index mis-match")
 	}
 
-	// Check that there is an implicit vault constraint
-	constraints := out.TaskGroups[0].Constraints
-	if len(constraints) != 1 {
-		t.Fatalf("Expected an implicit constraint")
-	}
-
-	if !constraints[0].Equal(vaultConstraint) {
-		t.Fatalf("Expected implicit vault constraint")
-	}
+	// Check that there is an implicit Vault and Consul constraint.
+	require.Len(t, out.TaskGroups[0].Constraints, 2)
+	require.ElementsMatch(t, out.TaskGroups[0].Constraints, []*structs.Constraint{
+		consulServiceDiscoveryConstraint, vaultConstraint,
+	})
 }
 
 func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
@@ -6640,20 +6374,11 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 		t.Fatalf("index mis-match")
 	}
 
-	// Check that there is an implicit signal constraint
-	constraints := out.TaskGroups[0].Constraints
-	if len(constraints) != 1 {
-		t.Fatalf("Expected an implicit constraint")
-	}
-
-	sigConstraint := getSignalConstraint([]string{signal1, signal2})
-	if !strings.HasPrefix(sigConstraint.RTarget, "SIGHUP") {
-		t.Fatalf("signals not sorted: %v", sigConstraint.RTarget)
-	}
-
-	if !constraints[0].Equal(sigConstraint) {
-		t.Fatalf("Expected implicit vault constraint")
-	}
+	// Check that there is an implicit signal and Consul constraint.
+	require.Len(t, out.TaskGroups[0].Constraints, 2)
+	require.ElementsMatch(t, out.TaskGroups[0].Constraints, []*structs.Constraint{
+		getSignalConstraint([]string{signal1, signal2}), consulServiceDiscoveryConstraint},
+	)
 }
 
 func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {

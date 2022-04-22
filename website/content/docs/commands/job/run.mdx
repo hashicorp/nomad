@@ -74,6 +74,10 @@ that volume.
 - `-eval-priority`: Override the priority of the evaluations produced as a result
   of this job submission. By default, this is set to the priority of the job.
 
+- `-json`: Parses the job file as JSON. If the outer object has a Job field,
+  such as from "nomad job inspect" or "nomad run -output", the value of the
+  field is used as the job.
+
 - `-hcl1`: If set, HCL1 parser is used for parsing the job spec.
 
 - `-hcl2-strict`: Whether an error should be produced from the HCL2 parser where
@@ -102,16 +106,15 @@ that volume.
   permissions.
 
 - `-vault-token`: Used to validate if the user submitting the job has
-  permission to run the job according to its Vault policies and entity aliases.
-  A Vault token must be supplied if the [`vault` stanza `allow_unauthenticated`]
-  is disabled in the Nomad server configuration. If the `-vault-token` flag is
-  set, the passed Vault token is added to the jobspec before sending to the
-  Nomad servers. This allows passing the vault token without storing it in the
-  job file. This overrides the token found in the `$VAULT_TOKEN` environment
-  variable and the [`vault_token`] field in the job file. This token is cleared
-  from the job after validating and cannot be used within the job executing
-  environment. Use the `vault` stanza when templating in a job with a Vault
-  token.
+  permission to run the job according to its Vault policies. A Vault token must
+  be supplied if the [`vault` stanza `allow_unauthenticated`] is disabled in
+  the Nomad server configuration. If the `-vault-token` flag is set, the passed
+  Vault token is added to the jobspec before sending to the Nomad servers. This
+  allows passing the Vault token without storing it in the job file. This
+  overrides the token found in the `$VAULT_TOKEN` environment variable and the
+  [`vault_token`] field in the job file. This token is cleared from the job
+  after validating and cannot be used within the job executing environment. Use
+  the `vault` stanza when templating in a job with a Vault token.
 
 - `-vault-namespace`: If set, the passed Vault namespace is stored in the job
   before sending to the Nomad servers.

@@ -588,7 +588,6 @@ func TestJob_Vault(t *testing.T) {
 		Policies: []string{
 			"p5",
 		},
-		EntityAlias: "alias1",
 	}
 	j1 := &Job{
 		TaskGroups: []*TaskGroup{
@@ -3506,157 +3505,6 @@ func TestService_Canonicalize(t *testing.T) {
 	}
 }
 
-func TestService_Validate(t *testing.T) {
-	ci.Parallel(t)
-
-	testCases := []struct {
-		inputService          *Service
-		expectedError         bool
-		expectedErrorContains string
-		name                  string
-	}{
-		{
-			inputService: &Service{
-				Name: "testservice",
-			},
-			expectedError: false,
-			name:          "base service",
-		},
-		{
-			inputService: &Service{
-				Name: "testservice",
-				Connect: &ConsulConnect{
-					Native: true,
-				},
-			},
-			expectedError:         true,
-			expectedErrorContains: "Connect Native and requires setting the task",
-			name:                  "Native Connect without task name",
-		},
-		{
-			inputService: &Service{
-				Name:     "testservice",
-				TaskName: "testtask",
-				Connect: &ConsulConnect{
-					Native: true,
-				},
-			},
-			expectedError: false,
-			name:          "Native Connect with task name",
-		},
-		{
-			inputService: &Service{
-				Name:     "testservice",
-				TaskName: "testtask",
-				Connect: &ConsulConnect{
-					Native:         true,
-					SidecarService: &ConsulSidecarService{},
-				},
-			},
-			expectedError:         true,
-			expectedErrorContains: "Consul Connect must be exclusively native",
-			name:                  "Native Connect with Sidecar",
-		},
-		{
-			inputService: &Service{
-				Name:     "testservice",
-				Provider: "nomad",
-				Checks: []*ServiceCheck{
-					{
-						Name: "servicecheck",
-					},
-				},
-			},
-			expectedError:         true,
-			expectedErrorContains: "Service with provider nomad cannot include Check blocks",
-			name:                  "provider nomad with checks",
-		},
-		{
-			inputService: &Service{
-				Name:     "testservice",
-				Provider: "nomad",
-				Connect: &ConsulConnect{
-					Native: true,
-				},
-			},
-			expectedError:         true,
-			expectedErrorContains: "Service with provider nomad cannot include Connect blocks",
-			name:                  "provider nomad with connect",
-		},
-		{
-			inputService: &Service{
-				Name:     "testservice",
-				Provider: "nomad",
-			},
-			expectedError: false,
-			name:          "provider nomad valid",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			tc.inputService.Canonicalize("testjob", "testgroup", "testtask", "testnamespace")
-			err := tc.inputService.Validate()
-			if tc.expectedError {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tc.expectedErrorContains)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestService_Equals(t *testing.T) {
-	ci.Parallel(t)
-
-	s := Service{
-		Name: "testservice",
-	}
-
-	s.Canonicalize("testjob", "testgroup", "testtask", "default")
-
-	o := s.Copy()
-
-	// Base service should be equal to copy of itself
-	require.True(t, s.Equals(o))
-
-	// create a helper to assert a diff and reset the struct
-	assertDiff := func() {
-		require.False(t, s.Equals(o))
-		o = s.Copy()
-		require.True(t, s.Equals(o), "bug in copy")
-	}
-
-	// Changing any field should cause inequality
-	o.Name = "diff"
-	assertDiff()
-
-	o.PortLabel = "diff"
-	assertDiff()
-
-	o.AddressMode = AddressModeDriver
-	assertDiff()
-
-	o.Tags = []string{"diff"}
-	assertDiff()
-
-	o.CanaryTags = []string{"diff"}
-	assertDiff()
-
-	o.Checks = []*ServiceCheck{{Name: "diff"}}
-	assertDiff()
-
-	o.Connect = &ConsulConnect{Native: true}
-	assertDiff()
-
-	o.EnableTagOverride = true
-	assertDiff()
-
-	o.Provider = "nomad"
-	assertDiff()
-}
-
 func TestJob_ExpandServiceNames(t *testing.T) {
 	ci.Parallel(t)
 
@@ -5819,7 +5667,6 @@ func TestVault_Copy(t *testing.T) {
 		Env:          false,
 		ChangeMode:   "noop",
 		ChangeSignal: "SIGKILL",
-		EntityAlias:  "alias1",
 	}
 
 	// Copy and modify.
@@ -5829,7 +5676,6 @@ func TestVault_Copy(t *testing.T) {
 	vc.Env = true
 	vc.ChangeMode = "signal"
 	vc.ChangeSignal = "SIGHUP"
-	vc.EntityAlias = "alias2"
 
 	require.NotEqual(t, v, vc)
 }
@@ -6610,6 +6456,32 @@ func TestNode_Copy(t *testing.T) {
 	require.Equal(node.Events, node2.Events)
 	require.Equal(node.DrainStrategy, node2.DrainStrategy)
 	require.Equal(node.Drivers, node2.Drivers)
+}
+
+func TestNode_GetID(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		inputNode      *Node
+		expectedOutput string
+		name           string
+	}{
+		{
+			inputNode:      nil,
+			expectedOutput: "",
+			name:           "nil input node",
+		},
+		{
+			inputNode:      &Node{ID: "someid"},
+			expectedOutput: "someid",
+			name:           "nil input node",
+		},
+	}
+
+	for _, tc := range testCases {
+		actualOutput := tc.inputNode.GetID()
+		require.Equal(t, tc.expectedOutput, actualOutput)
+	}
 }
 
 func TestNode_Sanitize(t *testing.T) {

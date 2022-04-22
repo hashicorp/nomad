@@ -395,22 +395,6 @@ func VaultNamespaceSet(policies map[string]map[string]*Vault) []string {
 	return helper.SetToSliceString(set)
 }
 
-// VaultEntityAliasesSet takes the structure returned by VaultPolicies and
-// returns a set of required entity aliases.
-func VaultEntityAliasesSet(blocks map[string]map[string]*Vault) []string {
-	set := make(map[string]struct{})
-
-	for _, task := range blocks {
-		for _, vault := range task {
-			if vault != nil && vault.EntityAlias != "" {
-				set[vault.EntityAlias] = struct{}{}
-			}
-		}
-	}
-
-	return helper.SetToSliceString(set)
-}
-
 // DenormalizeAllocationJobs is used to attach a job to all allocations that are
 // non-terminal and do not have a job already. This is useful in cases where the
 // job is normalized.

@@ -131,6 +131,7 @@ export default class Job extends Model {
   @alias('summary.completeAllocs') completeAllocs;
   @alias('summary.failedAllocs') failedAllocs;
   @alias('summary.lostAllocs') lostAllocs;
+  @alias('summary.unknownAllocs') unknownAllocs;
   @alias('summary.totalAllocs') totalAllocs;
   @alias('summary.pendingChildren') pendingChildren;
   @alias('summary.runningChildren') runningChildren;

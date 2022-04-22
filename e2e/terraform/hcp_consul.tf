@@ -30,36 +30,36 @@ data "consul_acl_token_secret_id" "consul_agent_token" {
   accessor_id = consul_acl_token.consul_agent_token.id
 }
 
-resource "local_file" "consul_acl_file" {
-  sensitive_content = templatefile("etc/consul.d/client_acl.json", {
+resource "local_sensitive_file" "consul_acl_file" {
+  content = templatefile("etc/consul.d/client_acl.json", {
     token = data.consul_acl_token_secret_id.consul_agent_token.secret_id
   })
   filename        = "uploads/shared/consul.d/client_acl.json"
   file_permission = "0600"
 }
 
-resource "local_file" "consul_ca_file" {
-  sensitive_content = base64decode(data.hcp_consul_cluster.e2e_shared_consul.consul_ca_file)
-  filename          = "uploads/shared/consul.d/ca.pem"
-  file_permission   = "0600"
+resource "local_sensitive_file" "consul_ca_file" {
+  content         = base64decode(data.hcp_consul_cluster.e2e_shared_consul.consul_ca_file)
+  filename        = "uploads/shared/consul.d/ca.pem"
+  file_permission = "0600"
 }
 
-resource "local_file" "consul_config_file" {
-  sensitive_content = base64decode(data.hcp_consul_cluster.e2e_shared_consul.consul_config_file)
-  filename          = "uploads/shared/consul.d/consul_client.json"
-  file_permission   = "0744"
+resource "local_sensitive_file" "consul_config_file" {
+  content         = base64decode(data.hcp_consul_cluster.e2e_shared_consul.consul_config_file)
+  filename        = "uploads/shared/consul.d/consul_client.json"
+  file_permission = "0644"
 }
 
-resource "local_file" "consul_base_config_file" {
-  sensitive_content = templatefile("${path.root}/etc/consul.d/clients.json", {})
-  filename          = "uploads/shared/consul.d/consul_client_base.json"
-  file_permission   = "0744"
+resource "local_sensitive_file" "consul_base_config_file" {
+  content         = templatefile("${path.root}/etc/consul.d/clients.json", {})
+  filename        = "uploads/shared/consul.d/consul_client_base.json"
+  file_permission = "0644"
 }
 
-resource "local_file" "consul_systemd_unit_file" {
-  sensitive_content = templatefile("${path.root}/etc/consul.d/consul.service", {})
-  filename          = "uploads/shared/consul.d/consul.service"
-  file_permission   = "0744"
+resource "local_sensitive_file" "consul_systemd_unit_file" {
+  content         = templatefile("${path.root}/etc/consul.d/consul.service", {})
+  filename        = "uploads/shared/consul.d/consul.service"
+  file_permission = "0644"
 }
 
 # Nomad servers configuration for Consul
@@ -84,8 +84,8 @@ data "consul_acl_token_secret_id" "nomad_servers_token" {
   accessor_id = consul_acl_token.nomad_servers_token.id
 }
 
-resource "local_file" "nomad_server_config_for_consul" {
-  sensitive_content = templatefile("etc/nomad.d/consul.hcl", {
+resource "local_sensitive_file" "nomad_server_config_for_consul" {
+  content = templatefile("etc/nomad.d/consul.hcl", {
     token               = data.consul_acl_token_secret_id.nomad_servers_token.secret_id
     client_service_name = "client-${local.random_name}"
     server_service_name = "server-${local.random_name}"
@@ -116,8 +116,8 @@ data "consul_acl_token_secret_id" "nomad_clients_token" {
   accessor_id = consul_acl_token.nomad_clients_token.id
 }
 
-resource "local_file" "nomad_client_config_for_consul" {
-  sensitive_content = templatefile("etc/nomad.d/consul.hcl", {
+resource "local_sensitive_file" "nomad_client_config_for_consul" {
+  content = templatefile("etc/nomad.d/consul.hcl", {
     token               = data.consul_acl_token_secret_id.nomad_clients_token.secret_id
     client_service_name = "client-${local.random_name}"
     server_service_name = "server-${local.random_name}"

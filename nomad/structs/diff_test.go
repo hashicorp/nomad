@@ -2843,6 +2843,12 @@ func TestTaskGroupDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeNone,
+								Name: "Address",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "AddressMode",
 								Old:  "",
 								New:  "",
@@ -5636,6 +5642,7 @@ func TestTaskDiff(t *testing.T) {
 						Name:        "foo",
 						PortLabel:   "bar",
 						AddressMode: "driver",
+						Address:     "a.example.com",
 						TaskName:    "task1",
 					},
 				},
@@ -5647,6 +5654,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "Service",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Address",
+								Old:  "",
+								New:  "a.example.com",
+							},
 							{
 								Type: DiffTypeAdded,
 								Name: "AddressMode",
@@ -5805,6 +5818,10 @@ func TestTaskDiff(t *testing.T) {
 							},
 						},
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "Address",
+							},
 							{
 								Type: DiffTypeNone,
 								Name: "AddressMode",
@@ -6322,6 +6339,12 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeNone,
+								Name: "Address",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "AddressMode",
 								Old:  "",
 								New:  "",
@@ -6718,7 +6741,6 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
-					EntityAlias:  "alias",
 				},
 			},
 			Expected: &TaskDiff{
@@ -6739,12 +6761,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "ChangeSignal",
 								Old:  "",
 								New:  "SIGUSR1",
-							},
-							{
-								Type: DiffTypeAdded,
-								Name: "EntityAlias",
-								Old:  "",
-								New:  "alias",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -6785,7 +6801,6 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
-					EntityAlias:  "alias",
 				},
 			},
 			New: &Task{},
@@ -6806,12 +6821,6 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "ChangeSignal",
 								Old:  "SIGUSR1",
-								New:  "",
-							},
-							{
-								Type: DiffTypeDeleted,
-								Name: "EntityAlias",
-								Old:  "alias",
 								New:  "",
 							},
 							{
@@ -6854,7 +6863,6 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
-					EntityAlias:  "old-alias",
 				},
 			},
 			New: &Task{
@@ -6864,7 +6872,6 @@ func TestTaskDiff(t *testing.T) {
 					Env:          false,
 					ChangeMode:   "restart",
 					ChangeSignal: "foo",
-					EntityAlias:  "new-alias",
 				},
 			},
 			Expected: &TaskDiff{
@@ -6885,12 +6892,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "ChangeSignal",
 								Old:  "SIGUSR1",
 								New:  "foo",
-							},
-							{
-								Type: DiffTypeEdited,
-								Name: "EntityAlias",
-								Old:  "old-alias",
-								New:  "new-alias",
 							},
 							{
 								Type: DiffTypeEdited,
@@ -6939,7 +6940,6 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
-					EntityAlias:  "alias",
 				},
 			},
 			New: &Task{
@@ -6949,7 +6949,6 @@ func TestTaskDiff(t *testing.T) {
 					Env:          true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
-					EntityAlias:  "alias",
 				},
 			},
 			Expected: &TaskDiff{
@@ -6970,12 +6969,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "ChangeSignal",
 								Old:  "SIGUSR1",
 								New:  "SIGUSR1",
-							},
-							{
-								Type: DiffTypeNone,
-								Name: "EntityAlias",
-								Old:  "alias",
-								New:  "alias",
 							},
 							{
 								Type: DiffTypeNone,
@@ -7421,6 +7414,7 @@ func TestServicesDiff(t *testing.T) {
 					Name:              "webapp",
 					PortLabel:         "http",
 					AddressMode:       "host",
+					Address:           "a.example.com",
 					EnableTagOverride: true,
 					Tags:              []string{"prod"},
 					CanaryTags:        []string{"canary"},
@@ -7431,6 +7425,7 @@ func TestServicesDiff(t *testing.T) {
 					Name:              "webapp-2",
 					PortLabel:         "https",
 					AddressMode:       "alloc",
+					Address:           "b.example.com",
 					EnableTagOverride: false,
 					Tags:              []string{"prod", "dev"},
 					CanaryTags:        []string{"qa"},
@@ -7441,6 +7436,12 @@ func TestServicesDiff(t *testing.T) {
 					Type: DiffTypeEdited,
 					Name: "Service",
 					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeEdited,
+							Name: "Address",
+							Old:  "a.example.com",
+							New:  "b.example.com",
+						},
 						{
 							Type: DiffTypeEdited,
 							Name: "AddressMode",
@@ -7537,6 +7538,10 @@ func TestServicesDiff(t *testing.T) {
 					Fields: []*FieldDiff{
 						{
 							Type: DiffTypeNone,
+							Name: "Address",
+						},
+						{
+							Type: DiffTypeNone,
 							Name: "AddressMode",
 						},
 						{
@@ -7598,6 +7603,10 @@ func TestServicesDiff(t *testing.T) {
 					Type: DiffTypeAdded,
 					Name: "Service",
 					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "Address",
+						},
 						{
 							Type: DiffTypeNone,
 							Name: "AddressMode",
@@ -7665,6 +7674,10 @@ func TestServicesDiff(t *testing.T) {
 					Type: DiffTypeEdited,
 					Name: "Service",
 					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "Address",
+						},
 						{
 							Type: DiffTypeNone,
 							Name: "AddressMode",
@@ -7738,6 +7751,10 @@ func TestServicesDiff(t *testing.T) {
 					Type: DiffTypeEdited,
 					Name: "Service",
 					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "Address",
+						},
 						{
 							Type: DiffTypeNone,
 							Name: "AddressMode",
@@ -7821,6 +7838,10 @@ func TestServicesDiff(t *testing.T) {
 					Type: DiffTypeEdited,
 					Name: "Service",
 					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "Address",
+						},
 						{
 							Type: DiffTypeNone,
 							Name: "AddressMode",

@@ -120,6 +120,7 @@ export default class EvaluationsController extends Controller {
       { key: 'rolling-update', label: 'Rolling Update' },
       { key: 'deployment-watcher', label: 'Deployment Watcher' },
       { key: 'failed-follow-up', label: 'Failed Follow Up' },
+      { key: 'max-disconnect-timeout', label: 'Max Disconnect Timeout' },
       { key: 'max-plan-attempts', label: 'Max Plan Attempts' },
       { key: 'alloc-failure', label: 'Allocation Failure' },
       { key: 'queued-allocs', label: 'Queued Allocations' },
@@ -149,6 +150,60 @@ export default class EvaluationsController extends Controller {
       { key: 'client', label: 'Client' },
       { key: 'no client', label: 'No Client' },
     ];
+  }
+
+  filters = ['status', 'qpNamespace', 'type', 'triggeredBy', 'searchTerm'];
+
+  get hasFiltersApplied() {
+    return this.filters.reduce((result, filter) => {
+      // By default we always set qpNamespace to the '*' wildcard
+      // We need to ensure that if namespace is the only filter, that we send the correct error message to the user
+      if (this[filter] && filter !== 'qpNamespace') {
+        result = true;
+      }
+      return result;
+    }, false);
+  }
+
+  get currentFilters() {
+    const result = [];
+    for (const filter of this.filters) {
+      const isNamespaceWildcard =
+        filter === 'qpNamespace' && this[filter] === '*';
+      if (this[filter] && !isNamespaceWildcard) {
+        result.push({ [filter]: this[filter] });
+      }
+    }
+    return result;
+  }
+
+  get noMatchText() {
+    let text = '';
+    const cleanNames = {
+      status: 'Status',
+      qpNamespace: 'Namespace',
+      type: 'Type',
+      triggeredBy: 'Triggered By',
+      searchTerm: 'Search Term',
+    };
+    if (this.hasFiltersApplied) {
+      for (let i = 0; i < this.currentFilters.length; i++) {
+        const filter = this.currentFilters[i];
+        const [name] = Object.keys(filter);
+        const filterName = cleanNames[name];
+        const filterValue = filter[name];
+        if (this.currentFilters.length === 1)
+          return `${filterName}: ${filterValue}.`;
+        if (i !== 0 && i !== this.currentFilters.length - 1)
+          text = text.concat(`, ${filterName}: ${filterValue}`);
+        if (i === 0) text = text.concat(`${filterName}: ${filterValue}`);
+        if (i === this.currentFilters.length - 1) {
+          return text.concat(`, ${filterName}: ${filterValue}.`);
+        }
+      }
+    }
+
+    return text;
   }
 
   @tracked pageSize = this.userSettings.pageSize;

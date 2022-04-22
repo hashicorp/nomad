@@ -7,7 +7,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
-	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
@@ -32,7 +31,16 @@ Alias: nomad validate
   When ACLs are enabled, this command requires a token with the 'read-job'
   capability for the job's namespace.
 
+General Options:
+
+  ` + generalOptionsUsage(usageOptsDefault) + `
+
 Validate Options:
+
+  -json
+    Parses the job file as JSON. If the outer object has a Job field, such as
+    from "nomad job inspect" or "nomad run -output", the value of the field is
+    used as the job.
 
   -hcl1
     Parses the job file as HCLv1.
@@ -65,21 +73,23 @@ func (c *JobValidateCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *JobValidateCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictOr(complete.PredictFiles("*.nomad"), complete.PredictFiles("*.hcl"))
+	return complete.PredictOr(
+		complete.PredictFiles("*.nomad"),
+		complete.PredictFiles("*.hcl"),
+		complete.PredictFiles("*.json"),
+	)
 }
 
 func (c *JobValidateCommand) Name() string { return "job validate" }
 
 func (c *JobValidateCommand) Run(args []string) int {
-	var varArgs, varFiles flaghelper.StringFlag
-	var hcl2Strict bool
-
-	flagSet := c.Meta.FlagSet(c.Name(), FlagSetNone)
+	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
-	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
-	flagSet.BoolVar(&hcl2Strict, "hcl2-strict", true, "")
-	flagSet.Var(&varArgs, "var", "")
-	flagSet.Var(&varFiles, "var-file", "")
+	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
+	flagSet.BoolVar(&c.JobGetter.HCL1, "hcl1", false, "")
+	flagSet.BoolVar(&c.JobGetter.Strict, "hcl2-strict", true, "")
+	flagSet.Var(&c.JobGetter.Vars, "var", "")
+	flagSet.Var(&c.JobGetter.VarFiles, "var-file", "")
 
 	if err := flagSet.Parse(args); err != nil {
 		return 1
@@ -93,8 +103,13 @@ func (c *JobValidateCommand) Run(args []string) int {
 		return 1
 	}
 
+	if err := c.JobGetter.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("Invalid job options: %s", err))
+		return 1
+	}
+
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.ApiJobWithArgs(args[0], varArgs, varFiles, hcl2Strict)
+	job, err := c.JobGetter.Get(args[0])
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1

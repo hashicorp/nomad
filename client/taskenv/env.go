@@ -47,6 +47,10 @@ const (
 	// AllocID is the environment variable for passing the allocation ID.
 	AllocID = "NOMAD_ALLOC_ID"
 
+	// ShortAllocID is the environment variable for passing the short version
+	// of the allocation ID.
+	ShortAllocID = "NOMAD_SHORT_ALLOC_ID"
+
 	// AllocName is the environment variable for passing the allocation name.
 	AllocName = "NOMAD_ALLOC_NAME"
 
@@ -505,6 +509,7 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	// Add the task metadata
 	if b.allocId != "" {
 		envMap[AllocID] = b.allocId
+		envMap[ShortAllocID] = b.allocId[:8]
 	}
 	if b.allocName != "" {
 		envMap[AllocName] = b.allocName

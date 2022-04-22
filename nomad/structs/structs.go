@@ -1962,6 +1962,15 @@ type Node struct {
 	ModifyIndex uint64
 }
 
+// GetID is a helper for getting the ID when the object may be nil and is
+// required for pagination.
+func (n *Node) GetID() string {
+	if n == nil {
+		return ""
+	}
+	return n.ID
+}
+
 // Sanitize returns a copy of the Node omitting confidential fields
 // It only returns a copy if the Node contains the confidential fields
 func (n *Node) Sanitize() *Node {
@@ -8968,10 +8977,6 @@ type Vault struct {
 	// ChangeSignal is the signal sent to the task when a new token is
 	// retrieved. This is only valid when using the signal change mode.
 	ChangeSignal string
-
-	// EntityAlias is passed to Vault when creating a token to associate that
-	// token with an entity.
-	EntityAlias string
 }
 
 func DefaultVaultBlock() *Vault {
@@ -11305,8 +11310,6 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string)
 
 // AppendUnknownAlloc marks an allocation as unknown.
 func (p *Plan) AppendUnknownAlloc(alloc *Allocation) {
-	// Strip the job as it's set once on the ApplyPlanResultRequest.
-	alloc.Job = nil
 	// Strip the resources as they can be rebuilt.
 	alloc.Resources = nil
 

@@ -1015,51 +1015,6 @@ func TestVaultNamespaceSet(t *testing.T) {
 	require.ElementsMatch(t, expected, got)
 }
 
-func TestVaultEntityAliasesSet(t *testing.T) {
-	input := map[string]map[string]*Vault{
-		"tg1": {
-			"task1": {
-				EntityAlias: "alias1-1",
-			},
-			"task2": {
-				EntityAlias: "alias1-2",
-			},
-		},
-		"tg2": {
-			"task1": {
-				EntityAlias: "alias2",
-			},
-			"task2": {
-				EntityAlias: "alias2",
-			},
-		},
-		"tg3": {
-			"task1": {
-				EntityAlias: "alias3-1",
-			},
-		},
-		"tg4": {
-			"task1": nil,
-		},
-		"tg5": {
-			"task1": {
-				EntityAlias: "alias2",
-			},
-		},
-		"tg6": {
-			"task1": {},
-		},
-	}
-	expected := []string{
-		"alias1-1",
-		"alias1-2",
-		"alias2",
-		"alias3-1",
-	}
-	got := VaultEntityAliasesSet(input)
-	require.ElementsMatch(t, expected, got)
-}
-
 // TestParsePortRanges asserts ParsePortRanges errors on invalid port ranges.
 func TestParsePortRanges(t *testing.T) {
 	ci.Parallel(t)

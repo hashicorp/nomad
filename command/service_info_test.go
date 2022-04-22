@@ -53,8 +53,8 @@ func TestServiceInfoCommand_Run(t *testing.T) {
 
 	// Create a test job with a Nomad service.
 	testJob := testJob("service-discovery-nomad-info")
-	testJob.TaskGroups[0].Tasks[0].Services = []*api.Service{
-		{Name: "service-discovery-nomad-info", Provider: "nomad", Tags: []string{"foo", "bar"}}}
+	testJob.TaskGroups[0].Services = []*api.Service{
+		{Name: "service-discovery-nomad-info", Provider: "nomad", PortLabel: "9999", Tags: []string{"foo", "bar"}}}
 
 	// Register that job.
 	regResp, _, err := client.Jobs().Register(testJob, nil)
@@ -95,7 +95,7 @@ func TestServiceInfoCommand_Run(t *testing.T) {
 		if !assert.Contains(t, s, "service-discovery-nomad-info") {
 			return false
 		}
-		if !assert.Contains(t, s, ":0") {
+		if !assert.Contains(t, s, ":9999") {
 			return false
 		}
 		if !assert.Contains(t, s, "[foo,bar]") {
@@ -114,9 +114,64 @@ func TestServiceInfoCommand_Run(t *testing.T) {
 	require.Contains(t, s, "Namespace    = default")
 	require.Contains(t, s, "Job ID       = service-discovery-nomad-info")
 	require.Contains(t, s, "Datacenter   = dc1")
-	require.Contains(t, s, "Address      = :0")
+	require.Contains(t, s, "Address      = :9999")
 	require.Contains(t, s, "Tags         = [foo,bar]")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
+}
+
+func Test_argsWithNewPageToken(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		inputOsArgs    []string
+		inputNextToken string
+		expectedOutput string
+		name           string
+	}{
+		{
+			inputOsArgs:    []string{"nomad", "service", "info", "-page-token=abcdef", "example-cache"},
+			inputNextToken: "ghijkl",
+			expectedOutput: "nomad service info -page-token=ghijkl example-cache",
+			name:           "page token with equals sign",
+		},
+		{
+			inputOsArgs:    []string{"nomad", "service", "info", "-page-token", "abcdef", "example-cache"},
+			inputNextToken: "ghijkl",
+			expectedOutput: "nomad service info -page-token ghijkl example-cache",
+			name:           "page token with whitespace gap",
+		},
+		{
+			inputOsArgs:    []string{"nomad", "service", "info", "-per-page", "3", "-page-token", "abcdef", "example-cache"},
+			inputNextToken: "ghijkl",
+			expectedOutput: "nomad service info -per-page 3 -page-token ghijkl example-cache",
+			name:           "per page and page token",
+		},
+		{
+			inputOsArgs:    []string{"nomad", "service", "info", "-page-token", "abcdef", "-per-page", "3", "example-cache"},
+			inputNextToken: "ghijkl",
+			expectedOutput: "nomad service info -page-token ghijkl -per-page 3 example-cache",
+			name:           "page token and per page",
+		},
+		{
+			inputOsArgs:    []string{"nomad", "service", "info", "-page-token", "abcdef", "-per-page=3", "example-cache"},
+			inputNextToken: "ghijkl",
+			expectedOutput: "nomad service info -page-token ghijkl -per-page=3 example-cache",
+			name:           "page token and per page with equal",
+		},
+		{
+			inputOsArgs:    []string{"nomad", "service", "info", "-verbose", "-page-token", "abcdef", "-per-page=3", "example-cache"},
+			inputNextToken: "ghijkl",
+			expectedOutput: "nomad service info -verbose -page-token ghijkl -per-page=3 example-cache",
+			name:           "page token per page with verbose",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := argsWithNewPageToken(tc.inputOsArgs, tc.inputNextToken)
+			require.Equal(t, tc.expectedOutput, actualOutput)
+		})
+	}
 }

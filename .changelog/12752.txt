@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where plugins would not restart if they failed any time after a client restart
+```

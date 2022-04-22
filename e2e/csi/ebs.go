@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
+	e2e "github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
@@ -35,10 +36,21 @@ func (tc *CSIControllerPluginEBSTest) BeforeAll(f *framework.F) {
 	controllerJobID := "aws-ebs-plugin-controller-" + tc.uuid
 	f.NoError(e2eutil.Register(controllerJobID, "csi/input/plugin-aws-ebs-controller.nomad"))
 	tc.pluginJobIDs = append(tc.pluginJobIDs, controllerJobID)
-	expected := []string{"running", "running"}
-	f.NoError(
-		e2eutil.WaitForAllocStatusExpected(controllerJobID, ns, expected),
-		"job should be running")
+
+	f.NoError(e2e.WaitForAllocStatusComparison(
+		func() ([]string, error) { return e2e.AllocStatuses(controllerJobID, ns) },
+		func(got []string) bool {
+			if len(got) != 2 {
+				return false
+			}
+			for _, status := range got {
+				if status != "running" {
+					return false
+				}
+			}
+			return true
+		}, pluginAllocWait,
+	), "plugin job should be running")
 
 	// deploy the node plugins job
 	nodesJobID := "aws-ebs-plugin-nodes-" + tc.uuid

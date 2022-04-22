@@ -1,7 +1,7 @@
-resource "local_file" "nomad_systemd_unit_file" {
-  sensitive_content = templatefile("etc/nomad.d/nomad-${var.role}.service", {})
-  filename          = "${local.upload_dir}/nomad.d/nomad.service"
-  file_permission   = "0700"
+resource "local_sensitive_file" "nomad_systemd_unit_file" {
+  content         = templatefile("etc/nomad.d/nomad-${var.role}.service", {})
+  filename        = "${local.upload_dir}/nomad.d/nomad.service"
+  file_permission = "0600"
 }
 
 resource "null_resource" "install_nomad_binary_linux" {
@@ -91,6 +91,10 @@ resource "null_resource" "install_nomad_configs_linux" {
       "sudo mv /tmp/tls.hcl /etc/nomad.d/tls.hcl",
       "sudo mv /tmp/agent-${var.instance.public_ip}.key /etc/nomad.d/tls/agent.key",
       "sudo mv /tmp/agent-${var.instance.public_ip}.crt /etc/nomad.d/tls/agent.crt",
+      "sudo mv /tmp/tls_proxy.key /etc/nomad.d/tls/tls_proxy.key",
+      "sudo mv /tmp/tls_proxy.crt /etc/nomad.d/tls/tls_proxy.crt",
+      "sudo mv /tmp/self_signed.key /etc/nomad.d/tls/self_signed.key",
+      "sudo mv /tmp/self_signed.crt /etc/nomad.d/tls/self_signed.crt",
       "sudo mv /tmp/ca.crt /etc/nomad.d/tls/ca.crt",
 
       "sudo mv /tmp/nomad.service /etc/systemd/system/nomad.service",

@@ -2514,6 +2514,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						CanaryTags:        []string{"d", "e"},
 						EnableTagOverride: true,
 						PortLabel:         "1234",
+						Address:           "group.example.com",
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
@@ -2523,7 +2524,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 						Checks: []api.ServiceCheck{
 							{
-								Id:            "hello",
 								Name:          "bar",
 								Type:          "http",
 								Command:       "foo",
@@ -2602,12 +2602,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 						Services: []*api.Service{
 							{
-								Id:                "id",
 								Name:              "serviceA",
 								Tags:              []string{"1", "2"},
 								CanaryTags:        []string{"3", "4"},
 								EnableTagOverride: true,
 								PortLabel:         "foo",
+								Address:           "task.example.com",
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
@@ -2617,7 +2617,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								},
 								Checks: []api.ServiceCheck{
 									{
-										Id:                     "hello",
 										Name:                   "bar",
 										Type:                   "http",
 										Command:                "foo",
@@ -2639,7 +2638,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										},
 									},
 									{
-										Id:        "check2id",
 										Name:      "check2",
 										Type:      "tcp",
 										PortLabel: "foo",
@@ -2722,7 +2720,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							Env:          helper.BoolToPtr(true),
 							ChangeMode:   helper.StringToPtr("c"),
 							ChangeSignal: helper.StringToPtr("sighup"),
-							EntityAlias:  helper.StringToPtr("valid-alias"),
 						},
 						Templates: []*api.Template{
 							{
@@ -2914,6 +2911,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						EnableTagOverride: true,
 						PortLabel:         "1234",
 						AddressMode:       "auto",
+						Address:           "group.example.com",
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
@@ -3007,6 +3005,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								EnableTagOverride: true,
 								PortLabel:         "foo",
 								AddressMode:       "auto",
+								Address:           "task.example.com",
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
@@ -3123,7 +3122,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							Env:          true,
 							ChangeMode:   "c",
 							ChangeSignal: "sighup",
-							EntityAlias:  "valid-alias",
 						},
 						Templates: []*structs.Template{
 							{

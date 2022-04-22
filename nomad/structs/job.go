@@ -60,3 +60,42 @@ func requiresNativeServiceDiscovery(services []*Service) bool {
 	}
 	return false
 }
+
+// RequiredConsulServiceDiscovery identifies which task groups, if any, within
+// the job are utilising Consul service discovery.
+func (j *Job) RequiredConsulServiceDiscovery() map[string]bool {
+	groups := make(map[string]bool)
+
+	for _, tg := range j.TaskGroups {
+
+		// It is possible for services using the Consul provider to be
+		// configured at the task group level, so check here first. This is
+		// a requirement for Consul Connect services.
+		if requiresConsulServiceDiscovery(tg.Services) {
+			groups[tg.Name] = true
+			continue
+		}
+
+		// Iterate the tasks within the task group to check the services
+		// configured at this more traditional level.
+		for _, task := range tg.Tasks {
+			if requiresConsulServiceDiscovery(task.Services) {
+				groups[tg.Name] = true
+				continue
+			}
+		}
+	}
+
+	return groups
+}
+
+// requiresConsulServiceDiscovery identifies whether any of the services passed
+// to the function are utilising Consul service discovery.
+func requiresConsulServiceDiscovery(services []*Service) bool {
+	for _, tgService := range services {
+		if tgService.Provider == ServiceProviderConsul || tgService.Provider == "" {
+			return true
+		}
+	}
+	return false
+}

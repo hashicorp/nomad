@@ -118,7 +118,7 @@ Connect][connect] integration.
     If a `to` value is not set, the port falls back to using the allocated host port. The `port`
     field may be a numeric port or a port label specified in the same group's network stanza.
 
-  - `driver` - Advertise the port determined by the driver (e.g. Docker or rkt).
+  - `driver` - Advertise the port determined by the driver (e.g. Docker).
     The `port` may be a numeric port or a port label specified in the driver's
     `ports` field.
 
@@ -141,9 +141,13 @@ Connect][connect] integration.
   [documentation](https://www.consul.io/docs/internals/anti-entropy#enable-tag-override)
   for more information. Only available where `provider = "consul"`.
 
+- `address` `(string: <optional>)` - Specifies a custom address to advertise in
+  Consul or Nomad service registration. If set, `address_mode` must be in `auto`
+  mode. Useful with interpolation - for example to advertise the public IP address
+  of an AWS EC2 instance set this to `${attr.unique.platform.aws.public-ipv4}`.
+
 - `address_mode` `(string: "auto")` - Specifies which address (host, alloc or
-  driver-specific) this service should advertise. This setting is supported in
-  Docker since Nomad 0.6 and rkt since Nomad 0.7. See [below for
+  driver-specific) this service should advertise. See [below for
   examples.](#using-driver-address-mode) Valid options are:
 
   - `alloc` - For allocations which create a network namespace, this address mode
@@ -161,7 +165,7 @@ Connect][connect] integration.
     port map. A numeric port may be specified since port maps aren't required
     by all network plugins. Useful for advertising SDN and overlay network
     addresses. Task will fail if driver network cannot be determined. Only
-    implemented for Docker and rkt. This mode can only be set for services
+    implemented for Docker. This mode can only be set for services
     which are defined in a "task" block.
 
   - `host` - Use the host IP and port.
@@ -213,9 +217,11 @@ scripts.
 - `address_mode` `(string: "host")` - Same as `address_mode` on `service`.
   Unlike services, checks do not have an `auto` address mode as there's no way
   for Nomad to know which is the best address to use for checks. Consul needs
-  access to the address for any HTTP or TCP checks. Added in Nomad 0.7.1. See
+  access to the address for any HTTP or TCP checks. See
   [below for details.](#using-driver-address-mode) Unlike `port`, this setting
   is _not_ inherited from the `service`.
+  If the service `address` is set and the check `address_mode` is not set, the
+  service `address` value will be used for the check address.
 
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
@@ -588,13 +594,12 @@ selection.
 
 ### Using Driver Address Mode
 
-The [Docker](/docs/drivers/docker#network_mode) and
-[rkt](/docs/drivers/rkt#net) drivers support the `driver` setting for the
-`address_mode` parameter in both `service` and `check` stanzas. The driver
-address mode allows advertising and health checking the IP and port assigned to
-a task by the driver. This way, if you're using a network plugin like Weave with
-Docker, you can advertise the Weave address in Consul instead of the host's
-address.
+The [Docker](/docs/drivers/docker#network_mode) driver supports the `driver`
+setting for the `address_mode` parameter in both `service` and `check` stanzas.
+The driver address mode allows advertising and health checking the IP and port
+assigned to a task by the driver. This way, if you're using a network plugin like
+Weave with Docker, you can advertise the Weave address in Consul instead of the
+host's address.
 
 For example if you were running the example Redis job in an environment with
 Weave but Consul was running on the host you could use the following
@@ -643,7 +648,7 @@ job "example" {
 No explicit `address_mode` required.
 
 Services default to the `auto` address mode. When a Docker network mode other
-than "host" or "bridge" is used, services will automatically advertise the
+than `"host"` or `"bridge"` is used, services will automatically advertise the
 driver's address (in this case Weave's). The service will advertise the
 container's port: 6379.
 
