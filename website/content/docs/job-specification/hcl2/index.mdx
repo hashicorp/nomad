@@ -33,10 +33,11 @@ context from the local environment of the CLI (e.g., files, environment variable
 
 ## JSON Jobs
 
-Since HCL is a superset of JSON, `nomad job run example.json` would attempt to
-parse a JSON job using the HCL parser. However when JSON formatted jobs are
-desired, the preferred approach is to use the [API's JSON
-format][json-jobs-api] and the [`-json` command line flag][run-json]:
+Since HCL is a superset of JSON, `nomad job run example.json` will attempt to
+parse a JSON job using the HCL parser. However, the JSON format accepted by
+the HCL parser is not the same as the [API's JSON format][json-jobs-api]. The 
+HCL parser's JSON format is unspecified, so the API format is preferred. You can 
+use the API format with the [`-json` command line flag][run-json]:
 
 ```shell-session
 $ # Generate an HCL formatted job
@@ -49,7 +50,6 @@ $ # Submit with the -json flag
 $ nomad job run -json example.json
 ```
 
-The HCL parser's JSON format is unspecified, so the API format is preferred.
 
 [json-jobs-api]: /api-docs/json-jobs
 [run-json]: /docs/commands/job/run#json

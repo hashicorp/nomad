@@ -13,7 +13,8 @@ Nomad's HTTP API uses JSON formatted job specifications except for the
 
 The Nomad CLI includes a number of useful commands for working with JSON jobs.
 
-The [`nomad job run -output`][job-output] flag converts HCL jobs to JSON:
+The [`nomad job run -output`][job-output] flag converts HCL jobs to JSON
+without submitting the job:
 
 ```shell-session
 $ nomad job run -output my-job.nomad
