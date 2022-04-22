@@ -2,8 +2,10 @@ package command
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
