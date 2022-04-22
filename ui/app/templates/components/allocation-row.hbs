@@ -43,8 +43,7 @@
   <td data-test-task-group>
     <LinkTo
       @route="jobs.job.task-group"
-      @models={{array this.allocation.job this.allocation.taskGroupName}}
-      @query={{hash jobNamespace=this.allocation.job.namespace.id}}
+      @models={{array this.job this.allocation.taskGroupName}}
     >
       {{this.allocation.taskGroupName}}
     </LinkTo>
