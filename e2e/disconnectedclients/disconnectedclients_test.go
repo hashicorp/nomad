@@ -198,20 +198,20 @@ func waitForAllocStatusMap(jobID, disconnectedAllocID, unchangedAllocID string, 
 			case disconnectedAllocID:
 				if allocStatus != expected.disconnected {
 					merr = multierror.Append(merr, fmt.Errorf(
-						"disconnected alloc %q should be %q, got %q",
-						allocID, expected.disconnected, allocStatus))
+						"disconnected alloc %q on node %q should be %q, got %q",
+						allocID, alloc["Node ID"], expected.disconnected, allocStatus))
 				}
 			case unchangedAllocID:
 				if allocStatus != expected.unchanged {
 					merr = multierror.Append(merr, fmt.Errorf(
-						"unchanged alloc %q should be %q, got %q",
-						allocID, expected.unchanged, allocStatus))
+						"unchanged alloc %q on node %q should be %q, got %q",
+						allocID, alloc["Node ID"], expected.unchanged, allocStatus))
 				}
 			default:
 				if allocStatus != expected.replacement {
 					merr = multierror.Append(merr, fmt.Errorf(
-						"replacement alloc %q should be %q, got %q",
-						allocID, expected.replacement, allocStatus))
+						"replacement alloc %q on node %q should be %q, got %q",
+						allocID, alloc["Node ID"], expected.replacement, allocStatus))
 				}
 			}
 		}
