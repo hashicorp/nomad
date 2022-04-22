@@ -74,6 +74,10 @@ that volume.
 - `-eval-priority`: Override the priority of the evaluations produced as a result
   of this job submission. By default, this is set to the priority of the job.
 
+- `-json`: Parses the job file as JSON. If the outer object has a Job field,
+  such as from "nomad job inspect" or "nomad run -output", the value of the
+  field is used as the job. See [JSON Jobs] for details.
+
 - `-hcl1`: If set, HCL1 parser is used for parsing the job spec.
 
 - `-hcl2-strict`: Whether an error should be produced from the HCL2 parser where
@@ -225,11 +229,18 @@ $ nomad job run example.nomad
 ==> 2021-06-14T09:25:09-07:00: Evaluation "88a91284" finished with status "complete"
 ```
 
-[`go-getter`]: https://github.com/hashicorp/go-getter
-[deployment status]: /docs/commands/deployment#status
 [`batch`]: /docs/schedulers#batch
-[`system`]: /docs/schedulers#system
-[`job plan` command]: /docs/commands/job/plan
+[`consul` stanza `allow_unauthenticated`]: /docs/configuration/consul#allow_unauthenticated
+[deployment status]: /docs/commands/deployment#status
 [eval status]: /docs/commands/eval-status
+[`go-getter`]: https://github.com/hashicorp/go-getter
+[`job plan` command]: /docs/commands/job/plan
 [job specification]: /docs/job-specification
+<<<<<<< HEAD
 [`allow_unauthenticated`]: /docs/configuration/consul#allow_unauthenticated
+=======
+[JSON jobs]: /api-docs/json-jobs
+[`system`]: /docs/schedulers#system
+[`vault` stanza `allow_unauthenticated`]: /docs/configuration/vault#allow_unauthenticated
+[`vault_token`]: /docs/job-specification/job#vault_token
+>>>>>>> e4d6d5103 (docs: update json jobs docs (#12766))
