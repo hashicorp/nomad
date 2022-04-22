@@ -143,9 +143,6 @@ module('Acceptance | evaluations list', function (hooks) {
           per_page: '25',
           next_token: '',
           filter: '',
-          // TODO: add support for status and triggeredBy filters.
-          // status: '',
-          // triggeredBy: '',
         },
         'Forwards the correct query parameters on default query when route initially loads'
       );
@@ -163,8 +160,7 @@ module('Acceptance | evaluations list', function (hooks) {
   });
 
   module('filters', function () {
-    // TODO: add support for status and triggeredBy filters.
-    test.skip('it should enable filtering by evaluation status', async function (assert) {
+    test('it should enable filtering by evaluation status', async function (assert) {
       assert.expect(2);
 
       server.get('/evaluations', getStandardRes);
@@ -177,25 +173,20 @@ module('Acceptance | evaluations list', function (hooks) {
           {
             namespace: '*',
             per_page: '25',
-            status: 'pending',
             next_token: '',
-            triggeredBy: '',
-            filter: '',
+            filter: 'Status contains "pending"',
           },
           'It makes another server request using the options selected by the user'
         );
         return [];
       });
 
-      // TODO: add support for status and triggeredBy filters.
-      /*
       await clickTrigger('[data-test-evaluation-status-facet]');
       await selectChoose('[data-test-evaluation-status-facet]', 'Pending');
 
       assert
         .dom('[data-test-no-eval-match]')
         .exists('Renders a message saying no evaluations match filter status');
-      */
     });
 
     test('it should enable filtering by namespace', async function (assert) {
@@ -213,9 +204,6 @@ module('Acceptance | evaluations list', function (hooks) {
             per_page: '25',
             next_token: '',
             filter: '',
-            // TODO: add support for status and triggeredBy filters.
-            // status: '',
-            // triggeredBy: '',
           },
           'It makes another server request using the options selected by the user'
         );
@@ -230,8 +218,7 @@ module('Acceptance | evaluations list', function (hooks) {
         .exists('Renders a message saying no evaluations match filter status');
     });
 
-    // TODO: add support for status and triggeredBy filters.
-    test.skip('it should enable filtering by triggered by', async function (assert) {
+    test('it should enable filtering by triggered by', async function (assert) {
       assert.expect(2);
 
       server.get('/evaluations', getStandardRes);
@@ -244,10 +231,8 @@ module('Acceptance | evaluations list', function (hooks) {
           {
             namespace: '*',
             per_page: '25',
-            status: '',
             next_token: '',
-            triggeredBy: 'periodic-job',
-            filter: '',
+            filter: `TriggeredBy contains "periodic-job"`,
           },
           'It makes another server request using the options selected by the user'
         );
@@ -265,8 +250,7 @@ module('Acceptance | evaluations list', function (hooks) {
         .exists('Renders a message saying no evaluations match filter status');
     });
 
-    // TODO: add support for type filter.
-    test.skip('it should enable filtering by type', async function (assert) {
+    test('it should enable filtering by type', async function (assert) {
       assert.expect(2);
 
       server.get('/evaluations', getStandardRes);
@@ -279,9 +263,7 @@ module('Acceptance | evaluations list', function (hooks) {
           {
             namespace: '*',
             per_page: '25',
-            status: '',
             next_token: '',
-            triggeredBy: '',
             filter: 'NodeID is not empty',
           },
           'It makes another server request using the options selected by the user'
@@ -313,9 +295,6 @@ module('Acceptance | evaluations list', function (hooks) {
             per_page: '25',
             next_token: '',
             filter: `ID contains "${searchTerm}" or JobID contains "${searchTerm}" or NodeID contains "${searchTerm}" or TriggeredBy contains "${searchTerm}"`,
-            // TODO: add support for status and triggeredBy filters.
-            // status: '',
-            // triggeredBy: '',
           },
           'It makes another server request using the options selected by the user'
         );
@@ -323,6 +302,81 @@ module('Acceptance | evaluations list', function (hooks) {
       });
 
       await typeIn('[data-test-evaluations-search] input', searchTerm);
+
+      assert
+        .dom('[data-test-empty-evaluations-list]')
+        .exists('Renders a message saying no evaluations match filter status');
+    });
+
+    test('it should enable combining filters and search', async function (assert) {
+      assert.expect(5);
+
+      server.get('/evaluations', getStandardRes);
+
+      await visit('/evaluations');
+
+      const searchTerm = 'Lasso';
+      server.get('/evaluations', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: `ID contains "${searchTerm}" or JobID contains "${searchTerm}" or NodeID contains "${searchTerm}" or TriggeredBy contains "${searchTerm}"`,
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+      await typeIn('[data-test-evaluations-search] input', searchTerm);
+
+      server.get('/evaluations', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: `(ID contains "${searchTerm}" or JobID contains "${searchTerm}" or NodeID contains "${searchTerm}" or TriggeredBy contains "${searchTerm}") and NodeID is not empty`,
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+      await clickTrigger('[data-test-evaluation-type-facet]');
+      await selectChoose('[data-test-evaluation-type-facet]', 'Client');
+
+      server.get('/evaluations', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: `NodeID is not empty`,
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+      await click('[data-test-evaluations-search] button');
+
+      server.get('/evaluations', function (_server, fakeRequest) {
+        assert.deepEqual(
+          fakeRequest.queryParams,
+          {
+            namespace: '*',
+            per_page: '25',
+            next_token: '',
+            filter: `NodeID is not empty and Status contains "complete"`,
+          },
+          'It makes another server request using the options selected by the user'
+        );
+        return [];
+      });
+      await clickTrigger('[data-test-evaluation-status-facet]');
+      await selectChoose('[data-test-evaluation-status-facet]', 'Complete');
 
       assert
         .dom('[data-test-empty-evaluations-list]')
@@ -352,9 +406,6 @@ module('Acceptance | evaluations list', function (hooks) {
             per_page: '50',
             next_token: '',
             filter: '',
-            // TODO: add support for status and triggeredBy filters.
-            // status: '',
-            // triggeredBy: '',
           },
           'It makes a request with the per_page set by the user'
         );
@@ -388,9 +439,6 @@ module('Acceptance | evaluations list', function (hooks) {
             per_page: '25',
             next_token: 'next-token-1',
             filter: '',
-            // TODO: add support for status and triggeredBy filters.
-            // status: '',
-            // triggeredBy: '',
           },
           'It makes another server request using the options selected by the user'
         );
@@ -416,9 +464,6 @@ module('Acceptance | evaluations list', function (hooks) {
             per_page: '25',
             next_token: 'next-token-2',
             filter: '',
-            // TODO: add support for status and triggeredBy filters.
-            // status: '',
-            // triggeredBy: '',
           },
           'It makes another server request using the options selected by the user'
         );
@@ -444,9 +489,6 @@ module('Acceptance | evaluations list', function (hooks) {
             per_page: '25',
             next_token: 'next-token-1',
             filter: '',
-            // TODO: add support for status and triggeredBy filters.
-            // status: '',
-            // triggeredBy: '',
           },
           'It makes a request using the stored old token.'
         );
@@ -467,9 +509,6 @@ module('Acceptance | evaluations list', function (hooks) {
             per_page: '25',
             next_token: '',
             filter: '',
-            // TODO: add support for status and triggeredBy filters.
-            // status: '',
-            // triggeredBy: '',
           },
           'When there are no more stored previous tokens, we will request with no next-token.'
         );
@@ -483,8 +522,7 @@ module('Acceptance | evaluations list', function (hooks) {
       await click('[data-test-eval-pagination-prev]');
     });
 
-    // TODO: add support for status and triggeredBy filters.
-    test.skip('it should clear all query parameters on refresh', async function (assert) {
+    test('it should clear all query parameters on refresh', async function (assert) {
       assert.expect(1);
 
       server.get('/evaluations', function () {
@@ -512,9 +550,7 @@ module('Acceptance | evaluations list', function (hooks) {
           {
             namespace: '*',
             per_page: '25',
-            status: '',
             next_token: '',
-            triggeredBy: '',
             filter: '',
           },
           'It clears all query parameters when making a refresh'
@@ -529,8 +565,7 @@ module('Acceptance | evaluations list', function (hooks) {
       await click('[data-test-eval-refresh]');
     });
 
-    // TODO: add support for status and triggeredBy filters.
-    test.skip('it should reset pagination when filters are applied', async function (assert) {
+    test('it should reset pagination when filters are applied', async function (assert) {
       assert.expect(1);
 
       server.get('/evaluations', function () {
@@ -562,10 +597,8 @@ module('Acceptance | evaluations list', function (hooks) {
           {
             namespace: '*',
             per_page: '25',
-            status: 'pending',
             next_token: '',
-            triggeredBy: '',
-            filter: '',
+            filter: 'Status contains "pending"',
           },
           'It clears all next token when filtered request is made'
         );

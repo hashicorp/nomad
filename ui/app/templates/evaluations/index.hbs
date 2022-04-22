@@ -12,7 +12,6 @@
         />
       </div>
       <div class="toolbar-item is-right-aligned">
-        {{!-- TODO: add support for status and triggered by
         <SingleSelectDropdown
           data-test-evaluation-status-facet
           @label="Status"
@@ -34,7 +33,6 @@
           @selection={{this.type}}
           @onSelect={{action this.setQueryParam "type"}}
         />
-        --}}
         <SingleSelectDropdown
           data-test-evaluation-namespace-facet
           @label="Namespace"
@@ -73,7 +71,7 @@
           <tr
             data-test-evaluation="{{row.model.shortId}}"
             style="cursor: pointer;"
-            class="{{if (eq this.currentEval row.model.id) 'is-active'}}"
+            class="{{if (eq this.currentEval row.model.id) "is-active"}}"
             tabindex="0"
             {{on "click" (fn this.handleEvaluationClick row.model)}}
             {{on "keyup" (fn this.handleEvaluationClick row.model)}}
@@ -166,11 +164,11 @@
             No Matches
           </h3>
           <p class="empty-message-body">
-            {{#if this.status}}
+            {{#if this.hasFiltersApplied}}
               <span data-test-no-eval-match>
-                No evaluations match the status
+                No evaluations that match:
                 <strong>
-                  {{this.status}}
+                  {{this.noMatchText}}
                 </strong>
               </span>
             {{else}}
