@@ -18,9 +18,9 @@ export default Factory.extend({
       return `${this.parentId}/${dispatchId}`;
     }
 
-    return `${faker.helpers.randomize(JOB_PREFIXES)}-${faker.hacker
-      .noun()
-      .dasherize()}-${i}`.toLowerCase();
+    return `${faker.helpers.randomize(JOB_PREFIXES)}-${dasherize(
+      faker.hacker.noun()
+    )}-${i}`.toLowerCase();
   },
 
   name() {
