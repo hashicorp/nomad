@@ -88,7 +88,11 @@
         <span class="term">
           Job
         </span>
-        <LinkTo @route="jobs.job" @model={{this.model.job}} data-test-job-link>
+        <LinkTo
+          @route="jobs.job"
+          @model={{format-job-id this.model.job.id}}
+          data-test-job-link
+        >
           {{this.model.job.name}}
         </LinkTo>
       </span>
