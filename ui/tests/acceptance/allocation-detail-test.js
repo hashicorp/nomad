@@ -279,7 +279,7 @@ module('Acceptance | allocation detail', function (hooks) {
       assert.equal(renderedPort.name, serverPort.Label);
       assert.equal(renderedPort.to, serverPort.To);
       assert.equal(
-        renderedPort.address,
+        renderedPort.address.replace(/\s/g, ''),
         formatHost(serverPort.HostIP, serverPort.Value)
       );
     });
