@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where plugin configuration updates were not considered destructive
+```

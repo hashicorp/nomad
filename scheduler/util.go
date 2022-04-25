@@ -456,6 +456,9 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		if !reflect.DeepEqual(at.Templates, bt.Templates) {
 			return true
 		}
+		if !reflect.DeepEqual(at.CSIPluginConfig, bt.CSIPluginConfig) {
+			return true
+		}
 
 		// Check the metadata
 		if !reflect.DeepEqual(
