@@ -48,7 +48,7 @@ endif
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 # LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
-# published release, but backport branches should point to the parent tag (e.g. 1.0.8 in release-1.0.9 after 1.1.0 is cut).
+# published release, and release branches should point to the latest published release in the X.Y release line.
 LAST_RELEASE ?= v1.2.6
 
 default: help
