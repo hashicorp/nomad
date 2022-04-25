@@ -28,8 +28,6 @@ export default class AllocationRow extends Component {
   @service token;
 
   allocation = null;
-  // If this component is rendered by RecentAllocations in the Job Page, pass the job model to generate correct link
-  job = null;
 
   // Used to determine whether the row should mention the node or the job
   context = null;
