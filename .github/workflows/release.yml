@@ -1,9 +1,13 @@
-name: Generate Static Assets
+name: Release
 
 on:
-  push:
-    branches:
-      - "release/**"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version being released'
+        required: true
+        type: string
+
 env:
   GO_TAGS: "release"
 
@@ -21,12 +25,15 @@ jobs:
         run: |
           echo "Building with Go $(cat .go-version)"
           echo "::set-output name=go-version::$(cat .go-version)"
-  generate-metadata:
-    runs-on: ubuntu-latest
+
+  prepare-release:
     needs: get-go-version
-    name: generate-metadata
+    runs-on: ubuntu-latest
+    outputs:
+      build-ref: ${{ steps.commit-change-push.outputs.build-ref }}
     steps:
       - uses: actions/checkout@v2
+
       - name: Setup go
         uses: actions/setup-go@v2
         with:
@@ -37,15 +44,17 @@ jobs:
         with:
           node-version: "14"
           cache-dependency-path: "ui/yarn.lock"
+
       - name: Install Yarn
         run: |
           npm install -g yarn
-      - uses: actions/checkout@v2
+
       - name: Generate static assets
         id: generate-static-assets
         run: |
           make deps
           make prerelease
+
       - name: Commit and push changes
         id: commit-change-push
         run: |
@@ -61,8 +70,11 @@ jobs:
           else
             echo "no files were updated"
           fi
-      - name: Invoke build workflow
-        uses: benc-uk/workflow-dispatch@4c044c1613fabbe5250deadc65452d54c4ad4fc7
-        with:
-          workflow: build
-          token: ${{ secrets.ELEVATED_GITHUB_TOKEN}}
+          echo "::set-output name=build-ref::$(git rev-parse HEAD)"
+
+  build:
+    needs: prepare-release
+    uses: ./.github/workflows/build.yml
+    with:
+      build-ref: ${{ needs.prepare-release.outputs.build-ref }}
+      make-prerelease: false
