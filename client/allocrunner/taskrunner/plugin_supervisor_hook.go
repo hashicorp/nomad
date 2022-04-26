@@ -44,9 +44,7 @@ type csiPluginSupervisorHook struct {
 
 	shutdownCtx      context.Context
 	shutdownCancelFn context.CancelFunc
-
-	running     bool
-	runningLock sync.Mutex
+	runOnce          sync.Once
 
 	// previousHealthstate is used by the supervisor goroutine to track historic
 	// health states for gating task events.
@@ -224,16 +222,11 @@ func (h *csiPluginSupervisorHook) Poststart(_ context.Context, _ *interfaces.Tas
 
 	// If we're already running the supervisor routine, then we don't need to try
 	// and restart it here as it only terminates on `Stop` hooks.
-	h.runningLock.Lock()
-	if h.running {
-		h.runningLock.Unlock()
-		return nil
-	}
-	h.runningLock.Unlock()
+	h.runOnce.Do(func() {
+		h.setSocketHook()
+		go h.ensureSupervisorLoop(h.shutdownCtx)
+	})
 
-	h.setSocketHook()
-
-	go h.ensureSupervisorLoop(h.shutdownCtx)
 	return nil
 }
 
@@ -251,20 +244,6 @@ func (h *csiPluginSupervisorHook) Poststart(_ context.Context, _ *interfaces.Tas
 //
 // Deeper fingerprinting of the plugin is implemented by the csimanager.
 func (h *csiPluginSupervisorHook) ensureSupervisorLoop(ctx context.Context) {
-	h.runningLock.Lock()
-	if h.running {
-		h.runningLock.Unlock()
-		return
-	}
-	h.running = true
-	h.runningLock.Unlock()
-
-	defer func() {
-		h.runningLock.Lock()
-		h.running = false
-		h.runningLock.Unlock()
-	}()
-
 	client := csi.NewClient(h.socketPath, h.logger.Named("csi_client").With(
 		"plugin.name", h.task.CSIPluginConfig.ID,
 		"plugin.type", h.task.CSIPluginConfig.Type))
@@ -314,15 +293,15 @@ WAITFORREADY:
 		h.kill(ctx, fmt.Errorf("CSI plugin failed to register: %v", err))
 		return
 	}
+	// De-register plugins on task shutdown
+	defer deregisterPluginFn()
 
-	// Step 3: Start the lightweight supervisor loop. At this point, failures
-	// don't cause the task to restart
+	// Step 3: Start the lightweight supervisor loop. At this point,
+	// probe failures don't cause the task to restart
 	t.Reset(0)
 	for {
 		select {
 		case <-ctx.Done():
-			// De-register plugins on task shutdown
-			deregisterPluginFn()
 			return
 		case <-t.C:
 			pluginHealthy, err := h.supervisorLoopOnce(ctx, client)
