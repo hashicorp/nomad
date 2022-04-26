@@ -102,7 +102,7 @@ func newMigratorForAlloc(c Config, tg *structs.TaskGroup, watchedAllocID string,
 	migrate := tg.EphemeralDisk != nil && tg.EphemeralDisk.Migrate
 
 	if m != nil {
-		// Local Allocation because there's no meta
+		// Local Allocation because there's an alloc runner
 		return &localPrevAlloc{
 			allocID:      c.Alloc.ID,
 			prevAllocID:  watchedAllocID,
@@ -117,7 +117,7 @@ func newMigratorForAlloc(c Config, tg *structs.TaskGroup, watchedAllocID string,
 
 	return &remotePrevAlloc{
 		allocID:      c.Alloc.ID,
-		prevAllocID:  c.Alloc.PreviousAllocation,
+		prevAllocID:  watchedAllocID,
 		tasks:        tasks,
 		config:       c.Config,
 		migrate:      migrate,
@@ -127,11 +127,17 @@ func newMigratorForAlloc(c Config, tg *structs.TaskGroup, watchedAllocID string,
 	}
 }
 
+// newWatcherForAlloc uses a local or rpc-based watcher depending on whether
+// AllocRunnerMeta is nil or not.
+//
+// Note that c.Alloc.PreviousAllocation must NOT be used in this func as it
+// used for preemption which has a distinct field. The caller is responsible
+// for passing the allocation to be watched as watchedAllocID.
 func newWatcherForAlloc(c Config, watchedAllocID string, m AllocRunnerMeta) PrevAllocWatcher {
 	logger := c.Logger.Named("alloc_watcher").With("alloc_id", c.Alloc.ID).With("previous_alloc", watchedAllocID)
 
 	if m != nil {
-		// Local Allocation because there's no meta
+		// Local Allocation because there's an alloc runner
 		return &localPrevAlloc{
 			allocID:      c.Alloc.ID,
 			prevAllocID:  watchedAllocID,
@@ -144,7 +150,7 @@ func newWatcherForAlloc(c Config, watchedAllocID string, m AllocRunnerMeta) Prev
 
 	return &remotePrevAlloc{
 		allocID:      c.Alloc.ID,
-		prevAllocID:  c.Alloc.PreviousAllocation,
+		prevAllocID:  watchedAllocID,
 		config:       c.Config,
 		rpc:          c.RPC,
 		migrateToken: c.MigrateToken,
@@ -152,9 +158,12 @@ func newWatcherForAlloc(c Config, watchedAllocID string, m AllocRunnerMeta) Prev
 	}
 }
 
-// NewAllocWatcher creates a PrevAllocWatcher appropriate for whether this
-// alloc's previous allocation was local or remote. If this alloc has no
-// previous alloc then a noop implementation is returned.
+// NewAllocWatcher creates a PrevAllocWatcher if either PreviousAllocation or
+// PreemptedRunners are set. If any of the allocs to watch have local runners,
+// wait for them to terminate directly.
+// For allocs which are either running on another node or have already
+// terminated their alloc runners, use a remote backend which watches the alloc
+// status via rpc.
 func NewAllocWatcher(c Config) (PrevAllocWatcher, PrevAllocMigrator) {
 	if c.Alloc.PreviousAllocation == "" && c.PreemptedRunners == nil {
 		return NoopPrevAlloc{}, NoopPrevAlloc{}
