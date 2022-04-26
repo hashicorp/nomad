@@ -6,7 +6,6 @@ import { generateDiff } from './factories/job-version';
 import { generateTaskGroupFailures } from './factories/evaluation';
 import { copy } from 'ember-copy';
 import formatHost from 'nomad-ui/utils/format-host';
-import { generateAcceptanceTestEvalMock } from './utils';
 
 export function findLeader(schema) {
   const agent = schema.agents.first();
