@@ -46,64 +46,43 @@ function smallCluster(server) {
   server.create('feature', { name: 'Dynamic Application Sizing' });
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node', 5);
-  server.createList('job', 5, { createRecommendations: true });
+  server.createList('job', 1, { createRecommendations: true });
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
   server.createList('csi-plugin', 2);
 
   // #region evaluations
 
-  // Branching: a single eval that relates to 2 mutually-unrelated evals
+  // Branching: a single eval that relates to N-1 mutually-unrelated evals
+  const NUM_BRANCHING_EVALUATIONS = 3;
+  Array(NUM_BRANCHING_EVALUATIONS)
+    .fill()
+    .map((_, i) => {
+      return {
+        evaluation: server.create('evaluation', {
+          id: `branching_${i}`,
+          previousEval: i > 0 ? `branching_0` : '',
+          jobID: pickOne(server.db.jobs).id,
+        }),
 
-  const rootBranchingEval = server.create('evaluation', {
-    id: 'branching_1',
-    status: 'failed',
-    jobID: pickOne(server.db.jobs).id,
-  });
-  const secondBranchingEval = server.create('evaluation', {
-    id: 'branching_2',
-    status: 'failed',
-    previousEval: rootBranchingEval.id,
-    jobID: pickOne(server.db.jobs).id,
-  });
-  const thirdBranchingEval = server.create('evaluation', {
-    id: 'branching_3',
-    status: 'failed',
-    previousEval: rootBranchingEval.id,
-    jobID: pickOne(server.db.jobs).id,
-  });
+        evaluationStub: server.create('evaluation-stub', {
+          id: `branching_${i}`,
+          previousEval: i > 0 ? `branching_0` : '',
+          status: 'failed',
+        }),
+      };
+    })
+    .map((x, i, all) => {
+      x.evaluation.update({
+        relatedEvals:
+          i === 0
+            ? all.filter((_, j) => j !== 0).map((e) => e.evaluation)
+            : all.filter((_, j) => j !== i).map((e) => e.evaluation),
+      });
+      return x;
+    });
 
-  const rootBranchingEvalStub = server.create('evaluation-stub', {
-    id: rootBranchingEval.id,
-    status: 'failed',
-  });
-
-  const secondBranchingEvalStub = server.create('evaluation-stub', {
-    id: secondBranchingEval.id,
-    previousEval: rootBranchingEval.id,
-    status: 'failed',
-  });
-
-  const thirdBranchingEvalStub = server.create('evaluation-stub', {
-    id: thirdBranchingEval.id,
-    previousEval: rootBranchingEval.id,
-    status: 'failed',
-  });
-
-  rootBranchingEval.update({
-    relatedEvals: [secondBranchingEvalStub, thirdBranchingEvalStub],
-  });
-
-  secondBranchingEval.update({
-    relatedEvals: [rootBranchingEvalStub, thirdBranchingEvalStub],
-  });
-
-  thirdBranchingEval.update({
-    relatedEvals: [rootBranchingEvalStub, secondBranchingEvalStub],
-  });
-
-  // Linear: a long line of 5 related evaluations
-
+  // Linear: a long line of N related evaluations
   const NUM_LINEAR_EVALUATIONS = 20;
   Array(NUM_LINEAR_EVALUATIONS)
     .fill()
@@ -111,7 +90,6 @@ function smallCluster(server) {
       return {
         evaluation: server.create('evaluation', {
           id: `linear_${i}`,
-          status: 'failed',
           previousEval: i > 0 ? `linear_${i - 1}` : '',
           jobID: pickOne(server.db.jobs).id,
         }),
@@ -126,7 +104,7 @@ function smallCluster(server) {
     })
     .map((x, i, all) => {
       x.evaluation.update({
-        relatedEvals: all.filter((_, j) => i !== j).map((x) => x.evaluation),
+        relatedEvals: all.filter((_, j) => i !== j).map((e) => e.evaluation),
       });
       return x;
     });
