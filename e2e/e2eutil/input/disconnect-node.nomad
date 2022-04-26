@@ -13,6 +13,11 @@ job "disconnect-node" {
 
   group "group" {
 
+    reschedule {
+      attempts  = 0
+      unlimited = false
+    }
+
     # need to prevent the task from being restarted on reconnect, if
     # we're stopped long enough for the node to be marked down
     max_client_disconnect = "1h"
