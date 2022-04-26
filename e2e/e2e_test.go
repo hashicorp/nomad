@@ -15,7 +15,6 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/consultemplate"
 	_ "github.com/hashicorp/nomad/e2e/csi"
 	_ "github.com/hashicorp/nomad/e2e/deployment"
-	_ "github.com/hashicorp/nomad/e2e/disconnectedclients"
 	_ "github.com/hashicorp/nomad/e2e/eval_priority"
 	_ "github.com/hashicorp/nomad/e2e/events"
 	_ "github.com/hashicorp/nomad/e2e/isolation"
@@ -40,6 +39,10 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/spread"
 	_ "github.com/hashicorp/nomad/e2e/taskevents"
 	_ "github.com/hashicorp/nomad/e2e/vaultsecrets"
+
+	// these are no longer on the old framework but by importing them
+	// we get a quick check that they compile on every commit
+	_ "github.com/hashicorp/nomad/e2e/disconnectedclients"
 	_ "github.com/hashicorp/nomad/e2e/volumes"
 )
 
