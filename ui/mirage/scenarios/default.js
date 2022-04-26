@@ -58,16 +58,19 @@ function smallCluster(server) {
   const rootBranchingEval = server.create('evaluation', {
     id: 'branching_1',
     status: 'failed',
+    jobID: pickOne(server.db.jobs).id,
   });
   const secondBranchingEval = server.create('evaluation', {
     id: 'branching_2',
     status: 'failed',
     previousEval: rootBranchingEval.id,
+    jobID: pickOne(server.db.jobs).id,
   });
   const thirdBranchingEval = server.create('evaluation', {
     id: 'branching_3',
     status: 'failed',
     previousEval: rootBranchingEval.id,
+    jobID: pickOne(server.db.jobs).id,
   });
 
   const rootBranchingEvalStub = server.create('evaluation-stub', {
@@ -110,6 +113,7 @@ function smallCluster(server) {
           id: `linear_${i}`,
           status: 'failed',
           previousEval: i > 0 ? `linear_${i - 1}` : '',
+          jobID: pickOne(server.db.jobs).id,
         }),
 
         evaluationStub: server.create('evaluation-stub', {

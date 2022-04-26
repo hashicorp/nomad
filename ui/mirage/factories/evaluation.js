@@ -124,12 +124,8 @@ function assignJob(evaluation, server) {
   const job = evaluation.jobId
     ? server.db.jobs.find(evaluation.jobId)
     : pickOne(server.db.jobs);
-  const node = evaluation.nodeId
-    ? server.db.nodes.find(evaluation.nodeId)
-    : pickOne(server.db.nodes);
   evaluation.update({
     jobId: job.id,
-    nodeId: node.id,
   });
 }
 
