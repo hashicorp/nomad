@@ -69,9 +69,9 @@ jobs:
         run: |
           NOMAD_MAIN_VERSION = $(echo "${{ inputs.version }}" | cut -d- -f1)
           NOMAD_PRERELEASE_VERSION = $(echo "${{ inputs.version }}" | sed 's|^[^-]*-\{0,1\}||g' )
-          echo "updating version to $(NOMAD_MAIN_VERSION)-$(NOMAD_PRERELEASE_VERSION)"
-          sed -i.bak -e 's|\(Version * = *"\)[^"]*|\1$(NOMAD_MAIN_VERSION)|g' version/version.go
-          sed -i.bak -e 's|\(VersionPrerelease * = *"\)[^"]*|\1$(NOMAD_PRERELEASE_VERSION)|g' version/version.go
+          echo "updating version to ${NOMAD_MAIN_VERSION}-${NOMAD_PRERELEASE_VERSION}"
+          sed -i.bak -e 's|\(Version * = *"\)[^"]*|\1${NOMAD_MAIN_VERSION}|g' version/version.go
+          sed -i.bak -e 's|\(VersionPrerelease * = *"\)[^"]*|\1${NOMAD_PRERELEASE_VERSION}|g' version/version.go
           rm -rf version/version.go.bak
 
       - name: Update changelog
