@@ -234,9 +234,7 @@
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {{row.model.hostIp}}
-                  :
-                  {{row.model.value}}
+                  {{format-port row.model.hostIp row.model.value}}
                 </a>
               </td>
               <td data-test-allocation-port-to>
