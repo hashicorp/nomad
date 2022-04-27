@@ -55,6 +55,8 @@ type OperatorDebugCommand struct {
 	cancel        context.CancelFunc
 	opts          *api.QueryOptions
 	verbose       bool
+	members       *api.ServerMembers
+	nodes         []*api.NodeListStub
 }
 
 const (
@@ -503,6 +505,14 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		AuthToken:  c.Meta.token,
 	}
 
+	// Get complete list of client nodes
+	var qm *api.QueryMeta
+	c.nodes, qm, err = client.Nodes().List(c.queryOpts())
+	c.verboseOutf("%d nodes retrieved in %s", len(c.nodes), qm.RequestTime.String())
+
+	// Write nodes to file
+	c.writeJSON(clusterDir, "nodes.json", c.nodes, err)
+
 	// Search all nodes If a node class is specified without a list of node id prefixes
 	if c.nodeClass != "" && nodeIDs == "" {
 		nodeIDs = "all"
@@ -566,17 +576,17 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 
 	// Resolve servers
-	members, err := client.Agent().MembersOpts(c.queryOpts())
+	c.members, err = client.Agent().MembersOpts(c.queryOpts())
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to retrieve server list; err: %v", err))
 		return 1
 	}
 
 	// Write complete list of server members to file
-	c.writeJSON(clusterDir, "members.json", members, err)
+	c.writeJSON(clusterDir, "members.json", c.members, err)
 
 	// Filter for servers matching criteria
-	c.serverIDs, err = filterServerMembers(members, serverIDs, c.region)
+	c.serverIDs, err = filterServerMembers(c.members, serverIDs, c.region)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse server list; err: %v", err))
 		return 1
@@ -585,8 +595,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	serversFound := 0
 	serverCaptureCount := 0
 
-	if members != nil {
-		serversFound = len(members.Members)
+	if c.members != nil {
+		serversFound = len(c.members.Members)
 	}
 	if c.serverIDs != nil {
 		serverCaptureCount = len(c.serverIDs)
@@ -1716,6 +1726,28 @@ func isRedirectError(err error) bool {
 	return strings.Contains(err.Error(), redirectErr)
 }
 
+// getNomadVersion fetches the version of Nomad running on a given server/client node ID
+func (c *OperatorDebugCommand) getNomadVersion(serverID string, nodeID string) string {
+	version := ""
+
+	if serverID != "" {
+		for _, server := range c.members.Members {
+			if server.Tags["id"] == serverID {
+				version = server.Tags["id"]
+			}
+		}
+	}
+
+	if nodeID != "" {
+		for _, node := range c.nodes {
+			if node.ID == nodeID {
+				version = node.Version
+			}
+		}
+	}
+
+	return version
+}
 
 // checkVersion verifies that version satisfies the constraint
 func checkVersion(version string, versionConstraint string) (bool, error) {
