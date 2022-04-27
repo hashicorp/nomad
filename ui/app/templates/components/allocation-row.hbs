@@ -94,8 +94,7 @@
     {{else}}
       <LinkTo
         @route="jobs.job"
-        @model={{this.allocation.job}}
-        @query={{hash jobNamespace=this.allocation.job.namespace.id}}
+        @model={{format-job-id this.allocation.job.id}}
         data-test-job
       >
         {{this.allocation.job.name}}
