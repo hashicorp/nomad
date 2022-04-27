@@ -129,6 +129,9 @@ func TestDisconnectedClients(t *testing.T) {
 				[]string{"running", "running"})
 			require.NoError(t, err, "job should be running")
 
+			err = e2eutil.WaitForLastDeploymentStatus(jobID, ns, "successful", nil)
+			require.NoError(t, err, "success", "deployment did not complete")
+
 			// pick one alloc to make our disconnected alloc (and its node)
 			allocs, err := e2eutil.AllocsForJob(jobID, ns)
 			require.NoError(t, err, "could not query allocs for job")
