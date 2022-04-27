@@ -288,7 +288,7 @@ export default Factory.extend({
 
     if (!job.shallow) {
       const knownEvaluationProperties = {
-        job,
+        jobId: job.id,
         namespace: job.namespace,
       };
       server.createList(
