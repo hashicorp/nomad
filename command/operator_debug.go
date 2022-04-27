@@ -993,10 +993,10 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 	// Reset to pprof binary format
 	opts.Debug = 0
 
-	c.savePprofProfile(path, "goroutine", opts, client)    // Stack traces of all current goroutines
-	c.savePprofProfile(path, "heap", opts, client)         // A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.
-	c.savePprofProfile(path, "allocs", opts, client)       // A sampling of all past memory allocations
-	c.savePprofProfile(path, "threadcreate", opts, client) // Stack traces that led to the creation of new OS threads
+	c.savePprofProfile(path, "goroutine", opts, client) // Stack traces of all current goroutines
+	c.savePprofProfile(path, "trace", opts, client)     // A trace of execution of the current program
+	c.savePprofProfile(path, "heap", opts, client)      // A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.
+	c.savePprofProfile(path, "allocs", opts, client)    // A sampling of all past memory allocations
 
 	// This profile is disabled by default -- Requires runtime.SetBlockProfileRate to enable
 	// c.savePprofProfile(path, "block", opts, client)        // Stack traces that led to blocking on synchronization primitives
@@ -1004,18 +1004,14 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 	// This profile is disabled by default -- Requires runtime.SetMutexProfileFraction to enable
 	// c.savePprofProfile(path, "mutex", opts, client)        // Stack traces of holders of contended mutexes
 
-	// trace pprof causes a panic on Nomad 0.11.0 to 0.11.2, so verify the the
-	// Nomad version of this agent before capture
+	// threadcreate pprof causes a panic on Nomad 0.11.0 to 0.11.2 -- skip those versions
 	version := c.getNomadVersion(opts.NodeID, opts.ServerID)
-	// c.Ui.Output(fmt.Sprintf("Nomad Version: %v", version))
-
 	if _, err := checkVersion(version, ">= 0.11.0, <= 0.11.2"); err != nil {
-		c.Ui.Error((fmt.Sprintf("Not running trace pprof profile, err: %v", err)))
+		c.Ui.Error((fmt.Sprintf("Not running threadcreate pprof profile, err: %v", err)))
 		return
 	}
 
-	c.savePprofProfile(path, "trace", opts, client) // A trace of execution of the current program
-
+	c.savePprofProfile(path, "threadcreate", opts, client) // Stack traces that led to the creation of new OS threads
 }
 
 // savePprofProfile retrieves a pprof profile and writes to disk
