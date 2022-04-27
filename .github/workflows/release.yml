@@ -115,9 +115,12 @@ jobs:
           fi
           echo "::set-output name=build-ref::$(git rev-parse HEAD)"
 
-  build:
-    needs: prepare-release
-    uses: ./.github/workflows/build.yml
-    with:
-      build-ref: ${{ needs.prepare-release.outputs.build-ref }}
-      make-prerelease: false
+      - run: sleep 120
+
+      - name: Invoke build workflow
+        uses: benc-uk/workflow-dispatch@v1.1
+        with:
+          workflow: build
+          token: ${{ secrets.ELEVATED_GITHUB_TOKEN}}
+          inputs: '{"build-ref": "${{ steps.commit-change-push.outputs.build-ref }}", "make-prerelease": "false"}'
+          ref: ${{ needs.prepare-release.outputs.build-ref }}

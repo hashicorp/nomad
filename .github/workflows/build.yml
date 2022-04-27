@@ -1,7 +1,7 @@
-name: Build
+name: build
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       build-ref:
         description: 'The git ref to build from'
@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: ${{ inputs.build-ref }}
+          ref: ${{ github.event.inputs.build-ref }}
       - name: Determine Go version
         id: get-go-version
         # We use .go-version as our source of truth for current Go
@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: ${{ inputs.build-ref }}
+          ref: ${{ github.event.inputs.build-ref }}
       - name: get product version
         id: get-product-version
         run: |
@@ -56,14 +56,15 @@ jobs:
       - name: "Checkout directory"
         uses: actions/checkout@v2
         with:
-          ref: ${{ inputs.build-ref }}
+          ref: ${{ github.event.inputs.build-ref }}
       - name: Generate metadata file
         id: generate-metadata-file
-        uses: hashicorp/actions-generate-metadata@v1
+        uses: hashicorp/actions-generate-metadata@add-optional-sha-param
         with:
           version: ${{ needs.get-product-version.outputs.product-version }}
           product: ${{ env.PKG_NAME }}
           repositoryOwner: "hashicorp"
+          sha: ${{ github.event.inputs.build-ref }}
       - uses: actions/upload-artifact@v2
         with:
           name: metadata.json
@@ -76,7 +77,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: ${{ inputs.build-ref }}
+          ref: ${{ github.event.inputs.build-ref }}
       - name: "Generate ld flags"
         id: generate-ld-flags
         run: |
@@ -99,7 +100,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: ${{ inputs.build-ref }}
+          ref: ${{ github.event.inputs.build-ref }}
       - name: Setup go
         uses: actions/setup-go@v2
         with:
@@ -120,7 +121,7 @@ jobs:
 
       - name: Build prerelease
         run: make prerelease
-        if: ${{ inputs.make-prerelease == 'true' }}
+        if: ${{ github.event.inputs.make-prerelease == 'true' }}
 
       - name: Build
         env:
@@ -151,7 +152,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: ${{ inputs.build-ref }}
+          ref: ${{ github.event.inputs.build-ref }}
       - name: Setup go
         uses: actions/setup-go@v2
         with:
@@ -172,7 +173,7 @@ jobs:
 
       - name: Build prerelease
         run: make prerelease
-        if: ${{ inputs.make-prerelease == 'true' }}
+        if: ${{ github.event.inputs.make-prerelease == 'true' }}
 
       - name: Install Linux build utilties
         run: |
@@ -260,7 +261,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: ${{ inputs.build-ref }}
+          ref: ${{ github.event.inputs.build-ref }}
 
       - name: Setup go
         uses: actions/setup-go@v2
@@ -282,7 +283,7 @@ jobs:
 
       - name: Build prerelease
         run: make prerelease
-        if: ${{ inputs.make-prerelease == 'true' }}
+        if: ${{ github.event.inputs.make-prerelease == 'true' }}
 
       - name: Build
         env:
