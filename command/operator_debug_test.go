@@ -578,6 +578,36 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")   // Archive should be generated anyway
 }
 
+// TestDebug_PprofVersionCheck asserts that only versions 0.11.0 -> 0.11.2 match
+// the version constraint.
+func TestDebug_PprofVersionCheck(t *testing.T) {
+	cases := []struct {
+		version    string
+		constraint string
+		isMatch    bool
+		isError    bool
+	}{
+		{"0.8.7", ">= 0.11.0, <= 0.11.2", false, true},
+		{"0.11.0", ">= 0.11.0, <= 0.11.2", true, false},
+		{"0.11.1", ">= 0.11.0, <= 0.11.2", true, false},
+		{"0.11.2", ">= 0.11.0, <= 0.11.2", true, false},
+		{"0.11.3", ">= 0.11.0, <= 0.11.2", false, true},
+		{"0.12.0", ">= 0.11.0, <= 0.11.2", false, true},
+		{"1.3.0", ">= 0.11.0, <= 0.11.2", false, true},
+	}
+
+	for _, tc := range cases {
+		match, err := checkVersion(tc.version, ">= 0.11.0, <= 0.11.2")
+		assert.Equal(t, tc.isMatch, match)
+		if tc.isError {
+			require.Error(t, err)
+			fmt.Println(err.Error())
+		} else {
+			require.NoError(t, err)
+		}
+	}
+}
+
 func TestDebug_StringToSlice(t *testing.T) {
 	ci.Parallel(t)
 

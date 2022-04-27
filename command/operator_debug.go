@@ -23,6 +23,7 @@ import (
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-multierror"
+	goversion "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
@@ -1713,4 +1714,25 @@ func isRedirectError(err error) bool {
 
 	const redirectErr string = `invalid character '<' looking for beginning of value`
 	return strings.Contains(err.Error(), redirectErr)
+}
+
+
+// checkVersion verifies that version satisfies the constraint
+func checkVersion(version string, versionConstraint string) (bool, error) {
+	v, err := goversion.NewVersion(version)
+	if err != nil {
+		return false, err
+	}
+
+	c, err := goversion.NewConstraint(versionConstraint)
+	if err != nil {
+		return false, err
+	}
+
+	if c.Check(v) {
+		return true, nil
+	}
+
+	err = fmt.Errorf("version %s did not match constraint: %s", version, c.String())
+	return false, err
 }
