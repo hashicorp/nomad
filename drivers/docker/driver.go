@@ -185,11 +185,6 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return nil
 	}
 
-	// COMPAT(0.10): pre 0.9 upgrade path check
-	if handle.Version == 0 {
-		return d.recoverPre09Task(handle)
-	}
-
 	var handleState taskHandleState
 	if err := handle.GetDriverState(&handleState); err != nil {
 		return fmt.Errorf("failed to decode driver task state: %v", err)

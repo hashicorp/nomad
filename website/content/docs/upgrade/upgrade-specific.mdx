@@ -181,6 +181,16 @@ The new cgroup file system layout will look like the following:
 ├── 8b8da4cf-8ebf-b578-0bcf-77190749abf3.redis.scope
 └── a8c8e495-83c8-311b-4657-e6e3127e98bc.example.scope
 ```
+#### Support for pre-0.9 Tasks Removed
+
+Running tasks that were created on clusters from Nomad version 0.9 or
+earlier will fail to restore after upgrading a cluster to Nomad
+1.3.0. To safely upgrade without unplanned interruptions, force these
+tasks to be rescheduled by `nomad alloc stop` before upgrading. Note
+this only applies to tasks that have been running continuously from
+before 0.9 without rescheduling. Jobs that were created before 0.9 but
+have had tasks replaced over time after 0.9 will operate normally
+during the upgrade.
 
 ## Nomad 1.2.6, 1.1.12, and 1.0.18
 
