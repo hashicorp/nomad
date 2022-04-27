@@ -86,10 +86,10 @@ job "docs" {
   servers. By default, a client will not stop an allocation until explicitly
   told to by a server. A client that fails to heartbeat to a server within the
   [`heartbeat_grace`] window and any allocations running on it will be marked
-  "lost" and Nomad will schedule replacement allocations. The replaced 
+  "lost" and Nomad will schedule replacement allocations. The replaced
   allocations will normally continue to run on the non-responsive client. But
-  you may want them to stop instead — for example, allocations requiring 
-  exclusive access to an external resource. When specified, the Nomad client 
+  you may want them to stop instead — for example, allocations requiring
+  exclusive access to an external resource. When specified, the Nomad client
   will stop them after this duration.
   The Nomad client process must be running for this to occur. This setting
   cannot be used with [`max_client_disconnect`].
@@ -328,6 +328,46 @@ group "second" {
   }
 }
 ```
+
+#### Known Limitations
+
+The `max_client_disconnect` configuration is a new operating model for Nomad. Due
+to the nature of the change and the challenges it does and does not address, there
+are some known limitations to the feature that are detailed below.
+
+##### Minimum Server Version
+
+This feature introduces new node and allocation statuses as well as scheduling
+behavior that older versions of Nomad are unaware of. Given those constraints,
+it is not possible to leverage the `max_client_disconnect` configuration in clusters
+with servers running older versions of Nomad. The implementation includes guard
+logic that guarantees all servers in the cluster are running at least version
+1.3.0. If all servers in the cluster do not meet the minimum required version,
+Nomad will operate as it did prior to 1.3.0. The `max_client_disconnect`
+configuration will be _ignored_.
+
+##### Mixed Client Versions
+
+Similar to servers, clients running older versions of Nomad are unaware of the
+new node and allocation statuses. Unlike servers, there is currently no guard
+logic that checks all client versions during the scheduling process. The performance
+impact of such a check during scheduling is prohibitive. Attempting to leverage
+the `max_client_disconnect` feature in clusters with mixed client versions is _not
+supported_. Operators must ensure all clients meet the 1.3.0 minimum version requirement
+prior to deploying jobs with this configuration. If a job with this configuration
+is deployed to a cluster that does not meet this requirement, operators should
+run `nomad job stop -purge` on the job and remove the configuration before re-deploying.
+
+##### Consul, Vault, and Consul Template
+
+Jobs that rely on network services to run or deploy will fail if there is no
+connection to the network service. For example, if the job includes a template
+that uses the new `nomadService` function for Nomad Native Service Discovery,
+and the client cannot reach the Nomad server, the task will fail when it next
+attempts to render. Similarly, jobs that rely on Consul or Vault will be affected
+by connectivity loss. These jobs will adhere to the client's retry configuration,
+but if they are ultimately unable to reach Consul or Vault after their reaching
+their specified retry threshold, they will fail as they do previous to 1.3.0.
 
 [task]: /docs/job-specification/task 'Nomad task Job Specification'
 [job]: /docs/job-specification/job 'Nomad job Job Specification'
