@@ -1750,6 +1750,12 @@ func (c *OperatorDebugCommand) getNomadVersion(serverID string, nodeID string) s
 	version := ""
 	if serverID != "" {
 		for _, server := range c.members.Members {
+			// Raft v2 server
+			if server.Name == serverID {
+				version = server.Tags["build"]
+			}
+
+			// Raft v3 server
 			if server.Tags["id"] == serverID {
 				version = server.Tags["version"]
 			}
