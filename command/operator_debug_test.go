@@ -587,13 +587,14 @@ func TestDebug_PprofVersionCheck(t *testing.T) {
 		isMatch    bool
 		isError    bool
 	}{
-		{"0.8.7", ">= 0.11.0, <= 0.11.2", false, true},
+		{"0.8.7", ">= 0.11.0, <= 0.11.2", false, false},
 		{"0.11.0", ">= 0.11.0, <= 0.11.2", true, false},
 		{"0.11.1", ">= 0.11.0, <= 0.11.2", true, false},
 		{"0.11.2", ">= 0.11.0, <= 0.11.2", true, false},
-		{"0.11.3", ">= 0.11.0, <= 0.11.2", false, true},
-		{"0.12.0", ">= 0.11.0, <= 0.11.2", false, true},
-		{"1.3.0", ">= 0.11.0, <= 0.11.2", false, true},
+		{"0.11.3", ">= 0.11.0, <= 0.11.2", false, false},
+		{"0.12.0", ">= 0.11.0, <= 0.11.2", false, false},
+		{"1.3.0", ">= 0.11.0, <= 0.11.2", false, false},
+		{"foo.bar", ">= 0.11.0, <= 0.11.2", false, true},
 	}
 
 	for _, tc := range cases {
@@ -601,7 +602,6 @@ func TestDebug_PprofVersionCheck(t *testing.T) {
 		assert.Equal(t, tc.isMatch, match)
 		if tc.isError {
 			require.Error(t, err)
-			fmt.Println(err.Error())
 		} else {
 			require.NoError(t, err)
 		}
