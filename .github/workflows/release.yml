@@ -123,8 +123,6 @@ jobs:
           fi
           echo "::set-output name=build-ref::$(git rev-parse HEAD)"
 
-      - run: sleep 120
-
       - name: Invoke build workflow
         uses: benc-uk/workflow-dispatch@v1.1
         with:
