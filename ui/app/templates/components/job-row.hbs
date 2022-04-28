@@ -1,4 +1,9 @@
-<td data-test-job-name>
+<td data-test-job-name
+  {{keyboard-shortcut 
+    enumerated=true
+    action=(action "gotoJob" @job)
+  }}
+>
   <LinkTo
     @route="jobs.job.index"
     @model={{this.job.idWithNamespace}}

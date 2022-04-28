@@ -546,6 +546,10 @@
             </t.head>
             <t.body as |row|>
               <AllocationRow
+                {{keyboard-shortcut 
+                  enumerated=true
+                  action=(action "gotoAllocation" row.model)
+                }}
                 @allocation={{row.model}}
                 @context="node"
                 @onClick={{action "gotoAllocation" row.model}}
