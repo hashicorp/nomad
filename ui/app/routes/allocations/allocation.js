@@ -17,12 +17,13 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
     // Preload the job for the allocation since it's required for the breadcrumb trail
     return super
       .model(...arguments)
-      .then((allocation) =>
-        allocation
-          .get('job')
+      .then((allocation) => {
+        const jobId = allocation.belongsTo('job').id();
+        return this.store
+          .findRecord('job', jobId)
           .then(() => this.store.findAll('namespace')) // namespaces belong to a job and are an asynchronous relationship so we can peak them later on
-          .then(() => allocation)
-      )
+          .then(() => allocation);
+      })
       .catch(notifyError(this));
   }
 
