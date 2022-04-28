@@ -65,7 +65,7 @@ const (
 	clientDir                     = "client"
 	serverDir                     = "server"
 	intervalDir                   = "interval"
-	minimumVersionPprofConstraint = "< 0.12.0"
+	minimumVersionPprofConstraint = ">= 0.11.0, <= 0.11.2"
 )
 
 func (c *OperatorDebugCommand) Help() string {

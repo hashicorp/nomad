@@ -585,11 +585,12 @@ func TestDebug_PprofVersionCheck(t *testing.T) {
 		version string
 		errMsg  string
 	}{
-		{"0.8.7", "unsupported version=0.8.7 matches version filter < 0.12.0"},
-		{"0.11.0", "unsupported version=0.11.0 matches version filter < 0.12.0"},
-		{"0.11.2+ent", "unsupported version=0.11.2+ent matches version filter < 0.12.0"},
-		{"0.11.3", "unsupported version=0.11.3 matches version filter < 0.12.0"},
-		{"0.11.3+ent", "unsupported version=0.11.3+ent matches version filter < 0.12.0"},
+		{"0.8.7", ""},
+		{"0.11.1", "unsupported version=0.11.1 matches version filter >= 0.11.0, <= 0.11.2"},
+		{"0.11.2", "unsupported version=0.11.2 matches version filter >= 0.11.0, <= 0.11.2"},
+		{"0.11.2+ent", "unsupported version=0.11.2+ent matches version filter >= 0.11.0, <= 0.11.2"},
+		{"0.11.3", ""},
+		{"0.11.3+ent", ""},
 		{"0.12.0", ""},
 		{"1.3.0", ""},
 		{"foo.bar", "error: Malformed version: foo.bar"},
