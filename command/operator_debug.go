@@ -914,9 +914,39 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 
 func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
 
+	pprofNodeIDs := []string{}
+	pprofServerIDs := []string{}
+
+	// threadcreate pprof causes a panic on Nomad 0.11.0 to 0.11.2 -- skip those versions
+	for _, serverID := range c.serverIDs {
+		version := c.getNomadVersion(serverID, "")
+		skip, err := checkVersion(version, minimumVersionPprofConstraint)
+
+		if skip {
+			c.Ui.Warn(fmt.Sprintf("Skipping threadcreate pprof: unsupported version=%s matches constraint %s", version, minimumVersionPprofConstraint))
+		}
+		if err != nil {
+			c.Ui.Error((fmt.Sprintf("Skipping threadcreate pprof, error: %v", err)))
+		}
+		pprofServerIDs = append(pprofServerIDs, serverID)
+	}
+
+	for _, nodeID := range c.nodeIDs {
+		version := c.getNomadVersion("", nodeID)
+		skip, err := checkVersion(version, minimumVersionPprofConstraint)
+
+		if skip {
+			c.Ui.Warn(fmt.Sprintf("Skipping threadcreate pprof: unsupported version=%s matches constraint %s", version, minimumVersionPprofConstraint))
+		}
+		if err != nil {
+			c.Ui.Error((fmt.Sprintf("Skipping threadcreate pprof, error: %v", err)))
+		}
+		pprofNodeIDs = append(pprofNodeIDs, nodeID)
+	}
+
 	// Take the first set of pprofs synchronously...
 	c.Ui.Output("    Capture pprofInterval 0000")
-	c.collectPprofs(client, 0)
+	c.collectPprofs(client, pprofServerIDs, pprofNodeIDs, 0)
 	if c.pprofInterval == c.pprofDuration {
 		return
 	}
@@ -935,7 +965,7 @@ func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
 				return
 			case <-timer.C:
 				c.Ui.Output(fmt.Sprintf("    Capture pprofInterval %04d", pprofIntervalCount))
-				c.collectPprofs(client, pprofIntervalCount)
+				c.collectPprofs(client, pprofServerIDs, pprofNodeIDs, pprofIntervalCount)
 				timer.Reset(c.pprofInterval)
 				pprofIntervalCount++
 			}
@@ -944,12 +974,12 @@ func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
 }
 
 // collectPprofs captures the /agent/pprof for each listed node
-func (c *OperatorDebugCommand) collectPprofs(client *api.Client, interval int) {
-	for _, n := range c.nodeIDs {
+func (c *OperatorDebugCommand) collectPprofs(client *api.Client, serverIDs, nodeIDs []string, interval int) {
+	for _, n := range nodeIDs {
 		c.collectPprof(clientDir, n, client, interval)
 	}
 
-	for _, n := range c.serverIDs {
+	for _, n := range serverIDs {
 		c.collectPprof(serverDir, n, client, interval)
 	}
 }
@@ -996,24 +1026,10 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 	// Reset to pprof binary format
 	opts.Debug = 0
 
-	c.savePprofProfile(path, "goroutine", opts, client) // Stack traces of all current goroutines
-	c.savePprofProfile(path, "trace", opts, client)     // A trace of execution of the current program
-	c.savePprofProfile(path, "heap", opts, client)      // A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.
-	c.savePprofProfile(path, "allocs", opts, client)    // A sampling of all past memory allocations
-
-	// threadcreate pprof causes a panic on Nomad 0.11.0 to 0.11.2 -- skip those versions
-	version := c.getNomadVersion(opts.ServerID, opts.NodeID)
-	skip, err := checkVersion(version, minimumVersionPprofConstraint)
-
-	if skip {
-		c.Ui.Warn(fmt.Sprintf("Skipping threadcreate pprof: unsupported version=%s matches constraint %s", version, minimumVersionPprofConstraint))
-		return
-	}
-	if err != nil {
-		c.Ui.Error((fmt.Sprintf("Skipping threadcreate pprof, error: %v", err)))
-		return
-	}
-
+	c.savePprofProfile(path, "goroutine", opts, client)    // Stack traces of all current goroutines
+	c.savePprofProfile(path, "trace", opts, client)        // A trace of execution of the current program
+	c.savePprofProfile(path, "heap", opts, client)         // A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.
+	c.savePprofProfile(path, "allocs", opts, client)       // A sampling of all past memory allocations
 	c.savePprofProfile(path, "threadcreate", opts, client) // Stack traces that led to the creation of new OS threads
 }
 
