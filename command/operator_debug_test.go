@@ -578,32 +578,32 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")   // Archive should be generated anyway
 }
 
-// TestDebug_PprofVersionCheck asserts that only versions 0.11.0 -> 0.11.2 match
-// the version constraint.
+// TestDebug_PprofVersionCheck asserts that only versions < 0.12.0 are
+// filtered by the version constraint.
 func TestDebug_PprofVersionCheck(t *testing.T) {
 	cases := []struct {
 		version string
-		isMatch bool
-		isError bool
+		errMsg  string
 	}{
-		{"0.8.7", false, false},
-		{"0.11.0", true, false},
-		{"0.11.1", true, false},
-		{"0.11.2", true, false},
-		{"0.11.3", false, false},
-		{"0.12.0", false, false},
-		{"1.3.0", false, false},
-		{"foo.bar", false, true},
+		{"0.8.7", "unsupported version=0.8.7 matches version filter < 0.12.0"},
+		{"0.11.0", "unsupported version=0.11.0 matches version filter < 0.12.0"},
+		{"0.11.2+ent", "unsupported version=0.11.2+ent matches version filter < 0.12.0"},
+		{"0.11.3", "unsupported version=0.11.3 matches version filter < 0.12.0"},
+		{"0.11.3+ent", "unsupported version=0.11.3+ent matches version filter < 0.12.0"},
+		{"0.12.0", ""},
+		{"1.3.0", ""},
+		{"foo.bar", "error: Malformed version: foo.bar"},
 	}
 
 	for _, tc := range cases {
-		match, err := checkVersion(tc.version, minimumVersionPprofConstraint)
-		assert.Equal(t, tc.isMatch, match)
-		if tc.isError {
-			require.Error(t, err)
-		} else {
-			require.NoError(t, err)
-		}
+		t.Run(tc.version, func(t *testing.T) {
+			err := checkVersion(tc.version, minimumVersionPprofConstraint)
+			if tc.errMsg == "" {
+				require.NoError(t, err, "expected no error from %s", tc.version)
+			} else {
+				require.EqualError(t, err, tc.errMsg)
+			}
+		})
 	}
 }
 

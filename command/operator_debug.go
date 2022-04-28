@@ -65,7 +65,7 @@ const (
 	clientDir                     = "client"
 	serverDir                     = "server"
 	intervalDir                   = "interval"
-	minimumVersionPprofConstraint = ">= 0.11.0, <= 0.11.2"
+	minimumVersionPprofConstraint = "< 0.12.0"
 )
 
 func (c *OperatorDebugCommand) Help() string {
@@ -920,26 +920,18 @@ func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
 	// threadcreate pprof causes a panic on Nomad 0.11.0 to 0.11.2 -- skip those versions
 	for _, serverID := range c.serverIDs {
 		version := c.getNomadVersion(serverID, "")
-		skip, err := checkVersion(version, minimumVersionPprofConstraint)
-
-		if skip {
-			c.Ui.Warn(fmt.Sprintf("Skipping threadcreate pprof: unsupported version=%s matches constraint %s", version, minimumVersionPprofConstraint))
-		}
+		err := checkVersion(version, minimumVersionPprofConstraint)
 		if err != nil {
-			c.Ui.Error((fmt.Sprintf("Skipping threadcreate pprof, error: %v", err)))
+			c.Ui.Warn(fmt.Sprintf("Skipping pprof: %v", err))
 		}
 		pprofServerIDs = append(pprofServerIDs, serverID)
 	}
 
 	for _, nodeID := range c.nodeIDs {
 		version := c.getNomadVersion("", nodeID)
-		skip, err := checkVersion(version, minimumVersionPprofConstraint)
-
-		if skip {
-			c.Ui.Warn(fmt.Sprintf("Skipping threadcreate pprof: unsupported version=%s matches constraint %s", version, minimumVersionPprofConstraint))
-		}
+		err := checkVersion(version, minimumVersionPprofConstraint)
 		if err != nil {
-			c.Ui.Error((fmt.Sprintf("Skipping threadcreate pprof, error: %v", err)))
+			c.Ui.Warn(fmt.Sprintf("Skipping pprof: %v", err))
 		}
 		pprofNodeIDs = append(pprofNodeIDs, nodeID)
 	}
@@ -1786,20 +1778,19 @@ func (c *OperatorDebugCommand) getNomadVersion(serverID string, nodeID string) s
 }
 
 // checkVersion verifies that version satisfies the constraint
-func checkVersion(version string, versionConstraint string) (bool, error) {
+func checkVersion(version string, versionConstraint string) error {
 	v, err := goversion.NewVersion(version)
 	if err != nil {
-		return false, err
+		return fmt.Errorf("error: %v", err)
 	}
 
 	c, err := goversion.NewConstraint(versionConstraint)
 	if err != nil {
-		return false, err
+		return fmt.Errorf("error: %v", err)
 	}
 
-	if c.Check(v) {
-		return true, nil
+	if !c.Check(v) {
+		return nil
 	}
-
-	return false, nil
+	return fmt.Errorf("unsupported version=%s matches version filter %s", version, minimumVersionPprofConstraint)
 }
