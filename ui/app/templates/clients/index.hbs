@@ -86,6 +86,10 @@
               data-test-client-node-row
               @node={{row.model}}
               @onClick={{action "gotoNode" row.model}}
+              {{keyboard-shortcut 
+                enumerated=true
+                action=(action "gotoNode" row.model)
+              }}
             />
           </t.body>
         </ListTable>

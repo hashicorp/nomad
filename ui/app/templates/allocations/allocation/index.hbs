@@ -184,6 +184,10 @@
           </t.head>
           <t.body as |row|>
             <TaskRow
+              {{keyboard-shortcut 
+                enumerated=true
+                action=(action "taskClick" row.model.allocation row.model)
+              }}
               @data-test-task-row={{row.model.name}}
               @task={{row.model}}
               @onClick={{action "taskClick" row.model.allocation row.model}}
