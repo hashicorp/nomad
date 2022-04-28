@@ -6,11 +6,16 @@ on:
       - "release/1.0.x"
   workflow_dispatch:
     inputs:
+      build-ref:
+        description: 'The git ref to build from'
+        type: string
+        default: ''
+        required: false
       make-prerelease:
         description: "Run prerelease to generate files"
         type: "boolean"
         required: false
-        default: false
+        default: true
 
 env:
   PKG_NAME: "nomad"
@@ -23,6 +28,8 @@ jobs:
       go-version: ${{ steps.get-go-version.outputs.go-version }}
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.build-ref }}
       - name: Determine Go version
         id: get-go-version
         # We use .go-version as our source of truth for current Go
@@ -36,6 +43,8 @@ jobs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.build-ref }}
       - name: get product version
         id: get-product-version
         run: |
@@ -49,13 +58,16 @@ jobs:
     steps:
       - name: "Checkout directory"
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.build-ref }}
       - name: Generate metadata file
         id: generate-metadata-file
-        uses: hashicorp/actions-generate-metadata@v1
+        uses: hashicorp/actions-generate-metadata@add-optional-sha-param
         with:
           version: ${{ needs.get-product-version.outputs.product-version }}
           product: ${{ env.PKG_NAME }}
           repositoryOwner: "hashicorp"
+          sha: ${{ github.event.inputs.build-ref }}
       - uses: actions/upload-artifact@v2
         with:
           name: metadata.json
@@ -67,6 +79,8 @@ jobs:
       ldflags: ${{ steps.generate-ld-flags.outputs.ldflags }}
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.build-ref }}
       - name: "Generate ld flags"
         id: generate-ld-flags
         run: |
@@ -88,6 +102,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.build-ref }}
       - name: Setup go
         uses: actions/setup-go@v2
         with:
@@ -146,6 +162,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.build-ref }}
       - name: Setup go
         uses: actions/setup-go@v2
         with:
@@ -243,6 +261,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.build-ref }}
 
       - name: Setup go
         uses: actions/setup-go@v2
