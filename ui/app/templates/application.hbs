@@ -23,6 +23,8 @@
   </FlashMessage>
   {{/each}}
 </section>
+{{!-- Hack to get matchedCommand firing --}}
+{{#if this.keyboard.matchedCommand}}{{log this.keyboard.matchedCommand.label}}{{/if}}
 
 {{#if this.error}}
   <div class="error-container">

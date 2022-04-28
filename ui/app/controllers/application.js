@@ -9,13 +9,32 @@ import codesForError from '../utils/codes-for-error';
 import NoLeaderError from '../utils/no-leader-error';
 import OTTExchangeError from '../utils/ott-exchange-error';
 import classic from 'ember-classic-decorator';
-
+import KeyboardService from '../services/keyboard';
+// import { alias } from '@ember/object/computed';
+// import { tracked } from '@glimmer/tracking';
 @classic
 export default class ApplicationController extends Controller {
   @service config;
   @service system;
   @service token;
   @service flashMessages;
+
+  /**
+   * @type {KeyboardService}
+   */
+  @service keyboard;
+  // @alias('this.keyboard.matchedCommand') matchedCommand;
+  // @tracked matchedCommand;
+
+  constructor() {
+    super(...arguments);
+    this.keyboard.listenForKeypress();
+  }
+
+  @observes('this.keyboard.matchedCommand')
+  function() {
+    console.log('uhhh', this.keyboard.matchedCommand);
+  }
 
   queryParams = [
     {
