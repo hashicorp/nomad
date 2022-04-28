@@ -462,7 +462,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	if driverConfig.GuestAgent {
 		if runtime.GOOS == "windows" {
-			return nil, nil, errors.New("QEMU Guest Agent is unsupported on the Windows platform")
+			return nil, nil, errors.New("QEMU Guest Agent socket is unsupported on the Windows platform")
 		}
 		// This socket will be used to communicate with the Guest Agent (if it's running)
 		taskDir := filepath.Join(cfg.AllocDir, cfg.Name)
