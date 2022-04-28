@@ -1,0 +1,13 @@
+name: Build trigger
+
+on:
+  push:
+    branches:
+      - "main"
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      make-prerelease: true

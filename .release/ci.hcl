@@ -9,9 +9,12 @@ project "nomad" {
     // notification_channel = "CUYKT2A73"
   }
   github {
-    organization     = "hashicorp"
-    repository       = "nomad"
-    release_branches = ["release/1.1.x"]
+    organization = "hashicorp"
+    repository   = "nomad"
+    release_branches = [
+      "main",
+      "release/1.1.x",
+    ]
   }
 }
 
