@@ -1007,7 +1007,7 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 	// c.savePprofProfile(path, "mutex", opts, client)        // Stack traces of holders of contended mutexes
 
 	// threadcreate pprof causes a panic on Nomad 0.11.0 to 0.11.2 -- skip those versions
-	version := c.getNomadVersion(opts.NodeID, opts.ServerID)
+	version := c.getNomadVersion(opts.ServerID, opts.NodeID)
 	if skip, err := checkVersion(version, ">= 0.11.0, <= 0.11.2"); skip || err != nil {
 		c.Ui.Error((fmt.Sprintf("Not running threadcreate pprof profile, err: %v", err)))
 		return
@@ -1738,12 +1738,15 @@ func isRedirectError(err error) bool {
 
 // getNomadVersion fetches the version of Nomad running on a given server/client node ID
 func (c *OperatorDebugCommand) getNomadVersion(serverID string, nodeID string) string {
-	version := ""
+	if serverID == "" && nodeID == "" {
+		return ""
+	}
 
+	version := ""
 	if serverID != "" {
 		for _, server := range c.members.Members {
 			if server.Tags["id"] == serverID {
-				version = server.Tags["id"]
+				version = server.Tags["version"]
 			}
 		}
 	}
