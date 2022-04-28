@@ -1008,7 +1008,7 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 
 	// threadcreate pprof causes a panic on Nomad 0.11.0 to 0.11.2 -- skip those versions
 	version := c.getNomadVersion(opts.NodeID, opts.ServerID)
-	if _, err := checkVersion(version, ">= 0.11.0, <= 0.11.2"); err != nil {
+	if skip, err := checkVersion(version, ">= 0.11.0, <= 0.11.2"); skip || err != nil {
 		c.Ui.Error((fmt.Sprintf("Not running threadcreate pprof profile, err: %v", err)))
 		return
 	}
@@ -1775,6 +1775,5 @@ func checkVersion(version string, versionConstraint string) (bool, error) {
 		return true, nil
 	}
 
-	err = fmt.Errorf("version %s did not match constraint: %s", version, c.String())
-	return false, err
+	return false, nil
 }
