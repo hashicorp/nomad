@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -11,8 +10,6 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-version"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -49,35 +46,6 @@ const (
 	dequeueErrGrace = 10 * time.Second
 )
 
-type WorkerStatus int
-
-//go:generate stringer -trimprefix=Worker -output worker_string_workerstatus.go -linecomment -type=WorkerStatus
-const (
-	WorkerUnknownStatus WorkerStatus = iota // Unknown
-	WorkerStarting
-	WorkerStarted
-	WorkerPausing
-	WorkerPaused
-	WorkerResuming
-	WorkerStopping
-	WorkerStopped
-)
-
-type SchedulerWorkerStatus int
-
-//go:generate stringer -trimprefix=Workload -output worker_string_schedulerworkerstatus.go -linecomment -type=SchedulerWorkerStatus
-const (
-	WorkloadUnknownStatus SchedulerWorkerStatus = iota
-	WorkloadRunning
-	WorkloadWaitingToDequeue
-	WorkloadWaitingForRaft
-	WorkloadScheduling
-	WorkloadSubmitting
-	WorkloadBackoff
-	WorkloadStopped
-	WorkloadPaused
-)
-
 // Worker is a single threaded scheduling worker. There may be multiple
 // running per server (leader or follower). They are responsible for dequeuing
 // pending evaluations, invoking schedulers, plan submission and the
@@ -87,25 +55,13 @@ type Worker struct {
 	srv    *Server
 	logger log.Logger
 	start  time.Time
-	id     string
 
-	status         WorkerStatus
-	workloadStatus SchedulerWorkerStatus
-	statusLock     sync.RWMutex
-
-	pauseFlag bool
+	paused    bool
 	pauseLock sync.Mutex
 	pauseCond *sync.Cond
-	ctx       context.Context
-	cancelFn  context.CancelFunc
 
-	// the Server.Config.EnabledSchedulers value is not safe for concurrent access, so
-	// the worker needs a cached copy of it. Workers are stopped if this value changes.
-	enabledSchedulers []string
+	failures uint
 
-	// failures is the count of errors encountered while dequeueing evaluations
-	// and is used to calculate backoff.
-	failures  uint
 	evalToken string
 
 	// snapshotIndex is the index of the snapshot in which the scheduler was
@@ -114,321 +70,70 @@ type Worker struct {
 	snapshotIndex uint64
 }
 
-// NewWorker starts a new scheduler worker associated with the given server
-func NewWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) (*Worker, error) {
-	w := newWorker(ctx, srv, args)
-	w.Start()
+// NewWorker starts a new worker associated with the given server
+func NewWorker(srv *Server) (*Worker, error) {
+	w := &Worker{
+		srv:    srv,
+		logger: srv.logger.ResetNamed("worker"),
+		start:  time.Now(),
+	}
+	w.pauseCond = sync.NewCond(&w.pauseLock)
+	go w.run()
 	return w, nil
 }
 
-// _newWorker creates a worker without calling its Start func. This is useful for testing.
-func newWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) *Worker {
-	w := &Worker{
-		id:                uuid.Generate(),
-		srv:               srv,
-		start:             time.Now(),
-		status:            WorkerStarting,
-		enabledSchedulers: make([]string, len(args.EnabledSchedulers)),
-	}
-	copy(w.enabledSchedulers, args.EnabledSchedulers)
-
-	w.logger = srv.logger.ResetNamed("worker").With("worker_id", w.id)
-	w.pauseCond = sync.NewCond(&w.pauseLock)
-	w.ctx, w.cancelFn = context.WithCancel(ctx)
-
-	return w
-}
-
-// ID returns a string ID for the worker.
-func (w *Worker) ID() string {
-	return w.id
-}
-
-// Start transitions a worker to the starting state. Check
-// to see if it paused using IsStarted()
-func (w *Worker) Start() {
-	w.setStatus(WorkerStarting)
-	go w.run()
-}
-
-// Pause transitions a worker to the pausing state. Check
-// to see if it paused using IsPaused()
-func (w *Worker) Pause() {
-	if w.isPausable() {
-		w.setStatus(WorkerPausing)
-		w.setPauseFlag(true)
-	}
-}
-
-// Resume transitions a worker to the resuming state. Check
-// to see if the worker restarted by calling IsStarted()
-func (w *Worker) Resume() {
-	if w.IsPaused() {
-		w.setStatus(WorkerResuming)
-		w.setPauseFlag(false)
+// SetPause is used to pause or unpause a worker
+func (w *Worker) SetPause(p bool) {
+	w.pauseLock.Lock()
+	w.paused = p
+	w.pauseLock.Unlock()
+	if !p {
 		w.pauseCond.Broadcast()
 	}
 }
 
-// Resume transitions a worker to the stopping state. Check
-// to see if the worker stopped by calling IsStopped()
-func (w *Worker) Stop() {
-	w.setStatus(WorkerStopping)
-	w.shutdown()
-}
-
-// IsStarted returns a boolean indicating if this worker has been started.
-func (w *Worker) IsStarted() bool {
-	return w.GetStatus() == WorkerStarted
-}
-
-// IsPaused returns a boolean indicating if this worker has been paused.
-func (w *Worker) IsPaused() bool {
-	return w.GetStatus() == WorkerPaused
-}
-
-// IsStopped returns a boolean indicating if this worker has been stopped.
-func (w *Worker) IsStopped() bool {
-	return w.GetStatus() == WorkerStopped
-}
-
-func (w *Worker) isPausable() bool {
-	w.statusLock.RLock()
-	defer w.statusLock.RUnlock()
-	switch w.status {
-	case WorkerPausing, WorkerPaused, WorkerStopping, WorkerStopped:
-		return false
-	default:
-		return true
-	}
-}
-
-// GetStatus returns the status of the Worker
-func (w *Worker) GetStatus() WorkerStatus {
-	w.statusLock.RLock()
-	defer w.statusLock.RUnlock()
-	return w.status
-}
-
-// setStatuses is used internally to the worker to update the
-// status of the worker and workload at one time, since some
-// transitions need to update both values using the same lock.
-func (w *Worker) setStatuses(newWorkerStatus WorkerStatus, newWorkloadStatus SchedulerWorkerStatus) {
-	w.statusLock.Lock()
-	defer w.statusLock.Unlock()
-	w.setWorkerStatusLocked(newWorkerStatus)
-	w.setWorkloadStatusLocked(newWorkloadStatus)
-}
-
-// setStatus is used internally to the worker to update the
-// status of the worker based on calls to the Worker API. For
-// atomically updating the scheduler status and the workload
-// status, use `setStatuses`.
-func (w *Worker) setStatus(newStatus WorkerStatus) {
-	w.statusLock.Lock()
-	defer w.statusLock.Unlock()
-	w.setWorkerStatusLocked(newStatus)
-}
-
-func (w *Worker) setWorkerStatusLocked(newStatus WorkerStatus) {
-	if newStatus == w.status {
-		return
-	}
-	w.logger.Trace("changed worker status", "from", w.status, "to", newStatus)
-	w.status = newStatus
-}
-
-// GetStatus returns the status of the Worker's Workload.
-func (w *Worker) GetWorkloadStatus() SchedulerWorkerStatus {
-	w.statusLock.RLock()
-	defer w.statusLock.RUnlock()
-	return w.workloadStatus
-}
-
-// setWorkloadStatus is used internally to the worker to update the
-// status of the worker based updates from the workload.
-func (w *Worker) setWorkloadStatus(newStatus SchedulerWorkerStatus) {
-	w.statusLock.Lock()
-	defer w.statusLock.Unlock()
-	w.setWorkloadStatusLocked(newStatus)
-}
-
-func (w *Worker) setWorkloadStatusLocked(newStatus SchedulerWorkerStatus) {
-	if newStatus == w.workloadStatus {
-		return
-	}
-	w.logger.Trace("changed workload status", "from", w.workloadStatus, "to", newStatus)
-	w.workloadStatus = newStatus
-}
-
-type WorkerInfo struct {
-	ID                string    `json:"id"`
-	EnabledSchedulers []string  `json:"enabled_schedulers"`
-	Started           time.Time `json:"started"`
-	Status            string    `json:"status"`
-	WorkloadStatus    string    `json:"workload_status"`
-}
-
-func (w WorkerInfo) Copy() WorkerInfo {
-	out := WorkerInfo{
-		ID:                w.ID,
-		EnabledSchedulers: make([]string, len(w.EnabledSchedulers)),
-		Started:           w.Started,
-		Status:            w.Status,
-		WorkloadStatus:    w.WorkloadStatus,
-	}
-	copy(out.EnabledSchedulers, w.EnabledSchedulers)
-	return out
-}
-
-func (w WorkerInfo) String() string {
-	// lazy implementation of WorkerInfo to string
-	out, _ := json.Marshal(w)
-	return string(out)
-}
-
-func (w *Worker) Info() WorkerInfo {
+// checkPaused is used to park the worker when paused
+func (w *Worker) checkPaused() {
 	w.pauseLock.Lock()
-	defer w.pauseLock.Unlock()
-	out := WorkerInfo{
-		ID:                w.id,
-		Status:            w.status.String(),
-		WorkloadStatus:    w.workloadStatus.String(),
-		EnabledSchedulers: make([]string, len(w.enabledSchedulers)),
-	}
-	out.Started = w.start
-	copy(out.EnabledSchedulers, w.enabledSchedulers)
-	return out
-}
-
-// ----------------------------------
-//  Pause Implementation
-//    These functions are used to support the worker's pause behaviors.
-// ----------------------------------
-
-func (w *Worker) setPauseFlag(pause bool) {
-	w.pauseLock.Lock()
-	defer w.pauseLock.Unlock()
-	w.pauseFlag = pause
-}
-
-// maybeWait is responsible for making the transition from `pausing`
-// to `paused`, waiting, and then transitioning back to the running
-// values.
-func (w *Worker) maybeWait() {
-	w.pauseLock.Lock()
-	defer w.pauseLock.Unlock()
-
-	if !w.pauseFlag {
-		return
-	}
-
-	w.statusLock.Lock()
-	w.status = WorkerPaused
-	originalWorkloadStatus := w.workloadStatus
-	w.workloadStatus = WorkloadPaused
-	w.logger.Trace("changed workload status", "from", originalWorkloadStatus, "to", w.workloadStatus)
-
-	w.statusLock.Unlock()
-
-	for w.pauseFlag {
+	for w.paused {
 		w.pauseCond.Wait()
 	}
-
-	w.statusLock.Lock()
-
-	w.logger.Trace("changed workload status", "from", w.workloadStatus, "to", originalWorkloadStatus)
-	w.workloadStatus = originalWorkloadStatus
-
-	// only reset the worker status if the worker is not resuming to stop the paused workload.
-	if w.status != WorkerStopping {
-		w.logger.Trace("changed worker status", "from", w.status, "to", WorkerStarted)
-		w.status = WorkerStarted
-	}
-	w.statusLock.Unlock()
-}
-
-// Shutdown is used to signal that the worker should shutdown.
-func (w *Worker) shutdown() {
-	w.pauseLock.Lock()
-	wasPaused := w.pauseFlag
-	w.pauseFlag = false
 	w.pauseLock.Unlock()
-
-	w.logger.Trace("shutdown request received")
-	w.cancelFn()
-	if wasPaused {
-		w.pauseCond.Broadcast()
-	}
 }
-
-// markStopped is used to mark the worker  and workload as stopped. It should be called in a
-// defer immediately upon entering the run() function.
-func (w *Worker) markStopped() {
-	w.setStatuses(WorkerStopped, WorkloadStopped)
-	w.logger.Debug("stopped")
-}
-
-func (w *Worker) workerShuttingDown() bool {
-	select {
-	case <-w.ctx.Done():
-		return true
-	default:
-		return false
-	}
-}
-
-// ----------------------------------
-//  Workload behavior code
-// ----------------------------------
 
 // run is the long-lived goroutine which is used to run the worker
 func (w *Worker) run() {
-	defer func() {
-		w.markStopped()
-	}()
-	w.setStatuses(WorkerStarted, WorkloadRunning)
-	w.logger.Debug("running")
 	for {
-		// Check to see if the context has been cancelled. Server shutdown and Shutdown()
-		// should do this.
-		if w.workerShuttingDown() {
-			return
-		}
 		// Dequeue a pending evaluation
 		eval, token, waitIndex, shutdown := w.dequeueEvaluation(dequeueTimeout)
 		if shutdown {
 			return
 		}
 
-		// since dequeue takes time, we could have shutdown the server after getting an eval that
-		// needs to be nacked before we exit. Explicitly checking the server to allow this eval
-		// to be processed on worker shutdown.
+		// Check for a shutdown
 		if w.srv.IsShutdown() {
 			w.logger.Error("nacking eval because the server is shutting down", "eval", log.Fmt("%#v", eval))
-			w.sendNack(eval, token)
+			w.sendAck(eval.ID, token, false)
 			return
 		}
 
 		// Wait for the raft log to catchup to the evaluation
-		w.setWorkloadStatus(WorkloadWaitingForRaft)
 		snap, err := w.snapshotMinIndex(waitIndex, raftSyncLimit)
 		if err != nil {
 			w.logger.Error("error waiting for Raft index", "error", err, "index", waitIndex)
-			w.sendNack(eval, token)
+			w.sendAck(eval.ID, token, false)
 			continue
 		}
 
 		// Invoke the scheduler to determine placements
-		w.setWorkloadStatus(WorkloadScheduling)
 		if err := w.invokeScheduler(snap, eval, token); err != nil {
 			w.logger.Error("error invoking scheduler", "error", err)
-			w.sendNack(eval, token)
+			w.sendAck(eval.ID, token, false)
 			continue
 		}
 
 		// Complete the evaluation
-		w.sendAck(eval, token)
+		w.sendAck(eval.ID, token, true)
 	}
 }
 
@@ -438,7 +143,7 @@ func (w *Worker) dequeueEvaluation(timeout time.Duration) (
 	eval *structs.Evaluation, token string, waitIndex uint64, shutdown bool) {
 	// Setup the request
 	req := structs.EvalDequeueRequest{
-		Schedulers:       w.enabledSchedulers,
+		Schedulers:       w.srv.config.EnabledSchedulers,
 		Timeout:          timeout,
 		SchedulerVersion: scheduler.SchedulerVersion,
 		WriteRequest: structs.WriteRequest{
@@ -448,20 +153,15 @@ func (w *Worker) dequeueEvaluation(timeout time.Duration) (
 	var resp structs.EvalDequeueResponse
 
 REQ:
-	// Wait inside this function if the worker is paused.
-	w.maybeWait()
-	// Immediately check to see if the worker has been shutdown.
-	if w.workerShuttingDown() {
-		return nil, "", 0, true
-	}
+	// Check if we are paused
+	w.checkPaused()
 
 	// Make a blocking RPC
 	start := time.Now()
-	w.setWorkloadStatus(WorkloadWaitingToDequeue)
 	err := w.srv.RPC("Eval.Dequeue", &req, &resp)
 	metrics.MeasureSince([]string{"nomad", "worker", "dequeue_eval"}, start)
 	if err != nil {
-		if time.Since(w.start) > dequeueErrGrace && !w.workerShuttingDown() {
+		if time.Since(w.start) > dequeueErrGrace && !w.srv.IsShutdown() {
 			w.logger.Error("failed to dequeue evaluation", "error", err)
 		}
 
@@ -482,21 +182,24 @@ REQ:
 
 	// Check if we got a response
 	if resp.Eval != nil {
-		w.logger.Debug("dequeued evaluation", "eval_id", resp.Eval.ID, "type", resp.Eval.Type, "namespace", resp.Eval.Namespace, "job_id", resp.Eval.JobID, "node_id", resp.Eval.NodeID, "triggered_by", resp.Eval.TriggeredBy)
+		w.logger.Debug("dequeued evaluation", "eval_id", resp.Eval.ID)
 		return resp.Eval, resp.Token, resp.GetWaitIndex(), false
 	}
 
+	// Check for potential shutdown
+	if w.srv.IsShutdown() {
+		return nil, "", 0, true
+	}
 	goto REQ
 }
 
-// sendAcknowledgement should not be called directly. Call `sendAck` or `sendNack` instead.
-// This function implements `ack`ing or `nack`ing the evaluation generally.
+// sendAck makes a best effort to ack or nack the evaluation.
 // Any errors are logged but swallowed.
-func (w *Worker) sendAcknowledgement(eval *structs.Evaluation, token string, ack bool) {
+func (w *Worker) sendAck(evalID, token string, ack bool) {
 	defer metrics.MeasureSince([]string{"nomad", "worker", "send_ack"}, time.Now())
 	// Setup the request
 	req := structs.EvalAckRequest{
-		EvalID: eval.ID,
+		EvalID: evalID,
 		Token:  token,
 		WriteRequest: structs.WriteRequest{
 			Region: w.srv.config.Region,
@@ -515,28 +218,16 @@ func (w *Worker) sendAcknowledgement(eval *structs.Evaluation, token string, ack
 	// Make the RPC call
 	err := w.srv.RPC(endpoint, &req, &resp)
 	if err != nil {
-		w.logger.Error(fmt.Sprintf("failed to %s evaluation", verb), "eval_id", eval.ID, "error", err)
+		w.logger.Error(fmt.Sprintf("failed to %s evaluation", verb), "eval_id", evalID, "error", err)
 	} else {
-		w.logger.Debug(fmt.Sprintf("%s evaluation", verb), "eval_id", eval.ID, "type", eval.Type, "namespace", eval.Namespace, "job_id", eval.JobID, "node_id", eval.NodeID, "triggered_by", eval.TriggeredBy)
+		w.logger.Debug(fmt.Sprintf("%s evaluation", verb), "eval_id", evalID)
 	}
-}
-
-// sendNack makes a best effort to nack the evaluation.
-// Any errors are logged but swallowed.
-func (w *Worker) sendNack(eval *structs.Evaluation, token string) {
-	w.sendAcknowledgement(eval, token, false)
-}
-
-// sendAck makes a best effort to ack the evaluation.
-// Any errors are logged but swallowed.
-func (w *Worker) sendAck(eval *structs.Evaluation, token string) {
-	w.sendAcknowledgement(eval, token, true)
 }
 
 // snapshotMinIndex times calls to StateStore.SnapshotAfter which may block.
 func (w *Worker) snapshotMinIndex(waitIndex uint64, timeout time.Duration) (*state.StateSnapshot, error) {
 	start := time.Now()
-	ctx, cancel := context.WithTimeout(w.ctx, timeout)
+	ctx, cancel := context.WithTimeout(w.srv.shutdownCtx, timeout)
 	snap, err := w.srv.fsm.State().SnapshotMinIndex(ctx, waitIndex)
 	cancel()
 	metrics.MeasureSince([]string{"nomad", "worker", "wait_for_index"}, start)
@@ -581,18 +272,10 @@ func (w *Worker) invokeScheduler(snap *state.StateSnapshot, eval *structs.Evalua
 	return nil
 }
 
-// ServersMeetMinimumVersion allows implementations of the Scheduler interface in
-// other packages to perform server version checks without direct references to
-// the Nomad server.
-func (w *Worker) ServersMeetMinimumVersion(minVersion *version.Version, checkFailedServers bool) bool {
-	return ServersMeetMinimumVersion(w.srv.Members(), minVersion, checkFailedServers)
-}
-
 // SubmitPlan is used to submit a plan for consideration. This allows
 // the worker to act as the planner for the scheduler.
 func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.State, error) {
-	// Check for a shutdown before plan submission. Checking server state rather than
-	// worker state to allow work in flight to complete before stopping.
+	// Check for a shutdown before plan submission
 	if w.srv.IsShutdown() {
 		return nil, nil, fmt.Errorf("shutdown while planning")
 	}
@@ -662,8 +345,7 @@ SUBMIT:
 // UpdateEval is used to submit an updated evaluation. This allows
 // the worker to act as the planner for the scheduler.
 func (w *Worker) UpdateEval(eval *structs.Evaluation) error {
-	// Check for a shutdown before plan submission. Checking server state rather than
-	// worker state to allow a workers work in flight to complete before stopping.
+	// Check for a shutdown before plan submission
 	if w.srv.IsShutdown() {
 		return fmt.Errorf("shutdown while planning")
 	}
@@ -701,8 +383,7 @@ SUBMIT:
 // CreateEval is used to create a new evaluation. This allows
 // the worker to act as the planner for the scheduler.
 func (w *Worker) CreateEval(eval *structs.Evaluation) error {
-	// Check for a shutdown before plan submission. This consults the server Shutdown state
-	// instead of the worker's to prevent aborting work in flight.
+	// Check for a shutdown before plan submission
 	if w.srv.IsShutdown() {
 		return fmt.Errorf("shutdown while planning")
 	}
@@ -743,8 +424,7 @@ SUBMIT:
 // ReblockEval is used to reinsert a blocked evaluation into the blocked eval
 // tracker. This allows the worker to act as the planner for the scheduler.
 func (w *Worker) ReblockEval(eval *structs.Evaluation) error {
-	// Check for a shutdown before plan submission. This checks the server state rather than
-	// the worker's to prevent erroring on work in flight that would complete otherwise.
+	// Check for a shutdown before plan submission
 	if w.srv.IsShutdown() {
 		return fmt.Errorf("shutdown while planning")
 	}
@@ -821,10 +501,7 @@ func (w *Worker) shouldResubmit(err error) bool {
 // backoffErr is used to do an exponential back off on error. This is
 // maintained statefully for the worker. Returns if attempts should be
 // abandoned due to shutdown.
-// This uses the worker's context in order to immediately stop the
-// backoff if the server or the worker is shutdown.
 func (w *Worker) backoffErr(base, limit time.Duration) bool {
-	w.setWorkloadStatus(WorkloadBackoff)
 	backoff := (1 << (2 * w.failures)) * base
 	if backoff > limit {
 		backoff = limit
@@ -834,7 +511,7 @@ func (w *Worker) backoffErr(base, limit time.Duration) bool {
 	select {
 	case <-time.After(backoff):
 		return false
-	case <-w.ctx.Done():
+	case <-w.srv.shutdownCh:
 		return true
 	}
 }

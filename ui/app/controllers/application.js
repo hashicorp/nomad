@@ -1,7 +1,7 @@
 /* eslint-disable ember/no-observers */
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
-import { next } from '@ember/runloop';
+import { run } from '@ember/runloop';
 import { observes } from '@ember-decorators/object';
 import { computed } from '@ember/object';
 import Ember from 'ember';
@@ -14,7 +14,6 @@ import classic from 'ember-classic-decorator';
 export default class ApplicationController extends Controller {
   @service config;
   @service system;
-  @service token;
 
   queryParams = [
     {
@@ -71,11 +70,11 @@ export default class ApplicationController extends Controller {
   @observes('error')
   throwError() {
     if (this.get('config.isDev')) {
-      next(() => {
+      run.next(() => {
         throw this.error;
       });
     } else if (!Ember.testing) {
-      next(() => {
+      run.next(() => {
         // eslint-disable-next-line
         console.warn('UNRECOVERABLE ERROR:', this.error);
       });

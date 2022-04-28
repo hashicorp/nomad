@@ -13,246 +13,6 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
-## Nomad 1.3.0
-
-#### Raft Protocol Version 2 Deprecation
-
-Raft protocol version 2 will be removed from Nomad in the next major
-release of Nomad, 1.4.0.
-
-In Nomad 1.3.0, the default raft protocol version has been updated to
-3. If the [`raft_protocol_version`] is not explicitly set, upgrading a
-server will automatically upgrade that server's raft protocol. See the
-[Upgrading to Raft Protocol 3] guide.
-
-#### Client State Store
-
-The client state store will be automatically migrated to a new schema
-version when upgrading a client.
-
-Downgrading to a previous version of the client after upgrading it to
-Nomad 1.3 is not supported. To downgrade safely, users should drain
-all tasks from the Nomad client and erase its data directory.
-
-#### CSI Plugins
-
-The client filesystem layout for CSI plugins has been updated to
-correctly handle the lifecycle of multiple allocations serving the
-same plugin. Running plugin tasks will not be updated after upgrading
-the client, but it is recommended to redeploy CSI plugin jobs after
-upgrading the cluster.
-
-The directory for plugin control sockets will be mounted from a new
-per-allocation directory in the client data dir. This will still be
-bind-mounted to `csi_plugin.mount_config` as in versions of Nomad
-prior to 1.3.0.
-
-The volume staging directory for new CSI plugin tasks will now be
-mounted to the task's `NOMAD_TASK_DIR` instead of the
-`csi_plugin.mount_config`.
-
-#### Raft leadership transfer on error
-
-Starting with Nomad 1.3.0, when a Nomad server is elected the Raft leader but
-fails to complete the process to start acting as the Nomad leader it will
-attempt to gracefully transfer its Raft leadership status to another eligible
-server in the cluster. This operation is only supported when using Raft
-Protocol Version 3.
-
-#### Server Raft Database
-
-The server raft database in `raft.db` will be automatically migrated to a new
-underlying implementation provided by `go.etcd.io/bbolt`. Downgrading to a previous
-version of the server after upgrading it to Nomad 1.3 is not supported. Like with
-any Nomad upgrade it is recommended to take a snapshot of your database prior to
-upgrading in case a downgrade becomes necessary.
-
-The new database implementation enables a new server configuration option for
-controlling the underlying freelist-sync behavior. Clusters experiencing extreme
-disk IO on servers may want to consider disabling freelist-sync to reduce load.
-The tradeoff is longer server startup times, as the database must be completely
-scanned to re-build the freelist from scratch.
-
-```hcl
-server {
-  raft_boltdb {
-    no_freelist_sync = true
-  }
-}
-```
-
-#### Changes to the `nomad server members` command
-
-The standard output of the `nomad server members` command replaces the previous
-`Protocol` column that indicated the Serf protocol version with a new column
-named `Raft Version` which outputs the Raft protocol version defined in each
-server.
-
-The `-detailed` flag is now called `-verbose` and outputs the standard values
-in addition to extra information. The previous name is still supported but may
-be removed in future releases.
-
-The previous `Protocol` value can be viewed using the `-verbose` flag.
-
-#### Changes to `client.template.function_denylist` configuration
-
-consul-template v0.28 added a new function
-[`writeToFile`](https://github.com/hashicorp/consul-template/blob/v0.28.0/docs/templating-language.md#writeToFile)
-which can write to arbitrary files on the host.
-
-Nomad 1.3.0 disables this function by default in its
-[`function_denylist`](/docs/configuration/client#function_denylist).
-
-However *if you have overridden the default `template.function_denylist` in
-your client configuration, you must add `writeToFile` to your denylist.*
-Failing to do so allows templates to write to arbitrary paths on the host.
-
-#### Changes to Envoy metrics labels
-
-When using Envoy as a sidecar proxy for Connect enabled services, Nomad will now
-automatically inject the unique allocation ID into Envoy's stats tags configuration.
-Users who wish to set the tag values themselves may do so using the [`proxy.config`](/docs/job-specification/proxy#config)
-block.
-
-```hcl
-connect {
-  sidecar_service {
-    proxy {
-      config {
-        envoy_stats_tags = ["nomad.alloc_id=<allocID>"]
-      }
-    }
-  }
-}
-```
-
-#### Changes to Consul Connect Service Identity Tokens
-
-Starting with Nomad 1.3.0, Consul Service Identity Tokens created automatically
-by Nomad on behalf of Connect services will now be created as [`Local`] tokens. These
-tokens will no longer be replicated globally. To facilitate cross-Consul datacenter
-requests of Connect services registered by Nomad, Consul agents will need to be
-configured with [default anonymous][anon_token] ACL tokens with ACL policies of
-sufficient permissions to read service and node metadata pertaining to those
-requests. This mechanism is described in Consul [#7414][consul_acl].
-A typical Consul agent anonymous token may contain an ACL policy such as:
-
-```hcl
-service_prefix "" { policy = "read" }
-node_prefix    "" { policy = "read" }
-```
-
-The minimum version of Consul supported by Nomad's Connect integration is now Consul v1.8.0.
-
-#### Changes to task groups that utilise Consul services and checks
-
-Starting with Nomad 1.3.0, services and checks that utilise Consul will have an
-automatic constraint placed upon the task group. This ensures they are placed
-on a client with a Consul agent running that meets a minimum version
-requirement. The minimum version of Consul supported by Nomad's service and
-check stanzas is now Consul v1.7.0.
-
-#### Linux Control Groups Version 2
-
-Starting with Nomad 1.3.0, Linux systems configured to use [cgroups v2][cgroups2]
-are now supported. A Nomad client will only activate its v2 control groups manager
-if the system is configured with the cgroups2 controller mounted at `/sys/fs/cgroup`.
-  * Systems that do not support cgroups v2 are not affected.
-  * Systems configured in hybrid mode typically mount the cgroups2
-    controller at `/sys/fs/cgroup/unified`, so Nomad will continue to
-    use cgroups v1 for these hosts.
-  * Systems configured with only cgroups v2 now correctly support setting cpu [cores].
-
-Nomad will preserve the existing cgroup for tasks when a client is
-upgraded, so there will be no disruption to tasks. A new client
-attribute `unique.cgroup.version` indicates which version of control
-groups Nomad is using.
-
-When cgroups v2 are in use, Nomad uses `nomad.slice` as the [default parent][cgroup_parent] for cgroups
-created on behalf of tasks. The cgroup created for a task is named in the form `<allocID>.<task>.scope`.
-These cgroups are created by Nomad before a task starts. External task drivers that support
-containerization should be updated to make use of the new cgroup locations.
-
-The new cgroup file system layout will look like the following:
-
-```shell-session
-➜ tree -d /sys/fs/cgroup/nomad.slice
-/sys/fs/cgroup/nomad.slice
-├── 8b8da4cf-8ebf-b578-0bcf-77190749abf3.redis.scope
-└── a8c8e495-83c8-311b-4657-e6e3127e98bc.example.scope
-```
-#### Support for pre-0.9 Tasks Removed
-
-Running tasks that were created on clusters from Nomad version 0.9 or
-earlier will fail to restore after upgrading a cluster to Nomad
-1.3.0. To safely upgrade without unplanned interruptions, force these
-tasks to be rescheduled by `nomad alloc stop` before upgrading. Note
-this only applies to tasks that have been running continuously from
-before 0.9 without rescheduling. Jobs that were created before 0.9 but
-have had tasks replaced over time after 0.9 will operate normally
-during the upgrade.
-
-## Nomad 1.2.6, 1.1.12, and 1.0.18
-
-#### ACL requirement for the job parse endpoint
-
-Nomad 1.2.6, 1.1.12, and 1.0.18 require ACL authentication for the
-[job parse][api_jobs_parse] API endpoint. The `parse-job` capability has been
-created to allow access to this endpoint. The `submit-job`, `read`, and `write`
-policies include this capability.
-
-
-The capability must be enabled for the namespace used in the API request.
-
-## Nomad 1.2.4
-
-#### `nomad eval status -json` deprecated
-
-Nomad 1.2.4 includes a new `nomad eval list` command that has the
-option to display the results in JSON format with the `-json`
-flag. This replaces the existing `nomad eval status -json` option. In
-Nomad 1.4.0, `nomad eval status -json` will be changed to display only
-the selected evaluation in JSON format.
-
-## Nomad 1.2.2
-
-### Panic on node class filtering for system and sysbatch jobs fixed
-
-Nomad 1.2.2 fixes a [server crashing bug][gh-11563] present in the scheduler
-node class filtering since 1.2.0. Users should upgrade to Nomad 1.2.2 to avoid
-this problem.
-
-## Nomad 1.2.0
-
-#### Nvidia device plugin
-
-The Nvidia device is now an external plugin and must be installed separately.
-Refer to [the Nvidia device plugin's documentation][nvidia] for details.
-
-#### ACL requirements for accessing the job details page in the Nomad UI
-
-Nomad 1.2.0 introduced a new UI component to display the status of `system` and
-`sysbatch` jobs in each client where they are running. This feature makes an
-API call to an endpoint that requires `node:read` ACL permission. Tokens used
-to access the Nomad UI will need to be updated to include this permission in
-order to access a job details page.
-
-This was an unintended change fixed in Nomad 1.2.4.
-
-#### HCLv2 Job Specification Parsing
-
-In previous versions of Nomad, when rendering a job specification using override
-variables, a warning would be returned if a variable within an override file
-was declared that was not found within the job specification. This behaviour
-differed from passing variables via the `-var` flag, which would always cause an
-error in the same situation.
-
-Nomad 1.2.0 fixed the behaviour consistency to always return an error by default,
-where an override variable was specified which was not a known variable within the
-job specification. In order to mitigate this change for users who wish to only
-be warned when this situation arises, the `-hcl-strict=false` flag can be
-specified.
-
 ## Nomad 1.0.11 and 1.1.5 Enterprise
 
 #### Audit log file names
@@ -282,20 +42,15 @@ region and [fixes a bug where the `-namespace` flag was not respected for the
 For users of [`api.Client`][go-client] who want their job namespace respected,
 you must ensure the `Config.Namespace` field is unset.
 
+## Nomad 1.1.3
+
 #### Docker Driver
 
-**1.1.3 only**
-
-Starting in Nomad 1.1.2, task groups with `network.mode = "bridge"` generated a
-hosts file in Docker containers. This generated hosts file was bind-mounted
+Starting in Nomad 1.1.2, task groups with `network.mode = "bridge"` generated
+a hosts file in Docker containers. This generated hosts file was bind-mounted
 from the task directory to `/etc/hosts` within the task. In Nomad 1.1.3 the
 source for the bind mount was moved to the allocation directory so that it is
 shared between all tasks in an allocation.
-
-Please note that this change may prevent [`extra_hosts`] values from being
-properly set in each task when there are multiple tasks within the same group.
-When using `extra_hosts` with Consul Connect in `bridge` network mode, you
-should set the hosts values in the [`sidecar_task.config`] block instead.
 
 ## Nomad 1.1.0
 
@@ -368,6 +123,7 @@ capabilities allowed for use by tasks.
 Tasks using the `exec` or `java` task drivers can add or remove desired linux
 capabilities using the [`cap_add`][cap_add_exec] and [`cap_drop`][cap_drop_exec]
 task configuration options.
+
 
 #### iptables
 
@@ -1150,7 +906,7 @@ will be interpolated properly. Please see the
 ### Raft Protocol Version Compatibility
 
 When upgrading to Nomad 0.8.0 from a version lower than 0.7.0, users will need
-to set the [`raft_protocol`] option in
+to set the [`raft_protocol`](/docs/configuration/server#raft_protocol) option in
 their `server` stanza to 1 in order to maintain backwards compatibility with the
 old servers during the upgrade. After the servers have been migrated to version
 0.8.0, `raft_protocol` can be moved up to 2 and the servers restarted to match
@@ -1187,6 +943,40 @@ In order to enable all
 [Autopilot](https://learn.hashicorp.com/tutorials/nomad/autopilot) features, all
 servers in a Nomad cluster must be running with Raft protocol version 3 or
 later.
+
+#### Upgrading to Raft Protocol 3
+
+This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and
+higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all
+servers in order to work. See [Raft Protocol Version
+Compatibility](/docs/upgrade/upgrade-specific#raft-protocol-version-compatibility)
+for more details. Also the format of `peers.json` used for outage recovery is
+different when running with the latest Raft protocol. See [Manual Recovery Using
+peers.json](https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson)
+for a description of the required format.
+
+Please note that the Raft protocol is different from Nomad's internal protocol
+as shown in commands like `nomad server members`. To see the version of the Raft
+protocol in use on each server, use the `nomad operator raft list-peers`
+command.
+
+The easiest way to upgrade servers is to have each server leave the cluster,
+upgrade its `raft_protocol` version in the `server` stanza, and then add it
+back. Make sure the new server joins successfully and that the cluster is stable
+before rolling the upgrade forward to the next server. It's also possible to
+stand up a new set of servers, and then slowly stand down each of the older
+servers in a similar fashion.
+
+When using Raft protocol version 3, servers are identified by their `node-id`
+instead of their IP address when Nomad makes changes to its internal Raft quorum
+configuration. This means that once a cluster has been upgraded with servers all
+running Raft protocol version 3, it will no longer allow servers running any
+older Raft protocol versions to be added. If running a single Nomad server,
+restarting it in-place will result in that server not being able to elect itself
+as a leader. To avoid this, either set the Raft protocol back to 2, or use
+[Manual Recovery Using
+peers.json](https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson)
+to map the server to its node ID in the Raft quorum configuration.
 
 ### Node Draining Improvements
 
@@ -1359,10 +1149,6 @@ draining the node so no tasks are running on it. This can be verified by running
 state. Once that is done the client can be killed, the `data_dir` should be
 deleted and then Nomad 0.3.0 can be launched.
 
-[api_jobs_parse]: /api-docs/jobs#parse-job
-[cgroups2]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
-[cgroup_parent]: /docs/configuration/client#cgroup_parent
-[cores]: /docs/job-specification/resources#cores
 [dangling-containers]: /docs/drivers/docker#dangling-containers
 [drain-api]: /api-docs/nodes#drain-node
 [drain-cli]: /docs/commands/node/drain
@@ -1371,22 +1157,15 @@ deleted and then Nomad 0.3.0 can be launched.
 [gh-6787]: https://github.com/hashicorp/nomad/issues/6787
 [gh-8457]: https://github.com/hashicorp/nomad/issues/8457
 [gh-9148]: https://github.com/hashicorp/nomad/issues/9148
-[gh-10875]: https://github.com/hashicorp/nomad/pull/10875
-[gh-11563]: https://github.com/hashicorp/nomad/issues/11563
-[go-client]: https://pkg.go.dev/github.com/hashicorp/nomad/api#Client
 [hcl2]: https://github.com/hashicorp/hcl2
 [limits]: /docs/configuration#limits
-[lxc]: /plugins/drivers/community/lxc
+[lxc]: /docs/drivers/external/lxc
 [migrate]: /docs/job-specification/migrate
-[nvidia]: /plugins/devices/nvidia
 [plugin-stanza]: /docs/configuration/plugin
-[plugins]: /plugins/drivers/community
+[plugins]: /docs/drivers/external
 [preemption-api]: /api-docs/operator#update-scheduler-configuration
 [preemption]: /docs/internals/scheduling/preemption
 [proxy_concurrency]: /docs/job-specification/sidecar_task#proxy_concurrency
-[`sidecar_task.config`]: /docs/job-specification/sidecar_task#config
-[`raft_protocol_version`]: /docs/configuration/server#raft_protocol
-[`raft protocol`]: /docs/configuration/server#raft_protocol
 [reserved]: /docs/configuration/client#reserved-parameters
 [task-config]: /docs/job-specification/task#config
 [tls-guide]: https://learn.hashicorp.com/tutorials/nomad/security-enable-tls
@@ -1400,18 +1179,13 @@ deleted and then Nomad 0.3.0 can be launched.
 [`volume create`]: /docs/commands/volume/create
 [`volume register`]: /docs/commands/volume/register
 [`volume`]: /docs/job-specification/volume
-[enterprise licensing]: /docs/enterprise/license
-[`cap_net_raw`]: https://security.stackexchange.com/a/128988
+[Enterprise licensing]: /docs/enterprise/license
+[`CAP_NET_RAW`]: https://security.stackexchange.com/a/128988
 [`linux capabilities`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
 [`allow_caps`]: /docs/drivers/docker#allow_caps
-[`extra_hosts`]: /docs/drivers/docker#extra_hosts
 [no_net_raw]: /docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
 [allow_caps_exec]: /docs/drivers/exec#allow_caps
 [allow_caps_java]: /docs/drivers/java#allow_caps
 [cap_add_exec]: /docs/drivers/exec#cap_add
 [cap_drop_exec]: /docs/drivers/exec#cap_drop
 [`log_file`]: /docs/configuration#log_file
-[Upgrading to Raft Protocol 3]: /docs/upgrade#upgrading-to-raft-protocol-3
-[`Local`]: https://www.consul.io/docs/security/acl/acl-tokens#token-attributes
-[anon_token]: https://www.consul.io/docs/security/acl/acl-tokens#special-purpose-tokens
-[consul_acl]: https://github.com/hashicorp/consul/issues/7414

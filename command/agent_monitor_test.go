@@ -4,17 +4,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 )
 
 func TestMonitorCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &MonitorCommand{}
 }
 
 func TestMonitorCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 

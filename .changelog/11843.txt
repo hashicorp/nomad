@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: use gorilla package for gzip http handler
-```

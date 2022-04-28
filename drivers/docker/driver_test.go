@@ -17,7 +17,6 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/freeport"
@@ -229,7 +228,9 @@ func newTestDockerClient(t *testing.T) *docker.Client {
 // If you want to checkout/revert those tests, please check commit: 41715b1860778aa80513391bd64abd721d768ab0
 
 func TestDockerDriver_Start_Wait(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	taskCfg := newTaskConfig("", busyboxLongRunningCmd)
@@ -263,7 +264,9 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_WaitFinish(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	taskCfg := newTaskConfig("", []string{"echo", "hello"})
@@ -304,7 +307,9 @@ func TestDockerDriver_Start_WaitFinish(t *testing.T) {
 //
 // See https://github.com/hashicorp/nomad/issues/3419
 func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	taskCfg := newTaskConfig("", []string{"sleep", "9001"})
@@ -363,7 +368,9 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 }
 
 func TestDockerDriver_Start_LoadImage(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	taskCfg := newTaskConfig("", []string{"sh", "-c", "echo hello > $NOMAD_TASK_DIR/output"})
@@ -412,7 +419,9 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 
 // Tests that starting a task without an image fails
 func TestDockerDriver_Start_NoImage(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
@@ -439,7 +448,9 @@ func TestDockerDriver_Start_NoImage(t *testing.T) {
 }
 
 func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
@@ -475,7 +486,9 @@ func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	// This test requires that the alloc dir be mounted into docker as a volume.
 	// Because this cannot happen when docker is run remotely, e.g. when running
 	// docker in a VM, we skip this when we detect Docker is being run remotely.
@@ -536,7 +549,9 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	taskCfg := newTaskConfig("", busyboxLongRunningCmd)
@@ -582,7 +597,9 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_KillTimeout(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	if runtime.GOOS == "windows" {
@@ -632,9 +649,11 @@ func TestDockerDriver_Start_KillTimeout(t *testing.T) {
 }
 
 func TestDockerDriver_StartN(t *testing.T) {
-	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows Docker does not support SIGINT")
+	}
+	if !tu.IsCI() {
+		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
 	require := require.New(t)
@@ -686,9 +705,11 @@ func TestDockerDriver_StartN(t *testing.T) {
 }
 
 func TestDockerDriver_StartNVersions(t *testing.T) {
-	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipped on windows, we don't have image variants available")
+	}
+	if !tu.IsCI() {
+		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
 	require := require.New(t)
@@ -755,7 +776,9 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 }
 
 func TestDockerDriver_Labels(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -784,7 +807,9 @@ func TestDockerDriver_Labels(t *testing.T) {
 }
 
 func TestDockerDriver_ExtraLabels(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -819,7 +844,9 @@ func TestDockerDriver_ExtraLabels(t *testing.T) {
 }
 
 func TestDockerDriver_LoggingConfiguration(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -846,7 +873,9 @@ func TestDockerDriver_LoggingConfiguration(t *testing.T) {
 }
 
 func TestDockerDriver_ForcePull(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -867,9 +896,12 @@ func TestDockerDriver_ForcePull(t *testing.T) {
 }
 
 func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
-	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("TODO: Skipped digest test on Windows")
+	}
+
+	if !tu.IsCI() {
+		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
 
@@ -893,9 +925,11 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 }
 
 func TestDockerDriver_SecurityOptUnconfined(t *testing.T) {
-	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not support seccomp")
+	}
+	if !tu.IsCI() {
+		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
 
@@ -917,9 +951,12 @@ func TestDockerDriver_SecurityOptUnconfined(t *testing.T) {
 }
 
 func TestDockerDriver_SecurityOptFromFile(t *testing.T) {
-	ci.Parallel(t)
+
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not support seccomp")
+	}
+	if !tu.IsCI() {
+		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
 
@@ -939,7 +976,9 @@ func TestDockerDriver_SecurityOptFromFile(t *testing.T) {
 }
 
 func TestDockerDriver_Runtime(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -960,7 +999,7 @@ func TestDockerDriver_Runtime(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfig(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
@@ -984,7 +1023,7 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfig_RuntimeConflict(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
@@ -1009,7 +1048,7 @@ func TestDockerDriver_CreateContainerConfig_RuntimeConflict(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfig_ChecksAllowRuntimes(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	dh := dockerDriverHarness(t, nil)
 	driver := dh.Impl().(*Driver)
@@ -1048,7 +1087,7 @@ func TestDockerDriver_CreateContainerConfig_ChecksAllowRuntimes(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfig_User(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
@@ -1066,7 +1105,7 @@ func TestDockerDriver_CreateContainerConfig_User(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfig_Labels(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
@@ -1100,7 +1139,7 @@ func TestDockerDriver_CreateContainerConfig_Labels(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfig_Logging(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		name           string
@@ -1179,18 +1218,18 @@ func TestDockerDriver_CreateContainerConfig_Logging(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfig_Mounts(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
 
 	cfg.Mounts = []DockerMount{
-		{
+		DockerMount{
 			Type:   "bind",
 			Target: "/map-bind-target",
 			Source: "/map-source",
 		},
-		{
+		DockerMount{
 			Type:   "tmpfs",
 			Target: "/map-tmpfs-target",
 		},
@@ -1257,7 +1296,9 @@ func TestDockerDriver_CreateContainerConfig_Mounts(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testCases := []struct {
 		description           string
 		gpuRuntimeSet         bool
@@ -1327,7 +1368,9 @@ func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
 }
 
 func TestDockerDriver_Capabilities(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Capabilities not supported on windows")
@@ -1437,7 +1480,9 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 }
 
 func TestDockerDriver_DNS(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 	testutil.ExecCompatible(t)
 
@@ -1481,33 +1526,14 @@ func TestDockerDriver_DNS(t *testing.T) {
 
 }
 
-func TestDockerDriver_Init(t *testing.T) {
-	ci.Parallel(t)
+func TestDockerDriver_CPUSetCPUs(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 	if runtime.GOOS == "windows" {
-		t.Skip("Windows does not support init.")
+		t.Skip("Windows does not support CPUSetCPUs.")
 	}
-
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
-
-	cfg.Init = true
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
-
-	client, d, handle, cleanup := dockerSetup(t, task, nil)
-	defer cleanup()
-	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
-
-	container, err := client.InspectContainer(handle.containerID)
-	require.NoError(t, err)
-
-	require.Equal(t, cfg.Init, container.HostConfig.Init)
-}
-
-func TestDockerDriver_CPUSetCPUs(t *testing.T) {
-	ci.Parallel(t)
-	testutil.DockerCompatible(t)
-	testutil.CgroupsCompatible(t)
 
 	testCases := []struct {
 		Name       string
@@ -1548,7 +1574,9 @@ func TestDockerDriver_CPUSetCPUs(t *testing.T) {
 }
 
 func TestDockerDriver_MemoryHardLimit(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not support MemoryReservation")
@@ -1572,7 +1600,9 @@ func TestDockerDriver_MemoryHardLimit(t *testing.T) {
 }
 
 func TestDockerDriver_MACAddress(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows docker does not support setting MacAddress")
@@ -1594,7 +1624,9 @@ func TestDockerDriver_MACAddress(t *testing.T) {
 }
 
 func TestDockerWorkDir(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -1621,7 +1653,9 @@ func inSlice(needle string, haystack []string) bool {
 }
 
 func TestDockerDriver_PortsNoMap(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	task, _, ports := dockerTask(t)
@@ -1663,7 +1697,9 @@ func TestDockerDriver_PortsNoMap(t *testing.T) {
 }
 
 func TestDockerDriver_PortsMapping(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -1713,7 +1749,7 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfig_Ports(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
@@ -1756,7 +1792,7 @@ func TestDockerDriver_CreateContainerConfig_Ports(t *testing.T) {
 
 }
 func TestDockerDriver_CreateContainerConfig_PortsMapping(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
@@ -1792,7 +1828,9 @@ func TestDockerDriver_CreateContainerConfig_PortsMapping(t *testing.T) {
 }
 
 func TestDockerDriver_CleanupContainer(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -1830,7 +1868,6 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 }
 
 func TestDockerDriver_EnableImageGC(t *testing.T) {
-	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -1897,7 +1934,6 @@ func TestDockerDriver_EnableImageGC(t *testing.T) {
 }
 
 func TestDockerDriver_DisableImageGC(t *testing.T) {
-	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -1960,7 +1996,6 @@ func TestDockerDriver_DisableImageGC(t *testing.T) {
 }
 
 func TestDockerDriver_MissingContainer_Cleanup(t *testing.T) {
-	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -2027,7 +2062,9 @@ func TestDockerDriver_MissingContainer_Cleanup(t *testing.T) {
 }
 
 func TestDockerDriver_Stats(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -2100,7 +2137,9 @@ func setupDockerVolumes(t *testing.T, cfg map[string]interface{}, hostpath strin
 }
 
 func TestDockerDriver_VolumesDisabled(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	cfg := map[string]interface{}{
@@ -2170,7 +2209,9 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 }
 
 func TestDockerDriver_VolumesEnabled(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	cfg := map[string]interface{}{
@@ -2213,7 +2254,9 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 }
 
 func TestDockerDriver_Mounts(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	goodMount := DockerMount{
@@ -2283,7 +2326,9 @@ func TestDockerDriver_Mounts(t *testing.T) {
 }
 
 func TestDockerDriver_AuthConfiguration(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	path := "./test-resources/docker/auth.json"
@@ -2332,7 +2377,9 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 }
 
 func TestDockerDriver_AuthFromTaskConfig(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 
 	cases := []struct {
 		Auth       DockerAuth
@@ -2384,7 +2431,9 @@ func TestDockerDriver_AuthFromTaskConfig(t *testing.T) {
 }
 
 func TestDockerDriver_OOMKilled(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	if runtime.GOOS == "windows" {
@@ -2433,7 +2482,9 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 }
 
 func TestDockerDriver_Devices_IsInvalidConfig(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	brokenConfigs := []DockerDevice{
@@ -2471,7 +2522,9 @@ func TestDockerDriver_Devices_IsInvalidConfig(t *testing.T) {
 }
 
 func TestDockerDriver_Device_Success(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	if runtime.GOOS != "linux" {
@@ -2509,7 +2562,9 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 }
 
 func TestDockerDriver_Entrypoint(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	entrypoint := []string{"sh", "-c"}
@@ -2534,7 +2589,9 @@ func TestDockerDriver_Entrypoint(t *testing.T) {
 }
 
 func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	if runtime.GOOS == "windows" {
@@ -2576,7 +2633,9 @@ func (fakeDockerClient) RemoveContainer(opts docker.RemoveContainerOptions) erro
 // TestDockerDriver_VolumeError asserts volume related errors when creating a
 // container are recoverable.
 func TestDockerDriver_VolumeError(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 
 	// setup
 	_, cfg, ports := dockerTask(t)
@@ -2589,7 +2648,9 @@ func TestDockerDriver_VolumeError(t *testing.T) {
 }
 
 func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	expectedPrefix := "2001:db8:1::242:ac11"
@@ -2639,8 +2700,6 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 }
 
 func TestParseDockerImage(t *testing.T) {
-	ci.Parallel(t)
-
 	tests := []struct {
 		Image string
 		Repo  string
@@ -2661,7 +2720,6 @@ func TestParseDockerImage(t *testing.T) {
 }
 
 func TestDockerImageRef(t *testing.T) {
-	ci.Parallel(t)
 	tests := []struct {
 		Image string
 		Repo  string
@@ -2698,7 +2756,9 @@ func waitForExist(t *testing.T, client *docker.Client, containerID string) {
 // and startContainers functions are idempotent, as we have some retry
 // logic there without ensureing we delete/destroy containers
 func TestDockerDriver_CreationIdempotent(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -2767,7 +2827,7 @@ func TestDockerDriver_CreationIdempotent(t *testing.T) {
 // TestDockerDriver_CreateContainerConfig_CPUHardLimit asserts that a default
 // CPU quota and period are set when cpu_hard_limit = true.
 func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	task, _, ports := dockerTask(t)
 	defer freeport.Return(ports)
@@ -2793,7 +2853,7 @@ func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
 }
 
 func TestDockerDriver_memoryLimits(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		name           string
@@ -2849,7 +2909,7 @@ func TestDockerDriver_memoryLimits(t *testing.T) {
 }
 
 func TestDockerDriver_parseSignal(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	tests := []struct {
 		name            string
@@ -2898,12 +2958,11 @@ func TestDockerDriver_parseSignal(t *testing.T) {
 
 // This test asserts that Nomad isn't overriding the STOPSIGNAL in a Dockerfile
 func TestDockerDriver_StopSignal(t *testing.T) {
-	ci.Parallel(t)
-	testutil.DockerCompatible(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipped on windows, we don't have image variants available")
 	}
 
+	testutil.DockerCompatible(t)
 	cases := []struct {
 		name            string
 		variant         string

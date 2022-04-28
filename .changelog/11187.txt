@@ -1,3 +1,0 @@
-```release-note:improvement
-consul/connect: Allow `http2` and `grpc` protocols in ingress gateways
-```

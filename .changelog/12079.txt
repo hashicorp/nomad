@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: Updated hashicorp/raft to v1.3.5
-```

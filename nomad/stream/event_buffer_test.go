@@ -7,15 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestEventBufferFuzz(t *testing.T) {
-	ci.Parallel(t)
-
 	nReaders := 1000
 	nMessages := 1000
 
@@ -87,8 +85,6 @@ func TestEventBufferFuzz(t *testing.T) {
 }
 
 func TestEventBuffer_Slow_Reader(t *testing.T) {
-	ci.Parallel(t)
-
 	b := newEventBuffer(10)
 
 	for i := 1; i < 11; i++ {
@@ -120,8 +116,6 @@ func TestEventBuffer_Slow_Reader(t *testing.T) {
 }
 
 func TestEventBuffer_Size(t *testing.T) {
-	ci.Parallel(t)
-
 	b := newEventBuffer(100)
 
 	for i := 0; i < 10; i++ {
@@ -135,8 +129,6 @@ func TestEventBuffer_Size(t *testing.T) {
 }
 
 func TestEventBuffer_MaxSize(t *testing.T) {
-	ci.Parallel(t)
-
 	b := newEventBuffer(10)
 
 	var events []structs.Event
@@ -152,8 +144,6 @@ func TestEventBuffer_MaxSize(t *testing.T) {
 // are removed, the event buffer should advance its head down to the last message
 // and insert a placeholder sentinel value.
 func TestEventBuffer_Emptying_Buffer(t *testing.T) {
-	ci.Parallel(t)
-
 	b := newEventBuffer(10)
 
 	for i := 0; i < 10; i++ {
@@ -194,8 +184,6 @@ func TestEventBuffer_Emptying_Buffer(t *testing.T) {
 }
 
 func TestEventBuffer_StartAt_CurrentIdx_Past_Start(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		desc     string
 		req      uint64

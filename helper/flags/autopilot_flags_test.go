@@ -5,12 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFlagHelper_Pointers_Set(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	var (
 		B BoolValue
@@ -45,7 +44,7 @@ func TestFlagHelper_Pointers_Set(t *testing.T) {
 }
 
 func TestFlagHelper_Pointers_Ignored(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	var (
 		B BoolValue

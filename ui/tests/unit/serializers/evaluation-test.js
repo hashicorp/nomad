@@ -2,9 +2,9 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import EvaluationModel from 'nomad-ui/models/evaluation';
 
-module('Unit | Serializer | Evaluation', function (hooks) {
+module('Unit | Serializer | Evaluation', function(hooks) {
   setupTest(hooks);
-  hooks.beforeEach(function () {
+  hooks.beforeEach(function() {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.serializerFor('evaluation');
   });
@@ -40,8 +40,6 @@ module('Unit | Serializer | Evaluation', function (hooks) {
                 nodesAvailable: 10,
               },
             ],
-            namespace: 'test-namespace',
-            plainJobId: 'some-job-id',
           },
           relationships: {
             job: {
@@ -91,8 +89,6 @@ module('Unit | Serializer | Evaluation', function (hooks) {
                 nodesAvailable: 25,
               },
             ],
-            namespace: 'test-namespace',
-            plainJobId: 'some-job-id',
           },
           relationships: {
             job: {
@@ -107,12 +103,9 @@ module('Unit | Serializer | Evaluation', function (hooks) {
     },
   ];
 
-  normalizationTestCases.forEach((testCase) => {
-    test(`normalization: ${testCase.name}`, async function (assert) {
-      assert.deepEqual(
-        this.subject().normalize(EvaluationModel, testCase.in),
-        testCase.out
-      );
+  normalizationTestCases.forEach(testCase => {
+    test(`normalization: ${testCase.name}`, async function(assert) {
+      assert.deepEqual(this.subject().normalize(EvaluationModel, testCase.in), testCase.out);
     });
   });
 });

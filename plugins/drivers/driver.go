@@ -267,7 +267,7 @@ type TaskConfig struct {
 	JobName          string
 	JobID            string
 	TaskGroupName    string
-	Name             string // task.Name
+	Name             string
 	Namespace        string
 	NodeName         string
 	NodeID           string

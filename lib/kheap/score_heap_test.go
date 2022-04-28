@@ -4,7 +4,6 @@ import (
 	"container/heap"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,8 +21,6 @@ func (h *heapItem) Score() float64 {
 }
 
 func TestScoreHeap(t *testing.T) {
-	ci.Parallel(t)
-
 	type testCase struct {
 		desc     string
 		items    map[string]float64

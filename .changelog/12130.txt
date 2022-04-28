@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: Update serf library to v0.9.7
-```

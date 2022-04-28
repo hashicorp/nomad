@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 )
 
 func TestAgentCheckCommand_ServerHealth(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -27,4 +26,5 @@ func TestAgentCheckCommand_ServerHealth(t *testing.T) {
 	if code != HealthCritical {
 		t.Fatalf("expected exitcode: %v, actual: %v", HealthCritical, code)
 	}
+
 }

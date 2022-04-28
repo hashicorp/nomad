@@ -2,13 +2,14 @@ package allocrunner
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
@@ -18,14 +19,16 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/stretchr/testify/require"
 )
 
 var _ interfaces.RunnerPrerunHook = (*csiHook)(nil)
 var _ interfaces.RunnerPostrunHook = (*csiHook)(nil)
 
+// TODO https://github.com/hashicorp/nomad/issues/11786
+// we should implement Update as well
+// var _ interfaces.RunnerUpdateHook = (*csiHook)(nil)
+
 func TestCSIHook(t *testing.T) {
-	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	logger := testlog.HCLogger(t)

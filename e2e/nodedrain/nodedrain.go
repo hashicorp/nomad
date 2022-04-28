@@ -51,8 +51,6 @@ func (tc *NodeDrainE2ETest) AfterEach(f *framework.F) {
 	for _, id := range tc.nodeIDs {
 		_, err := e2e.Command("nomad", "node", "drain", "-disable", "-yes", id)
 		f.Assert().NoError(err)
-		_, err = e2e.Command("nomad", "node", "eligibility", "-enable", id)
-		f.Assert().NoError(err)
 	}
 	tc.nodeIDs = []string{}
 
@@ -142,7 +140,7 @@ func (tc *NodeDrainE2ETest) TestNodeDrainEphemeralMigrate(f *framework.F) {
 	// match the old allocation, not the running one
 	var got string
 	var fsErr error
-	testutil.WaitForResultRetries(10, func() (bool, error) {
+	testutil.WaitForResultRetries(500, func() (bool, error) {
 		time.Sleep(time.Millisecond * 100)
 		for _, alloc := range allocs {
 			if alloc["Status"] == "running" && alloc["Node ID"] != nodeID && alloc["ID"] != oldAllocID {
@@ -151,15 +149,18 @@ func (tc *NodeDrainE2ETest) TestNodeDrainEphemeralMigrate(f *framework.F) {
 				if err != nil {
 					return false, err
 				}
-				return true, nil
+				if strings.TrimSpace(got) == oldAllocID {
+					return true, nil
+				} else {
+					return false, fmt.Errorf("expected %q, got %q", oldAllocID, got)
+				}
 			}
 		}
-		return false, fmt.Errorf("missing expected allocation")
+		return false, fmt.Errorf("did not find a migrated alloc")
 	}, func(e error) {
 		fsErr = e
 	})
-	f.NoError(fsErr, "could not get allocation data")
-	f.Equal(oldAllocID, strings.TrimSpace(got), "node drained but migration failed")
+	f.NoError(fsErr, "node drained but migration failed")
 }
 
 // TestNodeDrainIgnoreSystem tests that system jobs are left behind when the
@@ -178,8 +179,6 @@ func (tc *NodeDrainE2ETest) TestNodeDrainIgnoreSystem(f *framework.F) {
 
 	f.NoError(e2e.Register(serviceJobID, "nodedrain/input/drain_simple.nomad"))
 	tc.jobIDs = append(tc.jobIDs, serviceJobID)
-
-	f.NoError(e2e.WaitForAllocStatusExpected(serviceJobID, ns, []string{"running"}))
 
 	allocs, err := e2e.AllocsForJob(serviceJobID, ns)
 	f.NoError(err, "could not get allocs for service job")
@@ -286,8 +285,8 @@ func (tc *NodeDrainE2ETest) TestNodeDrainDeadline(f *framework.F) {
 	), "node did not drain immediately following deadline")
 }
 
-// TestNodeDrainForce tests the enforcement of the node drain -force flag so
-// that allocations are terminated immediately.
+// TestNodeDrainDeadline tests the enforcement of the node drain -force flag
+// so that allocations are terminated immediately.
 func (tc *NodeDrainE2ETest) TestNodeDrainForce(f *framework.F) {
 	f.T().Skip("The behavior is unclear and test assertions don't capture intent.  Issue 9902")
 

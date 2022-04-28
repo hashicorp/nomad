@@ -158,7 +158,11 @@ func (c *JobStatusCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 {
-		if (jobID != jobs[0].ID) || (allNamespaces && jobs[0].ID == jobs[1].ID) {
+		if jobID != jobs[0].ID {
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, allNamespaces)))
+			return 1
+		}
+		if allNamespaces && jobs[0].ID == jobs[1].ID {
 			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, allNamespaces)))
 			return 1
 		}
@@ -187,10 +191,6 @@ func (c *JobStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Status|%s", getStatusString(*job.Status, job.Stop)),
 		fmt.Sprintf("Periodic|%v", periodic),
 		fmt.Sprintf("Parameterized|%v", parameterized),
-	}
-
-	if job.DispatchIdempotencyToken != nil && *job.DispatchIdempotencyToken != "" {
-		basic = append(basic, fmt.Sprintf("Idempotency Token|%v", *job.DispatchIdempotencyToken))
 	}
 
 	if periodic && !parameterized {
@@ -540,7 +540,7 @@ func (c *JobStatusCommand) outputJobSummary(client *api.Client, job *api.Job) er
 	if !periodic && !parameterizedJob {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Summary[reset]"))
 		summaries := make([]string, len(summary.Summary)+1)
-		summaries[0] = "Task Group|Queued|Starting|Running|Failed|Complete|Lost|Unknown"
+		summaries[0] = "Task Group|Queued|Starting|Running|Failed|Complete|Lost"
 		taskGroups := make([]string, 0, len(summary.Summary))
 		for taskGroup := range summary.Summary {
 			taskGroups = append(taskGroups, taskGroup)
@@ -548,10 +548,10 @@ func (c *JobStatusCommand) outputJobSummary(client *api.Client, job *api.Job) er
 		sort.Strings(taskGroups)
 		for idx, taskGroup := range taskGroups {
 			tgs := summary.Summary[taskGroup]
-			summaries[idx+1] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d|%d",
+			summaries[idx+1] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d",
 				taskGroup, tgs.Queued, tgs.Starting,
 				tgs.Running, tgs.Failed,
-				tgs.Complete, tgs.Lost, tgs.Unknown,
+				tgs.Complete, tgs.Lost,
 			)
 		}
 		c.Ui.Output(formatList(summaries))

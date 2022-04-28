@@ -3,13 +3,10 @@ package acl
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCapabilitySet(t *testing.T) {
-	ci.Parallel(t)
-
 	var cs capabilitySet = make(map[string]struct{})
 
 	// Check no capabilities by default
@@ -31,8 +28,6 @@ func TestCapabilitySet(t *testing.T) {
 }
 
 func TestMaxPrivilege(t *testing.T) {
-	ci.Parallel(t)
-
 	type tcase struct {
 		Privilege      string
 		PrecedenceOver []string
@@ -65,8 +60,6 @@ func TestMaxPrivilege(t *testing.T) {
 }
 
 func TestACLManagement(t *testing.T) {
-	ci.Parallel(t)
-
 	assert := assert.New(t)
 
 	// Create management ACL
@@ -95,8 +88,6 @@ func TestACLManagement(t *testing.T) {
 }
 
 func TestACLMerge(t *testing.T) {
-	ci.Parallel(t)
-
 	assert := assert.New(t)
 
 	// Merge read + write policy
@@ -231,8 +222,6 @@ quota {
 `
 
 func TestAllowNamespace(t *testing.T) {
-	ci.Parallel(t)
-
 	tests := []struct {
 		Policy string
 		Allow  bool
@@ -275,8 +264,6 @@ func TestAllowNamespace(t *testing.T) {
 }
 
 func TestWildcardNamespaceMatching(t *testing.T) {
-	ci.Parallel(t)
-
 	tests := []struct {
 		Policy string
 		Allow  bool
@@ -328,8 +315,6 @@ func TestWildcardNamespaceMatching(t *testing.T) {
 }
 
 func TestWildcardHostVolumeMatching(t *testing.T) {
-	ci.Parallel(t)
-
 	tests := []struct {
 		Policy string
 		Allow  bool
@@ -380,8 +365,6 @@ func TestWildcardHostVolumeMatching(t *testing.T) {
 	}
 }
 func TestACL_matchingCapabilitySet_returnsAllMatches(t *testing.T) {
-	ci.Parallel(t)
-
 	tests := []struct {
 		Policy        string
 		NS            string
@@ -428,8 +411,6 @@ func TestACL_matchingCapabilitySet_returnsAllMatches(t *testing.T) {
 }
 
 func TestACL_matchingCapabilitySet_difference(t *testing.T) {
-	ci.Parallel(t)
-
 	tests := []struct {
 		Policy     string
 		NS         string

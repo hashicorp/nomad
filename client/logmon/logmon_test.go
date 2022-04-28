@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -18,8 +17,6 @@ import (
 )
 
 func TestLogmon_Start_rotate(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	var stdoutFifoPath, stderrFifoPath string
 
@@ -80,8 +77,6 @@ func TestLogmon_Start_rotate(t *testing.T) {
 // asserts that calling Start twice restarts the log rotator and that any logs
 // published while the listener was unavailable are received.
 func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
-	ci.Parallel(t)
-
 	if runtime.GOOS == "windows" {
 		t.Skip("windows does not support pushing data to a pipe with no servers")
 	}
@@ -189,8 +184,6 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 
 // asserts that calling Start twice restarts the log rotator
 func TestLogmon_Start_restart(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	var stdoutFifoPath, stderrFifoPath string
 
@@ -287,7 +280,7 @@ func (panicWriter) Close() error {
 // TestLogmon_NewError asserts that newLogRotatorWrapper will return an error
 // if its unable to create the necessray files.
 func TestLogmon_NewError(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Pick a path that does not exist
 	path := filepath.Join(uuid.Generate(), uuid.Generate(), uuid.Generate())

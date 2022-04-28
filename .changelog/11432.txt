@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: the command `node status` now returns `host_network` information as well
-```

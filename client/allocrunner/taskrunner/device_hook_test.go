@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -16,7 +15,7 @@ import (
 )
 
 func TestDeviceHook_CorrectDevice(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	dm := devicemanager.NoopMockManager()
@@ -98,7 +97,7 @@ func TestDeviceHook_CorrectDevice(t *testing.T) {
 }
 
 func TestDeviceHook_IncorrectDevice(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	dm := devicemanager.NoopMockManager()

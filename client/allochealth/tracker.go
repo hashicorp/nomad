@@ -9,8 +9,9 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/serviceregistration"
+	cconsul "github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -55,7 +56,7 @@ type Tracker struct {
 	allocUpdates *cstructs.AllocListener
 
 	// consulClient is used to look up the state of the task's checks
-	consulClient serviceregistration.Handler
+	consulClient cconsul.ConsulServiceAPI
 
 	// healthy is used to signal whether we have determined the allocation to be
 	// healthy or unhealthy
@@ -92,7 +93,7 @@ type Tracker struct {
 // listener and consul API object are given so that the watcher can detect
 // health changes.
 func NewTracker(parentCtx context.Context, logger hclog.Logger, alloc *structs.Allocation,
-	allocUpdates *cstructs.AllocListener, consulClient serviceregistration.Handler,
+	allocUpdates *cstructs.AllocListener, consulClient cconsul.ConsulServiceAPI,
 	minHealthyTime time.Duration, useChecks bool) *Tracker {
 
 	// Do not create a named sub-logger as the hook controlling
@@ -376,7 +377,7 @@ func (t *Tracker) watchConsulEvents() {
 	consulChecksErr := false
 
 	// allocReg are the registered objects in Consul for the allocation
-	var allocReg *serviceregistration.AllocRegistration
+	var allocReg *consul.AllocRegistration
 
 OUTER:
 	for {
@@ -481,7 +482,7 @@ OUTER:
 type taskHealthState struct {
 	task              *structs.Task
 	state             *structs.TaskState
-	taskRegistrations *serviceregistration.ServiceRegistrations
+	taskRegistrations *consul.ServiceRegistrations
 }
 
 // event takes the deadline time for the allocation to be healthy and the update

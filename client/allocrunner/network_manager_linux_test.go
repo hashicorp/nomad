@@ -3,7 +3,6 @@ package allocrunner
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -64,8 +63,6 @@ func (m *mockDriverManager) Dispense(driver string) (drivers.DriverPlugin, error
 }
 
 func TestNewNetworkManager(t *testing.T) {
-	ci.Parallel(t)
-
 	for _, tc := range []struct {
 		name        string
 		alloc       *structs.Allocation

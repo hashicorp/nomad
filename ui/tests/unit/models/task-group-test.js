@@ -6,10 +6,10 @@ import { run } from '@ember/runloop';
 
 const sum = (list, key) => list.reduce((sum, item) => sum + get(item, key), 0);
 
-module('Unit | Model | task-group', function (hooks) {
+module('Unit | Model | task-group', function(hooks) {
   setupTest(hooks);
 
-  test("should expose reserved resource stats as aggregates of each task's reserved resources", function (assert) {
+  test("should expose reserved resource stats as aggregates of each task's reserved resources", function(assert) {
     const taskGroup = run(() =>
       this.owner.lookup('service:store').createRecord('task-group', {
         name: 'group-example',
@@ -63,17 +63,11 @@ module('Unit | Model | task-group', function (hooks) {
     );
   });
 
-  test("should expose mergedMeta as merged with the job's meta", function (assert) {
-    assert.expect(8);
-
-    const store = this.owner.lookup('service:store');
-
+  test("should expose mergedMeta as merged with the job's meta", function(assert) {
     const jobWithMeta = run(() =>
-      store.createRecord('job', {
+      this.owner.lookup('service:store').createRecord('job', {
         name: 'example-with-meta',
-        meta: store.createFragment('structured-attributes', {
-          raw: { a: 'b' },
-        }),
+        meta: { a: 'b' },
         taskGroups: [
           {
             name: 'one',
@@ -97,7 +91,10 @@ module('Unit | Model | task-group', function (hooks) {
     let expected = [{ a: 'b', c: 'd' }, { a: 'b' }, { a: 'b' }, { a: 'b' }];
     expected.forEach((exp, i) => {
       assert.deepEqual(
-        jobWithMeta.get('taskGroups').objectAt(i).get('mergedMeta'),
+        jobWithMeta
+          .get('taskGroups')
+          .objectAt(i)
+          .get('mergedMeta'),
         exp,
         'mergedMeta is merged with job meta'
       );
@@ -129,7 +126,10 @@ module('Unit | Model | task-group', function (hooks) {
     expected = [{ c: 'd' }, {}, {}, {}];
     expected.forEach((exp, i) => {
       assert.deepEqual(
-        jobWithoutMeta.get('taskGroups').objectAt(i).get('mergedMeta'),
+        jobWithoutMeta
+          .get('taskGroups')
+          .objectAt(i)
+          .get('mergedMeta'),
         exp,
         'mergedMeta is merged with job meta'
       );

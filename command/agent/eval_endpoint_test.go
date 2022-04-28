@@ -1,66 +1,60 @@
 package agent
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
 )
 
 func TestHTTP_EvalList(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		eval1 := mock.Eval()
 		eval2 := mock.Eval()
 		err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
 
-		// simple list request
+		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/evaluations", nil)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
 		respW := httptest.NewRecorder()
+
+		// Make the request
 		obj, err := s.Server.EvalsRequest(respW, req)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
 
-		// check headers and response body
-		require.NotEqual(t, "", respW.Result().Header.Get("X-Nomad-Index"), "missing index")
-		require.Equal(t, "true", respW.Result().Header.Get("X-Nomad-KnownLeader"), "missing known leader")
-		require.NotEqual(t, "", respW.Result().Header.Get("X-Nomad-LastContact"), "missing last contact")
-		require.Len(t, obj.([]*structs.Evaluation), 2, "expected 2 evals")
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+			t.Fatalf("missing known leader")
+		}
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+			t.Fatalf("missing last contact")
+		}
 
-		// paginated list request
-		req, err = http.NewRequest("GET", "/v1/evaluations?per_page=1", nil)
-		require.NoError(t, err)
-		respW = httptest.NewRecorder()
-		obj, err = s.Server.EvalsRequest(respW, req)
-		require.NoError(t, err)
-
-		// check response body
-		require.Len(t, obj.([]*structs.Evaluation), 1, "expected 1 eval")
-
-		// filtered list request
-		req, err = http.NewRequest("GET",
-			fmt.Sprintf("/v1/evaluations?per_page=10&job=%s", eval2.JobID), nil)
-		require.NoError(t, err)
-		respW = httptest.NewRecorder()
-		obj, err = s.Server.EvalsRequest(respW, req)
-		require.NoError(t, err)
-
-		// check response body
-		require.Len(t, obj.([]*structs.Evaluation), 1, "expected 1 eval")
-
+		// Check the eval
+		e := obj.([]*structs.Evaluation)
+		if len(e) != 2 {
+			t.Fatalf("bad: %#v", e)
+		}
 	})
 }
 
 func TestHTTP_EvalPrefixList(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -87,13 +81,13 @@ func TestHTTP_EvalPrefixList(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -111,7 +105,7 @@ func TestHTTP_EvalPrefixList(t *testing.T) {
 }
 
 func TestHTTP_EvalAllocations(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -140,13 +134,13 @@ func TestHTTP_EvalAllocations(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -159,7 +153,7 @@ func TestHTTP_EvalAllocations(t *testing.T) {
 }
 
 func TestHTTP_EvalQuery(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -183,13 +177,13 @@ func TestHTTP_EvalQuery(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -198,46 +192,5 @@ func TestHTTP_EvalQuery(t *testing.T) {
 		if e.ID != eval.ID {
 			t.Fatalf("bad: %#v", e)
 		}
-	})
-}
-
-func TestHTTP_EvalQueryWithRelated(t *testing.T) {
-	ci.Parallel(t)
-	httpTest(t, nil, func(s *TestAgent) {
-		// Directly manipulate the state
-		state := s.Agent.server.State()
-		eval1 := mock.Eval()
-		eval2 := mock.Eval()
-
-		// Link related evals
-		eval1.NextEval = eval2.ID
-		eval2.PreviousEval = eval1.ID
-
-		err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
-		require.NoError(t, err)
-
-		// Make the HTTP request
-		req, err := http.NewRequest("GET", fmt.Sprintf("/v1/evaluation/%s?related=true", eval1.ID), nil)
-		require.NoError(t, err)
-		respW := httptest.NewRecorder()
-
-		// Make the request
-		obj, err := s.Server.EvalSpecificRequest(respW, req)
-		require.NoError(t, err)
-
-		// Check for the index
-		require.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"))
-		require.NotEmpty(t, respW.Result().Header.Get("X-Nomad-KnownLeader"))
-		require.NotEmpty(t, respW.Result().Header.Get("X-Nomad-LastContact"))
-
-		// Check the eval
-		e := obj.(*structs.Evaluation)
-		require.Equal(t, eval1.ID, e.ID)
-
-		// Check for the related evals
-		expected := []*structs.EvaluationStub{
-			eval2.Stub(),
-		}
-		require.Equal(t, expected, e.RelatedEvals)
 	})
 }

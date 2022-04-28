@@ -6,7 +6,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -22,10 +21,9 @@ const (
 // BuiltinSchedulers contains the built in registered schedulers
 // which are available
 var BuiltinSchedulers = map[string]Factory{
-	"service":  NewServiceScheduler,
-	"batch":    NewBatchScheduler,
-	"system":   NewSystemScheduler,
-	"sysbatch": NewSysBatchScheduler,
+	"service": NewServiceScheduler,
+	"batch":   NewBatchScheduler,
+	"system":  NewSystemScheduler,
 }
 
 // NewScheduler is used to instantiate and return a new scheduler
@@ -108,9 +106,6 @@ type State interface {
 
 	// CSIVolumeByID fetch CSI volumes, containing controller jobs
 	CSIVolumesByNodeID(memdb.WatchSet, string, string) (memdb.ResultIterator, error)
-
-	// LatestIndex returns the greatest index value for all indexes.
-	LatestIndex() (uint64, error)
 }
 
 // Planner interface is used to submit a task allocation plan.
@@ -133,9 +128,4 @@ type Planner interface {
 	// evaluation must exist in a blocked state prior to this being called such
 	// that on leader changes, the evaluation will be reblocked properly.
 	ReblockEval(*structs.Evaluation) error
-
-	// ServersMeetMinimumVersion returns whether the Nomad servers are at least on the
-	// given Nomad version. The checkFailedServers parameter specifies whether version
-	// for the failed servers should be verified.
-	ServersMeetMinimumVersion(minVersion *version.Version, checkFailedServers bool) bool
 }

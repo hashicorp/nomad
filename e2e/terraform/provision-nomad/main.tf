@@ -1,153 +1,142 @@
 locals {
-  upload_dir = "uploads/${var.instance.public_ip}"
+  provision_script = var.platform == "windows_amd64" ? "powershell C:/opt/provision.ps1" : "/opt/provision.sh"
 
-  indexed_config_path = fileexists("etc/nomad.d/${var.role}-${var.platform}-${var.index}.hcl") ? "etc/nomad.d/${var.role}-${var.platform}-${var.index}.hcl" : "etc/nomad.d/index.hcl"
+  config_path = dirname("${path.root}/config/")
 
+  config_files = compact(setunion(
+    fileset(local.config_path, "**"),
+  ))
+
+  update_config_command = var.platform == "windows_amd64" ? "powershell -Command \"& { if (test-path /opt/config) { Remove-Item -Path /opt/config -Force -Recurse }; cp -r C:/tmp/config /opt/config }\"" : "sudo rm -rf /opt/config; sudo mv /tmp/config /opt/config"
+
+  # abstract-away platform-specific parameter expectations
+  _arg = var.platform == "windows_amd64" ? "-" : "--"
 }
 
-# if nomad_license is unset, it'll be a harmless empty license file
-resource "local_sensitive_file" "nomad_environment" {
-  content = templatefile("etc/nomad.d/.environment", {
-    license = var.nomad_license
-  })
-  filename        = "${local.upload_dir}/nomad.d/.environment"
-  file_permission = "0600"
-}
+resource "null_resource" "provision_nomad" {
 
-resource "local_sensitive_file" "nomad_base_config" {
-  content = templatefile("etc/nomad.d/base.hcl", {
-    data_dir = var.platform != "windows" ? "/opt/nomad/data" : "C://opt/nomad/data"
-  })
-  filename        = "${local.upload_dir}/nomad.d/base.hcl"
-  file_permission = "0600"
-}
+  depends_on = [
+    null_resource.upload_configs,
+    null_resource.upload_nomad_binary
+  ]
 
-resource "local_sensitive_file" "nomad_role_config" {
-  content         = templatefile("etc/nomad.d/${var.role}-${var.platform}.hcl", {})
-  filename        = "${local.upload_dir}/nomad.d/${var.role}.hcl"
-  file_permission = "0600"
-}
+  # no need to re-run if nothing changes
+  triggers = {
+    script = data.template_file.provision_script.rendered
+  }
 
-resource "local_sensitive_file" "nomad_indexed_config" {
-  content         = templatefile(local.indexed_config_path, {})
-  filename        = "${local.upload_dir}/nomad.d/${var.role}-${var.platform}-${var.index}.hcl"
-  file_permission = "0600"
-}
-
-resource "local_sensitive_file" "nomad_tls_config" {
-  content         = templatefile("etc/nomad.d/tls.hcl", {})
-  filename        = "${local.upload_dir}/nomad.d/tls.hcl"
-  file_permission = "0600"
-}
-
-resource "null_resource" "upload_consul_configs" {
 
   connection {
     type            = "ssh"
     user            = var.connection.user
-    host            = var.instance.public_ip
+    host            = var.connection.host
     port            = var.connection.port
     private_key     = file(var.connection.private_key)
-    target_platform = var.arch == "windows_amd64" ? "windows" : "unix"
+    target_platform = var.platform == "windows_amd64" ? "windows" : "unix"
     timeout         = "15m"
   }
 
-  provisioner "file" {
-    source      = "uploads/shared/consul.d/ca.pem"
-    destination = "/tmp/consul_ca.pem"
+  provisioner "remote-exec" {
+    inline = [data.template_file.provision_script.rendered]
   }
-  provisioner "file" {
-    source      = "uploads/shared/consul.d/consul_client.json"
-    destination = "/tmp/consul_client.json"
-  }
-  provisioner "file" {
-    source      = "uploads/shared/consul.d/client_acl.json"
-    destination = "/tmp/consul_client_acl.json"
-  }
-  provisioner "file" {
-    source      = "uploads/shared/consul.d/consul_client_base.json"
-    destination = "/tmp/consul_client_base.json"
-  }
-  provisioner "file" {
-    source      = "uploads/shared/consul.d/consul.service"
-    destination = "/tmp/consul.service"
-  }
+
 }
 
-resource "null_resource" "upload_nomad_configs" {
+data "template_file" "provision_script" {
+  template = "${local.provision_script}${data.template_file.arg_nomad_url.rendered}${data.template_file.arg_nomad_sha.rendered}${data.template_file.arg_nomad_version.rendered}${data.template_file.arg_nomad_binary.rendered}${data.template_file.arg_nomad_enterprise.rendered}${data.template_file.arg_nomad_license.rendered}${data.template_file.arg_nomad_acls.rendered}${data.template_file.arg_profile.rendered}${data.template_file.arg_role.rendered}${data.template_file.arg_index.rendered}${data.template_file.autojoin_tag.rendered}"
+}
+
+data "template_file" "arg_nomad_sha" {
+  template = var.nomad_sha != "" && var.nomad_local_binary == "" && var.nomad_url == "" ? " ${local._arg}nomad_sha ${var.nomad_sha}" : ""
+}
+
+data "template_file" "arg_nomad_version" {
+  template = var.nomad_version != "" && var.nomad_sha == "" && var.nomad_url == "" && var.nomad_local_binary == "" ? " ${local._arg}nomad_version ${var.nomad_version}" : ""
+}
+
+data "template_file" "arg_nomad_url" {
+  template = var.nomad_url != "" && var.nomad_local_binary == "" ? " ${local._arg}nomad_url ${var.nomad_url}" : ""
+}
+
+data "template_file" "arg_nomad_binary" {
+  template = var.nomad_local_binary != "" ? " ${local._arg}nomad_binary /tmp/nomad" : ""
+}
+
+data "template_file" "arg_nomad_enterprise" {
+  template = var.nomad_enterprise ? " ${local._arg}enterprise" : ""
+}
+
+data "template_file" "arg_nomad_license" {
+  template = var.nomad_license != "" ? " ${local._arg}nomad_license ${var.nomad_license}" : ""
+}
+
+data "template_file" "arg_nomad_acls" {
+  template = var.nomad_acls ? " ${local._arg}nomad_acls" : ""
+}
+
+data "template_file" "arg_profile" {
+  template = var.profile != "" ? " ${local._arg}config_profile ${var.profile}" : ""
+}
+
+data "template_file" "arg_role" {
+  template = var.role != "" ? " ${local._arg}role ${var.role}" : ""
+}
+
+data "template_file" "arg_index" {
+  template = var.index != "" ? " ${local._arg}index ${var.index}" : ""
+}
+
+data "template_file" "autojoin_tag" {
+  template = var.cluster_name != "" ? " ${local._arg}autojoin auto-join-${var.cluster_name}" : ""
+}
+
+resource "null_resource" "upload_nomad_binary" {
+
+  count      = var.nomad_local_binary != "" ? 1 : 0
+  depends_on = [null_resource.upload_configs]
+  triggers = {
+    nomad_binary_sha = filemd5(var.nomad_local_binary)
+  }
 
   connection {
     type            = "ssh"
     user            = var.connection.user
-    host            = var.instance.public_ip
+    host            = var.connection.host
     port            = var.connection.port
     private_key     = file(var.connection.private_key)
-    target_platform = var.arch == "windows_amd64" ? "windows" : "unix"
+    target_platform = var.platform == "windows_amd64" ? "windows" : "unix"
     timeout         = "15m"
   }
 
-  # created in hcp_consul.tf
   provisioner "file" {
-    source      = "uploads/shared/nomad.d/${var.role}-consul.hcl"
-    destination = "/tmp/consul.hcl"
+    source      = var.nomad_local_binary
+    destination = "/tmp/nomad"
   }
-  # created in hcp_vault.tf
-  provisioner "file" {
-    source      = "uploads/shared/nomad.d/vault.hcl"
-    destination = "/tmp/vault.hcl"
+}
+
+resource "null_resource" "upload_configs" {
+
+  triggers = {
+    hashes = join(",", [for file in local.config_files : filemd5("${local.config_path}/${file}")])
+  }
+
+  connection {
+    type            = "ssh"
+    user            = var.connection.user
+    host            = var.connection.host
+    port            = var.connection.port
+    private_key     = file(var.connection.private_key)
+    target_platform = var.platform == "windows_amd64" ? "windows" : "unix"
+    timeout         = "15m"
   }
 
   provisioner "file" {
-    source      = local_sensitive_file.nomad_environment.filename
-    destination = "/tmp/.environment"
+    source      = local.config_path
+    destination = "/tmp/"
   }
-  provisioner "file" {
-    source      = local_sensitive_file.nomad_base_config.filename
-    destination = "/tmp/base.hcl"
-  }
-  provisioner "file" {
-    source      = local_sensitive_file.nomad_role_config.filename
-    destination = "/tmp/${var.role}-${var.platform}.hcl"
-  }
-  provisioner "file" {
-    source      = local_sensitive_file.nomad_indexed_config.filename
-    destination = "/tmp/${var.role}-${var.platform}-${var.index}.hcl"
-  }
-  provisioner "file" {
-    source      = local_sensitive_file.nomad_tls_config.filename
-    destination = "/tmp/tls.hcl"
-  }
-  provisioner "file" {
-    source      = local_sensitive_file.nomad_systemd_unit_file.filename
-    destination = "/tmp/nomad.service"
-  }
-  provisioner "file" {
-    source      = local_sensitive_file.nomad_client_key.filename
-    destination = "/tmp/agent-${var.instance.public_ip}.key"
-  }
-  provisioner "file" {
-    source      = local_sensitive_file.nomad_client_cert.filename
-    destination = "/tmp/agent-${var.instance.public_ip}.crt"
-  }
-  provisioner "file" {
-    source      = "keys/tls_api_client.key"
-    destination = "/tmp/tls_proxy.key"
-  }
-  provisioner "file" {
-    source      = "keys/tls_api_client.crt"
-    destination = "/tmp/tls_proxy.crt"
-  }
-  provisioner "file" {
-    source      = "keys/tls_ca.crt"
-    destination = "/tmp/ca.crt"
-  }
-  provisioner "file" {
-    source      = "keys/self_signed.key"
-    destination = "/tmp/self_signed.key"
-  }
-  provisioner "file" {
-    source      = "keys/self_signed.crt"
-    destination = "/tmp/self_signed.crt"
+
+  provisioner "remote-exec" {
+    inline = [local.update_config_command]
   }
 
 }

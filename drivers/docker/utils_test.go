@@ -3,12 +3,10 @@ package docker
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestIsParentPath(t *testing.T) {
-	ci.Parallel(t)
 	require.True(t, isParentPath("/a/b/c", "/a/b/c"))
 	require.True(t, isParentPath("/a/b/c", "/a/b/c/d"))
 	require.True(t, isParentPath("/a/b/c", "/a/b/c/d/e"))
@@ -20,7 +18,6 @@ func TestIsParentPath(t *testing.T) {
 }
 
 func TestParseVolumeSpec_Linux(t *testing.T) {
-	ci.Parallel(t)
 	validCases := []struct {
 		name          string
 		bindSpec      string

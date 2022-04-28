@@ -12,9 +12,7 @@ const MAX_STAT_TRACKERS = 10;
 let registry;
 
 const exists = (tracker, prop) =>
-  tracker.get(prop) &&
-  !tracker.get(prop).isDestroyed &&
-  !tracker.get(prop).isDestroying;
+  tracker.get(prop) && !tracker.get(prop).isDestroyed && !tracker.get(prop).isDestroying;
 
 export default class StatsTrackersRegistryService extends Service {
   @service token;
@@ -40,21 +38,19 @@ export default class StatsTrackersRegistryService extends Service {
 
     const type = resource && resource.constructor.modelName;
     const key = `${type}:${resource.get('id')}`;
-    const Constructor =
-      type === 'node' ? NodeStatsTracker : AllocationStatsTracker;
+    const Constructor = type === 'node' ? NodeStatsTracker : AllocationStatsTracker;
     const resourceProp = type === 'node' ? 'node' : 'allocation';
 
     const cachedTracker = registry.get(key);
     if (cachedTracker) {
       // It's possible for the resource on a cachedTracker to have been
       // deleted. Rebind it if that's the case.
-      if (!exists(cachedTracker, resourceProp))
-        cachedTracker.set(resourceProp, resource);
+      if (!exists(cachedTracker, resourceProp)) cachedTracker.set(resourceProp, resource);
       return cachedTracker;
     }
 
     const tracker = Constructor.create({
-      fetch: (url) => this.token.authorizedRequest(url),
+      fetch: url => this.token.authorizedRequest(url),
       [resourceProp]: resource,
     });
 

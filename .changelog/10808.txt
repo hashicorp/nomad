@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Added `nomad operator api` command to ease querying Nomad's HTTP API.
-```

@@ -1,13 +1,10 @@
 package api
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -16,9 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/nomad/api/internal/testutil"
 )
 
 type configCallback func(c *Config)
@@ -70,7 +68,7 @@ func makeClient(t *testing.T, cb1 configCallback,
 }
 
 func TestRequestTime(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(100 * time.Millisecond)
 		d, err := json.Marshal(struct{ Done bool }{true})
@@ -118,7 +116,7 @@ func TestRequestTime(t *testing.T) {
 }
 
 func TestDefaultConfig_env(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	url := "http://1.2.3.4:5678"
 	auth := []string{"nomaduser", "12345"}
 	region := "test"
@@ -168,7 +166,7 @@ func TestDefaultConfig_env(t *testing.T) {
 }
 
 func TestSetQueryOptions(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -180,29 +178,31 @@ func TestSetQueryOptions(t *testing.T) {
 		WaitIndex:  1000,
 		WaitTime:   100 * time.Second,
 		AuthToken:  "foobar",
-		Reverse:    true,
 	}
 	r.setQueryOptions(q)
 
-	try := func(key, exp string) {
-		result := r.params.Get(key)
-		require.Equal(t, exp, result)
+	if r.params.Get("region") != "foo" {
+		t.Fatalf("bad: %v", r.params)
 	}
-
-	// Check auth token is set
-	require.Equal(t, "foobar", r.token)
-
-	// Check query parameters are set
-	try("region", "foo")
-	try("namespace", "bar")
-	try("stale", "") // should not be present
-	try("index", "1000")
-	try("wait", "100000ms")
-	try("reverse", "true")
+	if r.params.Get("namespace") != "bar" {
+		t.Fatalf("bad: %v", r.params)
+	}
+	if _, ok := r.params["stale"]; !ok {
+		t.Fatalf("bad: %v", r.params)
+	}
+	if r.params.Get("index") != "1000" {
+		t.Fatalf("bad: %v", r.params)
+	}
+	if r.params.Get("wait") != "100000ms" {
+		t.Fatalf("bad: %v", r.params)
+	}
+	if r.token != "foobar" {
+		t.Fatalf("bad: %v", r.token)
+	}
 }
 
 func TestQueryOptionsContext(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -226,7 +226,7 @@ func TestQueryOptionsContext(t *testing.T) {
 func TestWriteOptionsContext(t *testing.T) {
 	// No blocking query to test a real cancel of a pending request so
 	// just test that if we pass a pre-canceled context, writes fail quickly
-	testutil.Parallel(t)
+	t.Parallel()
 
 	c, err := NewClient(DefaultConfig())
 	if err != nil {
@@ -249,7 +249,7 @@ func TestWriteOptionsContext(t *testing.T) {
 }
 
 func TestSetWriteOptions(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -277,7 +277,7 @@ func TestSetWriteOptions(t *testing.T) {
 }
 
 func TestRequestToHTTP(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -305,7 +305,7 @@ func TestRequestToHTTP(t *testing.T) {
 }
 
 func TestParseQueryMeta(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	resp := &http.Response{
 		Header: make(map[string][]string),
 	}
@@ -330,7 +330,7 @@ func TestParseQueryMeta(t *testing.T) {
 }
 
 func TestParseWriteMeta(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	resp := &http.Response{
 		Header: make(map[string][]string),
 	}
@@ -347,7 +347,7 @@ func TestParseWriteMeta(t *testing.T) {
 }
 
 func TestClientHeader(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, func(c *Config) {
 		c.Headers = http.Header{
 			"Hello": []string{"World"},
@@ -363,7 +363,7 @@ func TestClientHeader(t *testing.T) {
 }
 
 func TestQueryString(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -567,50 +567,4 @@ func TestClient_HeaderRaceCondition(t *testing.T) {
 	require.Len(r.Header, 2, "local request should have two headers")
 	require.Equal(2, <-c, "goroutine  request should have two headers")
 	require.Len(conf.Headers, 1, "config headers should not mutate")
-}
-
-func TestClient_autoUnzip(t *testing.T) {
-	var client *Client = nil
-
-	try := func(resp *http.Response, exp error) {
-		err := client.autoUnzip(resp)
-		require.Equal(t, exp, err)
-	}
-
-	// response object is nil
-	try(nil, nil)
-
-	// response.Body is nil
-	try(new(http.Response), nil)
-
-	// content-encoding is not gzip
-	try(&http.Response{
-		Header: http.Header{"Content-Encoding": []string{"text"}},
-	}, nil)
-
-	// content-encoding is gzip but body is empty
-	try(&http.Response{
-		Header: http.Header{"Content-Encoding": []string{"gzip"}},
-		Body:   io.NopCloser(bytes.NewBuffer([]byte{})),
-	}, nil)
-
-	// content-encoding is gzip but body is invalid gzip
-	try(&http.Response{
-		Header: http.Header{"Content-Encoding": []string{"gzip"}},
-		Body:   io.NopCloser(bytes.NewBuffer([]byte("not a zip"))),
-	}, errors.New("unexpected EOF"))
-
-	// sample gzip payload
-	var b bytes.Buffer
-	w := gzip.NewWriter(&b)
-	_, err := w.Write([]byte("hello world"))
-	require.NoError(t, err)
-	err = w.Close()
-	require.NoError(t, err)
-
-	// content-encoding is gzip and body is gzip data
-	try(&http.Response{
-		Header: http.Header{"Content-Encoding": []string{"gzip"}},
-		Body:   io.NopCloser(&b),
-	}, nil)
 }

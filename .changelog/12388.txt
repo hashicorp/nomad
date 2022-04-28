@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Added -os flag to node status to display operating system name
-```

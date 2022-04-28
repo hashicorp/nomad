@@ -1,3 +1,0 @@
-```release-note:bug
-api: Fixed a bug where API or CLI clients could become unresponsive when cron expressions contained zero-padded months
-```

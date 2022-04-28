@@ -10,7 +10,7 @@ Vagrant.configure(2) do |config|
 
     PACKERVERSION=1.1.2
     PACKERDOWNLOAD=https://releases.hashicorp.com/packer/${PACKERVERSION}/packer_${PACKERVERSION}_linux_amd64.zip
-    TERRAFORMVERSION=1.0.11
+    TERRAFORMVERSION=0.11.0
     TERRAFORMDOWNLOAD=https://releases.hashicorp.com/terraform/${TERRAFORMVERSION}/terraform_${TERRAFORMVERSION}_linux_amd64.zip
 
     echo "Dependencies..."

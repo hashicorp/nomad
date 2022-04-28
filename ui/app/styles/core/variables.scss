@@ -5,14 +5,12 @@ $purple: $terraform-purple;
 $red: #c84034;
 $grey-blue: #bbc4d1;
 $blue-light: #c0d5ff;
-$yellow: #fac402;
 
 $primary: $nomad-green;
 $warning: $orange;
 $warning-invert: $white;
 $danger: $red;
 $info: $blue;
-$unknown: $yellow;
 $dark: #234;
 $dark-2: darken($dark, 5%);
 $dark-3: darken($dark, 10%);
@@ -27,8 +25,8 @@ $size-7: 0.85rem;
 
 $title-weight: $weight-semibold;
 
-$family-sans-serif: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-  Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+$family-sans-serif: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu,
+  Cantarell, 'Helvetica Neue', sans-serif;
 
 $text: $black;
 
@@ -50,12 +48,3 @@ $mq-hidden-gutter: 'only screen and (max-width : 960px)';
 $timing-fast: 150ms;
 $timing-medium: 300ms;
 $timing-slow: 450ms;
-
-// Undo Bulma 0.8.0 button increase.
-$control-border-width: 1px !default;
-$button-border-width: $control-border-width !default;
-$control-height: 2.25em;
-$control-padding-vertical: calc(0.375em - #{$control-border-width});
-$control-padding-horizontal: calc(0.625em - #{$control-border-width});
-$button-padding-vertical: calc(0.375em - #{$button-border-width});
-$button-padding-horizontal: 0.75em;

@@ -39,11 +39,6 @@
     color: $orange-invert;
   }
 
-  &.is-unknown {
-    background: $unknown;
-    color: $primary-invert;
-  }
-
   &.is-hollow {
     font-weight: $weight-semibold;
     color: darken($grey-blue, 20%);
@@ -66,10 +61,5 @@
   &.is-small {
     font-size: 0.7rem;
     vertical-align: 2px;
-  }
-
-  .icon {
-    height: 1rem;
-    width: 1rem;
   }
 }

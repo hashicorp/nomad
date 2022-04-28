@@ -176,10 +176,7 @@ func expandNamespacePolicy(policy string) []string {
 		NamespaceCapabilityReadScalingPolicy,
 	}
 
-	write := make([]string, len(read))
-	copy(write, read)
-
-	write = append(write, []string{
+	write := append(read, []string{
 		NamespaceCapabilityScaleJob,
 		NamespaceCapabilitySubmitJob,
 		NamespaceCapabilityDispatchJob,

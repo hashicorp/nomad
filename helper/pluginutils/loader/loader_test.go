@@ -12,7 +12,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	version "github.com/hashicorp/go-version"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -108,7 +107,7 @@ func (h *harness) cleanup() {
 }
 
 func TestPluginLoader_External(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -168,7 +167,7 @@ func TestPluginLoader_External(t *testing.T) {
 }
 
 func TestPluginLoader_External_ApiVersions(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -272,7 +271,7 @@ func TestPluginLoader_External_ApiVersions(t *testing.T) {
 }
 
 func TestPluginLoader_External_NoApiVersion(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -302,7 +301,7 @@ func TestPluginLoader_External_NoApiVersion(t *testing.T) {
 }
 
 func TestPluginLoader_External_Config(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -369,7 +368,7 @@ func TestPluginLoader_External_Config(t *testing.T) {
 
 // Pass a config but make sure it is fatal
 func TestPluginLoader_External_Config_Bad(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create a plugin
@@ -404,7 +403,7 @@ func TestPluginLoader_External_Config_Bad(t *testing.T) {
 }
 
 func TestPluginLoader_External_VersionOverlap(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -456,7 +455,7 @@ func TestPluginLoader_External_VersionOverlap(t *testing.T) {
 }
 
 func TestPluginLoader_Internal(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create the harness
@@ -518,7 +517,7 @@ func TestPluginLoader_Internal(t *testing.T) {
 }
 
 func TestPluginLoader_Internal_ApiVersions(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -600,7 +599,7 @@ func TestPluginLoader_Internal_ApiVersions(t *testing.T) {
 }
 
 func TestPluginLoader_Internal_NoApiVersion(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -631,7 +630,7 @@ func TestPluginLoader_Internal_NoApiVersion(t *testing.T) {
 }
 
 func TestPluginLoader_Internal_Config(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create the harness
@@ -702,7 +701,7 @@ func TestPluginLoader_Internal_Config(t *testing.T) {
 
 // Tests that an external config can override the config of an internal plugin
 func TestPluginLoader_Internal_ExternalConfig(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create the harness
@@ -773,7 +772,7 @@ func TestPluginLoader_Internal_ExternalConfig(t *testing.T) {
 
 // Pass a config but make sure it is fatal
 func TestPluginLoader_Internal_Config_Bad(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create the harness
@@ -811,7 +810,7 @@ func TestPluginLoader_Internal_Config_Bad(t *testing.T) {
 }
 
 func TestPluginLoader_InternalOverrideExternal(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -868,7 +867,7 @@ func TestPluginLoader_InternalOverrideExternal(t *testing.T) {
 }
 
 func TestPluginLoader_ExternalOverrideInternal(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -925,7 +924,7 @@ func TestPluginLoader_ExternalOverrideInternal(t *testing.T) {
 }
 
 func TestPluginLoader_Dispense_External(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -972,7 +971,7 @@ func TestPluginLoader_Dispense_External(t *testing.T) {
 }
 
 func TestPluginLoader_Dispense_Internal(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -1031,7 +1030,7 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 }
 
 func TestPluginLoader_Dispense_NoConfigSchema_External(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -1079,7 +1078,7 @@ func TestPluginLoader_Dispense_NoConfigSchema_External(t *testing.T) {
 }
 
 func TestPluginLoader_Dispense_NoConfigSchema_Internal(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -1130,7 +1129,7 @@ func TestPluginLoader_Dispense_NoConfigSchema_Internal(t *testing.T) {
 }
 
 func TestPluginLoader_Reattach_External(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create a plugin
@@ -1194,7 +1193,7 @@ func TestPluginLoader_Reattach_External(t *testing.T) {
 
 // Test the loader trying to launch a non-plugin binary
 func TestPluginLoader_Bad_Executable(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Create a plugin
@@ -1223,10 +1222,10 @@ func TestPluginLoader_Bad_Executable(t *testing.T) {
 
 // Test that we skip directories, non-executables and follow symlinks
 func TestPluginLoader_External_SkipBadFiles(t *testing.T) {
-	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows currently does not skip non exe files")
 	}
+	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -1286,8 +1285,6 @@ func TestPluginLoader_External_SkipBadFiles(t *testing.T) {
 }
 
 func TestPluginLoader_ConvertVersions(t *testing.T) {
-	ci.Parallel(t)
-
 	v010 := version.Must(version.NewVersion("v0.1.0"))
 	v020 := version.Must(version.NewVersion("v0.2.0"))
 	v021 := version.Must(version.NewVersion("v0.2.1"))

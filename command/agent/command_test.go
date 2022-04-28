@@ -2,15 +2,13 @@ package agent
 
 import (
 	"io/ioutil"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
+	"github.com/likexian/gokit/assert"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -18,12 +16,12 @@ import (
 )
 
 func TestCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &Command{}
 }
 
 func TestCommand_Args(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	tmpDir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -49,7 +47,7 @@ func TestCommand_Args(t *testing.T) {
 		},
 		{
 			[]string{"-server"},
-			"Must specify \"data_dir\" config option or \"data-dir\" CLI flag",
+			"Must specify data directory",
 		},
 		{
 			[]string{"-client", "-alloc-dir="},
@@ -97,8 +95,6 @@ func TestCommand_Args(t *testing.T) {
 }
 
 func TestCommand_MetaConfigValidation(t *testing.T) {
-	ci.Parallel(t)
-
 	tmpDir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -152,8 +148,6 @@ func TestCommand_MetaConfigValidation(t *testing.T) {
 }
 
 func TestCommand_NullCharInDatacenter(t *testing.T) {
-	ci.Parallel(t)
-
 	tmpDir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -203,8 +197,6 @@ func TestCommand_NullCharInDatacenter(t *testing.T) {
 }
 
 func TestCommand_NullCharInRegion(t *testing.T) {
-	ci.Parallel(t)
-
 	tmpDir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -255,7 +247,6 @@ func TestCommand_NullCharInRegion(t *testing.T) {
 
 // TestIsValidConfig asserts that invalid configurations return false.
 func TestIsValidConfig(t *testing.T) {
-	ci.Parallel(t)
 
 	cases := []struct {
 		name string
@@ -311,68 +302,6 @@ func TestIsValidConfig(t *testing.T) {
 			err: "must be given as an absolute",
 		},
 		{
-			name: "NegativeMinDynamicPort",
-			conf: Config{
-				Client: &ClientConfig{
-					Enabled:        true,
-					MinDynamicPort: -1,
-				},
-			},
-			err: "min_dynamic_port",
-		},
-		{
-			name: "NegativeMaxDynamicPort",
-			conf: Config{
-				Client: &ClientConfig{
-					Enabled:        true,
-					MaxDynamicPort: -1,
-				},
-			},
-			err: "max_dynamic_port",
-		},
-		{
-			name: "BigMinDynamicPort",
-			conf: Config{
-				Client: &ClientConfig{
-					Enabled:        true,
-					MinDynamicPort: math.MaxInt32,
-				},
-			},
-			err: "min_dynamic_port",
-		},
-		{
-			name: "BigMaxDynamicPort",
-			conf: Config{
-				Client: &ClientConfig{
-					Enabled:        true,
-					MaxDynamicPort: math.MaxInt32,
-				},
-			},
-			err: "max_dynamic_port",
-		},
-		{
-			name: "MinMaxDynamicPortSwitched",
-			conf: Config{
-				Client: &ClientConfig{
-					Enabled:        true,
-					MinDynamicPort: 5000,
-					MaxDynamicPort: 4000,
-				},
-			},
-			err: "and max",
-		},
-		{
-			name: "DynamicPortOk",
-			conf: Config{
-				DataDir: "/tmp",
-				Client: &ClientConfig{
-					Enabled:        true,
-					MinDynamicPort: 4000,
-					MaxDynamicPort: 5000,
-				},
-			},
-		},
-		{
 			name: "BadReservedPorts",
 			conf: Config{
 				Client: &ClientConfig{
@@ -406,7 +335,7 @@ func TestIsValidConfig(t *testing.T) {
 			mui := cli.NewMockUi()
 			cmd := &Command{Ui: mui}
 			config := DefaultConfig().Merge(&tc.conf)
-			result := cmd.IsValidConfig(config, DefaultConfig())
+			result := cmd.isValidConfig(config, DefaultConfig())
 			if tc.err == "" {
 				// No error expected
 				assert.True(t, result, mui.ErrorWriter.String())

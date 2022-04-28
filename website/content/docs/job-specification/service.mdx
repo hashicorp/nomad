@@ -15,11 +15,10 @@ description: |-
   ]}
 />
 
-The `service` stanza instructs Nomad to register a service with the specified
-provider; Nomad or Consul. This section of the documentation will discuss the
-configuration, but please also read the
-[Nomad service discovery documentation][service-discovery] for more detailed
-information about the external integrations.
+The `service` stanza instructs Nomad to register a service with Consul. This
+section of the documentation will discuss the configuration, but please also
+read the [Nomad service discovery documentation][service-discovery] for more
+detailed information about the integration.
 
 ```hcl
 job "docs" {
@@ -71,21 +70,13 @@ Connect][connect] integration.
 
 ## `service` Parameters
 
-- `provider` `(string: "consul")` - Specifies the service registration provider
-  to use for service registrations. Valid options are either `consul` or
-  `nomad`. All services within a single task group must utilise the same
-  provider value.
-
 - `check` <code>([Check](#check-parameters): nil)</code> - Specifies a health
   check associated with the service. This can be specified multiple times to
-  define multiple checks for the service. Only available where
-  `provider = "consul"`.
-
-  At this time, the Consul integration supports the `grpc`, `http`,
-  `script`<sup><small>1</small></sup>, and `tcp` checks.
+  define multiple checks for the service. At this time, Nomad supports the
+  `grpc`, `http`, `script`<sup><small>1</small></sup>, and `tcp` checks.
 
 - `connect` - Configures the [Consul Connect][connect] integration. Only
-  available on group services and where `provider = "consul"`.
+  available on group services.
 
 - `name` `(string: "<job>-<group>-<task>")` - Specifies the name this service
   will be advertised as in Consul. If not supplied, this will default to the
@@ -118,7 +109,7 @@ Connect][connect] integration.
     If a `to` value is not set, the port falls back to using the allocated host port. The `port`
     field may be a numeric port or a port label specified in the same group's network stanza.
 
-  - `driver` - Advertise the port determined by the driver (e.g. Docker).
+  - `driver` - Advertise the port determined by the driver (e.g. Docker or rkt).
     The `port` may be a numeric port or a port label specified in the driver's
     `ports` field.
 
@@ -139,15 +130,11 @@ Connect][connect] integration.
   to make changes to the tags of a service without having those changes be
   overwritten by Consul's anti-entropy mechanism. See Consul
   [documentation](https://www.consul.io/docs/internals/anti-entropy#enable-tag-override)
-  for more information. Only available where `provider = "consul"`.
-
-- `address` `(string: <optional>)` - Specifies a custom address to advertise in
-  Consul or Nomad service registration. If set, `address_mode` must be in `auto`
-  mode. Useful with interpolation - for example to advertise the public IP address
-  of an AWS EC2 instance set this to `${attr.unique.platform.aws.public-ipv4}`.
+  for more information.
 
 - `address_mode` `(string: "auto")` - Specifies which address (host, alloc or
-  driver-specific) this service should advertise. See [below for
+  driver-specific) this service should advertise. This setting is supported in
+  Docker since Nomad 0.6 and rkt since Nomad 0.7. See [below for
   examples.](#using-driver-address-mode) Valid options are:
 
   - `alloc` - For allocations which create a network namespace, this address mode
@@ -165,7 +152,7 @@ Connect][connect] integration.
     port map. A numeric port may be specified since port maps aren't required
     by all network plugins. Useful for advertising SDN and overlay network
     addresses. Task will fail if driver network cannot be determined. Only
-    implemented for Docker. This mode can only be set for services
+    implemented for Docker and rkt. This mode can only be set for services
     which are defined in a "task" block.
 
   - `host` - Use the host IP and port.
@@ -176,15 +163,14 @@ Connect][connect] integration.
   than one task in the task group.
 
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
-  the Consul service with user-defined metadata. Only available where
-  `provider = "consul"`.
+  the Consul service with user-defined metadata.
 
 - `canary_meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that
   annotates the Consul service with user-defined metadata when the service is
   part of an allocation that is currently a canary. Once the canary is
   promoted, the registered meta will be updated to those specified in the
   `meta` parameter. If this is not supplied, the registered meta will be set to
-  that of the `meta` parameter. Only available where `provider = "consul"`.
+  that of the `meta` parameter.
 
 - `on_update` `(string: "require_healthy")` - Specifies how checks should be
   evaluated when determining deployment health (including a job's initial
@@ -217,11 +203,9 @@ scripts.
 - `address_mode` `(string: "host")` - Same as `address_mode` on `service`.
   Unlike services, checks do not have an `auto` address mode as there's no way
   for Nomad to know which is the best address to use for checks. Consul needs
-  access to the address for any HTTP or TCP checks. See
+  access to the address for any HTTP or TCP checks. Added in Nomad 0.7.1. See
   [below for details.](#using-driver-address-mode) Unlike `port`, this setting
   is _not_ inherited from the `service`.
-  If the service `address` is set and the check `address_mode` is not set, the
-  service `address` value will be used for the check address.
 
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
@@ -364,31 +348,29 @@ service {
 
 ## `service` Lifecycle
 
-Nomad manages registering, updating, and deregistering services with the
-service provider. It is important to understand when each of these steps
-happens and how they can be customized.
+Nomad manages registering, updating, and deregistering services with Consul. It
+is important to understand when each of these steps happens and how they can be
+customized.
 
 **Registration**: Nomad will register `group` services and checks _before_
 starting any tasks. Services and checks for a specific `task` are registered
 _after_ the task has started.
 
 **Updating**: If a service or check definition is updated, Nomad will update
-the service in the provider as well. This update happens without restarting a
-task.
+the service in Consul as well. Consul is updated without restarting a task.
 
 **Deregistering**: If a running task with a service stanza exits, the services
-and checks are immediately deregistered from the provider without delay. If,
-however, Nomad needs to kill a running task, the task is killed in the
-following order:
+and checks are immediately deregistered from Consul without delay. If however
+Nomad needs to kill a running task, the task is killed in the following order:
 
-1. Immediately remove the services and checks from the provider. This stops new
+1. Immediately remove the services and checks from Consul. This stops new
    traffic from being routed to the task that is being killed.
 2. If [`shutdown_delay`][shutdowndelay] is set, wait the configured duration
    before proceeding to step 3. Setting a [`shutdown_delay`][shutdowndelay] can
    be useful if the application itself doesn't handle graceful shutdowns based
    on the [`kill_signal`][killsignal]. The configured delay will provide a
-   period of time in which the service is no longer registered in the provider,
-   and thus is not receiving additional requests, but hasn't been signalled to
+   period of time in which the service is no longer registered in Consul, and
+   thus is not receiving additional requests, but hasn't been signalled to
    shutdown. This allows the application time to complete the requests and
    become idle.
 3. Send the [`kill_signal`][killsignal] to the task and wait for the task to
@@ -404,19 +386,7 @@ The following examples only show the `service` stanzas. Remember that the
 
 ### Basic Service
 
-This example registers a service named "load-balancer" with no health checks
-using the Nomad provider:
-
-```hcl
-service {
-  name     = "load-balancer"
-  port     = "lb"
-  provider = "nomad"
-}
-```
-
-This example registers a service named "load-balancer" with no health checks
-using the Consul provider:
+This example registers a service named "load-balancer" with no health checks.
 
 ```hcl
 service {
@@ -425,8 +395,8 @@ service {
 }
 ```
 
-These examples must be accompanied by a [`network`][network] stanza which
-defines a static or dynamic port labeled "lb". For example:
+This example must be accompanied by a [`network`][network] stanza which defines
+a static or dynamic port labeled "lb". For example:
 
 ```hcl
 network {
@@ -594,12 +564,13 @@ selection.
 
 ### Using Driver Address Mode
 
-The [Docker](/docs/drivers/docker#network_mode) driver supports the `driver`
-setting for the `address_mode` parameter in both `service` and `check` stanzas.
-The driver address mode allows advertising and health checking the IP and port
-assigned to a task by the driver. This way, if you're using a network plugin like
-Weave with Docker, you can advertise the Weave address in Consul instead of the
-host's address.
+The [Docker](/docs/drivers/docker#network_mode) and
+[rkt](/docs/drivers/rkt#net) drivers support the `driver` setting for the
+`address_mode` parameter in both `service` and `check` stanzas. The driver
+address mode allows advertising and health checking the IP and port assigned to
+a task by the driver. This way, if you're using a network plugin like Weave with
+Docker, you can advertise the Weave address in Consul instead of the host's
+address.
 
 For example if you were running the example Redis job in an environment with
 Weave but Consul was running on the host you could use the following
@@ -648,7 +619,7 @@ job "example" {
 No explicit `address_mode` required.
 
 Services default to the `auto` address mode. When a Docker network mode other
-than `"host"` or `"bridge"` is used, services will automatically advertise the
+than "host" or "bridge" is used, services will automatically advertise the
 driver's address (in this case Weave's). The service will advertise the
 container's port: 6379.
 

@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Add event stream capture to `nomad operator debug`
-```

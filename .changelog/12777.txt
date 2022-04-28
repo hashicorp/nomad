@@ -1,3 +1,0 @@
-```release-note:improvement
-api: Added ParseHCLOpts helper func to ease parsing HCLv1 jobspecs
-```

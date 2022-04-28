@@ -13,7 +13,7 @@ type AllocSignalCommand struct {
 	Meta
 }
 
-func (c *AllocSignalCommand) Help() string {
+func (a *AllocSignalCommand) Help() string {
 	helpText := `
 Usage: nomad alloc signal [options] <allocation> <task>
 
@@ -141,7 +141,7 @@ func (c *AllocSignalCommand) Run(args []string) int {
 	return 0
 }
 
-func (c *AllocSignalCommand) Synopsis() string {
+func (a *AllocSignalCommand) Synopsis() string {
 	return "Signal a running allocation"
 }
 

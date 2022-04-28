@@ -59,16 +59,11 @@ linters-settings:
     # disallow packages from being used
     list-type: blacklist
     packages:
-      - github.com/boltdb/bolt
       - github.com/hashicorp/consul/command/flags
-      - github.com/pkg/errors
   gocritic:
     disabled-checks:
       - commentFormatting
       - deprecatedComment
-  staticcheck:
-    # I(jrasell) will work on enabling additional checks when possible.
-    checks: ["ST1020", "ST1016"]
 
 issues:
   exclude:
@@ -92,7 +87,6 @@ linters:
     - gofmt
     - gosimple
     - depguard
-    - staticcheck
     # Stretch Goal
     #- maligned
   fast: false

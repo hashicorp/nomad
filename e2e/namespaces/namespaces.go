@@ -42,10 +42,10 @@ func (tc *NamespacesE2ETest) AfterEach(f *framework.F) {
 		ns := pair[0]
 		jobID := pair[1]
 		if ns != "" {
-			err := e2e.StopJob(jobID, "-purge", "-namespace", ns)
+			_, err := e2e.Command("nomad", "job", "stop", "-purge", "-namespace", ns, jobID)
 			f.Assert().NoError(err)
 		} else {
-			err := e2e.StopJob(jobID, "-purge")
+			_, err := e2e.Command("nomad", "job", "stop", "-purge", jobID)
 			f.Assert().NoError(err)
 		}
 	}
@@ -179,6 +179,6 @@ func (tc *NamespacesE2ETest) TestNamespacesFiltering(f *framework.F) {
 	f.Equal(fmt.Sprintf("No job(s) with prefix or id %q found\n", jobA), out)
 	f.Error(err, "exit status 1")
 
-	err = e2e.StopJob(jobA, "-namespace", "NamespaceA")
+	_, err = e2e.Command("nomad", "job", "stop", "-namespace", "NamespaceA", jobA)
 	f.NoError(err, "could not stop job in namespace")
 }

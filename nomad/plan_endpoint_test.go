@@ -5,7 +5,6 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -13,7 +12,7 @@ import (
 )
 
 func TestPlanEndpoint_Submit(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -55,7 +54,7 @@ func TestPlanEndpoint_Submit(t *testing.T) {
 // TestPlanEndpoint_Submit_Bad asserts that the Plan.Submit endpoint rejects
 // bad data with an error instead of panicking.
 func TestPlanEndpoint_Submit_Bad(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0

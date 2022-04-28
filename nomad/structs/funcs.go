@@ -13,7 +13,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/helper"
 	"golang.org/x/crypto/blake2b"
 )
 
@@ -83,11 +82,10 @@ func AllocSubset(allocs []*Allocation, subset []*Allocation) bool {
 }
 
 // FilterTerminalAllocs filters out all allocations in a terminal state and
-// returns the latest terminal allocations.
+// returns the latest terminal allocations
 func FilterTerminalAllocs(allocs []*Allocation) ([]*Allocation, map[string]*Allocation) {
 	terminalAllocsByName := make(map[string]*Allocation)
 	n := len(allocs)
-
 	for i := 0; i < n; i++ {
 		if allocs[i].TerminalStatus() {
 
@@ -105,57 +103,7 @@ func FilterTerminalAllocs(allocs []*Allocation) ([]*Allocation, map[string]*Allo
 			n--
 		}
 	}
-
 	return allocs[:n], terminalAllocsByName
-}
-
-// SplitTerminalAllocs splits allocs into non-terminal and terminal allocs, with
-// the terminal allocs indexed by node->alloc.name.
-func SplitTerminalAllocs(allocs []*Allocation) ([]*Allocation, TerminalByNodeByName) {
-	var alive []*Allocation
-	var terminal = make(TerminalByNodeByName)
-
-	for _, alloc := range allocs {
-		if alloc.TerminalStatus() {
-			terminal.Set(alloc)
-		} else {
-			alive = append(alive, alloc)
-		}
-	}
-
-	return alive, terminal
-}
-
-// TerminalByNodeByName is a map of NodeID->Allocation.Name->Allocation used by
-// the sysbatch scheduler for locating the most up-to-date terminal allocations.
-type TerminalByNodeByName map[string]map[string]*Allocation
-
-func (a TerminalByNodeByName) Set(allocation *Allocation) {
-	node := allocation.NodeID
-	name := allocation.Name
-
-	if _, exists := a[node]; !exists {
-		a[node] = make(map[string]*Allocation)
-	}
-
-	if previous, exists := a[node][name]; !exists {
-		a[node][name] = allocation
-	} else if previous.CreateIndex < allocation.CreateIndex {
-		// keep the newest version of the terminal alloc for the coordinate
-		a[node][name] = allocation
-	}
-}
-
-func (a TerminalByNodeByName) Get(nodeID, name string) (*Allocation, bool) {
-	if _, exists := a[nodeID]; !exists {
-		return nil, false
-	}
-
-	if _, exists := a[nodeID][name]; !exists {
-		return nil, false
-	}
-
-	return a[nodeID][name], true
 }
 
 // AllocsFit checks if a given set of allocations will fit on a node.
@@ -368,31 +316,37 @@ func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 
 	for _, tgp := range policies {
 		for _, tp := range tgp {
-			if tp != nil {
-				for _, p := range tp.Policies {
-					set[p] = struct{}{}
-				}
+			for _, p := range tp.Policies {
+				set[p] = struct{}{}
 			}
 		}
 	}
 
-	return helper.SetToSliceString(set)
+	flattened := make([]string, 0, len(set))
+	for p := range set {
+		flattened = append(flattened, p)
+	}
+	return flattened
 }
 
-// VaultNamespaceSet takes the structure returned by VaultPolicies and
+// VaultNaVaultNamespaceSet takes the structure returned by VaultPolicies and
 // returns a set of required namespaces
 func VaultNamespaceSet(policies map[string]map[string]*Vault) []string {
 	set := make(map[string]struct{})
 
 	for _, tgp := range policies {
 		for _, tp := range tgp {
-			if tp != nil && tp.Namespace != "" {
+			if tp.Namespace != "" {
 				set[tp.Namespace] = struct{}{}
 			}
 		}
 	}
 
-	return helper.SetToSliceString(set)
+	flattened := make([]string, 0, len(set))
+	for p := range set {
+		flattened = append(flattened, p)
+	}
+	return flattened
 }
 
 // DenormalizeAllocationJobs is used to attach a job to all allocations that are
@@ -550,8 +504,8 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 
 			// Full range validation is below but prevent creating
 			// arbitrarily large arrays here
-			if end > MaxValidPort {
-				return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, end)
+			if end > maxValidPort {
+				return nil, fmt.Errorf("port must be < %d but found %d", maxValidPort, end)
 			}
 
 			for i := start; i <= end; i++ {
@@ -567,8 +521,8 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 		if port == 0 {
 			return nil, fmt.Errorf("port must be > 0")
 		}
-		if port > MaxValidPort {
-			return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, port)
+		if port > maxValidPort {
+			return nil, fmt.Errorf("port must be < %d but found %d", maxValidPort, port)
 		}
 		results = append(results, port)
 	}

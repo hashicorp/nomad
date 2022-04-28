@@ -5,7 +5,6 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -16,7 +15,8 @@ import (
 // TestVolumeWatch_EnableDisable tests the watcher registration logic that needs
 // to happen during leader step-up/step-down
 func TestVolumeWatch_EnableDisable(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
+	require := require.New(t)
 
 	srv := &MockRPCServer{}
 	srv.state = state.TestStateStore(t)
@@ -34,8 +34,8 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 	vol := testVolume(plugin, alloc, node.ID)
 
 	index++
-	err := srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
-	require.NoError(t, err)
+	err := srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	require.NoError(err)
 
 	// need to have just enough of a volume and claim in place so that
 	// the watcher doesn't immediately stop and unload itself
@@ -45,21 +45,22 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 	}
 	index++
 	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
-	require.NoError(t, err)
-	require.Eventually(t, func() bool {
+	require.NoError(err)
+	require.Eventually(func() bool {
 		watcher.wlock.RLock()
 		defer watcher.wlock.RUnlock()
 		return 1 == len(watcher.watchers)
 	}, time.Second, 10*time.Millisecond)
 
 	watcher.SetEnabled(false, nil, "")
-	require.Equal(t, 0, len(watcher.watchers))
+	require.Equal(0, len(watcher.watchers))
 }
 
 // TestVolumeWatch_LeadershipTransition tests the correct behavior of
 // claim reaping across leader step-up/step-down
 func TestVolumeWatch_LeadershipTransition(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
+	require := require.New(t)
 
 	srv := &MockRPCServer{}
 	srv.state = state.TestStateStore(t)
@@ -77,25 +78,25 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 	index++
 	err := srv.State().UpsertAllocs(structs.MsgTypeTestSetup, index,
 		[]*structs.Allocation{alloc})
-	require.NoError(t, err)
+	require.NoError(err)
 
 	watcher.SetEnabled(true, srv.State(), "")
 
 	index++
-	err = srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
-	require.NoError(t, err)
+	err = srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	require.NoError(err)
 
 	// we should get or start up a watcher when we get an update for
 	// the volume from the state store
-	require.Eventually(t, func() bool {
+	require.Eventually(func() bool {
 		watcher.wlock.RLock()
 		defer watcher.wlock.RUnlock()
 		return 1 == len(watcher.watchers)
 	}, time.Second, 10*time.Millisecond)
 
 	vol, _ = srv.State().CSIVolumeByID(nil, vol.Namespace, vol.ID)
-	require.Len(t, vol.PastClaims, 0, "expected to have 0 PastClaims")
-	require.Equal(t, srv.countCSIUnpublish, 0, "expected no CSI.Unpublish RPC calls")
+	require.Len(vol.PastClaims, 0, "expected to have 0 PastClaims")
+	require.Equal(srv.countCSIUnpublish, 0, "expected no CSI.Unpublish RPC calls")
 
 	// trying to test a dropped watch is racy, so to reliably simulate
 	// this condition, step-down the watcher first and then perform
@@ -104,12 +105,12 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 
 	// step-down (this is sync)
 	watcher.SetEnabled(false, nil, "")
-	require.Equal(t, 0, len(watcher.watchers))
+	require.Equal(0, len(watcher.watchers))
 
 	// allocation is now invalid
 	index++
 	err = srv.State().DeleteEval(index, []string{}, []string{alloc.ID})
-	require.NoError(t, err)
+	require.NoError(err)
 
 	// emit a GC so that we have a volume change that's dropped
 	claim := &structs.CSIVolumeClaim{
@@ -120,7 +121,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 	}
 	index++
 	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	// create a new watcher and enable it to simulate the leadership
 	// transition
@@ -128,7 +129,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 	watcher.quiescentTimeout = 100 * time.Millisecond
 	watcher.SetEnabled(true, srv.State(), "")
 
-	require.Eventually(t, func() bool {
+	require.Eventually(func() bool {
 		watcher.wlock.RLock()
 		defer watcher.wlock.RUnlock()
 		return 1 == len(watcher.watchers) &&
@@ -136,14 +137,15 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 	}, time.Second, 10*time.Millisecond)
 
 	vol, _ = srv.State().CSIVolumeByID(nil, vol.Namespace, vol.ID)
-	require.Len(t, vol.PastClaims, 1, "expected to have 1 PastClaim")
-	require.Equal(t, srv.countCSIUnpublish, 1, "expected CSI.Unpublish RPC to be called")
+	require.Len(vol.PastClaims, 1, "expected to have 1 PastClaim")
+	require.Equal(srv.countCSIUnpublish, 1, "expected CSI.Unpublish RPC to be called")
 }
 
 // TestVolumeWatch_StartStop tests the start and stop of the watcher when
 // it receives notifcations and has completed its work
 func TestVolumeWatch_StartStop(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
+	require := require.New(t)
 
 	srv := &MockStatefulRPCServer{}
 	srv.state = state.TestStateStore(t)
@@ -152,7 +154,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	watcher.quiescentTimeout = 100 * time.Millisecond
 
 	watcher.SetEnabled(true, srv.State(), "")
-	require.Equal(t, 0, len(watcher.watchers))
+	require.Equal(0, len(watcher.watchers))
 
 	plugin := mock.CSIPlugin()
 	node := testNode(plugin, srv.State())
@@ -163,19 +165,19 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	alloc2.ClientStatus = structs.AllocClientStatusRunning
 	index++
 	err := srv.State().UpsertJob(structs.MsgTypeTestSetup, index, alloc1.Job)
-	require.NoError(t, err)
+	require.NoError(err)
 	index++
 	err = srv.State().UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1, alloc2})
-	require.NoError(t, err)
+	require.NoError(err)
 
 	// register a volume
 	vol := testVolume(plugin, alloc1, node.ID)
 	index++
-	err = srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
-	require.NoError(t, err)
+	err = srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	require.NoError(err)
 
 	// assert we get a watcher; there are no claims so it should immediately stop
-	require.Eventually(t, func() bool {
+	require.Eventually(func() bool {
 		watcher.wlock.RLock()
 		defer watcher.wlock.RUnlock()
 		return 1 == len(watcher.watchers) &&
@@ -192,11 +194,11 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 
 	index++
 	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
-	require.NoError(t, err)
+	require.NoError(err)
 	claim.AllocationID = alloc2.ID
 	index++
 	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	// reap the volume and assert nothing has happened
 	claim = &structs.CSIVolumeClaim{
@@ -205,30 +207,30 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	}
 	index++
 	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	ws := memdb.NewWatchSet()
 	vol, _ = srv.State().CSIVolumeByID(ws, vol.Namespace, vol.ID)
-	require.Equal(t, 2, len(vol.ReadAllocs))
+	require.Equal(2, len(vol.ReadAllocs))
 
 	// alloc becomes terminal
 	alloc1.ClientStatus = structs.AllocClientStatusComplete
 	index++
 	err = srv.State().UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1})
-	require.NoError(t, err)
+	require.NoError(err)
 	index++
 	claim.State = structs.CSIVolumeClaimStateReadyToFree
 	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	// 1 claim has been released and watcher stops
-	require.Eventually(t, func() bool {
+	require.Eventually(func() bool {
 		ws := memdb.NewWatchSet()
 		vol, _ := srv.State().CSIVolumeByID(ws, vol.Namespace, vol.ID)
 		return len(vol.ReadAllocs) == 1 && len(vol.PastClaims) == 0
 	}, time.Second*2, 10*time.Millisecond)
 
-	require.Eventually(t, func() bool {
+	require.Eventually(func() bool {
 		watcher.wlock.RLock()
 		defer watcher.wlock.RUnlock()
 		return !watcher.watchers[vol.ID+vol.Namespace].isRunning()
@@ -238,7 +240,8 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 // TestVolumeWatch_RegisterDeregister tests the start and stop of
 // watchers around registration
 func TestVolumeWatch_RegisterDeregister(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
+	require := require.New(t)
 
 	srv := &MockStatefulRPCServer{}
 	srv.state = state.TestStateStore(t)
@@ -249,7 +252,7 @@ func TestVolumeWatch_RegisterDeregister(t *testing.T) {
 	watcher.quiescentTimeout = 10 * time.Millisecond
 
 	watcher.SetEnabled(true, srv.State(), "")
-	require.Equal(t, 0, len(watcher.watchers))
+	require.Equal(0, len(watcher.watchers))
 
 	plugin := mock.CSIPlugin()
 	alloc := mock.Alloc()
@@ -258,17 +261,17 @@ func TestVolumeWatch_RegisterDeregister(t *testing.T) {
 	// register a volume without claims
 	vol := mock.CSIVolume(plugin)
 	index++
-	err := srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
-	require.NoError(t, err)
+	err := srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	require.NoError(err)
 
 	// watcher should be started but immediately stopped
-	require.Eventually(t, func() bool {
+	require.Eventually(func() bool {
 		watcher.wlock.RLock()
 		defer watcher.wlock.RUnlock()
 		return 1 == len(watcher.watchers)
 	}, time.Second, 10*time.Millisecond)
 
-	require.Eventually(t, func() bool {
+	require.Eventually(func() bool {
 		watcher.wlock.RLock()
 		defer watcher.wlock.RUnlock()
 		return !watcher.watchers[vol.ID+vol.Namespace].isRunning()

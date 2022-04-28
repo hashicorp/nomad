@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -21,7 +20,7 @@ import (
 var _ cli.Command = &AllocExecCommand{}
 
 func TestAllocExecCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -144,8 +143,8 @@ func TestAllocExecCommand_Fails(t *testing.T) {
 }
 
 func TestAllocExecCommand_AutocompleteArgs(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
+	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -168,7 +167,7 @@ func TestAllocExecCommand_AutocompleteArgs(t *testing.T) {
 }
 
 func TestAllocExecCommand_Run(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 

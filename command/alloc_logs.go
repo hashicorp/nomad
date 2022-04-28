@@ -75,8 +75,8 @@ func (l *AllocLogsCommand) Synopsis() string {
 	return "Streams the logs of a task."
 }
 
-func (l *AllocLogsCommand) AutocompleteFlags() complete.Flags {
-	return mergeAutocompleteFlags(l.Meta.AutocompleteFlags(FlagSetClient),
+func (c *AllocLogsCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-stderr":  complete.PredictNothing,
 			"-verbose": complete.PredictNothing,

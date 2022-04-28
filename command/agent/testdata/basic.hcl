@@ -106,6 +106,7 @@ server {
   authoritative_region          = "foobar"
   bootstrap_expect              = 5
   data_dir                      = "/tmp/data"
+  protocol_version              = 3
   raft_protocol                 = 3
   num_schedulers                = 2
   enabled_schedulers            = ["test"]
@@ -119,7 +120,6 @@ server {
   heartbeat_grace               = "30s"
   min_heartbeat_ttl             = "33s"
   max_heartbeats_per_second     = 11.0
-  failover_heartbeat_ttl        = "330s"
   retry_join                    = ["1.1.1.1", "2.2.2.2"]
   start_join                    = ["1.1.1.1", "2.2.2.2"]
   retry_max                     = 3

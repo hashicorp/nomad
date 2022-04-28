@@ -31,25 +31,8 @@ The table below shows this endpoint's support for
   number of hexadecimal characters (0-9a-f). This is specified as a query
   string parameter.
 
-- `next_token` `(string: "")` - This endpoint supports paging. The `next_token`
-  parameter accepts a string which identifies the next expected node. This
-  value can be obtained from the `X-Nomad-NextToken` header from the previous
-  response.
-
-- `per_page` `(int: 0)` - Specifies a maximum number of nodes to return for
-  this request. If omitted, the response is not paginated. The value of the
-  `X-Nomad-NextToken` header of the last response can be used as the
-  `next_token` of the next request to fetch additional pages.
-
-- `filter` `(string: "")` - Specifies the [expression](/api-docs#filtering)
-  used to filter the results. Consider using pagination or a query parameter to
-  reduce resource used to serve the request.
-
 - `resources` `(bool: false)` - Specifies whether or not to include the
   `NodeResources` and `ReservedResources` fields in the response.
-
-- `os` `(bool: false)` - Specifies whether or not to include special attributes
-   such as operating system name in the response.
 
 ### Sample Request
 
@@ -63,20 +46,12 @@ $ curl \
     http://localhost:4646/v1/nodes?prefix=f7476465
 ```
 
-```shell-session
-$ curl \
-    http://localhost:4646/v1/nodes?os=true
-```
-
 ### Sample Response
 
 ```json
 [
   {
     "Address": "10.138.0.5",
-    "Attributes": {
-      "os.name": "ubuntu"
-    },
     "CreateIndex": 6,
     "Datacenter": "dc1",
     "Drain": false,
@@ -321,13 +296,6 @@ $ curl \
       "ReadOnly": false
     }
   },
-  "HostNetworks" : {
-    "public": {
-      "Name": "public",
-      "CIDR": "10.199.0.200/24",
-      "ReservedPorts": "8080,8081"
-    }
-  }
   "ID": "1ac61e33-a465-2ace-f63f-cffa1285e7eb",
   "LastDrain": {
     "AccessorID": "4e1b7ce1-f8aa-d7ff-09f1-55c3a0fd3988",
@@ -906,7 +874,6 @@ The table below shows this endpoint's support for
 
 ```shell-session
 $ curl \
-    -XPOST \
     http://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/evaluate
 ```
 

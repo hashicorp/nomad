@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: break long service tags into multiple lines
-```

@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -53,7 +52,7 @@ func testBrokerFromConfig(t *testing.T, c *Config) *EvalBroker {
 }
 
 func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 
 	// Enqueue, but broker is disabled!
@@ -229,7 +228,7 @@ func TestEvalBroker_Enqueue_Dequeue_Nack_Ack(t *testing.T) {
 }
 
 func TestEvalBroker_Nack_Delay(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 
 	// Enqueue, but broker is disabled!
@@ -387,7 +386,7 @@ func TestEvalBroker_Nack_Delay(t *testing.T) {
 }
 
 func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
@@ -626,7 +625,7 @@ func TestEvalBroker_Serialize_DuplicateJobID(t *testing.T) {
 }
 
 func TestEvalBroker_Enqueue_Disable(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 
 	// Enqueue
@@ -651,7 +650,7 @@ func TestEvalBroker_Enqueue_Disable(t *testing.T) {
 }
 
 func TestEvalBroker_Enqueue_Disable_Delay(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	baseEval := mock.Eval()
 	b.SetEnabled(true)
@@ -709,7 +708,7 @@ func TestEvalBroker_Enqueue_Disable_Delay(t *testing.T) {
 }
 
 func TestEvalBroker_Dequeue_Timeout(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
@@ -730,7 +729,7 @@ func TestEvalBroker_Dequeue_Timeout(t *testing.T) {
 }
 
 func TestEvalBroker_Dequeue_Empty_Timeout(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
@@ -774,7 +773,7 @@ func TestEvalBroker_Dequeue_Empty_Timeout(t *testing.T) {
 
 // Ensure higher priority dequeued first
 func TestEvalBroker_Dequeue_Priority(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
@@ -808,7 +807,7 @@ func TestEvalBroker_Dequeue_Priority(t *testing.T) {
 
 // Ensure FIFO at fixed priority
 func TestEvalBroker_Dequeue_FIFO(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 	NUM := 100
@@ -830,7 +829,7 @@ func TestEvalBroker_Dequeue_FIFO(t *testing.T) {
 
 // Ensure fairness between schedulers
 func TestEvalBroker_Dequeue_Fairness(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 	NUM := 1000
@@ -872,7 +871,7 @@ func TestEvalBroker_Dequeue_Fairness(t *testing.T) {
 
 // Ensure we get unblocked
 func TestEvalBroker_Dequeue_Blocked(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
@@ -929,7 +928,7 @@ func TestEvalBroker_Dequeue_Blocked(t *testing.T) {
 
 // Ensure we nack in a timely manner
 func TestEvalBroker_Nack_Timeout(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 5*time.Millisecond)
 	b.SetEnabled(true)
 
@@ -965,7 +964,7 @@ func TestEvalBroker_Nack_Timeout(t *testing.T) {
 
 // Ensure we nack in a timely manner
 func TestEvalBroker_Nack_TimeoutReset(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 50*time.Millisecond)
 	b.SetEnabled(true)
 
@@ -1006,7 +1005,7 @@ func TestEvalBroker_Nack_TimeoutReset(t *testing.T) {
 }
 
 func TestEvalBroker_PauseResumeNackTimeout(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 50*time.Millisecond)
 	b.SetEnabled(true)
 
@@ -1066,7 +1065,7 @@ func TestEvalBroker_PauseResumeNackTimeout(t *testing.T) {
 }
 
 func TestEvalBroker_DeliveryLimit(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
@@ -1156,7 +1155,7 @@ func TestEvalBroker_DeliveryLimit(t *testing.T) {
 }
 
 func TestEvalBroker_AckAtDeliveryLimit(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
@@ -1197,16 +1196,15 @@ func TestEvalBroker_AckAtDeliveryLimit(t *testing.T) {
 	}
 }
 
-// TestEvalBroker_Wait asserts delayed evaluations cannot be dequeued until
-// their wait duration has elapsed.
+// Ensure fairness between schedulers
 func TestEvalBroker_Wait(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
 	// Create an eval that should wait
 	eval := mock.Eval()
-	eval.Wait = 100 * time.Millisecond
+	eval.Wait = 10 * time.Millisecond
 	b.Enqueue(eval)
 
 	// Verify waiting
@@ -1218,14 +1216,8 @@ func TestEvalBroker_Wait(t *testing.T) {
 		t.Fatalf("bad: %#v", stats)
 	}
 
-	// Dequeue should not return the eval until wait has elapsed
-	out, token, err := b.Dequeue(defaultSched, 1)
-	require.Nil(t, out)
-	require.Empty(t, token)
-	require.NoError(t, err)
-
 	// Let the wait elapse
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	// Verify ready
 	stats = b.Stats()
@@ -1237,7 +1229,7 @@ func TestEvalBroker_Wait(t *testing.T) {
 	}
 
 	// Dequeue should work
-	out, _, err = b.Dequeue(defaultSched, time.Second)
+	out, _, err := b.Dequeue(defaultSched, time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1248,7 +1240,7 @@ func TestEvalBroker_Wait(t *testing.T) {
 
 // Ensure that delayed evaluations work as expected
 func TestEvalBroker_WaitUntil(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
@@ -1294,7 +1286,7 @@ func TestEvalBroker_WaitUntil(t *testing.T) {
 
 // Ensure that priority is taken into account when enqueueing many evaluations.
 func TestEvalBroker_EnqueueAll_Dequeue_Fair(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
@@ -1356,7 +1348,7 @@ func TestEvalBroker_EnqueueAll_Dequeue_Fair(t *testing.T) {
 }
 
 func TestEvalBroker_EnqueueAll_Requeue_Ack(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
@@ -1413,7 +1405,7 @@ func TestEvalBroker_EnqueueAll_Requeue_Ack(t *testing.T) {
 }
 
 func TestEvalBroker_EnqueueAll_Requeue_Nack(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
@@ -1466,7 +1458,7 @@ func TestEvalBroker_EnqueueAll_Requeue_Nack(t *testing.T) {
 }
 
 func TestEvalBroker_NamespacedJobs(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 

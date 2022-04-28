@@ -82,7 +82,7 @@ type MaxScoreIterator struct {
 	max    *RankedNode
 }
 
-// NewMaxScoreIterator returns a MaxScoreIterator over the given source
+// MaxScoreIterator returns a MaxScoreIterator over the given source
 func NewMaxScoreIterator(ctx Context, source RankIterator) *MaxScoreIterator {
 	iter := &MaxScoreIterator{
 		ctx:    ctx,

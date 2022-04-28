@@ -11,7 +11,6 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	hargs "github.com/hashicorp/nomad/helper/args"
-	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/zclconf/go-cty/cty"
@@ -41,15 +40,8 @@ const (
 	// CpuLimit is the environment variable with the tasks CPU limit in MHz.
 	CpuLimit = "NOMAD_CPU_LIMIT"
 
-	// CpuCores is the environment variable for passing the task's reserved cpu cores
-	CpuCores = "NOMAD_CPU_CORES"
-
 	// AllocID is the environment variable for passing the allocation ID.
 	AllocID = "NOMAD_ALLOC_ID"
-
-	// ShortAllocID is the environment variable for passing the short version
-	// of the allocation ID.
-	ShortAllocID = "NOMAD_SHORT_ALLOC_ID"
 
 	// AllocName is the environment variable for passing the allocation name.
 	AllocName = "NOMAD_ALLOC_NAME"
@@ -74,9 +66,6 @@ const (
 
 	// Datacenter is the environment variable for passing the datacenter in which the alloc is running.
 	Datacenter = "NOMAD_DC"
-
-	// CgroupParent is the environment variable for passing the cgroup parent in which cgroups are made.
-	CgroupParent = "NOMAD_PARENT_CGROUP"
 
 	// Namespace is the environment variable for passing the namespace in which the alloc is running.
 	Namespace = "NOMAD_NAMESPACE"
@@ -405,14 +394,12 @@ type Builder struct {
 	// clientTaskSecretsDir is the secrets dir from the client's perspective; eg <client_task_root>/secrets
 	clientTaskSecretsDir string
 
-	cpuCores         string
 	cpuLimit         int64
 	memLimit         int64
 	memMaxLimit      int64
 	taskName         string
 	allocIndex       int
 	datacenter       string
-	cgroupParent     string
 	namespace        string
 	region           string
 	allocId          string
@@ -502,14 +489,10 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	if b.cpuLimit != 0 {
 		envMap[CpuLimit] = strconv.FormatInt(b.cpuLimit, 10)
 	}
-	if b.cpuCores != "" {
-		envMap[CpuCores] = b.cpuCores
-	}
 
 	// Add the task metadata
 	if b.allocId != "" {
 		envMap[AllocID] = b.allocId
-		envMap[ShortAllocID] = b.allocId[:8]
 	}
 	if b.allocName != "" {
 		envMap[AllocName] = b.allocName
@@ -534,9 +517,6 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	}
 	if b.datacenter != "" {
 		envMap[Datacenter] = b.datacenter
-	}
-	if b.cgroupParent != "" {
-		envMap[CgroupParent] = b.cgroupParent
 	}
 	if b.namespace != "" {
 		envMap[Namespace] = b.namespace
@@ -645,7 +625,7 @@ func (b *Builder) Build() *TaskEnv {
 	return NewTaskEnv(envMap, envMapClient, deviceEnvs, nodeAttrs, b.clientTaskRoot, b.clientSharedAllocDir)
 }
 
-// UpdateTask updates the environment based on a new alloc and task.
+// Update task updates the environment based on a new alloc and task.
 func (b *Builder) UpdateTask(alloc *structs.Allocation, task *structs.Task) *Builder {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -755,7 +735,6 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		// Populate task resources
 		if tr, ok := alloc.AllocatedResources.Tasks[b.taskName]; ok {
 			b.cpuLimit = tr.Cpu.CpuShares
-			b.cpuCores = cpuset.New(tr.Cpu.ReservedCores...).String()
 			b.memLimit = tr.Memory.MemoryMB
 			b.memMaxLimit = tr.Memory.MemoryMaxMB
 
@@ -802,7 +781,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		}
 	}
 
-	var upstreams []structs.ConsulUpstream
+	upstreams := []structs.ConsulUpstream{}
 	for _, svc := range tg.Services {
 		if svc.Connect.HasSidecar() && svc.Connect.SidecarService.HasUpstreams() {
 			upstreams = append(upstreams, svc.Connect.SidecarService.Proxy.Upstreams...)
@@ -823,7 +802,6 @@ func (b *Builder) setNode(n *structs.Node) *Builder {
 	b.nodeAttrs[nodeClassKey] = n.NodeClass
 	b.nodeAttrs[nodeDcKey] = n.Datacenter
 	b.datacenter = n.Datacenter
-	b.cgroupParent = n.CgroupParent
 
 	// Set up the attributes.
 	for k, v := range n.Attributes {

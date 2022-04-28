@@ -7,19 +7,18 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
+	"github.com/boltdb/bolt"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/require"
-	"go.etcd.io/bbolt"
 )
 
-func setupBoltDB(t *testing.T) (*bbolt.DB, func()) {
+func setupBoltDB(t *testing.T) (*bolt.DB, func()) {
 	dir, err := ioutil.TempDir("", "nomadtest")
 	require.NoError(t, err)
 
-	db, err := bbolt.Open(filepath.Join(dir, "state.db"), 0666, nil)
+	db, err := bolt.Open(filepath.Join(dir, "state.db"), 0666, nil)
 	if err != nil {
 		os.RemoveAll(dir)
 		require.NoError(t, err)
@@ -33,57 +32,54 @@ func setupBoltDB(t *testing.T) (*bbolt.DB, func()) {
 
 // TestUpgrade_NeedsUpgrade_New asserts new state dbs do not need upgrading.
 func TestUpgrade_NeedsUpgrade_New(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Setting up a new StateDB should initialize it at the latest version.
 	db, cleanup := setupBoltStateDB(t)
 	defer cleanup()
 
-	to09, to12, err := NeedsUpgrade(db.DB().BoltDB())
+	up, err := NeedsUpgrade(db.DB().BoltDB())
 	require.NoError(t, err)
-	require.False(t, to09)
-	require.False(t, to12)
+	require.False(t, up)
 }
 
 // TestUpgrade_NeedsUpgrade_Old asserts state dbs with just the alloctions
 // bucket *do* need upgrading.
 func TestUpgrade_NeedsUpgrade_Old(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	db, cleanup := setupBoltDB(t)
 	defer cleanup()
 
 	// Create the allocations bucket which exists in both the old and 0.9
 	// schemas
-	require.NoError(t, db.Update(func(tx *bbolt.Tx) error {
+	require.NoError(t, db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucket(allocationsBucketName)
 		return err
 	}))
 
-	to09, to12, err := NeedsUpgrade(db)
+	up, err := NeedsUpgrade(db)
 	require.NoError(t, err)
-	require.True(t, to09)
-	require.True(t, to12)
+	require.True(t, up)
 
 	// Adding meta should mark it as upgraded
 	require.NoError(t, db.Update(addMeta))
 
-	to09, to12, err = NeedsUpgrade(db)
+	up, err = NeedsUpgrade(db)
 	require.NoError(t, err)
-	require.False(t, to09)
-	require.False(t, to12)
+	require.False(t, up)
 }
 
 // TestUpgrade_NeedsUpgrade_Error asserts that an error is returned from
 // NeedsUpgrade if an invalid db version is found. This is a safety measure to
 // prevent invalid and unintentional upgrades when downgrading Nomad.
 func TestUpgrade_NeedsUpgrade_Error(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := [][]byte{
 		{'"', '2', '"'}, // wrong type
 		{'1'},           // wrong version (never existed)
-		{'4'},           // wrong version (future)
+		{'3'},           // wrong version (future)
 	}
 
 	for _, tc := range cases {
@@ -92,14 +88,14 @@ func TestUpgrade_NeedsUpgrade_Error(t *testing.T) {
 			db, cleanup := setupBoltDB(t)
 			defer cleanup()
 
-			require.NoError(t, db.Update(func(tx *bbolt.Tx) error {
+			require.NoError(t, db.Update(func(tx *bolt.Tx) error {
 				bkt, err := tx.CreateBucketIfNotExists(metaBucketName)
 				require.NoError(t, err)
 
 				return bkt.Put(metaVersionKey, tc)
 			}))
 
-			_, _, err := NeedsUpgrade(db)
+			_, err := NeedsUpgrade(db)
 			require.Error(t, err)
 		})
 	}
@@ -108,7 +104,7 @@ func TestUpgrade_NeedsUpgrade_Error(t *testing.T) {
 // TestUpgrade_DeleteInvalidAllocs asserts invalid allocations are deleted
 // during state upgades instead of failing the entire agent.
 func TestUpgrade_DeleteInvalidAllocs_NoAlloc(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	bdb, cleanup := setupBoltDB(t)
 	defer cleanup()
@@ -153,7 +149,7 @@ func TestUpgrade_DeleteInvalidAllocs_NoAlloc(t *testing.T) {
 // TestUpgrade_DeleteInvalidTaskEntries asserts invalid entries under a task
 // bucket are deleted.
 func TestUpgrade_upgradeTaskBucket_InvalidEntries(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	db, cleanup := setupBoltDB(t)
 	defer cleanup()
@@ -161,7 +157,7 @@ func TestUpgrade_upgradeTaskBucket_InvalidEntries(t *testing.T) {
 	taskName := []byte("fake-task")
 
 	// Insert unexpected bucket, unexpected key, and missing simple-all
-	require.NoError(t, db.Update(func(tx *bbolt.Tx) error {
+	require.NoError(t, db.Update(func(tx *bolt.Tx) error {
 		bkt, err := tx.CreateBucket(taskName)
 		if err != nil {
 			return err
@@ -175,7 +171,7 @@ func TestUpgrade_upgradeTaskBucket_InvalidEntries(t *testing.T) {
 		return bkt.Put([]byte("unexepectedKey"), []byte{'x'})
 	}))
 
-	require.NoError(t, db.Update(func(tx *bbolt.Tx) error {
+	require.NoError(t, db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(taskName)
 
 		// upgradeTaskBucket should fail

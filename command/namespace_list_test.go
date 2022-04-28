@@ -1,17 +1,21 @@
+// +build ent
+
 package command
 
 import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 )
 
-var _ cli.Command = (*NamespaceListCommand)(nil)
+func TestNamespaceListCommand_Implements(t *testing.T) {
+	t.Parallel()
+	var _ cli.Command = &NamespaceListCommand{}
+}
 
 func TestNamespaceListCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	ui := cli.NewMockUi()
 	cmd := &NamespaceListCommand{Meta: Meta{Ui: ui}}
 
@@ -34,7 +38,7 @@ func TestNamespaceListCommand_Fails(t *testing.T) {
 }
 
 func TestNamespaceListCommand_List(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Create a server
 	srv, _, url := testServer(t, true, nil)

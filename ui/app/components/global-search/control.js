@@ -1,15 +1,14 @@
 import Component from '@ember/component';
-import { classNames, attributeBindings } from '@ember-decorators/component';
+import { classNames } from '@ember-decorators/component';
 import { task } from 'ember-concurrency';
 import { action, set } from '@ember/object';
 import { inject as service } from '@ember/service';
-import { debounce, next } from '@ember/runloop';
+import { debounce, run } from '@ember/runloop';
 
 const SLASH_KEY = '/';
 const MAXIMUM_RESULTS = 10;
 
 @classNames('global-search-container')
-@attributeBindings('data-test-search-parent')
 export default class GlobalSearchControl extends Component {
   @service router;
   @service token;
@@ -33,28 +32,23 @@ export default class GlobalSearchControl extends Component {
   }
 
   didInsertElement() {
-    super.didInsertElement(...arguments);
     set(this, '_keyDownHandler', this.keyDownHandler.bind(this));
     document.addEventListener('keydown', this._keyDownHandler);
   }
 
   willDestroyElement() {
-    super.willDestroyElement(...arguments);
     document.removeEventListener('keydown', this._keyDownHandler);
   }
 
-  @task(function* (string) {
-    const searchResponse = yield this.token.authorizedRequest(
-      '/v1/search/fuzzy',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          Text: string,
-          Context: 'all',
-          Namespace: '*',
-        }),
-      }
-    );
+  @task(function*(string) {
+    const searchResponse = yield this.token.authorizedRequest('/v1/search/fuzzy', {
+      method: 'POST',
+      body: JSON.stringify({
+        Text: string,
+        Context: 'all',
+        Namespace: '*',
+      }),
+    });
 
     const results = yield searchResponse.json();
 
@@ -99,13 +93,11 @@ export default class GlobalSearchControl extends Component {
         label: `${namespace} > ${jobId} > ${id}`,
       }));
 
-    const csiPluginResults = allCSIPluginResults
-      .slice(0, MAXIMUM_RESULTS)
-      .map(({ ID: id }) => ({
-        type: 'plugin',
-        id,
-        label: id,
-      }));
+    const csiPluginResults = allCSIPluginResults.slice(0, MAXIMUM_RESULTS).map(({ ID: id }) => ({
+      type: 'plugin',
+      id,
+      label: id,
+    }));
 
     const {
       jobs: jobsTruncated,
@@ -117,21 +109,11 @@ export default class GlobalSearchControl extends Component {
 
     return [
       {
-        groupName: resultsGroupLabel(
-          'Jobs',
-          jobResults,
-          allJobResults,
-          jobsTruncated
-        ),
+        groupName: resultsGroupLabel('Jobs', jobResults, allJobResults, jobsTruncated),
         options: jobResults,
       },
       {
-        groupName: resultsGroupLabel(
-          'Clients',
-          nodeResults,
-          allNodeResults,
-          nodesTruncated
-        ),
+        groupName: resultsGroupLabel('Clients', nodeResults, allNodeResults, nodesTruncated),
         options: nodeResults,
       },
       {
@@ -207,14 +189,10 @@ export default class GlobalSearchControl extends Component {
   openOnClickOrTab(select, { target }) {
     // Bypass having to press enter to access search after clicking/tabbing
     const targetClassList = target.classList;
-    const targetIsTrigger = targetClassList.contains(
-      'ember-power-select-trigger'
-    );
+    const targetIsTrigger = targetClassList.contains('ember-power-select-trigger');
 
     // Allow tabbing out of search
-    const triggerIsNotActive = !targetClassList.contains(
-      'ember-power-select-trigger--active'
-    );
+    const triggerIsNotActive = !targetClassList.contains('ember-power-select-trigger--active');
 
     if (targetIsTrigger && triggerIsNotActive) {
       debounce(this, this.open, 150);
@@ -224,7 +202,7 @@ export default class GlobalSearchControl extends Component {
   @action
   onCloseEvent(select, event) {
     if (event.key === 'Escape') {
-      next(() => {
+      run.next(() => {
         this.element.querySelector('.ember-power-select-trigger').blur();
       });
     }

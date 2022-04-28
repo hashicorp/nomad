@@ -9,7 +9,6 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	consultest "github.com/hashicorp/consul/sdk/testutil"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -36,7 +35,7 @@ func getTestConsul(t *testing.T) *consultest.TestServer {
 }
 
 func TestConnectNativeHook_Name(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	name := new(connectNativeHook).Name()
 	require.Equal(t, "connect_native", name)
 }
@@ -62,7 +61,7 @@ func cleanupCertDirs(t *testing.T, original, secrets string) {
 }
 
 func TestConnectNativeHook_copyCertificate(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	f, d := setupCertDirs(t)
 	defer cleanupCertDirs(t, f, d)
@@ -82,7 +81,7 @@ func TestConnectNativeHook_copyCertificate(t *testing.T) {
 }
 
 func TestConnectNativeHook_copyCertificates(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	f, d := setupCertDirs(t)
 	defer cleanupCertDirs(t, f, d)
@@ -110,7 +109,7 @@ func TestConnectNativeHook_copyCertificates(t *testing.T) {
 }
 
 func TestConnectNativeHook_tlsEnv(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// the hook config comes from client config
 	emptyHook := new(connectNativeHook)
@@ -164,7 +163,7 @@ func TestConnectNativeHook_tlsEnv(t *testing.T) {
 }
 
 func TestConnectNativeHook_bridgeEnv_bridge(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	t.Run("without tls", func(t *testing.T) {
 		hook := new(connectNativeHook)
@@ -209,7 +208,7 @@ func TestConnectNativeHook_bridgeEnv_bridge(t *testing.T) {
 }
 
 func TestConnectNativeHook_bridgeEnv_host(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	hook := new(connectNativeHook)
 	hook.alloc = mock.ConnectNativeAlloc("host")
@@ -228,7 +227,7 @@ func TestConnectNativeHook_bridgeEnv_host(t *testing.T) {
 }
 
 func TestConnectNativeHook_hostEnv_host(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	hook := new(connectNativeHook)
 	hook.alloc = mock.ConnectNativeAlloc("host")
@@ -250,7 +249,7 @@ func TestConnectNativeHook_hostEnv_host(t *testing.T) {
 }
 
 func TestConnectNativeHook_hostEnv_bridge(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	hook := new(connectNativeHook)
 	hook.alloc = mock.ConnectNativeAlloc("bridge")
@@ -270,13 +269,14 @@ func TestConnectNativeHook_hostEnv_bridge(t *testing.T) {
 }
 
 func TestTaskRunner_ConnectNativeHook_Noop(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	logger := testlog.HCLogger(t)
+
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative")
+	defer cleanup()
 
 	alloc := mock.Alloc()
 	task := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks[0]
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
-	defer cleanup()
 
 	// run the connect native hook. use invalid consul address as it should not get hit
 	h := newConnectNativeHook(newConnectNativeHookConfig(alloc, &config.ConsulConfig{
@@ -308,7 +308,7 @@ func TestTaskRunner_ConnectNativeHook_Noop(t *testing.T) {
 }
 
 func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	testutil.RequireConsul(t)
 
 	testConsul := getTestConsul(t)
@@ -328,7 +328,7 @@ func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative")
 	defer cleanup()
 
 	// register group services
@@ -373,7 +373,7 @@ func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 }
 
 func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	testutil.RequireConsul(t)
 
 	testConsul := getTestConsul(t)
@@ -393,7 +393,7 @@ func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative")
 	defer cleanup()
 
 	// register group services
@@ -446,7 +446,7 @@ func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 }
 
 func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	testutil.RequireConsul(t)
 
 	try := func(t *testing.T, shareSSL *bool) {
@@ -470,7 +470,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 
 		logger := testlog.HCLogger(t)
 
-		allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
+		allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative")
 		defer cleanup()
 
 		// register group services
@@ -567,7 +567,7 @@ func checkFilesInDir(t *testing.T, dir string, includes, excludes []string) {
 }
 
 func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	testutil.RequireConsul(t)
 
 	fakeCert, fakeCertDir := setupCertDirs(t)
@@ -590,7 +590,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative")
 	defer cleanup()
 
 	// register group services

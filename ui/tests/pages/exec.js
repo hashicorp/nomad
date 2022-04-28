@@ -40,9 +40,7 @@ export default create({
 
   terminal: {
     scope: '.xterm-helper-textarea',
-    pressEnter: triggerable('keydown', '', {
-      eventProperties: { keyCode: 13 },
-    }),
+    pressEnter: triggerable('keydown', '', { eventProperties: { keyCode: 13 } }),
   },
 
   jobDead: {

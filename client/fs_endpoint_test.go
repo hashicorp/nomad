@@ -18,7 +18,6 @@ import (
 
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
@@ -32,14 +31,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// tempAllocDir returns a new alloc dir that is rooted in a temp dir. Caller
-// should cleanup with AllocDir.Destroy()
+// tempAllocDir returns a new alloc dir that is rooted in a temp dir. The caller
+// should destroy the temp dir.
 func tempAllocDir(t testing.TB) *allocdir.AllocDir {
-	dir := t.TempDir()
+	dir, err := ioutil.TempDir("", "nomadtest")
+	if err != nil {
+		t.Fatalf("TempDir() failed: %v", err)
+	}
 
-	require.NoError(t, os.Chmod(dir, 0o777))
+	if err := os.Chmod(dir, 0777); err != nil {
+		t.Fatalf("failed to chmod dir: %v", err)
+	}
 
-	return allocdir.NewAllocDir(testlog.HCLogger(t), dir, "test_allocid")
+	return allocdir.NewAllocDir(testlog.HCLogger(t), dir)
 }
 
 type nopWriteCloser struct {
@@ -51,7 +55,7 @@ func (n nopWriteCloser) Close() error {
 }
 
 func TestFS_Stat_NoAlloc(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Start a client
@@ -72,7 +76,7 @@ func TestFS_Stat_NoAlloc(t *testing.T) {
 }
 
 func TestFS_Stat(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -109,7 +113,7 @@ func TestFS_Stat(t *testing.T) {
 }
 
 func TestFS_Stat_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Start a server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
@@ -184,7 +188,7 @@ func TestFS_Stat_ACL(t *testing.T) {
 }
 
 func TestFS_List_NoAlloc(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Start a client
@@ -205,7 +209,7 @@ func TestFS_List_NoAlloc(t *testing.T) {
 }
 
 func TestFS_List(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -242,7 +246,7 @@ func TestFS_List(t *testing.T) {
 }
 
 func TestFS_List_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Start a server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
@@ -317,8 +321,7 @@ func TestFS_List_ACL(t *testing.T) {
 }
 
 func TestFS_Stream_NoAlloc(t *testing.T) {
-	ci.Parallel(t)
-	ci.SkipSlow(t, "flaky on GHA; #12358")
+	t.Parallel()
 	require := require.New(t)
 
 	// Start a client
@@ -393,7 +396,7 @@ OUTER:
 }
 
 func TestFS_Stream_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Start a server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
@@ -521,7 +524,7 @@ func TestFS_Stream_ACL(t *testing.T) {
 }
 
 func TestFS_Stream(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -637,7 +640,7 @@ func (r *ReadWriteCloseChecker) Close() error {
 }
 
 func TestFS_Stream_Follow(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -734,7 +737,7 @@ OUTER:
 }
 
 func TestFS_Stream_Limit(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -828,7 +831,7 @@ OUTER:
 }
 
 func TestFS_Logs_NoAlloc(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Start a client
@@ -906,7 +909,7 @@ OUTER:
 // TestFS_Logs_TaskPending asserts that trying to stream logs for tasks which
 // have not started returns a 404 error.
 func TestFS_Logs_TaskPending(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -1021,7 +1024,7 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 }
 
 func TestFS_Logs_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Start a server
@@ -1152,7 +1155,7 @@ func TestFS_Logs_ACL(t *testing.T) {
 }
 
 func TestFS_Logs(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -1253,7 +1256,7 @@ OUTER:
 }
 
 func TestFS_Logs_Follow(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -1557,13 +1560,13 @@ func TestFS_findClosest(t *testing.T) {
 }
 
 func TestFS_streamFile_NoFile(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
+	require := require.New(t)
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
 
 	ad := tempAllocDir(t)
-	defer ad.Destroy()
+	defer os.RemoveAll(ad.AllocDir)
 
 	frames := make(chan *sframer.StreamFrame, 32)
 	framer := sframer.NewStreamFramer(frames, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
@@ -1571,25 +1574,24 @@ func TestFS_streamFile_NoFile(t *testing.T) {
 	defer framer.Destroy()
 
 	err := c.endpoints.FileSystem.streamFile(
-		context.Background(), 0, "foo", 0, ad, framer, nil, false)
-	require.Error(t, err)
+		context.Background(), 0, "foo", 0, ad, framer, nil)
+	require.NotNil(err)
 	if runtime.GOOS == "windows" {
-		require.Contains(t, err.Error(), "cannot find the file")
+		require.Contains(err.Error(), "cannot find the file")
 	} else {
-		require.Contains(t, err.Error(), "no such file")
+		require.Contains(err.Error(), "no such file")
 	}
 }
 
 func TestFS_streamFile_Modify(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
 
 	// Get a temp alloc dir
 	ad := tempAllocDir(t)
-	require.NoError(t, ad.Build())
-	defer ad.Destroy()
+	defer os.RemoveAll(ad.AllocDir)
 
 	// Create a file in the temp dir
 	streamFile := "stream_file"
@@ -1632,7 +1634,7 @@ func TestFS_streamFile_Modify(t *testing.T) {
 	// Start streaming
 	go func() {
 		if err := c.endpoints.FileSystem.streamFile(
-			context.Background(), 0, streamFile, 0, ad, framer, nil, false); err != nil {
+			context.Background(), 0, streamFile, 0, ad, framer, nil); err != nil {
 			t.Fatalf("stream() failed: %v", err)
 		}
 	}()
@@ -1652,22 +1654,22 @@ func TestFS_streamFile_Modify(t *testing.T) {
 }
 
 func TestFS_streamFile_Truncate(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
 
 	// Get a temp alloc dir
 	ad := tempAllocDir(t)
-	require.NoError(t, ad.Build())
-	defer ad.Destroy()
+	defer os.RemoveAll(ad.AllocDir)
 
 	// Create a file in the temp dir
 	data := []byte("helloworld")
 	streamFile := "stream_file"
 	streamFilePath := filepath.Join(ad.AllocDir, streamFile)
 	f, err := os.Create(streamFilePath)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
 	defer f.Close()
 
 	// Start the reader
@@ -1708,7 +1710,7 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 	// Start streaming
 	go func() {
 		if err := c.endpoints.FileSystem.streamFile(
-			context.Background(), 0, streamFile, 0, ad, framer, nil, false); err != nil {
+			context.Background(), 0, streamFile, 0, ad, framer, nil); err != nil {
 			t.Fatalf("stream() failed: %v", err)
 		}
 	}()
@@ -1756,18 +1758,17 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 }
 
 func TestFS_streamImpl_Delete(t *testing.T) {
-	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not allow us to delete a file while it is open")
 	}
+	t.Parallel()
 
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
 
 	// Get a temp alloc dir
 	ad := tempAllocDir(t)
-	require.NoError(t, ad.Build())
-	defer ad.Destroy()
+	defer os.RemoveAll(ad.AllocDir)
 
 	// Create a file in the temp dir
 	data := []byte("helloworld")
@@ -1812,7 +1813,7 @@ func TestFS_streamImpl_Delete(t *testing.T) {
 	// Start streaming
 	go func() {
 		if err := c.endpoints.FileSystem.streamFile(
-			context.Background(), 0, streamFile, 0, ad, framer, nil, false); err != nil {
+			context.Background(), 0, streamFile, 0, ad, framer, nil); err != nil {
 			t.Fatalf("stream() failed: %v", err)
 		}
 	}()
@@ -1832,15 +1833,14 @@ func TestFS_streamImpl_Delete(t *testing.T) {
 }
 
 func TestFS_logsImpl_NoFollow(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
 
 	// Get a temp alloc dir and create the log dir
 	ad := tempAllocDir(t)
-	require.NoError(t, ad.Build())
-	defer ad.Destroy()
+	defer os.RemoveAll(ad.AllocDir)
 
 	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
 	if err := os.MkdirAll(logDir, 0777); err != nil {
@@ -1901,15 +1901,14 @@ func TestFS_logsImpl_NoFollow(t *testing.T) {
 }
 
 func TestFS_logsImpl_Follow(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
 
 	// Get a temp alloc dir and create the log dir
 	ad := tempAllocDir(t)
-	require.NoError(t, ad.Build())
-	defer ad.Destroy()
+	defer os.RemoveAll(ad.AllocDir)
 
 	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
 	if err := os.MkdirAll(logDir, 0777); err != nil {
@@ -1922,28 +1921,12 @@ func TestFS_logsImpl_Follow(t *testing.T) {
 	expected := []byte("012345")
 	initialWrites := 3
 
-	filePath := func(index int) string {
-		logFile := fmt.Sprintf("%s.%s.%d", task, logType, index)
-		return filepath.Join(logDir, logFile)
-	}
 	writeToFile := func(index int, data []byte) {
-		logFilePath := filePath(index)
+		logFile := fmt.Sprintf("%s.%s.%d", task, logType, index)
+		logFilePath := filepath.Join(logDir, logFile)
 		err := ioutil.WriteFile(logFilePath, data, 0777)
 		if err != nil {
 			t.Fatalf("Failed to create file: %v", err)
-		}
-	}
-	appendToFile := func(index int, data []byte) {
-		logFilePath := filePath(index)
-		f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_WRONLY, 0600)
-		if err != nil {
-			t.Fatalf("Failed to create file: %v", err)
-		}
-
-		defer f.Close()
-
-		if _, err = f.Write(data); err != nil {
-			t.Fatalf("Failed to write file: %v", err)
 		}
 	}
 	for i := 0; i < initialWrites; i++ {
@@ -1987,13 +1970,11 @@ func TestFS_logsImpl_Follow(t *testing.T) {
 		t.Fatalf("did not receive data: got %q", string(received))
 	}
 
-	// We got the first chunk of data, write out the rest splitted
-	// between the last file and to the next file
+	// We got the first chunk of data, write out the rest to the next file
 	// at an index much ahead to check that it is following and detecting
 	// skips
 	skipTo := initialWrites + 10
-	appendToFile(initialWrites-1, expected[initialWrites:initialWrites+1])
-	writeToFile(skipTo, expected[initialWrites+1:])
+	writeToFile(skipTo, expected[initialWrites:])
 
 	select {
 	case <-fullResultCh:

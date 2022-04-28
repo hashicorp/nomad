@@ -40,11 +40,11 @@ server {
   `1` does not provide any fault tolerance and is not recommended for production
   use cases.
 
-- `data_dir` `(string: "[data_dir]/server")` - Specifies the directory to use
-  for server-specific data, including the replicated log. By default, this is
-  the top-level [data_dir](/docs/configuration#data_dir) suffixed with "server",
-  like `"/opt/nomad/server"`. The top-level option must be set, even when
-  setting this value. This must be an absolute path.
+- `data_dir` `(string: "[data_dir]/server")` - Specifies the directory to use -
+  for server-specific data, including the replicated log. By default, this is -
+  the top-level [data_dir](/docs/configuration#data_dir)
+  suffixed with "server", like `"/opt/nomad/server"`. This must be an absolute
+  path.
 
 - `enabled` `(bool: false)` - Specifies if this agent should run in server mode.
   All other server options depend on this value being set.
@@ -131,16 +131,6 @@ server {
   a tradeoff as it lowers failure detection time of nodes at the tradeoff of
   false positives and increased load on the leader.
 
-- `failover_heartbeat_ttl` `(string: "5m")` - Specifies the TTL applied to
-	heartbeats after a new leader is elected, since we no longer know the status
-	of all the heartbeats. This is specified using a label suffix like "30s" or
-	"1h".
-
-  ~> Lowering the `failover_heartbeat_ttl` is a tradeoff as it lowers failure
-  detection time of nodes at the tradeoff of false positives. False positives
-  could cause all clients to stop their allocations if a leadership transition
-  lasts longer than `heartbeat_grace + failover_heartbeat_ttl`.
-
 - `max_heartbeats_per_second` `(float: 50.0)` - Specifies the maximum target
   rate of heartbeats being processed per second. This allows the TTL to be
   increased to meet the target rate. Increasing the maximum heartbeats per
@@ -156,14 +146,12 @@ server {
   disallow this server from making any scheduling decisions. This defaults to
   the number of CPU cores.
 
-- `raft_boltdb` - This is a nested object that allows configuring options for
-  Raft's BoltDB based log store.
-    - `no_freelist_sync` - Setting this to `true` will disable syncing the BoltDB
-    freelist to disk within the `raft.db` file. Not syncing the freelist to disk
-    will reduce disk IO required for write operations at the expense of longer
-    server startup times.
+- `protocol_version` `(int: 1)` - Specifies the Nomad protocol version to use
+  when communicating with other Nomad servers. This value is typically not
+  required as the agent internally knows the latest version, but may be useful
+  in some upgrade scenarios.
 
-- `raft_protocol` `(int: 3)` - Specifies the Raft protocol version to use when
+- `raft_protocol` `(int: 2)` - Specifies the Raft protocol version to use when
   communicating with other Nomad servers. This affects available Autopilot
   features and is typically not required as the agent internally knows the
   latest version, but may be useful in some upgrade scenarios.
@@ -314,13 +302,10 @@ server {
 
     memory_oversubscription_enabled = true
 
-    reject_job_registration = false
-
     preemption_config {
-      batch_scheduler_enabled    = true
-      system_scheduler_enabled   = true
-      service_scheduler_enabled  = true
-      sysbatch_scheduler_enabled = true # New in Nomad 1.2
+      batch_scheduler_enabled   = true
+      system_scheduler_enabled  = true
+      service_scheduler_enabled = true
     }
   }
 }

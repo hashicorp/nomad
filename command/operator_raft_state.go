@@ -16,17 +16,14 @@ type OperatorRaftStateCommand struct {
 
 func (c *OperatorRaftStateCommand) Help() string {
 	helpText := `
-Usage: nomad operator raft state <path to nomad data dir>
+Usage: nomad operator raft _state <path to nomad data dir>
 
-  Display the server state obtained by replaying raft log entries persisted in
-  the Nomad data directory in JSON format.
-
-  This command requires file system permissions to access the data directory on
-  disk. The Nomad server locks access to the data directory, so this command
-  cannot be run on a data directory that is being used by a running Nomad server.
+  Display the server state obtained by replaying raft log entries persisted in data dir in json form.
 
   This is a low-level debugging tool and not subject to Nomad's usual backward
   compatibility guarantees.
+
+  If ACLs are enabled, this command requires a management token.
 
 Options:
 
@@ -50,7 +47,7 @@ func (c *OperatorRaftStateCommand) Synopsis() string {
 	return "Display raft server state"
 }
 
-func (c *OperatorRaftStateCommand) Name() string { return "operator raft state" }
+func (c *OperatorRaftStateCommand) Name() string { return "operator raft _state" }
 
 func (c *OperatorRaftStateCommand) Run(args []string) int {
 	var fLastIdx int64
@@ -79,20 +76,12 @@ func (c *OperatorRaftStateCommand) Run(args []string) int {
 		return 1
 	}
 
-	fsm, err := raftutil.NewFSM(raftPath)
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
-	}
-	defer fsm.Close()
-
-	_, _, err = fsm.ApplyAll()
+	state, err := raftutil.FSMState(raftPath, fLastIdx)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
 	}
 
-	state := fsm.StateAsMap()
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(state); err != nil {

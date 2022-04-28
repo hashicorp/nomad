@@ -1,8 +1,6 @@
 import Watchable from './watchable';
 import addToPath from 'nomad-ui/utils/add-to-path';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class AllocationAdapter extends Watchable {
   stop = adapterAction('/stop');
 
@@ -16,17 +14,13 @@ export default class AllocationAdapter extends Watchable {
 
   ls(model, path) {
     return this.token
-      .authorizedRequest(
-        `/v1/client/fs/ls/${model.id}?path=${encodeURIComponent(path)}`
-      )
+      .authorizedRequest(`/v1/client/fs/ls/${model.id}?path=${encodeURIComponent(path)}`)
       .then(handleFSResponse);
   }
 
   stat(model, path) {
     return this.token
-      .authorizedRequest(
-        `/v1/client/fs/stat/${model.id}?path=${encodeURIComponent(path)}`
-      )
+      .authorizedRequest(`/v1/client/fs/stat/${model.id}?path=${encodeURIComponent(path)}`)
       .then(handleFSResponse);
   }
 }
@@ -37,19 +31,22 @@ async function handleFSResponse(response) {
   } else {
     const body = await response.text();
 
+    // TODO update this if/when endpoint returns 404 as expected
+    const statusIs500 = response.status === 500;
+    const bodyIncludes404Text = body.includes('no such file or directory');
+
+    const translatedCode = statusIs500 && bodyIncludes404Text ? 404 : response.status;
+
     throw {
-      code: response.status,
+      code: translatedCode,
       toString: () => body,
     };
   }
 }
 
 function adapterAction(path, verb = 'POST') {
-  return function (allocation) {
-    const url = addToPath(
-      this.urlForFindRecord(allocation.id, 'allocation'),
-      path
-    );
+  return function(allocation) {
+    const url = addToPath(this.urlForFindRecord(allocation.id, 'allocation'), path);
     return this.ajax(url, verb);
   };
 }

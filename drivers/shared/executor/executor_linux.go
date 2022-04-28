@@ -1,10 +1,9 @@
-//go:build linux
+// +build linux
 
 package executor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,15 +14,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
+	"github.com/opencontainers/runtime-spec/specs-go"
+
 	"github.com/armon/circbuf"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-	"github.com/hashicorp/nomad/client/lib/resources"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -31,12 +30,14 @@ import (
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/devices"
 	ldevices "github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
-	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
+)
+
+const (
+	defaultCgroupParent = "/nomad"
 )
 
 var (
@@ -201,16 +202,21 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}, nil
 }
 
-func (l *LibcontainerExecutor) getAllPids() (resources.PIDs, error) {
+func (l *LibcontainerExecutor) getAllPids() (map[int]*nomadPid, error) {
 	pids, err := l.container.Processes()
 	if err != nil {
 		return nil, err
 	}
-	m := make(resources.PIDs, 1)
+	nPids := make(map[int]*nomadPid)
 	for _, pid := range pids {
-		m[pid] = resources.NewPID(pid)
+		nPids[pid] = &nomadPid{
+			pid:           pid,
+			cpuStatsTotal: stats.NewCpuStats(),
+			cpuStatsUser:  stats.NewCpuStats(),
+			cpuStatsSys:   stats.NewCpuStats(),
+		}
 	}
-	return m, nil
+	return nPids, nil
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
@@ -376,12 +382,10 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 		maxUsage := stats.MemoryStats.Usage.MaxUsage
 		rss := stats.MemoryStats.Stats["rss"]
 		cache := stats.MemoryStats.Stats["cache"]
-		mapped_file := stats.MemoryStats.Stats["mapped_file"]
 		ms := &cstructs.MemoryStats{
 			RSS:            rss,
 			Cache:          cache,
 			Swap:           swap.Usage,
-			MappedFile:     mapped_file,
 			Usage:          stats.MemoryStats.Usage.Usage,
 			MaxUsage:       maxUsage,
 			KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
@@ -657,27 +661,14 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 }
 
 func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
+
 	// If resources are not limited then manually create cgroups needed
 	if !command.ResourceLimits {
-		return cgutil.ConfigureBasicCgroups(cfg)
+		return configureBasicCgroups(cfg)
 	}
 
-	// set cgroups path
-	if cgutil.UseV2 {
-		// in v2, the cgroup must have been created by the client already,
-		// which breaks a lot of existing tests that run drivers without a client
-		if command.Resources == nil || command.Resources.LinuxResources == nil || command.Resources.LinuxResources.CpusetCgroupPath == "" {
-			return errors.New("cgroup path must be set")
-		}
-		parent, cgroup := cgutil.SplitPath(command.Resources.LinuxResources.CpusetCgroupPath)
-		cfg.Cgroups.Path = filepath.Join("/", parent, cgroup)
-	} else {
-		// in v1, the cgroup is created using /nomad, which is a bug because it
-		// does not respect the cgroup_parent client configuration
-		// (but makes testing easy)
-		id := uuid.Generate()
-		cfg.Cgroups.Path = filepath.Join("/", cgutil.DefaultCgroupV1Parent, id)
-	}
+	id := uuid.Generate()
+	cfg.Cgroups.Path = filepath.Join("/", defaultCgroupParent, id)
 
 	if command.Resources == nil || command.Resources.NomadResources == nil {
 		return nil
@@ -720,6 +711,44 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 	return nil
 }
 
+func configureBasicCgroups(cfg *lconfigs.Config) error {
+	id := uuid.Generate()
+
+	// Manually create freezer cgroup
+
+	subsystem := "freezer"
+
+	path, err := getCgroupPathHelper(subsystem, filepath.Join(defaultCgroupParent, id))
+	if err != nil {
+		return fmt.Errorf("failed to find %s cgroup mountpoint: %v", subsystem, err)
+	}
+
+	if err = os.MkdirAll(path, 0755); err != nil {
+		return err
+	}
+
+	cfg.Cgroups.Paths = map[string]string{
+		subsystem: path,
+	}
+	return nil
+}
+
+func getCgroupPathHelper(subsystem, cgroup string) (string, error) {
+	mnt, root, err := cgroups.FindCgroupMountpointAndRoot("", subsystem)
+	if err != nil {
+		return "", err
+	}
+
+	// This is needed for nested containers, because in /proc/self/cgroup we
+	// see paths from host, which don't exist in container.
+	relCgroup, err := filepath.Rel(root, cgroup)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(mnt, relCgroup), nil
+}
+
 func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 	cfg := &lconfigs.Config{
 		Cgroups: &lconfigs.Cgroup{
@@ -752,14 +781,14 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 }
 
 // cmdDevices converts a list of driver.DeviceConfigs into excutor.Devices.
-func cmdDevices(driverDevices []*drivers.DeviceConfig) ([]*devices.Device, error) {
-	if len(driverDevices) == 0 {
+func cmdDevices(devices []*drivers.DeviceConfig) ([]*lconfigs.Device, error) {
+	if len(devices) == 0 {
 		return nil, nil
 	}
 
-	r := make([]*devices.Device, len(driverDevices))
+	r := make([]*lconfigs.Device, len(devices))
 
-	for i, d := range driverDevices {
+	for i, d := range devices {
 		ed, err := ldevices.DeviceFromPath(d.HostPath, d.Permissions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to make device out for %s: %v", d.HostPath, err)

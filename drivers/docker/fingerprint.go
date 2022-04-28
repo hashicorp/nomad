@@ -13,10 +13,9 @@ import (
 )
 
 func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
-	// Start docker reconcilers when we start fingerprinting, a workaround for
-	// task drivers not having a kind of post-setup hook.
-	d.danglingReconciler.Start()
-	d.cpusetFixer.Start()
+	// start reconciler when we start fingerprinting
+	// this is the only method called when driver is launched properly
+	d.reconciler.Start()
 
 	ch := make(chan *drivers.Fingerprint)
 	go d.handleFingerprint(ctx, ch)
@@ -119,10 +118,6 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fp.Attributes["driver.docker.version"] = pstructs.NewStringAttribute(env.Get("Version"))
 	if d.config.AllowPrivileged {
 		fp.Attributes["driver.docker.privileged.enabled"] = pstructs.NewBoolAttribute(true)
-	}
-
-	if d.config.PidsLimit > 0 {
-		fp.Attributes["driver.docker.pids.limit"] = pstructs.NewIntAttribute(d.config.PidsLimit, "")
 	}
 
 	if d.config.Volumes.Enabled {

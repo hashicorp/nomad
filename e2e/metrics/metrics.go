@@ -34,9 +34,9 @@ func init() {
 	})
 }
 
-// BeforeAll stands up Prometheus to collect metrics from all clients and
-// allocs, with fabio as a system job in front of it so that we don't need to
-// have prometheus use host networking.
+// Stand up prometheus to collect metrics from all clients and allocs,
+// with fabio as a system job in front of it so that we don't need to
+// have prometheus use host networking
 func (tc *MetricsTest) BeforeAll(f *framework.F) {
 	t := f.T()
 	e2eutil.WaitForLeader(t, tc.Nomad())
@@ -45,8 +45,8 @@ func (tc *MetricsTest) BeforeAll(f *framework.F) {
 	require.Nil(t, err)
 }
 
-// AfterEach CleanS up the target jobs after each test case, but keep
-// fabio/prometheus for reuse between the two test cases (Windows vs Linux).
+// Clean up the target jobs after each test case, but keep fabio/prometheus
+// for reuse between the two test cases (Windows vs Linux)
 func (tc *MetricsTest) AfterEach(f *framework.F) {
 	if os.Getenv("NOMAD_TEST_SKIPCLEANUP") == "1" {
 		return
@@ -58,7 +58,7 @@ func (tc *MetricsTest) AfterEach(f *framework.F) {
 	tc.Nomad().System().GarbageCollect()
 }
 
-// AfterAll cleans up fabio/prometheus.
+// Clean up fabio/prometheus
 func (tc *MetricsTest) AfterAll(f *framework.F) {
 	if os.Getenv("NOMAD_TEST_SKIPCLEANUP") == "1" {
 		return

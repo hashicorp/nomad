@@ -8,7 +8,6 @@ import (
 	"testing/quick"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -99,7 +98,7 @@ func clearTimestampFromBlockedResourceStats(b *BlockedResourcesStats) {
 // TestBlockedEvalsStats_BlockedResources generates random evals and processes
 // them using the expected code paths and a manual check of the expeceted result.
 func TestBlockedEvalsStats_BlockedResources(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	blocked, _ := testBlockedEvals(t)
 
 	// evalHistory stores all evals generated during the test.

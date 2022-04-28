@@ -1,3 +1,0 @@
-```release-note:improvement
-metrics: emit `nomad.vault.token_last_renewal` and `nomad.vault.token_next_renewal` metrics for Vault token renewal information
-```

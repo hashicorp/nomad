@@ -83,9 +83,8 @@ vault {
   should install a custom CA bundle and validate against it. Disabling SSL
   verification can allow an attacker to easily compromise your cluster.
 
-- `token` `(string: "")` - Specifies the parent Vault token to use to derive
-  child tokens for jobs requesting tokens. Only required on Nomad servers.
-  Nomad client agents use the allocation's token when contacting Vault.
+- `token` `(string: "")` - Specifies the parent Vault token to use to derive child tokens for jobs
+  requesting tokens.
   Visit the [Vault Integration Guide](/docs/vault-integration)
   to see how to generate an appropriate token in Vault.
 

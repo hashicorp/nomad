@@ -97,7 +97,7 @@ func MockNode() *Node {
 	return node
 }
 
-// MockNvidiaNode returns a node with two instances of an Nvidia GPU
+// NvidiaNode returns a node with two instances of an Nvidia GPU
 func MockNvidiaNode() *Node {
 	n := MockNode()
 	n.NodeResources.Devices = []*NodeDeviceResource{

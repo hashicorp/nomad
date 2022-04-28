@@ -1,3 +1,0 @@
-```release-note:improvement
-metrics: emit `nomad.scheduler.allocs.rescheduled` metrics for evaluations that are rescheduled for later
-```

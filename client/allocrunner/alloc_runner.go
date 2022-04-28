@@ -3,8 +3,11 @@ package allocrunner
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
@@ -18,11 +21,8 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
-	"github.com/hashicorp/nomad/client/serviceregistration"
-	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -64,7 +64,7 @@ type allocRunner struct {
 
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
-	consulClient serviceregistration.Handler
+	consulClient consul.ConsulServiceAPI
 
 	// consulProxiesClient is the client used by the envoy version hook for
 	// looking up supported envoy versions of the consul agent.
@@ -172,16 +172,9 @@ type allocRunner struct {
 
 	taskHookCoordinator *taskHookCoordinator
 
-	shutdownDelayCtx      context.Context
-	shutdownDelayCancelFn context.CancelFunc
-
 	// rpcClient is the RPC Client that should be used by the allocrunner and its
 	// hooks to communicate with Nomad Servers.
 	rpcClient RPCer
-
-	// serviceRegWrapper is the handler wrapper that is used by service hooks
-	// to perform service and check registration and deregistration.
-	serviceRegWrapper *wrapper.HandlerWrapper
 }
 
 // RPCer is the interface needed by hooks to make RPC calls.
@@ -225,7 +218,6 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
 		rpcClient:                config.RPCClient,
-		serviceRegWrapper:        config.ServiceRegWrapper,
 	}
 
 	// Create the logger based on the allocation ID
@@ -235,13 +227,9 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 	ar.allocBroadcaster = cstructs.NewAllocBroadcaster(ar.logger)
 
 	// Create alloc dir
-	ar.allocDir = allocdir.NewAllocDir(ar.logger, config.ClientConfig.AllocDir, alloc.ID)
+	ar.allocDir = allocdir.NewAllocDir(ar.logger, filepath.Join(config.ClientConfig.AllocDir, alloc.ID))
 
 	ar.taskHookCoordinator = newTaskHookCoordinator(ar.logger, tg.Tasks)
-
-	shutdownDelayCtx, shutdownDelayCancel := context.WithCancel(context.Background())
-	ar.shutdownDelayCtx = shutdownDelayCtx
-	ar.shutdownDelayCancelFn = shutdownDelayCancel
 
 	// Initialize the runners hooks.
 	if err := ar.initRunnerHooks(config.ClientConfig); err != nil {
@@ -278,8 +266,6 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			DriverManager:        ar.driverManager,
 			ServersContactedCh:   ar.serversContactedCh,
 			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
-			ShutdownDelayCtx:     ar.shutdownDelayCtx,
-			ServiceRegWrapper:    ar.serviceRegWrapper,
 		}
 
 		if ar.cpusetManager != nil {
@@ -784,16 +770,6 @@ func (ar *allocRunner) NetworkStatus() *structs.AllocNetworkStatus {
 	return ar.state.NetworkStatus.Copy()
 }
 
-// setIndexes is a helper for forcing alloc state on the alloc runner. This is
-// used during reconnect when the task has been marked unknown by the server.
-func (ar *allocRunner) setIndexes(update *structs.Allocation) {
-	ar.allocLock.Lock()
-	defer ar.allocLock.Unlock()
-	ar.alloc.AllocModifyIndex = update.AllocModifyIndex
-	ar.alloc.ModifyIndex = update.ModifyIndex
-	ar.alloc.ModifyTime = update.ModifyTime
-}
-
 // AllocState returns a copy of allocation state including a snapshot of task
 // states.
 func (ar *allocRunner) AllocState() *state.State {
@@ -847,10 +823,6 @@ func (ar *allocRunner) Update(update *structs.Allocation) {
 			"modify_index", update.AllocModifyIndex)
 		return
 	default:
-	}
-
-	if update.DesiredTransition.ShouldIgnoreShutdownDelay() {
-		ar.shutdownDelayCancelFn()
 	}
 
 	// Queue the new update
@@ -1248,42 +1220,6 @@ func (ar *allocRunner) Signal(taskName, signal string) error {
 	}
 
 	return err.ErrorOrNil()
-}
-
-// Reconnect logs a reconnect event for each task in the allocation and syncs the current alloc state with the server.
-func (ar *allocRunner) Reconnect(update *structs.Allocation) (err error) {
-	event := structs.NewTaskEvent(structs.TaskClientReconnected)
-	event.Time = time.Now().UnixNano()
-	for _, tr := range ar.tasks {
-		tr.AppendEvent(event)
-	}
-
-	// Update the client alloc with the server side indexes.
-	ar.setIndexes(update)
-
-	// Calculate alloc state to get the final state with the new events.
-	// Cannot rely on AllocStates as it won't recompute TaskStates once they are set.
-	states := make(map[string]*structs.TaskState, len(ar.tasks))
-	for name, tr := range ar.tasks {
-		states[name] = tr.TaskState()
-	}
-
-	// Build the client allocation
-	alloc := ar.clientAlloc(states)
-
-	// Update the client state store.
-	err = ar.stateUpdater.PutAllocation(alloc)
-	if err != nil {
-		return
-	}
-
-	// Update the server.
-	ar.stateUpdater.AllocStateUpdated(alloc)
-
-	// Broadcast client alloc to listeners.
-	err = ar.allocBroadcaster.Send(alloc)
-
-	return
 }
 
 func (ar *allocRunner) GetTaskExecHandler(taskName string) drivermanager.TaskExecHandler {

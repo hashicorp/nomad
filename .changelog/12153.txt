@@ -1,3 +1,0 @@
-```release-note:improvement
-csi: Respect the verbose flag in the output of `volume status`
-```

@@ -3,11 +3,10 @@ import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
-import { dasherize } from '@ember/string';
 
 const REF_TIME = new Date();
 const JOB_PREFIXES = provide(5, faker.hacker.abbreviation);
-const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
+const JOB_TYPES = ['service', 'batch', 'system'];
 const JOB_STATUSES = ['pending', 'running', 'dead'];
 
 export default Factory.extend({
@@ -18,9 +17,9 @@ export default Factory.extend({
       return `${this.parentId}/${dispatchId}`;
     }
 
-    return `${faker.helpers.randomize(JOB_PREFIXES)}-${dasherize(
-      faker.hacker.noun()
-    )}-${i}`.toLowerCase();
+    return `${faker.helpers.randomize(
+      JOB_PREFIXES
+    )}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase();
   },
 
   name() {
@@ -41,9 +40,7 @@ export default Factory.extend({
   resourceSpec: null,
 
   groupsCount() {
-    return this.resourceSpec
-      ? this.resourceSpec.length
-      : faker.random.number({ min: 1, max: 2 });
+    return this.resourceSpec ? this.resourceSpec.length : faker.random.number({ min: 1, max: 2 });
   },
 
   region: () => 'global',
@@ -52,30 +49,12 @@ export default Factory.extend({
   allAtOnce: faker.random.boolean,
   status: () => faker.helpers.randomize(JOB_STATUSES),
   datacenters: () =>
-    faker.helpers
-      .shuffle(DATACENTERS)
-      .slice(0, faker.random.number({ min: 1, max: 4 })),
+    faker.helpers.shuffle(DATACENTERS).slice(0, faker.random.number({ min: 1, max: 4 })),
 
   childrenCount: () => faker.random.number({ min: 1, max: 2 }),
 
-  meta: null,
-
   periodic: trait({
     type: 'batch',
-    periodic: true,
-    // periodic details object
-    // serializer update for bool vs details object
-    periodicDetails: () => ({
-      Enabled: true,
-      ProhibitOverlap: true,
-      Spec: '*/5 * * * * *',
-      SpecType: 'cron',
-      TimeZone: 'UTC',
-    }),
-  }),
-
-  periodicSysbatch: trait({
-    type: 'sysbatch',
     periodic: true,
     // periodic details object
     // serializer update for bool vs details object
@@ -100,30 +79,11 @@ export default Factory.extend({
     }),
   }),
 
-  parameterizedSysbatch: trait({
-    type: 'sysbatch',
-    parameterized: true,
-    // parameterized job object
-    // serializer update for bool vs details object
-    parameterizedJob: () => ({
-      MetaOptional: generateMetaFields(faker.random.number(10), 'optional'),
-      MetaRequired: generateMetaFields(faker.random.number(10), 'required'),
-      Payload: faker.random.boolean() ? 'required' : null,
-    }),
-  }),
-
   periodicChild: trait({
     // Periodic children need a parent job,
     // It is the Periodic job's responsibility to create
     // periodicChild jobs and provide a parent job.
     type: 'batch',
-  }),
-
-  periodicSysbatchChild: trait({
-    // Periodic children need a parent job,
-    // It is the Periodic job's responsibility to create
-    // periodicChild jobs and provide a parent job.
-    type: 'sysbatch',
   }),
 
   parameterizedChild: trait({
@@ -136,24 +96,7 @@ export default Factory.extend({
     payload: window.btoa(faker.lorem.sentence()),
   }),
 
-  parameterizedSysbatchChild: trait({
-    // Parameterized children need a parent job,
-    // It is the Parameterized job's responsibility to create
-    // parameterizedChild jobs and provide a parent job.
-    type: 'sysbatch',
-    parameterized: true,
-    dispatched: true,
-    payload: window.btoa(faker.lorem.sentence()),
-  }),
-
-  pack: trait({
-    meta: () => ({
-      'pack.name': faker.hacker.noun(),
-      'pack.version': faker.system.semver(),
-    }),
-  }),
-
-  createIndex: (i) => i,
+  createIndex: i => i,
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
 
   // Directive used to control sub-resources
@@ -193,9 +136,7 @@ export default Factory.extend({
 
   afterCreate(job, server) {
     if (!job.namespaceId) {
-      const namespace = server.db.namespaces.length
-        ? pickOne(server.db.namespaces).id
-        : null;
+      const namespace = server.db.namespaces.length ? pickOne(server.db.namespaces).id : null;
       job.update({
         namespace,
         namespaceId: namespace,
@@ -224,20 +165,14 @@ export default Factory.extend({
       groups = provide(job.groupsCount, (_, idx) =>
         server.create('task-group', 'noHostVolumes', {
           ...groupProps,
-          resourceSpec:
-            job.resourceSpec &&
-            job.resourceSpec.length &&
-            job.resourceSpec[idx],
+          resourceSpec: job.resourceSpec && job.resourceSpec.length && job.resourceSpec[idx],
         })
       );
     } else {
       groups = provide(job.groupsCount, (_, idx) =>
         server.create('task-group', {
           ...groupProps,
-          resourceSpec:
-            job.resourceSpec &&
-            job.resourceSpec.length &&
-            job.resourceSpec[idx],
+          resourceSpec: job.resourceSpec && job.resourceSpec.length && job.resourceSpec[idx],
         })
       );
     }
@@ -247,15 +182,11 @@ export default Factory.extend({
     });
 
     const hasChildren = job.periodic || (job.parameterized && !job.parentId);
-    const jobSummary = server.create(
-      'job-summary',
-      hasChildren ? 'withChildren' : 'withSummary',
-      {
-        jobId: job.id,
-        groupNames: groups.mapBy('name'),
-        namespace: job.namespace,
-      }
-    );
+    const jobSummary = server.create('job-summary', hasChildren ? 'withChildren' : 'withSummary', {
+      jobId: job.id,
+      groupNames: groups.mapBy('name'),
+      namespace: job.namespace,
+    });
 
     job.update({
       jobSummaryId: jobSummary.id,
@@ -288,7 +219,7 @@ export default Factory.extend({
 
     if (!job.shallow) {
       const knownEvaluationProperties = {
-        jobId: job.id,
+        job,
         namespace: job.namespace,
       };
       server.createList(
@@ -317,44 +248,22 @@ export default Factory.extend({
     }
 
     if (job.periodic) {
-      let childType;
-      switch (job.type) {
-        case 'batch':
-          childType = 'periodicChild';
-          break;
-        case 'sysbatch':
-          childType = 'periodicSysbatchChild';
-          break;
-      }
-
-      // Create child jobs
-      server.createList('job', job.childrenCount, childType, {
+      // Create periodicChild jobs
+      server.createList('job', job.childrenCount, 'periodicChild', {
         parentId: job.id,
         namespaceId: job.namespaceId,
         namespace: job.namespace,
-        datacenters: job.datacenters,
         createAllocations: job.createAllocations,
         shallow: job.shallow,
       });
     }
 
     if (job.parameterized && !job.parentId) {
-      let childType;
-      switch (job.type) {
-        case 'batch':
-          childType = 'parameterizedChild';
-          break;
-        case 'sysbatch':
-          childType = 'parameterizedSysbatchChild';
-          break;
-      }
-
-      // Create child jobs
-      server.createList('job', job.childrenCount, childType, {
+      // Create parameterizedChild jobs
+      server.createList('job', job.childrenCount, 'parameterizedChild', {
         parentId: job.id,
         namespaceId: job.namespaceId,
         namespace: job.namespace,
-        datacenters: job.datacenters,
         createAllocations: job.createAllocations,
         shallow: job.shallow,
       });

@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: add `nomad config validate` command to check configuration files without an agent
-```

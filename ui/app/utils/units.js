@@ -66,9 +66,3 @@ export function formatScheduledHertz(hertz, startingUnitSize) {
   const [number, unit] = reduceHertz(hertz, 'MHz', startingUnitSize);
   return `${roundFormatter.format(number)} ${unit}`;
 }
-
-// Replaces the minus sign (−) with a hyphen (-).
-// https://github.com/d3/d3-format/releases/tag/v2.0.0
-export function replaceMinus(input) {
-  return input.replace('−', '-');
-}

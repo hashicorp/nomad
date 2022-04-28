@@ -1,5 +1,5 @@
 import { helper } from '@ember/component/helper';
-import { dasherize } from '@ember/string';
+
 /**
  * CSS Class
  *
@@ -9,7 +9,7 @@ import { dasherize } from '@ember/string';
  * Differs from dasherize by handling slashes.
  */
 export function cssClass([updateType]) {
-  return dasherize(updateType.replace(/\//g, '-'));
+  return updateType.replace(/\//g, '-').dasherize();
 }
 
 export default helper(cssClass);

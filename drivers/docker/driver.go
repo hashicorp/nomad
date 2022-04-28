@@ -20,7 +20,6 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -123,8 +122,7 @@ type Driver struct {
 	detected     bool
 	detectedLock sync.RWMutex
 
-	danglingReconciler *containerReconciler
-	cpusetFixer        CpusetFixer
+	reconciler *containerReconciler
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin
@@ -183,6 +181,11 @@ func (d *Driver) setupNewDockerLogger(container *docker.Container, cfg *drivers.
 func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	if _, ok := d.tasks.Get(handle.Config.ID); ok {
 		return nil
+	}
+
+	// COMPAT(0.10): pre 0.9 upgrade path check
+	if handle.Version == 0 {
+		return d.recoverPre09Task(handle)
 	}
 
 	var handleState taskHandleState
@@ -347,14 +350,9 @@ CREATE:
 			container.ID, "container_state", container.State.String())
 	}
 
-	if !cgutil.UseV2 {
-		// This does not apply to cgroups.v2, which only allows setting the PID
-		// into exactly 1 group. For cgroups.v2, we use the cpuset fixer to reconcile
-		// the cpuset value into the cgroups created by docker in the background.
-		if containerCfg.HostConfig.CPUSet == "" && cfg.Resources.LinuxResources.CpusetCgroupPath != "" {
-			if err := setCPUSetCgroup(cfg.Resources.LinuxResources.CpusetCgroupPath, container.State.Pid); err != nil {
-				return nil, nil, fmt.Errorf("failed to set the cpuset cgroup for container: %v", err)
-			}
+	if containerCfg.HostConfig.CPUSet == "" && cfg.Resources.LinuxResources.CpusetCgroupPath != "" {
+		if err := setCPUSetCgroup(cfg.Resources.LinuxResources.CpusetCgroupPath, container.State.Pid); err != nil {
+			return nil, nil, fmt.Errorf("failed to set the cpuset cgroup for container: %v", err)
 		}
 	}
 
@@ -828,27 +826,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
 
-	var pidsLimit int64
-
-	// Pids limit defined in Nomad plugin config. Defaults to 0 (Unlimited).
-	if d.config.PidsLimit > 0 {
-		pidsLimit = d.config.PidsLimit
-	}
-
-	// Override Nomad plugin config pids limit, by user defined pids limit.
-	if driverConfig.PidsLimit > 0 {
-		if d.config.PidsLimit > 0 && driverConfig.PidsLimit > d.config.PidsLimit {
-			return c, fmt.Errorf("pids_limit cannot be greater than nomad plugin config pids_limit: %d", d.config.PidsLimit)
-		}
-		pidsLimit = driverConfig.PidsLimit
-	}
-
-	// Extract the cgroup parent from the nomad cgroup (bypass the need for plugin config)
-	parent, _ := cgutil.SplitPath(task.Resources.LinuxResources.CpusetCgroupPath)
-
 	hostConfig := &docker.HostConfig{
-		CgroupParent: parent,
-
 		Memory:            memory,            // hard limit
 		MemoryReservation: memoryReservation, // soft limit
 
@@ -862,7 +840,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		StorageOpt:   driverConfig.StorageOpt,
 		VolumeDriver: driverConfig.VolumeDriver,
 
-		PidsLimit: &pidsLimit,
+		PidsLimit: &driverConfig.PidsLimit,
 
 		Runtime: containerRuntime,
 	}
@@ -873,11 +851,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	// Nomad managed cpusets.
 	if driverConfig.CPUSetCPUs != "" {
 		hostConfig.CPUSetCPUs = driverConfig.CPUSetCPUs
-	}
-
-	// Enable tini (docker-init) init system.
-	if driverConfig.Init {
-		hostConfig.Init = driverConfig.Init
 	}
 
 	// Calculate CPU Quota

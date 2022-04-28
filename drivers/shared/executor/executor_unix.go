@@ -1,4 +1,4 @@
-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package executor
 
@@ -17,22 +17,17 @@ func (e *UniversalExecutor) setNewProcessGroup() error {
 	return nil
 }
 
-// SIGKILL the process group starting at process.Pid
-func (e *UniversalExecutor) killProcessTree(process *os.Process) error {
-	pid := process.Pid
-	negative := -pid // tells unix to kill entire process group
-	signal := syscall.SIGKILL
-
+// Cleanup any still hanging user processes
+func (e *UniversalExecutor) cleanupChildProcesses(proc *os.Process) error {
 	// If new process group was created upon command execution
 	// we can kill the whole process group now to cleanup any leftovers.
 	if e.childCmd.SysProcAttr != nil && e.childCmd.SysProcAttr.Setpgid {
-		e.logger.Trace("sending sigkill to process group", "pid", pid, "negative", negative, "signal", signal)
-		if err := syscall.Kill(negative, signal); err != nil && err.Error() != noSuchProcessErr {
+		if err := syscall.Kill(-proc.Pid, syscall.SIGKILL); err != nil && err.Error() != noSuchProcessErr {
 			return err
 		}
 		return nil
 	}
-	return process.Kill()
+	return proc.Kill()
 }
 
 // Only send the process a shutdown signal (default INT), doesn't

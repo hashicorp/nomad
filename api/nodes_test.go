@@ -14,7 +14,7 @@ import (
 )
 
 func TestNodes_List(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -43,7 +43,7 @@ func TestNodes_List(t *testing.T) {
 }
 
 func TestNodes_PrefixList(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -86,7 +86,7 @@ func TestNodes_PrefixList(t *testing.T) {
 // TestNodes_List_Resources asserts that ?resources=true includes allocated and
 // reserved resources in the response.
 func TestNodes_List_Resources(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -123,7 +123,7 @@ func TestNodes_List_Resources(t *testing.T) {
 }
 
 func TestNodes_Info(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	startTime := time.Now().Unix()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
@@ -168,9 +168,6 @@ func TestNodes_Info(t *testing.T) {
 			result.ID, result.Datacenter)
 	}
 
-	require.Equal(t, 20000, result.NodeResources.MinDynamicPort)
-	require.Equal(t, 32000, result.NodeResources.MaxDynamicPort)
-
 	// Check that the StatusUpdatedAt field is being populated correctly
 	if result.StatusUpdatedAt < startTime {
 		t.Fatalf("start time: %v, status updated: %v", startTime, result.StatusUpdatedAt)
@@ -182,7 +179,7 @@ func TestNodes_Info(t *testing.T) {
 }
 
 func TestNodes_NoSecretID(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -216,7 +213,7 @@ func TestNodes_NoSecretID(t *testing.T) {
 }
 
 func TestNodes_ToggleDrain(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
@@ -319,7 +316,7 @@ func TestNodes_ToggleDrain(t *testing.T) {
 }
 
 func TestNodes_ToggleEligibility(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -388,7 +385,7 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 }
 
 func TestNodes_Allocations(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	nodes := c.Nodes()
@@ -407,7 +404,7 @@ func TestNodes_Allocations(t *testing.T) {
 }
 
 func TestNodes_ForceEvaluate(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -446,7 +443,7 @@ func TestNodes_ForceEvaluate(t *testing.T) {
 }
 
 func TestNodes_Sort(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	nodes := []*NodeListStub{
 		{CreateIndex: 2},
 		{CreateIndex: 1},
@@ -466,7 +463,7 @@ func TestNodes_Sort(t *testing.T) {
 
 // Unittest monitorDrainMultiplex when an error occurs
 func TestNodes_MonitorDrain_Multiplex_Bad(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	ctx := context.Background()
@@ -518,7 +515,7 @@ func TestNodes_MonitorDrain_Multiplex_Bad(t *testing.T) {
 
 // Unittest monitorDrainMultiplex when drain finishes
 func TestNodes_MonitorDrain_Multiplex_Good(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	ctx := context.Background()
@@ -583,7 +580,7 @@ func TestNodes_MonitorDrain_Multiplex_Good(t *testing.T) {
 }
 
 func TestNodes_DrainStrategy_Equal(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// nil
@@ -620,7 +617,7 @@ func TestNodes_DrainStrategy_Equal(t *testing.T) {
 }
 
 func TestNodes_Purge(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
@@ -661,7 +658,7 @@ func TestNodes_Purge(t *testing.T) {
 }
 
 func TestNodeStatValueFormatting(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		expected string

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/lib/resources"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	ps "github.com/mitchellh/go-ps"
@@ -24,18 +23,26 @@ var (
 // pidCollector is a utility that can be embedded in an executor to collect pid
 // stats
 type pidCollector struct {
-	pids    map[int]*resources.PID
+	pids    map[int]*nomadPid
 	pidLock sync.RWMutex
 	logger  hclog.Logger
 }
 
+// nomadPid holds a pid and it's cpu percentage calculator
+type nomadPid struct {
+	pid           int
+	cpuStatsTotal *stats.CpuStats
+	cpuStatsUser  *stats.CpuStats
+	cpuStatsSys   *stats.CpuStats
+}
+
 // allPidGetter is a func which is used by the pid collector to gather
 // stats on
-type allPidGetter func() (resources.PIDs, error)
+type allPidGetter func() (map[int]*nomadPid, error)
 
 func newPidCollector(logger hclog.Logger) *pidCollector {
 	return &pidCollector{
-		pids:   make(map[int]*resources.PID),
+		pids:   make(map[int]*nomadPid),
 		logger: logger.Named("pid_collector"),
 	}
 }
@@ -78,7 +85,7 @@ func (c *pidCollector) collectPids(stopCh chan interface{}, pidGetter allPidGett
 
 // scanPids scans all the pids on the machine running the current executor and
 // returns the child processes of the executor.
-func scanPids(parentPid int, allPids []ps.Process) (map[int]*resources.PID, error) {
+func scanPids(parentPid int, allPids []ps.Process) (map[int]*nomadPid, error) {
 	processFamily := make(map[int]struct{})
 	processFamily[parentPid] = struct{}{}
 
@@ -110,14 +117,15 @@ func scanPids(parentPid int, allPids []ps.Process) (map[int]*resources.PID, erro
 		}
 	}
 
-	res := make(map[int]*resources.PID)
+	res := make(map[int]*nomadPid)
 	for pid := range processFamily {
-		res[pid] = &resources.PID{
-			PID:           pid,
-			StatsTotalCPU: stats.NewCpuStats(),
-			StatsUserCPU:  stats.NewCpuStats(),
-			StatsSysCPU:   stats.NewCpuStats(),
+		np := nomadPid{
+			pid:           pid,
+			cpuStatsTotal: stats.NewCpuStats(),
+			cpuStatsUser:  stats.NewCpuStats(),
+			cpuStatsSys:   stats.NewCpuStats(),
 		}
+		res[pid] = &np
 	}
 	return res, nil
 }
@@ -126,7 +134,7 @@ func scanPids(parentPid int, allPids []ps.Process) (map[int]*resources.PID, erro
 func (c *pidCollector) pidStats() (map[string]*drivers.ResourceUsage, error) {
 	stats := make(map[string]*drivers.ResourceUsage)
 	c.pidLock.RLock()
-	pids := make(map[int]*resources.PID, len(c.pids))
+	pids := make(map[int]*nomadPid, len(c.pids))
 	for k, v := range c.pids {
 		pids[k] = v
 	}
@@ -146,12 +154,12 @@ func (c *pidCollector) pidStats() (map[string]*drivers.ResourceUsage, error) {
 
 		cs := &drivers.CpuStats{}
 		if cpuStats, err := p.Times(); err == nil {
-			cs.SystemMode = np.StatsSysCPU.Percent(cpuStats.System * float64(time.Second))
-			cs.UserMode = np.StatsUserCPU.Percent(cpuStats.User * float64(time.Second))
+			cs.SystemMode = np.cpuStatsSys.Percent(cpuStats.System * float64(time.Second))
+			cs.UserMode = np.cpuStatsUser.Percent(cpuStats.User * float64(time.Second))
 			cs.Measured = ExecutorBasicMeasuredCpuStats
 
 			// calculate cpu usage percent
-			cs.Percent = np.StatsTotalCPU.Percent(cpuStats.Total() * float64(time.Second))
+			cs.Percent = np.cpuStatsTotal.Percent(cpuStats.Total() * float64(time.Second))
 		}
 		stats[strconv.Itoa(pid)] = &drivers.ResourceUsage{MemoryStats: ms, CpuStats: cs}
 	}
@@ -202,7 +210,7 @@ func aggregatedResourceUsage(systemCpuStats *stats.CpuStats, pidStats map[string
 	}
 }
 
-func getAllPidsByScanning() (resources.PIDs, error) {
+func getAllPidsByScanning() (map[int]*nomadPid, error) {
 	allProcesses, err := ps.Processes()
 	if err != nil {
 		return nil, err

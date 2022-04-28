@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 
@@ -16,8 +15,6 @@ import (
 )
 
 func TestEventBroker_PublishChangesAndSubscribe(t *testing.T) {
-	ci.Parallel(t)
-
 	subscription := &SubscribeRequest{
 		Topics: map[structs.Topic][]string{
 			"Test": {"sub-key"},
@@ -69,8 +66,6 @@ func TestEventBroker_PublishChangesAndSubscribe(t *testing.T) {
 }
 
 func TestEventBroker_ShutdownClosesSubscriptions(t *testing.T) {
-	ci.Parallel(t)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -100,8 +95,6 @@ func TestEventBroker_ShutdownClosesSubscriptions(t *testing.T) {
 // the subscriptions should still be handled indeppendtly of each other when
 // unssubscribing.
 func TestEventBroker_EmptyReqToken_DistinctSubscriptions(t *testing.T) {
-	ci.Parallel(t)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -124,8 +117,6 @@ func TestEventBroker_EmptyReqToken_DistinctSubscriptions(t *testing.T) {
 }
 
 func TestEventBroker_handleACLUpdates_TokenDeleted(t *testing.T) {
-	ci.Parallel(t)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -185,8 +176,6 @@ func (p *fakeACLTokenProvider) ACLPolicyByName(ws memdb.WatchSet, policyName str
 }
 
 func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
-	ci.Parallel(t)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 

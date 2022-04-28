@@ -1,4 +1,3 @@
-/* eslint-disable ember/no-string-prototype-extensions */
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
@@ -7,38 +6,27 @@ import hbs from 'htmlbars-inline-precompile';
 import Pretender from 'pretender';
 import sinon from 'sinon';
 import { logEncode } from '../../../mirage/data/logs';
-import {
-  selectOpen,
-  selectOpenChoose,
-} from '../../utils/ember-power-select-extensions';
+import { selectOpen, selectOpenChoose } from '../../utils/ember-power-select-extensions';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
-import { capitalize } from '@ember/string';
 
-module('Integration | Component | agent-monitor', function (hooks) {
+module('Integration | Component | agent-monitor', function(hooks) {
   setupRenderingTest(hooks);
 
   const LOG_MESSAGE = 'log message goes here';
 
-  hooks.beforeEach(function () {
+  hooks.beforeEach(function() {
     // Normally this would be called server, but server is a prop of this component.
-    this.pretender = new Pretender(function () {
+    this.pretender = new Pretender(function() {
       this.get('/v1/regions', () => [200, {}, '[]']);
       this.get('/v1/agent/monitor', ({ queryParams }) => [
         200,
         {},
-        logEncode(
-          [
-            `[${(
-              queryParams.log_level || 'info'
-            ).toUpperCase()}] ${LOG_MESSAGE}\n`,
-          ],
-          0
-        ),
+        logEncode([`[${(queryParams.log_level || 'info').toUpperCase()}] ${LOG_MESSAGE}\n`], 0),
       ]);
     });
   });
 
-  hooks.afterEach(function () {
+  hooks.afterEach(function() {
     this.pretender.shutdown();
   });
 
@@ -52,9 +40,7 @@ module('Integration | Component | agent-monitor', function (hooks) {
       @onLevelChange={{this.onLevelChange}} />
   `;
 
-  test('basic appearance', async function (assert) {
-    assert.expect(5);
-
+  test('basic appearance', async function(assert) {
     this.setProperties({
       level: 'info',
       client: { id: 'client1' },
@@ -72,7 +58,7 @@ module('Integration | Component | agent-monitor', function (hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('when provided with a client, AgentMonitor streams logs for the client', async function (assert) {
+  test('when provided with a client, AgentMonitor streams logs for the client', async function(assert) {
     this.setProperties({
       level: 'info',
       client: { id: 'client1', region: 'us-west-1' },
@@ -90,7 +76,7 @@ module('Integration | Component | agent-monitor', function (hooks) {
     assert.notOk(logRequest.url.includes('region='));
   });
 
-  test('when provided with a server, AgentMonitor streams logs for the server', async function (assert) {
+  test('when provided with a server, AgentMonitor streams logs for the server', async function(assert) {
     this.setProperties({
       level: 'warn',
       server: { id: 'server1', region: 'us-west-1' },
@@ -108,7 +94,7 @@ module('Integration | Component | agent-monitor', function (hooks) {
     assert.notOk(logRequest.url.includes('client_id'));
   });
 
-  test('switching levels calls onLevelChange and restarts the logger', async function (assert) {
+  test('switching levels calls onLevelChange and restarts the logger', async function(assert) {
     const onLevelChange = sinon.spy();
     const newLevel = 'trace';
 
@@ -121,10 +107,11 @@ module('Integration | Component | agent-monitor', function (hooks) {
     run.later(run, run.cancelTimers, INTERVAL);
 
     await render(commonTemplate);
+    await settled();
 
     const contentId = await selectOpen('[data-test-level-switcher-parent]');
     run.later(run, run.cancelTimers, INTERVAL);
-    await selectOpenChoose(contentId, capitalize(newLevel));
+    await selectOpenChoose(contentId, newLevel.capitalize());
     await settled();
 
     assert.ok(onLevelChange.calledOnce);
@@ -134,7 +121,7 @@ module('Integration | Component | agent-monitor', function (hooks) {
     assert.ok(secondLogRequest.url.includes(`log_level=${newLevel}`));
   });
 
-  test('when switching levels, the scrollback is preserved and annotated with a switch message', async function (assert) {
+  test('when switching levels, the scrollback is preserved and annotated with a switch message', async function(assert) {
     const newLevel = 'trace';
     const onLevelChange = sinon.spy();
 
@@ -147,15 +134,12 @@ module('Integration | Component | agent-monitor', function (hooks) {
     run.later(run, run.cancelTimers, INTERVAL);
 
     await render(commonTemplate);
-
-    assert.equal(
-      find('[data-test-log-cli]').textContent,
-      `[INFO] ${LOG_MESSAGE}\n`
-    );
+    await settled();
+    assert.equal(find('[data-test-log-cli]').textContent, `[INFO] ${LOG_MESSAGE}\n`);
 
     const contentId = await selectOpen('[data-test-level-switcher-parent]');
     run.later(run, run.cancelTimers, INTERVAL);
-    await selectOpenChoose(contentId, capitalize(newLevel));
+    await selectOpenChoose(contentId, newLevel.capitalize());
     await settled();
 
     assert.equal(
@@ -164,7 +148,7 @@ module('Integration | Component | agent-monitor', function (hooks) {
     );
   });
 
-  test('when switching levels and there is no scrollback, there is no appended switch message', async function (assert) {
+  test('when switching levels and there is no scrollback, there is no appended switch message', async function(assert) {
     const newLevel = 'trace';
     const onLevelChange = sinon.spy();
 
@@ -174,14 +158,7 @@ module('Integration | Component | agent-monitor', function (hooks) {
       {},
       queryParams.log_level === 'info'
         ? logEncode([''], 0)
-        : logEncode(
-            [
-              `[${(
-                queryParams.log_level || 'info'
-              ).toUpperCase()}] ${LOG_MESSAGE}\n`,
-            ],
-            0
-          ),
+        : logEncode([`[${(queryParams.log_level || 'info').toUpperCase()}] ${LOG_MESSAGE}\n`], 0),
     ]);
 
     this.setProperties({
@@ -193,17 +170,14 @@ module('Integration | Component | agent-monitor', function (hooks) {
     run.later(run, run.cancelTimers, INTERVAL);
 
     await render(commonTemplate);
-
+    await settled();
     assert.equal(find('[data-test-log-cli]').textContent, '');
 
     const contentId = await selectOpen('[data-test-level-switcher-parent]');
     run.later(run, run.cancelTimers, INTERVAL);
-    await selectOpenChoose(contentId, capitalize(newLevel));
+    await selectOpenChoose(contentId, newLevel.capitalize());
     await settled();
 
-    assert.equal(
-      find('[data-test-log-cli]').textContent,
-      `[TRACE] ${LOG_MESSAGE}\n`
-    );
+    assert.equal(find('[data-test-log-cli]').textContent, `[TRACE] ${LOG_MESSAGE}\n`);
   });
 });

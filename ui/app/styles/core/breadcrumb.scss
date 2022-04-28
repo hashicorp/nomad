@@ -11,24 +11,7 @@
     }
   }
 
-  ul {
-    align-items: center;
-  }
-
-  li::before {
-    font-size: x-large;
-  }
-
-  li:last-child a.active {
+  li.is-active a {
     opacity: 1;
-  }
-
-  dl dd {
-    margin: -4px 0px;
-    font-size: medium;
-  }
-
-  dl dt {
-    font-size: small;
   }
 }

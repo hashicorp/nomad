@@ -13,9 +13,7 @@ import SVGs from '../svgs';
  */
 export function xIcon(params, options) {
   const name = params[0];
-  const classes = [options.class, 'icon', `icon-is-${name}`]
-    .compact()
-    .join(' ');
+  const classes = [options.class, 'icon', `icon-is-${name}`].compact().join(' ');
 
   return inlineSvg(SVGs, name, { class: classes });
 }

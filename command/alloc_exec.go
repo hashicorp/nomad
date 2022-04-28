@@ -70,8 +70,8 @@ func (l *AllocExecCommand) Synopsis() string {
 	return "Execute commands in task"
 }
 
-func (l *AllocExecCommand) AutocompleteFlags() complete.Flags {
-	return mergeAutocompleteFlags(l.Meta.AutocompleteFlags(FlagSetClient),
+func (c *AllocExecCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"--task": complete.PredictAnything,
 			"-job":   complete.PredictAnything,

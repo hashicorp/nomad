@@ -1,4 +1,3 @@
-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package executor
@@ -10,7 +9,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/creack/pty"
+	"github.com/kr/pty"
 	"golang.org/x/sys/unix"
 )
 

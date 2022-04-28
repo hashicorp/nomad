@@ -3,11 +3,7 @@ import { alias } from '@ember/object/computed';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { lazyClick } from '../helpers/lazy-click';
-import {
-  classNames,
-  classNameBindings,
-  tagName,
-} from '@ember-decorators/component';
+import { classNames, classNameBindings, tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 @classic
@@ -42,8 +38,7 @@ export default class ServerAgentRow extends Component {
   }
 
   click() {
-    const transition = () =>
-      this.router.transitionTo('servers.server', this.agent);
+    const transition = () => this.router.transitionTo('servers.server', this.agent);
     lazyClick([transition, event]);
   }
 }

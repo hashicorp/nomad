@@ -11,12 +11,11 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestIntegration_Command_NomadInit(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	tmpDir, err := ioutil.TempDir("", "nomadtest-rootsecretdir")
 	if err != nil {
 		t.Fatalf("unable to create tempdir for test: %v", err)
@@ -42,8 +41,8 @@ func TestIntegration_Command_NomadInit(t *testing.T) {
 }
 
 func TestIntegration_Command_RoundTripJob(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
+	t.Parallel()
 	tmpDir, err := ioutil.TempDir("", "nomadtest-rootsecretdir")
 	assert.Nil(err)
 	defer os.RemoveAll(tmpDir)
@@ -53,7 +52,7 @@ func TestIntegration_Command_RoundTripJob(t *testing.T) {
 	defer srv.Shutdown()
 
 	{
-		cmd := exec.Command("nomad", "job", "init", "-short")
+		cmd := exec.Command("nomad", "job", "init")
 		cmd.Dir = tmpDir
 		assert.Nil(cmd.Run())
 	}
@@ -92,4 +91,5 @@ func TestIntegration_Command_RoundTripJob(t *testing.T) {
 		_, err := cmd.Output()
 		assert.Nil(err)
 	}
+
 }

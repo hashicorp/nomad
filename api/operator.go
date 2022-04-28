@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"strconv"
@@ -130,10 +129,6 @@ type SchedulerConfiguration struct {
 	// MemoryOversubscriptionEnabled specifies whether memory oversubscription is enabled
 	MemoryOversubscriptionEnabled bool
 
-	// RejectJobRegistration disables new job registrations except with a
-	// management ACL token
-	RejectJobRegistration bool
-
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -169,10 +164,9 @@ const (
 
 // PreemptionConfig specifies whether preemption is enabled based on scheduler type
 type PreemptionConfig struct {
-	SystemSchedulerEnabled   bool
-	SysBatchSchedulerEnabled bool
-	BatchSchedulerEnabled    bool
-	ServiceSchedulerEnabled  bool
+	SystemSchedulerEnabled  bool
+	BatchSchedulerEnabled   bool
+	ServiceSchedulerEnabled bool
 }
 
 // SchedulerGetConfiguration is used to query the current Scheduler configuration.
@@ -337,11 +331,6 @@ func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, erro
 
 	if resp.StatusCode == 204 {
 		return nil, nil, errors.New("Nomad Enterprise only endpoint")
-	}
-
-	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, nil, fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, body)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&reply)

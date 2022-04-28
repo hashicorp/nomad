@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -28,7 +27,7 @@ func tmpDir(t testing.TB) string {
 }
 
 func TestAgent_RPC_Ping(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	agent := NewTestAgent(t, t.Name(), nil)
 	defer agent.Shutdown()
 
@@ -39,7 +38,7 @@ func TestAgent_RPC_Ping(t *testing.T) {
 }
 
 func TestAgent_ServerConfig(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	conf := DefaultConfig()
 	conf.DevMode = true // allow localhost for advertise addrs
 	conf.Server.Enabled = true
@@ -106,7 +105,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	require.Equal(t, "127.0.0.2", conf.Addresses.HTTP)
 	require.Equal(t, "127.0.0.2", conf.Addresses.RPC)
 	require.Equal(t, "127.0.0.2", conf.Addresses.Serf)
-	require.Equal(t, []string{"127.0.0.2:4646"}, conf.normalizedAddrs.HTTP)
+	require.Equal(t, "127.0.0.2:4646", conf.normalizedAddrs.HTTP)
 	require.Equal(t, "127.0.0.2:4003", conf.normalizedAddrs.RPC)
 	require.Equal(t, "127.0.0.2:4004", conf.normalizedAddrs.Serf)
 	require.Equal(t, "10.0.0.10:4646", conf.AdvertiseAddrs.HTTP)
@@ -142,11 +141,6 @@ func TestAgent_ServerConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, float64(11.0), out.MaxHeartbeatsPerSecond)
 
-	conf.Server.FailoverHeartbeatTTL = 337 * time.Second
-	out, err = a.serverConfig()
-	require.NoError(t, err)
-	require.Equal(t, 337*time.Second, out.FailoverHeartbeatTTL)
-
 	// Defaults to the global bind addr
 	conf.Addresses.RPC = ""
 	conf.Addresses.Serf = ""
@@ -167,7 +161,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	require.Equal(t, "127.0.0.3", conf.Addresses.HTTP)
 	require.Equal(t, "127.0.0.3", conf.Addresses.RPC)
 	require.Equal(t, "127.0.0.3", conf.Addresses.Serf)
-	require.Equal(t, []string{"127.0.0.3:4646"}, conf.normalizedAddrs.HTTP)
+	require.Equal(t, "127.0.0.3:4646", conf.normalizedAddrs.HTTP)
 	require.Equal(t, "127.0.0.3:4647", conf.normalizedAddrs.RPC)
 	require.Equal(t, "127.0.0.3:4648", conf.normalizedAddrs.Serf)
 
@@ -184,8 +178,6 @@ func TestAgent_ServerConfig(t *testing.T) {
 }
 
 func TestAgent_ServerConfig_SchedulerFlags(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		name     string
 		input    *structs.SchedulerConfiguration
@@ -252,7 +244,7 @@ func TestAgent_ServerConfig_SchedulerFlags(t *testing.T) {
 // cause errors. This is the server-only (RPC) counterpart to
 // TestHTTPServer_Limits_Error.
 func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		name        string
@@ -319,7 +311,7 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 // cause errors. This is the server-only (RPC) counterpart to
 // TestHTTPServer_Limits_OK.
 func TestAgent_ServerConfig_Limits_OK(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		name   string
@@ -374,7 +366,7 @@ func TestAgent_ServerConfig_Limits_OK(t *testing.T) {
 }
 
 func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		multiplier         *int
@@ -459,7 +451,7 @@ func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
 }
 
 func TestAgent_ServerConfig_RaftMultiplier_Bad(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []int{
 		-1,
@@ -481,7 +473,7 @@ func TestAgent_ServerConfig_RaftMultiplier_Bad(t *testing.T) {
 }
 
 func TestAgent_ClientConfig(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	conf := DefaultConfig()
 	conf.Client.Enabled = true
 
@@ -522,18 +514,10 @@ func TestAgent_ClientConfig(t *testing.T) {
 	if c.Node.HTTPAddr != expectedHttpAddr {
 		t.Fatalf("Expected http addr: %v, got: %v", expectedHttpAddr, c.Node.HTTPAddr)
 	}
-
-	// Test the default, and then custom setting of the client service
-	// discovery boolean.
-	require.True(t, c.NomadServiceDiscovery)
-	conf.Client.NomadServiceDiscovery = helper.BoolToPtr(false)
-	c, err = a.clientConfig()
-	require.NoError(t, err)
-	require.False(t, c.NomadServiceDiscovery)
 }
 
 func TestAgent_ClientConfig_ReservedCores(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	conf := DefaultConfig()
 	conf.Client.Enabled = true
 	conf.Client.ReserveableCores = "0-7"
@@ -547,8 +531,6 @@ func TestAgent_ClientConfig_ReservedCores(t *testing.T) {
 
 // Clients should inherit telemetry configuration
 func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
-	ci.Parallel(t)
-
 	assert := assert.New(t)
 
 	conf := DefaultConfig()
@@ -569,14 +551,14 @@ func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
 // TestAgent_HTTPCheck asserts Agent.agentHTTPCheck properly alters the HTTP
 // API health check depending on configuration.
 func TestAgent_HTTPCheck(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	logger := testlog.HCLogger(t)
 	agent := func() *Agent {
 		return &Agent{
 			logger: logger,
 			config: &Config{
 				AdvertiseAddrs:  &AdvertiseAddrs{HTTP: "advertise:4646"},
-				normalizedAddrs: &NormalizedAddrs{HTTP: []string{"normalized:4646"}},
+				normalizedAddrs: &Addresses{HTTP: "normalized:4646"},
 				Consul: &config.ConsulConfig{
 					ChecksUseAdvertise: helper.BoolToPtr(false),
 				},
@@ -600,7 +582,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 		if check.Protocol != "http" {
 			t.Errorf("expected http proto not: %q", check.Protocol)
 		}
-		if expected := a.config.normalizedAddrs.HTTP[0]; check.PortLabel != expected {
+		if expected := a.config.normalizedAddrs.HTTP; check.PortLabel != expected {
 			t.Errorf("expected normalized addr not %q", check.PortLabel)
 		}
 	})
@@ -647,7 +629,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 // TestAgent_HTTPCheckPath asserts clients and servers use different endpoints
 // for healthchecks.
 func TestAgent_HTTPCheckPath(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	// Agent.agentHTTPCheck only needs a config and logger
 	a := &Agent{
 		config: DevConfig(nil),
@@ -682,7 +664,7 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 // reloaded. I can't find a good way to fetch this from the logger itself, so
 // we pull it only from the agents configuration struct, not the logger.
 func TestAgent_Reload_LogLevel(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
@@ -704,7 +686,7 @@ func TestAgent_Reload_LogLevel(t *testing.T) {
 // across the Agent, Server, and Client. This is essential for certificate
 // reloading to work.
 func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	// We will start out with a bad cert and then reload with a good one.
@@ -772,7 +754,7 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_Certificate(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -821,7 +803,7 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -866,8 +848,6 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 }
 
 func Test_GetConfig(t *testing.T) {
-	ci.Parallel(t)
-
 	assert := assert.New(t)
 
 	agentConfig := &Config{
@@ -892,7 +872,7 @@ func Test_GetConfig(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_WithNilConfiguration(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	logger := testlog.HCLogger(t)
@@ -908,7 +888,7 @@ func TestServer_Reload_TLS_WithNilConfiguration(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -951,7 +931,7 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -994,7 +974,7 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -1034,7 +1014,7 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	const (
@@ -1074,7 +1054,7 @@ func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -1114,7 +1094,7 @@ func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -1156,7 +1136,7 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	oldCertificate := `
@@ -1259,7 +1239,7 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	const (
@@ -1311,29 +1291,8 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 	}
 }
 
-func TestServer_ShouldReload_ReturnTrueForRPCUpgradeModeChanges(t *testing.T) {
-	ci.Parallel(t)
-
-	sameAgentConfig := &Config{
-		TLSConfig: &config.TLSConfig{
-			RPCUpgradeMode: true,
-		},
-	}
-
-	agent := NewTestAgent(t, t.Name(), func(c *Config) {
-		c.TLSConfig = &config.TLSConfig{
-			RPCUpgradeMode: false,
-		}
-	})
-	defer agent.Shutdown()
-
-	shouldReloadAgent, shouldReloadHTTP := agent.ShouldReload(sameAgentConfig)
-	require.True(t, shouldReloadAgent)
-	require.False(t, shouldReloadHTTP)
-}
-
 func TestAgent_ProxyRPC_Dev(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	agent := NewTestAgent(t, t.Name(), nil)
 	defer agent.Shutdown()
 

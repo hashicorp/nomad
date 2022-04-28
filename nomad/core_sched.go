@@ -140,7 +140,9 @@ OUTER:
 			gc, allocs, err := c.gcEval(eval, oldThreshold, true)
 			if err != nil {
 				continue OUTER
-			} else if gc {
+			}
+
+			if gc {
 				jobEval = append(jobEval, eval.ID)
 				jobAlloc = append(jobAlloc, allocs...)
 			} else {
@@ -162,7 +164,6 @@ OUTER:
 	if len(gcEval) == 0 && len(gcAlloc) == 0 && len(gcJob) == 0 {
 		return nil
 	}
-
 	c.logger.Debug("job GC found eligible objects",
 		"jobs", len(gcJob), "evals", len(gcEval), "allocs", len(gcAlloc))
 
@@ -231,7 +232,7 @@ func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string) 
 func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 	// Iterate over the evaluations
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.Evals(ws, false)
+	iter, err := c.snap.Evals(ws)
 	if err != nil {
 		return err
 	}
@@ -545,7 +546,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
 	// Iterate over the deployments
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.Deployments(ws, state.SortDefault)
+	iter, err := c.snap.Deployments(ws)
 	if err != nil {
 		return err
 	}
@@ -767,10 +768,11 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.CSIVolumeClaimGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
-		c.logger.Debug("CSI volume claim GC scanning before cutoff index",
-			"index", oldThreshold,
-			"csi_volume_claim_gc_threshold", c.srv.config.CSIVolumeClaimGCThreshold)
 	}
+
+	c.logger.Debug("CSI volume claim GC scanning before cutoff index",
+		"index", oldThreshold,
+		"csi_volume_claim_gc_threshold", c.srv.config.CSIVolumeClaimGCThreshold)
 
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		vol := i.(*structs.CSIVolume)
@@ -820,9 +822,10 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.CSIPluginGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
-		c.logger.Debug("CSI plugin GC scanning before cutoff index",
-			"index", oldThreshold, "csi_plugin_gc_threshold", c.srv.config.CSIPluginGCThreshold)
 	}
+
+	c.logger.Debug("CSI plugin GC scanning before cutoff index",
+		"index", oldThreshold, "csi_plugin_gc_threshold", c.srv.config.CSIPluginGCThreshold)
 
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		plugin := i.(*structs.CSIPlugin)

@@ -10,7 +10,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/hashicorp/nomad/ci"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -121,7 +120,7 @@ func getNodeAllocsImpl(nodeID string) func(ws memdb.WatchSet, state *state.State
 }
 
 func TestDrainer_Simple_ServiceOnly(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -226,7 +225,7 @@ func TestDrainer_Simple_ServiceOnly(t *testing.T) {
 }
 
 func TestDrainer_Simple_ServiceOnly_Deadline(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -323,7 +322,7 @@ func TestDrainer_Simple_ServiceOnly_Deadline(t *testing.T) {
 }
 
 func TestDrainer_DrainEmptyNode(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -374,7 +373,7 @@ func TestDrainer_DrainEmptyNode(t *testing.T) {
 }
 
 func TestDrainer_AllTypes_Deadline(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -541,7 +540,7 @@ func TestDrainer_AllTypes_Deadline(t *testing.T) {
 
 // Test that drain is unset when batch jobs naturally finish
 func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -708,7 +707,7 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 }
 
 func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -884,7 +883,7 @@ func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
 // TestDrainer_MultipleNSes_ServiceOnly asserts that all jobs on an alloc, even
 // when they belong to different namespaces and share the same ID
 func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -932,9 +931,9 @@ func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
 	}
 
 	// Wait for the two allocations to be placed
-	store := s1.State()
+	state := s1.State()
 	testutil.WaitForResult(func() (bool, error) {
-		iter, err := store.Allocs(nil, state.SortDefault)
+		iter, err := state.Allocs(nil)
 		if err != nil {
 			return false, err
 		}
@@ -975,11 +974,11 @@ func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
 	errCh := make(chan error, 2)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go allocPromoter(errCh, ctx, store, codec, n1.ID, s1.logger)
-	go allocPromoter(errCh, ctx, store, codec, n2.ID, s1.logger)
+	go allocPromoter(errCh, ctx, state, codec, n1.ID, s1.logger)
+	go allocPromoter(errCh, ctx, state, codec, n2.ID, s1.logger)
 
 	testutil.WaitForResult(func() (bool, error) {
-		allocs, err := store.AllocsByNode(nil, n2.ID)
+		allocs, err := state.AllocsByNode(nil, n2.ID)
 		if err != nil {
 			return false, err
 		}
@@ -993,7 +992,7 @@ func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
 		if err := checkAllocPromoter(errCh); err != nil {
 			return false, err
 		}
-		node, err := store.NodeByID(nil, n1.ID)
+		node, err := state.NodeByID(nil, n1.ID)
 		if err != nil {
 			return false, err
 		}
@@ -1003,7 +1002,7 @@ func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
 	})
 
 	// Check we got the right events
-	node, err := store.NodeByID(nil, n1.ID)
+	node, err := state.NodeByID(nil, n1.ID)
 	require.NoError(err)
 	// sometimes test gets a duplicate node drain complete event
 	require.GreaterOrEqualf(len(node.Events), 3, "unexpected number of events: %v", node.Events)
@@ -1012,7 +1011,7 @@ func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
 
 // Test that transitions to force drain work.
 func TestDrainer_Batch_TransitionToForce(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	for _, inf := range []bool{true, false} {
 		name := "Infinite"

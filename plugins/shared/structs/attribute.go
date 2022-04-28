@@ -133,7 +133,7 @@ func NewBoolAttribute(b bool) *Attribute {
 	}
 }
 
-// NewIntAttribute returns a new integer attribute. The unit is not checked
+// NewIntergerAttribute returns a new integer attribute. The unit is not checked
 // to be valid.
 func NewIntAttribute(i int64, unit string) *Attribute {
 	return &Attribute{

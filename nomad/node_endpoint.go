@@ -2,26 +2,26 @@ package nomad
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-multierror"
+	"golang.org/x/sync/errgroup"
+
+	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
+	memdb "github.com/hashicorp/go-memdb"
+	multierror "github.com/hashicorp/go-multierror"
+	vapi "github.com/hashicorp/vault/api"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
-	vapi "github.com/hashicorp/vault/api"
-	"golang.org/x/sync/errgroup"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -35,7 +35,7 @@ const (
 	// NodeDrainEvents are the various drain messages
 	NodeDrainEventDrainSet      = "Node drain strategy set"
 	NodeDrainEventDrainDisabled = "Node drain disabled"
-	NodeDrainEventDrainUpdated  = "Node drain strategy updated"
+	NodeDrainEventDrainUpdated  = "Node drain stategy updated"
 
 	// NodeEligibilityEventEligible is used when the nodes eligiblity is marked
 	// eligible
@@ -53,7 +53,7 @@ const (
 // Node endpoint is used for client interactions
 type Node struct {
 	srv    *Server
-	logger hclog.Logger
+	logger log.Logger
 
 	// ctx provides context regarding the underlying connection
 	ctx *RPCContext
@@ -219,10 +219,10 @@ func shouldCreateNodeEval(original, updated *structs.Node) bool {
 	}
 
 	if original == nil {
-		return nodeStatusTransitionRequiresEval(updated.Status, structs.NodeStatusInit)
+		return transitionedToReady(updated.Status, structs.NodeStatusInit)
 	}
 
-	if nodeStatusTransitionRequiresEval(updated.Status, original.Status) {
+	if transitionedToReady(updated.Status, original.Status) {
 		return true
 	}
 
@@ -267,6 +267,8 @@ func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply 
 		reply.Servers = append(reply.Servers,
 			&structs.NodeServerInfo{
 				RPCAdvertiseAddr: v.RPCAddr.String(),
+				RPCMajorVersion:  int32(v.MajorVersion),
+				RPCMinorVersion:  int32(v.MinorVersion),
 				Datacenter:       v.Datacenter,
 			})
 	}
@@ -488,8 +490,8 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	}
 
 	// Check if we should trigger evaluations
-	if structs.ShouldDrainNode(args.Status) ||
-		nodeStatusTransitionRequiresEval(args.Status, node.Status) {
+	transitionToReady := transitionedToReady(args.Status, node.Status)
+	if structs.ShouldDrainNode(args.Status) || transitionToReady {
 		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)
@@ -522,32 +524,6 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 			n.logger.Debug("revoking SI accessors on node due to down state", "num_accessors", l, "node_id", args.NodeID)
 			_ = n.srv.consulACLs.RevokeTokens(context.Background(), accessors, true)
 		}
-
-		// Identify the service registrations current placed on the downed
-		// node.
-		serviceRegistrations, err := n.srv.State().GetServiceRegistrationsByNodeID(ws, args.NodeID)
-		if err != nil {
-			n.logger.Error("looking up service registrations for node failed",
-				"node_id", args.NodeID, "error", err)
-			return err
-		}
-
-		// If the node has service registrations assigned to it, delete these
-		// via Raft.
-		if l := len(serviceRegistrations); l > 0 {
-			n.logger.Debug("deleting service registrations on node due to down state",
-				"num_service_registrations", l, "node_id", args.NodeID)
-
-			deleteRegReq := structs.ServiceRegistrationDeleteByNodeIDRequest{NodeID: args.NodeID}
-
-			_, index, err = n.srv.raftApply(structs.ServiceRegistrationDeleteByNodeIDRequestType, &deleteRegReq)
-			if err != nil {
-				n.logger.Error("failed to delete service registrations for node",
-					"node_id", args.NodeID, "error", err)
-				return err
-			}
-		}
-
 	default:
 		ttl, err := n.srv.resetHeartbeatTimer(args.NodeID)
 		if err != nil {
@@ -569,14 +545,12 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	return nil
 }
 
-// nodeStatusTransitionRequiresEval is a helper that takes a nodes new and old status and
+// transitionedToReady is a helper that takes a nodes new and old status and
 // returns whether it has transitioned to ready.
-func nodeStatusTransitionRequiresEval(newStatus, oldStatus string) bool {
+func transitionedToReady(newStatus, oldStatus string) bool {
 	initToReady := oldStatus == structs.NodeStatusInit && newStatus == structs.NodeStatusReady
 	terminalToReady := oldStatus == structs.NodeStatusDown && newStatus == structs.NodeStatusReady
-	disconnectedToOther := oldStatus == structs.NodeStatusDisconnected && newStatus != structs.NodeStatusDisconnected
-	otherToDisconnected := oldStatus != structs.NodeStatusDisconnected && newStatus == structs.NodeStatusDisconnected
-	return initToReady || terminalToReady || disconnectedToOther || otherToDisconnected
+	return initToReady || terminalToReady
 }
 
 // UpdateDrain is used to update the drain mode of a client node
@@ -1151,85 +1125,48 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	var evals []*structs.Evaluation
 
 	for _, allocToUpdate := range args.Alloc {
-		evalTriggerBy := ""
 		allocToUpdate.ModifyTime = now.UTC().UnixNano()
+
+		if !allocToUpdate.TerminalStatus() {
+			continue
+		}
 
 		alloc, _ := n.srv.State().AllocByID(nil, allocToUpdate.ID)
 		if alloc == nil {
 			continue
 		}
 
-		if !allocToUpdate.TerminalStatus() && alloc.ClientStatus != structs.AllocClientStatusUnknown {
-			continue
-		}
-
-		var job *structs.Job
-		var jobType string
-		var jobPriority int
-
-		job, err = n.srv.State().JobByID(nil, alloc.Namespace, alloc.JobID)
+		// if the job has been purged, this will always return error
+		job, err := n.srv.State().JobByID(nil, alloc.Namespace, alloc.JobID)
 		if err != nil {
 			n.logger.Debug("UpdateAlloc unable to find job", "job", alloc.JobID, "error", err)
 			continue
 		}
-
-		// If the job is nil it means it has been de-registered.
 		if job == nil {
-			jobType = alloc.Job.Type
-			jobPriority = alloc.Job.Priority
-			evalTriggerBy = structs.EvalTriggerJobDeregister
-			allocToUpdate.DesiredStatus = structs.AllocDesiredStatusStop
-			n.logger.Debug("UpdateAlloc unable to find job - shutting down alloc", "job", alloc.JobID)
-		}
-
-		var taskGroup *structs.TaskGroup
-		if job != nil {
-			jobType = job.Type
-			jobPriority = job.Priority
-			taskGroup = job.LookupTaskGroup(alloc.TaskGroup)
-		}
-
-		// If we cannot find the task group for a failed alloc we cannot continue, unless it is an orphan.
-		if evalTriggerBy != structs.EvalTriggerJobDeregister &&
-			allocToUpdate.ClientStatus == structs.AllocClientStatusFailed &&
-			alloc.FollowupEvalID == "" {
-
-			if taskGroup == nil {
-				n.logger.Debug("UpdateAlloc unable to find task group for job", "job", alloc.JobID, "alloc", alloc.ID, "task_group", alloc.TaskGroup)
-				continue
-			}
-
-			// Set trigger by failed if not an orphan.
-			if alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
-				evalTriggerBy = structs.EvalTriggerRetryFailedAlloc
-			}
-		}
-
-		var eval *structs.Evaluation
-		// If unknown, and not an orphan, set the trigger by.
-		if evalTriggerBy != structs.EvalTriggerJobDeregister &&
-			alloc.ClientStatus == structs.AllocClientStatusUnknown {
-			evalTriggerBy = structs.EvalTriggerReconnect
-		}
-
-		// If we weren't able to determine one of our expected eval triggers,
-		// continue and don't create an eval.
-		if evalTriggerBy == "" {
+			n.logger.Debug("UpdateAlloc unable to find job", "job", alloc.JobID)
 			continue
 		}
 
-		eval = &structs.Evaluation{
-			ID:          uuid.Generate(),
-			Namespace:   alloc.Namespace,
-			TriggeredBy: evalTriggerBy,
-			JobID:       alloc.JobID,
-			Type:        jobType,
-			Priority:    jobPriority,
-			Status:      structs.EvalStatusPending,
-			CreateTime:  now.UTC().UnixNano(),
-			ModifyTime:  now.UTC().UnixNano(),
+		taskGroup := job.LookupTaskGroup(alloc.TaskGroup)
+		if taskGroup == nil {
+			continue
 		}
-		evals = append(evals, eval)
+
+		// Add an evaluation if this is a failed alloc that is eligible for rescheduling
+		if allocToUpdate.ClientStatus == structs.AllocClientStatusFailed && alloc.FollowupEvalID == "" && alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
+			eval := &structs.Evaluation{
+				ID:          uuid.Generate(),
+				Namespace:   alloc.Namespace,
+				TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
+				JobID:       alloc.JobID,
+				Type:        job.Type,
+				Priority:    job.Priority,
+				Status:      structs.EvalStatusPending,
+				CreateTime:  now.UTC().UnixNano(),
+				ModifyTime:  now.UTC().UnixNano(),
+			}
+			evals = append(evals, eval)
+		}
 	}
 
 	// Add this to the batch
@@ -1277,7 +1214,6 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 // batchUpdate is used to update all the allocations
 func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Allocation, evals []*structs.Evaluation) {
-	var mErr multierror.Error
 	// Group pending evals by jobID to prevent creating unnecessary evals
 	evalsByJobId := make(map[structs.NamespacedID]struct{})
 	var trimmedEvals []*structs.Evaluation
@@ -1307,6 +1243,7 @@ func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Alloc
 	}
 
 	// Commit this update via Raft
+	var mErr multierror.Error
 	_, index, err := n.srv.raftApply(structs.AllocClientUpdateRequestType, batch)
 	if err != nil {
 		n.logger.Error("alloc update failed", "error", err)
@@ -1380,12 +1317,12 @@ func (n *Node) List(args *structs.NodeListRequest,
 		return structs.ErrPermissionDenied
 	}
 
-	// Set up the blocking query.
+	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-
+			// Capture all the nodes
 			var err error
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
@@ -1397,36 +1334,16 @@ func (n *Node) List(args *structs.NodeListRequest,
 				return err
 			}
 
-			// Generate the tokenizer to use for pagination using the populated
-			// paginatorOpts object. The ID of a node must be unique within the
-			// region, therefore we only need WithID on the paginator options.
-			tokenizer := paginator.NewStructsTokenizer(iter, paginator.StructsTokenizerOptions{WithID: true})
-
 			var nodes []*structs.NodeListStub
-
-			// Build the paginator. This includes the function that is
-			// responsible for appending a node to the nodes array.
-			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
-				func(raw interface{}) error {
-					nodes = append(nodes, raw.(*structs.Node).Stub(args.Fields))
-					return nil
-				})
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to create result paginator: %v", err)
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				node := raw.(*structs.Node)
+				nodes = append(nodes, node.Stub(args.Fields))
 			}
-
-			// Calling page populates our output nodes array as well as returns
-			// the next token.
-			nextToken, err := paginatorImpl.Page()
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to read result page: %v", err)
-			}
-
-			// Populate the reply.
 			reply.Nodes = nodes
-			reply.NextToken = nextToken
 
 			// Use the last index that affected the jobs table
 			index, err := state.Index("nodes")
@@ -1500,7 +1417,6 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 			CreateTime:      now,
 			ModifyTime:      now,
 		}
-
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
 	}
@@ -1628,15 +1544,15 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest, reply *st
 		return nil
 	}
 
-	// Check if alloc has Vault
-	vaultBlocks := alloc.Job.Vault()
-	if vaultBlocks == nil {
-		setError(fmt.Errorf("Job does not require Vault token"), false)
+	// Check the policies
+	policies := alloc.Job.VaultPolicies()
+	if policies == nil {
+		setError(fmt.Errorf("Job doesn't require Vault policies"), false)
 		return nil
 	}
-	tg, ok := vaultBlocks[alloc.TaskGroup]
+	tg, ok := policies[alloc.TaskGroup]
 	if !ok {
-		setError(fmt.Errorf("Task group does not require Vault token"), false)
+		setError(fmt.Errorf("Task group does not require Vault policies"), false)
 		return nil
 	}
 
@@ -1819,11 +1735,11 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 		return nil
 	}
 	if node == nil {
-		setError(fmt.Errorf("Node %q does not exist", args.NodeID), false)
+		setError(errors.Errorf("Node %q does not exist", args.NodeID), false)
 		return nil
 	}
 	if node.SecretID != args.SecretID {
-		setError(errors.New("SecretID mismatch"), false)
+		setError(errors.Errorf("SecretID mismatch"), false)
 		return nil
 	}
 
@@ -1833,26 +1749,26 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 		return nil
 	}
 	if alloc == nil {
-		setError(fmt.Errorf("Allocation %q does not exist", args.AllocID), false)
+		setError(errors.Errorf("Allocation %q does not exist", args.AllocID), false)
 		return nil
 	}
 	if alloc.NodeID != args.NodeID {
-		setError(fmt.Errorf("Allocation %q not running on node %q", args.AllocID, args.NodeID), false)
+		setError(errors.Errorf("Allocation %q not running on node %q", args.AllocID, args.NodeID), false)
 		return nil
 	}
 	if alloc.TerminalStatus() {
-		setError(errors.New("Cannot request SI token for terminal allocation"), false)
+		setError(errors.Errorf("Cannot request SI token for terminal allocation"), false)
 		return nil
 	}
 
 	// make sure task group contains at least one connect enabled service
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
-		setError(fmt.Errorf("Allocation %q does not contain TaskGroup %q", args.AllocID, alloc.TaskGroup), false)
+		setError(errors.Errorf("Allocation %q does not contain TaskGroup %q", args.AllocID, alloc.TaskGroup), false)
 		return nil
 	}
 	if !tg.UsesConnect() {
-		setError(fmt.Errorf("TaskGroup %q does not use Connect", tg.Name), false)
+		setError(errors.Errorf("TaskGroup %q does not use Connect", tg.Name), false)
 		return nil
 	}
 

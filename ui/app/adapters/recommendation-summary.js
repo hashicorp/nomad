@@ -1,7 +1,5 @@
 import ApplicationAdapter from './application';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class RecommendationSummaryAdapter extends ApplicationAdapter {
   pathForType = () => 'recommendations';
 
@@ -11,20 +9,13 @@ export default class RecommendationSummaryAdapter extends ApplicationAdapter {
   }
 
   updateRecord(store, type, snapshot) {
-    const url = `${super.urlForCreateRecord(
-      'recommendations',
-      snapshot
-    )}/apply`;
+    const url = `${super.urlForCreateRecord('recommendations', snapshot)}/apply`;
 
-    const allRecommendationIds = snapshot
-      .hasMany('recommendations')
-      .mapBy('id');
-    const excludedRecommendationIds = (
-      snapshot.hasMany('excludedRecommendations') || []
-    ).mapBy('id');
-    const includedRecommendationIds = allRecommendationIds.removeObjects(
-      excludedRecommendationIds
+    const allRecommendationIds = snapshot.hasMany('recommendations').mapBy('id');
+    const excludedRecommendationIds = (snapshot.hasMany('excludedRecommendations') || []).mapBy(
+      'id'
     );
+    const includedRecommendationIds = allRecommendationIds.removeObjects(excludedRecommendationIds);
 
     const data = {
       Apply: includedRecommendationIds,

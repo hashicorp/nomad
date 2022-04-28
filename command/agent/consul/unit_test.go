@@ -11,13 +11,12 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,8 +26,8 @@ const (
 	yPort = 1235
 )
 
-func testWorkload() *serviceregistration.WorkloadServices {
-	return &serviceregistration.WorkloadServices{
+func testWorkload() *WorkloadServices {
+	return &WorkloadServices{
 		AllocID:   uuid.Generate(),
 		Task:      "taskname",
 		Restarter: &restartRecorder{},
@@ -66,7 +65,7 @@ func (r *restartRecorder) Restart(ctx context.Context, event *structs.TaskEvent,
 type testFakeCtx struct {
 	ServiceClient *ServiceClient
 	FakeConsul    *MockAgent
-	Workload      *serviceregistration.WorkloadServices
+	Workload      *WorkloadServices
 }
 
 var errNoOps = fmt.Errorf("testing error: no pending operations")
@@ -122,8 +121,7 @@ func setupFake(t *testing.T) *testFakeCtx {
 }
 
 func TestConsul_ChangeTags(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	ctx := setupFake(t)
 	r := require.New(t)
 
@@ -159,8 +157,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 }
 
 func TestConsul_EnableTagOverride_Syncs(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	ctx := setupFake(t)
 	r := require.New(t)
 
@@ -207,8 +204,6 @@ func TestConsul_EnableTagOverride_Syncs(t *testing.T) {
 // it in Consul. Pre-0.7.1 ports were not part of the service ID and this was a
 // slightly different code path than changing tags.
 func TestConsul_ChangePorts(t *testing.T) {
-	ci.Parallel(t)
-
 	ctx := setupFake(t)
 	require := require.New(t)
 
@@ -332,8 +327,6 @@ func TestConsul_ChangePorts(t *testing.T) {
 // TestConsul_ChangeChecks asserts that updating only the checks on a service
 // properly syncs with Consul.
 func TestConsul_ChangeChecks(t *testing.T) {
-	ci.Parallel(t)
-
 	ctx := setupFake(t)
 	ctx.Workload.Services[0].Checks = []*structs.ServiceCheck{
 		{
@@ -509,8 +502,8 @@ func TestConsul_ChangeChecks(t *testing.T) {
 				t.Fatalf("service ID changed")
 			}
 
-			for newID := range sreg.CheckIDs {
-				if _, ok := otherServiceReg.CheckIDs[newID]; ok {
+			for newID := range sreg.checkIDs {
+				if _, ok := otherServiceReg.checkIDs[newID]; ok {
 					t.Fatalf("check IDs should change")
 				}
 			}
@@ -568,8 +561,6 @@ func TestConsul_ChangeChecks(t *testing.T) {
 
 // TestConsul_RegServices tests basic service registration.
 func TestConsul_RegServices(t *testing.T) {
-	ci.Parallel(t)
-
 	ctx := setupFake(t)
 
 	// Add a check w/restarting
@@ -706,8 +697,6 @@ func TestConsul_RegServices(t *testing.T) {
 // TestConsul_ShutdownOK tests the ok path for the shutdown logic in
 // ServiceClient.
 func TestConsul_ShutdownOK(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	ctx := setupFake(t)
 	go ctx.ServiceClient.Run()
@@ -746,9 +735,8 @@ func TestConsul_ShutdownOK(t *testing.T) {
 // TestConsul_ShutdownBlocked tests the blocked past deadline path for the
 // shutdown logic in ServiceClient.
 func TestConsul_ShutdownBlocked(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
+	t.Parallel()
 	ctx := setupFake(t)
 	// can be short because we're intentionally blocking, but needs to
 	// be longer than the time we'll block Consul so we can be sure
@@ -814,8 +802,7 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 // auto-use set then services should advertise it unless explicitly set to
 // host. Checks should always use host.
 func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	ctx := setupFake(t)
 
 	ctx.Workload.Services = []*structs.Service{
@@ -942,8 +929,7 @@ func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
 // set auto-use only services which request the driver's network should
 // advertise it.
 func TestConsul_DriverNetwork_NoAutoUse(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	ctx := setupFake(t)
 
 	ctx.Workload.Services = []*structs.Service{
@@ -1017,8 +1003,7 @@ func TestConsul_DriverNetwork_NoAutoUse(t *testing.T) {
 // TestConsul_DriverNetwork_Change asserts that if a driver network is
 // specified and a service updates its use its properly updated in Consul.
 func TestConsul_DriverNetwork_Change(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	ctx := setupFake(t)
 
 	ctx.Workload.Services = []*structs.Service{
@@ -1090,8 +1075,7 @@ func TestConsul_DriverNetwork_Change(t *testing.T) {
 
 // TestConsul_CanaryTags asserts CanaryTags are used when Canary=true
 func TestConsul_CanaryTags(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	require := require.New(t)
 	ctx := setupFake(t)
 
@@ -1124,8 +1108,7 @@ func TestConsul_CanaryTags(t *testing.T) {
 // TestConsul_CanaryTags_NoTags asserts Tags are used when Canary=true and there
 // are no specified canary tags
 func TestConsul_CanaryTags_NoTags(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	require := require.New(t)
 	ctx := setupFake(t)
 
@@ -1157,8 +1140,7 @@ func TestConsul_CanaryTags_NoTags(t *testing.T) {
 
 // TestConsul_CanaryMeta asserts CanaryMeta are used when Canary=true
 func TestConsul_CanaryMeta(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	require := require.New(t)
 	ctx := setupFake(t)
 
@@ -1192,8 +1174,7 @@ func TestConsul_CanaryMeta(t *testing.T) {
 // TestConsul_CanaryMeta_NoMeta asserts Meta are used when Canary=true and there
 // are no specified canary meta
 func TestConsul_CanaryMeta_NoMeta(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	require := require.New(t)
 	ctx := setupFake(t)
 
@@ -1227,7 +1208,7 @@ func TestConsul_CanaryMeta_NoMeta(t *testing.T) {
 // TestConsul_PeriodicSync asserts that Nomad periodically reconciles with
 // Consul.
 func TestConsul_PeriodicSync(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	ctx := setupFake(t)
 	defer ctx.ServiceClient.Shutdown()
@@ -1254,7 +1235,7 @@ func TestConsul_PeriodicSync(t *testing.T) {
 // TestIsNomadService asserts the isNomadService helper returns true for Nomad
 // task IDs and false for unknown IDs and Nomad agent IDs (see #2827).
 func TestIsNomadService(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	tests := []struct {
 		id     string
@@ -1287,8 +1268,7 @@ func TestIsNomadService(t *testing.T) {
 // TestCreateCheckReg_HTTP asserts Nomad ServiceCheck structs are properly
 // converted to Consul API AgentCheckRegistrations for HTTP checks.
 func TestCreateCheckReg_HTTP(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	check := &structs.ServiceCheck{
 		Name:      "name",
 		Type:      "http",
@@ -1335,8 +1315,7 @@ func TestCreateCheckReg_HTTP(t *testing.T) {
 // TestCreateCheckReg_GRPC asserts Nomad ServiceCheck structs are properly
 // converted to Consul API AgentCheckRegistrations for GRPC checks.
 func TestCreateCheckReg_GRPC(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	check := &structs.ServiceCheck{
 		Name:          "name",
 		Type:          "grpc",
@@ -1370,9 +1349,363 @@ func TestCreateCheckReg_GRPC(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
-func TestConsul_ServiceName_Duplicates(t *testing.T) {
-	ci.Parallel(t)
+// TestGetAddress asserts Nomad uses the correct ip and port for services and
+// checks depending on port labels, driver networks, and address mode.
+func TestGetAddress(t *testing.T) {
+	const HostIP = "127.0.0.1"
 
+	cases := []struct {
+		Name string
+
+		// Parameters
+		Mode      string
+		PortLabel string
+		Host      map[string]int // will be converted to structs.Networks
+		Driver    *drivers.DriverNetwork
+		Ports     structs.AllocatedPorts
+		Status    *structs.AllocNetworkStatus
+
+		// Results
+		ExpectedIP   string
+		ExpectedPort int
+		ExpectedErr  string
+	}{
+		// Valid Configurations
+		{
+			Name:      "ExampleService",
+			Mode:      structs.AddressModeAuto,
+			PortLabel: "db",
+			Host:      map[string]int{"db": 12435},
+			Driver: &drivers.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			ExpectedIP:   HostIP,
+			ExpectedPort: 12435,
+		},
+		{
+			Name:      "Host",
+			Mode:      structs.AddressModeHost,
+			PortLabel: "db",
+			Host:      map[string]int{"db": 12345},
+			Driver: &drivers.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			ExpectedIP:   HostIP,
+			ExpectedPort: 12345,
+		},
+		{
+			Name:      "Driver",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "db",
+			Host:      map[string]int{"db": 12345},
+			Driver: &drivers.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 6379,
+		},
+		{
+			Name:      "AutoDriver",
+			Mode:      structs.AddressModeAuto,
+			PortLabel: "db",
+			Host:      map[string]int{"db": 12345},
+			Driver: &drivers.DriverNetwork{
+				PortMap:       map[string]int{"db": 6379},
+				IP:            "10.1.2.3",
+				AutoAdvertise: true,
+			},
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 6379,
+		},
+		{
+			Name:      "DriverCustomPort",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "7890",
+			Host:      map[string]int{"db": 12345},
+			Driver: &drivers.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 7890,
+		},
+
+		// Invalid Configurations
+		{
+			Name:        "DriverWithoutNetwork",
+			Mode:        structs.AddressModeDriver,
+			PortLabel:   "db",
+			Host:        map[string]int{"db": 12345},
+			Driver:      nil,
+			ExpectedErr: "no driver network exists",
+		},
+		{
+			Name:      "DriverBadPort",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "bad-port-label",
+			Host:      map[string]int{"db": 12345},
+			Driver: &drivers.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			ExpectedErr: "invalid port",
+		},
+		{
+			Name:      "DriverZeroPort",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "0",
+			Driver: &drivers.DriverNetwork{
+				IP: "10.1.2.3",
+			},
+			ExpectedErr: "invalid port",
+		},
+		{
+			Name:        "HostBadPort",
+			Mode:        structs.AddressModeHost,
+			PortLabel:   "bad-port-label",
+			ExpectedErr: "invalid port",
+		},
+		{
+			Name:        "InvalidMode",
+			Mode:        "invalid-mode",
+			PortLabel:   "80",
+			ExpectedErr: "invalid address mode",
+		},
+		{
+			Name:       "NoPort_AutoMode",
+			Mode:       structs.AddressModeAuto,
+			ExpectedIP: HostIP,
+		},
+		{
+			Name:       "NoPort_HostMode",
+			Mode:       structs.AddressModeHost,
+			ExpectedIP: HostIP,
+		},
+		{
+			Name: "NoPort_DriverMode",
+			Mode: structs.AddressModeDriver,
+			Driver: &drivers.DriverNetwork{
+				IP: "10.1.2.3",
+			},
+			ExpectedIP: "10.1.2.3",
+		},
+
+		// Scenarios using port 0.12 networking fields (NetworkStatus, AllocatedPortMapping)
+		{
+			Name:      "ExampleServer_withAllocatedPorts",
+			Mode:      structs.AddressModeAuto,
+			PortLabel: "db",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12435,
+					To:     6379,
+					HostIP: HostIP,
+				},
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   HostIP,
+			ExpectedPort: 12435,
+		},
+		{
+			Name:      "Host_withAllocatedPorts",
+			Mode:      structs.AddressModeHost,
+			PortLabel: "db",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					To:     6379,
+					HostIP: HostIP,
+				},
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   HostIP,
+			ExpectedPort: 12345,
+		},
+		{
+			Name:      "Driver_withAllocatedPorts",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "db",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					To:     6379,
+					HostIP: HostIP,
+				},
+			},
+			Driver: &drivers.DriverNetwork{
+				IP: "10.1.2.3",
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 6379,
+		},
+		{
+			Name:      "AutoDriver_withAllocatedPorts",
+			Mode:      structs.AddressModeAuto,
+			PortLabel: "db",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					To:     6379,
+					HostIP: HostIP,
+				},
+			},
+			Driver: &drivers.DriverNetwork{
+				IP:            "10.1.2.3",
+				AutoAdvertise: true,
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 6379,
+		},
+		{
+			Name:      "DriverCustomPort_withAllocatedPorts",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "7890",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					To:     6379,
+					HostIP: HostIP,
+				},
+			},
+			Driver: &drivers.DriverNetwork{
+				IP: "10.1.2.3",
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 7890,
+		},
+		{
+			Name:      "Host_MultiHostInterface",
+			Mode:      structs.AddressModeAuto,
+			PortLabel: "db",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					To:     6379,
+					HostIP: "127.0.0.100",
+				},
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   "127.0.0.100",
+			ExpectedPort: 12345,
+		},
+		{
+			Name:      "Alloc",
+			Mode:      structs.AddressModeAlloc,
+			PortLabel: "db",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					To:     6379,
+					HostIP: HostIP,
+				},
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   "172.26.0.1",
+			ExpectedPort: 6379,
+		},
+		{
+			Name:      "Alloc no to value",
+			Mode:      structs.AddressModeAlloc,
+			PortLabel: "db",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					HostIP: HostIP,
+				},
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   "172.26.0.1",
+			ExpectedPort: 12345,
+		},
+		{
+			Name:      "AllocCustomPort",
+			Mode:      structs.AddressModeAlloc,
+			PortLabel: "6379",
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   "172.26.0.1",
+			ExpectedPort: 6379,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			// convert host port map into a structs.Networks
+			networks := []*structs.NetworkResource{
+				{
+					IP:            HostIP,
+					ReservedPorts: make([]structs.Port, len(tc.Host)),
+				},
+			}
+
+			i := 0
+			for label, port := range tc.Host {
+				networks[0].ReservedPorts[i].Label = label
+				networks[0].ReservedPorts[i].Value = port
+				i++
+			}
+
+			// Run getAddress
+			ip, port, err := getAddress(tc.Mode, tc.PortLabel, networks, tc.Driver, tc.Ports, tc.Status)
+
+			// Assert the results
+			assert.Equal(t, tc.ExpectedIP, ip, "IP mismatch")
+			assert.Equal(t, tc.ExpectedPort, port, "Port mismatch")
+			if tc.ExpectedErr == "" {
+				assert.Nil(t, err)
+			} else {
+				if err == nil {
+					t.Fatalf("expected error containing %q but err=nil", tc.ExpectedErr)
+				} else {
+					assert.Contains(t, err.Error(), tc.ExpectedErr)
+				}
+			}
+		})
+	}
+}
+
+func TestConsul_ServiceName_Duplicates(t *testing.T) {
+	t.Parallel()
 	ctx := setupFake(t)
 	require := require.New(t)
 
@@ -1435,8 +1768,7 @@ func TestConsul_ServiceName_Duplicates(t *testing.T) {
 // TestConsul_ServiceDeregistration_OutOfProbation asserts that during in steady
 // state we remove any services we don't reconize locally
 func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	ctx := setupFake(t)
 	require := require.New(t)
 
@@ -1457,7 +1789,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	remainingWorkloadServiceID := serviceregistration.MakeAllocServiceID(remainingWorkload.AllocID,
+	remainingWorkloadServiceID := MakeAllocServiceID(remainingWorkload.AllocID,
 		remainingWorkload.Name(), remainingWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(remainingWorkload))
@@ -1480,7 +1812,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	explicitlyRemovedWorkloadServiceID := serviceregistration.MakeAllocServiceID(explicitlyRemovedWorkload.AllocID,
+	explicitlyRemovedWorkloadServiceID := MakeAllocServiceID(explicitlyRemovedWorkload.AllocID,
 		explicitlyRemovedWorkload.Name(), explicitlyRemovedWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(explicitlyRemovedWorkload))
@@ -1505,7 +1837,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	outofbandWorkloadServiceID := serviceregistration.MakeAllocServiceID(outofbandWorkload.AllocID,
+	outofbandWorkloadServiceID := MakeAllocServiceID(outofbandWorkload.AllocID,
 		outofbandWorkload.Name(), outofbandWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(outofbandWorkload))
@@ -1545,8 +1877,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 // services untouched.  This adds a grace period for restoring recovered tasks
 // before deregistering them
 func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	ctx := setupFake(t)
 	require := require.New(t)
 
@@ -1567,7 +1898,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	remainingWorkloadServiceID := serviceregistration.MakeAllocServiceID(remainingWorkload.AllocID,
+	remainingWorkloadServiceID := MakeAllocServiceID(remainingWorkload.AllocID,
 		remainingWorkload.Name(), remainingWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(remainingWorkload))
@@ -1590,7 +1921,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	explicitlyRemovedWorkloadServiceID := serviceregistration.MakeAllocServiceID(explicitlyRemovedWorkload.AllocID,
+	explicitlyRemovedWorkloadServiceID := MakeAllocServiceID(explicitlyRemovedWorkload.AllocID,
 		explicitlyRemovedWorkload.Name(), explicitlyRemovedWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(explicitlyRemovedWorkload))
@@ -1615,7 +1946,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	outofbandWorkloadServiceID := serviceregistration.MakeAllocServiceID(outofbandWorkload.AllocID,
+	outofbandWorkloadServiceID := MakeAllocServiceID(outofbandWorkload.AllocID,
 		outofbandWorkload.Name(), outofbandWorkload.Services[0])
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(outofbandWorkload))

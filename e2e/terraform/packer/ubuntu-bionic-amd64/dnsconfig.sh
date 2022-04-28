@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
 # These tasks can't be executed during AMI builds because they rely on

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # This is run during the website build step to determine if we should skip the build or not.
 # More information: https://vercel.com/docs/platform/projects#ignored-build-step

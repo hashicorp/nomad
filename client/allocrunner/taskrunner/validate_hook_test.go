@@ -3,7 +3,6 @@ package taskrunner
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	taskEnv := taskenv.NewEmptyBuilder().Build()
 	conf := config.DefaultConfig()
@@ -36,7 +35,7 @@ func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 }
 
 func TestTaskRunner_Validate_ServiceName(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	builder := taskenv.NewEmptyBuilder()
 	conf := config.DefaultConfig()

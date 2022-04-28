@@ -6,14 +6,13 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 )
 
 func TestJobScaleCommand_SingleGroup(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	testutil.WaitForResult(func() (bool, error) {
@@ -54,7 +53,7 @@ func TestJobScaleCommand_SingleGroup(t *testing.T) {
 }
 
 func TestJobScaleCommand_MultiGroup(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	testutil.WaitForResult(func() (bool, error) {

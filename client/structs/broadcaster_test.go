@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/stretchr/testify/require"
@@ -14,7 +13,7 @@ import (
 // TestAllocBroadcaster_SendRecv asserts the latest sends to a broadcaster are
 // received by listeners.
 func TestAllocBroadcaster_SendRecv(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	b := NewAllocBroadcaster(testlog.HCLogger(t))
 	defer b.Close()
@@ -48,7 +47,7 @@ func TestAllocBroadcaster_SendRecv(t *testing.T) {
 
 // TestAllocBroadcaster_RecvBlocks asserts listeners are blocked until a send occurs.
 func TestAllocBroadcaster_RecvBlocks(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	alloc := mock.Alloc()
 	b := NewAllocBroadcaster(testlog.HCLogger(t))
@@ -88,7 +87,7 @@ func TestAllocBroadcaster_RecvBlocks(t *testing.T) {
 // TestAllocBroadcaster_Concurrency asserts that the broadcaster behaves
 // correctly with concurrent listeners being added and closed.
 func TestAllocBroadcaster_Concurrency(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	alloc := mock.Alloc()
 	b := NewAllocBroadcaster(testlog.HCLogger(t))
@@ -165,7 +164,7 @@ func TestAllocBroadcaster_Concurrency(t *testing.T) {
 // TestAllocBroadcaster_PrimeListener asserts that newly created listeners are
 // primed with the last sent alloc.
 func TestAllocBroadcaster_PrimeListener(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	b := NewAllocBroadcaster(testlog.HCLogger(t))
 	defer b.Close()
@@ -189,7 +188,7 @@ func TestAllocBroadcaster_PrimeListener(t *testing.T) {
 // TestAllocBroadcaster_Closed asserts that newly created listeners are
 // primed with the last sent alloc even when the broadcaster is closed.
 func TestAllocBroadcaster_Closed(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	b := NewAllocBroadcaster(testlog.HCLogger(t))
 

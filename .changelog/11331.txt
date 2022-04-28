@@ -1,3 +1,0 @@
-```release-note:improvement
-driver/docker: Added support for Docker's `--init` parameter
-```

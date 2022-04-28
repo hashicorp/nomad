@@ -1,3 +1,0 @@
-```release-note:improvement
-core: The unused protocol_version agent configuration value has been removed.
-```

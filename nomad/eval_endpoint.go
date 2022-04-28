@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"fmt"
-	"net/http"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 )
@@ -53,39 +51,23 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			var related []*structs.EvaluationStub
-
-			// Look for the eval
-			eval, err := state.EvalByID(ws, args.EvalID)
+			// Look for the job
+			out, err := state.EvalByID(ws, args.EvalID)
 			if err != nil {
-				return fmt.Errorf("failed to lookup eval: %v", err)
+				return err
 			}
 
-			if eval != nil {
+			// Setup the output
+			reply.Eval = out
+			if out != nil {
 				// Re-check namespace in case it differs from request.
-				if !allowNsOp(aclObj, eval.Namespace) {
+				if !allowNsOp(aclObj, out.Namespace) {
 					return structs.ErrPermissionDenied
 				}
 
-				// Lookup related evals if requested.
-				if args.IncludeRelated {
-					related, err = state.EvalsRelatedToID(ws, eval.ID)
-					if err != nil {
-						return fmt.Errorf("failed to lookup related evals: %v", err)
-					}
-
-					// Use a copy to avoid modifying the original eval.
-					eval = eval.Copy()
-					eval.RelatedEvals = related
-				}
-			}
-
-			// Setup the output.
-			reply.Eval = eval
-			if eval != nil {
-				reply.Index = eval.ModifyIndex
+				reply.Index = out.ModifyIndex
 			} else {
-				// Use the last index that affected the evals table
+				// Use the last index that affected the nodes table
 				index, err := state.Index("evals")
 				if err != nil {
 					return err
@@ -214,7 +196,7 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 	return nil
 }
 
-// Nack is used to negative acknowledge completion of a dequeued evaluation.
+// NAck is used to negative acknowledge completion of a dequeued evaluation
 func (e *Eval) Nack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
 
@@ -400,94 +382,50 @@ func (e *Eval) Reap(args *structs.EvalDeleteRequest,
 }
 
 // List is used to get a list of the evaluations in the system
-func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListResponse) error {
+func (e *Eval) List(args *structs.EvalListRequest,
+	reply *structs.EvalListResponse) error {
 	if done, err := e.srv.forward("Eval.List", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "list"}, time.Now())
 
-	namespace := args.RequestNamespace()
-
 	// Check for read-job permissions
 	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
-	if args.Filter != "" {
-		// Check for incompatible filtering.
-		hasLegacyFilter := args.FilterJobID != "" || args.FilterEvalStatus != ""
-		if hasLegacyFilter {
-			return structs.ErrIncompatibleFiltering
-		}
-	}
-
 	// Setup the blocking query
-	sort := state.SortOption(args.Reverse)
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Scan all the evaluations
 			var err error
 			var iter memdb.ResultIterator
-			var opts paginator.StructsTokenizerOptions
-
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = store.EvalsByIDPrefix(ws, namespace, prefix, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithID: true,
-				}
-			} else if namespace != structs.AllNamespacesSentinel {
-				iter, err = store.EvalsByNamespaceOrdered(ws, namespace, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
+				iter, err = state.EvalsByIDPrefix(ws, args.RequestNamespace(), prefix)
 			} else {
-				iter, err = store.Evals(ws, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
+				iter, err = state.EvalsByNamespace(ws, args.RequestNamespace())
 			}
 			if err != nil {
 				return err
 			}
 
-			iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
-				if eval := raw.(*structs.Evaluation); eval != nil {
-					return args.ShouldBeFiltered(eval)
-				}
-				return false
-			})
-
-			tokenizer := paginator.NewStructsTokenizer(iter, opts)
-
 			var evals []*structs.Evaluation
-			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
-				func(raw interface{}) error {
-					eval := raw.(*structs.Evaluation)
-					evals = append(evals, eval)
-					return nil
-				})
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to create result paginator: %v", err)
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				eval := raw.(*structs.Evaluation)
+				evals = append(evals, eval)
 			}
-
-			nextToken, err := paginator.Page()
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to read result page: %v", err)
-			}
-
-			reply.QueryMeta.NextToken = nextToken
 			reply.Evaluations = evals
 
 			// Use the last index that affected the jobs table
-			index, err := store.Index("evals")
+			index, err := state.Index("evals")
 			if err != nil {
 				return err
 			}

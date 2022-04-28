@@ -1,3 +1,0 @@
-```release-note:improvement
-namespaces: Allow enabling/disabling allowed drivers per namespace.
-```

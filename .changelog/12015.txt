@@ -1,3 +1,0 @@
-```release-note:improvement
-fingerprint: add support for detecting DigitalOcean environment
-```

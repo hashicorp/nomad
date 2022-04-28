@@ -10,7 +10,7 @@ job "digitalocean" {
       config {
         image = "digitalocean/do-csi-plugin:v2.1.1"
         args = [
-          "--endpoint=${CSI_ENDPOINT}",
+          "--endpoint=unix://csi/csi.sock",
           "--token=${token}",
           "--url=https://api.digitalocean.com/",
         ]

@@ -1,3 +1,0 @@
-```release-note:improvement
-csi: Display plugin capabilities in `nomad plugin status -verbose` output
-```

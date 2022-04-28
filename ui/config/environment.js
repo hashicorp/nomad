@@ -6,8 +6,8 @@ if (process.env.USE_MIRAGE) {
   USE_MIRAGE = process.env.USE_MIRAGE == 'true';
 }
 
-module.exports = function (environment) {
-  let ENV = {
+module.exports = function(environment) {
+  var ENV = {
     modulePrefix: 'nomad-ui',
     environment: environment,
     rootURL: '/ui/',
@@ -25,8 +25,8 @@ module.exports = function (environment) {
 
     APP: {
       blockingQueries: true,
-      mirageScenario: 'smallCluster',
-      mirageWithNamespaces: true,
+      mirageScenario: 'topoMedium',
+      mirageWithNamespaces: false,
       mirageWithTokens: true,
       mirageWithRegions: true,
       showStorybookLink: process.env.STORYBOOK_LINK === 'true',

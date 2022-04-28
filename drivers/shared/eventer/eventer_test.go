@@ -6,14 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/stretchr/testify/require"
 )
 
 func TestEventer(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -79,7 +78,7 @@ func TestEventer(t *testing.T) {
 }
 
 func TestEventer_iterateConsumers(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	e := &Eventer{

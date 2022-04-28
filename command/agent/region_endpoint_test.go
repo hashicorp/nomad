@@ -4,12 +4,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/hashicorp/nomad/ci"
 )
 
 func TestHTTP_RegionList(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/regions", nil)

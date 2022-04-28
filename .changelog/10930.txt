@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Add `-idempotency-token` option for the `nomad job dispatch` command
-```

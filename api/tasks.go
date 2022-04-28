@@ -431,7 +431,6 @@ type TaskGroup struct {
 	Services                  []*Service                `hcl:"service,block"`
 	ShutdownDelay             *time.Duration            `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
 	StopAfterClientDisconnect *time.Duration            `mapstructure:"stop_after_client_disconnect" hcl:"stop_after_client_disconnect,optional"`
-	MaxClientDisconnect       *time.Duration            `mapstructure:"max_client_disconnect" hcl:"max_client_disconnect,optional"`
 	Scaling                   *ScalingPolicy            `hcl:"scaling,block"`
 	Consul                    *Consul                   `hcl:"consul,block"`
 }
@@ -773,24 +772,6 @@ func (a *TaskArtifact) Canonicalize() {
 	}
 }
 
-// WaitConfig is the Min/Max duration to wait for the Consul cluster to reach a
-// consistent state before attempting to render Templates.
-type WaitConfig struct {
-	Min *time.Duration `mapstructure:"min" hcl:"min"`
-	Max *time.Duration `mapstructure:"max" hcl:"max"`
-}
-
-func (wc *WaitConfig) Copy() *WaitConfig {
-	if wc == nil {
-		return nil
-	}
-
-	nwc := new(WaitConfig)
-	*nwc = *wc
-
-	return nwc
-}
-
 type Template struct {
 	SourcePath   *string        `mapstructure:"source" hcl:"source,optional"`
 	DestPath     *string        `mapstructure:"destination" hcl:"destination,optional"`
@@ -803,7 +784,6 @@ type Template struct {
 	RightDelim   *string        `mapstructure:"right_delimiter" hcl:"right_delimiter,optional"`
 	Envvars      *bool          `mapstructure:"env" hcl:"env,optional"`
 	VaultGrace   *time.Duration `mapstructure:"vault_grace" hcl:"vault_grace,optional"`
-	Wait         *WaitConfig    `mapstructure:"wait" hcl:"wait,block"`
 }
 
 func (tmpl *Template) Canonicalize() {
@@ -968,7 +948,6 @@ const (
 	TaskRestartSignal          = "Restart Signaled"
 	TaskLeaderDead             = "Leader Task Dead"
 	TaskBuildingTaskDir        = "Building Task Directory"
-	TaskClientReconnected      = "Reconnected"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data

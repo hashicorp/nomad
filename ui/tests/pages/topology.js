@@ -1,12 +1,4 @@
-import {
-  attribute,
-  clickable,
-  collection,
-  create,
-  hasClass,
-  text,
-  visitable,
-} from 'ember-cli-page-object';
+import { attribute, clickable, collection, create, hasClass, text, visitable } from 'ember-cli-page-object';
 
 import TopoViz from 'nomad-ui/tests/pages/components/topo-viz';
 import notification from 'nomad-ui/tests/pages/components/notification';

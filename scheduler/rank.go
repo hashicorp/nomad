@@ -26,7 +26,7 @@ type RankedNode struct {
 	TaskLifecycles map[string]*structs.TaskLifecycleConfig
 	AllocResources *structs.AllocatedSharedResources
 
-	// Proposed is used to cache the proposed allocations on the
+	// Allocs is used to cache the proposed allocations on the
 	// node. This can be shared between iterators that require it.
 	Proposed []*structs.Allocation
 
@@ -62,7 +62,7 @@ func (r *RankedNode) SetTaskResources(task *structs.Task,
 	r.TaskLifecycles[task.Name] = task.Lifecycle
 }
 
-// RankIterator is used to iteratively yield nodes along
+// RankFeasibleIterator is used to iteratively yield nodes along
 // with ranking metadata. The iterators may manage some state for
 // performance optimizations.
 type RankIterator interface {
@@ -801,8 +801,8 @@ type PreemptionScoringIterator struct {
 	source RankIterator
 }
 
-// NewPreemptionScoringIterator is used to create a score based on net
-// aggregate priority of preempted allocations.
+// PreemptionScoringIterator is used to create a score based on net aggregate priority
+// of preempted allocations
 func NewPreemptionScoringIterator(ctx Context, source RankIterator) RankIterator {
 	return &PreemptionScoringIterator{
 		ctx:    ctx,

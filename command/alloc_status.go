@@ -538,8 +538,6 @@ func buildDisplayMessage(event *api.TaskEvent) string {
 		desc = event.DriverMessage
 	case api.TaskLeaderDead:
 		desc = "Leader Task in Group dead"
-	case api.TaskClientReconnected:
-		desc = "Client reconnected"
 	default:
 		desc = event.Message
 	}
@@ -558,7 +556,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 	c.Ui.Output("Task Resources")
 	var addr []string
 	for _, nw := range resource.Networks {
-		ports := append(nw.DynamicPorts, nw.ReservedPorts...) //nolint:gocritic
+		ports := append(nw.DynamicPorts, nw.ReservedPorts...)
 		for _, port := range ports {
 			addr = append(addr, fmt.Sprintf("%v: %v:%v\n", port.Label, nw.IP, port.Value))
 		}

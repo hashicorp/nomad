@@ -2,7 +2,7 @@
 import Component from '@ember/component';
 import { computed, set } from '@ember/object';
 import { observes } from '@ember-decorators/object';
-import { run, once } from '@ember/runloop';
+import { run } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
 import { guidFor } from '@ember/object/internals';
 import { copy } from 'ember-copy';
@@ -22,7 +22,6 @@ const sumAggregate = (total, val) => total + val;
 export default class DistributionBar extends Component.extend(WindowResizable) {
   chart = null;
   @overridable(() => null) data;
-  onSliceClick = null;
   activeDatum = null;
   isNarrow = false;
 
@@ -34,24 +33,22 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
     const data = copy(this.data, true);
     const sum = data.mapBy('value').reduce(sumAggregate, 0);
 
-    return data.map(
-      ({ label, value, className, layers, legendLink, help }, index) => ({
-        label,
-        value,
-        className,
-        layers,
-        legendLink,
-        help,
-        index,
-        percent: value / sum,
-        offset:
-          data.slice(0, index).mapBy('value').reduce(sumAggregate, 0) / sum,
-      })
-    );
+    return data.map(({ label, value, className, layers }, index) => ({
+      label,
+      value,
+      className,
+      layers,
+      index,
+      percent: value / sum,
+      offset:
+        data
+          .slice(0, index)
+          .mapBy('value')
+          .reduce(sumAggregate, 0) / sum,
+    }));
   }
 
   didInsertElement() {
-    super.didInsertElement(...arguments);
     const svg = this.element.querySelector('svg');
     const chart = d3.select(svg);
     const maskId = `dist-mask-${guidFor(this)}`;
@@ -74,7 +71,6 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
   }
 
   didUpdateAttrs() {
-    super.didUpdateAttrs();
     this.renderChart();
   }
 
@@ -100,7 +96,7 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
 
     let slicesEnter = slices.enter()
       .append('g')
-      .on('mouseenter', (ev, d) => {
+      .on('mouseenter', d => {
         run(() => {
           const slices = this.slices;
           const slice = slices.filter(datum => datum.label === d.label);
@@ -125,14 +121,8 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
       const activeDatum = this.activeDatum;
       const isActive = activeDatum && activeDatum.label === d.label;
       const isInactive = activeDatum && activeDatum.label !== d.label;
-      const isClickable = !!this.onSliceClick;
-      return [
-        className,
-        isActive && 'active',
-        isInactive && 'inactive',
-        isClickable && 'clickable'
-      ].compact().join(' ');
-    }).attr('data-test-slice-label', d => d.className);
+      return [ className, isActive && 'active', isInactive && 'inactive' ].compact().join(' ');
+    });
 
     this.set('slices', slices);
 
@@ -182,14 +172,10 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
           .attr('height', '6px')
           .attr('y', '50%');
       }
-
-    if (this.onSliceClick) {
-      slices.on('click', this.onSliceClick);
-    }
   }
   /* eslint-enable */
 
   windowResizeHandler() {
-    once(this, this.renderChart);
+    run.once(this, this.renderChart);
   }
 }

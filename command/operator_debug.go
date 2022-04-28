@@ -6,8 +6,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
-	"flag"
 	"fmt"
 	"html/template"
 	"io"
@@ -22,13 +20,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
-	"github.com/hashicorp/go-multierror"
-	goversion "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/version"
 	"github.com/posener/complete"
 )
 
@@ -39,33 +33,22 @@ type OperatorDebugCommand struct {
 	collectDir    string
 	duration      time.Duration
 	interval      time.Duration
-	pprofInterval time.Duration
 	pprofDuration time.Duration
 	logLevel      string
 	maxNodes      int
 	nodeClass     string
 	nodeIDs       []string
 	serverIDs     []string
-	topics        map[api.Topic][]string
-	index         uint64
 	consul        *external
 	vault         *external
 	manifest      []string
 	ctx           context.Context
 	cancel        context.CancelFunc
 	opts          *api.QueryOptions
-	verbose       bool
-	members       *api.ServerMembers
-	nodes         []*api.NodeListStub
 }
 
 const (
-	userAgent                     = "nomad operator debug"
-	clusterDir                    = "cluster"
-	clientDir                     = "client"
-	serverDir                     = "server"
-	intervalDir                   = "interval"
-	minimumVersionPprofConstraint = ">= 0.11.0, <= 0.11.2"
+	userAgent = "nomad operator debug"
 )
 
 func (c *OperatorDebugCommand) Help() string {
@@ -82,11 +65,6 @@ Usage: nomad operator debug [options]
   'list-jobs' capability for all namespaces. To collect pprof profiles the
   token will also require 'agent:write', or enable_debug configuration set to
   true.
-
-  If event stream capture is enabled, the Job, Allocation, Deployment,
-  and Evaluation topics require 'namespace:read-job' capabilities, the Node
-  topic requires 'node:read'.  A 'management' token is required to capture
-  ACLToken, ACLPolicy, or all all events.
 
 General Options:
 
@@ -151,21 +129,7 @@ Vault Options:
 Debug Options:
 
   -duration=<duration>
-    Set the duration of the debug capture. Logs will be captured from specified servers and
-    nodes at "log-level". Defaults to 2m.
-
-  -event-index=<index>
-    Specifies the index to start streaming events from. If the requested index is
-    no longer in the buffer the stream will start at the next available index.
-    Defaults to 0.
-
-  -event-topic=<Allocation,Evaluation,Job,Node,*>:<filter>
-    Enable event stream capture, filtered by comma delimited list of topic filters.
-    Examples:
-      "all" or "*:*" for all events
-      "Evaluation" or "Evaluation:*" for all evaluation events
-      "*:example" for all events related to the job "example"
-    Defaults to "none" (disabled).
+    The duration of the log monitor command. Defaults to 2m.
 
   -interval=<interval>
     The interval between snapshots of the Nomad state. Set interval equal to
@@ -178,7 +142,7 @@ Debug Options:
     Cap the maximum number of client nodes included in the capture. Defaults
     to 10, set to 0 for unlimited.
 
-  -node-id=<node1>,<node2>
+  -node-id=<node>,<node>
     Comma separated list of Nomad client node ids to monitor for logs, API
     outputs, and pprof profiles. Accepts id prefixes, and "all" to select all
     nodes (up to count = max-nodes). Defaults to "all".
@@ -187,14 +151,9 @@ Debug Options:
     Filter client nodes based on node class.
 
   -pprof-duration=<duration>
-    Duration for pprof collection. Defaults to 1s or -duration, whichever is less.
+    Duration for pprof collection. Defaults to 1s.
 
-  -pprof-interval=<pprof-interval>
-    The interval between pprof collections. Set interval equal to
-    duration to capture a single snapshot. Defaults to 250ms or
-   -pprof-duration, whichever is less.
-
-  -server-id=<server1>,<server2>
+  -server-id=<server>,<server>
     Comma separated list of Nomad server names to monitor for logs, API
     outputs, and pprof profiles. Accepts server names, "leader", or "all".
     Defaults to "all".
@@ -205,11 +164,8 @@ Debug Options:
     necessary to get the configuration from a non-leader server.
 
   -output=<path>
-    Path to the parent directory of the output directory. If specified, no
-    archive is built. Defaults to the current directory.
-
-  -verbose
-    Enable verbose output.
+    Path to the parent directory of the output directory. If not specified, an
+    archive is built in the current directory.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -222,111 +178,21 @@ func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-duration":       complete.PredictAnything,
-			"-event-index":    complete.PredictAnything,
-			"-event-topic":    complete.PredictAnything,
 			"-interval":       complete.PredictAnything,
-			"-log-level":      complete.PredictSet("TRACE", "DEBUG", "INFO", "WARN", "ERROR"),
+			"-log-level":      complete.PredictAnything,
 			"-max-nodes":      complete.PredictAnything,
-			"-node-class":     NodeClassPredictor(c.Client),
-			"-node-id":        NodePredictor(c.Client),
-			"-server-id":      ServerPredictor(c.Client),
-			"-output":         complete.PredictDirs("*"),
+			"-node-class":     complete.PredictAnything,
+			"-node-id":        complete.PredictAnything,
+			"-server-id":      complete.PredictAnything,
+			"-output":         complete.PredictAnything,
 			"-pprof-duration": complete.PredictAnything,
 			"-consul-token":   complete.PredictAnything,
 			"-vault-token":    complete.PredictAnything,
-			"-verbose":        complete.PredictAnything,
 		})
 }
 
 func (c *OperatorDebugCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
-}
-
-// NodePredictor returns a client node predictor
-func NodePredictor(factory ApiClientFactory) complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := factory()
-		if err != nil {
-			return nil
-		}
-
-		// note we can't use the -stale flag here because we're in the
-		// predictor, but a stale query should be safe for prediction;
-		// we also can't use region forwarding because we can't rely
-		// on the server being up
-		resp, _, err := client.Search().PrefixSearch(
-			a.Last, contexts.Nodes, &api.QueryOptions{AllowStale: true})
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Nodes]
-	})
-}
-
-// NodeClassPredictor returns a client node class predictor
-// TODO dmay: Consider API options for node class filtering
-func NodeClassPredictor(factory ApiClientFactory) complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := factory()
-		if err != nil {
-			return nil
-		}
-
-		// note we can't use the -stale flag here because we're in the
-		// predictor, but a stale query should be safe for prediction;
-		// we also can't use region forwarding because we can't rely
-		// on the server being up
-		nodes, _, err := client.Nodes().List(&api.QueryOptions{AllowStale: true})
-		if err != nil {
-			return []string{}
-		}
-
-		// Build map of unique node classes across all nodes
-		classes := make(map[string]bool)
-		for _, node := range nodes {
-			classes[node.NodeClass] = true
-		}
-
-		// Iterate over node classes looking for match
-		filtered := []string{}
-		for class := range classes {
-			if strings.HasPrefix(class, a.Last) {
-				filtered = append(filtered, class)
-			}
-		}
-
-		return filtered
-	})
-}
-
-// ServerPredictor returns a server member predictor
-// TODO dmay: Consider API options for server member filtering
-func ServerPredictor(factory ApiClientFactory) complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := factory()
-		if err != nil {
-			return nil
-		}
-
-		// note we can't use the -stale flag here because we're in the
-		// predictor, but a stale query should be safe for prediction;
-		// we also can't use region forwarding because we can't rely
-		// on the server being up
-		members, err := client.Agent().MembersOpts(&api.QueryOptions{AllowStale: true})
-		if err != nil {
-			return []string{}
-		}
-
-		// Iterate over server members looking for match
-		filtered := []string{}
-		for _, member := range members.Members {
-			if strings.HasPrefix(member.Name, a.Last) {
-				filtered = append(filtered, member.Name)
-			}
-		}
-
-		return filtered
-	})
 }
 
 // queryOpts returns a copy of the shared api.QueryOptions so
@@ -344,25 +210,20 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	var duration, interval, pprofInterval, output, pprofDuration, eventTopic string
-	var eventIndex int64
+	var duration, interval, output, pprofDuration string
 	var nodeIDs, serverIDs string
 	var allowStale bool
 
 	flags.StringVar(&duration, "duration", "2m", "")
-	flags.Int64Var(&eventIndex, "event-index", 0, "")
-	flags.StringVar(&eventTopic, "event-topic", "none", "")
 	flags.StringVar(&interval, "interval", "30s", "")
 	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
 	flags.StringVar(&c.nodeClass, "node-class", "", "")
-	flags.StringVar(&nodeIDs, "node-id", "all", "")
+	flags.StringVar(&nodeIDs, "node-id", "", "")
 	flags.StringVar(&serverIDs, "server-id", "all", "")
 	flags.BoolVar(&allowStale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
 	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
-	flags.StringVar(&pprofInterval, "pprof-interval", "250ms", "")
-	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	c.consul = &external{tls: &api.TLSConfig{}}
 	flags.StringVar(&c.consul.addrVal, "consul-http-addr", os.Getenv("CONSUL_HTTP_ADDR"), "")
@@ -411,42 +272,13 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Parse and clamp the pprof capture duration
+	// Parse the pprof capture duration
 	pd, err := time.ParseDuration(pprofDuration)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing pprof duration: %s: %s", pprofDuration, err.Error()))
 		return 1
 	}
-	if pd.Seconds() > d.Seconds() {
-		pd = d
-	}
 	c.pprofDuration = pd
-
-	// Parse and clamp the pprof capture interval
-	pi, err := time.ParseDuration(pprofInterval)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing pprof-interval: %s: %s", pprofInterval, err.Error()))
-		return 1
-	}
-	if pi.Seconds() > pd.Seconds() {
-		pi = pd
-	}
-	c.pprofInterval = pi
-
-	// Parse event stream topic filter
-	t, err := topicsFromString(eventTopic)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing event topics: %v", err))
-		return 1
-	}
-	c.topics = t
-
-	// Validate and set initial event stream index
-	if eventIndex < 0 {
-		c.Ui.Error("Event stream index must be greater than zero")
-		return 1
-	}
-	c.index = uint64(eventIndex)
 
 	// Verify there are no extra arguments
 	args = flags.Args()
@@ -490,9 +322,6 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 	c.collectDir = tmp
 
-	// Write CLI flags to JSON file
-	c.writeFlags(flags)
-
 	// Create an instance of the API client
 	client, err := c.Meta.Client()
 	if err != nil {
@@ -505,16 +334,6 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		AllowStale: allowStale,
 		AuthToken:  c.Meta.token,
 	}
-
-	// Get complete list of client nodes
-	c.nodes, _, err = client.Nodes().List(c.queryOpts())
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying node info: %v", err))
-		return 1
-	}
-
-	// Write nodes to file
-	c.writeJSON(clusterDir, "nodes.json", c.nodes, err)
 
 	// Search all nodes If a node class is specified without a list of node id prefixes
 	if c.nodeClass != "" && nodeIDs == "" {
@@ -579,17 +398,17 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 
 	// Resolve servers
-	c.members, err = client.Agent().MembersOpts(c.queryOpts())
+	members, err := client.Agent().MembersOpts(c.queryOpts())
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to retrieve server list; err: %v", err))
 		return 1
 	}
 
 	// Write complete list of server members to file
-	c.writeJSON(clusterDir, "members.json", c.members, err)
+	c.writeJSON("version", "members.json", members, err)
 
 	// Filter for servers matching criteria
-	c.serverIDs, err = filterServerMembers(c.members, serverIDs, c.region)
+	c.serverIDs, err = filterServerMembers(members, serverIDs, c.region)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse server list; err: %v", err))
 		return 1
@@ -598,8 +417,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	serversFound := 0
 	serverCaptureCount := 0
 
-	if c.members != nil {
-		serversFound = len(c.members.Members)
+	if members != nil {
+		serversFound = len(members.Members)
 	}
 	if c.serverIDs != nil {
 		serverCaptureCount = len(c.serverIDs)
@@ -614,7 +433,6 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	// Display general info about the capture
 	c.Ui.Output("Starting debugger...")
 	c.Ui.Output("")
-	c.Ui.Output(fmt.Sprintf("Nomad CLI Version: %s", version.GetVersion().FullVersionNumber(true)))
 	c.Ui.Output(fmt.Sprintf("           Region: %s", c.region))
 	c.Ui.Output(fmt.Sprintf("        Namespace: %s", c.namespace))
 	c.Ui.Output(fmt.Sprintf("          Servers: (%d/%d) %v", serverCaptureCount, serversFound, c.serverIDs))
@@ -630,12 +448,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.Ui.Output(fmt.Sprintf("         Interval: %s", interval))
 	c.Ui.Output(fmt.Sprintf("         Duration: %s", duration))
-	c.Ui.Output(fmt.Sprintf("   pprof Interval: %s", pprofInterval))
 	if c.pprofDuration.Seconds() != 1 {
 		c.Ui.Output(fmt.Sprintf("   pprof Duration: %s", c.pprofDuration))
-	}
-	if c.topics != nil {
-		c.Ui.Output(fmt.Sprintf("     Event topics: %+v", c.topics))
 	}
 	c.Ui.Output("")
 	c.Ui.Output("Capturing cluster data...")
@@ -671,36 +485,55 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 // collect collects data from our endpoints and writes the archive bundle
 func (c *OperatorDebugCommand) collect(client *api.Client) error {
-	// Start background captures
-	c.startMonitors(client)
-	c.startEventStream(client)
+	// Version contains cluster meta information
+	dir := "version"
 
-	// Collect cluster data
 	self, err := client.Agent().Self()
-	c.writeJSON(clusterDir, "agent-self.json", self, err)
+	c.writeJSON(dir, "agent-self.json", self, err)
 
 	namespaces, _, err := client.Namespaces().List(c.queryOpts())
-	c.writeJSON(clusterDir, "namespaces.json", namespaces, err)
+	c.writeJSON(dir, "namespaces.json", namespaces, err)
 
 	regions, err := client.Regions().List()
-	c.writeJSON(clusterDir, "regions.json", regions, err)
+	c.writeJSON(dir, "regions.json", regions, err)
 
-	// Collect data from Consul
-	if c.consul.addrVal == "" {
-		c.getConsulAddrFromSelf(self)
+	// Fetch data directly from consul and vault. Ignore errors
+	var consul, vault string
+
+	if self != nil {
+		r, ok := self.Config["Consul"]
+		if ok {
+			m, ok := r.(map[string]interface{})
+			if ok {
+
+				raw := m["Addr"]
+				consul, _ = raw.(string)
+				raw = m["EnableSSL"]
+				ssl, _ := raw.(bool)
+				if ssl {
+					consul = "https://" + consul
+				} else {
+					consul = "http://" + consul
+				}
+			}
+		}
+
+		r, ok = self.Config["Vault"]
+		if ok {
+			m, ok := r.(map[string]interface{})
+			if ok {
+				raw := m["Addr"]
+				vault, _ = raw.(string)
+			}
+		}
 	}
-	c.collectConsul(clusterDir)
 
-	// Collect data from Vault
-	vaultAddr := c.vault.addrVal
-	if vaultAddr == "" {
-		vaultAddr = c.getVaultAddrFromSelf(self)
-	}
-	c.collectVault(clusterDir, vaultAddr)
-
+	c.collectConsul(dir, consul)
+	c.collectVault(dir, vault)
 	c.collectAgentHosts(client)
-	c.collectPeriodicPprofs(client)
+	c.collectPprofs(client)
 
+	c.startMonitors(client)
 	c.collectPeriodic(client)
 
 	return nil
@@ -729,11 +562,11 @@ func (c *OperatorDebugCommand) mkdir(paths ...string) error {
 // startMonitors starts go routines for each node and client
 func (c *OperatorDebugCommand) startMonitors(client *api.Client) {
 	for _, id := range c.nodeIDs {
-		go c.startMonitor(clientDir, "node_id", id, client)
+		go c.startMonitor("client", "node_id", id, client)
 	}
 
 	for _, id := range c.serverIDs {
-		go c.startMonitor(serverDir, "server_id", id, client)
+		go c.startMonitor("server", "server_id", id, client)
 	}
 }
 
@@ -775,111 +608,14 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 	}
 }
 
-// captureEventStream wraps the event stream capture process.
-func (c *OperatorDebugCommand) startEventStream(client *api.Client) {
-	c.verboseOut("Launching eventstream goroutine...")
-
-	go func() {
-		if err := c.captureEventStream(client); err != nil {
-			var es string
-			if mErr, ok := err.(*multierror.Error); ok {
-				es = multierror.ListFormatFunc(mErr.Errors)
-			} else {
-				es = err.Error()
-			}
-
-			c.Ui.Error(fmt.Sprintf("Error capturing event stream: %s", es))
-		}
-	}()
-}
-
-func (c *OperatorDebugCommand) captureEventStream(client *api.Client) error {
-	// Ensure output directory is present
-	path := clusterDir
-	if err := c.mkdir(c.path(path)); err != nil {
-		return err
-	}
-
-	// Create the output file
-	fh, err := os.Create(c.path(path, "eventstream.json"))
-	if err != nil {
-		return err
-	}
-	defer fh.Close()
-
-	// Get handle to events endpoint
-	events := client.EventStream()
-
-	// Start streaming events
-	eventCh, err := events.Stream(c.ctx, c.topics, c.index, c.queryOpts())
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			c.verboseOut("Event stream canceled: No events captured")
-			return nil
-		}
-		return fmt.Errorf("failed to stream events: %w", err)
-	}
-
-	eventCount := 0
-	errCount := 0
-	heartbeatCount := 0
-	channelEventCount := 0
-
-	var mErrs *multierror.Error
-
-	for {
-		select {
-		case event := <-eventCh:
-			channelEventCount++
-			if event.Err != nil {
-				errCount++
-				c.verboseOutf("error from event stream: index; %d err: %v", event.Index, event.Err)
-				mErrs = multierror.Append(mErrs, fmt.Errorf("error at index: %d, Err: %w", event.Index, event.Err))
-				break
-			}
-
-			if event.IsHeartbeat() {
-				heartbeatCount++
-				continue
-			}
-
-			for _, e := range event.Events {
-				eventCount++
-				c.verboseOutf("Event: %4d, Index: %d, Topic: %-10s, Type: %s, FilterKeys: %s", eventCount, e.Index, e.Topic, e.Type, e.FilterKeys)
-
-				bytes, err := json.Marshal(e)
-				if err != nil {
-					errCount++
-					mErrs = multierror.Append(mErrs, fmt.Errorf("failed to marshal json from Topic: %s, Type: %s, Err: %w", e.Topic, e.Type, err))
-				}
-
-				n, err := fh.Write(bytes)
-				if err != nil {
-					errCount++
-					mErrs = multierror.Append(mErrs, fmt.Errorf("failed to write bytes to eventstream.json; bytes written: %d, Err: %w", n, err))
-					break
-				}
-				n, err = fh.WriteString("\n")
-				if err != nil {
-					errCount++
-					mErrs = multierror.Append(mErrs, fmt.Errorf("failed to write string to eventstream.json; chars written: %d, Err: %w", n, err))
-				}
-			}
-		case <-c.ctx.Done():
-			c.verboseOutf("Event stream captured %d events, %d frames, %d heartbeats, %d errors", eventCount, channelEventCount, heartbeatCount, errCount)
-			return mErrs.ErrorOrNil()
-		}
-	}
-}
-
 // collectAgentHosts calls collectAgentHost for each selected node
 func (c *OperatorDebugCommand) collectAgentHosts(client *api.Client) {
 	for _, n := range c.nodeIDs {
-		c.collectAgentHost(clientDir, n, client)
+		c.collectAgentHost("client", n, client)
 	}
 
 	for _, n := range c.serverIDs {
-		c.collectAgentHost(serverDir, n, client)
+		c.collectAgentHost("server", n, client)
 	}
 }
 
@@ -887,15 +623,10 @@ func (c *OperatorDebugCommand) collectAgentHosts(client *api.Client) {
 func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Client) {
 	var host *api.HostDataResponse
 	var err error
-	if path == serverDir {
+	if path == "server" {
 		host, err = client.Agent().Host(id, "", c.queryOpts())
 	} else {
 		host, err = client.Agent().Host("", id, c.queryOpts())
-	}
-
-	if isRedirectError(err) {
-		c.Ui.Warn(fmt.Sprintf("%s/%s: /v1/agent/host unavailable on this agent", path, id))
-		return
 	}
 
 	if err != nil {
@@ -912,86 +643,32 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 	c.writeJSON(path, "agent-host.json", host, err)
 }
 
-func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
-
-	pprofNodeIDs := []string{}
-	pprofServerIDs := []string{}
-
-	// threadcreate pprof causes a panic on Nomad 0.11.0 to 0.11.2 -- skip those versions
-	for _, serverID := range c.serverIDs {
-		version := c.getNomadVersion(serverID, "")
-		err := checkVersion(version, minimumVersionPprofConstraint)
-		if err != nil {
-			c.Ui.Warn(fmt.Sprintf("Skipping pprof: %v", err))
-		}
-		pprofServerIDs = append(pprofServerIDs, serverID)
-	}
-
-	for _, nodeID := range c.nodeIDs {
-		version := c.getNomadVersion("", nodeID)
-		err := checkVersion(version, minimumVersionPprofConstraint)
-		if err != nil {
-			c.Ui.Warn(fmt.Sprintf("Skipping pprof: %v", err))
-		}
-		pprofNodeIDs = append(pprofNodeIDs, nodeID)
-	}
-
-	// Take the first set of pprofs synchronously...
-	c.Ui.Output("    Capture pprofInterval 0000")
-	c.collectPprofs(client, pprofServerIDs, pprofNodeIDs, 0)
-	if c.pprofInterval == c.pprofDuration {
-		return
-	}
-
-	// ... and then move the rest off into a goroutine
-	go func() {
-		ctx, cancel := context.WithTimeout(c.ctx, c.duration)
-		defer cancel()
-		timer, stop := helper.NewSafeTimer(c.pprofInterval)
-		defer stop()
-
-		pprofIntervalCount := 1
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-timer.C:
-				c.Ui.Output(fmt.Sprintf("    Capture pprofInterval %04d", pprofIntervalCount))
-				c.collectPprofs(client, pprofServerIDs, pprofNodeIDs, pprofIntervalCount)
-				timer.Reset(c.pprofInterval)
-				pprofIntervalCount++
-			}
-		}
-	}()
-}
-
 // collectPprofs captures the /agent/pprof for each listed node
-func (c *OperatorDebugCommand) collectPprofs(client *api.Client, serverIDs, nodeIDs []string, interval int) {
-	for _, n := range nodeIDs {
-		c.collectPprof(clientDir, n, client, interval)
+func (c *OperatorDebugCommand) collectPprofs(client *api.Client) {
+	for _, n := range c.nodeIDs {
+		c.collectPprof("client", n, client)
 	}
 
-	for _, n := range serverIDs {
-		c.collectPprof(serverDir, n, client, interval)
+	for _, n := range c.serverIDs {
+		c.collectPprof("server", n, client)
 	}
 }
 
 // collectPprof captures pprof data for the node
-func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client, interval int) {
+func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client) {
 	pprofDurationSeconds := int(c.pprofDuration.Seconds())
 	opts := api.PprofOptions{Seconds: pprofDurationSeconds}
-	if path == serverDir {
+	if path == "server" {
 		opts.ServerID = id
 	} else {
 		opts.NodeID = id
 	}
 
 	path = filepath.Join(path, id)
-	filename := fmt.Sprintf("profile_%04d.prof", interval)
 
 	bs, err := client.Agent().CPUProfile(opts, c.queryOpts())
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof %s, err: %v", filename, path, err))
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof profile.prof, err: %v", path, err))
 		if structs.IsErrPermissionDenied(err) {
 			// All Profiles require the same permissions, so we only need to see
 			// one permission failure before we bail.
@@ -1001,7 +678,7 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 			return // only exit on 403
 		}
 	} else {
-		err := c.writeBytes(path, filename, bs)
+		err := c.writeBytes(path, "profile.prof", bs)
 		if err != nil {
 			c.Ui.Error(err.Error())
 		}
@@ -1023,6 +700,12 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 	c.savePprofProfile(path, "heap", opts, client)         // A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.
 	c.savePprofProfile(path, "allocs", opts, client)       // A sampling of all past memory allocations
 	c.savePprofProfile(path, "threadcreate", opts, client) // Stack traces that led to the creation of new OS threads
+
+	// This profile is disabled by default -- Requires runtime.SetBlockProfileRate to enable
+	// c.savePprofProfile(path, "block", opts, client)        // Stack traces that led to blocking on synchronization primitives
+
+	// This profile is disabled by default -- Requires runtime.SetMutexProfileFraction to enable
+	// c.savePprofProfile(path, "mutex", opts, client)        // Stack traces of holders of contended mutexes
 }
 
 // savePprofProfile retrieves a pprof profile and writes to disk
@@ -1075,7 +758,7 @@ func (c *OperatorDebugCommand) collectPeriodic(client *api.Client) {
 
 		case <-interval:
 			name = fmt.Sprintf("%04d", intervalCount)
-			dir = filepath.Join(intervalDir, name)
+			dir = filepath.Join("nomad", name)
 			c.Ui.Output(fmt.Sprintf("    Capture interval %s", name))
 			c.collectNomad(dir, client)
 			c.collectOperator(dir, client)
@@ -1123,7 +806,7 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 
 	// CSI Plugins - /v1/plugins?type=csi
 	ps, _, err := client.CSIPlugins().List(c.queryOpts())
-	c.writeJSON(dir, "csi-plugins.json", ps, err)
+	c.writeJSON(dir, "plugins.json", ps, err)
 
 	// CSI Plugin details - /v1/plugin/csi/:plugin_id
 	for _, p := range ps {
@@ -1149,94 +832,42 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 	return nil
 }
 
-// collectConsul calls the Consul API to collect data
-func (c *OperatorDebugCommand) collectConsul(dir string) {
-	if c.consul.addrVal == "" {
-		c.Ui.Output("Consul - Skipping, no API address found")
-		return
+// collectConsul calls the Consul API directly to collect data
+func (c *OperatorDebugCommand) collectConsul(dir, consul string) error {
+	addr := c.consul.addr(consul)
+	if addr == "" {
+		return nil
 	}
 
-	c.Ui.Info(fmt.Sprintf("Consul - Collecting Consul API data from: %s", c.consul.addrVal))
+	client := defaultHttpClient()
+	api.ConfigureTLS(client, c.consul.tls)
 
-	client, err := c.consulAPIClient()
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("failed to create Consul API client: %s", err))
-		return
-	}
-
-	// Exit if we are unable to retrieve the leader
-	err = c.collectConsulAPIRequest(client, "/v1/status/leader", dir, "consul-leader.json")
-	if err != nil {
-		c.Ui.Output(fmt.Sprintf("Unable to contact Consul leader, skipping: %s", err))
-		return
-	}
-
-	c.collectConsulAPI(client, "/v1/agent/host", dir, "consul-agent-host.json")
-	c.collectConsulAPI(client, "/v1/agent/members", dir, "consul-agent-members.json")
-	c.collectConsulAPI(client, "/v1/agent/metrics", dir, "consul-agent-metrics.json")
-	c.collectConsulAPI(client, "/v1/agent/self", dir, "consul-agent-self.json")
-}
-
-func (c *OperatorDebugCommand) consulAPIClient() (*http.Client, error) {
-	httpClient := defaultHttpClient()
-
-	err := api.ConfigureTLS(httpClient, c.consul.tls)
-	if err != nil {
-		return nil, fmt.Errorf("failed to configure TLS: %w", err)
-	}
-
-	return httpClient, nil
-}
-
-func (c *OperatorDebugCommand) collectConsulAPI(client *http.Client, urlPath string, dir string, file string) {
-	err := c.collectConsulAPIRequest(client, urlPath, dir, file)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error collecting from Consul API: %s", err.Error()))
-	}
-}
-
-func (c *OperatorDebugCommand) collectConsulAPIRequest(client *http.Client, urlPath string, dir string, file string) error {
-	url := c.consul.addrVal + urlPath
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create HTTP request for Consul API URL=%q: %w", url, err)
-	}
-
+	req, _ := http.NewRequest("GET", addr+"/v1/agent/self", nil)
 	req.Header.Add("X-Consul-Token", c.consul.token())
 	req.Header.Add("User-Agent", userAgent)
-
 	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
+	c.writeBody(dir, "consul-agent-self.json", resp, err)
 
-	c.writeBody(dir, file, resp, err)
+	req, _ = http.NewRequest("GET", addr+"/v1/agent/members", nil)
+	req.Header.Add("X-Consul-Token", c.consul.token())
+	req.Header.Add("User-Agent", userAgent)
+	resp, err = client.Do(req)
+	c.writeBody(dir, "consul-agent-members.json", resp, err)
 
 	return nil
 }
 
 // collectVault calls the Vault API directly to collect data
 func (c *OperatorDebugCommand) collectVault(dir, vault string) error {
-	vaultAddr := c.vault.addr(vault)
-	if vaultAddr == "" {
+	addr := c.vault.addr(vault)
+	if addr == "" {
 		return nil
 	}
 
-	c.Ui.Info(fmt.Sprintf("Vault - Collecting Vault API data from: %s", vaultAddr))
 	client := defaultHttpClient()
-	if c.vault.ssl {
-		err := api.ConfigureTLS(client, c.vault.tls)
-		if err != nil {
-			return fmt.Errorf("failed to configure TLS: %w", err)
-		}
-	}
+	api.ConfigureTLS(client, c.vault.tls)
 
-	req, err := http.NewRequest("GET", vaultAddr+"/v1/sys/health", nil)
-	if err != nil {
-		return fmt.Errorf("failed to create HTTP request for Vault API URL=%q: %w", vaultAddr, err)
-	}
-
+	req, _ := http.NewRequest("GET", addr+"/sys/health", nil)
 	req.Header.Add("X-Vault-Token", c.vault.token())
 	req.Header.Add("User-Agent", userAgent)
 	resp, err := client.Do(req)
@@ -1335,46 +966,6 @@ func (c *OperatorDebugCommand) writeBody(dir, file string, resp *http.Response, 
 	}
 }
 
-type flagExport struct {
-	Name      string
-	Parsed    bool
-	Actual    map[string]*flag.Flag
-	Formal    map[string]*flag.Flag
-	Effective map[string]*flag.Flag // All flags with non-empty value
-	Args      []string              // arguments after flags
-	OsArgs    []string
-}
-
-// writeFlags exports the CLI flags to JSON file
-func (c *OperatorDebugCommand) writeFlags(flags *flag.FlagSet) {
-	// c.writeJSON(clusterDir, "cli-flags-complete.json", flags, nil)
-
-	var f flagExport
-	f.Name = flags.Name()
-	f.Parsed = flags.Parsed()
-	f.Formal = make(map[string]*flag.Flag)
-	f.Actual = make(map[string]*flag.Flag)
-	f.Effective = make(map[string]*flag.Flag)
-	f.Args = flags.Args()
-	f.OsArgs = os.Args
-
-	// Formal flags (all flags)
-	flags.VisitAll(func(flagA *flag.Flag) {
-		f.Formal[flagA.Name] = flagA
-
-		// Determine which of thees are "effective" flags by comparing to empty string
-		if flagA.Value.String() != "" {
-			f.Effective[flagA.Name] = flagA
-		}
-	})
-	// Actual flags (everything passed on cmdline)
-	flags.Visit(func(flag *flag.Flag) {
-		f.Actual[flag.Name] = flag
-	})
-
-	c.writeJSON(clusterDir, "cli-flags.json", f, nil)
-}
-
 // writeManifest creates the index files
 func (c *OperatorDebugCommand) writeManifest() error {
 	// Write the JSON
@@ -1426,19 +1017,8 @@ func (c *OperatorDebugCommand) trap() {
 	}()
 }
 
-func (c *OperatorDebugCommand) verboseOut(out string) {
-	if c.verbose {
-		c.Ui.Output(out)
-	}
-}
-
-func (c *OperatorDebugCommand) verboseOutf(format string, a ...interface{}) {
-	c.verboseOut(fmt.Sprintf(format, a...))
-}
-
-// TarCZF like the tar command, recursively builds a gzip compressed tar
-// archive from a directory. If not empty, all files in the bundle are prefixed
-// with the target path.
+// TarCZF, like the tar command, recursively builds a gzip compressed tar archive from a
+// directory. If not empty, all files in the bundle are prefixed with the target path
 func TarCZF(archive string, src, target string) error {
 	// ensure the src actually exists before trying to tar it
 	if _, err := os.Stat(src); err != nil {
@@ -1556,63 +1136,6 @@ func stringToSlice(input string) []string {
 	return out
 }
 
-func parseEventTopics(topicList []string) (map[api.Topic][]string, error) {
-	topics := make(map[api.Topic][]string)
-
-	var mErrs *multierror.Error
-
-	for _, topic := range topicList {
-		k, v, err := parseTopic(topic)
-		if err != nil {
-			mErrs = multierror.Append(mErrs, err)
-		}
-
-		topics[api.Topic(k)] = append(topics[api.Topic(k)], v)
-	}
-
-	return topics, mErrs.ErrorOrNil()
-}
-
-func parseTopic(input string) (string, string, error) {
-	var topic, filter string
-
-	parts := strings.Split(input, ":")
-	switch len(parts) {
-	case 1:
-		// infer wildcard if only given a topic
-		topic = input
-		filter = "*"
-	case 2:
-		topic = parts[0]
-		filter = parts[1]
-	default:
-		return "", "", fmt.Errorf("Invalid key value pair for topic: %s", topic)
-	}
-
-	return strings.Title(topic), filter, nil
-}
-
-func allTopics() map[api.Topic][]string {
-	return map[api.Topic][]string{"*": {"*"}}
-}
-
-// topicsFromString parses a comma separated list into a topicMap
-func topicsFromString(topicList string) (map[api.Topic][]string, error) {
-	if topicList == "none" {
-		return nil, nil
-	}
-	if topicList == "all" {
-		return allTopics(), nil
-	}
-
-	topics := stringToSlice(topicList)
-	topicMap, err := parseEventTopics(topics)
-	if err != nil {
-		return nil, err
-	}
-	return topicMap, nil
-}
-
 // external holds address configuration for Consul and Vault APIs
 type external struct {
 	tls       *api.TLSConfig
@@ -1628,34 +1151,27 @@ func (e *external) addr(defaultAddr string) string {
 		return defaultAddr
 	}
 
-	// Return address as-is if it contains a protocol
-	if strings.Contains(e.addrVal, "://") {
+	if !e.ssl {
+		if strings.HasPrefix(e.addrVal, "http:") {
+			return e.addrVal
+		}
+		if strings.HasPrefix(e.addrVal, "https:") {
+			// Mismatch: e.ssl=false but addrVal is https
+			return strings.ReplaceAll(e.addrVal, "https://", "http://")
+		}
+		return "http://" + e.addrVal
+	}
+
+	if strings.HasPrefix(e.addrVal, "https:") {
 		return e.addrVal
 	}
 
-	if e.ssl {
-		return "https://" + e.addrVal
+	if strings.HasPrefix(e.addrVal, "http:") {
+		// Mismatch: e.ssl=true but addrVal is http
+		return strings.ReplaceAll(e.addrVal, "http://", "https://")
 	}
 
-	return "http://" + e.addrVal
-}
-
-func (e *external) setAddr(addr string) {
-	// Handle no protocol scenario first
-	if !strings.Contains(addr, "://") {
-		e.addrVal = "http://" + addr
-		if e.ssl {
-			e.addrVal = "https://" + addr
-		}
-		return
-	}
-
-	// Set SSL boolean based on protocol
-	e.ssl = false
-	if strings.Contains(addr, "https") {
-		e.ssl = true
-	}
-	e.addrVal = addr
+	return "https://" + e.addrVal
 }
 
 func (e *external) token() string {
@@ -1673,56 +1189,6 @@ func (e *external) token() string {
 	return ""
 }
 
-func (c *OperatorDebugCommand) getConsulAddrFromSelf(self *api.AgentSelf) string {
-	if self == nil {
-		return ""
-	}
-
-	var consulAddr string
-	r, ok := self.Config["Consul"]
-	if ok {
-		m, ok := r.(map[string]interface{})
-		if ok {
-			raw := m["EnableSSL"]
-			c.consul.ssl, _ = raw.(bool)
-			raw = m["Addr"]
-			c.consul.setAddr(raw.(string))
-			raw = m["Auth"]
-			c.consul.auth, _ = raw.(string)
-			raw = m["Token"]
-			c.consul.tokenVal = raw.(string)
-
-			consulAddr = c.consul.addr("")
-		}
-	}
-	return consulAddr
-}
-
-func (c *OperatorDebugCommand) getVaultAddrFromSelf(self *api.AgentSelf) string {
-	if self == nil {
-		return ""
-	}
-
-	var vaultAddr string
-	r, ok := self.Config["Vault"]
-	if ok {
-		m, ok := r.(map[string]interface{})
-		if ok {
-			raw := m["EnableSSL"]
-			c.vault.ssl, _ = raw.(bool)
-			raw = m["Addr"]
-			c.vault.setAddr(raw.(string))
-			raw = m["Auth"]
-			c.vault.auth, _ = raw.(string)
-			raw = m["Token"]
-			c.vault.tokenVal = raw.(string)
-
-			vaultAddr = c.vault.addr("")
-		}
-	}
-	return vaultAddr
-}
-
 // defaultHttpClient configures a basic httpClient
 func defaultHttpClient() *http.Client {
 	httpClient := cleanhttp.DefaultClient()
@@ -1733,64 +1199,4 @@ func defaultHttpClient() *http.Client {
 	}
 
 	return httpClient
-}
-
-// isRedirectError returns true if an error is a redirect error.
-func isRedirectError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	const redirectErr string = `invalid character '<' looking for beginning of value`
-	return strings.Contains(err.Error(), redirectErr)
-}
-
-// getNomadVersion fetches the version of Nomad running on a given server/client node ID
-func (c *OperatorDebugCommand) getNomadVersion(serverID string, nodeID string) string {
-	if serverID == "" && nodeID == "" {
-		return ""
-	}
-
-	version := ""
-	if serverID != "" {
-		for _, server := range c.members.Members {
-			// Raft v2 server
-			if server.Name == serverID {
-				version = server.Tags["build"]
-			}
-
-			// Raft v3 server
-			if server.Tags["id"] == serverID {
-				version = server.Tags["version"]
-			}
-		}
-	}
-
-	if nodeID != "" {
-		for _, node := range c.nodes {
-			if node.ID == nodeID {
-				version = node.Version
-			}
-		}
-	}
-
-	return version
-}
-
-// checkVersion verifies that version satisfies the constraint
-func checkVersion(version string, versionConstraint string) error {
-	v, err := goversion.NewVersion(version)
-	if err != nil {
-		return fmt.Errorf("error: %v", err)
-	}
-
-	c, err := goversion.NewConstraint(versionConstraint)
-	if err != nil {
-		return fmt.Errorf("error: %v", err)
-	}
-
-	if !c.Check(v) {
-		return nil
-	}
-	return fmt.Errorf("unsupported version=%s matches version filter %s", version, minimumVersionPprofConstraint)
 }

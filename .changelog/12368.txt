@@ -1,3 +1,0 @@
-```release-note:feature
-**Native service discovery**: Register and discover services using builtin simple service discovery.
-```

@@ -10,7 +10,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -26,7 +26,7 @@ const defaultShutdownWait = time.Minute
 type scriptCheckHookConfig struct {
 	alloc        *structs.Allocation
 	task         *structs.Task
-	consul       serviceregistration.Handler
+	consul       consul.ConsulServiceAPI
 	logger       log.Logger
 	shutdownWait time.Duration
 }
@@ -34,7 +34,7 @@ type scriptCheckHookConfig struct {
 // scriptCheckHook implements a task runner hook for running script
 // checks in the context of a task
 type scriptCheckHook struct {
-	consul          serviceregistration.Handler
+	consul          consul.ConsulServiceAPI
 	consulNamespace string
 	alloc           *structs.Allocation
 	task            *structs.Task
@@ -182,7 +182,7 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 			if check.Type != structs.ServiceCheckScript {
 				continue
 			}
-			serviceID := serviceregistration.MakeAllocServiceID(
+			serviceID := agentconsul.MakeAllocServiceID(
 				h.alloc.ID, h.task.Name, service)
 			sc := newScriptCheck(&scriptCheckConfig{
 				consulNamespace: h.consulNamespace,
@@ -222,7 +222,7 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 				continue
 			}
 			groupTaskName := "group-" + tg.Name
-			serviceID := serviceregistration.MakeAllocServiceID(
+			serviceID := agentconsul.MakeAllocServiceID(
 				h.alloc.ID, groupTaskName, service)
 			sc := newScriptCheck(&scriptCheckConfig{
 				consulNamespace: h.consulNamespace,
@@ -399,9 +399,9 @@ const (
 // updateTTL updates the state to Consul, performing an exponential backoff
 // in the case where the check isn't registered in Consul to avoid a race between
 // service registration and the first check.
-func (sc *scriptCheck) updateTTL(ctx context.Context, msg, state string) error {
+func (s *scriptCheck) updateTTL(ctx context.Context, msg, state string) error {
 	for attempts := 0; ; attempts++ {
-		err := sc.ttlUpdater.UpdateTTL(sc.id, sc.consulNamespace, msg, state)
+		err := s.ttlUpdater.UpdateTTL(s.id, s.consulNamespace, msg, state)
 		if err == nil {
 			return nil
 		}

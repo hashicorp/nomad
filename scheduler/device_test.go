@@ -3,7 +3,6 @@ package scheduler
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -89,8 +88,6 @@ func collectInstanceIDs(devices ...*structs.NodeDeviceResource) []string {
 
 // Test that asking for a device that isn't fully specified works.
 func TestDeviceAllocator_Allocate_GenericRequest(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	_, ctx := testContext(t)
 	n := devNode()
@@ -112,8 +109,6 @@ func TestDeviceAllocator_Allocate_GenericRequest(t *testing.T) {
 
 // Test that asking for a device that is fully specified works.
 func TestDeviceAllocator_Allocate_FullyQualifiedRequest(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	_, ctx := testContext(t)
 	n := devNode()
@@ -135,8 +130,6 @@ func TestDeviceAllocator_Allocate_FullyQualifiedRequest(t *testing.T) {
 
 // Test that asking for a device with too much count doesn't place
 func TestDeviceAllocator_Allocate_NotEnoughInstances(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	_, ctx := testContext(t)
 	n := devNode()
@@ -154,8 +147,6 @@ func TestDeviceAllocator_Allocate_NotEnoughInstances(t *testing.T) {
 
 // Test that asking for a device with constraints works
 func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
-	ci.Parallel(t)
-
 	n := multipleNvidiaNode()
 	nvidia0 := n.NodeResources.Devices[0]
 	nvidia1 := n.NodeResources.Devices[1]
@@ -266,8 +257,6 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 
 // Test that asking for a device with affinities works
 func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
-	ci.Parallel(t)
-
 	n := multipleNvidiaNode()
 	nvidia0 := n.NodeResources.Devices[0]
 	nvidia1 := n.NodeResources.Devices[1]

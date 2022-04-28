@@ -17,7 +17,6 @@ export default class JobSummary extends Model {
   @sumAggregation('taskGroupSummaries', 'runningAllocs') runningAllocs;
   @sumAggregation('taskGroupSummaries', 'completeAllocs') completeAllocs;
   @sumAggregation('taskGroupSummaries', 'failedAllocs') failedAllocs;
-  @sumAggregation('taskGroupSummaries', 'unknownAllocs') unknownAllocs;
   @sumAggregation('taskGroupSummaries', 'lostAllocs') lostAllocs;
 
   @collect(
@@ -26,8 +25,7 @@ export default class JobSummary extends Model {
     'runningAllocs',
     'completeAllocs',
     'failedAllocs',
-    'lostAllocs',
-    'unknownAllocs'
+    'lostAllocs'
   )
   allocsList;
 

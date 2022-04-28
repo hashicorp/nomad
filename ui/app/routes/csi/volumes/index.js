@@ -7,10 +7,7 @@ import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 
-export default class IndexRoute extends Route.extend(
-  WithWatchers,
-  WithForbiddenState
-) {
+export default class IndexRoute extends Route.extend(WithWatchers, WithForbiddenState) {
   @service store;
 
   queryParams = {
@@ -32,10 +29,7 @@ export default class IndexRoute extends Route.extend(
     controller.set('namespacesWatch', this.watchNamespaces.perform());
     controller.set(
       'modelWatch',
-      this.watchVolumes.perform({
-        type: 'csi',
-        namespace: controller.qpNamespace,
-      })
+      this.watchVolumes.perform({ type: 'csi', namespace: controller.qpNamespace })
     );
   }
 

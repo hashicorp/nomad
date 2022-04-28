@@ -1,6 +1,0 @@
-client {
-  enabled = true
-
-  template {
-  }
-}

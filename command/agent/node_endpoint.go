@@ -18,24 +18,15 @@ func (s *HTTPServer) NodesRequest(resp http.ResponseWriter, req *http.Request) (
 		return nil, nil
 	}
 
-	args.Fields = &structs.NodeStubFields{}
 	// Parse resources field selection
 	resources, err := parseBool(req, "resources")
 	if err != nil {
 		return nil, err
 	}
 	if resources != nil {
-		args.Fields.Resources = *resources
-	}
-
-	// Parse OS
-	os, err := parseBool(req, "os")
-	if err != nil {
-		return nil, err
-	}
-
-	if os != nil {
-		args.Fields.OS = *os
+		args.Fields = &structs.NodeStubFields{
+			Resources: *resources,
+		}
 	}
 
 	var out structs.NodeListResponse
@@ -47,7 +38,6 @@ func (s *HTTPServer) NodesRequest(resp http.ResponseWriter, req *http.Request) (
 	if out.Nodes == nil {
 		out.Nodes = make([]*structs.NodeListStub, 0)
 	}
-
 	return out.Nodes, nil
 }
 

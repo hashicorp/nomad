@@ -5,7 +5,6 @@ import (
 
 	pb "github.com/golang/protobuf/proto"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/stretchr/testify/require"
@@ -14,7 +13,7 @@ import (
 )
 
 func TestBasePlugin_PluginInfo_GRPC(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	var (
@@ -80,7 +79,7 @@ func TestBasePlugin_PluginInfo_GRPC(t *testing.T) {
 }
 
 func TestBasePlugin_ConfigSchema(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	mock := &MockPlugin{
@@ -111,7 +110,7 @@ func TestBasePlugin_ConfigSchema(t *testing.T) {
 }
 
 func TestBasePlugin_SetConfig(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	var receivedData []byte

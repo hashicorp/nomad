@@ -1,5 +1,3 @@
-//go:build windows
-
 package docker
 
 import docker "github.com/fsouza/go-dockerclient"

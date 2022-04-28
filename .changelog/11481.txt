@@ -1,3 +1,0 @@
-```release-note:bug
-artifact: Fixed a bug where uncompressed `.tar` archives were not unpacked after download.
-```

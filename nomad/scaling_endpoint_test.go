@@ -5,18 +5,17 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestScalingEndpoint_StaleReadSupport(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
 	list := &structs.ScalingPolicyListRequest{}
 	assert.True(list.IsRead())
@@ -25,7 +24,7 @@ func TestScalingEndpoint_StaleReadSupport(t *testing.T) {
 }
 
 func TestScalingEndpoint_GetPolicy(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -64,7 +63,7 @@ func TestScalingEndpoint_GetPolicy(t *testing.T) {
 }
 
 func TestScalingEndpoint_GetPolicy_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
@@ -139,7 +138,7 @@ func TestScalingEndpoint_GetPolicy_ACL(t *testing.T) {
 }
 
 func TestScalingEndpoint_ListPolicies(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -231,7 +230,7 @@ func TestScalingEndpoint_ListPolicies(t *testing.T) {
 }
 
 func TestScalingEndpoint_ListPolicies_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
@@ -310,7 +309,7 @@ func TestScalingEndpoint_ListPolicies_ACL(t *testing.T) {
 }
 
 func TestScalingEndpoint_ListPolicies_Blocking(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)

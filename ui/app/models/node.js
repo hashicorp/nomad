@@ -21,13 +21,12 @@ export default class Node extends Model {
   @attr('string') statusDescription;
   @shortUUIDProperty('id') shortId;
   @attr('number') modifyIndex;
-  @attr('string') version;
 
   // Available from single response
   @attr('string') httpAddr;
   @attr('boolean') tlsEnabled;
-  @fragment('structured-attributes') attributes;
-  @fragment('structured-attributes') meta;
+  @fragment('node-attributes') attributes;
+  @fragment('node-attributes') meta;
   @fragment('resources') resources;
   @fragment('resources') reserved;
   @fragment('drain-strategy') drainStrategy;
@@ -63,9 +62,7 @@ export default class Node extends Model {
 
   @computed('allocations.@each.{isMigrating,isRunning}')
   get migratingAllocations() {
-    return this.allocations.filter(
-      (alloc) => alloc.isRunning && alloc.isMigrating
-    );
+    return this.allocations.filter(alloc => alloc.isRunning && alloc.isMigrating);
   }
 
   @computed('allocations.@each.{isMigrating,isRunning,modifyTime}')

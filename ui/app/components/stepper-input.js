@@ -9,12 +9,7 @@ const ESC = 27;
 
 @classic
 @classNames('stepper-input')
-@classNameBindings(
-  'class',
-  'disabled:is-disabled',
-  'disabled:tooltip',
-  'disabled:multiline'
-)
+@classNameBindings('class', 'disabled:is-disabled', 'disabled:tooltip', 'disabled:multiline')
 export default class StepperInput extends Component {
   min = 0;
   max = 10;
@@ -46,9 +41,7 @@ export default class StepperInput extends Component {
   @action
   setValue(e) {
     if (e.target.value !== '') {
-      const newValue = Math.floor(
-        Math.min(this.max, Math.max(this.min, e.target.value))
-      );
+      const newValue = Math.floor(Math.min(this.max, Math.max(this.min, e.target.value)));
       this.set('internalValue', newValue);
       this.update(this.internalValue);
     } else {

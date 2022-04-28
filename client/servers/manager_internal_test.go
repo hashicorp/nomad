@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 )
 
@@ -51,8 +50,6 @@ func testManagerFailProb(t *testing.T, failPct float64) (m *Manager) {
 }
 
 func TestManagerInternal_cycleServer(t *testing.T) {
-	ci.Parallel(t)
-
 	server0 := &Server{Addr: &fauxAddr{"server1"}}
 	server1 := &Server{Addr: &fauxAddr{"server2"}}
 	server2 := &Server{Addr: &fauxAddr{"server3"}}
@@ -84,8 +81,6 @@ func TestManagerInternal_cycleServer(t *testing.T) {
 }
 
 func TestManagerInternal_New(t *testing.T) {
-	ci.Parallel(t)
-
 	m := testManager(t)
 	if m == nil {
 		t.Fatalf("Manager nil")
@@ -102,8 +97,6 @@ func TestManagerInternal_New(t *testing.T) {
 
 // func (l *serverList) refreshServerRebalanceTimer() {
 func TestManagerInternal_refreshServerRebalanceTimer(t *testing.T) {
-	ci.Parallel(t)
-
 	type clusterSizes struct {
 		numNodes     int32
 		numServers   int

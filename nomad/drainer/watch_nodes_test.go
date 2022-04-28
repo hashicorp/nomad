@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -26,14 +25,14 @@ func testNodeDrainWatcher(t *testing.T) (*nodeDrainWatcher, *state.StateStore, *
 }
 
 func TestNodeDrainWatcher_Interface(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	w, _, _ := testNodeDrainWatcher(t)
 	require.Implements((*DrainingNodeWatcher)(nil), w)
 }
 
 func TestNodeDrainWatcher_AddDraining(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	_, state, m := testNodeDrainWatcher(t)
 
@@ -63,7 +62,7 @@ func TestNodeDrainWatcher_AddDraining(t *testing.T) {
 }
 
 func TestNodeDrainWatcher_Remove(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	_, state, m := testNodeDrainWatcher(t)
 
@@ -101,7 +100,7 @@ func TestNodeDrainWatcher_Remove(t *testing.T) {
 }
 
 func TestNodeDrainWatcher_Remove_Nonexistent(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	_, state, m := testNodeDrainWatcher(t)
 
@@ -139,7 +138,7 @@ func TestNodeDrainWatcher_Remove_Nonexistent(t *testing.T) {
 }
 
 func TestNodeDrainWatcher_Update(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	_, state, m := testNodeDrainWatcher(t)
 

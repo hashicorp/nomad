@@ -7,8 +7,6 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -16,7 +14,7 @@ import (
 )
 
 func TestHeartbeat_InitializeHeartbeatTimers(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -43,7 +41,7 @@ func TestHeartbeat_InitializeHeartbeatTimers(t *testing.T) {
 }
 
 func TestHeartbeat_ResetHeartbeatTimer(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -66,7 +64,7 @@ func TestHeartbeat_ResetHeartbeatTimer(t *testing.T) {
 }
 
 func TestHeartbeat_ResetHeartbeatTimer_Nonleader(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -83,7 +81,7 @@ func TestHeartbeat_ResetHeartbeatTimer_Nonleader(t *testing.T) {
 }
 
 func TestHeartbeat_ResetHeartbeatTimerLocked(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -105,7 +103,7 @@ func TestHeartbeat_ResetHeartbeatTimerLocked(t *testing.T) {
 }
 
 func TestHeartbeat_ResetHeartbeatTimerLocked_Renew(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -145,7 +143,7 @@ func TestHeartbeat_ResetHeartbeatTimerLocked_Renew(t *testing.T) {
 }
 
 func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -170,7 +168,7 @@ func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
 }
 
 func TestHeartbeat_ClearHeartbeatTimer(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -191,7 +189,7 @@ func TestHeartbeat_ClearHeartbeatTimer(t *testing.T) {
 }
 
 func TestHeartbeat_ClearAllHeartbeatTimers(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -214,7 +212,7 @@ func TestHeartbeat_ClearAllHeartbeatTimers(t *testing.T) {
 }
 
 func TestHeartbeat_Server_HeartbeatTTL_Failover(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
@@ -285,72 +283,4 @@ func TestHeartbeat_Server_HeartbeatTTL_Failover(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %s", err)
 	})
-}
-
-func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
-	ci.Parallel(t)
-
-	type testCase struct {
-		name                string
-		now                 time.Time
-		maxClientDisconnect *time.Duration
-		expectedNodeStatus  string
-	}
-
-	testCases := []testCase{
-		{
-			name:                "has-pending-reconnects",
-			now:                 time.Now().UTC(),
-			maxClientDisconnect: helper.TimeToPtr(5 * time.Second),
-			expectedNodeStatus:  structs.NodeStatusDisconnected,
-		},
-		{
-			name:                "has-expired-reconnects",
-			maxClientDisconnect: helper.TimeToPtr(5 * time.Second),
-			now:                 time.Now().UTC().Add(-10 * time.Second),
-			expectedNodeStatus:  structs.NodeStatusDown,
-		},
-		{
-			name:                "has-expired-reconnects-equal-timestamp",
-			maxClientDisconnect: helper.TimeToPtr(5 * time.Second),
-			now:                 time.Now().UTC().Add(-5 * time.Second),
-			expectedNodeStatus:  structs.NodeStatusDown,
-		},
-		{
-			name:                "has-no-reconnects",
-			now:                 time.Now().UTC(),
-			maxClientDisconnect: nil,
-			expectedNodeStatus:  structs.NodeStatusDown,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			s1, cleanupS1 := TestServer(t, nil)
-			defer cleanupS1()
-			testutil.WaitForLeader(t, s1.RPC)
-
-			// Create a node
-			node := mock.Node()
-			state := s1.fsm.State()
-			require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
-
-			alloc := mock.Alloc()
-			alloc.NodeID = node.ID
-			alloc.Job.TaskGroups[0].MaxClientDisconnect = tc.maxClientDisconnect
-			alloc.ClientStatus = structs.AllocClientStatusUnknown
-			alloc.AllocStates = []*structs.AllocState{{
-				Field: structs.AllocStateFieldClientStatus,
-				Value: structs.AllocClientStatusUnknown,
-				Time:  tc.now,
-			}}
-			require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
-
-			// Trigger status update
-			s1.invalidateHeartbeat(node.ID)
-			out, err := state.NodeByID(nil, node.ID)
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedNodeStatus, out.Status)
-		})
-	}
 }

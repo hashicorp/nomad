@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Display client name as a tooltip where the client ID is used
-```

@@ -62,7 +62,7 @@
         "path": "integrations/consul-integration"
       },
       {
-        "title": "Consul Service Mesh",
+        "title": "Consul Connect",
         "path": "integrations/consul-connect"
       },
       {
@@ -201,10 +201,6 @@
         "path": "configuration/tls"
       },
       {
-        "title": "ui",
-        "path": "configuration/ui"
-      },
-      {
         "title": "vault",
         "path": "configuration/vault"
       }
@@ -316,19 +312,6 @@
         ]
       },
       {
-        "title": "config",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/config"
-          },
-          {
-            "title": "validate",
-            "path": "commands/config/validate"
-          }
-        ]
-      },
-      {
         "title": "deployment",
         "routes": [
           {
@@ -366,21 +349,8 @@
         ]
       },
       {
-        "title": "eval",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/eval"
-          },
-          {
-            "title": "list",
-            "path": "commands/eval/list"
-          },
-          {
-            "title": "status",
-            "path": "commands/eval/status"
-          }
-        ]
+        "title": "eval status",
+        "path": "commands/eval-status"
       },
       {
         "title": "job",
@@ -388,10 +358,6 @@
           {
             "title": "Overview",
             "path": "commands/job"
-          },
-          {
-            "title": "allocs",
-            "path": "commands/job/allocs"
           },
           {
             "title": "deployments",
@@ -538,10 +504,6 @@
             "path": "commands/operator"
           },
           {
-            "title": "api",
-            "path": "commands/operator/api"
-          },
-          {
             "title": "autopilot get-config",
             "path": "commands/operator/autopilot-get-config"
           },
@@ -566,24 +528,12 @@
             "path": "commands/operator/metrics"
           },
           {
-            "title": "raft info",
-            "path": "commands/operator/raft-info"
-          },
-          {
             "title": "raft list-peers",
             "path": "commands/operator/raft-list-peers"
           },
           {
-            "title": "raft logs",
-            "path": "commands/operator/raft-logs"
-          },
-          {
             "title": "raft remove-peer",
             "path": "commands/operator/raft-remove-peer"
-          },
-          {
-            "title": "raft state",
-            "path": "commands/operator/raft-state"
           },
           {
             "title": "snapshot agent",
@@ -600,10 +550,6 @@
           {
             "title": "snapshot save",
             "path": "commands/operator/snapshot-save"
-          },
-          {
-            "title": "snapshot state",
-            "path": "commands/operator/snapshot-state"
           }
         ]
       },
@@ -738,27 +684,6 @@
           {
             "title": "members",
             "path": "commands/server/members"
-          }
-        ]
-      },
-      {
-        "title": "service",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/service"
-          },
-          {
-            "title": "service delete",
-            "path": "commands/service/delete"
-          },
-          {
-            "title": "service info",
-            "path": "commands/service/info"
-          },
-          {
-            "title": "service list",
-            "path": "commands/service/list"
           }
         ]
       },
@@ -1435,7 +1360,7 @@
       },
       {
         "title": "Podman",
-        "href": "/plugins/drivers/podman"
+        "path": "drivers/podman"
       },
       {
         "title": "QEMU",
@@ -1450,51 +1375,43 @@
         "routes": [
           {
             "title": "Overview",
-            "href": "/plugins/drivers/community"
+            "path": "drivers/external"
           },
           {
             "title": "containerd",
-            "href": "/plugins/drivers/community/containerd"
+            "path": "drivers/external/containerd"
           },
           {
             "title": "Firecracker driver",
-            "href": "/plugins/drivers/community/firecracker-task-driver"
+            "path": "drivers/external/firecracker-task-driver"
           },
           {
             "title": "Jailtask driver",
-            "href": "/plugins/drivers/community/jail-task-driver"
-          },
-          {
-            "title": "Lightrun",
-            "href": "/plugins/drivers/community/lightrun"
+            "path": "drivers/external/jail-task-driver"
           },
           {
             "title": "LXC",
-            "href": "/plugins/drivers/community/lxc"
+            "path": "drivers/external/lxc"
           },
           {
             "title": "Pot",
-            "href": "/plugins/drivers/community/pot"
+            "path": "drivers/external/pot"
           },
           {
             "title": "Rkt <sup>Deprecated</sup> ",
-            "href": "/plugins/drivers/community/rkt"
-          },
-          {
-            "title": "Rookout",
-            "href": "/plugins/drivers/community/rookout"
+            "path": "drivers/external/rkt"
           },
           {
             "title": "Singularity",
-            "href": "/plugins/drivers/community/singularity"
+            "path": "drivers/external/singularity"
           },
           {
             "title": "systemd-nspawn",
-            "href": "/plugins/drivers/community/nspawn"
+            "path": "drivers/external/nspawn"
           },
           {
             "title": "Windows IIS",
-            "href": "/plugins/drivers/community/iis"
+            "path": "drivers/external/iis"
           }
         ]
       },
@@ -1503,11 +1420,11 @@
         "routes": [
           {
             "title": "Overview",
-            "href": "/plugins/drivers/remote"
+            "path": "drivers/remote"
           },
           {
             "title": "ECS",
-            "href": "/plugins/drivers/remote/ecs"
+            "path": "drivers/remote/ecs"
           }
         ]
       }
@@ -1521,19 +1438,19 @@
         "path": "devices"
       },
       {
-        "title": "External",
+        "title": "Nvidia",
+        "path": "devices/nvidia"
+      },
+      {
+        "title": "Community",
         "routes": [
           {
             "title": "Overview",
-            "href": "/plugins/devices"
-          },
-          {
-            "title": "Nvidia",
-            "href": "/plugins/devices/nvidia"
+            "path": "devices/external"
           },
           {
             "title": "USB <sup>Beta</sup>",
-            "href": "/plugins/devices/community/usb"
+            "path": "devices/external/usb"
           }
         ]
       }
@@ -1565,98 +1482,94 @@
     "routes": [
       {
         "title": "Overview",
-        "href": "/tools/autoscaling"
+        "path": "autoscaling"
       },
       {
         "title": "Agent",
         "routes": [
           {
             "title": "Overview",
-            "href": "/tools/autoscaling/agent"
+            "path": "autoscaling/agent"
           },
           {
             "title": "apm",
-            "href": "/tools/autoscaling/agent/apm"
+            "path": "autoscaling/agent/apm"
           },
           {
             "title": "dynamic_application_sizing",
-            "href": "/tools/autoscaling/agent/dynamic_application_sizing"
+            "path": "autoscaling/agent/dynamic_application_sizing"
           },
           {
             "title": "http",
-            "href": "/tools/autoscaling/agent/http"
+            "path": "autoscaling/agent/http"
           },
           {
             "title": "nomad",
-            "href": "/tools/autoscaling/agent/nomad"
+            "path": "autoscaling/agent/nomad"
           },
           {
             "title": "policy",
-            "href": "/tools/autoscaling/agent/policy"
+            "path": "autoscaling/agent/policy"
           },
           {
             "title": "policy_eval",
-            "href": "/tools/autoscaling/agent/policy_eval"
-          },
-          {
-            "title": "source",
-            "href": "/tools/autoscaling/agent/source"
+            "path": "autoscaling/agent/policy_eval"
           },
           {
             "title": "strategy",
-            "href": "/tools/autoscaling/agent/strategy"
+            "path": "autoscaling/agent/strategy"
           },
           {
             "title": "target",
-            "href": "/tools/autoscaling/agent/target"
+            "path": "autoscaling/agent/target"
           },
           {
             "title": "telemetry",
-            "href": "/tools/autoscaling/agent/telemetry"
+            "path": "autoscaling/agent/telemetry"
           }
         ]
       },
       {
         "title": "API",
-        "href": "/tools/autoscaling/api"
+        "path": "autoscaling/api"
       },
       {
         "title": "CLI",
-        "href": "/tools/autoscaling/cli"
+        "path": "autoscaling/cli"
       },
       {
         "title": "Policy",
-        "href": "/tools/autoscaling/policy"
+        "path": "autoscaling/policy"
       },
       {
         "title": "Telemetry",
-        "href": "/tools/autoscaling/telemetry"
+        "path": "autoscaling/telemetry"
       },
       {
         "title": "Plugins",
         "routes": [
           {
             "title": "Overview",
-            "href": "/tools/autoscaling/plugins"
+            "path": "autoscaling/plugins"
           },
           {
             "title": "APM",
             "routes": [
               {
                 "title": "Overview",
-                "href": "/tools/autoscaling/plugins/apm"
+                "path": "autoscaling/plugins/apm"
               },
               {
                 "title": "Datadog",
-                "href": "/tools/autoscaling/plugins/apm/datadog"
+                "path": "autoscaling/plugins/apm/datadog"
               },
               {
                 "title": "Nomad API",
-                "href": "/tools/autoscaling/plugins/apm/nomad"
+                "path": "autoscaling/plugins/apm/nomad"
               },
               {
                 "title": "Prometheus",
-                "href": "/tools/autoscaling/plugins/apm/prometheus"
+                "path": "autoscaling/plugins/apm/prometheus"
               }
             ]
           },
@@ -1665,35 +1578,35 @@
             "routes": [
               {
                 "title": "Overview",
-                "href": "/tools/autoscaling/plugins/strategy"
+                "path": "autoscaling/plugins/strategy"
               },
               {
                 "title": "Dynamic Application Sizing Average",
-                "href": "/tools/autoscaling/plugins/strategy/app-sizing-avg"
+                "path": "autoscaling/plugins/strategy/app-sizing-avg"
               },
               {
                 "title": "Dynamic Application Sizing Max",
-                "href": "/tools/autoscaling/plugins/strategy/app-sizing-max"
+                "path": "autoscaling/plugins/strategy/app-sizing-max"
               },
               {
                 "title": "Dynamic Application Sizing Percentile",
-                "href": "/tools/autoscaling/plugins/strategy/app-sizing-percentile"
+                "path": "autoscaling/plugins/strategy/app-sizing-percentile"
               },
               {
                 "title": "Fixed Value",
-                "href": "/tools/autoscaling/plugins/strategy/fixed-value"
+                "path": "autoscaling/plugins/strategy/fixed-value"
               },
               {
                 "title": "Pass-Through",
-                "href": "/tools/autoscaling/plugins/strategy/pass-through"
+                "path": "autoscaling/plugins/strategy/pass-through"
               },
               {
                 "title": "Target Value",
-                "href": "/tools/autoscaling/plugins/strategy/target-value"
+                "path": "autoscaling/plugins/strategy/target-value"
               },
               {
                 "title": "Threshold",
-                "href": "/tools/autoscaling/plugins/strategy/threshold"
+                "path": "autoscaling/plugins/strategy/threshold"
               }
             ]
           },
@@ -1702,33 +1615,33 @@
             "routes": [
               {
                 "title": "Overview",
-                "href": "/tools/autoscaling/plugins/target"
+                "path": "autoscaling/plugins/target"
               },
               {
                 "title": "Amazon Web Services Autoscaling Group",
-                "href": "/tools/autoscaling/plugins/target/aws-asg"
+                "path": "autoscaling/plugins/target/aws-asg"
               },
               {
                 "title": "Azure Virtual Machine Scale Set",
-                "href": "/tools/autoscaling/plugins/target/azure-vmss"
+                "path": "autoscaling/plugins/target/azure-vmss"
               },
               {
                 "title": "Dynamic Application Sizing",
-                "href": "/tools/autoscaling/plugins/target/app-sizing-nomad"
+                "path": "autoscaling/plugins/target/app-sizing-nomad"
               },
               {
                 "title": "Google Cloud Engine Managed Instance Group",
-                "href": "/tools/autoscaling/plugins/target/gce-mig"
+                "path": "autoscaling/plugins/target/gce-mig"
               },
               {
                 "title": "Nomad Task Group",
-                "href": "/tools/autoscaling/plugins/target/nomad"
+                "path": "autoscaling/plugins/target/nomad"
               }
             ]
           },
           {
             "title": "Community",
-            "href": "/tools/autoscaling/plugins/external"
+            "path": "autoscaling/plugins/external"
           }
         ]
       },
@@ -1737,38 +1650,38 @@
         "routes": [
           {
             "title": "Overview",
-            "href": "/tools/autoscaling/internals"
+            "path": "autoscaling/internals"
           },
           {
             "title": "Checks",
-            "href": "/tools/autoscaling/internals/checks"
+            "path": "autoscaling/internals/checks"
           },
           {
             "title": "Node Selector Strategy",
-            "href": "/tools/autoscaling/internals/node-selector-strategy"
+            "path": "autoscaling/internals/node-selector-strategy"
           },
           {
             "title": "Plugins",
             "routes": [
               {
                 "title": "Overview",
-                "href": "/tools/autoscaling/internals/plugins"
+                "path": "autoscaling/internals/plugins"
               },
               {
                 "title": "Base",
-                "href": "/tools/autoscaling/internals/plugins/base"
+                "path": "autoscaling/internals/plugins/base"
               },
               {
                 "title": "APM",
-                "href": "/tools/autoscaling/internals/plugins/apm"
+                "path": "autoscaling/internals/plugins/apm"
               },
               {
                 "title": "Strategy",
-                "href": "/tools/autoscaling/internals/plugins/strategy"
+                "path": "autoscaling/internals/plugins/strategy"
               },
               {
                 "title": "Target",
-                "href": "/tools/autoscaling/internals/plugins/target"
+                "path": "autoscaling/internals/plugins/target"
               }
             ]
           }
@@ -1788,12 +1701,12 @@
         "path": "operations/nomad-agent"
       },
       {
-        "title": "Monitoring Nomad",
-        "path": "operations/monitoring-nomad"
+        "title": "Telemetry",
+        "path": "operations/telemetry"
       },
       {
-        "title": "Metrics Reference",
-        "path": "operations/metrics-reference"
+        "title": "Metrics",
+        "path": "operations/metrics"
       },
       {
         "title": "Cluster Management",
@@ -1847,13 +1760,14 @@
       {
         "title": "Overview",
         "path": "enterprise"
-      },
+      }, 
       {
         "title": "License",
         "routes": [
           {
             "title": "Overview",
             "path": "enterprise/license"
+
           },
           {
             "title": "FAQ",

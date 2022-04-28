@@ -4,7 +4,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Integration | Component | list pagination', function (hooks) {
+module('Integration | Component | list pagination', function(hooks) {
   setupRenderingTest(hooks);
 
   const defaults = {
@@ -18,9 +18,7 @@ module('Integration | Component | list pagination', function (hooks) {
     .fill(null)
     .map((_, i) => i);
 
-  test('the source property', async function (assert) {
-    assert.expect(36);
-
+  test('the source property', async function(assert) {
     this.set('source', list100);
     await render(hbs`
       <ListPagination @source={{source}} as |p|>
@@ -39,14 +37,8 @@ module('Integration | Component | list pagination', function (hooks) {
       </ListPagination>
     `);
 
-    assert.notOk(
-      findAll('.first').length,
-      'On the first page, there is no first link'
-    );
-    assert.notOk(
-      findAll('.prev').length,
-      'On the first page, there is no prev link'
-    );
+    assert.ok(!findAll('.first').length, 'On the first page, there is no first link');
+    assert.ok(!findAll('.prev').length, 'On the first page, there is no prev link');
     await componentA11yAudit(this.element, assert);
 
     assert.equal(
@@ -56,23 +48,14 @@ module('Integration | Component | list pagination', function (hooks) {
     );
 
     for (var pageNumber = 1; pageNumber <= defaults.spread + 1; pageNumber++) {
-      assert.ok(
-        findAll(`.link.page-${pageNumber}`).length,
-        `Page link includes ${pageNumber}`
-      );
+      assert.ok(findAll(`.link.page-${pageNumber}`).length, `Page link includes ${pageNumber}`);
     }
 
-    assert.ok(
-      findAll('.next').length,
-      'While not on the last page, there is a next link'
-    );
-    assert.ok(
-      findAll('.last').length,
-      'While not on the last page, there is a last link'
-    );
+    assert.ok(findAll('.next').length, 'While not on the last page, there is a next link');
+    assert.ok(findAll('.last').length, 'While not on the last page, there is a last link');
     await componentA11yAudit(this.element, assert);
 
-    assert.equal(
+    assert.ok(
       findAll('.item').length,
       defaults.size,
       `Only ${defaults.size} (the default) number of items are rendered`
@@ -87,7 +70,7 @@ module('Integration | Component | list pagination', function (hooks) {
     }
   });
 
-  test('the size property', async function (assert) {
+  test('the size property', async function(assert) {
     this.setProperties({
       size: 5,
       source: list100,
@@ -99,16 +82,10 @@ module('Integration | Component | list pagination', function (hooks) {
     `);
 
     const totalPages = Math.ceil(this.source.length / this.size);
-    assert.equal(
-      find('.page-info').textContent,
-      `1 of ${totalPages}`,
-      `${totalPages} total pages`
-    );
+    assert.equal(find('.page-info').textContent, `1 of ${totalPages}`, `${totalPages} total pages`);
   });
 
-  test('the spread property', async function (assert) {
-    assert.expect(12);
-
+  test('the spread property', async function(assert) {
     this.setProperties({
       source: list100,
       spread: 1,
@@ -129,9 +106,7 @@ module('Integration | Component | list pagination', function (hooks) {
     testSpread.call(this, assert);
   });
 
-  test('page property', async function (assert) {
-    assert.expect(10);
-
+  test('page property', async function(assert) {
     this.setProperties({
       source: list100,
       size: 5,
@@ -154,9 +129,9 @@ module('Integration | Component | list pagination', function (hooks) {
   // Ember doesn't support query params (or controllers or routes) in integration tests,
   // so links can only be tested in acceptance tests.
   // Leaving this test here for posterity.
-  skip('pagination links link with query params', function () {});
+  skip('pagination links link with query params', function() {});
 
-  test('there are no pagination links when source is less than page size', async function (assert) {
+  test('there are no pagination links when source is less than page size', async function(assert) {
     this.set('source', list100.slice(0, 10));
     await render(hbs`
       <ListPagination @source={{source}} as |p|>
@@ -175,10 +150,10 @@ module('Integration | Component | list pagination', function (hooks) {
       </ListPagination>
     `);
 
-    assert.notOk(findAll('.first').length, 'No first link');
-    assert.notOk(findAll('.prev').length, 'No prev link');
-    assert.notOk(findAll('.next').length, 'No next link');
-    assert.notOk(findAll('.last').length, 'No last link');
+    assert.ok(!findAll('.first').length, 'No first link');
+    assert.ok(!findAll('.prev').length, 'No prev link');
+    assert.ok(!findAll('.next').length, 'No next link');
+    assert.ok(!findAll('.last').length, 'No last link');
 
     assert.equal(find('.page-info').textContent, '1 of 1', 'Only one page');
     assert.equal(
@@ -189,9 +164,7 @@ module('Integration | Component | list pagination', function (hooks) {
   });
 
   // when there is less pages than the total spread amount
-  test('when there is less pages than the total spread amount', async function (assert) {
-    assert.expect(9);
-
+  test('when there is less pages than the total spread amount', async function(assert) {
     this.setProperties({
       source: list100,
       spread: 4,
@@ -218,26 +191,15 @@ module('Integration | Component | list pagination', function (hooks) {
     assert.ok(findAll('.prev').length, 'Prev page still exists');
     assert.ok(findAll('.next').length, 'Next page still exists');
     assert.ok(findAll('.last').length, 'Last page still exists');
-    assert.equal(
-      findAll('.link').length,
-      totalPages,
-      'Every page gets a page link'
-    );
+    assert.equal(findAll('.link').length, totalPages, 'Every page gets a page link');
     for (var pageNumber = 1; pageNumber < totalPages; pageNumber++) {
-      assert.ok(
-        findAll(`.link.page-${pageNumber}`).length,
-        `Page link for ${pageNumber} exists`
-      );
+      assert.ok(findAll(`.link.page-${pageNumber}`).length, `Page link for ${pageNumber} exists`);
     }
   });
 
   function testSpread(assert) {
     const { spread, currentPage } = this.getProperties('spread', 'currentPage');
-    for (
-      var pageNumber = currentPage - spread;
-      pageNumber <= currentPage + spread;
-      pageNumber++
-    ) {
+    for (var pageNumber = currentPage - spread; pageNumber <= currentPage + spread; pageNumber++) {
       assert.ok(
         findAll(`.link.page-${pageNumber}`).length,
         `Page links for currentPage (${currentPage}) +/- spread of ${spread} (${pageNumber})`
@@ -251,9 +213,8 @@ module('Integration | Component | list pagination', function (hooks) {
       assert.equal(
         findAll('.item')[item].textContent,
         item + (currentPage - 1) * size,
-        `Rendered items are in the current page, ${currentPage} (${
-          item + (currentPage - 1) * size
-        })`
+        `Rendered items are in the current page, ${currentPage} (${item +
+          (currentPage - 1) * size})`
       );
     }
   }

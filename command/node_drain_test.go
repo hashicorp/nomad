@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/testutil"
@@ -19,12 +18,12 @@ import (
 )
 
 func TestNodeDrainCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &NodeDrainCommand{}
 }
 
 func TestNodeDrainCommand_Detach(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	server, client, url := testServer(t, true, func(c *agent.Config) {
 		c.NodeName = "drain_detach_node"
@@ -97,7 +96,7 @@ func TestNodeDrainCommand_Detach(t *testing.T) {
 }
 
 func TestNodeDrainCommand_Monitor(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	server, client, url := testServer(t, true, func(c *agent.Config) {
 		c.NodeName = "drain_monitor_node"
@@ -257,7 +256,7 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 }
 
 func TestNodeDrainCommand_Monitor_NoDrainStrategy(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	server, client, url := testServer(t, true, func(c *agent.Config) {
 		c.NodeName = "drain_monitor_node2"
@@ -299,7 +298,7 @@ func TestNodeDrainCommand_Monitor_NoDrainStrategy(t *testing.T) {
 }
 
 func TestNodeDrainCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -413,8 +412,8 @@ func TestNodeDrainCommand_Fails(t *testing.T) {
 }
 
 func TestNodeDrainCommand_AutocompleteArgs(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
+	t.Parallel()
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()

@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: added visual indicators for disconnected allocations and client nodes
-```

@@ -3,7 +3,7 @@ package rafttools
 import (
 	"fmt"
 
-	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
+	raftboltdb "github.com/hashicorp/raft-boltdb"
 )
 
 func RaftState(p string) (store *raftboltdb.BoltStore, firstIdx uint64, lastIdx uint64, err error) {

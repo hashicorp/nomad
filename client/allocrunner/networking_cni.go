@@ -1,7 +1,6 @@
 // For now CNI is supported only on Linux.
 //
-//go:build linux
-// +build linux
+//+build linux
 
 package allocrunner
 

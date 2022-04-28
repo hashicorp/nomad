@@ -5,13 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSet_NomadDefaults(t *testing.T) {
-	ci.Parallel(t)
-
 	result := NomadDefaults()
 	require.Len(t, result.Slice(false), 13)
 	defaults := strings.ToLower(HCLSpecLiteral)
@@ -21,16 +18,12 @@ func TestSet_NomadDefaults(t *testing.T) {
 }
 
 func TestSet_DockerDefaults(t *testing.T) {
-	ci.Parallel(t)
-
 	result := DockerDefaults()
 	require.Len(t, result.Slice(false), 14)
 	require.Contains(t, result.String(), "net_raw")
 }
 
 func TestCaps_Calculate(t *testing.T) {
-	ci.Parallel(t)
-
 	for _, tc := range []struct {
 		name string
 
@@ -156,8 +149,6 @@ func TestCaps_Calculate(t *testing.T) {
 }
 
 func TestCaps_Delta(t *testing.T) {
-	ci.Parallel(t)
-
 	for _, tc := range []struct {
 		name string
 

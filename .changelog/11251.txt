@@ -1,3 +1,0 @@
-```release-note:improvement
-build: Updated to Go 1.17.1
-```

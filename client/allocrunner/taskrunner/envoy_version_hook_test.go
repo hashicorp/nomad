@@ -2,10 +2,8 @@ package taskrunner
 
 import (
 	"context"
-	"errors"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	ifs "github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -14,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,7 +24,7 @@ var (
 )
 
 func TestEnvoyVersionHook_semver(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	t.Run("with v", func(t *testing.T) {
 		result, err := semver("v1.2.3")
@@ -46,7 +45,7 @@ func TestEnvoyVersionHook_semver(t *testing.T) {
 }
 
 func TestEnvoyVersionHook_taskImage(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	t.Run("absent", func(t *testing.T) {
 		result := (*envoyVersionHook)(nil).taskImage(map[string]interface{}{
@@ -71,7 +70,7 @@ func TestEnvoyVersionHook_taskImage(t *testing.T) {
 }
 
 func TestEnvoyVersionHook_tweakImage(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	image := envoy.ImageFormat
 
@@ -107,7 +106,7 @@ func TestEnvoyVersionHook_tweakImage(t *testing.T) {
 }
 
 func TestEnvoyVersionHook_interpolateImage(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	hook := (*envoyVersionHook)(nil)
 
@@ -157,7 +156,7 @@ func TestEnvoyVersionHook_interpolateImage(t *testing.T) {
 }
 
 func TestEnvoyVersionHook_skip(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	h := new(envoyVersionHook)
 
@@ -222,14 +221,14 @@ func TestEnvoyVersionHook_skip(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyVersionHook_Prestart_standard(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	logger := testlog.HCLogger(t)
 
 	// Setup an Allocation
 	alloc := mock.ConnectAlloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = mock.ConnectSidecarTask()
-	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook", alloc.ID)
+	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook")
 	defer cleanupDir()
 
 	// Setup a mock for Consul API
@@ -265,7 +264,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_standard(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyVersionHook_Prestart_custom(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	logger := testlog.HCLogger(t)
 
@@ -273,7 +272,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_custom(t *testing.T) {
 	alloc := mock.ConnectAlloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = mock.ConnectSidecarTask()
 	alloc.Job.TaskGroups[0].Tasks[0].Config["image"] = "custom-${NOMAD_envoy_version}:latest"
-	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook", alloc.ID)
+	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook")
 	defer cleanupDir()
 
 	// Setup a mock for Consul API
@@ -309,7 +308,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_custom(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyVersionHook_Prestart_skip(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	logger := testlog.HCLogger(t)
 
@@ -320,7 +319,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_skip(t *testing.T) {
 	alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"command": "/sidecar",
 	}
-	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook", alloc.ID)
+	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook")
 	defer cleanupDir()
 
 	// Setup a mock for Consul API
@@ -356,14 +355,14 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_skip(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyVersionHook_Prestart_fallback(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	logger := testlog.HCLogger(t)
 
 	// Setup an Allocation
 	alloc := mock.ConnectAlloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = mock.ConnectSidecarTask()
-	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook", alloc.ID)
+	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook")
 	defer cleanupDir()
 
 	// Setup a mock for Consul API
@@ -397,14 +396,14 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_fallback(t *testing.T) {
 }
 
 func TestTaskRunner_EnvoyVersionHook_Prestart_error(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	logger := testlog.HCLogger(t)
 
 	// Setup an Allocation
 	alloc := mock.ConnectAlloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = mock.ConnectSidecarTask()
-	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook", alloc.ID)
+	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook")
 	defer cleanupDir()
 
 	// Setup a mock for Consul API

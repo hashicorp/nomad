@@ -4,13 +4,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestVaultConfig_Merge(t *testing.T) {
-	ci.Parallel(t)
-
 	trueValue, falseValue := true, false
 	c1 := &VaultConfig{
 		Enabled:              &falseValue,
@@ -64,8 +61,6 @@ func TestVaultConfig_Merge(t *testing.T) {
 }
 
 func TestVaultConfig_IsEqual(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 
 	trueValue, falseValue := true, false

@@ -300,10 +300,7 @@ func (m *monitor) monitor(evalID string) int {
 		meta := new(Meta)
 		meta.Ui = m.ui
 		cmd := &DeploymentStatusCommand{Meta: *meta}
-		status, err := cmd.monitor(m.client, dID, 0, verbose)
-		if err != nil || status != structs.DeploymentStatusSuccessful {
-			return 1
-		}
+		cmd.monitor(m.client, dID, 0, verbose)
 	}
 
 	// Treat scheduling failures specially using a dedicated exit code.

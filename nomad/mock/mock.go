@@ -34,7 +34,6 @@ func Node() *structs.Node {
 			"nomad.version":      "0.5.0",
 			"driver.exec":        "1",
 			"driver.mock_driver": "1",
-			"consul.version":     "1.11.4",
 		},
 
 		// TODO Remove once clientv2 gets merged
@@ -191,46 +190,6 @@ func HCL() string {
 `
 }
 
-func SystemBatchJob() *structs.Job {
-	job := &structs.Job{
-		Region:      "global",
-		ID:          fmt.Sprintf("mock-sysbatch-%s", uuid.Short()),
-		Name:        "my-sysbatch",
-		Namespace:   structs.DefaultNamespace,
-		Type:        structs.JobTypeSysBatch,
-		Priority:    10,
-		Datacenters: []string{"dc1"},
-		Constraints: []*structs.Constraint{
-			{
-				LTarget: "${attr.kernel.name}",
-				RTarget: "linux",
-				Operand: "=",
-			},
-		},
-		TaskGroups: []*structs.TaskGroup{{
-			Count: 1,
-			Name:  "pinger",
-			Tasks: []*structs.Task{{
-				Name:   "ping-example",
-				Driver: "exec",
-				Config: map[string]interface{}{
-					"command": "/usr/bin/ping",
-					"args":    []string{"-c", "5", "example.com"},
-				},
-				LogConfig: structs.DefaultLogConfig(),
-			}},
-		}},
-
-		Status:         structs.JobStatusPending,
-		Version:        0,
-		CreateIndex:    42,
-		ModifyIndex:    99,
-		JobModifyIndex: 99,
-	}
-	job.Canonicalize()
-	return job
-}
-
 func Job() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
@@ -252,13 +211,6 @@ func Job() *structs.Job {
 			{
 				Name:  "web",
 				Count: 10,
-				Constraints: []*structs.Constraint{
-					{
-						LTarget: "${attr.consul.version}",
-						RTarget: ">= 1.7.0",
-						Operand: structs.ConstraintSemver,
-					},
-				},
 				EphemeralDisk: &structs.EphemeralDisk{
 					SizeMB: 150,
 				},
@@ -1520,7 +1472,7 @@ func BlockedEval() *structs.Evaluation {
 }
 
 func JobSummary(jobID string) *structs.JobSummary {
-	return &structs.JobSummary{
+	js := &structs.JobSummary{
 		JobID:     jobID,
 		Namespace: structs.DefaultNamespace,
 		Summary: map[string]structs.TaskGroupSummary{
@@ -1530,19 +1482,7 @@ func JobSummary(jobID string) *structs.JobSummary {
 			},
 		},
 	}
-}
-
-func JobSysBatchSummary(jobID string) *structs.JobSummary {
-	return &structs.JobSummary{
-		JobID:     jobID,
-		Namespace: structs.DefaultNamespace,
-		Summary: map[string]structs.TaskGroupSummary{
-			"pinger": {
-				Queued:   0,
-				Starting: 0,
-			},
-		},
-	}
+	return js
 }
 
 func Alloc() *structs.Allocation {
@@ -1632,8 +1572,8 @@ func AllocWithoutReservedPort() *structs.Allocation {
 func AllocForNode(n *structs.Node) *structs.Allocation {
 	nodeIP := n.NodeResources.NodeNetworks[0].Addresses[0].Address
 
-	dynamicPortRange := structs.DefaultMaxDynamicPort - structs.DefaultMinDynamicPort
-	randomDynamicPort := rand.Intn(dynamicPortRange) + structs.DefaultMinDynamicPort
+	dynamicPortRange := structs.MaxDynamicPort - structs.MinDynamicPort
+	randomDynamicPort := rand.Intn(dynamicPortRange) + structs.MinDynamicPort
 
 	alloc := Alloc()
 	alloc.NodeID = n.ID
@@ -1654,8 +1594,8 @@ func AllocForNode(n *structs.Node) *structs.Allocation {
 func AllocForNodeWithoutReservedPort(n *structs.Node) *structs.Allocation {
 	nodeIP := n.NodeResources.NodeNetworks[0].Addresses[0].Address
 
-	dynamicPortRange := structs.DefaultMaxDynamicPort - structs.DefaultMinDynamicPort
-	randomDynamicPort := rand.Intn(dynamicPortRange) + structs.DefaultMinDynamicPort
+	dynamicPortRange := structs.MaxDynamicPort - structs.MinDynamicPort
+	randomDynamicPort := rand.Intn(dynamicPortRange) + structs.MinDynamicPort
 
 	alloc := AllocWithoutReservedPort()
 	alloc.NodeID = n.ID
@@ -1672,7 +1612,7 @@ func AllocForNodeWithoutReservedPort(n *structs.Node) *structs.Allocation {
 	return alloc
 }
 
-// ConnectAlloc adds a Connect proxy sidecar group service to mock.Alloc.
+// ConnectJob adds a Connect proxy sidecar group service to mock.Alloc.
 func ConnectAlloc() *structs.Allocation {
 	alloc := Alloc()
 	alloc.Job = ConnectJob()
@@ -1877,34 +1817,6 @@ func BatchAlloc() *structs.Allocation {
 	}
 	alloc.JobID = alloc.Job.ID
 	return alloc
-}
-
-func SysBatchAlloc() *structs.Allocation {
-	job := SystemBatchJob()
-	return &structs.Allocation{
-		ID:        uuid.Generate(),
-		EvalID:    uuid.Generate(),
-		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
-		Namespace: structs.DefaultNamespace,
-		TaskGroup: "pinger",
-		AllocatedResources: &structs.AllocatedResources{
-			Tasks: map[string]*structs.AllocatedTaskResources{
-				"ping-example": {
-					Cpu:    structs.AllocatedCpuResources{CpuShares: 500},
-					Memory: structs.AllocatedMemoryResources{MemoryMB: 256},
-					Networks: []*structs.NetworkResource{{
-						Device: "eth0",
-						IP:     "192.168.0.100",
-					}},
-				},
-			},
-			Shared: structs.AllocatedSharedResources{DiskMB: 150},
-		},
-		Job:           job,
-		JobID:         job.ID,
-		DesiredStatus: structs.AllocDesiredStatusRun,
-		ClientStatus:  structs.AllocClientStatusPending,
-	}
 }
 
 func SystemAlloc() *structs.Allocation {
@@ -2254,45 +2166,12 @@ func AllocNetworkStatus() *structs.AllocNetworkStatus {
 }
 
 func Namespace() *structs.Namespace {
-	uuid := uuid.Generate()
 	ns := &structs.Namespace{
-		Name:        fmt.Sprintf("team-%s", uuid),
-		Meta:        map[string]string{"team": uuid},
+		Name:        fmt.Sprintf("team-%s", uuid.Generate()),
 		Description: "test namespace",
 		CreateIndex: 100,
 		ModifyIndex: 200,
 	}
 	ns.SetHash()
 	return ns
-}
-
-// ServiceRegistrations generates an array containing two unique service
-// registrations.
-func ServiceRegistrations() []*structs.ServiceRegistration {
-	return []*structs.ServiceRegistration{
-		{
-			ID:          "_nomad-task-2873cf75-42e5-7c45-ca1c-415f3e18be3d-group-cache-example-cache-db",
-			ServiceName: "example-cache",
-			Namespace:   "default",
-			NodeID:      "17a6d1c0-811e-2ca9-ded0-3d5d6a54904c",
-			Datacenter:  "dc1",
-			JobID:       "example",
-			AllocID:     "2873cf75-42e5-7c45-ca1c-415f3e18be3d",
-			Tags:        []string{"foo"},
-			Address:     "192.168.10.1",
-			Port:        23000,
-		},
-		{
-			ID:          "_nomad-task-ca60e901-675a-0ab2-2e57-2f3b05fdc540-group-api-countdash-api-http",
-			ServiceName: "countdash-api",
-			Namespace:   "platform",
-			NodeID:      "ba991c17-7ce5-9c20-78b7-311e63578583",
-			Datacenter:  "dc2",
-			JobID:       "countdash-api",
-			AllocID:     "ca60e901-675a-0ab2-2e57-2f3b05fdc540",
-			Tags:        []string{"bar"},
-			Address:     "192.168.200.200",
-			Port:        29000,
-		},
-	}
 }

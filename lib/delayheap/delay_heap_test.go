@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,8 +27,6 @@ func (d *heapNodeImpl) Namespace() string {
 }
 
 func TestDelayHeap_PushPop(t *testing.T) {
-	ci.Parallel(t)
-
 	delayHeap := NewDelayHeap()
 	now := time.Now()
 	require := require.New(t)
@@ -75,8 +72,6 @@ func TestDelayHeap_PushPop(t *testing.T) {
 }
 
 func TestDelayHeap_Update(t *testing.T) {
-	ci.Parallel(t)
-	
 	delayHeap := NewDelayHeap()
 	now := time.Now()
 	require := require.New(t)

@@ -1,14 +1,14 @@
 package scheduler
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"sort"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
+	"fmt"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -17,8 +17,6 @@ import (
 )
 
 func TestSpreadIterator_SingleAttribute(t *testing.T) {
-	ci.Parallel(t)
-
 	state, ctx := testContext(t)
 	dcs := []string{"dc1", "dc2", "dc1", "dc1"}
 	var nodes []*RankedNode
@@ -177,8 +175,6 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 }
 
 func TestSpreadIterator_MultipleAttributes(t *testing.T) {
-	ci.Parallel(t)
-
 	state, ctx := testContext(t)
 	dcs := []string{"dc1", "dc2", "dc1", "dc1"}
 	rack := []string{"r1", "r1", "r2", "r2"}
@@ -280,8 +276,6 @@ func TestSpreadIterator_MultipleAttributes(t *testing.T) {
 }
 
 func TestSpreadIterator_EvenSpread(t *testing.T) {
-	ci.Parallel(t)
-
 	state, ctx := testContext(t)
 	dcs := []string{"dc1", "dc2", "dc1", "dc2", "dc1", "dc2", "dc2", "dc1", "dc1", "dc1"}
 	var nodes []*RankedNode
@@ -470,8 +464,6 @@ func TestSpreadIterator_EvenSpread(t *testing.T) {
 
 // Test scenarios where the spread iterator sets maximum penalty (-1.0)
 func TestSpreadIterator_MaxPenalty(t *testing.T) {
-	ci.Parallel(t)
-
 	state, ctx := testContext(t)
 	var nodes []*RankedNode
 
@@ -559,8 +551,6 @@ func TestSpreadIterator_MaxPenalty(t *testing.T) {
 }
 
 func Test_evenSpreadScoreBoost(t *testing.T) {
-	ci.Parallel(t)
-
 	pset := &propertySet{
 		existingValues: map[string]uint64{},
 		proposedValues: map[string]uint64{
@@ -590,7 +580,7 @@ func Test_evenSpreadScoreBoost(t *testing.T) {
 // can prevent quadratic performance but then we need this test to
 // verify we have satisfactory spread results.
 func TestSpreadOnLargeCluster(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	cases := []struct {
 		name      string
 		nodeCount int
@@ -650,7 +640,7 @@ func TestSpreadOnLargeCluster(t *testing.T) {
 	for i := range cases {
 		tc := cases[i]
 		t.Run(tc.name, func(t *testing.T) {
-			ci.Parallel(t)
+			t.Parallel()
 			h := NewHarness(t)
 			err := upsertNodes(h, tc.nodeCount, tc.racks)
 			require.NoError(t, err)
@@ -824,7 +814,6 @@ func validateEqualSpread(h *Harness) error {
 }
 
 func TestSpreadPanicDowngrade(t *testing.T) {
-	ci.Parallel(t)
 
 	h := NewHarness(t)
 
@@ -891,7 +880,6 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 	err = h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs)
-	require.NoError(t, err)
 
 	// job version 2
 	// max_parallel = 0, canary = 1, spread == nil

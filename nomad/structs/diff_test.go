@@ -5,14 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/stretchr/testify/require"
 )
 
 func TestJobDiff(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		Old, New   *Job
 		Expected   *JobDiff
@@ -1343,8 +1340,6 @@ func TestJobDiff(t *testing.T) {
 }
 
 func TestTaskGroupDiff(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		TestCase   string
 		Old, New   *TaskGroup
@@ -2843,12 +2838,6 @@ func TestTaskGroupDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeNone,
-								Name: "Address",
-								Old:  "",
-								New:  "",
-							},
-							{
-								Type: DiffTypeNone,
 								Name: "AddressMode",
 								Old:  "",
 								New:  "",
@@ -2880,12 +2869,6 @@ func TestTaskGroupDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "PortLabel",
-								Old:  "",
-								New:  "",
-							},
-							{
-								Type: DiffTypeNone,
-								Name: "Provider",
 								Old:  "",
 								New:  "",
 							},
@@ -3916,75 +3899,6 @@ func TestTaskGroupDiff(t *testing.T) {
 				},
 			},
 		},
-		{
-			TestCase: "MaxClientDisconnect added",
-			Old: &TaskGroup{
-				Name:                "foo",
-				MaxClientDisconnect: nil,
-			},
-			New: &TaskGroup{
-				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(20 * time.Second),
-			},
-			Expected: &TaskGroupDiff{
-				Type: DiffTypeEdited,
-				Name: "foo",
-				Fields: []*FieldDiff{
-					{
-						Type: DiffTypeAdded,
-						Name: "MaxClientDisconnect",
-						Old:  "",
-						New:  "20000000000",
-					},
-				},
-			},
-		},
-		{
-			TestCase: "MaxClientDisconnect updated",
-			Old: &TaskGroup{
-				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(10 * time.Second),
-			},
-			New: &TaskGroup{
-				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(20 * time.Second),
-			},
-			Expected: &TaskGroupDiff{
-				Type: DiffTypeEdited,
-				Name: "foo",
-				Fields: []*FieldDiff{
-					{
-						Type: DiffTypeEdited,
-						Name: "MaxClientDisconnect",
-						Old:  "10000000000",
-						New:  "20000000000",
-					},
-				},
-			},
-		},
-		{
-			TestCase: "MaxClientDisconnect deleted",
-			Old: &TaskGroup{
-				Name:                "foo",
-				MaxClientDisconnect: helper.TimeToPtr(10 * time.Second),
-			},
-			New: &TaskGroup{
-				Name:                "foo",
-				MaxClientDisconnect: nil,
-			},
-			Expected: &TaskGroupDiff{
-				Type: DiffTypeEdited,
-				Name: "foo",
-				Fields: []*FieldDiff{
-					{
-						Type: DiffTypeDeleted,
-						Name: "MaxClientDisconnect",
-						Old:  "10000000000",
-						New:  "",
-					},
-				},
-			},
-		},
 	}
 
 	for i, c := range cases {
@@ -4004,8 +3918,6 @@ func TestTaskGroupDiff(t *testing.T) {
 }
 
 func TestTaskDiff(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		Name       string
 		Old, New   *Task
@@ -4547,7 +4459,7 @@ func TestTaskDiff(t *testing.T) {
 			New: &Task{
 				Artifacts: []*TaskArtifact{
 					{
-						GetterSource: "foo/bar",
+						GetterSource: "foo",
 						GetterOptions: map[string]string{
 							"foo": "bar",
 						},
@@ -4570,18 +4482,6 @@ func TestTaskDiff(t *testing.T) {
 			Expected: &TaskDiff{
 				Type: DiffTypeEdited,
 				Objects: []*ObjectDiff{
-					{
-						Type: DiffTypeEdited,
-						Name: "Artifact",
-						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeEdited,
-								Name: "GetterSource",
-								Old:  "foo",
-								New:  "foo/bar",
-							},
-						},
-					},
 					{
 						Type: DiffTypeAdded,
 						Name: "Artifact",
@@ -5642,7 +5542,6 @@ func TestTaskDiff(t *testing.T) {
 						Name:        "foo",
 						PortLabel:   "bar",
 						AddressMode: "driver",
-						Address:     "a.example.com",
 						TaskName:    "task1",
 					},
 				},
@@ -5654,12 +5553,6 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "Service",
 						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeAdded,
-								Name: "Address",
-								Old:  "",
-								New:  "a.example.com",
-							},
 							{
 								Type: DiffTypeAdded,
 								Name: "AddressMode",
@@ -5695,10 +5588,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "PortLabel",
 								Old:  "foo",
 								New:  "bar",
-							},
-							{
-								Type: DiffTypeNone,
-								Name: "Provider",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -5820,10 +5709,6 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeNone,
-								Name: "Address",
-							},
-							{
-								Type: DiffTypeNone,
 								Name: "AddressMode",
 							},
 							{
@@ -5847,10 +5732,6 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "PortLabel",
-							},
-							{
-								Type: DiffTypeNone,
-								Name: "Provider",
 							},
 							{
 								Type: DiffTypeNone,
@@ -6339,12 +6220,6 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeNone,
-								Name: "Address",
-								Old:  "",
-								New:  "",
-							},
-							{
-								Type: DiffTypeNone,
 								Name: "AddressMode",
 								Old:  "",
 								New:  "",
@@ -6376,10 +6251,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "PortLabel",
 								Old:  "",
 								New:  "",
-							},
-							{
-								Type: DiffTypeNone,
-								Name: "Provider",
 							},
 							{
 								Type: DiffTypeNone,
@@ -7025,10 +6896,6 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP",
 						Splay:        1,
 						Perms:        "0644",
-						Wait: &WaitConfig{
-							Min: helper.TimeToPtr(5 * time.Second),
-							Max: helper.TimeToPtr(5 * time.Second),
-						},
 					},
 					{
 						SourcePath:   "foo2",
@@ -7047,15 +6914,11 @@ func TestTaskDiff(t *testing.T) {
 					{
 						SourcePath:   "foo",
 						DestPath:     "bar",
-						EmbeddedTmpl: "baz new",
+						EmbeddedTmpl: "baz",
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
 						Splay:        1,
 						Perms:        "0644",
-						Wait: &WaitConfig{
-							Min: helper.TimeToPtr(5 * time.Second),
-							Max: helper.TimeToPtr(10 * time.Second),
-						},
 					},
 					{
 						SourcePath:   "foo3",
@@ -7065,42 +6928,12 @@ func TestTaskDiff(t *testing.T) {
 						ChangeSignal: "SIGHUP3",
 						Splay:        3,
 						Perms:        "0776",
-						Wait: &WaitConfig{
-							Min: helper.TimeToPtr(5 * time.Second),
-							Max: helper.TimeToPtr(10 * time.Second),
-						},
 					},
 				},
 			},
 			Expected: &TaskDiff{
 				Type: DiffTypeEdited,
 				Objects: []*ObjectDiff{
-					{
-						Type: DiffTypeEdited,
-						Name: "Template",
-						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeEdited,
-								Name: "EmbeddedTmpl",
-								Old:  "baz",
-								New:  "baz new",
-							},
-						},
-						Objects: []*ObjectDiff{
-							{
-								Type: DiffTypeEdited,
-								Name: "Template",
-								Fields: []*FieldDiff{
-									{
-										Type: DiffTypeEdited,
-										Name: "Max",
-										Old:  "5000000000",
-										New:  "10000000000",
-									},
-								},
-							},
-						},
-					},
 					{
 						Type: DiffTypeAdded,
 						Name: "Template",
@@ -7158,26 +6991,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "VaultGrace",
 								Old:  "",
 								New:  "0",
-							},
-						},
-						Objects: []*ObjectDiff{
-							{
-								Type: DiffTypeAdded,
-								Name: "Template",
-								Fields: []*FieldDiff{
-									{
-										Type: DiffTypeAdded,
-										Name: "Max",
-										Old:  "",
-										New:  "10000000000",
-									},
-									{
-										Type: DiffTypeAdded,
-										Name: "Min",
-										Old:  "",
-										New:  "5000000000",
-									},
-								},
 							},
 						},
 					},
@@ -7360,8 +7173,10 @@ func TestTaskDiff(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
+	for i, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
+			t.Logf("running case: %d %v", i, c.Name)
+
 			actual, err := c.Old.Diff(c.New, c.Contextual)
 			if c.Error {
 				require.Error(t, err)
@@ -7369,529 +7184,6 @@ func TestTaskDiff(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, c.Expected, actual)
 			}
-		})
-	}
-}
-
-func TestServicesDiff(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		Name       string
-		Old, New   []*Service
-		Expected   []*ObjectDiff
-		Contextual bool
-	}{
-		{
-			Name:       "No changes - empty",
-			Contextual: true,
-			Old:        []*Service{},
-			New:        []*Service{},
-			Expected:   nil,
-		},
-		{
-			Name:       "No changes",
-			Contextual: true,
-			Old: []*Service{
-				{
-					Name:      "webapp",
-					PortLabel: "http",
-				},
-			},
-			New: []*Service{
-				{
-					Name:      "webapp",
-					PortLabel: "http",
-				},
-			},
-			Expected: nil,
-		},
-		{
-			Name:       "Detect changes",
-			Contextual: true,
-			Old: []*Service{
-				{
-					Name:              "webapp",
-					PortLabel:         "http",
-					AddressMode:       "host",
-					Address:           "a.example.com",
-					EnableTagOverride: true,
-					Tags:              []string{"prod"},
-					CanaryTags:        []string{"canary"},
-				},
-			},
-			New: []*Service{
-				{
-					Name:              "webapp-2",
-					PortLabel:         "https",
-					AddressMode:       "alloc",
-					Address:           "b.example.com",
-					EnableTagOverride: false,
-					Tags:              []string{"prod", "dev"},
-					CanaryTags:        []string{"qa"},
-				},
-			},
-			Expected: []*ObjectDiff{
-				{
-					Type: DiffTypeEdited,
-					Name: "Service",
-					Fields: []*FieldDiff{
-						{
-							Type: DiffTypeEdited,
-							Name: "Address",
-							Old:  "a.example.com",
-							New:  "b.example.com",
-						},
-						{
-							Type: DiffTypeEdited,
-							Name: "AddressMode",
-							Old:  "host",
-							New:  "alloc",
-						},
-						{
-							Type: DiffTypeEdited,
-							Name: "EnableTagOverride",
-							Old:  "true",
-							New:  "false",
-						},
-						{
-							Type: DiffTypeEdited,
-							Name: "Name",
-							Old:  "webapp",
-							New:  "webapp-2",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "Namespace",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "OnUpdate",
-						},
-						{
-							Type: DiffTypeEdited,
-							Name: "PortLabel",
-							Old:  "http",
-							New:  "https",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "Provider",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "TaskName",
-						},
-					},
-					Objects: []*ObjectDiff{
-						{
-							Type: DiffTypeEdited,
-							Name: "CanaryTags",
-							Fields: []*FieldDiff{
-								{
-									Type: DiffTypeAdded,
-									Name: "CanaryTags",
-									New:  "qa",
-								},
-								{
-									Type: DiffTypeDeleted,
-									Name: "CanaryTags",
-									Old:  "canary",
-								},
-							},
-						},
-						{
-							Type: DiffTypeAdded,
-							Name: "Tags",
-							Fields: []*FieldDiff{
-								{
-									Type: DiffTypeAdded,
-									Name: "Tags",
-									New:  "dev",
-								},
-								{
-									Type: DiffTypeNone,
-									Name: "Tags",
-									Old:  "prod",
-									New:  "prod",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			Name:       "Service added",
-			Contextual: true,
-			Old:        []*Service{},
-			New: []*Service{
-				{
-					Name:      "webapp",
-					PortLabel: "http",
-				},
-			},
-			Expected: []*ObjectDiff{
-				{
-					Type: DiffTypeAdded,
-					Name: "Service",
-					Fields: []*FieldDiff{
-						{
-							Type: DiffTypeNone,
-							Name: "Address",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "AddressMode",
-						},
-						{
-							Type: DiffTypeAdded,
-							Name: "EnableTagOverride",
-							New:  "false",
-						},
-						{
-							Type: DiffTypeAdded,
-							Name: "Name",
-							New:  "webapp",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "Namespace",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "OnUpdate",
-						},
-						{
-							Type: DiffTypeAdded,
-							Name: "PortLabel",
-							New:  "http",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "Provider",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "TaskName",
-						},
-					},
-				},
-			},
-		},
-		{
-			Name:       "Service added with same name",
-			Contextual: true,
-			Old: []*Service{
-				{
-					Name:      "webapp",
-					PortLabel: "http",
-				},
-			},
-			New: []*Service{
-				{
-					Name:      "webapp",
-					PortLabel: "https",
-				},
-				{
-					Name:      "webapp",
-					PortLabel: "http",
-				},
-			},
-			Expected: []*ObjectDiff{
-				{
-					Type: DiffTypeAdded,
-					Name: "Service",
-					Fields: []*FieldDiff{
-						{
-							Type: DiffTypeNone,
-							Name: "Address",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "AddressMode",
-						},
-						{
-							Type: DiffTypeAdded,
-							Name: "EnableTagOverride",
-							New:  "false",
-						},
-						{
-							Type: DiffTypeAdded,
-							Name: "Name",
-							New:  "webapp",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "Namespace",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "OnUpdate",
-						},
-						{
-							Type: DiffTypeAdded,
-							Name: "PortLabel",
-							New:  "https",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "Provider",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "TaskName",
-						},
-					},
-				},
-			},
-		},
-		{
-			Name:       "Modify port label of service with same name",
-			Contextual: true,
-			Old: []*Service{
-				{
-					Name:      "webapp",
-					PortLabel: "http",
-				},
-				{
-					Name:      "webapp",
-					PortLabel: "https",
-				},
-			},
-			New: []*Service{
-				{
-					Name:      "webapp",
-					PortLabel: "https-redirect",
-				},
-				{
-					Name:      "webapp",
-					PortLabel: "https",
-				},
-			},
-			Expected: []*ObjectDiff{
-				{
-					Type: DiffTypeEdited,
-					Name: "Service",
-					Fields: []*FieldDiff{
-						{
-							Type: DiffTypeNone,
-							Name: "Address",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "AddressMode",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "EnableTagOverride",
-							Old:  "false",
-							New:  "false",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "Name",
-							Old:  "webapp",
-							New:  "webapp",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "Namespace",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "OnUpdate",
-						},
-						{
-							Type: DiffTypeEdited,
-							Name: "PortLabel",
-							Old:  "http",
-							New:  "https-redirect",
-						}, {
-							Type: DiffTypeNone,
-							Name: "Provider",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "TaskName",
-						},
-					},
-				},
-			},
-		},
-		{
-			Name:       "Modify similar services",
-			Contextual: true,
-			Old: []*Service{
-				{
-					Name:      "webapp",
-					PortLabel: "http",
-					Tags:      []string{"prod"},
-				},
-				{
-					Name:      "webapp",
-					PortLabel: "http",
-					Tags:      []string{"dev"},
-				},
-			},
-			New: []*Service{
-				{
-					Name:      "webapp",
-					PortLabel: "http",
-					Tags:      []string{"prod", "qa"},
-				},
-				{
-					Name:      "webapp",
-					PortLabel: "http",
-					Tags:      []string{"dev"},
-				},
-			},
-			Expected: []*ObjectDiff{
-				{
-					Type: DiffTypeEdited,
-					Name: "Service",
-					Fields: []*FieldDiff{
-						{
-							Type: DiffTypeNone,
-							Name: "Address",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "AddressMode",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "EnableTagOverride",
-							Old:  "false",
-							New:  "false",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "Name",
-							Old:  "webapp",
-							New:  "webapp",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "Namespace",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "OnUpdate",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "PortLabel",
-							Old:  "http",
-							New:  "http",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "Provider",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "TaskName",
-						},
-					},
-					Objects: []*ObjectDiff{
-						{
-							Type: DiffTypeAdded,
-							Name: "Tags",
-							Fields: []*FieldDiff{
-								{
-									Type: DiffTypeAdded,
-									Name: "Tags",
-									New:  "qa",
-								},
-								{
-									Type: DiffTypeNone,
-									Name: "Tags",
-									Old:  "prod",
-									New:  "prod",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			Name:       "Service with different provider",
-			Contextual: true,
-			Old: []*Service{
-				{
-					Name:      "webapp",
-					Provider:  "nomad",
-					PortLabel: "http",
-				},
-			},
-			New: []*Service{
-				{
-					Name:      "webapp",
-					Provider:  "consul",
-					PortLabel: "http",
-				},
-			},
-			Expected: []*ObjectDiff{
-				{
-					Type: DiffTypeEdited,
-					Name: "Service",
-					Fields: []*FieldDiff{
-						{
-							Type: DiffTypeNone,
-							Name: "Address",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "AddressMode",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "EnableTagOverride",
-							Old:  "false",
-							New:  "false",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "Name",
-							Old:  "webapp",
-							New:  "webapp",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "Namespace",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "OnUpdate",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "PortLabel",
-							Old:  "http",
-							New:  "http",
-						},
-						{
-							Type: DiffTypeEdited,
-							Name: "Provider",
-							Old:  "nomad",
-							New:  "consul",
-						},
-						{
-							Type: DiffTypeNone,
-							Name: "TaskName",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			actual := serviceDiffs(c.Old, c.New, c.Contextual)
-			require.Equal(t, c.Expected, actual)
 		})
 	}
 }

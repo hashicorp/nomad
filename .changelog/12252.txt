@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: make buttons with confirmation more descriptive of their actions
-```

@@ -13,7 +13,7 @@ type AllocRestartCommand struct {
 	Meta
 }
 
-func (c *AllocRestartCommand) Help() string {
+func (a *AllocRestartCommand) Help() string {
 	helpText := `
 Usage: nomad alloc restart [options] <allocation> <task>
 
@@ -153,7 +153,7 @@ func validateTaskExistsInAllocation(taskName string, alloc *api.Allocation) erro
 	return fmt.Errorf("Could not find task named: %s, found:\n%s", taskName, formatList(foundTaskNames))
 }
 
-func (c *AllocRestartCommand) Synopsis() string {
+func (a *AllocRestartCommand) Synopsis() string {
 	return "Restart a running allocation"
 }
 

@@ -4,10 +4,7 @@ import { task, timeout } from 'ember-concurrency';
 import { assert } from '@ember/debug';
 import { inject as service } from '@ember/service';
 import { action, get } from '@ember/object';
-import {
-  formatScheduledBytes,
-  formatScheduledHertz,
-} from 'nomad-ui/utils/units';
+import { formatScheduledBytes, formatScheduledHertz } from 'nomad-ui/utils/units';
 
 export default class NodePrimaryMetric extends Component {
   @service('stats-trackers-registry') statsTrackersRegistry;
@@ -67,7 +64,7 @@ export default class NodePrimaryMetric extends Component {
     return [];
   }
 
-  @task(function* () {
+  @task(function*() {
     do {
       this.tracker.poll.perform();
       yield timeout(100);
@@ -81,7 +78,6 @@ export default class NodePrimaryMetric extends Component {
   }
 
   willDestroy() {
-    super.willDestroy(...arguments);
     this.poller.cancelAll();
     this.tracker.signalPause.perform();
   }

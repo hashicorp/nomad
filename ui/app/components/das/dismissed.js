@@ -4,8 +4,7 @@ import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
 
 export default class DasDismissedComponent extends Component {
-  @localStorageProperty('nomadRecommendationDismssalUnderstood', false)
-  explanationUnderstood;
+  @localStorageProperty('nomadRecommendationDismssalUnderstood', false) explanationUnderstood;
 
   @tracked dismissInTheFuture = false;
 

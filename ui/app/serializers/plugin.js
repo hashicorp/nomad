@@ -1,5 +1,4 @@
 import ApplicationSerializer from './application';
-import classic from 'ember-classic-decorator';
 
 // Convert a map[string]interface{} into an array of objects
 // where the key becomes a property at propKey.
@@ -9,13 +8,12 @@ import classic from 'ember-classic-decorator';
 const unmap = (hash, propKey) =>
   Object.keys(hash)
     .sort()
-    .map((key) => {
+    .map(key => {
       const record = hash[key];
       record[propKey] = key;
       return record;
     });
 
-@classic
 export default class Plugin extends ApplicationSerializer {
   normalize(typeHash, hash) {
     hash.PlainId = hash.ID;

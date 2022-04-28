@@ -7,14 +7,13 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/creack/pty"
-	"github.com/hashicorp/nomad/ci"
+	"github.com/kr/pty"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMeta_FlagSet(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	cases := []struct {
 		Flags    FlagSetFlags
 		Expected []string
@@ -28,7 +27,6 @@ func TestMeta_FlagSet(t *testing.T) {
 			[]string{
 				"address",
 				"no-color",
-				"force-color",
 				"region",
 				"namespace",
 				"ca-cert",
@@ -62,8 +60,6 @@ func TestMeta_FlagSet(t *testing.T) {
 }
 
 func TestMeta_Colorize(t *testing.T) {
-	ci.Parallel(t)
-
 	type testCaseSetupFn func(*testing.T, *Meta)
 
 	cases := []struct {
@@ -85,45 +81,11 @@ func TestMeta_Colorize(t *testing.T) {
 		{
 			Name: "disable colors via CLI flag",
 			SetupFn: func(t *testing.T, m *Meta) {
-				m.SetupUi([]string{"-no-color"})
-			},
-			ExpectColor: false,
-		},
-		{
-			Name: "disable colors via env var",
-			SetupFn: func(t *testing.T, m *Meta) {
-				setEnv(t, EnvNomadCLINoColor, "1")
-				m.SetupUi([]string{})
-			},
-			ExpectColor: false,
-		},
-		{
-			Name: "force colors via CLI flag",
-			SetupFn: func(t *testing.T, m *Meta) {
-				m.SetupUi([]string{"-force-color"})
-			},
-			ExpectColor: true,
-		},
-		{
-			Name: "force colors via env var",
-			SetupFn: func(t *testing.T, m *Meta) {
-				setEnv(t, EnvNomadCLIForceColor, "1")
-				m.SetupUi([]string{})
-			},
-			ExpectColor: true,
-		},
-		{
-			Name: "no color take predecence over force color via CLI flag",
-			SetupFn: func(t *testing.T, m *Meta) {
-				m.SetupUi([]string{"-no-color", "-force-color"})
-			},
-			ExpectColor: false,
-		},
-		{
-			Name: "no color take predecence over force color via env var",
-			SetupFn: func(t *testing.T, m *Meta) {
-				setEnv(t, EnvNomadCLINoColor, "1")
-				m.SetupUi([]string{"-force-color"})
+				m.Ui = &cli.ColoredUi{}
+
+				fs := m.FlagSet("colorize_test", FlagSetDefault)
+				err := fs.Parse([]string{"-no-color"})
+				assert.NoError(t, err)
 			},
 			ExpectColor: false,
 		},
@@ -133,16 +95,14 @@ func TestMeta_Colorize(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			// Create fake test terminal.
 			_, tty, err := pty.Open()
-			require.NoError(t, err)
+			if err != nil {
+				t.Fatalf("%v", err)
+			}
 			defer tty.Close()
 
 			oldStdout := os.Stdout
 			defer func() { os.Stdout = oldStdout }()
 			os.Stdout = tty
-
-			// Make sure color related environment variables are clean.
-			setEnv(t, EnvNomadCLIForceColor, "")
-			setEnv(t, EnvNomadCLINoColor, "")
 
 			// Run test case.
 			m := &Meta{}
@@ -150,7 +110,11 @@ func TestMeta_Colorize(t *testing.T) {
 				tc.SetupFn(t, m)
 			}
 
-			require.Equal(t, !tc.ExpectColor, m.Colorize().Disable)
+			if tc.ExpectColor {
+				assert.False(t, m.Colorize().Disable)
+			} else {
+				assert.True(t, m.Colorize().Disable)
+			}
 		})
 	}
 }

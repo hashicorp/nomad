@@ -3,7 +3,6 @@ package taskrunner
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -17,8 +16,6 @@ import (
 )
 
 func TestVolumeHook_PartitionMountsByVolume_Works(t *testing.T) {
-	ci.Parallel(t)
-
 	mounts := []*structs.VolumeMount{
 		{
 			Volume:      "foo",
@@ -71,7 +68,6 @@ func TestVolumeHook_PartitionMountsByVolume_Works(t *testing.T) {
 }
 
 func TestVolumeHook_prepareCSIVolumes(t *testing.T) {
-	ci.Parallel(t)
 
 	req := &interfaces.TaskPrestartRequest{
 		Task: &structs.Task{
@@ -161,7 +157,6 @@ func TestVolumeHook_prepareCSIVolumes(t *testing.T) {
 }
 
 func TestVolumeHook_Interpolation(t *testing.T) {
-	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]

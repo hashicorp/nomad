@@ -4,10 +4,6 @@ $running: $primary;
 $complete: $nomad-green-dark;
 $failed: $danger;
 $lost: $dark;
-$not-scheduled: $blue-200;
-$degraded: $warning;
-$blocked: $danger;
-$canceled: $dark;
 
 .chart {
   .queued {
@@ -40,18 +36,6 @@ $canceled: $dark;
 
   .lost {
     fill: $lost;
-  }
-
-  .not-scheduled {
-    fill: $not-scheduled;
-  }
-
-  .degraded {
-    fill: $degraded;
-  }
-
-  .unknown {
-    fill: $unknown;
   }
 }
 
@@ -116,26 +100,6 @@ $canceled: $dark;
 
   &.lost {
     background: $lost;
-  }
-
-  &.unknown {
-    background: $unknown;
-  }
-
-  &.not-scheduled {
-    background: $not-scheduled;
-  }
-
-  &.degraded {
-    background: $degraded;
-  }
-
-  &.canceled {
-    background: $canceled;
-  }
-
-  &.blocked {
-    background: $blocked;
   }
 
   @each $name, $pair in $colors {

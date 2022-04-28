@@ -3,7 +3,6 @@ package consul
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,7 +14,7 @@ var (
 )
 
 func TestSelf_SKU(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	t.Run("oss", func(t *testing.T) {
 		s, ok := SKU(Self{
@@ -65,7 +64,7 @@ func TestSelf_SKU(t *testing.T) {
 }
 
 func TestSelf_Namespaces(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	t.Run("supports namespaces", func(t *testing.T) {
 		enabled := Namespaces(Self{

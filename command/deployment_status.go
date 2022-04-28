@@ -181,11 +181,11 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 	return 0
 }
 
-func (c *DeploymentStatusCommand) monitor(client *api.Client, deployID string, index uint64, verbose bool) (status string, err error) {
+func (c *DeploymentStatusCommand) monitor(client *api.Client, deployID string, index uint64, verbose bool) {
 	if isStdoutTerminal() {
-		return c.ttyMonitor(client, deployID, index, verbose)
+		c.ttyMonitor(client, deployID, index, verbose)
 	} else {
-		return c.defaultMonitor(client, deployID, index, verbose)
+		c.defaultMonitor(client, deployID, index, verbose)
 	}
 }
 
@@ -208,7 +208,7 @@ func isStdoutTerminal() bool {
 // but only used for tty and non-Windows machines since glint doesn't work with
 // cmd/PowerShell and non-interactive interfaces
 // Margins are used to match the text alignment from job run
-func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string, index uint64, verbose bool) (status string, err error) {
+func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string, index uint64, verbose bool) {
 	var length int
 	if verbose {
 		length = fullId
@@ -242,9 +242,7 @@ func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string
 
 UPDATE:
 	for {
-		var deploy *api.Deployment
-		var meta *api.QueryMeta
-		deploy, meta, err = client.Deployments().Info(deployID, &q)
+		deploy, meta, err := client.Deployments().Info(deployID, &q)
 		if err != nil {
 			d.Append(glint.Layout(glint.Style(
 				glint.Text(fmt.Sprintf("%s: Error fetching deployment", formatTime(time.Now()))),
@@ -254,7 +252,7 @@ UPDATE:
 			return
 		}
 
-		status = deploy.Status
+		status := deploy.Status
 		statusComponent = glint.Layout(
 			glint.Text(""),
 			glint.Text(formatTime(time.Now())),
@@ -311,8 +309,7 @@ UPDATE:
 
 				// Wait for rollback to launch
 				time.Sleep(1 * time.Second)
-				var rollback *api.Deployment
-				rollback, _, err = client.Jobs().LatestDeployment(deploy.JobID, nil)
+				rollback, _, err := client.Jobs().LatestDeployment(deploy.JobID, nil)
 
 				if err != nil {
 					d.Append(glint.Layout(glint.Style(
@@ -345,7 +342,7 @@ UPDATE:
 				glint.Text(fmt.Sprintf("✓ Deployment %q %s", limit(deployID, length), status)),
 			).Row().MarginLeft(2)
 			break UPDATE
-		case structs.DeploymentStatusCancelled, structs.DeploymentStatusBlocked:
+		case structs.DeploymentStatusCancelled, structs.DeploymentStatusDescriptionBlocked:
 			endSpinner = glint.Layout(
 				glint.Text(fmt.Sprintf("! Deployment %q %s", limit(deployID, length), status)),
 			).Row().MarginLeft(2)
@@ -358,11 +355,10 @@ UPDATE:
 	// Render one final time with completion message
 	d.Set(endSpinner, statusComponent, glint.Text(""))
 	d.RenderFrame()
-	return
 }
 
 // Used for Windows and non-tty
-func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID string, index uint64, verbose bool) (status string, err error) {
+func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID string, index uint64, verbose bool) {
 	writer := uilive.New()
 	writer.Start()
 	defer writer.Stop()
@@ -381,15 +377,13 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 	}
 
 	for {
-		var deploy *api.Deployment
-		var meta *api.QueryMeta
-		deploy, meta, err = client.Deployments().Info(deployID, &q)
+		deploy, meta, err := client.Deployments().Info(deployID, &q)
 		if err != nil {
 			c.Ui.Error(c.Colorize().Color(fmt.Sprintf("%s: Error fetching deployment", formatTime(time.Now()))))
 			return
 		}
 
-		status = deploy.Status
+		status := deploy.Status
 		info := formatTime(time.Now())
 		info += fmt.Sprintf("\n%s", formatDeployment(client, deploy, length))
 
@@ -419,8 +413,7 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 			if hasAutoRevert(deploy) {
 				// Wait for rollback to launch
 				time.Sleep(1 * time.Second)
-				var rollback *api.Deployment
-				rollback, _, err = client.Jobs().LatestDeployment(deploy.JobID, nil)
+				rollback, _, err := client.Jobs().LatestDeployment(deploy.JobID, nil)
 
 				// Separate rollback monitoring from failed deployment
 				// Needs to be after time.Sleep or it messes up the formatting
@@ -443,7 +436,7 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 			}
 			return
 
-		case structs.DeploymentStatusSuccessful, structs.DeploymentStatusCancelled, structs.DeploymentStatusBlocked:
+		case structs.DeploymentStatusSuccessful, structs.DeploymentStatusCancelled, structs.DeploymentStatusDescriptionBlocked:
 			return
 		default:
 			q.WaitIndex = meta.LastIndex

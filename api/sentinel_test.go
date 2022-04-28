@@ -1,4 +1,3 @@
-//go:build ent
 // +build ent
 
 package api
@@ -6,12 +5,11 @@ package api
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSentinelPolicies_ListUpsert(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.SentinelPolicies()
@@ -52,7 +50,7 @@ func TestSentinelPolicies_ListUpsert(t *testing.T) {
 }
 
 func TestSentinelPolicies_Delete(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.SentinelPolicies()
@@ -86,7 +84,7 @@ func TestSentinelPolicies_Delete(t *testing.T) {
 }
 
 func TestSentinelPolicies_Info(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.SentinelPolicies()

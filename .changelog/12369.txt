@@ -1,3 +1,0 @@
-```release-note:bug
-server: Write peers.json file with correct permissions
-```

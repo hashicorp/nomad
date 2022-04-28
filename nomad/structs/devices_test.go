@@ -3,7 +3,6 @@ package structs
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/require"
@@ -55,8 +54,6 @@ func devNode() *Node {
 
 // Make sure that the device accounter works even if the node has no devices
 func TestDeviceAccounter_AddAllocs_NoDeviceNode(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	n := MockNode()
 	d := NewDeviceAccounter(n)
@@ -74,8 +71,6 @@ func TestDeviceAccounter_AddAllocs_NoDeviceNode(t *testing.T) {
 
 // Add allocs to a node with a device
 func TestDeviceAccounter_AddAllocs(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	n := devNode()
 	d := NewDeviceAccounter(n)
@@ -114,8 +109,6 @@ func TestDeviceAccounter_AddAllocs(t *testing.T) {
 // operate on previous allocs even if the device has changed to unhealthy and we
 // don't track it
 func TestDeviceAccounter_AddAllocs_UnknownID(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	n := devNode()
 	d := NewDeviceAccounter(n)
@@ -144,8 +137,6 @@ func TestDeviceAccounter_AddAllocs_UnknownID(t *testing.T) {
 
 // Test that collision detection works
 func TestDeviceAccounter_AddAllocs_Collision(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	n := devNode()
 	d := NewDeviceAccounter(n)
@@ -164,8 +155,6 @@ func TestDeviceAccounter_AddAllocs_Collision(t *testing.T) {
 
 // Make sure that the device allocator works even if the node has no devices
 func TestDeviceAccounter_AddReserved_NoDeviceNode(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	n := MockNode()
 	d := NewDeviceAccounter(n)
@@ -177,8 +166,6 @@ func TestDeviceAccounter_AddReserved_NoDeviceNode(t *testing.T) {
 
 // Add reserved to a node with a device
 func TestDeviceAccounter_AddReserved(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	n := devNode()
 	d := NewDeviceAccounter(n)
@@ -210,8 +197,6 @@ func TestDeviceAccounter_AddReserved(t *testing.T) {
 
 // Test that collision detection works
 func TestDeviceAccounter_AddReserved_Collision(t *testing.T) {
-	ci.Parallel(t)
-	
 	require := require.New(t)
 	n := devNode()
 	d := NewDeviceAccounter(n)

@@ -60,19 +60,20 @@ volume. This has implications on how to deploy CSI plugins:
 
 * If you are stopping jobs on a node, you must stop tasks that claim
   volumes before stopping the `node` or `monolith` plugin for those
-  volumes. If you use the `node drain` feature, plugin tasks will
-  automatically be drained last.
+  volumes. You should run `node` or `monolith` plugins as
+  [`system`][system] jobs and use the `-ignore-system` flag on `nomad
+  node drain` to ensure that the plugins are running while the node is
+  being drained.
 
-* Only the most recently-placed allocation for a given plugin ID and
-  type (controller or node) will be used by any given client node. Run
-  `node` plugins as system jobs and distribute `controller` plugins
-  across client nodes using a constraint as shown below.
+* Only one plugin instance of a given plugin ID and type (controller or node)
+  should be deployed on any given client node. Use a constraint as shown
+  below.
 
 * Some plugins will create volumes only in the same location as the
-  plugin. For example, the AWS EBS plugin will create and mount
-  volumes only within the same Availability Zone. You should configure
-  your plugin task as recommended by the plugin's documentation to use
-  the [`topology_request`] field in your volume specification.
+  plugin. For example, the AWS EBS plugin will create and mount volumes only
+  within the same Availability Zone. You should deploy these plugins with a
+  unique-per-AZ `plugin_id` to allow Nomad to place allocations in the correct
+  AZ.
 
 ## `csi_plugin` Examples
 
@@ -124,4 +125,3 @@ job "plugin-efs" {
 [csi]: https://github.com/container-storage-interface/spec
 [csi_volumes]: /docs/job-specification/volume
 [system]: /docs/schedulers#system
-[`topology_request`]: /docs/commands/volume/create#topology_request

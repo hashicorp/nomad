@@ -10,7 +10,6 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -21,7 +20,7 @@ import (
 )
 
 func TestEvalEndpoint_GetEval(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -30,64 +29,40 @@ func TestEvalEndpoint_GetEval(t *testing.T) {
 
 	// Create the register request
 	eval1 := mock.Eval()
-	eval2 := mock.Eval()
+	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
 
-	// Link the evals
-	eval1.NextEval = eval2.ID
-	eval2.PreviousEval = eval1.ID
+	// Lookup the eval
+	get := &structs.EvalSpecificRequest{
+		EvalID:       eval1.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var resp structs.SingleEvalResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index != 1000 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 1000)
+	}
 
-	err := s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
-	require.NoError(t, err)
+	if !reflect.DeepEqual(eval1, resp.Eval) {
+		t.Fatalf("bad: %#v %#v", eval1, resp.Eval)
+	}
 
-	t.Run("lookup eval", func(t *testing.T) {
-		get := &structs.EvalSpecificRequest{
-			EvalID:       eval1.ID,
-			QueryOptions: structs.QueryOptions{Region: "global"},
-		}
-		var resp structs.SingleEvalResponse
-		err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp)
-		require.NoError(t, err)
-		require.EqualValues(t, 1000, resp.Index, "bad index")
-		require.Equal(t, eval1, resp.Eval)
-	})
-
-	t.Run("lookup non-existing eval", func(t *testing.T) {
-		get := &structs.EvalSpecificRequest{
-			EvalID:       uuid.Generate(),
-			QueryOptions: structs.QueryOptions{Region: "global"},
-		}
-		var resp structs.SingleEvalResponse
-		err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp)
-		require.NoError(t, err)
-		require.EqualValues(t, 1000, resp.Index, "bad index")
-		require.Nil(t, resp.Eval, "unexpected eval")
-	})
-
-	t.Run("lookup related evals", func(t *testing.T) {
-		get := &structs.EvalSpecificRequest{
-			EvalID:         eval1.ID,
-			QueryOptions:   structs.QueryOptions{Region: "global"},
-			IncludeRelated: true,
-		}
-		var resp structs.SingleEvalResponse
-		err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp)
-		require.NoError(t, err)
-		require.EqualValues(t, 1000, resp.Index, "bad index")
-		require.Equal(t, eval1.ID, resp.Eval.ID)
-
-		// Make sure we didn't modify the eval on a read request.
-		require.Nil(t, eval1.RelatedEvals)
-
-		// Check for the related evals
-		expected := []*structs.EvaluationStub{
-			eval2.Stub(),
-		}
-		require.Equal(t, expected, resp.Eval.RelatedEvals)
-	})
+	// Lookup non-existing node
+	get.EvalID = uuid.Generate()
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index != 1000 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 1000)
+	}
+	if resp.Eval != nil {
+		t.Fatalf("unexpected eval")
+	}
 }
 
 func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -148,7 +123,7 @@ func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
 }
 
 func TestEvalEndpoint_GetEval_Blocking(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -227,7 +202,7 @@ func TestEvalEndpoint_GetEval_Blocking(t *testing.T) {
 }
 
 func TestEvalEndpoint_Dequeue(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -272,7 +247,7 @@ func TestEvalEndpoint_Dequeue(t *testing.T) {
 // TestEvalEndpoint_Dequeue_WaitIndex_Snapshot asserts that an eval's wait
 // index will be equal to the highest eval modify index in the state store.
 func TestEvalEndpoint_Dequeue_WaitIndex_Snapshot(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -323,7 +298,7 @@ func TestEvalEndpoint_Dequeue_WaitIndex_Snapshot(t *testing.T) {
 // indexes in the state store. This can happen if Dequeue receives an eval that
 // has not yet been applied from the Raft log to the local node's state store.
 func TestEvalEndpoint_Dequeue_WaitIndex_Eval(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -362,7 +337,7 @@ func TestEvalEndpoint_Dequeue_WaitIndex_Eval(t *testing.T) {
 
 func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {
 	// test enqueuing an eval, updating a plan result for the same eval and de-queueing the eval
-	ci.Parallel(t)
+	t.Parallel()
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -428,7 +403,7 @@ func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {
 }
 
 func TestEvalEndpoint_Dequeue_Version_Mismatch(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -455,7 +430,7 @@ func TestEvalEndpoint_Dequeue_Version_Mismatch(t *testing.T) {
 }
 
 func TestEvalEndpoint_Ack(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -496,7 +471,7 @@ func TestEvalEndpoint_Ack(t *testing.T) {
 }
 
 func TestEvalEndpoint_Nack(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		// Disable all of the schedulers so we can manually dequeue
@@ -550,7 +525,7 @@ func TestEvalEndpoint_Nack(t *testing.T) {
 }
 
 func TestEvalEndpoint_Update(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -599,7 +574,7 @@ func TestEvalEndpoint_Update(t *testing.T) {
 }
 
 func TestEvalEndpoint_Create(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -652,7 +627,7 @@ func TestEvalEndpoint_Create(t *testing.T) {
 }
 
 func TestEvalEndpoint_Reap(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -688,7 +663,7 @@ func TestEvalEndpoint_Reap(t *testing.T) {
 }
 
 func TestEvalEndpoint_List(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -740,133 +715,11 @@ func TestEvalEndpoint_List(t *testing.T) {
 	if len(resp2.Evaluations) != 1 {
 		t.Fatalf("bad: %#v", resp2.Evaluations)
 	}
-}
 
-func TestEvalEndpoint_List_order(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create register requests
-	uuid1 := uuid.Generate()
-	eval1 := mock.Eval()
-	eval1.ID = uuid1
-
-	uuid2 := uuid.Generate()
-	eval2 := mock.Eval()
-	eval2.ID = uuid2
-
-	uuid3 := uuid.Generate()
-	eval3 := mock.Eval()
-	eval3.ID = uuid3
-
-	err := s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
-	require.NoError(t, err)
-
-	err = s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval2})
-	require.NoError(t, err)
-
-	err = s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1002, []*structs.Evaluation{eval3})
-	require.NoError(t, err)
-
-	// update eval2 again so we can later assert create index order did not change
-	err = s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1003, []*structs.Evaluation{eval2})
-	require.NoError(t, err)
-
-	t.Run("default", func(t *testing.T) {
-		// Lookup the evaluations in the default order (oldest first)
-		get := &structs.EvalListRequest{
-			QueryOptions: structs.QueryOptions{
-				Region:    "global",
-				Namespace: "*",
-			},
-		}
-
-		var resp structs.EvalListResponse
-		err = msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
-		require.NoError(t, err)
-		require.Equal(t, uint64(1003), resp.Index)
-		require.Len(t, resp.Evaluations, 3)
-
-		// Assert returned order is by CreateIndex (ascending)
-		require.Equal(t, uint64(1000), resp.Evaluations[0].CreateIndex)
-		require.Equal(t, uuid1, resp.Evaluations[0].ID)
-
-		require.Equal(t, uint64(1001), resp.Evaluations[1].CreateIndex)
-		require.Equal(t, uuid2, resp.Evaluations[1].ID)
-
-		require.Equal(t, uint64(1002), resp.Evaluations[2].CreateIndex)
-		require.Equal(t, uuid3, resp.Evaluations[2].ID)
-	})
-
-	t.Run("reverse", func(t *testing.T) {
-		// Lookup the evaluations in reverse order (newest first)
-		get := &structs.EvalListRequest{
-			QueryOptions: structs.QueryOptions{
-				Region:    "global",
-				Namespace: "*",
-				Reverse:   true,
-			},
-		}
-
-		var resp structs.EvalListResponse
-		err = msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
-		require.NoError(t, err)
-		require.Equal(t, uint64(1003), resp.Index)
-		require.Len(t, resp.Evaluations, 3)
-
-		// Assert returned order is by CreateIndex (descending)
-		require.Equal(t, uint64(1002), resp.Evaluations[0].CreateIndex)
-		require.Equal(t, uuid3, resp.Evaluations[0].ID)
-
-		require.Equal(t, uint64(1001), resp.Evaluations[1].CreateIndex)
-		require.Equal(t, uuid2, resp.Evaluations[1].ID)
-
-		require.Equal(t, uint64(1000), resp.Evaluations[2].CreateIndex)
-		require.Equal(t, uuid1, resp.Evaluations[2].ID)
-	})
-}
-
-func TestEvalEndpoint_ListAllNamespaces(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create the register request
-	eval1 := mock.Eval()
-	eval1.ID = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
-	eval2 := mock.Eval()
-	eval2.ID = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
-	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
-
-	// Lookup the eval
-	get := &structs.EvalListRequest{
-		QueryOptions: structs.QueryOptions{
-			Region:    "global",
-			Namespace: "*",
-		},
-	}
-	var resp structs.EvalListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp.Index != 1000 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 1000)
-	}
-
-	if len(resp.Evaluations) != 2 {
-		t.Fatalf("bad: %#v", resp.Evaluations)
-	}
 }
 
 func TestEvalEndpoint_List_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -932,7 +785,7 @@ func TestEvalEndpoint_List_ACL(t *testing.T) {
 }
 
 func TestEvalEndpoint_List_Blocking(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -998,333 +851,8 @@ func TestEvalEndpoint_List_Blocking(t *testing.T) {
 	}
 }
 
-func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
-	ci.Parallel(t)
-	s1, _, cleanupS1 := TestACLServer(t, nil)
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// create a set of evals and field values to filter on. these are
-	// in the order that the state store will return them from the
-	// iterator (sorted by create index), for ease of writing tests
-	mocks := []struct {
-		ids       []string
-		namespace string
-		jobID     string
-		status    string
-	}{
-		{ids: []string{"aaaa1111-3350-4b4b-d185-0e1992ed43e9"}, jobID: "example"},                    // 0
-		{ids: []string{"aaaaaa22-3350-4b4b-d185-0e1992ed43e9"}, jobID: "example"},                    // 1
-		{ids: []string{"aaaaaa33-3350-4b4b-d185-0e1992ed43e9"}, namespace: "non-default"},            // 2
-		{ids: []string{"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"}, jobID: "example", status: "blocked"}, // 3
-		{ids: []string{"aaaaaabb-3350-4b4b-d185-0e1992ed43e9"}},                                      // 4
-		{ids: []string{"aaaaaacc-3350-4b4b-d185-0e1992ed43e9"}},                                      // 5
-		{ids: []string{"aaaaaadd-3350-4b4b-d185-0e1992ed43e9"}, jobID: "example"},                    // 6
-		{ids: []string{"aaaaaaee-3350-4b4b-d185-0e1992ed43e9"}, jobID: "example"},                    // 7
-		{ids: []string{"aaaaaaff-3350-4b4b-d185-0e1992ed43e9"}},                                      // 8
-		{ids: []string{"00000111-3350-4b4b-d185-0e1992ed43e9"}},                                      // 9
-		{ids: []string{ // 10
-			"00000222-3350-4b4b-d185-0e1992ed43e9",
-			"00000333-3350-4b4b-d185-0e1992ed43e9",
-		}},
-		{}, // 11, index missing
-		{ids: []string{"bbbb1111-3350-4b4b-d185-0e1992ed43e9"}}, // 12
-	}
-
-	state := s1.fsm.State()
-
-	var evals []*structs.Evaluation
-	for i, m := range mocks {
-		evalsInTx := []*structs.Evaluation{}
-		for _, id := range m.ids {
-			eval := mock.Eval()
-			eval.ID = id
-			if m.namespace != "" { // defaults to "default"
-				eval.Namespace = m.namespace
-			}
-			if m.jobID != "" { // defaults to some random UUID
-				eval.JobID = m.jobID
-			}
-			if m.status != "" { // defaults to "pending"
-				eval.Status = m.status
-			}
-			evals = append(evals, eval)
-			evalsInTx = append(evalsInTx, eval)
-		}
-		index := 1000 + uint64(i)
-		require.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, index, evalsInTx))
-	}
-
-	aclToken := mock.CreatePolicyAndToken(t, state, 1100, "test-valid-read",
-		mock.NamespacePolicy("*", "read", nil)).
-		SecretID
-
-	cases := []struct {
-		name              string
-		namespace         string
-		prefix            string
-		nextToken         string
-		filterJobID       string
-		filterStatus      string
-		filter            string
-		pageSize          int32
-		expectedNextToken string
-		expectedIDs       []string
-		expectedError     string
-	}{
-		{
-			name:     "test01 size-2 page-1 default NS",
-			pageSize: 2,
-			expectedIDs: []string{ // first two items
-				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
-			},
-			expectedNextToken: "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9", // next one in default namespace
-		},
-		{
-			name:              "test02 size-2 page-1 default NS with prefix",
-			prefix:            "aaaa",
-			pageSize:          2,
-			expectedNextToken: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9", // prefix results are not sorted by create index
-			expectedIDs: []string{
-				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:              "test03 size-2 page-2 default NS",
-			pageSize:          2,
-			nextToken:         "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1005.aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:              "test04 size-2 page-2 default NS with prefix",
-			prefix:            "aaaa",
-			pageSize:          2,
-			nextToken:         "aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:         "test05 size-2 page-1 with filters default NS",
-			pageSize:     2,
-			filterJobID:  "example",
-			filterStatus: "pending",
-			// aaaaaaaa, bb, and cc are filtered by status
-			expectedNextToken: "1006.aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:         "test06 size-2 page-1 with filters default NS with short prefix",
-			prefix:       "aaaa",
-			pageSize:     2,
-			filterJobID:  "example",
-			filterStatus: "pending",
-			// aaaaaaaa, bb, and cc are filtered by status
-			expectedNextToken: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:              "test07 size-2 page-1 with filters default NS with longer prefix",
-			prefix:            "aaaaaa",
-			pageSize:          2,
-			filterJobID:       "example",
-			filterStatus:      "pending",
-			expectedNextToken: "aaaaaaee-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:              "test08 size-2 page-2 filter skip nextToken", //
-			pageSize:          3,                                            // reads off the end
-			filterJobID:       "example",
-			filterStatus:      "pending",
-			nextToken:         "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "",
-			expectedIDs: []string{
-				"aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaaee-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:              "test09 size-2 page-2 filters skip nextToken with prefix",
-			prefix:            "aaaaaa",
-			pageSize:          3, // reads off the end
-			filterJobID:       "example",
-			filterStatus:      "pending",
-			nextToken:         "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "",
-			expectedIDs: []string{
-				"aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaaee-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:              "test10 size-2 page-2 all namespaces",
-			namespace:         "*",
-			pageSize:          2,
-			nextToken:         "1002.aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1004.aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:        "test11 no valid results with filters",
-			pageSize:    2,
-			filterJobID: "whatever",
-			nextToken:   "",
-			expectedIDs: []string{},
-		},
-		{
-			name:        "test12 no valid results with filters and prefix",
-			prefix:      "aaaa",
-			pageSize:    2,
-			filterJobID: "whatever",
-			nextToken:   "",
-			expectedIDs: []string{},
-		},
-		{
-			name:        "test13 no valid results with filters page-2",
-			filterJobID: "whatever",
-			nextToken:   "aaaaaa11-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{},
-		},
-		{
-			name:        "test14 no valid results with filters page-2 with prefix",
-			prefix:      "aaaa",
-			filterJobID: "whatever",
-			nextToken:   "aaaaaa11-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{},
-		},
-		{
-			name:        "test15 go-bexpr filter",
-			filter:      `Status == "blocked"`,
-			nextToken:   "",
-			expectedIDs: []string{"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"},
-		},
-		{
-			name:              "test16 go-bexpr filter with pagination",
-			filter:            `JobID == "example"`,
-			pageSize:          2,
-			expectedNextToken: "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:      "test17 go-bexpr filter namespace",
-			namespace: "non-default",
-			filter:    `ID contains "aaa"`,
-			expectedIDs: []string{
-				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:        "test18 go-bexpr wrong namespace",
-			namespace:   "default",
-			filter:      `Namespace == "non-default"`,
-			expectedIDs: []string{},
-		},
-		{
-			name:          "test19 incompatible filtering",
-			filter:        `JobID == "example"`,
-			filterStatus:  "complete",
-			expectedError: structs.ErrIncompatibleFiltering.Error(),
-		},
-		{
-			name:          "test20 go-bexpr invalid expression",
-			filter:        `NotValid`,
-			expectedError: "failed to read filter expression",
-		},
-		{
-			name:          "test21 go-bexpr invalid field",
-			filter:        `InvalidField == "value"`,
-			expectedError: "error finding value in datum",
-		},
-		{
-			name:              "test22 non-lexicographic order",
-			pageSize:          1,
-			nextToken:         "1009.00000111-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1010.00000222-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"00000111-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:              "test23 same index",
-			pageSize:          1,
-			nextToken:         "1010.00000222-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1010.00000333-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"00000222-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:      "test24 missing index",
-			pageSize:  1,
-			nextToken: "1011.e9522802-0cd8-4b1d-9c9e-ab3d97938371",
-			expectedIDs: []string{
-				"bbbb1111-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			req := &structs.EvalListRequest{
-				FilterJobID:      tc.filterJobID,
-				FilterEvalStatus: tc.filterStatus,
-				QueryOptions: structs.QueryOptions{
-					Region:    "global",
-					Namespace: tc.namespace,
-					Prefix:    tc.prefix,
-					PerPage:   tc.pageSize,
-					NextToken: tc.nextToken,
-					Filter:    tc.filter,
-				},
-			}
-			req.AuthToken = aclToken
-			var resp structs.EvalListResponse
-			err := msgpackrpc.CallWithCodec(codec, "Eval.List", req, &resp)
-			if tc.expectedError == "" {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.expectedError)
-				return
-			}
-
-			gotIDs := []string{}
-			for _, eval := range resp.Evaluations {
-				gotIDs = append(gotIDs, eval.ID)
-			}
-			require.Equal(t, tc.expectedIDs, gotIDs, "unexpected page of evals")
-			require.Equal(t, tc.expectedNextToken, resp.QueryMeta.NextToken, "unexpected NextToken")
-		})
-	}
-}
-
 func TestEvalEndpoint_Allocations(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1362,7 +890,7 @@ func TestEvalEndpoint_Allocations(t *testing.T) {
 }
 
 func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1427,7 +955,7 @@ func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
 }
 
 func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1483,7 +1011,7 @@ func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 }
 
 func TestEvalEndpoint_Reblock_Nonexistent(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -1520,7 +1048,7 @@ func TestEvalEndpoint_Reblock_Nonexistent(t *testing.T) {
 }
 
 func TestEvalEndpoint_Reblock_NonBlocked(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -1563,7 +1091,7 @@ func TestEvalEndpoint_Reblock_NonBlocked(t *testing.T) {
 }
 
 func TestEvalEndpoint_Reblock(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue

@@ -19,7 +19,7 @@ on:
         default: 'CUYKT2A73'
 
 env:
-  GO_TAGS: "release"
+  GO_TAGS: "ui codegen_generated release"
 
 jobs:
   get-go-version:

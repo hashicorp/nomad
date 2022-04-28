@@ -1,5 +1,3 @@
-@use 'sass:math';
-
 .table {
   color: $text;
   border-radius: $radius;
@@ -103,10 +101,6 @@
       }
     }
 
-    &.is-long-text {
-      word-break: break-word;
-    }
-
     // Only use px modifiers when text needs to be truncated.
     // In this and only this scenario are percentages not effective.
     &.is-200px {
@@ -116,8 +110,8 @@
 
     @for $i from 1 through 11 {
       &.is-#{$i} {
-        width: math.div(100%, 12) * $i;
-        max-width: math.div(100%, 12) * $i;
+        width: 100% / 12 * $i;
+        max-width: 100% / 12 * $i;
       }
     }
 
@@ -272,10 +266,6 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-
-  &.with-padding {
-    padding: 6px;
-  }
 
   .pagination {
     padding: 0;

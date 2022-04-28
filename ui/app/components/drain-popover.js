@@ -6,7 +6,6 @@ import { task } from 'ember-concurrency';
 import Duration from 'duration-js';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
-import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 @classic
 @tagName('')
@@ -23,25 +22,7 @@ export default class DrainPopover extends Component {
   forceDrain = false;
   drainSystemJobs = true;
 
-  @localStorageProperty('nomadDrainOptions', {}) drainOptions;
-
-  didReceiveAttrs() {
-    super.didReceiveAttrs();
-    // Load drain config values from local storage if availabe.
-    [
-      'deadlineEnabled',
-      'customDuration',
-      'forceDrain',
-      'drainSystemJobs',
-      'selectedDurationQuickOption',
-    ].forEach((k) => {
-      if (k in this.drainOptions) {
-        this[k] = this.drainOptions[k];
-      }
-    });
-  }
-
-  @overridable(function () {
+  @overridable(function() {
     return this.durationQuickOptions[0];
   })
   selectedDurationQuickOption;
@@ -73,7 +54,7 @@ export default class DrainPopover extends Component {
     return this.selectedDurationQuickOption.value;
   }
 
-  @task(function* (close) {
+  @task(function*(close) {
     if (!this.client) return;
     const isUpdating = this.client.isDraining;
 
@@ -88,14 +69,6 @@ export default class DrainPopover extends Component {
     const spec = {
       Deadline: deadline,
       IgnoreSystemJobs: !this.drainSystemJobs,
-    };
-
-    this.drainOptions = {
-      deadlineEnabled: this.deadlineEnabled,
-      customDuration: this.deadline,
-      selectedDurationQuickOption: this.selectedDurationQuickOption,
-      drainSystemJobs: this.drainSystemJobs,
-      forceDrain: this.forceDrain,
     };
 
     close();

@@ -1,12 +1,6 @@
 <h1 class="title with-flex">
   <div data-test-job-name>
     {{or this.title this.job.name}}
-    {{#if @job.meta.structured.pack}}
-      <span data-test-pack-tag class="tag is-hollow">
-        {{x-icon "box" class= "test"}}
-        <span>Pack</span>
-      </span>
-    {{/if}}
     <span class="bumper-left tag {{this.job.statusClass}}" data-test-job-status>{{this.job.status}}</span>
     {{yield}}
   </div>
@@ -18,9 +12,9 @@
       <TwoStepButton
         data-test-stop
         @alignRight={{true}}
-        @idleText="Stop Job"
+        @idleText="Stop"
         @cancelText="Cancel"
-        @confirmText="Yes, Stop Job"
+        @confirmText="Yes, Stop"
         @confirmationMessage="Are you sure you want to stop this job?"
         @awaitingConfirmation={{this.stopJob.isRunning}}
         @onConfirm={{perform this.stopJob}} />
@@ -28,9 +22,9 @@
       <TwoStepButton
         data-test-start
         @alignRight={{true}}
-        @idleText="Start Job"
+        @idleText="Start"
         @cancelText="Cancel"
-        @confirmText="Yes, Start Job"
+        @confirmText="Yes, Start"
         @confirmationMessage="Are you sure you want to start this job?"
         @awaitingConfirmation={{this.startJob.isRunning}}
         @onConfirm={{perform this.startJob}} />

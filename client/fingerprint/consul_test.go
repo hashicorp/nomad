@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -48,7 +47,7 @@ func newConsulFingerPrint(t *testing.T) *ConsulFingerprint {
 }
 
 func TestConsulFingerprint_server(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	fp := newConsulFingerPrint(t)
 
@@ -84,7 +83,7 @@ func TestConsulFingerprint_server(t *testing.T) {
 }
 
 func TestConsulFingerprint_version(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	fp := newConsulFingerPrint(t)
 
@@ -120,7 +119,7 @@ func TestConsulFingerprint_version(t *testing.T) {
 }
 
 func TestConsulFingerprint_sku(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	fp := newConsulFingerPrint(t)
 
@@ -172,7 +171,7 @@ func TestConsulFingerprint_sku(t *testing.T) {
 }
 
 func TestConsulFingerprint_revision(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	fp := newConsulFingerPrint(t)
 
@@ -200,7 +199,7 @@ func TestConsulFingerprint_revision(t *testing.T) {
 }
 
 func TestConsulFingerprint_dc(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	fp := newConsulFingerPrint(t)
 
@@ -228,7 +227,7 @@ func TestConsulFingerprint_dc(t *testing.T) {
 }
 
 func TestConsulFingerprint_segment(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	fp := newConsulFingerPrint(t)
 
@@ -263,7 +262,7 @@ func TestConsulFingerprint_segment(t *testing.T) {
 }
 
 func TestConsulFingerprint_connect(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	fp := newConsulFingerPrint(t)
 
@@ -292,7 +291,7 @@ func TestConsulFingerprint_connect(t *testing.T) {
 }
 
 func TestConsulFingerprint_grpc(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	fp := newConsulFingerPrint(t)
 
@@ -322,7 +321,7 @@ func TestConsulFingerprint_grpc(t *testing.T) {
 }
 
 func TestConsulFingerprint_namespaces(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	fp := newConsulFingerPrint(t)
 
@@ -363,8 +362,6 @@ func TestConsulFingerprint_namespaces(t *testing.T) {
 }
 
 func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
-	ci.Parallel(t)
-
 	cf := newConsulFingerPrint(t)
 
 	ts, cfg := fakeConsul(fakeConsulPayload(t, "test_fixtures/consul/agent_self_oss.json"))
@@ -452,8 +449,6 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 }
 
 func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
-	ci.Parallel(t)
-
 	cf := newConsulFingerPrint(t)
 
 	ts, cfg := fakeConsul(fakeConsulPayload(t, "test_fixtures/consul/agent_self_ent.json"))

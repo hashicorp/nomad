@@ -1,4 +1,3 @@
-<Breadcrumb @crumb={{hash label="Topology" args=(array "topology")}} />
 {{page-title "Cluster Topology"}}
 <PageLayout>
   <section class="section is-full-width">
@@ -9,26 +8,11 @@
         <div class="notification is-warning">
           <div data-test-filtered-nodes-warning class="columns">
             <div class="column">
-              <h3 data-test-title class="title is-4">
-                Some Clients Were Filtered
-              </h3>
-              <p data-test-message>
-                {{this.filteredNodes.length}}
-                {{if (eq this.filteredNodes.length 1) "client was" "clients were"}}
-                filtered from the topology visualization. This is most likely due to the
-                {{pluralize "client" this.filteredNodes.length}}
-                running a version of Nomad
-              </p>
+              <h3 data-test-title class="title is-4">Some Clients Were Filtered</h3>
+              <p data-test-message>{{this.filteredNodes.length}} {{if (eq this.filteredNodes.length 1) "client was" "clients were"}} filtered from the topology visualization. This is most likely due to the {{pluralize "client" this.filteredNodes.length}} running a version of Nomad &lt;0.9.0.</p>
             </div>
             <div class="column is-centered is-minimum">
-              <button
-                data-test-dismiss
-                class="button is-warning"
-                onclick={{action (mut this.filteredNodes) null}}
-                type="button"
-              >
-                Okay
-              </button>
+              <button data-test-dismiss class="button is-warning" onclick={{action (mut this.filteredNodes) null}} type="button">Okay</button>
             </div>
           </div>
         </div>
@@ -39,22 +23,11 @@
             <div class="notification is-warning">
               <div class="columns">
                 <div class="column">
-                  <h3 class="title is-4">
-                    No Live Updating
-                  </h3>
-                  <p>
-                    The topology visualization depends on too much data to continuously poll.
-                  </p>
+                  <h3 class="title is-4">No Live Updating</h3>
+                  <p>The topology visualization depends on too much data to continuously poll.</p>
                 </div>
                 <div class="column is-centered is-minimum">
-                  <button
-                    data-test-polling-notice-dismiss
-                    class="button is-warning"
-                    type="button"
-                    onclick={{toggle-action "showPollingNotice" this}}
-                  >
-                    Okay
-                  </button>
+                  <button data-test-polling-notice-dismiss class="button is-warning" type="button" onclick={{toggle-action "showPollingNotice" this}}>Okay</button>
                 </div>
               </div>
             </div>
@@ -63,335 +36,154 @@
             <div class="boxed-section-head">
               Legend
               {{#if (cannot "list all jobs")}}
-                <span
-                  aria-label="Your ACL token may limit your ability to list all allocations"
-                  class="tag is-warning pull-right tooltip multiline"
-                >
-                  Partial View
-                </span>
+                <span aria-label="Your ACL token may limit your ability to list all allocations" class="tag is-warning pull-right tooltip multiline">Partial View</span>
               {{/if}}
             </div>
             <div class="boxed-section-body">
               <div class="legend">
-                <h3 class="legend-label">
-                  Metrics
-                </h3>
+                <h3 class="legend-label">Metrics</h3>
                 <dl class="legend-terms">
-                  <dt>
-                    M:
-                  </dt>
-                  <dd>
-                    Memory
-                  </dd>
-                  <dt>
-                    C:
-                  </dt>
-                  <dd>
-                    CPU
-                  </dd>
+                  <dt>M:</dt><dd>Memory</dd>
+                  <dt>C:</dt><dd>CPU</dd>
                 </dl>
               </div>
               <div class="legend">
-                <h3 class="legend-label">
-                  Allocation Status
-                </h3>
+                <h3 class="legend-label">Allocation Status</h3>
                 <dl class="legend-terms">
-                  <div class="legend-term">
-                    <dt>
-                      <span class="color-swatch is-wide running" title="Running"></span>
-                    </dt>
-                    <dd>
-                      Running
-                    </dd>
-                  </div>
-                  <div class="legend-term">
-                    <dt>
-                      <span class="color-swatch is-wide pending" title="Starting"></span>
-                    </dt>
-                    <dd>
-                      Starting
-                    </dd>
-                  </div>
+                  <div class="legend-term"><dt><span class="color-swatch is-wide running" title="Running" /></dt><dd>Running</dd></div>
+                  <div class="legend-term"><dt><span class="color-swatch is-wide pending" title="Starting" /></dt><dd>Starting</dd></div>
                 </dl>
               </div>
             </div>
           </div>
           <div class="boxed-section">
             <div data-test-info-panel-title class="boxed-section-head">
-              {{#if this.activeNode}}
-                Client
-              {{else if this.activeAllocation}}
-                Allocation
-              {{else}}
-                Cluster
-              {{/if}}
-              Details
+              {{#if this.activeNode}}Client{{else if this.activeAllocation}}Allocation{{else}}Cluster{{/if}} Details
             </div>
             <div data-test-info-panel class="boxed-section-body">
               {{#if this.activeNode}}
                 {{#let this.activeNode.node as |node|}}
-                  <div class="dashboard-metric">
-                    <p data-test-allocations class="metric">
-                      {{this.activeNode.allocations.length}}
-                      <span class="metric-label">
-                        Allocations
-                      </span>
-                    </p>
-                  </div>
-                  <div class="dashboard-metric">
-                    <h3 class="pair">
-                      <strong>
-                        Client:
-                      </strong>
-                      <LinkTo data-test-client-link @route="clients.client" @model={{node}}>
-                        {{node.shortId}}
-                      </LinkTo>
-                    </h3>
-                    <p data-test-name class="minor-pair">
-                      <strong>
-                        Name:
-                      </strong>
-                      {{node.name}}
-                    </p>
-                    <p data-test-address class="minor-pair">
-                      <strong>
-                        Address:
-                      </strong>
-                      {{node.httpAddr}}
-                    </p>
-                    <p data-test-status class="minor-pair">
-                      <strong>
-                        Status:
-                      </strong>
-                      {{node.status}}
-                    </p>
-                  </div>
-                  <div class="dashboard-metric">
-                    <h3 class="pair">
-                      <strong>
-                        Draining?
-                      </strong>
-                      <span data-test-draining class="{{if node.isDraining "status-text is-info"}}">
-                        {{if node.isDraining "Yes" "No"}}
-                      </span>
-                    </h3>
-                    <h3 class="pair">
-                      <strong>
-                        Eligible?
-                      </strong>
-                      <span
-                        data-test-eligible
-                        class="{{unless node.isEligible "status-text is-warning"}}"
-                      >
-                        {{if node.isEligible "Yes" "No"}}
-                      </span>
-                    </h3>
-                  </div>
-                  <div class="dashboard-metric with-divider">
-                    <p class="metric">
-                      {{this.nodeUtilization.totalMemoryFormatted}}
-                      <span class="metric-units">
-                        {{this.nodeUtilization.totalMemoryUnits}}
-                      </span>
-                      <span class="metric-label">
-                        of memory
-                      </span>
-                    </p>
-                    <div class="columns graphic">
-                      <div class="column">
-                        <div class="inline-chart">
-                          <progress
-                            data-test-memory-progress-bar
-                            class="progress is-danger is-small"
-                            value="{{this.nodeUtilization.reservedMemoryPercent}}"
-                            max="1"
-                          >
-                            {{this.nodeUtilization.reservedMemoryPercent}}
-                          </progress>
-                        </div>
-                      </div>
-                      <div class="column is-minimum">
-                        <span class="nowrap" data-test-percentage>
-                          {{format-percentage this.nodeUtilization.reservedMemoryPercent total=1}}
-                        </span>
+                <div class="dashboard-metric">
+                  <p data-test-allocations class="metric">{{this.activeNode.allocations.length}} <span class="metric-label">Allocations</span></p>
+                </div>
+                <div class="dashboard-metric">
+                  <h3 class="pair">
+                    <strong>Client:</strong>
+                    <LinkTo data-test-client-link @route="clients.client" @model={{node}}>
+                      {{node.shortId}}
+                    </LinkTo>
+                  </h3>
+                  <p data-test-name class="minor-pair"><strong>Name:</strong> {{node.name}}</p>
+                  <p data-test-address class="minor-pair"><strong>Address:</strong> {{node.httpAddr}}</p>
+                  <p data-test-status class="minor-pair"><strong>Status:</strong> {{node.status}}</p>
+                </div>
+                <div class="dashboard-metric">
+                  <h3 class="pair">
+                    <strong>Draining?</strong> <span data-test-draining class="{{if node.isDraining "status-text is-info"}}">{{if node.isDraining "Yes" "No"}}</span>
+                  </h3>
+                  <h3 class="pair">
+                    <strong>Eligible?</strong> <span data-test-eligible class="{{unless node.isEligible "status-text is-warning"}}">{{if node.isEligible "Yes" "No"}}</span>
+                  </h3>
+                </div>
+                <div class="dashboard-metric with-divider">
+                  <p class="metric">
+                    {{this.nodeUtilization.totalMemoryFormatted}}
+                    <span class="metric-units">{{this.nodeUtilization.totalMemoryUnits}}</span>
+                    <span class="metric-label">of memory</span>
+                  </p>
+                  <div class="columns graphic">
+                    <div class="column">
+                      <div class="inline-chart">
+                        <progress
+                          data-test-memory-progress-bar
+                          class="progress is-danger is-small"
+                          value="{{this.nodeUtilization.reservedMemoryPercent}}"
+                          max="1">
+                          {{this.nodeUtilization.reservedMemoryPercent}}
+                        </progress>
                       </div>
                     </div>
-                    <div class="annotation" data-test-memory-absolute-value>
-                      <strong>
-                        {{format-scheduled-bytes this.nodeUtilization.totalReservedMemory}}
-                      </strong>
-                      /
-                      {{format-scheduled-bytes this.nodeUtilization.totalMemory}}
-                      reserved
+                    <div class="column is-minimum">
+                      <span class="nowrap" data-test-percentage>{{format-percentage this.nodeUtilization.reservedMemoryPercent total=1}}</span>
                     </div>
                   </div>
-                  <div class="dashboard-metric">
-                    <p class="metric">
-                      {{this.nodeUtilization.totalCPU}}
-                      <span class="metric-units">
-                        MHz
-                      </span>
-                      <span class="metric-label">
-                        of CPU
-                      </span>
-                    </p>
-                    <div class="columns graphic">
-                      <div class="column">
-                        <div class="inline-chart" data-test-percentage-bar>
-                          <progress
-                            data-test-cpu-progress-bar
-                            class="progress is-info is-small"
-                            value="{{this.nodeUtilization.reservedCPUPercent}}"
-                            max="1"
-                          >
-                            {{this.nodeUtilization.reservedCPUPercent}}
-                          </progress>
-                        </div>
-                      </div>
-                      <div class="column is-minimum">
-                        <span class="nowrap" data-test-percentage>
-                          {{format-percentage this.nodeUtilization.reservedCPUPercent total=1}}
-                        </span>
+                  <div class="annotation" data-test-memory-absolute-value>
+                    <strong>{{format-scheduled-bytes this.nodeUtilization.totalReservedMemory}}</strong> / {{format-scheduled-bytes this.nodeUtilization.totalMemory}} reserved
+                  </div>
+                </div>
+                <div class="dashboard-metric">
+                  <p class="metric">{{this.nodeUtilization.totalCPU}} <span class="metric-units">MHz</span> <span class="metric-label">of CPU</span></p>
+                  <div class="columns graphic">
+                    <div class="column">
+                      <div class="inline-chart" data-test-percentage-bar>
+                        <progress
+                          data-test-cpu-progress-bar
+                          class="progress is-info is-small"
+                          value="{{this.nodeUtilization.reservedCPUPercent}}"
+                          max="1">
+                          {{this.nodeUtilization.reservedCPUPercent}}
+                        </progress>
                       </div>
                     </div>
-                    <div class="annotation" data-test-cpu-absolute-value>
-                      <strong>
-                        {{format-scheduled-hertz this.nodeUtilization.totalReservedCPU}}
-                      </strong>
-                      /
-                      {{format-scheduled-hertz this.nodeUtilization.totalCPU}}
-                      reserved
+                    <div class="column is-minimum">
+                      <span class="nowrap" data-test-percentage>{{format-percentage this.nodeUtilization.reservedCPUPercent total=1}}</span>
                     </div>
                   </div>
+                  <div class="annotation" data-test-cpu-absolute-value>
+                    <strong>{{format-scheduled-hertz this.nodeUtilization.totalReservedCPU}}</strong> / {{format-scheduled-hertz this.nodeUtilization.totalCPU}} reserved
+                  </div>
+                </div>
                 {{/let}}
               {{else if this.activeAllocation}}
                 <div class="dashboard-metric">
                   <h3 class="pair">
-                    <strong>
-                      Allocation:
-                    </strong>
-                    <LinkTo
-                      data-test-id
-                      @route="allocations.allocation"
-                      @model={{this.activeAllocation}}
-                      class="is-primary"
-                    >
-                      {{this.activeAllocation.shortId}}
-                    </LinkTo>
+                    <strong>Allocation:</strong>
+                    <LinkTo data-test-id @route="allocations.allocation" @model={{this.activeAllocation}} class="is-primary">{{this.activeAllocation.shortId}}</LinkTo>
                   </h3>
-                  <p data-test-sibling-allocs class="minor-pair">
-                    <strong>
-                      Sibling Allocations:
-                    </strong>
-                    {{this.siblingAllocations.length}}
-                  </p>
-                  <p data-test-unique-placements class="minor-pair">
-                    <strong>
-                      Unique Client Placements:
-                    </strong>
-                    {{this.uniqueActiveAllocationNodes.length}}
-                  </p>
+                  <p data-test-sibling-allocs class="minor-pair"><strong>Sibling Allocations:</strong> {{this.siblingAllocations.length}}</p>
+                  <p data-test-unique-placements class="minor-pair"><strong>Unique Client Placements:</strong> {{this.uniqueActiveAllocationNodes.length}}</p>
                 </div>
                 <div class="dashboard-metric with-divider">
                   <h3 class="pair">
-                    <strong>
-                      Job:
-                    </strong>
+                    <strong>Job:</strong>
                     <LinkTo
                       data-test-job
                       @route="jobs.job"
                       @model={{this.activeAllocation.job}}
-                      @query={{hash jobNamespace=this.activeAllocation.job.namespace.id}}
-                    >
-                      {{this.activeAllocation.job.name}}
-                    </LinkTo>
-                    <span class="is-faded" data-test-task-group>
-                      /
-                      {{this.activeAllocation.taskGroupName}}
-                    </span>
+                      @query={{hash jobNamespace=this.activeAllocation.job.namespace.id}}>
+                      {{this.activeAllocation.job.name}}</LinkTo>
+                    <span class="is-faded" data-test-task-group> / {{this.activeAllocation.taskGroupName}}</span>
                   </h3>
-                  <p class="minor-pair">
-                    <strong>
-                      Type:
-                    </strong>
-                    {{this.activeAllocation.job.type}}
-                  </p>
-                  <p class="minor-pair">
-                    <strong>
-                      Priority:
-                    </strong>
-                    {{this.activeAllocation.job.priority}}
-                  </p>
+                  <p class="minor-pair"><strong>Type:</strong> {{this.activeAllocation.job.type}}</p>
+                  <p class="minor-pair"><strong>Priority:</strong> {{this.activeAllocation.job.priority}}</p>
                 </div>
                 <div class="dashboard-metric with-divider">
                   <h3 class="pair">
-                    <strong>
-                      Client:
-                    </strong>
-                    <LinkTo
-                      data-test-client
-                      @route="clients.client"
-                      @model={{this.activeAllocation.node}}
-                    >
+                    <strong>Client:</strong>
+                    <LinkTo data-test-client @route="clients.client" @model={{this.activeAllocation.node}}>
                       {{this.activeAllocation.node.shortId}}
                     </LinkTo>
                   </h3>
-                  <p class="minor-pair">
-                    <strong>
-                      Name:
-                    </strong>
-                    {{this.activeAllocation.node.name}}
-                  </p>
-                  <p class="minor-pair">
-                    <strong>
-                      Address:
-                    </strong>
-                    {{this.activeAllocation.node.httpAddr}}
-                  </p>
+                  <p class="minor-pair"><strong>Name:</strong> {{this.activeAllocation.node.name}}</p>
+                  <p class="minor-pair"><strong>Address:</strong> {{this.activeAllocation.node.httpAddr}}</p>
                 </div>
                 <div class="dashboard-metric with-divider">
-                  <PrimaryMetric::Allocation
-                    @allocation={{this.activeAllocation}}
-                    @metric="memory"
-                    class="is-short"
-                  />
+                  <PrimaryMetric::Allocation @allocation={{this.activeAllocation}} @metric="memory" class="is-short" />
                 </div>
                 <div class="dashboard-metric">
-                  <PrimaryMetric::Allocation
-                    @allocation={{this.activeAllocation}}
-                    @metric="cpu"
-                    class="is-short"
-                  />
+                  <PrimaryMetric::Allocation @allocation={{this.activeAllocation}} @metric="cpu" class="is-short" />
                 </div>
               {{else}}
                 <div class="columns is-flush">
                   <div class="dashboard-metric column">
-                    <p data-test-node-count class="metric">
-                      {{this.model.nodes.length}}
-                      <span class="metric-label">
-                        Clients
-                      </span>
-                    </p>
+                    <p data-test-node-count class="metric">{{this.model.nodes.length}} <span class="metric-label">Clients</span></p>
                   </div>
                   <div class="dashboard-metric column">
-                    <p data-test-alloc-count class="metric">
-                      {{this.scheduledAllocations.length}}
-                      <span class="metric-label">
-                        Allocations
-                      </span>
-                    </p>
+                    <p data-test-alloc-count class="metric">{{this.scheduledAllocations.length}} <span class="metric-label">Allocations</span></p>
                   </div>
                 </div>
                 <div class="dashboard-metric with-divider">
-                  <p class="metric">
-                    {{this.totalMemoryFormatted}}
-                    <span class="metric-units">
-                      {{this.totalMemoryUnits}}
-                    </span>
-                    <span class="metric-label">
-                      of memory
-                    </span>
-                  </p>
+                  <p class="metric">{{this.totalMemoryFormatted}} <span class="metric-units">{{this.totalMemoryUnits}}</span> <span class="metric-label">of memory</span></p>
                   <div class="columns graphic">
                     <div class="column">
                       <div class="inline-chart" data-test-percentage-bar>
@@ -399,37 +191,21 @@
                           data-test-memory-progress-bar
                           class="progress is-danger is-small"
                           value="{{this.reservedMemoryPercent}}"
-                          max="1"
-                        >
+                          max="1">
                           {{this.reservedMemoryPercent}}
                         </progress>
                       </div>
                     </div>
                     <div class="column is-minimum">
-                      <span class="nowrap" data-test-memory-percentage>
-                        {{format-percentage this.reservedMemoryPercent total=1}}
-                      </span>
+                      <span class="nowrap" data-test-memory-percentage>{{format-percentage this.reservedMemoryPercent total=1}}</span>
                     </div>
                   </div>
                   <div class="annotation" data-test-memory-absolute-value>
-                    <strong>
-                      {{format-bytes this.totalReservedMemory}}
-                    </strong>
-                    /
-                    {{format-bytes this.totalMemory}}
-                    reserved
+                    <strong>{{format-bytes this.totalReservedMemory}}</strong> / {{format-bytes this.totalMemory}} reserved
                   </div>
                 </div>
                 <div class="dashboard-metric">
-                  <p class="metric">
-                    {{this.totalCPUFormatted}}
-                    <span class="metric-units">
-                      {{this.totalCPUUnits}}
-                    </span>
-                    <span class="metric-label">
-                      of CPU
-                    </span>
-                  </p>
+                  <p class="metric">{{this.totalCPUFormatted}} <span class="metric-units">{{this.totalCPUUnits}}</span> <span class="metric-label">of CPU</span></p>
                   <div class="columns graphic">
                     <div class="column">
                       <div class="inline-chart" data-test-percentage-bar>
@@ -437,25 +213,17 @@
                           data-test-cpu-progress-bar
                           class="progress is-info is-small"
                           value="{{this.reservedCPUPercent}}"
-                          max="1"
-                        >
+                          max="1">
                           {{this.reservedCPUPercent}}
                         </progress>
                       </div>
                     </div>
                     <div class="column is-minimum">
-                      <span class="nowrap" data-test-cpu-percentage>
-                        {{format-percentage this.reservedCPUPercent total=1}}
-                      </span>
+                      <span class="nowrap" data-test-cpu-percentage>{{format-percentage this.reservedCPUPercent total=1}}</span>
                     </div>
                   </div>
                   <div class="annotation" data-test-cpu-absolute-value>
-                    <strong>
-                      {{format-hertz this.totalReservedCPU}}
-                    </strong>
-                    /
-                    {{format-hertz this.totalCPU}}
-                    reserved
+                    <strong>{{format-hertz this.totalReservedCPU}}</strong> / {{format-hertz this.totalCPU}} reserved
                   </div>
                 </div>
               {{/if}}
@@ -468,8 +236,7 @@
             @allocations={{this.model.allocations}}
             @onAllocationSelect={{action this.setAllocation}}
             @onNodeSelect={{action this.setNode}}
-            @onDataError={{action this.handleTopoVizDataError}}
-          />
+            @onDataError={{action this.handleTopoVizDataError}}/>
         </div>
       </div>
     {{/if}}

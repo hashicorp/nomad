@@ -1,3 +1,0 @@
-```release-note:improvement
-build: upgrade and speedup circleci configuration
-```

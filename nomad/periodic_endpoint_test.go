@@ -6,7 +6,6 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -14,7 +13,7 @@ import (
 )
 
 func TestPeriodicEndpoint_Force(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -65,7 +64,7 @@ func TestPeriodicEndpoint_Force(t *testing.T) {
 }
 
 func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -164,7 +163,7 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 }
 
 func TestPeriodicEndpoint_Force_NonPeriodic(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue

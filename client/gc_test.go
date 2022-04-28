@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/stats"
@@ -38,8 +37,7 @@ func exitAllocRunner(runners ...AllocRunner) {
 }
 
 func TestIndexedGCAllocPQ(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	pq := NewIndexedGCAllocPQ()
 
 	ar1, cleanup1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc())
@@ -124,8 +122,7 @@ func (m *MockStatsCollector) Stats() *stats.HostStats {
 }
 
 func TestAllocGarbageCollector_MarkForCollection(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	logger := testlog.HCLogger(t)
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
@@ -141,8 +138,7 @@ func TestAllocGarbageCollector_MarkForCollection(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_Collect(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	logger := testlog.HCLogger(t)
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
@@ -168,8 +164,7 @@ func TestAllocGarbageCollector_Collect(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_CollectAll(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	logger := testlog.HCLogger(t)
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
@@ -189,8 +184,7 @@ func TestAllocGarbageCollector_CollectAll(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	logger := testlog.HCLogger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -232,8 +226,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) 
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	logger := testlog.HCLogger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -276,8 +269,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	logger := testlog.HCLogger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -316,8 +308,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	logger := testlog.HCLogger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -357,8 +348,6 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) 
 // TestAllocGarbageCollector_MakeRoomFor_MaxAllocs asserts that when making room for new
 // allocs, terminal allocs are GC'd until old_allocs + new_allocs <= limit
 func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
-	ci.Parallel(t)
-
 	const maxAllocs = 6
 	require := require.New(t)
 
@@ -505,8 +494,7 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	logger := testlog.HCLogger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -545,8 +533,7 @@ func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	logger := testlog.HCLogger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()

@@ -1,4 +1,3 @@
-//go:build ent
 // +build ent
 
 package command
@@ -7,19 +6,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestQuotaStatusCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &QuotaStatusCommand{}
 }
 
 func TestQuotaStatusCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	ui := cli.NewMockUi()
 	cmd := &QuotaStatusCommand{Meta: Meta{Ui: ui}}
 
@@ -42,7 +40,7 @@ func TestQuotaStatusCommand_Fails(t *testing.T) {
 }
 
 func TestQuotaStatusCommand_Good(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
@@ -74,8 +72,8 @@ func TestQuotaStatusCommand_Good(t *testing.T) {
 }
 
 func TestQuotaStatusCommand_AutocompleteArgs(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
+	t.Parallel()
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()

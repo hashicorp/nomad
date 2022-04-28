@@ -1,3 +1,0 @@
-```release-note:improvement
-api: Updated the evaluations list API to respect wildcard namespaces
-```

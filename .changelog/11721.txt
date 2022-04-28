@@ -1,3 +1,0 @@
-```release-note:bug
-client: Fixed a bug where the allocation log streaming API was missing log frames that spanned log file rotation
-```

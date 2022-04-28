@@ -7,18 +7,15 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -50,7 +47,7 @@ func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -104,7 +101,7 @@ func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -154,7 +151,7 @@ func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Fail(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -204,7 +201,7 @@ func TestDeploymentEndpoint_Fail(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -280,7 +277,7 @@ func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -358,7 +355,7 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Pause(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -401,7 +398,7 @@ func TestDeploymentEndpoint_Pause(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -470,7 +467,7 @@ func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Promote(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -535,7 +532,7 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -626,7 +623,7 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -694,7 +691,7 @@ func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -788,7 +785,7 @@ func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -878,7 +875,7 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 
 // tests rollback upon alloc health failure to job with identical spec does not succeed
 func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -965,7 +962,7 @@ func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_List(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1009,120 +1006,10 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	assert.EqualValues(resp.Index, 1000, "Wrong Index")
 	assert.Len(resp2.Deployments, 1, "Deployments")
 	assert.Equal(resp2.Deployments[0].ID, d.ID, "Deployment ID")
-
-	// add another deployment in another namespace
-
-	j2 := mock.Job()
-	d2 := mock.Deployment()
-	j2.Namespace = "prod"
-	d2.Namespace = "prod"
-	d2.JobID = j2.ID
-	assert.Nil(state.UpsertNamespaces(1001, []*structs.Namespace{{Name: "prod"}}))
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1002, j2), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1003, d2), "UpsertDeployment")
-
-	// Lookup the deployments with wildcard namespace
-	get = &structs.DeploymentListRequest{
-		QueryOptions: structs.QueryOptions{
-			Region:    "global",
-			Namespace: structs.AllNamespacesSentinel,
-		},
-	}
-	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
-	assert.EqualValues(resp.Index, 1003, "Wrong Index")
-	assert.Len(resp.Deployments, 2, "Deployments")
-}
-
-func TestDeploymentEndpoint_List_order(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create register requests
-	uuid1 := uuid.Generate()
-	dep1 := mock.Deployment()
-	dep1.ID = uuid1
-
-	uuid2 := uuid.Generate()
-	dep2 := mock.Deployment()
-	dep2.ID = uuid2
-
-	uuid3 := uuid.Generate()
-	dep3 := mock.Deployment()
-	dep3.ID = uuid3
-
-	err := s1.fsm.State().UpsertDeployment(1000, dep1)
-	require.NoError(t, err)
-
-	err = s1.fsm.State().UpsertDeployment(1001, dep2)
-	require.NoError(t, err)
-
-	err = s1.fsm.State().UpsertDeployment(1002, dep3)
-	require.NoError(t, err)
-
-	// update dep2 again so we can later assert create index order did not change
-	err = s1.fsm.State().UpsertDeployment(1003, dep2)
-	require.NoError(t, err)
-
-	t.Run("default", func(t *testing.T) {
-		// Lookup the deployments in chronological order (oldest first)
-		get := &structs.DeploymentListRequest{
-			QueryOptions: structs.QueryOptions{
-				Region:    "global",
-				Namespace: "*",
-			},
-		}
-
-		var resp structs.DeploymentListResponse
-		err = msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
-		require.NoError(t, err)
-		require.Equal(t, uint64(1003), resp.Index)
-		require.Len(t, resp.Deployments, 3)
-
-		// Assert returned order is by CreateIndex (ascending)
-		require.Equal(t, uint64(1000), resp.Deployments[0].CreateIndex)
-		require.Equal(t, uuid1, resp.Deployments[0].ID)
-
-		require.Equal(t, uint64(1001), resp.Deployments[1].CreateIndex)
-		require.Equal(t, uuid2, resp.Deployments[1].ID)
-
-		require.Equal(t, uint64(1002), resp.Deployments[2].CreateIndex)
-		require.Equal(t, uuid3, resp.Deployments[2].ID)
-	})
-
-	t.Run("reverse", func(t *testing.T) {
-		// Lookup the deployments in reverse chronological order (newest first)
-		get := &structs.DeploymentListRequest{
-			QueryOptions: structs.QueryOptions{
-				Region:    "global",
-				Namespace: "*",
-				Reverse:   true,
-			},
-		}
-
-		var resp structs.DeploymentListResponse
-		err = msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
-		require.NoError(t, err)
-		require.Equal(t, uint64(1003), resp.Index)
-		require.Len(t, resp.Deployments, 3)
-
-		// Assert returned order is by CreateIndex (descending)
-		require.Equal(t, uint64(1002), resp.Deployments[0].CreateIndex)
-		require.Equal(t, uuid3, resp.Deployments[0].ID)
-
-		require.Equal(t, uint64(1001), resp.Deployments[1].CreateIndex)
-		require.Equal(t, uuid2, resp.Deployments[1].ID)
-
-		require.Equal(t, uint64(1000), resp.Deployments[2].CreateIndex)
-		require.Equal(t, uuid1, resp.Deployments[2].ID)
-	})
 }
 
 func TestDeploymentEndpoint_List_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1191,7 +1078,7 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1248,224 +1135,8 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	}
 }
 
-func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
-	ci.Parallel(t)
-	s1, _, cleanupS1 := TestACLServer(t, nil)
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// create a set of deployments. these are in the order that the
-	// state store will return them from the iterator (sorted by key),
-	// for ease of writing tests
-	mocks := []struct {
-		id        string
-		namespace string
-		jobID     string
-		status    string
-	}{
-		{id: "aaaa1111-3350-4b4b-d185-0e1992ed43e9"},                           // 0
-		{id: "aaaaaa22-3350-4b4b-d185-0e1992ed43e9"},                           // 1
-		{id: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9", namespace: "non-default"}, // 2
-		{id: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"},                           // 3
-		{id: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9"},                           // 4
-		{id: "aaaaaacc-3350-4b4b-d185-0e1992ed43e9"},                           // 5
-		{id: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9"},                           // 6
-		{id: "00000111-3350-4b4b-d185-0e1992ed43e9"},                           // 7
-		{}, // 8, index missing
-		{id: "bbbb1111-3350-4b4b-d185-0e1992ed43e9"}, // 9
-	}
-
-	state := s1.fsm.State()
-
-	for i, m := range mocks {
-		if m.id == "" {
-			continue
-		}
-
-		index := 1000 + uint64(i)
-		deployment := mock.Deployment()
-		deployment.Status = structs.DeploymentStatusCancelled
-		deployment.ID = m.id
-		deployment.CreateIndex = index
-		if m.namespace != "" { // defaults to "default"
-			deployment.Namespace = m.namespace
-		}
-		require.NoError(t, state.UpsertDeployment(index, deployment))
-	}
-
-	aclToken := mock.CreatePolicyAndToken(t, state, 1100, "test-valid-read",
-		mock.NamespacePolicy("*", "read", nil)).
-		SecretID
-
-	cases := []struct {
-		name              string
-		namespace         string
-		prefix            string
-		filter            string
-		nextToken         string
-		pageSize          int32
-		expectedNextToken string
-		expectedIDs       []string
-		expectedError     string
-	}{
-		{
-			name:              "test01 size-2 page-1 default NS",
-			pageSize:          2,
-			expectedNextToken: "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:              "test02 size-2 page-1 default NS with prefix",
-			prefix:            "aaaa",
-			pageSize:          2,
-			expectedNextToken: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9", // prefix results are not sorted by create index
-			expectedIDs: []string{
-				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:              "test03 size-2 page-2 default NS",
-			pageSize:          2,
-			nextToken:         "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1005.aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:              "test04 size-2 page-2 default NS with prefix",
-			prefix:            "aaaa",
-			pageSize:          2,
-			nextToken:         "aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:              "test05 size-2 page-2 all namespaces",
-			namespace:         "*",
-			pageSize:          2,
-			nextToken:         "1002.aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1004.aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:        "test06 no valid results with filters and prefix",
-			prefix:      "cccc",
-			pageSize:    2,
-			nextToken:   "",
-			expectedIDs: []string{},
-		},
-		{
-			name:      "test07 go-bexpr filter",
-			namespace: "*",
-			filter:    `ID matches "^a+[123]"`,
-			expectedIDs: []string{
-				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:              "test08 go-bexpr filter with pagination",
-			namespace:         "*",
-			filter:            `ID matches "^a+[123]"`,
-			pageSize:          2,
-			expectedNextToken: "1002.aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
-				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:      "test09 go-bexpr filter in namespace",
-			namespace: "non-default",
-			filter:    `Status == "cancelled"`,
-			expectedIDs: []string{
-				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:        "test10 go-bexpr wrong namespace",
-			namespace:   "default",
-			filter:      `Namespace == "non-default"`,
-			expectedIDs: []string{},
-		},
-		{
-			name:          "test11 go-bexpr invalid expression",
-			filter:        `NotValid`,
-			expectedError: "failed to read filter expression",
-		},
-		{
-			name:          "test12 go-bexpr invalid field",
-			filter:        `InvalidField == "value"`,
-			expectedError: "error finding value in datum",
-		},
-		{
-			name:              "test13 non-lexicographic order",
-			pageSize:          1,
-			nextToken:         "1007.00000111-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1009.bbbb1111-3350-4b4b-d185-0e1992ed43e9",
-			expectedIDs: []string{
-				"00000111-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-		{
-			name:      "test14 missing index",
-			pageSize:  1,
-			nextToken: "1008.e9522802-0cd8-4b1d-9c9e-ab3d97938371",
-			expectedIDs: []string{
-				"bbbb1111-3350-4b4b-d185-0e1992ed43e9",
-			},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			req := &structs.DeploymentListRequest{
-				QueryOptions: structs.QueryOptions{
-					Region:    "global",
-					Namespace: tc.namespace,
-					Prefix:    tc.prefix,
-					Filter:    tc.filter,
-					PerPage:   tc.pageSize,
-					NextToken: tc.nextToken,
-				},
-			}
-			req.AuthToken = aclToken
-			var resp structs.DeploymentListResponse
-			err := msgpackrpc.CallWithCodec(codec, "Deployment.List", req, &resp)
-			if tc.expectedError == "" {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.expectedError)
-				return
-			}
-
-			gotIDs := []string{}
-			for _, deployment := range resp.Deployments {
-				gotIDs = append(gotIDs, deployment.ID)
-			}
-			require.Equal(t, tc.expectedIDs, gotIDs, "unexpected page of deployments")
-			require.Equal(t, tc.expectedNextToken, resp.QueryMeta.NextToken, "unexpected NextToken")
-		})
-	}
-}
-
 func TestDeploymentEndpoint_Allocations(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1503,7 +1174,7 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1578,7 +1249,7 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1646,7 +1317,7 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 }
 
 func TestDeploymentEndpoint_Reap(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()

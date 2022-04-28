@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Add `nomad job allocs` command
-```

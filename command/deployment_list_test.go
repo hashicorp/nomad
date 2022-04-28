@@ -4,17 +4,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 )
 
 func TestDeploymentListCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &DeploymentListCommand{}
 }
 
 func TestDeploymentListCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	ui := cli.NewMockUi()
 	cmd := &DeploymentListCommand{Meta: Meta{Ui: ui}}
 

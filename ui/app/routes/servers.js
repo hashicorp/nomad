@@ -10,6 +10,13 @@ export default class ServersRoute extends Route.extend(WithForbiddenState) {
   @service store;
   @service system;
 
+  breadcrumbs = [
+    {
+      label: 'Servers',
+      args: ['servers.index'],
+    },
+  ];
+
   beforeModel() {
     return this.get('system.leader');
   }

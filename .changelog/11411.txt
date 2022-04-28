@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: added json and template flag opts to the acl bootstrap command
-```

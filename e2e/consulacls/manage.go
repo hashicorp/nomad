@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -83,11 +84,11 @@ func extractSerial(filename string) (int, error) {
 	}
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return 0, fmt.Errorf("failed to extract TF serial: %w", err)
+		return 0, errors.Wrap(err, "failed to extract TF serial")
 	}
 	var state tfState
 	if err := json.Unmarshal(b, &state); err != nil {
-		return 0, fmt.Errorf("failed to extract TF serial: %w", err)
+		return 0, errors.Wrap(err, "failed to extract TF serial")
 	}
 	return state.Serial, nil
 }

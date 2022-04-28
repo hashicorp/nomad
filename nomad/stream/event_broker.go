@@ -86,7 +86,7 @@ func NewEventBroker(ctx context.Context, aclDelegate ACLDelegate, cfg EventBroke
 	return e, nil
 }
 
-// Len returns the current length of the event buffer.
+// Returns the current length of the event buffer
 func (e *EventBroker) Len() int {
 	return e.eventBuf.Len()
 }
@@ -299,8 +299,7 @@ func aclAllowsSubscription(aclObj *acl.ACL, subReq *SubscribeRequest) bool {
 		case structs.TopicDeployment,
 			structs.TopicEvaluation,
 			structs.TopicAllocation,
-			structs.TopicJob,
-			structs.TopicService:
+			structs.TopicJob:
 			if ok := aclObj.AllowNsOp(subReq.Namespace, acl.NamespaceCapabilityReadJob); !ok {
 				return false
 			}

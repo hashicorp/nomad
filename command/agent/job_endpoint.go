@@ -15,10 +15,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// jobNotFoundErr is an error string which can be used as the return string
-// alongside a 404 when a job is not found.
-const jobNotFoundErr = "job not found"
-
 func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
 	case "GET":
@@ -90,9 +86,6 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/scale"):
 		jobName := strings.TrimSuffix(path, "/scale")
 		return s.jobScale(resp, req, jobName)
-	case strings.HasSuffix(path, "/services"):
-		jobName := strings.TrimSuffix(path, "/services")
-		return s.jobServiceRegistrations(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -398,15 +391,6 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		}
 	}
 
-	// Validate the evaluation priority if the user supplied a non-default
-	// value. It's more efficient to do it here, within the agent rather than
-	// sending a bad request for the server to reject.
-	if args.EvalPriority != 0 {
-		if err := validateEvalPriorityOpt(args.EvalPriority); err != nil {
-			return nil, err
-		}
-	}
-
 	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
 	regReq := structs.JobRegisterRequest{
 		Job:            sJob,
@@ -414,7 +398,6 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		JobModifyIndex: args.JobModifyIndex,
 		PolicyOverride: args.PolicyOverride,
 		PreserveCounts: args.PreserveCounts,
-		EvalPriority:   args.EvalPriority,
 		WriteRequest:   *writeReq,
 	}
 
@@ -429,9 +412,6 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
 
-	args := structs.JobDeregisterRequest{JobID: jobName}
-
-	// Identify the purge query param and parse.
 	purgeStr := req.URL.Query().Get("purge")
 	var purgeBool bool
 	if purgeStr != "" {
@@ -441,9 +421,7 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a bool: %v", "purge", purgeStr, err)
 		}
 	}
-	args.Purge = purgeBool
 
-	// Identify the global query param and parse.
 	globalStr := req.URL.Query().Get("global")
 	var globalBool bool
 	if globalStr != "" {
@@ -453,36 +431,12 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a bool: %v", "global", globalStr, err)
 		}
 	}
-	args.Global = globalBool
 
-	// Parse the eval priority from the request URL query if present.
-	evalPriority, err := parseInt(req, "eval_priority")
-	if err != nil {
-		return nil, err
+	args := structs.JobDeregisterRequest{
+		JobID:  jobName,
+		Purge:  purgeBool,
+		Global: globalBool,
 	}
-
-	// Identify the no_shutdown_delay query param and parse.
-	noShutdownDelayStr := req.URL.Query().Get("no_shutdown_delay")
-	var noShutdownDelay bool
-	if noShutdownDelayStr != "" {
-		var err error
-		noShutdownDelay, err = strconv.ParseBool(noShutdownDelayStr)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to parse value of %qq (%v) as a bool: %v", "no_shutdown_delay", noShutdownDelayStr, err)
-		}
-	}
-	args.NoShutdownDelay = noShutdownDelay
-
-	// Validate the evaluation priority if the user supplied a non-default
-	// value. It's more efficient to do it here, within the agent rather than
-	// sending a bad request for the server to reject.
-	if evalPriority != nil && *evalPriority > 0 {
-		if err := validateEvalPriorityOpt(*evalPriority); err != nil {
-			return nil, err
-		}
-		args.EvalPriority = *evalPriority
-	}
-
 	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.JobDeregisterResponse
@@ -758,39 +712,6 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	return jobStruct, nil
 }
 
-// jobServiceRegistrations returns a list of all service registrations assigned
-// to the job identifier. It is callable via the
-// /v1/job/:jobID/services HTTP API and uses the
-// structs.JobServiceRegistrationsRPCMethod RPC method.
-func (s *HTTPServer) jobServiceRegistrations(
-	resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-
-	// The endpoint only supports GET requests.
-	if req.Method != http.MethodGet {
-		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
-	}
-
-	// Set up the request args and parse this to ensure the query options are
-	// set.
-	args := structs.JobServiceRegistrationsRequest{JobID: jobID}
-	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
-		return nil, nil
-	}
-
-	// Perform the RPC request.
-	var reply structs.JobServiceRegistrationsResponse
-	if err := s.agent.RPC(structs.JobServiceRegistrationsRPCMethod, &args, &reply); err != nil {
-		return nil, err
-	}
-
-	setMeta(resp, &reply.QueryMeta)
-
-	if reply.Services == nil {
-		return nil, CodedError(http.StatusNotFound, jobNotFoundErr)
-	}
-	return reply.Services, nil
-}
-
 // apiJobAndRequestToStructs parses the query params from the incoming
 // request and converts to a structs.Job and WriteRequest with the
 func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, apiReq api.WriteRequest) (*structs.Job, *structs.WriteRequest) {
@@ -1012,10 +933,6 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		tg.StopAfterClientDisconnect = taskGroup.StopAfterClientDisconnect
 	}
 
-	if taskGroup.MaxClientDisconnect != nil {
-		tg.MaxClientDisconnect = taskGroup.MaxClientDisconnect
-	}
-
 	if taskGroup.ReschedulePolicy != nil {
 		tg.ReschedulePolicy = &structs.ReschedulePolicy{
 			Attempts:      *taskGroup.ReschedulePolicy.Attempts,
@@ -1222,7 +1139,6 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 					RightDelim:   *template.RightDelim,
 					Envvars:      *template.Envvars,
 					VaultGrace:   *template.VaultGrace,
-					Wait:         ApiWaitConfigToStructsWaitConfig(template.Wait),
 				})
 		}
 	}
@@ -1238,19 +1154,6 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			Hook:    apiTask.Lifecycle.Hook,
 			Sidecar: apiTask.Lifecycle.Sidecar,
 		}
-	}
-}
-
-// ApiWaitConfigToStructsWaitConfig is a copy and type conversion between the API
-// representation of a WaitConfig from a struct representation of a WaitConfig.
-func ApiWaitConfigToStructsWaitConfig(waitConfig *api.WaitConfig) *structs.WaitConfig {
-	if waitConfig == nil {
-		return nil
-	}
-
-	return &structs.WaitConfig{
-		Min: &*waitConfig.Min,
-		Max: &*waitConfig.Max,
 	}
 }
 
@@ -1373,11 +1276,9 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			CanaryTags:        s.CanaryTags,
 			EnableTagOverride: s.EnableTagOverride,
 			AddressMode:       s.AddressMode,
-			Address:           s.Address,
 			Meta:              helper.CopyMapStringString(s.Meta),
 			CanaryMeta:        helper.CopyMapStringString(s.CanaryMeta),
 			OnUpdate:          s.OnUpdate,
-			Provider:          s.Provider,
 		}
 
 		if l := len(s.Checks); l != 0 {
@@ -1778,13 +1679,4 @@ func ApiSpreadToStructs(a1 *api.Spread) *structs.Spread {
 		}
 	}
 	return ret
-}
-
-// validateEvalPriorityOpt ensures the supplied evaluation priority override
-// value is within acceptable bounds.
-func validateEvalPriorityOpt(priority int) HTTPCodedError {
-	if priority < 1 || priority > 100 {
-		return CodedError(400, "Eval priority must be between 1 and 100 inclusively")
-	}
-	return nil
 }

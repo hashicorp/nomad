@@ -1,3 +1,0 @@
-```release-note:bug
-core: Fixed an issue that created incorrect plan output for jobs with services with the same name.
-```

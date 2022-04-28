@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Return non-zero exit code from monitor if deployment fails
-```

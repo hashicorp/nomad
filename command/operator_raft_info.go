@@ -14,16 +14,14 @@ type OperatorRaftInfoCommand struct {
 
 func (c *OperatorRaftInfoCommand) Help() string {
 	helpText := `
-Usage: nomad operator raft info <path to nomad data dir>
+Usage: nomad operator raft _info <path to nomad data dir>
 
-  Displays summary information about the raft logs in the data directory.
-
-  This command requires file system permissions to access the data directory on
-  disk. The Nomad server locks access to the data directory, so this command
-  cannot be run on a data directory that is being used by a running Nomad server.
+  Displays info about the raft logs in the data directory.
 
   This is a low-level debugging tool and not subject to Nomad's usual backward
   compatibility guarantees.
+
+  If ACLs are enabled, this command requires a management token.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -40,7 +38,7 @@ func (c *OperatorRaftInfoCommand) Synopsis() string {
 	return "Display info of the raft log"
 }
 
-func (c *OperatorRaftInfoCommand) Name() string { return "operator raft info" }
+func (c *OperatorRaftInfoCommand) Name() string { return "operator raft _info" }
 
 func (c *OperatorRaftInfoCommand) Run(args []string) int {
 	if len(args) != 1 {

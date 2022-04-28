@@ -1,3 +1,5 @@
+// +build ent
+
 package command
 
 import (
@@ -5,19 +7,18 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNamespaceStatusCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &NamespaceStatusCommand{}
 }
 
 func TestNamespaceStatusCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	ui := cli.NewMockUi()
 	cmd := &NamespaceStatusCommand{Meta: Meta{Ui: ui}}
 
@@ -40,7 +41,7 @@ func TestNamespaceStatusCommand_Fails(t *testing.T) {
 }
 
 func TestNamespaceStatusCommand_Good(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
@@ -69,15 +70,11 @@ func TestNamespaceStatusCommand_Good(t *testing.T) {
 }
 
 func TestNamespaceStatusCommand_Good_Quota(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
-
-	if !srv.Enterprise {
-		t.Skip("Skipping enterprise-only quota test")
-	}
 
 	ui := cli.NewMockUi()
 	cmd := &NamespaceStatusCommand{Meta: Meta{Ui: ui}}
@@ -113,8 +110,8 @@ func TestNamespaceStatusCommand_Good_Quota(t *testing.T) {
 }
 
 func TestNamespaceStatusCommand_AutocompleteArgs(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
+	t.Parallel()
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -142,7 +139,7 @@ func TestNamespaceStatusCommand_AutocompleteArgs(t *testing.T) {
 // command should pull the matching namespace rather than
 // displaying the multiple match error
 func TestNamespaceStatusCommand_NamespaceMatchesPrefix(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)

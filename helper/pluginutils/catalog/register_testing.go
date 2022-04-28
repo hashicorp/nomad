@@ -1,4 +1,3 @@
-//go:build !release
 // +build !release
 
 package catalog

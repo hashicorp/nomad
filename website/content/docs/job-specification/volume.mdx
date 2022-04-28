@@ -42,7 +42,7 @@ job "docs" {
 
       mount_options {
         fs_type     = "ext4"
-        mount_flags = ["noatime"]
+        mount_flags = "noatime"
       }
     }
   }
@@ -106,7 +106,7 @@ The following fields are only valid for volumes with `type = "csi"`:
   necessary.
 
   - `fs_type`: file system type (ex. `"ext4"`)
-  - `mount_flags`: the flags passed to `mount` (ex. `["ro", "noatime"]`)
+  - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)
 
 ## Volume Interpolation
 

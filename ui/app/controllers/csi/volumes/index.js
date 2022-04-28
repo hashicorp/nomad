@@ -1,4 +1,3 @@
-import { set } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { action, computed } from '@ember/object';
 import { alias, readOnly } from '@ember/object/computed';
@@ -12,15 +11,15 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class IndexController extends Controller.extend(
-  SortableFactory([
-    'id',
-    'schedulable',
-    'controllersHealthyProportion',
-    'nodesHealthyProportion',
-    'provider',
-  ]),
-  Searchable
-) {
+    SortableFactory([
+      'id',
+      'schedulable',
+      'controllersHealthyProportion',
+      'nodesHealthyProportion',
+      'provider',
+    ]),
+    Searchable
+  ) {
   @service system;
   @service userSettings;
   @controller('csi/volumes') volumesController;
@@ -66,7 +65,7 @@ export default class IndexController extends Controller.extend(
 
   @computed('qpNamespace', 'model.namespaces.[]', 'system.cachedNamespace')
   get optionsNamespaces() {
-    const availableNamespaces = this.model.namespaces.map((namespace) => ({
+    const availableNamespaces = this.model.namespaces.map(namespace => ({
       key: namespace.name,
       label: namespace.name,
     }));
@@ -81,7 +80,7 @@ export default class IndexController extends Controller.extend(
       // eslint-disable-next-line ember/no-incorrect-calls-with-inline-anonymous-functions
       scheduleOnce('actions', () => {
         // eslint-disable-next-line ember/no-side-effects
-        this.set('qpNamespace', this.system.cachedNamespace || '*');
+        this.set('qpNamespace', this.system.cachedNamespace || 'default');
       });
     }
 
@@ -103,7 +102,7 @@ export default class IndexController extends Controller.extend(
 
   @action
   cacheNamespace(namespace) {
-    set(this, 'system.cachedNamespace', namespace);
+    this.system.cachedNamespace = namespace;
   }
 
   setFacetQueryParam(queryParam, selection) {
@@ -114,10 +113,9 @@ export default class IndexController extends Controller.extend(
   gotoVolume(volume, event) {
     lazyClick([
       () =>
-        this.transitionToRoute(
-          'csi.volumes.volume',
-          volume.get('idWithNamespace')
-        ),
+        this.transitionToRoute('csi.volumes.volume', volume.get('plainId'), {
+          queryParams: { volumeNamespace: volume.get('namespace.name') },
+        }),
       event,
     ]);
   }

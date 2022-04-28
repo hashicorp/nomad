@@ -3,13 +3,12 @@ package drainer
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDrainer_PartitionAllocDrain(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	// Set the max ids per reap to something lower.
 	maxIdsPerTxn := 2
 
@@ -33,7 +32,7 @@ func TestDrainer_PartitionAllocDrain(t *testing.T) {
 }
 
 func TestDrainer_PartitionIds(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// Set the max ids per reap to something lower.

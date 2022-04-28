@@ -1,3 +1,0 @@
-```release-note:improvement
-api: filter values of evaluation and deployment list api endpoints
-```

@@ -1,3 +1,0 @@
-```release-note:improvement
-client: set NOMAD_CPU_CORES environment variable when reserving cpu cores
-```

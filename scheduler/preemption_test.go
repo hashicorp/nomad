@@ -2,10 +2,10 @@ package scheduler
 
 import (
 	"fmt"
-	"strconv"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
+	"strconv"
+
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -14,8 +14,6 @@ import (
 )
 
 func TestResourceDistance(t *testing.T) {
-	ci.Parallel(t)
-
 	resourceAsk := &structs.ComparableResources{
 		Flattened: structs.AllocatedTaskResources{
 			Cpu: structs.AllocatedCpuResources{
@@ -144,8 +142,6 @@ func TestResourceDistance(t *testing.T) {
 }
 
 func TestPreemption(t *testing.T) {
-	ci.Parallel(t)
-
 	type testCase struct {
 		desc                 string
 		currentAllocations   []*structs.Allocation
@@ -1387,8 +1383,6 @@ func TestPreemption(t *testing.T) {
 
 // TestPreemptionMultiple tests evicting multiple allocations in the same time
 func TestPreemptionMultiple(t *testing.T) {
-	ci.Parallel(t)
-
 	// The test setup:
 	//  * a node with 4 GPUs
 	//  * a low priority job with 4 allocs, each is using 1 GPU

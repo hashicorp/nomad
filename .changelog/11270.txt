@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Improved autocomplete support for job dispatch and operator debug
-```

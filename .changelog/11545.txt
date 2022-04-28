@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Add filters to the allocation list in the client and task group details pages
-```

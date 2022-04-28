@@ -45,10 +45,8 @@ $ curl \
     "ModifyIndex": 5,
     "SchedulerAlgorithm": "spread",
     "MemoryOversubscriptionEnabled": true,
-    "RejectJobRegistration": false,
     "PreemptionConfig": {
       "SystemSchedulerEnabled": true,
-      "SysBatchSchedulerEnabled": false,
       "BatchSchedulerEnabled": false,
       "ServiceSchedulerEnabled": false
     }
@@ -72,9 +70,6 @@ $ curl \
 
     - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
       this defaults to true.
-
-    - `SysBatchSchedulerEnabled` `(bool: false)` - Specifies whether preemption for system batch jobs is enabled. Note that
-      this defaults to false.
 
     - `BatchSchedulerEnabled` `(bool: false)` - Specifies whether preemption for batch jobs is enabled. Note that
       this defaults to false and must be explicitly enabled.
@@ -119,10 +114,8 @@ server state is authoritative.
 {
   "SchedulerAlgorithm": "spread",
   "MemoryOversubscriptionEnabled": false,
-  "RejectJobRegistration": false,
   "PreemptionConfig": {
     "SystemSchedulerEnabled": true,
-    "SysBatchSchedulerEnabled": false,
     "BatchSchedulerEnabled": false,
     "ServiceSchedulerEnabled": true
   }
@@ -135,18 +128,12 @@ server state is authoritative.
 
 - `MemoryOversubscriptionEnabled` `(bool: false)` <sup>1.1 Beta</sup> - When `true`, tasks may exceed their reserved memory limit, if the client has excess memory capacity. Tasks must specify [`memory_max`](/docs/job-specification/resources#memory_max) to take advantage of memory oversubscription.
 
-- `RejectJobRegistration` `(bool: false)` - When `true`, the server will return permission denied errors for job registration, job dispatch, and job scale APIs, unless the ACL token for the request is a management token. If ACLs are disabled, no user will be able to register jobs. This allows operators to shed load from automated proceses during incident response.
-
 - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for
   various schedulers.
 
   - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for
     system jobs is enabled. Note that if this is set to true, then system jobs
     can preempt any other jobs.
-    
-  - `SysBatchSchedulerEnabled` `(bool: false)` <sup>1.2</sup> - Specifies 
-    whether preemption for system batch jobs is enabled. Note that if this is 
-    set to true, then system batch jobs can preempt any other jobs.
 
   - `BatchSchedulerEnabled` `(bool: false)` - Specifies
     whether preemption for batch jobs is enabled. Note that if this is set to

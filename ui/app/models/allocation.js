@@ -12,9 +12,8 @@ const STATUS_ORDER = {
   pending: 1,
   running: 2,
   complete: 3,
-  unknown: 4,
-  failed: 5,
-  lost: 6,
+  failed: 4,
+  lost: 5,
 };
 
 @classic
@@ -24,7 +23,6 @@ export default class Allocation extends Model {
   @shortUUIDProperty('id') shortId;
   @belongsTo('job') job;
   @belongsTo('node') node;
-  @attr('string') namespace;
   @attr('string') name;
   @attr('string') taskGroupName;
   @fragment('resources') resources;
@@ -39,11 +37,6 @@ export default class Allocation extends Model {
 
   @attr('string') clientStatus;
   @attr('string') desiredStatus;
-
-  @computed('')
-  get plainJobId() {
-    return JSON.parse(this.belongsTo('job').id())[0];
-  }
 
   @computed('clientStatus')
   get statusIndex() {
@@ -68,10 +61,8 @@ export default class Allocation extends Model {
   @belongsTo('allocation', { inverse: 'nextAllocation' }) previousAllocation;
   @belongsTo('allocation', { inverse: 'previousAllocation' }) nextAllocation;
 
-  @hasMany('allocation', { inverse: 'preemptedByAllocation' })
-  preemptedAllocations;
-  @belongsTo('allocation', { inverse: 'preemptedAllocations' })
-  preemptedByAllocation;
+  @hasMany('allocation', { inverse: 'preemptedByAllocation' }) preemptedAllocations;
+  @belongsTo('allocation', { inverse: 'preemptedAllocations' }) preemptedByAllocation;
   @attr('boolean') wasPreempted;
 
   @belongsTo('evaluation') followUpEvaluation;
@@ -84,7 +75,6 @@ export default class Allocation extends Model {
       complete: 'is-complete',
       failed: 'is-error',
       lost: 'is-light',
-      unknown: 'is-unknown',
     };
 
     return classMap[this.clientStatus] || 'is-dark';
@@ -121,13 +111,6 @@ export default class Allocation extends Model {
     return [];
   }
 
-  // When per_alloc is set to true on a volume, the volumes are duplicated between active allocations.
-  // We differentiate them with a [#] suffix, inferred from a volume's allocation's name property.
-  @computed('name')
-  get volumeExtension() {
-    return this.name.substring(this.name.lastIndexOf('['));
-  }
-
   @fragmentArray('task-state') states;
   @fragmentArray('reschedule-event') rescheduleEvents;
 
@@ -136,11 +119,7 @@ export default class Allocation extends Model {
     return this.get('rescheduleEvents.length') > 0 || this.nextAllocation;
   }
 
-  @computed(
-    'clientStatus',
-    'followUpEvaluation.content',
-    'nextAllocation.content'
-  )
+  @computed('clientStatus', 'followUpEvaluation.content', 'nextAllocation.content')
   get hasStoppedRescheduling() {
     return (
       !this.get('nextAllocation.content') &&

@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 	"testing"
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
-	sockaddr "github.com/hashicorp/go-sockaddr"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,8 +29,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestConsulConfig_Merge(t *testing.T) {
-	ci.Parallel(t)
-
 	yes, no := true, false
 
 	c1 := &ConsulConfig{
@@ -124,7 +119,7 @@ func TestConsulConfig_Merge(t *testing.T) {
 // TestConsulConfig_Defaults asserts Consul defaults are copied from their
 // upstream API package defaults.
 func TestConsulConfig_Defaults(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	nomadDef := DefaultConsulConfig()
 	consulDef := consulapi.DefaultConfig()
@@ -139,7 +134,7 @@ func TestConsulConfig_Defaults(t *testing.T) {
 // TestConsulConfig_Exec asserts Consul defaults use env vars when they are
 // set by forking a subprocess.
 func TestConsulConfig_Exec(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	self, err := os.Executable()
 	if err != nil {
@@ -171,41 +166,4 @@ func TestConsulConfig_Exec(t *testing.T) {
 	assert.True(t, *conf.EnableSSL)
 	require.NotNil(t, conf.VerifySSL)
 	assert.True(t, *conf.VerifySSL)
-}
-
-func TestConsulConfig_IpTemplateParse(t *testing.T) {
-	ci.Parallel(t)
-
-	privateIps, err := sockaddr.GetPrivateIP()
-	require.NoError(t, err)
-	privateIp := strings.Split(privateIps, " ")[0]
-
-	testCases := []struct {
-		name        string
-		tmpl        string
-		expectedOut string
-		expectErr   bool
-	}{
-		{name: "string address keeps working", tmpl: "10.0.1.0:8500", expectedOut: "10.0.1.0:8500", expectErr: false},
-		{name: "single ip sock-addr template", tmpl: "{{ GetPrivateIP }}:8500", expectedOut: privateIp + ":8500", expectErr: false},
-		{name: "multi ip sock-addr template", tmpl: "{{ GetPrivateIPs }}:8500", expectedOut: "", expectErr: true},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			ci.Parallel(t)
-			conf := ConsulConfig{
-				Addr: tc.tmpl,
-			}
-			out, err := conf.ApiConfig()
-
-			if tc.expectErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedOut, out.Address)
-		})
-	}
 }

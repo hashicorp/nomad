@@ -19,6 +19,7 @@ import (
 	"github.com/armon/go-metrics/circonus"
 	"github.com/armon/go-metrics/datadog"
 	"github.com/armon/go-metrics/prometheus"
+	"github.com/hashicorp/consul/lib"
 	checkpoint "github.com/hashicorp/go-checkpoint"
 	discover "github.com/hashicorp/go-discover"
 	hclog "github.com/hashicorp/go-hclog"
@@ -50,7 +51,7 @@ type Command struct {
 
 	args           []string
 	agent          *Agent
-	httpServers    []*HTTPServer
+	httpServer     *HTTPServer
 	logFilter      *logutils.LevelFilter
 	logOutput      io.Writer
 	retryJoinErrCh chan struct{}
@@ -293,14 +294,14 @@ func (c *Command) readConfig() *Config {
 
 	config.Server.DefaultSchedulerConfig.Canonicalize()
 
-	if !c.IsValidConfig(config, cmdConfig) {
+	if !c.isValidConfig(config, cmdConfig) {
 		return nil
 	}
 
 	return config
 }
 
-func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
+func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
@@ -372,19 +373,6 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
-	if config.Client.MinDynamicPort < 0 || config.Client.MinDynamicPort > structs.MaxValidPort {
-		c.Ui.Error(fmt.Sprintf("Invalid dynamic port range: min_dynamic_port=%d", config.Client.MinDynamicPort))
-		return false
-	}
-	if config.Client.MaxDynamicPort < 0 || config.Client.MaxDynamicPort > structs.MaxValidPort {
-		c.Ui.Error(fmt.Sprintf("Invalid dynamic port range: max_dynamic_port=%d", config.Client.MaxDynamicPort))
-		return false
-	}
-	if config.Client.MinDynamicPort > config.Client.MaxDynamicPort {
-		c.Ui.Error(fmt.Sprintf("Invalid dynamic port range: min_dynamic_port=%d and max_dynamic_port=%d", config.Client.MinDynamicPort, config.Client.MaxDynamicPort))
-		return false
-	}
-
 	if config.Client.Reserved == nil {
 		// Coding error; should always be set by DefaultConfig()
 		c.Ui.Error("client.reserved must be initialized. Please report a bug.")
@@ -409,7 +397,7 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	if !config.DevMode {
 		// Ensure that we have the directories we need to run.
 		if config.Server.Enabled && config.DataDir == "" {
-			c.Ui.Error(`Must specify "data_dir" config option or "data-dir" CLI flag`)
+			c.Ui.Error("Must specify data directory")
 			return false
 		}
 
@@ -433,16 +421,10 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		}
 	}
 
-	// ProtocolVersion has never been used. Warn if it is set as someone
-	// has probably made a mistake.
-	if config.Server.ProtocolVersion != 0 {
-		c.agent.logger.Warn("Please remove deprecated protocol_version field from config.")
-	}
-
 	return true
 }
 
-// SetupLoggers is used to set up the logGate, and our logOutput
+// setupLoggers is used to setup the logGate, and our logOutput
 func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwriter.Writer, io.Writer) {
 	// Setup logging. First create the gated log writer, which will
 	// store logs until we're ready to show them. Then create the level
@@ -516,24 +498,21 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 // setupAgent is used to start the agent and various interfaces
 func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOutput io.Writer, inmem *metrics.InmemSink) error {
 	c.Ui.Output("Starting Nomad agent...")
-
 	agent, err := NewAgent(config, logger, logOutput, inmem)
 	if err != nil {
-		// log the error as well, so it appears at the end
-		logger.Error("error starting agent", "error", err)
 		c.Ui.Error(fmt.Sprintf("Error starting agent: %s", err))
 		return err
 	}
 	c.agent = agent
 
 	// Setup the HTTP server
-	httpServers, err := NewHTTPServers(agent, config)
+	http, err := NewHTTPServer(agent, config)
 	if err != nil {
 		agent.Shutdown()
 		c.Ui.Error(fmt.Sprintf("Error starting http server: %s", err))
 		return err
 	}
-	c.httpServers = httpServers
+	c.httpServer = http
 
 	// If DisableUpdateCheck is not enabled, set up update checking
 	// (DisableUpdateCheck is false by default)
@@ -555,7 +534,7 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 
 		// Do an immediate check within the next 30 seconds
 		go func() {
-			time.Sleep(helper.RandomStagger(30 * time.Second))
+			time.Sleep(lib.RandomStagger(30 * time.Second))
 			c.checkpointResults(checkpoint.Check(updateParams))
 		}()
 	}
@@ -693,10 +672,7 @@ func (c *Command) Run(args []string) int {
 
 	// Wrap log messages emitted with the 'log' package.
 	// These usually come from external dependencies.
-	log.SetOutput(logger.StandardWriter(&hclog.StandardLoggerOptions{
-		InferLevels:              true,
-		InferLevelsWithTimestamp: true,
-	}))
+	log.SetOutput(logger.StandardWriter(&hclog.StandardLoggerOptions{InferLevels: true}))
 	log.SetPrefix("")
 	log.SetFlags(0)
 
@@ -730,10 +706,8 @@ func (c *Command) Run(args []string) int {
 
 		// Shutdown the http server at the end, to ease debugging if
 		// the agent takes long to shutdown
-		if len(c.httpServers) > 0 {
-			for _, srv := range c.httpServers {
-				srv.Shutdown()
-			}
+		if c.httpServer != nil {
+			c.httpServer.Shutdown()
 		}
 	}()
 
@@ -934,15 +908,13 @@ WAIT:
 func (c *Command) reloadHTTPServer() error {
 	c.agent.logger.Info("reloading HTTP server with new TLS configuration")
 
-	for _, srv := range c.httpServers {
-		srv.Shutdown()
-	}
+	c.httpServer.Shutdown()
 
-	httpServers, err := NewHTTPServers(c.agent, c.agent.config)
+	http, err := NewHTTPServer(c.agent, c.agent.config)
 	if err != nil {
 		return err
 	}
-	c.httpServers = httpServers
+	c.httpServer = http
 
 	return nil
 }

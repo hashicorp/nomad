@@ -1,3 +1,0 @@
-```release-note:improvement
-consul/connect: write Envoy bootstrapping information to disk for debugging
-```

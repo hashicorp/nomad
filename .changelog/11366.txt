@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Display the Nomad version in the Servers and Clients tables and allow filtering and sorting
-```

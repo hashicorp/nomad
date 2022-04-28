@@ -1,3 +1,0 @@
-```release-note:feature
-ui: Add filters to allocations table in jobs/job/allocation view
-```

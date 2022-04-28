@@ -3,13 +3,10 @@ package structs
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDriverInfoEquals(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	var driverInfoTest = []struct {
 		input    []*DriverInfo

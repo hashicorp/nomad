@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +23,7 @@ type testEvent struct {
 }
 
 func TestEventStream(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	httpTest(t, nil, func(s *TestAgent) {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -68,7 +68,7 @@ func TestEventStream(t *testing.T) {
 }
 
 func TestEventStream_NamespaceQuery(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	httpTest(t, nil, func(s *TestAgent) {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -120,7 +120,7 @@ func TestEventStream_NamespaceQuery(t *testing.T) {
 }
 
 func TestEventStream_QueryParse(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		desc    string

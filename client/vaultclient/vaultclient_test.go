@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
@@ -16,8 +15,7 @@ import (
 )
 
 func TestVaultClient_TokenRenewals(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	require := require.New(t)
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
@@ -105,8 +103,7 @@ func TestVaultClient_TokenRenewals(t *testing.T) {
 // TestVaultClient_NamespaceSupport tests that the Vault namespace config, if present, will result in the
 // namespace header being set on the created Vault client.
 func TestVaultClient_NamespaceSupport(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	require := require.New(t)
 	tr := true
 	testNs := "test-namespace"
@@ -123,8 +120,7 @@ func TestVaultClient_NamespaceSupport(t *testing.T) {
 }
 
 func TestVaultClient_Heap(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	tr := true
 	conf := config.DefaultConfig()
 	conf.VaultConfig.Enabled = &tr
@@ -230,8 +226,7 @@ func TestVaultClient_Heap(t *testing.T) {
 }
 
 func TestVaultClient_RenewNonRenewableLease(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
 
@@ -280,8 +275,7 @@ func TestVaultClient_RenewNonRenewableLease(t *testing.T) {
 }
 
 func TestVaultClient_RenewNonexistentLease(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
 
@@ -317,7 +311,7 @@ func TestVaultClient_RenewNonexistentLease(t *testing.T) {
 // TestVaultClient_RenewalTime_Long asserts that for leases over 1m the renewal
 // time is jittered.
 func TestVaultClient_RenewalTime_Long(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// highRoller is a randIntn func that always returns the max value
 	highRoller := func(n int) int {
@@ -343,7 +337,7 @@ func TestVaultClient_RenewalTime_Long(t *testing.T) {
 // TestVaultClient_RenewalTime_Short asserts that for leases under 1m the renewal
 // time is lease/2.
 func TestVaultClient_RenewalTime_Short(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	dice := func(int) int {
 		require.Fail(t, "dice should not have been called")

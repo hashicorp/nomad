@@ -3,12 +3,15 @@ version: 2.1
 references:
   # environment specific references - aim to avoid conflicts
   go-machine-image: &go_machine_image
-    ubuntu-2004:202111-02
+    circleci/classic:201808-01
+  go-machine-recent-image: &go_machine_recent_image
+    ubuntu-1604:201903-01
   go-windows-image: &go_windows_image
     windows-server-2019-vs2019:stable
 
   # common references
   common_envs: &common_envs
+    GOMAXPROCS: 1
     NOMAD_SLOW_TEST: 1
     GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
@@ -286,7 +289,7 @@ jobs:
         default: ""
       executor:
         type: string
-        default: "go-machine"
+        default: "go-machine-recent"
       goarch:
         type: string
         default: "amd64"
@@ -491,7 +494,7 @@ jobs:
           destination: /ui-assets
   algolia_index:
     docker:
-      - image: docker.mirror.hashicorp.services/node:14
+      - image: docker.mirror.hashicorp.services/node:12
     steps:
       - checkout
       - run:
@@ -509,8 +512,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: docker.mirror.hashicorp.services/golang:1.17.9
-    resource_class: medium
+      - image: docker.mirror.hashicorp.services/golang:1.16.12
     environment:
       <<: *common_envs
       GOPATH: /go
@@ -519,10 +521,18 @@ executors:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
       image: *go_machine_image
-      resource_class: large
     environment: &machine_env
       <<: *common_envs
-      GOLANG_VERSION: 1.17.9
+      GOPATH: /home/circleci/go
+      GOLANG_VERSION: 1.16.12
+
+  # uses a more recent image with unattended upgrades disabled properly
+  # but seems to break docker builds
+  go-machine-recent:
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    machine:
+      image: *go_machine_recent_image
+    environment: *machine_env
 
   go-macos:
     working_directory: ~/go/src/github.com/hashicorp/nomad
@@ -531,7 +541,7 @@ executors:
     environment:
       <<: *common_envs
       GOPATH: /Users/distiller/go
-      GOLANG_VERSION: 1.17.9
+      GOLANG_VERSION: 1.16.12
 
   go-windows:
     machine:
@@ -543,8 +553,8 @@ executors:
       GOPATH: c:\gopath
       GOBIN: c:\gopath\bin
       GOTESTSUM_PATH: c:\tmp\test-reports
-      GOLANG_VERSION: 1.17.9
-      GOTESTSUM_VERSION: 1.7.0
+      GOLANG_VERSION: 1.16.12
+      GOTESTSUM_VERSION: 0.4.2
       VAULT_VERSION: 1.4.1
 
 workflows:
@@ -557,6 +567,7 @@ workflows:
             branches:
               ignore:
                 - stable-website
+                - /^.-ui\b.*/
 
       - lint-go:
           # check branches are almost all the backend branches
@@ -565,7 +576,6 @@ workflows:
               ignore:
                 - /^.-ui\b.*/
                 - /^docs-.*/
-                - /^backport/docs-.*/
                 - stable-website
 
         # Note: comment-out this job in ENT
@@ -581,7 +591,6 @@ workflows:
               ignore:
                 - stable-website
                 - /^docs-.*/
-                - /^backport/docs-.*/
                 - /^e2e-.*/
 
         # Note: comment-out this job in ENT
@@ -591,7 +600,6 @@ workflows:
               ignore:
                 - /^.-ui\b.*/
                 - /^docs-.*/
-                - /^backport/docs-.*/
                 - /^e2e-.*/
                 - stable-website
 
@@ -604,7 +612,6 @@ workflows:
               ignore:
                 - /^.-ui\b.*/
                 - /^docs-.*/
-                - /^backport/docs-.*/
                 - /^e2e-.*/
                 - stable-website
       - test-machine:
@@ -618,13 +625,20 @@ workflows:
           test_module: "api"
           filters: *backend_test_branches_filter
           enable_race_testing: true
+      - test-container:
+          name: "test-devices"
+          test_packages: "./devices/..."
+          filters: *backend_test_branches_filter
       - test-machine:
           name: "test-other"
-          exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./e2e"
+          exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices|./e2e"
           filters: *backend_test_branches_filter
       - test-machine:
           name: "test-docker"
           test_packages: "./drivers/docker"
+          # docker is misbehaving in docker-machine-recent image
+          # and we get unexpected failures
+          # e.g. https://circleci.com/gh/hashicorp/nomad/3854
           executor: go-machine
           filters: *backend_test_branches_filter
       - test-machine:

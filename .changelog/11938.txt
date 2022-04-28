@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: added `-pprof-interval` to `nomad operator debug` command
-```

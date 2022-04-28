@@ -61,9 +61,9 @@ func (s *ScalingPolicyInfoCommand) AutocompleteFlags() complete.Flags {
 		})
 }
 
-func (s *ScalingPolicyInfoCommand) AutocompleteArgs() complete.Predictor {
+func (c *ScalingPolicyInfoCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := s.Meta.Client()
+		client, err := c.Meta.Client()
 		if err != nil {
 			return nil
 		}

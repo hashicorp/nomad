@@ -112,8 +112,7 @@ func mergeWriteOptions(opts []WriteOption) WriteOptions {
 	return writeOptions
 }
 
-// WithBatchMode enables Batch mode for write requests (Put* and Delete*
-// operations above).
+// Enable Batch mode for write requests (Put* and Delete* operations above).
 func WithBatchMode() WriteOption {
 	return func(s *WriteOptions) {
 		s.BatchMode = true

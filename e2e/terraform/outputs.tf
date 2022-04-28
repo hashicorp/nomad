@@ -38,19 +38,15 @@ ssh into clients with:
 EOM
 }
 
-# Note: Consul and Vault environment needs to be set in test
-# environment before the Terraform run, so we don't have that output
-# here
 output "environment" {
   description = "get connection config by running: $(terraform output environment)"
-  sensitive   = true
   value       = <<EOM
-export NOMAD_ADDR=https://${aws_instance.server[0].public_ip}:4646
-export NOMAD_CACERT=${abspath(path.root)}/keys/tls_ca.crt
-export NOMAD_CLIENT_CERT=${abspath(path.root)}/keys/tls_api_client.crt
-export NOMAD_CLIENT_KEY=${abspath(path.root)}/keys/tls_api_client.key
-export NOMAD_TOKEN=${data.local_file.nomad_token.content}
+export NOMAD_ADDR=http://${aws_instance.server[0].public_ip}:4646
+export CONSUL_HTTP_ADDR=http://${aws_instance.server[0].public_ip}:8500
+export VAULT_ADDR=http://${aws_instance.server[0].public_ip}:8200
 export NOMAD_E2E=1
+export NOMAD_TOKEN=${data.local_file.nomad_token.content}
+export VAULT_TOKEN=${data.local_file.vault_token.content}
 
 EOM
 }

@@ -3,17 +3,16 @@ package command
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 )
 
 func TestSystemGCCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &SystemGCCommand{}
 }
 
 func TestSystemGCCommand_Good(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Create a server
 	srv, _, url := testServer(t, true, nil)

@@ -1,5 +1,4 @@
-//go:build !ent
-// +build !ent
+//+build !ent
 
 package nomad
 
@@ -7,14 +6,13 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConsulACLsAPI_hasSufficientPolicy_oss(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	try := func(t *testing.T, namespace, task string, token *api.ACLToken, exp bool) {
 		logger := testlog.HCLogger(t)

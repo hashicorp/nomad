@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -22,7 +21,7 @@ var _ ConsulACLsAPI = (*mockConsulACLsAPI)(nil)
 var _ ConsulConfigsAPI = (*consulConfigsAPI)(nil)
 
 func TestConsulConfigsAPI_SetCE(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	try := func(t *testing.T, expect error, f func(ConsulConfigsAPI) error) {
 		logger := testlog.HCLogger(t)
@@ -141,7 +140,7 @@ func (m *mockConsulACLsAPI) storeForRevocation(accessors []*structs.SITokenAcces
 }
 
 func TestConsulACLsAPI_CreateToken(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	try := func(t *testing.T, expErr error) {
 		logger := testlog.HCLogger(t)
@@ -183,7 +182,7 @@ func TestConsulACLsAPI_CreateToken(t *testing.T) {
 }
 
 func TestConsulACLsAPI_RevokeTokens(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	setup := func(t *testing.T, exp error) (context.Context, ConsulACLsAPI, *structs.SIToken) {
 		logger := testlog.HCLogger(t)
@@ -238,7 +237,7 @@ func TestConsulACLsAPI_RevokeTokens(t *testing.T) {
 }
 
 func TestConsulACLsAPI_MarkForRevocation(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	logger := testlog.HCLogger(t)
 	aclAPI := consul.NewMockACLsAPI(logger)
@@ -267,7 +266,7 @@ func TestConsulACLsAPI_MarkForRevocation(t *testing.T) {
 }
 
 func TestConsulACLsAPI_bgRetryRevoke(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// manually create so the bg daemon does not run, letting us explicitly
 	// call and test bgRetryRevoke
@@ -328,7 +327,7 @@ func TestConsulACLsAPI_bgRetryRevoke(t *testing.T) {
 }
 
 func TestConsulACLsAPI_Stop(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	setup := func(t *testing.T) *consulACLsAPI {
 		logger := testlog.HCLogger(t)

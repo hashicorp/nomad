@@ -1,13 +1,12 @@
 import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
-import { dasherize } from '@ember/string';
 
 const ON_UPDATE = ['default', 'ignore', 'ignore_warnings'];
 
 export default Factory.extend({
-  name: (id) => `${dasherize(faker.hacker.noun())}-${id}-service`,
-  portLabel: () => dasherize(faker.hacker.noun()),
+  name: id => `${faker.hacker.noun().dasherize()}-${id}-service`,
+  portLabel: () => faker.hacker.noun().dasherize(),
   onUpdate: faker.helpers.randomize(ON_UPDATE),
   tags: () => {
     if (!faker.random.boolean()) {
@@ -24,7 +23,7 @@ export default Factory.extend({
       Proxy: {
         Upstreams: [
           {
-            DestinationName: dasherize(faker.hacker.noun()),
+            DestinationName: faker.hacker.noun().dasherize(),
             LocalBindPort: faker.random.number({ min: 5000, max: 60000 }),
           },
         ],

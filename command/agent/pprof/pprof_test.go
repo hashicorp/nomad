@@ -4,13 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestProfile(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		desc            string
 		profile         string
@@ -61,8 +58,6 @@ func TestProfile(t *testing.T) {
 }
 
 func TestCPUProfile(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		desc            string
 		expectedHeaders map[string]string
@@ -89,8 +84,6 @@ func TestCPUProfile(t *testing.T) {
 }
 
 func TestTrace(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		desc            string
 		expectedHeaders map[string]string
@@ -117,8 +110,6 @@ func TestTrace(t *testing.T) {
 }
 
 func TestCmdline(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		desc            string
 		expectedHeaders map[string]string

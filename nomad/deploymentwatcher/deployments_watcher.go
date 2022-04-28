@@ -202,9 +202,9 @@ func (w *Watcher) getDeploys(ctx context.Context, minIndex uint64) ([]*structs.D
 }
 
 // getDeploysImpl retrieves all deployments from the passed state store.
-func (w *Watcher) getDeploysImpl(ws memdb.WatchSet, store *state.StateStore) (interface{}, uint64, error) {
+func (w *Watcher) getDeploysImpl(ws memdb.WatchSet, state *state.StateStore) (interface{}, uint64, error) {
 
-	iter, err := store.Deployments(ws, state.SortDefault)
+	iter, err := state.Deployments(ws)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -220,7 +220,7 @@ func (w *Watcher) getDeploysImpl(ws memdb.WatchSet, store *state.StateStore) (in
 	}
 
 	// Use the last index that affected the deployment table
-	index, err := store.Index("deployment")
+	index, err := state.Index("deployment")
 	if err != nil {
 		return nil, 0, err
 	}

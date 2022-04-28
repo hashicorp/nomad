@@ -5,13 +5,10 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestHttpServerLoggerFilters_Level_Info(t *testing.T) {
-	ci.Parallel(t)
-
 	var buf bytes.Buffer
 	hclogger := hclog.New(&hclog.LoggerOptions{
 		Name:   "testlog",
@@ -32,8 +29,6 @@ func TestHttpServerLoggerFilters_Level_Info(t *testing.T) {
 }
 
 func TestHttpServerLoggerFilters_Level_Trace(t *testing.T) {
-	ci.Parallel(t)
-
 	var buf bytes.Buffer
 	hclogger := hclog.New(&hclog.LoggerOptions{
 		Name:   "testlog",

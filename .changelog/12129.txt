@@ -1,3 +1,0 @@
-```release-note:improvement
-csi: Added support for storage topology
-```

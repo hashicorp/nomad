@@ -1,8 +1,6 @@
 import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class JobVersionSerializer extends ApplicationSerializer {
   attrs = {
     number: 'Version',

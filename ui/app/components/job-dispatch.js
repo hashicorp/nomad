@@ -49,24 +49,18 @@ export default class JobDispatch extends Component {
     // Helper for mapping the params into a useable form.
     const mapper = (values, required) =>
       values.map(
-        (x) =>
+        x =>
           new MetaField({
             name: x,
             required,
             title: titleCase(noCase(x)),
-            value: this.args.job.meta ? this.args.job.meta.get(x) : '',
+            value: this.args.job.meta ? this.args.job.meta[x] : '',
           })
       );
 
     // Fetch the different types of parameters.
-    const required = mapper(
-      this.args.job.parameterizedDetails.MetaRequired || [],
-      true
-    );
-    const optional = mapper(
-      this.args.job.parameterizedDetails.MetaOptional || [],
-      false
-    );
+    const required = mapper(this.args.job.parameterizedDetails.MetaRequired || [], true);
+    const optional = mapper(this.args.job.parameterizedDetails.MetaOptional || [], false);
 
     // Merge them, required before optional.
     this.metaFields = required.concat(optional);
@@ -100,16 +94,13 @@ export default class JobDispatch extends Component {
     // Try to create the dispatch.
     try {
       let paramValues = {};
-      this.metaFields.forEach((m) => (paramValues[m.name] = m.value));
+      this.metaFields.forEach(m => (paramValues[m.name] = m.value));
       const dispatch = yield this.args.job.dispatch(paramValues, this.payload);
 
       // Navigate to the newly created instance.
-      const namespaceId = this.args.job.belongsTo('namespace').id();
-      const jobId = namespaceId
-        ? `${dispatch.DispatchedJobID}@${namespaceId}`
-        : dispatch.DispatchedJobID;
-
-      this.router.transitionTo('jobs.job', jobId);
+      this.router.transitionTo('jobs.job', dispatch.DispatchedJobID, {
+        queryParams: { namespace: this.args.job.get('namespace.name') },
+      });
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not dispatch job';
       this.errors.pushObject(error);
@@ -132,7 +123,7 @@ export default class JobDispatch extends Component {
     this.resetErrors();
 
     // Make sure that we have all of the meta fields that we need.
-    this.metaFields.forEach((f) => {
+    this.metaFields.forEach(f => {
       f.validate();
       if (f.error) {
         this.errors.pushObject(f.error);

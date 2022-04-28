@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -22,7 +21,7 @@ func testBlockedEvals(t *testing.T) (*BlockedEvals, *EvalBroker) {
 }
 
 func TestBlockedEvals_Block_Disabled(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, _ := testBlockedEvals(t)
@@ -41,7 +40,7 @@ func TestBlockedEvals_Block_Disabled(t *testing.T) {
 }
 
 func TestBlockedEvals_Block_SameJob(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, _ := testBlockedEvals(t)
@@ -61,7 +60,7 @@ func TestBlockedEvals_Block_SameJob(t *testing.T) {
 }
 
 func TestBlockedEvals_Block_Quota(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, _ := testBlockedEvals(t)
@@ -79,7 +78,7 @@ func TestBlockedEvals_Block_Quota(t *testing.T) {
 }
 
 func TestBlockedEvals_Block_PriorUnblocks(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, _ := testBlockedEvals(t)
@@ -102,7 +101,7 @@ func TestBlockedEvals_Block_PriorUnblocks(t *testing.T) {
 }
 
 func TestBlockedEvals_GetDuplicates(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, _ := testBlockedEvals(t)
@@ -164,7 +163,7 @@ func TestBlockedEvals_GetDuplicates(t *testing.T) {
 }
 
 func TestBlockedEvals_UnblockEscaped(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
@@ -211,7 +210,7 @@ func requireBlockedEvalsEnqueued(t *testing.T, blocked *BlockedEvals, broker *Ev
 }
 
 func TestBlockedEvals_UnblockEligible(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
@@ -232,7 +231,7 @@ func TestBlockedEvals_UnblockEligible(t *testing.T) {
 }
 
 func TestBlockedEvals_UnblockIneligible(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
@@ -276,7 +275,7 @@ func TestBlockedEvals_UnblockIneligible(t *testing.T) {
 }
 
 func TestBlockedEvals_UnblockUnknown(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
@@ -299,7 +298,7 @@ func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 }
 
 func TestBlockedEvals_UnblockEligible_Quota(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
@@ -320,7 +319,7 @@ func TestBlockedEvals_UnblockEligible_Quota(t *testing.T) {
 }
 
 func TestBlockedEvals_UnblockIneligible_Quota(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
@@ -364,7 +363,7 @@ func TestBlockedEvals_UnblockIneligible_Quota(t *testing.T) {
 }
 
 func TestBlockedEvals_Reblock(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
@@ -405,7 +404,7 @@ func TestBlockedEvals_Reblock(t *testing.T) {
 // Test the block case in which the eval should be immediately unblocked since
 // it is escaped and old
 func TestBlockedEvals_Block_ImmediateUnblock_Escaped(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
@@ -433,7 +432,7 @@ func TestBlockedEvals_Block_ImmediateUnblock_Escaped(t *testing.T) {
 // there is an unblock on an unseen class that occurred while it was in the
 // scheduler
 func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_After(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
@@ -461,7 +460,7 @@ func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_After(t *testing.T) {
 // there is an unblock on an unseen class that occurred before it was in the
 // scheduler
 func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_Before(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, _ := testBlockedEvals(t)
@@ -486,7 +485,7 @@ func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_Before(t *testing.T) {
 // Test the block case in which the eval should be immediately unblocked since
 // it a class it is eligible for has been unblocked
 func TestBlockedEvals_Block_ImmediateUnblock_SeenClass(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
@@ -513,7 +512,7 @@ func TestBlockedEvals_Block_ImmediateUnblock_SeenClass(t *testing.T) {
 // Test the block case in which the eval should be immediately unblocked since
 // it a quota has changed that it is using
 func TestBlockedEvals_Block_ImmediateUnblock_Quota(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
@@ -539,7 +538,7 @@ func TestBlockedEvals_Block_ImmediateUnblock_Quota(t *testing.T) {
 }
 
 func TestBlockedEvals_UnblockFailed(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
@@ -585,7 +584,7 @@ func TestBlockedEvals_UnblockFailed(t *testing.T) {
 }
 
 func TestBlockedEvals_Untrack(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, _ := testBlockedEvals(t)
@@ -613,7 +612,7 @@ func TestBlockedEvals_Untrack(t *testing.T) {
 }
 
 func TestBlockedEvals_Untrack_Quota(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, _ := testBlockedEvals(t)
@@ -641,7 +640,7 @@ func TestBlockedEvals_Untrack_Quota(t *testing.T) {
 }
 
 func TestBlockedEvals_UnblockNode(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, broker := testBlockedEvals(t)
@@ -671,7 +670,7 @@ func TestBlockedEvals_UnblockNode(t *testing.T) {
 }
 
 func TestBlockedEvals_SystemUntrack(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, _ := testBlockedEvals(t)
@@ -700,7 +699,7 @@ func TestBlockedEvals_SystemUntrack(t *testing.T) {
 }
 
 func TestBlockedEvals_SystemDisableFlush(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blocked, _ := testBlockedEvals(t)

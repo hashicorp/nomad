@@ -1,3 +1,0 @@
-```release-note:feature
-**Edge compute improvements**: Added support for reconnecting healthy allocations when disconnected clients reconnect.
-```

@@ -1,7 +1,6 @@
 package structs
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -134,7 +133,7 @@ func ValidCSIVolumeAccessMode(accessMode CSIVolumeAccessMode) bool {
 	}
 }
 
-// ValidCSIVolumeWriteAccessMode checks for a writable access mode.
+// ValidCSIVolumeAccessMode checks for a writable access mode
 func ValidCSIVolumeWriteAccessMode(accessMode CSIVolumeAccessMode) bool {
 	switch accessMode {
 	case CSIVolumeAccessModeSingleNodeWriter,
@@ -181,38 +180,22 @@ func (o *CSIMountOptions) Merge(p *CSIMountOptions) {
 	}
 }
 
-func (o *CSIMountOptions) Equal(p *CSIMountOptions) bool {
-	if o == nil && p == nil {
-		return true
-	}
-	if o == nil || p == nil {
-		return false
-	}
-
-	if o.FSType != p.FSType {
-		return false
-	}
-
-	return helper.CompareSliceSetString(
-		o.MountFlags, p.MountFlags)
-}
-
 // CSIMountOptions implements the Stringer and GoStringer interfaces to prevent
 // accidental leakage of sensitive mount flags via logs.
 var _ fmt.Stringer = &CSIMountOptions{}
 var _ fmt.GoStringer = &CSIMountOptions{}
 
-func (o *CSIMountOptions) String() string {
+func (v *CSIMountOptions) String() string {
 	mountFlagsString := "nil"
-	if len(o.MountFlags) != 0 {
+	if len(v.MountFlags) != 0 {
 		mountFlagsString = "[REDACTED]"
 	}
 
-	return fmt.Sprintf("csi.CSIOptions(FSType: %s, MountFlags: %s)", o.FSType, mountFlagsString)
+	return fmt.Sprintf("csi.CSIOptions(FSType: %s, MountFlags: %s)", v.FSType, mountFlagsString)
 }
 
-func (o *CSIMountOptions) GoString() string {
-	return o.String()
+func (v *CSIMountOptions) GoString() string {
+	return v.String()
 }
 
 // CSISecrets contain optional additional configuration that can be used
@@ -263,19 +246,9 @@ type CSIVolume struct {
 	// Name is a display name for the volume, not required to be unique
 	Name string
 	// ExternalID identifies the volume for the CSI interface, may be URL unsafe
-	ExternalID string
-	Namespace  string
-
-	// RequestedTopologies are the topologies submitted as options to
-	// the storage provider at the time the volume was created. After
-	// volumes are created, this field is ignored.
-	RequestedTopologies *CSITopologyRequest
-
-	// Topologies are the topologies returned by the storage provider,
-	// based on the RequestedTopologies and what the storage provider
-	// could support. This value cannot be set by the user.
-	Topologies []*CSITopology
-
+	ExternalID     string
+	Namespace      string
+	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode     // *current* access mode
 	AttachmentMode CSIVolumeAttachmentMode // *current* attachment mode
 	MountOptions   *CSIMountOptions
@@ -297,9 +270,9 @@ type CSIVolume struct {
 	ReadAllocs  map[string]*Allocation // AllocID -> Allocation
 	WriteAllocs map[string]*Allocation // AllocID -> Allocation
 
-	ReadClaims  map[string]*CSIVolumeClaim `json:"-"` // AllocID -> claim
-	WriteClaims map[string]*CSIVolumeClaim `json:"-"` // AllocID -> claim
-	PastClaims  map[string]*CSIVolumeClaim `json:"-"` // AllocID -> claim
+	ReadClaims  map[string]*CSIVolumeClaim // AllocID -> claim
+	WriteClaims map[string]*CSIVolumeClaim // AllocID -> claim
+	PastClaims  map[string]*CSIVolumeClaim // AllocID -> claim
 
 	// Schedulable is true if all the denormalized plugin health fields are true, and the
 	// volume has not been marked for garbage collection
@@ -316,32 +289,6 @@ type CSIVolume struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
-}
-
-// GetID implements the IDGetter interface, required for pagination.
-func (v *CSIVolume) GetID() string {
-	if v == nil {
-		return ""
-	}
-	return v.ID
-}
-
-// GetNamespace implements the NamespaceGetter interface, required for
-// pagination.
-func (v *CSIVolume) GetNamespace() string {
-	if v == nil {
-		return ""
-	}
-	return v.Namespace
-}
-
-// GetCreateIndex implements the CreateIndexGetter interface, required for
-// pagination.
-func (v *CSIVolume) GetCreateIndex() uint64 {
-	if v == nil {
-		return 0
-	}
-	return v.CreateIndex
 }
 
 // CSIVolListStub is partial representation of a CSI Volume for inclusion in lists
@@ -682,7 +629,7 @@ func (v *CSIVolume) claimRelease(claim *CSIVolumeClaim) error {
 	return nil
 }
 
-// Equal checks equality by value.
+// Equality by value
 func (v *CSIVolume) Equal(o *CSIVolume) bool {
 	if v == nil || o == nil {
 		return v == o
@@ -732,119 +679,24 @@ func (v *CSIVolume) Validate() error {
 	if len(v.RequestedCapabilities) == 0 {
 		errs = append(errs, "must include at least one capability block")
 	}
-	if v.RequestedTopologies != nil {
-		for _, t := range v.RequestedTopologies.Required {
-			if t != nil && len(t.Segments) == 0 {
-				errs = append(errs, "required topology is missing segments field")
-			}
-		}
-		for _, t := range v.RequestedTopologies.Preferred {
-			if t != nil && len(t.Segments) == 0 {
-				errs = append(errs, "preferred topology is missing segments field")
-			}
-		}
-	}
+
+	// TODO: Volume Topologies are optional - We should check to see if the plugin
+	//       the volume is being registered with requires them.
+	// var ok bool
+	// for _, t := range v.Topologies {
+	// 	if t != nil && len(t.Segments) > 0 {
+	// 		ok = true
+	// 		break
+	// 	}
+	// }
+	// if !ok {
+	// 	errs = append(errs, "missing topology")
+	// }
+
 	if len(errs) > 0 {
 		return fmt.Errorf("validation: %s", strings.Join(errs, ", "))
 	}
 	return nil
-}
-
-// Merge updates the mutable fields of a volume with those from
-// another volume. CSIVolume has many user-defined fields which are
-// immutable once set, and many fields that are not
-// user-settable. Merge will return an error if we try to mutate the
-// user-defined immutable fields after they're set, but silently
-// ignore fields that are controlled by Nomad.
-func (v *CSIVolume) Merge(other *CSIVolume) error {
-	if other == nil {
-		return nil
-	}
-
-	var errs *multierror.Error
-
-	if v.Name != other.Name && other.Name != "" {
-		errs = multierror.Append(errs, errors.New("volume name cannot be updated"))
-	}
-	if v.ExternalID != other.ExternalID && other.ExternalID != "" {
-		errs = multierror.Append(errs, errors.New(
-			"volume external ID cannot be updated"))
-	}
-	if v.PluginID != other.PluginID {
-		errs = multierror.Append(errs, errors.New(
-			"volume plugin ID cannot be updated"))
-	}
-	if v.CloneID != other.CloneID && other.CloneID != "" {
-		errs = multierror.Append(errs, errors.New(
-			"volume clone ID cannot be updated"))
-	}
-	if v.SnapshotID != other.SnapshotID && other.SnapshotID != "" {
-		errs = multierror.Append(errs, errors.New(
-			"volume snapshot ID cannot be updated"))
-	}
-
-	// must be compatible with capacity range
-	// TODO: when ExpandVolume is implemented we'll need to update
-	// this logic https://github.com/hashicorp/nomad/issues/10324
-	if v.Capacity != 0 {
-		if other.RequestedCapacityMax < v.Capacity ||
-			other.RequestedCapacityMin > v.Capacity {
-			errs = multierror.Append(errs, errors.New(
-				"volume requested capacity update was not compatible with existing capacity"))
-		} else {
-			v.RequestedCapacityMin = other.RequestedCapacityMin
-			v.RequestedCapacityMax = other.RequestedCapacityMax
-		}
-	}
-
-	// must be compatible with volume_capabilities
-	if v.AccessMode != CSIVolumeAccessModeUnknown ||
-		v.AttachmentMode != CSIVolumeAttachmentModeUnknown {
-		var ok bool
-		for _, cap := range other.RequestedCapabilities {
-			if cap.AccessMode == v.AccessMode &&
-				cap.AttachmentMode == v.AttachmentMode {
-				ok = true
-				break
-			}
-		}
-		if ok {
-			v.RequestedCapabilities = other.RequestedCapabilities
-		} else {
-			errs = multierror.Append(errs, errors.New(
-				"volume requested capabilities update was not compatible with existing capability in use"))
-		}
-	} else {
-		v.RequestedCapabilities = other.RequestedCapabilities
-	}
-
-	// topologies are immutable, so topology request changes must be
-	// compatible with the existing topology, if any
-	if len(v.Topologies) > 0 {
-		if !v.RequestedTopologies.Equal(other.RequestedTopologies) {
-			errs = multierror.Append(errs, errors.New(
-				"volume topology request update was not compatible with existing topology"))
-		}
-	}
-
-	// MountOptions can be updated so long as the volume isn't in use,
-	// but the caller will reject updating an in-use volume
-	v.MountOptions = other.MountOptions
-
-	// Secrets can be updated freely
-	v.Secrets = other.Secrets
-
-	// must be compatible with parameters set by from CreateVolumeResponse
-
-	if len(other.Parameters) != 0 && !helper.CompareMapStringString(v.Parameters, other.Parameters) {
-		errs = multierror.Append(errs, errors.New(
-			"volume parameters cannot be updated"))
-	}
-
-	// Context is mutable and will be used during controller
-	// validation
-	v.Context = other.Context
-	return errs.ErrorOrNil()
 }
 
 // Request and response wrappers
@@ -879,7 +731,6 @@ type CSIVolumeCreateResponse struct {
 
 type CSIVolumeDeleteRequest struct {
 	VolumeIDs []string
-	Secrets   CSISecrets
 	WriteRequest
 }
 
@@ -984,6 +835,9 @@ type CSIVolumeExternalStub struct {
 	VolumeContext map[string]string
 	CloneID       string
 	SnapshotID    string
+
+	// TODO: topology support
+	// AccessibleTopology []*Topology
 
 	PublishedExternalNodeIDs []string
 	IsAbnormal               bool

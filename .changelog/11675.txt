@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Added a `nomad eval list` command.
-```

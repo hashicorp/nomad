@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Improve debug capture for Consul/Vault
-```

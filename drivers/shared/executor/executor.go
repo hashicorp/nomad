@@ -14,18 +14,18 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
-	"github.com/creack/pty"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/fifo"
-	"github.com/hashicorp/nomad/client/lib/resources"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/kr/pty"
 	"github.com/syndtr/gocapability/capability"
+
+	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
 
 const (
@@ -244,9 +244,9 @@ type UniversalExecutor struct {
 	exitState     *ProcessState
 	processExited chan interface{}
 
-	// containment is used to cleanup resources created by the executor
-	// currently only used for killing pids via freezer cgroup on linux
-	containment resources.Containment
+	// resConCtx is used to track and cleanup additional resources created by
+	// the executor. Currently this is only used for cgroups.
+	resConCtx resourceContainerContext
 
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
@@ -262,7 +262,6 @@ func NewExecutor(logger hclog.Logger) Executor {
 	if err := shelpers.Init(); err != nil {
 		logger.Error("unable to initialize stats", "error", err)
 	}
-
 	return &UniversalExecutor{
 		logger:         logger,
 		processExited:  make(chan interface{}),
@@ -301,11 +300,9 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 		return nil, err
 	}
 
-	// Maybe setup containment (for now, cgroups only only on linux)
+	// Setup cgroups on linux
 	if e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup {
-		pid := os.Getpid()
-		if err := e.configureResourceContainer(pid); err != nil {
-			e.logger.Error("failed to configure resource container", "pid", pid, "error", err)
+		if err := e.configureResourceContainer(os.Getpid()); err != nil {
 			return nil, err
 		}
 	}
@@ -508,8 +505,8 @@ var (
 	noSuchProcessErr = "no such process"
 )
 
-// Shutdown cleans up the alloc directory, destroys resource container and
-// kills the user process.
+// Exit cleans up the alloc directory, destroys resource container and kills the
+// user process
 func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 	e.logger.Debug("shutdown requested", "signal", signal, "grace_period_ms", grace.Round(time.Millisecond))
 	var merr multierror.Error
@@ -521,14 +518,14 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 
 	// If there is no process we can't shutdown
 	if e.childCmd.Process == nil {
-		e.logger.Warn("failed to shutdown due to missing process", "error", "no process found")
+		e.logger.Warn("failed to shutdown", "error", "no process found")
 		return fmt.Errorf("executor failed to shutdown error: no process found")
 	}
 
 	proc, err := os.FindProcess(e.childCmd.Process.Pid)
 	if err != nil {
 		err = fmt.Errorf("executor failed to find process: %v", err)
-		e.logger.Warn("failed to shutdown due to inability to find process", "pid", e.childCmd.Process.Pid, "error", err)
+		e.logger.Warn("failed to shutdown", "error", err)
 		return err
 	}
 
@@ -547,7 +544,7 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		}
 
 		if err := e.shutdownProcess(sig, proc); err != nil {
-			e.logger.Warn("failed to shutdown process", "pid", proc.Pid, "error", err)
+			e.logger.Warn("failed to shutdown", "error", err)
 			return err
 		}
 
@@ -568,27 +565,22 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		merr.Errors = append(merr.Errors, fmt.Errorf("process did not exit after 15 seconds"))
 	}
 
-	// prefer killing the process via platform-dependent resource containment
-	killByContainment := e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup
-
-	if !killByContainment {
-		// there is no containment, so kill the group the old fashioned way by sending
-		// SIGKILL to the negative pid
-		if cleanupChildrenErr := e.killProcessTree(proc); cleanupChildrenErr != nil && cleanupChildrenErr.Error() != finishedErr {
+	// Prefer killing the process via the resource container.
+	if !(e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup) {
+		if err := e.cleanupChildProcesses(proc); err != nil && err.Error() != finishedErr {
 			merr.Errors = append(merr.Errors,
-				fmt.Errorf("can't kill process with pid %d: %v", e.childCmd.Process.Pid, cleanupChildrenErr))
-		}
-	} else {
-		// there is containment available (e.g. cgroups) so defer to that implementation
-		// for killing the processes
-		if cleanupErr := e.containment.Cleanup(); cleanupErr != nil {
-			e.logger.Warn("containment cleanup failed", "error", cleanupErr)
-			merr.Errors = append(merr.Errors, cleanupErr)
+				fmt.Errorf("can't kill process with pid %d: %v", e.childCmd.Process.Pid, err))
 		}
 	}
 
-	if err = merr.ErrorOrNil(); err != nil {
-		e.logger.Warn("failed to shutdown due to some error", "error", err.Error())
+	if e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup {
+		if err := e.resConCtx.executorCleanup(); err != nil {
+			merr.Errors = append(merr.Errors, err)
+		}
+	}
+
+	if err := merr.ErrorOrNil(); err != nil {
+		e.logger.Warn("failed to shutdown", "error", err)
 		return err
 	}
 

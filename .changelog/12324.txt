@@ -1,3 +1,0 @@
-```release-note:improvement
-drainer: defer draining CSI plugin jobs until system jobs are drained
-```

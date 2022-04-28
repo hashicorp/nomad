@@ -15,12 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/ci"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -64,7 +61,7 @@ func testExecutorCommand(t *testing.T) *testExecCmd {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, "global").Build()
 
-	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), t.TempDir(), alloc.ID)
+	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), filepath.Join(os.TempDir(), alloc.ID))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
@@ -90,10 +87,6 @@ func testExecutorCommand(t *testing.T) *testExecCmd {
 				MemoryLimitBytes: 256 * 1024 * 1024,
 			},
 		},
-	}
-
-	if cgutil.UseV2 {
-		cmd.Resources.LinuxResources.CpusetCgroupPath = filepath.Join(cgutil.CgroupRoot, "testing.scope", cgutil.CgroupScope(alloc.ID, task.Name))
 	}
 
 	testCmd := &testExecCmd{
@@ -136,11 +129,11 @@ func configureTLogging(t *testing.T, testcmd *testExecCmd) {
 	return
 }
 
-func TestExecutor_Start_Invalid(t *testing.T) {
-	ci.Parallel(t)
+func TestExecutor_Start_Invalid(pt *testing.T) {
+	pt.Parallel()
 	invalid := "/bin/foobar"
 	for name, factory := range executorFactories {
-		t.Run(name, func(t *testing.T) {
+		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			testExecCmd := testExecutorCommand(t)
 			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -157,10 +150,10 @@ func TestExecutor_Start_Invalid(t *testing.T) {
 	}
 }
 
-func TestExecutor_Start_Wait_Failure_Code(t *testing.T) {
-	ci.Parallel(t)
+func TestExecutor_Start_Wait_Failure_Code(pt *testing.T) {
+	pt.Parallel()
 	for name, factory := range executorFactories {
-		t.Run(name, func(t *testing.T) {
+		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			testExecCmd := testExecutorCommand(t)
 			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -181,10 +174,10 @@ func TestExecutor_Start_Wait_Failure_Code(t *testing.T) {
 	}
 }
 
-func TestExecutor_Start_Wait(t *testing.T) {
-	ci.Parallel(t)
+func TestExecutor_Start_Wait(pt *testing.T) {
+	pt.Parallel()
 	for name, factory := range executorFactories {
-		t.Run(name, func(t *testing.T) {
+		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			testExecCmd := testExecutorCommand(t)
 			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -218,10 +211,10 @@ func TestExecutor_Start_Wait(t *testing.T) {
 	}
 }
 
-func TestExecutor_Start_Wait_Children(t *testing.T) {
-	ci.Parallel(t)
+func TestExecutor_Start_Wait_Children(pt *testing.T) {
+	pt.Parallel()
 	for name, factory := range executorFactories {
-		t.Run(name, func(t *testing.T) {
+		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			testExecCmd := testExecutorCommand(t)
 			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -257,12 +250,11 @@ func TestExecutor_Start_Wait_Children(t *testing.T) {
 	}
 }
 
-func TestExecutor_WaitExitSignal(t *testing.T) {
-	ci.Parallel(t)
-	testutil.CgroupsCompatibleV1(t) // todo(shoenig) #12351
-
+func TestExecutor_WaitExitSignal(pt *testing.T) {
+	pt.Parallel()
 	for name, factory := range executorFactories {
-		t.Run(name, func(t *testing.T) {
+		pt.Run(name, func(t *testing.T) {
+			require := require.New(t)
 			testExecCmd := testExecutorCommand(t)
 			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 			execCmd.Cmd = "/bin/sleep"
@@ -274,8 +266,8 @@ func TestExecutor_WaitExitSignal(t *testing.T) {
 			executor := factory.new(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
 
-			pState, err := executor.Launch(execCmd)
-			require.NoError(t, err)
+			ps, err := executor.Launch(execCmd)
+			require.NoError(err)
 
 			go func() {
 				tu.WaitForResult(func() (bool, error) {
@@ -288,14 +280,10 @@ func TestExecutor_WaitExitSignal(t *testing.T) {
 						return false, fmt.Errorf("stats failed to send on interval")
 					case ru := <-ch:
 						assert.NotEmpty(t, ru.Pids, "no pids recorded in stats")
-
-						// just checking we measured something; each executor type has its own abilities,
-						// and e.g. cgroup v2 provides different information than cgroup v1
-						assert.NotEmpty(t, ru.ResourceUsage.MemoryStats.Measured)
-
+						assert.NotZero(t, ru.ResourceUsage.MemoryStats.RSS)
 						assert.WithinDuration(t, time.Now(), time.Unix(0, ru.Timestamp), time.Second)
 					}
-					proc, err := os.FindProcess(pState.Pid)
+					proc, err := os.FindProcess(ps.Pid)
 					if err != nil {
 						return false, err
 					}
@@ -310,17 +298,17 @@ func TestExecutor_WaitExitSignal(t *testing.T) {
 				})
 			}()
 
-			pState, err = executor.Wait(context.Background())
-			require.NoError(t, err)
-			require.Equal(t, pState.Signal, int(syscall.SIGKILL))
+			ps, err = executor.Wait(context.Background())
+			require.NoError(err)
+			require.Equal(ps.Signal, int(syscall.SIGKILL))
 		})
 	}
 }
 
-func TestExecutor_Start_Kill(t *testing.T) {
-	ci.Parallel(t)
+func TestExecutor_Start_Kill(pt *testing.T) {
+	pt.Parallel()
 	for name, factory := range executorFactories {
-		t.Run(name, func(t *testing.T) {
+		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			testExecCmd := testExecutorCommand(t)
 			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -350,8 +338,8 @@ func TestExecutor_Start_Kill(t *testing.T) {
 }
 
 func TestExecutor_Shutdown_Exit(t *testing.T) {
-	ci.Parallel(t)
 	require := require.New(t)
+	t.Parallel()
 	testExecCmd := testExecutorCommand(t)
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 	execCmd.Cmd = "/bin/sleep"
@@ -381,7 +369,7 @@ func TestExecutor_Shutdown_Exit(t *testing.T) {
 }
 
 func TestUniversalExecutor_MakeExecutable(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	// Create a temp file
 	f, err := ioutil.TempFile("", "")
 	if err != nil {
@@ -412,7 +400,7 @@ func TestUniversalExecutor_MakeExecutable(t *testing.T) {
 }
 
 func TestUniversalExecutor_LookupPath(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	// Create a temp dir
 	tmpDir, err := ioutil.TempDir("", "")
@@ -524,11 +512,10 @@ func copyFile(t *testing.T, src, dst string) {
 
 // TestExecutor_Start_Kill_Immediately_NoGrace asserts that executors shutdown
 // immediately when sent a kill signal with no grace period.
-func TestExecutor_Start_Kill_Immediately_NoGrace(t *testing.T) {
-	ci.Parallel(t)
+func TestExecutor_Start_Kill_Immediately_NoGrace(pt *testing.T) {
+	pt.Parallel()
 	for name, factory := range executorFactories {
-
-		t.Run(name, func(t *testing.T) {
+		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			testExecCmd := testExecutorCommand(t)
 			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -561,10 +548,10 @@ func TestExecutor_Start_Kill_Immediately_NoGrace(t *testing.T) {
 	}
 }
 
-func TestExecutor_Start_Kill_Immediately_WithGrace(t *testing.T) {
-	ci.Parallel(t)
+func TestExecutor_Start_Kill_Immediately_WithGrace(pt *testing.T) {
+	pt.Parallel()
 	for name, factory := range executorFactories {
-		t.Run(name, func(t *testing.T) {
+		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			testExecCmd := testExecutorCommand(t)
 			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -599,11 +586,11 @@ func TestExecutor_Start_Kill_Immediately_WithGrace(t *testing.T) {
 
 // TestExecutor_Start_NonExecutableBinaries asserts that executor marks binary as executable
 // before starting
-func TestExecutor_Start_NonExecutableBinaries(t *testing.T) {
-	ci.Parallel(t)
+func TestExecutor_Start_NonExecutableBinaries(pt *testing.T) {
+	pt.Parallel()
 
 	for name, factory := range executorFactories {
-		t.Run(name, func(t *testing.T) {
+		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 
 			tmpDir, err := ioutil.TempDir("", "nomad-executor-tests")
@@ -655,4 +642,5 @@ func TestExecutor_Start_NonExecutableBinaries(t *testing.T) {
 			})
 		})
 	}
+
 }

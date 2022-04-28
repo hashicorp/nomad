@@ -1,4 +1,4 @@
-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package docker
 
@@ -6,13 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestValidateCgroupPermission(t *testing.T) {
-	ci.Parallel(t)
-
 	positiveCases := []string{
 		"r",
 		"rw",
@@ -42,8 +39,6 @@ func TestValidateCgroupPermission(t *testing.T) {
 }
 
 func TestExpandPath(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		base     string
 		target   string

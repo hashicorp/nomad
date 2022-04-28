@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
@@ -16,12 +15,12 @@ import (
 )
 
 func TestNodeStatusCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &NodeStatusCommand{}
 }
 
 func TestNodeStatusCommand_Self(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	// Start in dev mode so we get a node registration
 	srv, client, url := testServer(t, true, func(c *agent.Config) {
 		c.NodeName = "mynode"
@@ -72,7 +71,7 @@ func TestNodeStatusCommand_Self(t *testing.T) {
 }
 
 func TestNodeStatusCommand_Run(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	// Start in dev mode so we get a node registration
 	srv, client, url := testServer(t, true, func(c *agent.Config) {
 		c.NodeName = "mynode"
@@ -164,7 +163,7 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 }
 
 func TestNodeStatusCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -214,31 +213,11 @@ func TestNodeStatusCommand_Fails(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Both json and template formatting are not allowed") {
 		t.Fatalf("expected getting formatter error, got: %s", out)
 	}
-	ui.ErrorWriter.Reset()
-
-	// Fail if -quiet is passed with -verbose
-	if code := cmd.Run([]string{"-address=" + url, "-quiet", "-verbose"}); code != 1 {
-		t.Fatalf("expected exit 1, got: %d", code)
-	}
-
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "-quiet cannot be used with -verbose or -json") {
-		t.Fatalf("expected getting formatter error, got: %s", out)
-	}
-	ui.ErrorWriter.Reset()
-
-	// Fail if -quiet is passed with -json
-	if code := cmd.Run([]string{"-address=" + url, "-quiet", "-json"}); code != 1 {
-		t.Fatalf("expected exit 1, got: %d", code)
-	}
-
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "-quiet cannot be used with -verbose or -json") {
-		t.Fatalf("expected getting formatter error, got: %s", out)
-	}
 }
 
 func TestNodeStatusCommand_AutocompleteArgs(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
+	t.Parallel()
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -272,7 +251,7 @@ func TestNodeStatusCommand_AutocompleteArgs(t *testing.T) {
 }
 
 func TestNodeStatusCommand_FormatDrain(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	node := &api.Node{}

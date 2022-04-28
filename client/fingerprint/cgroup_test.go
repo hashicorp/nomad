@@ -1,4 +1,4 @@
-//go:build linux
+// +build linux
 
 package fingerprint
 
@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
 )
 
 // A fake mount point detector that returns an empty path
@@ -41,116 +39,92 @@ func (m *MountPointDetectorEmptyMountPoint) MountPoint() (string, error) {
 	return "", nil
 }
 
-// A fake version detector that returns the set version.
-type FakeVersionDetector struct {
-	version string
-}
-
-func (f *FakeVersionDetector) CgroupVersion() string {
-	return f.version
-}
-
-func newRequest(node *structs.Node) *FingerprintRequest {
-	return &FingerprintRequest{
-		Config: new(config.Config),
-		Node:   node,
-	}
-}
-
-func newNode() *structs.Node {
-	return &structs.Node{
-		Attributes: make(map[string]string),
-	}
-}
-
-func TestCgroup_MountPoint(t *testing.T) {
-	ci.Parallel(t)
-
-	t.Run("mount-point fail", func(t *testing.T) {
+func TestCGroupFingerprint(t *testing.T) {
+	{
 		f := &CGroupFingerprint{
 			logger:             testlog.HCLogger(t),
 			lastState:          cgroupUnavailable,
-			mountPointDetector: new(MountPointDetectorMountPointFail),
-			versionDetector:    new(DefaultCgroupVersionDetector),
+			mountPointDetector: &MountPointDetectorMountPointFail{},
 		}
 
-		request := newRequest(newNode())
+		node := &structs.Node{
+			Attributes: make(map[string]string),
+		}
+
+		request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
-		require.EqualError(t, err, "failed to discover cgroup mount point: cgroup mountpoint discovery failed")
-		require.Empty(t, response.Attributes[cgroupMountPointAttribute])
-	})
+		if err == nil {
+			t.Fatalf("expected an error")
+		}
 
-	t.Run("mount-point available", func(t *testing.T) {
+		if a, _ := response.Attributes["unique.cgroup.mountpoint"]; a != "" {
+			t.Fatalf("unexpected attribute found, %s", a)
+		}
+	}
+
+	{
 		f := &CGroupFingerprint{
 			logger:             testlog.HCLogger(t),
 			lastState:          cgroupUnavailable,
-			mountPointDetector: new(MountPointDetectorValidMountPoint),
-			versionDetector:    new(DefaultCgroupVersionDetector),
+			mountPointDetector: &MountPointDetectorValidMountPoint{},
 		}
 
-		request := newRequest(newNode())
+		node := &structs.Node{
+			Attributes: make(map[string]string),
+		}
+
+		request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
-		require.NoError(t, err)
-		require.Equal(t, "/sys/fs/cgroup", response.Attributes[cgroupMountPointAttribute])
-	})
+		if err != nil {
+			t.Fatalf("unexpected error, %s", err)
+		}
+		if a, ok := response.Attributes["unique.cgroup.mountpoint"]; !ok {
+			t.Fatalf("unable to find attribute: %s", a)
+		}
+	}
 
-	t.Run("mount-point empty", func(t *testing.T) {
+	{
 		f := &CGroupFingerprint{
 			logger:             testlog.HCLogger(t),
 			lastState:          cgroupUnavailable,
-			mountPointDetector: new(MountPointDetectorEmptyMountPoint),
-			versionDetector:    new(DefaultCgroupVersionDetector),
+			mountPointDetector: &MountPointDetectorEmptyMountPoint{},
 		}
 
-		var response FingerprintResponse
-		err := f.Fingerprint(newRequest(newNode()), &response)
-		require.NoError(t, err)
-		require.Empty(t, response.Attributes[cgroupMountPointAttribute])
-	})
+		node := &structs.Node{
+			Attributes: make(map[string]string),
+		}
 
-	t.Run("mount-point already present", func(t *testing.T) {
+		request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+		var response FingerprintResponse
+		err := f.Fingerprint(request, &response)
+		if err != nil {
+			t.Fatalf("unexpected error, %s", err)
+		}
+		if a, _ := response.Attributes["unique.cgroup.mountpoint"]; a != "" {
+			t.Fatalf("unexpected attribute found, %s", a)
+		}
+	}
+	{
 		f := &CGroupFingerprint{
 			logger:             testlog.HCLogger(t),
 			lastState:          cgroupAvailable,
-			mountPointDetector: new(MountPointDetectorValidMountPoint),
-			versionDetector:    new(DefaultCgroupVersionDetector),
+			mountPointDetector: &MountPointDetectorValidMountPoint{},
 		}
 
-		var response FingerprintResponse
-		err := f.Fingerprint(newRequest(newNode()), &response)
-		require.NoError(t, err)
-		require.Equal(t, "/sys/fs/cgroup", response.Attributes[cgroupMountPointAttribute])
-	})
-}
-
-func TestCgroup_Version(t *testing.T) {
-	t.Run("version v1", func(t *testing.T) {
-		f := &CGroupFingerprint{
-			logger:             testlog.HCLogger(t),
-			lastState:          cgroupUnavailable,
-			mountPointDetector: new(MountPointDetectorValidMountPoint),
-			versionDetector:    &FakeVersionDetector{version: "v1"},
+		node := &structs.Node{
+			Attributes: make(map[string]string),
 		}
 
+		request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 		var response FingerprintResponse
-		err := f.Fingerprint(newRequest(newNode()), &response)
-		require.NoError(t, err)
-		require.Equal(t, "v1", response.Attributes[cgroupVersionAttribute])
-	})
-
-	t.Run("without mount-point", func(t *testing.T) {
-		f := &CGroupFingerprint{
-			logger:             testlog.HCLogger(t),
-			lastState:          cgroupUnavailable,
-			mountPointDetector: new(MountPointDetectorEmptyMountPoint),
-			versionDetector:    &FakeVersionDetector{version: "v1"},
+		err := f.Fingerprint(request, &response)
+		if err != nil {
+			t.Fatalf("unexpected error, %s", err)
 		}
-
-		var response FingerprintResponse
-		err := f.Fingerprint(newRequest(newNode()), &response)
-		require.NoError(t, err)
-		require.Empty(t, response.Attributes[cgroupMountPointAttribute])
-	})
+		if a, _ := response.Attributes["unique.cgroup.mountpoint"]; a == "" {
+			t.Fatalf("expected attribute to be found, %s", a)
+		}
+	}
 }

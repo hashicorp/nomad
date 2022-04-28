@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -17,9 +16,9 @@ import (
 )
 
 func TestHTTP_MetricsWithIllegalMethod(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
 
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("DELETE", "/v1/metrics", nil)
 		assert.Nil(err)
@@ -31,9 +30,9 @@ func TestHTTP_MetricsWithIllegalMethod(t *testing.T) {
 }
 
 func TestHTTP_MetricsPrometheusDisabled(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
 
+	t.Parallel()
 	httpTest(t, func(c *Config) { c.Telemetry.PrometheusMetrics = false }, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/metrics?format=prometheus", nil)
 		assert.Nil(err)
@@ -45,9 +44,9 @@ func TestHTTP_MetricsPrometheusDisabled(t *testing.T) {
 }
 
 func TestHTTP_MetricsPrometheusEnabled(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
 
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/metrics?format=prometheus", nil)
 		assert.Nil(err)
@@ -65,9 +64,9 @@ func TestHTTP_MetricsPrometheusEnabled(t *testing.T) {
 }
 
 func TestHTTP_Metrics(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
 
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// make a separate HTTP request first, to ensure Nomad has written metrics
 		// and prevent a race condition
@@ -102,8 +101,6 @@ func TestHTTP_Metrics(t *testing.T) {
 //
 // **Cannot** be run in parallel as metrics are global.
 func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	numTasks := 10
 

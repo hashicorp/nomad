@@ -9,16 +9,4 @@ export default class OptimizeSummaryController extends Controller {
       jobNamespace: 'namespace',
     },
   ];
-
-  get summary() {
-    return this.model;
-  }
-
-  get breadcrumb() {
-    const { slug } = this.summary;
-    return {
-      label: slug.replace('/', ' / '),
-      args: ['optimize.summary', slug],
-    };
-  }
 }

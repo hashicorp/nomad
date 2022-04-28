@@ -1,3 +1,0 @@
-```release-note:improvement
-metrics: Added metric for `client.allocated.max_memory`
-```

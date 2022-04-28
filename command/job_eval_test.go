@@ -1,11 +1,11 @@
 package command
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
+	"fmt"
+
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -16,12 +16,12 @@ import (
 )
 
 func TestJobEvalCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &JobEvalCommand{}
 }
 
 func TestJobEvalCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	ui := cli.NewMockUi()
 	cmd := &JobEvalCommand{Meta: Meta{Ui: ui}}
 
@@ -46,7 +46,7 @@ func TestJobEvalCommand_Fails(t *testing.T) {
 }
 
 func TestJobEvalCommand_Run(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -103,8 +103,8 @@ func TestJobEvalCommand_Run(t *testing.T) {
 }
 
 func TestJobEvalCommand_AutocompleteArgs(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
+	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()

@@ -149,12 +149,7 @@ type SchedulerConfiguration struct {
 	// priority jobs to place higher priority jobs.
 	PreemptionConfig PreemptionConfig `hcl:"preemption_config"`
 
-	// MemoryOversubscriptionEnabled specifies whether memory oversubscription is enabled
 	MemoryOversubscriptionEnabled bool `hcl:"memory_oversubscription_enabled"`
-
-	// RejectJobRegistration disables new job registrations except with a
-	// management ACL token
-	RejectJobRegistration bool `hcl:"reject_job_registration"`
 
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
@@ -211,9 +206,6 @@ type SchedulerSetConfigurationResponse struct {
 type PreemptionConfig struct {
 	// SystemSchedulerEnabled specifies if preemption is enabled for system jobs
 	SystemSchedulerEnabled bool `hcl:"system_scheduler_enabled"`
-
-	// SysBatchSchedulerEnabled specifies if preemption is enabled for sysbatch jobs
-	SysBatchSchedulerEnabled bool `hcl:"sysbatch_scheduler_enabled"`
 
 	// BatchSchedulerEnabled specifies if preemption is enabled for batch jobs
 	BatchSchedulerEnabled bool `hcl:"batch_scheduler_enabled"`

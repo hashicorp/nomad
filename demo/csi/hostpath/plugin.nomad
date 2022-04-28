@@ -13,7 +13,7 @@ job "csi-plugin" {
         args = [
           "--drivername=csi-hostpath",
           "--v=5",
-          "--endpoint=${CSI_ENDPOINT}",
+          "--endpoint=unix://csi/csi.sock",
           "--nodeid=node-${NOMAD_ALLOC_INDEX}",
         ]
 

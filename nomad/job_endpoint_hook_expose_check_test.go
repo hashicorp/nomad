@@ -3,19 +3,18 @@ package nomad
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
 func TestJobExposeCheckHook_Name(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	require.Equal(t, "expose-check", new(jobExposeCheckHook).Name())
 }
 
 func TestJobExposeCheckHook_tgUsesExposeCheck(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	t.Run("no check.expose", func(t *testing.T) {
 		require.False(t, tgUsesExposeCheck(&structs.TaskGroup{
@@ -41,7 +40,7 @@ func TestJobExposeCheckHook_tgUsesExposeCheck(t *testing.T) {
 }
 
 func TestJobExposeCheckHook_tgValidateUseOfBridgeMode(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1 := &structs.Service{
 		Name: "s1",
@@ -89,7 +88,7 @@ func TestJobExposeCheckHook_tgValidateUseOfBridgeMode(t *testing.T) {
 }
 
 func TestJobExposeCheckHook_tgValidateUseOfCheckExpose(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	withCustomProxyTask := &structs.Service{
 		Name: "s1",
@@ -139,8 +138,6 @@ func TestJobExposeCheckHook_tgValidateUseOfCheckExpose(t *testing.T) {
 }
 
 func TestJobExposeCheckHook_Validate(t *testing.T) {
-	ci.Parallel(t)
-
 	s1 := &structs.Service{
 		Name: "s1",
 		Checks: []*structs.ServiceCheck{{
@@ -227,7 +224,7 @@ func TestJobExposeCheckHook_Validate(t *testing.T) {
 }
 
 func TestJobExposeCheckHook_exposePathForCheck(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	const checkIdx = 0
 
@@ -317,7 +314,7 @@ func TestJobExposeCheckHook_exposePathForCheck(t *testing.T) {
 			Name:     "group1",
 			Services: []*structs.Service{s},
 			Networks: structs.Networks{{
-				Mode: "bridge",
+				Mode:         "bridge",
 				DynamicPorts: []structs.Port{
 					// service declares "sPort", but does not exist
 				},
@@ -403,7 +400,7 @@ func TestJobExposeCheckHook_exposePathForCheck(t *testing.T) {
 }
 
 func TestJobExposeCheckHook_containsExposePath(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	t.Run("contains path", func(t *testing.T) {
 		require.True(t, containsExposePath([]structs.ConsulExposePath{{
@@ -445,7 +442,7 @@ func TestJobExposeCheckHook_containsExposePath(t *testing.T) {
 }
 
 func TestJobExposeCheckHook_serviceExposeConfig(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	t.Run("proxy is nil", func(t *testing.T) {
 		require.NotNil(t, serviceExposeConfig(&structs.Service{
@@ -524,7 +521,7 @@ func TestJobExposeCheckHook_serviceExposeConfig(t *testing.T) {
 }
 
 func TestJobExposeCheckHook_checkIsExposable(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	t.Run("grpc", func(t *testing.T) {
 		require.True(t, checkIsExposable(&structs.ServiceCheck{
@@ -564,7 +561,7 @@ func TestJobExposeCheckHook_checkIsExposable(t *testing.T) {
 }
 
 func TestJobExposeCheckHook_Mutate(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	t.Run("typical", func(t *testing.T) {
 		result, warnings, err := new(jobExposeCheckHook).Mutate(&structs.Job{

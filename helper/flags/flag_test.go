@@ -5,12 +5,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStringFlag_implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	var raw interface{}
 	raw = new(StringFlag)
@@ -20,7 +19,7 @@ func TestStringFlag_implements(t *testing.T) {
 }
 
 func TestStringFlagSet(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	sv := new(StringFlag)
 	err := sv.Set("foo")
@@ -39,7 +38,7 @@ func TestStringFlagSet(t *testing.T) {
 	}
 }
 func TestStringFlagSet_Append(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	var (
 		// A test to make sure StringFlag can replace AppendSliceValue

@@ -132,7 +132,7 @@ affinity {
   ```hcl
   affinity {
     attribute = "..."
-    operator  = "set_contains_all"
+    operator  = "set_contains"
     value     = "a,b,c"
     weight    = 50
   }
@@ -147,7 +147,7 @@ affinity {
   ```hcl
   affinity {
     attribute = "..."
-    operator  = "set_contains_any"
+    operator  = "set_contains"
     value     = "a,b,c"
     weight    = 50
   }

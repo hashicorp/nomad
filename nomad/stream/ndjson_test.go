@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,7 +13,7 @@ type testObj struct {
 }
 
 func TestJsonStream(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -43,7 +42,7 @@ func TestJsonStream(t *testing.T) {
 }
 
 func TestJson_Send_After_Stop(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -58,7 +57,7 @@ func TestJson_Send_After_Stop(t *testing.T) {
 }
 
 func TestJson_HeartBeat(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

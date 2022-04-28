@@ -3,13 +3,12 @@ package nomad
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestEvaluatePool(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
@@ -42,7 +41,7 @@ func TestEvaluatePool(t *testing.T) {
 }
 
 func TestEvaluatePool_Resize(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	pool := NewEvaluatePool(1, 4)
 	defer pool.Shutdown()
 	if n := pool.Size(); n != 1 {

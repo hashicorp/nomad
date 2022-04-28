@@ -7,12 +7,11 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMonitor_Start(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	logger := log.NewInterceptLogger(&log.LoggerOptions{
 		Level: log.Error,
@@ -43,7 +42,7 @@ func TestMonitor_Start(t *testing.T) {
 
 // Ensure number of dropped messages are logged
 func TestMonitor_DroppedMessages(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	logger := log.NewInterceptLogger(&log.LoggerOptions{
 		Level: log.Warn,

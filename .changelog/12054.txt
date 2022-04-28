@@ -1,3 +1,0 @@
-```release-note:improvement
-api: sort return values of evaluation and deployment list api endpoints by creation index
-```

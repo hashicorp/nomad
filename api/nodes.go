@@ -515,14 +515,6 @@ type HostVolumeInfo struct {
 	ReadOnly bool
 }
 
-//HostNetworkInfo is used to return metadata about a given HostNetwork
-type HostNetworkInfo struct {
-	Name          string
-	CIDR          string
-	Interface     string
-	ReservedPorts string
-}
-
 type DrainStatus string
 
 // DrainMetadata contains information about the most recent drain operation for a given Node.
@@ -549,7 +541,6 @@ type Node struct {
 	Links                 map[string]string
 	Meta                  map[string]string
 	NodeClass             string
-	CgroupParent          string
 	Drain                 bool
 	DrainStrategy         *DrainStrategy
 	SchedulingEligibility string
@@ -559,7 +550,6 @@ type Node struct {
 	Events                []*NodeEvent
 	Drivers               map[string]*DriverInfo
 	HostVolumes           map[string]*HostVolumeInfo
-	HostNetworks          map[string]*HostNetworkInfo
 	CSIControllerPlugins  map[string]*CSIInfo
 	CSINodePlugins        map[string]*CSIInfo
 	LastDrain             *DrainMetadata
@@ -573,9 +563,6 @@ type NodeResources struct {
 	Disk     NodeDiskResources
 	Networks []*NetworkResource
 	Devices  []*NodeDeviceResource
-
-	MinDynamicPort int
-	MaxDynamicPort int
 }
 
 type NodeCpuResources struct {
@@ -615,13 +602,8 @@ type NodeReservedNetworkResources struct {
 	ReservedHostPorts string
 }
 
-type CSITopologyRequest struct {
-	Required  []*CSITopology `hcl:"required"`
-	Preferred []*CSITopology `hcl:"preferred"`
-}
-
 type CSITopology struct {
-	Segments map[string]string `hcl:"segments"`
+	Segments map[string]string
 }
 
 // CSINodeInfo is the fingerprinted data from a CSI Plugin that is specific to
@@ -906,7 +888,6 @@ func (v *StatValue) String() string {
 type NodeListStub struct {
 	Address               string
 	ID                    string
-	Attributes            map[string]string `json:",omitempty"`
 	Datacenter            string
 	Name                  string
 	NodeClass             string

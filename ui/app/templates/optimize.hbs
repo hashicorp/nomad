@@ -1,4 +1,3 @@
-<Breadcrumb @crumb={{hash label="Recommendations" args=(array "optimize")}} />
 <PageLayout>
   <section class="section">
     {{#if this.summaries}}
@@ -9,10 +8,7 @@
               data-test-recommendation-summaries-search
               @onChange={{this.syncActiveSummary}}
               @searchTerm={{mut this.searchTerm}}
-              @placeholder="Search
-        {{this.summaries.length}}
-        {{pluralize 'recommendation' this.summaries.length}}..."
-            />
+              @placeholder="Search {{this.summaries.length}} {{pluralize "recommendation" this.summaries.length}}..." />
           {{/if}}
         </div>
         <div class="toolbar-item is-right-aligned is-mobile-full-width">
@@ -23,42 +19,35 @@
                 @label="Namespace"
                 @options={{this.optionsNamespaces}}
                 @selection={{this.qpNamespace}}
-                @onSelect={{action
-                  (queue
-                    (action this.cacheNamespace)
-                    (action this.setFacetQueryParam "qpNamespace")
-                  )
-                }}
-              />
+                @onSelect={{action (queue
+                  (action this.cacheNamespace)
+                  (action this.setFacetQueryParam "qpNamespace")
+                )}} />
             {{/if}}
             <MultiSelectDropdown
               data-test-type-facet
               @label="Type"
               @options={{this.optionsType}}
               @selection={{this.selectionType}}
-              @onSelect={{action this.setFacetQueryParam "qpType"}}
-            />
+              @onSelect={{action this.setFacetQueryParam "qpType"}} />
             <MultiSelectDropdown
               data-test-status-facet
               @label="Status"
               @options={{this.optionsStatus}}
               @selection={{this.selectionStatus}}
-              @onSelect={{action this.setFacetQueryParam "qpStatus"}}
-            />
+              @onSelect={{action this.setFacetQueryParam "qpStatus"}} />
             <MultiSelectDropdown
               data-test-datacenter-facet
               @label="Datacenter"
               @options={{this.optionsDatacenter}}
               @selection={{this.selectionDatacenter}}
-              @onSelect={{action this.setFacetQueryParam "qpDatacenter"}}
-            />
+              @onSelect={{action this.setFacetQueryParam "qpDatacenter"}} />
             <MultiSelectDropdown
               data-test-prefix-facet
               @label="Prefix"
               @options={{this.optionsPrefix}}
               @selection={{this.selectionPrefix}}
-              @onSelect={{action this.setFacetQueryParam "qpPrefix"}}
-            />
+              @onSelect={{action this.setFacetQueryParam "qpPrefix"}} />
           </div>
         </div>
       </div>
@@ -66,7 +55,8 @@
       {{#if this.filteredSummaries}}
         {{outlet}}
 
-        <ListTable @source={{this.filteredSummaries}} as |t|>
+        <ListTable
+          @source={{this.filteredSummaries}} as |t|>
           <t.head>
             <th>Job</th>
             <th>Recommended At</th>
@@ -84,25 +74,17 @@
               />
             {{else}}
               <Das::RecommendationRow
-                class="is-interactive
-                  {{if
-                    (eq row.model this.activeRecommendationSummary)
-                    'is-active'
-                  }}"
+                class="is-interactive {{if (eq row.model this.activeRecommendationSummary) 'is-active'}}"
                 @summary={{row.model}}
                 {{on "click" (fn this.transitionToSummary row.model)}}
               />
             {{/if}}
+
           </t.body>
         </ListTable>
       {{else}}
         <div class="empty-message" data-test-empty-recommendations>
-          <h3
-            class="empty-message-headline"
-            data-test-empty-recommendations-headline
-          >
-            No Matches
-          </h3>
+          <h3 class="empty-message-headline" data-test-empty-recommendations-headline>No Matches</h3>
           <p class="empty-message-body">
             No recommendations match your current filter selection.
           </p>
@@ -110,16 +92,9 @@
       {{/if}}
     {{else}}
       <div class="empty-message" data-test-empty-recommendations>
-        <h3
-          class="empty-message-headline"
-          data-test-empty-recommendations-headline
-        >
-          No Recommendations
-        </h3>
+        <h3 class="empty-message-headline" data-test-empty-recommendations-headline>No Recommendations</h3>
         <p class="empty-message-body">
-          All recommendations have been accepted or dismissed. Nomad will
-          continuously monitor applications so expect more recommendations in
-          the future.
+          All recommendations have been accepted or dismissed. Nomad will continuously monitor applications so expect more recommendations in the future.
         </p>
       </div>
     {{/if}}

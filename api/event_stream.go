@@ -16,7 +16,6 @@ const (
 	TopicAllocation Topic = "Allocation"
 	TopicJob        Topic = "Job"
 	TopicNode       Topic = "Node"
-	TopicService    Topic = "Service"
 	TopicAll        Topic = "*"
 )
 
@@ -92,23 +91,12 @@ func (e *Event) Node() (*Node, error) {
 	return out.Node, nil
 }
 
-// Service returns a ServiceRegistration struct from a given event payload. If
-// the Event Topic is Service this will return a valid ServiceRegistration.
-func (e *Event) Service() (*ServiceRegistration, error) {
-	out, err := e.decodePayload()
-	if err != nil {
-		return nil, err
-	}
-	return out.Service, nil
-}
-
 type eventPayload struct {
-	Allocation *Allocation          `mapstructure:"Allocation"`
-	Deployment *Deployment          `mapstructure:"Deployment"`
-	Evaluation *Evaluation          `mapstructure:"Evaluation"`
-	Job        *Job                 `mapstructure:"Job"`
-	Node       *Node                `mapstructure:"Node"`
-	Service    *ServiceRegistration `mapstructure:"Service"`
+	Allocation *Allocation `mapstructure:"Allocation"`
+	Deployment *Deployment `mapstructure:"Deployment"`
+	Evaluation *Evaluation `mapstructure:"Evaluation"`
+	Job        *Job        `mapstructure:"Job"`
+	Node       *Node       `mapstructure:"Node"`
 }
 
 func (e *Event) decodePayload() (*eventPayload, error) {

@@ -1,8 +1,10 @@
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
-import Component from '@glimmer/component';
+import PeriodicChildJobPage from './periodic-child';
+import classic from 'ember-classic-decorator';
 
-export default class ParameterizedChild extends Component {
+@classic
+export default class ParameterizedChild extends PeriodicChildJobPage {
   @alias('job.decodedPayload') payload;
 
   @computed('payload')

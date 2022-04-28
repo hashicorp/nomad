@@ -13,8 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -28,18 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// defaultEnv creates the default environment for raw exec tasks
-func defaultEnv() map[string]string {
-	m := make(map[string]string)
-	if cgutil.UseV2 {
-		// normally the taskenv.Builder will set this automatically from the
-		// Node object which gets created via Client configuration, but none of
-		// that exists in the test harness so just set it here.
-		m["NOMAD_PARENT_CGROUP"] = "nomad.slice"
-	}
-	return m
-}
-
 func TestMain(m *testing.M) {
 	if !testtask.Run() {
 		os.Exit(m.Run())
@@ -48,41 +34,35 @@ func TestMain(m *testing.M) {
 
 func newEnabledRawExecDriver(t *testing.T) *Driver {
 	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	t.Cleanup(func() { cancel() })
 
-	logger := testlog.HCLogger(t)
-	d := NewRawExecDriver(ctx, logger).(*Driver)
+	d := NewRawExecDriver(ctx, testlog.HCLogger(t)).(*Driver)
 	d.config.Enabled = true
-
 	return d
 }
 
 func TestRawExecDriver_SetConfig(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger := testlog.HCLogger(t)
-
-	d := NewRawExecDriver(ctx, logger)
+	d := NewRawExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
-	var (
-		bconfig = new(basePlug.Config)
-		config  = new(Config)
-		data    = make([]byte, 0)
-	)
+	bconfig := &basePlug.Config{}
 
-	// Default is raw_exec is disabled.
+	// Disable raw exec.
+	config := &Config{}
+
+	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
 	bconfig.PluginConfig = data
 	require.NoError(harness.SetConfig(bconfig))
 	require.Exactly(config, d.(*Driver).config)
 
-	// Enable raw_exec, but disable cgroups.
 	config.Enabled = true
 	config.NoCgroups = true
 	data = []byte{}
@@ -91,7 +71,6 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 	require.NoError(harness.SetConfig(bconfig))
 	require.Exactly(config, d.(*Driver).config)
 
-	// Enable raw_exec, enable cgroups.
 	config.NoCgroups = false
 	data = []byte{}
 	require.NoError(basePlug.MsgPackEncode(&data, config))
@@ -101,7 +80,7 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 }
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	fingerprintTest := func(config *Config, expected *drivers.Fingerprint) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -163,17 +142,15 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 }
 
 func TestRawExecDriver_StartWait(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 	task := &drivers.TaskConfig{
-		AllocID: uuid.Generate(),
-		ID:      uuid.Generate(),
-		Name:    "test",
-		Env:     defaultEnv(),
+		ID:   uuid.Generate(),
+		Name: "test",
 	}
 
 	tc := &TaskConfig{
@@ -207,7 +184,7 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 }
 
 func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
@@ -222,10 +199,8 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	require.NoError(harness.SetConfig(bconfig))
 
 	task := &drivers.TaskConfig{
-		AllocID: uuid.Generate(),
-		ID:      uuid.Generate(),
-		Name:    "sleep",
-		Env:     defaultEnv(),
+		ID:   uuid.Generate(),
+		Name: "sleep",
 	}
 	tc := &TaskConfig{
 		Command: testtask.Path(),
@@ -292,7 +267,7 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 }
 
 func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
@@ -300,10 +275,8 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	defer harness.Kill()
 
 	task := &drivers.TaskConfig{
-		AllocID: uuid.Generate(),
-		ID:      uuid.Generate(),
-		Name:    "sleep",
-		Env:     defaultEnv(),
+		ID:   uuid.Generate(),
+		Name: "sleep",
 	}
 
 	cleanup := harness.MkAllocDir(task, false)
@@ -347,9 +320,8 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 // processes cleanup of the children would not be possible. Thus the test
 // asserts that the processes get killed properly when using cgroups.
 func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
-	ci.Parallel(t)
 	ctestutil.ExecCompatible(t)
-
+	t.Parallel()
 	require := require.New(t)
 	pidFile := "pid"
 
@@ -358,11 +330,9 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 	defer harness.Kill()
 
 	task := &drivers.TaskConfig{
-		AllocID: uuid.Generate(),
-		ID:      uuid.Generate(),
-		Name:    "sleep",
-		User:    "root",
-		Env:     defaultEnv(),
+		ID:   uuid.Generate(),
+		Name: "sleep",
+		User: "root",
 	}
 
 	cleanup := harness.MkAllocDir(task, false)
@@ -441,57 +411,8 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
-func TestRawExecDriver_ParentCgroup(t *testing.T) {
-	ci.Parallel(t)
-	ctestutil.ExecCompatible(t)
-	ctestutil.CgroupsCompatibleV2(t)
-
-	d := newEnabledRawExecDriver(t)
-	harness := dtestutil.NewDriverHarness(t, d)
-	defer harness.Kill()
-
-	task := &drivers.TaskConfig{
-		AllocID: uuid.Generate(),
-		ID:      uuid.Generate(),
-		Name:    "sleep",
-		Env: map[string]string{
-			"NOMAD_PARENT_CGROUP": "custom.slice",
-		},
-	}
-
-	cleanup := harness.MkAllocDir(task, false)
-	defer cleanup()
-
-	// run sleep task
-	tc := &TaskConfig{
-		Command: testtask.Path(),
-		Args:    []string{"sleep", "9000s"},
-	}
-	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
-	testtask.SetTaskConfigEnv(task)
-	_, _, err := harness.StartTask(task)
-	require.NoError(t, err)
-
-	// inspect environment variable
-	res, execErr := harness.ExecTask(task.ID, []string{"/usr/bin/env"}, 1*time.Second)
-	require.NoError(t, execErr)
-	require.True(t, res.ExitResult.Successful())
-	require.Contains(t, string(res.Stdout), "custom.slice")
-
-	// inspect /proc/self/cgroup
-	res2, execErr2 := harness.ExecTask(task.ID, []string{"cat", "/proc/self/cgroup"}, 1*time.Second)
-	require.NoError(t, execErr2)
-	require.True(t, res2.ExitResult.Successful())
-	require.Contains(t, string(res2.Stdout), "custom.slice")
-
-	// kill the sleep task
-	require.NoError(t, harness.DestroyTask(task.ID, true))
-}
-
 func TestRawExecDriver_Exec(t *testing.T) {
-	ci.Parallel(t)
-	ctestutil.ExecCompatible(t)
-
+	t.Parallel()
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
@@ -499,10 +420,8 @@ func TestRawExecDriver_Exec(t *testing.T) {
 	defer harness.Kill()
 
 	task := &drivers.TaskConfig{
-		AllocID: uuid.Generate(),
-		ID:      uuid.Generate(),
-		Name:    "sleep",
-		Env:     defaultEnv(),
+		ID:   uuid.Generate(),
+		Name: "sleep",
 	}
 
 	cleanup := harness.MkAllocDir(task, false)
@@ -548,8 +467,6 @@ func TestRawExecDriver_Exec(t *testing.T) {
 }
 
 func TestConfig_ParseAllHCL(t *testing.T) {
-	ci.Parallel(t)
-
 	cfgStr := `
 config {
   command = "/bin/bash"
@@ -568,7 +485,7 @@ config {
 }
 
 func TestRawExecDriver_Disabled(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
@@ -577,10 +494,8 @@ func TestRawExecDriver_Disabled(t *testing.T) {
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 	task := &drivers.TaskConfig{
-		AllocID: uuid.Generate(),
-		ID:      uuid.Generate(),
-		Name:    "test",
-		Env:     defaultEnv(),
+		ID:   uuid.Generate(),
+		Name: "test",
 	}
 
 	handle, _, err := harness.StartTask(task)

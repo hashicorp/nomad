@@ -1,3 +1,0 @@
-```release-note:improvement
-scheduler: recover scheduler goroutines on panic
-```

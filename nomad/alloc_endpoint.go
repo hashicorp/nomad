@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"fmt"
-	"net/http"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -14,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -34,103 +32,111 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "list"}, time.Now())
 
-	namespace := args.RequestNamespace()
-	var allow func(string) bool
+	if args.RequestNamespace() == structs.AllNamespacesSentinel {
+		return a.listAllNamespaces(args, reply)
+	}
 
 	// Check namespace read-job permissions
 	aclObj, err := a.srv.ResolveToken(args.AuthToken)
-
-	switch {
-	case err != nil:
+	if err != nil {
 		return err
-	case aclObj == nil:
-		allow = func(string) bool {
-			return true
-		}
-	case namespace == structs.AllNamespacesSentinel:
-		allow = func(ns string) bool {
-			return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
-		}
-	case !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob):
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
-	default:
-		allow = func(string) bool {
-			return true
-		}
 	}
 
 	// Setup the blocking query
-	sort := state.SortOption(args.Reverse)
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Scan all the allocations
+			// Capture all the allocations
 			var err error
 			var iter memdb.ResultIterator
-			var opts paginator.StructsTokenizerOptions
 
+			prefix := args.QueryOptions.Prefix
+			if prefix != "" {
+				iter, err = state.AllocsByIDPrefix(ws, args.RequestNamespace(), prefix)
+			} else {
+				iter, err = state.AllocsByNamespace(ws, args.RequestNamespace())
+			}
+			if err != nil {
+				return err
+			}
+
+			var allocs []*structs.AllocListStub
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				alloc := raw.(*structs.Allocation)
+				allocs = append(allocs, alloc.Stub(args.Fields))
+			}
+			reply.Allocations = allocs
+
+			// Use the last index that affected the jobs table
+			index, err := state.Index("allocs")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+
+			// Set the query response
+			a.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return a.srv.blockingRPC(&opts)
+}
+
+// listAllNamespaces lists all allocations across all namespaces
+func (a *Alloc) listAllNamespaces(args *structs.AllocListRequest, reply *structs.AllocListResponse) error {
+	// Check for read-job permissions
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	prefix := args.QueryOptions.Prefix
+	allow := func(ns string) bool {
+		return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
+	}
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// get list of accessible namespaces
-			allowableNamespaces, err := allowedNSes(aclObj, state, allow)
+			allowedNSes, err := allowedNSes(aclObj, state, allow)
 			if err == structs.ErrPermissionDenied {
-				// return empty allocation if token is not authorized for any
+				// return empty allocations if token isn't authorized for any
 				// namespace, matching other endpoints
-				reply.Allocations = make([]*structs.AllocListStub, 0)
+				reply.Allocations = []*structs.AllocListStub{}
 			} else if err != nil {
 				return err
 			} else {
-				if prefix := args.QueryOptions.Prefix; prefix != "" {
-					iter, err = state.AllocsByIDPrefix(ws, namespace, prefix, sort)
-					opts = paginator.StructsTokenizerOptions{
-						WithID: true,
-					}
-				} else if namespace != structs.AllNamespacesSentinel {
-					iter, err = state.AllocsByNamespaceOrdered(ws, namespace, sort)
-					opts = paginator.StructsTokenizerOptions{
-						WithCreateIndex: true,
-						WithID:          true,
-					}
+				var iter memdb.ResultIterator
+				var err error
+				if prefix != "" {
+					iter, err = state.AllocsByIDPrefixAllNSs(ws, prefix)
 				} else {
-					iter, err = state.Allocs(ws, sort)
-					opts = paginator.StructsTokenizerOptions{
-						WithCreateIndex: true,
-						WithID:          true,
-					}
+					iter, err = state.Allocs(ws)
 				}
 				if err != nil {
 					return err
 				}
 
-				tokenizer := paginator.NewStructsTokenizer(iter, opts)
-				filters := []paginator.Filter{
-					paginator.NamespaceFilter{
-						AllowableNamespaces: allowableNamespaces,
-					},
+				var allocs []*structs.AllocListStub
+				for raw := iter.Next(); raw != nil; raw = iter.Next() {
+					alloc := raw.(*structs.Allocation)
+					if allowedNSes != nil && !allowedNSes[alloc.Namespace] {
+						continue
+					}
+					allocs = append(allocs, alloc.Stub(args.Fields))
 				}
-
-				var stubs []*structs.AllocListStub
-				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
-					func(raw interface{}) error {
-						allocation := raw.(*structs.Allocation)
-						stubs = append(stubs, allocation.Stub(args.Fields))
-						return nil
-					})
-				if err != nil {
-					return structs.NewErrRPCCodedf(
-						http.StatusBadRequest, "failed to create result paginator: %v", err)
-				}
-
-				nextToken, err := paginator.Page()
-				if err != nil {
-					return structs.NewErrRPCCodedf(
-						http.StatusBadRequest, "failed to read result page: %v", err)
-				}
-
-				reply.QueryMeta.NextToken = nextToken
-				reply.Allocations = stubs
+				reply.Allocations = allocs
 			}
 
-			// Use the last index that affected the allocs table
+			// Use the last index that affected the jobs table
 			index, err := state.Index("allocs")
 			if err != nil {
 				return err
@@ -324,8 +330,7 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 		Evals: []*structs.Evaluation{eval},
 		Allocs: map[string]*structs.DesiredTransition{
 			args.AllocID: {
-				Migrate:         helper.BoolToPtr(true),
-				NoShutdownDelay: helper.BoolToPtr(args.NoShutdownDelay),
+				Migrate: helper.BoolToPtr(true),
 			},
 		},
 	}
@@ -373,68 +378,4 @@ func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransiti
 	// Setup the response
 	reply.Index = index
 	return nil
-}
-
-// GetServiceRegistrations returns a list of service registrations which belong
-// to the passed allocation ID.
-func (a *Alloc) GetServiceRegistrations(
-	args *structs.AllocServiceRegistrationsRequest,
-	reply *structs.AllocServiceRegistrationsResponse) error {
-
-	if done, err := a.srv.forward(structs.AllocServiceRegistrationsRPCMethod, args, args, reply); done {
-		return err
-	}
-	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_service_registrations"}, time.Now())
-
-	// If ACLs are enabled, ensure the caller has the read-job namespace
-	// capability.
-	aclObj, err := a.srv.ResolveToken(args.AuthToken)
-	if err != nil {
-		return err
-	} else if aclObj != nil {
-		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
-			return structs.ErrPermissionDenied
-		}
-	}
-
-	// Set up the blocking query.
-	return a.srv.blockingRPC(&blockingOptions{
-		queryOpts: &args.QueryOptions,
-		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
-
-			// Read the allocation to ensure its namespace matches the request
-			// args.
-			alloc, err := stateStore.AllocByID(ws, args.AllocID)
-			if err != nil {
-				return err
-			}
-
-			// Guard against the alloc not-existing or that the namespace does
-			// not match the request arguments.
-			if alloc == nil || alloc.Namespace != args.RequestNamespace() {
-				return nil
-			}
-
-			// Perform the state query to get an iterator.
-			iter, err := stateStore.GetServiceRegistrationsByAllocID(ws, args.AllocID)
-			if err != nil {
-				return err
-			}
-
-			// Set up our output after we have checked the error.
-			services := make([]*structs.ServiceRegistration, 0)
-
-			// Iterate the iterator, appending all service registrations
-			// returned to the reply.
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				services = append(services, raw.(*structs.ServiceRegistration))
-			}
-			reply.Services = services
-
-			// Use the index table to populate the query meta as we have no way
-			// of tracking the max index on deletes.
-			return a.srv.setReplyQueryMeta(stateStore, state.TableServiceRegistrations, &reply.QueryMeta)
-		},
-	})
 }

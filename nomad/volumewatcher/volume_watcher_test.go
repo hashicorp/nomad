@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -13,7 +12,7 @@ import (
 )
 
 func TestVolumeWatch_Reap(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	srv := &MockRPCServer{
@@ -82,7 +81,6 @@ func TestVolumeWatch_Reap(t *testing.T) {
 }
 
 func TestVolumeReapBadState(t *testing.T) {
-	ci.Parallel(t)
 
 	store := state.TestStateStore(t)
 	err := state.TestBadCSIState(t, store)

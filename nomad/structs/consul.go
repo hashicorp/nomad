@@ -39,7 +39,7 @@ type ConsulUsage struct {
 	KV       bool
 }
 
-// Used returns true if Consul is used for registering services or reading from
+// Unused returns true if Consul is used for registering services or reading from
 // the keystore.
 func (cu *ConsulUsage) Used() bool {
 	switch {
@@ -70,17 +70,13 @@ func (j *Job) ConsulUsages() map[string]*ConsulUsage {
 
 		// Gather group services
 		for _, service := range tg.Services {
-			if service.Provider == ServiceProviderConsul {
-				m[namespace].Services = append(m[namespace].Services, service.Name)
-			}
+			m[namespace].Services = append(m[namespace].Services, service.Name)
 		}
 
 		// Gather task services and KV usage
 		for _, task := range tg.Tasks {
 			for _, service := range task.Services {
-				if service.Provider == ServiceProviderConsul {
-					m[namespace].Services = append(m[namespace].Services, service.Name)
-				}
+				m[namespace].Services = append(m[namespace].Services, service.Name)
 			}
 			if len(task.Templates) > 0 {
 				m[namespace].KV = true

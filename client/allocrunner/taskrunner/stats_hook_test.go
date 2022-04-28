@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -83,7 +82,7 @@ func (m *mockDriverStats) Called() int {
 // TestTaskRunner_StatsHook_PoststartExited asserts the stats hook starts and
 // stops.
 func TestTaskRunner_StatsHook_PoststartExited(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	require := require.New(t)
 	logger := testlog.HCLogger(t)
@@ -115,7 +114,7 @@ func TestTaskRunner_StatsHook_PoststartExited(t *testing.T) {
 // TestTaskRunner_StatsHook_Periodic asserts the stats hook collects stats on
 // an interval.
 func TestTaskRunner_StatsHook_Periodic(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	require := require.New(t)
 	logger := testlog.HCLogger(t)
@@ -180,7 +179,7 @@ WAITING:
 // TestTaskRunner_StatsHook_NotImplemented asserts the stats hook stops if the
 // driver returns NotImplemented.
 func TestTaskRunner_StatsHook_NotImplemented(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	require := require.New(t)
 	logger := testlog.HCLogger(t)
@@ -209,7 +208,7 @@ func TestTaskRunner_StatsHook_NotImplemented(t *testing.T) {
 // TestTaskRunner_StatsHook_Backoff asserts that stats hook does some backoff
 // even if the driver doesn't support intervals well
 func TestTaskRunner_StatsHook_Backoff(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	logger := testlog.HCLogger(t)
 	su := newMockStatsUpdater()

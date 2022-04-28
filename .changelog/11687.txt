@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Display section title in the navigation breadcrumbs
-```

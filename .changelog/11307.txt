@@ -1,3 +1,0 @@
-```release-note:breaking-change
-cli: Renamed folders in `nomad operator debug` bundle for clarity
-```

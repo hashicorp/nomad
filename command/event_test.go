@@ -3,13 +3,12 @@ package command
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
 
 func TestEventCommand_BaseCommand(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()

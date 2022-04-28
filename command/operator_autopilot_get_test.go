@@ -4,17 +4,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 )
 
 func TestOperator_Autopilot_GetConfig_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &OperatorRaftListCommand{}
 }
 
 func TestOperatorAutopilotGetConfigCommand(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 

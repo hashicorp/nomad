@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/posener/complete"
 )
@@ -14,7 +15,7 @@ import (
 const (
 	jobModifyIndexHelp = `To submit the job with version verification run:
 
-nomad job run -check-index %d %s%s
+nomad job run -check-index %d %s
 
 When running the job with the check-index flag, the job will only be run if the
 job modify index given matches the server-side version. If the index has
@@ -75,18 +76,8 @@ Plan Options:
     Determines whether the diff between the remote job and planned job is shown.
     Defaults to true.
 
-  -json
-    Parses the job file as JSON. If the outer object has a Job field, such as
-    from "nomad job inspect" or "nomad run -output", the value of the field is
-    used as the job.
-
   -hcl1
     Parses the job file as HCLv1.
-
-  -hcl2-strict
-    Whether an error should be produced from the HCL2 parser where a variable
-    has been supplied which is not defined within the root variables. Defaults
-    to true.
 
   -policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
@@ -113,36 +104,29 @@ func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 			"-diff":            complete.PredictNothing,
 			"-policy-override": complete.PredictNothing,
 			"-verbose":         complete.PredictNothing,
-			"-json":            complete.PredictNothing,
 			"-hcl1":            complete.PredictNothing,
-			"-hcl2-strict":     complete.PredictNothing,
 			"-var":             complete.PredictAnything,
 			"-var-file":        complete.PredictFiles("*.var"),
 		})
 }
 
 func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictOr(
-		complete.PredictFiles("*.nomad"),
-		complete.PredictFiles("*.hcl"),
-		complete.PredictFiles("*.json"),
-	)
+	return complete.PredictOr(complete.PredictFiles("*.nomad"), complete.PredictFiles("*.hcl"))
 }
 
 func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
 	var diff, policyOverride, verbose bool
+	var varArgs, varFiles flaghelper.StringFlag
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
 	flagSet.BoolVar(&diff, "diff", true, "")
 	flagSet.BoolVar(&policyOverride, "policy-override", false, "")
 	flagSet.BoolVar(&verbose, "verbose", false, "")
-	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
-	flagSet.BoolVar(&c.JobGetter.HCL1, "hcl1", false, "")
-	flagSet.BoolVar(&c.JobGetter.Strict, "hcl2-strict", true, "")
-	flagSet.Var(&c.JobGetter.Vars, "var", "")
-	flagSet.Var(&c.JobGetter.VarFiles, "var-file", "")
+	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
+	flagSet.Var(&varArgs, "var", "")
+	flagSet.Var(&varFiles, "var-file", "")
 
 	if err := flagSet.Parse(args); err != nil {
 		return 255
@@ -156,14 +140,9 @@ func (c *JobPlanCommand) Run(args []string) int {
 		return 255
 	}
 
-	if err := c.JobGetter.Validate(); err != nil {
-		c.Ui.Error(fmt.Sprintf("Invalid job options: %s", err))
-		return 1
-	}
-
 	path := args[0]
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.Get(path)
+	job, err := c.JobGetter.ApiJobWithArgs(args[0], varArgs, varFiles)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 255
@@ -206,17 +185,8 @@ func (c *JobPlanCommand) Run(args []string) int {
 		return 255
 	}
 
-	runArgs := strings.Builder{}
-	for _, varArg := range c.JobGetter.Vars {
-		runArgs.WriteString(fmt.Sprintf("-var=%q ", varArg))
-	}
-
-	for _, varFile := range c.JobGetter.VarFiles {
-		runArgs.WriteString(fmt.Sprintf("-var-file=%q ", varFile))
-	}
-
 	exitCode := c.outputPlannedJob(job, resp, diff, verbose)
-	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, runArgs.String(), path)))
+	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
 	return exitCode
 }
 
@@ -356,8 +326,8 @@ func getExitCode(resp *api.JobPlanResponse) int {
 
 // formatJobModifyIndex produces a help string that displays the job modify
 // index and how to submit a job with it.
-func formatJobModifyIndex(jobModifyIndex uint64, args string, jobName string) string {
-	help := fmt.Sprintf(jobModifyIndexHelp, jobModifyIndex, args, jobName)
+func formatJobModifyIndex(jobModifyIndex uint64, jobName string) string {
+	help := fmt.Sprintf(jobModifyIndexHelp, jobModifyIndex, jobName)
 	out := fmt.Sprintf("[reset][bold]Job Modify Index: %d[reset]\n%s", jobModifyIndex, help)
 	return out
 }

@@ -1,6 +1,5 @@
 import config from 'nomad-ui/config/environment';
 import * as topoScenarios from './topo';
-import * as sysbatchScenarios from './sysbatch';
 import { pickOne } from '../utils';
 
 const withNamespaces = getConfigValue('mirageWithNamespaces', false);
@@ -17,14 +16,11 @@ const allScenarios = {
   everyFeature,
   emptyCluster,
   ...topoScenarios,
-  ...sysbatchScenarios,
 };
 
-const scenario =
-  getScenarioQueryParameter() ||
-  getConfigValue('mirageScenario', 'emptyCluster');
+const scenario = getScenarioQueryParameter() || getConfigValue('mirageScenario', 'emptyCluster');
 
-export default function (server) {
+export default function(server) {
   const activeScenario = allScenarios[scenario];
   if (!activeScenario) {
     throw new Error(
@@ -44,76 +40,16 @@ export default function (server) {
 
 function smallCluster(server) {
   server.create('feature', { name: 'Dynamic Application Sizing' });
-  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('agent', 3);
   server.createList('node', 5);
-  server.createList('job', 1, { createRecommendations: true });
+  server.createList('job', 5, { createRecommendations: true });
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
   server.createList('csi-plugin', 2);
 
-  // #region evaluations
-
-  // Branching: a single eval that relates to N-1 mutually-unrelated evals
-  const NUM_BRANCHING_EVALUATIONS = 3;
-  Array(NUM_BRANCHING_EVALUATIONS)
-    .fill()
-    .map((_, i) => {
-      return {
-        evaluation: server.create('evaluation', {
-          id: `branching_${i}`,
-          previousEval: i > 0 ? `branching_0` : '',
-          jobID: pickOne(server.db.jobs).id,
-        }),
-
-        evaluationStub: server.create('evaluation-stub', {
-          id: `branching_${i}`,
-          previousEval: i > 0 ? `branching_0` : '',
-          status: 'failed',
-        }),
-      };
-    })
-    .map((x, i, all) => {
-      x.evaluation.update({
-        relatedEvals:
-          i === 0
-            ? all.filter((_, j) => j !== 0).map((e) => e.evaluation)
-            : all.filter((_, j) => j !== i).map((e) => e.evaluation),
-      });
-      return x;
-    });
-
-  // Linear: a long line of N related evaluations
-  const NUM_LINEAR_EVALUATIONS = 20;
-  Array(NUM_LINEAR_EVALUATIONS)
-    .fill()
-    .map((_, i) => {
-      return {
-        evaluation: server.create('evaluation', {
-          id: `linear_${i}`,
-          previousEval: i > 0 ? `linear_${i - 1}` : '',
-          jobID: pickOne(server.db.jobs).id,
-        }),
-
-        evaluationStub: server.create('evaluation-stub', {
-          id: `linear_${i}`,
-          previousEval: i > 0 ? `linear_${i - 1}` : '',
-          nextEval: `linear_${i + 1}`,
-          status: 'failed',
-        }),
-      };
-    })
-    .map((x, i, all) => {
-      x.evaluation.update({
-        relatedEvals: all.filter((_, j) => i !== j).map((e) => e.evaluation),
-      });
-      return x;
-    });
-
-  // #endregion evaluations
-
   const csiAllocations = server.createList('allocation', 5);
   const volumes = server.schema.csiVolumes.all().models;
-  csiAllocations.forEach((alloc) => {
+  csiAllocations.forEach(alloc => {
     const volume = pickOne(volumes);
     volume.writeAllocs.add(alloc);
     volume.readAllocs.add(alloc);
@@ -122,7 +58,7 @@ function smallCluster(server) {
 }
 
 function mediumCluster(server) {
-  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('agent', 3);
   server.createList('node', 50);
   server.createList('job', 25);
 }
@@ -141,7 +77,7 @@ function massiveCluster(server) {
 }
 
 function allJobTypes(server) {
-  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('agent', 3);
   server.createList('node', 5);
 
   server.create('job', { type: 'service' });
@@ -149,13 +85,11 @@ function allJobTypes(server) {
   server.create('job', { type: 'system' });
   server.create('job', 'periodic');
   server.create('job', 'parameterized');
-  server.create('job', 'periodicSysbatch');
-  server.create('job', 'parameterizedSysbatch');
   server.create('job', { failedPlacements: true });
 }
 
 function allNodeTypes(server) {
-  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('agent', 3);
 
   server.create('node');
   server.create('node', 'forceIPv4');
@@ -168,7 +102,7 @@ function allNodeTypes(server) {
 }
 
 function everyFeature(server) {
-  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('agent', 3);
 
   server.create('node', 'forceIPv4');
   server.create('node', 'draining');
@@ -182,11 +116,7 @@ function everyFeature(server) {
     namespaceId: 'default',
     createAllocations: false,
   });
-  server.create('job', {
-    type: 'batch',
-    failedPlacements: true,
-    namespaceId: 'default',
-  });
+  server.create('job', { type: 'batch', failedPlacements: true, namespaceId: 'default' });
   server.create('job', { type: 'system', namespaceId: 'default' });
   server.create('job', 'periodic', { namespaceId: 'default' });
   server.create('job', 'parameterized', { namespaceId: 'default' });
@@ -213,17 +143,15 @@ function createNamespaces(server) {
 }
 
 function createRegions(server) {
-  ['americas', 'europe', 'asia', 'some-long-name-just-to-test'].forEach(
-    (id) => {
-      server.create('region', { id });
-    }
-  );
+  ['americas', 'europe', 'asia', 'some-long-name-just-to-test'].forEach(id => {
+    server.create('region', { id });
+  });
 }
 
 /* eslint-disable */
 function logTokens(server) {
   console.log('TOKENS:');
-  server.db.tokens.forEach((token) => {
+  server.db.tokens.forEach(token => {
     console.log(`
 Name: ${token.name}
 Secret: ${token.secretId}

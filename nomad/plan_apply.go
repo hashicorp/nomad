@@ -655,11 +655,6 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	// the Raft commit happens.
 	if node == nil {
 		return false, "node does not exist", nil
-	} else if node.Status == structs.NodeStatusDisconnected {
-		if isValidForDisconnectedNode(plan, node.ID) {
-			return true, "", nil
-		}
-		return false, "node is disconnected and contains invalid updates", nil
 	} else if node.Status != structs.NodeStatusReady {
 		return false, "node is not ready for placements", nil
 	}
@@ -700,18 +695,6 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	// Check if these allocations fit
 	fit, reason, _, err := structs.AllocsFit(node, proposed, nil, true)
 	return fit, reason, err
-}
-
-// The plan is only valid for disconnected nodes if it only contains
-// updates to mark allocations as unknown.
-func isValidForDisconnectedNode(plan *structs.Plan, nodeID string) bool {
-	for _, alloc := range plan.NodeAllocation[nodeID] {
-		if alloc.ClientStatus != structs.AllocClientStatusUnknown {
-			return false
-		}
-	}
-
-	return true
 }
 
 func max(a, b uint64) uint64 {

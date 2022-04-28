@@ -250,7 +250,7 @@ func (p *PluginCapabilitySet) HasControllerService() bool {
 	return p.hasControllerService
 }
 
-// HasToplogies indicates whether the volumes for this plugin are equally
+// HasTopologies indicates whether the volumes for this plugin are equally
 // accessible by all nodes in the cluster.
 // If true, we MUST use the topology information when scheduling workloads.
 func (p *PluginCapabilitySet) HasToplogies() bool {
@@ -581,11 +581,10 @@ type ControllerCreateVolumeResponse struct {
 func NewCreateVolumeResponse(resp *csipbv1.CreateVolumeResponse) *ControllerCreateVolumeResponse {
 	vol := resp.GetVolume()
 	return &ControllerCreateVolumeResponse{Volume: &Volume{
-		CapacityBytes:      vol.GetCapacityBytes(),
-		ExternalVolumeID:   vol.GetVolumeId(),
-		VolumeContext:      vol.GetVolumeContext(),
-		ContentSource:      newVolumeContentSource(vol.GetContentSource()),
-		AccessibleTopology: newTopologies(vol.GetAccessibleTopology()),
+		CapacityBytes:    vol.GetCapacityBytes(),
+		ExternalVolumeID: vol.GetVolumeId(),
+		VolumeContext:    vol.GetVolumeContext(),
+		ContentSource:    newVolumeContentSource(vol.GetContentSource()),
 	}}
 }
 

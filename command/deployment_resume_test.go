@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -12,12 +11,12 @@ import (
 )
 
 func TestDeploymentResumeCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &DeploymentResumeCommand{}
 }
 
 func TestDeploymentResumeCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	ui := cli.NewMockUi()
 	cmd := &DeploymentResumeCommand{Meta: Meta{Ui: ui}}
 
@@ -40,8 +39,8 @@ func TestDeploymentResumeCommand_Fails(t *testing.T) {
 }
 
 func TestDeploymentResumeCommand_AutocompleteArgs(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
+	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()

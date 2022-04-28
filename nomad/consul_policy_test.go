@@ -4,13 +4,12 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConsulPolicy_ParseConsulPolicy(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	try := func(t *testing.T, text string, expPolicy *ConsulPolicy, expErr string) {
 		policy, err := parseConsulPolicy(text)
@@ -104,7 +103,7 @@ namespace "foo" {
 }
 
 func TestConsulACLsAPI_allowsServiceWrite(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	try := func(t *testing.T, matches bool, namespace, task string, cp *ConsulPolicy, exp bool) {
 		// If matches is false, the implication is that the consul acl token is in
@@ -343,8 +342,6 @@ func TestConsulACLsAPI_allowsServiceWrite(t *testing.T) {
 }
 
 func TestConsulPolicy_isManagementToken(t *testing.T) {
-	ci.Parallel(t)
-
 	aclsAPI := new(consulACLsAPI)
 
 	t.Run("nil", func(t *testing.T) {
@@ -397,8 +394,6 @@ func TestConsulPolicy_isManagementToken(t *testing.T) {
 }
 
 func TestConsulPolicy_namespaceCheck(t *testing.T) {
-	ci.Parallel(t)
-
 	withoutNS := &api.ACLToken{Namespace: ""}
 	withDefault := &api.ACLToken{Namespace: "default"}
 	withOther := &api.ACLToken{Namespace: "other"}
@@ -460,8 +455,6 @@ func TestConsulPolicy_namespaceCheck(t *testing.T) {
 }
 
 func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
-	ci.Parallel(t)
-	
 	t.Run("empty", func(t *testing.T) {
 		require.False(t, new(ConsulPolicy).allowsKeystoreRead(true, "default"))
 	})
@@ -528,7 +521,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv wild namespace prefix any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			NamespacePrefixes: map[string]*ConsulPolicy{
-				"": {
+				"": &ConsulPolicy{
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",
@@ -543,7 +536,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv apple namespace prefix any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			NamespacePrefixes: map[string]*ConsulPolicy{
-				"apple": {
+				"apple": &ConsulPolicy{
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",
@@ -558,7 +551,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv matching namespace prefix any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			NamespacePrefixes: map[string]*ConsulPolicy{
-				"app": {
+				"app": &ConsulPolicy{
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",
@@ -573,7 +566,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv other namespace prefix any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			NamespacePrefixes: map[string]*ConsulPolicy{
-				"other": {
+				"other": &ConsulPolicy{
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",
@@ -590,7 +583,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv match namespace any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			Namespaces: map[string]*ConsulPolicy{
-				"apple": {
+				"apple": &ConsulPolicy{
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",
@@ -605,7 +598,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv mismatch namespace any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			Namespaces: map[string]*ConsulPolicy{
-				"other": {
+				"other": &ConsulPolicy{
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",
@@ -620,7 +613,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv matching namespace prefix any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			Namespaces: map[string]*ConsulPolicy{
-				"apple": {
+				"apple": &ConsulPolicy{
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",
@@ -635,7 +628,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv mismatch namespace prefix any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			Namespaces: map[string]*ConsulPolicy{
-				"other": {
+				"other": &ConsulPolicy{
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",

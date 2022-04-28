@@ -2,11 +2,6 @@ module.exports = [
   // Define your custom redirects within this file.
   // Vercel's redirect documentation: https://vercel.com/docs/configuration#project/redirects
   // Playground for testing url pattern matching: https://npm.runkit.com/path-to-regexp
-  {
-    source: '/home',
-    destination: '/',
-    permanent: true,
-  },
 
   // Friendly URL for trial form redirection
   {
@@ -469,11 +464,6 @@ module.exports = [
     permanent: true,
   },
   {
-    source: '/docs/devices/nvidia',
-    destination: '/plugins/devices/nvidia',
-    permanent: true,
-  },
-  {
     source: '/docs/jobops',
     destination: 'https://learn.hashicorp.com/collections/nomad/manage-jobs',
     permanent: true,
@@ -595,11 +585,6 @@ module.exports = [
     permanent: true,
   },
   {
-    source: '/docs/commands/eval-status',
-    destination: '/docs/commands/eval/status',
-    permanent: true,
-  },
-  {
     source: '/docs/commands/fs',
     destination: '/docs/commands/alloc/fs',
     permanent: true,
@@ -695,7 +680,7 @@ module.exports = [
   // Moved /docs/drivers/external/podman -> /docs/drivers/podman
   {
     source: '/docs/drivers/external/podman',
-    destination: '/plugins/drivers/podman',
+    destination: '/docs/drivers/podman',
     permanent: true,
   },
 
@@ -848,16 +833,6 @@ module.exports = [
     destination: '/docs/operations/metrics',
     permanent: true,
   },
-  {
-    source: '/docs/operations/metrics',
-    destination: '/docs/operations/metrics-reference',
-    permanent: true,
-  },
-  {
-    source: '/docs/operations/telemetry',
-    destination: '/docs/operations/monitoring-nomad',
-    permanent: true,
-  },
 
   // Moved installing agent under operations as ope
   {
@@ -898,12 +873,12 @@ module.exports = [
   // Redirect old LXC driver doc to new one in /docs/external
   {
     source: '/docs/drivers/lxc',
-    destination: '/plugins/drivers/community/lxc',
+    destination: '/docs/drivers/external/lxc',
     permanent: true,
   },
   {
     source: '/docs/drivers/rkt',
-    destination: '/plugins/drivers/community/rkt',
+    destination: '/docs/drivers/external/rkt',
     permanent: true,
   },
 
@@ -1270,127 +1245,6 @@ module.exports = [
   {
     source: '/:splat(.*).html',
     destination: '/:splat',
-    permanent: true,
-  },
-  // Extracted content into `/plugins` & `/tools`
-  {
-    source: '/docs/autoscaling',
-    destination: '/tools/autoscaling',
-    permanent: true,
-  },
-  {
-    source: '/docs/autoscaling/:splat*',
-    destination: '/tools/autoscaling/:splat*',
-    permanent: true,
-  },
-  // Extracted content into `/plugins` & `/tools`;
-  // - Redirect individual pages so we don't conflict with
-  //   "built-in plugins" pages
-  {
-    source: '/docs/devices/external',
-    destination: '/plugins/devices/community',
-    permanent: true,
-  },
-  {
-    source: '/docs/devices/external/usb',
-    destination: '/plugins/devices/community/usb',
-    permanent: true,
-  },
-  {
-    source: '/docs/devices/external/nvidia',
-    destination: '/plugins/devices/nvidia',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/external/containerd',
-    destination: '/plugins/drivers/community/containerd',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/external/firecracker-task-driver',
-    destination: '/plugins/drivers/community/firecracker-task-driver',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/external/iis',
-    destination: '/plugins/drivers/community/iis',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/external',
-    destination: '/plugins/drivers/community',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/external/jail-task-driver',
-    destination: '/plugins/drivers/community/jail-task-driver',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/external/lightrun',
-    destination: '/plugins/drivers/community/lightrun',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/external/lxc',
-    destination: '/plugins/drivers/community/lxc',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/external/nspawn',
-    destination: '/plugins/drivers/community/nspawn',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/external/pot',
-    destination: '/plugins/drivers/community/pot',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/external/rkt',
-    destination: '/plugins/drivers/community/rkt',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/external/rookout',
-    destination: '/plugins/drivers/community/rookout',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/external/singularity',
-    destination: '/plugins/drivers/community/singularity',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/podman',
-    destination: '/plugins/drivers/podman',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/remote/ecs',
-    destination: '/plugins/drivers/remote/ecs',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/remote',
-    destination: '/plugins/drivers/remote',
-    permanent: true,
-  },
-  {
-    source: '/api/:path*',
-    destination: '/api-docs/:path*',
-    permanent: true,
-  },
-
-  // Redirects for exact versioned-docs to respective generic versions
-  {
-    source: '/:base(docs|api-docs)/v1.:minor([0-2]{1,}).(\\d+)',
-    destination: '/:base/v1.:minor.x',
-    permanent: true,
-  },
-  {
-    source: '/:base(docs|api-docs)/v1.:minor([0-2]{1,}).(\\d+)/:path*',
-    destination: '/:base/v1.:minor.x/:path',
     permanent: true,
   },
 ]

@@ -297,7 +297,7 @@ func (c *Client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath s
 	return c.NextNodeUnpublishVolumeErr
 }
 
-// Close the client and ensure any connections are cleaned up.
+// Shutdown the client and ensure any connections are cleaned up.
 func (c *Client) Close() error {
 
 	c.NextPluginInfoResponse = nil

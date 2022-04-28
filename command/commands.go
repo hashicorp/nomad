@@ -13,9 +13,6 @@ import (
 const (
 	// EnvNomadCLINoColor is an env var that toggles colored UI output.
 	EnvNomadCLINoColor = `NOMAD_CLI_NO_COLOR`
-
-	// EnvNomadCLIForceColor is an env var that forces colored UI output.
-	EnvNomadCLIForceColor = `NOMAD_CLI_FORCE_COLOR`
 )
 
 // DeprecatedCommand is a command that wraps an existing command and prints a
@@ -204,16 +201,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"config": func() (cli.Command, error) {
-			return &ConfigCommand{
-				Meta: meta,
-			}, nil
-		},
-		"config validate": func() (cli.Command, error) {
-			return &ConfigValidateCommand{
-				Meta: meta,
-			}, nil
-		},
 		// operator debug was released in 0.12 as debug. This top-level alias preserves compatibility
 		"debug": func() (cli.Command, error) {
 			return &OperatorDebugCommand{
@@ -265,11 +252,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"eval list": func() (cli.Command, error) {
-			return &EvalListCommand{
-				Meta: meta,
-			}, nil
-		},
 		"eval status": func() (cli.Command, error) {
 			return &EvalStatusCommand{
 				Meta: meta,
@@ -312,11 +294,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"job": func() (cli.Command, error) {
 			return &JobCommand{
-				Meta: meta,
-			}, nil
-		},
-		"job allocs": func() (cli.Command, error) {
-			return &JobAllocsCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -496,12 +473,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 			}, nil
 		},
 
-		"operator api": func() (cli.Command, error) {
-			return &OperatorAPICommand{
-				Meta: meta,
-			}, nil
-		},
-
 		"operator autopilot": func() (cli.Command, error) {
 			return &OperatorAutopilotCommand{
 				Meta: meta,
@@ -556,17 +527,17 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"operator raft info": func() (cli.Command, error) {
+		"operator raft _info": func() (cli.Command, error) {
 			return &OperatorRaftInfoCommand{
 				Meta: meta,
 			}, nil
 		},
-		"operator raft logs": func() (cli.Command, error) {
+		"operator raft _logs": func() (cli.Command, error) {
 			return &OperatorRaftLogsCommand{
 				Meta: meta,
 			}, nil
 		},
-		"operator raft state": func() (cli.Command, error) {
+		"operator raft _state": func() (cli.Command, error) {
 			return &OperatorRaftStateCommand{
 				Meta: meta,
 			}, nil
@@ -584,11 +555,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"operator snapshot inspect": func() (cli.Command, error) {
 			return &OperatorSnapshotInspectCommand{
-				Meta: meta,
-			}, nil
-		},
-		"operator snapshot state": func() (cli.Command, error) {
-			return &OperatorSnapshotStateCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -774,26 +740,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"service": func() (cli.Command, error) {
-			return &ServiceCommand{
-				Meta: meta,
-			}, nil
-		},
-		"service list": func() (cli.Command, error) {
-			return &ServiceListCommand{
-				Meta: meta,
-			}, nil
-		},
-		"service info": func() (cli.Command, error) {
-			return &ServiceInfoCommand{
-				Meta: meta,
-			}, nil
-		},
-		"service delete": func() (cli.Command, error) {
-			return &ServiceDeleteCommand{
-				Meta: meta,
-			}, nil
-		},
 		"status": func() (cli.Command, error) {
 			return &StatusCommand{
 				Meta: meta,
@@ -877,11 +823,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"volume delete": func() (cli.Command, error) {
 			return &VolumeDeleteCommand{
-				Meta: meta,
-			}, nil
-		},
-		"volume snapshot": func() (cli.Command, error) {
-			return &VolumeSnapshotCommand{
 				Meta: meta,
 			}, nil
 		},

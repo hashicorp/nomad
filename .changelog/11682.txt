@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Made the `operator raft info`, `operator raft logs`, `operator raft state`, and `operator snapshot state` commands visible to command line help.
-```

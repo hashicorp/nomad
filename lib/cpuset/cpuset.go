@@ -2,7 +2,6 @@ package cpuset
 
 import (
 	"fmt"
-	"math"
 	"reflect"
 	"sort"
 	"strconv"
@@ -26,17 +25,6 @@ func New(cpus ...uint16) CPUSet {
 	}
 
 	return cpuset
-}
-
-// Copy returns a deep copy of CPUSet c.
-func (c CPUSet) Copy() CPUSet {
-	cpus := make(map[uint16]struct{}, len(c.cpus))
-	for k := range c.cpus {
-		cpus[k] = struct{}{}
-	}
-	return CPUSet{
-		cpus: cpus,
-	}
 }
 
 // String returns the cpuset as a comma delimited set of core values and ranged
@@ -114,8 +102,8 @@ func (c CPUSet) Difference(other CPUSet) CPUSet {
 }
 
 // IsSubsetOf returns true if all cpus of the this CPUSet are present in the other CPUSet.
-func (c CPUSet) IsSubsetOf(other CPUSet) bool {
-	for cpu := range c.cpus {
+func (s CPUSet) IsSubsetOf(other CPUSet) bool {
+	for cpu := range s.cpus {
 		if _, ok := other.cpus[cpu]; !ok {
 			return false
 		}
@@ -123,9 +111,9 @@ func (c CPUSet) IsSubsetOf(other CPUSet) bool {
 	return true
 }
 
-func (c CPUSet) IsSupersetOf(other CPUSet) bool {
+func (s CPUSet) IsSupersetOf(other CPUSet) bool {
 	for cpu := range other.cpus {
-		if _, ok := c.cpus[cpu]; !ok {
+		if _, ok := s.cpus[cpu]; !ok {
 			return false
 		}
 	}
@@ -133,9 +121,9 @@ func (c CPUSet) IsSupersetOf(other CPUSet) bool {
 }
 
 // ContainsAny returns true if any cpus in other CPUSet are present
-func (c CPUSet) ContainsAny(other CPUSet) bool {
+func (s CPUSet) ContainsAny(other CPUSet) bool {
 	for cpu := range other.cpus {
-		if _, ok := c.cpus[cpu]; ok {
+		if _, ok := s.cpus[cpu]; ok {
 			return true
 		}
 	}
@@ -143,8 +131,8 @@ func (c CPUSet) ContainsAny(other CPUSet) bool {
 }
 
 // Equals tests the equality of the elements in the CPUSet
-func (c CPUSet) Equals(other CPUSet) bool {
-	return reflect.DeepEqual(c.cpus, other.cpus)
+func (s CPUSet) Equals(other CPUSet) bool {
+	return reflect.DeepEqual(s.cpus, other.cpus)
 }
 
 // Parse parses the Linux cpuset format into a CPUSet
@@ -165,9 +153,6 @@ func Parse(s string) (CPUSet, error) {
 				return New(), err
 			}
 
-			if v > math.MaxUint16 {
-				return New(), fmt.Errorf("failed to parse element %s, more than max allowed cores", set)
-			}
 			cpuset.cpus[uint16(v)] = struct{}{}
 			continue
 		}
@@ -183,11 +168,7 @@ func Parse(s string) (CPUSet, error) {
 		if err != nil {
 			return New(), err
 		}
-
 		for v := lower; v <= upper; v++ {
-			if v > math.MaxUint16 {
-				return New(), fmt.Errorf("failed to parse element %s, more than max allowed cores", set)
-			}
 			cpuset.cpus[uint16(v)] = struct{}{}
 		}
 	}

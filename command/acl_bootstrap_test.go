@@ -3,14 +3,13 @@ package command
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestACLBootstrapCommand(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	// create a acl-enabled server without bootstrapping the token
@@ -37,7 +36,7 @@ func TestACLBootstrapCommand(t *testing.T) {
 // If a bootstrap token has already been created, attempts to create more should
 // fail.
 func TestACLBootstrapCommand_ExistingBootstrapToken(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	config := func(c *agent.Config) {
@@ -61,7 +60,7 @@ func TestACLBootstrapCommand_ExistingBootstrapToken(t *testing.T) {
 
 // Attempting to bootstrap a token on a non-ACL enabled server should fail.
 func TestACLBootstrapCommand_NonACLServer(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)

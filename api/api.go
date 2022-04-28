@@ -62,30 +62,16 @@ type QueryOptions struct {
 	// Set HTTP parameters on the query.
 	Params map[string]string
 
-	// Set HTTP headers on the query.
-	Headers map[string]string
-
 	// AuthToken is the secret ID of an ACL token
 	AuthToken string
-
-	// Filter specifies the go-bexpr filter expression to be used for
-	// filtering the data prior to returning a response
-	Filter string
 
 	// PerPage is the number of entries to be returned in queries that support
 	// paginated lists.
 	PerPage int32
 
-	// NextToken is the token used to indicate where to start paging
-	// for queries that support paginated lists. This token should be
-	// the ID of the next object after the last one seen in the
-	// previous response.
+	// NextToken is the token used indicate where to start paging for queries
+	// that support paginated lists.
 	NextToken string
-
-	// Reverse is used to reverse the default order of list results.
-	//
-	// Currently only supported by specific endpoints.
-	Reverse bool
 
 	// ctx is an optional context pass through to the underlying HTTP
 	// request layer. Use Context() and WithContext() to manage this.
@@ -103,9 +89,6 @@ type WriteOptions struct {
 
 	// AuthToken is the secret ID of an ACL token
 	AuthToken string
-
-	// Set HTTP headers on the query.
-	Headers map[string]string
 
 	// ctx is an optional context pass through to the underlying HTTP
 	// request layer. Use Context() and WithContext() to manage this.
@@ -130,11 +113,6 @@ type QueryMeta struct {
 
 	// How long did the request take
 	RequestTime time.Duration
-
-	// NextToken is the token used to indicate where to start paging
-	// for queries that support paginated lists. To resume paging from
-	// this point, pass this token in the next request's QueryOptions
-	NextToken string
 }
 
 // WriteMeta is used to return meta data about a write
@@ -264,7 +242,7 @@ func (t *TLSConfig) Copy() *TLSConfig {
 }
 
 func defaultHttpClient() *http.Client {
-	httpClient := cleanhttp.DefaultPooledClient()
+	httpClient := cleanhttp.DefaultClient()
 	transport := httpClient.Transport.(*http.Transport)
 	transport.TLSHandshakeTimeout = 10 * time.Second
 	transport.TLSClientConfig = &tls.Config{
@@ -476,18 +454,6 @@ func NewClient(config *Config) (*Client, error) {
 	return client, nil
 }
 
-// Close closes the client's idle keep-alived connections. The default
-// client configuration uses keep-alive to maintain connections and
-// you should instantiate a single Client and reuse it for all
-// requests from the same host. Connections will be closed
-// automatically once the client is garbage collected. If you are
-// creating multiple clients on the same host (for example, for
-// testing), it may be useful to call Close() to avoid hitting
-// connection limits.
-func (c *Client) Close() {
-	c.httpClient.CloseIdleConnections()
-}
-
 // Address return the address of the Nomad agent
 func (c *Client) Address() string {
 	return c.config.Address
@@ -608,26 +574,10 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	if q.Prefix != "" {
 		r.params.Set("prefix", q.Prefix)
 	}
-	if q.Filter != "" {
-		r.params.Set("filter", q.Filter)
-	}
-	if q.PerPage != 0 {
-		r.params.Set("per_page", fmt.Sprint(q.PerPage))
-	}
-	if q.NextToken != "" {
-		r.params.Set("next_token", q.NextToken)
-	}
-	if q.Reverse {
-		r.params.Set("reverse", "true")
-	}
 	for k, v := range q.Params {
 		r.params.Set(k, v)
 	}
 	r.ctx = q.Context()
-
-	for k, v := range q.Headers {
-		r.header.Set(k, v)
-	}
 }
 
 // durToMsec converts a duration to a millisecond specified string
@@ -654,10 +604,6 @@ func (r *request) setWriteOptions(q *WriteOptions) {
 		r.params.Set("idempotency_token", q.IdempotencyToken)
 	}
 	r.ctx = q.Context()
-
-	for k, v := range q.Headers {
-		r.header.Set(k, v)
-	}
 }
 
 // toHTTP converts the request to an HTTP request
@@ -782,45 +728,33 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-
 	start := time.Now()
 	resp, err := c.httpClient.Do(req)
 	diff := time.Since(start)
 
 	// If the response is compressed, we swap the body's reader.
-	if zipErr := c.autoUnzip(resp); zipErr != nil {
-		return 0, nil, zipErr
+	if resp != nil && resp.Header != nil {
+		var reader io.ReadCloser
+		switch resp.Header.Get("Content-Encoding") {
+		case "gzip":
+			greader, err := gzip.NewReader(resp.Body)
+			if err != nil {
+				return 0, nil, err
+			}
+
+			// The gzip reader doesn't close the wrapped reader so we use
+			// multiCloser.
+			reader = &multiCloser{
+				reader:       greader,
+				inorderClose: []io.Closer{greader, resp.Body},
+			}
+		default:
+			reader = resp.Body
+		}
+		resp.Body = reader
 	}
 
 	return diff, resp, err
-}
-
-// autoUnzip modifies resp in-place, wrapping the response body with a gzip
-// reader if the Content-Encoding of the response is "gzip".
-func (*Client) autoUnzip(resp *http.Response) error {
-	if resp == nil || resp.Header == nil {
-		return nil
-	}
-
-	if resp.Header.Get("Content-Encoding") == "gzip" {
-		zReader, err := gzip.NewReader(resp.Body)
-		if err == io.EOF {
-			// zero length response, do not wrap
-			return nil
-		} else if err != nil {
-			// some other error (e.g. corrupt)
-			return err
-		}
-
-		// The gzip reader does not close an underlying reader, so use a
-		// multiCloser to make sure response body does get closed.
-		resp.Body = &multiCloser{
-			reader:       zReader,
-			inorderClose: []io.Closer{zReader, resp.Body},
-		}
-	}
-
-	return nil
 }
 
 // rawQuery makes a GET request to the specified endpoint but returns just the
@@ -1024,7 +958,6 @@ func parseQueryMeta(resp *http.Response, q *QueryMeta) error {
 		return fmt.Errorf("Failed to parse X-Nomad-LastContact: %v", err)
 	}
 	q.LastContact = time.Duration(last) * time.Millisecond
-	q.NextToken = header.Get("X-Nomad-NextToken")
 
 	// Parse the X-Nomad-KnownLeader
 	switch header.Get("X-Nomad-KnownLeader") {

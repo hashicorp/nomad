@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -25,6 +26,23 @@ const (
 	DefaultDC       = "dc1"
 	DefaultSerfPort = 4648
 )
+
+// These are the protocol versions that Nomad can understand
+const (
+	ProtocolVersionMin uint8 = 1
+	ProtocolVersionMax       = 1
+)
+
+// ProtocolVersionMap is the mapping of Nomad protocol versions
+// to Serf protocol versions. We mask the Serf protocols using
+// our own protocol version.
+var protocolVersionMap map[uint8]uint8
+
+func init() {
+	protocolVersionMap = map[uint8]uint8{
+		1: 4,
+	}
+}
 
 func DefaultRPCAddr() *net.TCPAddr {
 	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 4647}
@@ -74,6 +92,10 @@ type Config struct {
 
 	// Logger is the logger used by the server.
 	Logger log.InterceptLogger
+
+	// ProtocolVersion is the protocol version to speak. This must be between
+	// ProtocolVersionMin and ProtocolVersionMax.
+	ProtocolVersion uint8
 
 	// RPCAddr is the RPC address used by Nomad. This should be reachable
 	// by the other servers and clients
@@ -306,8 +328,8 @@ type Config struct {
 	AutopilotInterval time.Duration
 
 	// DefaultSchedulerConfig configures the initial scheduler config to be persisted in Raft.
-	// Once the cluster is bootstrapped, and Raft persists the config (from here or through API)
-	// and this value is ignored.
+	// Once the cluster is bootstrapped, and Raft persists the config (from here or through API),
+	// This value is ignored.
 	DefaultSchedulerConfig structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
 
 	// PluginLoader is used to load plugins.
@@ -339,9 +361,6 @@ type Config struct {
 	// SearchConfig provides knobs for Search API.
 	SearchConfig *structs.SearchConfig
 
-	// RaftBoltNoFreelistSync configures whether freelist syncing is enabled.
-	RaftBoltNoFreelistSync bool
-
 	// AgentShutdown is used to call agent.Shutdown from the context of a Server
 	// It is used primarily for licensing
 	AgentShutdown func() error
@@ -349,6 +368,18 @@ type Config struct {
 	// DeploymentQueryRateLimit is in queries per second and is used by the
 	// DeploymentWatcher to throttle the amount of simultaneously deployments
 	DeploymentQueryRateLimit float64
+}
+
+// CheckVersion is used to check if the ProtocolVersion is valid
+func (c *Config) CheckVersion() error {
+	if c.ProtocolVersion < ProtocolVersionMin {
+		return fmt.Errorf("Protocol version '%d' too low. Must be in range: [%d, %d]",
+			c.ProtocolVersion, ProtocolVersionMin, ProtocolVersionMax)
+	} else if c.ProtocolVersion > ProtocolVersionMax {
+		return fmt.Errorf("Protocol version '%d' too high. Must be in range: [%d, %d]",
+			c.ProtocolVersion, ProtocolVersionMin, ProtocolVersionMax)
+	}
+	return nil
 }
 
 // DefaultConfig returns the default configuration. Only used as the basis for
@@ -365,6 +396,7 @@ func DefaultConfig() *Config {
 		Datacenter:                       DefaultDC,
 		NodeName:                         hostname,
 		NodeID:                           uuid.Generate(),
+		ProtocolVersion:                  ProtocolVersionMax,
 		RaftConfig:                       raft.DefaultConfig(),
 		RaftTimeout:                      10 * time.Second,
 		LogOutput:                        os.Stderr,
@@ -416,10 +448,9 @@ func DefaultConfig() *Config {
 		DefaultSchedulerConfig: structs.SchedulerConfiguration{
 			SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
 			PreemptionConfig: structs.PreemptionConfig{
-				SystemSchedulerEnabled:   true,
-				SysBatchSchedulerEnabled: false,
-				BatchSchedulerEnabled:    false,
-				ServiceSchedulerEnabled:  false,
+				SystemSchedulerEnabled:  true,
+				BatchSchedulerEnabled:   false,
+				ServiceSchedulerEnabled: false,
 			},
 		},
 		DeploymentQueryRateLimit: deploymentwatcher.LimitStateQueriesPerSecond,
@@ -446,8 +477,8 @@ func DefaultConfig() *Config {
 	// Disable shutdown on removal
 	c.RaftConfig.ShutdownOnRemove = false
 
-	// Default to Raft v3 since Nomad 1.3
-	c.RaftConfig.ProtocolVersion = 3
+	// Default to Raft v2, update to v3 to enable new Raft and autopilot features.
+	c.RaftConfig.ProtocolVersion = 2
 
 	return c
 }

@@ -9,10 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/consul-template/signals"
-	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
+
+	"github.com/hashicorp/consul-template/signals"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
@@ -373,6 +374,11 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	if handle == nil {
 		return fmt.Errorf("handle cannot be nil")
+	}
+
+	// COMPAT(0.10): pre 0.9 upgrade path check
+	if handle.Version == 0 {
+		return d.recoverPre09Task(handle)
 	}
 
 	// If already attached to handle there's nothing to recover.

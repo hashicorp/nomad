@@ -3,12 +3,11 @@ package api
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestACLPolicies_ListUpsert(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.ACLPolicies()
@@ -50,7 +49,7 @@ func TestACLPolicies_ListUpsert(t *testing.T) {
 }
 
 func TestACLPolicies_Delete(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.ACLPolicies()
@@ -85,7 +84,7 @@ func TestACLPolicies_Delete(t *testing.T) {
 }
 
 func TestACLPolicies_Info(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.ACLPolicies()
@@ -111,7 +110,7 @@ func TestACLPolicies_Info(t *testing.T) {
 }
 
 func TestACLTokens_List(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -130,7 +129,7 @@ func TestACLTokens_List(t *testing.T) {
 }
 
 func TestACLTokens_CreateUpdate(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -159,7 +158,7 @@ func TestACLTokens_CreateUpdate(t *testing.T) {
 }
 
 func TestACLTokens_Info(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -184,7 +183,7 @@ func TestACLTokens_Info(t *testing.T) {
 }
 
 func TestACLTokens_Self(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -214,7 +213,7 @@ func TestACLTokens_Self(t *testing.T) {
 }
 
 func TestACLTokens_Delete(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -238,7 +237,7 @@ func TestACLTokens_Delete(t *testing.T) {
 }
 
 func TestACL_OneTimeToken(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()

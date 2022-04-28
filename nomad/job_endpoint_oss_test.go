@@ -1,4 +1,3 @@
-//go:build !ent
 // +build !ent
 
 package nomad
@@ -8,7 +7,6 @@ import (
 
 	"github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -22,7 +20,7 @@ import (
 // submission fails allow_unauthenticated is false, and either an invalid or no
 // operator Consul token is provided.
 func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse_oss(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue

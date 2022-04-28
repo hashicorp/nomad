@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/mount"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -40,7 +39,7 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		Name                 string
@@ -137,7 +136,7 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		Name         string
@@ -218,7 +217,7 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		Name                 string
@@ -280,8 +279,7 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		Name                     string
@@ -399,6 +397,7 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			if tc.ExpectedVolumeCapability != nil {
 				require.Equal(t, tc.ExpectedVolumeCapability, csiFake.PrevVolumeCapability)
 			}
+
 		})
 	}
 }
@@ -407,7 +406,7 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		Name                 string
@@ -472,7 +471,7 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	ci.Parallel(t)
+	t.Parallel()
 
 	tmpPath := tmpDir(t)
 	defer os.RemoveAll(tmpPath)

@@ -1,5 +1,0 @@
-{{#if (can "accept recommendations")}}
-  {{#each @job.recommendationSummaries as |summary|}}
-    <Das::RecommendationAccordion @summary={{summary}} />
-  {{/each}}
-{{/if}}

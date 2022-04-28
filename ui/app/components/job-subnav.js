@@ -1,13 +1,6 @@
-import { inject as service } from '@ember/service';
-import Component from '@glimmer/component';
+import Component from '@ember/component';
+import { tagName } from '@ember-decorators/component';
 
+@tagName('')
 export default class JobSubnav extends Component {
-  @service can;
-
-  get shouldRenderClientsTab() {
-    const { job } = this.args;
-    return (
-      job?.hasClientStatus && !job?.hasChildren && this.can.can('read client')
-    );
-  }
 }

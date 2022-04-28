@@ -13,7 +13,6 @@ export default class TaskGroupSummary extends Fragment {
   @attr('number') completeAllocs;
   @attr('number') failedAllocs;
   @attr('number') lostAllocs;
-  @attr('number') unknownAllocs;
 
   @collect(
     'queuedAllocs',
@@ -21,8 +20,7 @@ export default class TaskGroupSummary extends Fragment {
     'runningAllocs',
     'completeAllocs',
     'failedAllocs',
-    'lostAllocs',
-    'unknownAllocs'
+    'lostAllocs'
   )
   allocsList;
 

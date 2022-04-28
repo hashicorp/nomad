@@ -1,3 +1,0 @@
-```release-note:bug
-build: Update go toolchain to 1.17.3
-```

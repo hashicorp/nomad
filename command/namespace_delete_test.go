@@ -1,3 +1,5 @@
+// +build ent
+
 package command
 
 import (
@@ -5,19 +7,18 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNamespaceDeleteCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &NamespaceDeleteCommand{}
 }
 
 func TestNamespaceDeleteCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	ui := cli.NewMockUi()
 	cmd := &NamespaceDeleteCommand{Meta: Meta{Ui: ui}}
 
@@ -40,7 +41,7 @@ func TestNamespaceDeleteCommand_Fails(t *testing.T) {
 }
 
 func TestNamespaceDeleteCommand_Good(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
@@ -67,8 +68,8 @@ func TestNamespaceDeleteCommand_Good(t *testing.T) {
 }
 
 func TestNamespaceDeleteCommand_AutocompleteArgs(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
+	t.Parallel()
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()

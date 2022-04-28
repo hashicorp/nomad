@@ -31,9 +31,7 @@ export default class TaskGroupParent extends Component {
 
   @computed('taskGroup.allocations.@each.clientStatus')
   get hasPendingAllocations() {
-    return this.taskGroup.allocations.any(
-      (allocation) => allocation.clientStatus === 'pending'
-    );
+    return this.taskGroup.allocations.any(allocation => allocation.clientStatus === 'pending');
   }
 
   @mapBy('taskGroup.allocations', 'states') allocationTaskStatesRecordArrays;
@@ -41,10 +39,7 @@ export default class TaskGroupParent extends Component {
   get allocationTaskStates() {
     const flattenRecordArrays = (accumulator, recordArray) =>
       accumulator.concat(recordArray.toArray());
-    return this.allocationTaskStatesRecordArrays.reduce(
-      flattenRecordArrays,
-      []
-    );
+    return this.allocationTaskStatesRecordArrays.reduce(flattenRecordArrays, []);
   }
 
   @filterBy('allocationTaskStates', 'isActive') activeTaskStates;
@@ -60,17 +55,12 @@ export default class TaskGroupParent extends Component {
   )
   get tasksWithRunningStates() {
     const activeTaskStateNames = this.activeTaskStates
-      .filter((taskState) => {
-        return (
-          taskState.task &&
-          taskState.task.taskGroup.name === this.taskGroup.name
-        );
+      .filter(taskState => {
+        return taskState.task && taskState.task.taskGroup.name === this.taskGroup.name;
       })
       .mapBy('name');
 
-    return this.taskGroup.tasks.filter((task) =>
-      activeTaskStateNames.includes(task.name)
-    );
+    return this.taskGroup.tasks.filter(task => activeTaskStateNames.includes(task.name));
   }
 
   taskSorting = ['name'];

@@ -31,7 +31,7 @@ func (tc *CheckRestartE2ETest) AfterEach(f *framework.F) {
 	}
 
 	for _, id := range tc.jobIds {
-		err := e2e.StopJob(id, "-purge")
+		_, err := e2e.Command("nomad", "job", "stop", "-purge", id)
 		f.Assert().NoError(err)
 	}
 	tc.jobIds = []string{}

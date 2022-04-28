@@ -3,7 +3,7 @@ name: build
 on:
   push:
     branches:
-      - "main"
+      - "release/1.1.x"
   workflow_dispatch:
     inputs:
       build-ref:
@@ -19,7 +19,7 @@ on:
 
 env:
   PKG_NAME: "nomad"
-  GO_TAGS: "release"
+  GO_TAGS: "ui codegen_generated release"
 
 jobs:
   get-go-version:

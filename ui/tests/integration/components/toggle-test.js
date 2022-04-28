@@ -1,4 +1,4 @@
-import { find, render, settled } from '@ember/test-helpers';
+import { find, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
@@ -9,7 +9,7 @@ import togglePageObject from 'nomad-ui/tests/pages/components/toggle';
 
 const Toggle = create(togglePageObject());
 
-module('Integration | Component | toggle', function (hooks) {
+module('Integration | Component | toggle', function(hooks) {
   setupRenderingTest(hooks);
 
   const commonProperties = () => ({
@@ -28,12 +28,10 @@ module('Integration | Component | toggle', function (hooks) {
     </Toggle>
   `;
 
-  test('presents as a label with an inner checkbox and display span, and text', async function (assert) {
-    assert.expect(7);
-
+  test('presents as a label with an inner checkbox and display span, and text', async function(assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await this.render(commonTemplate);
 
     assert.equal(Toggle.label, props.label, `Label should be ${props.label}`);
     assert.ok(Toggle.isPresent);
@@ -53,12 +51,10 @@ module('Integration | Component | toggle', function (hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('the isActive property dictates the active state and class', async function (assert) {
-    assert.expect(5);
-
+  test('the isActive property dictates the active state and class', async function(assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await this.render(commonTemplate);
 
     assert.notOk(Toggle.isActive);
     assert.notOk(Toggle.hasActiveClass);
@@ -72,12 +68,10 @@ module('Integration | Component | toggle', function (hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('the isDisabled property dictates the disabled state and class', async function (assert) {
-    assert.expect(5);
-
+  test('the isDisabled property dictates the disabled state and class', async function(assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await this.render(commonTemplate);
 
     assert.notOk(Toggle.isDisabled);
     assert.notOk(Toggle.hasDisabledClass);
@@ -91,10 +85,10 @@ module('Integration | Component | toggle', function (hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('toggling the input calls the onToggle action', async function (assert) {
+  test('toggling the input calls the onToggle action', async function(assert) {
     const props = commonProperties();
     this.setProperties(props);
-    await render(commonTemplate);
+    await this.render(commonTemplate);
 
     await Toggle.toggle();
     assert.equal(props.onToggle.callCount, 1);

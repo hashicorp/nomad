@@ -1,4 +1,3 @@
-//go:build ent
 // +build ent
 
 package command
@@ -8,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -16,12 +14,12 @@ import (
 )
 
 func TestQuotaDeleteCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &QuotaDeleteCommand{}
 }
 
 func TestQuotaDeleteCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	ui := cli.NewMockUi()
 	cmd := &QuotaDeleteCommand{Meta: Meta{Ui: ui}}
 
@@ -44,7 +42,7 @@ func TestQuotaDeleteCommand_Fails(t *testing.T) {
 }
 
 func TestQuotaDeleteCommand_Good(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
@@ -69,8 +67,8 @@ func TestQuotaDeleteCommand_Good(t *testing.T) {
 }
 
 func TestQuotaDeleteCommand_AutocompleteArgs(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
+	t.Parallel()
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()

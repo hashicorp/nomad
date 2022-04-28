@@ -1,4 +1,4 @@
-//go:build !linux
+// +build !linux
 
 package executor
 
@@ -6,7 +6,6 @@ import (
 	"os/exec"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/lib/resources"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
@@ -18,7 +17,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 
 func (e *UniversalExecutor) configureResourceContainer(_ int) error { return nil }
 
-func (e *UniversalExecutor) getAllPids() (resources.PIDs, error) {
+func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
 	return getAllPidsByScanning()
 }
 

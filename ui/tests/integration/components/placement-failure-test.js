@@ -6,16 +6,14 @@ import hbs from 'htmlbars-inline-precompile';
 import cleanWhitespace from '../../utils/clean-whitespace';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Integration | Component | placement failures', function (hooks) {
+module('Integration | Component | placement failures', function(hooks) {
   setupRenderingTest(hooks);
 
   const commonTemplate = hbs`
       <PlacementFailure @taskGroup={{taskGroup}} />
   `;
 
-  test('should render the placement failure (basic render)', async function (assert) {
-    assert.expect(12);
-
+  test('should render the placement failure (basic render)', async function(assert) {
     const name = 'Placement Failure';
     const failures = 11;
     this.set(
@@ -31,16 +29,12 @@ module('Integration | Component | placement failures', function (hooks) {
     await render(commonTemplate);
 
     assert.equal(
-      cleanWhitespace(
-        find('[data-test-placement-failure-task-group]').firstChild.wholeText
-      ),
+      cleanWhitespace(find('[data-test-placement-failure-task-group]').firstChild.wholeText),
       name,
       'Title is rendered with the name of the placement failure'
     );
     assert.equal(
-      parseInt(
-        find('[data-test-placement-failure-coalesced-failures]').textContent
-      ),
+      parseInt(find('[data-test-placement-failure-coalesced-failures]').textContent),
       failures,
       'Title is rendered correctly with a count of unplaced'
     );
@@ -84,18 +78,12 @@ module('Integration | Component | placement failures', function (hooks) {
       1,
       'Quota exhausted message shown'
     );
-    assert.equal(
-      findAll('[data-test-placement-failure-scores]').length,
-      1,
-      'Scores message shown'
-    );
+    assert.equal(findAll('[data-test-placement-failure-scores]').length, 1, 'Scores message shown');
 
     await componentA11yAudit(this.element, assert);
   });
 
-  test('should render correctly when a node is not evaluated', async function (assert) {
-    assert.expect(3);
-
+  test('should render correctly when a node is not evaluated', async function(assert) {
     this.set(
       'taskGroup',
       createFixture({

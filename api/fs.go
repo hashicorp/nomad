@@ -257,7 +257,6 @@ func (a *AllocFS) Logs(alloc *Allocation, follow bool, task, logType, origin str
 			// Check if we have been cancelled
 			select {
 			case <-cancel:
-				close(frames)
 				return
 			default:
 			}

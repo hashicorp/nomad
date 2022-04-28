@@ -5,12 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNamespacesClient_List(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	t.Run("oss", func(t *testing.T) {
 		c := NewNamespacesClient(NewMockNamespaces(nil), NewMockAgent(Features{
@@ -46,7 +45,7 @@ func TestNamespacesClient_List(t *testing.T) {
 }
 
 func TestNewNamespacesClient_stale(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	t.Run("ok", func(t *testing.T) {
 		now := time.Now()
@@ -64,7 +63,7 @@ func TestNewNamespacesClient_stale(t *testing.T) {
 }
 
 func TestNewNamespacesClient_allowable(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	try := func(ent, feature, enabled, exp bool, updated, now time.Time) {
 		expired := now.After(updated.Add(namespaceEnabledCacheTTL))

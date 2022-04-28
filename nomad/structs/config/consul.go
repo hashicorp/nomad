@@ -1,13 +1,11 @@
 package config
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	consul "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/go-secure-stdlib/listenerutil"
 	"github.com/hashicorp/nomad/helper"
 )
 
@@ -129,7 +127,7 @@ type ConsulConfig struct {
 	Namespace string `hcl:"namespace"`
 }
 
-// DefaultConsulConfig returns the canonical defaults for the Nomad
+// DefaultConsulConfig() returns the canonical defaults for the Nomad
 // `consul` configuration. Uses Consul's default configuration which reads
 // environment variables.
 func DefaultConsulConfig() *ConsulConfig {
@@ -253,11 +251,7 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 	// http.Transport.
 	config := consul.DefaultConfig()
 	if c.Addr != "" {
-		ipStr, err := listenerutil.ParseSingleIPTemplate(c.Addr)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse address template %q: %v", c.Addr, err)
-		}
-		config.Address = ipStr
+		config.Address = c.Addr
 	}
 	if c.Token != "" {
 		config.Token = c.Token

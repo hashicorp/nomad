@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Added support for `-force-color` to the CLI to force colored output.
-```

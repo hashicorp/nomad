@@ -1,3 +1,0 @@
-```release-note:improvement
-metrics: emit `nomad.nomad.broker.eval_waiting` metric for the time evaluations are waiting to be enqueued
-```

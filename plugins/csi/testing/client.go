@@ -63,18 +63,18 @@ func NewControllerClient() *ControllerClient {
 	return &ControllerClient{}
 }
 
-func (c *ControllerClient) Reset() {
-	c.NextErr = nil
-	c.NextCapabilitiesResponse = nil
-	c.NextPublishVolumeResponse = nil
-	c.NextUnpublishVolumeResponse = nil
-	c.NextValidateVolumeCapabilitiesResponse = nil
-	c.NextCreateVolumeResponse = nil
-	c.NextDeleteVolumeResponse = nil
-	c.NextListVolumesResponse = nil
-	c.NextCreateSnapshotResponse = nil
-	c.NextDeleteSnapshotResponse = nil
-	c.NextListSnapshotsResponse = nil
+func (f *ControllerClient) Reset() {
+	f.NextErr = nil
+	f.NextCapabilitiesResponse = nil
+	f.NextPublishVolumeResponse = nil
+	f.NextUnpublishVolumeResponse = nil
+	f.NextValidateVolumeCapabilitiesResponse = nil
+	f.NextCreateVolumeResponse = nil
+	f.NextDeleteVolumeResponse = nil
+	f.NextListVolumesResponse = nil
+	f.NextCreateSnapshotResponse = nil
+	f.NextDeleteSnapshotResponse = nil
+	f.NextListSnapshotsResponse = nil
 }
 
 func (c *ControllerClient) ControllerGetCapabilities(ctx context.Context, in *csipbv1.ControllerGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.ControllerGetCapabilitiesResponse, error) {
@@ -144,14 +144,14 @@ func NewNodeClient() *NodeClient {
 	return &NodeClient{}
 }
 
-func (c *NodeClient) Reset() {
-	c.NextErr = nil
-	c.NextCapabilitiesResponse = nil
-	c.NextGetInfoResponse = nil
-	c.NextStageVolumeResponse = nil
-	c.NextUnstageVolumeResponse = nil
-	c.NextPublishVolumeResponse = nil
-	c.NextUnpublishVolumeResponse = nil
+func (f *NodeClient) Reset() {
+	f.NextErr = nil
+	f.NextCapabilitiesResponse = nil
+	f.NextGetInfoResponse = nil
+	f.NextStageVolumeResponse = nil
+	f.NextUnstageVolumeResponse = nil
+	f.NextPublishVolumeResponse = nil
+	f.NextUnpublishVolumeResponse = nil
 }
 
 func (c *NodeClient) NodeGetCapabilities(ctx context.Context, in *csipbv1.NodeGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetCapabilitiesResponse, error) {

@@ -5,13 +5,12 @@ import (
 	"testing"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
 
 func TestRegionList(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Make the servers
 	s1, cleanupS1 := TestServer(t, func(c *Config) {

@@ -2,38 +2,13 @@
 <JobSubnav @job={{this.job}} />
 <section class="section">
   {{#if this.allocations.length}}
-    <div class="toolbar">
-      <div class="toolbar-item">
+    <div class="content">
+      <div>
         <SearchBox
           data-test-allocations-search
           @searchTerm={{mut this.searchTerm}}
           @onChange={{action this.resetPagination}}
           @placeholder="Search allocations..." />
-      </div>
-      <div class="toolbar-item is-right-aligned">
-        <div class="button-bar">
-          <MultiSelectDropdown
-            data-test-allocation-status-facet
-            @label="Status"
-            @options={{this.optionsAllocationStatus}}
-            @selection={{this.selectionStatus}}
-            @onSelect={{action this.setFacetQueryParam "qpStatus"}}
-          />
-          <MultiSelectDropdown
-            data-test-allocation-client-facet
-            @label="Client"
-            @options={{this.optionsClients}}
-            @selection={{this.selectionClient}}
-            @onSelect={{action this.setFacetQueryParam "qpClient"}}
-          />
-          <MultiSelectDropdown
-            data-test-allocation-task-group-facet
-            @label="Task Group"
-            @options={{this.optionsTaskGroups}}
-            @selection={{this.selectionTaskGroup}}
-            @onSelect={{action this.setFacetQueryParam "qpTaskGroup"}}
-          />
-        </div>
       </div>
     </div>
     {{#if this.sortedAllocations}}

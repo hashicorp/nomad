@@ -10,7 +10,6 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
@@ -24,8 +23,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestTasklet_Exec_HappyPath(t *testing.T) {
-	ci.Parallel(t)
-
 	results := []execResult{
 		{[]byte("output"), 0, nil},
 		{[]byte("output"), 1, nil},
@@ -56,8 +53,6 @@ func TestTasklet_Exec_HappyPath(t *testing.T) {
 // TestTasklet_Exec_Cancel asserts cancelling a tasklet short-circuits
 // any running executions the tasklet
 func TestTasklet_Exec_Cancel(t *testing.T) {
-	ci.Parallel(t)
-
 	exec, cancel := newBlockingScriptExec()
 	defer cancel()
 	tm := newTaskletMock(exec, testlog.HCLogger(t), time.Hour, time.Hour)
@@ -90,7 +85,7 @@ func TestTasklet_Exec_Cancel(t *testing.T) {
 // TestTasklet_Exec_Timeout asserts a tasklet script will be killed
 // when the timeout is reached.
 func TestTasklet_Exec_Timeout(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	exec, cancel := newBlockingScriptExec()
 	defer cancel()
 
@@ -130,8 +125,6 @@ func TestTasklet_Exec_Timeout(t *testing.T) {
 // TestTasklet_Exec_Shutdown asserts a script will be executed once more
 // when told to shutdown.
 func TestTasklet_Exec_Shutdown(t *testing.T) {
-	ci.Parallel(t)
-
 	exec := newSimpleExec(0, nil)
 	shutdown := make(chan struct{})
 	tm := newTaskletMock(exec, testlog.HCLogger(t), time.Hour, 3*time.Second)

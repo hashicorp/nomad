@@ -1,3 +1,0 @@
-```release-note:improvement
-metrics: added nomad.client.allocs.memory.mapped_file metric
-```

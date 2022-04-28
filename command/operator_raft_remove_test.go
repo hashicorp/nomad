@@ -3,18 +3,17 @@ package command
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestOperator_Raft_RemovePeers_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &OperatorRaftRemoveCommand{}
 }
 
 func TestOperator_Raft_RemovePeer(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
@@ -42,7 +41,7 @@ func TestOperator_Raft_RemovePeer(t *testing.T) {
 }
 
 func TestOperator_Raft_RemovePeerAddress(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
@@ -61,7 +60,7 @@ func TestOperator_Raft_RemovePeerAddress(t *testing.T) {
 }
 
 func TestOperator_Raft_RemovePeerID(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()

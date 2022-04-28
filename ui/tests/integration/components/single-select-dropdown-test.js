@@ -1,15 +1,12 @@
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import {
-  selectChoose,
-  clickTrigger,
-} from 'ember-power-select/test-support/helpers';
+import { selectChoose, clickTrigger } from 'ember-power-select/test-support/helpers';
 import sinon from 'sinon';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
-module('Integration | Component | single-select dropdown', function (hooks) {
+module('Integration | Component | single-select dropdown', function(hooks) {
   setupRenderingTest(hooks);
 
   const commonProperties = () => ({
@@ -34,16 +31,12 @@ module('Integration | Component | single-select dropdown', function (hooks) {
       @onSelect={{this.onSelect}} />
   `;
 
-  test('component shows label and selection in the trigger', async function (assert) {
-    assert.expect(4);
-
+  test('component shows label and selection in the trigger', async function(assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
 
-    assert.ok(
-      find('.ember-power-select-trigger').textContent.includes(props.label)
-    );
+    assert.ok(find('.ember-power-select-trigger').textContent.includes(props.label));
     assert.ok(
       find('.ember-power-select-trigger').textContent.includes(
         props.options.findBy('key', props.selection).label
@@ -54,9 +47,7 @@ module('Integration | Component | single-select dropdown', function (hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('all options are shown in the dropdown', async function (assert) {
-    assert.expect(7);
-
+  test('all options are shown in the dropdown', async function(assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -76,7 +67,7 @@ module('Integration | Component | single-select dropdown', function (hooks) {
     });
   });
 
-  test('selecting an option calls `onSelect` with the key for the selected option', async function (assert) {
+  test('selecting an option calls `onSelect` with the key for the selected option', async function(assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);

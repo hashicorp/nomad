@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Update `nomad operator debug` bundle to include sample of clients by default
-```

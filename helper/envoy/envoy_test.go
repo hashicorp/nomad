@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
 func TestEnvoy_PortLabel(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	for _, tc := range []struct {
 		prefix  string

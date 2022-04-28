@@ -16,9 +16,4 @@ namespace "default" {
 node {
     policy = "read"
 }`,
-  rulesJSON: () => ({
-    Node: {
-      Policy: 'read',
-    },
-  }),
 });

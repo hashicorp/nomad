@@ -5,13 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestParse(t *testing.T) {
-	ci.Parallel(t)
-
 	type tcase struct {
 		Raw    string
 		ErrStr string
@@ -336,8 +333,6 @@ func TestParse(t *testing.T) {
 }
 
 func TestParse_BadInput(t *testing.T) {
-	ci.Parallel(t)
-
 	inputs := []string{
 		`namespace "\500" {}`,
 	}

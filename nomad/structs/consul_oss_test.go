@@ -1,4 +1,3 @@
-//go:build !ent
 // +build !ent
 
 package structs
@@ -6,12 +5,11 @@ package structs
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestJob_ConfigEntries(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	ingress := &ConsulConnect{
 		Gateway: &ConsulGateway{
@@ -75,7 +73,7 @@ func TestJob_ConfigEntries(t *testing.T) {
 
 	exp := map[string]*ConsulConfigEntries{
 		// in OSS, consul namespace is not supported
-		"": {
+		"": &ConsulConfigEntries{
 			Ingress: map[string]*ConsulIngressConfigEntry{
 				"group1-service1": new(ConsulIngressConfigEntry),
 				"group2-service1": new(ConsulIngressConfigEntry),

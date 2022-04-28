@@ -2,12 +2,12 @@ import { alias, equal, or, and, mapBy } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import Model from '@ember-data/model';
 import { attr, belongsTo, hasMany } from '@ember-data/model';
-import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
+import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
 import classic from 'ember-classic-decorator';
 
-const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
+const JOB_TYPES = ['service', 'batch', 'system'];
 
 @classic
 export default class Job extends Model {
@@ -23,8 +23,7 @@ export default class Job extends Model {
   @attr('number') createIndex;
   @attr('number') modifyIndex;
   @attr('date') submitTime;
-
-  @fragment('structured-attributes') meta;
+  @attr() meta;
 
   // True when the job is the parent periodic or parameterized jobs
   // Instances of periodic or parameterized jobs are false for both properties
@@ -35,25 +34,9 @@ export default class Job extends Model {
   @attr() periodicDetails;
   @attr() parameterizedDetails;
 
-  @computed('plainId')
-  get idWithNamespace() {
-    const namespaceId = this.belongsTo('namespace').id();
-
-    if (!namespaceId || namespaceId === 'default') {
-      return this.plainId;
-    } else {
-      return `${this.plainId}@${namespaceId}`;
-    }
-  }
-
   @computed('periodic', 'parameterized', 'dispatched')
   get hasChildren() {
     return this.periodic || (this.parameterized && !this.dispatched);
-  }
-
-  @computed('type')
-  get hasClientStatus() {
-    return this.type === 'system' || this.type === 'sysbatch';
   }
 
   @belongsTo('job', { inverse: 'children' }) parent;
@@ -62,9 +45,7 @@ export default class Job extends Model {
   // The parent job name is prepended to child launch job names
   @computed('name', 'parent.content')
   get trimmedName() {
-    return this.get('parent.content')
-      ? this.name.replace(/.+?\//, '')
-      : this.name;
+    return this.get('parent.content') ? this.name.replace(/.+?\//, '') : this.name;
   }
 
   // A composite of type and other job attributes to determine
@@ -82,12 +63,7 @@ export default class Job extends Model {
 
   // A composite of type and other job attributes to determine
   // type for templating rather than scheduling
-  @computed(
-    'type',
-    'periodic',
-    'parameterized',
-    'parent.{periodic,parameterized}'
-  )
+  @computed('type', 'periodic', 'parameterized', 'parent.{periodic,parameterized}')
   get templateType() {
     const type = this.type;
 
@@ -131,7 +107,6 @@ export default class Job extends Model {
   @alias('summary.completeAllocs') completeAllocs;
   @alias('summary.failedAllocs') failedAllocs;
   @alias('summary.lostAllocs') lostAllocs;
-  @alias('summary.unknownAllocs') unknownAllocs;
   @alias('summary.totalAllocs') totalAllocs;
   @alias('summary.pendingChildren') pendingChildren;
   @alias('summary.runningChildren') runningChildren;
@@ -177,9 +152,7 @@ export default class Job extends Model {
 
   @computed('evaluations.@each.isBlocked')
   get hasBlockedEvaluation() {
-    return this.evaluations
-      .toArray()
-      .some((evaluation) => evaluation.get('isBlocked'));
+    return this.evaluations.toArray().some(evaluation => evaluation.get('isBlocked'));
   }
 
   @and('latestFailureEvaluation', 'hasBlockedEvaluation') hasPlacementFailures;
@@ -267,7 +240,7 @@ export default class Job extends Model {
       promise = this.store
         .adapterFor('job')
         .parse(this._newDefinition)
-        .then((response) => {
+        .then(response => {
           this.set('_newDefinitionJSON', response);
           this.setIdByPayload(response);
         });
@@ -277,8 +250,7 @@ export default class Job extends Model {
   }
 
   scale(group, count, message) {
-    if (message == null)
-      message = `Manually scaled to ${count} from the Nomad UI`;
+    if (message == null) message = `Manually scaled to ${count} from the Nomad UI`;
     return this.store.adapterFor('job').scale(this, group, count, message);
   }
 
@@ -300,10 +272,7 @@ export default class Job extends Model {
   }
 
   resetId() {
-    this.set(
-      'id',
-      JSON.stringify([this.plainId, this.get('namespace.name') || 'default'])
-    );
+    this.set('id', JSON.stringify([this.plainId, this.get('namespace.name') || 'default']));
   }
 
   @computed('status')

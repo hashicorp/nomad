@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,7 +50,7 @@ func TestConnPool_ConnListener(t *testing.T) {
 	pool.SetConnListener(c)
 
 	// Make an RPC
-	_, err = pool.acquire("test", addr)
+	_, err = pool.acquire("test", addr, structs.ApiMajorVersion)
 	require.Nil(err)
 
 	// Assert we get a connection.

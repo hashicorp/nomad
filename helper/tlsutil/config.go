@@ -298,7 +298,7 @@ func (c *Config) OutgoingTLSWrapper() (RegionWrapper, error) {
 
 }
 
-// WrapTLSClient wraps a net.Conn into a client tls connection, performing any
+// Wrap a net.Conn into a client tls connection, performing any
 // additional verification as needed.
 //
 // As of go 1.3, crypto/tls only supports either doing no certificate

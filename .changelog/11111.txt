@@ -1,3 +1,0 @@
-```release-note:improvement
-scheduler: Warn users when system and sysbatch evaluations fail to place an allocation
-```

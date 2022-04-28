@@ -8,7 +8,6 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
@@ -56,7 +55,7 @@ func (m *mockImageClient) RemoveImage(id string) error {
 }
 
 func TestDockerCoordinator_ConcurrentPulls(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	image := "foo"
 	imageID := uuid.Generate()
 	mapping := map[string]string{imageID: image}
@@ -108,7 +107,7 @@ func TestDockerCoordinator_ConcurrentPulls(t *testing.T) {
 }
 
 func TestDockerCoordinator_Pull_Remove(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	image := "foo"
 	imageID := uuid.Generate()
 	mapping := map[string]string{imageID: image}
@@ -181,7 +180,7 @@ func TestDockerCoordinator_Pull_Remove(t *testing.T) {
 }
 
 func TestDockerCoordinator_Remove_Cancel(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	image := "foo"
 	imageID := uuid.Generate()
 	mapping := map[string]string{imageID: image}
@@ -230,7 +229,7 @@ func TestDockerCoordinator_Remove_Cancel(t *testing.T) {
 }
 
 func TestDockerCoordinator_No_Cleanup(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	image := "foo"
 	imageID := uuid.Generate()
 	mapping := map[string]string{imageID: image}
@@ -266,7 +265,6 @@ func TestDockerCoordinator_No_Cleanup(t *testing.T) {
 }
 
 func TestDockerCoordinator_Cleanup_HonorsCtx(t *testing.T) {
-	ci.Parallel(t)
 	image1ID := uuid.Generate()
 	image2ID := uuid.Generate()
 

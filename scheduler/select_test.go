@@ -3,15 +3,12 @@ package scheduler
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLimitIterator(t *testing.T) {
-	ci.Parallel(t)
-
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
@@ -56,8 +53,6 @@ func TestLimitIterator(t *testing.T) {
 }
 
 func TestLimitIterator_ScoreThreshold(t *testing.T) {
-	ci.Parallel(t)
-
 	_, ctx := testContext(t)
 	type testCase struct {
 		desc        string
@@ -322,8 +317,6 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 }
 
 func TestMaxScoreIterator(t *testing.T) {
-	ci.Parallel(t)
-
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{

@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,7 +16,9 @@ import (
 //
 // In Linux CI and AppVeyor Windows environment, it should be enabled.
 func TestDockerDriver_FingerprintHealth(t *testing.T) {
-	ci.Parallel(t)
+	if !tu.IsCI() {
+		t.Parallel()
+	}
 	testutil.DockerCompatible(t)
 
 	ctx, cancel := context.WithCancel(context.Background())

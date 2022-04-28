@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -24,7 +23,7 @@ import (
 )
 
 func TestEventStream(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.EnableEventBroker = true
@@ -128,7 +127,7 @@ OUTER:
 // TestEventStream_StreamErr asserts an error is returned when an event publisher
 // closes its subscriptions
 func TestEventStream_StreamErr(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.EnableEventBroker = true
@@ -210,7 +209,7 @@ OUTER:
 // TestEventStream_RegionForward tests event streaming from one server
 // to another in a different region
 func TestEventStream_RegionForward(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.EnableEventBroker = true
@@ -308,7 +307,7 @@ OUTER:
 }
 
 func TestEventStream_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 
 	// start server
@@ -508,7 +507,7 @@ func TestEventStream_ACL(t *testing.T) {
 // TestEventStream_ACL_Update_Close_Stream asserts that an active subscription
 // is closed after the token is no longer valid
 func TestEventStream_ACL_Update_Close_Stream(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// start server
 	s1, root, cleanupS := TestACLServer(t, nil)

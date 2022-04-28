@@ -1,10 +1,9 @@
 .inline-definitions {
   .label {
     text-transform: uppercase;
-    display: inline-block;
+    display: inline;
     color: darken($grey-blue, 20%);
     margin-right: 2rem;
-    margin-bottom: 0;
     font-size: inherit;
     font-weight: $weight-semibold;
   }

@@ -201,9 +201,7 @@ func WaitForRunningWithToken(t testing.TB, rpc rpcFn, job *structs.Job, token st
 
 	var resp structs.JobAllocationsResponse
 
-	// This can be quite slow if the job has expensive setup such as
-	// downloading large artifacts or creating a chroot.
-	WaitForResultRetries(2000*TestMultiplier(), func() (bool, error) {
+	WaitForResult(func() (bool, error) {
 		args := &structs.JobSpecificRequest{}
 		args.JobID = job.ID
 		args.QueryOptions.Region = job.Region
@@ -243,7 +241,7 @@ func WaitForRunning(t testing.TB, rpc rpcFn, job *structs.Job) []*structs.AllocL
 // WaitForFiles blocks until all the files in the slice are present
 func WaitForFiles(t testing.TB, files []string) {
 	WaitForResult(func() (bool, error) {
-		return FilesExist(files)
+		return FilesExist(files), nil
 	}, func(err error) {
 		t.Fatalf("missing expected files: %v", err)
 	})
@@ -252,18 +250,18 @@ func WaitForFiles(t testing.TB, files []string) {
 // WaitForFilesUntil blocks until duration or all the files in the slice are present
 func WaitForFilesUntil(t testing.TB, files []string, until time.Duration) {
 	WaitForResultUntil(until, func() (bool, error) {
-		return FilesExist(files)
+		return FilesExist(files), nil
 	}, func(err error) {
 		t.Fatalf("missing expected files: %v", err)
 	})
 }
 
 // FilesExist verifies all files in the slice are present
-func FilesExist(files []string) (bool, error) {
+func FilesExist(files []string) bool {
 	for _, f := range files {
 		if _, err := os.Stat(f); os.IsNotExist(err) {
-			return false, fmt.Errorf("expected file not found: %v", f)
+			return false
 		}
 	}
-	return true, nil
+	return true
 }

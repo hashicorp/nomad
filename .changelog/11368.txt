@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Persist node drain settings in the browser
-```

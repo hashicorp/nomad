@@ -67,11 +67,8 @@ codecgen-*.generated.go
 **/structs.generated.go
 GNUMakefile.local
 
-# Terraform state and locking files.
 .terraform
 *.tfstate*
-.terraform.lock.hcl
-
 rkt-*
 
 ./idea
@@ -89,7 +86,6 @@ rkt-*
 
 # misc
 /ui/.sass-cache
-/ui/.eslintcache
 /ui/.storybook/preview-head.html
 /ui/connect.lock
 /ui/coverage/*

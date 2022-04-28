@@ -9,7 +9,6 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/hashicorp/nomad/ci"
 	ctu "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
@@ -35,9 +34,9 @@ func testContainerDetails() (image string, imageName string, imageTag string) {
 }
 
 func TestDockerLogger_Success(t *testing.T) {
-	ci.Parallel(t)
 	ctu.DockerCompatible(t)
 
+	t.Parallel()
 	require := require.New(t)
 
 	containerImage, containerImageName, containerImageTag := testContainerDetails()
@@ -116,9 +115,9 @@ func TestDockerLogger_Success(t *testing.T) {
 }
 
 func TestDockerLogger_Success_TTY(t *testing.T) {
-	ci.Parallel(t)
 	ctu.DockerCompatible(t)
 
+	t.Parallel()
 	require := require.New(t)
 
 	containerImage, containerImageName, containerImageTag := testContainerDetails()
@@ -213,8 +212,10 @@ func echoToContainer(t *testing.T, client *docker.Client, id string, line string
 }
 
 func TestDockerLogger_LoggingNotSupported(t *testing.T) {
-	ci.Parallel(t)
 	ctu.DockerCompatible(t)
+
+	t.Parallel()
+	require := require.New(t)
 
 	containerImage, containerImageName, containerImageTag := testContainerDetails()
 
@@ -229,7 +230,7 @@ func TestDockerLogger_LoggingNotSupported(t *testing.T) {
 			Repository: containerImageName,
 			Tag:        containerImageTag,
 		}, docker.AuthConfiguration{})
-		require.NoError(t, err, "failed to pull image")
+		require.NoError(err, "failed to pull image")
 	}
 
 	containerConf := docker.CreateContainerOptions{
@@ -241,15 +242,19 @@ func TestDockerLogger_LoggingNotSupported(t *testing.T) {
 		},
 		HostConfig: &docker.HostConfig{
 			LogConfig: docker.LogConfig{
-				Type:   "none",
-				Config: map[string]string{},
+				Type: "gelf",
+				Config: map[string]string{
+					"gelf-address":    "udp://localhost:12201",
+					"mode":            "non-blocking",
+					"max-buffer-size": "4m",
+				},
 			},
 		},
 		Context: context.Background(),
 	}
 
 	container, err := client.CreateContainer(containerConf)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	defer client.RemoveContainer(docker.RemoveContainerOptions{
 		ID:    container.ID,
@@ -257,7 +262,7 @@ func TestDockerLogger_LoggingNotSupported(t *testing.T) {
 	})
 
 	err = client.StartContainer(container.ID, nil)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	testutil.WaitForResult(func() (bool, error) {
 		container, err = client.InspectContainer(container.ID)
@@ -269,7 +274,7 @@ func TestDockerLogger_LoggingNotSupported(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		require.NoError(err)
 	})
 
 	stdout := &noopCloser{bytes.NewBuffer(nil)}
@@ -278,14 +283,14 @@ func TestDockerLogger_LoggingNotSupported(t *testing.T) {
 	dl := NewDockerLogger(testlog.HCLogger(t)).(*dockerLogger)
 	dl.stdout = stdout
 	dl.stderr = stderr
-	require.NoError(t, dl.Start(&StartOpts{
+	require.NoError(dl.Start(&StartOpts{
 		ContainerID: container.ID,
 	}))
 
 	select {
 	case <-dl.doneCh:
 	case <-time.After(10 * time.Second):
-		require.Fail(t, "timeout while waiting for docker_logging to terminate")
+		require.Fail("timedout while waiting for docker_logging to terminate")
 	}
 }
 
@@ -298,8 +303,6 @@ func (*noopCloser) Close() error {
 }
 
 func TestNextBackoff(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		currentBackoff float64
 		min            float64
@@ -322,8 +325,6 @@ func TestNextBackoff(t *testing.T) {
 }
 
 func TestIsLoggingTerminalError(t *testing.T) {
-	ci.Parallel(t)
-
 	terminalErrs := []error{
 		errors.New("docker returned: configured logging driver does not support reading"),
 		&docker.Error{

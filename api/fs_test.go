@@ -17,10 +17,9 @@ import (
 )
 
 func TestFS_Logs(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	rpcPort := 0
-
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		rpcPort = c.Ports.RPC
 		c.Client = &testutil.ClientConfig{
@@ -161,7 +160,7 @@ func TestFS_Logs(t *testing.T) {
 }
 
 func TestFS_FrameReader(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	// Create a channel of the frames and a cancel channel
 	framesCh := make(chan *StreamFrame, 3)
 	errCh := make(chan error)
@@ -231,7 +230,7 @@ func TestFS_FrameReader(t *testing.T) {
 }
 
 func TestFS_FrameReader_Unblock(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	// Create a channel of the frames and a cancel channel
 	framesCh := make(chan *StreamFrame, 3)
 	errCh := make(chan error)
@@ -269,7 +268,7 @@ func TestFS_FrameReader_Unblock(t *testing.T) {
 }
 
 func TestFS_FrameReader_Error(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	// Create a channel of the frames and a cancel channel
 	framesCh := make(chan *StreamFrame, 3)
 	errCh := make(chan error, 1)

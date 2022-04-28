@@ -2,15 +2,14 @@ package nomad
 
 import (
 	"fmt"
-	"net/http"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -392,74 +391,44 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "list"}, time.Now())
 
-	namespace := args.RequestNamespace()
-
 	// Check namespace read-job permissions against request namespace since
 	// results are filtered by request namespace.
 	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
 	// Setup the blocking query
-	sort := state.SortOption(args.Reverse)
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture all the deployments
 			var err error
 			var iter memdb.ResultIterator
-			var opts paginator.StructsTokenizerOptions
-
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = store.DeploymentsByIDPrefix(ws, namespace, prefix, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithID: true,
-				}
-			} else if namespace != structs.AllNamespacesSentinel {
-				iter, err = store.DeploymentsByNamespaceOrdered(ws, namespace, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
+				iter, err = state.DeploymentsByIDPrefix(ws, args.RequestNamespace(), prefix)
 			} else {
-				iter, err = store.Deployments(ws, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
+				iter, err = state.DeploymentsByNamespace(ws, args.RequestNamespace())
 			}
 			if err != nil {
 				return err
 			}
 
-			tokenizer := paginator.NewStructsTokenizer(iter, opts)
-
 			var deploys []*structs.Deployment
-			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
-				func(raw interface{}) error {
-					deploy := raw.(*structs.Deployment)
-					deploys = append(deploys, deploy)
-					return nil
-				})
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to create result paginator: %v", err)
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				deploy := raw.(*structs.Deployment)
+				deploys = append(deploys, deploy)
 			}
-
-			nextToken, err := paginator.Page()
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to read result page: %v", err)
-			}
-
-			reply.QueryMeta.NextToken = nextToken
 			reply.Deployments = deploys
 
 			// Use the last index that affected the deployment table
-			index, err := store.Index("deployment")
+			index, err := state.Index("deployment")
 			if err != nil {
 				return err
 			}

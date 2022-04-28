@@ -10,16 +10,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-version"
+	"golang.org/x/time/rate"
+
+	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
+	memdb "github.com/hashicorp/go-memdb"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
-	"golang.org/x/time/rate"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -118,30 +120,6 @@ func (s *Server) monitorLeadership() {
 	}
 }
 
-func (s *Server) leadershipTransfer() error {
-	retryCount := 3
-	for i := 0; i < retryCount; i++ {
-		err := s.raft.LeadershipTransfer().Error()
-		if err == nil {
-			s.logger.Info("successfully transferred leadership")
-			return nil
-		}
-
-		// Don't retry if the Raft version doesn't support leadership transfer
-		// since this will never succeed.
-		if err == raft.ErrUnsupportedProtocol {
-			return fmt.Errorf("leadership transfer not supported with Raft version lower than 3")
-		}
-
-		s.logger.Error("failed to transfer leadership attempt, will retry",
-			"attempt", i,
-			"retry_limit", retryCount,
-			"error", err,
-		)
-	}
-	return fmt.Errorf("failed to transfer leadership in %d attempts", retryCount)
-}
-
 // leaderLoop runs as long as we are the leader to run various
 // maintenance activities
 func (s *Server) leaderLoop(stopCh chan struct{}) {
@@ -173,15 +151,7 @@ RECONCILE:
 				s.logger.Error("failed to revoke leadership", "error", err)
 			}
 
-			// Attempt to transfer leadership. If successful, leave the
-			// leaderLoop since this node is no longer the leader. Otherwise
-			// try to establish leadership again after 5 seconds.
-			if err := s.leadershipTransfer(); err != nil {
-				s.logger.Error("failed to transfer leadership", "error", err)
-				interval = time.After(5 * time.Second)
-				goto WAIT
-			}
-			return
+			goto WAIT
 		}
 
 		establishedLeader = true
@@ -212,12 +182,10 @@ RECONCILE:
 	}
 
 WAIT:
-	// Wait until leadership is lost or periodically reconcile as long as we
-	// are the leader, or when Serf events arrive.
+	// Wait until leadership is lost
 	for {
 		select {
 		case <-stopCh:
-			// Lost leadership.
 			return
 		case <-s.shutdownCh:
 			return
@@ -245,27 +213,6 @@ WAIT:
 			s.revokeLeadership()
 			err := s.establishLeadership(stopCh)
 			errCh <- err
-
-			// In case establishLeadership fails, try to transfer leadership.
-			// At this point Raft thinks we are the leader, but Nomad did not
-			// complete the required steps to act as the leader.
-			if err != nil {
-				if err := s.leadershipTransfer(); err != nil {
-					// establishedLeader was true before, but it no longer is
-					// since we revoked leadership and leadershipTransfer also
-					// failed.
-					// Stay in the leaderLoop with establishedLeader set to
-					// false so we try to establish leadership again in the
-					// next loop.
-					establishedLeader = false
-					interval = time.After(5 * time.Second)
-					goto WAIT
-				}
-
-				// leadershipTransfer was successful and it is
-				// time to leave the leaderLoop.
-				return
-			}
 		}
 	}
 }
@@ -283,7 +230,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Disable workers to free half the cores for use in the plan queue and
 	// evaluation broker
-	s.handlePausableWorkers(true)
+	for _, w := range s.pausableWorkers() {
+		w.SetPause(true)
+	}
 
 	// Initialize and start the autopilot routine
 	s.getOrCreateAutopilotConfig()
@@ -493,16 +442,6 @@ ERR_WAIT:
 	}
 }
 
-func (s *Server) handlePausableWorkers(isLeader bool) {
-	for _, w := range s.pausableWorkers() {
-		if isLeader {
-			w.Pause()
-		} else {
-			w.Resume()
-		}
-	}
-}
-
 // diffNamespaces is used to perform a two-way diff between the local namespaces
 // and the remote namespaces to determine which namespaces need to be deleted or
 // updated.
@@ -556,7 +495,7 @@ func diffNamespaces(state *state.StateStore, minIndex uint64, remoteList []*stru
 func (s *Server) restoreEvals() error {
 	// Get an iterator over every evaluation
 	ws := memdb.NewWatchSet()
-	iter, err := s.fsm.State().Evals(ws, false)
+	iter, err := s.fsm.State().Evals(ws)
 	if err != nil {
 		return fmt.Errorf("failed to get evaluations: %v", err)
 	}
@@ -638,7 +577,7 @@ func (s *Server) revokeSITokenAccessorsOnRestore() error {
 	fsmState := s.fsm.State()
 	iter, err := fsmState.SITokenAccessors(ws)
 	if err != nil {
-		return fmt.Errorf("failed to get SI token accessors: %w", err)
+		return errors.Wrap(err, "failed to get SI token accessors")
 	}
 
 	var toRevoke []*structs.SITokenAccessor
@@ -648,7 +587,7 @@ func (s *Server) revokeSITokenAccessorsOnRestore() error {
 		// Check the allocation
 		alloc, err := fsmState.AllocByID(ws, accessor.AllocID)
 		if err != nil {
-			return fmt.Errorf("failed to lookup alloc %q: %w", accessor.AllocID, err)
+			return errors.Wrapf(err, "failed to lookup alloc %q", accessor.AllocID)
 		}
 		if alloc == nil || alloc.Terminated() {
 			// no longer running and associated accessors should be revoked
@@ -659,7 +598,7 @@ func (s *Server) revokeSITokenAccessorsOnRestore() error {
 		// Check the node
 		node, err := fsmState.NodeByID(ws, accessor.NodeID)
 		if err != nil {
-			return fmt.Errorf("failed to lookup node %q: %w", accessor.NodeID, err)
+			return errors.Wrapf(err, "failed to lookup node %q", accessor.NodeID)
 		}
 		if node == nil || node.TerminalStatus() {
 			// node is terminal and associated accessors should be revoked
@@ -852,7 +791,7 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			updateEval.Status = structs.EvalStatusFailed
 			updateEval.StatusDescription = fmt.Sprintf("evaluation reached delivery limit (%d)", s.config.EvalDeliveryLimit)
 			s.logger.Warn("eval reached delivery limit, marking as failed",
-				"eval", hclog.Fmt("%#v", updateEval))
+				"eval", log.Fmt("%#v", updateEval))
 
 			// Core job evals that fail or span leader elections will never
 			// succeed because the follow-up doesn't have the leader ACL. We
@@ -876,7 +815,7 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 				}
 				if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
 					s.logger.Error("failed to update failed eval and create a follow-up",
-						"eval", hclog.Fmt("%#v", updateEval), "error", err)
+						"eval", log.Fmt("%#v", updateEval), "error", err)
 					continue
 				}
 			}
@@ -915,7 +854,7 @@ func (s *Server) reapDupBlockedEvaluations(stopCh chan struct{}) {
 				Evals: cancel,
 			}
 			if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
-				s.logger.Error("failed to update duplicate evals", "evals", hclog.Fmt("%#v", cancel), "error", err)
+				s.logger.Error("failed to update duplicate evals", "evals", log.Fmt("%#v", cancel), "error", err)
 				continue
 			}
 		}
@@ -1033,8 +972,6 @@ func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
 			float32(tgSummary.Starting), labels)
 		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
 			float32(tgSummary.Lost), labels)
-		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "unknown"},
-			float32(tgSummary.Unknown), labels)
 	}
 }
 
@@ -1144,7 +1081,9 @@ func (s *Server) revokeLeadership() error {
 	}
 
 	// Unpause our worker if we paused previously
-	s.handlePausableWorkers(false)
+	for _, w := range s.pausableWorkers() {
+		w.SetPause(false)
+	}
 
 	return nil
 }
@@ -1314,26 +1253,22 @@ func (s *Server) removeRaftPeer(m serf.Member, parts *serverParts) error {
 
 	// Pick which remove API to use based on how the server was added.
 	for _, server := range configFuture.Configuration().Servers {
-		// Check if this is the server to remove based on how it was registered.
-		// Raft v2 servers are registered by address.
-		// Raft v3 servers are registered by ID.
-		if server.ID == raft.ServerID(parts.ID) || server.Address == raft.ServerAddress(addr) {
-			// Use the new add/remove APIs if we understand them.
-			if minRaftProtocol >= 2 {
-				s.logger.Info("removing server by ID", "id", server.ID)
-				future := s.raft.RemoveServer(server.ID, 0, 0)
-				if err := future.Error(); err != nil {
-					s.logger.Error("failed to remove raft peer", "id", server.ID, "error", err)
-					return err
-				}
-			} else {
-				// If not, use the old remove API
-				s.logger.Info("removing server by address", "address", server.Address)
-				future := s.raft.RemovePeer(raft.ServerAddress(addr))
-				if err := future.Error(); err != nil {
-					s.logger.Error("failed to remove raft peer", "address", addr, "error", err)
-					return err
-				}
+		// If we understand the new add/remove APIs and the server was added by ID, use the new remove API
+		if minRaftProtocol >= 2 && server.ID == raft.ServerID(parts.ID) {
+			s.logger.Info("removing server by ID", "id", server.ID)
+			future := s.raft.RemoveServer(raft.ServerID(parts.ID), 0, 0)
+			if err := future.Error(); err != nil {
+				s.logger.Error("failed to remove raft peer", "id", server.ID, "error", err)
+				return err
+			}
+			break
+		} else if server.Address == raft.ServerAddress(addr) {
+			// If not, use the old remove API
+			s.logger.Info("removing server by address", "address", server.Address)
+			future := s.raft.RemovePeer(raft.ServerAddress(addr))
+			if err := future.Error(); err != nil {
+				s.logger.Error("failed to remove raft peer", "address", addr, "error", err)
+				return err
 			}
 			break
 		}
@@ -1583,13 +1518,13 @@ ERR_WAIT:
 // diffACLTokens is used to perform a two-way diff between the local
 // tokens and the remote tokens to determine which tokens need to
 // be deleted or updated.
-func diffACLTokens(store *state.StateStore, minIndex uint64, remoteList []*structs.ACLTokenListStub) (delete []string, update []string) {
+func diffACLTokens(state *state.StateStore, minIndex uint64, remoteList []*structs.ACLTokenListStub) (delete []string, update []string) {
 	// Construct a set of the local and remote policies
 	local := make(map[string][]byte)
 	remote := make(map[string]struct{})
 
 	// Add all the local global tokens
-	iter, err := store.ACLTokensByGlobal(nil, true, state.SortDefault)
+	iter, err := state.ACLTokensByGlobal(nil, true)
 	if err != nil {
 		panic("failed to iterate local tokens")
 	}
@@ -1681,13 +1616,13 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 func (s *Server) generateClusterID() (string, error) {
 	if !ServersMeetMinimumVersion(s.Members(), minClusterIDVersion, false) {
 		s.logger.Named("core").Warn("cannot initialize cluster ID until all servers are above minimum version", "min_version", minClusterIDVersion)
-		return "", fmt.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
+		return "", errors.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
 	}
 
 	newMeta := structs.ClusterMetadata{ClusterID: uuid.Generate(), CreateTime: time.Now().UnixNano()}
 	if _, _, err := s.raftApply(structs.ClusterMetadataRequestType, newMeta); err != nil {
 		s.logger.Named("core").Error("failed to create cluster ID", "error", err)
-		return "", fmt.Errorf("failed to create cluster ID: %w", err)
+		return "", errors.Wrap(err, "failed to create cluster ID")
 	}
 
 	s.logger.Named("core").Info("established cluster id", "cluster_id", newMeta.ClusterID, "create_time", newMeta.CreateTime)

@@ -1,3 +1,0 @@
-```release-note:improvement
-connect: automatically set alloc_id in envoy_stats_tags configuration
-```

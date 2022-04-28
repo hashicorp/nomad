@@ -4,13 +4,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRPCCodedErrors(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		err     error
 		code    int

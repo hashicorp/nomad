@@ -58,16 +58,14 @@ specific to the provider implementation.
 Plugins mount and unmount volumes but are not in the data path once
 the volume is mounted for a task. Plugin tasks are needed when tasks
 using their volumes stop, so plugins should be left running on a Nomad
-client until all tasks using their volumes are stopped. The `nomad
-node drain` command handles this automatically by stopping plugin
-tasks last.
+client until all tasks using their volumes are stopped.
 
-Typically, you should run node plugins as Nomad `system` jobs so they
-can mount volumes on any client where they are running. Controller
-plugins can create and attach volumes anywhere they can communicate
-with the storage provider's API, so they can usually be run as
-`service` jobs. You should always run more than one controller plugin
-allocation for high availability.
+You should always run node plugins as Nomad `system` jobs and use the
+`-ignore-system` flag on the `nomad node drain` command to ensure that the
+node plugins are still running while the node is being drained. Use
+constraints for the node plugin jobs based on the availability of volumes. For
+example, AWS EBS volumes are specific to particular availability zones with a
+region. Controller plugins can be run as `service` jobs.
 
 Nomad exposes a Unix domain socket named `csi.sock` inside each CSI
 plugin task, and communicates over the gRPC protocol expected by the

@@ -3,7 +3,6 @@ package fingerprint
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -11,8 +10,6 @@ import (
 )
 
 func TestVaultFingerprint(t *testing.T) {
-	ci.Parallel(t)
-
 	tv := testutil.NewTestVault(t)
 	defer tv.Stop()
 

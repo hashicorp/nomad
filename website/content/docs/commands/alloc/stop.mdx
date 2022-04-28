@@ -42,12 +42,6 @@ allocation's namespace.
 
 - `-verbose`: Display verbose output.
 
-- `-no-shutdown-delay`
-  Ignore the the group and task [`shutdown_delay`] configuration so that
-  there is no delay between service deregistration and task
-  shutdown. Note that using this flag will result in failed network
-  connections to the allocation being stopped.
-
 ## Examples
 
 ```shell-session
@@ -64,4 +58,3 @@ $ nomad alloc stop -detach eb17e557
 ```
 
 [eval status]: /docs/commands/eval-status
-[`shutdown_delay`]: /docs/job-specification/group#shutdown_delay

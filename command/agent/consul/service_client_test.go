@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -15,7 +13,7 @@ import (
 )
 
 func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// the service as known by nomad
 	wanted := func() api.AgentServiceRegistration {
@@ -255,8 +253,6 @@ func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
 }
 
 func TestSyncLogic_tagsDifferent(t *testing.T) {
-	ci.Parallel(t)
-
 	t.Run("nil nil", func(t *testing.T) {
 		require.False(t, tagsDifferent(nil, nil))
 	})
@@ -288,8 +284,6 @@ func TestSyncLogic_tagsDifferent(t *testing.T) {
 }
 
 func TestSyncLogic_sidecarTagsDifferent(t *testing.T) {
-	ci.Parallel(t)
-
 	type tc struct {
 		parent, wanted, sidecar []string
 		expect                  bool
@@ -316,7 +310,7 @@ func TestSyncLogic_sidecarTagsDifferent(t *testing.T) {
 }
 
 func TestSyncLogic_maybeTweakTags(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	differentPointers := func(a, b []string) bool {
 		return &(a) != &(b)
@@ -361,7 +355,7 @@ func TestSyncLogic_maybeTweakTags(t *testing.T) {
 }
 
 func TestSyncLogic_maybeTweakTags_emptySC(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Check the edge cases where the connect service is deleted on the nomad
 	// side (i.e. are we checking multiple nil pointers).
@@ -391,7 +385,7 @@ func TestSyncLogic_maybeTweakTags_emptySC(t *testing.T) {
 // TestServiceRegistration_CheckOnUpdate tests that a ServiceRegistrations
 // CheckOnUpdate is populated and updated properly
 func TestServiceRegistration_CheckOnUpdate(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	mockAgent := NewMockAgent(ossFeatures)
 	namespacesClient := NewNamespacesClient(NewMockNamespaces(nil), mockAgent)
@@ -399,7 +393,7 @@ func TestServiceRegistration_CheckOnUpdate(t *testing.T) {
 	sc := NewServiceClient(mockAgent, namespacesClient, logger, true)
 
 	allocID := uuid.Generate()
-	ws := &serviceregistration.WorkloadServices{
+	ws := &WorkloadServices{
 		AllocID:   allocID,
 		Task:      "taskname",
 		Restarter: &restartRecorder{},
@@ -450,7 +444,7 @@ func TestServiceRegistration_CheckOnUpdate(t *testing.T) {
 	}
 
 	// Update
-	wsUpdate := new(serviceregistration.WorkloadServices)
+	wsUpdate := new(WorkloadServices)
 	*wsUpdate = *ws
 	wsUpdate.Services[0].Checks[0].OnUpdate = structs.OnUpdateRequireHealthy
 
@@ -473,7 +467,7 @@ func TestServiceRegistration_CheckOnUpdate(t *testing.T) {
 }
 
 func TestSyncLogic_proxyUpstreamsDifferent(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	upstream1 := func() api.Upstream {
 		return api.Upstream{
@@ -608,7 +602,7 @@ func TestSyncLogic_proxyUpstreamsDifferent(t *testing.T) {
 }
 
 func TestSyncReason_String(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	require.Equal(t, "periodic", fmt.Sprintf("%s", syncPeriodic))
 	require.Equal(t, "shutdown", fmt.Sprintf("%s", syncShutdown))
@@ -617,7 +611,7 @@ func TestSyncReason_String(t *testing.T) {
 }
 
 func TestSyncOps_empty(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	try := func(ops *operations, exp bool) {
 		require.Equal(t, exp, ops.empty())
@@ -632,8 +626,6 @@ func TestSyncOps_empty(t *testing.T) {
 }
 
 func TestSyncLogic_maybeSidecarProxyCheck(t *testing.T) {
-	ci.Parallel(t)
-
 	try := func(input string, exp bool) {
 		result := maybeSidecarProxyCheck(input)
 		require.Equal(t, exp, result)

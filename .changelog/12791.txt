@@ -1,3 +1,0 @@
-```release-note:improvement
-drivers: removed support for restoring tasks created before Nomad 0.9
-```

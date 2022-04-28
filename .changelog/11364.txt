@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Allow specifying namesapce and region in the `nomad ui` command
-```

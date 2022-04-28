@@ -313,7 +313,6 @@ func (d *driverPluginClient) handleStats(ctx context.Context, ch chan<- *cstruct
 		select {
 		case ch <- stats:
 		case <-ctx.Done():
-			return
 		}
 	}
 }

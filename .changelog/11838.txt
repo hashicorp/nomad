@@ -1,3 +1,0 @@
-```release-note:bug
-agent: Fixed an issue that caused Consul values to be logged during template rendering
-```

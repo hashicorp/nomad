@@ -4,13 +4,12 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestJobs_Parse(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -47,7 +46,7 @@ func TestJobs_Parse(t *testing.T) {
 }
 
 func TestJobs_Summary_WithACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 
 	c, s, root := makeACLClient(t, nil, nil)

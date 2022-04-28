@@ -27,7 +27,10 @@ export default create({
   }),
 
   sortBy(id) {
-    return this.sortOptions.toArray().findBy('id', id).sort();
+    return this.sortOptions
+      .toArray()
+      .findBy('id', id)
+      .sort();
   },
 
   nodes: collection('[data-test-client-node-row]', {
@@ -46,7 +49,6 @@ export default create({
 
     address: text('[data-test-client-address]'),
     datacenter: text('[data-test-client-datacenter]'),
-    version: text('[data-test-client-version]'),
     allocations: text('[data-test-client-allocations]'),
 
     clickRow: clickable(),
@@ -73,7 +75,6 @@ export default create({
     class: multiFacet('[data-test-class-facet]'),
     state: multiFacet('[data-test-state-facet]'),
     datacenter: multiFacet('[data-test-datacenter-facet]'),
-    version: multiFacet('[data-test-version-facet]'),
     volume: multiFacet('[data-test-volume-facet]'),
   },
 });

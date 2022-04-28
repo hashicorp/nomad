@@ -1,17 +1,15 @@
 package command
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strings"
 
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	flaghelper "github.com/hashicorp/nomad/helper/flags"
+	"github.com/pkg/errors"
 	"github.com/posener/complete"
 )
 
@@ -36,23 +34,11 @@ General Options:
 
 List Options:
 
-  -page-token
-    Where to start pagination.
-
-  -per-page
-    How many results to show per page. Defaults to 30.
-
   -plugin: Display only snapshots managed by a particular plugin. This
     parameter is required.
 
-  -secret
-    Secrets to pass to the plugin to list snapshots. Accepts multiple
-    flags in the form -secret key=value
-
-  -verbose
-    Display full information for snapshots.
+  -secrets: A set of key/value secrets to be used when listing snapshots.
 `
-
 	return strings.TrimSpace(helpText)
 }
 
@@ -85,17 +71,13 @@ func (c *VolumeSnapshotListCommand) Name() string { return "volume snapshot list
 func (c *VolumeSnapshotListCommand) Run(args []string) int {
 	var pluginID string
 	var verbose bool
-	var secretsArgs flaghelper.StringFlag
-	var perPage int
-	var pageToken string
+	var secrets string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&pluginID, "plugin", "", "")
 	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.Var(&secretsArgs, "secret", "secrets for snapshot, ex. -secret key=value")
-	flags.IntVar(&perPage, "per-page", 30, "")
-	flags.StringVar(&pageToken, "page-token", "", "")
+	flags.StringVar(&secrets, "secrets", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
@@ -138,45 +120,29 @@ func (c *VolumeSnapshotListCommand) Run(args []string) int {
 	}
 	pluginID = plugs[0].ID
 
-	secrets := api.CSISecrets{}
-	for _, kv := range secretsArgs {
-		s := strings.Split(kv, "=")
-		if len(s) == 2 {
-			secrets[s[0]] = s[1]
-		} else {
-			c.Ui.Error("Secret must be in the format: -secret key=value")
+	q := &api.QueryOptions{PerPage: 30} // TODO: tune page size
+
+	for {
+		resp, _, err := client.CSIVolumes().ListSnapshots(pluginID, secrets, q)
+		if err != nil && !errors.Is(err, io.EOF) {
+			c.Ui.Error(fmt.Sprintf(
+				"Error querying CSI external snapshots for plugin %q: %s", pluginID, err))
 			return 1
 		}
-	}
+		if resp == nil || len(resp.Snapshots) == 0 {
+			// several plugins return EOF once you hit the end of the page,
+			// rather than an empty list
+			break
+		}
 
-	req := &api.CSISnapshotListRequest{
-		PluginID: pluginID,
-		Secrets:  secrets,
-		QueryOptions: api.QueryOptions{
-			PerPage:   int32(perPage),
-			NextToken: pageToken,
-			Params:    map[string]string{},
-		},
-	}
-
-	resp, _, err := client.CSIVolumes().ListSnapshotsOpts(req)
-	if err != nil && !errors.Is(err, io.EOF) {
-		c.Ui.Error(fmt.Sprintf(
-			"Error querying CSI external snapshots for plugin %q: %s", pluginID, err))
-		return 1
-	}
-	if resp == nil || len(resp.Snapshots) == 0 {
-		// several plugins return EOF once you hit the end of the page,
-		// rather than an empty list
-		return 0
-	}
-
-	c.Ui.Output(csiFormatSnapshots(resp.Snapshots, verbose))
-
-	if resp.NextToken != "" {
-		c.Ui.Output(fmt.Sprintf(`
-Results have been paginated. To get the next page run:
-%s -page-token %s`, argsWithoutPageToken(os.Args), resp.NextToken))
+		c.Ui.Output(csiFormatSnapshots(resp.Snapshots, verbose))
+		q.NextToken = resp.NextToken
+		if q.NextToken == "" {
+			break
+		}
+		// we can't know the shape of arbitrarily-sized lists of snapshots,
+		// so break after each page
+		c.Ui.Output("...")
 	}
 
 	return 0

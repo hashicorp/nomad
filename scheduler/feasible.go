@@ -27,7 +27,6 @@ const (
 	FilterConstraintCSIVolumeGCdAllocationTemplate = "CSI volume %s has exhausted its available writer claims and is claimed by a garbage collected allocation %s; waiting for claim to be released"
 	FilterConstraintDrivers                        = "missing drivers"
 	FilterConstraintDevices                        = "missing devices"
-	FilterConstraintsCSIPluginTopology             = "did not meet topology requirement"
 )
 
 var (
@@ -123,8 +122,7 @@ func (iter *StaticIterator) SetNodes(nodes []*structs.Node) {
 // is applied in-place
 func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 	// shuffle with the Fisher-Yates algorithm
-	idx, _ := ctx.State().LatestIndex()
-	shuffleNodes(ctx.Plan(), idx, nodes)
+	shuffleNodes(nodes)
 
 	// Create a static iterator
 	return NewStaticIterator(ctx, nodes)
@@ -312,15 +310,6 @@ func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 		}
 		if pluginCount[vol.PluginID] >= plugin.NodeInfo.MaxVolumes {
 			return false, fmt.Sprintf(FilterConstraintCSIPluginMaxVolumesTemplate, vol.PluginID, n.ID)
-		}
-
-		// CSI spec: "If requisite is specified, the provisioned
-		// volume MUST be accessible from at least one of the
-		// requisite topologies."
-		if len(vol.Topologies) > 0 {
-			if !plugin.NodeInfo.AccessibleTopology.MatchFound(vol.Topologies) {
-				return false, FilterConstraintsCSIPluginTopology
-			}
 		}
 
 		if req.ReadOnly {

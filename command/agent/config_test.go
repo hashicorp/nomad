@@ -13,8 +13,6 @@ import (
 	"time"
 
 	sockaddr "github.com/hashicorp/go-sockaddr"
-	"github.com/hashicorp/nomad/ci"
-	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/freeport"
@@ -30,8 +28,6 @@ var (
 )
 
 func TestConfig_Merge(t *testing.T) {
-	ci.Parallel(t)
-
 	c0 := &Config{}
 
 	c1 := &Config{
@@ -113,14 +109,12 @@ func TestConfig_Merge(t *testing.T) {
 			},
 			NetworkSpeed:      100,
 			CpuCompute:        100,
-			MinDynamicPort:    10001,
-			MaxDynamicPort:    10002,
 			MemoryMB:          100,
 			MaxKillTimeout:    "20s",
 			ClientMaxPort:     19996,
 			DisableRemoteExec: false,
-			TemplateConfig: &client.ClientTemplateConfig{
-				FunctionDenylist: client.DefaultTemplateFunctionDenylist,
+			TemplateConfig: &ClientTemplateConfig{
+				FunctionDenylist: []string{"plugin"},
 				DisableSandbox:   false,
 			},
 			Reserved: &Resources{
@@ -129,7 +123,6 @@ func TestConfig_Merge(t *testing.T) {
 				DiskMB:        10,
 				ReservedPorts: "1,10-30,55",
 			},
-			NomadServiceDiscovery: helper.BoolToPtr(false),
 		},
 		Server: &ServerConfig{
 			Enabled:                false,
@@ -299,13 +292,11 @@ func TestConfig_Merge(t *testing.T) {
 			ClientMinPort:     22000,
 			NetworkSpeed:      105,
 			CpuCompute:        105,
-			MinDynamicPort:    10002,
-			MaxDynamicPort:    10003,
 			MemoryMB:          105,
 			MaxKillTimeout:    "50s",
 			DisableRemoteExec: false,
-			TemplateConfig: &client.ClientTemplateConfig{
-				FunctionDenylist: client.DefaultTemplateFunctionDenylist,
+			TemplateConfig: &ClientTemplateConfig{
+				FunctionDenylist: []string{"plugin"},
 				DisableSandbox:   false,
 			},
 			Reserved: &Resources{
@@ -318,7 +309,6 @@ func TestConfig_Merge(t *testing.T) {
 			GCParallelDestroys:    6,
 			GCDiskUsageThreshold:  71,
 			GCInodeUsageThreshold: 86,
-			NomadServiceDiscovery: helper.BoolToPtr(false),
 		},
 		Server: &ServerConfig{
 			Enabled:                true,
@@ -442,8 +432,6 @@ func TestConfig_Merge(t *testing.T) {
 }
 
 func TestConfig_ParseConfigFile(t *testing.T) {
-	ci.Parallel(t)
-
 	// Fails if the file doesn't exist
 	if _, err := ParseConfigFile("/unicorns/leprechauns"); err == nil {
 		t.Fatalf("expected error, got nothing")
@@ -484,8 +472,6 @@ func TestConfig_ParseConfigFile(t *testing.T) {
 }
 
 func TestConfig_LoadConfigDir(t *testing.T) {
-	ci.Parallel(t)
-
 	// Fails if the dir doesn't exist.
 	if _, err := LoadConfigDir("/unicorns/leprechauns"); err == nil {
 		t.Fatalf("expected error, got nothing")
@@ -544,8 +530,6 @@ func TestConfig_LoadConfigDir(t *testing.T) {
 }
 
 func TestConfig_LoadConfig(t *testing.T) {
-	ci.Parallel(t)
-
 	// Fails if the target doesn't exist
 	if _, err := LoadConfig("/unicorns/leprechauns"); err == nil {
 		t.Fatalf("expected error, got nothing")
@@ -605,8 +589,6 @@ func TestConfig_LoadConfig(t *testing.T) {
 }
 
 func TestConfig_LoadConfigsFileOrder(t *testing.T) {
-	ci.Parallel(t)
-
 	config1, err := LoadConfigDir("test-resources/etcnomad")
 	if err != nil {
 		t.Fatalf("Failed to load config: %s", err)
@@ -633,8 +615,6 @@ func TestConfig_LoadConfigsFileOrder(t *testing.T) {
 }
 
 func TestConfig_Listener(t *testing.T) {
-	ci.Parallel(t)
-
 	config := DefaultConfig()
 
 	// Fails on invalid input
@@ -684,8 +664,6 @@ func TestConfig_Listener(t *testing.T) {
 }
 
 func TestConfig_DevModeFlag(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		dev         bool
 		connect     bool
@@ -744,8 +722,6 @@ func TestConfig_DevModeFlag(t *testing.T) {
 // TestConfig_normalizeAddrs_DevMode asserts that normalizeAddrs allows
 // advertising localhost in dev mode.
 func TestConfig_normalizeAddrs_DevMode(t *testing.T) {
-	ci.Parallel(t)
-
 	// allow to advertise 127.0.0.1 if dev-mode is enabled
 	c := &Config{
 		BindAddr: "127.0.0.1",
@@ -767,7 +743,7 @@ func TestConfig_normalizeAddrs_DevMode(t *testing.T) {
 		t.Fatalf("expected BindAddr 127.0.0.1, got %s", c.BindAddr)
 	}
 
-	if c.normalizedAddrs.HTTP[0] != "127.0.0.1:4646" {
+	if c.normalizedAddrs.HTTP != "127.0.0.1:4646" {
 		t.Fatalf("expected HTTP address 127.0.0.1:4646, got %s", c.normalizedAddrs.HTTP)
 	}
 
@@ -796,8 +772,6 @@ func TestConfig_normalizeAddrs_DevMode(t *testing.T) {
 // TestConfig_normalizeAddrs_NoAdvertise asserts that normalizeAddrs will
 // fail if no valid advertise address available in non-dev mode.
 func TestConfig_normalizeAddrs_NoAdvertise(t *testing.T) {
-	ci.Parallel(t)
-
 	c := &Config{
 		BindAddr: "127.0.0.1",
 		Ports: &Ports{
@@ -830,8 +804,6 @@ func TestConfig_normalizeAddrs_NoAdvertise(t *testing.T) {
 // TestConfig_normalizeAddrs_AdvertiseLocalhost asserts localhost can be
 // advertised if it's explicitly set in the config.
 func TestConfig_normalizeAddrs_AdvertiseLocalhost(t *testing.T) {
-	ci.Parallel(t)
-
 	c := &Config{
 		BindAddr: "127.0.0.1",
 		Ports: &Ports{
@@ -869,8 +841,6 @@ func TestConfig_normalizeAddrs_AdvertiseLocalhost(t *testing.T) {
 // TestConfig_normalizeAddrs_IPv6Loopback asserts that an IPv6 loopback address
 // is normalized properly. See #2739
 func TestConfig_normalizeAddrs_IPv6Loopback(t *testing.T) {
-	ci.Parallel(t)
-
 	c := &Config{
 		BindAddr: "::1",
 		Ports: &Ports{
@@ -906,60 +876,7 @@ func TestConfig_normalizeAddrs_IPv6Loopback(t *testing.T) {
 	}
 }
 
-// TestConfig_normalizeAddrs_MultipleInterface asserts that normalizeAddrs will
-// handle normalizing multiple interfaces in a single protocol.
-func TestConfig_normalizeAddrs_MultipleInterfaces(t *testing.T) {
-	ci.Parallel(t)
-
-	testCases := []struct {
-		name                    string
-		addressConfig           *Addresses
-		expectedNormalizedAddrs *NormalizedAddrs
-		expectErr               bool
-	}{
-		{
-			name: "multiple http addresses",
-			addressConfig: &Addresses{
-				HTTP: "127.0.0.1 127.0.0.2",
-			},
-			expectedNormalizedAddrs: &NormalizedAddrs{
-				HTTP: []string{"127.0.0.1:4646", "127.0.0.2:4646"},
-				RPC:  "127.0.0.1:4647",
-				Serf: "127.0.0.1:4648",
-			},
-			expectErr: false,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			c := &Config{
-				BindAddr: "127.0.0.1",
-				Ports: &Ports{
-					HTTP: 4646,
-					RPC:  4647,
-					Serf: 4648,
-				},
-				Addresses: tc.addressConfig,
-				AdvertiseAddrs: &AdvertiseAddrs{
-					HTTP: "127.0.0.1",
-					RPC:  "127.0.0.1",
-					Serf: "127.0.0.1",
-				},
-			}
-			err := c.normalizeAddrs()
-			if tc.expectErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedNormalizedAddrs, c.normalizedAddrs)
-		})
-	}
-}
-
 func TestConfig_normalizeAddrs(t *testing.T) {
-	ci.Parallel(t)
-
 	c := &Config{
 		BindAddr: "169.254.1.5",
 		Ports: &Ports{
@@ -1071,8 +988,6 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 }
 
 func TestConfig_templateNetworkInterface(t *testing.T) {
-	ci.Parallel(t)
-
 	// find the first interface
 	ifaces, err := sockaddr.GetAllInterfaces()
 	if err != nil {
@@ -1170,8 +1085,6 @@ func TestConfig_templateNetworkInterface(t *testing.T) {
 }
 
 func TestIsMissingPort(t *testing.T) {
-	ci.Parallel(t)
-
 	_, _, err := net.SplitHostPort("localhost")
 	if missing := isMissingPort(err); !missing {
 		t.Errorf("expected missing port error, but got %v", err)
@@ -1183,8 +1096,6 @@ func TestIsMissingPort(t *testing.T) {
 }
 
 func TestMergeServerJoin(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 
 	{
@@ -1291,8 +1202,7 @@ func TestMergeServerJoin(t *testing.T) {
 }
 
 func TestTelemetry_PrefixFilters(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	cases := []struct {
 		in       []string
 		expAllow []string
@@ -1334,8 +1244,6 @@ func TestTelemetry_PrefixFilters(t *testing.T) {
 }
 
 func TestTelemetry_Parse(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 	dir, err := ioutil.TempDir("", "nomad")
 	require.NoError(err)
@@ -1359,7 +1267,6 @@ func TestTelemetry_Parse(t *testing.T) {
 }
 
 func TestEventBroker_Parse(t *testing.T) {
-	ci.Parallel(t)
 
 	require := require.New(t)
 	{
@@ -1402,160 +1309,5 @@ func TestEventBroker_Parse(t *testing.T) {
 		result := a.Merge(b)
 		require.Equal(true, *result.EnableEventBroker)
 		require.Equal(20000, *result.EventBufferSize)
-	}
-}
-
-func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
-	ci.Parallel(t)
-
-	defaultConfig := DefaultConfig()
-	// Test that loading without template config didn't create load errors
-	agentConfig, err := LoadConfig("test-resources/minimal_client.hcl")
-	require.NoError(t, err)
-
-	// Test loading with this config didn't create load errors
-	agentConfig, err = LoadConfig("test-resources/client_with_template.hcl")
-	require.NoError(t, err)
-
-	agentConfig = defaultConfig.Merge(agentConfig)
-
-	clientAgent := Agent{config: agentConfig}
-	clientConfig, err := clientAgent.clientConfig()
-	require.NoError(t, err)
-
-	templateConfig := clientConfig.TemplateConfig
-
-	// Make sure all fields to test are set
-	require.NotNil(t, templateConfig.BlockQueryWaitTime)
-	require.NotNil(t, templateConfig.MaxStale)
-	require.NotNil(t, templateConfig.Wait)
-	require.NotNil(t, templateConfig.WaitBounds)
-	require.NotNil(t, templateConfig.ConsulRetry)
-	require.NotNil(t, templateConfig.VaultRetry)
-
-	// Direct properties
-	require.Equal(t, 300*time.Second, *templateConfig.MaxStale)
-	require.Equal(t, 90*time.Second, *templateConfig.BlockQueryWaitTime)
-	// Wait
-	require.Equal(t, 2*time.Second, *templateConfig.Wait.Min)
-	require.Equal(t, 60*time.Second, *templateConfig.Wait.Max)
-	// WaitBounds
-	require.Equal(t, 2*time.Second, *templateConfig.WaitBounds.Min)
-	require.Equal(t, 60*time.Second, *templateConfig.WaitBounds.Max)
-	// Consul Retry
-	require.NotNil(t, templateConfig.ConsulRetry)
-	require.Equal(t, 5, *templateConfig.ConsulRetry.Attempts)
-	require.Equal(t, 5*time.Second, *templateConfig.ConsulRetry.Backoff)
-	require.Equal(t, 10*time.Second, *templateConfig.ConsulRetry.MaxBackoff)
-	// Vault Retry
-	require.NotNil(t, templateConfig.VaultRetry)
-	require.Equal(t, 10, *templateConfig.VaultRetry.Attempts)
-	require.Equal(t, 15*time.Second, *templateConfig.VaultRetry.Backoff)
-	require.Equal(t, 20*time.Second, *templateConfig.VaultRetry.MaxBackoff)
-}
-
-func TestConfig_LoadConsulTemplate_FunctionDenylist(t *testing.T) {
-	cases := []struct {
-		File     string
-		Expected *client.ClientTemplateConfig
-	}{
-		{
-			"test-resources/minimal_client.hcl",
-			nil,
-		},
-		{
-			"test-resources/client_with_basic_template.json",
-			&client.ClientTemplateConfig{
-				DisableSandbox:   true,
-				FunctionDenylist: []string{},
-			},
-		},
-		{
-			"test-resources/client_with_basic_template.hcl",
-			&client.ClientTemplateConfig{
-				DisableSandbox:   true,
-				FunctionDenylist: []string{},
-			},
-		},
-		{
-			"test-resources/client_with_function_denylist.hcl",
-			&client.ClientTemplateConfig{
-				DisableSandbox:   false,
-				FunctionDenylist: []string{"foo"},
-			},
-		},
-		{
-			"test-resources/client_with_function_denylist_empty.hcl",
-			&client.ClientTemplateConfig{
-				DisableSandbox:   false,
-				FunctionDenylist: []string{},
-			},
-		},
-		{
-			"test-resources/client_with_function_denylist_empty_string.hcl",
-			&client.ClientTemplateConfig{
-				DisableSandbox:   true,
-				FunctionDenylist: []string{""},
-			},
-		},
-		{
-			"test-resources/client_with_function_denylist_empty_string.json",
-			&client.ClientTemplateConfig{
-				DisableSandbox:   true,
-				FunctionDenylist: []string{""},
-			},
-		},
-		{
-			"test-resources/client_with_function_denylist_nil.hcl",
-			&client.ClientTemplateConfig{
-				DisableSandbox: true,
-			},
-		},
-		{
-			"test-resources/client_with_empty_template.hcl",
-			nil,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.File, func(t *testing.T) {
-			agentConfig, err := LoadConfig(tc.File)
-
-			require.NoError(t, err)
-
-			templateConfig := agentConfig.Client.TemplateConfig
-			require.Equal(t, tc.Expected, templateConfig)
-		})
-	}
-}
-
-func TestParseMultipleIPTemplates(t *testing.T) {
-	ci.Parallel(t)
-
-	testCases := []struct {
-		name        string
-		tmpl        string
-		expectedOut []string
-		expectErr   bool
-	}{
-		{
-			name:        "deduplicates same ip and preserves order",
-			tmpl:        "127.0.0.1 10.0.0.1 127.0.0.1",
-			expectedOut: []string{"127.0.0.1", "10.0.0.1"},
-			expectErr:   false,
-		},
-		{
-			name:        "includes sockaddr expression",
-			tmpl:        "10.0.0.1 {{ GetAllInterfaces | include \"flags\" \"loopback\" | limit 1 | attr \"address\" }} 10.0.0.2",
-			expectedOut: []string{"10.0.0.1", "127.0.0.1", "10.0.0.2"},
-			expectErr:   false,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			out, err := parseMultipleIPTemplate(tc.tmpl)
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedOut, out)
-		})
 	}
 }

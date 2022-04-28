@@ -8,19 +8,18 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPlanCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	var _ cli.Command = &JobRunCommand{}
 }
 
 func TestPlanCommand_Fails(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// Create a server
 	s := testutil.NewTestServer(t, nil)
@@ -114,7 +113,7 @@ job "job1" {
 }
 
 func TestPlanCommand_From_STDIN(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -157,7 +156,7 @@ job "job1" {
 }
 
 func TestPlanCommand_From_URL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	ui := cli.NewMockUi()
 	cmd := &JobPlanCommand{
 		Meta: Meta{Ui: ui},
@@ -174,7 +173,7 @@ func TestPlanCommand_From_URL(t *testing.T) {
 }
 
 func TestPlanCommad_Preemptions(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	ui := cli.NewMockUi()
 	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
 	require := require.New(t)
@@ -254,20 +253,4 @@ func TestPlanCommad_Preemptions(t *testing.T) {
 	require.Contains(out, "Job Type")
 	require.Contains(out, "batch")
 	require.Contains(out, "service")
-}
-
-func TestPlanCommad_JSON(t *testing.T) {
-	ui := cli.NewMockUi()
-	cmd := &JobPlanCommand{
-		Meta: Meta{Ui: ui},
-	}
-
-	args := []string{
-		"-address=http://nope",
-		"-json",
-		"testdata/example-short.json",
-	}
-	code := cmd.Run(args)
-	require.Equal(t, 255, code)
-	require.Contains(t, ui.ErrorWriter.String(), "Error during plan: Put")
 }

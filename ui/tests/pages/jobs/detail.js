@@ -13,7 +13,6 @@ import {
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
 import recommendationAccordion from 'nomad-ui/tests/pages/components/recommendation-accordion';
-import jobClientStatusBar from 'nomad-ui/tests/pages/components/job-client-status-bar';
 
 export default create({
   visit: visitable('/jobs/:id'),
@@ -29,16 +28,10 @@ export default create({
     return this.tabs.toArray().findBy('id', id);
   },
 
-  recommendations: collection(
-    '[data-test-recommendation-accordion]',
-    recommendationAccordion
-  ),
+  recommendations: collection('[data-test-recommendation-accordion]', recommendationAccordion),
 
   stop: twoStepButton('[data-test-stop]'),
   start: twoStepButton('[data-test-start]'),
-
-  packTag: isPresent('[data-test-pack-tag]'),
-  metaTable: isPresent('[data-test-meta]'),
 
   execButton: {
     scope: '[data-test-exec-button]',
@@ -66,31 +59,9 @@ export default create({
     return this.stats.toArray().findBy('id', id);
   },
 
-  packStats: collection('[data-test-pack-stat]', {
-    id: attribute('data-test-pack-stat'),
-    text: text(),
-  }),
+  childrenSummary: isPresent('[data-test-job-summary] [data-test-children-status-bar]'),
+  allocationsSummary: isPresent('[data-test-job-summary] [data-test-allocation-status-bar]'),
 
-  packStatFor(id) {
-    return this.packStats.toArray().findBy('id', id);
-  },
-
-  jobClientStatusSummary: {
-    scope: '[data-test-job-client-summary]',
-    statusBar: jobClientStatusBar('[data-test-job-client-status-bar]'),
-    toggle: {
-      scope: '[data-test-accordion-head] [data-test-accordion-toggle]',
-      click: clickable(),
-      isDisabled: attribute('disabled'),
-      tooltip: attribute('aria-label'),
-    },
-  },
-  childrenSummary: jobClientStatusBar(
-    '[data-test-job-summary] [data-test-children-status-bar]'
-  ),
-  allocationsSummary: jobClientStatusBar(
-    '[data-test-job-summary] [data-test-allocation-status-bar]'
-  ),
   ...allocations(),
 
   viewAllAllocations: text('[data-test-view-all-allocations]'),

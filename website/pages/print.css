@@ -2,7 +2,9 @@
 @media print {
   iframe,
   .g-footer,
-  [class*='hashi-stack-menu'],
+  .g-mega-nav,
+  .g-product-subnav,
+  .g-subnav,
   [aria-hidden='true'],
   [id='__next-build-watcher'],
   [id='edit-this-page'],
@@ -68,7 +70,7 @@
 
 @media print {
   /* @todo: remove alongside @hashicorp/react-global-styles/_temporary-to-remove/layout.css */
-  .g-grid-container {
+  .g-container {
     /*
     * A “measure” is the number of characters in a line of text.
     * Long lines fatique readers as they find the start of a new line of text.
@@ -224,6 +226,30 @@
     & .alert.alert-success,
     & .alert.alert-warning {
       background-color: transparent;
+    }
+  }
+}
+
+/* @todo: move print styles to @hashicorp/react-global-styles/code-highlighting.css */
+@media print {
+  .hljs {
+    & * {
+      color: inherit;
+    }
+  }
+}
+
+/* @todo: remove when working on website/components/docs-page/style.css */
+@media print {
+  #p-docs {
+    & #inner {
+      overflow: visible;
+      width: auto;
+
+      & pre,
+      & code {
+        font-size: 0.844rem;
+      }
     }
   }
 }

@@ -7,19 +7,21 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	golog "log"
 	"math/rand"
 	"net"
 	"net/rpc"
 	"strings"
 	"time"
 
+	golog "log"
+
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
+	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -595,7 +597,7 @@ CHECK_LEADER:
 		firstCheck = time.Now()
 	}
 	if time.Since(firstCheck) < r.config.RPCHoldTimeout {
-		jitter := helper.RandomStagger(r.config.RPCHoldTimeout / structs.JitterFraction)
+		jitter := lib.RandomStagger(r.config.RPCHoldTimeout / structs.JitterFraction)
 		select {
 		case <-time.After(jitter):
 			goto CHECK_LEADER
@@ -642,7 +644,7 @@ func (r *rpcHandler) forwardLeader(server *serverParts, method string, args inte
 	if server == nil {
 		return structs.ErrNoLeader
 	}
-	return r.connPool.RPC(r.config.Region, server.Addr, method, args, reply)
+	return r.connPool.RPC(r.config.Region, server.Addr, server.MajorVersion, method, args, reply)
 }
 
 // forwardServer is used to forward an RPC call to a particular server
@@ -651,7 +653,7 @@ func (r *rpcHandler) forwardServer(server *serverParts, method string, args inte
 	if server == nil {
 		return errors.New("must be given a valid server address")
 	}
-	return r.connPool.RPC(r.config.Region, server.Addr, method, args, reply)
+	return r.connPool.RPC(r.config.Region, server.Addr, server.MajorVersion, method, args, reply)
 }
 
 func (r *rpcHandler) findRegionServer(region string) (*serverParts, error) {
@@ -678,7 +680,7 @@ func (r *rpcHandler) forwardRegion(region, method string, args interface{}, repl
 
 	// Forward to remote Nomad
 	metrics.IncrCounter([]string{"nomad", "rpc", "cross-region", region}, 1)
-	return r.connPool.RPC(region, server.Addr, method, args, reply)
+	return r.connPool.RPC(region, server.Addr, server.MajorVersion, method, args, reply)
 }
 
 func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
@@ -706,7 +708,7 @@ func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
 // initial handshake, returning the connection or an error. It is the callers
 // responsibility to close the connection if there is no returned error.
 func (r *rpcHandler) streamingRpc(server *serverParts, method string) (net.Conn, error) {
-	c, err := r.connPool.StreamingRPC(r.config.Region, server.Addr)
+	c, err := r.connPool.StreamingRPC(r.config.Region, server.Addr, server.MajorVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -818,7 +820,7 @@ func (r *rpcHandler) blockingRPC(opts *blockingOptions) error {
 	opts.queryOpts.MaxQueryTime = opts.queryOpts.TimeToBlock()
 
 	// Apply a small amount of jitter to the request
-	opts.queryOpts.MaxQueryTime += helper.RandomStagger(opts.queryOpts.MaxQueryTime / structs.JitterFraction)
+	opts.queryOpts.MaxQueryTime += lib.RandomStagger(opts.queryOpts.MaxQueryTime / structs.JitterFraction)
 
 	// Setup a query timeout
 	ctx, cancel = context.WithTimeout(context.Background(), opts.queryOpts.MaxQueryTime)

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -66,7 +65,7 @@ func testRegisterJob(t *testing.T, s *Server, j *structs.Job) {
 
 // COMPAT 0.11: Tests the older unoptimized code path for applyPlan
 func TestPlanApply_applyPlan(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -240,7 +239,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 // Verifies that applyPlan properly updates the constituent objects in MemDB,
 // when the plan contains normalized allocs.
 func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Build = "0.9.2"
@@ -391,7 +390,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 }
 
 func TestPlanApply_EvalPlan_Simple(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
@@ -435,7 +434,7 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 }
 
 func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
 	node.NodeResources = &structs.NodeResources{
@@ -549,7 +548,7 @@ func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
 }
 
 func TestPlanApply_EvalPlan_Partial(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
@@ -607,7 +606,7 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 }
 
 func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
@@ -658,7 +657,7 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
@@ -685,7 +684,7 @@ func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
 	node.Status = structs.NodeStatusInit
@@ -713,7 +712,7 @@ func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	state := testStateStore(t)
 	node := mock.DrainNode()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
@@ -740,7 +739,7 @@ func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	state := testStateStore(t)
 	snap, _ := state.Snapshot()
 
@@ -766,7 +765,7 @@ func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
@@ -803,7 +802,7 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 
 // Test that we detect device oversubscription
 func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	alloc := mock.Alloc()
 	state := testStateStore(t)
@@ -856,7 +855,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
@@ -921,7 +920,7 @@ func TestPlanApply_EvalNodePlan_UpdateExisting_Ineligible(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
@@ -959,7 +958,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
@@ -992,7 +991,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
@@ -1023,81 +1022,5 @@ func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 	}
 	if reason != "" {
 		t.Fatalf("bad")
-	}
-}
-
-// TestPlanApply_EvalNodePlan_Node_Disconnected tests that plans for disconnected
-// nodes can only contain allocs with client status unknown.
-func TestPlanApply_EvalNodePlan_Node_Disconnected(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	node := mock.Node()
-	node.Status = structs.NodeStatusDisconnected
-	_ = state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	snap, _ := state.Snapshot()
-
-	unknownAlloc := mock.Alloc()
-	unknownAlloc.ClientStatus = structs.AllocClientStatusUnknown
-
-	runningAlloc := unknownAlloc.Copy()
-	runningAlloc.ClientStatus = structs.AllocClientStatusRunning
-
-	job := unknownAlloc.Job
-
-	type testCase struct {
-		name           string
-		nodeAllocs     map[string][]*structs.Allocation
-		expectedFit    bool
-		expectedReason string
-	}
-
-	testCases := []testCase{
-		{
-			name: "unknown-valid",
-			nodeAllocs: map[string][]*structs.Allocation{
-				node.ID: {unknownAlloc},
-			},
-			expectedFit:    true,
-			expectedReason: "",
-		},
-		{
-			name: "running-invalid",
-			nodeAllocs: map[string][]*structs.Allocation{
-				node.ID: {runningAlloc},
-			},
-			expectedFit:    false,
-			expectedReason: "node is disconnected and contains invalid updates",
-		},
-		{
-			name: "multiple-invalid",
-			nodeAllocs: map[string][]*structs.Allocation{
-				node.ID: {runningAlloc, unknownAlloc},
-			},
-			expectedFit:    false,
-			expectedReason: "node is disconnected and contains invalid updates",
-		},
-		{
-			name: "multiple-valid",
-			nodeAllocs: map[string][]*structs.Allocation{
-				node.ID: {unknownAlloc, unknownAlloc.Copy()},
-			},
-			expectedFit:    true,
-			expectedReason: "",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			plan := &structs.Plan{
-				Job:            job,
-				NodeAllocation: tc.nodeAllocs,
-			}
-
-			fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedFit, fit)
-			require.Equal(t, tc.expectedReason, reason)
-		})
 	}
 }

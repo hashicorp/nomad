@@ -25,8 +25,6 @@ import (
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
-	"github.com/hashicorp/nomad/client/serviceregistration"
-	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -114,11 +112,6 @@ type TaskRunner struct {
 	killErr     error
 	killErrLock sync.Mutex
 
-	// shutdownDelayCtx is a context from the alloc runner which will
-	// tell us to exit early from shutdown_delay
-	shutdownDelayCtx      context.Context
-	shutdownDelayCancelFn context.CancelFunc
-
 	// Logger is the logger for the task runner.
 	logger log.Logger
 
@@ -168,7 +161,7 @@ type TaskRunner struct {
 
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
-	consulServiceClient serviceregistration.Handler
+	consulServiceClient consul.ConsulServiceAPI
 
 	// consulProxiesClient is the client used by the envoy version hook for
 	// asking consul what version of envoy nomad should inject into the connect
@@ -240,10 +233,6 @@ type TaskRunner struct {
 	networkIsolationSpec *drivers.NetworkIsolationSpec
 
 	allocHookResources *cstructs.AllocHookResources
-
-	// serviceRegWrapper is the handler wrapper that is used by service hooks
-	// to perform service and check registration and deregistration.
-	serviceRegWrapper *wrapper.HandlerWrapper
 }
 
 type Config struct {
@@ -254,7 +243,7 @@ type Config struct {
 	Logger       log.Logger
 
 	// Consul is the client to use for managing Consul service registrations
-	Consul serviceregistration.Handler
+	Consul consul.ConsulServiceAPI
 
 	// ConsulProxies is the client to use for looking up supported envoy versions
 	// from Consul.
@@ -298,17 +287,6 @@ type Config struct {
 
 	// startConditionMetCtx is done when TR should start the task
 	StartConditionMetCtx <-chan struct{}
-
-	// ShutdownDelayCtx is a context from the alloc runner which will
-	// tell us to exit early from shutdown_delay
-	ShutdownDelayCtx context.Context
-
-	// ShutdownDelayCancelFn should only be used in testing.
-	ShutdownDelayCancelFn context.CancelFunc
-
-	// ServiceRegWrapper is the handler wrapper that is used by service hooks
-	// to perform service and check registration and deregistration.
-	ServiceRegWrapper *wrapper.HandlerWrapper
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -364,9 +342,6 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		maxEvents:              defaultMaxEvents,
 		serversContactedCh:     config.ServersContactedCh,
 		startConditionMetCtx:   config.StartConditionMetCtx,
-		shutdownDelayCtx:       config.ShutdownDelayCtx,
-		shutdownDelayCancelFn:  config.ShutdownDelayCancelFn,
-		serviceRegWrapper:      config.ServiceRegWrapper,
 	}
 
 	// Create the logger based on the allocation ID
@@ -460,8 +435,9 @@ func (tr *TaskRunner) initLabels() {
 	}
 }
 
-// MarkFailedDead marks a task as failed and not to run. Aimed to be invoked
-// when alloc runner prestart hooks failed. Should never be called with Run().
+// Mark a task as failed and not to run.  Aimed to be invoked when alloc runner
+// prestart hooks failed.
+// Should never be called with Run().
 func (tr *TaskRunner) MarkFailedDead(reason string) {
 	defer close(tr.waitCh)
 
@@ -925,8 +901,6 @@ func (tr *TaskRunner) handleKill(resultCh <-chan *drivers.ExitResult) *drivers.E
 		select {
 		case result := <-resultCh:
 			return result
-		case <-tr.shutdownDelayCtx.Done():
-			break
 		case <-time.After(delay):
 		}
 	}
@@ -1420,7 +1394,6 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	publishMetric(ms.RSS, "rss", "RSS")
 	publishMetric(ms.Cache, "cache", "Cache")
 	publishMetric(ms.Swap, "swap", "Swap")
-	publishMetric(ms.MappedFile, "mapped_file", "Mapped File")
 	publishMetric(ms.Usage, "usage", "Usage")
 	publishMetric(ms.MaxUsage, "max_usage", "Max Usage")
 	publishMetric(ms.KernelUsage, "kernel_usage", "Kernel Usage")
@@ -1510,10 +1483,4 @@ func (tr *TaskRunner) DriverCapabilities() (*drivers.Capabilities, error) {
 
 func (tr *TaskRunner) SetAllocHookResources(res *cstructs.AllocHookResources) {
 	tr.allocHookResources = res
-}
-
-// shutdownDelayCancel is used for testing only and cancels the
-// shutdownDelayCtx
-func (tr *TaskRunner) shutdownDelayCancel() {
-	tr.shutdownDelayCancelFn()
 }

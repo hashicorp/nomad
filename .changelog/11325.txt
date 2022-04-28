@@ -1,3 +1,0 @@
-```release-note:improvement
-hcl: tolerate empty strings for zero integer values in quota and job specification.
-```

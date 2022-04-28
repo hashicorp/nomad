@@ -1,3 +1,0 @@
-```release-note:improvement
-vault: Add JobID and TaskGroup to Vault Token metadata
-```

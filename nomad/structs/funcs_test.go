@@ -7,15 +7,12 @@ import (
 	"testing"
 
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRemoveAllocs(t *testing.T) {
-	ci.Parallel(t)
-
 	l := []*Allocation{
 		{ID: "foo"},
 		{ID: "bar"},
@@ -33,8 +30,6 @@ func TestRemoveAllocs(t *testing.T) {
 }
 
 func TestFilterTerminalAllocs(t *testing.T) {
-	ci.Parallel(t)
-
 	l := []*Allocation{
 		{
 			ID:            "bar",
@@ -86,8 +81,6 @@ func TestFilterTerminalAllocs(t *testing.T) {
 
 // COMPAT(0.11): Remove in 0.11
 func TestAllocsFit_PortsOvercommitted_Old(t *testing.T) {
-	ci.Parallel(t)
-
 	n := &Node{
 		Resources: &Resources{
 			Networks: []*NetworkResource{
@@ -144,8 +137,6 @@ func TestAllocsFit_PortsOvercommitted_Old(t *testing.T) {
 
 // COMPAT(0.11): Remove in 0.11
 func TestAllocsFit_Old(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 
 	n := &Node{
@@ -209,8 +200,6 @@ func TestAllocsFit_Old(t *testing.T) {
 
 // COMPAT(0.11): Remove in 0.11
 func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 
 	n := &Node{
@@ -275,8 +264,6 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 }
 
 func TestAllocsFit(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 
 	n := &Node{
@@ -418,8 +405,6 @@ func TestAllocsFit(t *testing.T) {
 }
 
 func TestAllocsFit_TerminalAlloc(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 
 	n := &Node{
@@ -503,8 +488,6 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 
 // Tests that AllocsFit detects device collisions
 func TestAllocsFit_Devices(t *testing.T) {
-	ci.Parallel(t)
-
 	require := require.New(t)
 
 	n := MockNvidiaNode()
@@ -572,8 +555,6 @@ func TestAllocsFit_Devices(t *testing.T) {
 // TestAllocsFit_MemoryOversubscription asserts that only reserved memory is
 // used for capacity
 func TestAllocsFit_MemoryOversubscription(t *testing.T) {
-	ci.Parallel(t)
-
 	n := &Node{
 		NodeResources: &NodeResources{
 			Cpu: NodeCpuResources{
@@ -628,8 +609,6 @@ func TestAllocsFit_MemoryOversubscription(t *testing.T) {
 
 // COMPAT(0.11): Remove in 0.11
 func TestScoreFitBinPack_Old(t *testing.T) {
-	ci.Parallel(t)
-
 	node := &Node{}
 	node.Resources = &Resources{
 		CPU:      4096,
@@ -690,8 +669,6 @@ func TestScoreFitBinPack_Old(t *testing.T) {
 }
 
 func TestScoreFitBinPack(t *testing.T) {
-	ci.Parallel(t)
-
 	node := &Node{}
 	node.NodeResources = &NodeResources{
 		Cpu: NodeCpuResources{
@@ -761,8 +738,6 @@ func TestScoreFitBinPack(t *testing.T) {
 }
 
 func TestACLPolicyListHash(t *testing.T) {
-	ci.Parallel(t)
-
 	h1 := ACLPolicyListHash(nil)
 	assert.NotEqual(t, "", h1)
 
@@ -809,8 +784,6 @@ func TestACLPolicyListHash(t *testing.T) {
 }
 
 func TestCompileACLObject(t *testing.T) {
-	ci.Parallel(t)
-
 	p1 := &ACLPolicy{
 		Name:        fmt.Sprintf("policy-%s", uuid.Generate()),
 		Description: "Super cool policy!",
@@ -870,8 +843,6 @@ func TestCompileACLObject(t *testing.T) {
 // TestGenerateMigrateToken asserts the migrate token is valid for use in HTTP
 // headers and CompareMigrateToken works as expected.
 func TestGenerateMigrateToken(t *testing.T) {
-	ci.Parallel(t)
-
 	assert := assert.New(t)
 	allocID := uuid.Generate()
 	nodeSecret := uuid.Generate()
@@ -892,8 +863,6 @@ func TestGenerateMigrateToken(t *testing.T) {
 }
 
 func TestMergeMultierrorWarnings(t *testing.T) {
-	ci.Parallel(t)
-
 	var errs []error
 
 	// empty
@@ -912,113 +881,8 @@ func TestMergeMultierrorWarnings(t *testing.T) {
 	require.Equal(t, "2 warning(s):\n\n* foo\n* bar", str)
 }
 
-func TestVaultPoliciesSet(t *testing.T) {
-	input := map[string]map[string]*Vault{
-		"tg1": {
-			"task1": {
-				Policies: []string{"policy1-1"},
-			},
-			"task2": {
-				Policies: []string{"policy1-2"},
-			},
-		},
-		"tg2": {
-			"task1": {
-				Policies: []string{"policy2"},
-			},
-			"task2": {
-				Policies: []string{"policy2"},
-			},
-		},
-		"tg3": {
-			"task1": {
-				Policies: []string{"policy3-1"},
-			},
-		},
-		"tg4": {
-			"task1": nil,
-		},
-		"tg5": {
-			"task1": {
-				Policies: []string{"policy2"},
-			},
-		},
-		"tg6": {
-			"task1": {},
-		},
-		"tg7": {
-			"task1": {
-				Policies: []string{"policy7", "policy7"},
-			},
-		},
-		"tg8": {
-			"task1": {
-				Policies: []string{"policy8-1-1", "policy8-1-2"},
-			},
-		},
-	}
-	expected := []string{
-		"policy1-1",
-		"policy1-2",
-		"policy2",
-		"policy3-1",
-		"policy7",
-		"policy8-1-1",
-		"policy8-1-2",
-	}
-	got := VaultPoliciesSet(input)
-	require.ElementsMatch(t, expected, got)
-}
-
-func TestVaultNamespaceSet(t *testing.T) {
-	input := map[string]map[string]*Vault{
-		"tg1": {
-			"task1": {
-				Namespace: "ns1-1",
-			},
-			"task2": {
-				Namespace: "ns1-2",
-			},
-		},
-		"tg2": {
-			"task1": {
-				Namespace: "ns2",
-			},
-			"task2": {
-				Namespace: "ns2",
-			},
-		},
-		"tg3": {
-			"task1": {
-				Namespace: "ns3-1",
-			},
-		},
-		"tg4": {
-			"task1": nil,
-		},
-		"tg5": {
-			"task1": {
-				Namespace: "ns2",
-			},
-		},
-		"tg6": {
-			"task1": {},
-		},
-	}
-	expected := []string{
-		"ns1-1",
-		"ns1-2",
-		"ns2",
-		"ns3-1",
-	}
-	got := VaultNamespaceSet(input)
-	require.ElementsMatch(t, expected, got)
-}
-
 // TestParsePortRanges asserts ParsePortRanges errors on invalid port ranges.
 func TestParsePortRanges(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		name string
 		spec string
@@ -1036,7 +900,7 @@ func TestParsePortRanges(t *testing.T) {
 		},
 		{
 			name: "TooBig",
-			spec: fmt.Sprintf("1-%d", MaxValidPort+1),
+			spec: fmt.Sprintf("1-%d", maxValidPort+1),
 			err:  "port must be < 65536 but found 65537",
 		},
 		{

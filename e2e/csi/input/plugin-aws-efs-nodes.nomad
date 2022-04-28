@@ -19,10 +19,13 @@ job "plugin-aws-efs-nodes" {
       driver = "docker"
 
       config {
-        image = "amazon/aws-efs-csi-driver:v1.3.6"
+        image = "amazon/aws-efs-csi-driver:v1.2.0"
+
+        # note: the EFS driver doesn't seem to respect the --endpoint
+        # flag and always sets up the listener at '/tmp/csi.sock'
         args = [
           "node",
-          "--endpoint=${CSI_ENDPOINT}",
+          "--endpoint=unix://tmp/csi.sock",
           "--logtostderr",
           "--v=5",
         ]
@@ -30,9 +33,6 @@ job "plugin-aws-efs-nodes" {
         privileged = true
       }
 
-      # note: the EFS driver doesn't seem to respect the --endpoint
-      # flag or CSI_ENDPOINT env var and always sets up the listener
-      # at '/tmp/csi.sock'
       csi_plugin {
         id        = "aws-efs0"
         type      = "node"

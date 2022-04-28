@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Run the hostpath plugin and create some volumes, and then claim them.
 set -e
 

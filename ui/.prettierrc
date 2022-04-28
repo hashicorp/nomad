@@ -1,11 +1,3 @@
-{
-  "singleQuote": true,
-  "overrides": [
-    {
-      "files": "*.hbs",
-      "options": {
-        "singleQuote": false
-      }
-    }
-  ]
-}
+printWidth: 100
+singleQuote: true
+trailingComma: es5

@@ -10,10 +10,7 @@ const testCases = [
   },
   {
     name: 'Generic Error',
-    in: [
-      new ServerError([{ detail: 'DB Max Connections' }], 'Server Error'),
-      'run tests',
-    ],
+    in: [new ServerError([{ detail: 'DB Max Connections' }], 'Server Error'), 'run tests'],
     out: 'DB Max Connections',
   },
   {
@@ -34,9 +31,9 @@ const testCases = [
   },
 ];
 
-module('Unit | Util | messageFromAdapterError', function () {
-  testCases.forEach((testCase) => {
-    test(testCase.name, function (assert) {
+module('Unit | Util | messageFromAdapterError', function() {
+  testCases.forEach(testCase => {
+    test(testCase.name, function(assert) {
       assert.equal(
         messageFromAdapterError.apply(null, testCase.in),
         testCase.out,

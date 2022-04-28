@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: Updated hashicorp/consul-template to v0.29.0
-```

@@ -1,3 +1,0 @@
-```release-note:improvement
-client: Download up to 3 artifacts concurrently
-```

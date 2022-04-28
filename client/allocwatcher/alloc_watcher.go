@@ -11,12 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/consul/lib"
 	hclog "github.com/hashicorp/go-hclog"
 	nomadapi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -401,7 +401,7 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 		err := p.rpc.RPC("Alloc.GetAlloc", &req, &resp)
 		if err != nil {
 			p.logger.Error("error querying previous alloc", "error", err)
-			retry := getRemoteRetryIntv + helper.RandomStagger(getRemoteRetryIntv)
+			retry := getRemoteRetryIntv + lib.RandomStagger(getRemoteRetryIntv)
 			select {
 			case <-time.After(retry):
 				continue
@@ -413,7 +413,8 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 			p.logger.Debug("blocking alloc was GC'd")
 			return nil
 		}
-		if resp.Alloc.Terminated() || resp.Alloc.ClientStatus == structs.AllocClientStatusUnknown {
+		if resp.Alloc.Terminated() {
+			// Terminated!
 			p.nodeID = resp.Alloc.NodeID
 			return nil
 		}
@@ -491,7 +492,7 @@ func (p *remotePrevAlloc) getNodeAddr(ctx context.Context, nodeID string) (strin
 		err := p.rpc.RPC("Node.GetNode", &req, &resp)
 		if err != nil {
 			p.logger.Error("failed to query node", "error", err, "node", nodeID)
-			retry := getRemoteRetryIntv + helper.RandomStagger(getRemoteRetryIntv)
+			retry := getRemoteRetryIntv + lib.RandomStagger(getRemoteRetryIntv)
 			select {
 			case <-time.After(retry):
 				continue
@@ -517,7 +518,7 @@ func (p *remotePrevAlloc) getNodeAddr(ctx context.Context, nodeID string) (strin
 // Destroy on the returned allocdir if no error occurs.
 func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) (*allocdir.AllocDir, error) {
 	// Create the previous alloc dir
-	prevAllocDir := allocdir.NewAllocDir(p.logger, p.config.AllocDir, p.prevAllocID)
+	prevAllocDir := allocdir.NewAllocDir(p.logger, filepath.Join(p.config.AllocDir, p.prevAllocID))
 	if err := prevAllocDir.Build(); err != nil {
 		return nil, fmt.Errorf("error building alloc dir for previous alloc %q: %v", p.prevAllocID, err)
 	}

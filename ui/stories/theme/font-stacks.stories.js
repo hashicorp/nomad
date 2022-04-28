@@ -2,7 +2,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { htmlSafe } from '@ember/string';
 
 export default {
-  title: 'Theme/Font Stacks',
+  title: 'Theme|Font Stacks',
 };
 
 export let FontStacks = () => {
@@ -33,7 +33,7 @@ export let FontStacks = () => {
         'Helvetica Neue',
         'sans-serif',
         'monospace',
-      ].map((family) => {
+      ].map(family => {
         return {
           name: family,
           style: htmlSafe(`font-family: ${family}`),

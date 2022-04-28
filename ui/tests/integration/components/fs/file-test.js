@@ -9,37 +9,25 @@ import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 const { assign } = Object;
 const HOST = '1.1.1.1:1111';
 
-module('Integration | Component | fs/file', function (hooks) {
+module('Integration | Component | fs/file', function(hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(function () {
-    this.server = new Pretender(function () {
+  hooks.beforeEach(function() {
+    this.server = new Pretender(function() {
       this.get('/v1/agent/members', () => [
         200,
         {},
         JSON.stringify({ ServerRegion: 'default', Members: [] }),
       ]);
-      this.get('/v1/regions', () => [
-        200,
-        {},
-        JSON.stringify(['default', 'region-2']),
-      ]);
-      this.get('/v1/client/fs/stream/:alloc_id', () => [
-        200,
-        {},
-        logEncode(['Hello World'], 0),
-      ]);
+      this.get('/v1/regions', () => [200, {}, JSON.stringify(['default', 'region-2'])]);
+      this.get('/v1/client/fs/stream/:alloc_id', () => [200, {}, logEncode(['Hello World'], 0)]);
       this.get('/v1/client/fs/cat/:alloc_id', () => [200, {}, 'Hello World']);
-      this.get('/v1/client/fs/readat/:alloc_id', () => [
-        200,
-        {},
-        'Hello World',
-      ]);
+      this.get('/v1/client/fs/readat/:alloc_id', () => [200, {}, 'Hello World']);
     });
     this.system = this.owner.lookup('service:system');
   });
 
-  hooks.afterEach(function () {
+  hooks.afterEach(function() {
     this.server.shutdown();
     window.localStorage.clear();
   });
@@ -76,9 +64,7 @@ module('Integration | Component | fs/file', function (hooks) {
       props
     );
 
-  test('When a file is text-based, the file mode is streaming', async function (assert) {
-    assert.expect(3);
-
+  test('When a file is text-based, the file mode is streaming', async function(assert) {
     const props = makeProps(fileStat('text/plain', 500));
     this.setProperties(props);
 
@@ -96,9 +82,7 @@ module('Integration | Component | fs/file', function (hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('When a file is an image, the file mode is image', async function (assert) {
-    assert.expect(3);
-
+  test('When a file is an image, the file mode is image', async function(assert) {
     const props = makeProps(fileStat('image/png', 1234));
     this.setProperties(props);
 
@@ -116,9 +100,7 @@ module('Integration | Component | fs/file', function (hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('When the file is neither text-based or an image, the unsupported file type empty state is shown', async function (assert) {
-    assert.expect(4);
-
+  test('When the file is neither text-based or an image, the unsupported file type empty state is shown', async function(assert) {
     const props = makeProps(fileStat('wat/ohno', 1234));
     this.setProperties(props);
 
@@ -132,14 +114,11 @@ module('Integration | Component | fs/file', function (hooks) {
       find('[data-test-file-box] [data-test-log-cli]'),
       'The streaming file component was not rendered'
     );
-    assert.ok(
-      find('[data-test-unsupported-type]'),
-      'Unsupported file type message is shown'
-    );
+    assert.ok(find('[data-test-unsupported-type]'), 'Unsupported file type message is shown');
     await componentA11yAudit(this.element, assert);
   });
 
-  test('The unsupported file type empty state includes a link to the raw file', async function (assert) {
+  test('The unsupported file type empty state includes a link to the raw file', async function(assert) {
     const props = makeProps(fileStat('wat/ohno', 1234));
     this.setProperties(props);
 
@@ -156,7 +135,7 @@ module('Integration | Component | fs/file', function (hooks) {
     );
   });
 
-  test('The view raw button goes to the correct API url', async function (assert) {
+  test('The view raw button goes to the correct API url', async function(assert) {
     const props = makeProps(fileStat('image/png', 1234));
     this.setProperties(props);
 
@@ -175,7 +154,7 @@ module('Integration | Component | fs/file', function (hooks) {
     );
   });
 
-  test('The view raw button respects the active region', async function (assert) {
+  test('The view raw button respects the active region', async function(assert) {
     const region = 'region-2';
     window.localStorage.nomadActiveRegion = region;
 
@@ -199,7 +178,7 @@ module('Integration | Component | fs/file', function (hooks) {
     );
   });
 
-  test('The head and tail buttons are not shown when the file is small', async function (assert) {
+  test('The head and tail buttons are not shown when the file is small', async function(assert) {
     const props = makeProps(fileStat('application/json', 5000));
     this.setProperties(props);
 
@@ -216,7 +195,7 @@ module('Integration | Component | fs/file', function (hooks) {
     assert.ok(find('[data-test-log-action="tail"]'), 'Tail button is shown');
   });
 
-  test('The  head and tail buttons are not shown for an image file', async function (assert) {
+  test('The  head and tail buttons are not shown for an image file', async function(assert) {
     const props = makeProps(fileStat('image/svg', 5000));
     this.setProperties(props);
 
@@ -233,9 +212,7 @@ module('Integration | Component | fs/file', function (hooks) {
     assert.notOk(find('[data-test-log-action="tail"]'), 'Still no tail button');
   });
 
-  test('Yielded content goes in the top-left header area', async function (assert) {
-    assert.expect(2);
-
+  test('Yielded content goes in the top-left header area', async function(assert) {
     const props = makeProps(fileStat('image/svg', 5000));
     this.setProperties(props);
 
@@ -253,7 +230,7 @@ module('Integration | Component | fs/file', function (hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('The body is full-bleed and dark when the file is streaming', async function (assert) {
+  test('The body is full-bleed and dark when the file is streaming', async function(assert) {
     const props = makeProps(fileStat('application/json', 5000));
     this.setProperties(props);
 
@@ -264,7 +241,7 @@ module('Integration | Component | fs/file', function (hooks) {
     assert.ok(classes.includes('is-full-bleed'), 'Body is full-bleed');
   });
 
-  test('The body has padding and a light background when the file is not streaming', async function (assert) {
+  test('The body has padding and a light background when the file is not streaming', async function(assert) {
     const props = makeProps(fileStat('image/jpeg', 5000));
     this.setProperties(props);
 
@@ -280,9 +257,6 @@ module('Integration | Component | fs/file', function (hooks) {
 
     classes = Array.from(find('[data-test-file-box]').classList);
     assert.notOk(classes.includes('is-dark'), 'Body is still not dark');
-    assert.notOk(
-      classes.includes('is-full-bleed'),
-      'Body is still not full-bleed'
-    );
+    assert.notOk(classes.includes('is-full-bleed'), 'Body is still not full-bleed');
   });
 });

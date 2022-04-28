@@ -3,12 +3,10 @@ import { setupTest } from 'ember-qunit';
 
 import { run } from '@ember/runloop';
 
-module('Unit | Model | task', function (hooks) {
+module('Unit | Model | task', function(hooks) {
   setupTest(hooks);
 
-  test("should expose mergedMeta as merged with the job's and task groups's meta", function (assert) {
-    assert.expect(8);
-
+  test("should expose mergedMeta as merged with the job's and task groups's meta", function(assert) {
     const job = run(() =>
       this.owner.lookup('service:store').createRecord('job', {
         name: 'example',
@@ -63,7 +61,10 @@ module('Unit | Model | task', function (hooks) {
 
     expected.forEach((exp, i) => {
       assert.deepEqual(
-        tg.get('tasks').objectAt(i).get('mergedMeta'),
+        tg
+          .get('tasks')
+          .objectAt(i)
+          .get('mergedMeta'),
         exp,
         'mergedMeta is merged with task meta'
       );
@@ -74,7 +75,10 @@ module('Unit | Model | task', function (hooks) {
 
     expected.forEach((exp, i) => {
       assert.deepEqual(
-        tg.get('tasks').objectAt(i).get('mergedMeta'),
+        tg
+          .get('tasks')
+          .objectAt(i)
+          .get('mergedMeta'),
         exp,
         'mergedMeta is merged with job meta'
       );

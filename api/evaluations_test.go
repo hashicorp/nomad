@@ -1,167 +1,149 @@
 package api
 
 import (
+	"reflect"
 	"sort"
+	"strings"
 	"testing"
-
-	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/stretchr/testify/require"
 )
 
 func TestEvaluations_List(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	e := c.Evaluations()
 
 	// Listing when nothing exists returns empty
 	result, qm, err := e.List(nil)
-	require.NoError(t, err)
-	require.Equal(t, uint64(0), qm.LastIndex, "bad index")
-	require.Equal(t, 0, len(result), "expected 0 evaluations")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if qm.LastIndex != 0 {
+		t.Fatalf("bad index: %d", qm.LastIndex)
+	}
+	if n := len(result); n != 0 {
+		t.Fatalf("expected 0 evaluations, got: %d", n)
+	}
 
 	// Register a job. This will create an evaluation.
 	jobs := c.Jobs()
 	job := testJob()
 	resp, wm, err := jobs.Register(job, nil)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
 	assertWriteMeta(t, wm)
 
 	// Check the evaluations again
 	result, qm, err = e.List(nil)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
 	assertQueryMeta(t, qm)
 
 	// if the eval fails fast there can be more than 1
 	// but they are in order of most recent first, so look at the last one
-	require.Greater(t, len(result), 0, "expected eval (%s), got none", resp.EvalID)
 	idx := len(result) - 1
-	require.Equal(t, resp.EvalID, result[idx].ID, "expected eval (%s), got: %#v", resp.EvalID, result[idx])
-
-	// wait until the 2nd eval shows up before we try paging
-	results := []*Evaluation{}
-	testutil.WaitForResult(func() (bool, error) {
-		results, _, err = e.List(nil)
-		if len(results) < 2 || err != nil {
-			return false, err
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
-
-	// query first page
-	result, qm, err = e.List(&QueryOptions{
-		PerPage: int32(1),
-	})
-	require.NoError(t, err)
-	require.Equal(t, 1, len(result), "expected no evals after last one but got %d: %#v", len(result), result)
-
-	// query second page
-	result, qm, err = e.List(&QueryOptions{
-		PerPage:   int32(1),
-		NextToken: qm.NextToken,
-	})
-	require.NoError(t, err)
-	require.Equal(t, 1, len(result), "expected no evals after last one but got %d: %#v", len(result), result)
-
-	// Query evaluations using a filter.
-	results, _, err = e.List(&QueryOptions{
-		Filter: `TriggeredBy == "job-register"`,
-	})
-	require.Equal(t, 1, len(result), "expected 1 eval, got %d", len(result))
+	if len(result) == 0 || result[idx].ID != resp.EvalID {
+		t.Fatalf("expected eval (%s), got: %#v", resp.EvalID, result[idx])
+	}
 }
 
 func TestEvaluations_PrefixList(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	e := c.Evaluations()
 
 	// Listing when nothing exists returns empty
 	result, qm, err := e.PrefixList("abcdef")
-	require.NoError(t, err)
-	require.Equal(t, uint64(0), qm.LastIndex, "bad index")
-	require.Equal(t, 0, len(result), "expected 0 evaluations")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if qm.LastIndex != 0 {
+		t.Fatalf("bad index: %d", qm.LastIndex)
+	}
+	if n := len(result); n != 0 {
+		t.Fatalf("expected 0 evaluations, got: %d", n)
+	}
 
 	// Register a job. This will create an evaluation.
 	jobs := c.Jobs()
 	job := testJob()
 	resp, wm, err := jobs.Register(job, nil)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
 	assertWriteMeta(t, wm)
 
 	// Check the evaluations again
 	result, qm, err = e.PrefixList(resp.EvalID[:4])
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
 	assertQueryMeta(t, qm)
 
 	// Check if we have the right list
-	require.Equal(t, 1, len(result))
-	require.Equal(t, resp.EvalID, result[0].ID)
+	if len(result) != 1 || result[0].ID != resp.EvalID {
+		t.Fatalf("bad: %#v", result)
+	}
 }
 
 func TestEvaluations_Info(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	e := c.Evaluations()
 
 	// Querying a nonexistent evaluation returns error
 	_, _, err := e.Info("8E231CF4-CA48-43FF-B694-5801E69E22FA", nil)
-	require.Error(t, err)
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error, got: %s", err)
+	}
 
 	// Register a job. Creates a new evaluation.
 	jobs := c.Jobs()
 	job := testJob()
 	resp, wm, err := jobs.Register(job, nil)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
 	assertWriteMeta(t, wm)
 
 	// Try looking up by the new eval ID
 	result, qm, err := e.Info(resp.EvalID, nil)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
 	assertQueryMeta(t, qm)
 
 	// Check that we got the right result
-	require.NotNil(t, result)
-	require.Equal(t, resp.EvalID, result.ID)
-
-	// Register the job again to get a related eval
-	resp, wm, err = jobs.Register(job, nil)
-	evals, _, err := e.List(nil)
-	require.NoError(t, err)
-
-	// Find an eval that should have related evals
-	for _, eval := range evals {
-		if eval.NextEval != "" || eval.PreviousEval != "" || eval.BlockedEval != "" {
-			result, qm, err := e.Info(eval.ID, &QueryOptions{
-				Params: map[string]string{
-					"related": "true",
-				},
-			})
-			require.NoError(t, err)
-			assertQueryMeta(t, qm)
-			require.NotNil(t, result.RelatedEvals)
-		}
+	if result == nil || result.ID != resp.EvalID {
+		t.Fatalf("expected eval %q, got: %#v", resp.EvalID, result)
 	}
 }
 
 func TestEvaluations_Allocations(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	e := c.Evaluations()
 
 	// Returns empty if no allocations
 	allocs, qm, err := e.Allocations("8E231CF4-CA48-43FF-B694-5801E69E22FA", nil)
-	require.NoError(t, err)
-	require.Equal(t, uint64(0), qm.LastIndex, "bad index")
-	require.Equal(t, 0, len(allocs), "expected 0 evaluations")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if qm.LastIndex != 0 {
+		t.Fatalf("bad index: %d", qm.LastIndex)
+	}
+	if n := len(allocs); n != 0 {
+		t.Fatalf("expected 0 allocs, got: %d", n)
+	}
 }
 
 func TestEvaluations_Sort(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	evals := []*Evaluation{
 		{CreateIndex: 2},
 		{CreateIndex: 1},
@@ -174,5 +156,7 @@ func TestEvaluations_Sort(t *testing.T) {
 		{CreateIndex: 2},
 		{CreateIndex: 1},
 	}
-	require.Equal(t, expect, evals)
+	if !reflect.DeepEqual(evals, expect) {
+		t.Fatalf("\n\n%#v\n\n%#v", evals, expect)
+	}
 }

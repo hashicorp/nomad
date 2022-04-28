@@ -11,7 +11,6 @@ import (
 
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -25,8 +24,7 @@ import (
 )
 
 func TestMonitor_Monitor(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	require := require.New(t)
 
 	// start server and client
@@ -107,8 +105,7 @@ OUTER:
 }
 
 func TestMonitor_Monitor_ACL(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	require := require.New(t)
 
 	// start server
@@ -220,8 +217,7 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 
 // Test that by default with no acl, endpoint is disabled
 func TestAgentProfile_DefaultDisabled(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	require := require.New(t)
 
 	// start server and client
@@ -247,8 +243,7 @@ func TestAgentProfile_DefaultDisabled(t *testing.T) {
 }
 
 func TestAgentProfile(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	require := require.New(t)
 
 	// start server and client
@@ -295,8 +290,7 @@ func TestAgentProfile(t *testing.T) {
 }
 
 func TestAgentProfile_ACL(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	require := require.New(t)
 
 	// start server
@@ -361,7 +355,7 @@ func TestAgentProfile_ACL(t *testing.T) {
 }
 
 func TestAgentHost(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// start server and client
 	s1, cleanup := nomad.TestServer(t, nil)
@@ -386,7 +380,7 @@ func TestAgentHost(t *testing.T) {
 }
 
 func TestAgentHost_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
 	defer cleanupS()

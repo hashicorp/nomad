@@ -103,7 +103,7 @@ func (a *AllocGarbageCollector) Run() {
 	}
 }
 
-// Trigger forces the garbage collector to run.
+// Force the garbage collector to run.
 func (a *AllocGarbageCollector) Trigger() {
 	select {
 	case a.triggerCh <- struct{}{}:

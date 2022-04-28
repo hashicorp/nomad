@@ -8,7 +8,6 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -98,7 +97,7 @@ func (c *MockClientCSI) NodeDetachVolume(req *cstructs.ClientCSINodeDetachVolume
 }
 
 func TestClientCSIController_AttachVolume_Local(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupLocal(t)
 	defer cleanup()
@@ -114,7 +113,7 @@ func TestClientCSIController_AttachVolume_Local(t *testing.T) {
 }
 
 func TestClientCSIController_AttachVolume_Forwarded(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupForward(t)
 	defer cleanup()
@@ -130,7 +129,7 @@ func TestClientCSIController_AttachVolume_Forwarded(t *testing.T) {
 }
 
 func TestClientCSIController_DetachVolume_Local(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupLocal(t)
 	defer cleanup()
@@ -146,7 +145,7 @@ func TestClientCSIController_DetachVolume_Local(t *testing.T) {
 }
 
 func TestClientCSIController_DetachVolume_Forwarded(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupForward(t)
 	defer cleanup()
@@ -162,7 +161,7 @@ func TestClientCSIController_DetachVolume_Forwarded(t *testing.T) {
 }
 
 func TestClientCSIController_ValidateVolume_Local(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupLocal(t)
 	defer cleanup()
@@ -179,7 +178,7 @@ func TestClientCSIController_ValidateVolume_Local(t *testing.T) {
 }
 
 func TestClientCSIController_ValidateVolume_Forwarded(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupForward(t)
 	defer cleanup()
@@ -196,7 +195,7 @@ func TestClientCSIController_ValidateVolume_Forwarded(t *testing.T) {
 }
 
 func TestClientCSIController_CreateVolume_Local(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupLocal(t)
 	defer cleanup()
@@ -212,7 +211,7 @@ func TestClientCSIController_CreateVolume_Local(t *testing.T) {
 }
 
 func TestClientCSIController_CreateVolume_Forwarded(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupForward(t)
 	defer cleanup()
@@ -228,7 +227,7 @@ func TestClientCSIController_CreateVolume_Forwarded(t *testing.T) {
 }
 
 func TestClientCSIController_DeleteVolume_Local(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupLocal(t)
 	defer cleanup()
@@ -245,7 +244,7 @@ func TestClientCSIController_DeleteVolume_Local(t *testing.T) {
 }
 
 func TestClientCSIController_DeleteVolume_Forwarded(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupForward(t)
 	defer cleanup()
@@ -262,7 +261,7 @@ func TestClientCSIController_DeleteVolume_Forwarded(t *testing.T) {
 }
 
 func TestClientCSIController_ListVolumes_Local(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupLocal(t)
 	defer cleanup()
@@ -278,7 +277,7 @@ func TestClientCSIController_ListVolumes_Local(t *testing.T) {
 }
 
 func TestClientCSIController_ListVolumes_Forwarded(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupForward(t)
 	defer cleanup()
@@ -294,7 +293,7 @@ func TestClientCSIController_ListVolumes_Forwarded(t *testing.T) {
 }
 
 func TestClientCSIController_CreateSnapshot_Local(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupLocal(t)
 	defer cleanup()
@@ -310,7 +309,7 @@ func TestClientCSIController_CreateSnapshot_Local(t *testing.T) {
 }
 
 func TestClientCSIController_CreateSnapshot_Forwarded(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupForward(t)
 	defer cleanup()
@@ -326,7 +325,7 @@ func TestClientCSIController_CreateSnapshot_Forwarded(t *testing.T) {
 }
 
 func TestClientCSIController_DeleteSnapshot_Local(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupLocal(t)
 	defer cleanup()
@@ -343,7 +342,7 @@ func TestClientCSIController_DeleteSnapshot_Local(t *testing.T) {
 }
 
 func TestClientCSIController_DeleteSnapshot_Forwarded(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupForward(t)
 	defer cleanup()
@@ -360,7 +359,7 @@ func TestClientCSIController_DeleteSnapshot_Forwarded(t *testing.T) {
 }
 
 func TestClientCSIController_ListSnapshots_Local(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupLocal(t)
 	defer cleanup()
@@ -376,7 +375,7 @@ func TestClientCSIController_ListSnapshots_Local(t *testing.T) {
 }
 
 func TestClientCSIController_ListSnapshots_Forwarded(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require := require.New(t)
 	codec, cleanup := setupForward(t)
 	defer cleanup()
@@ -392,7 +391,7 @@ func TestClientCSIController_ListSnapshots_Forwarded(t *testing.T) {
 }
 
 func TestClientCSI_NodeForControllerPlugin(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {})
 	testutil.WaitForLeader(t, srv.RPC)
 	defer shutdown()

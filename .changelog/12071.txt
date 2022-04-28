@@ -1,3 +1,0 @@
-```release-note:bug
-template: Fixed a bug where the default `function_denylist` would be appended to a specified list
-```

@@ -15,7 +15,6 @@ import classic from 'ember-classic-decorator';
 @classic
 export default class IndexController extends Controller.extend(Sortable) {
   @service token;
-  @service store;
 
   queryParams = [
     {
@@ -35,7 +34,7 @@ export default class IndexController extends Controller.extend(Sortable) {
   // Set in the route
   preempter = null;
 
-  @overridable(function () {
+  @overridable(function() {
     // { title, description }
     return null;
   })
@@ -67,7 +66,7 @@ export default class IndexController extends Controller.extend(Sortable) {
     }
   }
 
-  @task(function* () {
+  @task(function*() {
     try {
       yield this.model.stop();
       // Eagerly update the allocation clientStatus to avoid flickering
@@ -81,7 +80,7 @@ export default class IndexController extends Controller.extend(Sortable) {
   })
   stopAllocation;
 
-  @task(function* () {
+  @task(function*() {
     try {
       yield this.model.restart();
     } catch (err) {

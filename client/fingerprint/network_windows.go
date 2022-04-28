@@ -15,7 +15,7 @@ func (f *NetworkFingerprint) linkSpeed(device string) int {
 
 	outBytes, err := exec.Command(path, powershellParams, command).Output()
 	if err != nil {
-		f.logger.Warn("failed to detect link speed", "device", device, "path", path, "command", command, "error", err)
+		f.logger.Warn("failed to detect link speed", "path", path, "command", command, "error", err)
 		return 0
 	}
 	output := strings.TrimSpace(string(outBytes))

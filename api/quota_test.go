@@ -1,4 +1,3 @@
-//go:build ent
 // +build ent
 
 package api
@@ -6,12 +5,11 @@ package api
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestQuotas_Register(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -32,7 +30,7 @@ func TestQuotas_Register(t *testing.T) {
 }
 
 func TestQuotas_Register_Invalid(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -46,7 +44,7 @@ func TestQuotas_Register_Invalid(t *testing.T) {
 }
 
 func TestQuotas_Info(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -72,7 +70,7 @@ func TestQuotas_Info(t *testing.T) {
 }
 
 func TestQuotas_Usage(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -98,7 +96,7 @@ func TestQuotas_Usage(t *testing.T) {
 }
 
 func TestQuotas_Delete(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -130,7 +128,7 @@ func TestQuotas_Delete(t *testing.T) {
 }
 
 func TestQuotas_List(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -170,7 +168,7 @@ func TestQuotas_List(t *testing.T) {
 }
 
 func TestQuotas_ListUsages(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()

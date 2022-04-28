@@ -29,7 +29,7 @@ consistent evaluation when Nomad spans multiple time zones.
 
 ## `periodic` Requirements
 
-- The job's [scheduler type][batch-type] must be `batch` or `sysbatch`.
+- The job's [scheduler type][batch-type] must be `batch`.
 - A job can not be updated to be periodically. Thus, to transition an existing job to be periodic, you must first run `nomad stop -purge «job name»`. This is expected behavior and is to ensure that this change has been intentionally made by an operator.
 
 ## `periodic` Parameters

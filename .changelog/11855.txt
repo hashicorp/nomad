@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: Upgrade kr/pty to creack/pty v1.1.5
-```

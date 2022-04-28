@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Add `-var` and `-var-file` to the command line printed by `job plan`
-```

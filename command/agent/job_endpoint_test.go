@@ -1,27 +1,25 @@
 package agent
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strconv"
 	"testing"
 	"time"
 
 	"github.com/golang/snappy"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestHTTP_JobsList(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
 			// Create the job
@@ -53,13 +51,13 @@ func TestHTTP_JobsList(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -72,14 +70,12 @@ func TestHTTP_JobsList(t *testing.T) {
 }
 
 func TestHTTP_PrefixJobsList(t *testing.T) {
-	ci.Parallel(t)
-
 	ids := []string{
 		"aaaaaaaa-e8f7-fd38-c855-ab94ceb89706",
 		"aabbbbbb-e8f7-fd38-c855-ab94ceb89706",
 		"aabbcccc-e8f7-fd38-c855-ab94ceb89706",
 	}
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
 			// Create the job
@@ -113,13 +109,13 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -132,7 +128,7 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 }
 
 func TestHTTP_JobsList_AllNamespaces_OSS(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
 			// Create the job
@@ -159,9 +155,9 @@ func TestHTTP_JobsList_AllNamespaces_OSS(t *testing.T) {
 		require.NoError(t, err)
 
 		// Check for the index
-		require.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"), "missing index")
-		require.Equal(t, "true", respW.Result().Header.Get("X-Nomad-KnownLeader"), "missing known leader")
-		require.NotEmpty(t, respW.Result().Header.Get("X-Nomad-LastContact"), "missing last contact")
+		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
+		require.Equal(t, "true", respW.HeaderMap.Get("X-Nomad-KnownLeader"), "missing known leader")
+		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-LastContact"), "missing last contact")
 
 		// Check the job
 		j := obj.([]*structs.JobListStub)
@@ -172,7 +168,7 @@ func TestHTTP_JobsList_AllNamespaces_OSS(t *testing.T) {
 }
 
 func TestHTTP_JobsRegister(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := MockJob()
@@ -202,7 +198,7 @@ func TestHTTP_JobsRegister(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -226,7 +222,7 @@ func TestHTTP_JobsRegister(t *testing.T) {
 }
 
 func TestHTTP_JobsRegister_IgnoresParentID(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := MockJob()
@@ -252,7 +248,7 @@ func TestHTTP_JobsRegister_IgnoresParentID(t *testing.T) {
 		require.NotEmpty(t, reg.EvalID)
 
 		// Check for the index
-		require.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"))
+		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-Index"))
 
 		// Check the job is registered
 		getReq := structs.JobSpecificRequest{
@@ -289,7 +285,7 @@ func TestHTTP_JobsRegister_IgnoresParentID(t *testing.T) {
 
 // Test that ACL token is properly threaded through to the RPC endpoint
 func TestHTTP_JobsRegister_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpACLTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := MockJob()
@@ -319,7 +315,7 @@ func TestHTTP_JobsRegister_ACL(t *testing.T) {
 }
 
 func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := MockJob()
@@ -353,7 +349,7 @@ func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -380,7 +376,7 @@ func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
 }
 
 func TestHTTP_JobsParse(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		buf := encodeReq(api.JobsParseRequest{JobHCL: mock.HCL()})
 		req, err := http.NewRequest("POST", "/v1/jobs/parse", buf)
@@ -413,7 +409,7 @@ func TestHTTP_JobsParse(t *testing.T) {
 }
 
 func TestHTTP_JobsParse_ACL(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	httpACLTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
@@ -534,7 +530,7 @@ func TestHTTP_JobsParse_ACL(t *testing.T) {
 }
 
 func TestHTTP_JobQuery(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
@@ -564,13 +560,13 @@ func TestHTTP_JobQuery(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -583,7 +579,7 @@ func TestHTTP_JobQuery(t *testing.T) {
 }
 
 func TestHTTP_JobQuery_Payload(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
@@ -613,13 +609,13 @@ func TestHTTP_JobQuery_Payload(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -637,7 +633,7 @@ func TestHTTP_JobQuery_Payload(t *testing.T) {
 }
 
 func TestHTTP_jobUpdate_systemScaling(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := MockJob()
@@ -667,7 +663,7 @@ func TestHTTP_jobUpdate_systemScaling(t *testing.T) {
 }
 
 func TestHTTP_JobUpdate(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := MockJob()
@@ -700,7 +696,7 @@ func TestHTTP_JobUpdate(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -723,103 +719,8 @@ func TestHTTP_JobUpdate(t *testing.T) {
 	})
 }
 
-func TestHTTP_JobUpdate_EvalPriority(t *testing.T) {
-	ci.Parallel(t)
-
-	testCases := []struct {
-		inputEvalPriority int
-		expectedError     bool
-		name              string
-	}{
-		{
-			inputEvalPriority: 95,
-			expectedError:     false,
-			name:              "valid input eval priority",
-		},
-		{
-			inputEvalPriority: 99999999999,
-			expectedError:     true,
-			name:              "invalid input eval priority",
-		},
-		{
-			inputEvalPriority: 0,
-			expectedError:     false,
-			name:              "no input eval priority",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-
-			httpTest(t, nil, func(s *TestAgent) {
-				// Create the job
-				job := MockJob()
-				args := api.JobRegisterRequest{
-					Job: job,
-					WriteRequest: api.WriteRequest{
-						Region:    "global",
-						Namespace: api.DefaultNamespace,
-					},
-				}
-
-				// Add our eval priority query param if set.
-				if tc.inputEvalPriority > 0 {
-					args.EvalPriority = tc.inputEvalPriority
-				}
-				buf := encodeReq(args)
-
-				// Make the HTTP request
-				req, err := http.NewRequest("PUT", "/v1/job/"+*job.ID, buf)
-				assert.Nil(t, err)
-				respW := httptest.NewRecorder()
-
-				// Make the request
-				obj, err := s.Server.JobSpecificRequest(respW, req)
-				if tc.expectedError {
-					assert.NotNil(t, err)
-					return
-				} else {
-					assert.Nil(t, err)
-				}
-
-				// Check the response
-				regResp := obj.(structs.JobRegisterResponse)
-				assert.NotEmpty(t, regResp.EvalID)
-				assert.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"))
-
-				// Check the job is registered
-				getReq := structs.JobSpecificRequest{
-					JobID: *job.ID,
-					QueryOptions: structs.QueryOptions{
-						Region:    "global",
-						Namespace: structs.DefaultNamespace,
-					},
-				}
-				var getResp structs.SingleJobResponse
-				assert.Nil(t, s.Agent.RPC("Job.GetJob", &getReq, &getResp))
-				assert.NotNil(t, getResp.Job)
-
-				// Check the evaluation that resulted from the job register.
-				evalInfoReq, err := http.NewRequest("GET", "/v1/evaluation/"+regResp.EvalID, nil)
-				assert.Nil(t, err)
-				respW.Flush()
-
-				evalRaw, err := s.Server.EvalSpecificRequest(respW, evalInfoReq)
-				assert.Nil(t, err)
-				evalRespObj := evalRaw.(*structs.Evaluation)
-
-				if tc.inputEvalPriority > 0 {
-					assert.Equal(t, tc.inputEvalPriority, evalRespObj.Priority)
-				} else {
-					assert.Equal(t, *job.Priority, evalRespObj.Priority)
-				}
-			})
-		})
-	}
-}
-
 func TestHTTP_JobUpdateRegion(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		Name           string
@@ -897,7 +798,7 @@ func TestHTTP_JobUpdateRegion(t *testing.T) {
 				require.NotEmpty(t, dereg.EvalID)
 
 				// Check for the index
-				require.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"), "missing index")
+				require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
 
 				// Check the job is registered
 				getReq := structs.JobSpecificRequest{
@@ -918,7 +819,7 @@ func TestHTTP_JobUpdateRegion(t *testing.T) {
 }
 
 func TestHTTP_JobDelete(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
@@ -954,7 +855,7 @@ func TestHTTP_JobDelete(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -997,7 +898,7 @@ func TestHTTP_JobDelete(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -1019,119 +920,8 @@ func TestHTTP_JobDelete(t *testing.T) {
 	})
 }
 
-func TestHTTP_JobDelete_EvalPriority(t *testing.T) {
-	ci.Parallel(t)
-
-	testCases := []struct {
-		inputEvalPriority int
-		expectedError     bool
-		name              string
-	}{
-		{
-			inputEvalPriority: 95,
-			expectedError:     false,
-			name:              "valid input eval priority",
-		},
-		{
-			inputEvalPriority: 99999999999,
-			expectedError:     true,
-			name:              "invalid input eval priority",
-		},
-		{
-			inputEvalPriority: 0,
-			expectedError:     false,
-			name:              "no input eval priority",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-
-			httpTest(t, nil, func(s *TestAgent) {
-				// Create the job
-				job := MockJob()
-				args := api.JobRegisterRequest{
-					Job: job,
-					WriteRequest: api.WriteRequest{
-						Region:    "global",
-						Namespace: api.DefaultNamespace,
-					},
-				}
-				buf := encodeReq(args)
-
-				// Make the HTTP request
-				regReq, err := http.NewRequest("PUT", "/v1/job/"+*job.ID, buf)
-				assert.Nil(t, err)
-				respW := httptest.NewRecorder()
-
-				// Make the request
-				obj, err := s.Server.JobSpecificRequest(respW, regReq)
-				assert.Nil(t, err)
-
-				// Check the response
-				regResp := obj.(structs.JobRegisterResponse)
-				assert.NotEmpty(t, regResp.EvalID)
-				assert.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"))
-
-				// Check the job is registered
-				getReq := structs.JobSpecificRequest{
-					JobID: *job.ID,
-					QueryOptions: structs.QueryOptions{
-						Region:    "global",
-						Namespace: structs.DefaultNamespace,
-					},
-				}
-				var getResp structs.SingleJobResponse
-				assert.Nil(t, s.Agent.RPC("Job.GetJob", &getReq, &getResp))
-				assert.NotNil(t, getResp.Job)
-
-				// Delete the job.
-				deleteReq, err := http.NewRequest("DELETE", "/v1/job/"+*job.ID+"?purge=true", nil)
-				assert.Nil(t, err)
-				respW.Flush()
-
-				// Add our eval priority query param if set.
-				if tc.inputEvalPriority > 0 {
-					q := deleteReq.URL.Query()
-					q.Add("eval_priority", strconv.Itoa(tc.inputEvalPriority))
-					deleteReq.URL.RawQuery = q.Encode()
-				}
-
-				// Make the request
-				obj, err = s.Server.JobSpecificRequest(respW, deleteReq)
-				if tc.expectedError {
-					assert.NotNil(t, err)
-					return
-				} else {
-					assert.Nil(t, err)
-				}
-
-				// Check the response
-				dereg := obj.(structs.JobDeregisterResponse)
-				assert.NotEmpty(t, dereg.EvalID)
-				assert.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"))
-
-				// Check the evaluation that resulted from the job register.
-				evalInfoReq, err := http.NewRequest("GET", "/v1/evaluation/"+dereg.EvalID, nil)
-				assert.Nil(t, err)
-				respW.Flush()
-
-				evalRaw, err := s.Server.EvalSpecificRequest(respW, evalInfoReq)
-				assert.Nil(t, err)
-				evalRespObj := evalRaw.(*structs.Evaluation)
-
-				if tc.inputEvalPriority > 0 {
-					assert.Equal(t, tc.inputEvalPriority, evalRespObj.Priority)
-				} else {
-					assert.Equal(t, *job.Priority, evalRespObj.Priority)
-				}
-			})
-		})
-	}
-}
-
 func TestHTTP_Job_ScaleTaskGroup(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	require := require.New(t)
 
@@ -1192,7 +982,7 @@ func TestHTTP_Job_ScaleTaskGroup(t *testing.T) {
 }
 
 func TestHTTP_Job_ScaleStatus(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	require := require.New(t)
 
@@ -1231,7 +1021,7 @@ func TestHTTP_Job_ScaleStatus(t *testing.T) {
 }
 
 func TestHTTP_JobForceEvaluate(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
@@ -1267,14 +1057,14 @@ func TestHTTP_JobForceEvaluate(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 	})
 }
 
 func TestHTTP_JobEvaluate_ForceReschedule(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
@@ -1318,14 +1108,14 @@ func TestHTTP_JobEvaluate_ForceReschedule(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 	})
 }
 
 func TestHTTP_JobEvaluations(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
@@ -1363,20 +1153,20 @@ func TestHTTP_JobEvaluations(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 	})
 }
 
 func TestHTTP_JobAllocations(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		alloc1 := mock.Alloc()
@@ -1428,21 +1218,21 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		assert.Equal(t, expectedDisplayMsg, displayMsg)
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 	})
 }
 
 func TestHTTP_JobDeployments(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		j := mock.Job()
@@ -1478,15 +1268,15 @@ func TestHTTP_JobDeployments(t *testing.T) {
 		assert.Len(deploys, 1, "deployments")
 		assert.Equal(d.ID, deploys[0].ID, "deployment id")
 
-		assert.NotZero(respW.Result().Header.Get("X-Nomad-Index"), "missing index")
-		assert.Equal("true", respW.Result().Header.Get("X-Nomad-KnownLeader"), "missing known leader")
-		assert.NotZero(respW.Result().Header.Get("X-Nomad-LastContact"), "missing last contact")
+		assert.NotZero(respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
+		assert.Equal("true", respW.HeaderMap.Get("X-Nomad-KnownLeader"), "missing known leader")
+		assert.NotZero(respW.HeaderMap.Get("X-Nomad-LastContact"), "missing last contact")
 	})
 }
 
 func TestHTTP_JobDeployment(t *testing.T) {
-	ci.Parallel(t)
 	assert := assert.New(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		j := mock.Job()
@@ -1521,14 +1311,14 @@ func TestHTTP_JobDeployment(t *testing.T) {
 		assert.NotNil(out, "deployment")
 		assert.Equal(d.ID, out.ID, "deployment id")
 
-		assert.NotZero(respW.Result().Header.Get("X-Nomad-Index"), "missing index")
-		assert.Equal("true", respW.Result().Header.Get("X-Nomad-KnownLeader"), "missing known leader")
-		assert.NotZero(respW.Result().Header.Get("X-Nomad-LastContact"), "missing last contact")
+		assert.NotZero(respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
+		assert.Equal("true", respW.HeaderMap.Get("X-Nomad-KnownLeader"), "missing known leader")
+		assert.NotZero(respW.HeaderMap.Get("X-Nomad-LastContact"), "missing last contact")
 	})
 }
 
 func TestHTTP_JobVersions(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
@@ -1593,20 +1383,20 @@ func TestHTTP_JobVersions(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.Result().Header.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.Result().Header.Get("X-Nomad-LastContact") == "" {
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 	})
 }
 
 func TestHTTP_PeriodicForce(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create and register a periodic job.
 		job := mock.PeriodicJob()
@@ -1636,7 +1426,7 @@ func TestHTTP_PeriodicForce(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -1649,7 +1439,7 @@ func TestHTTP_PeriodicForce(t *testing.T) {
 }
 
 func TestHTTP_JobPlan(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := MockJob()
@@ -1689,7 +1479,7 @@ func TestHTTP_JobPlan(t *testing.T) {
 }
 
 func TestHTTP_JobPlanRegion(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		Name           string
@@ -1764,7 +1554,7 @@ func TestHTTP_JobPlanRegion(t *testing.T) {
 }
 
 func TestHTTP_JobDispatch(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the parameterized job
 		job := mock.BatchJob()
@@ -1819,7 +1609,7 @@ func TestHTTP_JobDispatch(t *testing.T) {
 }
 
 func TestHTTP_JobRevert(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job and register it twice
 		job := mock.Job()
@@ -1871,14 +1661,14 @@ func TestHTTP_JobRevert(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 	})
 }
 
 func TestHTTP_JobStable(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job and register it twice
 		job := mock.Job()
@@ -1929,14 +1719,14 @@ func TestHTTP_JobStable(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.Result().Header.Get("X-Nomad-Index") == "" {
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 	})
 }
 
 func TestJobs_ParsingWriteRequest(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// defaults
 	agentRegion := "agentRegion"
@@ -2077,7 +1867,7 @@ func TestJobs_ParsingWriteRequest(t *testing.T) {
 }
 
 func TestJobs_RegionForJob(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// defaults
 	agentRegion := "agentRegion"
@@ -2179,7 +1969,7 @@ func TestJobs_RegionForJob(t *testing.T) {
 }
 
 func TestJobs_NamespaceForJob(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// test namespace for pointer inputs
 	ns := "dev"
@@ -2249,117 +2039,7 @@ func TestJobs_NamespaceForJob(t *testing.T) {
 	}
 }
 
-func TestHTTPServer_jobServiceRegistrations(t *testing.T) {
-	ci.Parallel(t)
-
-	testCases := []struct {
-		testFn func(srv *TestAgent)
-		name   string
-	}{
-		{
-			testFn: func(s *TestAgent) {
-
-				// Grab the state, so we can manipulate it and test against it.
-				testState := s.Agent.server.State()
-
-				// Generate a job and upsert this.
-				job := mock.Job()
-				require.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, 10, job))
-
-				// Generate a service registration, assigned the jobID to the
-				// mocked jobID, and upsert this.
-				serviceReg := mock.ServiceRegistrations()[0]
-				serviceReg.JobID = job.ID
-				require.NoError(t, testState.UpsertServiceRegistrations(
-					structs.MsgTypeTestSetup, 20, []*structs.ServiceRegistration{serviceReg}))
-
-				// Build the HTTP request.
-				path := fmt.Sprintf("/v1/job/%s/services", job.ID)
-				req, err := http.NewRequest(http.MethodGet, path, nil)
-				require.NoError(t, err)
-				respW := httptest.NewRecorder()
-
-				// Send the HTTP request.
-				obj, err := s.Server.JobSpecificRequest(respW, req)
-				require.NoError(t, err)
-
-				// Check the response.
-				require.Equal(t, "20", respW.Header().Get("X-Nomad-Index"))
-				require.ElementsMatch(t, []*structs.ServiceRegistration{serviceReg},
-					obj.([]*structs.ServiceRegistration))
-			},
-			name: "job has registrations",
-		},
-		{
-			testFn: func(s *TestAgent) {
-
-				// Grab the state, so we can manipulate it and test against it.
-				testState := s.Agent.server.State()
-
-				// Generate a job and upsert this.
-				job := mock.Job()
-				require.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, 10, job))
-
-				// Build the HTTP request.
-				path := fmt.Sprintf("/v1/job/%s/services", job.ID)
-				req, err := http.NewRequest(http.MethodGet, path, nil)
-				require.NoError(t, err)
-				respW := httptest.NewRecorder()
-
-				// Send the HTTP request.
-				obj, err := s.Server.JobSpecificRequest(respW, req)
-				require.NoError(t, err)
-
-				// Check the response.
-				require.Equal(t, "1", respW.Header().Get("X-Nomad-Index"))
-				require.ElementsMatch(t, []*structs.ServiceRegistration{}, obj.([]*structs.ServiceRegistration))
-			},
-			name: "job without registrations",
-		},
-		{
-			testFn: func(s *TestAgent) {
-
-				// Build the HTTP request.
-				req, err := http.NewRequest(http.MethodGet, "/v1/job/example/services", nil)
-				require.NoError(t, err)
-				respW := httptest.NewRecorder()
-
-				// Send the HTTP request.
-				obj, err := s.Server.JobSpecificRequest(respW, req)
-				require.Error(t, err)
-				require.Contains(t, err.Error(), "job not found")
-				require.Nil(t, obj)
-			},
-			name: "job not found",
-		},
-		{
-			testFn: func(s *TestAgent) {
-
-				// Build the HTTP request.
-				req, err := http.NewRequest(http.MethodHead, "/v1/job/example/services", nil)
-				require.NoError(t, err)
-				respW := httptest.NewRecorder()
-
-				// Send the HTTP request.
-				obj, err := s.Server.JobSpecificRequest(respW, req)
-				require.Error(t, err)
-				require.Contains(t, err.Error(), "Invalid method")
-				require.Nil(t, obj)
-			},
-			name: "incorrect method",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			httpTest(t, nil, tc.testFn)
-		})
-	}
-}
-
 func TestJobs_ApiJobToStructsJob(t *testing.T) {
-	ci.Parallel(t)
-
 	apiJob := &api.Job{
 		Stop:        helper.BoolToPtr(true),
 		Region:      helper.StringToPtr("global"),
@@ -2514,7 +2194,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						CanaryTags:        []string{"d", "e"},
 						EnableTagOverride: true,
 						PortLabel:         "1234",
-						Address:           "group.example.com",
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
@@ -2524,6 +2203,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 						Checks: []api.ServiceCheck{
 							{
+								Id:            "hello",
 								Name:          "bar",
 								Type:          "http",
 								Command:       "foo",
@@ -2558,7 +2238,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 					},
 				},
-				MaxClientDisconnect: helper.TimeToPtr(30 * time.Second),
 				Tasks: []*api.Task{
 					{
 						Name:   "task1",
@@ -2602,12 +2281,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 						Services: []*api.Service{
 							{
+								Id:                "id",
 								Name:              "serviceA",
 								Tags:              []string{"1", "2"},
 								CanaryTags:        []string{"3", "4"},
 								EnableTagOverride: true,
 								PortLabel:         "foo",
-								Address:           "task.example.com",
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
@@ -2617,6 +2296,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								},
 								Checks: []api.ServiceCheck{
 									{
+										Id:                     "hello",
 										Name:                   "bar",
 										Type:                   "http",
 										Command:                "foo",
@@ -2638,6 +2318,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										},
 									},
 									{
+										Id:        "check2id",
 										Name:      "check2",
 										Type:      "tcp",
 										PortLabel: "foo",
@@ -2733,10 +2414,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LeftDelim:    helper.StringToPtr("abc"),
 								RightDelim:   helper.StringToPtr("def"),
 								Envvars:      helper.BoolToPtr(true),
-								Wait: &api.WaitConfig{
-									Min: helper.TimeToPtr(5 * time.Second),
-									Max: helper.TimeToPtr(10 * time.Second),
-								},
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
@@ -2905,13 +2582,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Services: []*structs.Service{
 					{
 						Name:              "groupserviceA",
-						Provider:          "consul",
 						Tags:              []string{"a", "b"},
 						CanaryTags:        []string{"d", "e"},
 						EnableTagOverride: true,
 						PortLabel:         "1234",
 						AddressMode:       "auto",
-						Address:           "group.example.com",
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
@@ -2954,7 +2629,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 					},
 				},
-				MaxClientDisconnect: helper.TimeToPtr(30 * time.Second),
 				Tasks: []*structs.Task{
 					{
 						Name:   "task1",
@@ -2999,13 +2673,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Services: []*structs.Service{
 							{
 								Name:              "serviceA",
-								Provider:          "consul",
 								Tags:              []string{"1", "2"},
 								CanaryTags:        []string{"3", "4"},
 								EnableTagOverride: true,
 								PortLabel:         "foo",
 								AddressMode:       "auto",
-								Address:           "task.example.com",
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
@@ -3135,10 +2807,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LeftDelim:    "abc",
 								RightDelim:   "def",
 								Envvars:      true,
-								Wait: &structs.WaitConfig{
-									Min: helper.TimeToPtr(5 * time.Second),
-									Max: helper.TimeToPtr(10 * time.Second),
-								},
 							},
 						},
 						DispatchPayload: &structs.DispatchPayloadConfig{
@@ -3401,8 +3069,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 }
 
 func TestJobs_ApiJobToStructsJobUpdate(t *testing.T) {
-	ci.Parallel(t)
-
 	apiJob := &api.Job{
 		Update: &api.UpdateStrategy{
 			Stagger:          helper.TimeToPtr(1 * time.Second),
@@ -3481,7 +3147,7 @@ func TestJobs_ApiJobToStructsJobUpdate(t *testing.T) {
 // While this is an odd place to test that, this is where both are imported,
 // validated, and converted.
 func TestJobs_Matching_Resources(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// api.MinResources == structs.MinResources
 	structsMinRes := ApiResourcesToStructs(api.MinResources())
@@ -3495,7 +3161,7 @@ func TestJobs_Matching_Resources(t *testing.T) {
 // TestHTTP_JobValidate_SystemMigrate asserts that a system job with a migrate
 // stanza fails to validate but does not panic (see #5477).
 func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := &api.Job{
@@ -3536,13 +3202,13 @@ func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
 }
 
 func TestConversion_dereferenceInt(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require.Equal(t, 0, dereferenceInt(nil))
 	require.Equal(t, 42, dereferenceInt(helper.IntToPtr(42)))
 }
 
 func TestConversion_apiLogConfigToStructs(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require.Nil(t, apiLogConfigToStructs(nil))
 	require.Equal(t, &structs.LogConfig{
 		MaxFiles:      2,
@@ -3554,7 +3220,7 @@ func TestConversion_apiLogConfigToStructs(t *testing.T) {
 }
 
 func TestConversion_apiResourcesToStructs(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	cases := []struct {
 		name     string
@@ -3601,7 +3267,7 @@ func TestConversion_apiResourcesToStructs(t *testing.T) {
 }
 
 func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
 	delay := time.Duration(200)
 	timeout := time.Duration(1000)
@@ -3648,7 +3314,7 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 }
 
 func TestConversion_apiConsulExposePathsToStructs(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require.Nil(t, apiConsulExposePathsToStructs(nil))
 	require.Nil(t, apiConsulExposePathsToStructs(make([]*api.ConsulExposePath, 0)))
 	require.Equal(t, []structs.ConsulExposePath{{
@@ -3665,7 +3331,7 @@ func TestConversion_apiConsulExposePathsToStructs(t *testing.T) {
 }
 
 func TestConversion_apiConsulExposeConfigToStructs(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require.Nil(t, apiConsulExposeConfigToStructs(nil))
 	require.Equal(t, &structs.ConsulExposeConfig{
 		Paths: []structs.ConsulExposePath{{Path: "/health"}},
@@ -3675,7 +3341,7 @@ func TestConversion_apiConsulExposeConfigToStructs(t *testing.T) {
 }
 
 func TestConversion_apiUpstreamsToStructs(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require.Nil(t, apiUpstreamsToStructs(nil))
 	require.Nil(t, apiUpstreamsToStructs(make([]*api.ConsulUpstream, 0)))
 	require.Equal(t, []structs.ConsulUpstream{{
@@ -3694,14 +3360,14 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 }
 
 func TestConversion_apiConsulMeshGatewayToStructs(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require.Nil(t, apiMeshGatewayToStructs(nil))
 	require.Equal(t, &structs.ConsulMeshGateway{Mode: "remote"},
 		apiMeshGatewayToStructs(&api.ConsulMeshGateway{Mode: "remote"}))
 }
 
 func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require.Nil(t, apiConnectSidecarServiceProxyToStructs(nil))
 	config := make(map[string]interface{})
 	require.Equal(t, &structs.ConsulProxy{
@@ -3730,7 +3396,7 @@ func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
 }
 
 func TestConversion_apiConnectSidecarServiceToStructs(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
 	require.Equal(t, &structs.ConsulSidecarService{
 		Tags: []string{"foo"},
@@ -3748,7 +3414,7 @@ func TestConversion_apiConnectSidecarServiceToStructs(t *testing.T) {
 }
 
 func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
 		require.Nil(t, ApiConsulConnectToStructs(nil))

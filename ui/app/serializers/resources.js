@@ -1,7 +1,5 @@
 import ApplicationSerializer from './application';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class ResourcesSerializer extends ApplicationSerializer {
   arrayNullOverrides = ['Ports', 'Networks'];
 

@@ -1,6 +1,9 @@
 import { productName, productSlug } from 'data/metadata'
 import DocsPage from '@hashicorp/react-docs-page'
-import { getStaticGenerationFunctions } from '@hashicorp/react-docs-page/server'
+import {
+  generateStaticPaths,
+  generateStaticProps,
+} from '@hashicorp/react-docs-page/server'
 import Placement from 'components/placement-table'
 
 const NAV_DATA_FILE = 'data/docs-nav-data.json'
@@ -19,21 +22,24 @@ export default function DocsLayout(props) {
   )
 }
 
-const { getStaticPaths, getStaticProps } = getStaticGenerationFunctions(
-  process.env.ENABLE_VERSIONED_DOCS === 'true'
-    ? {
-        strategy: 'remote',
-        basePath: basePath,
-        fallback: 'blocking',
-        revalidate: 360, // 1 hour
-        product: productSlug,
-      }
-    : {
-        strategy: 'fs',
-        localContentDir: CONTENT_DIR,
-        navDataFile: NAV_DATA_FILE,
-        product: productSlug,
-      }
-)
+export async function getStaticPaths() {
+  return {
+    fallback: false,
+    paths: await generateStaticPaths({
+      navDataFile: NAV_DATA_FILE,
+      localContentDir: CONTENT_DIR,
+    }),
+  }
+}
 
-export { getStaticPaths, getStaticProps }
+export async function getStaticProps({ params }) {
+  return {
+    props: await generateStaticProps({
+      navDataFile: NAV_DATA_FILE,
+      localContentDir: CONTENT_DIR,
+      product: { name: productName, slug: productSlug },
+      params,
+      additionalComponents,
+    }),
+  }
+}

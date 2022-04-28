@@ -2,7 +2,6 @@ package consul
 
 import (
 	"fmt"
-	"os"
 	"sort"
 
 	capi "github.com/hashicorp/consul/api"
@@ -38,39 +37,19 @@ var (
 	allConsulNamespaces = append(consulNamespaces, "default")
 )
 
-func init() {
-	framework.AddSuites(&framework.TestSuite{
-		Component:   "ConsulNamespaces",
-		CanRunLocal: true,
-		Consul:      true,
-		Cases: []framework.TestCase{
-			new(ConsulNamespacesE2ETest),
-		},
-	})
-}
-
 type ConsulNamespacesE2ETest struct {
 	framework.TC
 
 	jobIDs []string
 
-	// cToken contains the Consul global-management token
+	// cToken contains the Consul global-management token during ACL enabled
+	// tests (i.e. ConsulNamespacesE2ETestACLs which embeds ConsulNamespacesE2ETest).
 	cToken string
-
-	// created policy and token IDs should be set here so they can be cleaned
-	// up after each test case, organized by namespace
-	policyIDs map[string][]string
-	tokenIDs  map[string][]string
 }
 
 func (tc *ConsulNamespacesE2ETest) BeforeAll(f *framework.F) {
-	tc.policyIDs = make(map[string][]string)
-	tc.tokenIDs = make(map[string][]string)
-
 	e2eutil.WaitForLeader(f.T(), tc.Nomad())
 	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 1)
-
-	tc.cToken = os.Getenv("CONSUL_HTTP_TOKEN")
 
 	// create a set of consul namespaces in which to register services
 	e2eutil.CreateConsulNamespaces(f.T(), tc.Consul(), consulNamespaces)
@@ -82,6 +61,9 @@ func (tc *ConsulNamespacesE2ETest) BeforeAll(f *framework.F) {
 		value := fmt.Sprintf("ns_%s", namespace)
 		e2eutil.PutConsulKey(f.T(), tc.Consul(), namespace, "ns-kv-example", value)
 	}
+
+	// make the unused variable linter happy in oss
+	f.T().Log("Consul global-management token:", tc.cToken)
 }
 
 func (tc *ConsulNamespacesE2ETest) AfterAll(f *framework.F) {

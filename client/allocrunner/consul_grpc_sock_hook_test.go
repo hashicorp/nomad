@@ -11,7 +11,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -25,7 +24,7 @@ import (
 // Consul unix socket hook's Prerun method is called and stopped with the
 // Postrun method is called.
 func TestConsulGRPCSocketHook_PrerunPostrun_Ok(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	// As of Consul 1.6.0 the test server does not support the gRPC
 	// endpoint so we have to fake it.
@@ -40,7 +39,7 @@ func TestConsulGRPCSocketHook_PrerunPostrun_Ok(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap", alloc.ID)
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap")
 	defer cleanup()
 
 	// Start the unix socket proxy
@@ -102,18 +101,18 @@ func TestConsulGRPCSocketHook_PrerunPostrun_Ok(t *testing.T) {
 // TestConsulGRPCSocketHook_Prerun_Error asserts that invalid Consul addresses cause
 // Prerun to return an error if the alloc requires a grpc proxy.
 func TestConsulGRPCSocketHook_Prerun_Error(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	logger := testlog.HCLogger(t)
+
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap")
+	defer cleanup()
 
 	// A config without an Addr or GRPCAddr is invalid.
 	consulConfig := &config.ConsulConfig{}
 
 	alloc := mock.Alloc()
 	connectAlloc := mock.ConnectAlloc()
-
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap", alloc.ID)
-	defer cleanup()
 
 	{
 		// An alloc without a Connect proxy sidecar should not return
@@ -154,7 +153,7 @@ func TestConsulGRPCSocketHook_Prerun_Error(t *testing.T) {
 // TestConsulGRPCSocketHook_proxy_Unix asserts that the destination can be a unix
 // socket path.
 func TestConsulGRPCSocketHook_proxy_Unix(t *testing.T) {
-	ci.Parallel(t)
+	t.Parallel()
 
 	dir, err := ioutil.TempDir("", "nomadtest_proxy_Unix")
 	require.NoError(t, err)

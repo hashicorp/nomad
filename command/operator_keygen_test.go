@@ -4,13 +4,11 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 )
 
 func TestKeygenCommand(t *testing.T) {
-	ci.Parallel(t)
-
+	t.Parallel()
 	ui := cli.NewMockUi()
 	c := &OperatorKeygenCommand{Meta: Meta{Ui: ui}}
 	code := c.Run(nil)

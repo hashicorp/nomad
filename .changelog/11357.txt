@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Display jobs from all namespaces by default
-```

@@ -1,3 +1,0 @@
-```release-note:improvement
-connect: bootstrap envoy sidecars using -proxy-for
-```

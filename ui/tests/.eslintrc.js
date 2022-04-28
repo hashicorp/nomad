@@ -10,7 +10,6 @@ module.exports = {
   env: {
     embertest: true,
   },
-  extends: ['plugin:qunit/recommended'],
   overrides: [
     {
       files: ['acceptance/**/*-test.js'],

@@ -10,7 +10,6 @@ import (
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/wrappers"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	fake "github.com/hashicorp/nomad/plugins/csi/testing"
 	"github.com/stretchr/testify/require"
@@ -44,8 +43,6 @@ func newTestClient(t *testing.T) (*fake.IdentityClient, *fake.ControllerClient, 
 }
 
 func TestClient_RPC_PluginProbe(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		Name             string
 		ResponseErr      error
@@ -104,8 +101,6 @@ func TestClient_RPC_PluginProbe(t *testing.T) {
 }
 
 func TestClient_RPC_PluginInfo(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		Name                    string
 		ResponseErr             error
@@ -159,8 +154,6 @@ func TestClient_RPC_PluginInfo(t *testing.T) {
 }
 
 func TestClient_RPC_PluginGetCapabilities(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		Name             string
 		ResponseErr      error
@@ -224,8 +217,6 @@ func TestClient_RPC_PluginGetCapabilities(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerGetCapabilities(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		Name             string
 		ResponseErr      error
@@ -324,8 +315,6 @@ func TestClient_RPC_ControllerGetCapabilities(t *testing.T) {
 }
 
 func TestClient_RPC_NodeGetCapabilities(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		Name             string
 		ResponseErr      error
@@ -384,8 +373,6 @@ func TestClient_RPC_NodeGetCapabilities(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		Name             string
 		Request          *ControllerPublishVolumeRequest
@@ -451,8 +438,6 @@ func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerUnpublishVolume(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		Name             string
 		Request          *ControllerUnpublishVolumeRequest
@@ -499,7 +484,6 @@ func TestClient_RPC_ControllerUnpublishVolume(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
-	ci.Parallel(t)
 
 	cases := []struct {
 		Name        string
@@ -724,7 +708,6 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerCreateVolume(t *testing.T) {
-	ci.Parallel(t)
 
 	cases := []struct {
 		Name          string
@@ -765,7 +748,7 @@ func TestClient_RPC_ControllerCreateVolume(t *testing.T) {
 		},
 
 		{
-			Name: "handles success with capacity range, source, and topology",
+			Name: "handles success with capacity range and source",
 			CapacityRange: &CapacityRange{
 				RequiredBytes: 500,
 				LimitBytes:    1000,
@@ -782,9 +765,6 @@ func TestClient_RPC_ControllerCreateVolume(t *testing.T) {
 								SnapshotId: "snap-12345",
 							},
 						},
-					},
-					AccessibleTopology: []*csipbv1.Topology{
-						{Segments: map[string]string{"rack": "R1"}},
 					},
 				},
 			},
@@ -804,19 +784,10 @@ func TestClient_RPC_ControllerCreateVolume(t *testing.T) {
 						AccessMode: VolumeAccessModeMultiNodeMultiWriter,
 					},
 				},
-				Parameters:    map[string]string{},
-				Secrets:       structs.CSISecrets{},
-				ContentSource: tc.ContentSource,
-				AccessibilityRequirements: &TopologyRequirement{
-					Requisite: []*Topology{
-						{
-							Segments: map[string]string{"rack": "R1"},
-						},
-						{
-							Segments: map[string]string{"rack": "R2"},
-						},
-					},
-				},
+				Parameters:                map[string]string{},
+				Secrets:                   structs.CSISecrets{},
+				ContentSource:             tc.ContentSource,
+				AccessibilityRequirements: &TopologyRequirement{},
 			}
 
 			cc.NextCreateVolumeResponse = tc.Response
@@ -839,20 +810,11 @@ func TestClient_RPC_ControllerCreateVolume(t *testing.T) {
 				require.Equal(t, tc.ContentSource.CloneID, resp.Volume.ContentSource.CloneID)
 				require.Equal(t, tc.ContentSource.SnapshotID, resp.Volume.ContentSource.SnapshotID)
 			}
-			if tc.Response != nil && tc.Response.Volume != nil {
-				require.Len(t, resp.Volume.AccessibleTopology, 1)
-				require.Equal(t,
-					req.AccessibilityRequirements.Requisite[0].Segments,
-					resp.Volume.AccessibleTopology[0].Segments,
-				)
-			}
-
 		})
 	}
 }
 
 func TestClient_RPC_ControllerDeleteVolume(t *testing.T) {
-	ci.Parallel(t)
 
 	cases := []struct {
 		Name        string
@@ -895,7 +857,6 @@ func TestClient_RPC_ControllerDeleteVolume(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerListVolume(t *testing.T) {
-	ci.Parallel(t)
 
 	cases := []struct {
 		Name        string
@@ -990,7 +951,6 @@ func TestClient_RPC_ControllerListVolume(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerCreateSnapshot(t *testing.T) {
-	ci.Parallel(t)
 
 	now := time.Now()
 
@@ -1057,7 +1017,6 @@ func TestClient_RPC_ControllerCreateSnapshot(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerDeleteSnapshot(t *testing.T) {
-	ci.Parallel(t)
 
 	cases := []struct {
 		Name        string
@@ -1100,7 +1059,6 @@ func TestClient_RPC_ControllerDeleteSnapshot(t *testing.T) {
 }
 
 func TestClient_RPC_ControllerListSnapshots(t *testing.T) {
-	ci.Parallel(t)
 
 	cases := []struct {
 		Name        string
@@ -1168,8 +1126,6 @@ func TestClient_RPC_ControllerListSnapshots(t *testing.T) {
 }
 
 func TestClient_RPC_NodeStageVolume(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		Name        string
 		ResponseErr error
@@ -1211,8 +1167,6 @@ func TestClient_RPC_NodeStageVolume(t *testing.T) {
 }
 
 func TestClient_RPC_NodeUnstageVolume(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		Name        string
 		ResponseErr error
@@ -1250,8 +1204,6 @@ func TestClient_RPC_NodeUnstageVolume(t *testing.T) {
 }
 
 func TestClient_RPC_NodePublishVolume(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		Name        string
 		Request     *NodePublishVolumeRequest
@@ -1307,8 +1259,6 @@ func TestClient_RPC_NodePublishVolume(t *testing.T) {
 	}
 }
 func TestClient_RPC_NodeUnpublishVolume(t *testing.T) {
-	ci.Parallel(t)
-
 	cases := []struct {
 		Name        string
 		ExternalID  string
