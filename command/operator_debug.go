@@ -506,9 +506,11 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 
 	// Get complete list of client nodes
-	var qm *api.QueryMeta
-	c.nodes, qm, err = client.Nodes().List(c.queryOpts())
-	c.verboseOutf("%d nodes retrieved in %s", len(c.nodes), qm.RequestTime.String())
+	c.nodes, _, err = client.Nodes().List(c.queryOpts())
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying node info: %v", err))
+		return 1
+	}
 
 	// Write nodes to file
 	c.writeJSON(clusterDir, "nodes.json", c.nodes, err)
