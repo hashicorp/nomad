@@ -1001,12 +1001,6 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 	c.savePprofProfile(path, "heap", opts, client)      // A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.
 	c.savePprofProfile(path, "allocs", opts, client)    // A sampling of all past memory allocations
 
-	// This profile is disabled by default -- Requires runtime.SetBlockProfileRate to enable
-	// c.savePprofProfile(path, "block", opts, client)        // Stack traces that led to blocking on synchronization primitives
-
-	// This profile is disabled by default -- Requires runtime.SetMutexProfileFraction to enable
-	// c.savePprofProfile(path, "mutex", opts, client)        // Stack traces of holders of contended mutexes
-
 	// threadcreate pprof causes a panic on Nomad 0.11.0 to 0.11.2 -- skip those versions
 	version := c.getNomadVersion(opts.ServerID, opts.NodeID)
 	skip, err := checkVersion(version, minimumVersionPprofConstraint)
