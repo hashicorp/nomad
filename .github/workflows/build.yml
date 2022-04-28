@@ -124,7 +124,7 @@ jobs:
 
       - name: Build prerelease
         run: make prerelease
-        if: ${{ github.event.inputs.make-prerelease == 'true' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
 
       - name: Build
         env:
@@ -176,7 +176,7 @@ jobs:
 
       - name: Build prerelease
         run: make prerelease
-        if: ${{ github.event.inputs.make-prerelease == 'true' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
 
       - name: Install Linux build utilties
         run: |
@@ -286,7 +286,7 @@ jobs:
 
       - name: Build prerelease
         run: make prerelease
-        if: ${{ github.event.inputs.make-prerelease == 'true' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
 
       - name: Build
         env:
