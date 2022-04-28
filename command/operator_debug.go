@@ -60,11 +60,12 @@ type OperatorDebugCommand struct {
 }
 
 const (
-	userAgent   = "nomad operator debug"
-	clusterDir  = "cluster"
-	clientDir   = "client"
-	serverDir   = "server"
-	intervalDir = "interval"
+	userAgent                     = "nomad operator debug"
+	clusterDir                    = "cluster"
+	clientDir                     = "client"
+	serverDir                     = "server"
+	intervalDir                   = "interval"
+	minimumVersionPprofConstraint = ">= 0.11.0, <= 0.11.2"
 )
 
 func (c *OperatorDebugCommand) Help() string {
@@ -1008,9 +1009,10 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 
 	// threadcreate pprof causes a panic on Nomad 0.11.0 to 0.11.2 -- skip those versions
 	version := c.getNomadVersion(opts.ServerID, opts.NodeID)
-	skip, err := checkVersion(version, ">= 0.11.0, <= 0.11.2")
+	skip, err := checkVersion(version, minimumVersionPprofConstraint)
+
 	if skip {
-		c.Ui.Warn(fmt.Sprintf("Skipping threadcreate pprof: unsupported version=%s matches constraint %s", version, ">= 0.11.0, <= 0.11.2"))
+		c.Ui.Warn(fmt.Sprintf("Skipping threadcreate pprof: unsupported version=%s matches constraint %s", version, minimumVersionPprofConstraint))
 		return
 	}
 	if err != nil {

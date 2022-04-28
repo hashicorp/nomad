@@ -582,23 +582,22 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 // the version constraint.
 func TestDebug_PprofVersionCheck(t *testing.T) {
 	cases := []struct {
-		version    string
-		constraint string
-		isMatch    bool
-		isError    bool
+		version string
+		isMatch bool
+		isError bool
 	}{
-		{"0.8.7", ">= 0.11.0, <= 0.11.2", false, false},
-		{"0.11.0", ">= 0.11.0, <= 0.11.2", true, false},
-		{"0.11.1", ">= 0.11.0, <= 0.11.2", true, false},
-		{"0.11.2", ">= 0.11.0, <= 0.11.2", true, false},
-		{"0.11.3", ">= 0.11.0, <= 0.11.2", false, false},
-		{"0.12.0", ">= 0.11.0, <= 0.11.2", false, false},
-		{"1.3.0", ">= 0.11.0, <= 0.11.2", false, false},
-		{"foo.bar", ">= 0.11.0, <= 0.11.2", false, true},
+		{"0.8.7", false, false},
+		{"0.11.0", true, false},
+		{"0.11.1", true, false},
+		{"0.11.2", true, false},
+		{"0.11.3", false, false},
+		{"0.12.0", false, false},
+		{"1.3.0", false, false},
+		{"foo.bar", false, true},
 	}
 
 	for _, tc := range cases {
-		match, err := checkVersion(tc.version, ">= 0.11.0, <= 0.11.2")
+		match, err := checkVersion(tc.version, minimumVersionPprofConstraint)
 		assert.Equal(t, tc.isMatch, match)
 		if tc.isError {
 			require.Error(t, err)
