@@ -42,6 +42,6 @@ func (r *Range) Validate(config interface{}) error {
 // Resource is a custom resource that users can configure to expose custom capabilities
 // available per client.
 type Resource struct {
-	Name  string
-	Range Range `hcl:"range,expand,optional"`
+	Name  string `hcl:"name,key"`
+	Range Range  `mapstructure:"range" hcl:"range,block,optional"`
 }
