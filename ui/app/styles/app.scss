@@ -26,6 +26,10 @@
     margin: 0.5rem 0;
     padding: 0.5rem 1rem;
     border-radius: 2rem;
+    animation-name: slideIn;
+    animation-duration: 0.2s;
+    animation-fill-mode: both;
+    position: relative;
 
     &.command {
       background-color: rgba(0, 200, 0, 0.75);
@@ -37,17 +41,25 @@
   position: fixed;
   background-color: white;
   padding: 2rem;
-  top: 20vh;
+  margin-top: 20vh;
   width: 40vw;
   left: 30vw;
   z-index: 499;
   box-shadow: 2px 2px 12px -4px rgb(0, 0, 0, 0.25);
+
+  animation-name: slideIn;
+  animation-duration: 0.2s;
+  animation-fill-mode: both;
+  // animation-timing-function: cubic-bezier(0.5, 0, 0.5, 2);
+
   li {
     list-style-type: none;
-    border-bottom: 1px solid #ccc;
     padding: 0.5rem 0;
     display: grid;
     grid-template-columns: auto 1fr;
+    &:not(:last-child) {
+      border-bottom: 1px solid #ccc;
+    }
     .keys {
       text-align: right;
       span {
@@ -56,5 +68,16 @@
         padding: 0 0.25rem;
       }
     }
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    top: 40px;
+  }
+  to {
+    opacity: 1;
+    top: 0px;
   }
 }
