@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -66,6 +67,8 @@ func newClientAgentConfigFunc(region string, nodeClass string, srvRPCAddr string
 }
 
 func TestDebug_NodeClass(t *testing.T) {
+	ci.Parallel(t)
+
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
 
@@ -114,6 +117,8 @@ func TestDebug_NodeClass(t *testing.T) {
 }
 
 func TestDebug_ClientToServer(t *testing.T) {
+	ci.Parallel(t)
+
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
 
@@ -236,6 +241,8 @@ func TestDebug_ClientToServer_Region(t *testing.T) {
 }
 
 func TestDebug_SingleServer(t *testing.T) {
+	ci.Parallel(t)
+
 	srv, _, url := testServer(t, false, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
@@ -268,6 +275,8 @@ func TestDebug_SingleServer(t *testing.T) {
 }
 
 func TestDebug_Failures(t *testing.T) {
+	ci.Parallel(t)
+
 	srv, _, url := testServer(t, false, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
@@ -314,6 +323,8 @@ func TestDebug_Failures(t *testing.T) {
 }
 
 func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
+	ci.Parallel(t)
+
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
 
@@ -355,6 +366,7 @@ func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
 }
 
 func TestDebug_CapturedFiles(t *testing.T) {
+	// ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
@@ -412,6 +424,8 @@ func TestDebug_CapturedFiles(t *testing.T) {
 }
 
 func TestDebug_ExistingOutput(t *testing.T) {
+	ci.Parallel(t)
+
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
@@ -427,6 +441,8 @@ func TestDebug_ExistingOutput(t *testing.T) {
 }
 
 func TestDebug_Fail_Pprof(t *testing.T) {
+	ci.Parallel(t)
+
 	// Setup agent config with debug endpoints disabled
 	agentConfFunc := func(c *agent.Config) {
 		c.EnableDebug = false
@@ -453,7 +469,7 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 }
 
 func TestDebug_StringToSlice(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		input    string
@@ -472,7 +488,7 @@ func TestDebug_StringToSlice(t *testing.T) {
 }
 
 func TestDebug_External(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// address calculation honors CONSUL_HTTP_SSL
 	// ssl: true - Correct alignment
@@ -507,7 +523,7 @@ func TestDebug_External(t *testing.T) {
 }
 
 func TestDebug_WriteBytes_Nil(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	var testDir, testFile, testPath string
 	var testBytes []byte
@@ -530,7 +546,7 @@ func TestDebug_WriteBytes_Nil(t *testing.T) {
 }
 
 func TestDebug_WriteBytes_PathEscapesSandbox(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	var testDir, testFile string
 	var testBytes []byte
@@ -556,6 +572,8 @@ func TestDebug_WriteBytes_PathEscapesSandbox(t *testing.T) {
 // complete a debug run have their query options configured with the
 // -stale flag
 func TestDebug_StaleLeadership(t *testing.T) {
+	ci.Parallel(t)
+
 	srv, _, url := testServerWithoutLeader(t, false, nil)
 	addrServer := srv.HTTPAddr()
 

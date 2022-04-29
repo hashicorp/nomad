@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -14,8 +15,8 @@ import (
 )
 
 func TestStatusCommand_Run_JobStatus(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -40,8 +41,8 @@ func TestStatusCommand_Run_JobStatus(t *testing.T) {
 }
 
 func TestStatusCommand_Run_JobStatus_MultiMatch(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -70,7 +71,7 @@ func TestStatusCommand_Run_JobStatus_MultiMatch(t *testing.T) {
 
 func TestStatusCommand_Run_EvalStatus(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -96,7 +97,7 @@ func TestStatusCommand_Run_EvalStatus(t *testing.T) {
 
 func TestStatusCommand_Run_NodeStatus(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Start in dev mode so we get a node registration
 	srv, client, url := testServer(t, true, func(c *agent.Config) {
@@ -136,7 +137,7 @@ func TestStatusCommand_Run_NodeStatus(t *testing.T) {
 
 func TestStatusCommand_Run_AllocStatus(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -161,7 +162,7 @@ func TestStatusCommand_Run_AllocStatus(t *testing.T) {
 
 func TestStatusCommand_Run_DeploymentStatus(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -187,7 +188,7 @@ func TestStatusCommand_Run_DeploymentStatus(t *testing.T) {
 
 func TestStatusCommand_Run_NoPrefix(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -213,7 +214,7 @@ func TestStatusCommand_Run_NoPrefix(t *testing.T) {
 
 func TestStatusCommand_AutocompleteArgs(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()

@@ -5,11 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/stretchr/testify/require"
 )
 
 func TestJobDiff(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Old, New   *Job
 		Expected   *JobDiff
@@ -1340,6 +1343,8 @@ func TestJobDiff(t *testing.T) {
 }
 
 func TestTaskGroupDiff(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		TestCase   string
 		Old, New   *TaskGroup
@@ -3918,6 +3923,8 @@ func TestTaskGroupDiff(t *testing.T) {
 }
 
 func TestTaskDiff(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name       string
 		Old, New   *Task

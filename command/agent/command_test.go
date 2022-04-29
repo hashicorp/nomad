@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/likexian/gokit/assert"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
@@ -16,12 +17,12 @@ import (
 )
 
 func TestCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &Command{}
 }
 
 func TestCommand_Args(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	tmpDir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -95,6 +96,8 @@ func TestCommand_Args(t *testing.T) {
 }
 
 func TestCommand_MetaConfigValidation(t *testing.T) {
+	ci.Parallel(t)
+
 	tmpDir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -148,6 +151,8 @@ func TestCommand_MetaConfigValidation(t *testing.T) {
 }
 
 func TestCommand_NullCharInDatacenter(t *testing.T) {
+	ci.Parallel(t)
+
 	tmpDir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -197,6 +202,8 @@ func TestCommand_NullCharInDatacenter(t *testing.T) {
 }
 
 func TestCommand_NullCharInRegion(t *testing.T) {
+	ci.Parallel(t)
+
 	tmpDir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -247,6 +254,7 @@ func TestCommand_NullCharInRegion(t *testing.T) {
 
 // TestIsValidConfig asserts that invalid configurations return false.
 func TestIsValidConfig(t *testing.T) {
+	ci.Parallel(t)
 
 	cases := []struct {
 		name string

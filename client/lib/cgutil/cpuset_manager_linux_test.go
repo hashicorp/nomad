@@ -63,7 +63,8 @@ func TestCpusetManager_AddAlloc(t *testing.T) {
 	require.NoError(t, manager.Init())
 
 	alloc := mock.Alloc()
-	alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores = manager.parentCpuset.ToSlice()
+	// reserve just one core (the 0th core, which probably exists)
+	alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores = cpuset.New(0).ToSlice()
 	manager.AddAlloc(alloc)
 	// force reconcile
 	manager.reconcileCpusets()
@@ -75,7 +76,7 @@ func TestCpusetManager_AddAlloc(t *testing.T) {
 	require.NoError(t, err)
 	sharedCpus, err := cpuset.Parse(string(sharedCpusRaw))
 	require.NoError(t, err)
-	require.Empty(t, sharedCpus.ToSlice())
+	require.NotContains(t, sharedCpus.ToSlice(), uint16(0))
 
 	// check that all cores are allocated to reserved cgroup
 	require.DirExists(t, filepath.Join(manager.cgroupParentPath, ReservedCpusetCgroupName))

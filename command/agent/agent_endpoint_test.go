@@ -19,6 +19,7 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -29,7 +30,7 @@ import (
 )
 
 func TestHTTP_AgentSelf(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
@@ -92,7 +93,7 @@ func TestHTTP_AgentSelf(t *testing.T) {
 }
 
 func TestHTTP_AgentSelf_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	httpACLTest(t, nil, func(s *TestAgent) {
@@ -148,7 +149,7 @@ func TestHTTP_AgentSelf_ACL(t *testing.T) {
 }
 
 func TestHTTP_AgentJoin(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Determine the join address
 		member := s.Agent.Server().LocalMember()
@@ -180,7 +181,7 @@ func TestHTTP_AgentJoin(t *testing.T) {
 }
 
 func TestHTTP_AgentMembers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/agent/members", nil)
@@ -204,7 +205,7 @@ func TestHTTP_AgentMembers(t *testing.T) {
 }
 
 func TestHTTP_AgentMembers_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	httpACLTest(t, nil, func(s *TestAgent) {
@@ -258,7 +259,7 @@ func TestHTTP_AgentMembers_ACL(t *testing.T) {
 }
 
 func TestHTTP_AgentMonitor(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	t.Run("invalid log_json parameter", func(t *testing.T) {
 		httpTest(t, nil, func(s *TestAgent) {
@@ -450,6 +451,8 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 // | /agent/pprof  |  `false`         |  on    |  **yes**         |
 // +---------------+------------------+--------+------------------+
 func TestAgent_PprofRequest_Permissions(t *testing.T) {
+	ci.Parallel(t)
+
 	trueP, falseP := helper.BoolToPtr(true), helper.BoolToPtr(false)
 	cases := []struct {
 		acl   *bool
@@ -522,6 +525,8 @@ func TestAgent_PprofRequest_Permissions(t *testing.T) {
 }
 
 func TestAgent_PprofRequest(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		desc        string
 		url         string
@@ -632,7 +637,7 @@ func (r *closableRecorder) CloseNotify() <-chan bool {
 }
 
 func TestHTTP_AgentForceLeave(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT", "/v1/agent/force-leave?node=foo", nil)
@@ -650,7 +655,7 @@ func TestHTTP_AgentForceLeave(t *testing.T) {
 }
 
 func TestHTTP_AgentForceLeave_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	httpACLTest(t, nil, func(s *TestAgent) {
@@ -700,7 +705,7 @@ func TestHTTP_AgentForceLeave_ACL(t *testing.T) {
 }
 
 func TestHTTP_AgentSetServers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		addr := s.Config.AdvertiseAddrs.RPC
@@ -762,7 +767,7 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 }
 
 func TestHTTP_AgentSetServers_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	httpACLTest(t, nil, func(s *TestAgent) {
@@ -834,7 +839,7 @@ func TestHTTP_AgentSetServers_ACL(t *testing.T) {
 }
 
 func TestHTTP_AgentListServers_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	httpACLTest(t, nil, func(s *TestAgent) {
@@ -899,7 +904,7 @@ func TestHTTP_AgentListServers_ACL(t *testing.T) {
 }
 
 func TestHTTP_AgentListKeys(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
 
@@ -920,7 +925,7 @@ func TestHTTP_AgentListKeys(t *testing.T) {
 }
 
 func TestHTTP_AgentListKeys_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
@@ -980,7 +985,7 @@ func TestHTTP_AgentListKeys_ACL(t *testing.T) {
 }
 
 func TestHTTP_AgentInstallKey(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
 	key2 := "wH1Bn9hlJ0emgWB1JttVRA=="
@@ -1020,7 +1025,7 @@ func TestHTTP_AgentInstallKey(t *testing.T) {
 }
 
 func TestHTTP_AgentRemoveKey(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
 	key2 := "wH1Bn9hlJ0emgWB1JttVRA=="
@@ -1069,7 +1074,7 @@ func TestHTTP_AgentRemoveKey(t *testing.T) {
 }
 
 func TestHTTP_AgentHealth_Ok(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Enable ACLs to ensure they're not enforced
@@ -1149,7 +1154,7 @@ func TestHTTP_AgentHealth_Ok(t *testing.T) {
 }
 
 func TestHTTP_AgentHealth_BadServer(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	serverAgent := NewTestAgent(t, "server", nil)
@@ -1195,7 +1200,7 @@ func TestHTTP_AgentHealth_BadServer(t *testing.T) {
 }
 
 func TestHTTP_AgentHealth_BadClient(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Disable client to make server unhealthy if requested
@@ -1348,7 +1353,7 @@ func NewFakeRW() *fakeRW {
 // TestHTTP_XSS_Monitor asserts /v1/agent/monitor is safe against XSS attacks
 // even when log output contains HTML+Javascript.
 func TestHTTP_XSS_Monitor(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name    string
@@ -1380,7 +1385,7 @@ func TestHTTP_XSS_Monitor(t *testing.T) {
 	for i := range cases {
 		tc := cases[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			t.Parallel()
+			ci.Parallel(t)
 			s := makeHTTPServer(t, nil)
 			defer s.Shutdown()
 

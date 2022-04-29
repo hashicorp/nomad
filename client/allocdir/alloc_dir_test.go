@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -47,6 +48,8 @@ var (
 
 // Test that AllocDir.Build builds just the alloc directory.
 func TestAllocDir_BuildAlloc(t *testing.T) {
+	ci.Parallel(t)
+
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
@@ -96,7 +99,9 @@ func MountCompatible(t *testing.T) {
 }
 
 func TestAllocDir_MountSharedAlloc(t *testing.T) {
+	ci.Parallel(t)
 	MountCompatible(t)
+
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
@@ -142,6 +147,8 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 }
 
 func TestAllocDir_Snapshot(t *testing.T) {
+	ci.Parallel(t)
+
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
@@ -222,6 +229,8 @@ func TestAllocDir_Snapshot(t *testing.T) {
 }
 
 func TestAllocDir_Move(t *testing.T) {
+	ci.Parallel(t)
+
 	tmp1, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
@@ -290,6 +299,8 @@ func TestAllocDir_Move(t *testing.T) {
 }
 
 func TestAllocDir_EscapeChecking(t *testing.T) {
+	ci.Parallel(t)
+
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
@@ -331,6 +342,7 @@ func TestAllocDir_EscapeChecking(t *testing.T) {
 
 // Test that `nomad fs` can't read secrets
 func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
+	ci.Parallel(t)
 	tmp := t.TempDir()
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp)
@@ -358,6 +370,8 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 }
 
 func TestAllocDir_SplitPath(t *testing.T) {
+	ci.Parallel(t)
+
 	dir, err := ioutil.TempDir("", "tmpdirtest")
 	if err != nil {
 		log.Fatal(err)
@@ -381,6 +395,7 @@ func TestAllocDir_SplitPath(t *testing.T) {
 }
 
 func TestAllocDir_CreateDir(t *testing.T) {
+	ci.Parallel(t)
 	if syscall.Geteuid() != 0 {
 		t.Skip("Must be root to run test")
 	}
@@ -441,6 +456,8 @@ func TestAllocDir_Copy(t *testing.T) {
 }
 
 func TestPathFuncs(t *testing.T) {
+	ci.Parallel(t)
+
 	dir, err := ioutil.TempDir("", "nomadtest-pathfuncs")
 	if err != nil {
 		t.Fatalf("error creating temp dir: %v", err)
@@ -476,7 +493,9 @@ func TestPathFuncs(t *testing.T) {
 }
 
 func TestAllocDir_DetectContentType(t *testing.T) {
+	ci.Parallel(t)
 	require := require.New(t)
+
 	inputPath := "input/"
 	var testFiles []string
 	err := filepath.Walk(inputPath, func(path string, info os.FileInfo, err error) error {

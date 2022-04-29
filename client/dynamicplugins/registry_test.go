@@ -6,11 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPluginEventBroadcaster_SendsMessagesToAllClients(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	b := newPluginEventBroadcaster()
 	defer close(b.stopCh)
 	var rcv1, rcv2 bool
@@ -36,7 +38,7 @@ func TestPluginEventBroadcaster_SendsMessagesToAllClients(t *testing.T) {
 }
 
 func TestPluginEventBroadcaster_UnsubscribeWorks(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	b := newPluginEventBroadcaster()
 	defer close(b.stopCh)
@@ -65,7 +67,8 @@ func TestPluginEventBroadcaster_UnsubscribeWorks(t *testing.T) {
 }
 
 func TestDynamicRegistry_RegisterPlugin_SendsUpdateEvents(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	r := NewRegistry(nil, nil)
 
 	ctx, cancelFn := context.WithCancel(context.Background())
@@ -103,7 +106,8 @@ func TestDynamicRegistry_RegisterPlugin_SendsUpdateEvents(t *testing.T) {
 }
 
 func TestDynamicRegistry_DeregisterPlugin_SendsUpdateEvents(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	r := NewRegistry(nil, nil)
 
 	ctx, cancelFn := context.WithCancel(context.Background())
@@ -145,6 +149,8 @@ func TestDynamicRegistry_DeregisterPlugin_SendsUpdateEvents(t *testing.T) {
 }
 
 func TestDynamicRegistry_DispensePlugin_Works(t *testing.T) {
+	ci.Parallel(t)
+
 	dispenseFn := func(i *PluginInfo) (interface{}, error) {
 		return struct{}{}, nil
 	}
@@ -172,7 +178,8 @@ func TestDynamicRegistry_DispensePlugin_Works(t *testing.T) {
 }
 
 func TestDynamicRegistry_IsolatePluginTypes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	r := NewRegistry(nil, nil)
 
 	err := r.RegisterPlugin(&PluginInfo{
@@ -196,7 +203,8 @@ func TestDynamicRegistry_IsolatePluginTypes(t *testing.T) {
 }
 
 func TestDynamicRegistry_StateStore(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	dispenseFn := func(i *PluginInfo) (interface{}, error) {
 		return i, nil
 	}

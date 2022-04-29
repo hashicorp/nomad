@@ -3,12 +3,14 @@ package stream
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
-
 	"github.com/stretchr/testify/require"
 )
 
 func TestFilter_AllTopics(t *testing.T) {
+	ci.Parallel(t)
+
 	events := make([]structs.Event, 0, 5)
 	events = append(events, structs.Event{Topic: "Test", Key: "One"}, structs.Event{Topic: "Test", Key: "Two"})
 
@@ -22,6 +24,8 @@ func TestFilter_AllTopics(t *testing.T) {
 }
 
 func TestFilter_AllKeys(t *testing.T) {
+	ci.Parallel(t)
+
 	events := make([]structs.Event, 0, 5)
 	events = append(events, structs.Event{Topic: "Test", Key: "One"}, structs.Event{Topic: "Test", Key: "Two"})
 
@@ -35,6 +39,8 @@ func TestFilter_AllKeys(t *testing.T) {
 }
 
 func TestFilter_PartialMatch_Topic(t *testing.T) {
+	ci.Parallel(t)
+
 	events := make([]structs.Event, 0, 5)
 	events = append(events, structs.Event{Topic: "Test", Key: "One"}, structs.Event{Topic: "Test", Key: "Two"}, structs.Event{Topic: "Exclude", Key: "Two"})
 
@@ -51,6 +57,8 @@ func TestFilter_PartialMatch_Topic(t *testing.T) {
 }
 
 func TestFilter_Match_TopicAll_SpecificKey(t *testing.T) {
+	ci.Parallel(t)
+
 	events := []structs.Event{
 		{Topic: "Match", Key: "Two"},
 		{Topic: "NoMatch", Key: "One"},
@@ -72,6 +80,8 @@ func TestFilter_Match_TopicAll_SpecificKey(t *testing.T) {
 }
 
 func TestFilter_Match_TopicAll_SpecificKey_Plus(t *testing.T) {
+	ci.Parallel(t)
+
 	events := []structs.Event{
 		{Topic: "FirstTwo", Key: "Two"},
 		{Topic: "Test", Key: "One"},
@@ -95,6 +105,8 @@ func TestFilter_Match_TopicAll_SpecificKey_Plus(t *testing.T) {
 }
 
 func TestFilter_PartialMatch_Key(t *testing.T) {
+	ci.Parallel(t)
+
 	events := make([]structs.Event, 0, 5)
 	events = append(events, structs.Event{Topic: "Test", Key: "One"}, structs.Event{Topic: "Test", Key: "Two"})
 
@@ -111,6 +123,8 @@ func TestFilter_PartialMatch_Key(t *testing.T) {
 }
 
 func TestFilter_NoMatch(t *testing.T) {
+	ci.Parallel(t)
+
 	events := make([]structs.Event, 0, 5)
 	events = append(events, structs.Event{Topic: "Test", Key: "One"}, structs.Event{Topic: "Test", Key: "Two"})
 
@@ -128,6 +142,8 @@ func TestFilter_NoMatch(t *testing.T) {
 }
 
 func TestFilter_Namespace(t *testing.T) {
+	ci.Parallel(t)
+
 	events := make([]structs.Event, 0, 5)
 	events = append(events, structs.Event{Topic: "Test", Key: "One", Namespace: "foo"}, structs.Event{Topic: "Test", Key: "Two"}, structs.Event{Topic: "Test", Key: "Two", Namespace: "bar"})
 
@@ -148,6 +164,8 @@ func TestFilter_Namespace(t *testing.T) {
 }
 
 func TestFilter_NamespaceAll(t *testing.T) {
+	ci.Parallel(t)
+
 	events := make([]structs.Event, 0, 5)
 	events = append(events,
 		structs.Event{Topic: "Test", Key: "One", Namespace: "foo"},
@@ -171,6 +189,8 @@ func TestFilter_NamespaceAll(t *testing.T) {
 }
 
 func TestFilter_FilterKeys(t *testing.T) {
+	ci.Parallel(t)
+	
 	events := make([]structs.Event, 0, 5)
 	events = append(events, structs.Event{Topic: "Test", Key: "One", FilterKeys: []string{"extra-key"}}, structs.Event{Topic: "Test", Key: "Two"}, structs.Event{Topic: "Test", Key: "Two"})
 

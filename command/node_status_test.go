@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
@@ -15,12 +16,12 @@ import (
 )
 
 func TestNodeStatusCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &NodeStatusCommand{}
 }
 
 func TestNodeStatusCommand_Self(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Start in dev mode so we get a node registration
 	srv, client, url := testServer(t, true, func(c *agent.Config) {
 		c.NodeName = "mynode"
@@ -71,7 +72,7 @@ func TestNodeStatusCommand_Self(t *testing.T) {
 }
 
 func TestNodeStatusCommand_Run(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Start in dev mode so we get a node registration
 	srv, client, url := testServer(t, true, func(c *agent.Config) {
 		c.NodeName = "mynode"
@@ -163,7 +164,7 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 }
 
 func TestNodeStatusCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -216,8 +217,8 @@ func TestNodeStatusCommand_Fails(t *testing.T) {
 }
 
 func TestNodeStatusCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -251,7 +252,7 @@ func TestNodeStatusCommand_AutocompleteArgs(t *testing.T) {
 }
 
 func TestNodeStatusCommand_FormatDrain(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	node := &api.Node{}

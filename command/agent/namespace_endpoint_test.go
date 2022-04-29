@@ -7,14 +7,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTP_NamespaceList(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		ns1 := mock.Namespace()
 		ns2 := mock.Namespace()
@@ -46,8 +47,8 @@ func TestHTTP_NamespaceList(t *testing.T) {
 }
 
 func TestHTTP_NamespaceQuery(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		ns1 := mock.Namespace()
 		args := structs.NamespaceUpsertRequest{
@@ -77,8 +78,8 @@ func TestHTTP_NamespaceQuery(t *testing.T) {
 }
 
 func TestHTTP_NamespaceCreate(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		ns1 := mock.Namespace()
@@ -108,8 +109,8 @@ func TestHTTP_NamespaceCreate(t *testing.T) {
 }
 
 func TestHTTP_NamespaceUpdate(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		ns1 := mock.Namespace()
@@ -139,8 +140,8 @@ func TestHTTP_NamespaceUpdate(t *testing.T) {
 }
 
 func TestHTTP_NamespaceDelete(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		ns1 := mock.Namespace()
 		args := structs.NamespaceUpsertRequest{

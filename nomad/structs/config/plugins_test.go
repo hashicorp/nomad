@@ -4,11 +4,12 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPluginConfig_Merge(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	a := &PluginConfig{
 		Name: "foo",
@@ -56,7 +57,7 @@ func TestPluginConfig_Merge(t *testing.T) {
 }
 
 func TestPluginConfigSet_Merge(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	a := &PluginConfig{

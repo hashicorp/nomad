@@ -5,11 +5,12 @@ package structs
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestJob_ConfigEntries(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	ingress := &ConsulConnect{
 		Gateway: &ConsulGateway{

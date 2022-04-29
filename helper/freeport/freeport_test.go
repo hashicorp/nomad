@@ -61,7 +61,7 @@ func stats() (numTotal, numPending, numFree int) {
 
 func TestTakeReturn(t *testing.T) {
 	// NOTE: for global var reasons this cannot execute in parallel
-	// t.Parallel()
+	// ci.Parallel(t)
 
 	// Since this test is destructive (i.e. it leaks all ports) it means that
 	// any other test cases in this package will not function after it runs. To

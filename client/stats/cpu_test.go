@@ -6,12 +6,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCpuStatsPercent(t *testing.T) {
+	ci.Parallel(t)
+
 	cs := NewCpuStats()
 	cs.Percent(79.7)
 	time.Sleep(1 * time.Second)
@@ -23,6 +26,8 @@ func TestCpuStatsPercent(t *testing.T) {
 }
 
 func TestHostStats_CPU(t *testing.T) {
+	ci.Parallel(t)
+
 	assert := assert.New(t)
 	assert.Nil(shelpers.Init())
 

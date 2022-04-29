@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/require"
@@ -52,6 +53,8 @@ func testNode() *Node {
 }
 
 func TestNode_ComputedClass(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Create a node and gets it computed class
@@ -81,6 +84,8 @@ func TestNode_ComputedClass(t *testing.T) {
 }
 
 func TestNode_ComputedClass_Ignore(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Create a node and gets it computed class
@@ -98,6 +103,8 @@ func TestNode_ComputedClass_Ignore(t *testing.T) {
 }
 
 func TestNode_ComputedClass_Device_Attr(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Create a node and gets it computed class
@@ -122,6 +129,8 @@ func TestNode_ComputedClass_Device_Attr(t *testing.T) {
 }
 
 func TestNode_ComputedClass_Attr(t *testing.T) {
+	ci.Parallel(t)
+
 	// Create a node and gets it computed class
 	n := testNode()
 	if err := n.ComputeClass(); err != nil {
@@ -168,6 +177,8 @@ func TestNode_ComputedClass_Attr(t *testing.T) {
 }
 
 func TestNode_ComputedClass_Meta(t *testing.T) {
+	ci.Parallel(t)
+
 	// Create a node and gets it computed class
 	n := testNode()
 	if err := n.ComputeClass(); err != nil {
@@ -205,6 +216,8 @@ func TestNode_ComputedClass_Meta(t *testing.T) {
 }
 
 func TestNode_EscapedConstraints(t *testing.T) {
+	ci.Parallel(t)
+	
 	// Non-escaped constraints
 	ne1 := &Constraint{
 		LTarget: "${attr.kernel.name}",

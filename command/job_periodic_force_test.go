@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -15,12 +16,12 @@ import (
 )
 
 func TestJobPeriodicForceCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &JobPeriodicForceCommand{}
 }
 
 func TestJobPeriodicForceCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobPeriodicForceCommand{Meta: Meta{Ui: ui}}
 
@@ -38,7 +39,7 @@ func TestJobPeriodicForceCommand_Fails(t *testing.T) {
 }
 
 func TestJobPeriodicForceCommand_AutocompleteArgs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -76,7 +77,7 @@ func TestJobPeriodicForceCommand_AutocompleteArgs(t *testing.T) {
 }
 
 func TestJobPeriodicForceCommand_NonPeriodicJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	testutil.WaitForResult(func() (bool, error) {
@@ -113,7 +114,7 @@ func TestJobPeriodicForceCommand_NonPeriodicJob(t *testing.T) {
 }
 
 func TestJobPeriodicForceCommand_SuccessfulPeriodicForceDetach(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	testutil.WaitForResult(func() (bool, error) {
@@ -155,7 +156,7 @@ func TestJobPeriodicForceCommand_SuccessfulPeriodicForceDetach(t *testing.T) {
 }
 
 func TestJobPeriodicForceCommand_SuccessfulPeriodicForce(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	testutil.WaitForResult(func() (bool, error) {

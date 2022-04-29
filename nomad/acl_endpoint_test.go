@@ -10,6 +10,7 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -19,7 +20,7 @@ import (
 )
 
 func TestACLEndpoint_GetPolicy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -105,7 +106,7 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 }
 
 func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -185,7 +186,7 @@ func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
 }
 
 func TestACLEndpoint_GetPolicies(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -225,7 +226,7 @@ func TestACLEndpoint_GetPolicies(t *testing.T) {
 }
 
 func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -266,7 +267,7 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 }
 
 func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -346,8 +347,8 @@ func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
 }
 
 func TestACLEndpoint_ListPolicies(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -417,7 +418,7 @@ func TestACLEndpoint_ListPolicies(t *testing.T) {
 // unauthenticated ListPolicies returns anonymous policy if one
 // exists, otherwise, empty
 func TestACLEndpoint_ListPolicies_Unauthenticated(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -466,7 +467,7 @@ func TestACLEndpoint_ListPolicies_Unauthenticated(t *testing.T) {
 }
 
 func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -527,7 +528,7 @@ func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
 }
 
 func TestACLEndpoint_DeletePolicies(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -554,7 +555,7 @@ func TestACLEndpoint_DeletePolicies(t *testing.T) {
 }
 
 func TestACLEndpoint_UpsertPolicies(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -585,7 +586,7 @@ func TestACLEndpoint_UpsertPolicies(t *testing.T) {
 }
 
 func TestACLEndpoint_UpsertPolicies_Invalid(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -613,7 +614,7 @@ func TestACLEndpoint_UpsertPolicies_Invalid(t *testing.T) {
 }
 
 func TestACLEndpoint_GetToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -659,7 +660,7 @@ func TestACLEndpoint_GetToken(t *testing.T) {
 }
 
 func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -739,7 +740,7 @@ func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 }
 
 func TestACLEndpoint_GetTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -778,7 +779,7 @@ func TestACLEndpoint_GetTokens(t *testing.T) {
 }
 
 func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -858,7 +859,7 @@ func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 }
 
 func TestACLEndpoint_ListTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -920,7 +921,7 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 }
 
 func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -981,7 +982,7 @@ func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
 }
 
 func TestACLEndpoint_DeleteTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1008,7 +1009,7 @@ func TestACLEndpoint_DeleteTokens(t *testing.T) {
 }
 
 func TestACLEndpoint_DeleteTokens_WithNonexistentToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
@@ -1035,7 +1036,7 @@ func TestACLEndpoint_DeleteTokens_WithNonexistentToken(t *testing.T) {
 }
 
 func TestACLEndpoint_Bootstrap(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 	})
@@ -1070,7 +1071,7 @@ func TestACLEndpoint_Bootstrap(t *testing.T) {
 }
 
 func TestACLEndpoint_Bootstrap_Reset(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -1132,7 +1133,7 @@ func TestACLEndpoint_Bootstrap_Reset(t *testing.T) {
 }
 
 func TestACLEndpoint_UpsertTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1189,7 +1190,7 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 }
 
 func TestACLEndpoint_UpsertTokens_Invalid(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1217,7 +1218,7 @@ func TestACLEndpoint_UpsertTokens_Invalid(t *testing.T) {
 }
 
 func TestACLEndpoint_ResolveToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s1, _, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -1249,7 +1250,7 @@ func TestACLEndpoint_ResolveToken(t *testing.T) {
 }
 
 func TestACLEndpoint_OneTimeToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()

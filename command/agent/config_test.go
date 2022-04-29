@@ -13,6 +13,7 @@ import (
 	"time"
 
 	sockaddr "github.com/hashicorp/go-sockaddr"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/freeport"
@@ -28,6 +29,8 @@ var (
 )
 
 func TestConfig_Merge(t *testing.T) {
+	ci.Parallel(t)
+
 	c0 := &Config{}
 
 	c1 := &Config{
@@ -432,6 +435,8 @@ func TestConfig_Merge(t *testing.T) {
 }
 
 func TestConfig_ParseConfigFile(t *testing.T) {
+	ci.Parallel(t)
+
 	// Fails if the file doesn't exist
 	if _, err := ParseConfigFile("/unicorns/leprechauns"); err == nil {
 		t.Fatalf("expected error, got nothing")
@@ -472,6 +477,8 @@ func TestConfig_ParseConfigFile(t *testing.T) {
 }
 
 func TestConfig_LoadConfigDir(t *testing.T) {
+	ci.Parallel(t)
+
 	// Fails if the dir doesn't exist.
 	if _, err := LoadConfigDir("/unicorns/leprechauns"); err == nil {
 		t.Fatalf("expected error, got nothing")
@@ -530,6 +537,8 @@ func TestConfig_LoadConfigDir(t *testing.T) {
 }
 
 func TestConfig_LoadConfig(t *testing.T) {
+	ci.Parallel(t)
+
 	// Fails if the target doesn't exist
 	if _, err := LoadConfig("/unicorns/leprechauns"); err == nil {
 		t.Fatalf("expected error, got nothing")
@@ -589,6 +598,8 @@ func TestConfig_LoadConfig(t *testing.T) {
 }
 
 func TestConfig_LoadConfigsFileOrder(t *testing.T) {
+	ci.Parallel(t)
+
 	config1, err := LoadConfigDir("test-resources/etcnomad")
 	if err != nil {
 		t.Fatalf("Failed to load config: %s", err)
@@ -615,6 +626,8 @@ func TestConfig_LoadConfigsFileOrder(t *testing.T) {
 }
 
 func TestConfig_Listener(t *testing.T) {
+	ci.Parallel(t)
+
 	config := DefaultConfig()
 
 	// Fails on invalid input
@@ -664,6 +677,8 @@ func TestConfig_Listener(t *testing.T) {
 }
 
 func TestConfig_DevModeFlag(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		dev         bool
 		connect     bool
@@ -722,6 +737,8 @@ func TestConfig_DevModeFlag(t *testing.T) {
 // TestConfig_normalizeAddrs_DevMode asserts that normalizeAddrs allows
 // advertising localhost in dev mode.
 func TestConfig_normalizeAddrs_DevMode(t *testing.T) {
+	ci.Parallel(t)
+
 	// allow to advertise 127.0.0.1 if dev-mode is enabled
 	c := &Config{
 		BindAddr: "127.0.0.1",
@@ -772,6 +789,8 @@ func TestConfig_normalizeAddrs_DevMode(t *testing.T) {
 // TestConfig_normalizeAddrs_NoAdvertise asserts that normalizeAddrs will
 // fail if no valid advertise address available in non-dev mode.
 func TestConfig_normalizeAddrs_NoAdvertise(t *testing.T) {
+	ci.Parallel(t)
+
 	c := &Config{
 		BindAddr: "127.0.0.1",
 		Ports: &Ports{
@@ -804,6 +823,8 @@ func TestConfig_normalizeAddrs_NoAdvertise(t *testing.T) {
 // TestConfig_normalizeAddrs_AdvertiseLocalhost asserts localhost can be
 // advertised if it's explicitly set in the config.
 func TestConfig_normalizeAddrs_AdvertiseLocalhost(t *testing.T) {
+	ci.Parallel(t)
+
 	c := &Config{
 		BindAddr: "127.0.0.1",
 		Ports: &Ports{
@@ -841,6 +862,8 @@ func TestConfig_normalizeAddrs_AdvertiseLocalhost(t *testing.T) {
 // TestConfig_normalizeAddrs_IPv6Loopback asserts that an IPv6 loopback address
 // is normalized properly. See #2739
 func TestConfig_normalizeAddrs_IPv6Loopback(t *testing.T) {
+	ci.Parallel(t)
+
 	c := &Config{
 		BindAddr: "::1",
 		Ports: &Ports{
@@ -877,6 +900,8 @@ func TestConfig_normalizeAddrs_IPv6Loopback(t *testing.T) {
 }
 
 func TestConfig_normalizeAddrs(t *testing.T) {
+	ci.Parallel(t)
+
 	c := &Config{
 		BindAddr: "169.254.1.5",
 		Ports: &Ports{
@@ -988,6 +1013,8 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 }
 
 func TestConfig_templateNetworkInterface(t *testing.T) {
+	ci.Parallel(t)
+
 	// find the first interface
 	ifaces, err := sockaddr.GetAllInterfaces()
 	if err != nil {
@@ -1085,6 +1112,8 @@ func TestConfig_templateNetworkInterface(t *testing.T) {
 }
 
 func TestIsMissingPort(t *testing.T) {
+	ci.Parallel(t)
+
 	_, _, err := net.SplitHostPort("localhost")
 	if missing := isMissingPort(err); !missing {
 		t.Errorf("expected missing port error, but got %v", err)
@@ -1096,6 +1125,8 @@ func TestIsMissingPort(t *testing.T) {
 }
 
 func TestMergeServerJoin(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	{
@@ -1202,7 +1233,8 @@ func TestMergeServerJoin(t *testing.T) {
 }
 
 func TestTelemetry_PrefixFilters(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	cases := []struct {
 		in       []string
 		expAllow []string
@@ -1244,6 +1276,8 @@ func TestTelemetry_PrefixFilters(t *testing.T) {
 }
 
 func TestTelemetry_Parse(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	dir, err := ioutil.TempDir("", "nomad")
 	require.NoError(err)
@@ -1267,6 +1301,7 @@ func TestTelemetry_Parse(t *testing.T) {
 }
 
 func TestEventBroker_Parse(t *testing.T) {
+	ci.Parallel(t)
 
 	require := require.New(t)
 	{

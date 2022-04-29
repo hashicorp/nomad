@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 )
 
 func TestStatsFetcher(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	conf := func(c *Config) {
 		c.Region = "region-a"

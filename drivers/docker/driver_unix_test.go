@@ -15,6 +15,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/freeport"
@@ -27,10 +28,9 @@ import (
 )
 
 func TestDockerDriver_User(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
+
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
 	task.User = "alice"
@@ -55,10 +55,9 @@ func TestDockerDriver_User(t *testing.T) {
 }
 
 func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
+
 	require := require.New(t)
 
 	// Because go-dockerclient doesn't provide api for query network aliases, just check that
@@ -104,9 +103,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 }
 
 func TestDockerDriver_NetworkMode_Host(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 	expected := "host"
 
@@ -148,9 +145,7 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 }
 
 func TestDockerDriver_CPUCFSPeriod(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -171,7 +166,9 @@ func TestDockerDriver_CPUCFSPeriod(t *testing.T) {
 }
 
 func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
+
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
 	expectedUlimits := map[string]string{
@@ -218,7 +215,9 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 }
 
 func TestDockerDriver_Sysctl_Ulimit_Errors(t *testing.T) {
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
+
 	brokenConfigs := []map[string]string{
 		{
 			"nofile": "",
@@ -261,8 +260,7 @@ func TestDockerDriver_Sysctl_Ulimit_Errors(t *testing.T) {
 // negative case for non existent mount paths. We should write a similar test
 // for windows.
 func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
-	t.Parallel()
-
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	allocDir := "/tmp/nomad/alloc-dir"
@@ -397,7 +395,7 @@ func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
 // an absolute path, changing path expansion behaviour. A similar test should
 // be written for windows.
 func TestDockerDriver_MountsSerialization(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	allocDir := "/tmp/nomad/alloc-dir"
@@ -566,7 +564,7 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 // and present in docker.CreateContainerOptions, and that it is appended
 // to any devices/mounts a user sets in the task config.
 func TestDockerDriver_CreateContainerConfig_MountsCombined(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	task, cfg, ports := dockerTask(t)
@@ -666,6 +664,7 @@ func TestDockerDriver_CreateContainerConfig_MountsCombined(t *testing.T) {
 // TestDockerDriver_Cleanup ensures Cleanup removes only downloaded images.
 // Doesn't run on windows because it requires an image variant
 func TestDockerDriver_Cleanup(t *testing.T) {
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	// using a small image and an specific point release to avoid accidental conflicts with other tasks
@@ -710,9 +709,7 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 
 // Tests that images prefixed with "https://" are supported
 func TestDockerDriver_Start_Image_HTTPS(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
@@ -787,9 +784,7 @@ func copyFile(src, dst string, t *testing.T) {
 }
 
 func TestDocker_ExecTaskStreaming(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	taskCfg := newTaskConfig("", []string{"/bin/sleep", "1000"})
@@ -817,10 +812,9 @@ func TestDocker_ExecTaskStreaming(t *testing.T) {
 
 // Tests that a given DNSConfig properly configures dns
 func Test_dnsConfig(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
+	ci.Parallel(t)
 	testutil.DockerCompatible(t)
+
 	require := require.New(t)
 	harness := dockerDriverHarness(t, nil)
 	defer harness.Kill()

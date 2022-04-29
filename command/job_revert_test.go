@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	structs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
@@ -12,12 +13,12 @@ import (
 )
 
 func TestJobRevertCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &JobDispatchCommand{}
 }
 
 func TestJobRevertCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobRevertCommand{Meta: Meta{Ui: ui}}
 
@@ -40,8 +41,8 @@ func TestJobRevertCommand_Fails(t *testing.T) {
 }
 
 func TestJobRevertCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()

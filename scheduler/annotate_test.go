@@ -4,10 +4,13 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestAnnotateTaskGroup_Updates(t *testing.T) {
+	ci.Parallel(t)
+
 	annotations := &structs.PlanAnnotations{
 		DesiredTGUpdates: map[string]*structs.DesiredUpdates{
 			"foo": {
@@ -50,6 +53,8 @@ func TestAnnotateTaskGroup_Updates(t *testing.T) {
 }
 
 func TestAnnotateCountChange_NonEdited(t *testing.T) {
+	ci.Parallel(t)
+
 	tg := &structs.TaskGroupDiff{}
 	tgOrig := &structs.TaskGroupDiff{}
 	annotateCountChange(tg)
@@ -59,6 +64,8 @@ func TestAnnotateCountChange_NonEdited(t *testing.T) {
 }
 
 func TestAnnotateCountChange(t *testing.T) {
+	ci.Parallel(t)
+
 	up := &structs.FieldDiff{
 		Type: structs.DiffTypeEdited,
 		Name: "Count",
@@ -100,6 +107,8 @@ func TestAnnotateCountChange(t *testing.T) {
 }
 
 func TestAnnotateTask_NonEdited(t *testing.T) {
+	ci.Parallel(t)
+
 	tgd := &structs.TaskGroupDiff{Type: structs.DiffTypeNone}
 	td := &structs.TaskDiff{Type: structs.DiffTypeNone}
 	tdOrig := &structs.TaskDiff{Type: structs.DiffTypeNone}
@@ -110,6 +119,8 @@ func TestAnnotateTask_NonEdited(t *testing.T) {
 }
 
 func TestAnnotateTask(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Diff    *structs.TaskDiff
 		Parent  *structs.TaskGroupDiff

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -289,6 +290,8 @@ func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 // Tests the reconciler properly handles placements for a job that has no
 // existing allocations
 func TestReconciler_Place_NoExisting(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, nil, nil, "")
 	r := reconciler.Compute()
@@ -313,6 +316,8 @@ func TestReconciler_Place_NoExisting(t *testing.T) {
 // Tests the reconciler properly handles placements for a job that has some
 // existing allocations
 func TestReconciler_Place_Existing(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 
 	// Create 3 existing allocations
@@ -350,6 +355,8 @@ func TestReconciler_Place_Existing(t *testing.T) {
 // Tests the reconciler properly handles stopping allocations for a job that has
 // scaled down
 func TestReconciler_ScaleDown_Partial(t *testing.T) {
+	ci.Parallel(t)
+
 	// Has desired 10
 	job := mock.Job()
 
@@ -388,6 +395,8 @@ func TestReconciler_ScaleDown_Partial(t *testing.T) {
 // Tests the reconciler properly handles stopping allocations for a job that has
 // scaled down to zero desired
 func TestReconciler_ScaleDown_Zero(t *testing.T) {
+	ci.Parallel(t)
+
 	// Set desired 0
 	job := mock.Job()
 	job.TaskGroups[0].Count = 0
@@ -426,6 +435,8 @@ func TestReconciler_ScaleDown_Zero(t *testing.T) {
 // Tests the reconciler properly handles stopping allocations for a job that has
 // scaled down to zero desired where allocs have duplicate names
 func TestReconciler_ScaleDown_Zero_DuplicateNames(t *testing.T) {
+	ci.Parallel(t)
+
 	// Set desired 0
 	job := mock.Job()
 	job.TaskGroups[0].Count = 0
@@ -465,6 +476,8 @@ func TestReconciler_ScaleDown_Zero_DuplicateNames(t *testing.T) {
 
 // Tests the reconciler properly handles inplace upgrading allocations
 func TestReconciler_Inplace(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 
 	// Create 10 existing allocations
@@ -501,6 +514,8 @@ func TestReconciler_Inplace(t *testing.T) {
 // Tests the reconciler properly handles inplace upgrading allocations while
 // scaling up
 func TestReconciler_Inplace_ScaleUp(t *testing.T) {
+	ci.Parallel(t)
+
 	// Set desired 15
 	job := mock.Job()
 	job.TaskGroups[0].Count = 15
@@ -541,6 +556,8 @@ func TestReconciler_Inplace_ScaleUp(t *testing.T) {
 // Tests the reconciler properly handles inplace upgrading allocations while
 // scaling down
 func TestReconciler_Inplace_ScaleDown(t *testing.T) {
+	ci.Parallel(t)
+
 	// Set desired 5
 	job := mock.Job()
 	job.TaskGroups[0].Count = 5
@@ -582,6 +599,8 @@ func TestReconciler_Inplace_ScaleDown(t *testing.T) {
 // generates the expected placements for any already-running allocations of
 // that version.
 func TestReconciler_Inplace_Rollback(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Count = 4
 	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
@@ -648,6 +667,8 @@ func TestReconciler_Inplace_Rollback(t *testing.T) {
 
 // Tests the reconciler properly handles destructive upgrading allocations
 func TestReconciler_Destructive(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 
 	// Create 10 existing allocations
@@ -681,6 +702,8 @@ func TestReconciler_Destructive(t *testing.T) {
 
 // Tests the reconciler properly handles destructive upgrading allocations when max_parallel=0
 func TestReconciler_DestructiveMaxParallel(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.MaxParallelJob()
 
 	// Create 10 existing allocations
@@ -715,6 +738,8 @@ func TestReconciler_DestructiveMaxParallel(t *testing.T) {
 // Tests the reconciler properly handles destructive upgrading allocations while
 // scaling up
 func TestReconciler_Destructive_ScaleUp(t *testing.T) {
+	ci.Parallel(t)
+
 	// Set desired 15
 	job := mock.Job()
 	job.TaskGroups[0].Count = 15
@@ -754,6 +779,8 @@ func TestReconciler_Destructive_ScaleUp(t *testing.T) {
 // Tests the reconciler properly handles destructive upgrading allocations while
 // scaling down
 func TestReconciler_Destructive_ScaleDown(t *testing.T) {
+	ci.Parallel(t)
+
 	// Set desired 5
 	job := mock.Job()
 	job.TaskGroups[0].Count = 5
@@ -792,6 +819,8 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 
 // Tests the reconciler properly handles lost nodes with allocations
 func TestReconciler_LostNode(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 
 	// Create 10 existing allocations
@@ -840,6 +869,8 @@ func TestReconciler_LostNode(t *testing.T) {
 // Tests the reconciler properly handles lost nodes with allocations while
 // scaling up
 func TestReconciler_LostNode_ScaleUp(t *testing.T) {
+	ci.Parallel(t)
+
 	// Set desired 15
 	job := mock.Job()
 	job.TaskGroups[0].Count = 15
@@ -890,6 +921,8 @@ func TestReconciler_LostNode_ScaleUp(t *testing.T) {
 // Tests the reconciler properly handles lost nodes with allocations while
 // scaling down
 func TestReconciler_LostNode_ScaleDown(t *testing.T) {
+	ci.Parallel(t)
+
 	// Set desired 5
 	job := mock.Job()
 	job.TaskGroups[0].Count = 5
@@ -937,6 +970,8 @@ func TestReconciler_LostNode_ScaleDown(t *testing.T) {
 
 // Tests the reconciler properly handles draining nodes with allocations
 func TestReconciler_DrainNode(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 
 	// Create 10 existing allocations
@@ -987,6 +1022,8 @@ func TestReconciler_DrainNode(t *testing.T) {
 // Tests the reconciler properly handles draining nodes with allocations while
 // scaling up
 func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
+	ci.Parallel(t)
+
 	// Set desired 15
 	job := mock.Job()
 	job.TaskGroups[0].Count = 15
@@ -1040,6 +1077,8 @@ func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
 // Tests the reconciler properly handles draining nodes with allocations while
 // scaling down
 func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
+	ci.Parallel(t)
+
 	// Set desired 8
 	job := mock.Job()
 	job.TaskGroups[0].Count = 8
@@ -1092,6 +1131,8 @@ func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
 
 // Tests the reconciler properly handles a task group being removed
 func TestReconciler_RemovedTG(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 
 	// Create 10 allocations for a tg that no longer exists
@@ -1135,6 +1176,8 @@ func TestReconciler_RemovedTG(t *testing.T) {
 
 // Tests the reconciler properly handles a job in stopped states
 func TestReconciler_JobStopped(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.Stop = true
 
@@ -1196,6 +1239,8 @@ func TestReconciler_JobStopped(t *testing.T) {
 // Tests the reconciler doesn't update allocs in terminal state
 // when job is stopped or nil
 func TestReconciler_JobStopped_TerminalAllocs(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.Stop = true
 
@@ -1257,6 +1302,8 @@ func TestReconciler_JobStopped_TerminalAllocs(t *testing.T) {
 
 // Tests the reconciler properly handles jobs with multiple task groups
 func TestReconciler_MultiTG(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	tg2 := job.TaskGroups[0].Copy()
 	tg2.Name = "foo"
@@ -1300,6 +1347,8 @@ func TestReconciler_MultiTG(t *testing.T) {
 // Tests the reconciler properly handles jobs with multiple task groups with
 // only one having an update stanza and a deployment already being created
 func TestReconciler_MultiTG_SingleUpdateStanza(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	tg2 := job.TaskGroups[0].Copy()
 	tg2.Name = "foo"
@@ -1348,6 +1397,8 @@ func TestReconciler_MultiTG_SingleUpdateStanza(t *testing.T) {
 
 // Tests delayed rescheduling of failed batch allocations
 func TestReconciler_RescheduleLater_Batch(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Set desired 4
@@ -1441,6 +1492,8 @@ func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 // Tests delayed rescheduling of failed batch allocations and batching of allocs
 // with fail times that are close together
 func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Set desired 4
@@ -1527,6 +1580,8 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 
 // Tests rescheduling failed batch allocations
 func TestReconciler_RescheduleNow_Batch(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	// Set desired 4
 	job := mock.Job()
@@ -1608,6 +1663,8 @@ func TestReconciler_RescheduleNow_Batch(t *testing.T) {
 
 // Tests rescheduling failed service allocations with desired state stop
 func TestReconciler_RescheduleLater_Service(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Set desired 5
@@ -1690,6 +1747,8 @@ func TestReconciler_RescheduleLater_Service(t *testing.T) {
 
 // Tests service allocations with client status complete
 func TestReconciler_Service_ClientStatusComplete(t *testing.T) {
+	ci.Parallel(t)
+
 	// Set desired 5
 	job := mock.Job()
 	job.TaskGroups[0].Count = 5
@@ -1744,6 +1803,8 @@ func TestReconciler_Service_ClientStatusComplete(t *testing.T) {
 
 // Tests service job placement with desired stop and client status complete
 func TestReconciler_Service_DesiredStop_ClientStatusComplete(t *testing.T) {
+	ci.Parallel(t)
+
 	// Set desired 5
 	job := mock.Job()
 	job.TaskGroups[0].Count = 5
@@ -1803,6 +1864,8 @@ func TestReconciler_Service_DesiredStop_ClientStatusComplete(t *testing.T) {
 
 // Tests rescheduling failed service allocations with desired state stop
 func TestReconciler_RescheduleNow_Service(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Set desired 5
@@ -1883,6 +1946,8 @@ func TestReconciler_RescheduleNow_Service(t *testing.T) {
 
 // Tests rescheduling failed service allocations when there's clock drift (upto a second)
 func TestReconciler_RescheduleNow_WithinAllowedTimeWindow(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Set desired 5
@@ -1962,6 +2027,8 @@ func TestReconciler_RescheduleNow_WithinAllowedTimeWindow(t *testing.T) {
 
 // Tests rescheduling failed service allocations when the eval ID matches and there's a large clock drift
 func TestReconciler_RescheduleNow_EvalIDMatch(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Set desired 5
@@ -2043,6 +2110,8 @@ func TestReconciler_RescheduleNow_EvalIDMatch(t *testing.T) {
 
 // Tests rescheduling failed service allocations when there are canaries
 func TestReconciler_RescheduleNow_Service_WithCanaries(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Set desired 5
@@ -2151,6 +2220,8 @@ func TestReconciler_RescheduleNow_Service_WithCanaries(t *testing.T) {
 
 // Tests rescheduling failed canary service allocations
 func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Set desired 5
@@ -2276,6 +2347,8 @@ func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 // Tests rescheduling failed canary service allocations when one has reached its
 // reschedule limit
 func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Set desired 5
@@ -2402,6 +2475,8 @@ func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
 
 // Tests failed service allocations that were already rescheduled won't be rescheduled again
 func TestReconciler_DontReschedule_PreviouslyRescheduled(t *testing.T) {
+	ci.Parallel(t)
+
 	// Set desired 5
 	job := mock.Job()
 	job.TaskGroups[0].Count = 5
@@ -2460,6 +2535,8 @@ func TestReconciler_DontReschedule_PreviouslyRescheduled(t *testing.T) {
 
 // Tests the reconciler cancels an old deployment when the job is being stopped
 func TestReconciler_CancelDeployment_JobStop(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.Stop = true
 
@@ -2557,6 +2634,8 @@ func TestReconciler_CancelDeployment_JobStop(t *testing.T) {
 
 // Tests the reconciler cancels an old deployment when the job is updated
 func TestReconciler_CancelDeployment_JobUpdate(t *testing.T) {
+	ci.Parallel(t)
+
 	// Create a base job
 	job := mock.Job()
 
@@ -2633,6 +2712,8 @@ func TestReconciler_CancelDeployment_JobUpdate(t *testing.T) {
 // Tests the reconciler creates a deployment and does a rolling upgrade with
 // destructive changes
 func TestReconciler_CreateDeployment_RollingUpgrade_Destructive(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -2674,6 +2755,8 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Destructive(t *testing.T) {
 
 // Tests the reconciler creates a deployment for inplace updates
 func TestReconciler_CreateDeployment_RollingUpgrade_Inplace(t *testing.T) {
+	ci.Parallel(t)
+
 	jobOld := mock.Job()
 	job := jobOld.Copy()
 	job.Version++
@@ -2716,6 +2799,8 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Inplace(t *testing.T) {
 
 // Tests the reconciler creates a deployment when the job has a newer create index
 func TestReconciler_CreateDeployment_NewerCreateIndex(t *testing.T) {
+	ci.Parallel(t)
+
 	jobOld := mock.Job()
 	job := jobOld.Copy()
 	job.TaskGroups[0].Update = noCanaryUpdate
@@ -2762,6 +2847,8 @@ func TestReconciler_CreateDeployment_NewerCreateIndex(t *testing.T) {
 
 // Tests the reconciler doesn't creates a deployment if there are no changes
 func TestReconciler_DontCreateDeployment_NoChanges(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -2799,6 +2886,8 @@ func TestReconciler_DontCreateDeployment_NoChanges(t *testing.T) {
 // Tests the reconciler doesn't place any more canaries when the deployment is
 // paused or failed
 func TestReconciler_PausedOrFailedDeployment_NoMoreCanaries(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = canaryUpdate
 
@@ -2879,6 +2968,8 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreCanaries(t *testing.T) {
 // Tests the reconciler doesn't place any more allocs when the deployment is
 // paused or failed
 func TestReconciler_PausedOrFailedDeployment_NoMorePlacements(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 	job.TaskGroups[0].Count = 15
@@ -2943,6 +3034,8 @@ func TestReconciler_PausedOrFailedDeployment_NoMorePlacements(t *testing.T) {
 // Tests the reconciler doesn't do any more destructive updates when the
 // deployment is paused or failed
 func TestReconciler_PausedOrFailedDeployment_NoMoreDestructiveUpdates(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -3016,6 +3109,8 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreDestructiveUpdates(t *testing
 
 // Tests the reconciler handles migrating a canary correctly on a draining node
 func TestReconciler_DrainNode_Canary(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = canaryUpdate
 
@@ -3088,6 +3183,8 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 
 // Tests the reconciler handles migrating a canary correctly on a lost node
 func TestReconciler_LostNode_Canary(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = canaryUpdate
 
@@ -3161,6 +3258,8 @@ func TestReconciler_LostNode_Canary(t *testing.T) {
 
 // Tests the reconciler handles stopping canaries from older deployments
 func TestReconciler_StopOldCanaries(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = canaryUpdate
 
@@ -3241,6 +3340,8 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 
 // Tests the reconciler creates new canaries when the job changes
 func TestReconciler_NewCanaries(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = canaryUpdate
 
@@ -3287,6 +3388,8 @@ func TestReconciler_NewCanaries(t *testing.T) {
 // Tests the reconciler creates new canaries when the job changes and the
 // canary count is greater than the task group count
 func TestReconciler_NewCanaries_CountGreater(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Count = 3
 	job.TaskGroups[0].Update = canaryUpdate.Copy()
@@ -3336,6 +3439,8 @@ func TestReconciler_NewCanaries_CountGreater(t *testing.T) {
 // Tests the reconciler creates new canaries when the job changes for multiple
 // task groups
 func TestReconciler_NewCanaries_MultiTG(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = canaryUpdate
 	job.TaskGroups = append(job.TaskGroups, job.TaskGroups[0].Copy())
@@ -3391,6 +3496,8 @@ func TestReconciler_NewCanaries_MultiTG(t *testing.T) {
 
 // Tests the reconciler creates new canaries when the job changes and scales up
 func TestReconciler_NewCanaries_ScaleUp(t *testing.T) {
+	ci.Parallel(t)
+
 	// Scale the job up to 15
 	job := mock.Job()
 	job.TaskGroups[0].Update = canaryUpdate
@@ -3439,6 +3546,8 @@ func TestReconciler_NewCanaries_ScaleUp(t *testing.T) {
 // Tests the reconciler creates new canaries when the job changes and scales
 // down
 func TestReconciler_NewCanaries_ScaleDown(t *testing.T) {
+	ci.Parallel(t)
+
 	// Scale the job down to 5
 	job := mock.Job()
 	job.TaskGroups[0].Update = canaryUpdate
@@ -3488,6 +3597,8 @@ func TestReconciler_NewCanaries_ScaleDown(t *testing.T) {
 
 // Tests the reconciler handles filling the names of partially placed canaries
 func TestReconciler_NewCanaries_FillNames(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = &structs.UpdateStrategy{
 		Canary:          4,
@@ -3556,6 +3667,8 @@ func TestReconciler_NewCanaries_FillNames(t *testing.T) {
 
 // Tests the reconciler handles canary promotion by unblocking max_parallel
 func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = canaryUpdate
 
@@ -3628,6 +3741,8 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 // Tests the reconciler handles canary promotion when the canary count equals
 // the total correctly
 func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = canaryUpdate
 	job.TaskGroups[0].Count = 2
@@ -3709,6 +3824,8 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 // Tests the reconciler checks the health of placed allocs to determine the
 // limit
 func TestReconciler_DeploymentLimit_HealthAccounting(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -3801,6 +3918,8 @@ func TestReconciler_DeploymentLimit_HealthAccounting(t *testing.T) {
 // Tests the reconciler handles an alloc on a tainted node during a rolling
 // update
 func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -3885,6 +4004,8 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 // Tests the reconciler handles a failed deployment with allocs on tainted
 // nodes
 func TestReconciler_FailedDeployment_TaintedNodes(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -3968,6 +4089,8 @@ func TestReconciler_FailedDeployment_TaintedNodes(t *testing.T) {
 // Tests the reconciler handles a run after a deployment is complete
 // successfully.
 func TestReconciler_CompleteDeployment(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = canaryUpdate
 
@@ -4019,6 +4142,8 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 // nothing left to place even if there are failed allocations that are part of
 // the deployment.
 func TestReconciler_MarkDeploymentComplete_FailedAllocations(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -4080,6 +4205,8 @@ func TestReconciler_MarkDeploymentComplete_FailedAllocations(t *testing.T) {
 
 // Test that a failed deployment cancels non-promoted canaries
 func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
+	ci.Parallel(t)
+
 	// Create a job with two task groups
 	job := mock.Job()
 	job.TaskGroups[0].Update = canaryUpdate
@@ -4173,6 +4300,8 @@ func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
 
 // Test that a failed deployment and updated job works
 func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -4242,6 +4371,8 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 
 // Tests the reconciler marks a deployment as complete
 func TestReconciler_MarkDeploymentComplete(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -4298,6 +4429,8 @@ func TestReconciler_MarkDeploymentComplete(t *testing.T) {
 // Tests the reconciler handles changing a job such that a deployment is created
 // while doing a scale up but as the second eval.
 func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
+	ci.Parallel(t)
+
 	// Scale the job up to 15
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
@@ -4358,6 +4491,8 @@ func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
 // Tests the reconciler doesn't stop allocations when doing a rolling upgrade
 // where the count of the old job allocs is < desired count.
 func TestReconciler_RollingUpgrade_MissingAllocs(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -4403,6 +4538,8 @@ func TestReconciler_RollingUpgrade_MissingAllocs(t *testing.T) {
 // Tests that the reconciler handles rerunning a batch job in the case that the
 // allocations are from an older instance of the job.
 func TestReconciler_Batch_Rerun(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.TaskGroups[0].Update = nil
@@ -4448,6 +4585,8 @@ func TestReconciler_Batch_Rerun(t *testing.T) {
 
 // Test that a failed deployment will not result in rescheduling failed allocations
 func TestReconciler_FailedDeployment_DontReschedule(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -4505,6 +4644,8 @@ func TestReconciler_FailedDeployment_DontReschedule(t *testing.T) {
 // Test that a running deployment with failed allocs will not result in
 // rescheduling failed allocations unless they are marked as reschedulable.
 func TestReconciler_DeploymentWithFailedAllocs_DontReschedule(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 	tgName := job.TaskGroups[0].Name
@@ -4562,6 +4703,8 @@ func TestReconciler_DeploymentWithFailedAllocs_DontReschedule(t *testing.T) {
 
 // Test that a failed deployment cancels non-promoted canaries
 func TestReconciler_FailedDeployment_AutoRevert_CancelCanaries(t *testing.T) {
+	ci.Parallel(t)
+
 	// Create a job
 	job := mock.Job()
 	job.TaskGroups[0].Count = 3
@@ -4657,6 +4800,8 @@ func TestReconciler_FailedDeployment_AutoRevert_CancelCanaries(t *testing.T) {
 // Test that a successful deployment with failed allocs will result in
 // rescheduling failed allocations
 func TestReconciler_SuccessfulDeploymentWithFailedAllocs_Reschedule(t *testing.T) {
+	ci.Parallel(t)
+
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 	tgName := job.TaskGroups[0].Name
@@ -4710,6 +4855,8 @@ func TestReconciler_SuccessfulDeploymentWithFailedAllocs_Reschedule(t *testing.T
 
 // Tests force rescheduling a failed alloc that is past its reschedule limit
 func TestReconciler_ForceReschedule_Service(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Set desired 5
@@ -4785,6 +4932,8 @@ func TestReconciler_ForceReschedule_Service(t *testing.T) {
 // new allocs should be placed to satisfy the job count, and current allocations are
 // left unmodified
 func TestReconciler_RescheduleNot_Service(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 
 	// Set desired 5
@@ -4866,6 +5015,8 @@ func TestReconciler_RescheduleNot_Service(t *testing.T) {
 // Tests behavior of batch failure with rescheduling policy preventing rescheduling:
 // current allocations are left unmodified and no follow up
 func TestReconciler_RescheduleNot_Batch(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	// Set desired 4
 	job := mock.Job()
@@ -4942,5 +5093,4 @@ func TestReconciler_RescheduleNot_Batch(t *testing.T) {
 			},
 		},
 	})
-
 }
