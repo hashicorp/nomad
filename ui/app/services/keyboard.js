@@ -21,13 +21,29 @@ export default class KeyboardService extends Service {
    * @param {Array<string>} links - array of root.branch.twig strings
    * @param {number} traverseBy - positive or negative number to move along links
    */
-  traverseSubnav(links, traverseBy) {
+  traverseLinkList(links, traverseBy) {
     // afterRender because LinkTos evaluate their href value at render time
     schedule('afterRender', () => {
       if (links.length) {
-        const activeLink = links.find((link) => this.router.isActive(link));
+        // links.forEach((link) => {
+        //   console.log('linx', link, this.router.isActive(link), this.router.currentRoute, this.router.currentRouteName, this.router.currentURL)
+        // })
+        let activeLink = links.find((link) => this.router.isActive(link));
+        console.log('active link present?', activeLink);
+
+        // If no activeLink, means we're nested within a primary section.
+        // Luckily, Ember's RouteInfo.find() gives us access to parents and connected leaves of a route.
+        // So, if we're on /csi/volumes but the nav link is to /csi, we'll .find() it.
+        // Similarly, /job/:job/taskgroupid/index will find /job.
+        if (!activeLink) {
+          activeLink = links.find((link) => {
+            return this.router.currentRoute.find((r) => {
+              return r.name === link || `${r.name}.index` === link;
+            });
+          });
+        }
+
         if (activeLink) {
-          // TODO: test this, maybe write less defensively
           const activeLinkPosition = links.indexOf(activeLink);
           const nextPosition = activeLinkPosition + traverseBy;
 
@@ -84,28 +100,42 @@ export default class KeyboardService extends Service {
       label: 'Next Subnav',
       pattern: ['j'],
       action: () => {
-        this.traverseSubnav(this.subnavLinks, 1);
+        this.traverseLinkList(this.subnavLinks, 1);
       },
     },
     {
       label: 'Next Subnav',
       pattern: ['Shift+ArrowRight'],
       action: () => {
-        this.traverseSubnav(this.subnavLinks, 1);
+        this.traverseLinkList(this.subnavLinks, 1);
       },
     },
     {
       label: 'Previous Subnav',
       pattern: ['k'],
       action: () => {
-        this.traverseSubnav(this.subnavLinks, -1);
+        this.traverseLinkList(this.subnavLinks, -1);
       },
     },
     {
       label: 'Previous Subnav',
       pattern: ['Shift+ArrowLeft'],
       action: () => {
-        this.traverseSubnav(this.subnavLinks, -1);
+        this.traverseLinkList(this.subnavLinks, -1);
+      },
+    },
+    {
+      label: 'Previous Main Section',
+      pattern: ['Shift+ArrowUp'],
+      action: () => {
+        this.traverseLinkList(this.menuLinks, -1);
+      },
+    },
+    {
+      label: 'Next Main Section',
+      pattern: ['Shift+ArrowDown'],
+      action: () => {
+        this.traverseLinkList(this.menuLinks, 1);
       },
     },
     {
@@ -159,6 +189,17 @@ export default class KeyboardService extends Service {
     }
   }
 
+  get menuLinks() {
+    const menu = document.getElementsByClassName('menu')[0];
+    if (menu) {
+      return Array.from(menu.querySelectorAll('a')).map((link) => {
+        return this.router.recognize(link.getAttribute('href'))?.name;
+      });
+    } else {
+      return [];
+    }
+  }
+
   @tracked buffer = A([]);
 
   /**
@@ -188,6 +229,7 @@ export default class KeyboardService extends Service {
     this.buffer.pushObject(shifted ? `Shift+${key}` : key);
     if (this.matchedCommand) {
       this.matchedCommand.action();
+      yield timeout(DEBOUNCE_MS / 2);
       this.clearBuffer();
     }
     yield timeout(DEBOUNCE_MS);
@@ -209,7 +251,7 @@ export default class KeyboardService extends Service {
       this.matchedCommandGhost = match?.label;
       run.later(() => {
         this.matchedCommandGhost = '';
-      }, 2000);
+      }, DEBOUNCE_MS * 2);
     }
     return match;
   }
