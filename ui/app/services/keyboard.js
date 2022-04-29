@@ -6,6 +6,7 @@ import { compare } from '@ember/utils';
 import { A } from '@ember/array';
 import EmberRouter from '@ember/routing/router';
 import { schedule } from '@ember/runloop';
+import { run } from '@ember/runloop';
 
 const DEBOUNCE_MS = 750;
 
@@ -150,9 +151,16 @@ export default class KeyboardService extends Service {
    */
   @restartableTask *addKeyToBuffer(key) {
     this.buffer.pushObject(key);
+    if (this.matchedCommand) {
+      this.matchedCommand.action();
+      this.clearBuffer();
+    }
     yield timeout(DEBOUNCE_MS);
     this.clearBuffer();
   }
+
+  // 👻 TODO, temp, dev.
+  @tracked matchedCommandGhost = '';
 
   get matchedCommand() {
     // Ember Compare: returns 0 if there's no diff between arrays.
@@ -160,8 +168,13 @@ export default class KeyboardService extends Service {
     const match = this.keyCommands.find(
       (command) => !compare(command.pattern, this.buffer)
     );
+
+    // 👻 TODO, temp, dev.
     if (match) {
-      match.action();
+      this.matchedCommandGhost = match?.label;
+      run.later(() => {
+        this.matchedCommandGhost = '';
+      }, 2000);
     }
     return match;
   }
