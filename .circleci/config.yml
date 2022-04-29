@@ -509,7 +509,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: docker.mirror.hashicorp.services/golang:1.16.12
+      - image: docker.mirror.hashicorp.services/golang:1.16.15
     resource_class: medium
     environment:
       <<: *common_envs
@@ -523,7 +523,7 @@ executors:
     environment: &machine_env
       <<: *common_envs
       GOPATH: /home/circleci/go
-      GOLANG_VERSION: 1.16.12
+      GOLANG_VERSION: 1.16.15
 
   go-macos:
     working_directory: ~/go/src/github.com/hashicorp/nomad
@@ -532,7 +532,7 @@ executors:
     environment:
       <<: *common_envs
       GOPATH: /Users/distiller/go
-      GOLANG_VERSION: 1.16.12
+      GOLANG_VERSION: 1.16.15
 
   go-windows:
     machine:
@@ -544,7 +544,7 @@ executors:
       GOPATH: c:\gopath
       GOBIN: c:\gopath\bin
       GOTESTSUM_PATH: c:\tmp\test-reports
-      GOLANG_VERSION: 1.16.12
+      GOLANG_VERSION: 1.16.15
       GOTESTSUM_VERSION: 1.7.0
       VAULT_VERSION: 1.4.1
 
