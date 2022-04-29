@@ -7,3 +7,28 @@
 
 // Only necessary in dev
 @import './storybook.scss';
+
+// TODO, temp, dev
+.keynav-ghost {
+  color: white;
+  font-weight: bold;
+  position: fixed;
+  width: 50vw;
+  height: 20vh;
+  z-index: 500;
+  top: 40vh;
+  left: 25vw;
+  text-align: center;
+
+  span {
+    background-color: rgba(0, 0, 0, 0.75);
+    font-size: 2rem;
+    // margin: 0.25rem;
+    padding: 0.5rem 1rem;
+    border-radius: 2rem;
+
+    &.command {
+      background-color: rgba(0, 200, 0, 0.75);
+    }
+  }
+}
