@@ -15,50 +15,9 @@ export default class KeyboardService extends Service {
    * @type {EmberRouter}
    */
   @service router;
-
-  /**
-   *
-   * @param {Array<string>} links - array of root.branch.twig strings
-   * @param {number} traverseBy - positive or negative number to move along links
-   */
-  traverseLinkList(links, traverseBy) {
-    // afterRender because LinkTos evaluate their href value at render time
-    schedule('afterRender', () => {
-      if (links.length) {
-        // links.forEach((link) => {
-        //   console.log('linx', link, this.router.isActive(link), this.router.currentRoute, this.router.currentRouteName, this.router.currentURL)
-        // })
-        let activeLink = links.find((link) => this.router.isActive(link));
-        console.log('active link present?', activeLink);
-
-        // If no activeLink, means we're nested within a primary section.
-        // Luckily, Ember's RouteInfo.find() gives us access to parents and connected leaves of a route.
-        // So, if we're on /csi/volumes but the nav link is to /csi, we'll .find() it.
-        // Similarly, /job/:job/taskgroupid/index will find /job.
-        if (!activeLink) {
-          activeLink = links.find((link) => {
-            return this.router.currentRoute.find((r) => {
-              return r.name === link || `${r.name}.index` === link;
-            });
-          });
-        }
-
-        if (activeLink) {
-          const activeLinkPosition = links.indexOf(activeLink);
-          const nextPosition = activeLinkPosition + traverseBy;
-
-          // Modulo (%) logic: if the next position is longer than the array, wrap to 0.
-          // If it's before the beginning, wrap to the end.
-          const nextLink =
-            links[
-              ((nextPosition % links.length) + links.length) % links.length
-            ];
-
-          this.router.transitionTo(nextLink);
-        }
-      }
-    });
-  }
+  @tracked shortcutsVisible = false;
+  @tracked buffer = A([]);
+  @tracked matchedCommandGhost = ''; // 👻 TODO, temp, dev.
 
   keyCommands = [
     {
@@ -172,7 +131,7 @@ export default class KeyboardService extends Service {
     },
   ];
 
-  @tracked shortcutsVisible = false;
+  //#region Nav Traversal
 
   // 1. see if there's an .is-subnav element on the page
   // 2. if so, map over its links and use router.recognize to extract route patterns
@@ -189,6 +148,46 @@ export default class KeyboardService extends Service {
     }
   }
 
+  /**
+   *
+   * @param {Array<string>} links - array of root.branch.twig strings
+   * @param {number} traverseBy - positive or negative number to move along links
+   */
+  traverseLinkList(links, traverseBy) {
+    // afterRender because LinkTos evaluate their href value at render time
+    schedule('afterRender', () => {
+      if (links.length) {
+        let activeLink = links.find((link) => this.router.isActive(link));
+
+        // If no activeLink, means we're nested within a primary section.
+        // Luckily, Ember's RouteInfo.find() gives us access to parents and connected leaves of a route.
+        // So, if we're on /csi/volumes but the nav link is to /csi, we'll .find() it.
+        // Similarly, /job/:job/taskgroupid/index will find /job.
+        if (!activeLink) {
+          activeLink = links.find((link) => {
+            return this.router.currentRoute.find((r) => {
+              return r.name === link || `${r.name}.index` === link;
+            });
+          });
+        }
+
+        if (activeLink) {
+          const activeLinkPosition = links.indexOf(activeLink);
+          const nextPosition = activeLinkPosition + traverseBy;
+
+          // Modulo (%) logic: if the next position is longer than the array, wrap to 0.
+          // If it's before the beginning, wrap to the end.
+          const nextLink =
+            links[
+              ((nextPosition % links.length) + links.length) % links.length
+            ];
+
+          this.router.transitionTo(nextLink);
+        }
+      }
+    });
+  }
+
   get menuLinks() {
     const menu = document.getElementsByClassName('menu')[0];
     if (menu) {
@@ -200,7 +199,7 @@ export default class KeyboardService extends Service {
     }
   }
 
-  @tracked buffer = A([]);
+  //#endregion Nav Traversal
 
   /**
    *
@@ -235,9 +234,6 @@ export default class KeyboardService extends Service {
     yield timeout(DEBOUNCE_MS);
     this.clearBuffer();
   }
-
-  // 👻 TODO, temp, dev.
-  @tracked matchedCommandGhost = '';
 
   get matchedCommand() {
     // Ember Compare: returns 0 if there's no diff between arrays.
