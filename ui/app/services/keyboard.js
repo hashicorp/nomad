@@ -16,6 +16,34 @@ export default class KeyboardService extends Service {
    */
   @service router;
 
+  /**
+   *
+   * @param {Array<string>} links - array of root.branch.twig strings
+   * @param {number} traverseBy - positive or negative number to move along links
+   */
+  traverseSubnav(links, traverseBy) {
+    // afterRender because LinkTos evaluate their href value at render time
+    schedule('afterRender', () => {
+      if (links.length) {
+        const activeLink = links.find((link) => this.router.isActive(link));
+        if (activeLink) {
+          // TODO: test this, maybe write less defensively
+          const activeLinkPosition = links.indexOf(activeLink);
+          const nextPosition = activeLinkPosition + traverseBy;
+
+          // Modulo (%) logic: if the next position is longer than the array, wrap to 0.
+          // If it's before the beginning, wrap to the end.
+          const nextLink =
+            links[
+              ((nextPosition % links.length) + links.length) % links.length
+            ];
+
+          this.router.transitionTo(nextLink);
+        }
+      }
+    });
+  }
+
   keyCommands = [
     {
       label: 'Konami',
@@ -72,43 +100,14 @@ export default class KeyboardService extends Service {
       label: 'Next Subnav',
       pattern: ['j'],
       action: () => {
-        // afterRender because LinkTos evaluate their href value at render time
-        schedule('afterRender', () => {
-          if (this.subnavLinks.length) {
-            const activeLink = this.subnavLinks.find((link) =>
-              this.router.isActive(link)
-            );
-            const activeLinkPosition = this.subnavLinks.indexOf(activeLink);
-            if (activeLink) {
-              // TODO: test this, maybe write less defensively
-              const nextLink =
-                this.subnavLinks[activeLinkPosition + 1] || this.subnavLinks[0];
-              this.router.transitionTo(nextLink);
-            }
-          }
-        });
+        this.traverseSubnav(this.subnavLinks, 1);
       },
     },
     {
       label: 'Previous Subnav',
       pattern: ['k'],
       action: () => {
-        // afterRender because LinkTos evaluate their href value at render time
-        schedule('afterRender', () => {
-          if (this.subnavLinks.length) {
-            const activeLink = this.subnavLinks.find((link) =>
-              this.router.isActive(link)
-            );
-            const activeLinkPosition = this.subnavLinks.indexOf(activeLink);
-            if (activeLink) {
-              // TODO: test this, maybe write less defensively
-              const previousLink =
-                this.subnavLinks[activeLinkPosition - 1] ||
-                this.subnavLinks[this.subnavLinks.length - 1];
-              this.router.transitionTo(previousLink);
-            }
-          }
-        });
+        this.traverseSubnav(this.subnavLinks, -1);
       },
     },
   ];
