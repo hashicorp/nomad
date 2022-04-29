@@ -46,22 +46,6 @@ export default class KeyboardService extends Service {
 
   keyCommands = [
     {
-      label: 'Konami',
-      pattern: [
-        'ArrowUp',
-        'ArrowUp',
-        'ArrowDown',
-        'ArrowDown',
-        'ArrowLeft',
-        'ArrowRight',
-        'ArrowLeft',
-        'ArrowRight',
-        'b',
-        'a',
-      ],
-      action: () => {},
-    },
-    {
       label: 'Go to Jobs',
       pattern: ['g', 'j'],
       action: () => this.router.transitionTo('jobs'),
@@ -136,6 +120,24 @@ export default class KeyboardService extends Service {
       pattern: ['Escape'],
       action: () => {
         this.shortcutsVisible = false;
+      },
+    },
+    {
+      label: 'Konami',
+      pattern: [
+        'ArrowUp',
+        'ArrowUp',
+        'ArrowDown',
+        'ArrowDown',
+        'ArrowLeft',
+        'ArrowRight',
+        'ArrowLeft',
+        'ArrowRight',
+        'b',
+        'a',
+      ],
+      action: () => {
+        console.log('Extra Lives +30');
       },
     },
   ];
