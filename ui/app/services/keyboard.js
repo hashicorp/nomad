@@ -104,10 +104,24 @@ export default class KeyboardService extends Service {
       },
     },
     {
+      label: 'Next Subnav',
+      pattern: ['Shift+ArrowRight'],
+      action: () => {
+        this.traverseSubnav(this.subnavLinks, 1);
+      },
+    },
+    {
       label: 'Previous Subnav',
       pattern: ['k'],
       action: () => {
         this.traverseSubnav(this.subnavLinks, -1);
+      },
+    },
+    {
+      label: 'Previous Subnav',
+      pattern: ['Shift+ArrowLeft'],
+      action: () => {
+        this.traverseSubnav(this.subnavLinks, 1);
       },
     },
   ];
@@ -138,18 +152,22 @@ export default class KeyboardService extends Service {
     const targetElementName = event.target.nodeName.toLowerCase();
     // Don't fire keypress events from within an input field
     if (!inputElements.includes(targetElementName)) {
+      // Treat Shift like a special modifier key. May expand to more later.
       const { key } = event;
       const shifted = event.getModifierState('Shift');
-      this.addKeyToBuffer.perform(key);
+      if (key !== 'Shift') {
+        this.addKeyToBuffer.perform(key, shifted);
+      }
     }
   }
 
   /**
    *
    * @param {KeyboardEvent} key
+   * @param {boolean} shifted
    */
-  @restartableTask *addKeyToBuffer(key) {
-    this.buffer.pushObject(key);
+  @restartableTask *addKeyToBuffer(key, shifted) {
+    this.buffer.pushObject(shifted ? `Shift+${key}` : key);
     if (this.matchedCommand) {
       this.matchedCommand.action();
       this.clearBuffer();
