@@ -1030,7 +1030,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	if alloc.AllocatedResources != nil && len(alloc.AllocatedResources.Shared.Networks) > 0 {
 		allocDNS := alloc.AllocatedResources.Shared.Networks[0].DNS
 		if allocDNS != nil {
-		interpolatedNetworks := taskenv.InterpolateNetworks(env, alloc.AllocatedResources.Shared.Networks)
+			interpolatedNetworks := taskenv.InterpolateNetworks(env, alloc.AllocatedResources.Shared.Networks)
 			dns = &drivers.DNSConfig{
 				Servers:  interpolatedNetworks[0].DNS.Servers,
 				Searches: interpolatedNetworks[0].DNS.Searches,
