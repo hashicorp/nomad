@@ -4,18 +4,31 @@
   separator=" - "
 }}
 <SvgPatterns />
-{{!-- Hack to get matchedCommand firing --}}
 {{#if (or this.keyboard.matchedCommandGhost this.keyboard.buffer)}}
-<div class="keynav-ghost">
-  {{#each this.keyboard.buffer as |key|}}
-    <span class="buffer">{{key}}</span>
-  {{/each}}
-  {{#if this.keyboard.matchedCommandGhost}}
-    <span class="command">{{this.keyboard.matchedCommandGhost}}</span>
-  {{/if}}
-</div>
+  <div class="keynav-ghost">
+    {{#each this.keyboard.buffer as |key|}}
+      <span class="buffer">{{key}}</span>
+    {{/each}}
+    {{#if this.keyboard.matchedCommandGhost}}
+      <span class="command">{{this.keyboard.matchedCommandGhost}}</span>
+    {{/if}}
+  </div>
 {{/if}}
-{{#if this.keyboard.matchedCommand}}{{log this.keyboard.matchedCommand.label}}{{/if}}
+
+{{#if this.keyboard.shortcutsVisible}}
+<ul class="keyboard-shortcuts">
+  {{#each this.keyboard.keyCommands as |command|}}
+    <li>
+      <strong>{{command.label}}</strong>
+      <span class="keys">
+        {{#each command.pattern as |key|}}
+          <span>{{key}}</span>
+        {{/each}}
+      </span>
+    </li>
+  {{/each}}
+</ul>
+{{/if}}
 
 {{#if this.error}}
   <div class="error-container">

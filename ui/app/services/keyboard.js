@@ -124,7 +124,23 @@ export default class KeyboardService extends Service {
         this.traverseSubnav(this.subnavLinks, -1);
       },
     },
+    {
+      label: 'Show Keyboard Shortcuts',
+      pattern: ['Shift+?'],
+      action: () => {
+        this.shortcutsVisible = true;
+      },
+    },
+    {
+      label: 'Hide Keyboard Shortcuts',
+      pattern: ['Escape'],
+      action: () => {
+        this.shortcutsVisible = false;
+      },
+    },
   ];
+
+  @tracked shortcutsVisible = false;
 
   // 1. see if there's an .is-subnav element on the page
   // 2. if so, map over its links and use router.recognize to extract route patterns
