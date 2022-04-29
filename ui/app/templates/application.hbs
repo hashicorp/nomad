@@ -5,6 +5,8 @@
 }}
 <SvgPatterns />
 {{!-- Hack to get matchedCommand firing --}}
+<div style="z-index: 300; position: fixed; bottom: 0; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 1rem;">{{this.keyboard.buffer}}</div>
+<div style="z-index: 300; position: fixed; bottom: 0; left: 0; background: rgba(0,0,0,0.8); color: white; padding: 1rem;">{{this.keyboard.matchedCommandGhost}}</div>
 {{#if this.keyboard.matchedCommand}}{{log this.keyboard.matchedCommand.label}}{{/if}}
 
 {{#if this.error}}
