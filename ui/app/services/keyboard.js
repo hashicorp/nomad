@@ -5,6 +5,7 @@ import { tracked } from '@glimmer/tracking';
 import { compare } from '@ember/utils';
 import { A } from '@ember/array';
 import EmberRouter from '@ember/routing/router';
+import { schedule } from '@ember/runloop';
 
 const DEBOUNCE_MS = 750;
 
@@ -29,6 +30,7 @@ export default class KeyboardService extends Service {
         'b',
         'a',
       ],
+      action: () => {},
     },
     {
       label: 'Go to Jobs',
@@ -65,7 +67,65 @@ export default class KeyboardService extends Service {
       pattern: ['g', 'a'],
       action: () => this.router.transitionTo('settings.tokens'),
     },
+    {
+      label: 'Next Subnav',
+      pattern: ['j'],
+      action: () => {
+        // afterRender because LinkTos evaluate their href value at render time
+        schedule('afterRender', () => {
+          if (this.subnavLinks.length) {
+            const activeLink = this.subnavLinks.find((link) =>
+              this.router.isActive(link)
+            );
+            const activeLinkPosition = this.subnavLinks.indexOf(activeLink);
+            if (activeLink) {
+              // TODO: test this, maybe write less defensively
+              const nextLink =
+                this.subnavLinks[activeLinkPosition + 1] || this.subnavLinks[0];
+              this.router.transitionTo(nextLink);
+            }
+          }
+        });
+      },
+    },
+    {
+      label: 'Previous Subnav',
+      pattern: ['k'],
+      action: () => {
+        // afterRender because LinkTos evaluate their href value at render time
+        schedule('afterRender', () => {
+          if (this.subnavLinks.length) {
+            const activeLink = this.subnavLinks.find((link) =>
+              this.router.isActive(link)
+            );
+            const activeLinkPosition = this.subnavLinks.indexOf(activeLink);
+            if (activeLink) {
+              // TODO: test this, maybe write less defensively
+              const previousLink =
+                this.subnavLinks[activeLinkPosition - 1] ||
+                this.subnavLinks[this.subnavLinks.length - 1];
+              this.router.transitionTo(previousLink);
+            }
+          }
+        });
+      },
+    },
   ];
+
+  // 1. see if there's an .is-subnav element on the page
+  // 2. if so, map over its links and use router.recognize to extract route patterns
+  // (changes "/ui/jobs/jbod-firewall-2@namespace-2/definition" into "jobs.job.definition")
+  get subnavLinks() {
+    // TODO: this feels very non-Embery. Gotta see if there's a better way to handle this.
+    const subnav = document.getElementsByClassName('is-subnav')[0];
+    if (subnav) {
+      return Array.from(subnav.querySelectorAll('a')).map((link) => {
+        return this.router.recognize(link.getAttribute('href'))?.name;
+      });
+    } else {
+      return [];
+    }
+  }
 
   @tracked buffer = A([]);
 
@@ -101,7 +161,6 @@ export default class KeyboardService extends Service {
       (command) => !compare(command.pattern, this.buffer)
     );
     if (match) {
-      console.log('Performing Action:', match.label);
       match.action();
     }
     return match;
