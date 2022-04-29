@@ -121,7 +121,7 @@ export default class KeyboardService extends Service {
       label: 'Previous Subnav',
       pattern: ['Shift+ArrowLeft'],
       action: () => {
-        this.traverseSubnav(this.subnavLinks, 1);
+        this.traverseSubnav(this.subnavLinks, -1);
       },
     },
   ];
