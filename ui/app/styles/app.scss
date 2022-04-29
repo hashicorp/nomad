@@ -23,12 +23,38 @@
   span {
     background-color: rgba(0, 0, 0, 0.75);
     font-size: 2rem;
-    // margin: 0.25rem;
+    margin: 0.5rem 0;
     padding: 0.5rem 1rem;
     border-radius: 2rem;
 
     &.command {
       background-color: rgba(0, 200, 0, 0.75);
+    }
+  }
+}
+
+.keyboard-shortcuts {
+  position: fixed;
+  background-color: white;
+  padding: 2rem;
+  top: 20vh;
+  width: 40vw;
+  left: 30vw;
+  z-index: 499;
+  box-shadow: 2px 2px 12px -4px rgb(0, 0, 0, 0.25);
+  li {
+    list-style-type: none;
+    border-bottom: 1px solid #ccc;
+    padding: 0.5rem 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    .keys {
+      text-align: right;
+      span {
+        background-color: #eee;
+        margin: 0 0.25rem;
+        padding: 0 0.25rem;
+      }
     }
   }
 }
