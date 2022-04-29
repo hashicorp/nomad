@@ -4,16 +4,17 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 )
 
 func TestQuotaApplyCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &QuotaApplyCommand{}
 }
 
 func TestQuotaApplyCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &QuotaApplyCommand{Meta: Meta{Ui: ui}}
 

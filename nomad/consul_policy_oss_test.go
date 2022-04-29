@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConsulACLsAPI_hasSufficientPolicy_oss(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	try := func(t *testing.T, namespace, task string, token *api.ACLToken, exp bool) {
 		logger := testlog.HCLogger(t)

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -15,6 +16,8 @@ import (
 )
 
 func TestSysBatch_JobRegister(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -74,6 +77,8 @@ func TestSysBatch_JobRegister(t *testing.T) {
 }
 
 func TestSysBatch_JobRegister_AddNode_Running(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -149,6 +154,8 @@ func TestSysBatch_JobRegister_AddNode_Running(t *testing.T) {
 }
 
 func TestSysBatch_JobRegister_AddNode_Dead(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -225,6 +232,8 @@ func TestSysBatch_JobRegister_AddNode_Dead(t *testing.T) {
 }
 
 func TestSysBatch_JobModify(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -313,6 +322,8 @@ func TestSysBatch_JobModify(t *testing.T) {
 }
 
 func TestSysBatch_JobModify_InPlace(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -385,6 +396,8 @@ func TestSysBatch_JobModify_InPlace(t *testing.T) {
 }
 
 func TestSysBatch_JobDeregister_Purged(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -444,6 +457,8 @@ func TestSysBatch_JobDeregister_Purged(t *testing.T) {
 }
 
 func TestSysBatch_JobDeregister_Stopped(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -505,6 +520,8 @@ func TestSysBatch_JobDeregister_Stopped(t *testing.T) {
 }
 
 func TestSysBatch_NodeDown(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register a down node
@@ -564,6 +581,8 @@ func TestSysBatch_NodeDown(t *testing.T) {
 }
 
 func TestSysBatch_NodeDrain_Down(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register a draining node
@@ -616,6 +635,8 @@ func TestSysBatch_NodeDrain_Down(t *testing.T) {
 }
 
 func TestSysBatch_NodeDrain(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register a draining node
@@ -671,6 +692,8 @@ func TestSysBatch_NodeDrain(t *testing.T) {
 }
 
 func TestSysBatch_NodeUpdate(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register a node
@@ -713,6 +736,8 @@ func TestSysBatch_NodeUpdate(t *testing.T) {
 }
 
 func TestSysBatch_RetryLimit(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 	h.Planner = &RejectPlan{h}
 
@@ -757,6 +782,8 @@ func TestSysBatch_RetryLimit(t *testing.T) {
 // count for a task group when allocations can't be created on currently
 // available nodes because of constraint mismatches.
 func TestSysBatch_Queued_With_Constraints(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	nodes := createNodes(t, h, 3)
@@ -802,6 +829,8 @@ func TestSysBatch_Queued_With_Constraints(t *testing.T) {
 }
 
 func TestSysBatch_Queued_With_Constraints_PartialMatch(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// linux machines
@@ -850,6 +879,8 @@ func TestSysBatch_Queued_With_Constraints_PartialMatch(t *testing.T) {
 // should be that the TaskGroup constrained to the newly added node class is
 // added and that the TaskGroup constrained to the ineligible node is ignored.
 func TestSysBatch_JobConstraint_AddNode(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create two nodes
@@ -995,6 +1026,8 @@ func TestSysBatch_JobConstraint_AddNode(t *testing.T) {
 
 // No errors reported when no available nodes prevent placement
 func TestSysBatch_ExistingAllocNoNodes(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	var node *structs.Node
@@ -1074,6 +1107,8 @@ func TestSysBatch_ExistingAllocNoNodes(t *testing.T) {
 }
 
 func TestSysBatch_ConstraintErrors(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	var node *structs.Node
@@ -1147,6 +1182,8 @@ func TestSysBatch_ConstraintErrors(t *testing.T) {
 }
 
 func TestSysBatch_ChainedAlloc(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -1234,6 +1271,8 @@ func TestSysBatch_ChainedAlloc(t *testing.T) {
 }
 
 func TestSysBatch_PlanWithDrainedNode(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register two nodes with two different classes
@@ -1314,6 +1353,8 @@ func TestSysBatch_PlanWithDrainedNode(t *testing.T) {
 }
 
 func TestSysBatch_QueuedAllocsMultTG(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register two nodes with two different classes
@@ -1370,6 +1411,8 @@ func TestSysBatch_QueuedAllocsMultTG(t *testing.T) {
 }
 
 func TestSysBatch_Preemption(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create nodes
@@ -1654,6 +1697,8 @@ func TestSysBatch_Preemption(t *testing.T) {
 }
 
 func TestSysBatch_canHandle(t *testing.T) {
+	ci.Parallel(t)
+
 	s := SystemScheduler{sysbatch: true}
 	t.Run("sysbatch register", func(t *testing.T) {
 		require.True(t, s.canHandle(structs.EvalTriggerJobRegister))

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -14,6 +15,8 @@ import (
 )
 
 func TestStaticIterator_Reset(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	var nodes []*structs.Node
 	for i := 0; i < 3; i++ {
@@ -45,6 +48,8 @@ func TestStaticIterator_Reset(t *testing.T) {
 }
 
 func TestStaticIterator_SetNodes(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	var nodes []*structs.Node
 	for i := 0; i < 3; i++ {
@@ -62,6 +67,8 @@ func TestStaticIterator_SetNodes(t *testing.T) {
 }
 
 func TestRandomIterator(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	var nodes []*structs.Node
 	for i := 0; i < 10; i++ {
@@ -82,6 +89,8 @@ func TestRandomIterator(t *testing.T) {
 }
 
 func TestHostVolumeChecker(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -164,6 +173,8 @@ func TestHostVolumeChecker(t *testing.T) {
 }
 
 func TestHostVolumeChecker_ReadOnly(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -232,7 +243,7 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 }
 
 func TestCSIVolumeChecker(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -428,6 +439,8 @@ func TestCSIVolumeChecker(t *testing.T) {
 }
 
 func TestNetworkChecker(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 
 	node := func(mode string) *structs.Node {
@@ -572,6 +585,8 @@ func TestNetworkChecker(t *testing.T) {
 }
 
 func TestNetworkChecker_bridge_upgrade_path(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 
 	t.Run("older client", func(t *testing.T) {
@@ -602,6 +617,8 @@ func TestNetworkChecker_bridge_upgrade_path(t *testing.T) {
 }
 
 func TestDriverChecker_DriverInfo(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -651,6 +668,8 @@ func TestDriverChecker_DriverInfo(t *testing.T) {
 	}
 }
 func TestDriverChecker_Compatibility(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -702,6 +721,8 @@ func TestDriverChecker_Compatibility(t *testing.T) {
 }
 
 func Test_HealthChecks(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	_, ctx := testContext(t)
 
@@ -765,6 +786,8 @@ func Test_HealthChecks(t *testing.T) {
 }
 
 func TestConstraintChecker(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -825,6 +848,8 @@ func TestConstraintChecker(t *testing.T) {
 }
 
 func TestResolveConstraintTarget(t *testing.T) {
+	ci.Parallel(t)
+
 	type tcase struct {
 		target string
 		node   *structs.Node
@@ -900,6 +925,8 @@ func TestResolveConstraintTarget(t *testing.T) {
 }
 
 func TestCheckConstraint(t *testing.T) {
+	ci.Parallel(t)
+
 	type tcase struct {
 		op         string
 		lVal, rVal interface{}
@@ -1037,6 +1064,8 @@ func TestCheckConstraint(t *testing.T) {
 }
 
 func TestCheckLexicalOrder(t *testing.T) {
+	ci.Parallel(t)
+
 	type tcase struct {
 		op         string
 		lVal, rVal interface{}
@@ -1077,7 +1106,7 @@ func TestCheckLexicalOrder(t *testing.T) {
 }
 
 func TestCheckVersionConstraint(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	type tcase struct {
 		lVal, rVal interface{}
@@ -1130,7 +1159,7 @@ func TestCheckVersionConstraint(t *testing.T) {
 }
 
 func TestCheckSemverConstraint(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	type tcase struct {
 		name       string
@@ -1192,6 +1221,8 @@ func TestCheckSemverConstraint(t *testing.T) {
 }
 
 func TestCheckRegexpConstraint(t *testing.T) {
+	ci.Parallel(t)
+
 	type tcase struct {
 		lVal, rVal interface{}
 		result     bool
@@ -1229,6 +1260,8 @@ func TestCheckRegexpConstraint(t *testing.T) {
 // This test puts allocations on the node to test if it detects infeasibility of
 // nodes correctly and picks the only feasible one
 func TestDistinctHostsIterator_JobDistinctHosts(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -1303,6 +1336,8 @@ func TestDistinctHostsIterator_JobDistinctHosts(t *testing.T) {
 }
 
 func TestDistinctHostsIterator_JobDistinctHosts_InfeasibleCount(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -1354,6 +1389,8 @@ func TestDistinctHostsIterator_JobDistinctHosts_InfeasibleCount(t *testing.T) {
 }
 
 func TestDistinctHostsIterator_TaskGroupDistinctHosts(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -1422,6 +1459,8 @@ func TestDistinctHostsIterator_TaskGroupDistinctHosts(t *testing.T) {
 // value to detect if the constraint at the job level properly considers all
 // task groups.
 func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
+	ci.Parallel(t)
+
 	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -1602,6 +1641,8 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 // detect if the constraint at the job level properly considers all task groups
 // when the constraint allows a count greater than one
 func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
+	ci.Parallel(t)
+
 	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -1809,6 +1850,8 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 // there is a plan to re-use that for a new allocation, that the next select
 // won't select that node.
 func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testing.T) {
+	ci.Parallel(t)
+
 	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -1891,6 +1934,8 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 // test if it detects infeasibility of property values correctly and picks the
 // only feasible one
 func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible(t *testing.T) {
+	ci.Parallel(t)
+
 	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -1968,6 +2013,8 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible(t *testing.T) {
 // test if it detects infeasibility of property values correctly and picks the
 // only feasible one
 func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible_Count(t *testing.T) {
+	ci.Parallel(t)
+
 	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -2063,6 +2110,8 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible_Count(t *testin
 // test if it detects infeasibility of property values correctly and picks the
 // only feasible one when the constraint is at the task group.
 func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
+	ci.Parallel(t)
+
 	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -2224,6 +2273,8 @@ func (c *mockFeasibilityChecker) Feasible(*structs.Node) bool {
 func (c *mockFeasibilityChecker) calls() int { return c.i }
 
 func TestFeasibilityWrapper_JobIneligible(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
@@ -2242,6 +2293,8 @@ func TestFeasibilityWrapper_JobIneligible(t *testing.T) {
 }
 
 func TestFeasibilityWrapper_JobEscapes(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
@@ -2267,6 +2320,8 @@ func TestFeasibilityWrapper_JobEscapes(t *testing.T) {
 }
 
 func TestFeasibilityWrapper_JobAndTg_Eligible(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
@@ -2289,6 +2344,8 @@ func TestFeasibilityWrapper_JobAndTg_Eligible(t *testing.T) {
 }
 
 func TestFeasibilityWrapper_JobEligible_TgIneligible(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
@@ -2311,6 +2368,8 @@ func TestFeasibilityWrapper_JobEligible_TgIneligible(t *testing.T) {
 }
 
 func TestFeasibilityWrapper_JobEligible_TgEscaped(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
@@ -2338,6 +2397,8 @@ func TestFeasibilityWrapper_JobEligible_TgEscaped(t *testing.T) {
 }
 
 func TestSetContainsAny(t *testing.T) {
+	ci.Parallel(t)
+
 	require.True(t, checkSetContainsAny("a", "a"))
 	require.True(t, checkSetContainsAny("a,b", "a"))
 	require.True(t, checkSetContainsAny("  a,b  ", "a "))
@@ -2346,6 +2407,8 @@ func TestSetContainsAny(t *testing.T) {
 }
 
 func TestDeviceChecker(t *testing.T) {
+	ci.Parallel(t)
+
 	getTg := func(devices ...*structs.RequestedDevice) *structs.TaskGroup {
 		return &structs.TaskGroup{
 			Name: "example",
@@ -2684,6 +2747,8 @@ func TestDeviceChecker(t *testing.T) {
 }
 
 func TestCheckAttributeConstraint(t *testing.T) {
+	ci.Parallel(t)
+
 	type tcase struct {
 		op         string
 		lVal, rVal *psstructs.Attribute

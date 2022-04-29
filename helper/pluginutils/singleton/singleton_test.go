@@ -8,6 +8,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -22,7 +23,7 @@ func harness(t *testing.T) (*SingletonLoader, *loader.MockCatalog) {
 
 // Test that multiple dispenses return the same instance
 func TestSingleton_Dispense(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	dispenseCalled := 0
@@ -71,7 +72,7 @@ func TestSingleton_Dispense(t *testing.T) {
 // Test that after a plugin is dispensed, if it exits, an error is returned on
 // the next dispense
 func TestSingleton_Dispense_Exit_Dispense(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	exited := false
@@ -121,7 +122,7 @@ func TestSingleton_Dispense_Exit_Dispense(t *testing.T) {
 // Test that if a plugin errors while being dispensed, the error is returned but
 // not saved
 func TestSingleton_DispenseError_Dispense(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	dispenseCalled := 0
@@ -164,7 +165,7 @@ func TestSingleton_DispenseError_Dispense(t *testing.T) {
 // Test that if a plugin errors while being reattached, the error is returned but
 // not saved
 func TestSingleton_ReattachError_Dispense(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	dispenseCalled, reattachCalled := 0, 0
@@ -204,7 +205,7 @@ func TestSingleton_ReattachError_Dispense(t *testing.T) {
 
 // Test that after reattaching, dispense returns the same instance
 func TestSingleton_Reattach_Dispense(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	dispenseCalled, reattachCalled := 0, 0

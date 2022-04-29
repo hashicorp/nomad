@@ -8,6 +8,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -15,12 +16,11 @@ import (
 )
 
 func TestConsulACLsAPI_CheckPermissions_oss(t *testing.T) {
+	ci.Parallel(t)
 
 	// In Nomad OSS, CheckPermissions will only receive "" as input for the
 	// namespace parameter - as the ConsulUsage map from namespace to usages will
 	// always contain one key - the empty string.
-
-	t.Parallel()
 
 	try := func(t *testing.T, namespace string, usage *structs.ConsulUsage, secretID string, exp error) {
 		logger := testlog.HCLogger(t)

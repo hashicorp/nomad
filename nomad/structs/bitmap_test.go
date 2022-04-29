@@ -3,9 +3,13 @@ package structs
 import (
 	"reflect"
 	"testing"
+
+	"github.com/hashicorp/nomad/ci"
 )
 
 func TestBitmap(t *testing.T) {
+	ci.Parallel(t)
+
 	// Check invalid sizes
 	_, err := NewBitmap(0)
 	if err == nil {

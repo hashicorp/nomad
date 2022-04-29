@@ -6,11 +6,14 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestWriter_NonBlockingWrite(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	var buf bytes.Buffer
 	w := New(&buf, 64)
@@ -40,6 +43,8 @@ func (b *blockingWriter) Write(p []byte) (nn int, err error) {
 }
 
 func TestWriter_BlockingWrite(t *testing.T) {
+	ci.Parallel(t)
+
 	require := require.New(t)
 	blockCh := make(chan struct{})
 	bw := &blockingWriter{unblock: blockCh}
@@ -64,6 +69,8 @@ func TestWriter_BlockingWrite(t *testing.T) {
 }
 
 func TestWriter_CloseClose(t *testing.T) {
+	ci.Parallel(t)
+	
 	require := require.New(t)
 	w := New(ioutil.Discard, 64)
 	require.NoError(w.Close())

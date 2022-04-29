@@ -4,12 +4,14 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDeviceQualifiedID(t *testing.T) {
+	ci.Parallel(t)
 
 	require := require.New(t)
 
@@ -19,6 +21,8 @@ func TestDeviceQualifiedID(t *testing.T) {
 }
 
 func TestBuildDeviceStatsSummaryMap(t *testing.T) {
+	ci.Parallel(t)
+
 	hostDeviceStats := []*api.DeviceGroupStats{
 		{
 			Vendor: "vendor1",
@@ -74,6 +78,8 @@ func TestBuildDeviceStatsSummaryMap(t *testing.T) {
 }
 
 func TestFormatDeviceStats(t *testing.T) {
+	ci.Parallel(t)
+
 	statValue := func(v string) *api.StatValue {
 		return &api.StatValue{
 			StringVal: helper.StringToPtr(v),
@@ -129,6 +135,8 @@ func TestFormatDeviceStats(t *testing.T) {
 }
 
 func TestNodeStatusCommand_GetDeviceResourcesForNode(t *testing.T) {
+	ci.Parallel(t)
+
 	hostDeviceStats := []*api.DeviceGroupStats{
 		{
 			Vendor: "vendor1",
@@ -201,6 +209,8 @@ func TestNodeStatusCommand_GetDeviceResourcesForNode(t *testing.T) {
 }
 
 func TestNodeStatusCommand_GetDeviceResources(t *testing.T) {
+	ci.Parallel(t)
+
 	hostDeviceStats := []*api.DeviceGroupStats{
 		{
 			Vendor: "vendor1",
@@ -248,6 +258,8 @@ func TestNodeStatusCommand_GetDeviceResources(t *testing.T) {
 	assert.Equal(t, expected, formattedDevices)
 }
 func TestGetDeviceAttributes(t *testing.T) {
+	ci.Parallel(t)
+
 	d := &api.NodeDeviceResource{
 		Vendor: "Vendor",
 		Type:   "Type",

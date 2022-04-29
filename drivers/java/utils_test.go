@@ -5,10 +5,13 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDriver_parseJavaVersionOutput(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name    string
 		output  string
@@ -88,6 +91,7 @@ func TestDriver_parseJavaVersionOutput(t *testing.T) {
 }
 
 func TestDriver_javaVersionInfo(t *testing.T) {
+	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("test requires bash to run")
 	}
@@ -114,6 +118,7 @@ func TestDriver_javaVersionInfo(t *testing.T) {
 }
 
 func TestDriver_javaVersionInfo_UnexpectedOutput(t *testing.T) {
+	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("test requires bash to run")
 	}
@@ -136,6 +141,7 @@ func TestDriver_javaVersionInfo_UnexpectedOutput(t *testing.T) {
 }
 
 func TestDriver_javaVersionInfo_JavaVersionFails(t *testing.T) {
+	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("test requires bash to run")
 	}

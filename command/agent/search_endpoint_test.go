@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -26,7 +27,7 @@ func createJobForTest(jobID string, s *TestAgent, t *testing.T) {
 }
 
 func TestHTTP_PrefixSearchWithIllegalMethod(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("DELETE", "/v1/search", nil)
@@ -39,7 +40,7 @@ func TestHTTP_PrefixSearchWithIllegalMethod(t *testing.T) {
 }
 
 func TestHTTP_FuzzySearchWithIllegalMethod(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("DELETE", "/v1/search/fuzzy", nil)
@@ -63,7 +64,7 @@ func createCmdJobForTest(name, cmd string, s *TestAgent, t *testing.T) *structs.
 }
 
 func TestHTTP_PrefixSearch_POST(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testJob := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 	testJobPrefix := "aaaaaaaa-e8f7-fd38"
@@ -93,7 +94,7 @@ func TestHTTP_PrefixSearch_POST(t *testing.T) {
 }
 
 func TestHTTP_FuzzySearch_POST(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testJobID := uuid.Generate()
 
@@ -123,7 +124,7 @@ func TestHTTP_FuzzySearch_POST(t *testing.T) {
 }
 
 func TestHTTP_PrefixSearch_PUT(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testJob := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 	testJobPrefix := "aaaaaaaa-e8f7-fd38"
@@ -153,7 +154,7 @@ func TestHTTP_PrefixSearch_PUT(t *testing.T) {
 }
 
 func TestHTTP_FuzzySearch_PUT(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testJobID := uuid.Generate()
 
@@ -183,7 +184,7 @@ func TestHTTP_FuzzySearch_PUT(t *testing.T) {
 }
 
 func TestHTTP_PrefixSearch_MultipleJobs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testJobA := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 	testJobB := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89707"
@@ -219,7 +220,7 @@ func TestHTTP_PrefixSearch_MultipleJobs(t *testing.T) {
 }
 
 func TestHTTP_FuzzySearch_MultipleJobs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		job1ID := createCmdJobForTest("job1", "/bin/yes", s, t).ID
@@ -262,7 +263,7 @@ func TestHTTP_FuzzySearch_MultipleJobs(t *testing.T) {
 }
 
 func TestHTTP_PrefixSearch_Evaluation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
@@ -294,7 +295,7 @@ func TestHTTP_PrefixSearch_Evaluation(t *testing.T) {
 }
 
 func TestHTTP_FuzzySearch_Evaluation(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
@@ -335,7 +336,7 @@ func mockAlloc() *structs.Allocation {
 }
 
 func TestHTTP_PrefixSearch_Allocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
@@ -366,7 +367,7 @@ func TestHTTP_PrefixSearch_Allocations(t *testing.T) {
 }
 
 func TestHTTP_FuzzySearch_Allocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
@@ -396,7 +397,7 @@ func TestHTTP_FuzzySearch_Allocations(t *testing.T) {
 }
 
 func TestHTTP_PrefixSearch_Nodes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
@@ -427,7 +428,7 @@ func TestHTTP_PrefixSearch_Nodes(t *testing.T) {
 }
 
 func TestHTTP_FuzzySearch_Nodes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
@@ -457,7 +458,7 @@ func TestHTTP_FuzzySearch_Nodes(t *testing.T) {
 }
 
 func TestHTTP_PrefixSearch_Deployments(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
@@ -485,7 +486,7 @@ func TestHTTP_PrefixSearch_Deployments(t *testing.T) {
 }
 
 func TestHTTP_FuzzySearch_Deployments(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
@@ -514,7 +515,7 @@ func TestHTTP_FuzzySearch_Deployments(t *testing.T) {
 }
 
 func TestHTTP_PrefixSearch_NoJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		data := structs.SearchRequest{Prefix: "12345", Context: structs.Jobs}
@@ -534,7 +535,7 @@ func TestHTTP_PrefixSearch_NoJob(t *testing.T) {
 }
 
 func TestHTTP_FuzzySearch_NoJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		data := structs.FuzzySearchRequest{Text: "12345", Context: structs.Jobs}
@@ -553,7 +554,7 @@ func TestHTTP_FuzzySearch_NoJob(t *testing.T) {
 }
 
 func TestHTTP_PrefixSearch_AllContext(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testJobID := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 	testJobPrefix := "aaaaaaaa-e8f7-fd38"
@@ -588,7 +589,7 @@ func TestHTTP_PrefixSearch_AllContext(t *testing.T) {
 }
 
 func TestHTTP_FuzzySearch_AllContext(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		jobID := createCmdJobForTest("job1", "/bin/aardvark", s, t).ID

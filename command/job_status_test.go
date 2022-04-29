@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -19,12 +20,12 @@ import (
 )
 
 func TestJobStatusCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &JobStatusCommand{}
 }
 
 func TestJobStatusCommand_Run(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	testutil.WaitForResult(func() (bool, error) {
@@ -225,7 +226,7 @@ func TestJobStatusCommand_Run(t *testing.T) {
 }
 
 func TestJobStatusCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui}}
 
@@ -248,8 +249,8 @@ func TestJobStatusCommand_Fails(t *testing.T) {
 }
 
 func TestJobStatusCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -272,8 +273,8 @@ func TestJobStatusCommand_AutocompleteArgs(t *testing.T) {
 }
 
 func TestJobStatusCommand_WithAccessPolicy(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	config := func(c *agent.Config) {
 		c.ACL.Enabled = true
@@ -339,7 +340,7 @@ func TestJobStatusCommand_WithAccessPolicy(t *testing.T) {
 }
 
 func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 

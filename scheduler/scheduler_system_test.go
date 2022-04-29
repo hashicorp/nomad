@@ -8,6 +8,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -16,6 +17,8 @@ import (
 )
 
 func TestSystemSched_JobRegister(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -75,6 +78,8 @@ func TestSystemSched_JobRegister(t *testing.T) {
 }
 
 func TestSystemSched_JobRegister_StickyAllocs(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -148,6 +153,8 @@ func TestSystemSched_JobRegister_StickyAllocs(t *testing.T) {
 }
 
 func TestSystemSched_JobRegister_EphemeralDiskConstraint(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create a node
@@ -217,6 +224,8 @@ func TestSystemSched_JobRegister_EphemeralDiskConstraint(t *testing.T) {
 }
 
 func TestSystemSched_ExhaustResources(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create a node
@@ -295,6 +304,8 @@ func TestSystemSched_ExhaustResources(t *testing.T) {
 }
 
 func TestSystemSched_JobRegister_Annotate(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -391,6 +402,8 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 }
 
 func TestSystemSched_JobRegister_AddNode(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -469,6 +482,8 @@ func TestSystemSched_JobRegister_AddNode(t *testing.T) {
 }
 
 func TestSystemSched_JobRegister_AllocFail(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create NO nodes
@@ -501,6 +516,8 @@ func TestSystemSched_JobRegister_AllocFail(t *testing.T) {
 }
 
 func TestSystemSched_JobModify(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -588,6 +605,8 @@ func TestSystemSched_JobModify(t *testing.T) {
 }
 
 func TestSystemSched_JobModify_Rolling(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -686,6 +705,8 @@ func TestSystemSched_JobModify_Rolling(t *testing.T) {
 }
 
 func TestSystemSched_JobModify_InPlace(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -766,6 +787,8 @@ func TestSystemSched_JobModify_InPlace(t *testing.T) {
 }
 
 func TestSystemSched_JobModify_RemoveDC(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -851,6 +874,8 @@ func TestSystemSched_JobModify_RemoveDC(t *testing.T) {
 }
 
 func TestSystemSched_JobDeregister_Purged(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -910,6 +935,8 @@ func TestSystemSched_JobDeregister_Purged(t *testing.T) {
 }
 
 func TestSystemSched_JobDeregister_Stopped(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -971,6 +998,8 @@ func TestSystemSched_JobDeregister_Stopped(t *testing.T) {
 }
 
 func TestSystemSched_NodeDown(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register a down node
@@ -1030,6 +1059,8 @@ func TestSystemSched_NodeDown(t *testing.T) {
 }
 
 func TestSystemSched_NodeDrain_Down(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register a draining node
@@ -1082,6 +1113,8 @@ func TestSystemSched_NodeDrain_Down(t *testing.T) {
 }
 
 func TestSystemSched_NodeDrain(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register a draining node
@@ -1137,6 +1170,8 @@ func TestSystemSched_NodeDrain(t *testing.T) {
 }
 
 func TestSystemSched_NodeUpdate(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register a node
@@ -1179,6 +1214,8 @@ func TestSystemSched_NodeUpdate(t *testing.T) {
 }
 
 func TestSystemSched_RetryLimit(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 	h.Planner = &RejectPlan{h}
 
@@ -1223,6 +1260,8 @@ func TestSystemSched_RetryLimit(t *testing.T) {
 // count for a task group when allocations can't be created on currently
 // available nodes because of constraint mismatches.
 func TestSystemSched_Queued_With_Constraints(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register a node
@@ -1262,6 +1301,8 @@ func TestSystemSched_Queued_With_Constraints(t *testing.T) {
 // should be that the TaskGroup constrained to the newly added node class is
 // added and that the TaskGroup constrained to the ineligible node is ignored.
 func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create two nodes
@@ -1409,6 +1450,8 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 
 // No errors reported when no available nodes prevent placement
 func TestSystemSched_ExistingAllocNoNodes(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	var node *structs.Node
@@ -1488,6 +1531,8 @@ func TestSystemSched_ExistingAllocNoNodes(t *testing.T) {
 
 // No errors reported when constraints prevent placement
 func TestSystemSched_ConstraintErrors(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	var node *structs.Node
@@ -1559,6 +1604,8 @@ func TestSystemSched_ConstraintErrors(t *testing.T) {
 }
 
 func TestSystemSched_ChainedAlloc(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -1647,6 +1694,8 @@ func TestSystemSched_ChainedAlloc(t *testing.T) {
 }
 
 func TestSystemSched_PlanWithDrainedNode(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register two nodes with two different classes
@@ -1727,6 +1776,8 @@ func TestSystemSched_PlanWithDrainedNode(t *testing.T) {
 }
 
 func TestSystemSched_QueuedAllocsMultTG(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Register two nodes with two different classes
@@ -1783,6 +1834,8 @@ func TestSystemSched_QueuedAllocsMultTG(t *testing.T) {
 }
 
 func TestSystemSched_Preemption(t *testing.T) {
+	ci.Parallel(t)
+
 	h := NewHarness(t)
 
 	// Create nodes
@@ -2066,6 +2119,8 @@ func TestSystemSched_Preemption(t *testing.T) {
 }
 
 func TestSystemSched_canHandle(t *testing.T) {
+	ci.Parallel(t)
+
 	s := SystemScheduler{sysbatch: false}
 	t.Run("system register", func(t *testing.T) {
 		require.True(t, s.canHandle(structs.EvalTriggerJobRegister))

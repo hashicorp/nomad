@@ -5,6 +5,7 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -46,7 +47,7 @@ func TestStatusVersion(t *testing.T) {
 }
 
 func TestStatusPing(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -60,7 +61,7 @@ func TestStatusPing(t *testing.T) {
 }
 
 func TestStatusLeader(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -83,7 +84,7 @@ func TestStatusLeader(t *testing.T) {
 }
 
 func TestStatusPeers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -105,7 +106,7 @@ func TestStatusPeers(t *testing.T) {
 }
 
 func TestStatusMembers(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -125,7 +126,7 @@ func TestStatusMembers(t *testing.T) {
 }
 
 func TestStatusMembers_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -179,7 +180,7 @@ func TestStatusMembers_ACL(t *testing.T) {
 }
 
 func TestStatus_HasClientConn(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()

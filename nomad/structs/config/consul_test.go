@@ -9,6 +9,7 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,6 +30,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestConsulConfig_Merge(t *testing.T) {
+	ci.Parallel(t)
+
 	yes, no := true, false
 
 	c1 := &ConsulConfig{
@@ -119,7 +122,7 @@ func TestConsulConfig_Merge(t *testing.T) {
 // TestConsulConfig_Defaults asserts Consul defaults are copied from their
 // upstream API package defaults.
 func TestConsulConfig_Defaults(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	nomadDef := DefaultConsulConfig()
 	consulDef := consulapi.DefaultConfig()
@@ -134,7 +137,7 @@ func TestConsulConfig_Defaults(t *testing.T) {
 // TestConsulConfig_Exec asserts Consul defaults use env vars when they are
 // set by forking a subprocess.
 func TestConsulConfig_Exec(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	self, err := os.Executable()
 	if err != nil {

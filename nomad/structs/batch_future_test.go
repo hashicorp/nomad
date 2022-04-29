@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/nomad/ci"
 )
 
 func TestBatchFuture(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	bf := NewBatchFuture()
 
 	// Async respond to the future
