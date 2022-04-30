@@ -19,7 +19,7 @@ export default class TaskGroups extends Component.extend(Sortable) {
 
   @action
   gotoTaskGroup(taskGroup) {
-    this.router.transitionTo('jobs.job.task-group', this.job, taskGroup);
+    this.router.transitionTo('jobs.job.task-group', this.job, taskGroup.name);
   }
 
   @computed('job.taskGroups.[]')
