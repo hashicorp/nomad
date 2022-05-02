@@ -139,7 +139,6 @@ export default function moduleForJob(
       test('clicking in a task group row navigates to that task group', async function (assert) {
         const tgRow = JobDetail.taskGroups[0];
         const tgName = tgRow.name;
-        console.log(tgName);
 
         await tgRow.visitRow();
 
