@@ -143,7 +143,7 @@ deps:  ## Install build and development dependencies
 lint-deps: ## Install linter dependencies
 ## Keep versions in sync with tools/go.mod (see https://github.com/golang/go/issues/30515)
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.45.0
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
 	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.3
 
@@ -205,7 +205,7 @@ checkproto: ## Lint protobuf files
 	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
 
 .PHONY: generate-all
-generate-all: generate-structs proto generate-examples
+generate-all: generate-structs proto generate-examples ## Generate structs, protobufs, examples
 
 .PHONY: generate-structs
 generate-structs: LOCAL_PACKAGES = $(shell go list ./...)
@@ -214,7 +214,7 @@ generate-structs: ## Update generated code
 	@go generate $(LOCAL_PACKAGES)
 
 .PHONY: proto
-proto:
+proto: ## Generate protobuf bindings
 	@echo "--> Generating proto bindings..."
 	@buf --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml generate
 
@@ -224,14 +224,14 @@ generate-examples: command/job_init.bindata_assetfs.go
 command/job_init.bindata_assetfs.go: command/assets/*
 	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
 
-changelog:
+changelog: ## Generate changelog from entries
 	@changelog-build -last-release $(LAST_RELEASE) -this-release HEAD \
 		-entries-dir .changelog/ -changelog-template ./.changelog/changelog.tmpl -note-template ./.changelog/note.tmpl
 
 ## We skip the terraform directory as there are templated hcl configurations
 ## that do not successfully compile without rendering
 .PHONY: hclfmt
-hclfmt:
+hclfmt: ## Format HCL files with hclfmt
 	@echo "--> Formatting HCL"
 	@find . -name '.terraform' -prune \
 	        -o -name 'upstart.nomad' -prune \
@@ -244,7 +244,7 @@ hclfmt:
 	      -print0 | xargs -0 hclfmt -w
 
 .PHONY: tidy
-tidy:
+tidy: ## Tidy up the go mod files
 	@echo "--> Tidy up submodules"
 	@cd tools && go mod tidy
 	@cd api && go mod tidy
@@ -378,7 +378,7 @@ ember-dist: ## Build the static UI assets from source
 	@cd ui && npm run build
 
 .PHONY: dev-ui
-dev-ui: ember-dist static-assets
+dev-ui: ember-dist static-assets ## Build a dev UI binary
 	@$(MAKE) NOMAD_UI_TAG="ui" dev ## Build a dev binary with the UI baked in
 
 HELP_FORMAT="    \033[36m%-25s\033[0m %s\n"
@@ -394,7 +394,7 @@ help: ## Display this usage information
 	@echo $(ALL_TARGETS) | sed 's/^/    /'
 
 .PHONY: ui-screenshots
-ui-screenshots:
+ui-screenshots: ## Collect  UI screenshots
 	@echo "==> Collecting UI screenshots..."
         # Build the screenshots image if it doesn't exist yet
 	@if [[ "$$(docker images -q nomad-ui-screenshots 2> /dev/null)" == "" ]]; then \
@@ -406,12 +406,12 @@ ui-screenshots:
 		nomad-ui-screenshots
 
 .PHONY: ui-screenshots-local
-ui-screenshots-local:
+ui-screenshots-local: ## Collect UI screenshots (local)
 	@echo "==> Collecting UI screenshots (local)..."
 	@cd scripts/screenshots/src && SCREENSHOTS_DIR="../screenshots" node index.js
 
 .PHONY: version
-version:
+version: ## Lookup the current build version
 ifneq (,$(wildcard version/version_ent.go))
 	@$(CURDIR)/scripts/version.sh version/version.go version/version_ent.go
 else
@@ -419,7 +419,6 @@ else
 endif
 
 .PHONY: missing
-missing:
+missing: ## Check for packages not being tested
 	@echo "==> Checking for packages not being tested ..."
-	@go run -modfile tools/go.mod tools/missing/main.go \
-		.github/workflows/test-core.yaml
+	@go run -modfile tools/go.mod tools/missing/main.go .github/workflows/test-core.yaml
