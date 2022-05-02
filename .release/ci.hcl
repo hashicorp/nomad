@@ -4,7 +4,7 @@ project "nomad" {
   team = "nomad"
   slack {
     // #feed-nomad-releases
-    notification_channel = "C03B5EWFW01"
+    notification_channel = "CUYKT2A73"
     // #proj-nomad-releases
     // notification_channel = "CUYKT2A73"
   }
