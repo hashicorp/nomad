@@ -142,6 +142,10 @@ client {
 - `bridge_network_subnet` `(string: "172.26.64.0/20")` - Specifies the subnet
   which the client will use to allocate IP addresses from.
 
+- `artifact` <code>([Artifact](#artifact-parameters): varied)</code> -
+  Specifies controls on the behavior of task
+  [`artifact`](/docs/job-specification/artifact) stanzas.
+
 - `template` <code>([Template](#template-parameters): nil)</code> - Specifies
   controls on the behavior of task
   [`template`](/docs/job-specification/template) stanzas.
@@ -205,6 +209,31 @@ chroot as doing so would cause infinite recursion.
 - `reserved_ports` `(string: "")` - Specifies a comma-separated list of ports to
   reserve on all fingerprinted network devices. Ranges can be specified by using
   a hyphen separated the two inclusive ends.
+
+### `artifact` Parameters
+
+- `http_read_timeout` `(string: "30m")` - Specifies the maximum duration in
+  which an HTTP download request must complete before it is canceled. Set to
+  `0` to not enforce a limit.
+
+- `http_max_size` `(string: "100GB")` - Specifies the maximum size allowed for
+  artifacts downloaded via HTTP. Set to `0` to not enforce a limit.
+
+- `gcs_timeout` `(string: "30m")` - Specifies the maximum duration in which a
+  Google Cloud Storate operation must complete before it is canceled. Set to
+  `0` to not enforce a limit.
+
+- `git_timeout` `(string: "30m")` - Specifies the maximum duration in which a
+  Git operation must complete before it is canceled. Set to `0` to not enforce
+  a limit.
+
+- `hg_timeout` `(string: "30m")` - Specifies the maximum duration in which a
+  Mercurial operation must complete before it is canceled. Set to `0` to not
+  enforce a limit.
+
+- `s3_timeout` `(string: "30m")` - Specifies the maximum duration in which an
+  S3 operation must complete before it is canceled. Set to `0` to not enforce a
+  limit.
 
 ### `template` Parameters
 

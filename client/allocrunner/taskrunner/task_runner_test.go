@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/config"
 	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
@@ -145,6 +146,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ShutdownDelayCtx:      shutdownDelayCtx,
 		ShutdownDelayCancelFn: shutdownDelayCancelFn,
 		ServiceRegWrapper:     wrapperMock,
+		Getter:                getter.TestDefaultGetter(t),
 	}
 
 	// Set the cgroup path getter if we are in v2 mode

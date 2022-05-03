@@ -9,11 +9,13 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 )
 
@@ -398,6 +400,18 @@ func TestIsValidConfig(t *testing.T) {
 				},
 			},
 			err: `host_network["test"].reserved_ports "3-2147483647" invalid: port must be < 65536 but found 2147483647`,
+		},
+		{
+			name: "BadArtifact",
+			conf: Config{
+				Client: &ClientConfig{
+					Enabled: true,
+					Artifact: &config.ArtifactConfig{
+						HTTPReadTimeout: helper.StringToPtr("-10m"),
+					},
+				},
+			},
+			err: "client.artifact stanza invalid: http_read_timeout must be > 0",
 		},
 	}
 

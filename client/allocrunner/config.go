@@ -86,4 +86,7 @@ type Config struct {
 	// ServiceRegWrapper is the handler wrapper that is used by service hooks
 	// to perform service and check registration and deregistration.
 	ServiceRegWrapper *wrapper.HandlerWrapper
+
+	// Getter is an interface for retrieving artifacts.
+	Getter interfaces.ArtifactGetter
 }

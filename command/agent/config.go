@@ -324,6 +324,9 @@ type ClientConfig struct {
 	// correct scheduling decisions on allocations which require this.
 	NomadServiceDiscovery *bool `hcl:"nomad_service_discovery"`
 
+	// Artifact contains the configuration for artifacts.
+	Artifact *config.ArtifactConfig `hcl:"artifact"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -974,6 +977,7 @@ func DefaultConfig() *Config {
 			CNIPath:                        "/opt/cni/bin",
 			CNIConfigDir:                   "/opt/cni/config",
 			NomadServiceDiscovery:          helper.BoolToPtr(true),
+			Artifact:                       config.DefaultArtifactConfig(),
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
@@ -1778,6 +1782,8 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.CgroupParent != "" {
 		result.CgroupParent = b.CgroupParent
 	}
+
+	result.Artifact = a.Artifact.Merge(b.Artifact)
 
 	return &result
 }
