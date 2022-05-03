@@ -244,6 +244,9 @@ type TaskRunner struct {
 	// serviceRegWrapper is the handler wrapper that is used by service hooks
 	// to perform service and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
+
+	// getter is an interface for retrieving artifacts.
+	getter cinterfaces.ArtifactGetter
 }
 
 type Config struct {
@@ -309,6 +312,9 @@ type Config struct {
 	// ServiceRegWrapper is the handler wrapper that is used by service hooks
 	// to perform service and check registration and deregistration.
 	ServiceRegWrapper *wrapper.HandlerWrapper
+
+	// Getter is an interface for retrieving artifacts.
+	Getter cinterfaces.ArtifactGetter
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -367,6 +373,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		shutdownDelayCtx:       config.ShutdownDelayCtx,
 		shutdownDelayCancelFn:  config.ShutdownDelayCancelFn,
 		serviceRegWrapper:      config.ServiceRegWrapper,
+		getter:                 config.Getter,
 	}
 
 	// Create the logger based on the allocation ID

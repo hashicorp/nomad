@@ -22,6 +22,18 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.3.1, 1.2.8, 1.1.14
+
+#### Default `artifact` limits
+
+Nomad 1.3.1, 1.2.8, and 1.1.14 introduced mechanisms to limit the size of
+`artifact` downloads and how long these operations can take. The limits are
+defined in the new [`artifact`client configuration][client_artifact] and have
+predefined default values.
+
+While the defaults set are fairly large, it is recommended to double-check them
+prior to upgrading your Nomad clients to make sure they fit your needs.
+
 ## Nomad 1.3.0
 
 #### Raft Protocol Version 2 Deprecation
@@ -1371,6 +1383,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [api_jobs_parse]: /api-docs/jobs#parse-job
 [cgroups2]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
 [cgroup_parent]: /docs/configuration/client#cgroup_parent
+[client_artifact]: /docs/configuration/client#artifact-parameters
 [cores]: /docs/job-specification/resources#cores
 [dangling-containers]: /docs/drivers/docker#dangling-containers
 [drain-api]: /api-docs/nodes#drain-node

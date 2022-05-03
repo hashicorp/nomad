@@ -182,6 +182,9 @@ type allocRunner struct {
 	// serviceRegWrapper is the handler wrapper that is used by service hooks
 	// to perform service and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
+
+	// getter is an interface for retrieving artifacts.
+	getter cinterfaces.ArtifactGetter
 }
 
 // RPCer is the interface needed by hooks to make RPC calls.
@@ -226,6 +229,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		serversContactedCh:       config.ServersContactedCh,
 		rpcClient:                config.RPCClient,
 		serviceRegWrapper:        config.ServiceRegWrapper,
+		getter:                   config.Getter,
 	}
 
 	// Create the logger based on the allocation ID
@@ -280,6 +284,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
 			ShutdownDelayCtx:     ar.shutdownDelayCtx,
 			ServiceRegWrapper:    ar.serviceRegWrapper,
+			Getter:               ar.getter,
 		}
 
 		if ar.cpusetManager != nil {
