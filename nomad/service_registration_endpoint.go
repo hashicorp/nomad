@@ -2,6 +2,9 @@ package nomad
 
 import (
 	"net/http"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -423,6 +426,16 @@ func (s *ServiceRegistration) GetService(
 					http.StatusBadRequest, "failed to read result page: %v", err)
 			}
 
+			// Select which subset and the order of services to return if using ?choose
+			if args.Choose != "" {
+				chosen, chooseErr := s.choose(services, args.Choose)
+				if chooseErr != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to choose services: %v", chooseErr)
+				}
+				services = chosen
+			}
+
 			// Populate the reply.
 			reply.Services = services
 			reply.NextToken = nextToken
@@ -432,6 +445,70 @@ func (s *ServiceRegistration) GetService(
 			return s.srv.setReplyQueryMeta(stateStore, state.TableServiceRegistrations, &reply.QueryMeta)
 		},
 	})
+}
+
+// choose uses rendezvous hashing to make a stable selection of a subset of services
+// to return.
+//
+// parameter must in the form "<number>|<key>", where number is the number of services
+// to select, and key is incorporated in the hashing function with each service -
+// creating a unique yet consistent priority distribution pertaining to the requester.
+// In practice (i.e. via consul-template), the key is the AllocID generating a request
+// for upstream services.
+//
+// https://en.wikipedia.org/wiki/Rendezvous_hashing
+// w := priority (i.e. hash value)
+// h := hash function
+// O := object - (i.e. requesting service - using key (allocID) as a proxy)
+// S := site (i.e. destination service)
+func (*ServiceRegistration) choose(services []*structs.ServiceRegistration, parameter string) ([]*structs.ServiceRegistration, error) {
+	// extract the number of services
+	tokens := strings.SplitN(parameter, "|", 2)
+	if len(tokens) != 2 {
+		return nil, structs.ErrMalformedChooseParameter
+	}
+	n, err := strconv.Atoi(tokens[0])
+	if err != nil {
+		return nil, structs.ErrMalformedChooseParameter
+	}
+
+	// extract the hash key
+	key := tokens[1]
+	if key == "" {
+		return nil, structs.ErrMalformedChooseParameter
+	}
+
+	// if there are fewer services than requested, go with the number of services
+	if l := len(services); l < n {
+		n = l
+	}
+
+	type pair struct {
+		hash    string
+		service *structs.ServiceRegistration
+	}
+
+	// associate hash for each service
+	priorities := make([]*pair, len(services))
+	for i, service := range services {
+		priorities[i] = &pair{
+			hash:    service.HashWith(key),
+			service: service,
+		}
+	}
+
+	// sort by the hash; creating random distribution of priority
+	sort.SliceStable(priorities, func(i, j int) bool {
+		return priorities[i].hash < priorities[j].hash
+	})
+
+	// choose top n services
+	chosen := make([]*structs.ServiceRegistration, n)
+	for i := 0; i < n; i++ {
+		chosen[i] = priorities[i].service
+	}
+
+	return chosen, nil
 }
 
 // handleMixedAuthEndpoint is a helper to handle auth on RPC endpoints that can
@@ -451,7 +528,7 @@ func (s *ServiceRegistration) handleMixedAuthEndpoint(args structs.QueryOptions,
 			}
 		}
 	default:
-		// In the event we got any error other than notfound, consider this
+		// In the event we got any error other than ErrTokenNotFound, consider this
 		// terminal.
 		if err != structs.ErrTokenNotFound {
 			return err
