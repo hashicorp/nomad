@@ -43,11 +43,10 @@ const (
 )
 
 func writeTmp(t *testing.T, s string, fm os.FileMode) string {
-	dir, err := ioutil.TempDir("", "envoy-")
-	require.NoError(t, err)
+	dir := t.TempDir()
 
 	fPath := filepath.Join(dir, sidsTokenFile)
-	err = ioutil.WriteFile(fPath, []byte(s), fm)
+	err := ioutil.WriteFile(fPath, []byte(s), fm)
 	require.NoError(t, err)
 
 	return dir
@@ -73,7 +72,6 @@ func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 	t.Run("load token from file", func(t *testing.T) {
 		token := uuid.Generate()
 		f := writeTmp(t, token, 0440)
-		defer cleanupDir(t, f)
 
 		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{logger: testlog.HCLogger(t)})
 		cfg, err := h.maybeLoadSIToken("task1", f)
@@ -84,7 +82,6 @@ func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 	t.Run("file is unreadable", func(t *testing.T) {
 		token := uuid.Generate()
 		f := writeTmp(t, token, 0200)
-		defer cleanupDir(t, f)
 
 		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{logger: testlog.HCLogger(t)})
 		cfg, err := h.maybeLoadSIToken("task1", f)

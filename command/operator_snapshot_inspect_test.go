@@ -2,7 +2,6 @@ package command
 
 import (
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -39,11 +38,9 @@ func TestOperatorSnapshotInspect_Works(t *testing.T) {
 func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
 	ci.Parallel(t)
 
-	tmpDir, err := ioutil.TempDir("", "nomad-clitests-")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
-	err = ioutil.WriteFile(
+	err := ioutil.WriteFile(
 		filepath.Join(tmpDir, "invalid.snap"),
 		[]byte("invalid data"),
 		0600)
@@ -69,10 +66,7 @@ func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
 }
 
 func generateSnapshotFile(t *testing.T, prepare func(srv *agent.TestAgent, client *api.Client, url string)) string {
-	tmpDir, err := ioutil.TempDir("", "nomad-tempdir")
-	require.NoError(t, err)
-
-	t.Cleanup(func() { os.RemoveAll(tmpDir) })
+	tmpDir := t.TempDir()
 
 	srv, api, url := testServer(t, false, func(c *agent.Config) {
 		c.DevMode = false

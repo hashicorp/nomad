@@ -38,11 +38,7 @@ func TestInitCommand_Run(t *testing.T) {
 	defer os.Chdir(origDir)
 
 	// Create a temp dir and change into it
-	dir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -104,11 +100,7 @@ func TestInitCommand_customFilename(t *testing.T) {
 	defer os.Chdir(origDir)
 
 	// Create a temp dir and change into it
-	dir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("err: %s", err)
 	}

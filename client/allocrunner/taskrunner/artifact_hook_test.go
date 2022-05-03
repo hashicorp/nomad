@@ -85,11 +85,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	defer ts.Close()
 
 	// Create the target directory.
-	destdir, err := ioutil.TempDir("", "nomadtest-dest")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, os.RemoveAll(destdir))
-	}()
+	destdir := t.TempDir()
 
 	req := &interfaces.TaskPrestartRequest{
 		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, ""),
@@ -112,7 +108,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 
 	// On first run file1 (foo) should download but file2 (bar) should
 	// fail.
-	err = artifactHook.Prestart(context.Background(), req, &resp)
+	err := artifactHook.Prestart(context.Background(), req, &resp)
 
 	require.NotNil(t, err)
 	require.True(t, structs.IsRecoverable(err))
@@ -179,11 +175,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	defer ts.Close()
 
 	// Create the target directory.
-	destdir, err := ioutil.TempDir("", "nomadtest-dest")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, os.RemoveAll(destdir))
-	}()
+	destdir := t.TempDir()
 
 	req := &interfaces.TaskPrestartRequest{
 		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, ""),
@@ -225,7 +217,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	resp := interfaces.TaskPrestartResponse{}
 
 	// start the hook
-	err = artifactHook.Prestart(context.Background(), req, &resp)
+	err := artifactHook.Prestart(context.Background(), req, &resp)
 
 	require.NoError(t, err)
 	require.True(t, resp.Done)
@@ -273,11 +265,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	defer ts.Close()
 
 	// Create the target directory.
-	destdir, err := ioutil.TempDir("", "nomadtest-dest")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, os.RemoveAll(destdir))
-	}()
+	destdir := t.TempDir()
 
 	req := &interfaces.TaskPrestartRequest{
 		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, ""),
@@ -307,7 +295,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	resp := interfaces.TaskPrestartResponse{}
 
 	// On first run all files will be downloaded except file0.txt
-	err = artifactHook.Prestart(context.Background(), req, &resp)
+	err := artifactHook.Prestart(context.Background(), req, &resp)
 
 	require.Error(t, err)
 	require.True(t, structs.IsRecoverable(err))

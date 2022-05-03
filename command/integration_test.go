@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -17,11 +15,7 @@ import (
 
 func TestIntegration_Command_NomadInit(t *testing.T) {
 	ci.Parallel(t)
-	tmpDir, err := ioutil.TempDir("", "nomadtest-rootsecretdir")
-	if err != nil {
-		t.Fatalf("unable to create tempdir for test: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	{
 		cmd := exec.Command("nomad", "job", "init")
@@ -44,9 +38,7 @@ func TestIntegration_Command_NomadInit(t *testing.T) {
 func TestIntegration_Command_RoundTripJob(t *testing.T) {
 	ci.Parallel(t)
 	assert := assert.New(t)
-	tmpDir, err := ioutil.TempDir("", "nomadtest-rootsecretdir")
-	assert.Nil(err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Start in dev mode so we get a node registration
 	srv, client, url := testServer(t, true, nil)

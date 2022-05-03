@@ -208,11 +208,7 @@ func TestPrevAlloc_LocalPrevAlloc_Terminated(t *testing.T) {
 func TestPrevAlloc_StreamAllocDir_Error(t *testing.T) {
 	ci.Parallel(t)
 
-	dest, err := ioutil.TempDir("", "nomadtest-")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer os.RemoveAll(dest)
+	dest := t.TempDir()
 
 	// This test only unit tests streamAllocDir so we only need a partially
 	// complete remotePrevAlloc
@@ -232,7 +228,7 @@ func TestPrevAlloc_StreamAllocDir_Error(t *testing.T) {
 		ModTime:  time.Now(),
 		Typeflag: tar.TypeReg,
 	}
-	err = tw.WriteHeader(&fooHdr)
+	err := tw.WriteHeader(&fooHdr)
 	if err != nil {
 		t.Fatalf("error writing file header: %v", err)
 	}
