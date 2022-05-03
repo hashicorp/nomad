@@ -127,6 +127,9 @@ func TestConsul_Integration(t *testing.T) {
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("error building alloc dir: %v", err)
 	}
+	t.Cleanup(func() {
+		r.NoError(allocDir.Destroy())
+	})
 	taskDir := allocDir.NewTaskDir(task.Name)
 	vclient := vaultclient.NewMockVaultClient()
 	consulClient, err := consulapi.NewClient(consulConfig)
