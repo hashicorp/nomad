@@ -3,6 +3,7 @@ import '@hashicorp/platform-util/nprogress/style.css'
 
 import Router from 'next/router'
 import Head from 'next/head'
+import rivetQuery from '@hashicorp/nextjs-scripts/dato/client'
 import NProgress from '@hashicorp/platform-util/nprogress'
 import { ErrorBoundary } from '@hashicorp/platform-runtime-error-monitoring'
 import createConsentManager from '@hashicorp/react-consent-manager/loader'
@@ -12,20 +13,22 @@ import useAnchorLinkAnalytics from '@hashicorp/platform-util/anchor-link-analyti
 import HashiStackMenu from '@hashicorp/react-hashi-stack-menu'
 import AlertBanner from '@hashicorp/react-alert-banner'
 import HashiHead from '@hashicorp/react-head'
-import Footer from 'components/footer'
 import ProductSubnav from 'components/subnav'
 import Error from './_error'
 import alertBannerData, { ALERT_BANNER_ACTIVE } from 'data/alert-banner'
+import StandardLayout from 'layouts/standard'
 
 NProgress({ Router })
-const { ConsentManager, openConsentManager } = createConsentManager({
+const { ConsentManager } = createConsentManager({
   preset: 'oss',
   otherServices: [...localConsentManagerServices],
 })
 
-export default function App({ Component, pageProps }) {
+export default function App({ Component, pageProps, layoutData }) {
   useFathomAnalytics()
   useAnchorLinkAnalytics()
+
+  const Layout = Component.layout ?? StandardLayout
 
   return (
     <ErrorBoundary FallbackComponent={Error}>
@@ -40,13 +43,27 @@ export default function App({ Component, pageProps }) {
       {ALERT_BANNER_ACTIVE && (
         <AlertBanner {...alertBannerData} product="nomad" hideOnMobile />
       )}
-      <HashiStackMenu />
-      <ProductSubnav />
-      <div className={`content${ALERT_BANNER_ACTIVE ? ' banner' : ''}`}>
-        <Component {...pageProps} />
-      </div>
-      <Footer openConsentManager={openConsentManager} />
+      <Layout {...(layoutData && { data: layoutData })}>
+        <div className={`content${ALERT_BANNER_ACTIVE ? ' banner' : ''}`}>
+          <Component {...pageProps} />
+        </div>
+      </Layout>
       <ConsentManager />
     </ErrorBoundary>
   )
+}
+
+App.getInitialProps = async ({ Component, ctx }) => {
+  const layoutQuery = Component.layout
+    ? Component.layout?.rivetParams ?? null
+    : StandardLayout.rivetParams
+
+  const layoutData = layoutQuery ? await rivetQuery(layoutQuery) : null
+
+  let pageProps = {}
+
+  if (Component.getInitialProps) {
+    pageProps = await Component.getInitialProps(ctx)
+  }
+  return { pageProps, layoutData }
 }

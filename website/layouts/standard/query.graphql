@@ -1,0 +1,6 @@
+query UseCasesQuery {
+  useCaseNavItems: allNomadUseCases {
+    url: slug
+    text: heroHeading
+  }
+}
