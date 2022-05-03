@@ -62,6 +62,15 @@ automatically unarchived before the starting the task.
 - `source` `(string: <required>)` - Specifies the URL of the artifact to download.
   See [`go-getter`][go-getter] for details.
 
+## Operation Limits
+
+The client [`artifact`][client_artifact] configuration can set limits to
+specific artifact operations to prevent excessive data download or operation
+time.
+
+If a task's `artifact` retrieval exceeds one of those limits, the task will be
+interrupted and fail to start. Refer to the task events for more information.
+
 ## `artifact` Examples
 
 The following examples only show the `artifact` stanzas. Remember that the
@@ -235,6 +244,7 @@ artifact {
 }
 ```
 
+[client_artifact]: /docs/configuration/client#artifact-parameters
 [go-getter]: https://github.com/hashicorp/go-getter 'HashiCorp go-getter Library'
 [go-getter-headers]: https://github.com/hashicorp/go-getter#headers 'HashiCorp go-getter Headers'
 [minio]: https://www.minio.io/

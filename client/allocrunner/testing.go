@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
@@ -71,7 +72,9 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, fu
 		DriverManager:      drivermanager.TestDriverManager(t),
 		CpusetManager:      cgutil.NoopCpusetManager(),
 		ServersContactedCh: make(chan struct{}),
+		Getter:             getter.TestDefaultGetter(t),
 	}
+
 	return conf, cleanup
 }
 

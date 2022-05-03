@@ -394,6 +394,11 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 		}
 	}
 
+	if err := config.Client.Artifact.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("client.artifact stanza invalid: %v", err))
+		return false
+	}
+
 	if !config.DevMode {
 		// Ensure that we have the directories we need to run.
 		if config.Server.Enabled && config.DataDir == "" {

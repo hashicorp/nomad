@@ -306,6 +306,9 @@ type ClientConfig struct {
 	// doest not exist Nomad will attempt to create it during startup. Defaults to '/nomad'
 	CgroupParent string `hcl:"cgroup_parent"`
 
+	// Artifact contains the configuration for artifacts.
+	Artifact *config.ArtifactConfig `hcl:"artifact"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -937,6 +940,7 @@ func DefaultConfig() *Config {
 			BindWildcardDefaultHostNetwork: true,
 			CNIPath:                        "/opt/cni/bin",
 			CNIConfigDir:                   "/opt/cni/config",
+			Artifact:                       config.DefaultArtifactConfig(),
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
@@ -1697,6 +1701,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.BindWildcardDefaultHostNetwork {
 		result.BindWildcardDefaultHostNetwork = true
 	}
+
+	result.Artifact = a.Artifact.Merge(b.Artifact)
+
 	return &result
 }
 
