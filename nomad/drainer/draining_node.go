@@ -66,9 +66,9 @@ func (n *drainingNode) IsDone() (bool, error) {
 	}
 
 	for _, alloc := range allocs {
-		// System jobs are only stopped after a node is done draining
-		// everything else, so ignore them here.
-		if alloc.Job.Type == structs.JobTypeSystem {
+		// System and plugin jobs are only stopped after a node is
+		// done draining everything else, so ignore them here.
+		if alloc.Job.Type == structs.JobTypeSystem || alloc.Job.IsPlugin() {
 			continue
 		}
 
