@@ -29,17 +29,6 @@ import (
 
 var _ interfaces.TaskPrestartHook = (*sidsHook)(nil)
 
-func tmpDir(t *testing.T) string {
-	dir, err := ioutil.TempDir("", "sids-")
-	require.NoError(t, err)
-	return dir
-}
-
-func cleanupDir(t *testing.T, dir string) {
-	err := os.RemoveAll(dir)
-	require.NoError(t, err)
-}
-
 func sidecar(task string) (string, structs.TaskKind) {
 	name := structs.ConnectProxyPrefix + "-" + task
 	kind := structs.TaskKind(structs.ConnectProxyPrefix + ":" + task)
@@ -50,8 +39,7 @@ func TestSIDSHook_recoverToken(t *testing.T) {
 	ci.Parallel(t)
 	r := require.New(t)
 
-	secrets := tmpDir(t)
-	defer cleanupDir(t, secrets)
+	secrets := t.TempDir()
 
 	taskName, taskKind := sidecar("foo")
 	h := newSIDSHook(sidsHookConfig{
@@ -75,8 +63,7 @@ func TestSIDSHook_recoverToken_empty(t *testing.T) {
 	ci.Parallel(t)
 	r := require.New(t)
 
-	secrets := tmpDir(t)
-	defer cleanupDir(t, secrets)
+	secrets := t.TempDir()
 
 	taskName, taskKind := sidecar("foo")
 	h := newSIDSHook(sidsHookConfig{
@@ -103,8 +90,7 @@ func TestSIDSHook_recoverToken_unReadable(t *testing.T) {
 
 	r := require.New(t)
 
-	secrets := tmpDir(t)
-	defer cleanupDir(t, secrets)
+	secrets := t.TempDir()
 
 	err := os.Chmod(secrets, 0000)
 	r.NoError(err)
@@ -126,8 +112,7 @@ func TestSIDSHook_writeToken(t *testing.T) {
 	ci.Parallel(t)
 	r := require.New(t)
 
-	secrets := tmpDir(t)
-	defer cleanupDir(t, secrets)
+	secrets := t.TempDir()
 
 	id := uuid.Generate()
 	h := new(sidsHook)
@@ -150,8 +135,7 @@ func TestSIDSHook_writeToken_unWritable(t *testing.T) {
 
 	r := require.New(t)
 
-	secrets := tmpDir(t)
-	defer cleanupDir(t, secrets)
+	secrets := t.TempDir()
 
 	err := os.Chmod(secrets, 0000)
 	r.NoError(err)
@@ -166,8 +150,7 @@ func Test_SIDSHook_writeToken_nonExistent(t *testing.T) {
 	ci.Parallel(t)
 	r := require.New(t)
 
-	base := tmpDir(t)
-	defer cleanupDir(t, base)
+	base := t.TempDir()
 	secrets := filepath.Join(base, "does/not/exist")
 
 	id := uuid.Generate()
@@ -289,8 +272,7 @@ func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
 
 	// make the si_token file un-writable, triggering a failure after a
 	// successful token derivation
-	secrets := tmpDir(t)
-	defer cleanupDir(t, secrets)
+	secrets := t.TempDir()
 	trConfig.TaskDir.SecretsDir = secrets
 	err := ioutil.WriteFile(filepath.Join(secrets, sidsTokenFile), nil, 0400)
 	r.NoError(err)

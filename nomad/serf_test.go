@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"strings"
 	"sync/atomic"
@@ -102,8 +101,7 @@ func TestNomad_RemovePeer(t *testing.T) {
 func TestNomad_ReapPeer(t *testing.T) {
 	ci.Parallel(t)
 
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NodeName = "node1"
@@ -198,8 +196,7 @@ func TestNomad_ReapPeer(t *testing.T) {
 func TestNomad_BootstrapExpect(t *testing.T) {
 	ci.Parallel(t)
 
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
@@ -389,8 +386,7 @@ func TestNomad_BadExpect(t *testing.T) {
 func TestNomad_NonBootstraping_ShouldntBootstap(t *testing.T) {
 	ci.Parallel(t)
 
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 0

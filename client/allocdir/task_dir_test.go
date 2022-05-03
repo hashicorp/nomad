@@ -14,11 +14,7 @@ import (
 func TestTaskDir_EmbedNonexistent(t *testing.T) {
 	ci.Parallel(t)
 
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
@@ -38,11 +34,7 @@ func TestTaskDir_EmbedNonexistent(t *testing.T) {
 func TestTaskDir_EmbedDirs(t *testing.T) {
 	ci.Parallel(t)
 
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
@@ -53,11 +45,7 @@ func TestTaskDir_EmbedDirs(t *testing.T) {
 
 	// Create a fake host directory, with a file, and a subfolder that contains
 	// a file.
-	host, err := ioutil.TempDir("", "AllocDirHost")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(host)
+	host := t.TempDir()
 
 	subDirName := "subdir"
 	subDir := filepath.Join(host, subDirName)
@@ -96,11 +84,7 @@ func TestTaskDir_NonRoot_Image(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("test should be run as non-root user")
 	}
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
@@ -121,11 +105,7 @@ func TestTaskDir_NonRoot(t *testing.T) {
 		t.Skip("test should be run as non-root user")
 	}
 
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
@@ -139,7 +119,7 @@ func TestTaskDir_NonRoot(t *testing.T) {
 	}
 
 	// ${TASK_DIR}/alloc should not exist!
-	if _, err = os.Stat(td.SharedTaskDir); !os.IsNotExist(err) {
+	if _, err := os.Stat(td.SharedTaskDir); !os.IsNotExist(err) {
 		t.Fatalf("Expected a NotExist error for shared alloc dir in task dir: %q", td.SharedTaskDir)
 	}
 }

@@ -23,9 +23,7 @@ func TestLogmon_Start_rotate(t *testing.T) {
 	require := require.New(t)
 	var stdoutFifoPath, stderrFifoPath string
 
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	if runtime.GOOS == "windows" {
 		stdoutFifoPath = "//./pipe/test-rotate.stdout"
@@ -89,9 +87,7 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 	require := require.New(t)
 	var stdoutFifoPath, stderrFifoPath string
 
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	if runtime.GOOS == "windows" {
 		stdoutFifoPath = "//./pipe/test-restart.stdout"
@@ -194,9 +190,7 @@ func TestLogmon_Start_restart(t *testing.T) {
 	require := require.New(t)
 	var stdoutFifoPath, stderrFifoPath string
 
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	if runtime.GOOS == "windows" {
 		stdoutFifoPath = "//./pipe/test-restart.stdout"

@@ -2,8 +2,6 @@ package command
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -387,11 +385,7 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 	ci.Parallel(t)
 	// We have to create a tempdir for the host volume even though we're
 	// not going to use it b/c the server validates the config on startup
-	tmpDir, err := ioutil.TempDir("", "vol0")
-	if err != nil {
-		t.Fatalf("unable to create tempdir for test: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	vol0 := uuid.Generate()
 	srv, _, url := testServer(t, true, func(c *agent.Config) {
