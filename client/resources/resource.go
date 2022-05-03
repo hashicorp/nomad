@@ -2,46 +2,60 @@ package resources
 
 import (
 	"fmt"
+
+	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
-// ResourceType is a discriminator that identifies the type of resource being loaded
-// and defines the dynamic behaviors that each implementation is expected to provide.
-type ResourceType interface {
-	Name() string
+// Validator defines and interface that can be implemented to validate a value
+// based on custom resources configuration.
+type Validator interface {
+	Type() string
 	Validate(interface{}) error
 }
 
-// Range is a ResourceType that ensures resource configuration contains an integer
-// value within the allowable upper and lower bounds.
-type Range struct {
-	Upper int64 `hcl:"upper"`
-	Lower int64 `hcl:"lower"`
+// NewValidator is a factory method that returns concrete resource validators by type.
+func NewValidator(rc *config.ResourceConfig) (Validator, error) {
+	if err := rc.Validate(); err != nil {
+		return nil, err
+	}
+
+	_type := rc.Config["type"]
+
+	switch _type {
+	case "range":
+		return &rangeValidator{
+			Upper: rc.Config["upper"].(int),
+			Lower: rc.Config["lower"].(int),
+		}, nil
+	default:
+		return nil, fmt.Errorf("error: unsuported resource type %s", _type)
+	}
 }
 
-func (r *Range) Name() string {
+// rangeValidator is a validator that ensures resource configuration contains an integer
+// value within the allowable upper and lower bounds.
+type rangeValidator struct {
+	Upper int
+	Lower int
+}
+
+func (r *rangeValidator) Type() string {
 	return "range"
 }
 
-func (r *Range) Validate(config interface{}) error {
-	val, ok := config.(int64)
+func (r *rangeValidator) Validate(iface interface{}) error {
+	val, ok := iface.(int)
 	if !ok {
-		return fmt.Errorf("invalid resource config: %#v cannot be cast to int64", config)
+		return fmt.Errorf("invalid resource config: %#v cannot be cast to int64", iface)
 	}
 
 	if val < r.Lower {
-		return fmt.Errorf("invalid resource config: %d cannot be less than lower bound %d", val, r.Lower)
+		return fmt.Errorf("invalid resource config: value %d cannot be less than lower bound %d", val, r.Lower)
 	}
 
 	if val > r.Upper {
-		return fmt.Errorf("invalid resource config: %d cannot be greater than upper bound %d", val, r.Upper)
+		return fmt.Errorf("invalid resource config: value %d cannot be greater than upper bound %d", val, r.Upper)
 	}
 
 	return nil
-}
-
-// Resource is a custom resource that users can configure to expose custom capabilities
-// available per client.
-type Resource struct {
-	Name  string `hcl:"name,key"`
-	Range Range  `mapstructure:"range" hcl:"range,block,optional"`
 }

@@ -27,17 +27,6 @@ func (r *ResourceConfig) Validate() error {
 	}
 }
 
-// Range is a Resource that ensures resource configuration contains an integer
-// value within the allowable upper and lower bounds.
-type Range struct {
-	Upper int64 `hcl:"upper"`
-	Lower int64 `hcl:"lower"`
-}
-
-func (r *Range) Name() string {
-	return "range"
-}
-
 func validateRangeConfig(r *ResourceConfig) error {
 	mErr := new(multierror.Error)
 
@@ -50,11 +39,11 @@ func validateRangeConfig(r *ResourceConfig) error {
 	if lower != nil {
 		lowerVal, ok = lower.(int)
 		if !ok {
-			mErr = multierror.Append(mErr, fmt.Errorf("error: resource %s of type range has lower bound %#v which cannot be cast to int64", r.Name, lower))
+			mErr = multierror.Append(mErr, fmt.Errorf("error: resource %s of type range has lower bound %#v which cannot be cast to int", r.Name, lower))
 		}
 	}
 
-	upper, ok := r.Config["lower"]
+	upper, ok := r.Config["upper"]
 	if !ok {
 		mErr = multierror.Append(mErr, fmt.Errorf("error: resource %s of type range has no upper bound", r.Name))
 	}
@@ -62,30 +51,13 @@ func validateRangeConfig(r *ResourceConfig) error {
 	if upper != nil {
 		upperVal, ok = upper.(int)
 		if !ok {
-			mErr = multierror.Append(mErr, fmt.Errorf("error: resource %s of type range has lower bound %#v which cannot be cast to int64", r.Name, lower))
+			mErr = multierror.Append(mErr, fmt.Errorf("error: resource %s of type range has lower bound %#v which cannot be cast to int", r.Name, lower))
 		}
 	}
 
 	if lowerVal > upperVal {
-		mErr = multierror.Append(mErr, fmt.Errorf("error: resource %d of type range has lower bound %d which which is greater than upper bound %d", lowerVal, upperVal))
+		mErr = multierror.Append(mErr, fmt.Errorf("error: resource %s of type range has lower bound %d which is greater than upper bound %d", r.Name, lowerVal, upperVal))
 	}
 
 	return mErr.ErrorOrNil()
-}
-
-func (r *Range) IsValid(iface interface{}) error {
-	val, ok := iface.(int64)
-	if !ok {
-		return fmt.Errorf("invalid resource config: %#v cannot be cast to int64", iface)
-	}
-
-	if val < r.Lower {
-		return fmt.Errorf("invalid resource config: %d cannot be less than lower bound %d", val, r.Lower)
-	}
-
-	if val > r.Upper {
-		return fmt.Errorf("invalid resource config: %d cannot be greater than upper bound %d", val, r.Upper)
-	}
-
-	return nil
 }

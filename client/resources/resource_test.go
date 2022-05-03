@@ -14,66 +14,6 @@ func TestResource_Range(t *testing.T) {
 		Resources []*config.ResourceConfig `hcl:"resource"`
 	}
 
-	type testCase struct {
-		name     string
-		_type    string
-		config   interface{}
-		lower    int64
-		upper    int64
-		errorMsg string
-	}
-
-	testCases := []testCase{
-		{
-			name:     "valid-between",
-			_type:    "range",
-			config:   5,
-			lower:    0,
-			upper:    10,
-			errorMsg: "",
-		},
-		{
-			name:     "valid-matches-lower-bound",
-			_type:    "range",
-			config:   5,
-			lower:    5,
-			upper:    10,
-			errorMsg: "",
-		},
-		{
-			name:     "valid-matches-upper-bound",
-			_type:    "range",
-			config:   10,
-			lower:    5,
-			upper:    10,
-			errorMsg: "",
-		},
-		{
-			name:     "invalid-less-than-lower-bound",
-			_type:    "range",
-			config:   4,
-			lower:    5,
-			upper:    10,
-			errorMsg: "cannot be less than lower bound",
-		},
-		{
-			name:     "invalid-greater-than-upper-bound",
-			_type:    "range",
-			config:   4,
-			lower:    5,
-			upper:    10,
-			errorMsg: "cannot be greater than upper bound",
-		},
-		{
-			name:     "invalid-typecast-error",
-			_type:    "range",
-			config:   4,
-			lower:    5,
-			upper:    10,
-			errorMsg: "cannot be cast to int64",
-		},
-	}
-
 	rangeTmpl := `
 resource "%s" {
 	config {
@@ -83,32 +23,191 @@ resource "%s" {
  	}
 }
 	`
+
+	type testCase struct {
+		name      string
+		_type     string
+		value     interface{}
+		lower     interface{}
+		upper     interface{}
+		parseErr  string
+		cfgErrMsg string
+		errMsg    string
+		tmpl      string
+	}
+
+	testCases := []testCase{
+		{
+			name:      "invalid-config-no-lower-bound",
+			_type:     "range",
+			value:     5,
+			lower:     0,
+			upper:     10,
+			parseErr:  "illegal char",
+			cfgErrMsg: "",
+			errMsg:    "",
+			tmpl: `
+resource "%s" {
+	config {
+		type  = "range"
+   		upper = %d
+ 	}
+}
+	`,
+		},
+		{
+			name:      "invalid-config-lower-bound",
+			_type:     "range",
+			value:     5,
+			lower:     false,
+			upper:     10,
+			parseErr:  "illegal char",
+			cfgErrMsg: "",
+			errMsg:    "",
+			tmpl:      rangeTmpl,
+		},
+		{
+			name:      "invalid-config-no-upper-bound",
+			_type:     "range",
+			value:     5,
+			lower:     0,
+			upper:     10,
+			parseErr:  "illegal char",
+			cfgErrMsg: "",
+			errMsg:    "",
+			tmpl: `
+resource "%s" {
+	config {
+		type  = "range"
+   		lower = %d
+ 	}
+}
+	`,
+		},
+		{
+			name:      "invalid-config-upper-bound",
+			_type:     "range",
+			value:     5,
+			lower:     0,
+			upper:     "foo",
+			parseErr:  "illegal char",
+			cfgErrMsg: "",
+			errMsg:    "",
+			tmpl:      rangeTmpl,
+		},
+		{
+			name:      "invalid-config-lower-greater-than-upper",
+			_type:     "range",
+			value:     5,
+			lower:     10,
+			upper:     5,
+			cfgErrMsg: "which is greater than upper bound",
+			errMsg:    "",
+			tmpl:      rangeTmpl,
+		},
+		{
+			name:      "valid-between",
+			_type:     "range",
+			value:     5,
+			lower:     0,
+			upper:     10,
+			cfgErrMsg: "",
+			errMsg:    "",
+			tmpl:      rangeTmpl,
+		},
+		{
+			name:      "valid-matches-lower-bound",
+			_type:     "range",
+			value:     5,
+			lower:     5,
+			upper:     10,
+			cfgErrMsg: "",
+			errMsg:    "",
+			tmpl:      rangeTmpl,
+		},
+		{
+			name:      "valid-matches-upper-bound",
+			_type:     "range",
+			value:     10,
+			lower:     5,
+			upper:     10,
+			cfgErrMsg: "",
+			errMsg:    "",
+			tmpl:      rangeTmpl,
+		},
+		{
+			name:      "invalid-less-than-lower-bound",
+			_type:     "range",
+			value:     4,
+			lower:     5,
+			upper:     10,
+			cfgErrMsg: "",
+			errMsg:    "cannot be less than lower bound",
+			tmpl:      rangeTmpl,
+		},
+		{
+			name:      "invalid-greater-than-upper-bound",
+			_type:     "range",
+			value:     11,
+			lower:     5,
+			upper:     10,
+			cfgErrMsg: "",
+			errMsg:    "cannot be greater than upper bound",
+			tmpl:      rangeTmpl,
+		},
+		{
+			name:      "invalid-typecast-error",
+			_type:     "range",
+			value:     "foo",
+			lower:     5,
+			upper:     10,
+			cfgErrMsg: "",
+			errMsg:    "cannot be cast to int",
+			tmpl:      rangeTmpl,
+		},
+	}
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			resourceHCL := fmt.Sprintf(rangeTmpl, tc.name, tc.lower, tc.upper)
+			resourceHCL := fmt.Sprintf(tc.tmpl, tc.name, tc.lower, tc.upper)
 			cfg := &testConfig{}
 			err := hcl.Decode(cfg, resourceHCL)
-			require.NoError(t, err)
 
+			if tc.parseErr != "" {
+				require.ErrorContains(t, err, tc.parseErr)
+				return
+			}
+
+			require.NoError(t, err)
 			require.NotNil(t, cfg)
 			require.Len(t, cfg.Resources, 1)
-			resource := cfg.Resources[0]
-			require.Equal(t, tc.name, resource.Name)
-			require.NotNil(t, resource.Config)
-			require.Equal(t, "range", resource.Config["type"])
-			require.Equal(t, tc.lower, int64(resource.Config["lower"].(int)))
-			require.Equal(t, tc.upper, int64(resource.Config["upper"].(int)))
+			resourceCfg := cfg.Resources[0]
+			require.Equal(t, tc.name, resourceCfg.Name)
+			require.NotNil(t, resourceCfg.Config)
+			require.Equal(t, "range", resourceCfg.Config["type"])
 
-			err = resource.Validate()
+			err = resourceCfg.Validate()
+
+			if tc.cfgErrMsg == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tc.cfgErrMsg)
+				return
+			}
+
+			validator, err := NewValidator(resourceCfg)
 			require.NoError(t, err)
 
-			// TODO (derek): Rework input validation and int64 handling
-			//if tc.errorMsg == "" {
-			//	require.NoError(t, err)
-			//} else {
-			//	require.Error(t, err)
-			//	//require.ErrorContains(t, err, tc.errorMsg)
-			//}
+			err = validator.Validate(tc.value)
+
+			if tc.errMsg == "" {
+				require.NoError(t, err)
+				err = validator.Validate(tc.value)
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.ErrorContains(t, err, tc.errMsg)
+			}
 		})
 	}
 }

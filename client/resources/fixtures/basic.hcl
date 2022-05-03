@@ -1,14 +1,14 @@
 resource "gpu" {
   range {
     lower = 1
-    upper   = 4
+    upper = 4
   }
 }
 
 resource "ip" {
   ip_range {
     lower = "192.168.1.0"
-    upper   = "192.168.1.255"
+    upper = "192.168.1.255"
   }
 }
 
