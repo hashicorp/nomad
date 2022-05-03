@@ -21,6 +21,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/config"
 	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
@@ -121,6 +122,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		StartConditionMetCtx:  closedCh,
 		ShutdownDelayCtx:      shutdownDelayCtx,
 		ShutdownDelayCancelFn: shutdownDelayCancelFn,
+		Getter:                getter.TestDefaultGetter(t),
 	}
 	return conf, trCleanup
 }

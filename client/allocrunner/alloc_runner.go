@@ -177,6 +177,9 @@ type allocRunner struct {
 	// rpcClient is the RPC Client that should be used by the allocrunner and its
 	// hooks to communicate with Nomad Servers.
 	rpcClient RPCer
+
+	// getter is an interface for retrieving artifacts.
+	getter cinterfaces.ArtifactGetter
 }
 
 // RPCer is the interface needed by hooks to make RPC calls.
@@ -220,6 +223,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
 		rpcClient:                config.RPCClient,
+		getter:                   config.Getter,
 	}
 
 	// Create the logger based on the allocation ID
@@ -273,6 +277,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			ServersContactedCh:   ar.serversContactedCh,
 			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
 			ShutdownDelayCtx:     ar.shutdownDelayCtx,
+			Getter:               ar.getter,
 		}
 
 		if ar.cpusetManager != nil {
