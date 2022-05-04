@@ -124,14 +124,15 @@ module('Acceptance | evaluations list', function (hooks) {
 
   test('it renders an empty message if there are no evaluations rendered', async function (assert) {
     await visit('/evaluations');
+    assert.expect(2);
 
+    await percySnapshot(assert);
     assert
       .dom('[data-test-empty-evaluations-list]')
       .exists('We display empty table message.');
     assert
       .dom('[data-test-no-eval]')
       .exists('We display a message saying there are no evaluations.');
-    await percySnapshot(assert);
   });
 
   test('it renders a list of evaluations', async function (assert) {
