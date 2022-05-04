@@ -154,6 +154,8 @@ module('Acceptance | evaluations list', function (hooks) {
 
     await visit('/evaluations');
 
+    await percySnapshot(assert);
+
     assert
       .dom('[data-test-eval-table]')
       .exists('Evaluations table should render');
@@ -664,6 +666,8 @@ module('Acceptance | evaluations list', function (hooks) {
 
       const evalId = '5fb1b8cd';
       await click(`[data-test-evaluation='${evalId}']`);
+
+      await percySnapshot(assert);
 
       assert
         .dom('[data-test-eval-detail-is-open]')
