@@ -3207,6 +3207,26 @@
     mkdirp "^1.0.4"
     rimraf "^3.0.2"
 
+"@percy/ember@^3.0.0":
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/@percy/ember/-/ember-3.0.0.tgz#4e89148e139d42b88e93526d47bf29d39a24094f"
+  integrity sha512-0QuQLtfeX7Xf2dOfrs6v5IEABSQuFimZDSgPMHaEGV9hOze+J7YKeWtpzBOCjcaaT36JRVdNwA+SdMX0gALP6A==
+  dependencies:
+    "@percy/sdk-utils" "^1.0.0-beta.46"
+    ember-cli-babel "^7.26.3"
+
+"@percy/logger@1.1.0":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@percy/logger/-/logger-1.1.0.tgz#6bb5df0563d3566071f8b718e61f11a04c5a2722"
+  integrity sha512-bAlxBcdnViTpGQZtjs361vXSlaxEj6Zt4Wt1Mo7EdPwv/zya2cBpLFNNcRycWto4mdb5Qnpht+IPXf7RFXJ/nw==
+
+"@percy/sdk-utils@^1.0.0-beta.46":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@percy/sdk-utils/-/sdk-utils-1.1.0.tgz#2e69b228e0fffbceaccea3cbf8585dbb7a3ef5a4"
+  integrity sha512-pSUtOv/nJvpKNbnsRPmgRhBrT+BA3ANCBQjT6swlwY7+hbd60A2cHiC9E9KoqSpyblPIijM9LAHHf3A09agtnA==
+  dependencies:
+    "@percy/logger" "1.1.0"
+
 "@popperjs/core@^2.5.4", "@popperjs/core@^2.6.0":
   version "2.10.2"
   resolved "https://registry.yarnpkg.com/@popperjs/core/-/core-2.10.2.tgz#0798c03351f0dea1a5a4cabddf26a55a7cbee590"
