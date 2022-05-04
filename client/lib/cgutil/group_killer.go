@@ -143,8 +143,10 @@ func (d *killer) v2(cgroup *configs.Cgroup) error {
 		return err
 	}
 
-	// remove the cgroup from disk
-	return mgr.Destroy()
+	// note: do NOT remove the cgroup from disk; leave that to the alloc-level
+	// cpuset mananager.
+
+	return nil
 }
 
 // kill is used to SIGKILL all processes in cgroup

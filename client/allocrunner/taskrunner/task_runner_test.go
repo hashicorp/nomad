@@ -253,6 +253,11 @@ func TestTaskRunner_Stop_ExitCode(t *testing.T) {
 		"command": "/bin/sleep",
 		"args":    []string{"1000"},
 	}
+	task.Env = map[string]string{
+		"NOMAD_PARENT_CGROUP": "nomad.slice",
+		"NOMAD_ALLOC_ID":      alloc.ID,
+		"NOMAD_TASK_NAME":     task.Name,
+	}
 
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
@@ -347,13 +352,16 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 // returned once it is running and waiting in pending along with a cleanup
 // func.
 func setupRestoreFailureTest(t *testing.T, alloc *structs.Allocation) (*TaskRunner, *Config, func()) {
-	ci.Parallel(t)
-
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "raw_exec"
 	task.Config = map[string]interface{}{
 		"command": "sleep",
 		"args":    []string{"30"},
+	}
+	task.Env = map[string]string{
+		"NOMAD_PARENT_CGROUP": "nomad.slice",
+		"NOMAD_ALLOC_ID":      alloc.ID,
+		"NOMAD_TASK_NAME":     task.Name,
 	}
 	conf, cleanup1 := testTaskRunnerConfig(t, alloc, task.Name)
 	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between runs
@@ -502,6 +510,11 @@ func TestTaskRunner_Restore_System(t *testing.T) {
 	task.Config = map[string]interface{}{
 		"command": "sleep",
 		"args":    []string{"30"},
+	}
+	task.Env = map[string]string{
+		"NOMAD_PARENT_CGROUP": "nomad.slice",
+		"NOMAD_ALLOC_ID":      alloc.ID,
+		"NOMAD_TASK_NAME":     task.Name,
 	}
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
@@ -718,7 +731,11 @@ func TestTaskRunner_TaskEnv_None(t *testing.T) {
 			"echo $PATH",
 		},
 	}
-
+	task.Env = map[string]string{
+		"NOMAD_PARENT_CGROUP": "nomad.slice",
+		"NOMAD_ALLOC_ID":      alloc.ID,
+		"NOMAD_TASK_NAME":     task.Name,
+	}
 	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
@@ -1779,6 +1796,11 @@ func TestTaskRunner_Download_RawExec(t *testing.T) {
 	task.Driver = "raw_exec"
 	task.Config = map[string]interface{}{
 		"command": "noop.sh",
+	}
+	task.Env = map[string]string{
+		"NOMAD_PARENT_CGROUP": "nomad.slice",
+		"NOMAD_ALLOC_ID":      alloc.ID,
+		"NOMAD_TASK_NAME":     task.Name,
 	}
 	task.Artifacts = []*structs.TaskArtifact{
 		{
