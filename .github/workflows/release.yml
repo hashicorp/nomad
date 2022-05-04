@@ -11,7 +11,7 @@ on:
         description: 'Update CHANGELOG'
         required: true
         type: boolean
-        default: true
+        default: false
       notification-channel:
         description: 'Slack channel to use for notifications'
         required: false
