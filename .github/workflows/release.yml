@@ -94,11 +94,9 @@ jobs:
         id: notification-channel
         if: ${{ github.event.inputs.notification-channel != '' }}
         run: |
-          previous_channel=$(sed -n 's|notification_channel * = *"\([^"]*\)"|\1|p' .release/ci.hcl | xargs)
           sed -i.bak -e 's|\(notification_channel * = *"\)[^"]*|\1${{ github.event.inputs.notification-channel }}|g' .release/ci.hcl
           rm -rf .release/ci.hcl.bak
           git diff --color=always .release/ci.hcl
-          echo "::set-output name=prev-channel::$previous_channel"
 
       - name: Update version file
         run: |
@@ -153,22 +151,33 @@ jobs:
       - name: Revert notification channel
         if: ${{ github.event.inputs.notification-channel != '' }}
         run: |
-          sed -i.bak -e 's|\(notification_channel * = *"\)[^"]*|\1${{ steps.notification-channel.outputs.prev-channel }}|g' .release/ci.hcl
-          rm -rf .release/ci.hcl.bak
-          git diff --color=always .release/ci.hcl
+          git reset ${{ github.sha }} -- .release/ci.hcl
 
-      - name: Revert version prerelease and bump version number
+          # git reset will place the original file content in the staging area
+          # and leave the changes since then unstaged, so call git restore to
+          # discard these changes and use --cached to display the diff in the
+          # staging area.
+          git restore .release/ci.hcl
+          git diff --cached --color=always .release/ci.hcl
+
+      - name: Update version file
         run: |
+          # Only bump the Version value if this is not a pre-release.
+          # For final releases we want `nomad -version` to display the next
+          # version to indicate that the current release is done.
           if [ -z "$(semver get prerel ${{ github.event.inputs.version }})" ]; then
             next_version=$(semver bump patch ${{ github.event.inputs.version }})
             sed -i.bak -e "s|\(Version * = *\"\)[^\"]*|\1${next_version}|g" version/version.go
           fi
+          # Set the VersionPrerelease variable back to dev.
           sed -i.bak -e "s|\(VersionPrerelease * = *\"\)[^\"]*|\1dev|g" version/version.go
           rm -rf version/version.go.bak
           git diff --color=always version/version.go
 
       - name: Update LAST_RELEASE
         run: |
+          # LAST_RELEASE is used to generate the new CHANGELOG entries, so it's
+          # only updated for final releases.
           if [ -z "$(semver get prerel ${{ github.event.inputs.version }})" ]; then
             sed -i.bak -re "s|^(LAST_RELEASE\s+\?=\s+v).*$|\1${{ github.event.inputs.version }}|g" GNUmakefile
             rm -fr GNUmakefile.bak
@@ -179,7 +188,8 @@ jobs:
 
       - name: Commit post-release changes
         run: |
-          git diff --color=always
+          # Display stated and unstaged diffs.
+          git diff --color=always HEAD
           git add -A .
           if ! git diff-index --quiet HEAD --; then
             git commit --message 'Prepare for next release'
