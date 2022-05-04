@@ -128,6 +128,7 @@ module('Acceptance | evaluations list', function (hooks) {
     assert.expect(2);
 
     await percySnapshot(assert);
+
     assert
       .dom('[data-test-empty-evaluations-list]')
       .exists('We display empty table message.');

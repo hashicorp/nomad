@@ -6,6 +6,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
+import percySnapshot from '@percy/ember';
 
 module('Acceptance | clients list', function (hooks) {
   setupApplicationTest(hooks);
@@ -33,6 +34,8 @@ module('Acceptance | clients list', function (hooks) {
     server.createList('agent', 1);
 
     await ClientsList.visit();
+
+    await percySnapshot(assert);
 
     assert.equal(ClientsList.nodes.length, ClientsList.pageSize);
     assert.ok(ClientsList.hasPagination, 'Pagination found on the page');
@@ -210,6 +213,8 @@ module('Acceptance | clients list', function (hooks) {
     server.createList('agent', 1);
 
     await ClientsList.visit();
+
+    await percySnapshot(assert);
 
     assert.ok(ClientsList.isEmpty);
     assert.equal(ClientsList.empty.headline, 'No Clients');

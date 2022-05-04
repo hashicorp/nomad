@@ -12,6 +12,7 @@ import {
   formatScheduledHertz,
 } from 'nomad-ui/utils/units';
 import queryString from 'query-string';
+import percySnapshot from '@percy/ember';
 
 const sumResources = (list, dimension) =>
   list.reduce((agg, val) => agg + (get(val, dimension) || 0), 0);
@@ -39,6 +40,9 @@ module('Acceptance | topology', function (hooks) {
     server.createList('allocation', 5);
 
     await Topology.visit();
+
+    await percySnapshot(assert);
+
     assert.equal(Topology.infoPanelTitle, 'Cluster Details');
     assert.notOk(Topology.filteredNodesWarning.isPresent);
 
