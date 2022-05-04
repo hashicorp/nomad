@@ -486,7 +486,8 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 				//monitor the disagreement between workers and
 				//the plan applier.
 				logger.Info("plan for node rejected, refer to https://www.nomadproject.io/s/port-plan-failure for more information",
-					"node_id", nodeID, "reason", reason, "eval_id", plan.EvalID)
+					"node_id", nodeID, "reason", reason, "eval_id", plan.EvalID,
+					"namespace", plan.Job.Namespace)
 			}
 			// Set that this is a partial commit
 			partialCommit = true
