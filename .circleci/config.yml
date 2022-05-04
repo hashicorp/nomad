@@ -379,6 +379,7 @@ jobs:
             ./scripts/vagrant-linux-unpriv-ui.sh
 
             export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
+            
             source ${BASH_ENV}
             . ~/.nvm/nvm.sh
             cd ui && yarn install --frozen-lockfile && cd ..
