@@ -10,8 +10,8 @@ export NVM_DIR="${HOME}/.nvm"
 
 # Install Node, Ember CLI, and Phantom for UI development
 # Use exact full version version (e.g. not 12) for reproducibility purposes
-nvm install 12.22.10
-nvm alias default 12.22.10
+nvm install 14.19.2
+nvm alias default 14.19.2
 npm install -g ember-cli
 
 # Install Yarn for front-end dependency management
