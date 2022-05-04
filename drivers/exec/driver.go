@@ -581,6 +581,25 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 	return nil
 }
 
+// resetCgroup will re-create the v2 cgroup for the task after the task has been
+// destroyed by libcontainer. In the case of a task restart we call DestroyTask
+// which removes the cgroup - but we still need it!
+//
+// Ideally the cgroup management would be more unified - and we could do the creation
+// on a task runner pre-start hook, eliminating the need for this hack.
+func (d *Driver) resetCgroup(handle *taskHandle) {
+	if cgutil.UseV2 {
+		if handle.taskConfig.Resources != nil &&
+			handle.taskConfig.Resources.LinuxResources != nil &&
+			handle.taskConfig.Resources.LinuxResources.CpusetCgroupPath != "" {
+			err := os.Mkdir(handle.taskConfig.Resources.LinuxResources.CpusetCgroupPath, 0755)
+			if err != nil {
+				d.logger.Trace("failed to reset cgroup", "path", handle.taskConfig.Resources.LinuxResources.CpusetCgroupPath)
+			}
+		}
+	}
+}
+
 func (d *Driver) DestroyTask(taskID string, force bool) error {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
@@ -598,6 +617,9 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 
 		handle.pluginClient.Kill()
 	}
+
+	// workaround for the case where DestroyTask was issued on task restart
+	d.resetCgroup(handle)
 
 	d.tasks.Delete(taskID)
 	return nil
