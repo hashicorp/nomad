@@ -7,6 +7,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 import percySnapshot from '@percy/ember';
+import faker from 'faker';
 
 module('Acceptance | clients list', function (hooks) {
   setupApplicationTest(hooks);

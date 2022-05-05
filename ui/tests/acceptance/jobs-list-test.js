@@ -8,6 +8,7 @@ import pageSizeSelect from './behaviors/page-size-select';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
+import faker from 'faker';
 
 let managementToken, clientToken;
 

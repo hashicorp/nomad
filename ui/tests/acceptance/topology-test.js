@@ -14,6 +14,7 @@ import {
 } from 'nomad-ui/utils/units';
 import queryString from 'query-string';
 import percySnapshot from '@percy/ember';
+import faker from 'faker';
 
 const sumResources = (list, dimension) =>
   list.reduce((agg, val) => agg + (get(val, dimension) || 0), 0);

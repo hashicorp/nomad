@@ -8,6 +8,7 @@ import { findLeader } from '../../mirage/config';
 import ServersList from 'nomad-ui/tests/pages/servers/list';
 import formatHost from 'nomad-ui/utils/format-host';
 import percySnapshot from '@percy/ember';
+import faker from 'faker';
 
 const minimumSetup = () => {
   server.createList('node', 1);

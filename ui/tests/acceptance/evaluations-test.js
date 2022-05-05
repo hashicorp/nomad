@@ -19,6 +19,7 @@ import {
 } from 'ember-power-select/test-support/helpers';
 import { generateAcceptanceTestEvalMock } from '../../mirage/utils';
 import percySnapshot from '@percy/ember';
+import faker from 'faker';
 
 const getStandardRes = () => [
   {
