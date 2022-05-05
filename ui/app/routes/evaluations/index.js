@@ -94,6 +94,7 @@ export default class EvaluationsIndexRoute extends Route {
 
     return this.store.query('evaluation', {
       namespace,
+      reverse: true,
       per_page: pageSize,
       next_token: nextToken,
       filter: generateFilterExpression(),
