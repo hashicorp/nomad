@@ -7,6 +7,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import { findLeader } from '../../mirage/config';
 import ServersList from 'nomad-ui/tests/pages/servers/list';
 import formatHost from 'nomad-ui/utils/format-host';
+import percySnapshot from '@percy/ember';
 
 const minimumSetup = () => {
   server.createList('node', 1);
@@ -40,6 +41,8 @@ module('Acceptance | servers list', function (hooks) {
     const sortedAgents = server.db.agents.sort(agentSort(leader)).reverse();
 
     await ServersList.visit();
+
+    await percySnapshot(assert);
 
     assert.equal(
       ServersList.servers.length,

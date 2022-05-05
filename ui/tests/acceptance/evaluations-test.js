@@ -1,3 +1,4 @@
+/* eslint-disable qunit/require-expect */
 import {
   click,
   currentRouteName,
@@ -124,6 +125,9 @@ module('Acceptance | evaluations list', function (hooks) {
 
   test('it renders an empty message if there are no evaluations rendered', async function (assert) {
     await visit('/evaluations');
+    assert.expect(2);
+
+    await percySnapshot(assert);
 
     assert
       .dom('[data-test-empty-evaluations-list]')
@@ -136,7 +140,6 @@ module('Acceptance | evaluations list', function (hooks) {
 
   test('it renders a list of evaluations', async function (assert) {
     assert.expect(3);
-
     server.get('/evaluations', function (_server, fakeRequest) {
       assert.deepEqual(
         fakeRequest.queryParams,
@@ -153,6 +156,8 @@ module('Acceptance | evaluations list', function (hooks) {
     });
 
     await visit('/evaluations');
+
+    await percySnapshot(assert);
 
     assert
       .dom('[data-test-eval-table]')
@@ -680,6 +685,8 @@ module('Acceptance | evaluations list', function (hooks) {
 
       const evalId = '5fb1b8cd';
       await click(`[data-test-evaluation='${evalId}']`);
+
+      await percySnapshot(assert);
 
       assert
         .dom('[data-test-eval-detail-is-open]')
