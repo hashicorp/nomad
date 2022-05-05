@@ -1,6 +1,6 @@
 # Nomad Documentation Website
 
-This subdirectory contains the entire source for the [Nomad Website](https://nomadproject.io/). This is a [NextJS](https://nextjs.org/) project, which builds a static site from these source files.
+This subdirectory contains the content for the [Nomad Website](https://nomadproject.io/).
 
 <!--
   This readme file contains several blocks of generated text, to make it easier to share common information
@@ -40,22 +40,35 @@ The website can be run locally through node.js or [Docker](https://www.docker.co
 
 > **Note:** If you are using a text editor that uses a "safe write" save style such as **vim** or **goland**, this can cause issues with the live reload in development. If you turn off safe write, this should solve the problem. In vim, this can be done by running `:set backupcopy=yes`. In goland, search the settings for "safe write" and turn that setting off.
 
-### With Docker
+## Using Docker
 
-Running the site locally is simple. Provided you have Docker installed, clone this repo, run `make`, and then visit `http://localhost:3000`.
+If you wish to run the site in a container, you can run the site locally via
+`make`.
 
-The docker image is pre-built with all the website dependencies installed, which is what makes it so quick and simple, but also means if you need to change dependencies and test the changes within Docker, you'll need a new image. If this is something you need to do, you can run `make build-image` to generate a local Docker image with updated dependencies, then `make website-local` to use that image and preview.
+- `make website` (default, recommended)
+  - This command will pull and run the latest website container.
+  - This includes live reload which will load your changes as you make them.
+- `make website/local`
+  - This command will run the website locally using a locally built image
+  - This includes live reload which will load your changes as you make them.
+- `make website/build-local`
+  - This command will build a local image of the website from `hashicorp/dev-portal.git`.
 
-### With Node
+...and then visit `http://localhost:3000`.
 
-If your local development environment has a supported version (v10.0.0+) of [node installed](https://nodejs.org/en/) you can run:
+There's no need to re-run `make website` each time the site is run, only the
+first time. Changes to content will reflect locally on refresh.
+
+## Using Node
+
+Make sure your local development environment has a supported version (v14.0.0+) of [node installed](https://nodejs.org/en/). You can then run:
 
 - `npm install`
 - `npm start`
 
 ...and then visit `http://localhost:3000`.
 
-If you pull down new code from github, you should run `npm install` again. Otherwise, there's no need to re-run `npm install` each time the site is run, you can just run `npm start` to get it going.
+There's no need to re-run `npm install` each time the site is run, only the first time. Going forward, you can just run `npm start` to get it going.
 
 <!-- END: local-development -->
 
@@ -77,7 +90,6 @@ This file can be standard Markdown and also supports [YAML frontmatter](https://
 title: 'My Title'
 description: "A thorough, yet succinct description of the page's contents"
 ---
-
 ```
 
 The significant keys in the YAML frontmatter are:
