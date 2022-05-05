@@ -158,43 +158,6 @@ commands:
             fi
 
 jobs:
-  website-docker-image:
-    docker:
-      - image: docker.mirror.hashicorp.services/circleci/buildpack-deps
-    shell: /usr/bin/env bash -euo pipefail -c
-    steps:
-      - checkout
-      - run:
-          name: Skip building if nothing changed
-          command: |
-            # There is an edge case that would cause an issue here - if dependencies are updated to an exact copy
-            # of a previous version, for example if packge-lock.json is reverted, we need to manually push the new
-            # image to the "latest" tag
-            # Ignore job if running an enterprise build
-            IMAGE_TAG=$(cat website/Dockerfile website/package-lock.json | sha256sum | awk '{print $1;}')
-            echo "Using $IMAGE_TAG"
-
-            if  [ "$CIRCLE_REPOSITORY_URL" != "git@github.com:hashicorp/nomad.git" ]; then
-              echo "Not Nomad OSS Repo, not building website docker image"
-              circleci-agent step halt
-            elif curl https://hub.docker.com/v2/repositories/hashicorp/nomad-website/tags/$IMAGE_TAG -fsL > /dev/null; then
-              echo "Dependencies have not changed, not building a new website docker image."
-              circleci-agent step halt
-            fi
-
-      - setup_remote_docker
-      - run:
-          name: Build Docker Image
-          command: |
-            IMAGE_TAG=$(cat website/Dockerfile website/package-lock.json | sha256sum | awk '{print $1;}')
-            echo "Using $IMAGE_TAG"
-
-            cd website/
-            docker build -t hashicorp/nomad-website:$IMAGE_TAG .
-            docker tag hashicorp/nomad-website:$IMAGE_TAG hashicorp/nomad-website:latest
-            docker login -u $WEBSITE_DOCKER_USER -p $WEBSITE_DOCKER_PASS
-            docker push hashicorp/nomad-website
-
   test-windows:
     executor: go-windows
 
@@ -489,22 +452,6 @@ jobs:
       - store_artifacts:
           path: /tmp/ui-assets
           destination: /ui-assets
-  algolia_index:
-    docker:
-      - image: docker.mirror.hashicorp.services/node:12
-    steps:
-      - checkout
-      - run:
-          name: Push content to Algolia Index
-          command: |
-            if  [ "$CIRCLE_REPOSITORY_URL" != "git@github.com:hashicorp/nomad.git" ]; then
-              echo "Not Nomad OSS Repo, not indexing Algolia"
-              exit 0
-            fi
-
-            cd website/
-            npm install
-            node scripts/index_search_content.js
 executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
@@ -643,20 +590,3 @@ workflows:
           test_packages: "./client/fingerprint"
           goarch: "386"
           filters: *backend_test_branches_filter
-  website:
-    when:
-      equal: [ "https://github.com/hashicorp/nomad", << pipeline.project.git_url >> ]
-    jobs:
-      - website-docker-image:
-          context: static-sites
-          filters:
-            branches:
-              only:
-                - main
-
-      - algolia_index:
-          context: static-sites
-          filters:
-            branches:
-              only:
-                - stable-website
