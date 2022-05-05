@@ -1,7 +1,6 @@
 {{page-title "Evaluations"}}
 {{did-update this.notifyEvalChange this.currentEval}}
 <section class="section">
-  <div class="table-container">
     <div class="toolbar">
       <div class="toolbar-item">
         <SearchBox
@@ -42,6 +41,7 @@
         />
       </div>
     </div>
+  <div class="table-container">
     {{#if @model.length}}
       <ListTable data-test-eval-table @source={{@model}} as |t|>
         <t.head>

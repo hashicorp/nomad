@@ -9,9 +9,15 @@ project "nomad" {
     // notification_channel = "CUYKT2A73"
   }
   github {
-    organization     = "hashicorp"
-    repository       = "nomad"
-    release_branches = ["main"]
+    organization = "hashicorp"
+    repository   = "nomad"
+    release_branches = [
+      "main",
+      "release/1.0.x",
+      "release/1.1.x",
+      "release/1.2.x",
+      "release/1.3.x",
+    ]
   }
 }
 
@@ -161,6 +167,7 @@ event "promote-staging" {
     organization = "hashicorp"
     repository   = "crt-workflows-common"
     workflow     = "promote-staging"
+    config       = "release-metadata.hcl"
   }
 
   notification {

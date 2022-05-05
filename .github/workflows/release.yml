@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version being released'
+        required: true
+        type: string
+      update-changelog:
+        description: 'Update CHANGELOG'
+        required: true
+        type: boolean
+        default: true
+      notification-channel:
+        description: 'Slack channel to use for notifications'
+        required: false
+        type: string
+        default: 'CUYKT2A73'
+
+env:
+  GO_TAGS: "release"
+
+jobs:
+  get-go-version:
+    runs-on: ubuntu-latest
+    outputs:
+      go-version: ${{ steps.get-go-version.outputs.go-version }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Determine Go version
+        id: get-go-version
+        # We use .go-version as our source of truth for current Go
+        # version, because "goenv" can react to it automatically.
+        run: |
+          echo "Building with Go $(cat .go-version)"
+          echo "::set-output name=go-version::$(cat .go-version)"
+
+  prepare-release:
+    needs: get-go-version
+    runs-on: ubuntu-latest
+    outputs:
+      build-ref: ${{ steps.commit-change-push.outputs.build-ref }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
+
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+          cache-dependency-path: "ui/yarn.lock"
+
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+
+      - name: Install dependencies
+        run: |
+          make deps
+
+      - name: Update notification channel
+        if: ${{ github.event.inputs.notification-channel != '' }}
+        run: |
+          sed -i.bak -e 's|\(notification_channel * = *"\)[^"]*|\1${{ github.event.inputs.notification-channel }}|g' .release/ci.hcl
+          rm -rf .release/ci.hcl.bak
+          git diff --color=always .release/ci.hcl
+
+      - name: Update version file
+        run: |
+          NOMAD_VERSION="${{ github.event.inputs.version }}"
+          NOMAD_MAIN_VERSION=$(echo "$NOMAD_VERSION" | cut -d- -f1)
+          NOMAD_PRERELEASE_VERSION=$(echo "$NOMAD_VERSION" | sed 's|^[^-]*-\{0,1\}||g')
+
+          echo "updating version to ${NOMAD_MAIN_VERSION}-${NOMAD_PRERELEASE_VERSION}"
+
+          sed -i.bak -e "s|\(Version * = *\"\)[^\"]*|\1${NOMAD_MAIN_VERSION}|g" version/version.go
+          sed -i.bak -e "s|\(VersionPrerelease * = *\"\)[^\"]*|\1${NOMAD_PRERELEASE_VERSION}|g" version/version.go
+          rm -rf version/version.go.bak
+          git diff --color=always version/version.go
+
+      - name: Update changelog
+        if: ${{ github.event.inputs.update-changelog == 'true' }}
+        run: |
+          echo "::group::Fetch all git repo"
+          git fetch --unshallow
+          echo "::endgroup::"
+
+          echo -e "## ${{ github.event.inputs.version }} ($(date '+%B %d, %Y'))\n$(make changelog)\n\n$(cat CHANGELOG.md)" > CHANGELOG.md
+          git diff --color=always CHANGELOG.md
+
+      - name: Generate static assets
+        id: generate-static-assets
+        run: |
+          make prerelease
+
+      - name: Commit and push changes
+        id: commit-change-push
+        run: |
+          git add -A .
+          find . -name '*.generated.go' -not -path './vendor/*' -exec git add -f '{}' \;
+          if ! git diff-index --quiet HEAD --;
+          then
+            git config --global user.email "github-team-nomad-core@hashicorp.com"
+            git config --global user.name "hc-github-team-nomad-core"
+            git commit --message "Generate files for ${{ github.event.inputs.version }} release"
+            git push origin "$(git rev-parse --abbrev-ref HEAD)"
+            echo "committing generated files"
+          else
+            echo "no files were updated"
+          fi
+          echo "::set-output name=build-ref::$(git rev-parse HEAD)"
+
+      - name: Invoke build workflow
+        uses: benc-uk/workflow-dispatch@v1.1
+        with:
+          workflow: build
+          token: ${{ secrets.ELEVATED_GITHUB_TOKEN}}
+          inputs: '{"build-ref": "${{ steps.commit-change-push.outputs.build-ref }}", "make-prerelease": "false"}'
+          ref: ${{ needs.prepare-release.outputs.build-ref }}

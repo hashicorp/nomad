@@ -2361,3 +2361,78 @@ func TestJobs_ScaleStatus(t *testing.T) {
 func TestJobs_Services(t *testing.T) {
 	// TODO(jrasell) add tests once registration process is in place.
 }
+
+// TestJobs_Parse asserts ParseHCL and ParseHCLOpts use the API to parse HCL.
+func TestJobs_Parse(t *testing.T) {
+	testutil.Parallel(t)
+
+	jobspec := `job "example" {}`
+
+	// Assert ParseHCL returns an error if Nomad is not running to ensure
+	// that parsing is done server-side and not via the jobspec package.
+	{
+		c, err := NewClient(DefaultConfig())
+		require.NoError(t, err)
+
+		_, err = c.Jobs().ParseHCL(jobspec, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Put")
+	}
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	// Test ParseHCL
+	job1, err := c.Jobs().ParseHCL(jobspec, false)
+	require.NoError(t, err)
+	require.Equal(t, "example", *job1.Name)
+	require.Nil(t, job1.Namespace)
+
+	job1Canonicalized, err := c.Jobs().ParseHCL(jobspec, true)
+	require.NoError(t, err)
+	require.Equal(t, "example", *job1Canonicalized.Name)
+	require.Equal(t, "default", *job1Canonicalized.Namespace)
+	require.NotEqual(t, job1, job1Canonicalized)
+
+	// Test ParseHCLOpts
+	req := &JobsParseRequest{
+		JobHCL:       jobspec,
+		HCLv1:        false,
+		Canonicalize: false,
+	}
+
+	job2, err := c.Jobs().ParseHCLOpts(req)
+	require.NoError(t, err)
+	require.Equal(t, job1, job2)
+
+	// Test ParseHCLOpts with Canonicalize=true
+	req = &JobsParseRequest{
+		JobHCL:       jobspec,
+		HCLv1:        false,
+		Canonicalize: true,
+	}
+	job2Canonicalized, err := c.Jobs().ParseHCLOpts(req)
+	require.NoError(t, err)
+	require.Equal(t, job1Canonicalized, job2Canonicalized)
+
+	// Test ParseHCLOpts with HCLv1=true
+	req = &JobsParseRequest{
+		JobHCL:       jobspec,
+		HCLv1:        true,
+		Canonicalize: false,
+	}
+
+	job3, err := c.Jobs().ParseHCLOpts(req)
+	require.NoError(t, err)
+	require.Equal(t, job1, job3)
+
+	// Test ParseHCLOpts with HCLv1=true and Canonicalize=true
+	req = &JobsParseRequest{
+		JobHCL:       jobspec,
+		HCLv1:        true,
+		Canonicalize: true,
+	}
+	job3Canonicalized, err := c.Jobs().ParseHCLOpts(req)
+	require.NoError(t, err)
+	require.Equal(t, job1Canonicalized, job3Canonicalized)
+}

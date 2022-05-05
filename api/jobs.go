@@ -65,12 +65,21 @@ func (c *Client) Jobs() *Jobs {
 
 // ParseHCL is used to convert the HCL repesentation of a Job to JSON server side.
 // To parse the HCL client side see package github.com/hashicorp/nomad/jobspec
+// Use ParseHCLOpts if you need to customize JobsParseRequest.
 func (j *Jobs) ParseHCL(jobHCL string, canonicalize bool) (*Job, error) {
-	var job Job
 	req := &JobsParseRequest{
 		JobHCL:       jobHCL,
 		Canonicalize: canonicalize,
 	}
+	return j.ParseHCLOpts(req)
+}
+
+// ParseHCLOpts is used to convert the HCL representation of a Job to JSON
+// server side. To parse the HCL client side see package
+// github.com/hashicorp/nomad/jobspec.
+// ParseHCL is an alternative convenience API for HCLv2 users.
+func (j *Jobs) ParseHCLOpts(req *JobsParseRequest) (*Job, error) {
+	var job Job
 	_, err := j.client.write("/v1/jobs/parse", req, &job, nil)
 	return &job, err
 }

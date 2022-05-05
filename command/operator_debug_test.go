@@ -578,6 +578,36 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")   // Archive should be generated anyway
 }
 
+// TestDebug_PprofVersionCheck asserts that only versions < 0.12.0 are
+// filtered by the version constraint.
+func TestDebug_PprofVersionCheck(t *testing.T) {
+	cases := []struct {
+		version string
+		errMsg  string
+	}{
+		{"0.8.7", ""},
+		{"0.11.1", "unsupported version=0.11.1 matches version filter >= 0.11.0, <= 0.11.2"},
+		{"0.11.2", "unsupported version=0.11.2 matches version filter >= 0.11.0, <= 0.11.2"},
+		{"0.11.2+ent", "unsupported version=0.11.2+ent matches version filter >= 0.11.0, <= 0.11.2"},
+		{"0.11.3", ""},
+		{"0.11.3+ent", ""},
+		{"0.12.0", ""},
+		{"1.3.0", ""},
+		{"foo.bar", "error: Malformed version: foo.bar"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.version, func(t *testing.T) {
+			err := checkVersion(tc.version, minimumVersionPprofConstraint)
+			if tc.errMsg == "" {
+				require.NoError(t, err, "expected no error from %s", tc.version)
+			} else {
+				require.EqualError(t, err, tc.errMsg)
+			}
+		})
+	}
+}
+
 func TestDebug_StringToSlice(t *testing.T) {
 	ci.Parallel(t)
 
