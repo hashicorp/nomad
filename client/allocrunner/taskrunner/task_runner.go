@@ -783,6 +783,7 @@ func (tr *TaskRunner) runDriver() error {
 
 	taskConfig := tr.buildTaskConfig()
 	if tr.cpusetCgroupPathGetter != nil {
+		tr.logger.Trace("waiting for cgroup to exist for", "allocID", tr.allocID, "task", tr.task)
 		cpusetCgroupPath, err := tr.cpusetCgroupPathGetter(tr.killCtx)
 		if err != nil {
 			return err
