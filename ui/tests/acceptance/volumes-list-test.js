@@ -26,7 +26,7 @@ module('Acceptance | volumes list', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function (hook) {
+  hooks.beforeEach(function () {
     server.create('node');
     server.create('csi-plugin', { createVolumes: false });
     window.localStorage.clear();
