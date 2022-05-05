@@ -653,6 +653,8 @@ func (c *Command) Run(args []string) int {
 		Ui:           c.Ui,
 	}
 
+	c.Ui.Output("############# TEST #############")
+
 	// Parse our configs
 	c.args = args
 	config := c.readConfig()
