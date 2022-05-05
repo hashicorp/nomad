@@ -7,6 +7,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import Layout from 'nomad-ui/tests/pages/layout';
+import percySnapshot from '@percy/ember';
 
 let managementToken, clientToken;
 
@@ -42,6 +43,8 @@ module('Acceptance | jobs list', function (hooks) {
     server.createList('job', jobsCount, { createAllocations: false });
 
     await JobsList.visit();
+
+    await percySnapshot(assert);
 
     const sortedJobs = server.db.jobs.sortBy('modifyIndex').reverse();
     assert.equal(JobsList.jobs.length, JobsList.pageSize);
@@ -115,6 +118,8 @@ module('Acceptance | jobs list', function (hooks) {
 
   test('when there are no jobs, there is an empty message', async function (assert) {
     await JobsList.visit();
+
+    await percySnapshot(assert);
 
     assert.ok(JobsList.isEmpty, 'There is an empty message');
     assert.equal(
