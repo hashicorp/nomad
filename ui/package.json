@@ -20,7 +20,7 @@
     "build-storybook": "STORYBOOK=true ember build && build-storybook -s dist",
     "storybook": "STORYBOOK=true start-storybook -p 6006 -s dist",
     "test": "npm-run-all lint test:*",
-    "test:ember": "ember test",
+    "test:ember": "percy exec -- ember test",
     "local:qunitdom": "ember test --server --query=dockcontainer",
     "local:exam": "ember exam --server --load-balance --parallel=4"
   },
@@ -169,6 +169,8 @@
     ]
   },
   "dependencies": {
+    "@percy/cli": "^1.1.0",
+    "@percy/ember": "^3.0.0",
     "codemirror": "^5.56.0",
     "curved-arrows": "^0.1.0",
     "d3": "^7.3.0",

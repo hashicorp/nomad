@@ -206,7 +206,7 @@ jobs:
           path: c:\tmp\test-reports
   test-ui:
     docker:
-      - image: docker.mirror.hashicorp.services/circleci/node:12-browsers
+      - image: docker.mirror.hashicorp.services/circleci/node:14-browsers
         environment:
           # See https://git.io/vdao3 for details.
           JOBS: 2
@@ -379,6 +379,7 @@ jobs:
             ./scripts/vagrant-linux-unpriv-ui.sh
 
             export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
+            
             source ${BASH_ENV}
             . ~/.nvm/nvm.sh
             cd ui && yarn install --frozen-lockfile && cd ..

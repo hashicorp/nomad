@@ -1,3 +1,4 @@
+/* eslint-disable qunit/require-expect */
 import { currentURL, find, visit } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -8,6 +9,7 @@ import Jobs from 'nomad-ui/tests/pages/jobs/list';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
+import percySnapshot from '@percy/ember';
 
 let job;
 let node;
@@ -119,6 +121,8 @@ module('Acceptance | tokens', function (hooks) {
 
     await Tokens.visit();
     await Tokens.secret(secretId).submit();
+
+    await percySnapshot(assert);
 
     assert.ok(Tokens.successMessage, 'Token success message is shown');
     assert.notOk(Tokens.errorMessage, 'Token error message is not shown');
