@@ -34,6 +34,7 @@ module('Acceptance | servers list', function (hooks) {
   });
 
   test('/servers should list all servers', async function (assert) {
+    faker.seed(1); // stabilize percy
     server.createList('node', 1);
     server.createList('agent', 10);
 

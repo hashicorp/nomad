@@ -37,6 +37,7 @@ module('Acceptance | topology', function (hooks) {
   });
 
   test('by default the info panel shows cluster aggregate stats', async function (assert) {
+    faker.seed(1); // stabilize percy
     server.createList('node', 3);
     server.createList('allocation', 5);
 

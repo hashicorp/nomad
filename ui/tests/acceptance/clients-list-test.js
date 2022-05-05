@@ -29,7 +29,7 @@ module('Acceptance | clients list', function (hooks) {
   test('/clients should list one page of clients', async function (assert) {
     // Make sure to make more nodes than 1 page to assert that pagination is working
     const nodesCount = ClientsList.pageSize + 1;
-
+    faker.seed(1); // stabilize percy
     server.createList('node', nodesCount);
     server.createList('agent', 1);
 

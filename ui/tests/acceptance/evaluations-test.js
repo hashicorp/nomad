@@ -139,7 +139,7 @@ module('Acceptance | evaluations list', function (hooks) {
 
   test('it renders a list of evaluations', async function (assert) {
     assert.expect(3);
-
+    faker.seed(1); // stabilize percy
     server.get('/evaluations', function (_server, fakeRequest) {
       assert.deepEqual(
         fakeRequest.queryParams,

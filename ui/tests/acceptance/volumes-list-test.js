@@ -8,6 +8,7 @@ import pageSizeSelect from './behaviors/page-size-select';
 import VolumesList from 'nomad-ui/tests/pages/storage/volumes/list';
 import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
+import faker from 'faker';
 
 const assignWriteAlloc = (volume, alloc) => {
   volume.writeAllocs.add(alloc);
@@ -25,7 +26,7 @@ module('Acceptance | volumes list', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function () {
+  hooks.beforeEach(function (hook) {
     server.create('node');
     server.create('csi-plugin', { createVolumes: false });
     window.localStorage.clear();
@@ -51,6 +52,7 @@ module('Acceptance | volumes list', function (hooks) {
 
   test('/csi/volumes should list the first page of volumes sorted by name', async function (assert) {
     const volumeCount = VolumesList.pageSize + 1;
+    faker.seed(1); // stabilize percy
     server.createList('csi-volume', volumeCount);
 
     await VolumesList.visit();

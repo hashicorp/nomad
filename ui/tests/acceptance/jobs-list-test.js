@@ -40,6 +40,7 @@ module('Acceptance | jobs list', function (hooks) {
 
   test('/jobs should list the first page of jobs sorted by modify index', async function (assert) {
     const jobsCount = JobsList.pageSize + 1;
+    faker.seed(1); // stabilize percy
     server.createList('job', jobsCount, { createAllocations: false });
 
     await JobsList.visit();
