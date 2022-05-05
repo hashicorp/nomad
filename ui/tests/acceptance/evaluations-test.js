@@ -19,7 +19,6 @@ import {
 } from 'ember-power-select/test-support/helpers';
 import { generateAcceptanceTestEvalMock } from '../../mirage/utils';
 import percySnapshot from '@percy/ember';
-import faker from 'faker';
 
 const getStandardRes = () => [
   {
@@ -140,7 +139,6 @@ module('Acceptance | evaluations list', function (hooks) {
 
   test('it renders a list of evaluations', async function (assert) {
     assert.expect(3);
-    faker.seed(1); // stabilize percy
     server.get('/evaluations', function (_server, fakeRequest) {
       assert.deepEqual(
         fakeRequest.queryParams,

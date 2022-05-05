@@ -7,7 +7,6 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 import percySnapshot from '@percy/ember';
-import faker from 'faker';
 
 module('Acceptance | clients list', function (hooks) {
   setupApplicationTest(hooks);
@@ -30,7 +29,6 @@ module('Acceptance | clients list', function (hooks) {
   test('/clients should list one page of clients', async function (assert) {
     // Make sure to make more nodes than 1 page to assert that pagination is working
     const nodesCount = ClientsList.pageSize + 1;
-    faker.seed(1); // stabilize percy
     server.createList('node', nodesCount);
     server.createList('agent', 1);
 

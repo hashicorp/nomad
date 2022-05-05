@@ -8,7 +8,6 @@ import pageSizeSelect from './behaviors/page-size-select';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
-import faker from 'faker';
 
 let managementToken, clientToken;
 
@@ -41,7 +40,6 @@ module('Acceptance | jobs list', function (hooks) {
 
   test('/jobs should list the first page of jobs sorted by modify index', async function (assert) {
     const jobsCount = JobsList.pageSize + 1;
-    faker.seed(1); // stabilize percy
     server.createList('job', jobsCount, { createAllocations: false });
 
     await JobsList.visit();
