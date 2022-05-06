@@ -4,7 +4,6 @@
   separator=" - "
 }}
 <SvgPatterns />
-<<<<<<< HEAD
 
 <section class="notifications">
   {{#each this.flashMessages.queue as |flash|}}
@@ -24,9 +23,8 @@
   </FlashMessage>
   {{/each}}
 </section>
-{{!-- Hack to get matchedCommand firing --}}
-=======
->>>>>>> fa1f1cfad (Keyboard shortcuts keycard)
+{{keyboard-commands}}
+
 {{#if (or this.keyboard.matchedCommandGhost this.keyboard.buffer)}}
   <div class="keynav-ghost">
     {{#each this.keyboard.buffer as |key|}}
