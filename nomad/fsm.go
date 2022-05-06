@@ -2048,6 +2048,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		sink.Cancel()
 		return err
 	}
+	if err := s.persistServiceRegistrations(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
 	return nil
 }
 
@@ -2577,6 +2581,33 @@ func (s *nomadSnapshot) persistCSIVolumes(sink raft.SnapshotSink,
 		}
 	}
 	return nil
+}
+
+func (s *nomadSnapshot) persistServiceRegistrations(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	// Get all the service registrations.
+	ws := memdb.NewWatchSet()
+	serviceRegs, err := s.snap.GetServiceRegistrations(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item.
+		for raw := serviceRegs.Next(); raw != nil; raw = serviceRegs.Next() {
+
+			// Prepare the request struct.
+			reg := raw.(*structs.ServiceRegistration)
+
+			// Write out a service registration snapshot.
+			sink.Write([]byte{byte(ServiceRegistrationSnapshot)})
+			if err := encoder.Encode(reg); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }
 
 // Release is a no-op, as we just need to GC the pointer
