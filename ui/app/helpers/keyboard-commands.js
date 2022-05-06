@@ -1,6 +1,11 @@
 import Helper from '@ember/component/helper';
 import { inject as service } from '@ember/service';
 
+/**
+  `{{keyboard-commands}}` helper used to initialize and tear down contextual keynav commands
+  @public
+  @method keyboard-commands
+ */
 export default class keyboardCommands extends Helper {
   @service keyboard;
 
