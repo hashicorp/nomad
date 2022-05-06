@@ -1,3 +1,9 @@
+## 1.2.7 (May 6, 2022)
+
+BUG FIXES:
+
+* test [[GH-999999](https://github.com/hashicorp/nomad/issues/999999)]
+
 ## 1.2.6 (February 9, 2022)
 
 SECURITY:
