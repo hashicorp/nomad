@@ -6,7 +6,6 @@ import { compare } from '@ember/utils';
 import { A } from '@ember/array';
 import EmberRouter from '@ember/routing/router';
 import { schedule } from '@ember/runloop';
-import { run } from '@ember/runloop';
 
 const DEBOUNCE_MS = 750;
 
@@ -15,9 +14,11 @@ export default class KeyboardService extends Service {
    * @type {EmberRouter}
    */
   @service router;
+
+  @service config;
+
   @tracked shortcutsVisible = false;
   @tracked buffer = A([]);
-  @tracked matchedCommandGhost = ''; // 👻 TODO, temp, dev.
 
   keyCommands = [
     {
@@ -105,13 +106,6 @@ export default class KeyboardService extends Service {
       },
     },
     {
-      label: 'Hide Keyboard Shortcuts',
-      pattern: ['Escape'],
-      action: () => {
-        this.shortcutsVisible = false;
-      },
-    },
-    {
       label: 'Konami',
       pattern: [
         'ArrowUp',
@@ -149,6 +143,17 @@ export default class KeyboardService extends Service {
     const subnav = document.getElementsByClassName('is-subnav')[0];
     if (subnav) {
       return Array.from(subnav.querySelectorAll('a')).map((link) => {
+        return this.router.recognize(link.getAttribute('href'))?.name;
+      });
+    } else {
+      return [];
+    }
+  }
+
+  get menuLinks() {
+    const menu = document.getElementsByClassName('menu')[0];
+    if (menu) {
+      return Array.from(menu.querySelectorAll('a')).map((link) => {
         return this.router.recognize(link.getAttribute('href'))?.name;
       });
     } else {
@@ -196,17 +201,6 @@ export default class KeyboardService extends Service {
     });
   }
 
-  get menuLinks() {
-    const menu = document.getElementsByClassName('menu')[0];
-    if (menu) {
-      return Array.from(menu.querySelectorAll('a')).map((link) => {
-        return this.router.recognize(link.getAttribute('href'))?.name;
-      });
-    } else {
-      return [];
-    }
-  }
-
   //#endregion Nav Traversal
 
   /**
@@ -236,7 +230,13 @@ export default class KeyboardService extends Service {
     this.buffer.pushObject(shifted ? `Shift+${key}` : key);
     if (this.matchedCommands.length) {
       this.matchedCommands.forEach((command) => command.action());
-      yield timeout(DEBOUNCE_MS / 2);
+
+      // TODO: Temporary dev log
+      if (this.config.isDev) {
+        this.matchedCommands.forEach((command) =>
+          console.log('command run', command)
+        );
+      }
       this.clearBuffer();
     }
     yield timeout(DEBOUNCE_MS);
@@ -249,14 +249,6 @@ export default class KeyboardService extends Service {
     const matches = this.keyCommands.filter(
       (command) => !compare(command.pattern, this.buffer)
     );
-
-    // 👻 TODO, temp, dev.
-    if (matches) {
-      this.matchedCommandGhost = matches?.mapBy('label').join(' & ');
-      run.later(() => {
-        this.matchedCommandGhost = '';
-      }, DEBOUNCE_MS * 2);
-    }
     return matches;
   }
 
