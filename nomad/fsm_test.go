@@ -2865,6 +2865,34 @@ func TestFSM_SnapshotRestore_ClusterMetadata(t *testing.T) {
 	require.Equal(clusterID, out.ClusterID)
 }
 
+func TestFSM_SnapshotRestore_ServiceRegistrations(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create our initial FSM which will be snapshotted.
+	fsm := testFSM(t)
+	testState := fsm.State()
+
+	// Generate and upsert some service registrations.
+	serviceRegs := mock.ServiceRegistrations()
+	require.NoError(t, testState.UpsertServiceRegistrations(structs.MsgTypeTestSetup, 10, serviceRegs))
+
+	// Perform a snapshot restore.
+	restoredFSM := testSnapshotRestore(t, fsm)
+	restoredState := restoredFSM.State()
+
+	// List the service registrations from restored state and ensure everything
+	// is as expected.
+	iter, err := restoredState.GetServiceRegistrations(memdb.NewWatchSet())
+	require.NoError(t, err)
+
+	var restoredRegs []*structs.ServiceRegistration
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		restoredRegs = append(restoredRegs, raw.(*structs.ServiceRegistration))
+	}
+	require.ElementsMatch(t, restoredRegs, serviceRegs)
+}
+
 func TestFSM_ReconcileSummaries(t *testing.T) {
 	ci.Parallel(t)
 	// Add some state
