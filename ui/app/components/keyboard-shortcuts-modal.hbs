@@ -1,0 +1,14 @@
+{{keyboard-commands this.keyCommands}}
+
+<ul class="keyboard-shortcuts">
+  {{#each this.keyboard.keyCommands as |command|}}
+    <li>
+      <strong>{{command.label}}</strong>
+      <span class="keys">
+        {{#each command.pattern as |key|}}
+          <span>{{key}}</span>
+        {{/each}}
+      </span>
+    </li>
+  {{/each}}
+</ul>
