@@ -39,7 +39,7 @@ job "connect_sidecars" {
       driver = "docker"
 
       config {
-        image = "hashicorpnomad/counter-api:v3"
+        image = "hashicorpdev/counter-api:v3"
       }
     }
   }
@@ -74,7 +74,7 @@ job "connect_sidecars" {
       driver = "docker"
 
       config {
-        image = "hashicorpnomad/counter-api:v3"
+        image = "hashicorpdev/counter-api:v3"
       }
     }
   }
@@ -118,7 +118,7 @@ job "connect_sidecars" {
       }
 
       config {
-        image = "hashicorpnomad/counter-dashboard:v3"
+        image = "hashicorpdev/counter-dashboard:v3"
       }
     }
   }
@@ -160,7 +160,7 @@ job "connect_sidecars" {
       }
 
       config {
-        image = "hashicorpnomad/counter-dashboard:v3"
+        image = "hashicorpdev/counter-dashboard:v3"
       }
     }
   }
