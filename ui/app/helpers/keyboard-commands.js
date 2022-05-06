@@ -1,0 +1,21 @@
+import Helper from '@ember/component/helper';
+import { inject as service } from '@ember/service';
+
+export default class keyboardCommands extends Helper {
+  @service keyboard;
+
+  constructor() {
+    super(...arguments);
+  }
+
+  compute([commands]) {
+    if (commands) {
+      this.commands = commands;
+      this.keyboard.addCommands(commands);
+    }
+  }
+  willDestroy() {
+    super.willDestroy();
+    this.keyboard.removeCommands(this.commands);
+  }
+}

@@ -1,4 +1,7 @@
 {{#let this.currentEvalDetail as |evaluation|}}
+  {{#if this.isSideBarOpen}}
+    {{keyboard-commands this.keyCommands}}
+  {{/if}}
   <Portal @target="eval-detail-portal">
     <div
       data-test-eval-detail
