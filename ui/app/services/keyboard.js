@@ -56,25 +56,25 @@ export default class KeyboardService extends Service {
       pattern: ['g', 'a'],
       action: () => this.router.transitionTo('settings.tokens'),
     },
-    {
-      label: 'Next Subnav',
-      pattern: ['j'],
-      action: () => {
-        this.traverseLinkList(this.subnavLinks, 1);
-      },
-    },
+    // {
+    //   label: 'Previous Subnav',
+    //   pattern: ['k'],
+    //   action: () => {
+    //     this.traverseLinkList(this.subnavLinks, -1);
+    //   },
+    // },
+    // {
+    //   label: 'Next Subnav',
+    //   pattern: ['j'],
+    //   action: () => {
+    //     this.traverseLinkList(this.subnavLinks, 1);
+    //   },
+    // },
     {
       label: 'Next Subnav',
       pattern: ['Shift+ArrowRight'],
       action: () => {
         this.traverseLinkList(this.subnavLinks, 1);
-      },
-    },
-    {
-      label: 'Previous Subnav',
-      pattern: ['k'],
-      action: () => {
-        this.traverseLinkList(this.subnavLinks, -1);
       },
     },
     {
