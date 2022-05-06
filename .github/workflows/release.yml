@@ -1,0 +1,199 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version being released'
+        required: true
+        type: string
+      update-changelog:
+        description: 'Update CHANGELOG'
+        required: true
+        type: boolean
+        default: false
+      notification-channel:
+        description: 'Slack channel to use for notifications'
+        required: false
+        type: string
+        default: 'CUYKT2A73'
+
+env:
+  GO_TAGS: "release"
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      build-ref: ${{ steps.commit-change-push.outputs.build-ref }}
+    steps:
+      - name: Prevent running from main
+        if: ${{ github.ref_name == 'main' }}
+        run: |
+          echo "::error::Workflow not allowed to run from ${{ github.ref_name }}"
+          exit 1
+
+      - name: Print release info
+        run: |
+          echo "::notice::Release v${{ github.event.inputs.version }} from branch ${{ github.ref_name }}"
+
+      - name: Install semver CLI
+        run: |
+          local_bin="${HOME}/.local/bin"
+          mkdir -p "${local_bin}"
+          curl -L --output "${local_bin}/semver" \
+            https://raw.githubusercontent.com/fsaintjacques/semver-tool/3.3.0/src/semver
+          chmod +x "${local_bin}/semver"
+          echo "${local_bin}" >> $GITHUB_PATH
+
+      - name: Validate release version
+        run: |
+          if [ "$(semver validate ${{ github.event.inputs.version }})" == "invalid" ]; then
+            echo "::error::Version ${{ github.event.inputs.version }} is invalid"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v2
+
+      - name: Setup Git
+        run: |
+          if [ "${{ secrets.ELEVATED_GITHUB_TOKEN }}" ]; then
+            git config --global url."https://${{ secrets.ELEVATED_GITHUB_TOKEN }}:@github.com/".insteadOf "https://github.com"
+          fi
+          git config --global user.email "github-team-nomad-core@hashicorp.com"
+          git config --global user.name "hc-github-team-nomad-core"
+
+      - name: Determine Go version
+        id: get-go-version
+        # We use .go-version as our source of truth for current Go
+        # version, because "goenv" can react to it automatically.
+        run: |
+          echo "Building with Go $(cat .go-version)"
+          echo "::set-output name=go-version::$(cat .go-version)"
+
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ steps.get-go-version.outputs.go-version }}
+
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+          cache-dependency-path: "ui/yarn.lock"
+
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+
+      - name: Install dependencies
+        run: |
+          make deps
+
+      - name: Update notification channel
+        id: notification-channel
+        if: ${{ github.event.inputs.notification-channel != '' }}
+        run: |
+          sed -i.bak -e 's|\(notification_channel * = *"\)[^"]*|\1${{ github.event.inputs.notification-channel }}|g' .release/ci.hcl
+          rm -rf .release/ci.hcl.bak
+          git diff --color=always .release/ci.hcl
+
+      - name: Update version file
+        run: |
+          NOMAD_VERSION="${{ github.event.inputs.version }}"
+          NOMAD_MAIN_VERSION=$(semver get release "$NOMAD_VERSION")
+          NOMAD_PRERELEASE_VERSION=$(semver get prerel "$NOMAD_VERSION")
+
+          echo "updating version to ${NOMAD_MAIN_VERSION}-${NOMAD_PRERELEASE_VERSION}"
+
+          sed -i.bak -e "s|\(Version * = *\"\)[^\"]*|\1${NOMAD_MAIN_VERSION}|g" version/version.go
+          sed -i.bak -e "s|\(VersionPrerelease * = *\"\)[^\"]*|\1${NOMAD_PRERELEASE_VERSION}|g" version/version.go
+          rm -rf version/version.go.bak
+          git diff --color=always version/version.go
+
+      - name: Update changelog
+        if: ${{ github.event.inputs.update-changelog == 'true' }}
+        run: |
+          echo "::group::Fetch all git repo"
+          git fetch --unshallow
+          echo "::endgroup::"
+
+          echo -e "## ${{ github.event.inputs.version }} ($(date '+%B %d, %Y'))\n$(make changelog)\n\n$(cat CHANGELOG.md)" > CHANGELOG.md
+          git diff --color=always CHANGELOG.md
+
+      - name: Generate static assets
+        id: generate-static-assets
+        run: |
+          make prerelease
+
+      - name: Commit and push changes
+        id: commit-change-push
+        run: |
+          git add -A .
+          find . -name '*.generated.go' -not -path './vendor/*' -exec git add -f '{}' \;
+          if ! git diff-index --quiet HEAD --; then
+            git commit --message "Generate files for ${{ github.event.inputs.version }} release"
+            git push origin "$(git rev-parse --abbrev-ref HEAD)"
+            echo "committing generated files"
+          else
+            echo "no files were updated"
+          fi
+          echo "::set-output name=build-ref::$(git rev-parse HEAD)"
+
+      - name: Invoke build workflow
+        uses: benc-uk/workflow-dispatch@v1.1
+        with:
+          workflow: build
+          token: ${{ secrets.ELEVATED_GITHUB_TOKEN}}
+          inputs: '{"build-ref": "${{ steps.commit-change-push.outputs.build-ref }}", "make-prerelease": "false"}'
+          ref: ${{ needs.prepare-release.outputs.build-ref }}
+
+      - name: Revert notification channel
+        if: ${{ github.event.inputs.notification-channel != '' }}
+        run: |
+          git reset ${{ github.sha }} -- .release/ci.hcl
+
+          # git reset will place the original file content in the staging area
+          # and leave the changes since then unstaged, so call git restore to
+          # discard these changes and use --cached to display the diff in the
+          # staging area.
+          git restore .release/ci.hcl
+          git diff --cached --color=always .release/ci.hcl
+
+      - name: Update version file
+        run: |
+          # Only bump the Version value if this is not a pre-release.
+          # For final releases we want `nomad -version` to display the next
+          # version to indicate that the current release is done.
+          if [ -z "$(semver get prerel ${{ github.event.inputs.version }})" ]; then
+            next_version=$(semver bump patch ${{ github.event.inputs.version }})
+            sed -i.bak -e "s|\(Version * = *\"\)[^\"]*|\1${next_version}|g" version/version.go
+          fi
+          # Set the VersionPrerelease variable back to dev.
+          sed -i.bak -e "s|\(VersionPrerelease * = *\"\)[^\"]*|\1dev|g" version/version.go
+          rm -rf version/version.go.bak
+          git diff --color=always version/version.go
+
+      - name: Update LAST_RELEASE
+        run: |
+          # LAST_RELEASE is used to generate the new CHANGELOG entries, so it's
+          # only updated for final releases.
+          if [ -z "$(semver get prerel ${{ github.event.inputs.version }})" ]; then
+            sed -i.bak -re "s|^(LAST_RELEASE\s+\?=\s+v).*$|\1${{ github.event.inputs.version }}|g" GNUmakefile
+            rm -fr GNUmakefile.bak
+            git diff --color=always GNUmakefile
+          else
+            echo "Version ${{ github.event.inputs.version }} is a prerelease, skipping update of LAST_RELEASE"
+          fi
+
+      - name: Commit post-release changes
+        run: |
+          # Display stated and unstaged diffs.
+          git diff --color=always HEAD
+          git add -A .
+          if ! git diff-index --quiet HEAD --; then
+            git commit --message 'Prepare for next release'
+            git push origin "$(git rev-parse --abbrev-ref HEAD)"
+          else
+            echo "no files were updated"
+          fi

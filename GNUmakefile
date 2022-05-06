@@ -8,6 +8,13 @@ GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 
+ifneq (MSYS_NT,$(THIS_OS))
+# GOPATH supports PATH style multi-paths; assume the first entry is favorable.
+# Necessary because new Circle images override GOPATH with multiple values.
+# See: https://discuss.circleci.com/t/gopath-is-set-to-multiple-directories/7174
+GOPATH=$(shell go env GOPATH | cut -d: -f1)
+endif
+
 GO_TAGS ?=
 
 ifeq ($(CI),true)
@@ -19,7 +26,11 @@ ifndef NOMAD_NO_UI
 GO_TAGS := ui $(GO_TAGS)
 endif
 
+ifeq ($(CIRCLECI),true)
 GO_TEST_CMD = $(if $(shell command -v gotestsum 2>/dev/null),gotestsum --,go test)
+else
+GO_TEST_CMD = go test
+endif
 
 ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
 GOTEST_PKGS ?= "./..."
@@ -31,16 +42,10 @@ endif
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 # LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
-# published release, but backport branches should point to the parent tag (e.g. 1.0.8 in release-1.0.9 after 1.1.0 is cut).
-LAST_RELEASE ?= v1.2.4
+# published release, and release branches should point to the latest published release in the X.Y release line.
+LAST_RELEASE ?= v1.2.6
 
 default: help
-
-ifeq ($(CI),true)
-	$(info Running in a CI environment, verbose mode is disabled)
-else
-	VERBOSE="true"
-endif
 
 ifeq (Linux,$(THIS_OS))
 ALL_TARGETS = linux_386 \
@@ -56,7 +61,8 @@ ALL_TARGETS = linux_s390x
 endif
 
 ifeq (Darwin,$(THIS_OS))
-ALL_TARGETS = darwin_amd64
+ALL_TARGETS = darwin_amd64 \
+	darwin_arm64
 endif
 
 ifeq (FreeBSD,$(THIS_OS))
@@ -118,7 +124,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
 	go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
 	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
-	go install gotest.tools/gotestsum@v0.4.2
+	go install gotest.tools/gotestsum@v1.7.0
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@v2.5.1
 	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
@@ -241,7 +247,6 @@ tidy:
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
-dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
 dev: hclfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
@@ -297,7 +302,7 @@ test-nomad: dev ## Run Nomad test suites
 
 .PHONY: test-nomad-module
 test-nomad-module: dev ## Run Nomad test suites on a sub-module
-	@echo "==> Running Nomad test suites on sub-module:"
+	@echo "==> Running Nomad test suites on sub-module $(GOTEST_MOD)"
 	@cd $(GOTEST_MOD) && $(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
@@ -364,7 +369,7 @@ test-ui: ## Run Nomad UI test suite
 .PHONY: ember-dist
 ember-dist: ## Build the static UI assets from source
 	@echo "--> Installing JavaScript assets"
-	@cd ui && yarn install --silent
+	@cd ui && yarn install --silent --network-timeout 300000
 	@cd ui && npm rebuild node-sass
 	@echo "--> Building Ember application"
 	@cd ui && npm run build
@@ -401,3 +406,11 @@ ui-screenshots:
 ui-screenshots-local:
 	@echo "==> Collecting UI screenshots (local)..."
 	@cd scripts/screenshots/src && SCREENSHOTS_DIR="../screenshots" node index.js
+
+.PHONY: version
+version:
+ifneq (,$(wildcard version/version_ent.go))
+	@$(CURDIR)/scripts/version.sh version/version.go version/version_ent.go
+else
+	@$(CURDIR)/scripts/version.sh version/version.go version/version.go
+endif
