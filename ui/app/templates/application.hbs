@@ -4,6 +4,9 @@
   separator=" - "
 }}
 <SvgPatterns />
+
+{{keyboard-commands}}
+
 {{#if (or this.keyboard.matchedCommandGhost this.keyboard.buffer)}}
   <div class="keynav-ghost">
     {{#each this.keyboard.buffer as |key|}}

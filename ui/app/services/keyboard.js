@@ -131,6 +131,14 @@ export default class KeyboardService extends Service {
     },
   ];
 
+  addCommands(commands) {
+    this.keyCommands.pushObjects(commands);
+  }
+
+  removeCommands(commands) {
+    this.keyCommands.removeObjects(commands);
+  }
+
   //#region Nav Traversal
 
   // 1. see if there's an .is-subnav element on the page
@@ -226,8 +234,8 @@ export default class KeyboardService extends Service {
    */
   @restartableTask *addKeyToBuffer(key, shifted) {
     this.buffer.pushObject(shifted ? `Shift+${key}` : key);
-    if (this.matchedCommand) {
-      this.matchedCommand.action();
+    if (this.matchedCommands.length) {
+      this.matchedCommands.forEach((command) => command.action());
       yield timeout(DEBOUNCE_MS / 2);
       this.clearBuffer();
     }
@@ -235,21 +243,21 @@ export default class KeyboardService extends Service {
     this.clearBuffer();
   }
 
-  get matchedCommand() {
+  get matchedCommands() {
     // Ember Compare: returns 0 if there's no diff between arrays.
     // TODO: do we think this is faster than a pure JS .join("") comparison?
-    const match = this.keyCommands.find(
+    const matches = this.keyCommands.filter(
       (command) => !compare(command.pattern, this.buffer)
     );
 
     // 👻 TODO, temp, dev.
-    if (match) {
-      this.matchedCommandGhost = match?.label;
+    if (matches) {
+      this.matchedCommandGhost = matches?.mapBy('label').join(' & ');
       run.later(() => {
         this.matchedCommandGhost = '';
       }, DEBOUNCE_MS * 2);
     }
-    return match;
+    return matches;
   }
 
   clearBuffer() {
