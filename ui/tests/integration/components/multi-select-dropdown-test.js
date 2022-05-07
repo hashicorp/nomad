@@ -171,11 +171,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
       find('[data-test-dropdown-options]'),
       'Options are not shown on focus'
     );
-    await triggerKeyEvent(
-      '[data-test-dropdown-trigger]',
-      'keydown',
-      ARROW_DOWN
-    );
+    await triggerKeyEvent('[data-test-dropdown-trigger]', 'keyup', ARROW_DOWN);
     assert.ok(find('[data-test-dropdown-options]'), 'Options are now shown');
     assert.equal(
       document.activeElement,
@@ -190,16 +186,8 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     await render(commonTemplate);
 
     await focus('[data-test-dropdown-trigger]');
-    await triggerKeyEvent(
-      '[data-test-dropdown-trigger]',
-      'keydown',
-      ARROW_DOWN
-    );
-    await triggerKeyEvent(
-      '[data-test-dropdown-trigger]',
-      'keydown',
-      ARROW_DOWN
-    );
+    await triggerKeyEvent('[data-test-dropdown-trigger]', 'keyup', ARROW_DOWN);
+    await triggerKeyEvent('[data-test-dropdown-trigger]', 'keyup', ARROW_DOWN);
     assert.equal(
       document.activeElement,
       find('[data-test-dropdown-option]'),
@@ -213,12 +201,8 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     await render(commonTemplate);
 
     await focus('[data-test-dropdown-trigger]');
-    await triggerKeyEvent(
-      '[data-test-dropdown-trigger]',
-      'keydown',
-      ARROW_DOWN
-    );
-    await triggerKeyEvent('[data-test-dropdown-trigger]', 'keydown', TAB);
+    await triggerKeyEvent('[data-test-dropdown-trigger]', 'keyup', ARROW_DOWN);
+    await triggerKeyEvent('[data-test-dropdown-trigger]', 'keyup', TAB);
     assert.equal(
       document.activeElement,
       find('[data-test-dropdown-option]'),
@@ -234,7 +218,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     await click('[data-test-dropdown-trigger]');
 
     await focus('[data-test-dropdown-option]');
-    await triggerKeyEvent('[data-test-dropdown-option]', 'keydown', ARROW_UP);
+    await triggerKeyEvent('[data-test-dropdown-option]', 'keyup', ARROW_UP);
     assert.equal(
       document.activeElement,
       find('[data-test-dropdown-option]'),
@@ -250,7 +234,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     await click('[data-test-dropdown-trigger]');
 
     await focus('[data-test-dropdown-option]');
-    await triggerKeyEvent('[data-test-dropdown-option]', 'keydown', ARROW_DOWN);
+    await triggerKeyEvent('[data-test-dropdown-option]', 'keyup', ARROW_DOWN);
     assert.equal(
       document.activeElement,
       findAll('[data-test-dropdown-option]')[1],
@@ -272,7 +256,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     const lastIndex = optionEls.length - 1;
 
     for (const [index, option] of optionEls.entries()) {
-      await triggerKeyEvent(option, 'keydown', ARROW_DOWN);
+      await triggerKeyEvent(option, 'keyup', ARROW_DOWN);
 
       if (index < lastIndex) {
         /* eslint-disable-next-line qunit/no-conditional-assertions */
@@ -284,7 +268,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
       }
     }
 
-    await triggerKeyEvent(optionEls[lastIndex], 'keydown', ARROW_DOWN);
+    await triggerKeyEvent(optionEls[lastIndex], 'keyup', ARROW_DOWN);
     assert.equal(
       document.activeElement,
       optionEls[lastIndex],
@@ -300,7 +284,7 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     await click('[data-test-dropdown-trigger]');
 
     await focus('[data-test-dropdown-option]');
-    await triggerKeyEvent('[data-test-dropdown-option]', 'keydown', SPACE);
+    await triggerKeyEvent('[data-test-dropdown-option]', 'keyup', SPACE);
 
     assert.ok(props.onSelect.called, 'onSelect was called');
     const newSelection = props.onSelect.getCall(0).args[0];
@@ -357,17 +341,9 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     await render(commonTemplate);
 
     await focus('[data-test-dropdown-trigger]');
-    await triggerKeyEvent(
-      '[data-test-dropdown-trigger]',
-      'keydown',
-      ARROW_DOWN
-    );
-    await triggerKeyEvent(
-      '[data-test-dropdown-trigger]',
-      'keydown',
-      ARROW_DOWN
-    );
-    await triggerKeyEvent('[data-test-dropdown-option]', 'keydown', ESC);
+    await triggerKeyEvent('[data-test-dropdown-trigger]', 'keyup', ARROW_DOWN);
+    await triggerKeyEvent('[data-test-dropdown-trigger]', 'keyup', ARROW_DOWN);
+    await triggerKeyEvent('[data-test-dropdown-option]', 'keyup', ESC);
 
     assert.notOk(
       find('[data-test-dropdown-options]'),

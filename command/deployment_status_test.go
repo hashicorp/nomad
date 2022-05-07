@@ -3,6 +3,7 @@ package command
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -11,12 +12,12 @@ import (
 )
 
 func TestDeploymentStatusCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &DeploymentStatusCommand{}
 }
 
 func TestDeploymentStatusCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &DeploymentStatusCommand{Meta: Meta{Ui: ui}}
 
@@ -51,8 +52,8 @@ func TestDeploymentStatusCommand_Fails(t *testing.T) {
 }
 
 func TestDeploymentStatusCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()

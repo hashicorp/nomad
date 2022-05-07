@@ -1,6 +1,8 @@
 package fingerprint
 
 import (
+	"strconv"
+
 	log "github.com/hashicorp/go-hclog"
 )
 
@@ -20,6 +22,7 @@ func (f *NomadFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerprin
 	resp.AddAttribute("nomad.advertise.address", req.Node.HTTPAddr)
 	resp.AddAttribute("nomad.version", req.Config.Version.VersionNumber())
 	resp.AddAttribute("nomad.revision", req.Config.Version.Revision)
+	resp.AddAttribute("nomad.service_discovery", strconv.FormatBool(req.Config.NomadServiceDiscovery))
 	resp.Detected = true
 	return nil
 }

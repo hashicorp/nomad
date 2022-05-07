@@ -305,7 +305,7 @@ module('Acceptance | client detail', function (hooks) {
 
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}`,
+      `/jobs/${job.id}@default`,
       'Allocation rows link to the job detail page for the allocation'
     );
   });
@@ -1140,12 +1140,21 @@ module('Acceptance | client detail', function (hooks) {
   testFacet('Status', {
     facet: ClientDetail.facets.status,
     paramName: 'status',
-    expectedOptions: ['Pending', 'Running', 'Complete', 'Failed', 'Lost'],
+    expectedOptions: [
+      'Pending',
+      'Running',
+      'Complete',
+      'Failed',
+      'Lost',
+      'Unknown',
+    ],
     async beforeEach() {
       server.createList('job', 5, { createAllocations: false });
-      ['pending', 'running', 'complete', 'failed', 'lost'].forEach((s) => {
-        server.createList('allocation', 5, { clientStatus: s });
-      });
+      ['pending', 'running', 'complete', 'failed', 'lost', 'unknown'].forEach(
+        (s) => {
+          server.createList('allocation', 5, { clientStatus: s });
+        }
+      );
 
       await ClientDetail.visit({ id: node.id });
     },

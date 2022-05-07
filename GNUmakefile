@@ -32,7 +32,11 @@ ifndef NOMAD_NO_UI
 GO_TAGS := ui $(GO_TAGS)
 endif
 
+ifeq ($(CIRCLECI),true)
 GO_TEST_CMD = $(if $(shell command -v gotestsum 2>/dev/null),gotestsum --,go test)
+else
+GO_TEST_CMD = go test
+endif
 
 ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
 GOTEST_PKGS ?= "./..."
@@ -44,16 +48,10 @@ endif
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 # LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
-# published release, but backport branches should point to the parent tag (e.g. 1.0.8 in release-1.0.9 after 1.1.0 is cut).
+# published release, and release branches should point to the latest published release in the X.Y release line.
 LAST_RELEASE ?= v1.2.6
 
 default: help
-
-ifeq ($(CI),true)
-	$(info Running in a CI environment, verbose mode is disabled)
-else
-	VERBOSE="true"
-endif
 
 ifeq (Linux,$(THIS_OS))
 ALL_TARGETS = linux_386 \
@@ -69,7 +67,8 @@ ALL_TARGETS = linux_s390x
 endif
 
 ifeq (Darwin,$(THIS_OS))
-ALL_TARGETS = darwin_amd64
+ALL_TARGETS = darwin_amd64 \
+	darwin_arm64
 endif
 
 ifeq (FreeBSD,$(THIS_OS))
@@ -131,19 +130,20 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
 	go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
 	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
-	go install gotest.tools/gotestsum@v0.4.2
+	go install gotest.tools/gotestsum@v1.7.0
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@v2.5.1
 	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 	go install golang.org/x/tools/cmd/stringer@v0.1.8
+	go install gophers.dev/cmds/hc-install/cmd/hc-install@v1.0.1
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 ## Keep versions in sync with tools/go.mod (see https://github.com/golang/go/issues/30515)
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.45.0
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
 	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.3
 
@@ -205,7 +205,7 @@ checkproto: ## Lint protobuf files
 	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
 
 .PHONY: generate-all
-generate-all: generate-structs proto generate-examples
+generate-all: generate-structs proto generate-examples ## Generate structs, protobufs, examples
 
 .PHONY: generate-structs
 generate-structs: LOCAL_PACKAGES = $(shell go list ./...)
@@ -214,7 +214,7 @@ generate-structs: ## Update generated code
 	@go generate $(LOCAL_PACKAGES)
 
 .PHONY: proto
-proto:
+proto: ## Generate protobuf bindings
 	@echo "--> Generating proto bindings..."
 	@buf --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml generate
 
@@ -224,14 +224,14 @@ generate-examples: command/job_init.bindata_assetfs.go
 command/job_init.bindata_assetfs.go: command/assets/*
 	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
 
-changelog:
+changelog: ## Generate changelog from entries
 	@changelog-build -last-release $(LAST_RELEASE) -this-release HEAD \
 		-entries-dir .changelog/ -changelog-template ./.changelog/changelog.tmpl -note-template ./.changelog/note.tmpl
 
 ## We skip the terraform directory as there are templated hcl configurations
 ## that do not successfully compile without rendering
 .PHONY: hclfmt
-hclfmt:
+hclfmt: ## Format HCL files with hclfmt
 	@echo "--> Formatting HCL"
 	@find . -name '.terraform' -prune \
 	        -o -name 'upstart.nomad' -prune \
@@ -244,7 +244,7 @@ hclfmt:
 	      -print0 | xargs -0 hclfmt -w
 
 .PHONY: tidy
-tidy:
+tidy: ## Tidy up the go mod files
 	@echo "--> Tidy up submodules"
 	@cd tools && go mod tidy
 	@cd api && go mod tidy
@@ -301,11 +301,9 @@ test-nomad: dev ## Run Nomad test suites
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=20m \
+		-count=1 \
 		-tags "$(GO_TAGS)" \
-		$(GOTEST_PKGS) $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
-	@if [ $(VERBOSE) ] ; then \
-		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
-	fi
+		$(GOTEST_PKGS)
 
 .PHONY: test-nomad-module
 test-nomad-module: dev ## Run Nomad test suites on a sub-module
@@ -314,11 +312,9 @@ test-nomad-module: dev ## Run Nomad test suites on a sub-module
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=20m \
+		-count=1 \
 		-tags "$(GO_TAGS)" \
-		./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
-	@if [ $(VERBOSE) ] ; then \
-		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
-	fi
+		./...
 
 .PHONY: e2e-test
 e2e-test: dev ## Run the Nomad e2e test suite
@@ -376,13 +372,13 @@ test-ui: ## Run Nomad UI test suite
 .PHONY: ember-dist
 ember-dist: ## Build the static UI assets from source
 	@echo "--> Installing JavaScript assets"
-	@cd ui && yarn install --silent
+	@cd ui && yarn install --silent --network-timeout 300000
 	@cd ui && npm rebuild node-sass
 	@echo "--> Building Ember application"
 	@cd ui && npm run build
 
 .PHONY: dev-ui
-dev-ui: ember-dist static-assets
+dev-ui: ember-dist static-assets ## Build a dev UI binary
 	@$(MAKE) NOMAD_UI_TAG="ui" dev ## Build a dev binary with the UI baked in
 
 HELP_FORMAT="    \033[36m%-25s\033[0m %s\n"
@@ -398,7 +394,7 @@ help: ## Display this usage information
 	@echo $(ALL_TARGETS) | sed 's/^/    /'
 
 .PHONY: ui-screenshots
-ui-screenshots:
+ui-screenshots: ## Collect  UI screenshots
 	@echo "==> Collecting UI screenshots..."
         # Build the screenshots image if it doesn't exist yet
 	@if [[ "$$(docker images -q nomad-ui-screenshots 2> /dev/null)" == "" ]]; then \
@@ -410,6 +406,19 @@ ui-screenshots:
 		nomad-ui-screenshots
 
 .PHONY: ui-screenshots-local
-ui-screenshots-local:
+ui-screenshots-local: ## Collect UI screenshots (local)
 	@echo "==> Collecting UI screenshots (local)..."
 	@cd scripts/screenshots/src && SCREENSHOTS_DIR="../screenshots" node index.js
+
+.PHONY: version
+version: ## Lookup the current build version
+ifneq (,$(wildcard version/version_ent.go))
+	@$(CURDIR)/scripts/version.sh version/version.go version/version_ent.go
+else
+	@$(CURDIR)/scripts/version.sh version/version.go version/version.go
+endif
+
+.PHONY: missing
+missing: ## Check for packages not being tested
+	@echo "==> Checking for packages not being tested ..."
+	@go run -modfile tools/go.mod tools/missing/main.go .github/workflows/test-core.yaml

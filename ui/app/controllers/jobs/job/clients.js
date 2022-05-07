@@ -13,6 +13,7 @@ import {
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
+import { inject as service } from '@ember/service';
 
 @classic
 export default class ClientsController extends Controller.extend(
@@ -20,6 +21,8 @@ export default class ClientsController extends Controller.extend(
   Searchable,
   WithNamespaceResetting
 ) {
+  @service store;
+
   queryParams = [
     {
       currentPage: 'page',
@@ -138,6 +141,7 @@ export default class ClientsController extends Controller.extend(
       { key: 'degraded', label: 'Degraded' },
       { key: 'failed', label: 'Failed' },
       { key: 'lost', label: 'Lost' },
+      { key: 'unknown', label: 'Unknown' },
     ];
   }
 

@@ -15,6 +15,7 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -25,7 +26,7 @@ import (
 )
 
 func TestHTTP_AllocsList(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -86,7 +87,7 @@ func TestHTTP_AllocsList(t *testing.T) {
 }
 
 func TestHTTP_AllocsPrefixList(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -157,7 +158,7 @@ func TestHTTP_AllocsPrefixList(t *testing.T) {
 }
 
 func TestHTTP_AllocQuery(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
@@ -198,7 +199,7 @@ func TestHTTP_AllocQuery(t *testing.T) {
 }
 
 func TestHTTP_AllocQuery_Payload(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -255,7 +256,7 @@ func TestHTTP_AllocQuery_Payload(t *testing.T) {
 }
 
 func TestHTTP_AllocRestart(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Validates that all methods of forwarding the request are processed correctly
@@ -323,7 +324,7 @@ func TestHTTP_AllocRestart(t *testing.T) {
 }
 
 func TestHTTP_AllocRestart_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	httpACLTest(t, nil, func(s *TestAgent) {
@@ -388,7 +389,7 @@ func TestHTTP_AllocRestart_ACL(t *testing.T) {
 }
 
 func TestHTTP_AllocStop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -433,8 +434,121 @@ func TestHTTP_AllocStop(t *testing.T) {
 	})
 }
 
+func TestHTTP_allocServiceRegistrations(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		testFn func(srv *TestAgent)
+		name   string
+	}{
+		{
+			testFn: func(s *TestAgent) {
+
+				// Grab the state, so we can manipulate it and test against it.
+				testState := s.Agent.server.State()
+
+				// Generate an alloc and upsert this.
+				alloc := mock.Alloc()
+				require.NoError(t, testState.UpsertAllocs(
+					structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc}))
+
+				// Generate a service registration, assigned the allocID to the
+				// mocked allocation ID, and upsert this.
+				serviceReg := mock.ServiceRegistrations()[0]
+				serviceReg.AllocID = alloc.ID
+				require.NoError(t, testState.UpsertServiceRegistrations(
+					structs.MsgTypeTestSetup, 20, []*structs.ServiceRegistration{serviceReg}))
+
+				// Build the HTTP request.
+				path := fmt.Sprintf("/v1/allocation/%s/services", alloc.ID)
+				req, err := http.NewRequest(http.MethodGet, path, nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := s.Server.AllocSpecificRequest(respW, req)
+				require.NoError(t, err)
+
+				// Check the response.
+				require.Equal(t, "20", respW.Header().Get("X-Nomad-Index"))
+				require.ElementsMatch(t, []*structs.ServiceRegistration{serviceReg},
+					obj.([]*structs.ServiceRegistration))
+			},
+			name: "alloc has registrations",
+		},
+		{
+			testFn: func(s *TestAgent) {
+
+				// Grab the state, so we can manipulate it and test against it.
+				testState := s.Agent.server.State()
+
+				// Generate an alloc and upsert this.
+				alloc := mock.Alloc()
+				require.NoError(t, testState.UpsertAllocs(
+					structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc}))
+
+				// Build the HTTP request.
+				path := fmt.Sprintf("/v1/allocation/%s/services", alloc.ID)
+				req, err := http.NewRequest(http.MethodGet, path, nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := s.Server.AllocSpecificRequest(respW, req)
+				require.NoError(t, err)
+
+				// Check the response.
+				require.Equal(t, "1", respW.Header().Get("X-Nomad-Index"))
+				require.ElementsMatch(t, []*structs.ServiceRegistration{},
+					obj.([]*structs.ServiceRegistration))
+			},
+			name: "alloc without registrations",
+		},
+		{
+			testFn: func(s *TestAgent) {
+
+				// Build the HTTP request.
+				path := fmt.Sprintf("/v1/allocation/%s/services", uuid.Generate())
+				req, err := http.NewRequest(http.MethodGet, path, nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := s.Server.AllocSpecificRequest(respW, req)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "allocation not found")
+				require.Nil(t, obj)
+			},
+			name: "alloc not found",
+		},
+		{
+			testFn: func(s *TestAgent) {
+
+				// Build the HTTP request.
+				path := fmt.Sprintf("/v1/allocation/%s/services", uuid.Generate())
+				req, err := http.NewRequest(http.MethodHead, path, nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := s.Server.AllocSpecificRequest(respW, req)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "Invalid method")
+				require.Nil(t, obj)
+			},
+			name: "alloc not found",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpTest(t, nil, tc.testFn)
+		})
+	}
+}
+
 func TestHTTP_AllocStats(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
@@ -498,7 +612,7 @@ func TestHTTP_AllocStats(t *testing.T) {
 }
 
 func TestHTTP_AllocStats_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	httpACLTest(t, nil, func(s *TestAgent) {
@@ -553,7 +667,7 @@ func TestHTTP_AllocStats_ACL(t *testing.T) {
 }
 
 func TestHTTP_AllocSnapshot(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/client/allocation/123/snapshot", nil)
@@ -571,7 +685,7 @@ func TestHTTP_AllocSnapshot(t *testing.T) {
 }
 
 func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	httpACLTest(t, nil, func(s *TestAgent) {
 		// Request without a token fails
@@ -607,7 +721,7 @@ func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
 // TestHTTP_AllocSnapshot_Atomic ensures that when a client encounters an error
 // snapshotting a valid tar is not returned.
 func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, func(c *Config) {
 		// Disable the schedulers
 		c.Server.NumSchedulers = helper.IntToPtr(0)
@@ -716,7 +830,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 }
 
 func TestHTTP_AllocGC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	path := fmt.Sprintf("/v1/client/allocation/%s/gc", uuid.Generate())
 	httpTest(t, nil, func(s *TestAgent) {
@@ -786,7 +900,7 @@ func TestHTTP_AllocGC(t *testing.T) {
 }
 
 func TestHTTP_AllocGC_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	path := fmt.Sprintf("/v1/client/allocation/%s/gc", uuid.Generate())
 
@@ -842,7 +956,7 @@ func TestHTTP_AllocGC_ACL(t *testing.T) {
 }
 
 func TestHTTP_AllocAllGC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Local node, local resp
@@ -904,7 +1018,7 @@ func TestHTTP_AllocAllGC(t *testing.T) {
 }
 
 func TestHTTP_AllocAllGC_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	httpACLTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
@@ -953,6 +1067,8 @@ func TestHTTP_AllocAllGC_ACL(t *testing.T) {
 }
 
 func TestHTTP_ReadWsHandshake(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name      string
 		token     string

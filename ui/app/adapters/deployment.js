@@ -1,5 +1,7 @@
 import Watchable from './watchable';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class DeploymentAdapter extends Watchable {
   fail(deployment) {
     const id = deployment.get('id');

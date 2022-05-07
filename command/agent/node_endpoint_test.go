@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ import (
 )
 
 func TestHTTP_NodesList(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
 			// Create the node
@@ -62,7 +63,7 @@ func TestHTTP_NodesList(t *testing.T) {
 }
 
 func TestHTTP_NodesPrefixList(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		ids := []string{
 			"12345678-abcd-efab-cdef-123456789abc",
@@ -118,8 +119,72 @@ func TestHTTP_NodesPrefixList(t *testing.T) {
 	})
 }
 
+func TestHTTP_NodesOSList(t *testing.T) {
+	ci.Parallel(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		ids := []string{
+			"12345670-abcd-efab-cdef-123456789abc",
+			"12345671-aaaa-efab-cdef-123456789abc",
+		}
+		oss := []string{
+			"ubuntu",
+			"centos",
+		}
+		for i := 0; i < 2; i++ {
+			// Create the node
+			node := mock.Node()
+			node.ID = ids[i]
+			node.Attributes["os.name"] = oss[i]
+			args := structs.NodeRegisterRequest{
+				Node:         node,
+				WriteRequest: structs.WriteRequest{Region: "global"},
+			}
+			var resp structs.NodeUpdateResponse
+			if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
+				t.Fatalf("err: %v", err)
+			}
+		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/nodes?prefix=123456&os=true", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.NodesRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check for the index
+		if respW.Header().Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+		if respW.Header().Get("X-Nomad-KnownLeader") != "true" {
+			t.Fatalf("missing known leader")
+		}
+		if respW.Header().Get("X-Nomad-LastContact") == "" {
+			t.Fatalf("missing last contact")
+		}
+
+		// Check the nodes attributes
+		nodes := obj.([]*structs.NodeListStub)
+		if len(nodes) != 2 {
+			t.Fatalf("bad: %#v", nodes)
+		}
+
+		for index, node := range nodes {
+			if node.Attributes["os.name"] != oss[index] {
+				t.Fatalf("Expected: %s, Got: %s", oss[index], node.Attributes["os.name"])
+			}
+		}
+	})
+}
+
 func TestHTTP_NodeForceEval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the node
 		node := mock.Node()
@@ -171,7 +236,7 @@ func TestHTTP_NodeForceEval(t *testing.T) {
 }
 
 func TestHTTP_NodeAllocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		node := mock.Node()
@@ -240,7 +305,7 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 }
 
 func TestHTTP_NodeDrain(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the node
@@ -336,7 +401,7 @@ func TestHTTP_NodeDrain(t *testing.T) {
 }
 
 func TestHTTP_NodeEligible(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the node
@@ -390,7 +455,7 @@ func TestHTTP_NodeEligible(t *testing.T) {
 }
 
 func TestHTTP_NodePurge(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the node
 		node := mock.Node()
@@ -455,7 +520,7 @@ func TestHTTP_NodePurge(t *testing.T) {
 }
 
 func TestHTTP_NodeQuery(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		node := mock.Node()

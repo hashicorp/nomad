@@ -46,13 +46,14 @@ The table below shows this endpoint's support for
   used as the `last_token` of the next request to fetch additional
   pages.
 
-- `filter` `(string: "")` - Specifies the expression used to filter the query
-  results. Consider using pagination or a query parameter to reduce resource
-  used to serve the request.
+- `filter` `(string: "")` - Specifies the [expression](/api-docs#filtering)
+  used to filter the results. Consider using pagination or a query parameter to
+  reduce resource used to serve the request.
 
-- `ascending` `(bool: false)` - Specifies the list of returned deployments should
-  be sorted in chronological order (oldest evaluations first). By default deployments
-  are returned sorted in reverse chronological order (newest deployments first).
+- `reverse` `(bool: false)` - Specifies the list of returned deployments should
+  be sorted in the reverse order. By default deployments are returned sorted in
+  chronological order (older deployments first), or in lexicographical order
+  by their ID if the `prefix` query parameter is used.
 
 ### Sample Request
 

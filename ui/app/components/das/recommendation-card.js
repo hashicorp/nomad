@@ -194,11 +194,12 @@ export default class DasRecommendationCardComponent extends Component {
   }
 
   @action
-  dismiss() {
+  async dismiss() {
     this.storeCardHeight();
-    this.args.summary.excludedRecommendations.pushObjects(
-      this.args.summary.recommendations
-    );
+    const recommendations = await this.args.summary.recommendations;
+
+    this.args.summary.excludedRecommendations.pushObjects(recommendations);
+
     this.args.summary
       .save()
       .then(

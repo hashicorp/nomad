@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -26,7 +27,7 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 		clientCertFn = "../helper/tlsutil/testdata/global-client.pem"
 		clientKeyFn  = "../helper/tlsutil/testdata/global-client-key.pem"
 	)
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	server, cleanupS := nomad.TestServer(t, func(c *nomad.Config) {
@@ -71,6 +72,8 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 			Operand: "=",
 		},
 	}
+	job.TaskGroups[0].Constraints = nil
+	job.TaskGroups[0].Tasks[0].Services = nil
 	job.TaskGroups[0].Count = 1
 	job.TaskGroups[0].EphemeralDisk.Sticky = true
 	job.TaskGroups[0].EphemeralDisk.Migrate = true

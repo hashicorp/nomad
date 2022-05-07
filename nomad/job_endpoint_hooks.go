@@ -23,6 +23,27 @@ var (
 		RTarget: ">= 0.6.1",
 		Operand: structs.ConstraintSemver,
 	}
+
+	// consulServiceDiscoveryConstraint is the implicit constraint added to
+	// task groups which include services utilising the Consul provider. The
+	// Consul version is pinned to a minimum of that which introduced the
+	// namespace feature.
+	consulServiceDiscoveryConstraint = &structs.Constraint{
+		LTarget: "${attr.consul.version}",
+		RTarget: ">= 1.7.0",
+		Operand: structs.ConstraintSemver,
+	}
+
+	// nativeServiceDiscoveryConstraint is the constraint injected into task
+	// groups that utilise Nomad's native service discovery feature. This is
+	// needed, as operators can disable the client functionality, and therefore
+	// we need to ensure task groups are placed where they can run
+	// successfully.
+	nativeServiceDiscoveryConstraint = &structs.Constraint{
+		LTarget: "${attr.nomad.service_discovery}",
+		RTarget: "true",
+		Operand: "=",
+	}
 )
 
 type admissionController interface {
@@ -114,64 +135,103 @@ func (jobImpliedConstraints) Name() string {
 }
 
 func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, error) {
-	// Get the required Vault Policies
-	policies := j.VaultPolicies()
+	// Get the Vault blocks in the job
+	vaultBlocks := j.Vault()
 
 	// Get the required signals
 	signals := j.RequiredSignals()
 
+	// Identify which task groups are utilising Nomad native service discovery.
+	nativeServiceDisco := j.RequiredNativeServiceDiscovery()
+
+	// Identify which task groups are utilising Consul service discovery.
+	consulServiceDisco := j.RequiredConsulServiceDiscovery()
+
 	// Hot path
-	if len(signals) == 0 && len(policies) == 0 {
+	if len(signals) == 0 && len(vaultBlocks) == 0 &&
+		len(nativeServiceDisco) == 0 && len(consulServiceDisco) == 0 {
 		return j, nil, nil
 	}
 
-	// Add Vault constraints if no Vault constraint exists
+	// Iterate through all the task groups within the job and add any required
+	// constraints. When adding new implicit constraints, they should go inside
+	// this single loop, with a new constraintMatcher if needed.
 	for _, tg := range j.TaskGroups {
-		_, ok := policies[tg.Name]
-		if !ok {
-			// Not requesting Vault
-			continue
+
+		// If the task group utilises Vault, run the mutator.
+		if _, ok := vaultBlocks[tg.Name]; ok {
+			mutateConstraint(constraintMatcherLeft, tg, vaultConstraint)
 		}
 
-		found := false
-		for _, c := range tg.Constraints {
-			if c.LTarget == vaultConstraintLTarget {
-				found = true
-				break
-			}
+		// Check whether the task group is using signals. In the case that it
+		// is, we flatten the signals and build a constraint, then run the
+		// mutator.
+		if tgSignals, ok := signals[tg.Name]; ok {
+			required := helper.MapStringStringSliceValueSet(tgSignals)
+			sigConstraint := getSignalConstraint(required)
+			mutateConstraint(constraintMatcherFull, tg, sigConstraint)
 		}
 
-		if !found {
-			tg.Constraints = append(tg.Constraints, vaultConstraint)
-		}
-	}
-
-	// Add signal constraints
-	for _, tg := range j.TaskGroups {
-		tgSignals, ok := signals[tg.Name]
-		if !ok {
-			// Not requesting Vault
-			continue
+		// If the task group utilises Nomad service discovery, run the mutator.
+		if ok := nativeServiceDisco[tg.Name]; ok {
+			mutateConstraint(constraintMatcherFull, tg, nativeServiceDiscoveryConstraint)
 		}
 
-		// Flatten the signals
-		required := helper.MapStringStringSliceValueSet(tgSignals)
-		sigConstraint := getSignalConstraint(required)
-
-		found := false
-		for _, c := range tg.Constraints {
-			if c.Equals(sigConstraint) {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			tg.Constraints = append(tg.Constraints, sigConstraint)
+		// If the task group utilises Consul service discovery, run the mutator.
+		if ok := consulServiceDisco[tg.Name]; ok {
+			mutateConstraint(constraintMatcherLeft, tg, consulServiceDiscoveryConstraint)
 		}
 	}
 
 	return j, nil, nil
+}
+
+// constraintMatcher is a custom type which helps control how constraints are
+// identified as being present within a task group.
+type constraintMatcher uint
+
+const (
+	// constraintMatcherFull ensures that a constraint is only considered found
+	// when they match totally. This check is performed using the
+	// structs.Constraint Equals function.
+	constraintMatcherFull constraintMatcher = iota
+
+	// constraintMatcherLeft ensure that a constraint is considered found if
+	// the constraints LTarget is matched only. This allows an existing
+	// constraint to override the proposed implicit one.
+	constraintMatcherLeft
+)
+
+// mutateConstraint is a generic mutator used to set implicit constraints
+// within the task group if they are needed.
+func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, constraint *structs.Constraint) {
+
+	var found bool
+
+	// It's possible to switch on the matcher within the constraint loop to
+	// reduce repetition. This, however, means switching per constraint,
+	// therefore we do it here.
+	switch matcher {
+	case constraintMatcherFull:
+		for _, c := range taskGroup.Constraints {
+			if c.Equals(constraint) {
+				found = true
+				break
+			}
+		}
+	case constraintMatcherLeft:
+		for _, c := range taskGroup.Constraints {
+			if c.LTarget == constraint.LTarget {
+				found = true
+				break
+			}
+		}
+	}
+
+	// If we didn't find a suitable constraint match, add one.
+	if !found {
+		taskGroup.Constraints = append(taskGroup.Constraints, constraint)
+	}
 }
 
 // jobValidate validates a Job and task drivers and returns an error if there is

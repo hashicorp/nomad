@@ -11,12 +11,8 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	vapi "github.com/hashicorp/vault/api"
-	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -24,10 +20,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	vapi "github.com/hashicorp/vault/api"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClientEndpoint_Register(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -90,7 +90,7 @@ func TestClientEndpoint_Register(t *testing.T) {
 // forwarded RPCs. This is essential otherwise we will think a Yamux session to
 // a Nomad server is actually the session to the node.
 func TestClientEndpoint_Register_NodeConn_Forwarded(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -181,7 +181,7 @@ func TestClientEndpoint_Register_NodeConn_Forwarded(t *testing.T) {
 }
 
 func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -211,7 +211,7 @@ func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
 
 // Test the deprecated single node deregistration path
 func TestClientEndpoint_DeregisterOne(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -257,7 +257,7 @@ func TestClientEndpoint_DeregisterOne(t *testing.T) {
 }
 
 func TestClientEndpoint_Deregister_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -323,7 +323,7 @@ func TestClientEndpoint_Deregister_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_Deregister_Vault(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -385,7 +385,7 @@ func TestClientEndpoint_Deregister_Vault(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -465,7 +465,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -524,7 +524,7 @@ func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_HeartbeatRecovery(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -575,7 +575,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatRecovery(t *testing.T) {
 }
 
 func TestClientEndpoint_Register_GetEvals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -670,7 +670,7 @@ func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -754,7 +754,7 @@ func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
@@ -832,7 +832,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateStatus_HeartbeatOnly_Advertise(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	advAddr := "127.0.1.1:1234"
@@ -870,12 +870,61 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly_Advertise(t *testing.T) {
 	require.Equal(resp.Servers[0].RPCAdvertiseAddr, advAddr)
 }
 
+func TestNode_UpdateStatus_ServiceRegistrations(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, serverCleanup := TestServer(t, nil)
+	defer serverCleanup()
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Create a node and upsert this into state.
+	node := mock.Node()
+	require.NoError(t, testServer.State().UpsertNode(structs.MsgTypeTestSetup, 10, node))
+
+	// Generate service registrations, ensuring the nodeID is set to the
+	// generated node from above.
+	services := mock.ServiceRegistrations()
+
+	for _, s := range services {
+		s.NodeID = node.ID
+	}
+
+	// Upsert the service registrations into state.
+	require.NoError(t, testServer.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 20, services))
+
+	// Check the service registrations are in state as we expect, so we can
+	// have confidence in the rest of the test.
+	ws := memdb.NewWatchSet()
+	nodeRegs, err := testServer.State().GetServiceRegistrationsByNodeID(ws, node.ID)
+	require.NoError(t, err)
+	require.Len(t, nodeRegs, 2)
+	require.Equal(t, nodeRegs[0].NodeID, node.ID)
+	require.Equal(t, nodeRegs[1].NodeID, node.ID)
+
+	// Generate and trigger a node down status update. This mimics what happens
+	// when the node fails its heart-beating.
+	args := structs.NodeUpdateStatusRequest{
+		NodeID:       node.ID,
+		Status:       structs.NodeStatusDown,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var reply structs.NodeUpdateResponse
+	require.NoError(t, testServer.staticEndpoints.Node.UpdateStatus(&args, &reply))
+
+	// Query our state, to ensure the node service registrations have been
+	// removed.
+	nodeRegs, err = testServer.State().GetServiceRegistrationsByNodeID(ws, node.ID)
+	require.NoError(t, err)
+	require.Len(t, nodeRegs, 0)
+}
+
 // TestClientEndpoint_UpdateDrain asserts the ability to initiate drain
 // against a node and cancel that drain. It also asserts:
 // * an evaluation is created when the node becomes eligible
 // * drain metadata is properly persisted in Node.LastDrain
 func TestClientEndpoint_UpdateDrain(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -992,7 +1041,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 // is properly persisted in Node.LastDrain as the node drain is updated and
 // completes.
 func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -1099,7 +1148,7 @@ func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
 // persisted in Node.LastDrain when calls to Node.UpdateDrain() don't affect
 // the drain status.
 func TestClientEndpoint_UpdatedDrainNoop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -1174,7 +1223,7 @@ func TestClientEndpoint_UpdatedDrainNoop(t *testing.T) {
 // node.write ACLs, and that token accessor ID is properly persisted in
 // Node.LastDrain.AccessorID
 func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1243,7 +1292,7 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 // This test ensures that Nomad marks client state of allocations which are in
 // pending/running state to lost when a node is marked as down.
 func TestClientEndpoint_Drain_Down(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1374,7 +1423,7 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateEligibility(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -1432,7 +1481,7 @@ func TestClientEndpoint_UpdateEligibility(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1488,7 +1537,7 @@ func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_GetNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1555,7 +1604,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 }
 
 func TestClientEndpoint_GetNode_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1619,7 +1668,7 @@ func TestClientEndpoint_GetNode_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1722,7 +1771,7 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 }
 
 func TestClientEndpoint_GetAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1785,7 +1834,7 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 }
 
 func TestClientEndpoint_GetAllocs_ACL_Basic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1860,7 +1909,7 @@ func TestClientEndpoint_GetAllocs_ACL_Basic(t *testing.T) {
 }
 
 func TestClientEndpoint_GetAllocs_ACL_Namespaces(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -1956,7 +2005,7 @@ func TestClientEndpoint_GetAllocs_ACL_Namespaces(t *testing.T) {
 }
 
 func TestClientEndpoint_GetClientAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -2036,7 +2085,7 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 }
 
 func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2063,11 +2112,11 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	alloc.ModifyTime = now
-	state := s1.fsm.State()
-	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	store := s1.fsm.State()
+	store.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	start := time.Now()
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
+		err := store.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -2101,7 +2150,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 		t.Fatalf("bad: %#v", resp2.Allocs)
 	}
 
-	iter, err := state.AllocsByIDPrefix(nil, structs.DefaultNamespace, alloc.ID)
+	iter, err := store.AllocsByIDPrefix(nil, structs.DefaultNamespace, alloc.ID, state.SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2133,8 +2182,8 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 		allocUpdate.NodeID = alloc.NodeID
 		allocUpdate.ID = alloc.ID
 		allocUpdate.ClientStatus = structs.AllocClientStatusRunning
-		state.UpsertJobSummary(199, mock.JobSummary(allocUpdate.JobID))
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{allocUpdate})
+		store.UpsertJobSummary(199, mock.JobSummary(allocUpdate.JobID))
+		err := store.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{allocUpdate})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -2158,7 +2207,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 }
 
 func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -2235,7 +2284,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 // A MigrateToken should not be created if an allocation shares the same node
 // with its previous allocation
 func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -2288,7 +2337,7 @@ func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
 }
 
 func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2381,7 +2430,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		// Disabling scheduling in this test so that we can
@@ -2479,7 +2528,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 }
 
 func TestClientEndpoint_BatchUpdate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2537,7 +2586,7 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2623,7 +2672,7 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 }
 
 func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2708,7 +2757,7 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 // TestClientEndpoint_CreateNodeEvals_MultipleNSes asserts that evals are made
 // for all jobs across namespaces
 func TestClientEndpoint_CreateNodeEvals_MultipleNSes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2767,7 +2816,7 @@ func TestClientEndpoint_CreateNodeEvals_MultipleNSes(t *testing.T) {
 }
 
 func TestClientEndpoint_Evaluate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -2855,7 +2904,7 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 }
 
 func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2914,7 +2963,7 @@ func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_ListNodes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -2986,7 +3035,7 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 }
 
 func TestClientEndpoint_ListNodes_Fields(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -3023,7 +3072,7 @@ func TestClientEndpoint_ListNodes_Fields(t *testing.T) {
 }
 
 func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -3078,7 +3127,7 @@ func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
 }
 
 func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -3210,7 +3259,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 }
 
 func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -3292,7 +3341,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 }
 
 func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -3385,7 +3434,7 @@ func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 }
 
 func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -3443,7 +3492,7 @@ func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
 }
 
 func TestClientEndpoint_taskUsesConnect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	try := func(t *testing.T, task *structs.Task, exp bool) {
 		result := taskUsesConnect(task)
@@ -3471,7 +3520,7 @@ func TestClientEndpoint_taskUsesConnect(t *testing.T) {
 }
 
 func TestClientEndpoint_tasksNotUsingConnect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	taskGroup := &structs.TaskGroup{
 		Name: "testgroup",
@@ -3523,7 +3572,7 @@ func mutateConnectJob(t *testing.T, job *structs.Job) {
 }
 
 func TestClientEndpoint_DeriveSIToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil) // already sets consul mocks
@@ -3576,7 +3625,7 @@ func TestClientEndpoint_DeriveSIToken(t *testing.T) {
 }
 
 func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -3624,7 +3673,7 @@ func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
 }
 
 func TestClientEndpoint_EmitEvents(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -3663,6 +3712,8 @@ func TestClientEndpoint_EmitEvents(t *testing.T) {
 }
 
 func TestClientEndpoint_ShouldCreateNodeEval(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("spurious changes don't require eval", func(t *testing.T) {
 		n1 := mock.Node()
 		n2 := n1.Copy()
@@ -3711,6 +3762,335 @@ func TestClientEndpoint_ShouldCreateNodeEval(t *testing.T) {
 			c.updateFn(n2)
 
 			require.Truef(t, shouldCreateNodeEval(n1, n2), "node changed but without node eval: %v", pretty.Diff(n1, n2))
+		})
+	}
+}
+
+func TestClientEndpoint_UpdateAlloc_Evals_ByTrigger(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name               string
+		clientStatus       string
+		serverClientStatus string
+		triggerBy          string
+		missingJob         bool
+		missingAlloc       bool
+		invalidTaskGroup   bool
+	}
+
+	testCases := []testCase{
+		{
+			name:               "failed-alloc",
+			clientStatus:       structs.AllocClientStatusFailed,
+			serverClientStatus: structs.AllocClientStatusRunning,
+			triggerBy:          structs.EvalTriggerRetryFailedAlloc,
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "unknown-alloc",
+			clientStatus:       structs.AllocClientStatusRunning,
+			serverClientStatus: structs.AllocClientStatusUnknown,
+			triggerBy:          structs.EvalTriggerReconnect,
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "orphaned-unknown-alloc",
+			clientStatus:       structs.AllocClientStatusRunning,
+			serverClientStatus: structs.AllocClientStatusUnknown,
+			triggerBy:          structs.EvalTriggerJobDeregister,
+			missingJob:         true,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "running-job",
+			clientStatus:       structs.AllocClientStatusRunning,
+			serverClientStatus: structs.AllocClientStatusRunning,
+			triggerBy:          "",
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "complete-job",
+			clientStatus:       structs.AllocClientStatusComplete,
+			serverClientStatus: structs.AllocClientStatusComplete,
+			triggerBy:          "",
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "no-alloc-at-server",
+			clientStatus:       structs.AllocClientStatusUnknown,
+			serverClientStatus: "",
+			triggerBy:          "",
+			missingJob:         false,
+			missingAlloc:       true,
+			invalidTaskGroup:   false,
+		},
+		{
+			name:               "invalid-task-group",
+			clientStatus:       structs.AllocClientStatusUnknown,
+			serverClientStatus: structs.AllocClientStatusRunning,
+			triggerBy:          "",
+			missingJob:         false,
+			missingAlloc:       false,
+			invalidTaskGroup:   true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s1, cleanupS1 := TestServer(t, func(c *Config) {
+				// Disabling scheduling in this test so that we can
+				// ensure that the state store doesn't accumulate more evals
+				// than what we expect the unit test to add
+				c.NumSchedulers = 0
+			})
+
+			defer cleanupS1()
+			codec := rpcClient(t, s1)
+			testutil.WaitForLeader(t, s1.RPC)
+
+			// Create the register request
+			node := mock.Node()
+			reg := &structs.NodeRegisterRequest{
+				Node:         node,
+				WriteRequest: structs.WriteRequest{Region: "global"},
+			}
+
+			// Fetch the response
+			var nodeResp structs.GenericResponse
+			err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &nodeResp)
+			require.NoError(t, err)
+
+			fsmState := s1.fsm.State()
+
+			job := mock.Job()
+			job.ID = tc.name + "-test-job"
+
+			if !tc.missingJob {
+				err = fsmState.UpsertJob(structs.MsgTypeTestSetup, 101, job)
+				require.NoError(t, err)
+			}
+
+			serverAlloc := mock.Alloc()
+			serverAlloc.JobID = job.ID
+			serverAlloc.NodeID = node.ID
+			serverAlloc.ClientStatus = tc.serverClientStatus
+			serverAlloc.TaskGroup = job.TaskGroups[0].Name
+
+			// Create the incoming client alloc.
+			clientAlloc := serverAlloc.Copy()
+			clientAlloc.ClientStatus = tc.clientStatus
+
+			err = fsmState.UpsertJobSummary(99, mock.JobSummary(serverAlloc.JobID))
+			require.NoError(t, err)
+
+			if tc.invalidTaskGroup {
+				serverAlloc.TaskGroup = "invalid"
+			}
+
+			if !tc.missingAlloc {
+				err = fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{serverAlloc})
+				require.NoError(t, err)
+			}
+
+			updateReq := &structs.AllocUpdateRequest{
+				Alloc:        []*structs.Allocation{clientAlloc},
+				WriteRequest: structs.WriteRequest{Region: "global"},
+			}
+
+			var nodeAllocResp structs.NodeAllocsResponse
+			err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", updateReq, &nodeAllocResp)
+			require.NoError(t, err)
+			require.NotEqual(t, uint64(0), nodeAllocResp.Index)
+
+			// If no eval should be created validate, none were and return.
+			if tc.triggerBy == "" {
+				evaluations, err := fsmState.EvalsByJob(nil, job.Namespace, job.ID)
+				require.NoError(t, err)
+				require.Len(t, evaluations, 0)
+				return
+			}
+
+			// Lookup the alloc
+			updatedAlloc, err := fsmState.AllocByID(nil, serverAlloc.ID)
+			require.NoError(t, err)
+			require.Equal(t, tc.clientStatus, updatedAlloc.ClientStatus)
+
+			// Assert that exactly one eval with test case TriggeredBy exists
+			evaluations, err := fsmState.EvalsByJob(nil, job.Namespace, job.ID)
+			require.NoError(t, err)
+			require.Equal(t, 1, len(evaluations))
+			foundCount := 0
+			for _, resultEval := range evaluations {
+				if resultEval.TriggeredBy == tc.triggerBy && resultEval.WaitUntil.IsZero() {
+					foundCount++
+				}
+			}
+			require.Equal(t, 1, foundCount, "Should create exactly one eval for trigger by", tc.triggerBy)
+		})
+	}
+
+}
+
+func TestNode_List_PaginationFiltering(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Build a set of nodes in various datacenters and states. This allows us
+	// to test different filter queries along with pagination.
+	mocks := []struct {
+		id     string
+		dc     string
+		status string
+	}{
+		{
+			id:     "aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+			dc:     "dc2",
+			status: structs.NodeStatusDisconnected,
+		},
+		{
+			id:     "aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			dc:     "dc1",
+			status: structs.NodeStatusReady,
+		},
+		{
+			id:     "aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			dc:     "dc3",
+			status: structs.NodeStatusReady,
+		},
+		{
+			id:     "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			dc:     "dc2",
+			status: structs.NodeStatusDown,
+		},
+		{
+			id:     "aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			dc:     "dc3",
+			status: structs.NodeStatusDown,
+		},
+		{
+			id:     "aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
+			dc:     "dc1",
+			status: structs.NodeStatusReady,
+		},
+	}
+
+	testState := s1.fsm.State()
+
+	for i, m := range mocks {
+		index := 1000 + uint64(i)
+		mockNode := mock.Node()
+		mockNode.ID = m.id
+		mockNode.Datacenter = m.dc
+		mockNode.Status = m.status
+		mockNode.CreateIndex = index
+		require.NoError(t, testState.UpsertNode(structs.MsgTypeTestSetup, index, mockNode))
+	}
+
+	// The server is running with ACLs enabled, so generate an adequate token
+	// to use.
+	aclToken := mock.CreatePolicyAndToken(t, testState, 1100, "test-valid-read",
+		mock.NodePolicy(acl.PolicyRead)).SecretID
+
+	cases := []struct {
+		name              string
+		filter            string
+		nextToken         string
+		pageSize          int32
+		expectedNextToken string
+		expectedIDs       []string
+		expectedError     string
+	}{
+		{
+			name:              "pagination no filter",
+			pageSize:          2,
+			expectedNextToken: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "pagination no filter with next token",
+			pageSize:          2,
+			nextToken:         "aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "pagination no filter with next token end of pages",
+			pageSize:          2,
+			nextToken:         "aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "",
+			expectedIDs: []string{
+				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:   "filter no pagination",
+			filter: `Datacenter == "dc3"`,
+			expectedIDs: []string{
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "filter and pagination",
+			filter:            `Status != "ready"`,
+			pageSize:          2,
+			expectedNextToken: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.NodeListRequest{
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Filter:    tc.filter,
+					PerPage:   tc.pageSize,
+					NextToken: tc.nextToken,
+				},
+			}
+			req.AuthToken = aclToken
+			var resp structs.NodeListResponse
+			err := msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp)
+			if tc.expectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedError)
+				return
+			}
+
+			actualIDs := []string{}
+
+			for _, node := range resp.Nodes {
+				actualIDs = append(actualIDs, node.ID)
+			}
+			require.Equal(t, tc.expectedIDs, actualIDs, "unexpected page of nodes")
+			require.Equal(t, tc.expectedNextToken, resp.QueryMeta.NextToken, "unexpected NextToken")
 		})
 	}
 }

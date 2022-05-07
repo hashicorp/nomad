@@ -8,18 +8,22 @@ description: |-
 
 # Monitoring Nomad
 
-The Nomad client and server agents collect a wide range of runtime metrics
-related to the performance of the system. Operators can use this data to gain
-real-time visibility into their cluster and improve performance. Additionally,
-Nomad operators can set up monitoring and alerting based on these metrics in
-order to respond to any changes in the cluster state.
+The Nomad client and server agents collect a wide range of runtime metrics.
+These metrics are useful for monitoring the health and performance of Nomad
+clusters. Careful monitoring can spot trends before they cause issues and help
+debug issues if they arise.
 
-On the server side, leaders and
-followers have metrics in common as well as metrics that are specific to their
-roles. Clients have separate metrics for the host metrics and for
-allocations/tasks, both of which have to be [explicitly
-enabled][telemetry-stanza]. There are also runtime metrics that are common to
-all servers and clients.
+All Nomad agents, both servers and clients, report basic system and Go runtime
+metrics.
+
+Nomad servers all report many metrics, but some metrics are specific to the
+leader server. Since leadership may change at any time, these metrics should be
+monitored on all servers. Missing (or 0) metrics from non-leaders may be safely
+ignored.
+
+Nomad clients have separate metrics for the host they are running on as well as
+for each allocation being run. Both of these metrics [must be explicitly
+enabled][telemetry-stanza].
 
 By default, the Nomad agent collects telemetry data at a [1 second
 interval][collection-interval]. Note that Nomad supports [gauges, counters, and
@@ -27,19 +31,16 @@ timers][metric-types].
 
 There are three ways to obtain metrics from Nomad:
 
-- Query the [/metrics API endpoint][metrics-api-endpoint] to return metrics for
-  the current Nomad process (as of Nomad 0.7). This endpoint supports Prometheus
-  formatted metrics.
+- Query the [/v1/metrics API endpoint][metrics-api-endpoint] to return metrics
+  for the current Nomad process. This endpoint supports Prometheus formatted
+  metrics.
 
 - Send the USR1 signal to the Nomad process. This will dump the current
   telemetry information to STDERR (on Linux).
 
-- Configure Nomad to automatically forward metrics to a third-party provider.
-
-Nomad 0.7 added support for [tagged metrics][tagged-metrics], improving the
-integrations with [DataDog][datadog-telem] and [Prometheus][prometheus-telem].
-Metrics can also be forwarded to [Statsite][statsite-telem],
-[StatsD][statsd-telem], and [Circonus][circonus-telem].
+- Configure Nomad to automatically forward metrics to a third-party provider
+  such as [DataDog][datadog-telem], [Prometheus][prometheus-telem],
+  [statsd][statsd-telem], and [Circonus][circonus-telem].
 
 ## Alerting
 
@@ -71,7 +72,12 @@ patterns.
 
 # Key Performance Indicators
 
-The sections below cover a number of important metrics
+Nomad servers' memory, CPU, disk, and network usage all scales linearly with
+cluster size and scheduling throughput. The most important aspect of ensuring
+Nomad operates normally is monitoring these system resources to ensure the
+servers are not encountering resource constraints.
+
+The sections below cover a number of other important metrics.
 
 ## Consensus Protocol (Raft)
 
@@ -111,28 +117,46 @@ The `nomad.raft.fsm.apply` metric is an indicator of the time it takes
 for a server to apply Raft entries to the internal state machine. If
 this number trends upwards, look at the `nomad.nomad.fsm.*` metrics to
 see if a specific Raft entry is increasing in latency. You can compare
-this to warn-level logs on the Nomad servers for "attempting to apply
-large raft entry". If a specific type of message appears here, there
+this to warn-level logs on the Nomad servers for `attempting to apply
+large raft entry`. If a specific type of message appears here, there
 may be a job with a large job specification or dispatch payload that
-is increasing the time it takes to apply raft messages.
-
-## Federated Deployments (Serf)
-
-Nomad uses the membership and failure detection capabilities of the Serf library
-to maintain a single, global gossip pool for all servers in a federated
-deployment. An uptick in `member.flap` and/or `msg.suspect` is a reliable indicator
-that membership is unstable.
-
-If these metrics increase, look at CPU load on the servers and network
-latency and packet loss for the [Serf] address.
+is increasing the time it takes to apply Raft messages. Try shrinking the size
+of the job either by putting distinct task groups into separate jobs,
+downloading templates instead of embedding them, or reducing the `count` on
+task groups.
 
 ## Scheduling
 
-The [Scheduling] documentation describes the workflow of how
-evaluations become scheduled plans and placed allocations. The
-following metrics, listed in the order they are emitted, allow an
-operator to observe changes in throughput at the various points in the
-scheduling process.
+The [Scheduling] documentation describes the workflow of how evaluations become
+scheduled plans and placed allocations.
+
+### Progress
+
+There is a class of bug possible in Nomad where the two parts of the scheduling
+pipeline, the workers and the leader's plan applier, *disagree* about the
+validity of a plan. In the pathological case this can cause a job to never
+finish scheduling, as workers produce the same plan and the plan applier
+repeatedly rejects it.
+
+While this class of bug is very rare, it can be detected by repeated log lines
+on the Nomad servers containing `plan for node rejected`:
+
+```
+nomad: plan for node rejected: node_id=0fa84370-c713-b914-d329-f6485951cddc reason="reserved port collision" eval_id=098a5
+```
+
+While it is possible for these log lines to occur infrequently due to normal
+cluster conditions, they should not appear repeatedly and prevent the job from
+eventually running (look up the evaluation ID logged to find the job).
+
+If this log *does* appear repeatedly with the same `node_id` referenced, try
+[draining] the node and shutting it down. Misconfigurations not caught by
+validation can cause nodes to enter this state: [#11830][gh-11830].
+
+### Performance
+
+The following metrics allow observing changes in throughput at the various
+points in the scheduling process.
 
 - **nomad.worker.invoke_scheduler.<type\>** - The time to run the
   scheduler of the given type. Each scheduler worker handles one
@@ -169,9 +193,11 @@ scheduling process.
   entirely in memory on the leader. If this metric increases, examine
   the CPU and memory resources of the leader.
 
-- **nomad.plan.wait_for_index** - The time required for the planner to
-  wait for the Raft index of the plan to be processed. If this metric
-  increases, refer to the [Consensus Protocol (Raft)] section above.
+- **nomad.plan.wait_for_index** - The time required for the planner to wait for
+  the Raft index of the plan to be processed. If this metric increases, refer
+  to the [Consensus Protocol (Raft)] section above. If this metric approaches 5
+  seconds, scheduling operations may fail and be retried. If possible reduce
+  scheduling load until metrics improve.
 
 - **nomad.plan.submit** - The time to submit a scheduler plan from the
   worker to the leader. This operation requires writing to Raft and
@@ -215,8 +241,8 @@ when the CPU is at or above the reserved resources for the task.
 
 ## Job and Task Status
 
-We do not currently surface metrics for job and task/allocation status, although
-we will consider adding metrics where it makes sense.
+See [Job Summary Metrics] for monitoring the health and status of workloads
+running on Nomad.
 
 ## Runtime Metrics
 
@@ -230,6 +256,16 @@ general indicators of load and memory pressure.
 It is recommended to alert on upticks in any of the above, server memory usage
 in particular.
 
+## Federated Deployments (Serf)
+
+Nomad uses the membership and failure detection capabilities of the Serf library
+to maintain a single, global gossip pool for all servers in a federated
+deployment. An uptick in `member.flap` and/or `msg.suspect` is a reliable indicator
+that membership is unstable.
+
+If these metrics increase, look at CPU load on the servers and network
+latency and packet loss for the [Serf] address.
+
 [alerting-rules]: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
 [alertmanager]: https://prometheus.io/docs/alerting/alertmanager/
 [allocation-metrics]: /docs/telemetry/metrics#allocation-metrics
@@ -237,14 +273,17 @@ in particular.
 [collection-interval]: /docs/configuration/telemetry#collection_interval
 [datadog-alerting]: https://www.datadoghq.com/blog/monitoring-101-alerting/
 [datadog-telem]: /docs/configuration/telemetry#datadog
-[prometheus-telem]: /docs/configuration/telemetry#prometheus
-[metrics-api-endpoint]: /api-docs/metrics
+[draining]: https://learn.hashicorp.com/tutorials/nomad/node-drain
+[gh-11830]: https://github.com/hashicorp/nomad/pull/11830
 [metric-types]: /docs/telemetry/metrics#metric-types
+[metrics-api-endpoint]: /api-docs/metrics
+[prometheus-telem]: /docs/configuration/telemetry#prometheus
+[serf]: /docs/configuration#serf-1
 [statsd-exporter]: https://github.com/prometheus/statsd_exporter
 [statsd-telem]: /docs/configuration/telemetry#statsd
 [statsite-telem]: /docs/configuration/telemetry#statsite
 [tagged-metrics]: /docs/telemetry/metrics#tagged-metrics
 [telemetry-stanza]: /docs/configuration/telemetry
-[serf]: /docs/configuration#serf-1
 [Consensus Protocol (Raft)]: /docs/operations/telemetry#consensus-protocol-raft
+[Job Summary Metrics]: /docs/operations/metrics-reference#job-summary-metrics
 [Scheduling]: /docs/internals/scheduling/scheduling

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -15,7 +16,7 @@ import (
 // TestEventFromChange_SingleEventPerTable ensures that only a single event is
 // created per table per memdb.Change
 func TestEventFromChange_SingleEventPerTable(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
@@ -42,7 +43,7 @@ func TestEventFromChange_SingleEventPerTable(t *testing.T) {
 }
 
 func TestEventFromChange_ACLTokenSecretID(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
@@ -95,7 +96,7 @@ func TestEventFromChange_ACLTokenSecretID(t *testing.T) {
 }
 
 func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
@@ -141,7 +142,7 @@ func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 }
 
 func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
@@ -218,7 +219,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 }
 
 func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
@@ -314,7 +315,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 }
 
 func TestEventsFromChanges_UpsertNodeEventsType(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
@@ -355,7 +356,7 @@ func TestEventsFromChanges_UpsertNodeEventsType(t *testing.T) {
 }
 
 func TestEventsFromChanges_NodeUpdateStatusRequest(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
@@ -386,7 +387,7 @@ func TestEventsFromChanges_NodeUpdateStatusRequest(t *testing.T) {
 }
 
 func TestEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
@@ -420,7 +421,7 @@ func TestEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 }
 
 func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
@@ -481,7 +482,7 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 }
 
 func TestEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
@@ -536,7 +537,7 @@ func TestEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {
 }
 
 func TestEventsFromChanges_NodeUpdateEligibilityRequestType(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
@@ -576,7 +577,7 @@ func TestEventsFromChanges_NodeUpdateEligibilityRequestType(t *testing.T) {
 }
 
 func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
@@ -647,7 +648,7 @@ func TestEventsFromChanges_JobDeregisterRequestType(t *testing.T) {
 }
 
 func TestEventsFromChanges_WithDeletion(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	changes := Changes{
 		Index: uint64(1),
@@ -673,7 +674,7 @@ func TestEventsFromChanges_WithDeletion(t *testing.T) {
 }
 
 func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	before := &structs.Node{
 		ID:         "some-id",
@@ -712,6 +713,8 @@ func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {
 }
 
 func TestNodeEventsFromChanges(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name       string
 		MsgType    structs.MessageType
@@ -904,7 +907,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 }
 
 func TestNodeDrainEventFromChanges(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
@@ -950,6 +953,53 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 
 	require.Equal(t, structs.NodeSchedulingIneligible, nodeEvent.Node.SchedulingEligibility)
 	require.Equal(t, strat, nodeEvent.Node.DrainStrategy)
+}
+
+func Test_eventsFromChanges_ServiceRegistration(t *testing.T) {
+	ci.Parallel(t)
+	testState := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer testState.StopEventBroker()
+
+	// Generate test service registration.
+	service := mock.ServiceRegistrations()[0]
+
+	// Upsert a service registration.
+	writeTxn := testState.db.WriteTxn(10)
+	updated, err := testState.upsertServiceRegistrationTxn(10, writeTxn, service)
+	require.True(t, updated)
+	require.NoError(t, err)
+	writeTxn.Txn.Commit()
+
+	// Pull the events from the stream.
+	registerChange := Changes{Changes: writeTxn.Changes(), Index: 10, MsgType: structs.ServiceRegistrationUpsertRequestType}
+	receivedChange := eventsFromChanges(writeTxn, registerChange)
+
+	// Check the event, and it's payload are what we are expecting.
+	require.Len(t, receivedChange.Events, 1)
+	require.Equal(t, structs.TopicService, receivedChange.Events[0].Topic)
+	require.Equal(t, structs.TypeServiceRegistration, receivedChange.Events[0].Type)
+	require.Equal(t, uint64(10), receivedChange.Events[0].Index)
+
+	eventPayload := receivedChange.Events[0].Payload.(*structs.ServiceRegistrationStreamEvent)
+	require.Equal(t, service, eventPayload.Service)
+
+	// Delete the previously upserted service registration.
+	deleteTxn := testState.db.WriteTxn(20)
+	require.NoError(t, testState.deleteServiceRegistrationByIDTxn(uint64(20), deleteTxn, service.Namespace, service.ID))
+	writeTxn.Txn.Commit()
+
+	// Pull the events from the stream.
+	deregisterChange := Changes{Changes: deleteTxn.Changes(), Index: 20, MsgType: structs.ServiceRegistrationDeleteByIDRequestType}
+	receivedDeleteChange := eventsFromChanges(deleteTxn, deregisterChange)
+
+	// Check the event, and it's payload are what we are expecting.
+	require.Len(t, receivedDeleteChange.Events, 1)
+	require.Equal(t, structs.TopicService, receivedDeleteChange.Events[0].Topic)
+	require.Equal(t, structs.TypeServiceDeregistration, receivedDeleteChange.Events[0].Type)
+	require.Equal(t, uint64(20), receivedDeleteChange.Events[0].Index)
+
+	eventPayload = receivedChange.Events[0].Payload.(*structs.ServiceRegistrationStreamEvent)
+	require.Equal(t, service, eventPayload.Service)
 }
 
 func requireNodeRegistrationEventEqual(t *testing.T, want, got structs.Event) {

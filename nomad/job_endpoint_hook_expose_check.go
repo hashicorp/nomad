@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/pkg/errors"
 )
 
 type jobExposeCheckHook struct{}
@@ -111,7 +110,7 @@ func tgValidateUseOfCheckExpose(tg *structs.TaskGroup) error {
 	for _, s := range tg.Services {
 		for _, check := range s.Checks {
 			if check.Expose && !s.Connect.HasSidecar() {
-				return errors.Errorf(
+				return fmt.Errorf(
 					"exposed service check %s->%s->%s requires use of sidecar_proxy",
 					tg.Name, s.Name, check.Name,
 				)
@@ -124,7 +123,7 @@ func tgValidateUseOfCheckExpose(tg *structs.TaskGroup) error {
 		for _, s := range t.Services {
 			for _, check := range s.Checks {
 				if check.Expose {
-					return errors.Errorf(
+					return fmt.Errorf(
 						"exposed service check %s[%s]->%s->%s is not a task-group service",
 						tg.Name, t.Name, s.Name, check.Name,
 					)
@@ -141,10 +140,10 @@ func tgValidateUseOfCheckExpose(tg *structs.TaskGroup) error {
 func tgValidateUseOfBridgeMode(tg *structs.TaskGroup) error {
 	if tgUsesExposeCheck(tg) {
 		if len(tg.Networks) != 1 {
-			return errors.Errorf("group %q must specify one bridge network for exposing service check(s)", tg.Name)
+			return fmt.Errorf("group %q must specify one bridge network for exposing service check(s)", tg.Name)
 		}
 		if tg.Networks[0].Mode != "bridge" {
-			return errors.Errorf("group %q must use bridge network for exposing service check(s)", tg.Name)
+			return fmt.Errorf("group %q must use bridge network for exposing service check(s)", tg.Name)
 		}
 	}
 	return nil
@@ -223,7 +222,7 @@ func exposePathForCheck(tg *structs.TaskGroup, s *structs.Service, check *struct
 	var port int
 	if mapping := tg.Networks.Port(s.PortLabel); mapping.Value <= 0 { // try looking up by port label
 		if port, _ = strconv.Atoi(s.PortLabel); port <= 0 { // then try direct port value
-			return nil, errors.Errorf(
+			return nil, fmt.Errorf(
 				"unable to determine local service port for service check %s->%s->%s",
 				tg.Name, s.Name, check.Name,
 			)

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/structs"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
@@ -25,7 +26,7 @@ var fakeNodePlugin = &dynamicplugins.PluginInfo{
 }
 
 func TestCSIController_AttachVolume(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -172,7 +173,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 }
 
 func TestCSIController_ValidateVolume(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -275,7 +276,7 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 }
 
 func TestCSIController_DetachVolume(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -358,7 +359,7 @@ func TestCSIController_DetachVolume(t *testing.T) {
 }
 
 func TestCSIController_CreateVolume(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -460,7 +461,7 @@ func TestCSIController_CreateVolume(t *testing.T) {
 }
 
 func TestCSIController_DeleteVolume(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -524,7 +525,7 @@ func TestCSIController_DeleteVolume(t *testing.T) {
 }
 
 func TestCSIController_ListVolumes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -632,7 +633,7 @@ func TestCSIController_ListVolumes(t *testing.T) {
 	}
 }
 func TestCSIController_CreateSnapshot(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -725,7 +726,7 @@ func TestCSIController_CreateSnapshot(t *testing.T) {
 }
 
 func TestCSIController_DeleteSnapshot(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -789,7 +790,7 @@ func TestCSIController_DeleteSnapshot(t *testing.T) {
 }
 
 func TestCSIController_ListSnapshots(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name             string
@@ -893,7 +894,7 @@ func TestCSIController_ListSnapshots(t *testing.T) {
 }
 
 func TestCSINode_DetachVolume(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		Name             string

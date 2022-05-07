@@ -549,6 +549,7 @@ type Node struct {
 	Links                 map[string]string
 	Meta                  map[string]string
 	NodeClass             string
+	CgroupParent          string
 	Drain                 bool
 	DrainStrategy         *DrainStrategy
 	SchedulingEligibility string
@@ -905,6 +906,7 @@ func (v *StatValue) String() string {
 type NodeListStub struct {
 	Address               string
 	ID                    string
+	Attributes            map[string]string `json:",omitempty"`
 	Datacenter            string
 	Name                  string
 	NodeClass             string

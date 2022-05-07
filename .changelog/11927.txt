@@ -1,4 +1,3 @@
-```
-release-note:bug
-Fixed a bug where connect sidecar resources were ignored when using HCL1
+```release-note:bug
+jobspec: Fixed a bug where connect sidecar resources were ignored when using HCL1
 ```

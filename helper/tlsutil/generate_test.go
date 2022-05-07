@@ -10,11 +10,11 @@ import (
 	"encoding/pem"
 	"io"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
-	"strings"
-
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,7 +34,7 @@ func TestSerialNumber(t *testing.T) {
 }
 
 func TestGeneratePrivateKey(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	_, p, err := GeneratePrivateKey()
 	require.Nil(t, err)
 	require.NotEmpty(t, p)
@@ -62,6 +62,8 @@ func (s *TestSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts)
 }
 
 func TestGenerateCA(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("no signer", func(t *testing.T) {
 		ca, pk, err := GenerateCA(CAOpts{Signer: &TestSigner{}})
 		require.Error(t, err)
@@ -114,7 +116,8 @@ func TestGenerateCA(t *testing.T) {
 }
 
 func TestGenerateCert(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
+
 	signer, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.Nil(t, err)
 	ca, _, err := GenerateCA(CAOpts{Signer: signer})

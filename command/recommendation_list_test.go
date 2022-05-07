@@ -4,18 +4,23 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/hashicorp/nomad/api"
 )
 
 func TestRecommendationListCommand_Run(t *testing.T) {
+	ci.Parallel(t)
 	require := require.New(t)
-	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
+
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+	clientID := srv.Agent.Client().NodeID()
+	testutil.WaitForClient(t, srv.Agent.Client().RPC, clientID, srv.Agent.Client().Region())
 
 	ui := cli.NewMockUi()
 	cmd := &RecommendationListCommand{Meta: Meta{Ui: ui}}
@@ -74,6 +79,8 @@ func TestRecommendationListCommand_Run(t *testing.T) {
 }
 
 func TestRecommendationListCommand_Sort(t *testing.T) {
+	ci.Parallel(t)
+
 	testCases := []struct {
 		inputRecommendationList []*api.Recommendation
 		expectedOutputList      []*api.Recommendation

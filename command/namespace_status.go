@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -80,6 +81,16 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 	}
 
 	c.Ui.Output(formatNamespaceBasics(ns))
+
+	if len(ns.Meta) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Metadata[reset]"))
+		var meta []string
+		for k := range ns.Meta {
+			meta = append(meta, fmt.Sprintf("%s|%s", k, ns.Meta[k]))
+		}
+		sort.Strings(meta)
+		c.Ui.Output(formatKV(meta))
+	}
 
 	if ns.Quota != "" {
 		quotas := client.Quotas()

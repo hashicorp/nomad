@@ -92,9 +92,483 @@ query parameter. Prior to Nomad 1.0 namespaces were Enterprise-only.
 Here is an example using curl:
 
 ```shell-session
-$ curl \
-    https://localhost:4646/v1/jobs?namespace=qa
+$ curl https://localhost:4646/v1/jobs?namespace=qa
 ```
+
+## Filtering
+
+Filter expressions refine data queries for some API listing endpoints, as
+notated in the individual API endpoints documentation.
+
+To create a filter expression, you will write one or more expressions. Each
+expression has matching operators composed of selectors and values.
+
+Filtering is executed on the Nomad server, before data is returned, reducing
+the network load. To pass a filter expression to Nomad, use the `filter` query
+parameter with the URL encoded expression when sending requests to HTTP API
+endpoints that support it.
+
+```shell-session
+$ curl --get https://localhost:4646/v1/<path> --data-urlencode 'filter=<filter expression>'
+```
+
+Some endpoints may have other query parameters that are used for filtering, but
+they can't be used with the `filter` query parameter. Doing so will result in a
+`400` status error response. These query parameters are usually backed by a
+database index, so they may be prefereable over an equivalent simple `filter`
+expression due to better resource usage and performance.
+
+### Creating Expressions
+
+A single expression is a matching operator with a selector and value and they
+are written in plain text format. Boolean logic and parenthesization are
+supported. In general, whitespace is ignored, except within literal strings.
+
+#### Matching Operators
+
+All matching operators use a selector or value to choose what data should be
+matched. Each endpoint that supports filtering accepts a potentially
+different list of selectors and is detailed in the API documentation for
+those endpoints.
+
+```hcl
+// Equality & Inequality checks
+<Selector> == "<Value>"
+<Selector> != "<Value>"
+
+// Emptiness checks
+<Selector> is empty
+<Selector> is not empty
+
+// Contains checks or Substring Matching
+"<Value>" in <Selector>
+"<Value>" not in <Selector>
+<Selector> contains "<Value>"
+<Selector> not contains "<Value>"
+
+// Regular Expression Matching
+<Selector> matches "<Value>"
+<Selector> not matches "<Value>"
+```
+
+#### Selectors
+
+Selectors are used by matching operators to create an expression. They are
+defined by a `.` separated list of names. Each name must start with an ASCII
+letter and can contain ASCII letters, numbers, and underscores. When part of
+the selector references a map value it may be expressed using the form
+`["<map key name>"]` instead of `.<map key name>`. This allows the possibility
+of using map keys that are not valid selectors in and of themselves.
+
+```hcl
+// selects the `cache` key within the `TaskGroups` mapping for the
+// /v1/deployments endpoint
+TaskGroups.cache
+
+// Also selects the `cache` key for the same endpoint
+TaskGroups["cache"]
+```
+
+#### Values
+
+Values are used by matching operators to create an expression. Values can be
+any valid selector, a number, or a string. It is best practice to quote values.
+Numbers can be base 10 integers or floating point numbers.
+
+When quoting strings, they may either be enclosed in double quotes or
+backticks. When enclosed in backticks they are treated as raw strings and
+escape sequences such as `\n` will not be expanded.
+
+### Connecting Expressions
+
+There are several methods for connecting expressions, including:
+
+- logical `or`
+- logical `and`
+- logical `not`
+- grouping with parenthesis
+- matching expressions
+
+```hcl
+// Logical Or - evaluates to true if either sub-expression does
+<Expression 1> or <Expression 2>
+
+// Logical And - evaluates to true if both sub-expressions do
+<Expression 1 > and <Expression 2>
+
+// Logical Not - evaluates to true if the sub-expression does not
+not <Expression 1>
+
+// Grouping - Overrides normal precedence rules
+( <Expression 1> )
+
+// Inspects data to check for a match
+<Matching Expression 1>
+```
+
+Standard operator precedence can be expected for the various forms. For
+example, the following two expressions would be equivalent.
+
+```hcl
+<Expression 1> and not <Expression 2> or <Expression 3>
+
+( <Expression 1> and (not <Expression 2> )) or <Expression 3>
+```
+
+### Filter Utilization
+
+Generally, only the main object is filtered. When filtering for an item within
+an array that is not at the top level, the entire array that contains the item
+will be returned. This is usually the outermost object of a response, but in
+some cases the filtering is performed on a object embedded within the results.
+
+#### Performance
+
+Filters are executed on the servers and therefore will consume some amount
+of CPU time on the server. For non-stale queries this means that the filter
+is executed on the leader.
+
+#### Filtering Examples
+
+##### Jobs API
+
+Command (Unfiltered)
+
+```shell-session
+$ curl --request GET https://localhost:4646/v1/jobs
+```
+
+Response (Unfiltered)
+
+```json
+[
+  {
+    "CreateIndex": 52,
+    "Datacenters": [
+      "dc1",
+      "dc2"
+    ],
+    "ID": "countdash",
+    "JobModifyIndex": 56,
+    "JobSummary": {
+      "Children": {
+        "Dead": 0,
+        "Pending": 0,
+        "Running": 0
+      },
+      "CreateIndex": 52,
+      "JobID": "countdash",
+      "ModifyIndex": 55,
+      "Namespace": "default",
+      "Summary": {
+        "api": {
+          "Complete": 0,
+          "Failed": 0,
+          "Lost": 0,
+          "Queued": 1,
+          "Running": 0,
+          "Starting": 0
+        },
+        "dashboard": {
+          "Complete": 0,
+          "Failed": 0,
+          "Lost": 0,
+          "Queued": 1,
+          "Running": 0,
+          "Starting": 0
+        }
+      }
+    },
+    "ModifyIndex": 56,
+    "Multiregion": null,
+    "Name": "countdash",
+    "Namespace": "default",
+    "ParameterizedJob": false,
+    "ParentID": "",
+    "Periodic": false,
+    "Priority": 50,
+    "Status": "pending",
+    "StatusDescription": "",
+    "Stop": false,
+    "SubmitTime": 1645230445788556000,
+    "Type": "service"
+  },
+  {
+    "CreateIndex": 42,
+    "Datacenters": [
+      "dc1"
+    ],
+    "ID": "example",
+    "JobModifyIndex": 42,
+    "JobSummary": {
+      "Children": {
+        "Dead": 0,
+        "Pending": 0,
+        "Running": 0
+      },
+      "CreateIndex": 42,
+      "JobID": "example",
+      "ModifyIndex": 46,
+      "Namespace": "default",
+      "Summary": {
+        "cache": {
+          "Complete": 0,
+          "Failed": 0,
+          "Lost": 0,
+          "Queued": 0,
+          "Running": 1,
+          "Starting": 0
+        }
+      }
+    },
+    "ModifyIndex": 49,
+    "Multiregion": null,
+    "Name": "example",
+    "Namespace": "default",
+    "ParameterizedJob": false,
+    "ParentID": "",
+    "Periodic": false,
+    "Priority": 50,
+    "Status": "running",
+    "StatusDescription": "",
+    "Stop": false,
+    "SubmitTime": 1645230403921889000,
+    "Type": "service"
+  }
+]
+```
+
+Command (Filtered)
+
+```shell
+curl --get https://localhost:4646/v1/jobs \
+    --data-urlencode 'filter=Datacenters contains "dc2"'
+```
+
+Response (Filtered)
+
+```json
+[
+  {
+    "CreateIndex": 52,
+    "Datacenters": [
+      "dc1",
+      "dc2"
+    ],
+    "ID": "countdash",
+    "JobModifyIndex": 56,
+    "JobSummary": {
+      "Children": {
+        "Dead": 0,
+        "Pending": 0,
+        "Running": 0
+      },
+      "CreateIndex": 52,
+      "JobID": "countdash",
+      "ModifyIndex": 55,
+      "Namespace": "default",
+      "Summary": {
+        "api": {
+          "Complete": 0,
+          "Failed": 0,
+          "Lost": 0,
+          "Queued": 1,
+          "Running": 0,
+          "Starting": 0
+        },
+        "dashboard": {
+          "Complete": 0,
+          "Failed": 0,
+          "Lost": 0,
+          "Queued": 1,
+          "Running": 0,
+          "Starting": 0
+        }
+      }
+    },
+    "ModifyIndex": 56,
+    "Multiregion": null,
+    "Name": "countdash",
+    "Namespace": "default",
+    "ParameterizedJob": false,
+    "ParentID": "",
+    "Periodic": false,
+    "Priority": 50,
+    "Status": "pending",
+    "StatusDescription": "",
+    "Stop": false,
+    "SubmitTime": 1645230445788556000,
+    "Type": "service"
+  }
+]
+```
+
+##### Deployments API
+
+Command (Unfiltered)
+
+```shell-session
+$ curl --request GET https://localhost:4646/v1/deployments
+```
+
+Response (Unfiltered)
+
+```json
+[
+  {
+    "CreateIndex": 54,
+    "EvalPriority": 50,
+    "ID": "58fd0616-ce64-d14b-6917-03d0ab5af67e",
+    "IsMultiregion": false,
+    "JobCreateIndex": 52,
+    "JobID": "countdash",
+    "JobModifyIndex": 52,
+    "JobSpecModifyIndex": 52,
+    "JobVersion": 0,
+    "ModifyIndex": 59,
+    "Namespace": "default",
+    "Status": "cancelled",
+    "StatusDescription": "Cancelled due to newer version of job",
+    "TaskGroups": {
+      "dashboard": {
+        "AutoPromote": false,
+        "AutoRevert": false,
+        "DesiredCanaries": 0,
+        "DesiredTotal": 1,
+        "HealthyAllocs": 0,
+        "PlacedAllocs": 0,
+        "PlacedCanaries": null,
+        "ProgressDeadline": 600000000000,
+        "Promoted": false,
+        "RequireProgressBy": null,
+        "UnhealthyAllocs": 0
+      },
+      "api": {
+        "AutoPromote": false,
+        "AutoRevert": false,
+        "DesiredCanaries": 0,
+        "DesiredTotal": 1,
+        "HealthyAllocs": 0,
+        "PlacedAllocs": 0,
+        "PlacedCanaries": null,
+        "ProgressDeadline": 600000000000,
+        "Promoted": false,
+        "RequireProgressBy": null,
+        "UnhealthyAllocs": 0
+      }
+    }
+  },
+  {
+    "CreateIndex": 43,
+    "EvalPriority": 50,
+    "ID": "1f18b48c-b33b-8e96-5640-71e3f3000242",
+    "IsMultiregion": false,
+    "JobCreateIndex": 42,
+    "JobID": "example",
+    "JobModifyIndex": 42,
+    "JobSpecModifyIndex": 42,
+    "JobVersion": 0,
+    "ModifyIndex": 49,
+    "Namespace": "default",
+    "Status": "successful",
+    "StatusDescription": "Deployment completed successfully",
+    "TaskGroups": {
+      "cache": {
+        "AutoPromote": false,
+        "AutoRevert": false,
+        "DesiredCanaries": 0,
+        "DesiredTotal": 1,
+        "HealthyAllocs": 1,
+        "PlacedAllocs": 1,
+        "PlacedCanaries": null,
+        "ProgressDeadline": 600000000000,
+        "Promoted": false,
+        "RequireProgressBy": "2022-02-18T19:36:54.421823-05:00",
+        "UnhealthyAllocs": 0
+      }
+    }
+  }
+]
+```
+
+Command (Filtered)
+
+```shell
+curl --get https://localhost:4646/v1/deployments \
+    --data-urlencode 'filter=Status != "successful"'
+```
+
+Response (Filtered)
+
+```json
+[
+  {
+    "CreateIndex": 54,
+    "EvalPriority": 50,
+    "ID": "58fd0616-ce64-d14b-6917-03d0ab5af67e",
+    "IsMultiregion": false,
+    "JobCreateIndex": 52,
+    "JobID": "countdash",
+    "JobModifyIndex": 52,
+    "JobSpecModifyIndex": 52,
+    "JobVersion": 0,
+    "ModifyIndex": 59,
+    "Namespace": "default",
+    "Status": "cancelled",
+    "StatusDescription": "Cancelled due to newer version of job",
+    "TaskGroups": {
+      "dashboard": {
+        "AutoPromote": false,
+        "AutoRevert": false,
+        "DesiredCanaries": 0,
+        "DesiredTotal": 1,
+        "HealthyAllocs": 0,
+        "PlacedAllocs": 0,
+        "PlacedCanaries": null,
+        "ProgressDeadline": 600000000000,
+        "Promoted": false,
+        "RequireProgressBy": null,
+        "UnhealthyAllocs": 0
+      },
+      "api": {
+        "AutoPromote": false,
+        "AutoRevert": false,
+        "DesiredCanaries": 0,
+        "DesiredTotal": 1,
+        "HealthyAllocs": 0,
+        "PlacedAllocs": 0,
+        "PlacedCanaries": null,
+        "ProgressDeadline": 600000000000,
+        "Promoted": false,
+        "RequireProgressBy": null,
+        "UnhealthyAllocs": 0
+      }
+    }
+  }
+]
+```
+
+## Pagination
+
+Some list endpoints support partial results to limit the amount of data
+retrieved. The returned list is split into pages and the page size can be set
+using the `per_page` query parameter with a positive integer value.
+
+If more data is available past the page requested, the response will contain an
+HTTP header named `X-Nomad-Nexttoken` with the value of the next item to be
+retrieved. This value can then be set as a query parameter called `next_token`
+in a follow-up request to retrieve the next page.
+
+When the last page is reached, the `X-Nomad-Nexttoken` HTTP header will not
+be present in the response, indicating that there is nothing more to return.
+
+## Ordering
+
+List results are usually returned in ascending order by their internal key,
+such as their `ID`. Some endpoints may return data sorted by their
+`CreateIndex` value, which roughly corelates to their creation order. The
+result order may be reversed using the `reverse=true` query parameter when
+supported by the endpoint.
 
 ## Blocking Queries
 

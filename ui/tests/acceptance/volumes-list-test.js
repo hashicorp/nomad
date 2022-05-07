@@ -7,6 +7,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import VolumesList from 'nomad-ui/tests/pages/storage/volumes/list';
 import Layout from 'nomad-ui/tests/pages/layout';
+import percySnapshot from '@percy/ember';
 
 const assignWriteAlloc = (volume, alloc) => {
   volume.writeAllocs.add(alloc);
@@ -53,6 +54,8 @@ module('Acceptance | volumes list', function (hooks) {
     server.createList('csi-volume', volumeCount);
 
     await VolumesList.visit();
+
+    await percySnapshot(assert);
 
     const sortedVolumes = server.db.csiVolumes.sortBy('id');
     assert.equal(VolumesList.volumes.length, VolumesList.pageSize);
@@ -125,6 +128,8 @@ module('Acceptance | volumes list', function (hooks) {
 
   test('when there are no volumes, there is an empty message', async function (assert) {
     await VolumesList.visit();
+
+    await percySnapshot(assert);
 
     assert.ok(VolumesList.isEmpty);
     assert.equal(VolumesList.emptyState.headline, 'No Volumes');

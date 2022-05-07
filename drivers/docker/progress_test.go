@@ -4,10 +4,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_DockerImageProgressManager(t *testing.T) {
+	ci.Parallel(t)
 
 	pm := &imageProgressManager{
 		imageProgress: &imageProgress{

@@ -42,7 +42,7 @@
     <li data-test-tab="allocations">
       <LinkTo
         @route="jobs.job.allocations"
-        @model={{@job}}
+        @model={{format-job-id @job.id}}
         @activeClass="is-active"
       >
         Allocations

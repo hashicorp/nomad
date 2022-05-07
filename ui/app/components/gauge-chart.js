@@ -2,7 +2,7 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { assert } from '@ember/debug';
 import { guidFor } from '@ember/object/internals';
-import { run } from '@ember/runloop';
+import { once } from '@ember/runloop';
 import d3Shape from 'd3-shape';
 import WindowResizable from 'nomad-ui/mixins/window-resizable';
 import { classNames } from '@ember-decorators/component';
@@ -88,6 +88,6 @@ export default class GaugeChart extends Component.extend(WindowResizable) {
   }
 
   windowResizeHandler() {
-    run.once(this, this.updateDimensions);
+    once(this, this.updateDimensions);
   }
 }

@@ -2,18 +2,26 @@ package cgutil
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// CpusetManager is used to setup cpuset cgroups for each task. A pool of shared cpus is managed for
-// tasks which don't require any reserved cores and a cgroup is managed seperetly for each task which
-// require reserved cores.
+const (
+	// CgroupRoot is hard-coded in the cgroups specification.
+	// It only applies to linux but helpers have references to it in driver(s).
+	CgroupRoot = "/sys/fs/cgroup"
+)
+
+// CpusetManager is used to setup cpuset cgroups for each task.
 type CpusetManager interface {
-	// Init should be called before any tasks are managed to ensure the cgroup parent exists and
-	// check that proper permissions are granted to manage cgroups.
-	Init() error
+	// Init should be called with the initial set of reservable cores before any
+	// allocations are managed. Ensures the parent cgroup exists and proper permissions
+	// are available for managing cgroups.
+	Init([]uint16) error
 
 	// AddAlloc adds an allocation to the manager
 	AddAlloc(alloc *structs.Allocation)
@@ -26,8 +34,26 @@ type CpusetManager interface {
 	CgroupPathFor(allocID, taskName string) CgroupPathGetter
 }
 
-// CgroupPathGetter is a function which returns the cgroup path and any error which ocured during cgroup initialization.
-// It should block until the cgroup has been created or an error is reported
+type NoopCpusetManager struct{}
+
+func (n NoopCpusetManager) Init([]uint16) error {
+	return nil
+}
+
+func (n NoopCpusetManager) AddAlloc(alloc *structs.Allocation) {
+}
+
+func (n NoopCpusetManager) RemoveAlloc(allocID string) {
+}
+
+func (n NoopCpusetManager) CgroupPathFor(allocID, task string) CgroupPathGetter {
+	return func(context.Context) (string, error) { return "", nil }
+}
+
+// CgroupPathGetter is a function which returns the cgroup path and any error which
+// occurred during cgroup initialization.
+//
+// It should block until the cgroup has been created or an error is reported.
 type CgroupPathGetter func(context.Context) (path string, err error)
 
 type TaskCgroupInfo struct {
@@ -37,20 +63,25 @@ type TaskCgroupInfo struct {
 	Error              error
 }
 
-func NoopCpusetManager() CpusetManager { return noopCpusetManager{} }
+// identity is the "<allocID>.<taskName>" string that uniquely identifies an
+// individual instance of a task within the flat cgroup namespace
+type identity string
 
-type noopCpusetManager struct{}
-
-func (n noopCpusetManager) Init() error {
-	return nil
+func makeID(allocID, task string) identity {
+	return identity(fmt.Sprintf("%s.%s", allocID, task))
 }
 
-func (n noopCpusetManager) AddAlloc(alloc *structs.Allocation) {
+func makeScope(id identity) string {
+	return string(id) + ".scope"
 }
 
-func (n noopCpusetManager) RemoveAlloc(allocID string) {
-}
-
-func (n noopCpusetManager) CgroupPathFor(allocID, task string) CgroupPathGetter {
-	return func(context.Context) (string, error) { return "", nil }
+// SplitPath determines the parent and cgroup from p.
+// p must contain at least 2 elements (parent + cgroup).
+//
+// Handles the cgroup root if present.
+func SplitPath(p string) (string, string) {
+	p = strings.TrimPrefix(p, CgroupRoot)
+	p = strings.Trim(p, "/")
+	parts := strings.Split(p, "/")
+	return parts[0], "/" + filepath.Join(parts[1:]...)
 }

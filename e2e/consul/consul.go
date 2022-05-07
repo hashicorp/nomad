@@ -42,7 +42,6 @@ func init() {
 			new(ScriptChecksE2ETest),
 			new(CheckRestartE2ETest),
 			new(OnUpdateChecksTest),
-			new(ConsulNamespacesE2ETest),
 		},
 	})
 }

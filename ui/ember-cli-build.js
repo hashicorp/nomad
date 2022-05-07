@@ -6,7 +6,7 @@ const isProd = environment === 'production';
 const isTest = environment === 'test';
 
 module.exports = function (defaults) {
-  var app = new EmberApp(defaults, {
+  let app = new EmberApp(defaults, {
     svg: {
       paths: [
         'node_modules/@hashicorp/structure-icons/dist',

@@ -1,14 +1,15 @@
 import Component from '@ember/component';
-import { classNames } from '@ember-decorators/component';
+import { classNames, attributeBindings } from '@ember-decorators/component';
 import { task } from 'ember-concurrency';
 import { action, set } from '@ember/object';
 import { inject as service } from '@ember/service';
-import { debounce, run } from '@ember/runloop';
+import { debounce, next } from '@ember/runloop';
 
 const SLASH_KEY = '/';
 const MAXIMUM_RESULTS = 10;
 
 @classNames('global-search-container')
+@attributeBindings('data-test-search-parent')
 export default class GlobalSearchControl extends Component {
   @service router;
   @service token;
@@ -223,7 +224,7 @@ export default class GlobalSearchControl extends Component {
   @action
   onCloseEvent(select, event) {
     if (event.key === 'Escape') {
-      run.next(() => {
+      next(() => {
         this.element.querySelector('.ember-power-select-trigger').blur();
       });
     }

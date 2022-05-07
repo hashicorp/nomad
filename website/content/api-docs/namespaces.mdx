@@ -48,17 +48,24 @@ $ curl \
 ```json
 [
   {
-    "CreateIndex": 31,
-    "Description": "Production API Servers",
-    "ModifyIndex": 31,
-    "Name": "api-prod",
+    "Capabilities": null,
+    "CreateIndex": 1,
+    "Description": "Default shared namespace",
+    "Meta": null,
+    "ModifyIndex": 1,
+    "Name": "default",
     "Quota": ""
   },
   {
-    "CreateIndex": 5,
-    "Description": "Default shared namespace",
-    "ModifyIndex": 5,
-    "Name": "default",
+    "Capabilities": null,
+    "CreateIndex": 17,
+    "Description": "Development Staging Namespace",
+    "Meta": {
+        "type": "dev",
+        "contact": "helpdesk@example.com"
+    },
+    "ModifyIndex": 17,
+    "Name": "staging",
     "Quota": ""
   }
 ]
@@ -88,19 +95,23 @@ The table below shows this endpoint's support for
 
 ```shell-session
 $ curl \
-    https://localhost:4646/v1/namespace/api-prod
+    https://localhost:4646/v1/namespace/staging
 ```
 
 ### Sample Response
 
 ```json
 {
-  "CreateIndex": 31,
-  "Description": "Production API Servers",
-  "Quota": "",
-  "Hash": "N8WvePwqkp6J354eLJMKyhvsFdPELAos0VuBfMoVKoU=",
-  "ModifyIndex": 31,
-  "Name": "api-prod"
+  "Capabilities": null,
+  "CreateIndex": 17,
+  "Description": "Development Staging Namespace",
+  "Meta": {
+    "type": "dev",
+    "contact": "helpdesk@example.com"
+  },
+  "ModifyIndex": 17,
+  "Name": "staging",
+  "Quota": ""
 }
 ```
 
@@ -128,6 +139,10 @@ The table below shows this endpoint's support for
 - `Description` `(string: "")` - Specifies an optional human-readable
   description of the namespace.
 
+- `Meta` `(object: null)` - Optional object with string keys and values of
+  metadata to attach to the namespace. Namespace metadata is not used by Nomad
+  and is intended for use by operators and third party tools.
+
 - `Quota` `(string: "")` - Specifies an quota to attach to the namespace.
 
 ### Sample Payload
@@ -136,9 +151,14 @@ The table below shows this endpoint's support for
 {
   "Name": "api-prod",
   "Description": "Production API Servers",
+  "Meta": {
+    "contact": "platform-eng@example.com"
+  },
   "Quota": "prod-quota"
 }
 ```
+
+Note that the `Quota` key is Enterprise-only.
 
 ### Sample Request
 

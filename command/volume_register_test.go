@@ -5,11 +5,12 @@ import (
 
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestVolumeDispatchParse(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		hcl string
@@ -43,7 +44,7 @@ rando = "bar"
 }
 
 func TestCSIVolumeDecode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		name     string
@@ -54,6 +55,7 @@ func TestCSIVolumeDecode(t *testing.T) {
 		name: "volume creation",
 		hcl: `
 id              = "testvolume"
+namespace       = "prod"
 name            = "test"
 type            = "csi"
 plugin_id       = "myplugin"
@@ -98,6 +100,7 @@ topology_request {
 `,
 		expected: &api.CSIVolume{
 			ID:                   "testvolume",
+			Namespace:            "prod",
 			Name:                 "test",
 			PluginID:             "myplugin",
 			SnapshotID:           "snap-12345",
@@ -135,6 +138,7 @@ topology_request {
 		name: "volume registration",
 		hcl: `
 id              = "testvolume"
+namespace       = "prod"
 external_id     = "vol-12345"
 name            = "test"
 type            = "csi"
@@ -161,6 +165,7 @@ topology_request {
 `,
 		expected: &api.CSIVolume{
 			ID:         "testvolume",
+			Namespace:  "prod",
 			ExternalID: "vol-12345",
 			Name:       "test",
 			PluginID:   "myplugin",

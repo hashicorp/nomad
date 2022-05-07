@@ -8,11 +8,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/stretchr/testify/require"
 )
 
 func TestEquivalentToHCL1(t *testing.T) {
+	ci.Parallel(t)
+
 	hclSpecDir := "../jobspec/test-fixtures/"
 	fis, err := ioutil.ReadDir(hclSpecDir)
 	require.NoError(t, err)
@@ -41,6 +44,8 @@ func TestEquivalentToHCL1(t *testing.T) {
 }
 
 func TestEquivalentToHCL1_ComplexConfig(t *testing.T) {
+	ci.Parallel(t)
+
 	name := "./test-fixtures/config-compatibility.hcl"
 	f, err := os.Open(name)
 	require.NoError(t, err)
@@ -58,6 +63,8 @@ func TestEquivalentToHCL1_ComplexConfig(t *testing.T) {
 }
 
 func TestParse_VarsAndFunctions(t *testing.T) {
+	ci.Parallel(t)
+
 	hcl := `
 variables {
   region_var = "default"
@@ -82,6 +89,8 @@ job "example" {
 }
 
 func TestParse_VariablesDefaultsAndSet(t *testing.T) {
+	ci.Parallel(t)
+
 	hcl := `
 variables {
   region_var = "default_region"
@@ -179,6 +188,8 @@ job "example" {
 
 // TestParse_UnknownVariables asserts that unknown variables are left intact for further processing
 func TestParse_UnknownVariables(t *testing.T) {
+	ci.Parallel(t)
+
 	hcl := `
 variables {
   region_var = "default"
@@ -212,6 +223,8 @@ job "example" {
 // TestParse_UnsetVariables asserts that variables that have neither types nor
 // values return early instead of panicking.
 func TestParse_UnsetVariables(t *testing.T) {
+	ci.Parallel(t)
+
 	hcl := `
 variable "region_var" {}
 job "example" {
@@ -232,6 +245,8 @@ job "example" {
 }
 
 func TestParse_Locals(t *testing.T) {
+	ci.Parallel(t)
+
 	hcl := `
 variables {
   region_var = "default_region"
@@ -279,6 +294,8 @@ job "example" {
 }
 
 func TestParse_FileOperators(t *testing.T) {
+	ci.Parallel(t)
+
 	hcl := `
 job "example" {
   region      = file("parse_test.go")
@@ -314,6 +331,8 @@ job "example" {
 }
 
 func TestParseDynamic(t *testing.T) {
+	ci.Parallel(t)
+
 	hcl := `
 job "example" {
 
@@ -375,6 +394,8 @@ job "example" {
 }
 
 func TestParse_InvalidHCL(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("invalid body", func(t *testing.T) {
 		hcl := `invalid{hcl`
 
@@ -418,6 +439,8 @@ job "example" {
 }
 
 func TestParse_InvalidScalingSyntax(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name        string
 		expectedErr string
@@ -582,6 +605,8 @@ job "example" {
 }
 
 func TestParseJob_JobWithFunctionsAndLookups(t *testing.T) {
+	ci.Parallel(t)
+
 	hcl := `
 variable "env" {
   description = "target environment for the job"
@@ -711,6 +736,8 @@ job "job-webserver" {
 }
 
 func TestParse_TaskEnvs(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name       string
 		envSnippet string
@@ -784,6 +811,8 @@ job "example" {
 }
 
 func TestParse_TaskEnvs_Multiple(t *testing.T) {
+	ci.Parallel(t)
+
 	hcl := `
 job "example" {
   group "group" {
@@ -808,6 +837,8 @@ job "example" {
 }
 
 func Test_TaskEnvs_Invalid(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name        string
 		envSnippet  string
@@ -856,6 +887,8 @@ job "example" {
 }
 
 func TestParse_Meta_Alternatives(t *testing.T) {
+	ci.Parallel(t)
+
 	hcl := ` job "example" {
   group "group" {
     task "task" {
@@ -904,6 +937,7 @@ func TestParse_Meta_Alternatives(t *testing.T) {
 // TestParse_UndefinedVariables asserts that values with undefined variables are left
 // intact in the job representation
 func TestParse_UndefinedVariables(t *testing.T) {
+	ci.Parallel(t)
 
 	cases := []string{
 		"plain",
@@ -947,6 +981,8 @@ func TestParse_UndefinedVariables(t *testing.T) {
 }
 
 func TestParseServiceCheck(t *testing.T) {
+	ci.Parallel(t)
+
 	hcl := ` job "group_service_check_script" {
   group "group" {
     service {
@@ -996,6 +1032,8 @@ func TestParseServiceCheck(t *testing.T) {
 }
 
 func TestWaitConfig(t *testing.T) {
+	ci.Parallel(t)
+	
 	hclBytes, err := os.ReadFile("test-fixtures/template-wait-config.hcl")
 	require.NoError(t, err)
 

@@ -2,6 +2,8 @@ package oversubscription
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
@@ -110,11 +112,18 @@ func (tc *OversubscriptionTest) runTest(f *framework.F, jobPrefix, jobfile strin
 	f.Equal(int64(20), resources.Memory.MemoryMB)
 	f.Equal(int64(30), resources.Memory.MemoryMaxMB)
 
-	// assert the status API report memory
-	allocInfo, err := e2eutil.Command("nomad", "alloc", "status", alloc.ID)
-	f.NoError(err)
-	f.Contains(allocInfo, "/20 MiB")     // memory reserve
-	f.Contains(allocInfo, "Max: 30 MiB") // memory max
+	// assert the status API reports memory, we need to wait for the
+	// for metrics to be written before we can assert the entire
+	// command line
+	var allocInfo string
+	f.Eventually(func() bool {
+		allocInfo, err = e2eutil.Command("nomad", "alloc", "status", alloc.ID)
+		if err != nil {
+			return false
+		}
+		return strings.Contains(allocInfo, "/20 MiB") && // memory reserve
+			strings.Contains(allocInfo, "Max: 30 MiB") // memory max
+	}, 10*time.Second, 200*time.Millisecond, "unexpected memory output")
 
 	return alloc
 }

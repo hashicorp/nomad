@@ -105,6 +105,9 @@ const (
 	OneTimeTokenUpsertRequestType                MessageType = 44
 	OneTimeTokenDeleteRequestType                MessageType = 45
 	OneTimeTokenExpireRequestType                MessageType = 46
+	ServiceRegistrationUpsertRequestType         MessageType = 47
+	ServiceRegistrationDeleteByIDRequestType     MessageType = 48
+	ServiceRegistrationDeleteByNodeIDRequestType MessageType = 49
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
@@ -273,8 +276,8 @@ type QueryOptions struct {
 	// previous response.
 	NextToken string
 
-	// Ascending is used to have results sorted in ascending chronological order.
-	Ascending bool
+	// Reverse is used to reverse the default order of list results.
+	Reverse bool
 
 	InternalRpcInfo
 }
@@ -293,7 +296,7 @@ func (q QueryOptions) TimeToBlock() time.Duration {
 	return q.MaxQueryTime
 }
 
-func (q QueryOptions) SetTimeToBlock(t time.Duration) {
+func (q *QueryOptions) SetTimeToBlock(t time.Duration) {
 	q.MaxQueryTime = t
 }
 
@@ -828,7 +831,8 @@ type EvalDeleteRequest struct {
 
 // EvalSpecificRequest is used when we just need to specify a target evaluation
 type EvalSpecificRequest struct {
-	EvalID string
+	EvalID         string
+	IncludeRelated bool
 	QueryOptions
 }
 
@@ -1690,16 +1694,17 @@ func (ne *NodeEvent) AddDetail(k, v string) *NodeEvent {
 }
 
 const (
-	NodeStatusInit  = "initializing"
-	NodeStatusReady = "ready"
-	NodeStatusDown  = "down"
+	NodeStatusInit         = "initializing"
+	NodeStatusReady        = "ready"
+	NodeStatusDown         = "down"
+	NodeStatusDisconnected = "disconnected"
 )
 
 // ShouldDrainNode checks if a given node status should trigger an
 // evaluation. Some states don't require any further action.
 func ShouldDrainNode(status string) bool {
 	switch status {
-	case NodeStatusInit, NodeStatusReady:
+	case NodeStatusInit, NodeStatusReady, NodeStatusDisconnected:
 		return false
 	case NodeStatusDown:
 		return true
@@ -1711,7 +1716,7 @@ func ShouldDrainNode(status string) bool {
 // ValidNodeStatus is used to check if a node status is valid
 func ValidNodeStatus(status string) bool {
 	switch status {
-	case NodeStatusInit, NodeStatusReady, NodeStatusDown:
+	case NodeStatusInit, NodeStatusReady, NodeStatusDown, NodeStatusDisconnected:
 		return true
 	default:
 		return false
@@ -1860,6 +1865,9 @@ type Node struct {
 	// Node name
 	Name string
 
+	// CgroupParent for this node (linux only)
+	CgroupParent string
+
 	// HTTPAddr is the address on which the Nomad client is listening for http
 	// requests
 	HTTPAddr string
@@ -1952,6 +1960,15 @@ type Node struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// GetID is a helper for getting the ID when the object may be nil and is
+// required for pagination.
+func (n *Node) GetID() string {
+	if n == nil {
+		return ""
+	}
+	return n.ID
 }
 
 // Sanitize returns a copy of the Node omitting confidential fields
@@ -2207,6 +2224,13 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 			s.NodeResources = n.NodeResources
 			s.ReservedResources = n.ReservedResources
 		}
+
+		// Fetch key attributes from the main Attributes map.
+		if fields.OS {
+			m := make(map[string]string)
+			m["os.name"] = n.Attributes["os.name"]
+			s.Attributes = m
+		}
 	}
 
 	return s
@@ -2217,6 +2241,7 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 type NodeListStub struct {
 	Address               string
 	ID                    string
+	Attributes            map[string]string `json:",omitempty"`
 	Datacenter            string
 	Name                  string
 	NodeClass             string
@@ -2237,6 +2262,7 @@ type NodeListStub struct {
 // NodeStubFields defines which fields are included in the NodeListStub.
 type NodeStubFields struct {
 	Resources bool
+	OS        bool
 }
 
 // Resources is used to define the resources available
@@ -4188,6 +4214,33 @@ func (j *Job) NamespacedID() NamespacedID {
 	}
 }
 
+// GetID implements the IDGetter interface, required for pagination.
+func (j *Job) GetID() string {
+	if j == nil {
+		return ""
+	}
+	return j.ID
+}
+
+// GetNamespace implements the NamespaceGetter interface, required for
+// pagination and filtering namespaces in endpoints that support glob namespace
+// requests using tokens with limited access.
+func (j *Job) GetNamespace() string {
+	if j == nil {
+		return ""
+	}
+	return j.Namespace
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (j *Job) GetCreateIndex() uint64 {
+	if j == nil {
+		return 0
+	}
+	return j.CreateIndex
+}
+
 // Canonicalize is used to canonicalize fields in the Job. This should be
 // called when registering a Job.
 func (j *Job) Canonicalize() {
@@ -4538,27 +4591,39 @@ func (j *Job) IsMultiregion() bool {
 	return j.Multiregion != nil && j.Multiregion.Regions != nil && len(j.Multiregion.Regions) > 0
 }
 
-// VaultPolicies returns the set of Vault policies per task group, per task
-func (j *Job) VaultPolicies() map[string]map[string]*Vault {
-	policies := make(map[string]map[string]*Vault, len(j.TaskGroups))
+// IsPlugin returns whether a job is implements a plugin (currently just CSI)
+func (j *Job) IsPlugin() bool {
+	for _, tg := range j.TaskGroups {
+		for _, task := range tg.Tasks {
+			if task.CSIPluginConfig != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Vault returns the set of Vault blocks per task group, per task
+func (j *Job) Vault() map[string]map[string]*Vault {
+	blocks := make(map[string]map[string]*Vault, len(j.TaskGroups))
 
 	for _, tg := range j.TaskGroups {
-		tgPolicies := make(map[string]*Vault, len(tg.Tasks))
+		tgBlocks := make(map[string]*Vault, len(tg.Tasks))
 
 		for _, task := range tg.Tasks {
 			if task.Vault == nil {
 				continue
 			}
 
-			tgPolicies[task.Name] = task.Vault
+			tgBlocks[task.Name] = task.Vault
 		}
 
-		if len(tgPolicies) != 0 {
-			policies[tg.Name] = tgPolicies
+		if len(tgBlocks) != 0 {
+			blocks[tg.Name] = tgBlocks
 		}
 	}
 
-	return policies
+	return blocks
 }
 
 // ConnectTasks returns the set of Consul Connect enabled tasks defined on the
@@ -4747,6 +4812,7 @@ type TaskGroupSummary struct {
 	Running  int
 	Starting int
 	Lost     int
+	Unknown  int
 }
 
 const (
@@ -4963,6 +5029,9 @@ type Namespace struct {
 	// Capabilities is the set of capabilities allowed for this namespace
 	Capabilities *NamespaceCapabilities
 
+	// Meta is the set of metadata key/value pairs that attached to the namespace
+	Meta map[string]string
+
 	// Hash is the hash of the namespace which is used to efficiently replicate
 	// cross-regions.
 	Hash []byte
@@ -5016,6 +5085,18 @@ func (n *Namespace) SetHash() []byte {
 		}
 	}
 
+	// sort keys to ensure hash stability when meta is stored later
+	var keys []string
+	for k := range n.Meta {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		_, _ = hash.Write([]byte(k))
+		_, _ = hash.Write([]byte(n.Meta[k]))
+	}
+
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
 
@@ -5034,6 +5115,12 @@ func (n *Namespace) Copy() *Namespace {
 		c.EnabledTaskDrivers = helper.CopySliceString(n.Capabilities.EnabledTaskDrivers)
 		c.DisabledTaskDrivers = helper.CopySliceString(n.Capabilities.DisabledTaskDrivers)
 		nc.Capabilities = c
+	}
+	if n.Meta != nil {
+		nc.Meta = make(map[string]string, len(n.Meta))
+		for k, v := range n.Meta {
+			nc.Meta[k] = v
+		}
 	}
 	copy(nc.Hash, n.Hash)
 	return nc
@@ -6101,6 +6188,10 @@ type TaskGroup struct {
 	// StopAfterClientDisconnect, if set, configures the client to stop the task group
 	// after this duration since the last known good heartbeat
 	StopAfterClientDisconnect *time.Duration
+
+	// MaxClientDisconnect, if set, configures the client to allow placed
+	// allocations for tasks in this group to attempt to resume running without a restart.
+	MaxClientDisconnect *time.Duration
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -6157,6 +6248,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 		ntg.StopAfterClientDisconnect = tg.StopAfterClientDisconnect
 	}
 
+	if tg.MaxClientDisconnect != nil {
+		ntg.MaxClientDisconnect = tg.MaxClientDisconnect
+	}
+
 	return ntg
 }
 
@@ -6192,7 +6287,7 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 	}
 
 	for _, service := range tg.Services {
-		service.Canonicalize(job.Name, tg.Name, "group")
+		service.Canonicalize(job.Name, tg.Name, "group", job.Namespace)
 	}
 
 	for _, network := range tg.Networks {
@@ -6218,6 +6313,14 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	if len(tg.Tasks) == 0 {
 		// could be a lone consul gateway inserted by the connect mutator
 		mErr.Errors = append(mErr.Errors, errors.New("Missing tasks for task group"))
+	}
+
+	if tg.MaxClientDisconnect != nil && tg.StopAfterClientDisconnect != nil {
+		mErr.Errors = append(mErr.Errors, errors.New("Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect"))
+	}
+
+	if tg.MaxClientDisconnect != nil && *tg.MaxClientDisconnect < 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("max_client_disconnect cannot be negative"))
 	}
 
 	for idx, constr := range tg.Constraints {
@@ -6335,7 +6438,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		canaries = tg.Update.Canary
 	}
 	for name, volReq := range tg.Volumes {
-		if err := volReq.Validate(canaries); err != nil {
+		if err := volReq.Validate(tg.Count, canaries); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf(
 				"Task group volume validation for %s failed: %v", name, err))
 		}
@@ -6488,6 +6591,10 @@ func (tg *TaskGroup) validateServices() error {
 	var mErr multierror.Error
 	knownTasks := make(map[string]struct{})
 
+	// Track the providers used for this task group. Currently, Nomad only
+	// allows the use of a single service provider within a task group.
+	configuredProviders := make(map[string]struct{})
+
 	// Create a map of known tasks and their services so we can compare
 	// vs the group-level services and checks
 	for _, task := range tg.Tasks {
@@ -6501,9 +6608,22 @@ func (tg *TaskGroup) validateServices() error {
 					mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s is invalid: only task group service checks can be assigned tasks", check.Name))
 				}
 			}
+
+			// Add the service provider to the tracking, if it has not already
+			// been seen.
+			if _, ok := configuredProviders[service.Provider]; !ok {
+				configuredProviders[service.Provider] = struct{}{}
+			}
 		}
 	}
 	for i, service := range tg.Services {
+
+		// Add the service provider to the tracking, if it has not already been
+		// seen.
+		if _, ok := configuredProviders[service.Provider]; !ok {
+			configuredProviders[service.Provider] = struct{}{}
+		}
+
 		if err := service.Validate(); err != nil {
 			outer := fmt.Errorf("Service[%d] %s validation failed: %s", i, service.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
@@ -6532,6 +6652,15 @@ func (tg *TaskGroup) validateServices() error {
 			}
 		}
 	}
+
+	// The initial feature release of native service discovery only allows for
+	// a single service provider to be used across all services in a task
+	// group.
+	if len(configuredProviders) > 1 {
+		mErr.Errors = append(mErr.Errors,
+			errors.New("Multiple service providers used: task group services must use the same provider"))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -6943,7 +7072,7 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 	}
 
 	for _, service := range t.Services {
-		service.Canonicalize(job.Name, tg.Name, t.Name)
+		service.Canonicalize(job.Name, tg.Name, t.Name, job.Namespace)
 	}
 
 	// If Resources are nil initialize them to defaults, otherwise canonicalize
@@ -7883,6 +8012,9 @@ const (
 
 	// TaskPluginHealthy indicates that a plugin managed by Nomad became healthy
 	TaskPluginHealthy = "Plugin became healthy"
+
+	// TaskClientReconnected indicates that the client running the task disconnected.
+	TaskClientReconnected = "Reconnected"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -8094,6 +8226,8 @@ func (e *TaskEvent) PopulateEventDisplayMessage() {
 		desc = "Leader Task in Group dead"
 	case TaskMainDead:
 		desc = "Main tasks in the group died"
+	case TaskClientReconnected:
+		desc = "Client reconnected"
 	default:
 		desc = e.Message
 	}
@@ -8867,6 +9001,10 @@ func (v *Vault) Canonicalize() {
 	if v.ChangeSignal != "" {
 		v.ChangeSignal = strings.ToUpper(v.ChangeSignal)
 	}
+
+	if v.ChangeMode == "" {
+		v.ChangeMode = VaultChangeModeRestart
+	}
 }
 
 // Validate returns if the Vault block is valid.
@@ -9055,6 +9193,15 @@ func (d *Deployment) GetID() string {
 		return ""
 	}
 	return d.ID
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (d *Deployment) GetCreateIndex() uint64 {
+	if d == nil {
+		return 0
+	}
+	return d.CreateIndex
 }
 
 // HasPlacedCanaries returns whether the deployment has placed canaries
@@ -9317,6 +9464,7 @@ const (
 	AllocClientStatusComplete = "complete"
 	AllocClientStatusFailed   = "failed"
 	AllocClientStatusLost     = "lost"
+	AllocClientStatusUnknown  = "unknown"
 )
 
 // Allocation is used to allocate the placement of a task group to a node.
@@ -9444,6 +9592,33 @@ type Allocation struct {
 
 	// ModifyTime is the time the allocation was last updated.
 	ModifyTime int64
+}
+
+// GetID implements the IDGetter interface, required for pagination.
+func (a *Allocation) GetID() string {
+	if a == nil {
+		return ""
+	}
+	return a.ID
+}
+
+// GetNamespace implements the NamespaceGetter interface, required for
+// pagination and filtering namespaces in endpoints that support glob namespace
+// requests using tokens with limited access.
+func (a *Allocation) GetNamespace() string {
+	if a == nil {
+		return ""
+	}
+	return a.Namespace
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (a *Allocation) GetCreateIndex() uint64 {
+	if a == nil {
+		return 0
+	}
+	return a.CreateIndex
 }
 
 // ConsulNamespace returns the Consul namespace of the task group associated
@@ -9686,6 +9861,10 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 		return time.Time{}, false
 	}
 
+	return a.nextRescheduleTime(failTime, reschedulePolicy)
+}
+
+func (a *Allocation) nextRescheduleTime(failTime time.Time, reschedulePolicy *ReschedulePolicy) (time.Time, bool) {
 	nextDelay := a.NextDelay()
 	nextRescheduleTime := failTime.Add(nextDelay)
 	rescheduleEligible := reschedulePolicy.Unlimited || (reschedulePolicy.Attempts > 0 && a.RescheduleTracker == nil)
@@ -9695,6 +9874,18 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 		rescheduleEligible = attempted < attempts && nextDelay < reschedulePolicy.Interval
 	}
 	return nextRescheduleTime, rescheduleEligible
+}
+
+// NextRescheduleTimeByFailTime works like NextRescheduleTime but allows callers
+// specify a failure time. Useful for things like determining whether to reschedule
+// an alloc on a disconnected node.
+func (a *Allocation) NextRescheduleTimeByFailTime(failTime time.Time) (time.Time, bool) {
+	reschedulePolicy := a.ReschedulePolicy()
+	if reschedulePolicy == nil {
+		return time.Time{}, false
+	}
+
+	return a.nextRescheduleTime(failTime, reschedulePolicy)
 }
 
 // ShouldClientStop tests an alloc for StopAfterClientDisconnect configuration
@@ -9738,6 +9929,42 @@ func (a *Allocation) WaitClientStop() time.Time {
 	}
 
 	return t.Add(*tg.StopAfterClientDisconnect + kill)
+}
+
+// DisconnectTimeout uses the MaxClientDisconnect to compute when the allocation
+// should transition to lost.
+func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
+	if a == nil || a.Job == nil {
+		return now
+	}
+
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	timeout := tg.MaxClientDisconnect
+
+	if timeout == nil {
+		return now
+	}
+
+	return now.Add(*timeout)
+}
+
+// SupportsDisconnectedClients determines whether both the server and the task group
+// are configured to allow the allocation to reconnect after network connectivity
+// has been lost and then restored.
+func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClients bool) bool {
+	if !serverSupportsDisconnectedClients {
+		return false
+	}
+
+	if a.Job != nil {
+		tg := a.Job.LookupTaskGroup(a.TaskGroup)
+		if tg != nil {
+			return tg.MaxClientDisconnect != nil
+		}
+	}
+
+	return false
 }
 
 // NextDelay returns a duration after which the allocation can be rescheduled.
@@ -9973,6 +10200,76 @@ func (a *Allocation) Stub(fields *AllocStubFields) *AllocListStub {
 // this method should be changed accordingly.
 func (a *Allocation) AllocationDiff() *AllocationDiff {
 	return (*AllocationDiff)(a)
+}
+
+// Expired determines whether an allocation has exceeded its MaxClientDisonnect
+// duration relative to the passed time stamp.
+func (a *Allocation) Expired(now time.Time) bool {
+	if a == nil || a.Job == nil {
+		return false
+	}
+
+	// If alloc is not Unknown it cannot be expired.
+	if a.ClientStatus != AllocClientStatusUnknown {
+		return false
+	}
+
+	lastUnknown := a.LastUnknown()
+	if lastUnknown.IsZero() {
+		return false
+	}
+
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return false
+	}
+
+	if tg.MaxClientDisconnect == nil {
+		return false
+	}
+
+	expiry := lastUnknown.Add(*tg.MaxClientDisconnect)
+	return now.UTC().After(expiry) || now.UTC().Equal(expiry)
+}
+
+// LastUnknown returns the timestamp for the last time the allocation
+// transitioned into the unknown client status.
+func (a *Allocation) LastUnknown() time.Time {
+	var lastUnknown time.Time
+
+	for _, s := range a.AllocStates {
+		if s.Field == AllocStateFieldClientStatus &&
+			s.Value == AllocClientStatusUnknown {
+			if lastUnknown.IsZero() || lastUnknown.Before(s.Time) {
+				lastUnknown = s.Time
+			}
+		}
+	}
+
+	return lastUnknown.UTC()
+}
+
+// Reconnected determines whether a reconnect event has occurred for any task
+// and whether that event occurred within the allowable duration specified by MaxClientDisconnect.
+func (a *Allocation) Reconnected() (bool, bool) {
+	var lastReconnect time.Time
+	for _, taskState := range a.TaskStates {
+		for _, taskEvent := range taskState.Events {
+			if taskEvent.Type != TaskClientReconnected {
+				continue
+			}
+			eventTime := time.Unix(0, taskEvent.Time).UTC()
+			if lastReconnect.IsZero() || lastReconnect.Before(eventTime) {
+				lastReconnect = eventTime
+			}
+		}
+	}
+
+	if lastReconnect.IsZero() {
+		return false, false
+	}
+
+	return true, a.Expired(lastReconnect)
 }
 
 // AllocationDiff is another named type for Allocation (to use the same fields),
@@ -10240,6 +10537,15 @@ func (a *AllocMetric) PopulateScoreMetaData() {
 	}
 }
 
+// MaxNormScore returns the ScoreMetaData entry with the highest normalized
+// score.
+func (a *AllocMetric) MaxNormScore() *NodeScoreMeta {
+	if a == nil || len(a.ScoreMetaData) == 0 {
+		return nil
+	}
+	return a.ScoreMetaData[0]
+}
+
 // NodeScoreMeta captures scoring meta data derived from
 // different scoring factors.
 type NodeScoreMeta struct {
@@ -10368,21 +10674,23 @@ const (
 )
 
 const (
-	EvalTriggerJobRegister       = "job-register"
-	EvalTriggerJobDeregister     = "job-deregister"
-	EvalTriggerPeriodicJob       = "periodic-job"
-	EvalTriggerNodeDrain         = "node-drain"
-	EvalTriggerNodeUpdate        = "node-update"
-	EvalTriggerAllocStop         = "alloc-stop"
-	EvalTriggerScheduled         = "scheduled"
-	EvalTriggerRollingUpdate     = "rolling-update"
-	EvalTriggerDeploymentWatcher = "deployment-watcher"
-	EvalTriggerFailedFollowUp    = "failed-follow-up"
-	EvalTriggerMaxPlans          = "max-plan-attempts"
-	EvalTriggerRetryFailedAlloc  = "alloc-failure"
-	EvalTriggerQueuedAllocs      = "queued-allocs"
-	EvalTriggerPreemption        = "preemption"
-	EvalTriggerScaling           = "job-scaling"
+	EvalTriggerJobRegister          = "job-register"
+	EvalTriggerJobDeregister        = "job-deregister"
+	EvalTriggerPeriodicJob          = "periodic-job"
+	EvalTriggerNodeDrain            = "node-drain"
+	EvalTriggerNodeUpdate           = "node-update"
+	EvalTriggerAllocStop            = "alloc-stop"
+	EvalTriggerScheduled            = "scheduled"
+	EvalTriggerRollingUpdate        = "rolling-update"
+	EvalTriggerDeploymentWatcher    = "deployment-watcher"
+	EvalTriggerFailedFollowUp       = "failed-follow-up"
+	EvalTriggerMaxPlans             = "max-plan-attempts"
+	EvalTriggerRetryFailedAlloc     = "alloc-failure"
+	EvalTriggerQueuedAllocs         = "queued-allocs"
+	EvalTriggerPreemption           = "preemption"
+	EvalTriggerScaling              = "job-scaling"
+	EvalTriggerMaxDisconnectTimeout = "max-disconnect-timeout"
+	EvalTriggerReconnect            = "reconnect"
 )
 
 const (
@@ -10484,7 +10792,8 @@ type Evaluation struct {
 	Wait time.Duration
 
 	// WaitUntil is the time when this eval should be run. This is used to
-	// supported delayed rescheduling of failed allocations
+	// supported delayed rescheduling of failed allocations, and delayed
+	// stopping of allocations that are configured with max_client_disconnect.
 	WaitUntil time.Time
 
 	// NextEval is the evaluation ID for the eval created to do a followup.
@@ -10501,6 +10810,10 @@ type Evaluation struct {
 	// blocked eval will be created if all allocations could not be placed due
 	// to constraints or lacking resources.
 	BlockedEval string
+
+	// RelatedEvals is a list of all the evaluations that are related (next,
+	// previous, or blocked) to this one. It may be nil if not requested.
+	RelatedEvals []*EvaluationStub
 
 	// FailedTGAllocs are task groups which have allocations that could not be
 	// made, but the metrics are persisted so that the user can use the feedback
@@ -10548,6 +10861,44 @@ type Evaluation struct {
 	ModifyTime int64
 }
 
+type EvaluationStub struct {
+	ID                string
+	Namespace         string
+	Priority          int
+	Type              string
+	TriggeredBy       string
+	JobID             string
+	NodeID            string
+	DeploymentID      string
+	Status            string
+	StatusDescription string
+	WaitUntil         time.Time
+	NextEval          string
+	PreviousEval      string
+	BlockedEval       string
+	CreateIndex       uint64
+	ModifyIndex       uint64
+	CreateTime        int64
+	ModifyTime        int64
+}
+
+// GetID implements the IDGetter interface, required for pagination.
+func (e *Evaluation) GetID() string {
+	if e == nil {
+		return ""
+	}
+	return e.ID
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (e *Evaluation) GetCreateIndex() uint64 {
+	if e == nil {
+		return 0
+	}
+	return e.CreateIndex
+}
+
 // TerminalStatus returns if the current status is terminal and
 // will no longer transition.
 func (e *Evaluation) TerminalStatus() bool {
@@ -10561,6 +10912,50 @@ func (e *Evaluation) TerminalStatus() bool {
 
 func (e *Evaluation) GoString() string {
 	return fmt.Sprintf("<Eval %q JobID: %q Namespace: %q>", e.ID, e.JobID, e.Namespace)
+}
+
+func (e *Evaluation) RelatedIDs() []string {
+	if e == nil {
+		return nil
+	}
+
+	ids := []string{e.NextEval, e.PreviousEval, e.BlockedEval}
+	related := make([]string, 0, len(ids))
+
+	for _, id := range ids {
+		if id != "" {
+			related = append(related, id)
+		}
+	}
+
+	return related
+}
+
+func (e *Evaluation) Stub() *EvaluationStub {
+	if e == nil {
+		return nil
+	}
+
+	return &EvaluationStub{
+		ID:                e.ID,
+		Namespace:         e.Namespace,
+		Priority:          e.Priority,
+		Type:              e.Type,
+		TriggeredBy:       e.TriggeredBy,
+		JobID:             e.JobID,
+		NodeID:            e.NodeID,
+		DeploymentID:      e.DeploymentID,
+		Status:            e.Status,
+		StatusDescription: e.StatusDescription,
+		WaitUntil:         e.WaitUntil,
+		NextEval:          e.NextEval,
+		PreviousEval:      e.PreviousEval,
+		BlockedEval:       e.BlockedEval,
+		CreateIndex:       e.CreateIndex,
+		ModifyIndex:       e.ModifyIndex,
+		CreateTime:        e.CreateTime,
+		ModifyTime:        e.ModifyTime,
+	}
 }
 
 func (e *Evaluation) Copy() *Evaluation {
@@ -10911,6 +11306,15 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string)
 	node := alloc.NodeID
 	existing := p.NodePreemptions[node]
 	p.NodePreemptions[node] = append(existing, newAlloc)
+}
+
+// AppendUnknownAlloc marks an allocation as unknown.
+func (p *Plan) AppendUnknownAlloc(alloc *Allocation) {
+	// Strip the resources as they can be rebuilt.
+	alloc.Resources = nil
+
+	existing := p.NodeAllocation[alloc.NodeID]
+	p.NodeAllocation[alloc.NodeID] = append(existing, alloc)
 }
 
 func (p *Plan) PopUpdate(alloc *Allocation) {
@@ -11316,6 +11720,23 @@ type ACLToken struct {
 	CreateTime  time.Time // Time of creation
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// GetID implements the IDGetter interface, required for pagination.
+func (a *ACLToken) GetID() string {
+	if a == nil {
+		return ""
+	}
+	return a.AccessorID
+}
+
+// GetCreateIndex implements the CreateIndexGetter interface, required for
+// pagination.
+func (a *ACLToken) GetCreateIndex() uint64 {
+	if a == nil {
+		return 0
+	}
+	return a.CreateIndex
 }
 
 func (a *ACLToken) Copy() *ACLToken {

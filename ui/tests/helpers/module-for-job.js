@@ -136,6 +136,19 @@ export default function moduleForJob(
         );
       });
 
+      test('clicking in a task group row navigates to that task group', async function (assert) {
+        const tgRow = JobDetail.taskGroups[0];
+        const tgName = tgRow.name;
+
+        await tgRow.visitRow();
+
+        const expectedURL = job.namespace
+          ? `/jobs/${encodeURIComponent(job.name)}@${job.namespace}/${tgName}`
+          : `/jobs/${encodeURIComponent(job.name)}/${tgName}`;
+
+        assert.equal(currentURL(), expectedURL);
+      });
+
       test('clicking legend item navigates to a pre-filtered allocations table', async function (assert) {
         const legendItem =
           JobDetail.allocationsSummary.legend.clickableItems[1];

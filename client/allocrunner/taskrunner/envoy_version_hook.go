@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/hashicorp/go-hclog"
@@ -11,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -81,7 +81,7 @@ func (h *envoyVersionHook) Prestart(_ context.Context, request *ifs.TaskPrestart
 	// to the legacy default. Query Consul and use the (possibly empty) result.
 	proxies, err := h.proxiesClient.Proxies()
 	if err != nil {
-		return errors.Wrap(err, "error retrieving supported Envoy versions from Consul")
+		return fmt.Errorf("error retrieving supported Envoy versions from Consul: %w", err)
 	}
 
 	// Second [pseudo] interpolation of task image. This determines the concrete
@@ -89,7 +89,7 @@ func (h *envoyVersionHook) Prestart(_ context.Context, request *ifs.TaskPrestart
 	// ${NOMAD_envoy_version} acquired from Consul.
 	image, err := h.tweakImage(h.taskImage(request.Task.Config), proxies)
 	if err != nil {
-		return errors.Wrap(err, "error interpreting desired Envoy version from Consul")
+		return fmt.Errorf("error interpreting desired Envoy version from Consul: %w", err)
 	}
 
 	// Set the resulting image.
@@ -187,7 +187,7 @@ func (h *envoyVersionHook) tweakImage(configured string, supported map[string][]
 func semver(chosen string) (string, error) {
 	v, err := version.NewVersion(chosen)
 	if err != nil {
-		return "", errors.Wrap(err, "unexpected envoy version format")
+		return "", fmt.Errorf("unexpected envoy version format: %w", err)
 	}
 	return v.String(), nil
 }

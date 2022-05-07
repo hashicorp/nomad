@@ -378,11 +378,6 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("handle cannot be nil")
 	}
 
-	// COMPAT(0.10): pre 0.9 upgrade path check
-	if handle.Version == 0 {
-		return d.recoverPre09Task(handle)
-	}
-
 	// If already attached to handle there's nothing to recover.
 	if _, ok := d.tasks.Get(handle.Config.ID); ok {
 		d.logger.Debug("nothing to recover; task already exists",

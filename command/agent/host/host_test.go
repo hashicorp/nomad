@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,6 +19,8 @@ func TestHostUtils(t *testing.T) {
 }
 
 func TestMakeHostData(t *testing.T) {
+	ci.Parallel(t)
+
 	// setenv variables that should be redacted
 	prev := os.Getenv("VAULT_TOKEN")
 	os.Setenv("VAULT_TOKEN", "foo")

@@ -540,7 +540,7 @@ func (c *JobStatusCommand) outputJobSummary(client *api.Client, job *api.Job) er
 	if !periodic && !parameterizedJob {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Summary[reset]"))
 		summaries := make([]string, len(summary.Summary)+1)
-		summaries[0] = "Task Group|Queued|Starting|Running|Failed|Complete|Lost"
+		summaries[0] = "Task Group|Queued|Starting|Running|Failed|Complete|Lost|Unknown"
 		taskGroups := make([]string, 0, len(summary.Summary))
 		for taskGroup := range summary.Summary {
 			taskGroups = append(taskGroups, taskGroup)
@@ -548,10 +548,10 @@ func (c *JobStatusCommand) outputJobSummary(client *api.Client, job *api.Job) er
 		sort.Strings(taskGroups)
 		for idx, taskGroup := range taskGroups {
 			tgs := summary.Summary[taskGroup]
-			summaries[idx+1] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d",
+			summaries[idx+1] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d|%d",
 				taskGroup, tgs.Queued, tgs.Starting,
 				tgs.Running, tgs.Failed,
-				tgs.Complete, tgs.Lost,
+				tgs.Complete, tgs.Lost, tgs.Unknown,
 			)
 		}
 		c.Ui.Output(formatList(summaries))

@@ -12,6 +12,7 @@ import { formatBytes, formatHertz, replaceMinus } from 'nomad-ui/utils/units';
 import Optimize from 'nomad-ui/tests/pages/optimize';
 import Layout from 'nomad-ui/tests/pages/layout';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
+import collapseWhitespace from '../helpers/collapse-whitespace';
 
 let managementToken, clientToken;
 
@@ -462,7 +463,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
     assert.equal(Optimize.card.slug.jobName, 'zzzzzz');
 
     assert.equal(
-      Optimize.search.placeholder,
+      collapseWhitespace(Optimize.search.placeholder),
       `Search ${Optimize.recommendationSummaries.length} recommendations...`
     );
 

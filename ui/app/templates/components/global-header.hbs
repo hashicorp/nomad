@@ -1,3 +1,4 @@
+{{! template-lint-disable no-duplicate-landmark-elements }}
 <nav class="navbar is-primary" title="navigation">
   <div class="navbar-brand">
     <span
@@ -13,6 +14,7 @@
     </LinkTo>
   </div>
   {{#if this.system.fuzzySearchEnabled}}
+    {{! template-lint-disable simple-unless }}
     {{#unless (media "isMobile")}}
       <GlobalSearch::Control />
     {{/unless}}

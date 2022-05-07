@@ -19,7 +19,8 @@ Refer to the official plugin
 
 * `--type=rbd`: driver type `rbd` (or alternately `cephfs`)
 
-* `--endpoint=unix:///csi/csi.sock`: this option must match the `mount_dir`
+* `--endpoint=${CSI_ENDPOINT}`: if you don't use the `CSI_ENDPOINT`
+    environment variable, this option must match the `mount_dir`
     specified in the `csi_plugin` stanza for the task.
 
 * `--nodeid=${node.unique.id}`: a unique ID for the node the task is running

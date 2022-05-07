@@ -3,6 +3,7 @@ package command
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
@@ -11,12 +12,12 @@ import (
 )
 
 func TestCSIVolumeStatusCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &VolumeStatusCommand{}
 }
 
 func TestCSIVolumeStatusCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &VolumeStatusCommand{Meta: Meta{Ui: ui}}
 
@@ -30,7 +31,7 @@ func TestCSIVolumeStatusCommand_Fails(t *testing.T) {
 }
 
 func TestCSIVolumeStatusCommand_AutocompleteArgs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -46,7 +47,7 @@ func TestCSIVolumeStatusCommand_AutocompleteArgs(t *testing.T) {
 		PluginID:  "glade",
 	}
 
-	require.NoError(t, state.CSIVolumeRegister(1000, []*structs.CSIVolume{vol}))
+	require.NoError(t, state.UpsertCSIVolume(1000, []*structs.CSIVolume{vol}))
 
 	prefix := vol.ID[:len(vol.ID)-5]
 	args := complete.Args{Last: prefix}

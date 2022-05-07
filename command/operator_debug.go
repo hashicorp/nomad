@@ -23,6 +23,7 @@ import (
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-multierror"
+	goversion "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
@@ -38,6 +39,7 @@ type OperatorDebugCommand struct {
 	collectDir    string
 	duration      time.Duration
 	interval      time.Duration
+	pprofInterval time.Duration
 	pprofDuration time.Duration
 	logLevel      string
 	maxNodes      int
@@ -53,14 +55,17 @@ type OperatorDebugCommand struct {
 	cancel        context.CancelFunc
 	opts          *api.QueryOptions
 	verbose       bool
+	members       *api.ServerMembers
+	nodes         []*api.NodeListStub
 }
 
 const (
-	userAgent   = "nomad operator debug"
-	clusterDir  = "cluster"
-	clientDir   = "client"
-	serverDir   = "server"
-	intervalDir = "interval"
+	userAgent                     = "nomad operator debug"
+	clusterDir                    = "cluster"
+	clientDir                     = "client"
+	serverDir                     = "server"
+	intervalDir                   = "interval"
+	minimumVersionPprofConstraint = ">= 0.11.0, <= 0.11.2"
 )
 
 func (c *OperatorDebugCommand) Help() string {
@@ -182,7 +187,12 @@ Debug Options:
     Filter client nodes based on node class.
 
   -pprof-duration=<duration>
-    Duration for pprof collection. Defaults to 1s.
+    Duration for pprof collection. Defaults to 1s or -duration, whichever is less.
+
+  -pprof-interval=<pprof-interval>
+    The interval between pprof collections. Set interval equal to
+    duration to capture a single snapshot. Defaults to 250ms or
+   -pprof-duration, whichever is less.
 
   -server-id=<server1>,<server2>
     Comma separated list of Nomad server names to monitor for logs, API
@@ -334,7 +344,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	var duration, interval, output, pprofDuration, eventTopic string
+	var duration, interval, pprofInterval, output, pprofDuration, eventTopic string
 	var eventIndex int64
 	var nodeIDs, serverIDs string
 	var allowStale bool
@@ -351,6 +361,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.BoolVar(&allowStale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
 	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
+	flags.StringVar(&pprofInterval, "pprof-interval", "250ms", "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	c.consul = &external{tls: &api.TLSConfig{}}
@@ -400,13 +411,27 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Parse the pprof capture duration
+	// Parse and clamp the pprof capture duration
 	pd, err := time.ParseDuration(pprofDuration)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing pprof duration: %s: %s", pprofDuration, err.Error()))
 		return 1
 	}
+	if pd.Seconds() > d.Seconds() {
+		pd = d
+	}
 	c.pprofDuration = pd
+
+	// Parse and clamp the pprof capture interval
+	pi, err := time.ParseDuration(pprofInterval)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing pprof-interval: %s: %s", pprofInterval, err.Error()))
+		return 1
+	}
+	if pi.Seconds() > pd.Seconds() {
+		pi = pd
+	}
+	c.pprofInterval = pi
 
 	// Parse event stream topic filter
 	t, err := topicsFromString(eventTopic)
@@ -481,6 +506,16 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		AuthToken:  c.Meta.token,
 	}
 
+	// Get complete list of client nodes
+	c.nodes, _, err = client.Nodes().List(c.queryOpts())
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying node info: %v", err))
+		return 1
+	}
+
+	// Write nodes to file
+	c.writeJSON(clusterDir, "nodes.json", c.nodes, err)
+
 	// Search all nodes If a node class is specified without a list of node id prefixes
 	if c.nodeClass != "" && nodeIDs == "" {
 		nodeIDs = "all"
@@ -544,17 +579,17 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 
 	// Resolve servers
-	members, err := client.Agent().MembersOpts(c.queryOpts())
+	c.members, err = client.Agent().MembersOpts(c.queryOpts())
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to retrieve server list; err: %v", err))
 		return 1
 	}
 
 	// Write complete list of server members to file
-	c.writeJSON(clusterDir, "members.json", members, err)
+	c.writeJSON(clusterDir, "members.json", c.members, err)
 
 	// Filter for servers matching criteria
-	c.serverIDs, err = filterServerMembers(members, serverIDs, c.region)
+	c.serverIDs, err = filterServerMembers(c.members, serverIDs, c.region)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse server list; err: %v", err))
 		return 1
@@ -563,8 +598,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	serversFound := 0
 	serverCaptureCount := 0
 
-	if members != nil {
-		serversFound = len(members.Members)
+	if c.members != nil {
+		serversFound = len(c.members.Members)
 	}
 	if c.serverIDs != nil {
 		serverCaptureCount = len(c.serverIDs)
@@ -595,6 +630,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.Ui.Output(fmt.Sprintf("         Interval: %s", interval))
 	c.Ui.Output(fmt.Sprintf("         Duration: %s", duration))
+	c.Ui.Output(fmt.Sprintf("   pprof Interval: %s", pprofInterval))
 	if c.pprofDuration.Seconds() != 1 {
 		c.Ui.Output(fmt.Sprintf("   pprof Duration: %s", c.pprofDuration))
 	}
@@ -663,7 +699,7 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	c.collectVault(clusterDir, vaultAddr)
 
 	c.collectAgentHosts(client)
-	c.collectPprofs(client)
+	c.collectPeriodicPprofs(client)
 
 	c.collectPeriodic(client)
 
@@ -876,19 +912,72 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 	c.writeJSON(path, "agent-host.json", host, err)
 }
 
-// collectPprofs captures the /agent/pprof for each listed node
-func (c *OperatorDebugCommand) collectPprofs(client *api.Client) {
-	for _, n := range c.nodeIDs {
-		c.collectPprof(clientDir, n, client)
+func (c *OperatorDebugCommand) collectPeriodicPprofs(client *api.Client) {
+
+	pprofNodeIDs := []string{}
+	pprofServerIDs := []string{}
+
+	// threadcreate pprof causes a panic on Nomad 0.11.0 to 0.11.2 -- skip those versions
+	for _, serverID := range c.serverIDs {
+		version := c.getNomadVersion(serverID, "")
+		err := checkVersion(version, minimumVersionPprofConstraint)
+		if err != nil {
+			c.Ui.Warn(fmt.Sprintf("Skipping pprof: %v", err))
+		}
+		pprofServerIDs = append(pprofServerIDs, serverID)
 	}
 
-	for _, n := range c.serverIDs {
-		c.collectPprof(serverDir, n, client)
+	for _, nodeID := range c.nodeIDs {
+		version := c.getNomadVersion("", nodeID)
+		err := checkVersion(version, minimumVersionPprofConstraint)
+		if err != nil {
+			c.Ui.Warn(fmt.Sprintf("Skipping pprof: %v", err))
+		}
+		pprofNodeIDs = append(pprofNodeIDs, nodeID)
+	}
+
+	// Take the first set of pprofs synchronously...
+	c.Ui.Output("    Capture pprofInterval 0000")
+	c.collectPprofs(client, pprofServerIDs, pprofNodeIDs, 0)
+	if c.pprofInterval == c.pprofDuration {
+		return
+	}
+
+	// ... and then move the rest off into a goroutine
+	go func() {
+		ctx, cancel := context.WithTimeout(c.ctx, c.duration)
+		defer cancel()
+		timer, stop := helper.NewSafeTimer(c.pprofInterval)
+		defer stop()
+
+		pprofIntervalCount := 1
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+				c.Ui.Output(fmt.Sprintf("    Capture pprofInterval %04d", pprofIntervalCount))
+				c.collectPprofs(client, pprofServerIDs, pprofNodeIDs, pprofIntervalCount)
+				timer.Reset(c.pprofInterval)
+				pprofIntervalCount++
+			}
+		}
+	}()
+}
+
+// collectPprofs captures the /agent/pprof for each listed node
+func (c *OperatorDebugCommand) collectPprofs(client *api.Client, serverIDs, nodeIDs []string, interval int) {
+	for _, n := range nodeIDs {
+		c.collectPprof(clientDir, n, client, interval)
+	}
+
+	for _, n := range serverIDs {
+		c.collectPprof(serverDir, n, client, interval)
 	}
 }
 
 // collectPprof captures pprof data for the node
-func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client) {
+func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client, interval int) {
 	pprofDurationSeconds := int(c.pprofDuration.Seconds())
 	opts := api.PprofOptions{Seconds: pprofDurationSeconds}
 	if path == serverDir {
@@ -898,10 +987,11 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	}
 
 	path = filepath.Join(path, id)
+	filename := fmt.Sprintf("profile_%04d.prof", interval)
 
 	bs, err := client.Agent().CPUProfile(opts, c.queryOpts())
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof profile.prof, err: %v", path, err))
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof %s, err: %v", filename, path, err))
 		if structs.IsErrPermissionDenied(err) {
 			// All Profiles require the same permissions, so we only need to see
 			// one permission failure before we bail.
@@ -911,7 +1001,7 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 			return // only exit on 403
 		}
 	} else {
-		err := c.writeBytes(path, "profile.prof", bs)
+		err := c.writeBytes(path, filename, bs)
 		if err != nil {
 			c.Ui.Error(err.Error())
 		}
@@ -933,12 +1023,6 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	c.savePprofProfile(path, "heap", opts, client)         // A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.
 	c.savePprofProfile(path, "allocs", opts, client)       // A sampling of all past memory allocations
 	c.savePprofProfile(path, "threadcreate", opts, client) // Stack traces that led to the creation of new OS threads
-
-	// This profile is disabled by default -- Requires runtime.SetBlockProfileRate to enable
-	// c.savePprofProfile(path, "block", opts, client)        // Stack traces that led to blocking on synchronization primitives
-
-	// This profile is disabled by default -- Requires runtime.SetMutexProfileFraction to enable
-	// c.savePprofProfile(path, "mutex", opts, client)        // Stack traces of holders of contended mutexes
 }
 
 // savePprofProfile retrieves a pprof profile and writes to disk
@@ -1659,4 +1743,54 @@ func isRedirectError(err error) bool {
 
 	const redirectErr string = `invalid character '<' looking for beginning of value`
 	return strings.Contains(err.Error(), redirectErr)
+}
+
+// getNomadVersion fetches the version of Nomad running on a given server/client node ID
+func (c *OperatorDebugCommand) getNomadVersion(serverID string, nodeID string) string {
+	if serverID == "" && nodeID == "" {
+		return ""
+	}
+
+	version := ""
+	if serverID != "" {
+		for _, server := range c.members.Members {
+			// Raft v2 server
+			if server.Name == serverID {
+				version = server.Tags["build"]
+			}
+
+			// Raft v3 server
+			if server.Tags["id"] == serverID {
+				version = server.Tags["version"]
+			}
+		}
+	}
+
+	if nodeID != "" {
+		for _, node := range c.nodes {
+			if node.ID == nodeID {
+				version = node.Version
+			}
+		}
+	}
+
+	return version
+}
+
+// checkVersion verifies that version satisfies the constraint
+func checkVersion(version string, versionConstraint string) error {
+	v, err := goversion.NewVersion(version)
+	if err != nil {
+		return fmt.Errorf("error: %v", err)
+	}
+
+	c, err := goversion.NewConstraint(versionConstraint)
+	if err != nil {
+		return fmt.Errorf("error: %v", err)
+	}
+
+	if !c.Check(v) {
+		return nil
+	}
+	return fmt.Errorf("unsupported version=%s matches version filter %s", version, minimumVersionPprofConstraint)
 }

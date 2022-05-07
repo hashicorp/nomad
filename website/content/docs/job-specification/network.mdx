@@ -218,6 +218,19 @@ network {
 }
 ```
 
+Using bridge mode can result in failing outbound network requests on hosts that have
+[firewalld](https://firewalld.org) enabled. This includes most RHEL-based Linux distributions
+like CentOS, Rocky Linux or Oracle Linux. One solution for firewalld to allow network
+requsts coming from Nomad jobs is to mark the `nomad` bridge interface as trusted.
+
+```shell-session
+$ sudo firewall-cmd --zone=trusted --add-interface=nomad
+$ sudo firewall-cmd --zone=trusted --add-interface=nomad --permanent
+```
+
+It is neccessary to restart the affected jobs afterwards for them to be able to access
+the network. Further details can be found in Docker's documentation under [Docker and iptables](https://docs.docker.com/network/iptables/#integration-with-firewalld).
+
 ### DNS
 
 The following example configures the allocation to use Google's DNS resolvers 8.8.8.8 and 8.8.4.4.

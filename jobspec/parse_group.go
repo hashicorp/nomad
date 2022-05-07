@@ -57,6 +57,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"volume",
 			"scaling",
 			"stop_after_client_disconnect",
+			"max_client_disconnect",
 		}
 		if err := checkHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))

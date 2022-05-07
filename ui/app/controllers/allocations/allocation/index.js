@@ -15,6 +15,7 @@ import classic from 'ember-classic-decorator';
 @classic
 export default class IndexController extends Controller.extend(Sortable) {
   @service token;
+  @service store;
 
   queryParams = [
     {

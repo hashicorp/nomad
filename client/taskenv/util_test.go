@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -11,6 +12,8 @@ import (
 // TestAddNestedKey_Ok asserts test cases that succeed when passed to
 // addNestedKey.
 func TestAddNestedKey_Ok(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		// M will be initialized if unset
 		M map[string]interface{}
@@ -209,7 +212,7 @@ func TestAddNestedKey_Ok(t *testing.T) {
 			name = fmt.Sprintf("%s-%d", name, len(tc.M))
 		}
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
+			ci.Parallel(t)
 			if tc.M == nil {
 				tc.M = map[string]interface{}{}
 			}
@@ -222,6 +225,8 @@ func TestAddNestedKey_Ok(t *testing.T) {
 // TestAddNestedKey_Bad asserts test cases return an error when passed to
 // addNestedKey.
 func TestAddNestedKey_Bad(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		// M will be initialized if unset
 		M func() map[string]interface{}
@@ -320,7 +325,7 @@ func TestAddNestedKey_Bad(t *testing.T) {
 			name += "-cleanup"
 		}
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
+			ci.Parallel(t)
 
 			// Copy original M value to ensure it doesn't get altered
 			if tc.M == nil {
@@ -341,6 +346,8 @@ func TestAddNestedKey_Bad(t *testing.T) {
 }
 
 func TestCtyify_Ok(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name string
 		In   map[string]interface{}
@@ -402,7 +409,7 @@ func TestCtyify_Ok(t *testing.T) {
 	for i := range cases {
 		tc := cases[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			t.Parallel()
+			ci.Parallel(t)
 
 			// ctiyif and check for errors
 			result, err := ctyify(tc.In)
@@ -417,6 +424,8 @@ func TestCtyify_Ok(t *testing.T) {
 }
 
 func TestCtyify_Bad(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		Name string
 		In   map[string]interface{}
@@ -441,7 +450,7 @@ func TestCtyify_Bad(t *testing.T) {
 	for i := range cases {
 		tc := cases[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			t.Parallel()
+			ci.Parallel(t)
 
 			// ctiyif and check for errors
 			result, err := ctyify(tc.In)

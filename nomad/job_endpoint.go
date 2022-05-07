@@ -2,24 +2,23 @@ package nomad
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
-
+	"github.com/armon/go-metrics"
 	"github.com/golang/snappy"
-	"github.com/hashicorp/consul/lib"
-	"github.com/pkg/errors"
-
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 )
@@ -49,7 +48,7 @@ var (
 // Job endpoint is used for job interactions
 type Job struct {
 	srv    *Server
-	logger log.Logger
+	logger hclog.Logger
 
 	// builtin admission controllers
 	mutators   []jobMutator
@@ -70,6 +69,7 @@ func NewJobEndpoints(s *Server) *Job {
 		validators: []jobValidator{
 			jobConnectHook{},
 			jobExposeCheckHook{},
+			jobVaultHook{srv: s},
 			jobNamespaceConstraintCheckHook{srv: s},
 			jobValidate{},
 			&memoryOversubscriptionValidate{srv: s},
@@ -218,49 +218,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
-	// Ensure that the job has permissions for the requested Vault tokens
-	policies := args.Job.VaultPolicies()
-	if len(policies) != 0 {
-		vconf := j.srv.config.VaultConfig
-		if !vconf.IsEnabled() {
-			return fmt.Errorf("Vault not enabled and Vault policies requested")
-		}
-
-		// Have to check if the user has permissions
-		if !vconf.AllowsUnauthenticated() {
-			if args.Job.VaultToken == "" {
-				return fmt.Errorf("Vault policies requested but missing Vault Token")
-			}
-
-			vault := j.srv.vault
-			s, err := vault.LookupToken(context.Background(), args.Job.VaultToken)
-			if err != nil {
-				return err
-			}
-
-			allowedPolicies, err := PoliciesFrom(s)
-			if err != nil {
-				return err
-			}
-
-			// Check Namespaces
-			namespaceErr := j.multiVaultNamespaceValidation(policies, s)
-			if namespaceErr != nil {
-				return namespaceErr
-			}
-
-			// If we are given a root token it can access all policies
-			if !lib.StrContains(allowedPolicies, "root") {
-				flatPolicies := structs.VaultPoliciesSet(policies)
-				subset, offending := helper.SliceStringIsSubset(allowedPolicies, flatPolicies)
-				if !subset {
-					return fmt.Errorf("Passed Vault Token doesn't allow access to the following policies: %s",
-						strings.Join(offending, ", "))
-				}
-			}
-		}
-	}
-
 	// helper function that checks if the Consul token supplied with the job has
 	// sufficient ACL permissions for:
 	//   - registering services into namespace of each group
@@ -276,7 +233,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		ctx := context.Background()
 		for namespace, usage := range usages {
 			if err := j.srv.consulACLs.CheckPermissions(ctx, namespace, usage, args.Job.ConsulToken); err != nil {
-				return errors.Wrap(err, "job-submitter consul token denied")
+				return fmt.Errorf("job-submitter consul token denied: %w", err)
 			}
 		}
 
@@ -1339,15 +1296,29 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
 
-	if args.RequestNamespace() == structs.AllNamespacesSentinel {
-		return j.listAllNamespaces(args, reply)
-	}
+	namespace := args.RequestNamespace()
+	var allow func(string) bool
 
 	// Check for list-job permissions
-	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+	aclObj, err := j.srv.ResolveToken(args.AuthToken)
+
+	switch {
+	case err != nil:
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListJobs) {
+	case aclObj == nil:
+		allow = func(string) bool {
+			return true
+		}
+	case namespace == structs.AllNamespacesSentinel:
+		allow = func(ns string) bool {
+			return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListJobs)
+		}
+	case !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListJobs):
 		return structs.ErrPermissionDenied
+	default:
+		allow = func(string) bool {
+			return true
+		}
 	}
 
 	// Setup the blocking query
@@ -1358,106 +1329,65 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 			// Capture all the jobs
 			var err error
 			var iter memdb.ResultIterator
-			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.JobsByIDPrefix(ws, args.RequestNamespace(), prefix)
-			} else {
-				iter, err = state.JobsByNamespace(ws, args.RequestNamespace())
-			}
-			if err != nil {
-				return err
-			}
 
-			var jobs []*structs.JobListStub
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				job := raw.(*structs.Job)
-				summary, err := state.JobSummaryByID(ws, args.RequestNamespace(), job.ID)
-				if err != nil {
-					return fmt.Errorf("unable to look up summary for job: %v", job.ID)
-				}
-				jobs = append(jobs, job.Stub(summary))
-			}
-			reply.Jobs = jobs
-
-			// Use the last index that affected the jobs table or summary
-			jindex, err := state.Index("jobs")
-			if err != nil {
-				return err
-			}
-			sindex, err := state.Index("job_summary")
-			if err != nil {
-				return err
-			}
-			reply.Index = helper.Uint64Max(jindex, sindex)
-
-			// Set the query response
-			j.srv.setQueryMeta(&reply.QueryMeta)
-			return nil
-		}}
-	return j.srv.blockingRPC(&opts)
-}
-
-// listAllNamespaces lists all jobs across all namespaces
-func (j *Job) listAllNamespaces(args *structs.JobListRequest, reply *structs.JobListResponse) error {
-	// Check for list-job permissions
-	aclObj, err := j.srv.ResolveToken(args.AuthToken)
-	if err != nil {
-		return err
-	}
-	prefix := args.QueryOptions.Prefix
-	allow := func(ns string) bool {
-		return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListJobs)
-	}
-
-	// Setup the blocking query
-	opts := blockingOptions{
-		queryOpts: &args.QueryOptions,
-		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// check if user has permission to all namespaces
-			allowedNSes, err := allowedNSes(aclObj, state, allow)
+			allowableNamespaces, err := allowedNSes(aclObj, state, allow)
 			if err == structs.ErrPermissionDenied {
 				// return empty jobs if token isn't authorized for any
 				// namespace, matching other endpoints
-				reply.Jobs = []*structs.JobListStub{}
-				return nil
+				reply.Jobs = make([]*structs.JobListStub, 0)
 			} else if err != nil {
 				return err
-			}
-
-			// Capture all the jobs
-			iter, err := state.Jobs(ws)
-
-			if err != nil {
-				return err
-			}
-
-			var jobs []*structs.JobListStub
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
+			} else {
+				if prefix := args.QueryOptions.Prefix; prefix != "" {
+					iter, err = state.JobsByIDPrefix(ws, namespace, prefix)
+				} else if namespace != structs.AllNamespacesSentinel {
+					iter, err = state.JobsByNamespace(ws, namespace)
+				} else {
+					iter, err = state.Jobs(ws)
 				}
-				job := raw.(*structs.Job)
-				if allowedNSes != nil && !allowedNSes[job.Namespace] {
-					// not permitted to this name namespace
-					continue
-				}
-				if prefix != "" && !strings.HasPrefix(job.ID, prefix) {
-					continue
-				}
-				summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
 				if err != nil {
-					return fmt.Errorf("unable to look up summary for job: %v", job.ID)
+					return err
 				}
 
-				stub := job.Stub(summary)
-				jobs = append(jobs, stub)
+				tokenizer := paginator.NewStructsTokenizer(
+					iter,
+					paginator.StructsTokenizerOptions{
+						WithNamespace: true,
+						WithID:        true,
+					},
+				)
+				filters := []paginator.Filter{
+					paginator.NamespaceFilter{
+						AllowableNamespaces: allowableNamespaces,
+					},
+				}
+
+				var jobs []*structs.JobListStub
+				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+					func(raw interface{}) error {
+						job := raw.(*structs.Job)
+						summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
+						if err != nil || summary == nil {
+							return fmt.Errorf("unable to look up summary for job: %v", job.ID)
+						}
+						jobs = append(jobs, job.Stub(summary))
+						return nil
+					})
+				if err != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to create result paginator: %v", err)
+				}
+
+				nextToken, err := paginator.Page()
+				if err != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to read result page: %v", err)
+				}
+
+				reply.QueryMeta.NextToken = nextToken
+				reply.Jobs = jobs
 			}
-			reply.Jobs = jobs
 
 			// Use the last index that affected the jobs table or summary
 			jindex, err := state.Index("jobs")
@@ -1475,7 +1405,6 @@ func (j *Job) listAllNamespaces(args *structs.JobListRequest, reply *structs.Job
 			return nil
 		}}
 	return j.srv.blockingRPC(&opts)
-
 }
 
 // Allocations is used to list the allocations for a job
@@ -2216,4 +2145,66 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 			return nil
 		}}
 	return j.srv.blockingRPC(&opts)
+}
+
+// GetServiceRegistrations returns a list of service registrations which belong
+// to the passed job ID.
+func (j *Job) GetServiceRegistrations(
+	args *structs.JobServiceRegistrationsRequest,
+	reply *structs.JobServiceRegistrationsResponse) error {
+
+	if done, err := j.srv.forward(structs.JobServiceRegistrationsRPCMethod, args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "get_service_registrations"}, time.Now())
+
+	// If ACLs are enabled, ensure the caller has the read-job namespace
+	// capability.
+	aclObj, err := j.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if aclObj != nil {
+		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+			return structs.ErrPermissionDenied
+		}
+	}
+
+	// Set up the blocking query.
+	return j.srv.blockingRPC(&blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+
+			job, err := stateStore.JobByID(ws, args.RequestNamespace(), args.JobID)
+			if err != nil {
+				return err
+			}
+
+			// Guard against the job not-existing. Do not create an empty list
+			// to allow the API to determine whether the job was found or not.
+			if job == nil {
+				return nil
+			}
+
+			// Perform the state query to get an iterator.
+			iter, err := stateStore.GetServiceRegistrationsByJobID(ws, args.RequestNamespace(), args.JobID)
+			if err != nil {
+				return err
+			}
+
+			// Set up our output after we have checked the error.
+			services := make([]*structs.ServiceRegistration, 0)
+
+			// Iterate the iterator, appending all service registrations
+			// returned to the reply.
+			for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				services = append(services, raw.(*structs.ServiceRegistration))
+			}
+			reply.Services = services
+
+			// Use the index table to populate the query meta as we have no way
+			// of tracking the max index on deletes.
+			return j.srv.setReplyQueryMeta(stateStore, state.TableServiceRegistrations, &reply.QueryMeta)
+		},
+	})
 }

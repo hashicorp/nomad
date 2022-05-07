@@ -34,6 +34,7 @@ func Node() *structs.Node {
 			"nomad.version":      "0.5.0",
 			"driver.exec":        "1",
 			"driver.mock_driver": "1",
+			"consul.version":     "1.11.4",
 		},
 
 		// TODO Remove once clientv2 gets merged
@@ -251,6 +252,13 @@ func Job() *structs.Job {
 			{
 				Name:  "web",
 				Count: 10,
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${attr.consul.version}",
+						RTarget: ">= 1.7.0",
+						Operand: structs.ConstraintSemver,
+					},
+				},
 				EphemeralDisk: &structs.EphemeralDisk{
 					SizeMB: 150,
 				},
@@ -2246,12 +2254,45 @@ func AllocNetworkStatus() *structs.AllocNetworkStatus {
 }
 
 func Namespace() *structs.Namespace {
+	uuid := uuid.Generate()
 	ns := &structs.Namespace{
-		Name:        fmt.Sprintf("team-%s", uuid.Generate()),
+		Name:        fmt.Sprintf("team-%s", uuid),
+		Meta:        map[string]string{"team": uuid},
 		Description: "test namespace",
 		CreateIndex: 100,
 		ModifyIndex: 200,
 	}
 	ns.SetHash()
 	return ns
+}
+
+// ServiceRegistrations generates an array containing two unique service
+// registrations.
+func ServiceRegistrations() []*structs.ServiceRegistration {
+	return []*structs.ServiceRegistration{
+		{
+			ID:          "_nomad-task-2873cf75-42e5-7c45-ca1c-415f3e18be3d-group-cache-example-cache-db",
+			ServiceName: "example-cache",
+			Namespace:   "default",
+			NodeID:      "17a6d1c0-811e-2ca9-ded0-3d5d6a54904c",
+			Datacenter:  "dc1",
+			JobID:       "example",
+			AllocID:     "2873cf75-42e5-7c45-ca1c-415f3e18be3d",
+			Tags:        []string{"foo"},
+			Address:     "192.168.10.1",
+			Port:        23000,
+		},
+		{
+			ID:          "_nomad-task-ca60e901-675a-0ab2-2e57-2f3b05fdc540-group-api-countdash-api-http",
+			ServiceName: "countdash-api",
+			Namespace:   "platform",
+			NodeID:      "ba991c17-7ce5-9c20-78b7-311e63578583",
+			Datacenter:  "dc2",
+			JobID:       "countdash-api",
+			AllocID:     "ca60e901-675a-0ab2-2e57-2f3b05fdc540",
+			Tags:        []string{"bar"},
+			Address:     "192.168.200.200",
+			Port:        29000,
+		},
+	}
 }

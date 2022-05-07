@@ -70,9 +70,8 @@ capability.
   without being force stopped after a certain deadline.
 
 - `-ignore-system`: Ignore system allows the drain to complete without
-  stopping system job allocations. By default system jobs are stopped
-  last. You should always use this flag when draining a node running
-  [CSI node plugins][internals-csi].
+  stopping system job allocations. By default system jobs (and CSI
+  plugins) are stopped last.
 
 - `-keep-ineligible`: Keep ineligible will maintain the node's scheduling
   ineligibility even if the drain is being disabled. This is useful when an

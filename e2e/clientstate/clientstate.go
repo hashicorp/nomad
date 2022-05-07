@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/execagent"
@@ -82,7 +83,7 @@ func getPID(client *api.Client, alloc *api.Allocation, path string) (int, error)
 // loop to assert Nomad is crash safe.
 func (tc *ClientStateTC) TestClientState_Kill(f *framework.F) {
 	t := f.T()
-	t.Parallel()
+	ci.Parallel(t)
 
 	serverOut := testlog.NewPrefixWriter(t, "SERVER: ")
 	clientOut := testlog.NewPrefixWriter(t, "CLIENT: ")
@@ -223,7 +224,7 @@ func (tc *ClientStateTC) TestClientState_Kill(f *framework.F) {
 // in a tight loop to assert Nomad is crash safe while a task is restarting.
 func (tc *ClientStateTC) TestClientState_KillDuringRestart(f *framework.F) {
 	t := f.T()
-	t.Parallel()
+	ci.Parallel(t)
 
 	serverOut := testlog.NewPrefixWriter(t, "SERVER: ")
 	clientOut := testlog.NewPrefixWriter(t, "CLIENT: ")
@@ -345,7 +346,7 @@ func (tc *ClientStateTC) TestClientState_KillDuringRestart(f *framework.F) {
 // assert it recovers.
 func (tc *ClientStateTC) TestClientState_Corrupt(f *framework.F) {
 	t := f.T()
-	t.Parallel()
+	ci.Parallel(t)
 
 	serverOut := testlog.NewPrefixWriter(t, "SERVER: ")
 	clientOut := testlog.NewPrefixWriter(t, "CLIENT: ")

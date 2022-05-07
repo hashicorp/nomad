@@ -1,6 +1,6 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { run } from '@ember/runloop';
+import { next } from '@ember/runloop';
 import { action } from '@ember/object';
 import { minIndex, max } from 'd3-array';
 
@@ -14,7 +14,7 @@ export default class FlexMasonry extends Component {
 
   @action
   reflow() {
-    run.next(() => {
+    next(() => {
       // There's nothing to do if there is no element
       if (!this.element) return;
 

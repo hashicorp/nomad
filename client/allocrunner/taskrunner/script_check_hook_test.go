@@ -9,8 +9,11 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -63,6 +66,8 @@ type heartbeat struct {
 // TestScript_Exec_Cancel asserts cancelling a script check shortcircuits
 // any running scripts.
 func TestScript_Exec_Cancel(t *testing.T) {
+	ci.Parallel(t)
+
 	exec, cancel := newBlockingScriptExec()
 	defer cancel()
 
@@ -89,7 +94,7 @@ func TestScript_Exec_Cancel(t *testing.T) {
 // TestScript_Exec_TimeoutBasic asserts a script will be killed when the
 // timeout is reached.
 func TestScript_Exec_TimeoutBasic(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	exec, cancel := newBlockingScriptExec()
 	defer cancel()
 
@@ -130,7 +135,7 @@ func TestScript_Exec_TimeoutBasic(t *testing.T) {
 // the timeout is reached and always set a critical status regardless of what
 // Exec returns.
 func TestScript_Exec_TimeoutCritical(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 	hb := newFakeHeartbeater()
 	script := newScriptMock(hb, sleeperExec{}, logger, time.Hour, time.Nanosecond)
@@ -151,6 +156,8 @@ func TestScript_Exec_TimeoutCritical(t *testing.T) {
 // TestScript_Exec_Shutdown asserts a script will be executed once more
 // when told to shutdown.
 func TestScript_Exec_Shutdown(t *testing.T) {
+	ci.Parallel(t)
+
 	shutdown := make(chan struct{})
 	exec := newSimpleExec(0, nil)
 	logger := testlog.HCLogger(t)
@@ -180,6 +187,7 @@ func TestScript_Exec_Shutdown(t *testing.T) {
 // TestScript_Exec_Codes asserts script exit codes are translated to their
 // corresponding Consul health check status.
 func TestScript_Exec_Codes(t *testing.T) {
+	ci.Parallel(t)
 
 	exec := newScriptedExec([]execResult{
 		{[]byte("output"), 1, nil},
@@ -224,9 +232,11 @@ func TestScript_Exec_Codes(t *testing.T) {
 // TestScript_TaskEnvInterpolation asserts that script check hooks are
 // interpolated in the same way that services are
 func TestScript_TaskEnvInterpolation(t *testing.T) {
+	ci.Parallel(t)
 
 	logger := testlog.HCLogger(t)
-	consulClient := consul.NewMockConsulServiceClient(t, logger)
+	consulClient := regMock.NewServiceRegistrationHandler(logger)
+	regWrap := wrapper.NewHandlerWrapper(logger, consulClient, nil)
 	exec, cancel := newBlockingScriptExec()
 	defer cancel()
 
@@ -242,10 +252,10 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 		map[string]string{"SVC_NAME": "frontend"}).Build()
 
 	svcHook := newServiceHook(serviceHookConfig{
-		alloc:          alloc,
-		task:           task,
-		consulServices: consulClient,
-		logger:         logger,
+		alloc:             alloc,
+		task:              task,
+		serviceRegWrapper: regWrap,
+		logger:            logger,
 	})
 	// emulate prestart having been fired
 	svcHook.taskEnv = env
@@ -262,7 +272,7 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 	scHook.driverExec = exec
 
 	expectedSvc := svcHook.getWorkloadServices().Services[0]
-	expected := agentconsul.MakeCheckID(agentconsul.MakeAllocServiceID(
+	expected := agentconsul.MakeCheckID(serviceregistration.MakeAllocServiceID(
 		alloc.ID, task.Name, expectedSvc), expectedSvc.Checks[0])
 
 	actual := scHook.newScriptChecks()
@@ -278,7 +288,7 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 	svcHook.taskEnv = env
 
 	expectedSvc = svcHook.getWorkloadServices().Services[0]
-	expected = agentconsul.MakeCheckID(agentconsul.MakeAllocServiceID(
+	expected = agentconsul.MakeCheckID(serviceregistration.MakeAllocServiceID(
 		alloc.ID, task.Name, expectedSvc), expectedSvc.Checks[0])
 
 	actual = scHook.newScriptChecks()
@@ -288,6 +298,8 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 }
 
 func TestScript_associated(t *testing.T) {
+	ci.Parallel(t)
+
 	t.Run("neither set", func(t *testing.T) {
 		require.False(t, new(scriptCheckHook).associated("task1", "", ""))
 	})

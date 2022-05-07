@@ -30,12 +30,6 @@ func GetPluginMap(logger hclog.Logger, fsIsolation bool) map[string]plugin.Plugi
 	}
 }
 
-func GetPre09PluginMap(logger hclog.Logger, fsIsolation bool) map[string]plugin.Plugin {
-	return map[string]plugin.Plugin{
-		"executor": newPre09ExecutorPlugin(logger),
-	}
-}
-
 // ExecutorReattachConfig is the config that we serialize and de-serialize and
 // store in disk
 type PluginReattachConfig struct {

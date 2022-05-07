@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPluginGroup_RegisterAndRun(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	var hasRun bool
@@ -29,7 +30,7 @@ func TestPluginGroup_RegisterAndRun(t *testing.T) {
 }
 
 func TestPluginGroup_Shutdown(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	var stack []int
@@ -66,7 +67,7 @@ func TestPluginGroup_Shutdown(t *testing.T) {
 }
 
 func TestPluginGroup_WaitForFirstFingerprint(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	managerCh := make(chan struct{})
@@ -95,7 +96,7 @@ func TestPluginGroup_WaitForFirstFingerprint(t *testing.T) {
 }
 
 func TestPluginGroup_WaitForFirstFingerprint_Timeout(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	managerCh := make(chan struct{})

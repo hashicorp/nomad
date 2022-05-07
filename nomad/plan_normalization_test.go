@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
@@ -17,6 +18,8 @@ import (
 // Whenever this test is changed, care should be taken to ensure the older msgpack size
 // is recalculated when new fields are introduced in ApplyPlanResultsRequest
 func TestPlanNormalize(t *testing.T) {
+	ci.Parallel(t)
+
 	// This size was calculated using the older ApplyPlanResultsRequest format, in which allocations
 	// didn't use OmitEmpty and only the job was normalized in the stopped and preempted allocs.
 	// The newer format uses OmitEmpty and uses a minimal set of fields for the diff of the

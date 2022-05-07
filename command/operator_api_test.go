@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
@@ -15,6 +16,8 @@ import (
 // TestOperatorAPICommand_Paths asserts that the op api command normalizes
 // various path formats to the proper full address.
 func TestOperatorAPICommand_Paths(t *testing.T) {
+	ci.Parallel(t)
+
 	hits := make(chan *url.URL, 1)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hits <- r.URL
@@ -74,6 +77,8 @@ func TestOperatorAPICommand_Paths(t *testing.T) {
 // TestOperatorAPICommand_Curl asserts that -dryrun outputs a valid curl
 // command.
 func TestOperatorAPICommand_Curl(t *testing.T) {
+	ci.Parallel(t)
+
 	buf := bytes.NewBuffer(nil)
 	ui := &cli.BasicUi{
 		ErrorWriter: buf,

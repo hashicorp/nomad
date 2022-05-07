@@ -1,22 +1,25 @@
 package command
 
 import (
+	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/require"
 )
 
-func TestRunCommand_Implements(t *testing.T) {
-	t.Parallel()
-	var _ cli.Command = &JobRunCommand{}
-}
+var _ cli.Command = (*JobRunCommand)(nil)
 
 func TestRunCommand_Output_Json(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
 
@@ -52,7 +55,7 @@ job "job1" {
 }
 
 func TestRunCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Create a server
 	s := testutil.NewTestServer(t, nil)
@@ -156,7 +159,7 @@ job "job1" {
 }
 
 func TestRunCommand_From_STDIN(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -199,7 +202,7 @@ job "job1" {
 }
 
 func TestRunCommand_From_URL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{
 		Meta: Meta{Ui: ui},
@@ -213,4 +216,66 @@ func TestRunCommand_From_URL(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error getting jobfile") {
 		t.Fatalf("expected error getting jobfile, got: %s", out)
 	}
+}
+
+// TestRunCommand_JSON asserts that `nomad job run -json` accepts JSON jobs
+// with or without a top level Job key.
+func TestRunCommand_JSON(t *testing.T) {
+	ci.Parallel(t)
+	run := func(args ...string) (stdout string, stderr string, code int) {
+		ui := cli.NewMockUi()
+		cmd := &JobRunCommand{
+			Meta: Meta{Ui: ui},
+		}
+		t.Logf("run: nomad job run %s", strings.Join(args, " "))
+		code = cmd.Run(args)
+		return ui.OutputWriter.String(), ui.ErrorWriter.String(), code
+	}
+
+	// Agent startup is slow, do some work while we wait
+	agentReady := make(chan string)
+	go func() {
+		_, _, addr := testServer(t, false, nil)
+		agentReady <- addr
+	}()
+
+	// First convert HCL -> JSON with -output
+	stdout, stderr, code := run("-output", "assets/example-short.nomad")
+	require.Zero(t, code, stderr)
+	require.Empty(t, stderr)
+	require.NotEmpty(t, stdout)
+	t.Logf("run -output==> %s...", stdout[:12])
+
+	jsonFile := filepath.Join(t.TempDir(), "redis.json")
+	require.NoError(t, os.WriteFile(jsonFile, []byte(stdout), 0o640))
+
+	// Wait for agent to start and get its address
+	addr := ""
+	select {
+	case addr = <-agentReady:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("timed out waiting for agent to start")
+	}
+
+	// Submit JSON
+	stdout, stderr, code = run("-detach", "-address", addr, "-json", jsonFile)
+	require.Zero(t, code, stderr)
+	require.Empty(t, stderr)
+
+	// Read the JSON from the API as it omits the Job envelope and
+	// therefore differs from -output
+	resp, err := http.Get(addr + "/v1/job/example")
+	require.NoError(t, err)
+	buf, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.NotEmpty(t, buf)
+	t.Logf("/v1/job/example==> %s...", string(buf[:12]))
+	require.NoError(t, os.WriteFile(jsonFile, buf, 0o640))
+
+	// Submit JSON
+	stdout, stderr, code = run("-detach", "-address", addr, "-json", jsonFile)
+	require.Zerof(t, code, "stderr: %s\njson: %s\n", stderr, string(buf))
+	require.Empty(t, stderr)
+	require.NotEmpty(t, stdout)
 }

@@ -8,6 +8,7 @@ import (
 
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,6 +25,8 @@ const (
 )
 
 func TestParse(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		File   string
 		Result *api.Job
@@ -198,6 +201,7 @@ func TestParse(t *testing.T) {
 							},
 						},
 						StopAfterClientDisconnect: timeToPtr(120 * time.Second),
+						MaxClientDisconnect:       timeToPtr(120 * time.Hour),
 						ReschedulePolicy: &api.ReschedulePolicy{
 							Interval: timeToPtr(12 * time.Hour),
 							Attempts: intToPtr(5),
@@ -1763,6 +1767,32 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"service-provider.hcl",
+			&api.Job{
+				ID:   stringToPtr("service-provider"),
+				Name: stringToPtr("service-provider"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Count: intToPtr(5),
+						Name:  stringToPtr("group"),
+						Tasks: []*api.Task{
+							{
+								Name:   "task",
+								Driver: "docker",
+								Services: []*api.Service{
+									{
+										Name:     "service-provider",
+										Provider: "nomad",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {
@@ -1784,6 +1814,8 @@ func TestParse(t *testing.T) {
 }
 
 func TestBadPorts(t *testing.T) {
+	ci.Parallel(t)
+
 	path, err := filepath.Abs(filepath.Join("./test-fixtures", "bad-ports.hcl"))
 	if err != nil {
 		t.Fatalf("Can't get absolute path for file: %s", err)
@@ -1797,6 +1829,8 @@ func TestBadPorts(t *testing.T) {
 }
 
 func TestOverlappingPorts(t *testing.T) {
+	ci.Parallel(t)
+
 	path, err := filepath.Abs(filepath.Join("./test-fixtures", "overlapping-ports.hcl"))
 	if err != nil {
 		t.Fatalf("Can't get absolute path for file: %s", err)
@@ -1814,6 +1848,8 @@ func TestOverlappingPorts(t *testing.T) {
 }
 
 func TestIncorrectKey(t *testing.T) {
+	ci.Parallel(t)
+
 	path, err := filepath.Abs(filepath.Join("./test-fixtures", "basic_wrong_key.hcl"))
 	if err != nil {
 		t.Fatalf("Can't get absolute path for file: %s", err)

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
+	uuidparse "github.com/hashicorp/go-uuid"
 	nomadapi "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/e2e/consulacls"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -19,12 +19,8 @@ import (
 type ConnectACLsE2ETest struct {
 	framework.TC
 
-	// manageConsulACLs is used to 'enable' and 'disable' Consul ACLs in the
-	// Consul Cluster that has been setup for e2e testing.
-	manageConsulACLs consulacls.Manager
-
-	// consulManagementToken is set to the generated Consul ACL token after using
-	// the consul-acls-manage.sh script to enable ACLs.
+	// used to store the root token so we can reset the client back to
+	// it as needed
 	consulManagementToken string
 
 	// things to cleanup after each test case
@@ -38,47 +34,19 @@ func (tc *ConnectACLsE2ETest) BeforeAll(f *framework.F) {
 	e2eutil.WaitForLeader(f.T(), tc.Nomad())
 	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 2)
 
-	// Now enable Consul ACLs, the bootstrapping process for which will be
-	// managed automatically if needed.
-	var err error
-	tc.manageConsulACLs, err = consulacls.New(consulacls.DefaultTFStateFile)
-	require.NoError(f.T(), err)
-	tc.enableConsulACLs(f)
-
-	// Validate the consul master token exists, otherwise tests are just
+	// Validate the consul root token exists, otherwise tests are just
 	// going to be a train wreck.
-	tokenLength := len(tc.consulManagementToken)
-	require.Equal(f.T(), 36, tokenLength, "consul master token wrong length")
+	tc.consulManagementToken = os.Getenv(envConsulToken)
 
-	// Validate the CONSUL_HTTP_TOKEN is NOT set, because that will cause
-	// the agent checks to fail (which do not allow having a token set (!)).
-	consulTokenEnv := os.Getenv(envConsulToken)
-	require.Empty(f.T(), consulTokenEnv)
+	_, err := uuidparse.ParseUUID(tc.consulManagementToken)
+	f.NoError(err, "CONSUL_HTTP_TOKEN not set")
 
-	// Wait for Nomad to be ready _again_, since everything was restarted during
-	// the bootstrap process.
-	e2eutil.WaitForLeader(f.T(), tc.Nomad())
-	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 2)
-}
-
-// enableConsulACLs effectively executes `consul-acls-manage.sh enable`, which
-// will activate Consul ACLs, going through the bootstrap process if necessary.
-func (tc *ConnectACLsE2ETest) enableConsulACLs(f *framework.F) {
-	tc.consulManagementToken = tc.manageConsulACLs.Enable(f.T())
-}
-
-// AfterAll runs after all tests are complete.
-//
-// We disable ConsulACLs in here to isolate the use of Consul ACLs only to
-// test suites that explicitly want to test with them enabled.
-func (tc *ConnectACLsE2ETest) AfterAll(f *framework.F) {
-	tc.disableConsulACLs(f)
-}
-
-// disableConsulACLs effectively executes `consul-acls-manage.sh disable`, which
-// will de-activate Consul ACLs.
-func (tc *ConnectACLsE2ETest) disableConsulACLs(f *framework.F) {
-	tc.manageConsulACLs.Disable(f.T())
+	// ensure SI tokens from previous test cases were removed
+	f.Eventually(func() bool {
+		siTokens := tc.countSITokens(f.T())
+		f.T().Log("cleanup: checking for remaining SI tokens:", siTokens)
+		return len(siTokens) == 0
+	}, 2*time.Minute, 2*time.Second, "SI tokens did not get removed")
 }
 
 // AfterEach does cleanup of Consul ACL objects that were created during each
@@ -175,6 +143,7 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterMasterToken(f *framework.F)
 	// One should never do this in practice, but, it should work.
 	// https://www.consul.io/docs/acl/acl-system.html#builtin-tokens
 	job.ConsulToken = &tc.consulManagementToken
+	job.ID = &jobID
 
 	// Avoid using Register here, because that would actually create and run the
 	// Job which runs the task, creates the SI token, which all needs to be
@@ -188,15 +157,20 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterMasterToken(f *framework.F)
 func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterMissingOperatorToken(f *framework.F) {
 	t := f.T()
 
+	t.Skip("we don't have consul.allow_unauthenticated=false set because it would required updating every E2E test to pass a Consul token")
+
 	t.Log("test register Connect job w/ ACLs enabled w/o operator token")
+
+	jobID := "connect" + uuid.Short()
+	tc.jobIDs = append(tc.jobIDs, jobID) // need to clean up if the test fails
 
 	job, err := jobspec.ParseFile(demoConnectJob)
 	f.NoError(err)
-
 	jobAPI := tc.Nomad().Jobs()
 
 	// Explicitly show the ConsulToken is not set
 	job.ConsulToken = nil
+	job.ID = &jobID
 
 	_, _, err = jobAPI.Register(job, nil)
 	f.Error(err)
@@ -206,6 +180,8 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterMissingOperatorToken(f *fra
 
 func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterFakeOperatorToken(f *framework.F) {
 	t := f.T()
+
+	t.Skip("we don't have consul.allow_unauthenticated=false set because it would required updating every E2E test to pass a Consul token")
 
 	t.Log("test register Connect job w/ ACLs enabled w/ operator token")
 
@@ -217,12 +193,17 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterFakeOperatorToken(f *framew
 
 	// generate a fake consul token token
 	fakeToken := uuid.Generate()
+
+	jobID := "connect" + uuid.Short()
+	tc.jobIDs = append(tc.jobIDs, jobID) // need to clean up if the test fails
+
 	job := tc.parseJobSpecFile(t, demoConnectJob)
 
 	jobAPI := tc.Nomad().Jobs()
 
 	// deliberately set the fake Consul token
 	job.ConsulToken = &fakeToken
+	job.ID = &jobID
 
 	// should fail, because the token is fake
 	_, _, err := jobAPI.Register(job, nil)

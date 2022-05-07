@@ -13,6 +13,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
 	"golang.org/x/crypto/blake2b"
 )
 
@@ -61,6 +62,24 @@ func RemoveAllocs(allocs []*Allocation, remove []*Allocation) []*Allocation {
 		}
 	}
 	return r
+}
+
+func AllocSubset(allocs []*Allocation, subset []*Allocation) bool {
+	if len(subset) == 0 {
+		return true
+	}
+	// Convert allocs into a map
+	allocMap := make(map[string]struct{})
+	for _, alloc := range allocs {
+		allocMap[alloc.ID] = struct{}{}
+	}
+
+	for _, alloc := range subset {
+		if _, ok := allocMap[alloc.ID]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // FilterTerminalAllocs filters out all allocations in a terminal state and
@@ -349,17 +368,15 @@ func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 
 	for _, tgp := range policies {
 		for _, tp := range tgp {
-			for _, p := range tp.Policies {
-				set[p] = struct{}{}
+			if tp != nil {
+				for _, p := range tp.Policies {
+					set[p] = struct{}{}
+				}
 			}
 		}
 	}
 
-	flattened := make([]string, 0, len(set))
-	for p := range set {
-		flattened = append(flattened, p)
-	}
-	return flattened
+	return helper.SetToSliceString(set)
 }
 
 // VaultNamespaceSet takes the structure returned by VaultPolicies and
@@ -369,17 +386,13 @@ func VaultNamespaceSet(policies map[string]map[string]*Vault) []string {
 
 	for _, tgp := range policies {
 		for _, tp := range tgp {
-			if tp.Namespace != "" {
+			if tp != nil && tp.Namespace != "" {
 				set[tp.Namespace] = struct{}{}
 			}
 		}
 	}
 
-	flattened := make([]string, 0, len(set))
-	for p := range set {
-		flattened = append(flattened, p)
-	}
-	return flattened
+	return helper.SetToSliceString(set)
 }
 
 // DenormalizeAllocationJobs is used to attach a job to all allocations that are

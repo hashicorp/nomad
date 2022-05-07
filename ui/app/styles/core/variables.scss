@@ -5,12 +5,14 @@ $purple: $terraform-purple;
 $red: #c84034;
 $grey-blue: #bbc4d1;
 $blue-light: #c0d5ff;
+$yellow: #fac402;
 
 $primary: $nomad-green;
 $warning: $orange;
 $warning-invert: $white;
 $danger: $red;
 $info: $blue;
+$unknown: $yellow;
 $dark: #234;
 $dark-2: darken($dark, 5%);
 $dark-3: darken($dark, 10%);
@@ -25,8 +27,8 @@ $size-7: 0.85rem;
 
 $title-weight: $weight-semibold;
 
-$family-sans-serif: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu,
-  Cantarell, 'Helvetica Neue', sans-serif;
+$family-sans-serif: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+  Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 
 $text: $black;
 

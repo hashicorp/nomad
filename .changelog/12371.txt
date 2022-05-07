@@ -1,0 +1,3 @@
+```release-note:improvement
+client: fingerprint AWS instance life cycle option
+```

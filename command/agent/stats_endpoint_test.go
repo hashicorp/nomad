@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -16,7 +17,7 @@ import (
 )
 
 func TestClientStatsRequest(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 
@@ -77,7 +78,7 @@ func TestClientStatsRequest(t *testing.T) {
 }
 
 func TestClientStatsRequest_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 	httpACLTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()

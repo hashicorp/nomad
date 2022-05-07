@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -14,7 +15,7 @@ import (
 )
 
 func TestStateStore_RestoreNode(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	node := mock.Node()
@@ -42,7 +43,7 @@ func TestStateStore_RestoreNode(t *testing.T) {
 }
 
 func TestStateStore_RestoreJob(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -70,7 +71,7 @@ func TestStateStore_RestoreJob(t *testing.T) {
 }
 
 func TestStateStore_RestorePeriodicLaunch(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -107,7 +108,7 @@ func TestStateStore_RestorePeriodicLaunch(t *testing.T) {
 }
 
 func TestStateStore_RestoreJobVersion(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -139,7 +140,7 @@ func TestStateStore_RestoreJobVersion(t *testing.T) {
 }
 
 func TestStateStore_RestoreDeployment(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	d := mock.Deployment()
@@ -171,7 +172,7 @@ func TestStateStore_RestoreDeployment(t *testing.T) {
 }
 
 func TestStateStore_RestoreJobSummary(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	job := mock.Job()
@@ -207,7 +208,7 @@ func TestStateStore_RestoreJobSummary(t *testing.T) {
 }
 
 func TestStateStore_RestoreCSIPlugin(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -227,7 +228,7 @@ func TestStateStore_RestoreCSIPlugin(t *testing.T) {
 }
 
 func TestStateStore_RestoreCSIVolume(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -248,7 +249,7 @@ func TestStateStore_RestoreCSIVolume(t *testing.T) {
 }
 
 func TestStateStore_RestoreIndex(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 
@@ -276,7 +277,7 @@ func TestStateStore_RestoreIndex(t *testing.T) {
 }
 
 func TestStateStore_RestoreEval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	eval := mock.Eval()
@@ -304,7 +305,7 @@ func TestStateStore_RestoreEval(t *testing.T) {
 }
 
 func TestStateStore_RestoreAlloc(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -337,7 +338,7 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 }
 
 func TestStateStore_RestoreVaultAccessor(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	a := mock.VaultAccessor()
@@ -369,7 +370,7 @@ func TestStateStore_RestoreVaultAccessor(t *testing.T) {
 }
 
 func TestStateStore_RestoreSITokenAccessor(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	r := require.New(t)
 
 	state := testStateStore(t)
@@ -393,7 +394,7 @@ func TestStateStore_RestoreSITokenAccessor(t *testing.T) {
 }
 
 func TestStateStore_RestoreACLPolicy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	policy := mock.ACLPolicy()
@@ -418,7 +419,7 @@ func TestStateStore_RestoreACLPolicy(t *testing.T) {
 }
 
 func TestStateStore_RestoreACLToken(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	token := mock.ACLToken()
@@ -465,7 +466,7 @@ func TestStateStore_ClusterMetadataRestore(t *testing.T) {
 }
 
 func TestStateStore_RestoreScalingPolicy(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -485,7 +486,7 @@ func TestStateStore_RestoreScalingPolicy(t *testing.T) {
 }
 
 func TestStateStore_RestoreScalingEvents(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	state := testStateStore(t)
@@ -515,7 +516,7 @@ func TestStateStore_RestoreScalingEvents(t *testing.T) {
 }
 
 func TestStateStore_RestoreSchedulerConfig(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	state := testStateStore(t)
 	schedConfig := &structs.SchedulerConfiguration{
@@ -540,4 +541,35 @@ func TestStateStore_RestoreSchedulerConfig(t *testing.T) {
 	require.Equal(schedConfig.ModifyIndex, modIndex)
 
 	require.Equal(schedConfig, out)
+}
+
+func TestStateStore_ServiceRegistrationRestore(t *testing.T) {
+	ci.Parallel(t)
+	testState := testStateStore(t)
+
+	// Set up our test registrations and index.
+	expectedIndex := uint64(13)
+	serviceRegs := mock.ServiceRegistrations()
+
+	restore, err := testState.Restore()
+	require.NoError(t, err)
+
+	// Iterate the service registrations, restore, and commit. Set the indexes
+	// on the objects, so we can check these.
+	for i := range serviceRegs {
+		serviceRegs[i].ModifyIndex = expectedIndex
+		serviceRegs[i].CreateIndex = expectedIndex
+		require.NoError(t, restore.ServiceRegistrationRestore(serviceRegs[i]))
+	}
+	require.NoError(t, restore.Commit())
+
+	// Check the state is now populated as we expect and that we can find the
+	// restored registrations.
+	ws := memdb.NewWatchSet()
+
+	for i := range serviceRegs {
+		out, err := testState.GetServiceRegistrationByID(ws, serviceRegs[i].Namespace, serviceRegs[i].ID)
+		require.NoError(t, err)
+		require.Equal(t, serviceRegs[i], out)
+	}
 }

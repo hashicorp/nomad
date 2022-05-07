@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
@@ -246,11 +246,6 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("handle cannot be nil")
 	}
 
-	// COMPAT(0.10): pre 0.9 upgrade path check
-	if handle.Version == 0 {
-		return d.recoverPre09Task(handle)
-	}
-
 	// If already attached to handle there's nothing to recover.
 	if _, ok := d.tasks.Get(handle.Config.ID); ok {
 		d.logger.Trace("nothing to recover; task already exists",
@@ -323,9 +318,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		LogLevel: "debug",
 	}
 
-	exec, pluginClient, err := executor.CreateExecutor(
-		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID),
-		d.nomadConfig, executorConfig)
+	logger := d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID)
+	exec, pluginClient, err := executor.CreateExecutor(logger, d.nomadConfig, executorConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
@@ -372,7 +366,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	if err := handle.SetDriverState(&driverState); err != nil {
 		d.logger.Error("failed to start task, error setting driver state", "error", err)
-		exec.Shutdown("", 0)
+		_ = exec.Shutdown("", 0)
 		pluginClient.Kill()
 		return nil, nil, fmt.Errorf("failed to set driver state: %v", err)
 	}

@@ -10,6 +10,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -20,7 +21,7 @@ import (
 )
 
 func TestEvalEndpoint_GetEval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -29,40 +30,64 @@ func TestEvalEndpoint_GetEval(t *testing.T) {
 
 	// Create the register request
 	eval1 := mock.Eval()
-	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
+	eval2 := mock.Eval()
 
-	// Lookup the eval
-	get := &structs.EvalSpecificRequest{
-		EvalID:       eval1.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
-	}
-	var resp structs.SingleEvalResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp.Index != 1000 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 1000)
-	}
+	// Link the evals
+	eval1.NextEval = eval2.ID
+	eval2.PreviousEval = eval1.ID
 
-	if !reflect.DeepEqual(eval1, resp.Eval) {
-		t.Fatalf("bad: %#v %#v", eval1, resp.Eval)
-	}
+	err := s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
+	require.NoError(t, err)
 
-	// Lookup non-existing node
-	get.EvalID = uuid.Generate()
-	if err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp.Index != 1000 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 1000)
-	}
-	if resp.Eval != nil {
-		t.Fatalf("unexpected eval")
-	}
+	t.Run("lookup eval", func(t *testing.T) {
+		get := &structs.EvalSpecificRequest{
+			EvalID:       eval1.ID,
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		var resp structs.SingleEvalResponse
+		err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp)
+		require.NoError(t, err)
+		require.EqualValues(t, 1000, resp.Index, "bad index")
+		require.Equal(t, eval1, resp.Eval)
+	})
+
+	t.Run("lookup non-existing eval", func(t *testing.T) {
+		get := &structs.EvalSpecificRequest{
+			EvalID:       uuid.Generate(),
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		var resp structs.SingleEvalResponse
+		err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp)
+		require.NoError(t, err)
+		require.EqualValues(t, 1000, resp.Index, "bad index")
+		require.Nil(t, resp.Eval, "unexpected eval")
+	})
+
+	t.Run("lookup related evals", func(t *testing.T) {
+		get := &structs.EvalSpecificRequest{
+			EvalID:         eval1.ID,
+			QueryOptions:   structs.QueryOptions{Region: "global"},
+			IncludeRelated: true,
+		}
+		var resp structs.SingleEvalResponse
+		err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp)
+		require.NoError(t, err)
+		require.EqualValues(t, 1000, resp.Index, "bad index")
+		require.Equal(t, eval1.ID, resp.Eval.ID)
+
+		// Make sure we didn't modify the eval on a read request.
+		require.Nil(t, eval1.RelatedEvals)
+
+		// Check for the related evals
+		expected := []*structs.EvaluationStub{
+			eval2.Stub(),
+		}
+		require.Equal(t, expected, resp.Eval.RelatedEvals)
+	})
 }
 
 func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -123,7 +148,7 @@ func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
 }
 
 func TestEvalEndpoint_GetEval_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -202,7 +227,7 @@ func TestEvalEndpoint_GetEval_Blocking(t *testing.T) {
 }
 
 func TestEvalEndpoint_Dequeue(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -247,7 +272,7 @@ func TestEvalEndpoint_Dequeue(t *testing.T) {
 // TestEvalEndpoint_Dequeue_WaitIndex_Snapshot asserts that an eval's wait
 // index will be equal to the highest eval modify index in the state store.
 func TestEvalEndpoint_Dequeue_WaitIndex_Snapshot(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -298,7 +323,7 @@ func TestEvalEndpoint_Dequeue_WaitIndex_Snapshot(t *testing.T) {
 // indexes in the state store. This can happen if Dequeue receives an eval that
 // has not yet been applied from the Raft log to the local node's state store.
 func TestEvalEndpoint_Dequeue_WaitIndex_Eval(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -337,7 +362,7 @@ func TestEvalEndpoint_Dequeue_WaitIndex_Eval(t *testing.T) {
 
 func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {
 	// test enqueuing an eval, updating a plan result for the same eval and de-queueing the eval
-	t.Parallel()
+	ci.Parallel(t)
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -403,7 +428,7 @@ func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {
 }
 
 func TestEvalEndpoint_Dequeue_Version_Mismatch(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -430,7 +455,7 @@ func TestEvalEndpoint_Dequeue_Version_Mismatch(t *testing.T) {
 }
 
 func TestEvalEndpoint_Ack(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -471,7 +496,7 @@ func TestEvalEndpoint_Ack(t *testing.T) {
 }
 
 func TestEvalEndpoint_Nack(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		// Disable all of the schedulers so we can manually dequeue
@@ -525,7 +550,7 @@ func TestEvalEndpoint_Nack(t *testing.T) {
 }
 
 func TestEvalEndpoint_Update(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -574,7 +599,7 @@ func TestEvalEndpoint_Update(t *testing.T) {
 }
 
 func TestEvalEndpoint_Create(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -627,7 +652,7 @@ func TestEvalEndpoint_Create(t *testing.T) {
 }
 
 func TestEvalEndpoint_Reap(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -663,7 +688,7 @@ func TestEvalEndpoint_Reap(t *testing.T) {
 }
 
 func TestEvalEndpoint_List(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -718,7 +743,7 @@ func TestEvalEndpoint_List(t *testing.T) {
 }
 
 func TestEvalEndpoint_List_order(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -751,40 +776,12 @@ func TestEvalEndpoint_List_order(t *testing.T) {
 	err = s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1003, []*structs.Evaluation{eval2})
 	require.NoError(t, err)
 
-	t.Run("descending", func(t *testing.T) {
-		// Lookup the evaluations in reverse chronological order
+	t.Run("default", func(t *testing.T) {
+		// Lookup the evaluations in the default order (oldest first)
 		get := &structs.EvalListRequest{
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
-				Ascending: false,
-			},
-		}
-
-		var resp structs.EvalListResponse
-		err = msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
-		require.NoError(t, err)
-		require.Equal(t, uint64(1003), resp.Index)
-		require.Len(t, resp.Evaluations, 3)
-
-		// Assert returned order is by CreateIndex (descending)
-		require.Equal(t, uint64(1002), resp.Evaluations[0].CreateIndex)
-		require.Equal(t, uuid3, resp.Evaluations[0].ID)
-
-		require.Equal(t, uint64(1001), resp.Evaluations[1].CreateIndex)
-		require.Equal(t, uuid2, resp.Evaluations[1].ID)
-
-		require.Equal(t, uint64(1000), resp.Evaluations[2].CreateIndex)
-		require.Equal(t, uuid1, resp.Evaluations[2].ID)
-	})
-
-	t.Run("ascending", func(t *testing.T) {
-		// Lookup the evaluations in reverse chronological order (newest first)
-		get := &structs.EvalListRequest{
-			QueryOptions: structs.QueryOptions{
-				Region:    "global",
-				Namespace: "*",
-				Ascending: true,
 			},
 		}
 
@@ -805,13 +802,13 @@ func TestEvalEndpoint_List_order(t *testing.T) {
 		require.Equal(t, uuid3, resp.Evaluations[2].ID)
 	})
 
-	t.Run("descending", func(t *testing.T) {
-		// Lookup the evaluations in chronological order (oldest first)
+	t.Run("reverse", func(t *testing.T) {
+		// Lookup the evaluations in reverse order (newest first)
 		get := &structs.EvalListRequest{
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
-				Ascending: false,
+				Reverse:   true,
 			},
 		}
 
@@ -831,11 +828,10 @@ func TestEvalEndpoint_List_order(t *testing.T) {
 		require.Equal(t, uint64(1000), resp.Evaluations[2].CreateIndex)
 		require.Equal(t, uuid1, resp.Evaluations[2].ID)
 	})
-
 }
 
 func TestEvalEndpoint_ListAllNamespaces(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -870,7 +866,7 @@ func TestEvalEndpoint_ListAllNamespaces(t *testing.T) {
 }
 
 func TestEvalEndpoint_List_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -936,7 +932,7 @@ func TestEvalEndpoint_List_ACL(t *testing.T) {
 }
 
 func TestEvalEndpoint_List_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1003,7 +999,7 @@ func TestEvalEndpoint_List_Blocking(t *testing.T) {
 }
 
 func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	s1, _, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -1084,7 +1080,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
 			},
-			expectedNextToken: "1003-aaaaaaaa-3350-4b4b-d185-0e1992ed43e9", // next one in default namespace
+			expectedNextToken: "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9", // next one in default namespace
 		},
 		{
 			name:              "test02 size-2 page-1 default NS with prefix",
@@ -1099,8 +1095,8 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		{
 			name:              "test03 size-2 page-2 default NS",
 			pageSize:          2,
-			nextToken:         "1003-aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1005-aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1005.aaaaaacc-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
@@ -1123,7 +1119,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			filterJobID:  "example",
 			filterStatus: "pending",
 			// aaaaaaaa, bb, and cc are filtered by status
-			expectedNextToken: "1006-aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1006.aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
@@ -1159,7 +1155,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			pageSize:          3,                                            // reads off the end
 			filterJobID:       "example",
 			filterStatus:      "pending",
-			nextToken:         "1003-aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
 			expectedNextToken: "",
 			expectedIDs: []string{
 				"aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
@@ -1183,8 +1179,8 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			name:              "test10 size-2 page-2 all namespaces",
 			namespace:         "*",
 			pageSize:          2,
-			nextToken:         "1002-aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1004-aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1002.aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1004.aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
@@ -1228,7 +1224,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			name:              "test16 go-bexpr filter with pagination",
 			filter:            `JobID == "example"`,
 			pageSize:          2,
-			expectedNextToken: "1003-aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
@@ -1267,8 +1263,8 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		{
 			name:              "test22 non-lexicographic order",
 			pageSize:          1,
-			nextToken:         "1009-00000111-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1010-00000222-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1009.00000111-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1010.00000222-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"00000111-3350-4b4b-d185-0e1992ed43e9",
 			},
@@ -1276,8 +1272,8 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		{
 			name:              "test23 same index",
 			pageSize:          1,
-			nextToken:         "1010-00000222-3350-4b4b-d185-0e1992ed43e9",
-			expectedNextToken: "1010-00000333-3350-4b4b-d185-0e1992ed43e9",
+			nextToken:         "1010.00000222-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "1010.00000333-3350-4b4b-d185-0e1992ed43e9",
 			expectedIDs: []string{
 				"00000222-3350-4b4b-d185-0e1992ed43e9",
 			},
@@ -1285,7 +1281,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 		{
 			name:      "test24 missing index",
 			pageSize:  1,
-			nextToken: "1011-e9522802-0cd8-4b1d-9c9e-ab3d97938371",
+			nextToken: "1011.e9522802-0cd8-4b1d-9c9e-ab3d97938371",
 			expectedIDs: []string{
 				"bbbb1111-3350-4b4b-d185-0e1992ed43e9",
 			},
@@ -1304,7 +1300,6 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 					PerPage:   tc.pageSize,
 					NextToken: tc.nextToken,
 					Filter:    tc.filter,
-					Ascending: true, // counting up is easier to think about
 				},
 			}
 			req.AuthToken = aclToken
@@ -1329,7 +1324,7 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 }
 
 func TestEvalEndpoint_Allocations(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1367,7 +1362,7 @@ func TestEvalEndpoint_Allocations(t *testing.T) {
 }
 
 func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -1432,7 +1427,7 @@ func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
 }
 
 func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1488,7 +1483,7 @@ func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 }
 
 func TestEvalEndpoint_Reblock_Nonexistent(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -1525,7 +1520,7 @@ func TestEvalEndpoint_Reblock_Nonexistent(t *testing.T) {
 }
 
 func TestEvalEndpoint_Reblock_NonBlocked(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -1568,7 +1563,7 @@ func TestEvalEndpoint_Reblock_NonBlocked(t *testing.T) {
 }
 
 func TestEvalEndpoint_Reblock(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue

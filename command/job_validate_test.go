@@ -6,17 +6,19 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateCommand_Implements(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	var _ cli.Command = &JobValidateCommand{}
 }
 
 func TestValidateCommand(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Create a server
 	s := testutil.NewTestServer(t, nil)
 	defer s.Stop()
@@ -56,7 +58,7 @@ job "job1" {
 }
 
 func TestValidateCommand_Fails(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobValidateCommand{Meta: Meta{Ui: ui}}
 
@@ -114,7 +116,7 @@ func TestValidateCommand_Fails(t *testing.T) {
 }
 
 func TestValidateCommand_From_STDIN(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -160,7 +162,7 @@ job "job1" {
 }
 
 func TestValidateCommand_From_URL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{
 		Meta: Meta{Ui: ui},
@@ -174,4 +176,25 @@ func TestValidateCommand_From_URL(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error getting jobfile") {
 		t.Fatalf("expected error getting jobfile, got: %s", out)
 	}
+}
+
+func TestValidateCommand_JSON(t *testing.T) {
+	ci.Parallel(t)
+
+	_, _, addr := testServer(t, false, nil)
+
+	ui := cli.NewMockUi()
+	cmd := &JobValidateCommand{
+		Meta: Meta{Ui: ui},
+	}
+
+	code := cmd.Run([]string{"-address", addr, "-json", "testdata/example-short.json"})
+
+	require.Zerof(t, code, "stdout: %s\nstdout: %s\n",
+		ui.OutputWriter.String(), ui.ErrorWriter.String())
+
+	code = cmd.Run([]string{"-address", addr, "-json", "testdata/example-short-bad.json"})
+
+	require.Equalf(t, 1, code, "stdout: %s\nstdout: %s\n",
+		ui.OutputWriter.String(), ui.ErrorWriter.String())
 }

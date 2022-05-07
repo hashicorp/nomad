@@ -216,6 +216,10 @@ func (c *CSI) ControllerCreateVolume(req *structs.ClientCSIControllerCreateVolum
 	resp.CapacityBytes = cresp.Volume.CapacityBytes
 	resp.VolumeContext = cresp.Volume.VolumeContext
 
+	// Note: we safely throw away cresp.Volume.ContentSource here
+	// because it's just round-tripping the value set by the user in
+	// the server RPC call
+
 	resp.Topologies = make([]*nstructs.CSITopology, len(cresp.Volume.AccessibleTopology))
 	for _, topo := range cresp.Volume.AccessibleTopology {
 		resp.Topologies = append(resp.Topologies,

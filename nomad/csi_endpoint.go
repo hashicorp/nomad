@@ -1,8 +1,9 @@
 package nomad
 
 import (
-	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -136,40 +138,65 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			} else {
 				iter, err = snap.CSIVolumes(ws)
 			}
-
 			if err != nil {
 				return err
 			}
 
+			tokenizer := paginator.NewStructsTokenizer(
+				iter,
+				paginator.StructsTokenizerOptions{
+					WithNamespace: true,
+					WithID:        true,
+				},
+			)
+			volFilter := paginator.GenericFilter{
+				Allow: func(raw interface{}) (bool, error) {
+					vol := raw.(*structs.CSIVolume)
+
+					// Remove (possibly again) by PluginID to handle passing both
+					// NodeID and PluginID
+					if args.PluginID != "" && args.PluginID != vol.PluginID {
+						return false, nil
+					}
+
+					// Remove by Namespace, since CSIVolumesByNodeID hasn't used
+					// the Namespace yet
+					if ns != structs.AllNamespacesSentinel && vol.Namespace != ns {
+						return false, nil
+					}
+
+					return true, nil
+				},
+			}
+			filters := []paginator.Filter{volFilter}
+
 			// Collect results, filter by ACL access
 			vs := []*structs.CSIVolListStub{}
 
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				vol := raw.(*structs.CSIVolume)
+			paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+				func(raw interface{}) error {
+					vol := raw.(*structs.CSIVolume)
 
-				// Remove (possibly again) by PluginID to handle passing both
-				// NodeID and PluginID
-				if args.PluginID != "" && args.PluginID != vol.PluginID {
-					continue
-				}
+					vol, err := snap.CSIVolumeDenormalizePlugins(ws, vol.Copy())
+					if err != nil {
+						return err
+					}
 
-				// Remove by Namespace, since CSIVolumesByNodeID hasn't used
-				// the Namespace yet
-				if ns != structs.AllNamespacesSentinel && vol.Namespace != ns {
-					continue
-				}
-
-				vol, err := snap.CSIVolumeDenormalizePlugins(ws, vol.Copy())
-				if err != nil {
-					return err
-				}
-
-				vs = append(vs, vol.Stub())
+					vs = append(vs, vol.Stub())
+					return nil
+				})
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
+
+			nextToken, err := paginator.Page()
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to read result page: %v", err)
+			}
+
+			reply.QueryMeta.NextToken = nextToken
 			reply.Volumes = vs
 			return v.srv.replySetIndex(csiVolumeTable, &reply.QueryMeta)
 		}}
@@ -240,6 +267,7 @@ func (v *CSIVolume) pluginValidateVolume(req *structs.CSIVolumeRegisterRequest, 
 
 	vol.Provider = plugin.Provider
 	vol.ProviderVersion = plugin.Version
+
 	return plugin, nil
 }
 
@@ -265,7 +293,15 @@ func (v *CSIVolume) controllerValidateVolume(req *structs.CSIVolumeRegisterReque
 	return v.srv.RPC(method, cReq, cResp)
 }
 
-// Register registers a new volume
+// Register registers a new volume or updates an existing volume. Note
+// that most user-defined CSIVolume fields are immutable once the
+// volume has been created.
+//
+// If the user needs to change fields because they've misconfigured
+// the registration of the external volume, we expect that claims
+// won't work either, and the user can deregister the volume and try
+// again with the right settings. This lets us be as strict with
+// validation here as the CreateVolume CSI RPC is expected to be.
 func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *structs.CSIVolumeRegisterResponse) error {
 	if done, err := v.srv.forward("CSIVolume.Register", args, args, reply); done {
 		return err
@@ -291,9 +327,46 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 	// We also validate that the plugin exists for each plugin, and validate the
 	// capabilities when the plugin has a controller.
 	for _, vol := range args.Volumes {
-		vol.Namespace = args.RequestNamespace()
+
+		snap, err := v.srv.State().Snapshot()
+		if err != nil {
+			return err
+		}
+		if vol.Namespace == "" {
+			vol.Namespace = args.RequestNamespace()
+		}
 		if err = vol.Validate(); err != nil {
 			return err
+		}
+
+		ws := memdb.NewWatchSet()
+		existingVol, err := snap.CSIVolumeByID(ws, vol.Namespace, vol.ID)
+		if err != nil {
+			return err
+		}
+
+		// CSIVolume has many user-defined fields which are immutable
+		// once set, and many fields that are controlled by Nomad and
+		// are not user-settable. We merge onto a copy of the existing
+		// volume to allow a user to submit a volume spec for `volume
+		// create` and reuse it for updates in `volume register`
+		// without having to manually remove the fields unused by
+		// register (and similar use cases with API consumers such as
+		// Terraform).
+		if existingVol != nil {
+			existingVol = existingVol.Copy()
+			err = existingVol.Merge(vol)
+			if err != nil {
+				return err
+			}
+			*vol = *existingVol
+		} else if vol.Topologies == nil || len(vol.Topologies) == 0 {
+			// The topologies for the volume have already been set
+			// when it was created, so for newly register volumes
+			// we accept the user's description of that topology
+			if vol.RequestedTopologies != nil {
+				vol.Topologies = vol.RequestedTopologies.Required
+			}
 		}
 
 		plugin, err := v.pluginValidateVolume(args, vol)
@@ -302,14 +375,6 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		}
 		if err := v.controllerValidateVolume(args, vol, plugin); err != nil {
 			return err
-		}
-
-		// The topologies for the volume have already been set when it was
-		// created, so we accept the user's description of that topology
-		if vol.Topologies == nil || len(vol.Topologies) == 0 {
-			if vol.RequestedTopologies != nil {
-				vol.Topologies = vol.RequestedTopologies.Required
-			}
 		}
 	}
 
@@ -405,15 +470,6 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		args.NodeID = alloc.NodeID
 	}
 
-	if isNewClaim {
-		// if this is a new claim, add a Volume and PublishContext from the
-		// controller (if any) to the reply
-		err = v.controllerPublishVolume(args, reply)
-		if err != nil {
-			return fmt.Errorf("controller publish: %v", err)
-		}
-	}
-
 	resp, index, err := v.srv.raftApply(structs.CSIVolumeClaimRequestType, args)
 	if err != nil {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "claim")
@@ -421,6 +477,15 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	}
 	if respErr, ok := resp.(error); ok {
 		return respErr
+	}
+
+	if isNewClaim {
+		// if this is a new claim, add a Volume and PublishContext from the
+		// controller (if any) to the reply
+		err = v.controllerPublishVolume(args, reply)
+		if err != nil {
+			return fmt.Errorf("controller publish: %v", err)
+		}
 	}
 
 	reply.Index = index
@@ -503,7 +568,10 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 
 	err = v.srv.RPC(method, cReq, cResp)
 	if err != nil {
-		return fmt.Errorf("attach volume: %v", err)
+		if strings.Contains(err.Error(), "FailedPrecondition") {
+			return fmt.Errorf("%v: %v", structs.ErrCSIClientRPCRetryable, err)
+		}
+		return err
 	}
 	resp.PublishContext = cResp.PublishContext
 	return nil
@@ -603,6 +671,7 @@ NODE_DETACHED:
 	}
 
 RELEASE_CLAIM:
+	v.logger.Trace("releasing claim", "vol", vol.ID)
 	// advance a CSIVolumeClaimStateControllerDetached claim
 	claim.State = structs.CSIVolumeClaimStateReadyToFree
 	err = v.checkpointClaim(vol, claim)
@@ -616,6 +685,7 @@ RELEASE_CLAIM:
 }
 
 func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
+	v.logger.Trace("node unpublish", "vol", vol.ID)
 	if claim.AllocationID != "" {
 		err := v.nodeUnpublishVolumeImpl(vol, claim)
 		if err != nil {
@@ -658,6 +728,11 @@ func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.C
 }
 
 func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
+	if claim.AccessMode == structs.CSIVolumeAccessModeUnknown {
+		// claim has already been released client-side
+		return nil
+	}
+
 	req := &cstructs.ClientCSINodeDetachVolumeRequest{
 		PluginID:       vol.PluginID,
 		VolumeID:       vol.ID,
@@ -674,7 +749,9 @@ func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *struc
 		// we should only get this error if the Nomad node disconnects and
 		// is garbage-collected, so at this point we don't have any reason
 		// to operate as though the volume is attached to it.
-		if !errors.Is(err, structs.ErrUnknownNode) {
+		// note: errors.Is cannot be used because the RPC call breaks
+		// error wrapping.
+		if !strings.Contains(err.Error(), structs.ErrUnknownNode.Error()) {
 			return fmt.Errorf("could not detach from node: %w", err)
 		}
 	}
@@ -682,7 +759,7 @@ func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *struc
 }
 
 func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
-
+	v.logger.Trace("controller unpublish", "vol", vol.ID)
 	if !vol.ControllerRequired {
 		claim.State = structs.CSIVolumeClaimStateReadyToFree
 		return nil
@@ -751,17 +828,17 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 // and GC'd by this point, so looking there is the last resort.
 func (v *CSIVolume) lookupExternalNodeID(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) (string, error) {
 	for _, rClaim := range vol.ReadClaims {
-		if rClaim.NodeID == claim.NodeID {
+		if rClaim.NodeID == claim.NodeID && rClaim.ExternalNodeID != "" {
 			return rClaim.ExternalNodeID, nil
 		}
 	}
 	for _, wClaim := range vol.WriteClaims {
-		if wClaim.NodeID == claim.NodeID {
+		if wClaim.NodeID == claim.NodeID && wClaim.ExternalNodeID != "" {
 			return wClaim.ExternalNodeID, nil
 		}
 	}
 	for _, pClaim := range vol.PastClaims {
-		if pClaim.NodeID == claim.NodeID {
+		if pClaim.NodeID == claim.NodeID && pClaim.ExternalNodeID != "" {
 			return pClaim.ExternalNodeID, nil
 		}
 	}
@@ -844,7 +921,9 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 	// We also validate that the plugin exists for each plugin, and validate the
 	// capabilities when the plugin has a controller.
 	for _, vol := range args.Volumes {
-		vol.Namespace = args.RequestNamespace()
+		if vol.Namespace == "" {
+			vol.Namespace = args.RequestNamespace()
+		}
 		if err = vol.Validate(); err != nil {
 			return err
 		}
@@ -969,7 +1048,7 @@ func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.
 		// NOTE: deleting the volume in the external storage provider can't be
 		// made atomic with deregistration. We can't delete a volume that's
 		// not registered because we need to be able to lookup its plugin.
-		err = v.deleteVolume(vol, plugin)
+		err = v.deleteVolume(vol, plugin, args.Secrets)
 		if err != nil {
 			return err
 		}
@@ -993,12 +1072,18 @@ func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.
 	return nil
 }
 
-func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin) error {
+func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin, querySecrets structs.CSISecrets) error {
+	// Combine volume and query secrets into one map.
+	// Query secrets override any secrets stored with the volume.
+	combinedSecrets := vol.Secrets
+	for k, v := range querySecrets {
+		combinedSecrets[k] = v
+	}
 
 	method := "ClientCSI.ControllerDeleteVolume"
 	cReq := &cstructs.ClientCSIControllerDeleteVolumeRequest{
 		ExternalVolumeID: vol.ExternalID,
-		Secrets:          vol.Secrets,
+		Secrets:          combinedSecrets,
 	}
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerDeleteVolumeResponse{}
@@ -1095,22 +1180,6 @@ func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply
 			return fmt.Errorf("snapshot cannot be nil")
 		}
 
-		plugin, err := state.CSIPluginByID(nil, snap.PluginID)
-		if err != nil {
-			multierror.Append(&mErr,
-				fmt.Errorf("error querying plugin %q: %v", snap.PluginID, err))
-			continue
-		}
-		if plugin == nil {
-			multierror.Append(&mErr, fmt.Errorf("no such plugin %q", snap.PluginID))
-			continue
-		}
-		if !plugin.HasControllerCapability(structs.CSIControllerSupportsCreateDeleteSnapshot) {
-			multierror.Append(&mErr,
-				fmt.Errorf("plugin %q does not support snapshot", snap.PluginID))
-			continue
-		}
-
 		vol, err := state.CSIVolumeByID(nil, args.RequestNamespace(), snap.SourceVolumeID)
 		if err != nil {
 			multierror.Append(&mErr, fmt.Errorf("error querying volume %q: %v", snap.SourceVolumeID, err))
@@ -1121,13 +1190,40 @@ func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply
 			continue
 		}
 
+		pluginID := snap.PluginID
+		if pluginID == "" {
+			pluginID = vol.PluginID
+		}
+
+		plugin, err := state.CSIPluginByID(nil, pluginID)
+		if err != nil {
+			multierror.Append(&mErr,
+				fmt.Errorf("error querying plugin %q: %v", pluginID, err))
+			continue
+		}
+		if plugin == nil {
+			multierror.Append(&mErr, fmt.Errorf("no such plugin %q", pluginID))
+			continue
+		}
+		if !plugin.HasControllerCapability(structs.CSIControllerSupportsCreateDeleteSnapshot) {
+			multierror.Append(&mErr,
+				fmt.Errorf("plugin %q does not support snapshot", pluginID))
+			continue
+		}
+
+		secrets := vol.Secrets
+		for k, v := range snap.Secrets {
+			// merge request secrets onto volume secrets
+			secrets[k] = v
+		}
+
 		cReq := &cstructs.ClientCSIControllerCreateSnapshotRequest{
 			ExternalSourceVolumeID: vol.ExternalID,
 			Name:                   snap.Name,
-			Secrets:                vol.Secrets,
+			Secrets:                secrets,
 			Parameters:             snap.Parameters,
 		}
-		cReq.PluginID = plugin.ID
+		cReq.PluginID = pluginID
 		cResp := &cstructs.ClientCSIControllerCreateSnapshotResponse{}
 		err = v.srv.RPC(method, cReq, cResp)
 		if err != nil {
@@ -1294,10 +1390,20 @@ func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIP
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Query all plugins
-			iter, err := state.CSIPlugins(ws)
-			if err != nil {
-				return err
+
+			var iter memdb.ResultIterator
+			var err error
+			if args.Prefix != "" {
+				iter, err = state.CSIPluginsByIDPrefix(ws, args.Prefix)
+				if err != nil {
+					return err
+				}
+			} else {
+				// Query all plugins
+				iter, err = state.CSIPlugins(ws)
+				if err != nil {
+					return err
+				}
 			}
 
 			// Collect results

@@ -165,6 +165,17 @@ func TestMapStringStringSliceValueSet(t *testing.T) {
 	}
 }
 
+func TestSetToSliceString(t *testing.T) {
+	set := map[string]struct{}{
+		"foo": {},
+		"bar": {},
+		"baz": {},
+	}
+	expect := []string{"foo", "bar", "baz"}
+	got := SetToSliceString(set)
+	require.ElementsMatch(t, expect, got)
+}
+
 func TestCopyMapStringSliceString(t *testing.T) {
 	m := map[string][]string{
 		"x": {"a", "b", "c"},
@@ -194,6 +205,27 @@ func TestCopyMapSliceInterface(t *testing.T) {
 
 	m["foo"] = "zzz"
 	require.False(t, reflect.DeepEqual(m, c))
+}
+
+func TestMergeMapStringString(t *testing.T) {
+	type testCase struct {
+		map1     map[string]string
+		map2     map[string]string
+		expected map[string]string
+	}
+
+	cases := []testCase{
+		{map[string]string{"foo": "bar"}, map[string]string{"baz": "qux"}, map[string]string{"foo": "bar", "baz": "qux"}},
+		{map[string]string{"foo": "bar"}, nil, map[string]string{"foo": "bar"}},
+		{nil, map[string]string{"baz": "qux"}, map[string]string{"baz": "qux"}},
+		{nil, nil, map[string]string{}},
+	}
+
+	for _, c := range cases {
+		if output := MergeMapStringString(c.map1, c.map2); !CompareMapStringString(output, c.expected) {
+			t.Errorf("MergeMapStringString(%q, %q) -> %q != %q", c.map1, c.map2, output, c.expected)
+		}
+	}
 }
 
 func TestCleanEnvVar(t *testing.T) {

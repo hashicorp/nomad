@@ -82,10 +82,10 @@ type QueryOptions struct {
 	// previous response.
 	NextToken string
 
-	// Ascending is used to have results sorted in ascending chronological order.
+	// Reverse is used to reverse the default order of list results.
 	//
-	// Currently only supported by evaluations.List and deployments.list endpoints.
-	Ascending bool
+	// Currently only supported by specific endpoints.
+	Reverse bool
 
 	// ctx is an optional context pass through to the underlying HTTP
 	// request layer. Use Context() and WithContext() to manage this.
@@ -264,7 +264,7 @@ func (t *TLSConfig) Copy() *TLSConfig {
 }
 
 func defaultHttpClient() *http.Client {
-	httpClient := cleanhttp.DefaultClient()
+	httpClient := cleanhttp.DefaultPooledClient()
 	transport := httpClient.Transport.(*http.Transport)
 	transport.TLSHandshakeTimeout = 10 * time.Second
 	transport.TLSClientConfig = &tls.Config{
@@ -476,6 +476,18 @@ func NewClient(config *Config) (*Client, error) {
 	return client, nil
 }
 
+// Close closes the client's idle keep-alived connections. The default
+// client configuration uses keep-alive to maintain connections and
+// you should instantiate a single Client and reuse it for all
+// requests from the same host. Connections will be closed
+// automatically once the client is garbage collected. If you are
+// creating multiple clients on the same host (for example, for
+// testing), it may be useful to call Close() to avoid hitting
+// connection limits.
+func (c *Client) Close() {
+	c.httpClient.CloseIdleConnections()
+}
+
 // Address return the address of the Nomad agent
 func (c *Client) Address() string {
 	return c.config.Address
@@ -605,8 +617,8 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	if q.NextToken != "" {
 		r.params.Set("next_token", q.NextToken)
 	}
-	if q.Ascending {
-		r.params.Set("ascending", "true")
+	if q.Reverse {
+		r.params.Set("reverse", "true")
 	}
 	for k, v := range q.Params {
 		r.params.Set(k, v)

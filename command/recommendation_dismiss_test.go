@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/require"
@@ -14,8 +15,8 @@ import (
 )
 
 func TestRecommendationDismissCommand_Run(t *testing.T) {
+	ci.Parallel(t)
 	require := require.New(t)
-	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	testutil.WaitForResult(func() (bool, error) {
@@ -109,8 +110,8 @@ func TestRecommendationDismissCommand_AutocompleteArgs(t *testing.T) {
 }
 
 func testRecommendationAutocompleteCommand(t *testing.T, client *api.Client, srv *agent.TestAgent, cmd *RecommendationAutocompleteCommand) {
+	ci.Parallel(t)
 	require := require.New(t)
-	t.Parallel()
 
 	// Register a test job to write a recommendation against.
 	testJob := testJob("recommendation_autocomplete")

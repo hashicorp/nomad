@@ -1,37 +1,7 @@
-variable "platform" {
-  type        = string
-  description = "Platform ID (ex. \"linux_amd64\" or \"windows_amd64\")"
-  default     = "linux_amd64"
-}
-
-variable "nomad_version" {
-  type        = string
-  description = "Nomad release version (ex. \"0.10.3\")"
-  default     = ""
-}
-
-variable "nomad_sha" {
-  type        = string
-  description = "Nomad build full SHA (ex. \"fef22bdbfa094b5d076710354275e360867261aa\")"
-  default     = ""
-}
-
 variable "nomad_local_binary" {
   type        = string
   description = "Path to local Nomad build (ex. \"/home/me/bin/nomad\")"
   default     = ""
-}
-
-variable "nomad_url" {
-  type        = string
-  description = "URL to Nomad binary (ex. \"https://circleci.com/.../linux_amd64.zip\")"
-  default     = ""
-}
-
-variable "nomad_enterprise" {
-  type        = bool
-  description = "If nomad_sha is used, deploy Nomad Enterprise"
-  default     = false
 }
 
 variable "nomad_license" {
@@ -40,16 +10,10 @@ variable "nomad_license" {
   default     = ""
 }
 
-variable "nomad_acls" {
-  type        = bool
-  description = "Bootstrap ACLs"
-  default     = false
-}
-
-variable "tls" {
-  type        = bool
-  description = "Bootstrap TLS"
-  default     = false
+variable "tls_ca_algorithm" {
+  type        = string
+  description = "CA private key algorithm"
+  default     = "ECDSA"
 }
 
 variable "tls_ca_key" {
@@ -64,27 +28,27 @@ variable "tls_ca_cert" {
   default     = ""
 }
 
-variable "profile" {
+variable "arch" {
   type        = string
-  description = "The name of the configuration profile (ex. 'full-cluster')"
-  default     = ""
+  description = "The architecture for this instance (ex. 'linux_amd64' or 'windows_amd64')"
+  default     = "linux_amd64"
+}
+
+variable "platform" {
+  type        = string
+  description = "The platform for this instance (ex. 'windows' or 'linux')"
+  default     = "linux"
 }
 
 variable "role" {
   type        = string
-  description = "The role in the configuration profile for this instance (ex. 'client-linux')"
+  description = "The role for this instance (ex. 'client' or 'server')"
   default     = ""
 }
 
 variable "index" {
   type        = string # note that we have string here so we can default to ""
   description = "The count of this instance for indexed configurations"
-  default     = ""
-}
-
-variable "cluster_name" {
-  type        = string
-  description = "The random name assigned to the cluster"
   default     = ""
 }
 

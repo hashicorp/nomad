@@ -24,6 +24,7 @@ func (c *VolumeRegisterCommand) csiRegister(client *api.Client, ast *ast.File) i
 		return 1
 	}
 
+	c.Ui.Output(fmt.Sprintf("Volume %q registered", vol.ID))
 	return 0
 }
 

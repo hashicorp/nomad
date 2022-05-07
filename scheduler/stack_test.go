@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -55,6 +56,8 @@ func benchmarkServiceStack_MetaKeyConstraint(b *testing.B, key string, numNodes,
 }
 
 func TestServiceStack_SetNodes(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	stack := NewGenericStack(false, ctx)
 
@@ -82,6 +85,8 @@ func TestServiceStack_SetNodes(t *testing.T) {
 }
 
 func TestServiceStack_SetJob(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	stack := NewGenericStack(false, ctx)
 
@@ -97,6 +102,8 @@ func TestServiceStack_SetJob(t *testing.T) {
 }
 
 func TestServiceStack_Select_Size(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -122,6 +129,8 @@ func TestServiceStack_Select_Size(t *testing.T) {
 }
 
 func TestServiceStack_Select_PreferringNodes(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -166,6 +175,8 @@ func TestServiceStack_Select_PreferringNodes(t *testing.T) {
 }
 
 func TestServiceStack_Select_MetricsReset(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -202,6 +213,8 @@ func TestServiceStack_Select_MetricsReset(t *testing.T) {
 }
 
 func TestServiceStack_Select_DriverFilter(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -232,6 +245,8 @@ func TestServiceStack_Select_DriverFilter(t *testing.T) {
 }
 
 func TestServiceStack_Select_CSI(t *testing.T) {
+	ci.Parallel(t)
+
 	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -245,7 +260,7 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 	v.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	v.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 	v.PluginID = "bar"
-	err := state.CSIVolumeRegister(999, []*structs.CSIVolume{v})
+	err := state.UpsertCSIVolume(999, []*structs.CSIVolume{v})
 	require.NoError(t, err)
 
 	// Create a node with healthy fingerprints for both controller and node plugins
@@ -308,6 +323,8 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 }
 
 func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -348,6 +365,8 @@ func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
 }
 
 func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -391,6 +410,8 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 }
 
 func TestSystemStack_SetNodes(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	stack := NewSystemStack(false, ctx)
 
@@ -413,6 +434,8 @@ func TestSystemStack_SetNodes(t *testing.T) {
 }
 
 func TestSystemStack_SetJob(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	stack := NewSystemStack(false, ctx)
 
@@ -428,6 +451,8 @@ func TestSystemStack_SetJob(t *testing.T) {
 }
 
 func TestSystemStack_Select_Size(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{mock.Node()}
 	stack := NewSystemStack(false, ctx)
@@ -451,6 +476,8 @@ func TestSystemStack_Select_Size(t *testing.T) {
 }
 
 func TestSystemStack_Select_MetricsReset(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -487,6 +514,8 @@ func TestSystemStack_Select_MetricsReset(t *testing.T) {
 }
 
 func TestSystemStack_Select_DriverFilter(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -526,6 +555,8 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 }
 
 func TestSystemStack_Select_ConstraintFilter(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -567,6 +598,8 @@ func TestSystemStack_Select_ConstraintFilter(t *testing.T) {
 }
 
 func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
+	ci.Parallel(t)
+
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),

@@ -1,4 +1,4 @@
-import { run } from '@ember/runloop';
+import { next } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
 import { settled } from '@ember/test-helpers';
 import { setupTest } from 'ember-qunit';
@@ -290,7 +290,7 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(xhr.status, 0, 'Request is still pending');
 
     // Schedule the cancelation before waiting
-    run.next(() => {
+    next(() => {
       controller.abort();
     });
 
@@ -316,7 +316,7 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(xhr.status, 0, 'Request is still pending');
 
     // Schedule the cancelation before waiting
-    run.next(() => {
+    next(() => {
       controller.abort();
     });
 
@@ -342,7 +342,7 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(xhr.status, 0, 'Request is still pending');
 
     // Schedule the cancelation before waiting
-    run.next(() => {
+    next(() => {
       controller.abort();
     });
 
@@ -385,7 +385,7 @@ module('Unit | Adapter | Job', function (hooks) {
     );
 
     // Schedule the cancelation and resolution before waiting
-    run.next(() => {
+    next(() => {
       controller1.abort();
       pretender.resolve(xhr2);
     });

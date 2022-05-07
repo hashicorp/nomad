@@ -1,8 +1,10 @@
 import { computed } from '@ember/object';
 import DistributionBar from './distribution-bar';
 import classic from 'ember-classic-decorator';
+import { attributeBindings } from '@ember-decorators/component';
 
 @classic
+@attributeBindings('data-test-children-status-bar')
 export default class ChildrenStatusBar extends DistributionBar {
   layoutName = 'components/distribution-bar';
 

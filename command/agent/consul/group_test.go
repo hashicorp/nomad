@@ -7,6 +7,8 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/sdk/testutil"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -14,6 +16,8 @@ import (
 )
 
 func TestConsul_Connect(t *testing.T) {
+	ci.Parallel(t)
+
 	// Create an embedded Consul server
 	testconsul, err := testutil.NewTestServerConfigT(t, func(c *testutil.TestServerConfig) {
 		// If -v wasn't specified squelch consul logging
@@ -92,7 +96,7 @@ func TestConsul_Connect(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, services, 2)
 
-		serviceID := MakeAllocServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0])
+		serviceID := serviceregistration.MakeAllocServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0])
 		connectID := serviceID + "-sidecar-proxy"
 
 		require.Contains(t, services, serviceID)
@@ -118,8 +122,9 @@ func TestConsul_Connect(t *testing.T) {
 		require.Equal(t, connectService.Proxy.LocalServiceAddress, "127.0.0.1")
 		require.Equal(t, connectService.Proxy.LocalServicePort, 9000)
 		require.Equal(t, connectService.Proxy.Config, map[string]interface{}{
-			"bind_address": "0.0.0.0",
-			"bind_port":    float64(9998),
+			"bind_address":     "0.0.0.0",
+			"bind_port":        float64(9998),
+			"envoy_stats_tags": []interface{}{"nomad.alloc_id=" + alloc.ID},
 		})
 		require.Equal(t, alloc.ID, agentService.Meta["alloc_id"])
 

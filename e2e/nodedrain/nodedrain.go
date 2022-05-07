@@ -51,6 +51,8 @@ func (tc *NodeDrainE2ETest) AfterEach(f *framework.F) {
 	for _, id := range tc.nodeIDs {
 		_, err := e2e.Command("nomad", "node", "drain", "-disable", "-yes", id)
 		f.Assert().NoError(err)
+		_, err = e2e.Command("nomad", "node", "eligibility", "-enable", id)
+		f.Assert().NoError(err)
 	}
 	tc.nodeIDs = []string{}
 
@@ -140,7 +142,7 @@ func (tc *NodeDrainE2ETest) TestNodeDrainEphemeralMigrate(f *framework.F) {
 	// match the old allocation, not the running one
 	var got string
 	var fsErr error
-	testutil.WaitForResultRetries(500, func() (bool, error) {
+	testutil.WaitForResultRetries(10, func() (bool, error) {
 		time.Sleep(time.Millisecond * 100)
 		for _, alloc := range allocs {
 			if alloc["Status"] == "running" && alloc["Node ID"] != nodeID && alloc["ID"] != oldAllocID {
@@ -149,18 +151,15 @@ func (tc *NodeDrainE2ETest) TestNodeDrainEphemeralMigrate(f *framework.F) {
 				if err != nil {
 					return false, err
 				}
-				if strings.TrimSpace(got) == oldAllocID {
-					return true, nil
-				} else {
-					return false, fmt.Errorf("expected %q, got %q", oldAllocID, got)
-				}
+				return true, nil
 			}
 		}
-		return false, fmt.Errorf("did not find a migrated alloc")
+		return false, fmt.Errorf("missing expected allocation")
 	}, func(e error) {
 		fsErr = e
 	})
-	f.NoError(fsErr, "node drained but migration failed")
+	f.NoError(fsErr, "could not get allocation data")
+	f.Equal(oldAllocID, strings.TrimSpace(got), "node drained but migration failed")
 }
 
 // TestNodeDrainIgnoreSystem tests that system jobs are left behind when the

@@ -1,6 +1,10 @@
 import { computed } from '@ember/object';
 import DistributionBar from './distribution-bar';
+import { attributeBindings } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
+@classic
+@attributeBindings('data-test-allocation-status-bar')
 export default class AllocationStatusBar extends DistributionBar {
   layoutName = 'components/distribution-bar';
 
@@ -21,7 +25,7 @@ export default class AllocationStatusBar extends DistributionBar {
   }
 
   @computed(
-    'allocationContainer.{queuedAllocs,completeAllocs,failedAllocs,runningAllocs,startingAllocs}',
+    'allocationContainer.{queuedAllocs,completeAllocs,failedAllocs,runningAllocs,startingAllocs,lostAllocs,unknownAllocs}',
     'job.namespace'
   )
   get data() {
@@ -35,7 +39,8 @@ export default class AllocationStatusBar extends DistributionBar {
       'failedAllocs',
       'runningAllocs',
       'startingAllocs',
-      'lostAllocs'
+      'lostAllocs',
+      'unknownAllocs'
     );
     return [
       {
@@ -62,6 +67,13 @@ export default class AllocationStatusBar extends DistributionBar {
         value: allocs.completeAllocs,
         className: 'complete',
         legendLink: this.generateLegendLink(this.job, 'complete'),
+      },
+      {
+        label: 'Unknown',
+        value: allocs.unknownAllocs,
+        className: 'unknown',
+        legendLink: this.generateLegendLink(this.job, 'unknown'),
+        help: 'Allocation is unknown since its node is disconnected.',
       },
       {
         label: 'Failed',

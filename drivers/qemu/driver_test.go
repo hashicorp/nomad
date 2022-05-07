@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -26,10 +27,8 @@ import (
 
 // Verifies starting a qemu image and stopping it
 func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
+	ci.Parallel(t)
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -91,10 +90,8 @@ func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 
 // Verifies monitor socket path for old qemu
 func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
+	ci.Parallel(t)
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -149,10 +146,8 @@ func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 
 // Verifies monitor socket path for new qemu version
 func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
+	ci.Parallel(t)
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -232,10 +227,8 @@ func copyFile(src, dst string, t *testing.T) {
 
 // Verifies starting a qemu image and stopping it
 func TestQemuDriver_User(t *testing.T) {
+	ci.Parallel(t)
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -292,10 +285,8 @@ func TestQemuDriver_User(t *testing.T) {
 //  Verifies getting resource usage stats
 // TODO(preetha) this test needs random sleeps to pass
 func TestQemuDriver_Stats(t *testing.T) {
+	ci.Parallel(t)
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -371,12 +362,10 @@ func TestQemuDriver_Stats(t *testing.T) {
 }
 
 func TestQemuDriver_Fingerprint(t *testing.T) {
+	ci.Parallel(t)
 	require := require.New(t)
 
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -396,6 +385,8 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 }
 
 func TestConfig_ParseAllHCL(t *testing.T) {
+	ci.Parallel(t)
+
 	cfgStr := `
 config {
   image_path = "/tmp/image_path"
@@ -426,6 +417,8 @@ config {
 }
 
 func TestIsAllowedImagePath(t *testing.T) {
+	ci.Parallel(t)
+
 	allowedPaths := []string{"/tmp", "/opt/qemu"}
 	allocDir := "/opt/nomad/some-alloc-dir"
 
@@ -455,7 +448,8 @@ func TestIsAllowedImagePath(t *testing.T) {
 }
 
 func TestArgsAllowList(t *testing.T) {
-
+	ci.Parallel(t)
+	
 	pluginConfigAllowList := []string{"-drive", "-net", "-snapshot"}
 
 	validArgs := [][]string{

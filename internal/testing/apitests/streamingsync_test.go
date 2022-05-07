@@ -5,12 +5,15 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/stretchr/testify/require"
 )
 
 // TestExecStreamingInputIsInSync asserts that a rountrip of exec streaming input doesn't lose any data
 func TestExecStreamingInputIsInSync(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name  string
 		input api.ExecStreamingInput
@@ -52,6 +55,8 @@ func TestExecStreamingInputIsInSync(t *testing.T) {
 
 // TestExecStreamingOutputIsInSync asserts that a rountrip of exec streaming input doesn't lose any data
 func TestExecStreamingOutputIsInSync(t *testing.T) {
+	ci.Parallel(t)
+
 	cases := []struct {
 		name  string
 		input api.ExecStreamingOutput

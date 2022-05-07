@@ -34,6 +34,14 @@ resource "aws_security_group" "primary" {
     cidr_blocks = [local.ingress_cidr]
   }
 
+  # UI reverse proxy
+  ingress {
+    from_port   = 6464
+    to_port     = 6464
+    protocol    = "tcp"
+    cidr_blocks = [local.ingress_cidr]
+  }
+
   # Fabio
   ingress {
     from_port   = 9998

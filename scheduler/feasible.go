@@ -318,14 +318,7 @@ func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 		// volume MUST be accessible from at least one of the
 		// requisite topologies."
 		if len(vol.Topologies) > 0 {
-			var ok bool
-			for _, requiredTopo := range vol.Topologies {
-				if requiredTopo.Equal(plugin.NodeInfo.AccessibleTopology) {
-					ok = true
-					break
-				}
-			}
-			if !ok {
+			if !plugin.NodeInfo.AccessibleTopology.MatchFound(vol.Topologies) {
 				return false, FilterConstraintsCSIPluginTopology
 			}
 		}

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
@@ -212,7 +213,7 @@ func (f *Framework) runCase(t *testing.T, s *TestSuite, c TestCase) {
 	t.Run(c.Name(), func(t *testing.T) {
 		// If the TestSuite has Parallel set, all cases run in parallel
 		if s.Parallel {
-			t.Parallel()
+			ci.Parallel(t)
 		}
 
 		f := newF(t)

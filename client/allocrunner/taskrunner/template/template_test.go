@@ -1,14 +1,17 @@
 package template
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,6 +21,7 @@ import (
 
 	templateconfig "github.com/hashicorp/consul-template/config"
 	ctestutil "github.com/hashicorp/consul/sdk/testutil"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -54,7 +58,7 @@ type MockTaskHooks struct {
 	UnblockCh chan struct{}
 
 	KillEvent *structs.TaskEvent
-	KillCh    chan struct{}
+	KillCh    chan *structs.TaskEvent
 
 	Events      []*structs.TaskEvent
 	EmitEventCh chan *structs.TaskEvent
@@ -68,7 +72,7 @@ func NewMockTaskHooks() *MockTaskHooks {
 		UnblockCh:   make(chan struct{}, 1),
 		RestartCh:   make(chan struct{}, 1),
 		SignalCh:    make(chan struct{}, 1),
-		KillCh:      make(chan struct{}, 1),
+		KillCh:      make(chan *structs.TaskEvent, 1),
 		EmitEventCh: make(chan *structs.TaskEvent, 1),
 	}
 }
@@ -96,7 +100,7 @@ func (m *MockTaskHooks) Signal(event *structs.TaskEvent, s string) error {
 func (m *MockTaskHooks) Kill(ctx context.Context, event *structs.TaskEvent) error {
 	m.KillEvent = event
 	select {
-	case m.KillCh <- struct{}{}:
+	case m.KillCh <- event:
 	default:
 	}
 	return nil
@@ -120,31 +124,35 @@ func (m *MockTaskHooks) SetState(state string, event *structs.TaskEvent) {}
 // testHarness is used to test the TaskTemplateManager by spinning up
 // Consul/Vault as needed
 type testHarness struct {
-	manager    *TaskTemplateManager
-	mockHooks  *MockTaskHooks
-	templates  []*structs.Template
-	envBuilder *taskenv.Builder
-	node       *structs.Node
-	config     *config.Config
-	vaultToken string
-	taskDir    string
-	vault      *testutil.TestVault
-	consul     *ctestutil.TestServer
-	emitRate   time.Duration
+	manager        *TaskTemplateManager
+	mockHooks      *MockTaskHooks
+	templates      []*structs.Template
+	envBuilder     *taskenv.Builder
+	node           *structs.Node
+	config         *config.Config
+	vaultToken     string
+	taskDir        string
+	vault          *testutil.TestVault
+	consul         *ctestutil.TestServer
+	emitRate       time.Duration
+	nomadNamespace string
 }
 
 // newTestHarness returns a harness starting a dev consul and vault server,
 // building the appropriate config and creating a TaskTemplateManager
 func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault bool) *testHarness {
 	region := "global"
+	mockNode := mock.Node()
+
 	harness := &testHarness{
 		mockHooks: NewMockTaskHooks(),
 		templates: templates,
-		node:      mock.Node(),
+		node:      mockNode,
 		config: &config.Config{
+			Node:   mockNode,
 			Region: region,
 			TemplateConfig: &config.ClientTemplateConfig{
-				FunctionDenylist: []string{"plugin"},
+				FunctionDenylist: config.DefaultTemplateFunctionDenylist,
 				DisableSandbox:   false,
 				ConsulRetry:      &config.RetryConfig{Backoff: helper.TimeToPtr(10 * time.Millisecond)},
 			}},
@@ -156,6 +164,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Name = TestTaskName
 	harness.envBuilder = taskenv.NewBuilder(harness.node, a, task, region)
+	harness.nomadNamespace = a.Namespace
 
 	// Make a tempdir
 	d, err := ioutil.TempDir("", "ct_test")
@@ -230,7 +239,7 @@ func (h *testHarness) stop() {
 }
 
 func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	hooks := NewMockTaskHooks()
 	clientConfig := &config.Config{Region: "global"}
 	taskDir := "foo"
@@ -371,7 +380,7 @@ func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 }
 
 func TestTaskTemplateManager_HostPath(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Make a template that will render immediately and write it to a tmp file
 	f, err := ioutil.TempFile("", "")
 	if err != nil {
@@ -463,7 +472,7 @@ func TestTaskTemplateManager_HostPath(t *testing.T) {
 }
 
 func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Make a template that will render immediately
 	content := "hello, world!"
 	file := "my.tmpl"
@@ -497,7 +506,7 @@ func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
 }
 
 func TestTaskTemplateManager_Permissions(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Make a template that will render immediately
 	content := "hello, world!"
 	file := "my.tmpl"
@@ -532,7 +541,7 @@ func TestTaskTemplateManager_Permissions(t *testing.T) {
 }
 
 func TestTaskTemplateManager_Unblock_Static_NomadEnv(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Make a template that will render immediately
 	content := `Hello Nomad Task: {{env "NOMAD_TASK_NAME"}}`
 	expected := fmt.Sprintf("Hello Nomad Task: %s", TestTaskName)
@@ -567,7 +576,7 @@ func TestTaskTemplateManager_Unblock_Static_NomadEnv(t *testing.T) {
 }
 
 func TestTaskTemplateManager_Unblock_Static_AlreadyRendered(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Make a template that will render immediately
 	content := "hello, world!"
 	file := "my.tmpl"
@@ -608,7 +617,7 @@ func TestTaskTemplateManager_Unblock_Static_AlreadyRendered(t *testing.T) {
 }
 
 func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Make a template that will render based on a key in Consul
 	key := "foo"
 	content := "barbaz"
@@ -654,7 +663,7 @@ func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
 }
 
 func TestTaskTemplateManager_Unblock_Vault(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	// Make a template that will render based on a key in Vault
 	vaultPath := "secret/data/password"
@@ -704,7 +713,7 @@ func TestTaskTemplateManager_Unblock_Vault(t *testing.T) {
 }
 
 func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Make a template that will render immediately
 	staticContent := "hello, world!"
 	staticFile := "my.tmpl"
@@ -772,7 +781,7 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 // TestTaskTemplateManager_FirstRender_Restored tests that a task that's been
 // restored renders and triggers its change mode if the template has changed
 func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 	// Make a template that will render based on a key in Vault
 	vaultPath := "secret/data/password"
@@ -869,7 +878,7 @@ OUTER:
 }
 
 func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Make a template that will render based on a key in Consul
 	key := "foo"
 	content1 := "bar"
@@ -938,7 +947,7 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 }
 
 func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Make a template that renders based on a key in Consul and sends SIGALRM
 	key1 := "foo"
 	content1_1 := "bar"
@@ -1038,7 +1047,7 @@ OUTER:
 }
 
 func TestTaskTemplateManager_Rerender_Restart(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Make a template that renders based on a key in Consul and sends restart
 	key1 := "bam"
 	content1_1 := "cat"
@@ -1102,7 +1111,7 @@ OUTER:
 }
 
 func TestTaskTemplateManager_Interpolate_Destination(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Make a template that will have its destination interpolated
 	content := "hello, world!"
 	file := "${node.unique.id}.tmpl"
@@ -1137,7 +1146,7 @@ func TestTaskTemplateManager_Interpolate_Destination(t *testing.T) {
 }
 
 func TestTaskTemplateManager_Signal_Error(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Make a template that renders based on a key in Consul and sends SIGALRM
@@ -1189,7 +1198,7 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 // process environment variables.  nomad host process environment variables
 // are to be treated the same as not found environment variables.
 func TestTaskTemplateManager_FiltersEnvVars(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	defer os.Setenv("NOMAD_TASK_NAME", os.Getenv("NOMAD_TASK_NAME"))
 	os.Setenv("NOMAD_TASK_NAME", "should be overridden by task")
@@ -1233,7 +1242,7 @@ TEST_ENV_NOT_FOUND: {{env "` + testenv + `_NOTFOUND" }}`
 // TestTaskTemplateManager_Env asserts templates with the env flag set are read
 // into the task's environment.
 func TestTaskTemplateManager_Env(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	template := &structs.Template{
 		EmbeddedTmpl: `
 # Comment lines are ok
@@ -1276,7 +1285,7 @@ ANYTHING_goes=Spaces are=ok!
 // TestTaskTemplateManager_Env_Missing asserts the core env
 // template processing function returns errors when files don't exist
 func TestTaskTemplateManager_Env_Missing(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	d, err := ioutil.TempDir("", "ct_env_missing")
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -1311,7 +1320,7 @@ func TestTaskTemplateManager_Env_Missing(t *testing.T) {
 // TestTaskTemplateManager_Env_InterpolatedDest asserts the core env
 // template processing function handles interpolated destinations
 func TestTaskTemplateManager_Env_InterpolatedDest(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	d, err := ioutil.TempDir("", "ct_env_interpolated")
@@ -1352,7 +1361,7 @@ func TestTaskTemplateManager_Env_InterpolatedDest(t *testing.T) {
 // template processing function returns combined env vars from multiple
 // templates correctly.
 func TestTaskTemplateManager_Env_Multi(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	d, err := ioutil.TempDir("", "ct_env_missing")
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -1398,7 +1407,7 @@ func TestTaskTemplateManager_Env_Multi(t *testing.T) {
 }
 
 func TestTaskTemplateManager_Rerender_Env(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	// Make a template that renders based on a key in Consul and sends restart
 	key1 := "bam"
 	key2 := "bar"
@@ -1480,8 +1489,9 @@ OUTER:
 // TestTaskTemplateManager_Config_ServerName asserts the tls_server_name
 // setting is propagated to consul-template's configuration. See #2776
 func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	c := config.DefaultConfig()
+	c.Node = mock.Node()
 	c.VaultConfig = &sconfig.VaultConfig{
 		Enabled:       helper.BoolToPtr(true),
 		Addr:          "https://localhost/",
@@ -1504,7 +1514,7 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 // TestTaskTemplateManager_Config_VaultNamespace asserts the Vault namespace setting is
 // propagated to consul-template's configuration.
 func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	testNS := "test-namespace"
@@ -1535,7 +1545,7 @@ func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 // TestTaskTemplateManager_Config_VaultNamespace asserts the Vault namespace setting is
 // propagated to consul-template's configuration.
 func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	assert := assert.New(t)
 
 	testNS := "test-namespace"
@@ -1570,7 +1580,7 @@ func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
 // TestTaskTemplateManager_Escapes asserts that when sandboxing is enabled
 // interpolated paths are not incorrectly treated as escaping the alloc dir.
 func TestTaskTemplateManager_Escapes(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	clientConf := config.DefaultConfig()
 	require.False(t, clientConf.TemplateConfig.DisableSandbox, "expected sandbox to be disabled")
@@ -1822,7 +1832,7 @@ func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 	// then subsequently sets 0, 1, 2 keys
 	// then asserts that templates are still blocked on 3 and 4,
 	// and check that we got the relevant task events
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
 
 	// Make a template that will render based on a key in Consul
@@ -1920,7 +1930,7 @@ WAIT_LOOP:
 // configuration is accurately mapped from the client to the TaskTemplateManager
 // and that any operator defined boundaries are enforced.
 func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testNS := "test-namespace"
 
@@ -2126,7 +2136,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 // configuration is accurately mapped from the template to the TaskTemplateManager's
 // template config.
 func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	c := config.DefaultConfig()
 	c.Node = mock.Node()
@@ -2155,4 +2165,101 @@ func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 		require.Equal(t, 5*time.Second, *k.Wait.Min)
 		require.Equal(t, 10*time.Second, *k.Wait.Max)
 	}
+}
+
+// TestTaskTemplateManager_writeToFile_Disabled asserts the consul-template function
+// writeToFile is disabled by default.
+func TestTaskTemplateManager_writeToFile_Disabled(t *testing.T) {
+	ci.Parallel(t)
+
+	file := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: `Testing writeToFile...
+{{ "if i exist writeToFile is enabled" | writeToFile "/tmp/NOMAD-TEST-SHOULD-NOT-EXIST" "" "" "0644" }}
+...done
+`,
+		DestPath:   file,
+		ChangeMode: structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	require.NoError(t, harness.startWithErr(), "couldn't setup initial harness")
+	defer harness.stop()
+
+	// Using writeToFile should cause a kill
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		t.Fatalf("Task unblock should have not have been called")
+	case <-harness.mockHooks.EmitEventCh:
+		t.Fatalf("Task event should not have been emitted")
+	case e := <-harness.mockHooks.KillCh:
+		require.Contains(t, e.DisplayMessage, "writeToFile: function is disabled")
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// Check the file is not there
+	path := filepath.Join(harness.taskDir, file)
+	_, err := ioutil.ReadFile(path)
+	require.Error(t, err)
+}
+
+// TestTaskTemplateManager_writeToFile asserts the consul-template function
+// writeToFile can be enabled.
+func TestTaskTemplateManager_writeToFile(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("username and group lookup assume linux platform")
+	}
+
+	ci.Parallel(t)
+
+	cu, err := user.Current()
+	require.NoError(t, err)
+
+	cg, err := user.LookupGroupId(cu.Gid)
+	require.NoError(t, err)
+
+	file := "my.tmpl"
+	template := &structs.Template{
+		// EmbeddedTmpl set below as it needs the taskDir
+		DestPath:   file,
+		ChangeMode: structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+
+	// Add template now that we know the taskDir
+	harness.templates[0].EmbeddedTmpl = fmt.Sprintf(`Testing writeToFile...
+{{ "hello" | writeToFile "%s" "`+cu.Username+`" "`+cg.Name+`" "0644" }}
+...done
+`, filepath.Join(harness.taskDir, "writetofile.out"))
+
+	// Enable all funcs
+	harness.config.TemplateConfig.FunctionDenylist = []string{}
+
+	require.NoError(t, harness.startWithErr(), "couldn't setup initial harness")
+	defer harness.stop()
+
+	// Using writeToFile should not cause a kill
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-harness.mockHooks.EmitEventCh:
+		t.Fatalf("Task event should not have been emitted")
+	case e := <-harness.mockHooks.KillCh:
+		t.Fatalf("Task should not have been killed: %v", e.DisplayMessage)
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// Check the templated file is there
+	path := filepath.Join(harness.taskDir, file)
+	r, err := ioutil.ReadFile(path)
+	require.NoError(t, err)
+	require.True(t, bytes.HasSuffix(r, []byte("...done\n")), string(r))
+
+	// Check that writeToFile was allowed
+	path = filepath.Join(harness.taskDir, "writetofile.out")
+	r, err = ioutil.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "hello", string(r))
 }

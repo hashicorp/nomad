@@ -1,6 +1,7 @@
 package vaultsecrets
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -226,7 +227,9 @@ func writePolicy(policyID, policyPath, testID string) (string, error) {
 	policyDoc := string(raw)
 	policyDoc = strings.ReplaceAll(policyDoc, "TESTID", testID)
 
-	cmd := exec.Command("vault", "policy", "write", policyID, "-")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "vault", "policy", "write", policyID, "-")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return "", err

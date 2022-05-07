@@ -4,11 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAuditConfig_Merge(t *testing.T) {
+	ci.Parallel(t)
+
 	c1 := &AuditConfig{
 		Enabled: helper.BoolToPtr(true),
 		Sinks: []*AuditSink{

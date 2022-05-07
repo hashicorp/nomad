@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -68,11 +68,11 @@ func connectGatewayDriverConfig(hostNetwork bool) map[string]interface{} {
 // connectSidecarVersionConstraint is used when building the sidecar task to ensure
 // the proper Consul version is used that supports the necessary Connect
 // features. This includes bootstrapping envoy with a unix socket for Consul's
-// gRPC xDS API.
+// gRPC xDS API, and support for generating local service identity tokens.
 func connectSidecarVersionConstraint() *structs.Constraint {
 	return &structs.Constraint{
 		LTarget: "${attr.consul.version}",
-		RTarget: ">= 1.6.0-beta1",
+		RTarget: ">= 1.8.0",
 		Operand: structs.ConstraintSemver,
 	}
 }
@@ -184,7 +184,7 @@ func getNamedTaskForNativeService(tg *structs.TaskGroup, serviceName, taskName s
 		if len(tg.Tasks) == 1 {
 			return tg.Tasks[0], nil
 		}
-		return nil, errors.Errorf("task for Consul Connect Native service %s->%s is ambiguous and must be set", tg.Name, serviceName)
+		return nil, fmt.Errorf("task for Consul Connect Native service %s->%s is ambiguous and must be set", tg.Name, serviceName)
 	}
 
 	for _, t := range tg.Tasks {
@@ -192,7 +192,7 @@ func getNamedTaskForNativeService(tg *structs.TaskGroup, serviceName, taskName s
 			return t, nil
 		}
 	}
-	return nil, errors.Errorf("task %s named by Consul Connect Native service %s->%s does not exist", taskName, tg.Name, serviceName)
+	return nil, fmt.Errorf("task %s named by Consul Connect Native service %s->%s does not exist", taskName, tg.Name, serviceName)
 }
 
 func injectPort(group *structs.TaskGroup, label string) {

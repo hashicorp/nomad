@@ -11,9 +11,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/consul/lib"
 	hclog "github.com/hashicorp/go-hclog"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
@@ -491,7 +491,7 @@ func (p *ConnPool) RPC(region string, addr net.Addr, method string, args interfa
 		// If we read EOF, the session is toast. Clear it and open a
 		// new session next time
 		// See https://github.com/hashicorp/consul/blob/v1.6.3/agent/pool/pool.go#L471-L477
-		if lib.IsErrEOF(err) {
+		if helper.IsErrEOF(err) {
 			p.clearConn(conn)
 		}
 

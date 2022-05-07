@@ -1,8 +1,10 @@
 import { computed } from '@ember/object';
 import DistributionBar from './distribution-bar';
+import { attributeBindings } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 @classic
+@attributeBindings('data-test-job-client-status-bar')
 export default class JobClientStatusBar extends DistributionBar {
   layoutName = 'components/distribution-bar';
 
@@ -21,6 +23,7 @@ export default class JobClientStatusBar extends DistributionBar {
       failed,
       lost,
       notScheduled,
+      unknown,
     } = this.jobClientStatus.byStatus;
 
     return [
@@ -68,6 +71,18 @@ export default class JobClientStatusBar extends DistributionBar {
             namespace: this.job.namespace.get('id'),
           },
         },
+      },
+      {
+        label: 'Unknown',
+        value: unknown.length,
+        className: 'unknown',
+        legendLink: {
+          queryParams: {
+            status: JSON.stringify(['unknown']),
+            namespace: this.job.namespace.get('id'),
+          },
+        },
+        help: 'Some allocations for this job were degraded or lost connectivity.',
       },
       {
         label: 'Degraded',

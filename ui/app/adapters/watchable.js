@@ -5,7 +5,9 @@ import { AbortError } from '@ember-data/adapter/error';
 import queryString from 'query-string';
 import ApplicationAdapter from './application';
 import removeRecord from '../utils/remove-record';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class Watchable extends ApplicationAdapter {
   @service watchList;
   @service store;

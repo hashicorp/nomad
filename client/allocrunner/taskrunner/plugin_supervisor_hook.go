@@ -44,9 +44,7 @@ type csiPluginSupervisorHook struct {
 
 	shutdownCtx      context.Context
 	shutdownCancelFn context.CancelFunc
-
-	running     bool
-	runningLock sync.Mutex
+	runOnce          sync.Once
 
 	// previousHealthstate is used by the supervisor goroutine to track historic
 	// health states for gating task events.
@@ -129,10 +127,10 @@ func (*csiPluginSupervisorHook) Name() string {
 }
 
 // Prestart is called before the task is started including after every
-// restart (but not after restore). This requires that the mount paths
-// for a plugin be idempotent, despite us not knowing the name of the
-// plugin ahead of time.  Because of this, we use the allocid_taskname
-// as the unique identifier for a plugin on the filesystem.
+// restart. This requires that the mount paths for a plugin be
+// idempotent, despite us not knowing the name of the plugin ahead of
+// time.  Because of this, we use the allocid_taskname as the unique
+// identifier for a plugin on the filesystem.
 func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 
@@ -170,28 +168,32 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 
 	h.setSocketHook()
 
-	switch h.caps.FSIsolation {
-	case drivers.FSIsolationNone:
-		// Plugin tasks with no filesystem isolation won't have the
-		// plugin dir bind-mounted to their alloc dir, but we can
-		// provide them the path to the socket. These Nomad-only
-		// plugins will need to be aware of the csi directory layout
-		// in the client data dir
-		resp.Env = map[string]string{
-			"CSI_ENDPOINT": h.socketPath}
-	default:
-		resp.Env = map[string]string{
-			"CSI_ENDPOINT": filepath.Join(
-				h.task.CSIPluginConfig.MountDir, structs.CSISocketName)}
+	if _, ok := h.task.Env["CSI_ENDPOINT"]; !ok {
+		switch h.caps.FSIsolation {
+		case drivers.FSIsolationNone:
+			// Plugin tasks with no filesystem isolation won't have the
+			// plugin dir bind-mounted to their alloc dir, but we can
+			// provide them the path to the socket. These Nomad-only
+			// plugins will need to be aware of the csi directory layout
+			// in the client data dir
+			resp.Env = map[string]string{
+				"CSI_ENDPOINT": "unix://" + h.socketPath}
+		default:
+			resp.Env = map[string]string{
+				"CSI_ENDPOINT": "unix://" + filepath.Join(
+					h.task.CSIPluginConfig.MountDir, structs.CSISocketName)}
+		}
 	}
 
 	mounts := ensureMountpointInserted(h.runner.hookResources.getMounts(), configMount)
 	mounts = ensureMountpointInserted(mounts, volumeStagingMounts)
 	mounts = ensureMountpointInserted(mounts, devMount)
 
+	// we normally would set resp.Mounts here but without setting the
+	// hookResources before returning we can get a postrun hook that's
+	// missing resources.
 	h.runner.hookResources.setMounts(mounts)
 
-	resp.Done = true
 	return nil
 }
 
@@ -220,16 +222,11 @@ func (h *csiPluginSupervisorHook) Poststart(_ context.Context, _ *interfaces.Tas
 
 	// If we're already running the supervisor routine, then we don't need to try
 	// and restart it here as it only terminates on `Stop` hooks.
-	h.runningLock.Lock()
-	if h.running {
-		h.runningLock.Unlock()
-		return nil
-	}
-	h.runningLock.Unlock()
+	h.runOnce.Do(func() {
+		h.setSocketHook()
+		go h.ensureSupervisorLoop(h.shutdownCtx)
+	})
 
-	h.setSocketHook()
-
-	go h.ensureSupervisorLoop(h.shutdownCtx)
 	return nil
 }
 
@@ -247,20 +244,6 @@ func (h *csiPluginSupervisorHook) Poststart(_ context.Context, _ *interfaces.Tas
 //
 // Deeper fingerprinting of the plugin is implemented by the csimanager.
 func (h *csiPluginSupervisorHook) ensureSupervisorLoop(ctx context.Context) {
-	h.runningLock.Lock()
-	if h.running {
-		h.runningLock.Unlock()
-		return
-	}
-	h.running = true
-	h.runningLock.Unlock()
-
-	defer func() {
-		h.runningLock.Lock()
-		h.running = false
-		h.runningLock.Unlock()
-	}()
-
 	client := csi.NewClient(h.socketPath, h.logger.Named("csi_client").With(
 		"plugin.name", h.task.CSIPluginConfig.ID,
 		"plugin.type", h.task.CSIPluginConfig.Type))
@@ -310,15 +293,15 @@ WAITFORREADY:
 		h.kill(ctx, fmt.Errorf("CSI plugin failed to register: %v", err))
 		return
 	}
+	// De-register plugins on task shutdown
+	defer deregisterPluginFn()
 
-	// Step 3: Start the lightweight supervisor loop. At this point, failures
-	// don't cause the task to restart
+	// Step 3: Start the lightweight supervisor loop. At this point,
+	// probe failures don't cause the task to restart
 	t.Reset(0)
 	for {
 		select {
 		case <-ctx.Done():
-			// De-register plugins on task shutdown
-			deregisterPluginFn()
 			return
 		case <-t.C:
 			pluginHealthy, err := h.supervisorLoopOnce(ctx, client)
