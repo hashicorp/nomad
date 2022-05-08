@@ -444,13 +444,13 @@ func NewServiceClient(agentAPI AgentAPI, namespacesClient *NamespacesClient, log
 		services:                       make(map[string]*api.AgentServiceRegistration),
 		checks:                         make(map[string]*api.AgentCheckRegistration),
 		explicitlyDeregisteredServices: make(map[string]bool),
-		explicitlyDeregisteredChecks:   make(map[string]bool),
-		allocRegistrations:             make(map[string]*serviceregistration.AllocRegistration),
-		agentServices:                  make(map[string]struct{}),
-		agentChecks:                    make(map[string]struct{}),
-		checkWatcher:                   newCheckWatcher(logger, agentAPI, namespacesClient),
-		isClientAgent:                  isNomadClient,
-		deregisterProbationExpiry:      time.Now().Add(deregisterProbationPeriod),
+		// explicitlyDeregisteredChecks:   make(map[string]bool),
+		allocRegistrations:        make(map[string]*serviceregistration.AllocRegistration),
+		agentServices:             make(map[string]struct{}),
+		agentChecks:               make(map[string]struct{}),
+		checkWatcher:              newCheckWatcher(logger, agentAPI, namespacesClient),
+		isClientAgent:             isNomadClient,
+		deregisterProbationExpiry: time.Now().Add(deregisterProbationPeriod),
 	}
 }
 
@@ -636,7 +636,7 @@ func (c *ServiceClient) commit(ops *operations) {
 
 func (c *ServiceClient) clearExplicitlyDeregistered() {
 	c.explicitlyDeregisteredServices = make(map[string]bool)
-	c.explicitlyDeregisteredChecks = make(map[string]bool)
+	//c.explicitlyDeregisteredChecks = make(map[string]bool)
 }
 
 // merge registrations into state map prior to sync'ing with Consul
@@ -934,7 +934,7 @@ func (c *ServiceClient) serviceRegs(
 
 	// Get the services ID
 	id := serviceregistration.MakeAllocServiceID(workload.AllocID, workload.Name(), service)
-	sreg := &serviceregistration.ServiceRegistration{
+	serviceReg := &serviceregistration.ServiceRegistration{
 		ServiceID:     id,
 		CheckIDs:      make(map[string]struct{}, len(service.Checks)),
 		CheckOnUpdate: make(map[string]string, len(service.Checks)),
@@ -1028,7 +1028,7 @@ func (c *ServiceClient) serviceRegs(
 	}
 
 	// Build the Consul Service registration request
-	serviceReg := &api.AgentServiceRegistration{
+	consulServiceReg := &api.AgentServiceRegistration{
 		Kind:              kind,
 		ID:                id,
 		Name:              service.Name,
@@ -1040,20 +1040,38 @@ func (c *ServiceClient) serviceRegs(
 		Meta:              meta,
 		Connect:           connect, // will be nil if no Connect stanza
 		Proxy:             gateway, // will be nil if no Connect Gateway stanza
+		Checks:            make([]*api.AgentServiceCheck, 0, len(service.Checks)),
 	}
-	ops.regServices = append(ops.regServices, serviceReg)
+	ops.regServices = append(ops.regServices, consulServiceReg)
 
 	// Build the check registrations
-	checkRegs, err := c.checkRegs(id, service, workload, sreg)
+	checkRegs, err := c.checkRegs(id, service, workload, serviceReg)
 	if err != nil {
-		return nil, err
+		return serviceReg, err
 	}
 	for _, registration := range checkRegs {
-		sreg.CheckIDs[registration.ID] = struct{}{}
+		serviceReg.CheckIDs[registration.ID] = struct{}{}
 		ops.regChecks = append(ops.regChecks, registration)
+		consulServiceReg.Checks = append(consulServiceReg.Checks, &api.AgentServiceCheck{
+			CheckID:                registration.ID,
+			Name:                   registration.Name,
+			Status:                 registration.Status,
+			Timeout:                registration.Timeout,
+			Interval:               registration.Interval,
+			SuccessBeforePassing:   registration.SuccessBeforePassing,
+			FailuresBeforeCritical: registration.FailuresBeforeCritical,
+			TLSSkipVerify:          registration.TLSSkipVerify,
+			HTTP:                   registration.HTTP,
+			Method:                 registration.Method,
+			Header:                 registration.Header,
+			TCP:                    registration.TCP,
+			TTL:                    registration.TTL,
+			GRPC:                   registration.GRPC,
+			GRPCUseTLS:             registration.GRPCUseTLS,
+		})
 	}
 
-	return sreg, nil
+	return serviceReg, nil
 }
 
 // checkRegs creates check registrations for the given service
