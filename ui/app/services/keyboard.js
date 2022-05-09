@@ -172,16 +172,28 @@ export default class KeyboardService extends Service {
     );
   }
 
-  get menuLinks() {
-    const menu = document.getElementsByClassName('menu')[0];
-    if (menu) {
-      return Array.from(menu.querySelectorAll('a')).map((link) => {
-        return this.router.recognize(link.getAttribute('href'))?.name;
-      });
-    } else {
-      return [];
-    }
+  @action
+  registerMainNav(element) {
+    this.menuLinks = Array.from(
+      element.querySelectorAll('a:not(.loading)')
+    ).map((link) => {
+      return {
+        route: this.router.recognize(link.getAttribute('href'))?.name,
+        parent: guidFor(element),
+      };
+    });
   }
+
+  // get menuLinks() {
+  //   const menu = document.getElementsByClassName('menu')[0];
+  //   if (menu) {
+  //     return Array.from(menu.querySelectorAll('a')).map((link) => {
+  //       return this.router.recognize(link.getAttribute('href'))?.name;
+  //     });
+  //   } else {
+  //     return [];
+  //   }
+  // }
 
   /**
    *

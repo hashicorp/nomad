@@ -7,6 +7,7 @@ import classic from 'ember-classic-decorator';
 export default class GutterMenu extends Component {
   @service system;
   @service router;
+  @service keyboard;
 
   @computed('system.namespaces.@each.name')
   get sortedNamespaces() {
