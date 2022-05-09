@@ -31,7 +31,7 @@ export default class TokenService extends Service {
   @task(function* () {
     const TokenAdapter = getOwner(this).lookup('adapter:token');
     try {
-      var token = yield TokenAdapter.findSelf()
+      var token = yield TokenAdapter.findSelf();
       this.secret = token.secret;
       return token;
     } catch (e) {
