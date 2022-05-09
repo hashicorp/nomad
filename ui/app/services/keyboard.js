@@ -6,6 +6,8 @@ import { compare } from '@ember/utils';
 import { A } from '@ember/array';
 import EmberRouter from '@ember/routing/router';
 import { schedule } from '@ember/runloop';
+import { action } from '@ember/object';
+import { guidFor } from '@ember/object/internals';
 
 const DEBOUNCE_MS = 750;
 
@@ -135,19 +137,39 @@ export default class KeyboardService extends Service {
 
   //#region Nav Traversal
 
-  // 1. see if there's an .is-subnav element on the page
-  // 2. if so, map over its links and use router.recognize to extract route patterns
-  // (changes "/ui/jobs/jbod-firewall-2@namespace-2/definition" into "jobs.job.definition")
-  get subnavLinks() {
-    // TODO: this feels very non-Embery. Gotta see if there's a better way to handle this.
-    const subnav = document.getElementsByClassName('is-subnav')[0];
-    if (subnav) {
-      return Array.from(subnav.querySelectorAll('a')).map((link) => {
-        return this.router.recognize(link.getAttribute('href'))?.name;
-      });
-    } else {
-      return [];
-    }
+  subnavLinks = [];
+  menuLinks = [];
+
+  /**
+   * Map over a passed element's links and determine if they're routable
+   * If so, return them in a transitionTo-able format
+   *
+   * @param {HTMLElement} element did-insert'd container div/ul
+   */
+  @action
+  registerSubnav(element) {
+    this.subnavLinks = Array.from(
+      element.querySelectorAll('a:not(.loading)')
+    ).map((link) => {
+      return {
+        route: this.router.recognize(link.getAttribute('href'))?.name,
+        parent: guidFor(element),
+      };
+    });
+  }
+
+  /**
+   * Removes links associated with a specific nav.
+   * guidFor is necessary because willDestroy runs async;
+   * it can happen after the next page's did-insert, so we .reject() instead of resetting to [].
+   *
+   * @param {HTMLElement} element
+   */
+  @action
+  unregisterSubnav(element) {
+    this.subnavLinks = this.subnavLinks.reject(
+      (link) => link.parent === guidFor(element)
+    );
   }
 
   get menuLinks() {
@@ -170,7 +192,7 @@ export default class KeyboardService extends Service {
     // afterRender because LinkTos evaluate their href value at render time
     schedule('afterRender', () => {
       if (links.length) {
-        let activeLink = links.find((link) => this.router.isActive(link));
+        let activeLink = links.find((link) => this.router.isActive(link.route));
 
         // If no activeLink, means we're nested within a primary section.
         // Luckily, Ember's RouteInfo.find() gives us access to parents and connected leaves of a route.
@@ -179,7 +201,7 @@ export default class KeyboardService extends Service {
         if (!activeLink) {
           activeLink = links.find((link) => {
             return this.router.currentRoute.find((r) => {
-              return r.name === link || `${r.name}.index` === link;
+              return r.name === link.route || `${r.name}.index` === link.route;
             });
           });
         }
@@ -191,9 +213,8 @@ export default class KeyboardService extends Service {
           // Modulo (%) logic: if the next position is longer than the array, wrap to 0.
           // If it's before the beginning, wrap to the end.
           const nextLink =
-            links[
-              ((nextPosition % links.length) + links.length) % links.length
-            ];
+            links[((nextPosition % links.length) + links.length) % links.length]
+              .route;
 
           this.router.transitionTo(nextLink);
         }

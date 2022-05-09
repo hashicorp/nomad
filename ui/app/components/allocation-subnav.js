@@ -8,6 +8,7 @@ import classic from 'ember-classic-decorator';
 @tagName('')
 export default class AllocationSubnav extends Component {
   @service router;
+  @service keyboard;
 
   @equal('router.currentRouteName', 'allocations.allocation.fs')
   fsIsActive;
