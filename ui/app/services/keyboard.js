@@ -11,6 +11,20 @@ import { guidFor } from '@ember/object/internals';
 
 const DEBOUNCE_MS = 750;
 
+// Shit modifies event.key to a symbol; get the digit equivalent to perform commands
+const DIGIT_MAP = {
+  '!': 1,
+  '@': 2,
+  '#': 3,
+  $: 4,
+  '%': 5,
+  '^': 6,
+  '&': 7,
+  '*': 8,
+  '(': 9,
+  ')': 0,
+};
+
 export default class KeyboardService extends Service {
   /**
    * @type {EmberRouter}
@@ -21,6 +35,7 @@ export default class KeyboardService extends Service {
 
   @tracked shortcutsVisible = false;
   @tracked buffer = A([]);
+  @tracked displayHints = false;
 
   keyCommands = [
     {
@@ -135,6 +150,16 @@ export default class KeyboardService extends Service {
     this.keyCommands.removeObjects(commands);
   }
 
+  @action
+  generateIteratorShortcut(element, [action, iter]) {
+    console.log('genIter', action, iter);
+    this.keyCommands.pushObject({
+      label: `Hit up item ${iter}`,
+      pattern: [`Shift+${iter}`],
+      action,
+    });
+  }
+
   //#region Nav Traversal
 
   subnavLinks = [];
@@ -224,18 +249,30 @@ export default class KeyboardService extends Service {
 
   /**
    *
+   * @param {("press" | "release")} type
    * @param {KeyboardEvent} event
    */
-  recordKeypress(event) {
+  recordKeypress(type, event) {
     const inputElements = ['input', 'textarea'];
     const targetElementName = event.target.nodeName.toLowerCase();
     // Don't fire keypress events from within an input field
     if (!inputElements.includes(targetElementName)) {
-      // Treat Shift like a special modifier key. May expand to more later.
+      // Treat Shift like a special modifier key.
+      // If it's depressed, display shortcuts
       const { key } = event;
+      console.log('event', event);
       const shifted = event.getModifierState('Shift');
-      if (key !== 'Shift') {
-        this.addKeyToBuffer.perform(key, shifted);
+      console.log(`${type} on ${key}`);
+      if (type === 'press') {
+        if (key !== 'Shift') {
+          this.addKeyToBuffer.perform(key, shifted);
+        } else {
+          this.displayHints = true;
+        }
+      } else if (type === 'release') {
+        if (key === 'Shift') {
+          this.displayHints = false;
+        }
       }
     }
   }
@@ -246,7 +283,12 @@ export default class KeyboardService extends Service {
    * @param {boolean} shifted
    */
   @restartableTask *addKeyToBuffer(key, shifted) {
+    // Replace key with its unshifted equivalent if it's a number key
+    if (shifted && key in DIGIT_MAP) {
+      key = DIGIT_MAP[key];
+    }
     this.buffer.pushObject(shifted ? `Shift+${key}` : key);
+    console.log('buffer', this.buffer);
     if (this.matchedCommands.length) {
       this.matchedCommands.forEach((command) => command.action());
 
@@ -276,6 +318,13 @@ export default class KeyboardService extends Service {
   }
 
   listenForKeypress() {
-    document.addEventListener('keydown', this.recordKeypress.bind(this));
+    document.addEventListener(
+      'keydown',
+      this.recordKeypress.bind(this, 'press')
+    );
+    document.addEventListener(
+      'keyup',
+      this.recordKeypress.bind(this, 'release')
+    );
   }
 }
