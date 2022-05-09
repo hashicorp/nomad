@@ -1,6 +1,7 @@
 <div
   data-test-gutter-menu
   class="page-column is-left {{if this.isOpen "is-open"}}"
+  {{did-insert this.keyboard.registerMainNav}}
 >
   <div class="gutter {{if this.isOpen "is-open"}}">
     <header class="collapsed-menu {{if this.isOpen "is-open"}}">
