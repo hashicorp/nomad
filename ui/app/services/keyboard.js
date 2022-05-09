@@ -90,14 +90,14 @@ export default class KeyboardService extends Service {
       label: 'Previous Main Section',
       pattern: ['Shift+ArrowUp'],
       action: () => {
-        this.traverseLinkList(this.menuLinks, -1);
+        this.traverseLinkList(this.navLinks, -1);
       },
     },
     {
       label: 'Next Main Section',
       pattern: ['Shift+ArrowDown'],
       action: () => {
-        this.traverseLinkList(this.menuLinks, 1);
+        this.traverseLinkList(this.navLinks, 1);
       },
     },
     {
@@ -138,24 +138,33 @@ export default class KeyboardService extends Service {
   //#region Nav Traversal
 
   subnavLinks = [];
-  menuLinks = [];
+  navLinks = [];
 
   /**
    * Map over a passed element's links and determine if they're routable
    * If so, return them in a transitionTo-able format
    *
-   * @param {HTMLElement} element did-insert'd container div/ul
+   * @param {HTMLElement} element did-insertable menu container element
+   * @param {Object} args
+   * @param {('main' | 'subnav')} args.type determine which traversable list the routes belong to
    */
   @action
-  registerSubnav(element) {
-    this.subnavLinks = Array.from(
-      element.querySelectorAll('a:not(.loading)')
-    ).map((link) => {
-      return {
-        route: this.router.recognize(link.getAttribute('href'))?.name,
-        parent: guidFor(element),
-      };
-    });
+  registerNav(element, _, args) {
+    const { type } = args;
+    const links = Array.from(element.querySelectorAll('a:not(.loading)')).map(
+      (link) => {
+        return {
+          route: this.router.recognize(link.getAttribute('href'))?.name,
+          parent: guidFor(element),
+        };
+      }
+    );
+
+    if (type === 'main') {
+      this.navLinks = links;
+    } else if (type === 'subnav') {
+      this.subnavLinks = links;
+    }
   }
 
   /**
@@ -171,29 +180,6 @@ export default class KeyboardService extends Service {
       (link) => link.parent === guidFor(element)
     );
   }
-
-  @action
-  registerMainNav(element) {
-    this.menuLinks = Array.from(
-      element.querySelectorAll('a:not(.loading)')
-    ).map((link) => {
-      return {
-        route: this.router.recognize(link.getAttribute('href'))?.name,
-        parent: guidFor(element),
-      };
-    });
-  }
-
-  // get menuLinks() {
-  //   const menu = document.getElementsByClassName('menu')[0];
-  //   if (menu) {
-  //     return Array.from(menu.querySelectorAll('a')).map((link) => {
-  //       return this.router.recognize(link.getAttribute('href'))?.name;
-  //     });
-  //   } else {
-  //     return [];
-  //   }
-  // }
 
   /**
    *
