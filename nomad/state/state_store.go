@@ -6591,6 +6591,20 @@ func getPreemptedAllocDesiredDescription(preemptedByAllocID string) string {
 	return fmt.Sprintf("Preempted by alloc ID %v", preemptedByAllocID)
 }
 
+// SecureVariables queries all the variables and is used only for
+// snapshot/restore and key rotation
+func (s *StateStore) SecureVariables(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableSecureVariables, indexID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
 func (s *StateStore) UpsertSecureVariables(msgType structs.MessageType, index uint64, dirEntries []*structs.SecureVariable) error {
 	return nil
 }
@@ -6599,10 +6613,36 @@ func (s *StateStore) DeleteSecureVariables(msgType structs.MessageType, index ui
 	return nil
 }
 
+// SecureVariablesQuotas queries all the quotas and is used only for
+// snapshot/restore and key rotation
+func (s *StateStore) SecureVariablesQuotas(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableSecureVariablesQuotas, indexID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
 func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKeyMeta) error {
 	return nil
 }
 
 func (s *StateStore) DeleteRootKeyMeta(index uint64, keyID string) error {
 	return nil
+}
+
+func (s *StateStore) RootKeyMetas(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableRootKeyMeta, indexID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
 }

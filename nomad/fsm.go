@@ -54,6 +54,10 @@ const (
 	ScalingEventsSnapshot                SnapshotType = 19
 	EventSinkSnapshot                    SnapshotType = 20
 	ServiceRegistrationSnapshot          SnapshotType = 21
+	SecureVariablesSnapshot              SnapshotType = 22
+	SecureVariablesQuotaSnapshot         SnapshotType = 23
+	RootKeyMetaSnapshot                  SnapshotType = 24
+
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
 )
@@ -1693,6 +1697,36 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		case SecureVariablesSnapshot:
+			variable := new(structs.SecureVariable)
+			if err := dec.Decode(variable); err != nil {
+				return err
+			}
+
+			if err := restore.SecureVariablesRestore(variable); err != nil {
+				return err
+			}
+
+		case SecureVariablesQuotaSnapshot:
+			quota := new(structs.SecureVariablesQuota)
+			if err := dec.Decode(quota); err != nil {
+				return err
+			}
+
+			if err := restore.SecureVariablesQuotaRestore(quota); err != nil {
+				return err
+			}
+
+		case RootKeyMetaSnapshot:
+			keyMeta := new(structs.RootKeyMeta)
+			if err := dec.Decode(keyMeta); err != nil {
+				return err
+			}
+
+			if err := restore.RootKeyMetaRestore(keyMeta); err != nil {
+				return err
+			}
+
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
@@ -1959,7 +1993,7 @@ func (n *nomadFSM) applySecureVariableUpsert(msgType structs.MessageType, buf []
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertSecureVariables(msgType, index, []*structs.DirEntry{req.Data}); err != nil {
+	if err := n.state.UpsertSecureVariables(msgType, index, []*structs.SecureVariable{req.Data}); err != nil {
 		n.logger.Error("UpsertSecureVariables failed", "error", err)
 		return err
 	}
@@ -2119,6 +2153,18 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistServiceRegistrations(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistSecureVariables(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistSecureVariablesQuotas(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistRootKeyMeta(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2678,6 +2724,75 @@ func (s *nomadSnapshot) persistServiceRegistrations(sink raft.SnapshotSink,
 		}
 		return nil
 	}
+}
+
+func (s *nomadSnapshot) persistSecureVariables(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	ws := memdb.NewWatchSet()
+	variables, err := s.snap.SecureVariables(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := variables.Next()
+		if raw == nil {
+			break
+		}
+		variable := raw.(*structs.SecureVariable)
+		sink.Write([]byte{byte(SecureVariablesSnapshot)})
+		if err := encoder.Encode(variable); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistSecureVariablesQuotas(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	ws := memdb.NewWatchSet()
+	quotas, err := s.snap.SecureVariablesQuotas(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := quotas.Next()
+		if raw == nil {
+			break
+		}
+		dirEntry := raw.(*structs.SecureVariablesQuota)
+		sink.Write([]byte{byte(SecureVariablesQuotaSnapshot)})
+		if err := encoder.Encode(dirEntry); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistRootKeyMeta(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	ws := memdb.NewWatchSet()
+	keys, err := s.snap.RootKeyMetas(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := keys.Next()
+		if raw == nil {
+			break
+		}
+		key := raw.(*structs.RootKeyMeta)
+		sink.Write([]byte{byte(RootKeyMetaSnapshot)})
+		if err := encoder.Encode(key); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Release is a no-op, as we just need to GC the pointer
