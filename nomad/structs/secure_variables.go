@@ -39,6 +39,24 @@ type SecureVariablesQuota struct {
 	ModifyIndex uint64
 }
 
+type SecureVariablesUpsertRequest struct {
+	Data *SecureVariable
+	WriteRequest
+}
+
+type SecureVariablesUpsertResponse struct {
+	WriteMeta
+}
+
+type SecureVariablesDeleteRequest struct {
+	Path string
+	WriteRequest
+}
+
+type SecureVariablesDeleteResponse struct {
+	WriteMeta
+}
+
 // RootKey is used to encrypt and decrypt secure variables. It is
 // never stored in raft.
 type RootKey struct {
@@ -66,3 +84,24 @@ const (
 	EncryptionAlgorithmXChaCha20 EncryptionAlgorithm = "xchacha20"
 	EncryptionAlgorithmAES256GCM EncryptionAlgorithm = "aes256-gcm"
 )
+
+// KeyringUpdateRootKeyMetaRequest is used internally for key
+// replication so that we have a request wrapper for writing the
+// metadata to the FSM without including the key material
+type KeyringUpdateRootKeyMetaRequest struct {
+	RootKeyMeta *RootKeyMeta
+	WriteRequest
+}
+
+type KeyringUpdateRootKeyMetaResponse struct {
+	WriteMeta
+}
+
+type KeyringDeleteRootKeyRequest struct {
+	KeyID string
+	WriteRequest
+}
+
+type KeyringDeleteRootKeyResponse struct {
+	WriteMeta
+}

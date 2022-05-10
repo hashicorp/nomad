@@ -6590,3 +6590,19 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 func getPreemptedAllocDesiredDescription(preemptedByAllocID string) string {
 	return fmt.Sprintf("Preempted by alloc ID %v", preemptedByAllocID)
 }
+
+func (s *StateStore) UpsertSecureVariables(msgType structs.MessageType, index uint64, dirEntries []*structs.SecureVariable) error {
+	return nil
+}
+
+func (s *StateStore) DeleteSecureVariables(msgType structs.MessageType, index uint64, paths []string) error {
+	return nil
+}
+
+func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKeyMeta) error {
+	return nil
+}
+
+func (s *StateStore) DeleteRootKeyMeta(index uint64, keyID string) error {
+	return nil
+}
