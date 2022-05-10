@@ -105,6 +105,41 @@ const (
 	EncryptionAlgorithmAES256GCM EncryptionAlgorithm = "aes256-gcm"
 )
 
+type KeyringRotateRootKeyRequest struct {
+	Algorithm EncryptionAlgorithm
+	Full      bool
+	WriteRequest
+}
+
+// KeyringRotateRootKeyResponse returns the full key metadata
+type KeyringRotateRootKeyResponse struct {
+	Key *RootKeyMeta
+	WriteMeta
+}
+
+type KeyringListRootKeyMetaRequest struct {
+	// TODO: do we need any fields here?
+	QueryOptions
+}
+
+type KeyringListRootKeyMetaResponse struct {
+	Keys []*RootKeyMeta
+	QueryMeta
+}
+
+// KeyringUpdateRootKeyRequest is used internally for key replication
+// only and for keyring restores. The RootKeyMeta will be extracted
+// for applying to the FSM with the KeyringUpdateRootKeyMetaRequest
+// (see below)
+type KeyringUpdateRootKeyRequest struct {
+	RootKey *RootKey
+	WriteRequest
+}
+
+type KeyringUpdateRootKeyResponse struct {
+	WriteMeta
+}
+
 // KeyringUpdateRootKeyMetaRequest is used internally for key
 // replication so that we have a request wrapper for writing the
 // metadata to the FSM without including the key material
