@@ -143,6 +143,7 @@ export default class KeyboardService extends Service {
   ];
 
   addCommands(commands) {
+    console.log('service adding commands', commands);
     this.keyCommands.pushObjects(commands);
   }
 
@@ -152,7 +153,7 @@ export default class KeyboardService extends Service {
 
   @action
   generateIteratorShortcut(element, [action, iter]) {
-    console.log('genIter', action, iter);
+    // console.log('genIter', action, iter);
     this.keyCommands.pushObject({
       label: `Hit up item ${iter}`,
       pattern: [`Shift+${iter}`],
@@ -260,9 +261,9 @@ export default class KeyboardService extends Service {
       // Treat Shift like a special modifier key.
       // If it's depressed, display shortcuts
       const { key } = event;
-      console.log('event', event);
+      // console.log('event', event);
       const shifted = event.getModifierState('Shift');
-      console.log(`${type} on ${key}`);
+      // console.log(`${type} on ${key}`);
       if (type === 'press') {
         if (key !== 'Shift') {
           this.addKeyToBuffer.perform(key, shifted);

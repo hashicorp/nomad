@@ -1,3 +1,4 @@
+{{#if this.keyboard.shortcutsVisible}}
 {{keyboard-commands this.keyCommands}}
 
 <ul class="keyboard-shortcuts">
@@ -12,3 +13,17 @@
     </li>
   {{/each}}
 </ul>
+{{/if}}
+
+{{#if this.keyboard.displayHints}}
+  {{#each this.hints as |hint|}}
+    <span
+      data-shortcut={{hint.pattern}}
+      style={{hint.style}}
+    >
+      {{#each hint.pattern as |key|}}
+        <span>{{key}}</span>
+      {{/each}}
+    </span>
+  {{/each}}
+{{/if}}

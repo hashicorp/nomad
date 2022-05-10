@@ -9756,6 +9756,22 @@ ember-cli-typescript@^4.0.0, ember-cli-typescript@^4.1.0, ember-cli-typescript@^
     stagehand "^1.0.0"
     walk-sync "^2.2.0"
 
+ember-cli-typescript@^5.0.0:
+  version "5.1.0"
+  resolved "https://registry.yarnpkg.com/ember-cli-typescript/-/ember-cli-typescript-5.1.0.tgz#460eb848564e29d64f2b36b2a75bbe98172b72a4"
+  integrity sha512-wEZfJPkjqFEZAxOYkiXsDrJ1HY75e/6FoGhQFg8oNFJeGYpIS/3W0tgyl1aRkSEEN1NRlWocDubJ4aZikT+RTA==
+  dependencies:
+    ansi-to-html "^0.6.15"
+    broccoli-stew "^3.0.0"
+    debug "^4.0.0"
+    execa "^4.0.0"
+    fs-extra "^9.0.1"
+    resolve "^1.5.0"
+    rsvp "^4.8.1"
+    semver "^7.3.2"
+    stagehand "^1.0.0"
+    walk-sync "^2.2.0"
+
 ember-cli-version-checker@^2.1.0, ember-cli-version-checker@^2.1.2:
   version "2.2.0"
   resolved "https://registry.yarnpkg.com/ember-cli-version-checker/-/ember-cli-version-checker-2.2.0.tgz#47771b731fe0962705e27c8199a9e3825709f3b3"
@@ -10158,15 +10174,15 @@ ember-modifier-manager-polyfill@^1.2.0:
     ember-cli-version-checker "^2.1.2"
     ember-compatibility-helpers "^1.2.0"
 
-"ember-modifier@^2.1.0 || ^3.0.0", ember-modifier@^3.0.0, ember-modifier@^3.1.0:
-  version "3.1.0"
-  resolved "https://registry.yarnpkg.com/ember-modifier/-/ember-modifier-3.1.0.tgz#ba5b0941302accd787ed3dcfc8d20400b77ffc41"
-  integrity sha512-G5Lj9jVFsD2sVJcRNQfaGKG1p81wT4LGfClBhCuB4TgwP1NGJKdqI+Q8BW2MptONxQt/71UjjUH0YK7Gm9eahg==
+ember-modifier@3.2.7, "ember-modifier@^2.1.0 || ^3.0.0", ember-modifier@^3.0.0:
+  version "3.2.7"
+  resolved "https://registry.yarnpkg.com/ember-modifier/-/ember-modifier-3.2.7.tgz#f2d35b7c867cbfc549e1acd8d8903c5ecd02ea4b"
+  integrity sha512-ezcPQhH8jUfcJQbbHji4/ZG/h0yyj1jRDknfYue/ypQS8fM8LrGcCMo0rjDZLzL1Vd11InjNs3BD7BdxFlzGoA==
   dependencies:
     ember-cli-babel "^7.26.6"
     ember-cli-normalize-entity-name "^1.0.0"
     ember-cli-string-utils "^1.1.0"
-    ember-cli-typescript "^4.2.1"
+    ember-cli-typescript "^5.0.0"
     ember-compatibility-helpers "^1.2.5"
 
 ember-moment@^9.0.1:
@@ -10434,6 +10450,15 @@ ember-test-selectors@^6.0.0:
     calculate-cache-key-for-tree "^2.0.0"
     ember-cli-babel "^7.26.4"
     ember-cli-version-checker "^5.1.2"
+
+ember-tether@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/ember-tether/-/ember-tether-2.0.1.tgz#29cab1463c43ebc22c836887b25d9b5106231366"
+  integrity sha512-ECjmFVqo58YK6SmrBW77hmp1wE76n9azl3H6oMvYOXLA4FraOB4xhuk/VCV/XPbG0p1bArKepGjxM8Qbu8g0Lw==
+  dependencies:
+    ember-auto-import "^1.2.19"
+    ember-cli-babel "^7.1.2"
+    tether "^1.4.0"
 
 ember-text-measurer@^0.6.0:
   version "0.6.0"
@@ -18649,6 +18674,11 @@ testem@^3.0.3, testem@^3.2.0:
     styled_string "0.0.1"
     tap-parser "^7.0.0"
     tmp "0.0.33"
+
+tether@^1.4.0:
+  version "1.4.7"
+  resolved "https://registry.yarnpkg.com/tether/-/tether-1.4.7.tgz#d56a818590d8fe72e387f77a67f93ab96d8e1fb2"
+  integrity sha512-Z0J1aExjoFU8pybVkQAo/vD2wfSO63r+XOPfWQMC5qtf1bI7IWqNk4MiyBcgvvnY8kqnY06dVdvwTK2S3PU/Fw==
 
 text-encoder-lite@^2.0.0:
   version "2.0.0"
