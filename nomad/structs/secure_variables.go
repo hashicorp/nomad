@@ -48,6 +48,26 @@ type SecureVariablesUpsertResponse struct {
 	WriteMeta
 }
 
+type SecureVariablesListRequest struct {
+	// TODO: do we need any fields here?
+	QueryOptions
+}
+
+type SecureVariablesListResponse struct {
+	Data []*SecureVariable
+	QueryMeta
+}
+
+type SecureVariablesReadRequest struct {
+	Path string
+	QueryOptions
+}
+
+type SecureVariablesReadResponse struct {
+	Data *SecureVariable
+	QueryMeta
+}
+
 type SecureVariablesDeleteRequest struct {
 	Path string
 	WriteRequest
