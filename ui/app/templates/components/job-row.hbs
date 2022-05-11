@@ -1,8 +1,8 @@
 <td data-test-job-name
-              {{keyboard-shortcut 
-                pattern=(array (concat "Shift+" @iter))
-                action=(action "gotoJob" @job)
-              }}
+  {{keyboard-shortcut 
+    pattern=(array (concat "Shift+" @iter))
+    action=(action "gotoJob" @job)
+  }}
 >
   <LinkTo
     @route="jobs.job.index"

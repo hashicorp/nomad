@@ -21,15 +21,16 @@
   </ul>
 {{/if}}
 
-{{#if this.keyboard.displayHints}}
+{{!-- {{#if this.keyboard.displayHints}} --}}
   {{#each this.hints as |hint|}}
     <span
+      {{did-insert this.tetherToElement element=hint.element}}
       data-shortcut={{hint.pattern}}
-      style={{hint.style}}
+      aria-hidden="true"
     >
       {{#each hint.pattern as |key|}}
         <span>{{key}}</span>
       {{/each}}
     </span>
   {{/each}}
-{{/if}}
+{{!-- {{/if}} --}}

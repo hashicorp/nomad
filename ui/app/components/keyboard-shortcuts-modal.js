@@ -2,6 +2,7 @@ import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
 import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
+import Tether from 'tether';
 
 export default class KeyboardShortcutsModalComponent extends Component {
   @service keyboard;
@@ -27,22 +28,28 @@ export default class KeyboardShortcutsModalComponent extends Component {
    * hints: filter keyCommands to those that have an element property,
    * and then compute a position on screen to place the hint.
    */
-  @computed(
-    'keyboard.keyCommands.length',
-    'keyboard.displayHints',
-    'window.scroll'
-  )
+  @computed('keyboard.keyCommands.length', 'keyboard.displayHints')
   get hints() {
     console.log('HINTS RECOMPUTE');
-    return this.keyboard.keyCommands
-      .filter((c) => c.element)
-      .map((c) => {
-        c.style = htmlSafe(
-          `transform: translate(${c.element.getBoundingClientRect().left}px, ${
-            c.element.getBoundingClientRect().top
-          }px);`
-        );
-        return c;
-      });
+    return this.keyboard.keyCommands.filter((c) => c.element);
+    // .map((c) => {
+    //   c.style = htmlSafe(
+    //     `transform: translate(${c.element.getBoundingClientRect().left}px, ${
+    //       c.element.getBoundingClientRect().top
+    //     }px);`
+    //   );
+    //   return c;
+    // });
+  }
+
+  tetherToElement(self, _, { element }) {
+    console.log('gonna tether to', self, element);
+    let binder = new Tether({
+      element: self,
+      target: element,
+      attachment: 'top left',
+      targetAttachment: 'top left',
+      targetModifier: 'visible',
+    });
   }
 }
