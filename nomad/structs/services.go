@@ -472,6 +472,8 @@ type Service struct {
 	Meta       map[string]string // Consul service meta
 	CanaryMeta map[string]string // Consul service meta when it is a canary
 
+	TaggedAddresses map[string]string
+
 	// The consul namespace in which this service will be registered. Namespace
 	// at the service.check level is not part of the Nomad API - it must be
 	// set at the job or group level. This field is managed internally so
@@ -516,6 +518,7 @@ func (s *Service) Copy() *Service {
 
 	ns.Meta = helper.CopyMapStringString(s.Meta)
 	ns.CanaryMeta = helper.CopyMapStringString(s.CanaryMeta)
+	ns.TaggedAddresses = helper.CopyMapStringString(s.TaggedAddresses)
 
 	return ns
 }
@@ -699,6 +702,7 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	hashBool(h, s.EnableTagOverride, "ETO")
 	hashMeta(h, s.Meta)
 	hashMeta(h, s.CanaryMeta)
+	hashMeta(h, s.TaggedAddresses)
 	hashConnect(h, s.Connect)
 	hashString(h, s.OnUpdate)
 	hashString(h, s.Namespace)
@@ -822,6 +826,10 @@ OUTER:
 	}
 
 	if !reflect.DeepEqual(s.CanaryMeta, o.CanaryMeta) {
+		return false
+	}
+
+	if !reflect.DeepEqual(s.TaggedAddresses, o.TaggedAddresses) {
 		return false
 	}
 

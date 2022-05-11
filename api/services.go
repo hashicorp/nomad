@@ -236,6 +236,7 @@ type Service struct {
 	Connect           *ConsulConnect    `hcl:"connect,block"`
 	Meta              map[string]string `hcl:"meta,block"`
 	CanaryMeta        map[string]string `hcl:"canary_meta,block"`
+	TaggedAddresses   map[string]string `hcl:"tagged_addresses,block"`
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
 	OnUpdate          string            `mapstructure:"on_update" hcl:"on_update,optional"`
 
