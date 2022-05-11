@@ -71,17 +71,14 @@
           <tr
             class="is-interactive"
             data-test-volume-row
-            {{!-- data-shortcut="Shift + {{iter}}" --}}
             {{on "click" (action "gotoVolume" row.model)}}
           >
             <td data-test-volume-name
-            {{keyboard-shortcut 
-              pattern=(array (concat "Shift+" iter))
-              action=(action "gotoVolume" row.model)
-              label=(concat "Click table row " iter)
-            }}
-
->
+              {{keyboard-shortcut 
+                pattern=(array (concat "Shift+" iter))
+                action=(action "gotoVolume" row.model)
+              }}
+            >
               <LinkTo
                 @route="csi.volumes.volume"
                 @model={{row.model.idWithNamespace}}

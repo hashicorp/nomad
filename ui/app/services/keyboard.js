@@ -143,7 +143,7 @@ export default class KeyboardService extends Service {
   ];
 
   addCommands(commands) {
-    console.log('service adding commands', commands);
+    // Filter out those commands that don't have a label (they're only being added for at-a-glance hinting/highlights)
     this.keyCommands.pushObjects(commands);
   }
 
@@ -289,14 +289,13 @@ export default class KeyboardService extends Service {
       key = DIGIT_MAP[key];
     }
     this.buffer.pushObject(shifted ? `Shift+${key}` : key);
-    console.log('buffer', this.buffer);
     if (this.matchedCommands.length) {
       this.matchedCommands.forEach((command) => command.action());
 
       // TODO: Temporary dev log
       if (this.config.isDev) {
         this.matchedCommands.forEach((command) =>
-          console.log('command run', command)
+          console.log('command run', command, command.action.toString())
         );
       }
       this.clearBuffer();
@@ -308,9 +307,26 @@ export default class KeyboardService extends Service {
   get matchedCommands() {
     // Ember Compare: returns 0 if there's no diff between arrays.
     // TODO: do we think this is faster than a pure JS .join("") comparison?
-    const matches = this.keyCommands.filter(
-      (command) => !compare(command.pattern, this.buffer)
+
+    // Shiftless Buffer: handle the case where use is holding shift (to see shortcut hints) and typing a key command
+    const shiftlessBuffer = this.buffer.map((key) =>
+      key.replace('Shift+', '').toLowerCase()
     );
+
+    // Shift Friendly Buffer: If you hold Shift and type 0 and 1, it'll output as ['Shift+0', 'Shift+1'].
+    // Instead, translate that to ['Shift+01'] for clearer UX
+    const shiftFriendlyBuffer = [
+      `Shift+${this.buffer.map((key) => key.replace('Shift+', '')).join('')}`,
+    ];
+
+    const matches = this.keyCommands.filter((command) => {
+      return (
+        command.action &&
+        (!compare(command.pattern, this.buffer) ||
+          !compare(command.pattern, shiftlessBuffer) ||
+          !compare(command.pattern, shiftFriendlyBuffer))
+      );
+    });
     return matches;
   }
 

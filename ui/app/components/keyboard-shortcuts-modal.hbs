@@ -1,18 +1,24 @@
 {{#if this.keyboard.shortcutsVisible}}
-{{keyboard-commands this.keyCommands}}
-
-<ul class="keyboard-shortcuts">
-  {{#each this.keyboard.keyCommands as |command|}}
-    <li>
-      <strong>{{command.label}}</strong>
-      <span class="keys">
-        {{#each command.pattern as |key|}}
-          <span>{{key}}</span>
-        {{/each}}
-      </span>
-    </li>
-  {{/each}}
-</ul>
+  {{keyboard-commands (array this.escapeCommand)}}
+  <ul class="keyboard-shortcuts">
+    <button
+      class="button is-borderless dismiss"
+      type="button"
+      {{on "click" (toggle "keyboard.shortcutsVisible" this)}}
+    >
+      {{x-icon "cancel"}}
+    </button>
+    {{#each this.commands as |command|}}
+      <li>
+        <strong>{{command.label}}</strong>
+        <span class="keys">
+          {{#each command.pattern as |key|}}
+            <span>{{key}}</span>
+          {{/each}}
+        </span>
+      </li>
+    {{/each}}
+  </ul>
 {{/if}}
 
 {{#if this.keyboard.displayHints}}
