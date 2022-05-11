@@ -213,6 +213,8 @@ func different(wanted *api.AgentServiceRegistration, existing *api.AgentService,
 		return true
 	case !reflect.DeepEqual(wanted.Meta, existing.Meta):
 		return true
+	case !reflect.DeepEqual(wanted.TaggedAddresses, existing.TaggedAddresses):
+		return true
 	case tagsDifferent(wanted.Tags, existing.Tags):
 		return true
 	case connectSidecarDifferent(wanted, sidecar):
@@ -1027,6 +1029,19 @@ func (c *ServiceClient) serviceRegs(
 		}
 	}
 
+	var taggedAddresses map[string]api.ServiceAddress
+	for k, v := range service.TaggedAddresses {
+		sa, err := parseAddress(v, port)
+		if err != nil {
+			c.logger.Warn("failed to parse advertise address", "name", k, "adrress", v)
+			continue
+		}
+		if taggedAddresses == nil {
+			taggedAddresses = make(map[string]api.ServiceAddress)
+		}
+		taggedAddresses[k] = sa
+	}
+
 	// Build the Consul Service registration request
 	serviceReg := &api.AgentServiceRegistration{
 		Kind:              kind,
@@ -1038,6 +1053,7 @@ func (c *ServiceClient) serviceRegs(
 		Address:           ip,
 		Port:              port,
 		Meta:              meta,
+		TaggedAddresses:   taggedAddresses,
 		Connect:           connect, // will be nil if no Connect stanza
 		Proxy:             gateway, // will be nil if no Connect Gateway stanza
 	}
@@ -1663,4 +1679,32 @@ func getNomadSidecar(id string, services map[string]*api.AgentService) *api.Agen
 
 	sidecarID := id + sidecarSuffix
 	return services[sidecarID]
+}
+
+func parseAddress(raw string, port int) (api.ServiceAddress, error) {
+	result := api.ServiceAddress{}
+	addr, portStr, err := net.SplitHostPort(raw)
+	// Error message from Go's net/ipsock.go
+	if err != nil {
+		if !strings.Contains(err.Error(), "missing port in address") {
+			return result, fmt.Errorf("error parsing address %q: %v", raw, err)
+		}
+
+		// Use the whole input as the address if there wasn't a port.
+		if ip := net.ParseIP(raw); ip == nil {
+			return result, fmt.Errorf("error parsing address %q: not an IP address", raw)
+		}
+		addr = raw
+	}
+
+	if portStr != "" {
+		port, err = strconv.Atoi(portStr)
+		if err != nil {
+			return result, fmt.Errorf("error parsing port %q: %v", portStr, err)
+		}
+	}
+
+	result.Address = addr
+	result.Port = port
+	return result, nil
 }
