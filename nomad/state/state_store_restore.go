@@ -197,3 +197,30 @@ func (r *StateRestore) ServiceRegistrationRestore(service *structs.ServiceRegist
 	}
 	return nil
 }
+
+// SecureVariablesRestore is used to restore a single secure variable
+// into the secure_variables table.
+func (r *StateRestore) SecureVariablesRestore(variable *structs.SecureVariable) error {
+	if err := r.txn.Insert(TableSecureVariables, variable); err != nil {
+		return fmt.Errorf("secure variable insert failed: %v", err)
+	}
+	return nil
+}
+
+// SecureVariablesQuotaRestore is used to restore a single secure variable quota
+// into the secure_variables_quota table.
+func (r *StateRestore) SecureVariablesQuotaRestore(quota *structs.SecureVariablesQuota) error {
+	if err := r.txn.Insert(TableSecureVariablesQuotas, quota); err != nil {
+		return fmt.Errorf("secure variable quota insert failed: %v", err)
+	}
+	return nil
+}
+
+// RootKeyMetaQuotaRestore is used to restore a single root key meta
+// into the secure_variables_root_key_meta table.
+func (r *StateRestore) RootKeyMetaRestore(quota *structs.RootKeyMeta) error {
+	if err := r.txn.Insert(TableRootKeyMeta, quota); err != nil {
+		return fmt.Errorf("root key meta insert failed: %v", err)
+	}
+	return nil
+}
