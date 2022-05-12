@@ -12,8 +12,11 @@ import (
 const (
 	tableIndex = "index"
 
-	TableNamespaces           = "namespaces"
-	TableServiceRegistrations = "service_registrations"
+	TableNamespaces            = "namespaces"
+	TableServiceRegistrations  = "service_registrations"
+	TableSecureVariables       = "secure_variables"
+	TableSecureVariablesQuotas = "secure_variables_quota"
+	TableRootKeyMeta           = "secure_variables_root_key_meta"
 )
 
 const (
@@ -70,6 +73,9 @@ func init() {
 		scalingEventTableSchema,
 		namespaceTableSchema,
 		serviceRegistrationsTableSchema,
+		secureVariablesTableSchema,
+		secureVariablesQuotasTableSchema,
+		secureVariablesRootKeyMetaSchema,
 	}...)
 }
 
@@ -1197,6 +1203,69 @@ func serviceRegistrationsTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "AllocID",
+				},
+			},
+		},
+	}
+}
+
+// secureVariablesTableSchema returns the MemDB schema for Nomad
+// secure variables.
+func secureVariablesTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableSecureVariables,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "Path",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// secureVariablesQuotasTableSchema returns the MemDB schema for Nomad
+// secure variables quotas tracking
+func secureVariablesQuotasTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableSecureVariablesQuotas,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "Namespace",
+					Lowercase: true,
+				},
+			},
+		},
+	}
+}
+
+// secureVariablesRootKeyMetaSchema returns the MemDB schema for Nomad
+// secure variables root keys
+func secureVariablesRootKeyMetaSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableRootKeyMeta,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "KeyID",
+					Lowercase: true,
 				},
 			},
 		},
