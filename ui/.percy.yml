@@ -5,6 +5,8 @@ snapshot:
     .topo-viz { 
       display: none;
     }
-    .related-evaluations path, .related-evaluations circle {
+    .related-evaluations path,
+    .related-evaluations circle
+    .dashboard-metric {
       visibility: hidden;
     }
