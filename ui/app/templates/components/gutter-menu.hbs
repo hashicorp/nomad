@@ -32,9 +32,6 @@
           </ul>
         </div>
       {{/if}}
-      <p class="menu-label">
-        Workload
-      </p>
       <ul class="menu-list">
         <li>
           <LinkTo
@@ -56,11 +53,6 @@
             </LinkTo>
           </li>
         {{/if}}
-      </ul>
-      <p class="menu-label is-minor">
-        Integrations
-      </p>
-      <ul class="menu-list">
         <li>
           <LinkTo
             @route="csi"
@@ -68,6 +60,15 @@
             data-test-gutter-link="storage"
           >
             Storage
+          </LinkTo>
+        </li>
+        <li>
+          <LinkTo
+            @route="variables"
+            @activeClass="is-active"
+            data-test-gutter-link="variables"
+          >
+            Variables
           </LinkTo>
         </li>
       </ul>
