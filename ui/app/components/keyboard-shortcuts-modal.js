@@ -43,7 +43,16 @@ export default class KeyboardShortcutsModalComponent extends Component {
   }
 
   tetherToElement(self, _, { element }) {
-    console.log('gonna tether to', self, element);
+    let binder = new Tether({
+      element: self,
+      target: element,
+      attachment: 'top left',
+      targetAttachment: 'top left',
+      targetModifier: 'visible',
+    });
+  }
+  untetherFromElement(self, _, { element }) {
+    // TODO: call binder.destroy, probably componentize hint.
     let binder = new Tether({
       element: self,
       target: element,
