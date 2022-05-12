@@ -417,9 +417,7 @@ func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
 	require := require.New(t)
 
 	// Create a temp dir
-	tmpDir, err := ioutil.TempDir("", "")
-	require.Nil(err)
-	defer os.Remove(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Create the command
 	cmd := &ExecCommand{Env: []string{"PATH=/bin"}, TaskDir: tmpDir}
@@ -429,7 +427,7 @@ func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
 
 	// Write a file under foo
 	filePath := filepath.Join(tmpDir, "foo", "tmp.txt")
-	err = ioutil.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
+	err := ioutil.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
 	require.NoError(err)
 
 	// Lookout with an absolute path to the binary

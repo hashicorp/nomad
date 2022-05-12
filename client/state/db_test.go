@@ -1,7 +1,6 @@
 package state
 
 import (
-	"io/ioutil"
 	"os"
 	"reflect"
 	"sync"
@@ -20,9 +19,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupBoltStateDB(t *testing.T) (*BoltStateDB, func()) {
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(t, err)
+func setupBoltStateDB(t *testing.T) *BoltStateDB {
+	dir := t.TempDir()
 
 	db, err := NewBoltStateDB(testlog.HCLogger(t), dir)
 	if err != nil {
@@ -32,21 +30,17 @@ func setupBoltStateDB(t *testing.T) (*BoltStateDB, func()) {
 		t.Fatalf("error creating boltdb: %v", err)
 	}
 
-	cleanup := func() {
+	t.Cleanup(func() {
 		if err := db.Close(); err != nil {
 			t.Errorf("error closing boltdb: %v", err)
 		}
-		if err := os.RemoveAll(dir); err != nil {
-			t.Logf("error removing boltdb dir: %v", err)
-		}
-	}
+	})
 
-	return db.(*BoltStateDB), cleanup
+	return db.(*BoltStateDB)
 }
 
 func testDB(t *testing.T, f func(*testing.T, StateDB)) {
-	boltdb, cleanup := setupBoltStateDB(t)
-	defer cleanup()
+	boltdb := setupBoltStateDB(t)
 
 	memdb := NewMemDB(testlog.HCLogger(t))
 

@@ -67,10 +67,6 @@ func (u upperReplacer) ClientPath(p string, join bool) (string, bool) {
 	return path, escapes
 }
 
-func removeAllT(t *testing.T, path string) {
-	require.NoError(t, os.RemoveAll(path))
-}
-
 func TestGetArtifact_getHeaders(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
 		require.Nil(t, getHeaders(noopTaskEnv(""), nil))
@@ -109,9 +105,7 @@ func TestGetArtifact_Headers(t *testing.T) {
 	defer ts.Close()
 
 	// Create a temp directory to download into.
-	taskDir, err := ioutil.TempDir("", "nomad-test")
-	require.NoError(t, err)
-	defer removeAllT(t, taskDir)
+	taskDir := t.TempDir()
 
 	// Create the artifact.
 	artifact := &structs.TaskArtifact{
@@ -127,7 +121,7 @@ func TestGetArtifact_Headers(t *testing.T) {
 	taskEnv := upperReplacer{
 		taskDir: taskDir,
 	}
-	err = GetArtifact(taskEnv, artifact)
+	err := GetArtifact(taskEnv, artifact)
 	require.NoError(t, err)
 
 	// Verify artifact exists.
@@ -145,11 +139,7 @@ func TestGetArtifact_FileAndChecksum(t *testing.T) {
 	defer ts.Close()
 
 	// Create a temp directory to download into
-	taskDir, err := ioutil.TempDir("", "nomad-test")
-	if err != nil {
-		t.Fatalf("failed to make temp directory: %v", err)
-	}
-	defer removeAllT(t, taskDir)
+	taskDir := t.TempDir()
 
 	// Create the artifact
 	file := "test.sh"
@@ -177,11 +167,7 @@ func TestGetArtifact_File_RelativeDest(t *testing.T) {
 	defer ts.Close()
 
 	// Create a temp directory to download into
-	taskDir, err := ioutil.TempDir("", "nomad-test")
-	if err != nil {
-		t.Fatalf("failed to make temp directory: %v", err)
-	}
-	defer removeAllT(t, taskDir)
+	taskDir := t.TempDir()
 
 	// Create the artifact
 	file := "test.sh"
@@ -211,11 +197,7 @@ func TestGetArtifact_File_EscapeDest(t *testing.T) {
 	defer ts.Close()
 
 	// Create a temp directory to download into
-	taskDir, err := ioutil.TempDir("", "nomad-test")
-	if err != nil {
-		t.Fatalf("failed to make temp directory: %v", err)
-	}
-	defer removeAllT(t, taskDir)
+	taskDir := t.TempDir()
 
 	// Create the artifact
 	file := "test.sh"
@@ -229,7 +211,7 @@ func TestGetArtifact_File_EscapeDest(t *testing.T) {
 	}
 
 	// attempt to download the artifact
-	err = GetArtifact(noopTaskEnv(taskDir), artifact)
+	err := GetArtifact(noopTaskEnv(taskDir), artifact)
 	if err == nil || !strings.Contains(err.Error(), "escapes") {
 		t.Fatalf("expected GetArtifact to disallow sandbox escape: %v", err)
 	}
@@ -263,11 +245,7 @@ func TestGetArtifact_InvalidChecksum(t *testing.T) {
 	defer ts.Close()
 
 	// Create a temp directory to download into
-	taskDir, err := ioutil.TempDir("", "nomad-test")
-	if err != nil {
-		t.Fatalf("failed to make temp directory: %v", err)
-	}
-	defer removeAllT(t, taskDir)
+	taskDir := t.TempDir()
 
 	// Create the artifact with an incorrect checksum
 	file := "test.sh"
@@ -324,11 +302,7 @@ func TestGetArtifact_Archive(t *testing.T) {
 
 	// Create a temp directory to download into and create some of the same
 	// files that exist in the artifact to ensure they are overridden
-	taskDir, err := ioutil.TempDir("", "nomad-test")
-	if err != nil {
-		t.Fatalf("failed to make temp directory: %v", err)
-	}
-	defer removeAllT(t, taskDir)
+	taskDir := t.TempDir()
 
 	create := map[string]string{
 		"exist/my.config": "to be replaced",
@@ -365,9 +339,7 @@ func TestGetArtifact_Setuid(t *testing.T) {
 
 	// Create a temp directory to download into and create some of the same
 	// files that exist in the artifact to ensure they are overridden
-	taskDir, err := ioutil.TempDir("", "nomad-test")
-	require.NoError(t, err)
-	defer removeAllT(t, taskDir)
+	taskDir := t.TempDir()
 
 	file := "setuid.tgz"
 	artifact := &structs.TaskArtifact{

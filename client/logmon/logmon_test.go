@@ -23,9 +23,7 @@ func TestLogmon_Start_rotate(t *testing.T) {
 	require := require.New(t)
 	var stdoutFifoPath, stderrFifoPath string
 
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	if runtime.GOOS == "windows" {
 		stdoutFifoPath = "//./pipe/test-rotate.stdout"
@@ -89,9 +87,7 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 	require := require.New(t)
 	var stdoutFifoPath, stderrFifoPath string
 
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	if runtime.GOOS == "windows" {
 		stdoutFifoPath = "//./pipe/test-restart.stdout"
@@ -194,9 +190,7 @@ func TestLogmon_Start_restart(t *testing.T) {
 	require := require.New(t)
 	var stdoutFifoPath, stderrFifoPath string
 
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	if runtime.GOOS == "windows" {
 		stdoutFifoPath = "//./pipe/test-restart.stdout"
@@ -220,6 +214,9 @@ func TestLogmon_Start_restart(t *testing.T) {
 	impl, ok := lm.(*logmonImpl)
 	require.True(ok)
 	require.NoError(lm.Start(cfg))
+	t.Cleanup(func() {
+		require.NoError(lm.Stop())
+	})
 
 	stdout, err := fifo.OpenWriter(stdoutFifoPath)
 	require.NoError(err)
@@ -256,8 +253,15 @@ func TestLogmon_Start_restart(t *testing.T) {
 
 	stdout, err = fifo.OpenWriter(stdoutFifoPath)
 	require.NoError(err)
+	t.Cleanup(func() {
+		require.NoError(stdout.Close())
+	})
+
 	stderr, err = fifo.OpenWriter(stderrFifoPath)
 	require.NoError(err)
+	t.Cleanup(func() {
+		require.NoError(stderr.Close())
+	})
 
 	_, err = stdout.Write([]byte("test\n"))
 	require.NoError(err)

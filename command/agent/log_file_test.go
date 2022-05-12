@@ -2,7 +2,6 @@ package agent
 
 import (
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -20,12 +19,8 @@ const (
 
 func TestLogFile_timeRotation(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
-	tempDir, err := ioutil.TempDir("", "LogWriterTimeTest")
-	require.NoError(err)
-
-	defer os.Remove(tempDir)
+	tempDir := t.TempDir()
 
 	filt := LevelFilter()
 	logFile := logFile{
@@ -47,9 +42,7 @@ func TestLogFile_openNew(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
-	tempDir, err := ioutil.TempDir("", "LogWriterOpenTest")
-	require.NoError(err)
-	defer os.Remove(tempDir)
+	tempDir := t.TempDir()
 
 	filt := LevelFilter()
 	filt.MinLevel = logutils.LogLevel("INFO")
@@ -62,7 +55,7 @@ func TestLogFile_openNew(t *testing.T) {
 	}
 	require.NoError(logFile.openNew())
 
-	_, err = ioutil.ReadFile(logFile.FileInfo.Name())
+	_, err := ioutil.ReadFile(logFile.FileInfo.Name())
 	require.NoError(err)
 
 	require.Equal(logFile.FileInfo.Name(), filepath.Join(tempDir, testFileName))
@@ -84,9 +77,7 @@ func TestLogFile_byteRotation(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
-	tempDir, err := ioutil.TempDir("", "LogWriterByteTest")
-	require.NoError(err)
-	defer os.Remove(tempDir)
+	tempDir := t.TempDir()
 
 	filt := LevelFilter()
 	filt.MinLevel = logutils.LogLevel("INFO")
@@ -108,9 +99,7 @@ func TestLogFile_logLevelFiltering(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
-	tempDir, err := ioutil.TempDir("", "LogWriterFilterTest")
-	require.NoError(err)
-	defer os.Remove(tempDir)
+	tempDir := t.TempDir()
 	filt := LevelFilter()
 	logFile := logFile{
 		logFilter: filt,
@@ -131,9 +120,7 @@ func TestLogFile_deleteArchives(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
-	tempDir, err := ioutil.TempDir("", "LogWriterDeleteArchivesTest")
-	require.NoError(err)
-	defer os.Remove(tempDir)
+	tempDir := t.TempDir()
 
 	filt := LevelFilter()
 	filt.MinLevel = logutils.LogLevel("INFO")
@@ -171,9 +158,7 @@ func TestLogFile_deleteArchivesDisabled(t *testing.T) {
 	ci.Parallel(t)
 
 	require := require.New(t)
-	tempDir, err := ioutil.TempDir("", "LogWriterDeleteArchivesDisabledTest")
-	require.NoError(err)
-	defer os.Remove(tempDir)
+	tempDir := t.TempDir()
 
 	filt := LevelFilter()
 	filt.MinLevel = logutils.LogLevel("INFO")

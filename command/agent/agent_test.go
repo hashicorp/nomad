@@ -19,14 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func tmpDir(t testing.TB) string {
-	dir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	return dir
-}
-
 func TestAgent_RPC_Ping(t *testing.T) {
 	ci.Parallel(t)
 	agent := NewTestAgent(t, t.Name(), nil)
@@ -916,8 +908,6 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	logger := testlog.HCLogger(t)
 
@@ -959,8 +949,6 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	logger := testlog.HCLogger(t)
 
@@ -1002,8 +990,6 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	sameAgentConfig := &Config{
 		TLSConfig: &config.TLSConfig{
@@ -1042,8 +1028,6 @@ func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	sameAgentConfig := &Config{
 		TLSConfig: &config.TLSConfig{
@@ -1082,8 +1066,6 @@ func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	sameAgentConfig := &Config{
 		TLSConfig: &config.TLSConfig{
@@ -1124,8 +1106,6 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 		foocert2 = "../../helper/tlsutil/testdata/nomad-bad.pem"
 		fookey2  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
 		c.TLSConfig = &config.TLSConfig{
@@ -1180,14 +1160,10 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 	`
 
 	content := []byte(oldCertificate)
-	dir, err := ioutil.TempDir("", "certificate")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir) // clean up
+	dir := t.TempDir()
 
 	tmpfn := filepath.Join(dir, "testcert")
-	err = ioutil.WriteFile(tmpfn, content, 0666)
+	err := ioutil.WriteFile(tmpfn, content, 0666)
 	require.Nil(err)
 
 	const (
@@ -1269,8 +1245,6 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 		foocert2 = "../../helper/tlsutil/testdata/nomad-bad.pem"
 		fookey2  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	sameAgentConfig := &Config{
 		TLSConfig: &config.TLSConfig{

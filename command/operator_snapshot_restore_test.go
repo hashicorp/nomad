@@ -1,8 +1,6 @@
 package command
 
 import (
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -18,9 +16,7 @@ import (
 func TestOperatorSnapshotRestore_Works(t *testing.T) {
 	ci.Parallel(t)
 
-	tmpDir, err := ioutil.TempDir("", "nomad-tempdir")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	snapshotPath := generateSnapshotFile(t, func(srv *agent.TestAgent, client *api.Client, url string) {
 		sampleJob := `

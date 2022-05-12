@@ -9,17 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setup(t *testing.T) string {
-	p, err := ioutil.TempDir("", "escapist")
-	require.NoError(t, err)
-	return p
-}
-
-func cleanup(t *testing.T, root string) {
-	err := os.RemoveAll(root)
-	require.NoError(t, err)
-}
-
 func write(t *testing.T, file, data string) {
 	err := ioutil.WriteFile(file, []byte(data), 0600)
 	require.NoError(t, err)
@@ -58,8 +47,7 @@ func Test_PathEscapesAllocViaRelative(t *testing.T) {
 
 func Test_pathEscapesBaseViaSymlink(t *testing.T) {
 	t.Run("symlink-escape", func(t *testing.T) {
-		dir := setup(t)
-		defer cleanup(t, dir)
+		dir := t.TempDir()
 
 		// link from dir/link
 		link := filepath.Join(dir, "link")
@@ -75,8 +63,7 @@ func Test_pathEscapesBaseViaSymlink(t *testing.T) {
 	})
 
 	t.Run("symlink-noescape", func(t *testing.T) {
-		dir := setup(t)
-		defer cleanup(t, dir)
+		dir := t.TempDir()
 
 		// create a file within dir
 		target := filepath.Join(dir, "foo")
@@ -97,8 +84,7 @@ func Test_pathEscapesBaseViaSymlink(t *testing.T) {
 func Test_PathEscapesAllocDir(t *testing.T) {
 
 	t.Run("no-escape-root", func(t *testing.T) {
-		dir := setup(t)
-		defer cleanup(t, dir)
+		dir := t.TempDir()
 
 		escape, err := PathEscapesAllocDir(dir, "", "/")
 		require.NoError(t, err)
@@ -106,8 +92,7 @@ func Test_PathEscapesAllocDir(t *testing.T) {
 	})
 
 	t.Run("no-escape", func(t *testing.T) {
-		dir := setup(t)
-		defer cleanup(t, dir)
+		dir := t.TempDir()
 
 		write(t, filepath.Join(dir, "foo"), "hi")
 
@@ -117,8 +102,7 @@ func Test_PathEscapesAllocDir(t *testing.T) {
 	})
 
 	t.Run("no-escape-no-exist", func(t *testing.T) {
-		dir := setup(t)
-		defer cleanup(t, dir)
+		dir := t.TempDir()
 
 		escape, err := PathEscapesAllocDir(dir, "", "/no-exist")
 		require.NoError(t, err)
@@ -126,8 +110,7 @@ func Test_PathEscapesAllocDir(t *testing.T) {
 	})
 
 	t.Run("symlink-escape", func(t *testing.T) {
-		dir := setup(t)
-		defer cleanup(t, dir)
+		dir := t.TempDir()
 
 		// link from dir/link
 		link := filepath.Join(dir, "link")
@@ -143,8 +126,7 @@ func Test_PathEscapesAllocDir(t *testing.T) {
 	})
 
 	t.Run("relative-escape", func(t *testing.T) {
-		dir := setup(t)
-		defer cleanup(t, dir)
+		dir := t.TempDir()
 
 		escape, err := PathEscapesAllocDir(dir, "", "../../foo")
 		require.NoError(t, err)
@@ -152,8 +134,7 @@ func Test_PathEscapesAllocDir(t *testing.T) {
 	})
 
 	t.Run("relative-escape-prefix", func(t *testing.T) {
-		dir := setup(t)
-		defer cleanup(t, dir)
+		dir := t.TempDir()
 
 		escape, err := PathEscapesAllocDir(dir, "/foo/bar", "../../../foo")
 		require.NoError(t, err)

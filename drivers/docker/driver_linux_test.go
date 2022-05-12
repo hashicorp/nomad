@@ -22,14 +22,12 @@ import (
 func TestDockerDriver_authFromHelper(t *testing.T) {
 	ci.Parallel(t)
 
-	dir, err := ioutil.TempDir("", "test-docker-driver_authfromhelper")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	helperPayload := "{\"Username\":\"hashi\",\"Secret\":\"nomad\"}"
 	helperContent := []byte(fmt.Sprintf("#!/bin/sh\ncat > %s/helper-$1.out;echo '%s'", dir, helperPayload))
 
 	helperFile := filepath.Join(dir, "docker-credential-testnomad")
-	err = ioutil.WriteFile(helperFile, helperContent, 0777)
+	err := ioutil.WriteFile(helperFile, helperContent, 0777)
 	require.NoError(t, err)
 
 	path := os.Getenv("PATH")

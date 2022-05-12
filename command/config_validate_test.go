@@ -2,7 +2,6 @@ package command
 
 import (
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -12,11 +11,7 @@ import (
 
 func TestConfigValidateCommand_FailWithEmptyDir(t *testing.T) {
 	ci.Parallel(t)
-	fh, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Remove(fh)
+	fh := t.TempDir()
 
 	ui := cli.NewMockUi()
 	cmd := &ConfigValidateCommand{Meta: Meta{Ui: ui}}
@@ -30,14 +25,10 @@ func TestConfigValidateCommand_FailWithEmptyDir(t *testing.T) {
 
 func TestConfigValidateCommand_SucceedWithMinimalConfigFile(t *testing.T) {
 	ci.Parallel(t)
-	fh, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Remove(fh)
+	fh := t.TempDir()
 
 	fp := filepath.Join(fh, "config.hcl")
-	err = ioutil.WriteFile(fp, []byte(`data_dir="/"
+	err := ioutil.WriteFile(fp, []byte(`data_dir="/"
 	client {
 		enabled = true
 	}`), 0644)
@@ -57,14 +48,10 @@ func TestConfigValidateCommand_SucceedWithMinimalConfigFile(t *testing.T) {
 
 func TestConfigValidateCommand_FailOnParseBadConfigFile(t *testing.T) {
 	ci.Parallel(t)
-	fh, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Remove(fh)
+	fh := t.TempDir()
 
 	fp := filepath.Join(fh, "config.hcl")
-	err = ioutil.WriteFile(fp, []byte(`a: b`), 0644)
+	err := ioutil.WriteFile(fp, []byte(`a: b`), 0644)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -81,14 +68,10 @@ func TestConfigValidateCommand_FailOnParseBadConfigFile(t *testing.T) {
 
 func TestConfigValidateCommand_FailOnValidateParsableConfigFile(t *testing.T) {
 	ci.Parallel(t)
-	fh, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Remove(fh)
+	fh := t.TempDir()
 
 	fp := filepath.Join(fh, "config.hcl")
-	err = ioutil.WriteFile(fp, []byte(`data_dir="../"
+	err := ioutil.WriteFile(fp, []byte(`data_dir="../"
 	client {
 		enabled = true
 	}`), 0644)
