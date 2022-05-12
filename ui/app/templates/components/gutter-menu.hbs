@@ -62,6 +62,7 @@
             Storage
           </LinkTo>
         </li>
+        {{#if (can "list variables")}}
         <li>
           <LinkTo
             @route="variables"
@@ -71,6 +72,7 @@
             Variables
           </LinkTo>
         </li>
+        {{/if}}
       </ul>
       <p class="menu-label">
         Cluster

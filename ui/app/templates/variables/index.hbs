@@ -1,2 +1,8 @@
-{{page-title "Index"}}
-{{outlet}}
+{{page-title "Secure Variables"}}
+<section class="section">
+  {{#if this.isForbidden}}
+    <ForbiddenMessage />
+  {{else}}
+  Rock on Garth
+  {{/if}}
+</section>
