@@ -3,8 +3,10 @@ package mock
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
+	fake "github.com/brianvoe/gofakeit/v6"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -2295,4 +2297,36 @@ func ServiceRegistrations() []*structs.ServiceRegistration {
 			Port:        29000,
 		},
 	}
+}
+
+func SecureVariable() *structs.SecureVariable {
+	envs := []string{"dev", "test", "prod"}
+	envIdx := rand.Intn(3)
+	env := envs[envIdx]
+	domain := fake.DomainName()
+	path := strings.ReplaceAll(env+"."+domain, ".", "/")
+	// owner := fake.Person()
+	createIdx := uint64(rand.Intn(100) + 100)
+	createDT := fake.DateRange(time.Now().AddDate(0, -1, 0), time.Now())
+	sv := &structs.SecureVariable{
+		Path: path,
+		// CustomMeta: map[string]string{
+		// 	"owner_name":  owner.FirstName + " " + owner.LastName,
+		// 	"owner_email": fmt.Sprintf("%v%s@%s", owner.FirstName[0], owner.LastName, domain),
+		// },
+		UnencryptedData: map[string]string{
+			"username": fake.Username(),
+			"password": fake.Password(true, true, true, true, false, 16),
+		},
+		CreateIndex: createIdx,
+		ModifyIndex: createIdx,
+		CreateTime:  createDT,
+		ModifyTime:  createDT,
+	}
+	// Flip a coin to see if we should return a "modified" object
+	if fake.Bool() {
+		sv.ModifyTime = fake.DateRange(sv.CreateTime, time.Now())
+		sv.ModifyIndex = sv.CreateIndex + uint64(rand.Intn(100))
+	}
+	return sv
 }
