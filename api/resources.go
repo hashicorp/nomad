@@ -98,9 +98,9 @@ func (r *Resources) Merge(other *Resources) {
 
 type Port struct {
 	Label       string `hcl:",label"`
-	Value       int    `mapstructure:"static" hcl:"static,optional"`
-	To          int    `mapstructure:"to" hcl:"to,optional"`
-	HostNetwork string `mapstructure:"host_network" hcl:"host_network,optional"`
+	Value       int    `hcl:"static,optional"`
+	To          int    `hcl:"to,optional"`
+	HostNetwork string `hcl:"host_network,optional"`
 }
 
 type DNSConfig struct {
