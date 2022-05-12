@@ -108,6 +108,10 @@ const (
 	ServiceRegistrationUpsertRequestType         MessageType = 47
 	ServiceRegistrationDeleteByIDRequestType     MessageType = 48
 	ServiceRegistrationDeleteByNodeIDRequestType MessageType = 49
+	SecureVariableUpsertRequestType              MessageType = 50
+	SecureVariableDeleteRequestType              MessageType = 51
+	RootKeyMetaUpsertRequestType                 MessageType = 52
+	RootKeyMetaDeleteRequestType                 MessageType = 53
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
