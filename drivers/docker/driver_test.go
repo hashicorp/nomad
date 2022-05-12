@@ -2113,15 +2113,12 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 	}
 
 	{
-		tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesdisabled")
-		if err != nil {
-			t.Fatalf("error creating temporary dir: %v", err)
-		}
+		tmpvol := t.TempDir()
 
 		task, driver, _, _, cleanup := setupDockerVolumes(t, cfg, tmpvol)
 		defer cleanup()
 
-		_, _, err = driver.StartTask(task)
+		_, _, err := driver.StartTask(task)
 		defer driver.DestroyTask(task.ID, true)
 		if err == nil {
 			require.Fail(t, "Started driver successfully when volumes should have been disabled.")
@@ -2182,11 +2179,10 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 		},
 	}
 
-	tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesenabled")
-	require.NoError(t, err)
+	tmpvol := t.TempDir()
 
 	// Evaluate symlinks so it works on MacOS
-	tmpvol, err = filepath.EvalSymlinks(tmpvol)
+	tmpvol, err := filepath.EvalSymlinks(tmpvol)
 	require.NoError(t, err)
 
 	task, driver, _, hostpath, cleanup := setupDockerVolumes(t, cfg, tmpvol)

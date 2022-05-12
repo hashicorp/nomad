@@ -14,12 +14,7 @@ func TestWait_WaitForFilesUntil(t *testing.T) {
 
 	N := 10
 
-	tmpDir, err := os.MkdirTemp("", "waiter")
-	require.NoError(t, err)
-
-	defer func() {
-		require.NoError(t, os.RemoveAll(tmpDir))
-	}()
+	tmpDir := t.TempDir()
 
 	var files []string
 	for i := 1; i < N; i++ {
