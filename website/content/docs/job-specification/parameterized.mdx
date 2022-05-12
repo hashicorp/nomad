@@ -37,9 +37,11 @@ can be used to inject configuration directly into a task's arguments using
 could be used to lookup the work the job is suppose to do from a management
 service or database.
 
-Each time a job is dispatched, a unique job ID is generated. This allows a
-caller to track the status of the job, much like a future or promise in some
-programming languages.
+Each time a job is dispatched, a unique job ID is generated. This
+allows a caller to track the status of the job, much like a future or
+promise in some programming languages. The dispatched job cannot be
+updated after dispatching; to update the job definition you need to
+update the parent job.
 
 ```hcl
 job "docs" {
