@@ -1121,3 +1121,29 @@ func TestHTTP_ReadWsHandshake(t *testing.T) {
 		})
 	}
 }
+
+// TestHTTP_AllocPort_Parsing tests that removing the mapstructure tags from the
+// Port struct has no adverse affects on serialization.
+func TestHTTP_AllocPort_Parsing(t *testing.T) {
+	ci.Parallel(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+		alloc := mock.Alloc()
+
+		require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
+
+		req, err := http.NewRequest("GET", "/v1/allocation/"+alloc.ID, nil)
+		require.NoError(t, err)
+		respW := httptest.NewRecorder()
+
+		obj, err := s.Server.AllocSpecificRequest(respW, req)
+		require.NoError(t, err)
+
+		a := obj.(*structs.Allocation)
+		networkResource := a.AllocatedResources.Tasks["web"].Networks[0]
+		require.Equal(t, a.ID, alloc.ID)
+		require.Equal(t, 5000, networkResource.ReservedPorts[0].Value)
+		require.Equal(t, 9876, networkResource.DynamicPorts[0].Value)
+	})
+}
