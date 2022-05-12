@@ -28,6 +28,43 @@ type SecureVariableData struct {
 	KeyID string // ID of root key used to encrypt this entry
 }
 
+func (sv SecureVariableData) Copy() *SecureVariableData {
+	out := make([]byte, len(sv.Data))
+	copy(out, sv.Data)
+	return &SecureVariableData{
+		Data:  out,
+		KeyID: sv.KeyID,
+	}
+}
+
+func (sv SecureVariable) Copy() SecureVariable {
+	out := SecureVariable{
+		Namespace:       sv.Namespace,
+		Path:            sv.Path,
+		CreateIndex:     sv.CreateIndex,
+		CreateTime:      sv.CreateTime,
+		ModifyIndex:     sv.ModifyIndex,
+		ModifyTime:      sv.ModifyTime,
+		UnencryptedData: make(map[string]string, len(sv.UnencryptedData)),
+		EncryptedData:   sv.EncryptedData.Copy(),
+	}
+	for k, v := range sv.UnencryptedData {
+		out.UnencryptedData[k] = v
+	}
+	return out
+}
+
+func (sv SecureVariable) AsStub() SecureVariableStub {
+	return SecureVariableStub{
+		Namespace:   sv.Namespace,
+		Path:        sv.Path,
+		CreateIndex: sv.CreateIndex,
+		CreateTime:  sv.CreateTime,
+		ModifyIndex: sv.ModifyIndex,
+		ModifyTime:  sv.ModifyTime,
+	}
+}
+
 // SecureVariableStub is the metadata envelope for a Secure Variable omitting
 // the actual data. Intended to be used in list operations.
 type SecureVariableStub struct {
