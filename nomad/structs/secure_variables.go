@@ -18,8 +18,8 @@ type SecureVariable struct {
 	// Version        uint64
 	// CustomMetaData map[string]string
 
-	EncryptedData   *SecureVariableData // removed during serialization
-	UnencryptedData map[string]string   // empty until serialized
+	EncryptedData   *SecureVariableData `json:"-"`     // removed during serialization
+	UnencryptedData map[string]string   `json:"Items"` // empty until serialized
 }
 
 // SecureVariableData is the secret data for a Secure Variable
@@ -39,17 +39,21 @@ func (sv SecureVariableData) Copy() *SecureVariableData {
 
 func (sv SecureVariable) Copy() SecureVariable {
 	out := SecureVariable{
-		Namespace:       sv.Namespace,
-		Path:            sv.Path,
-		CreateIndex:     sv.CreateIndex,
-		CreateTime:      sv.CreateTime,
-		ModifyIndex:     sv.ModifyIndex,
-		ModifyTime:      sv.ModifyTime,
-		UnencryptedData: make(map[string]string, len(sv.UnencryptedData)),
-		EncryptedData:   sv.EncryptedData.Copy(),
+		Namespace:   sv.Namespace,
+		Path:        sv.Path,
+		CreateIndex: sv.CreateIndex,
+		CreateTime:  sv.CreateTime,
+		ModifyIndex: sv.ModifyIndex,
+		ModifyTime:  sv.ModifyTime,
 	}
-	for k, v := range sv.UnencryptedData {
-		out.UnencryptedData[k] = v
+	if sv.UnencryptedData != nil {
+		out.UnencryptedData = make(map[string]string, len(sv.UnencryptedData))
+		for k, v := range sv.UnencryptedData {
+			out.UnencryptedData[k] = v
+		}
+	}
+	if sv.EncryptedData != nil {
+		out.EncryptedData = sv.EncryptedData.Copy()
 	}
 	return out
 }
