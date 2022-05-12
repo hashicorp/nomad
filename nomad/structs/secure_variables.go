@@ -6,7 +6,7 @@ import "time"
 type SecureVariable struct {
 	Namespace   string
 	Path        string
-	CreatedAt   time.Time
+	CreateTime  time.Time
 	CreateIndex uint64
 	ModifyIndex uint64
 	ModifyTime  time.Time
@@ -91,7 +91,7 @@ type RootKeyMeta struct {
 	KeyID            string // UUID
 	Algorithm        EncryptionAlgorithm
 	EncryptionsCount uint64
-	CreatedAt        time.Time
+	CreateTime       time.Time
 	CreateIndex      uint64
 	ModifyIndex      uint64
 }
