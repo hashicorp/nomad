@@ -28,6 +28,24 @@ type SecureVariableData struct {
 	KeyID string // ID of root key used to encrypt this entry
 }
 
+// SecureVariableStub is the metadata envelope for a Secure Variable omitting
+// the actual data. Intended to be used in list operations.
+type SecureVariableStub struct {
+	Namespace   string
+	Path        string
+	CreateTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
+	ModifyTime  time.Time
+
+	// reserved for post-1.4.0 work
+	// LockIndex      uint64
+	// Session        string
+	// DeletedAt      time.Time
+	// Version        uint64
+	// CustomMetaData map[string]string
+}
+
 // SecureVariablesQuota is used to track the total size of secure
 // variables entries per namespace. The total length of
 // SecureVariable.EncryptedData will be added to the SecureVariablesQuota
@@ -54,7 +72,7 @@ type SecureVariablesListRequest struct {
 }
 
 type SecureVariablesListResponse struct {
-	Data []*SecureVariable
+	Data []*SecureVariableStub
 	QueryMeta
 }
 
