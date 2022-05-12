@@ -1281,7 +1281,7 @@
         "path": "job-specification/constraint"
       },
       {
-        "title": "csi_plugin <sup>Beta</sup>",
+        "title": "csi_plugin",
         "path": "job-specification/csi_plugin"
       },
       {
