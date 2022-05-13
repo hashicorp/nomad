@@ -104,7 +104,7 @@ module('Acceptance | task detail', function (hooks) {
     await Layout.breadcrumbFor('jobs.job.index').visit();
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}`,
+      `/jobs/${job.id}@default`,
       'Job breadcrumb links correctly'
     );
 
