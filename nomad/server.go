@@ -279,6 +279,7 @@ type endpoints struct {
 	Enterprise          *EnterpriseEndpoints
 	Event               *Event
 	Namespace           *Namespace
+	SecureVariables     *SecureVariables
 	ServiceRegistration *ServiceRegistration
 
 	// Client endpoints
@@ -460,6 +461,10 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 
 	// Start enterprise background workers
 	s.startEnterpriseBackground()
+
+	// FIXME: Remove once real implemenation exists
+	// Start Mock Secure Variables Server
+	go NewMockVariableStore(s, s.logger.Named("secure_variables"))
 
 	// Done
 	return s, nil
@@ -1159,6 +1164,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.System = &System{srv: s, logger: s.logger.Named("system")}
 		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
 		s.staticEndpoints.Namespace = &Namespace{srv: s}
+		s.staticEndpoints.SecureVariables = &SecureVariables{srv: s, logger: s.logger.Named("secure_variables"), encrypter: NewEncrypter()}
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
 
 		// These endpoints are dynamic because they need access to the
@@ -1206,6 +1212,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.FileSystem)
 	server.Register(s.staticEndpoints.Agent)
 	server.Register(s.staticEndpoints.Namespace)
+	server.Register(s.staticEndpoints.SecureVariables)
 
 	// Create new dynamic endpoints and add them to the RPC server.
 	alloc := &Alloc{srv: s, ctx: ctx, logger: s.logger.Named("alloc")}
