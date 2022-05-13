@@ -23,9 +23,7 @@ export default class extends AbstractAbility {
       this.capabilitiesForAllNamespaces
     );
     return this.rulesForNamespace.some((rules) => {
-      console.log('computing', rules, get(rules, 'Capabilities'));
-      let capabilities = get(rules, 'Capabilities') || [];
-      return capabilities.includes('alloc-exec');
+      return get(rules, 'SecureVariables');
     });
   }
 }

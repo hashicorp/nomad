@@ -36,7 +36,7 @@ export default Factory.extend({
 # Allow read only access to the default namespace
 namespace "default" {
   policy = "read"
-  capabilities = ["read-logs"]
+  capabilities = ["list-jobs", "alloc-exec", "read-logs"]
   secure_variables {
     path "*" {
       capabilities = ["list"]
@@ -48,15 +48,20 @@ node {
   policy = "read"
 }
       `,
-        rulesJSON: () => ({
+
+        rulesJSON: {
           Namespaces: [
             {
               Name: 'default',
-              policy: 'read',
-              capabilities: '["test"]',
+              Capabilities: ['list-jobs', 'alloc-exec', 'read-logs'],
+              SecureVariables: {
+                'Path "*"': {
+                  Capabilities: ['list'],
+                },
+              },
             },
           ],
-        }),
+        },
       };
       server.create('policy', variableMakerPolicy);
       token.policyIds.push(variableMakerPolicy.id);
