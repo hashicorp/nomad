@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -400,7 +401,13 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 
 	// if a token has been passed in from the API overwrite the generated one.
 	if providedTokenID != "" {
-		args.Token.SecretID = providedTokenID
+		matched, err := regexp.MatchString(
+			"[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12}", providedTokenID)
+		if matched {
+			args.Token.SecretID = providedTokenID
+		} else {
+			return structs.NewErrRPCCodedf(400, "invalid acl token: %v", err)
+		}
 	}
 
 	args.Token.SetHash()
