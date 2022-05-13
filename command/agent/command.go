@@ -436,7 +436,7 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	// ProtocolVersion has never been used. Warn if it is set as someone
 	// has probably made a mistake.
 	if config.Server.ProtocolVersion != 0 {
-		c.agent.logger.Warn("Please remove deprecated protocol_version field from config.")
+		c.Ui.Warn("Please remove deprecated protocol_version field from config.")
 	}
 
 	return true
