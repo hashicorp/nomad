@@ -25,7 +25,6 @@ export default class JobRoute extends Route {
       namespace = job_name.slice(delimiter + 1);
     } else {
       name = job_name;
-      this.router.transitionTo('jobs.job.index', `${name}@${namespace}`);
     }
 
     const fullId = JSON.stringify([name, namespace]);
