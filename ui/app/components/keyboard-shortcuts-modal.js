@@ -30,19 +30,14 @@ export default class KeyboardShortcutsModalComponent extends Component {
    */
   @computed('keyboard.keyCommands.length', 'keyboard.displayHints')
   get hints() {
-    console.log('HINTS RECOMPUTE');
-    return this.keyboard.keyCommands.filter((c) => c.element);
-    // .map((c) => {
-    //   c.style = htmlSafe(
-    //     `transform: translate(${c.element.getBoundingClientRect().left}px, ${
-    //       c.element.getBoundingClientRect().top
-    //     }px);`
-    //   );
-    //   return c;
-    // });
+    if (this.keyboard.displayHints) {
+      return this.keyboard.keyCommands.filter((c) => c.element);
+    } else {
+      return [];
+    }
   }
 
-  tetherToElement(self, _, { element }) {
+  tetherToElement(self, _, { element, hint }) {
     let binder = new Tether({
       element: self,
       target: element,
@@ -50,15 +45,9 @@ export default class KeyboardShortcutsModalComponent extends Component {
       targetAttachment: 'top left',
       targetModifier: 'visible',
     });
+    hint.binder = binder;
   }
-  untetherFromElement(self, _, { element }) {
-    // TODO: call binder.destroy, probably componentize hint.
-    let binder = new Tether({
-      element: self,
-      target: element,
-      attachment: 'top left',
-      targetAttachment: 'top left',
-      targetModifier: 'visible',
-    });
+  untetherFromElement(self, _, { element, hint }) {
+    hint.binder.destroy();
   }
 }

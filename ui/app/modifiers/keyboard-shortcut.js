@@ -10,7 +10,7 @@ export default class KeyboardShortcutModifier extends Modifier {
    * For Dynamic/iterative keyboard shortcuts, our patterns look like "Shift+0" by default
    * Do a couple things to make them more human-friendly:
    * 1. Make them 1-based, instead of 0-based
-   * 2. Preface numbers 1-9 with "0" to make it so "Shift+10" doesn't trigger "Shift+1" then "0", etc.
+   * 2. Prefix numbers 1-9 with "0" to make it so "Shift+10" doesn't trigger "Shift+1" then "0", etc.
    * ^--- stops being a good solution with 100+ row lists/tables, but a better UX than waiting for shift key-up otherwise
    *
    * @param {string[]} pattern
@@ -31,13 +31,14 @@ export default class KeyboardShortcutModifier extends Modifier {
     return pattern;
   }
 
-  modify(element, [eventName], { label, pattern, action }) {
+  modify(element, [eventName], { label, pattern, action, menuLevel = false }) {
     let commands = [
       {
         label,
         action,
         pattern: this.cleanPattern(pattern),
         element,
+        menuLevel,
       },
     ];
     this.keyboard.addCommands(commands);

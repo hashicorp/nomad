@@ -24,9 +24,10 @@
 {{#if this.keyboard.displayHints}}
   {{#each this.hints as |hint|}}
     <span
-      {{did-insert this.tetherToElement element=hint.element}}
-      {{will-destroy this.untetherFromElement element=hint.element}}
+      {{did-insert this.tetherToElement element=hint.element hint=hint}}
+      {{will-destroy this.untetherFromElement element=hint.element hint=hint}}
       data-shortcut={{hint.pattern}}
+      class="{{if hint.menuLevel "menu-level"}}"
       aria-hidden="true"
     >
       {{#each hint.pattern as |key|}}

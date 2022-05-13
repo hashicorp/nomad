@@ -53,7 +53,10 @@
   text-transform: lowercase;
   color: black;
   font-weight: 300;
-  z-index: $z-tooltip;
+  z-index: $z-popover;
+  &.menu-level {
+    z-index: $z-tooltip;
+  }
 }
 // }
 

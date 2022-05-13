@@ -45,12 +45,12 @@ export default class KeyboardService extends Service {
     },
     {
       label: 'Go to Storage',
-      pattern: ['g', 's', 't'],
+      pattern: ['g', 'v'],
       action: () => this.router.transitionTo('csi.volumes'),
     },
     {
       label: 'Go to Servers',
-      pattern: ['g', 's', 'e'],
+      pattern: ['g', 's'],
       action: () => this.router.transitionTo('servers'),
     },
     {
@@ -93,6 +93,7 @@ export default class KeyboardService extends Service {
       action: () => {
         this.traverseLinkList(this.subnavLinks, 1);
       },
+      requireModifier: true,
     },
     {
       label: 'Previous Subnav',
@@ -100,6 +101,7 @@ export default class KeyboardService extends Service {
       action: () => {
         this.traverseLinkList(this.subnavLinks, -1);
       },
+      requireModifier: true,
     },
     {
       label: 'Previous Main Section',
@@ -107,6 +109,7 @@ export default class KeyboardService extends Service {
       action: () => {
         this.traverseLinkList(this.navLinks, -1);
       },
+      requireModifier: true,
     },
     {
       label: 'Next Main Section',
@@ -114,6 +117,7 @@ export default class KeyboardService extends Service {
       action: () => {
         this.traverseLinkList(this.navLinks, 1);
       },
+      requireModifier: true,
     },
     {
       label: 'Show Keyboard Shortcuts',
@@ -153,7 +157,6 @@ export default class KeyboardService extends Service {
 
   @action
   generateIteratorShortcut(element, [action, iter]) {
-    // console.log('genIter', action, iter);
     this.keyCommands.pushObject({
       label: `Hit up item ${iter}`,
       pattern: [`Shift+${iter}`],
@@ -261,9 +264,7 @@ export default class KeyboardService extends Service {
       // Treat Shift like a special modifier key.
       // If it's depressed, display shortcuts
       const { key } = event;
-      // console.log('event', event);
       const shifted = event.getModifierState('Shift');
-      // console.log(`${type} on ${key}`);
       if (type === 'press') {
         if (key !== 'Shift') {
           this.addKeyToBuffer.perform(key, shifted);
@@ -323,8 +324,12 @@ export default class KeyboardService extends Service {
       return (
         command.action &&
         (!compare(command.pattern, this.buffer) ||
-          !compare(command.pattern, shiftlessBuffer) ||
-          !compare(command.pattern, shiftFriendlyBuffer))
+          (command.requireModifier
+            ? false
+            : !compare(command.pattern, shiftlessBuffer)) ||
+          (command.requireModifier
+            ? false
+            : !compare(command.pattern, shiftFriendlyBuffer)))
       );
     });
     return matches;
