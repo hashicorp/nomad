@@ -802,6 +802,32 @@ func TestTasksUpdated(t *testing.T) {
 	// Compare changed Template wait configs
 	j23.TaskGroups[0].Tasks[0].Templates[0].Wait.Max = helper.TimeToPtr(10 * time.Second)
 	require.True(t, tasksUpdated(j22, j23, name))
+
+	// Add a volume
+	j24 := mock.Job()
+	j25 := j24.Copy()
+	j25.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"myvolume": {
+			Name:   "myvolume",
+			Type:   "csi",
+			Source: "test-volume[0]",
+		}}
+	require.True(t, tasksUpdated(j24, j25, name))
+
+	// Alter a volume
+	j26 := j25.Copy()
+	j26.TaskGroups[0].Volumes["myvolume"].ReadOnly = true
+	require.True(t, tasksUpdated(j25, j26, name))
+
+	// Alter a CSI plugin
+	j27 := mock.Job()
+	j27.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
+		ID:   "myplugin",
+		Type: "node",
+	}
+	j28 := j27.Copy()
+	j28.TaskGroups[0].Tasks[0].CSIPluginConfig.Type = "monolith"
+	require.True(t, tasksUpdated(j27, j28, name))
 }
 
 func TestTasksUpdated_connectServiceUpdated(t *testing.T) {

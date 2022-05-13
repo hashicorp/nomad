@@ -429,6 +429,12 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		return true
 	}
 
+	// Check if volumes are updated (no task driver can support
+	// altering mounts in-place)
+	if !reflect.DeepEqual(a.Volumes, b.Volumes) {
+		return true
+	}
+
 	// Check each task
 	for _, at := range a.Tasks {
 		bt := b.LookupTask(at.Name)
@@ -457,6 +463,9 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 			return true
 		}
 		if !reflect.DeepEqual(at.CSIPluginConfig, bt.CSIPluginConfig) {
+			return true
+		}
+		if !reflect.DeepEqual(at.VolumeMounts, bt.VolumeMounts) {
 			return true
 		}
 
