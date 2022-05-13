@@ -37,7 +37,7 @@ export default class Job extends Model {
 
   @computed('plainId')
   get idWithNamespace() {
-    return `${this.plainId}@${this.belongsTo('namespace').id()}`;
+    return `${this.plainId}@${this.belongsTo('namespace').id() ?? 'default'}`;
   }
 
   @computed('periodic', 'parameterized', 'dispatched')
