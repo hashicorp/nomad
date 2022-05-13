@@ -31,26 +31,26 @@ func (s *HTTPServer) SecureVariablesListRequest(resp http.ResponseWriter, req *h
 }
 
 func (s *HTTPServer) SecureVariableSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	name := strings.TrimPrefix(req.URL.Path, "/v1/var/")
-	if len(name) == 0 {
+	path := strings.TrimPrefix(req.URL.Path, "/v1/var/")
+	if len(path) == 0 {
 		return nil, CodedError(400, "Missing secure variable path")
 	}
 	switch req.Method {
 	case "GET":
-		return s.SecureVariableQuery(resp, req, name)
+		return s.secureVariableQuery(resp, req, path)
 	case "PUT", "POST":
-		return s.SecureVariableUpsert(resp, req, name)
+		return s.secureVariableUpsert(resp, req, path)
 	case "DELETE":
-		return s.SecureVariableDelete(resp, req, name)
+		return s.secureVariableDelete(resp, req, path)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 }
 
-func (s *HTTPServer) SecureVariableQuery(resp http.ResponseWriter, req *http.Request,
-	SecureVariablePath string) (interface{}, error) {
+func (s *HTTPServer) secureVariableQuery(resp http.ResponseWriter, req *http.Request,
+	path string) (interface{}, error) {
 	args := structs.SecureVariablesReadRequest{
-		Path: SecureVariablePath,
+		Path: path,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -69,14 +69,14 @@ func (s *HTTPServer) SecureVariableQuery(resp http.ResponseWriter, req *http.Req
 	return out.Data, nil
 }
 
-func (s *HTTPServer) SecureVariableUpsert(resp http.ResponseWriter, req *http.Request,
-	SecureVariablePath string) (interface{}, error) {
+func (s *HTTPServer) secureVariableUpsert(resp http.ResponseWriter, req *http.Request,
+	path string) (interface{}, error) {
 	// Parse the SecureVariable
 	var SecureVariable structs.SecureVariable
 	if err := decodeBody(req, &SecureVariable); err != nil {
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
-	SecureVariable.Path = SecureVariablePath
+	SecureVariable.Path = path
 	// Format the request
 	args := structs.SecureVariablesUpsertRequest{
 		Data: &SecureVariable,
@@ -92,11 +92,11 @@ func (s *HTTPServer) SecureVariableUpsert(resp http.ResponseWriter, req *http.Re
 	return nil, nil
 }
 
-func (s *HTTPServer) SecureVariableDelete(resp http.ResponseWriter, req *http.Request,
-	SecureVariablePath string) (interface{}, error) {
+func (s *HTTPServer) secureVariableDelete(resp http.ResponseWriter, req *http.Request,
+	path string) (interface{}, error) {
 
 	args := structs.SecureVariablesDeleteRequest{
-		Path: SecureVariablePath,
+		Path: path,
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
