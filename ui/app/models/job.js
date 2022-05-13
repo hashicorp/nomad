@@ -39,7 +39,7 @@ export default class Job extends Model {
   get idWithNamespace() {
     const namespaceId = this.belongsTo('namespace').id();
 
-    if (!namespaceId || namespaceId === 'default') {
+    if (!namespaceId) {
       return this.plainId;
     } else {
       return `${this.plainId}@${namespaceId}`;
