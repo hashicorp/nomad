@@ -41,7 +41,13 @@ func (sv *SecureVariables) Create(args *structs.SecureVariablesUpsertRequest, re
 	if err != nil {
 		return err
 	}
-	args.Data.EncryptedData.Data = sv.encrypter.Encrypt(buf.Bytes(), "TODO")
+
+	args.Data.EncryptedData = &structs.SecureVariableData{}
+	args.Data.EncryptedData.KeyID = "TODO"
+	args.Data.EncryptedData.Data = sv.encrypter.Encrypt(buf.Bytes(), args.Data.EncryptedData.KeyID)
+
+	// TODO: implementation
+	SV_Upsert(args, reply)
 
 	return nil
 }
@@ -61,6 +67,7 @@ func (sv *SecureVariables) List(args *structs.SecureVariablesListRequest, reply 
 	}
 
 	// TODO: implementation
+	SV_List(args, reply)
 
 	return nil
 }
@@ -80,6 +87,7 @@ func (sv *SecureVariables) Read(args *structs.SecureVariablesReadRequest, reply 
 	}
 
 	// TODO: implementation
+	SV_Read(args, reply)
 
 	return nil
 }
@@ -99,6 +107,27 @@ func (sv *SecureVariables) Update(args *structs.SecureVariablesUpsertRequest, re
 	}
 
 	// TODO: implementation
+	SV_Upsert(args, reply)
+
+	return nil
+}
+
+func (sv *SecureVariables) Delete(args *structs.SecureVariablesDeleteRequest, reply *structs.SecureVariablesDeleteResponse) error {
+	if done, err := sv.srv.forward("SecureVariables.Delete", args, args, reply); done {
+		return err
+	}
+
+	defer metrics.MeasureSince([]string{"nomad", "secure_variables", "delete"}, time.Now())
+
+	// TODO: implement real ACL checks
+	if aclObj, err := sv.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// TODO: implementation
+	SV_Delete(args, reply)
 
 	return nil
 }
