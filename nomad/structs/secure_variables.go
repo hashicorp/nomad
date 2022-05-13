@@ -18,14 +18,69 @@ type SecureVariable struct {
 	// Version        uint64
 	// CustomMetaData map[string]string
 
-	EncryptedData   *SecureVariableData // removed during serialization
-	UnencryptedData map[string]string   // empty until serialized
+	EncryptedData   *SecureVariableData `json:"-"`     // removed during serialization
+	UnencryptedData map[string]string   `json:"Items"` // empty until serialized
 }
 
 // SecureVariableData is the secret data for a Secure Variable
 type SecureVariableData struct {
 	Data  []byte // includes nonce
 	KeyID string // ID of root key used to encrypt this entry
+}
+
+func (sv SecureVariableData) Copy() *SecureVariableData {
+	out := make([]byte, 0, len(sv.Data))
+	copy(out, sv.Data)
+	return &SecureVariableData{
+		Data:  out,
+		KeyID: sv.KeyID,
+	}
+}
+
+func (sv *SecureVariable) Copy() *SecureVariable {
+	if sv == nil {
+		return nil
+	}
+	out := *sv
+	if sv.UnencryptedData != nil {
+		out.UnencryptedData = make(map[string]string, len(sv.UnencryptedData))
+		for k, v := range sv.UnencryptedData {
+			out.UnencryptedData[k] = v
+		}
+	}
+	if sv.EncryptedData != nil {
+		out.EncryptedData = sv.EncryptedData.Copy()
+	}
+	return &out
+}
+
+func (sv SecureVariable) Stub() SecureVariableStub {
+	return SecureVariableStub{
+		Namespace:   sv.Namespace,
+		Path:        sv.Path,
+		CreateIndex: sv.CreateIndex,
+		CreateTime:  sv.CreateTime,
+		ModifyIndex: sv.ModifyIndex,
+		ModifyTime:  sv.ModifyTime,
+	}
+}
+
+// SecureVariableStub is the metadata envelope for a Secure Variable omitting
+// the actual data. Intended to be used in list operations.
+type SecureVariableStub struct {
+	Namespace   string
+	Path        string
+	CreateTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
+	ModifyTime  time.Time
+
+	// reserved for post-1.4.0 work
+	// LockIndex      uint64
+	// Session        string
+	// DeletedAt      time.Time
+	// Version        uint64
+	// CustomMetaData map[string]string
 }
 
 // SecureVariablesQuota is used to track the total size of secure
@@ -54,7 +109,7 @@ type SecureVariablesListRequest struct {
 }
 
 type SecureVariablesListResponse struct {
-	Data []*SecureVariable
+	Data []*SecureVariableStub
 	QueryMeta
 }
 
