@@ -88,11 +88,9 @@ func (c *ACLBootstrapCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Take the provided token and prepare it for the query.
-	BootStrapSecret := make(map[string]string)
-	BootStrapSecret["bootstraptoken"] = bootstraptoken
+	// Take the provided ACL token and prepare it for the query.
 	btkn := api.BootstrapRequest{}
-	btkn.Secrets = BootStrapSecret
+	btkn.Secret = bootstraptoken
 
 	// Get the bootstrap token
 	token, _, err := client.ACLTokens().Bootstrap(&btkn, nil)

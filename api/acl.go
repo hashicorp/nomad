@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -78,22 +77,17 @@ func (c *Client) ACLTokens() *ACLTokens {
 // TODO
 // These values will be redacted when reported in the
 // API or in Nomad's logs
-type ACLSecrets map[string]string
+// type ACLSecrets map[string]string
 
 type BootstrapRequest struct {
-	Secrets ACLSecrets
-	WriteRequest
+	Secret string
 }
 
-func (q *WriteOptions) SetHeadersFromBootstrapSecrets(secrets ACLSecrets) {
-	pairs := []string{}
-	for k, v := range secrets {
-		pairs = append(pairs, fmt.Sprintf("%v=%v", k, v))
-	}
+func (q *WriteOptions) SetHeadersFromBootstrapSecret(bootstraptoken string) {
 	if q.Headers == nil {
 		q.Headers = map[string]string{}
 	}
-	q.Headers["X-Nomad-Bootstrap-Token"] = strings.Join(pairs, ",")
+	q.Headers["X-Nomad-Bootstrap-Token"] = bootstraptoken
 }
 
 // Bootstrap is used to get the initial bootstrap token or pass in the one that was provided in the API
@@ -104,8 +98,7 @@ func (a *ACLTokens) Bootstrap(req *BootstrapRequest, q *WriteOptions) (*ACLToken
 	var resp ACLToken
 	// Test if token is in the request.
 	if req != nil {
-		// TODO ADD Validation for UUID here.
-		q.SetHeadersFromBootstrapSecrets(req.Secrets)
+		q.SetHeadersFromBootstrapSecret(req.Secret)
 	}
 	wm, err := a.client.write("/v1/acl/bootstrap", nil, &resp, q)
 	if err != nil {

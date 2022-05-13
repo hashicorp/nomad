@@ -138,10 +138,10 @@ func (s *HTTPServer) ACLTokenBootstrap(resp http.ResponseWriter, req *http.Reque
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	secrets := parseACLSecrets(req)
+	secret := req.Header.Get("X-Nomad-Bootstrap-Token")
 	// Format the request
 	args := structs.ACLTokenBootstrapRequest{
-		Secrets: secrets,
+		Secret: secret,
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
@@ -318,26 +318,4 @@ func (s *HTTPServer) ExchangeOneTimeToken(resp http.ResponseWriter, req *http.Re
 	}
 	setIndex(resp, out.Index)
 	return out, nil
-}
-
-// parseACLSecrets extracts a map of k/v pairs from the ACL secrets
-// header. Silently ignores invalid secrets
-func parseACLSecrets(req *http.Request) structs.ACLSecrets {
-	secretsHeader := req.Header.Get("X-Nomad-Bootstrap-Token")
-	if secretsHeader == "" {
-		return nil
-	}
-
-	secrets := map[string]string{}
-	secretkvs := strings.Split(secretsHeader, ",")
-	for _, secretkv := range secretkvs {
-		kv := strings.Split(secretkv, "=")
-		if len(kv) == 2 {
-			secrets[kv[0]] = kv[1]
-		}
-	}
-	if len(secrets) == 0 {
-		return nil
-	}
-	return structs.ACLSecrets(secrets)
 }
