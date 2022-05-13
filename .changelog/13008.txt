@@ -1,0 +1,3 @@
+```release-note:bug
+volumes: Fixed a bug where additions, updates, or removals of host volumes or CSI volumes were not treated as destructive updates
+```
