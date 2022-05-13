@@ -32,8 +32,7 @@ CONSULTEMPLATEDIR=/opt/consul-template
 # Dependencies
 sudo apt-get install -y software-properties-common
 sudo apt-get update
-sudo apt-get install -y unzip tree redis-tools jq curl tmux
-
+sudo apt-get install -y unzip redis-tools jq curl tmux gnupg-curl
 
 # Disable the firewall
 
@@ -110,8 +109,24 @@ sudo apt-get install -y docker-ce
 
 # Needs testing, updating and fixing
 if [[ ! -z ${INSTALL_NVIDIA_DOCKER+x} ]]; then 
+
+  # key was rotated, see https://forums.developer.nvidia.com/t/notice-cuda-linux-repository-key-rotation/212771
+  sudo apt-key del 7fa2af80
+  # auto install - FAILS
+  # wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/cuda-keyring_1.0-1_all.deb
+  # sudo dpkg -i cuda-keyring_1.0-1_all.deb
+
+  # also add gnupg-curl, otherwise "gpgkeys: protocol `https' not supported"
+  sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/3bf863cc.pub
+  
+  # distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
+  #     && curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+  #     && curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | \
+  #           sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+  #           sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
   # Install official NVIDIA driver package
-  sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub
+  # sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub
   sudo sh -c 'echo "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/cuda.list'
   sudo apt-get update && sudo apt-get install -y --no-install-recommends linux-headers-generic dkms cuda-drivers
 
