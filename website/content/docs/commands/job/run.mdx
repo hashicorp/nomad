@@ -27,8 +27,8 @@ downloaded and read from URL specified. Nomad downloads the job file using
 
 By default, on successful job submission the run command will enter an
 interactive monitor and display log information detailing the scheduling
-decisions, placement information, and [deployment status] for the provided job 
-if applicable ([`batch`] and [`system`] jobs don't create deployments). The monitor will 
+decisions, placement information, and [deployment status] for the provided job
+if applicable ([`batch`] and [`system`] jobs don't create deployments). The monitor will
 exit after scheduling and deployment have finished or failed.
 
 On successful job submission and scheduling, exit code 0 will be returned. If
@@ -69,6 +69,10 @@ that volume.
 - `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
   [eval status] command.
+
+- `-json`: Parses the job file as JSON. If the outer object has a Job field,
+  such as from "nomad job inspect" or "nomad run -output", the value of the
+  field is used as the job. See [JSON Jobs] for details.
 
 - `-hcl1`: If set, HCL1 parser is used for parsing the job spec.
 
@@ -133,7 +137,7 @@ $ nomad job run job1.nomad
 
     Deployed
     Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
-    cache       2        2       1        0          2021-06-09T15:32:58-07:00 
+    cache       2        2       1        0          2021-06-09T15:32:58-07:00
     web         1        1       1        0          2021-06-09T15:32:58-07:00
 ```
 
@@ -154,7 +158,7 @@ $ nomad job run -check-index 6 example.nomad
 ==> 2021-06-09T16:57:30-07:00: Evaluation "5ef16dff" finished with status "complete"
 ==> 2021-06-09T16:57:30-07:00: Monitoring deployment "62eb607c"
   ✓ Deployment "62eb607c" successful
-    
+
     2021-06-09T16:57:30-07:00
     ID          = 62eb607c
     Job ID      = example
@@ -218,10 +222,16 @@ $ nomad job run example.nomad
 ```
 
 [`go-getter`]: https://github.com/hashicorp/go-getter
-[deployment status]: /docs/commands/deployment#status 
+[deployment status]: /docs/commands/deployment#status
 [`batch`]: /docs/schedulers#batch
-[`system`]: /docs/schedulers#system
-[`job plan` command]: /docs/commands/job/plan
+[`consul` stanza `allow_unauthenticated`]: /docs/configuration/consul#allow_unauthenticated
+[deployment status]: /docs/commands/deployment#status
 [eval status]: /docs/commands/eval-status
+[`go-getter`]: https://github.com/hashicorp/go-getter
+[`job plan` command]: /docs/commands/job/plan
 [job specification]: /docs/job-specification
 [`allow_unauthenticated`]: /docs/configuration/consul#allow_unauthenticated
+[JSON jobs]: /api-docs/json-jobs
+[`system`]: /docs/schedulers#system
+[`vault` stanza `allow_unauthenticated`]: /docs/configuration/vault#allow_unauthenticated
+[`vault_token`]: /docs/job-specification/job#vault_token
