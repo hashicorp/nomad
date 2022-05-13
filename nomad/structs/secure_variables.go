@@ -37,15 +37,11 @@ func (sv SecureVariableData) Copy() *SecureVariableData {
 	}
 }
 
-func (sv SecureVariable) Copy() SecureVariable {
-	out := SecureVariable{
-		Namespace:   sv.Namespace,
-		Path:        sv.Path,
-		CreateIndex: sv.CreateIndex,
-		CreateTime:  sv.CreateTime,
-		ModifyIndex: sv.ModifyIndex,
-		ModifyTime:  sv.ModifyTime,
+func (sv *SecureVariable) Copy() *SecureVariable {
+	if sv == nil {
+		return nil
 	}
+	out := *sv
 	if sv.UnencryptedData != nil {
 		out.UnencryptedData = make(map[string]string, len(sv.UnencryptedData))
 		for k, v := range sv.UnencryptedData {
@@ -55,10 +51,10 @@ func (sv SecureVariable) Copy() SecureVariable {
 	if sv.EncryptedData != nil {
 		out.EncryptedData = sv.EncryptedData.Copy()
 	}
-	return out
+	return &out
 }
 
-func (sv SecureVariable) AsStub() SecureVariableStub {
+func (sv SecureVariable) Stub() SecureVariableStub {
 	return SecureVariableStub{
 		Namespace:   sv.Namespace,
 		Path:        sv.Path,

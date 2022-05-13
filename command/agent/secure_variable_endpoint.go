@@ -33,17 +33,17 @@ func (s *HTTPServer) SecureVariablesListRequest(resp http.ResponseWriter, req *h
 func (s *HTTPServer) SecureVariableSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/var/")
 	if len(path) == 0 {
-		return nil, CodedError(400, "Missing secure variable path")
+		return nil, CodedError(http.StatusBadRequest, "Missing secure variable path")
 	}
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.secureVariableQuery(resp, req, path)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.secureVariableUpsert(resp, req, path)
-	case "DELETE":
+	case http.MethodDelete:
 		return s.secureVariableDelete(resp, req, path)
 	default:
-		return nil, CodedError(405, ErrInvalidMethod)
+		return nil, CodedError(http.StatusBadRequest, ErrInvalidMethod)
 	}
 }
 
