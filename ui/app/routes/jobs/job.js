@@ -9,6 +9,7 @@ export default class JobRoute extends Route {
   @service can;
   @service store;
   @service token;
+  @service router;
 
   serialize(model) {
     return { job_name: model.get('idWithNamespace') };
@@ -24,7 +25,7 @@ export default class JobRoute extends Route {
       namespace = job_name.slice(delimiter + 1);
     } else {
       name = job_name;
-      namespace = 'default';
+      this.router.transitionTo('jobs.job.index', `${name}@${namespace}`);
     }
 
     const fullId = JSON.stringify([name, namespace]);
