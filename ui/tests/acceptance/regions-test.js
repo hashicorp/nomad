@@ -54,7 +54,11 @@ module('Acceptance | regions (only one)', function (hooks) {
 
     const jobId = JobsList.jobs.objectAt(0).id;
     await JobsList.jobs.objectAt(0).clickRow();
-    assert.equal(currentURL(), `/jobs/${jobId}`, 'No region query param');
+    assert.equal(
+      currentURL(),
+      `/jobs/${jobId}@default`,
+      'No region query param'
+    );
 
     await ClientsList.visit();
     assert.equal(currentURL(), '/clients', 'No region query param');

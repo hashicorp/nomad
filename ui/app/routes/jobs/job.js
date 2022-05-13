@@ -9,13 +9,23 @@ export default class JobRoute extends Route {
   @service can;
   @service store;
   @service token;
+  @service router;
 
   serialize(model) {
     return { job_name: model.get('idWithNamespace') };
   }
 
   model(params) {
-    const [name, namespace = 'default'] = params.job_name.split('@');
+    let name,
+      namespace = 'default';
+    const { job_name } = params;
+    const delimiter = job_name.lastIndexOf('@');
+    if (delimiter !== -1) {
+      name = job_name.slice(0, delimiter);
+      namespace = job_name.slice(delimiter + 1);
+    } else {
+      name = job_name;
+    }
 
     const fullId = JSON.stringify([name, namespace]);
 
