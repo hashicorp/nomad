@@ -29,7 +29,7 @@ type SecureVariableData struct {
 }
 
 func (sv SecureVariableData) Copy() *SecureVariableData {
-	out := make([]byte, len(sv.Data))
+	out := make([]byte, 0, len(sv.Data))
 	copy(out, sv.Data)
 	return &SecureVariableData{
 		Data:  out,

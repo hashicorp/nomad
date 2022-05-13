@@ -41,7 +41,10 @@ func (sv *SecureVariables) Create(args *structs.SecureVariablesUpsertRequest, re
 	if err != nil {
 		return err
 	}
-	args.Data.EncryptedData.Data = sv.encrypter.Encrypt(buf.Bytes(), "TODO")
+
+	args.Data.EncryptedData = &structs.SecureVariableData{}
+	args.Data.EncryptedData.KeyID = "TODO"
+	args.Data.EncryptedData.Data = sv.encrypter.Encrypt(buf.Bytes(), args.Data.EncryptedData.KeyID)
 
 	// TODO: implementation
 	SV_Upsert(args, reply)

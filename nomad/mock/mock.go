@@ -2309,7 +2309,8 @@ func SecureVariable() *structs.SecureVariable {
 	createIdx := uint64(rand.Intn(100) + 100)
 	createDT := fake.DateRange(time.Now().AddDate(0, -1, 0), time.Now())
 	sv := &structs.SecureVariable{
-		Path: path,
+		Path:      path,
+		Namespace: "default",
 		// CustomMeta: map[string]string{
 		// 	"owner_name":  owner.FirstName + " " + owner.LastName,
 		// 	"owner_email": fmt.Sprintf("%v%s@%s", owner.FirstName[0], owner.LastName, domain),

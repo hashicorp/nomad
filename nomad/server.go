@@ -1160,7 +1160,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.System = &System{srv: s, logger: s.logger.Named("system")}
 		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
 		s.staticEndpoints.Namespace = &Namespace{srv: s}
-		s.staticEndpoints.SecureVariables = &SecureVariables{srv: s, logger: s.logger.Named("search"), encrypter: NewEncrypter()}
+		s.staticEndpoints.SecureVariables = &SecureVariables{srv: s, logger: s.logger.Named("secure_variables"), encrypter: NewEncrypter()}
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
 
 		// These endpoints are dynamic because they need access to the
