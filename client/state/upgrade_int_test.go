@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -72,9 +71,7 @@ func TestBoltStateDB_UpgradeOld_Ok(t *testing.T) {
 	for _, fn := range pre09files {
 		t.Run(fn, func(t *testing.T) {
 
-			dir, err := ioutil.TempDir("", "nomadtest")
-			require.NoError(t, err)
-			defer os.RemoveAll(dir)
+			dir := t.TempDir()
 
 			db := dbFromTestFile(t, dir, fn)
 			defer db.Close()
@@ -133,9 +130,7 @@ func TestBoltStateDB_UpgradeOld_Ok(t *testing.T) {
 
 	t.Run("testdata/state-1.2.6.db.gz", func(t *testing.T) {
 		fn := "testdata/state-1.2.6.db.gz"
-		dir, err := ioutil.TempDir("", "nomadtest")
-		require.NoError(t, err)
-		defer os.RemoveAll(dir)
+		dir := t.TempDir()
 
 		db := dbFromTestFile(t, dir, fn)
 		defer db.Close()

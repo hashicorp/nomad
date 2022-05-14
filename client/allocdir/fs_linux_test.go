@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,13 +54,7 @@ func TestLinuxRootSecretDir(t *testing.T) {
 		t.Skip("Must be run as root")
 	}
 
-	tmpdir, err := ioutil.TempDir("", "nomadtest-rootsecretdir")
-	if err != nil {
-		t.Fatalf("unable to create tempdir for test: %v", err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	secretsDir := filepath.Join(tmpdir, TaskSecrets)
+	secretsDir := filepath.Join(t.TempDir(), TaskSecrets)
 
 	// removing a nonexistent secrets dir should NOT error
 	if err := removeSecretDir(secretsDir); err != nil {
@@ -117,13 +110,7 @@ func TestLinuxUnprivilegedSecretDir(t *testing.T) {
 		t.Skip("Must not be run as root")
 	}
 
-	tmpdir, err := ioutil.TempDir("", "nomadtest-secretdir")
-	if err != nil {
-		t.Fatalf("unable to create tempdir for test: %s", err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	secretsDir := filepath.Join(tmpdir, TaskSecrets)
+	secretsDir := filepath.Join(t.TempDir(), TaskSecrets)
 
 	// removing a nonexistent secrets dir should NOT error
 	if err := removeSecretDir(secretsDir); err != nil {

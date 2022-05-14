@@ -192,8 +192,7 @@ func TestRPC_PlaintextRPCSucceedsWhenInUpgradeMode(t *testing.T) {
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "node1")
@@ -235,8 +234,7 @@ func TestRPC_PlaintextRPCFailsWhenNotInUpgradeMode(t *testing.T) {
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "node1")
@@ -302,8 +300,7 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
@@ -356,8 +353,7 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 func TestRPC_streamingRpcConn_goodMethod_Plaintext(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
@@ -414,8 +410,7 @@ func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
@@ -1335,7 +1330,7 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 	var err error
 
 	h := tlsTestHelper{
-		dir:    tmpDir(t),
+		dir:    t.TempDir(),
 		nodeID: 1,
 	}
 

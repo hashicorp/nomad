@@ -622,11 +622,9 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
-	tmpDir, err := ioutil.TempDir("", "exec_binds_mounts")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
-	err = ioutil.WriteFile(filepath.Join(tmpDir, "testfile"), []byte("from-host"), 600)
+	err := ioutil.WriteFile(filepath.Join(tmpDir, "testfile"), []byte("from-host"), 600)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())

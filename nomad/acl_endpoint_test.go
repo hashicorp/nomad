@@ -3,7 +3,6 @@ package nomad
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -1352,8 +1351,7 @@ func TestACLEndpoint_Bootstrap(t *testing.T) {
 
 func TestACLEndpoint_Bootstrap_Reset(t *testing.T) {
 	ci.Parallel(t)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 		c.DataDir = dir

@@ -3,7 +3,6 @@ package consul_test
 import (
 	"context"
 	"io/ioutil"
-	"os"
 	"testing"
 	"time"
 
@@ -66,16 +65,8 @@ func TestConsul_Integration(t *testing.T) {
 		t.Fatalf("error generating consul config: %v", err)
 	}
 
-	conf.StateDir, err = ioutil.TempDir("", "nomadtest-consulstate")
-	if err != nil {
-		t.Fatalf("error creating temp dir: %v", err)
-	}
-	defer os.RemoveAll(conf.StateDir)
-	conf.AllocDir, err = ioutil.TempDir("", "nomdtest-consulalloc")
-	if err != nil {
-		t.Fatalf("error creating temp dir: %v", err)
-	}
-	defer os.RemoveAll(conf.AllocDir)
+	conf.StateDir = t.TempDir()
+	conf.AllocDir = t.TempDir()
 
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -136,6 +127,9 @@ func TestConsul_Integration(t *testing.T) {
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("error building alloc dir: %v", err)
 	}
+	t.Cleanup(func() {
+		r.NoError(allocDir.Destroy())
+	})
 	taskDir := allocDir.NewTaskDir(task.Name)
 	vclient := vaultclient.NewMockVaultClient()
 	consulClient, err := consulapi.NewClient(consulConfig)

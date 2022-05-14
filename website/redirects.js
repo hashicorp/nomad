@@ -198,7 +198,7 @@ module.exports = [
   // change its destination in the future.
   {
     source: '/s/port-plan-failure',
-    destination: 'https://github.com/hashicorp/nomad/issues/9506',
+    destination: '/docs/operations/monitoring-nomad#progress',
     permanent: false,
   },
 

@@ -32,9 +32,7 @@ func TestQuotaInitCommand_Run_HCL(t *testing.T) {
 	defer os.Chdir(origDir)
 
 	// Create a temp dir and change into it
-	dir, err := ioutil.TempDir("", "nomad")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	err = os.Chdir(dir)
 	require.NoError(t, err)
@@ -81,9 +79,7 @@ func TestQuotaInitCommand_Run_JSON(t *testing.T) {
 	defer os.Chdir(origDir)
 
 	// Create a temp dir and change into it
-	dir, err := ioutil.TempDir("", "nomad")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	err = os.Chdir(dir)
 	require.NoError(t, err)

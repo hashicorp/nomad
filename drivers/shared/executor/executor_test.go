@@ -415,16 +415,14 @@ func TestUniversalExecutor_LookupPath(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 	// Create a temp dir
-	tmpDir, err := ioutil.TempDir("", "")
-	require.Nil(err)
-	defer os.Remove(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Make a foo subdir
 	os.MkdirAll(filepath.Join(tmpDir, "foo"), 0700)
 
 	// Write a file under foo
 	filePath := filepath.Join(tmpDir, "foo", "tmp.txt")
-	err = ioutil.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
+	err := ioutil.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
 	require.Nil(err)
 
 	// Lookup with full path on host to binary
@@ -606,9 +604,7 @@ func TestExecutor_Start_NonExecutableBinaries(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			require := require.New(t)
 
-			tmpDir, err := ioutil.TempDir("", "nomad-executor-tests")
-			require.NoError(err)
-			defer os.RemoveAll(tmpDir)
+			tmpDir := t.TempDir()
 
 			nonExecutablePath := filepath.Join(tmpDir, "nonexecutablefile")
 			ioutil.WriteFile(nonExecutablePath,

@@ -3,9 +3,7 @@ package taskrunner
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"net"
-	"os"
 	"testing"
 
 	plugin "github.com/hashicorp/go-plugin"
@@ -66,11 +64,7 @@ func TestTaskRunner_LogmonHook_StartStop(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, os.RemoveAll(dir))
-	}()
+	dir := t.TempDir()
 
 	hookConf := newLogMonHookConfig(task.Name, dir)
 	runner := &TaskRunner{logmonHookConfig: hookConf}

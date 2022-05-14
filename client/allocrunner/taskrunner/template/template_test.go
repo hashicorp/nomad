@@ -167,14 +167,11 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	harness.nomadNamespace = a.Namespace
 
 	// Make a tempdir
-	d, err := ioutil.TempDir("", "ct_test")
-	if err != nil {
-		t.Fatalf("Failed to make tmpdir: %v", err)
-	}
-	harness.taskDir = d
+	harness.taskDir = t.TempDir()
 	harness.envBuilder.SetClientTaskRoot(harness.taskDir)
 
 	if consul {
+		var err error
 		harness.consul, err = ctestutil.NewTestServerConfigT(t, func(c *ctestutil.TestServerConfig) {
 			// defaults
 		})
@@ -1286,14 +1283,10 @@ ANYTHING_goes=Spaces are=ok!
 // template processing function returns errors when files don't exist
 func TestTaskTemplateManager_Env_Missing(t *testing.T) {
 	ci.Parallel(t)
-	d, err := ioutil.TempDir("", "ct_env_missing")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer os.RemoveAll(d)
+	d := t.TempDir()
 
 	// Fake writing the file so we don't have to run the whole template manager
-	err = ioutil.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
+	err := ioutil.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
 	if err != nil {
 		t.Fatalf("error writing template file: %v", err)
 	}
@@ -1323,14 +1316,10 @@ func TestTaskTemplateManager_Env_InterpolatedDest(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
-	d, err := ioutil.TempDir("", "ct_env_interpolated")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer os.RemoveAll(d)
+	d := t.TempDir()
 
 	// Fake writing the file so we don't have to run the whole template manager
-	err = ioutil.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
+	err := ioutil.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
 	if err != nil {
 		t.Fatalf("error writing template file: %v", err)
 	}
@@ -1362,14 +1351,10 @@ func TestTaskTemplateManager_Env_InterpolatedDest(t *testing.T) {
 // templates correctly.
 func TestTaskTemplateManager_Env_Multi(t *testing.T) {
 	ci.Parallel(t)
-	d, err := ioutil.TempDir("", "ct_env_missing")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer os.RemoveAll(d)
+	d := t.TempDir()
 
 	// Fake writing the files so we don't have to run the whole template manager
-	err = ioutil.WriteFile(filepath.Join(d, "zzz.env"), []byte("FOO=bar\nSHARED=nope\n"), 0644)
+	err := ioutil.WriteFile(filepath.Join(d, "zzz.env"), []byte("FOO=bar\nSHARED=nope\n"), 0644)
 	if err != nil {
 		t.Fatalf("error writing template file 1: %v", err)
 	}

@@ -64,7 +64,7 @@ module('Acceptance | jobs list', function (hooks) {
 
     assert.equal(jobRow.name, job.name, 'Name');
     assert.notOk(jobRow.hasNamespace);
-    assert.equal(jobRow.link, `/ui/jobs/${job.id}`, 'Detail Link');
+    assert.equal(jobRow.link, `/ui/jobs/${job.id}@default`, 'Detail Link');
     assert.equal(jobRow.status, job.status, 'Status');
     assert.equal(jobRow.type, typeForJob(job), 'Type');
     assert.equal(jobRow.priority, job.priority, 'Priority');
@@ -78,7 +78,7 @@ module('Acceptance | jobs list', function (hooks) {
     await JobsList.visit();
     await JobsList.jobs.objectAt(0).clickName();
 
-    assert.equal(currentURL(), `/jobs/${job.id}`);
+    assert.equal(currentURL(), `/jobs/${job.id}@default`);
   });
 
   test('the new job button transitions to the new job page', async function (assert) {

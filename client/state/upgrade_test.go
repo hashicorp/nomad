@@ -2,8 +2,6 @@ package state
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -15,20 +13,17 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-func setupBoltDB(t *testing.T) (*bbolt.DB, func()) {
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(t, err)
+func setupBoltDB(t *testing.T) *bbolt.DB {
+	dir := t.TempDir()
 
 	db, err := bbolt.Open(filepath.Join(dir, "state.db"), 0666, nil)
-	if err != nil {
-		os.RemoveAll(dir)
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 
-	return db, func() {
+	t.Cleanup(func() {
 		require.NoError(t, db.Close())
-		require.NoError(t, os.RemoveAll(dir))
-	}
+	})
+
+	return db
 }
 
 // TestUpgrade_NeedsUpgrade_New asserts new state dbs do not need upgrading.
@@ -36,8 +31,7 @@ func TestUpgrade_NeedsUpgrade_New(t *testing.T) {
 	ci.Parallel(t)
 
 	// Setting up a new StateDB should initialize it at the latest version.
-	db, cleanup := setupBoltStateDB(t)
-	defer cleanup()
+	db := setupBoltStateDB(t)
 
 	to09, to12, err := NeedsUpgrade(db.DB().BoltDB())
 	require.NoError(t, err)
@@ -50,8 +44,7 @@ func TestUpgrade_NeedsUpgrade_New(t *testing.T) {
 func TestUpgrade_NeedsUpgrade_Old(t *testing.T) {
 	ci.Parallel(t)
 
-	db, cleanup := setupBoltDB(t)
-	defer cleanup()
+	db := setupBoltDB(t)
 
 	// Create the allocations bucket which exists in both the old and 0.9
 	// schemas
@@ -89,8 +82,7 @@ func TestUpgrade_NeedsUpgrade_Error(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(fmt.Sprintf("%v", tc), func(t *testing.T) {
-			db, cleanup := setupBoltDB(t)
-			defer cleanup()
+			db := setupBoltDB(t)
 
 			require.NoError(t, db.Update(func(tx *bbolt.Tx) error {
 				bkt, err := tx.CreateBucketIfNotExists(metaBucketName)
@@ -110,8 +102,7 @@ func TestUpgrade_NeedsUpgrade_Error(t *testing.T) {
 func TestUpgrade_DeleteInvalidAllocs_NoAlloc(t *testing.T) {
 	ci.Parallel(t)
 
-	bdb, cleanup := setupBoltDB(t)
-	defer cleanup()
+	bdb := setupBoltDB(t)
 
 	db := boltdd.New(bdb)
 
@@ -155,8 +146,7 @@ func TestUpgrade_DeleteInvalidAllocs_NoAlloc(t *testing.T) {
 func TestUpgrade_upgradeTaskBucket_InvalidEntries(t *testing.T) {
 	ci.Parallel(t)
 
-	db, cleanup := setupBoltDB(t)
-	defer cleanup()
+	db := setupBoltDB(t)
 
 	taskName := []byte("fake-task")
 
