@@ -269,3 +269,37 @@ func TestACL_OneTimeToken(t *testing.T) {
 	assert.NotNil(t, out3)
 	assert.Equal(t, out3.AccessorID, out.AccessorID)
 }
+
+func TestACLTokens_BootstrapInvalidToken(t *testing.T) {
+	testutil.Parallel(t)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.ACL.Enabled = true
+	})
+	defer s.Stop()
+	at := c.ACLTokens()
+
+	bootkn := BootstrapRequest{}
+	bootkn.Secret = "badtoken"
+	// Bootstrap with invalid token
+	out, wm, err := at.Bootstrap(&bootkn, nil)
+	assert.NotNil(t, err)
+	assertWriteMeta(t, wm)
+	assert.NotNil(t, out)
+}
+
+func TestACLTokens_BootstrapValidToken(t *testing.T) {
+	testutil.Parallel(t)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.ACL.Enabled = true
+	})
+	defer s.Stop()
+	at := c.ACLTokens()
+
+	bootkn := BootstrapRequest{}
+	bootkn.Secret = "2b778dd9-f5f1-6f29-b4b4-9a5fa948757a"
+	// Bootstrap with Valid token
+	out, wm, err := at.Bootstrap(&bootkn, nil)
+	assert.Nil(t, err)
+	assertWriteMeta(t, wm)
+	assert.Equal(t, bootkn.Secret, out.SecretID)
+}
