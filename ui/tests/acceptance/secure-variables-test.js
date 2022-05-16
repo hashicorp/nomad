@@ -42,6 +42,7 @@ module('Acceptance | secure variables', function (hooks) {
     });
 
     test('it passes an accessibility audit', async function (assert) {
+      assert.expect(2);
       defaultScenario(server);
       const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
