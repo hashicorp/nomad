@@ -6,7 +6,7 @@ export default class extends AbstractAbility {
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'policiesSupportVariableRead'
+    'policiesSupportVariableView'
   )
   canList;
 
