@@ -32,8 +32,7 @@ CONSULTEMPLATEDIR=/opt/consul-template
 # Dependencies
 sudo apt-get install -y software-properties-common
 sudo apt-get update
-sudo apt-get install -y unzip tree redis-tools jq curl tmux
-
+sudo apt-get install -y unzip tree redis-tools jq curl tmux gnupg-curl
 
 # Disable the firewall
 
@@ -110,8 +109,10 @@ sudo apt-get install -y docker-ce
 
 # Needs testing, updating and fixing
 if [[ ! -z ${INSTALL_NVIDIA_DOCKER+x} ]]; then 
+  
   # Install official NVIDIA driver package
-  sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub
+  # This is why we added gnupg-curl, otherwise, the following fails with "gpgkeys: protocol `https' not supported"
+  sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/3bf863cc.pub
   sudo sh -c 'echo "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/cuda.list'
   sudo apt-get update && sudo apt-get install -y --no-install-recommends linux-headers-generic dkms cuda-drivers
 
