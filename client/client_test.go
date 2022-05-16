@@ -11,7 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"context"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/client/config"
@@ -1799,4 +1801,126 @@ func TestClient_ReconnectAllocs(t *testing.T) {
 	require.NotNil(t, runner, "expected alloc runner")
 	require.False(t, invalid, "expected alloc to not be marked invalid")
 	require.Equal(t, unknownAlloc.AllocModifyIndex, finalAlloc.AllocModifyIndex)
+}
+
+func TestClient_Alloc_Port_Response(t *testing.T) {
+	t.Parallel()
+
+	srv, _, cleanupSrv := testServer(t, func(config *nomad.Config) {
+		config.DevMode = false
+	})
+	defer cleanupSrv()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	client, cleanupClient := TestClient(t, func(c *config.Config) {
+		c.DevMode = false
+		c.RPCHandler = srv
+	})
+	defer cleanupClient()
+
+	waitTilNodeReady(client, t)
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	alloc := mock.Alloc()
+	alloc.NodeID = client.Node().ID
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+	alloc.ClientStatus = structs.AllocClientStatusPending
+
+	state := srv.State()
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
+	require.NoError(t, err)
+
+	err = state.UpsertJobSummary(101, mock.JobSummary(alloc.JobID))
+	require.NoError(t, err)
+
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc})
+	require.NoError(t, err)
+
+	// Ensure allocation gets upserted with desired status.
+	running := false
+	testutil.WaitForResult(func() (bool, error) {
+		upsertResult, stateErr := state.AllocByID(nil, alloc.ID)
+		if stateErr != nil {
+			return false, stateErr
+		}
+		if upsertResult.ClientStatus == structs.AllocClientStatusRunning {
+			running = true
+			return true, nil
+		}
+		return false, nil
+	}, func(err error) {
+		require.NoError(t, err, "allocation query failed")
+	})
+
+	require.True(t, running)
+
+	topics := map[api.Topic][]string{
+		api.TopicJob: {job.ID},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	conf := api.DefaultConfig()
+	conf.Address = "http://" + srv.GetConfig().RPCAddr.String()
+	apiClient, err := api.NewClient(conf)
+	defer apiClient.Close()
+	require.NoError(t, err)
+
+	events := apiClient.EventStream()
+	streamCh, err := events.Stream(ctx, topics, 102, nil)
+	require.NoError(t, err)
+
+	var allocEvents []api.Event
+	// gather job alloc events
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event, ok := <-streamCh:
+				if !ok {
+					return
+				}
+				if event.Err != nil {
+					return
+				}
+				if event.IsHeartbeat() {
+					continue
+				}
+				t.Logf("event_type: %s", event.Events[0].Type)
+				allocEvents = append(allocEvents, event.Events...)
+			case <-time.After(30 * time.Second):
+				require.Fail(t, "failed waiting for event stream event")
+			}
+		}
+	}()
+
+	var eventAlloc *api.Allocation
+	testutil.WaitForResult(func() (bool, error) {
+		var got string
+		for _, e := range allocEvents {
+			t.Logf("event_type: %s", e.Type)
+			if e.Type == structs.TypeAllocationCreated || e.Type == structs.TypeAllocationUpdated {
+				eventAlloc, err = e.Allocation()
+				return true, nil
+			}
+			got = e.Type
+		}
+		return false, fmt.Errorf("expected to receive allocation updated event, got: %#v", got)
+	}, func(e error) {
+		require.NoError(t, err)
+	})
+
+	require.NotNil(t, eventAlloc)
+
+	networkResource := eventAlloc.AllocatedResources.Tasks["web"].Networks[0]
+	require.Equal(t, 9000, networkResource.ReservedPorts[0].Value)
+	require.NotEqual(t, 0, networkResource.DynamicPorts[0].Value)
 }
