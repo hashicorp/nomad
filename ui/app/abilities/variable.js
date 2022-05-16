@@ -17,11 +17,6 @@ export default class extends AbstractAbility {
 
   @computed('rulesForNamespace.@each.capabilities')
   get policiesSupportVariableRead() {
-    console.log(
-      'rules4?',
-      this.rulesForNamespace,
-      this.capabilitiesForAllNamespaces
-    );
     return this.rulesForNamespace.some((rules) => {
       return get(rules, 'SecureVariables');
     });

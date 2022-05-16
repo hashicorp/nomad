@@ -234,7 +234,6 @@ Secret: ${token.secretId}
 Accessor: ${token.accessorId}
 
 `);
-    console.log({ token });
   });
 }
 

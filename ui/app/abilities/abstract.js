@@ -25,7 +25,6 @@ export default class Abstract extends Ability {
   @computed('_namespace', 'token.selfTokenPolicies.[]')
   get rulesForNamespace() {
     let namespace = this._namespace;
-    console.log('== namespace', namespace);
 
     return (this.get('token.selfTokenPolicies') || [])
       .toArray()
@@ -36,8 +35,6 @@ export default class Abstract extends Ability {
           policyNamespaces,
           namespace
         );
-
-        console.log('inner', matchingNamespace, policyNamespaces);
 
         if (matchingNamespace) {
           rules.push(
@@ -85,7 +82,6 @@ export default class Abstract extends Ability {
   // https://learn.hashicorp.com/tutorials/nomad/access-control-policies?in=nomad/access-control#namespace-rules
   _findMatchingNamespace(policyNamespaces, namespace) {
     let namespaceNames = policyNamespaces.mapBy('Name');
-    console.log('finding match', policyNamespaces, namespace, namespaceNames);
 
     if (namespaceNames.includes(namespace)) {
       return namespace;
