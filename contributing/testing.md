@@ -22,3 +22,10 @@ Each unit test should meet a few criteria:
 - Log control
   - Logging must go through the testing.T (use helper/testlog.HCLogger)
   - Avoid excessive logging in test cases - prefer failure messages
+
+## API tests
+
+Testing in the `api` package requires an already-built Nomad
+binary. If you're writing `api` tests, you'll need to build a Nomad
+binary (ex. with `make dev`) that includes any changes your API
+exercises.
