@@ -8,7 +8,7 @@ export default class VariablesRoute extends Route.extend(withForbiddenState) {
 
   beforeModel() {
     if (this.can.cannot('list variables')) {
-      this.router.transitionTo('jobs');
+      this.router.transitionTo('/jobs');
     }
   }
 
