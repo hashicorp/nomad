@@ -11,7 +11,7 @@ export default class extends AbstractAbility {
   canList;
 
   @computed('rulesForNamespace.@each.capabilities')
-  get policiesSupportVariableRead() {
+  get policiesSupportVariableView() {
     return this.rulesForNamespace.some((rules) => {
       return get(rules, 'SecureVariables');
     });

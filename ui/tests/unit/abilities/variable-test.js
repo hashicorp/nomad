@@ -27,7 +27,7 @@ module('Unit | Ability | variable', function (hooks) {
       assert.notOk(this.ability.canList);
     });
 
-    test('it does not permite listing variables when token type is client', function (assert) {
+    test('it does not permit listing variables when token type is client', function (assert) {
       const mockToken = Service.extend({
         aclEnabled: true,
         selfToken: { type: 'client' },
@@ -77,7 +77,7 @@ module('Unit | Ability | variable', function (hooks) {
       assert.ok(this.ability.canList);
     });
 
-    test('it permits listing variables when token has SecureVariables alone is in its rules', function (assert) {
+    test('it permits listing variables when token has SecureVariables alone in its rules', function (assert) {
       const mockToken = Service.extend({
         aclEnabled: true,
         selfToken: { type: 'client' },
