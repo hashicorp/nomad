@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { visit, currentURL } from '@ember/test-helpers';
+import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
@@ -31,6 +31,7 @@ module('Acceptance | secure variables', function (hooks) {
     });
 
     test('it allows access for list-variables allowed ACL rules', async function (assert) {
+      assert.expect(2);
       defaultScenario(server);
       const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;

@@ -11,7 +11,7 @@ export default class VariablesRoute extends Route.extend(withForbiddenState) {
       this.router.transitionTo('/jobs');
     }
   }
-  model(params) {
+  model() {
     // TODO: Populate model from /variables
     return {};
   }

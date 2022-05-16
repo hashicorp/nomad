@@ -4,7 +4,7 @@ import withForbiddenState from '../../mixins/with-forbidden-state';
 export default class VariablesIndexRoute extends Route.extend(
   withForbiddenState
 ) {
-  model(params) {
+  model() {
     // TODO: Fill in model with format from API
     return {};
     // return RSVP.hash({
