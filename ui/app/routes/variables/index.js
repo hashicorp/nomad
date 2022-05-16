@@ -5,10 +5,11 @@ export default class VariablesIndexRoute extends Route.extend(
   withForbiddenState
 ) {
   model(params) {
+    // TODO: Fill in model with format from API
     return {};
     // return RSVP.hash({
-    //   jobs: this.store
-    //     .query('job', { namespace: params.qpNamespace })
+    //   variables: this.store
+    //     .query('variable', { namespace: params.qpNamespace })
     //     .catch(notifyForbidden(this)),
     //   namespaces: this.store.findAll('namespace'),
     // });

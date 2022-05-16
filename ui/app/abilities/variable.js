@@ -10,11 +10,6 @@ export default class extends AbstractAbility {
   )
   canList;
 
-  // @computed('rulesForNamespace.@each.capabilities')
-  // get policiesSupportVariableRead() {
-  //   return this.namespaceIncludesCapability('submit-job');
-  // }
-
   @computed('rulesForNamespace.@each.capabilities')
   get policiesSupportVariableRead() {
     return this.rulesForNamespace.some((rules) => {

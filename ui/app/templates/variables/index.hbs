@@ -3,6 +3,13 @@
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
-  Party on, Garth
+    <div class="empty-message">
+      <h3 data-test-empty-volumes-list-headline class="empty-message-headline">
+        No Secure Variables
+      </h3>
+      <p class="empty-message-body">
+        Get started by <LinkTo @route="variables">creating a new secure variable</LinkTo>
+      </p>
+    </div>
   {{/if}}
 </section>

@@ -11,13 +11,8 @@ export default class VariablesRoute extends Route.extend(withForbiddenState) {
       this.router.transitionTo('/jobs');
     }
   }
-
   model(params) {
+    // TODO: Populate model from /variables
     return {};
-    //   return RSVP.hash({
-    //     nodes: this.store.findAll('node'),
-    //     agents: this.store.findAll('agent'),
-    //   }).catch(notifyForbidden(this));
-    // }
   }
 }
