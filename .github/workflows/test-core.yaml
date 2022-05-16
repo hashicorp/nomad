@@ -21,7 +21,7 @@ on:
       - 'website/**'
 env:
   VERBOSE: 1
-  GO_VERSION: 1.17.9
+  GO_VERSION: 1.18.2
   GOBIN: /usr/local/bin
   GOTESTARCH: amd64
   CONSUL_VERSION: 1.11.3

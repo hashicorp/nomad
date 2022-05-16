@@ -1,6 +1,6 @@
 module github.com/hashicorp/nomad
 
-go 1.17
+go 1.18
 
 // Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826
 replace (
@@ -72,7 +72,7 @@ require (
 	github.com/hashicorp/go-version v1.4.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/hashicorp/hcl v1.0.1-vault-3
-	github.com/hashicorp/hcl/v2 v2.9.2-0.20210407182552-eb14f8319bdc
+	github.com/hashicorp/hcl/v2 v2.9.2-0.20220525143345-ab3cae0737bc
 	github.com/hashicorp/logutils v1.0.0
 	github.com/hashicorp/memberlist v0.3.1
 	github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
@@ -116,7 +116,7 @@ require (
 	github.com/zclconf/go-cty-yaml v1.0.2
 	go.etcd.io/bbolt v1.3.5
 	go.uber.org/goleak v1.1.12
-	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd
+	golang.org/x/crypto v0.0.0-20220517005047-85d78b3ac167
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20220517195934-5e4e11fc645e
