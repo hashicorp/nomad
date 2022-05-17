@@ -1,0 +1,3 @@
+```release-note:improvement
+bootstrap: Added `-bootstrap-token` to `acl bootstrap` command to allow operator provided token
+```
