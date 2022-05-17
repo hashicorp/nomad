@@ -297,7 +297,7 @@ func TestACLTokens_BootstrapValidToken(t *testing.T) {
 	bootkn.Secret = "2b778dd9-f5f1-6f29-b4b4-9a5fa948757a"
 	// Bootstrap with Valid token
 	out, wm, err := at.Bootstrap(bootkn, nil)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assertWriteMeta(t, wm)
 	assert.Equal(t, bootkn.Secret, out.SecretID)
 }
