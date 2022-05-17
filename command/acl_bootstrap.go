@@ -91,7 +91,7 @@ func (c *ACLBootstrapCommand) Run(args []string) int {
 	btkn := &api.BootstrapRequest{Secret: bootstraptoken}
 
 	// Get the bootstrap token
-	token, _, err := client.ACLTokens().Bootstrap(&btkn, nil)
+	token, _, err := client.ACLTokens().BootstrapOpts(btkn, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error bootstrapping: %s", err))
 		return 1

@@ -72,11 +72,22 @@ func (c *Client) ACLTokens() *ACLTokens {
 	return &ACLTokens{client: c}
 }
 
+// This Method is deprecated and will be removed in 1.5
+// Bootstrap is used to get the initial bootstrap token
+func (a *ACLTokens) Bootstrap(q *WriteOptions) (*ACLToken, *WriteMeta, error) {
+	var resp ACLToken
+	wm, err := a.client.write("/v1/acl/bootstrap", nil, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
 
 type BootstrapRequest struct {
 	Secret string
 }
 
+// Sets the bootstrap token header from the recieved token
 func (q *WriteOptions) SetHeadersFromBootstrapSecret(bootstraptoken string) {
 	if q.Headers == nil {
 		q.Headers = map[string]string{}
@@ -84,8 +95,8 @@ func (q *WriteOptions) SetHeadersFromBootstrapSecret(bootstraptoken string) {
 	q.Headers["X-Nomad-Bootstrap-Token"] = bootstraptoken
 }
 
-// Bootstrap is used to get the initial bootstrap token or pass in the one that was provided in the API
-func (a *ACLTokens) Bootstrap(req *BootstrapRequest, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
+// BootstrapOpts is used to get the initial bootstrap token or pass in the one that was provided in the API
+func (a *ACLTokens) BootstrapOpts(req *BootstrapRequest, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	if q == nil {
 		q = &WriteOptions{}
 	}
