@@ -106,9 +106,7 @@ func TestACLBootstrapCommand_WithOperatorBootstrapToken(t *testing.T) {
 	assert.Equal(0, code)
 
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, mockToken.SecretID) {
-		t.Fatalf("expected "+mockToken.SecretID+" output, got: %s", out)
-	}
+	assert.Contains(t, out, mockToken.SecretID) {
 }
 
 // Attempting to bootstrap the server with an invalid operator provided token should
