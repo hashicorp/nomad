@@ -157,8 +157,8 @@ job "example" {
     }
 
     # The "service" stanza instructs Nomad to register this task as a service
-    # in the service discovery engine, which is currently Consul. This will
-    # make the service addressable after Nomad has placed it on a host and
+    # in the service discovery engine, which is currently Nomad or Consul. This
+    # will make the service discoverable after Nomad has placed it on a host and
     # port.
     #
     # For more information and examples on the "service" stanza, please see
@@ -167,9 +167,10 @@ job "example" {
     #     https://www.nomadproject.io/docs/job-specification/service
     #
     service {
-      name = "redis-cache"
-      tags = ["global", "cache"]
-      port = "db"
+      name     = "redis-cache"
+      tags     = ["global", "cache"]
+      port     = "db"
+      provider = "nomad"
 
       # The "check" stanza instructs Nomad to create a Consul health check for
       # this service. A sample check is provided here for your convenience;
@@ -302,7 +303,7 @@ job "example" {
       # are specific to each driver, so please see specific driver
       # documentation for more information.
       config {
-        image = "redis:3.2"
+        image = "redis:7"
         ports = ["db"]
 
         # The "auth_soft_fail" configuration instructs Nomad to try public

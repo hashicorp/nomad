@@ -576,7 +576,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Name:   "redis",
 								Driver: "docker",
 								Config: map[string]interface{}{
-									"image": "redis:3.2",
+									"image": "redis:7",
 									"port_map": []map[string]int{{
 										"db": 6379,
 									}},
@@ -708,7 +708,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Name:   "redis",
 								Driver: "docker",
 								Config: map[string]interface{}{
-									"image": "redis:3.2",
+									"image": "redis:7",
 									"port_map": []map[string]int{{
 										"db": 6379,
 									}},
