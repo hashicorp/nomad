@@ -778,6 +778,15 @@ func memoryLimits(driverHardLimitMB int64, taskMemory drivers.MemoryResources) (
 	return hard * 1024 * 1024, softBytes
 }
 
+// Extract the cgroup parent from the nomad cgroup (only for linux/v2)
+func cgroupParent(resources *drivers.Resources) string {
+	var parent string
+	if cgutil.UseV2 && resources != nil && resources.LinuxResources != nil {
+		parent, _ = cgutil.SplitPath(resources.LinuxResources.CpusetCgroupPath)
+	}
+	return parent
+}
+
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (docker.CreateContainerOptions, error) {
 
@@ -843,11 +852,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		pidsLimit = driverConfig.PidsLimit
 	}
 
-	// Extract the cgroup parent from the nomad cgroup (bypass the need for plugin config)
-	parent, _ := cgutil.SplitPath(task.Resources.LinuxResources.CpusetCgroupPath)
-
 	hostConfig := &docker.HostConfig{
-		CgroupParent: parent,
+		CgroupParent: cgroupParent(task.Resources), // if applicable
 
 		Memory:            memory,            // hard limit
 		MemoryReservation: memoryReservation, // soft limit
