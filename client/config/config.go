@@ -64,7 +64,7 @@ var (
 		"/run/systemd/resolve": "/run/systemd/resolve",
 	}
 
-	DefaultTemplateMaxStale = 5 * time.Second
+	DefaultTemplateMaxStale = 87600 * time.Hour
 
 	DefaultTemplateFunctionDenylist = []string{"plugin", "writeToFile"}
 )
