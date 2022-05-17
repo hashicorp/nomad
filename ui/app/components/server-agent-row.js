@@ -41,9 +41,13 @@ export default class ServerAgentRow extends Component {
     return currentURL.replace(/%40/g, '@') === targetURL.replace(/%40/g, '@');
   }
 
-  click() {
+  goToAgent() {
     const transition = () =>
       this.router.transitionTo('servers.server', this.agent);
     lazyClick([transition, event]);
+  }
+
+  click() {
+    this.goToAgent();
   }
 }

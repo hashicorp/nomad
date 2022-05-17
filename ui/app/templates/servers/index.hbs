@@ -21,8 +21,8 @@
           <t.sort-by @prop="datacenter">Datacenter</t.sort-by>
           <t.sort-by @prop="version">Version</t.sort-by>
         </t.head>
-        <t.body as |row|>
-          <ServerAgentRow data-test-server-agent-row @agent={{row.model}} />
+        <t.body as |row iter|>
+          <ServerAgentRow data-test-server-agent-row @agent={{row.model}} @iter={{iter}} />
         </t.body>
       </ListTable>
       <div class="table-foot">
