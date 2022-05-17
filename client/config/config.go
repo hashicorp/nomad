@@ -723,7 +723,7 @@ func DefaultConfig() *Config {
 			MaxStale:           helper.TimeToPtr(87600 * time.Hour), // match Consul default
 			Wait: &WaitConfig{
 				Min: helper.TimeToPtr(5 * time.Second),
-				Max: helper.TimeToPtr(1 * time.Hour),
+				Max: helper.TimeToPtr(4 * time.Minute),
 			},
 			ConsulRetry: &RetryConfig{
 				Attempts:   helper.IntToPtr(0), // unlimited
