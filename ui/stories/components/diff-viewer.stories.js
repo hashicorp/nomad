@@ -187,7 +187,7 @@ export let DiffViewerWithManyChanges = () => {
                         Annotations: null,
                         Name: 'image',
                         New: 'redis:3.4',
-                        Old: 'redis:3.2',
+                        Old: 'redis:7',
                         Type: 'Edited',
                       },
                       {
@@ -595,7 +595,7 @@ export let DiffViewerWithManyChanges = () => {
                       {
                         Annotations: null,
                         Name: 'image',
-                        New: 'redis:3.2',
+                        New: 'redis:7',
                         Old: '',
                         Type: 'Added',
                       },
