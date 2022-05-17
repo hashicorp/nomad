@@ -404,7 +404,7 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 		if helper.IsUUID(providedTokenID) {
 			args.Token.SecretID = providedTokenID
 		} else {
-			return structs.NewErrRPCCodedf(400, "invalid acl token: %v", err)
+			return structs.NewErrRPCCodedf(400, "invalid acl token")
 		}
 	}
 
