@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/hashicorp/nomad/nomad/state"
 )
 
 type testEvent struct {
@@ -217,53 +216,28 @@ func TestHTTP_AllocPort_Parsing(t *testing.T) {
 		testutil.WaitForLeader(t, srv.Agent.RPC)
 		testutil.WaitForClient(t, srv.Agent.Client().RPC, srv.Agent.Client().NodeID(), srv.Agent.Client().Region())
 
-		job := mock.Job()
-		job.Constraints = nil
-		job.TaskGroups[0].Constraints = nil
-		job.TaskGroups[0].Count = 1
-		job.TaskGroups[0].Tasks[0].Resources.Networks = append(job.TaskGroups[0].Tasks[0].Resources.Networks, &structs.NetworkResource{
-			ReservedPorts: []structs.Port{
-				{
-					Label: "static",
-					To:    5000,
-				},
-			},
-		})
+		job := MockRunnableJob()
 
-		registerReq := &structs.JobRegisterRequest{
-			Job: job,
-			WriteRequest: structs.WriteRequest{
-				Region:    "global",
-				Namespace: structs.DefaultNamespace,
-			},
-		}
-		var registerResp structs.JobRegisterResponse
-		require.Nil(t, srv.Agent.RPC("Job.Register", registerReq, &registerResp))
-
-		// TODO:
-		// - Get Job from API to prove static port not lost
-		// - Update the state to prove event stream works
-		// - Try to actually get the alloc to run
+		resp, _, err := client.Jobs().Register(job, nil)
+		require.NoError(t, err)
+		require.NotEmpty(t, resp.EvalID)
 
 		alloc := mock.Alloc()
-		alloc.Job = job
-		alloc.JobID = job.ID
+		alloc.Job = ApiJobToStructJob(job)
+		alloc.JobID = *job.ID
 		alloc.NodeID = srv.client.NodeID()
 
-		require.Nil(t, srv.server.State().UpsertJobSummary(101, mock.JobSummary(alloc.JobID))
+		require.Nil(t, srv.server.State().UpsertJobSummary(101, mock.JobSummary(alloc.JobID)))
+		require.Nil(t, srv.server.State().UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
 
-		err = state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc1})
-		require.Nil(err)
-
-		// Ensure allocation gets upserted with desired status.
-		var alloc *structs.Allocation
+		running := false
 		testutil.WaitForResult(func() (bool, error) {
-			allocs, err := srv.server.State().AllocsByJob(nil, "", job.ID, true)
-			if err != nil {
-				return false, err
+			upsertResult, stateErr := srv.server.State().AllocByID(nil, alloc.ID)
+			if stateErr != nil {
+				return false, stateErr
 			}
-			for _, a := range allocs {
-				alloc = a
+			if upsertResult.ClientStatus == structs.AllocClientStatusRunning {
+				running = true
 				return true, nil
 			}
 			return false, nil
@@ -271,14 +245,10 @@ func TestHTTP_AllocPort_Parsing(t *testing.T) {
 			require.NoError(t, err, "allocation query failed")
 		})
 
-		require.NotNil(t, alloc)
-
-		alloc.NodeID = srv.client.NodeID()
-		alloc.ClientStatus = structs.AllocClientStatusRunning
-		require.Nil(t, srv.Agent.server.State().UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc}))
+		require.True(t, running)
 
 		topics := map[api.Topic][]string{
-			api.TopicAllocation: {job.ID},
+			api.TopicAllocation: {*job.ID},
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -301,31 +271,35 @@ func TestHTTP_AllocPort_Parsing(t *testing.T) {
 						continue
 					}
 					allocEvents = append(allocEvents, event.Events...)
-				case <-time.After(5 * time.Second):
+				case <-time.After(10 * time.Second):
 					require.Fail(t, "failed waiting for event stream event")
 				}
 			}
 		}()
 
-		var eventAlloc *api.Allocation
+		var networkResource *api.NetworkResource
 		testutil.WaitForResult(func() (bool, error) {
-			var got string
 			for _, e := range allocEvents {
-				t.Logf("event_type: %s", e.Type)
-				if e.Type == structs.TypeAllocationCreated || e.Type == structs.TypeAllocationUpdated {
-					eventAlloc, err = e.Allocation()
-					return true, nil
+				if e.Type == structs.TypeAllocationUpdated {
+					eventAlloc, err := e.Allocation()
+					if err != nil {
+						return false, err
+					}
+					if len(eventAlloc.AllocatedResources.Tasks["web"].Networks) == 0 {
+						return false, nil
+					}
+					networkResource = eventAlloc.AllocatedResources.Tasks["web"].Networks[0]
+					if networkResource.ReservedPorts[0].Value == 5000 {
+						return true, nil
+					}
 				}
-				got = e.Type
 			}
-			return false, fmt.Errorf("expected to receive allocation updated event, got: %#v", got)
+			return false, nil
 		}, func(e error) {
 			require.NoError(t, err)
 		})
 
-		require.NotNil(t, eventAlloc)
-
-		networkResource := eventAlloc.AllocatedResources.Tasks["web"].Networks[0]
+		require.NotNil(t, networkResource)
 		require.Equal(t, 5000, networkResource.ReservedPorts[0].Value)
 		require.NotEqual(t, 0, networkResource.DynamicPorts[0].Value)
 	})
