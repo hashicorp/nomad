@@ -11,7 +11,10 @@ For more details about ACLs, please see the [ACL Guide](https://learn.hashicorp.
 
 ## Bootstrap Token
 
-This endpoint is used to bootstrap the ACL system and provide the initial management token. An operator created token can be provided in a header called `X-Nomad-Bootstrap-Token` to bootstrap the cluster if required. If no header is provided the cluster will return a generated management token.
+This endpoint is used to bootstrap the ACL system and provide the initial management token. 
+An operator created token can be provided in a header called `X-Nomad-Bootstrap-Token` 
+to bootstrap the cluster if required. If no header is provided the cluster will return a 
+generated management token.
 This request is always forwarded to the authoritative region. It can only be invoked once
 until a [bootstrap reset](https://learn.hashicorp.com/tutorials/nomad/access-control-bootstrap#re-bootstrap-acl-system) is performed.
 
