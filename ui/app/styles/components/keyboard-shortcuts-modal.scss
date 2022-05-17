@@ -11,13 +11,6 @@
   animation-duration: 0.2s;
   animation-fill-mode: both;
 
-  button.dismiss {
-    width: 100%;
-    justify-content: right;
-    font-size: 0.7rem;
-    margin-bottom: 1rem;
-  }
-
   li {
     list-style-type: none;
     padding: 0.5rem 0;
@@ -30,9 +23,38 @@
       text-align: right;
       span {
         background-color: #eee;
-        margin: 0 0.25rem;
-        padding: 0 0.25rem;
+        margin: 0.1rem;
+        padding: 0.3rem;
+        line-height: 100%;
+        display: inline-block;
       }
+    }
+  }
+
+  header {
+    margin-bottom: 1rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    button.dismiss {
+      font-size: 0.7rem;
+    }
+  }
+
+  footer {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    padding: 2rem;
+    background: #eee;
+    margin: 2rem -2rem -2rem;
+  }
+
+  &.shortcuts-disabled {
+    li {
+      opacity: 0.25;
     }
   }
 }

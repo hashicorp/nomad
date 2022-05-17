@@ -1,16 +1,20 @@
 {{#if this.keyboard.shortcutsVisible}}
   {{keyboard-commands (array this.escapeCommand)}}
-  <ul class="keyboard-shortcuts">
-    <button
-      class="button is-borderless dismiss"
-      type="button"
-      {{on "click" (toggle "keyboard.shortcutsVisible" this)}}
-    >
-      {{x-icon "cancel"}}
-    </button>
+  <div class="keyboard-shortcuts {{unless this.keyboard.shortcutsEnabled "shortcuts-disabled"}}">
+    <header>
+      <h2>Keyboard Shortcuts</h2>
+      <button
+        class="button is-borderless dismiss"
+        type="button"
+        {{on "click" (toggle "keyboard.shortcutsVisible" this)}}
+      >
+        {{x-icon "cancel"}}
+      </button>
+    </header>
+    <ul>
     {{#each this.commands as |command|}}
       <li>
-        <strong>{{command.label}}</strong>
+        <span>{{command.label}}</span>
         <span class="keys">
           {{#each command.pattern as |key|}}
             <span>{{key}}</span>
@@ -19,6 +23,15 @@
       </li>
     {{/each}}
   </ul>
+  <footer>
+    <span>Keyboard shortcuts {{if this.keyboard.shortcutsEnabled "enabled" "disabled"}}</span>
+    <Toggle
+      @isActive={{this.keyboard.shortcutsEnabled}}
+      @onToggle={{toggle "keyboard.shortcutsEnabled" this}}
+      title="Enable/Disable Keyboard Shortcuts"
+    />
+  </footer>
+  </div>
 {{/if}}
 
 {{#if this.keyboard.displayHints}}

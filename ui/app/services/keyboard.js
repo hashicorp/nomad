@@ -36,6 +36,7 @@ export default class KeyboardService extends Service {
   @tracked shortcutsVisible = false;
   @tracked buffer = A([]);
   @tracked displayHints = false;
+  @tracked shortcutsEnabled = true;
 
   keyCommands = [
     {
@@ -269,7 +270,9 @@ export default class KeyboardService extends Service {
         if (key !== 'Shift') {
           this.addKeyToBuffer.perform(key, shifted);
         } else {
-          this.displayHints = true;
+          if (this.shortcutsEnabled) {
+            this.displayHints = true;
+          }
         }
       } else if (type === 'release') {
         if (key === 'Shift') {
@@ -291,7 +294,15 @@ export default class KeyboardService extends Service {
     }
     this.buffer.pushObject(shifted ? `Shift+${key}` : key);
     if (this.matchedCommands.length) {
-      this.matchedCommands.forEach((command) => command.action());
+      this.matchedCommands.forEach((command) => {
+        if (
+          this.shortcutsEnabled ||
+          command.label === 'Show Keyboard Shortcuts' ||
+          command.label === 'Hide Keyboard Shortcuts'
+        ) {
+          command.action();
+        }
+      });
 
       // TODO: Temporary dev log
       if (this.config.isDev) {
