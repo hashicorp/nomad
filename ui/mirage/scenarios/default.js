@@ -205,6 +205,10 @@ function emptyCluster(server) {
 
 function createTokens(server) {
   server.createList('token', 3);
+  server.create('token', {
+    name: 'Secure McVariables',
+    id: '53cur3-v4r14bl35',
+  });
   logTokens(server);
 }
 
