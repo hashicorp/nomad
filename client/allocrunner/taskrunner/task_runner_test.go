@@ -681,7 +681,7 @@ func TestTaskRunner_TaskEnv_Image(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "docker"
 	task.Config = map[string]interface{}{
-		"image":        "redis:3.2-alpine",
+		"image":        "redis:7-alpine",
 		"network_mode": "none",
 		"command":      "sh",
 		"args": []string{"-c", "echo $NOMAD_ALLOC_DIR; " +

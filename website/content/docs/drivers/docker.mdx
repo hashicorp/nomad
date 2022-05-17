@@ -22,7 +22,7 @@ task "webservice" {
   driver = "docker"
 
   config {
-    image = "redis:3.2"
+    image = "redis:7"
     labels {
       group = "webservice-cache"
     }
@@ -42,7 +42,7 @@ The `docker` driver supports the following configuration in the job spec. Only
 
   ```hcl
   config {
-    image = "https://hub.docker.internal/redis:3.2"
+    image = "https://hub.docker.internal/redis:7"
   }
   ```
 

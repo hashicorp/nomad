@@ -4,7 +4,7 @@
     "Names": [
       "/redis-72bfa388-024e-a903-45b8-2bc28b74ed69"
     ],
-    "Image": "redis:3.2",
+    "Image": "redis:7",
     "ImageID": "sha256:87856cc39862cec77541d68382e4867d7ccb29a85a17221446c857ddaebca916",
     "Command": "docker-entrypoint.sh redis-server",
     "Created": 1568383081,

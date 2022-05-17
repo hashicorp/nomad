@@ -138,7 +138,7 @@ $ nomad job plan example.nomad
 +/- Task Group: "cache" (3 create/destroy update)
   +/- Task: "redis" (forces create/destroy update)
     +/- Config {
-      +/- image:           "redis:2.8" => "redis:3.2"
+      +/- image:           "redis:2.8" => "redis:7"
           port_map[0][db]: "6379"
     }
 
