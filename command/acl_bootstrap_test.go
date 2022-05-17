@@ -1,7 +1,6 @@
 package command
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -9,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestACLBootstrapCommand(t *testing.T) {
@@ -83,8 +83,7 @@ func TestACLBootstrapCommand_NonACLServer(t *testing.T) {
 // return the same token in the result.
 func TestACLBootstrapCommand_WithOperatorBootstrapToken(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
-
+	// assert := assert.New(t)
 	// create a acl-enabled server without bootstrapping the token
 	config := func(c *agent.Config) {
 		c.ACL.Enabled = true
@@ -103,17 +102,16 @@ func TestACLBootstrapCommand_WithOperatorBootstrapToken(t *testing.T) {
 	cmd := &ACLBootstrapCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	code := cmd.Run([]string{"-address=" + url, "-bootstrap-token=" + mockToken.SecretID})
-	assert.Equal(0, code)
+	assert.Equal(t, 0, code)
 
 	out := ui.OutputWriter.String()
-	assert.Contains(t, out, mockToken.SecretID) {
+	assert.Contains(t, out, mockToken.SecretID)
 }
 
 // Attempting to bootstrap the server with an invalid operator provided token should
 // fail.
 func TestACLBootstrapCommand_WithBadOperatorBootstrapToken(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	// create a acl-enabled server without bootstrapping the token
 	config := func(c *agent.Config) {
@@ -127,16 +125,14 @@ func TestACLBootstrapCommand_WithBadOperatorBootstrapToken(t *testing.T) {
 	srv, _, url := testServer(t, true, config)
 	defer srv.Shutdown()
 
-	assert.Nil(srv.RootToken)
+	assert.Nil(t, srv.RootToken)
 
 	ui := cli.NewMockUi()
 	cmd := &ACLBootstrapCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	code := cmd.Run([]string{"-address=" + url, "-bootstrap-token=" + invalidToken})
-	assert.Equal(1, code)
+	assert.Equal(t, 1, code)
 
 	out := ui.OutputWriter.String()
-	if strings.Contains(out, invalidToken) {
-		t.Fatalf("expected error output, got: %s", out)
-	}
+	assert.NotContains(t, out, invalidToken)
 }
