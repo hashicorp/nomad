@@ -22,6 +22,7 @@ export default class IndexController extends Controller.extend(
 ) {
   @service system;
   @service userSettings;
+  @service keyboard;
   @controller('csi/volumes') volumesController;
 
   @alias('volumesController.isForbidden')

@@ -27,11 +27,6 @@ export default class ApplicationController extends Controller {
     this.keyboard.listenForKeypress();
   }
 
-  @observes('this.keyboard.matchedCommand')
-  function() {
-    console.log('uhhh', this.keyboard.matchedCommand);
-  }
-
   queryParams = [
     {
       region: 'region',

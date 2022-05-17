@@ -38,7 +38,7 @@
         @source={{p.list}}
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
-        @class="with-foot" as |t|
+        @class="with-foot {{if this.keyboard.displayHints "display-hints"}}" as |t|
       >
         <t.head>
           <t.sort-by @prop="name">
@@ -65,13 +65,18 @@
             # Allocs
           </th>
         </t.head>
-        <t.body @key="model.name" as |row|>
+        <t.body @key="model.name" as |row iter|>
           <tr
             class="is-interactive"
             data-test-volume-row
             {{on "click" (action "gotoVolume" row.model)}}
           >
-            <td data-test-volume-name>
+            <td data-test-volume-name
+              {{keyboard-shortcut 
+                pattern=(array (concat "Shift+" iter))
+                action=(action "gotoVolume" row.model)
+              }}
+            >
               <LinkTo
                 @route="csi.volumes.volume"
                 @model={{row.model.idWithNamespace}}

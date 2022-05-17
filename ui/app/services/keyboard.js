@@ -11,6 +11,20 @@ import { guidFor } from '@ember/object/internals';
 
 const DEBOUNCE_MS = 750;
 
+// Shit modifies event.key to a symbol; get the digit equivalent to perform commands
+const DIGIT_MAP = {
+  '!': 1,
+  '@': 2,
+  '#': 3,
+  $: 4,
+  '%': 5,
+  '^': 6,
+  '&': 7,
+  '*': 8,
+  '(': 9,
+  ')': 0,
+};
+
 export default class KeyboardService extends Service {
   /**
    * @type {EmberRouter}
@@ -21,6 +35,7 @@ export default class KeyboardService extends Service {
 
   @tracked shortcutsVisible = false;
   @tracked buffer = A([]);
+  @tracked displayHints = false;
 
   keyCommands = [
     {
@@ -30,12 +45,12 @@ export default class KeyboardService extends Service {
     },
     {
       label: 'Go to Storage',
-      pattern: ['g', 's', 't'],
+      pattern: ['g', 'v'],
       action: () => this.router.transitionTo('csi.volumes'),
     },
     {
       label: 'Go to Servers',
-      pattern: ['g', 's', 'e'],
+      pattern: ['g', 's'],
       action: () => this.router.transitionTo('servers'),
     },
     {
@@ -78,6 +93,7 @@ export default class KeyboardService extends Service {
       action: () => {
         this.traverseLinkList(this.subnavLinks, 1);
       },
+      requireModifier: true,
     },
     {
       label: 'Previous Subnav',
@@ -85,6 +101,7 @@ export default class KeyboardService extends Service {
       action: () => {
         this.traverseLinkList(this.subnavLinks, -1);
       },
+      requireModifier: true,
     },
     {
       label: 'Previous Main Section',
@@ -92,6 +109,7 @@ export default class KeyboardService extends Service {
       action: () => {
         this.traverseLinkList(this.navLinks, -1);
       },
+      requireModifier: true,
     },
     {
       label: 'Next Main Section',
@@ -99,6 +117,7 @@ export default class KeyboardService extends Service {
       action: () => {
         this.traverseLinkList(this.navLinks, 1);
       },
+      requireModifier: true,
     },
     {
       label: 'Show Keyboard Shortcuts',
@@ -128,11 +147,21 @@ export default class KeyboardService extends Service {
   ];
 
   addCommands(commands) {
+    // Filter out those commands that don't have a label (they're only being added for at-a-glance hinting/highlights)
     this.keyCommands.pushObjects(commands);
   }
 
   removeCommands(commands) {
     this.keyCommands.removeObjects(commands);
+  }
+
+  @action
+  generateIteratorShortcut(element, [action, iter]) {
+    this.keyCommands.pushObject({
+      label: `Hit up item ${iter}`,
+      pattern: [`Shift+${iter}`],
+      action,
+    });
   }
 
   //#region Nav Traversal
@@ -224,18 +253,28 @@ export default class KeyboardService extends Service {
 
   /**
    *
+   * @param {("press" | "release")} type
    * @param {KeyboardEvent} event
    */
-  recordKeypress(event) {
+  recordKeypress(type, event) {
     const inputElements = ['input', 'textarea'];
     const targetElementName = event.target.nodeName.toLowerCase();
     // Don't fire keypress events from within an input field
     if (!inputElements.includes(targetElementName)) {
-      // Treat Shift like a special modifier key. May expand to more later.
+      // Treat Shift like a special modifier key.
+      // If it's depressed, display shortcuts
       const { key } = event;
       const shifted = event.getModifierState('Shift');
-      if (key !== 'Shift') {
-        this.addKeyToBuffer.perform(key, shifted);
+      if (type === 'press') {
+        if (key !== 'Shift') {
+          this.addKeyToBuffer.perform(key, shifted);
+        } else {
+          this.displayHints = true;
+        }
+      } else if (type === 'release') {
+        if (key === 'Shift') {
+          this.displayHints = false;
+        }
       }
     }
   }
@@ -246,6 +285,10 @@ export default class KeyboardService extends Service {
    * @param {boolean} shifted
    */
   @restartableTask *addKeyToBuffer(key, shifted) {
+    // Replace key with its unshifted equivalent if it's a number key
+    if (shifted && key in DIGIT_MAP) {
+      key = DIGIT_MAP[key];
+    }
     this.buffer.pushObject(shifted ? `Shift+${key}` : key);
     if (this.matchedCommands.length) {
       this.matchedCommands.forEach((command) => command.action());
@@ -253,7 +296,7 @@ export default class KeyboardService extends Service {
       // TODO: Temporary dev log
       if (this.config.isDev) {
         this.matchedCommands.forEach((command) =>
-          console.log('command run', command)
+          console.log('command run', command, command.action.toString())
         );
       }
       this.clearBuffer();
@@ -265,9 +308,30 @@ export default class KeyboardService extends Service {
   get matchedCommands() {
     // Ember Compare: returns 0 if there's no diff between arrays.
     // TODO: do we think this is faster than a pure JS .join("") comparison?
-    const matches = this.keyCommands.filter(
-      (command) => !compare(command.pattern, this.buffer)
+
+    // Shiftless Buffer: handle the case where use is holding shift (to see shortcut hints) and typing a key command
+    const shiftlessBuffer = this.buffer.map((key) =>
+      key.replace('Shift+', '').toLowerCase()
     );
+
+    // Shift Friendly Buffer: If you hold Shift and type 0 and 1, it'll output as ['Shift+0', 'Shift+1'].
+    // Instead, translate that to ['Shift+01'] for clearer UX
+    const shiftFriendlyBuffer = [
+      `Shift+${this.buffer.map((key) => key.replace('Shift+', '')).join('')}`,
+    ];
+
+    const matches = this.keyCommands.filter((command) => {
+      return (
+        command.action &&
+        (!compare(command.pattern, this.buffer) ||
+          (command.requireModifier
+            ? false
+            : !compare(command.pattern, shiftlessBuffer)) ||
+          (command.requireModifier
+            ? false
+            : !compare(command.pattern, shiftFriendlyBuffer)))
+      );
+    });
     return matches;
   }
 
@@ -276,6 +340,13 @@ export default class KeyboardService extends Service {
   }
 
   listenForKeypress() {
-    document.addEventListener('keydown', this.recordKeypress.bind(this));
+    document.addEventListener(
+      'keydown',
+      this.recordKeypress.bind(this, 'press')
+    );
+    document.addEventListener(
+      'keyup',
+      this.recordKeypress.bind(this, 'release')
+    );
   }
 }
