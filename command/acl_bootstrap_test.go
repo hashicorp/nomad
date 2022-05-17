@@ -97,7 +97,7 @@ func TestACLBootstrapCommand_WithOperatorBootstrapToken(t *testing.T) {
 	srv, _, url := testServer(t, true, config)
 	defer srv.Shutdown()
 
-	assert.Nil(srv.RootToken)
+	require.Nil(t, srv.RootToken)
 
 	ui := cli.NewMockUi()
 	cmd := &ACLBootstrapCommand{Meta: Meta{Ui: ui, flagAddress: url}}
