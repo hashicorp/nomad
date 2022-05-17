@@ -72,9 +72,6 @@ func (c *Client) ACLTokens() *ACLTokens {
 	return &ACLTokens{client: c}
 }
 
-// TODO
-// These values will be redacted when reported in the
-// API or in Nomad's logs
 
 type BootstrapRequest struct {
 	Secret string
