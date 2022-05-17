@@ -721,8 +721,24 @@ func DefaultConfig() *Config {
 		NoHostUUID:              true,
 		DisableRemoteExec:       false,
 		TemplateConfig: &ClientTemplateConfig{
-			FunctionDenylist: DefaultTemplateFunctionDenylist,
-			DisableSandbox:   false,
+			FunctionDenylist:   DefaultTemplateFunctionDenylist,
+			DisableSandbox:     false,
+			BlockQueryWaitTime: helper.TimeToPtr(5 * time.Minute),   // match Consul default
+			MaxStale:           helper.TimeToPtr(87600 * time.Hour), // match Consul default
+			Wait: &WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(1 * time.Hour),
+			},
+			ConsulRetry: &RetryConfig{
+				Attempts:   helper.IntToPtr(0), // unlimited
+				Backoff:    helper.TimeToPtr(250 * time.Millisecond),
+				MaxBackoff: helper.TimeToPtr(1 * time.Minute),
+			},
+			VaultRetry: &RetryConfig{
+				Attempts:   helper.IntToPtr(0), // unlimited
+				Backoff:    helper.TimeToPtr(250 * time.Millisecond),
+				MaxBackoff: helper.TimeToPtr(1 * time.Minute),
+			},
 		},
 		RPCHoldTimeout:     5 * time.Second,
 		CNIPath:            "/opt/cni/bin",
