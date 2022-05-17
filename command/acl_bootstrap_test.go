@@ -83,7 +83,6 @@ func TestACLBootstrapCommand_NonACLServer(t *testing.T) {
 // return the same token in the result.
 func TestACLBootstrapCommand_WithOperatorBootstrapToken(t *testing.T) {
 	ci.Parallel(t)
-	// assert := assert.New(t)
 	// create a acl-enabled server without bootstrapping the token
 	config := func(c *agent.Config) {
 		c.ACL.Enabled = true
