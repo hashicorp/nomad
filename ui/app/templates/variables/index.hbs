@@ -3,6 +3,43 @@
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
+    <div class="toolbar">
+      <div class="toolbar-item">
+        {{#if this.variables.length}}
+          <SearchBox
+            @searchTerm={{mut this.searchTerm}}
+            @onChange={{action this.resetPagination}}
+            @placeholder="Search variables..."
+          />
+        {{/if}}
+      </div>
+      <div class="toolbar-item is-right-aligned is-mobile-full-width">
+        <div class="button-bar">
+        {{#if (can "create variable" namespace=this.qpNamespace)}}
+          <LinkTo
+            @route="variables.new"
+            @query={{hash namespace=this.qpNamespace}}
+            data-test-run-job
+            class="button is-primary"
+          >
+            Create Secure Variable
+          </LinkTo>
+        {{else}}
+          <button
+            data-test-run-job
+            class="button is-primary is-disabled tooltip is-right-aligned"
+            aria-label="You don’t have sufficient permissions"
+            disabled
+            type="button"
+          >
+            Create Secure Variable
+          </button>
+        {{/if}}
+
+        </div>
+      </div>
+    </div>
+
     <div class="empty-message">
       <h3 data-test-empty-volumes-list-headline class="empty-message-headline">
         No Secure Variables
