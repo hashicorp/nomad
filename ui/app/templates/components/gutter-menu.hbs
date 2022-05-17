@@ -37,7 +37,7 @@
         Workload
       </p>
       <ul class="menu-list">
-        <li>
+        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "j") }}>
           <LinkTo
             @route="jobs"
             @activeClass="is-active"
@@ -62,7 +62,7 @@
         Integrations
       </p>
       <ul class="menu-list">
-        <li>
+        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "v") }}>
           <LinkTo
             @route="csi"
             @activeClass="is-active"
@@ -76,7 +76,7 @@
         Cluster
       </p>
       <ul class="menu-list">
-        <li>
+        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "c") }}>
           <LinkTo
             @route="clients"
             @activeClass="is-active"
@@ -85,7 +85,7 @@
             Clients
           </LinkTo>
         </li>
-        <li>
+        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "s") }}>
           <LinkTo
             @route="servers"
             @activeClass="is-active"
@@ -94,7 +94,7 @@
             Servers
           </LinkTo>
         </li>
-        <li>
+        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "t") }}>
           <LinkTo
             @route="topology"
             @activeClass="is-active"
@@ -108,7 +108,7 @@
         Debugging
       </p>
       <ul class="menu-list">
-        <li>
+        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "e") }}>
           <LinkTo
             @route="evaluations"
             @activeClass="is-active"
