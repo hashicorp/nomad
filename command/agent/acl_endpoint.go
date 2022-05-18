@@ -141,7 +141,7 @@ func (s *HTTPServer) ACLTokenBootstrap(resp http.ResponseWriter, req *http.Reque
 	secret := req.Header.Get("X-Nomad-Bootstrap-Token")
 	// Format the request
 	args := structs.ACLTokenBootstrapRequest{
-		Secret: secret,
+		BootstrapSecret: secret,
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 

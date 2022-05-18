@@ -279,10 +279,10 @@ func TestACLTokens_BootstrapInvalidToken(t *testing.T) {
 	at := c.ACLTokens()
 
 	bootkn := &BootstrapRequest{}
-	bootkn.Secret = "badtoken"
+	bootkn.BootstrapSecret = "badtoken"
 	// Bootstrap with invalid token
 	_, _, err := at.BootstrapOpts(bootkn, nil)
-	assert.EqualError(t, err, "Unexpected response code: 400 (invalid acl token: <nil>)")
+	assert.EqualError(t, err, "Unexpected response code: 400 (invalid acl token)")
 }
 
 func TestACLTokens_BootstrapValidToken(t *testing.T) {
@@ -294,10 +294,10 @@ func TestACLTokens_BootstrapValidToken(t *testing.T) {
 	at := c.ACLTokens()
 
 	bootkn := &BootstrapRequest{}
-	bootkn.Secret = "2b778dd9-f5f1-6f29-b4b4-9a5fa948757a"
+	bootkn.BootstrapSecret = "2b778dd9-f5f1-6f29-b4b4-9a5fa948757a"
 	// Bootstrap with Valid token
 	out, wm, err := at.BootstrapOpts(bootkn, nil)
 	assert.NoError(t, err)
 	assertWriteMeta(t, wm)
-	assert.Equal(t, bootkn.Secret, out.SecretID)
+	assert.Equal(t, bootkn.BootstrapSecret, out.SecretID)
 }

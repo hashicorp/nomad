@@ -354,7 +354,7 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 		return aclDisabled
 	}
 	args.Region = a.srv.config.AuthoritativeRegion
-	providedTokenID := args.Secret
+	providedTokenID := args.BootstrapSecret
 
 	if done, err := a.srv.forward("ACL.Bootstrap", args, args, reply); done {
 		return err

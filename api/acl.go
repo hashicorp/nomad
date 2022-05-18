@@ -84,7 +84,7 @@ func (a *ACLTokens) Bootstrap(q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 }
 
 type BootstrapRequest struct {
-	Secret string
+	BootstrapSecret string
 }
 
 // Sets the bootstrap token header from the recieved token
@@ -103,7 +103,7 @@ func (a *ACLTokens) BootstrapOpts(req *BootstrapRequest, q *WriteOptions) (*ACLT
 	var resp ACLToken
 	// Test if token is in the request.
 	if req != nil {
-		q.SetHeadersFromBootstrapSecret(req.Secret)
+		q.SetHeadersFromBootstrapSecret(req.BootstrapSecret)
 	}
 	wm, err := a.client.write("/v1/acl/bootstrap", nil, &resp, q)
 	if err != nil {
