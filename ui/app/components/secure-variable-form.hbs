@@ -1,0 +1,36 @@
+  <form
+    {{on "submit" this.saveNewVariable}}
+  >
+    {{!-- TODO: {{if this.parseError 'is-danger'}} on inputs --}}
+    <div>
+      <label>
+        <span>Path</span>
+        <Input
+          @type="text"
+          @value={{this.path}}
+          placeholder="/path/to/variable"
+          class="input" />
+      </label>
+    </div>
+    <div class="key-value">
+      <label>
+        <span>Key</span>
+        <Input
+          @type="text"
+          @value={{this.key}}
+          class="input" />
+      </label>
+      <label>
+        <span>Value</span>
+        <Input
+          @type="text"
+          @value={{this.value}}
+          class="input" />
+      </label>
+    </div>
+    <footer>
+      <button
+        class="button is-primary" type="submit">Add Variable</button>
+        {{!-- TODO: conditionally pluralize "Variable" if multiple are being created at once --}}
+    </footer>
+  </form>
