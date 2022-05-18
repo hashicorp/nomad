@@ -135,6 +135,7 @@ module('Acceptance | evaluations list', function (hooks) {
     assert
       .dom('[data-test-no-eval]')
       .exists('We display a message saying there are no evaluations.');
+    await percySnapshot(assert);
   });
 
   test('it renders a list of evaluations', async function (assert) {
