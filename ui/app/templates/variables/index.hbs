@@ -39,14 +39,39 @@
         </div>
       </div>
     </div>
-
-    <div class="empty-message">
-      <h3 data-test-empty-volumes-list-headline class="empty-message-headline">
-        No Secure Variables
-      </h3>
-      <p class="empty-message-body">
-        Get started by <LinkTo @route="variables">creating a new secure variable</LinkTo>
-      </p>
-    </div>
+{{log @model}}
+    {{#if @model.variables.length}}
+      <ListTable data-test-eval-table @source={{@model.variables}} as |t|>
+        <t.head>
+          <th>
+            Path
+          </th>
+          <th>
+            Namespace
+          </th>
+        </t.head>
+        <t.body as |row|>
+          {{log "row" row row.model}}
+          <tr>
+            <td>
+              {{row.model.path}}
+            </td>
+            <td>
+              {{row.model.namespace}}
+            </td>
+          </tr>
+        </t.body>
+      </ListTable>
+      TABLE
+    {{else}}
+      <div class="empty-message">
+        <h3 data-test-empty-volumes-list-headline class="empty-message-headline">
+          No Secure Variables
+        </h3>
+        <p class="empty-message-body">
+          Get started by <LinkTo @route="variables">creating a new secure variable</LinkTo>
+        </p>
+      </div>
+    {{/if}}
   {{/if}}
 </section>

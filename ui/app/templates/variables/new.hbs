@@ -1,43 +1,5 @@
 {{page-title "New Secure Variable"}}
 <Breadcrumb @crumb={{hash label="New" args=(array "variables.new")}} />
 <section class="section">
-  <form
-    {{on "submit" this.saveNewVariable}}
-  >
-    <label>
-      <span>Path</span>
-      <input
-        type="text"
-        class="input"
-        {{!-- TODO: {{if this.parseError 'is-danger'}} --}}
-        placeholder="/path/to/variable"
-        value={{this.path}}
-      />
-    </label>
-    <label>
-      <span>Key</span>
-      <input
-        type="text"
-        class="input"
-        {{!-- TODO: {{if this.parseError 'is-danger'}} --}}
-        placeholder="/path/to/variable"
-        value={{this.key}}
-      />
-    </label>
-    <label>
-      <span>Value</span>
-      <input
-        type="text"
-        class="input"
-        {{!-- TODO: {{if this.parseError 'is-danger'}} --}}
-        placeholder="/path/to/variable"
-        value={{this.value}}
-      />
-    </label>
-    <footer>
-      <button
-        class="button is-primary" type="submit">Add Variable</button>
-        {{!-- TODO: conditionally pluralize "Variable" if multiple are being created at once --}}
-    </footer>
-  </form>
+  <SecureVariableForm @save={{action this.saveNewVariable}} />
 </section>
