@@ -1,0 +1,3 @@
+```release-note:improvement
+agent: logs are no longer buffered at startup when logging in JSON format
+```
