@@ -226,6 +226,9 @@ func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.Key
 			if err != nil {
 				return err
 			}
+			if keyMeta == nil {
+				return k.srv.replySetIndex(state.TableRootKeyMeta, &reply.QueryMeta)
+			}
 
 			// TODO: retrieve the key material from the keyring
 			key := &structs.RootKey{
@@ -233,9 +236,6 @@ func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.Key
 				Key:  []byte{},
 			}
 			reply.Key = key
-
-			// TODO: should this be the table index or the ModifyIndex?
-			// return k.srv.replySetIndex(state.TableRootKeyMeta, &reply.QueryMeta)
 			reply.Index = keyMeta.ModifyIndex
 			return nil
 		},
