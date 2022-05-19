@@ -17,44 +17,57 @@ func TestValidateCommand_Implements(t *testing.T) {
 	var _ cli.Command = &JobValidateCommand{}
 }
 
-func TestValidateCommand(t *testing.T) {
+func TestValidateCommand_Files(t *testing.T) {
 	ci.Parallel(t)
-	// Create a server
-	s := testutil.NewTestServer(t, nil)
+
+	// Create a Vault server
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	// Create a Nomad server
+	s := testutil.NewTestServer(t, func(c *testutil.TestServerConfig) {
+		c.Vault.Address = v.HTTPAddr
+		c.Vault.Enabled = true
+		c.Vault.AllowUnauthenticated = false
+		c.Vault.Token = v.RootToken
+	})
 	defer s.Stop()
 
-	ui := cli.NewMockUi()
-	cmd := &JobValidateCommand{Meta: Meta{Ui: ui, flagAddress: "http://" + s.HTTPAddr}}
+	t.Run("basic", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobValidateCommand{Meta: Meta{Ui: ui, flagAddress: "http://" + s.HTTPAddr}}
+		args := []string{"testdata/example-basic.nomad"}
+		code := cmd.Run(args)
+		require.Equal(t, 0, code)
+	})
 
-	fh, err := ioutil.TempFile("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Remove(fh.Name())
-	_, err = fh.WriteString(`
-job "job1" {
-	type = "service"
-	datacenters = [ "dc1" ]
-	group "group1" {
-		count = 1
-		task "task1" {
-			driver = "exec"
-			config {
-				command = "/bin/sleep"
-			}
-			resources {
-				cpu = 1000
-				memory = 512
-			}
-		}
-	}
-}`)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if code := cmd.Run([]string{fh.Name()}); code != 0 {
-		t.Fatalf("expect exit 0, got: %d: %s", code, ui.ErrorWriter.String())
-	}
+	t.Run("vault no token", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobValidateCommand{Meta: Meta{Ui: ui}}
+		args := []string{"-address", "http://" + s.HTTPAddr, "testdata/example-vault.nomad"}
+		code := cmd.Run(args)
+		require.Contains(t, ui.ErrorWriter.String(), "* Vault used in the job but missing Vault token")
+		require.Equal(t, 1, code)
+	})
+
+	t.Run("vault bad token via flag", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobValidateCommand{Meta: Meta{Ui: ui}}
+		args := []string{"-address", "http://" + s.HTTPAddr, "-vault-token=abc123", "testdata/example-vault.nomad"}
+		code := cmd.Run(args)
+		require.Contains(t, ui.ErrorWriter.String(), "* bad token")
+		require.Equal(t, 1, code)
+	})
+
+	t.Run("vault token bad via env", func(t *testing.T) {
+		t.Setenv("VAULT_TOKEN", "abc123")
+		ui := cli.NewMockUi()
+		cmd := &JobValidateCommand{Meta: Meta{Ui: ui}}
+		args := []string{"-address", "http://" + s.HTTPAddr, "testdata/example-vault.nomad"}
+		code := cmd.Run(args)
+		require.Contains(t, ui.ErrorWriter.String(), "* bad token")
+		require.Equal(t, 1, code)
+	})
 }
 
 func TestValidateCommand_Fails(t *testing.T) {
