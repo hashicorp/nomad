@@ -1161,6 +1161,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 
 	conf.LogFile = agentConfig.LogFile
+	conf.DefaultIneligible = agentConfig.Client.DefaultIneligible
+
 	return conf, nil
 }
 

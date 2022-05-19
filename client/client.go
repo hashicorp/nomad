@@ -1750,6 +1750,12 @@ func (c *Client) setupNode() error {
 		return fmt.Errorf("error syncing dynamic node metadata: %w", err)
 	}
 
+	if c.config.DefaultIneligible {
+		node.SchedulingEligibility = structs.NodeSchedulingIneligible
+	} else {
+		node.SchedulingEligibility = structs.NodeSchedulingEligible
+	}
+
 	c.config = newConfig
 	return nil
 }
