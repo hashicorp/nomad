@@ -11,6 +11,7 @@ project "nomad" {
     release_branches = [
       "main",
       "release/1.1.x",
+      "release/1.1.14",
     ]
   }
 }
