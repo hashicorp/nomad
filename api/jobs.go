@@ -441,8 +441,8 @@ func (j *Jobs) Revert(jobID string, version uint64, enforcePriorVersion *uint64,
 		JobID:               jobID,
 		JobVersion:          version,
 		EnforcePriorVersion: enforcePriorVersion,
-		// ConsulToken:         consulToken, // TODO(shoenig) enable!
-		VaultToken: vaultToken,
+		ConsulToken:         consulToken,
+		VaultToken:          vaultToken,
 	}
 	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/revert", req, &resp, q)
 	if err != nil {
