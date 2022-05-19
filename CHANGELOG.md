@@ -1,3 +1,13 @@
+## 1.3.1 (May 19, 2022)
+
+SECURITY:
+
+* A vulnerability was identified in the go-getter library that Nomad uses for its artifacts such that a specially crafted Nomad jobspec can be used for privilege escalation onto client agent hosts. [CVE-2022-30324](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-30324) [[GH-13057](https://github.com/hashicorp/nomad/issues/13057)]
+
+BUG FIXES:
+
+* agent: fixed a panic on startup when the `server.protocol_version` config parameter was set [[GH-12962](https://github.com/hashicorp/nomad/issues/12962)]
+
 ## 1.3.0 (May 11, 2022)
 
 FEATURES:
