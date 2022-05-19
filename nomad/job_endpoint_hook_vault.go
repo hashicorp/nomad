@@ -10,7 +10,7 @@ import (
 	vapi "github.com/hashicorp/vault/api"
 )
 
-// jobVaultHook is an job registration admission controllver for Vault blocks.
+// jobVaultHook is an job registration admission controller for Vault blocks.
 type jobVaultHook struct {
 	srv *Server
 }
@@ -62,7 +62,7 @@ func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
 }
 
 // validatePolicies returns an error if the job contains Vault blocks that
-// require policies that the requirest token is not allowed to access.
+// require policies that the request token is not allowed to access.
 func (jobVaultHook) validatePolicies(
 	blocks map[string]map[string]*structs.Vault,
 	token *vapi.Secret,
