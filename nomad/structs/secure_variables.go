@@ -1,6 +1,10 @@
 package structs
 
-import "time"
+import (
+	"time"
+
+	"github.com/hashicorp/nomad/helper/uuid"
+)
 
 // SecureVariable is the metadata envelope for a Secure Variable
 type SecureVariable struct {
@@ -149,6 +153,23 @@ type RootKeyMeta struct {
 	CreateTime       time.Time
 	CreateIndex      uint64
 	ModifyIndex      uint64
+}
+
+// NewRootKeyMeta returns a new RootKeyMeta with default values
+func NewRootKeyMeta() *RootKeyMeta {
+	return &RootKeyMeta{
+		KeyID:      uuid.Generate(),
+		Algorithm:  EncryptionAlgorithmXChaCha20,
+		CreateTime: time.Now(),
+	}
+}
+
+func (rkm *RootKeyMeta) Copy() *RootKeyMeta {
+	if rkm == nil {
+		return nil
+	}
+	out := *rkm
+	return &out
 }
 
 // EncryptionAlgorithm chooses which algorithm is used for
