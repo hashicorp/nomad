@@ -280,6 +280,7 @@ type endpoints struct {
 	Event               *Event
 	Namespace           *Namespace
 	SecureVariables     *SecureVariables
+	Keyring             *Keyring
 	ServiceRegistration *ServiceRegistration
 
 	// Client endpoints
@@ -1148,6 +1149,9 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 // setupRpcServer is used to populate an RPC server with endpoints
 func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	// Add the static endpoints to the RPC server.
+
+	encrypter := NewEncrypter()
+
 	if s.staticEndpoints.Status == nil {
 		// Initialize the list just once
 		s.staticEndpoints.ACL = &ACL{srv: s, logger: s.logger.Named("acl")}
@@ -1164,7 +1168,8 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.System = &System{srv: s, logger: s.logger.Named("system")}
 		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
 		s.staticEndpoints.Namespace = &Namespace{srv: s}
-		s.staticEndpoints.SecureVariables = &SecureVariables{srv: s, logger: s.logger.Named("secure_variables"), encrypter: NewEncrypter()}
+		s.staticEndpoints.SecureVariables = &SecureVariables{srv: s, logger: s.logger.Named("secure_variables"), encrypter: encrypter}
+
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
 
 		// These endpoints are dynamic because they need access to the
@@ -1221,6 +1226,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	node := &Node{srv: s, ctx: ctx, logger: s.logger.Named("client")}
 	plan := &Plan{srv: s, ctx: ctx, logger: s.logger.Named("plan")}
 	serviceReg := &ServiceRegistration{srv: s, ctx: ctx}
+	keyringReg := &Keyring{srv: s, logger: s.logger.Named("keyring"), encrypter: encrypter}
 
 	// Register the dynamic endpoints
 	server.Register(alloc)
@@ -1229,6 +1235,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(node)
 	server.Register(plan)
 	_ = server.Register(serviceReg)
+	_ = server.Register(keyringReg)
 }
 
 // setupRaft is used to setup and initialize Raft
