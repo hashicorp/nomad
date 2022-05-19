@@ -3,9 +3,9 @@ import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 
 export default class SecureVariableFormComponent extends Component {
-  key = 'a';
-  value = 'b';
-  path = 'c';
+  // key = 'a';
+  // value = 'b';
+  // path = 'c';
 
   @action
   saveNewVariable(e) {

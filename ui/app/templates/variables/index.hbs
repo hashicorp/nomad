@@ -39,7 +39,6 @@
         </div>
       </div>
     </div>
-{{log @model}}
     {{#if @model.variables.length}}
       <ListTable data-test-eval-table @source={{@model.variables}} as |t|>
         <t.head>
@@ -51,7 +50,6 @@
           </th>
         </t.head>
         <t.body as |row|>
-          {{log "row" row row.model}}
           <tr>
             <td>
               {{row.model.path}}

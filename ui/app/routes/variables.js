@@ -1,6 +1,8 @@
 import Route from '@ember/routing/route';
-import withForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import { inject as service } from '@ember/service';
+import withForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
+import RSVP from 'rsvp';
+import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 
 export default class VariablesRoute extends Route.extend(withForbiddenState) {
   @service can;
@@ -12,7 +14,8 @@ export default class VariablesRoute extends Route.extend(withForbiddenState) {
     }
   }
   model() {
-    // TODO: Populate model from /variables
-    return {};
+    return RSVP.hash({
+      variables: this.store.findAll('var'),
+    }).catch(notifyForbidden(this));
   }
 }
