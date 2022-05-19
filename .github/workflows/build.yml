@@ -233,6 +233,7 @@ jobs:
           rpm_depends: "openssl"
           config_dir: ".release/linux/package/"
           preinstall: ".release/linux/preinst"
+          postinstall: ".release/linux/postinst"
           postremove: ".release/linux/postrm"
 
       - name: Set Package Names
