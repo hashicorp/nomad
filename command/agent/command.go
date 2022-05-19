@@ -703,6 +703,8 @@ func (c *Command) Run(args []string) int {
 	// Swap out UI implementation if json logging is enabled
 	if config.LogJson {
 		c.Ui = &logging.HcLogUI{Log: logger}
+		// Don't buffer json logs because they aren't reordered anyway.
+		logGate.Flush()
 	}
 
 	// Log config files
