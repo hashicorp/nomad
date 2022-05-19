@@ -139,7 +139,7 @@ type SecureVariablesDeleteResponse struct {
 // RootKey is used to encrypt and decrypt secure variables. It is
 // never stored in raft.
 type RootKey struct {
-	Meta RootKeyMeta
+	Meta *RootKeyMeta
 	Key  []byte // serialized to keystore as base64 blob
 }
 
@@ -214,6 +214,18 @@ type KeyringUpdateRootKeyRequest struct {
 
 type KeyringUpdateRootKeyResponse struct {
 	WriteMeta
+}
+
+// KeyringGetRootKeyRequest is used internally for key replication
+// only and for keyring restores.
+type KeyringGetRootKeyRequest struct {
+	KeyID string
+	QueryOptions
+}
+
+type KeyringGetRootKeyResponse struct {
+	Key *RootKey
+	QueryMeta
 }
 
 // KeyringUpdateRootKeyMetaRequest is used internally for key

@@ -1,6 +1,10 @@
 package nomad
 
-import "crypto/cipher"
+import (
+	"crypto/cipher"
+
+	"github.com/hashicorp/nomad/nomad/structs"
+)
 
 type Encrypter struct {
 	ciphers map[string]cipher.AEAD // map of key IDs to ciphers
@@ -26,4 +30,14 @@ func (e *Encrypter) Encrypt(unencryptedData []byte, keyID string) []byte {
 func (e *Encrypter) Decrypt(encryptedData []byte, keyID string) ([]byte, error) {
 	// TODO: actually decrypt!
 	return encryptedData, nil
+}
+
+// GenerateNewRootKey returns a new root key and its metadata.
+func (e *Encrypter) GenerateNewRootKey(algorithm structs.EncryptionAlgorithm) *structs.RootKey {
+	meta := structs.NewRootKeyMeta()
+	meta.Algorithm = algorithm
+	return &structs.RootKey{
+		Meta: meta,
+		Key:  []byte{}, // TODO: generate based on algorithm
+	}
 }
