@@ -1795,3 +1795,40 @@ func TestClient_ReconnectAllocs(t *testing.T) {
 	require.False(t, invalid, "expected alloc to not be marked invalid")
 	require.Equal(t, unknownAlloc.AllocModifyIndex, finalAlloc.AllocModifyIndex)
 }
+
+func TestClient_DefaultIneligible(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
+		c.DefaultIneligible = true
+		c.RPCHandler = s1
+	})
+	defer cleanupC1()
+
+	assert.Equal(t, structs.NodeSchedulingIneligible, c1.Node().SchedulingEligibility)
+
+	req := structs.NodeSpecificRequest{
+		NodeID:       c1.Node().ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var out structs.SingleNodeResponse
+
+	// Register should succeed
+	testutil.WaitForResult(func() (bool, error) {
+		err := s1.RPC("Node.GetNode", &req, &out)
+		if err != nil {
+			return false, err
+		}
+		if out.Node == nil {
+			return false, fmt.Errorf("missing reg")
+		}
+		assert.Equal(t, structs.NodeSchedulingIneligible, out.Node.SchedulingEligibility)
+		return out.Node.ID == req.NodeID, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}

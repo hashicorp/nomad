@@ -290,6 +290,9 @@ type Config struct {
 	// TemplateDialer is our custom HTTP dialer for consul-template. This is
 	// used for template functions which require access to the Nomad API.
 	TemplateDialer *bufconndialer.BufConnWrapper
+
+	// DefaultIneligible disables scheduling eligibility for newly-created nodes.
+	DefaultIneligible bool
 }
 
 // ClientTemplateConfig is configuration on the client specific to template
