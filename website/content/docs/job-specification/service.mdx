@@ -171,9 +171,8 @@ Connect][connect] integration.
   - `host` - Use the host IP and port.
 
 - `task` `(string: "")` - Specifies the name of the Nomad task associated with
-  this service definition. Only available on group services. Must be set if this
-  service definition represents a Consul Connect-native service and there is more
-  than one task in the task group.
+  this service definition. Only available on group services. May only be set for
+  script or gRPC checks.
 
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   the Consul service with user-defined metadata. Only available where
