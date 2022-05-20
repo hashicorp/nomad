@@ -1,17 +1,12 @@
 {{page-title "Secure Variables: " this.model.path}}
 <Breadcrumb @crumb={{this.breadcrumb}} />
 <section class="section">
-  {{!-- {{#each this.keyValues as |item|}}
-    - {{item.key}}: {{item.value}}<br />
-  {{/each}} --}}
-      <ListTable data-test-eval-table @source={{this.keyValues}} as |t|>
-        <t.body as |row|>
-          <tr>
-          <td>{{row.model.key}}</td>
-          <td>{{row.model.value}}</td>
-          </tr>
-        </t.body>
-        </ListTable>
-
+  <ListTable data-test-eval-table @source={{this.keyValues}} as |t|>
+    <t.body as |row|>
+      <tr>
+      <td>{{row.model.key}}</td>
+      <td>{{row.model.value}}</td>
+      </tr>
+    </t.body>
+  </ListTable>
 </section>
-
