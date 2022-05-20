@@ -90,6 +90,9 @@ func (s *HTTPServer) keyringUpsertRequest(resp http.ResponseWriter, req *http.Re
 	if err := decodeBody(req, &key); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
+	if key.Meta == nil {
+		return nil, CodedError(400, "decoded key did not include metadata")
+	}
 
 	decodedKey := make([]byte, base64.StdEncoding.DecodedLen(len(key.Key)))
 	_, err := base64.StdEncoding.Decode(decodedKey, []byte(key.Key))
