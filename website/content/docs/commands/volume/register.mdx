@@ -129,7 +129,7 @@ context {
   to whether these options are required or necessary.
 
   - `fs_type`: file system type (ex. `"ext4"`)
-  - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)
+  - `mount_flags`: the flags passed to `mount` (ex. `["ro", "noatime"]`)
 
 - `topology_request` <code>([TopologyRequest](#topology_request-parameters): nil)</code> -
   Specify locations (region, zone, rack, etc.)  where the provisioned
