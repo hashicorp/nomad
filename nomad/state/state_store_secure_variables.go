@@ -22,25 +22,6 @@ func (s *StateStore) SecureVariables(ws memdb.WatchSet) (memdb.ResultIterator, e
 	return iter, nil
 }
 
-func (s *StateStore) SecureVariableList() ([]structs.SecureVariableStub, error) {
-	it, err := s.SecureVariables(nil)
-	if err != nil {
-		return nil, err
-	}
-
-	svStubs := []structs.SecureVariableStub{}
-	for {
-		next := it.Next()
-		if next == nil {
-			break
-		}
-		sv := next.(*structs.SecureVariable)
-		svStubs = append(svStubs, sv.Stub())
-	}
-
-	return svStubs, nil
-}
-
 // GetSecureVariablesByNamespace returns an iterator that contains all
 // registrations belonging to the provided namespace.
 func (s *StateStore) GetSecureVariablesByNamespace(
@@ -73,6 +54,30 @@ func (s *StateStore) GetSecureVariablesByNamespaceAndPrefix(
 	return iter, nil
 }
 
+// GetSecureVariable returns an single secure variable at a given namespace and
+// path.
+func (s *StateStore) GetSecureVariable(
+	ws memdb.WatchSet, namespace, path string) (*structs.SecureVariable, error) {
+	txn := s.db.ReadTxn()
+
+	// Walk the entire table.
+	iter, err := txn.Get(TableSecureVariables, indexID, namespace, path)
+	if err != nil {
+		return nil, fmt.Errorf("secure variable lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		sv := raw.(*structs.SecureVariable)
+		return sv, nil
+	}
+	return nil, nil
+}
+
 func (s *StateStore) UpsertSecureVariables(msgType structs.MessageType, index uint64, svs []*structs.SecureVariable) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
@@ -95,9 +100,9 @@ func (s *StateStore) UpsertSecureVariables(msgType structs.MessageType, index ui
 	return txn.Commit()
 }
 
-// upsertNamespaceImpl is used to upsert a namespace
+// upsertSecureVariableImpl is used to upsert a namespace
 func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, svar *structs.SecureVariable, updated *bool) error {
-	sv := svar
+	sv := svar.Copy()
 
 	// TODO: Ensure the EncryptedData hash is non-nil. This should be done outside the state store
 	// for performance reasons, but we check here for defense in depth.
@@ -115,7 +120,7 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, svar *stru
 	}
 
 	// Setup the indexes correctly
-	now := time.Now()
+	now := time.Now().Round(0)
 	if existing != nil {
 		exist := existing.(*structs.SecureVariable)
 		if !shouldWrite(sv, exist) {
