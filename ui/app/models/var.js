@@ -1,5 +1,5 @@
 import Model from '@ember-data/model';
-import { attr, belongsTo, hasMany } from '@ember-data/model';
+import { attr } from '@ember-data/model';
 import classic from 'ember-classic-decorator';
 
 @classic
