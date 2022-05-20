@@ -290,6 +290,9 @@ type Config struct {
 	// TemplateDialer is our custom HTTP dialer for consul-template. This is
 	// used for template functions which require access to the Nomad API.
 	TemplateDialer *bufconndialer.BufConnWrapper
+
+	// Artifact configuration from the agent's config file.
+	Artifact *ArtifactConfig
 }
 
 // ClientTemplateConfig is configuration on the client specific to template
@@ -695,6 +698,7 @@ func (c *Config) Copy() *Config {
 		nc.ReservableCores = make([]uint16, len(c.ReservableCores))
 		copy(nc.ReservableCores, c.ReservableCores)
 	}
+	nc.Artifact = c.Artifact.Copy()
 	return nc
 }
 

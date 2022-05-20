@@ -7,8 +7,8 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
+	ci "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -16,11 +16,13 @@ import (
 type artifactHook struct {
 	eventEmitter ti.EventEmitter
 	logger       log.Logger
+	getter       ci.ArtifactGetter
 }
 
-func newArtifactHook(e ti.EventEmitter, logger log.Logger) *artifactHook {
+func newArtifactHook(e ti.EventEmitter, getter ci.ArtifactGetter, logger log.Logger) *artifactHook {
 	h := &artifactHook{
 		eventEmitter: e,
+		getter:       getter,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -40,7 +42,7 @@ func (h *artifactHook) doWork(req *interfaces.TaskPrestartRequest, resp *interfa
 
 		h.logger.Debug("downloading artifact", "artifact", artifact.GetterSource, "aid", aid)
 		//XXX add ctx to GetArtifact to allow cancelling long downloads
-		if err := getter.GetArtifact(req.TaskEnv, artifact); err != nil {
+		if err := h.getter.GetArtifact(req.TaskEnv, artifact); err != nil {
 
 			wrapped := structs.NewRecoverableError(
 				fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err),

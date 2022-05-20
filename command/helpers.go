@@ -463,6 +463,9 @@ func (j *JobGetter) Get(jpath string) (*api.Job, error) {
 			Src: jpath,
 			Pwd: pwd,
 			Dst: jobFile.Name(),
+
+			// This will prevent copying or writing files through symlinks
+			DisableSymlinks: true,
 		}
 
 		if err := client.Get(); err != nil {
