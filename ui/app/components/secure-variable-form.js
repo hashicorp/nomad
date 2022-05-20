@@ -3,14 +3,19 @@ import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 
 export default class SecureVariableFormComponent extends Component {
-  // key = 'a';
-  // value = 'b';
-  // path = 'c';
+  keyValues = [{ key: '', value: '' }];
+
+  @action appendRow() {
+    this.keyValues.pushObject({
+      key: '',
+      value: '',
+    });
+  }
 
   @action
   saveNewVariable(e) {
     e.preventDefault();
-    const { path, key, value } = this;
-    this.args.save({ path, key, value });
+    const { path, keyValues } = this;
+    this.args.save({ path, keyValues });
   }
 }

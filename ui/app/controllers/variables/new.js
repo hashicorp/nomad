@@ -5,8 +5,16 @@ export default class VariablesNewController extends Controller {
   @service router;
 
   @action
-  saveNewVariable({ path, key, value }) {
-    let props = { id: path, path, items: { [key]: value } };
+  saveNewVariable({ path, keyValues }) {
+    // TODO: validation
+
+    // Transform key value array into object
+    const items = keyValues.reduce((acc, { key, value }) => {
+      acc[key] = value;
+      return acc;
+    }, {});
+
+    let props = { id: path, path, items };
     this.model.setProperties(props);
     this.model.save().then(() => {
       this.router.transitionTo('variables');
