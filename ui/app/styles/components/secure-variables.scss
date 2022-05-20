@@ -1,0 +1,11 @@
+.new-secure-variables {
+  & > div {
+    margin-bottom: 1rem;
+  }
+  .key-value {
+    display: grid;
+    grid-template-columns: 1fr 4fr auto;
+    gap: 1rem;
+    align-items: end;
+  }
+}
