@@ -158,8 +158,9 @@ Connect][connect] integration.
   - `host` - Use the host IP and port.
 
 - `task` `(string: "")` - Specifies the name of the Nomad task associated with
-  this service definition. Only available on group services. May only be set for
-  script or gRPC checks.
+  this service definition. Only available on group services. Must be set if this
+  service definition represents a Consul Connect-native service and there is more
+  than one task in the task group.
 
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   the Consul service with user-defined metadata.
@@ -280,7 +281,7 @@ scripts.
   check. Scripts are executed within the task's environment, and
   `check_restart` stanzas will apply to the specified task. For `checks` on group
   level `services` only. Inherits the [`service.task`][service_task] value if not
-  set.
+  set. May only be set for script or gRPC checks.
 
 - `timeout` `(string: <required>)` - Specifies how long Consul will wait for a
   health check query to succeed. This is specified using a label suffix like
