@@ -3368,6 +3368,77 @@ func TestFSM_DeleteServiceRegistrationsByNodeID(t *testing.T) {
 	assert.Nil(t, out)
 }
 
+func TestFSM_SnapshotRestore_SecureVariables(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create our initial FSM which will be snapshotted.
+	fsm := testFSM(t)
+	testState := fsm.State()
+
+	// Generate and upsert some secure variables.
+	msvs := mock.SecureVariables(3, 3)
+	svs := msvs.List()
+	require.NoError(t, testState.UpsertSecureVariables(structs.MsgTypeTestSetup, 10, svs))
+
+	// Update the mock secure variables data with the actual create information
+	iter, err := testState.SecureVariables(memdb.NewWatchSet())
+	require.NoError(t, err)
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		sv := raw.(*structs.SecureVariable)
+		msvs[sv.Path].UnencryptedData = nil
+		msvs[sv.Path].CreateIndex = sv.CreateIndex
+		msvs[sv.Path].CreateTime = sv.CreateTime
+		msvs[sv.Path].ModifyIndex = sv.ModifyIndex
+		msvs[sv.Path].ModifyTime = sv.ModifyTime
+	}
+	svs = msvs.List()
+
+	// List the secure variables from restored state and ensure everything
+	// is as expected.
+
+	// Perform a snapshot restore.
+	restoredFSM := testSnapshotRestore(t, fsm)
+	restoredState := restoredFSM.State()
+
+	// List the secure variables from restored state and ensure everything
+	// is as expected.
+	iter, err = restoredState.SecureVariables(memdb.NewWatchSet())
+	require.NoError(t, err)
+
+	var restoredSVs []*structs.SecureVariable
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		restoredSVs = append(restoredSVs, raw.(*structs.SecureVariable))
+	}
+	require.ElementsMatch(t, restoredSVs, svs)
+}
+
+func TestFSM_UpsertSecureVariable(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+
+	// Generate and upsert some secure variables.
+	msvs := mock.SecureVariables(2, 2)
+	svs := msvs.List()
+
+	// Build and apply our message.
+	req := structs.SecureVariablesUpsertRequest{Data: svs}
+	buf, err := structs.Encode(structs.SecureVariableUpsertRequestType, req)
+	assert.Nil(t, err)
+	assert.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// Check that both variables are found within state.
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().GetSecureVariable(ws, svs[0].Namespace, svs[0].Path)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+
+	out, err = fsm.State().GetSecureVariable(ws, svs[1].Namespace, svs[1].Path)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+}
+
 func TestFSM_ACLEvents(t *testing.T) {
 	ci.Parallel(t)
 
