@@ -22,3 +22,189 @@ func (s *StateStore) SecureVariables(ws memdb.WatchSet) (memdb.ResultIterator, e
 	return iter, nil
 }
 
+func (s *StateStore) SecureVariableList() ([]structs.SecureVariableStub, error) {
+	it, err := s.SecureVariables(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	svStubs := []structs.SecureVariableStub{}
+	for {
+		next := it.Next()
+		if next == nil {
+			break
+		}
+		sv := next.(*structs.SecureVariable)
+		svStubs = append(svStubs, sv.Stub())
+	}
+
+	return svStubs, nil
+}
+
+// GetSecureVariablesByNamespace returns an iterator that contains all
+// registrations belonging to the provided namespace.
+func (s *StateStore) GetSecureVariablesByNamespace(
+	ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	// Walk the entire table.
+	iter, err := txn.Get(TableSecureVariables, indexID+"_prefix", namespace, "")
+	if err != nil {
+		return nil, fmt.Errorf("secure variable lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// GetSecureVariablesByNamespace returns an iterator that contains all
+// registrations belonging to the provided namespace.
+func (s *StateStore) GetSecureVariablesByNamespaceAndPrefix(
+	ws memdb.WatchSet, namespace, prefix string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	// Walk the entire table.
+	iter, err := txn.Get(TableSecureVariables, indexID+"_prefix", namespace, prefix)
+	if err != nil {
+		return nil, fmt.Errorf("secure variable lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+func (s *StateStore) UpsertSecureVariables(msgType structs.MessageType, index uint64, svs []*structs.SecureVariable) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	var updated bool = false
+	for _, sv := range svs {
+		if err := s.upsertSecureVariableImpl(index, txn, sv, &updated); err != nil {
+			return err
+		}
+	}
+
+	if !updated {
+		return nil
+	}
+
+	if err := txn.Insert(tableIndex, &IndexEntry{TableSecureVariables, index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	return txn.Commit()
+}
+
+// upsertNamespaceImpl is used to upsert a namespace
+func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, svar *structs.SecureVariable, updated *bool) error {
+	sv := svar
+
+	// TODO: Ensure the EncryptedData hash is non-nil. This should be done outside the state store
+	// for performance reasons, but we check here for defense in depth.
+	// if len(sv.Hash) == 0 {
+	// 	sv.SetHash()
+	// }
+
+	// For maximum safety, nil UnencryptedData
+	sv.UnencryptedData = nil
+
+	// Check if the secure variable already exists
+	existing, err := txn.First(TableSecureVariables, indexID, sv.Namespace, sv.Path)
+	if err != nil {
+		return fmt.Errorf("secure variable lookup failed: %v", err)
+	}
+
+	// Setup the indexes correctly
+	now := time.Now()
+	if existing != nil {
+		exist := existing.(*structs.SecureVariable)
+		if !shouldWrite(sv, exist) {
+			*updated = false
+			return nil
+		}
+		sv.CreateIndex = exist.CreateIndex
+		sv.CreateTime = exist.CreateTime
+		sv.ModifyIndex = index
+		sv.ModifyTime = now
+
+	} else {
+		sv.CreateIndex = index
+		sv.CreateTime = now
+		sv.ModifyIndex = index
+		sv.ModifyTime = now
+	}
+
+	// Insert the secure variable
+	if err := txn.Insert(TableSecureVariables, sv); err != nil {
+		return fmt.Errorf("secure variable insert failed: %v", err)
+	}
+	*updated = true
+	return nil
+}
+
+// shouldWrite can be used to determine if a write needs to happen.
+func shouldWrite(sv, existing *structs.SecureVariable) bool {
+	if existing == nil {
+		return true
+	}
+	if sv.Equals(*existing) {
+		return false
+	}
+	return true
+}
+
+func (s *StateStore) DeleteSecureVariables(msgType structs.MessageType, index uint64, namespace string, paths []string) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	err := s.DeleteSecureVariablesTxn(index, namespace, paths, txn)
+	if err == nil {
+		return txn.Commit()
+	}
+	return err
+}
+
+func (s *StateStore) DeleteSecureVariablesTxn(index uint64, namespace string, paths []string, txn Txn) error {
+	for _, path := range paths {
+		err := s.DeleteSecureVariableTxn(index, namespace, path, txn)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// DeleteSecureVariable is used to delete a single secure variable
+func (s *StateStore) DeleteSecureVariable(index uint64, namespace, path string) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	err := s.DeleteSecureVariableTxn(index, namespace, path, txn)
+	if err == nil {
+		return txn.Commit()
+	}
+	return err
+}
+
+// DeleteSecureVariableTxn is used to delete the secure variable, like DeleteSecureVariable
+// but in a transaction.  Useful for when making multiple modifications atomically
+func (s *StateStore) DeleteSecureVariableTxn(index uint64, namespace, path string, txn Txn) error {
+	// Lookup the launch
+	existing, err := txn.First(TableSecureVariables, indexID, namespace, path)
+	if err != nil {
+		return fmt.Errorf("secure variable lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("secure variable not found")
+	}
+
+	// Delete the launch
+	if err := txn.Delete(TableSecureVariables, existing); err != nil {
+		return fmt.Errorf("secure variable delete failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{TableSecureVariables, index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	return nil
+}
