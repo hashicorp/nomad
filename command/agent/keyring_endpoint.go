@@ -21,18 +21,13 @@ func (s *HTTPServer) KeyringRequest(resp http.ResponseWriter, req *http.Request)
 		case http.MethodGet:
 			return s.keyringListRequest(resp, req)
 		case http.MethodPost, http.MethodPut:
-			return s.keyringUpsertRequest(resp, req, "")
+			return s.keyringUpsertRequest(resp, req)
 		default:
 			return nil, CodedError(405, ErrInvalidMethod)
 		}
 	case strings.HasPrefix(path, "key"):
 		keyID := strings.TrimPrefix(req.URL.Path, "/v1/operator/keyring/key/")
 		switch req.Method {
-		case http.MethodPost, http.MethodPut:
-			// the request body includes the key ID, so the POST keys/ path
-			// works fine, but this gives a little flexibility to HTTP API
-			// callers and makes delete feel more consistent
-			return s.keyringUpsertRequest(resp, req, keyID)
 		case http.MethodDelete:
 			return s.keyringDeleteRequest(resp, req, keyID)
 		default:
@@ -89,14 +84,11 @@ func (s *HTTPServer) keyringRotateRequest(resp http.ResponseWriter, req *http.Re
 	return out, nil
 }
 
-func (s *HTTPServer) keyringUpsertRequest(resp http.ResponseWriter, req *http.Request, keyID string) (interface{}, error) {
+func (s *HTTPServer) keyringUpsertRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 
 	var key api.RootKey
 	if err := decodeBody(req, &key); err != nil {
 		return nil, CodedError(400, err.Error())
-	}
-	if keyID != "" {
-		key.Meta.KeyID = keyID
 	}
 
 	decodedKey := make([]byte, base64.StdEncoding.DecodedLen(len(key.Key)))
