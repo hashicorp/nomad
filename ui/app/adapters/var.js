@@ -3,7 +3,6 @@ import { isArray } from '@ember/array';
 
 export default class VarAdapter extends ApplicationAdapter {
   handleResponse(_status, _headers, response) {
-    console.log('handling var response', _status, _headers, response);
     const successful = ('' + _status).startsWith(2);
     if (successful) {
       if (response) {
