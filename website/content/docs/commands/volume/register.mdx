@@ -118,7 +118,7 @@ context {
   to whether these options are required or necessary.
 
   - `fs_type`: file system type (ex. `"ext4"`)
-  - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)
+  - `mount_flags`: the flags passed to `mount` (ex. `["ro", "noatime"]`)
 
 - `secrets` <code>(map<string|string>:nil)</code> - An optional
   key-value map of strings used as credentials for publishing and
