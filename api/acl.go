@@ -83,29 +83,17 @@ func (a *ACLTokens) Bootstrap(q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	return &resp, wm, nil
 }
 
-type BootstrapRequest struct {
-	BootstrapSecret string
-}
-
-// Sets the bootstrap token header from the recieved token
-func (q *WriteOptions) SetHeadersFromBootstrapSecret(bootstraptoken string) {
-	if q.Headers == nil {
-		q.Headers = map[string]string{}
-	}
-	q.Headers["X-Nomad-Bootstrap-Token"] = bootstraptoken
-}
-
 // BootstrapOpts is used to get the initial bootstrap token or pass in the one that was provided in the API
-func (a *ACLTokens) BootstrapOpts(req *BootstrapRequest, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
+func (a *ACLTokens) BootstrapOpts(btoken string, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	if q == nil {
 		q = &WriteOptions{}
 	}
-	var resp ACLToken
-	// Test if token is in the request.
-	if req != nil {
-		q.SetHeadersFromBootstrapSecret(req.BootstrapSecret)
+	req := &BootstrapRequest{
+		BootstrapSecret: btoken,
 	}
-	wm, err := a.client.write("/v1/acl/bootstrap", nil, &resp, q)
+
+	var resp ACLToken
+	wm, err := a.client.write("/v1/acl/bootstrap", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -273,4 +261,9 @@ type OneTimeTokenExchangeRequest struct {
 
 type OneTimeTokenExchangeResponse struct {
 	Token *ACLToken
+}
+
+// Bootstraorequest is used to when operstors priovide an ACL Bootstrap Token
+type BootstrapRequest struct {
+	BootstrapSecret string
 }
