@@ -107,6 +107,12 @@ func (sv SecureVariable) Validate() error {
 	return nil
 }
 
+func (sv *SecureVariable) Canonicalize() {
+	if sv.Namespace == "" {
+		sv.Namespace = DefaultNamespace
+	}
+}
+
 // GetNamespace returns the secure variable's namespace. Used for pagination.
 func (sv SecureVariable) GetNamespace() string {
 	return sv.Namespace

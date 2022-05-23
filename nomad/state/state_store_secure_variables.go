@@ -119,6 +119,8 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, svar *stru
 		return fmt.Errorf("secure variable lookup failed: %v", err)
 	}
 
+	sv.Canonicalize()
+
 	// Setup the indexes correctly
 	now := time.Now().Round(0)
 	if existing != nil {
