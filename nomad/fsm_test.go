@@ -3414,31 +3414,6 @@ func TestFSM_SnapshotRestore_SecureVariables(t *testing.T) {
 	require.ElementsMatch(t, restoredSVs, svs)
 }
 
-func TestFSM_UpsertSecureVariable(t *testing.T) {
-	ci.Parallel(t)
-	fsm := testFSM(t)
-
-	// Generate and upsert some secure variables.
-	msvs := mock.SecureVariables(2, 2)
-	svs := msvs.List()
-
-	// Build and apply our message.
-	req := structs.SecureVariablesUpsertRequest{Data: svs}
-	buf, err := structs.Encode(structs.SecureVariableUpsertRequestType, req)
-	assert.Nil(t, err)
-	assert.Nil(t, fsm.Apply(makeLog(buf)))
-
-	// Check that both variables are found within state.
-	ws := memdb.NewWatchSet()
-	out, err := fsm.State().GetSecureVariable(ws, svs[0].Namespace, svs[0].Path)
-	assert.Nil(t, err)
-	assert.NotNil(t, out)
-
-	out, err = fsm.State().GetSecureVariable(ws, svs[1].Namespace, svs[1].Path)
-	assert.Nil(t, err)
-	assert.NotNil(t, out)
-}
-
 func TestFSM_ACLEvents(t *testing.T) {
 	ci.Parallel(t)
 
