@@ -249,8 +249,8 @@ func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) (newCa
 	if ok {
 		if latestEvalIndex(existingW.eval) <= latestEvalIndex(eval) {
 			delete(b.captured, existingID)
-			b.stats.Unblock(eval)
 			dup = existingW.eval
+			b.stats.Unblock(dup)
 		} else {
 			dup = eval
 			newCancelled = true
