@@ -187,11 +187,16 @@ config {
   ```
 
 - `load` - (Optional) Load an image from a `tar` archive file instead of from a
-  remote repository. Equivalent to the `docker load -i <filename>` command.
+  remote repository. Equivalent to the `docker load -i <filename>` command. If
+  you're using an `artifact` block to fetch the archive file, you'll need to
+  ensure that Nomad keeps the archive intact after download.
 
   ```hcl
   artifact {
     source = "http://path.to/redis.tar"
+    options {
+      archive = false
+    }
   }
   config {
     load = "redis.tar"
