@@ -60,22 +60,17 @@ func (s *StateStore) GetSecureVariable(
 	ws memdb.WatchSet, namespace, path string) (*structs.SecureVariable, error) {
 	txn := s.db.ReadTxn()
 
-	// Walk the entire table.
-	iter, err := txn.Get(TableSecureVariables, indexID, namespace, path)
-	if err != nil {
+	// Try to fetch the secure variable.
+	raw, err := txn.First(TableSecureVariables, indexID, namespace, path)
+	if err != nil { // error during fetch
 		return nil, fmt.Errorf("secure variable lookup failed: %v", err)
 	}
-	ws.Add(iter.WatchCh())
-
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		sv := raw.(*structs.SecureVariable)
-		return sv, nil
+	if raw == nil { // not found
+		return nil, nil
 	}
-	return nil, nil
+
+	sv := raw.(*structs.SecureVariable)
+	return sv, nil
 }
 
 func (s *StateStore) UpsertSecureVariables(msgType structs.MessageType, index uint64, svs []*structs.SecureVariable) error {
