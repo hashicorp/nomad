@@ -1088,7 +1088,10 @@ func (s *Server) setupVaultClient() error {
 // setupRPC is used to setup the RPC listener
 func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	// Populate the static RPC server
-	s.setupRpcServer(s.rpcServer, nil)
+	err := s.setupRpcServer(s.rpcServer, nil)
+	if err != nil {
+		return err
+	}
 
 	listener, err := s.createRPCListener()
 	if err != nil {
@@ -1147,11 +1150,15 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 }
 
 // setupRpcServer is used to populate an RPC server with endpoints
-func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
+func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
+
+	// Set up the keyring
+	encrypter, err := NewEncrypter(filepath.Join(s.config.DataDir, "server", "keystore"))
+	if err != nil {
+		return err
+	}
+
 	// Add the static endpoints to the RPC server.
-
-	encrypter := NewEncrypter(os.TempDir()) // TODO
-
 	if s.staticEndpoints.Status == nil {
 		// Initialize the list just once
 		s.staticEndpoints.ACL = &ACL{srv: s, logger: s.logger.Named("acl")}
@@ -1236,6 +1243,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(plan)
 	_ = server.Register(serviceReg)
 	_ = server.Register(keyringReg)
+	return nil
 }
 
 // setupRaft is used to setup and initialize Raft
