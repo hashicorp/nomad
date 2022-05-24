@@ -26,7 +26,7 @@ export default class VariableAdapter extends ApplicationAdapter {
   }
   // PUT instead of POST on create;
   // /v1/var instead of /v1/vars on create (urlForFindRecord)
-  createRecord(snapshot) {
+  createRecord(_store, _type, snapshot) {
     let data = this.serialize(snapshot);
     return this.ajax(
       this.urlForFindRecord(snapshot.id, snapshot.modelName),
@@ -35,7 +35,6 @@ export default class VariableAdapter extends ApplicationAdapter {
     );
   }
 
-  // TODO: seems like I shouldn't need both here??
   urlForFindAll(modelName) {
     let baseUrl = this.buildURL(modelName);
     return pluralize(baseUrl);
