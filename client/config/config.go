@@ -268,6 +268,9 @@ type Config struct {
 
 	// ReservableCores if set overrides the set of reservable cores reported in fingerprinting.
 	ReservableCores []uint16
+
+	// Artifact configuration from the agent's config file.
+	Artifact *ArtifactConfig
 }
 
 type ClientTemplateConfig struct {
@@ -300,6 +303,7 @@ func (c *Config) Copy() *Config {
 		nc.ReservableCores = make([]uint16, len(c.ReservableCores))
 		copy(nc.ReservableCores, c.ReservableCores)
 	}
+	nc.Artifact = c.Artifact.Copy()
 	return nc
 }
 

@@ -233,6 +233,9 @@ type TaskRunner struct {
 	networkIsolationSpec *drivers.NetworkIsolationSpec
 
 	allocHookResources *cstructs.AllocHookResources
+
+	// getter is an interface for retrieving artifacts.
+	getter cinterfaces.ArtifactGetter
 }
 
 type Config struct {
@@ -287,6 +290,9 @@ type Config struct {
 
 	// startConditionMetCtx is done when TR should start the task
 	StartConditionMetCtx <-chan struct{}
+
+	// Getter is an interface for retrieving artifacts.
+	Getter cinterfaces.ArtifactGetter
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -342,6 +348,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		maxEvents:              defaultMaxEvents,
 		serversContactedCh:     config.ServersContactedCh,
 		startConditionMetCtx:   config.StartConditionMetCtx,
+		getter:                 config.Getter,
 	}
 
 	// Create the logger based on the allocation ID

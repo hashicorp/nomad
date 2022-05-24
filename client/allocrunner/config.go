@@ -80,4 +80,7 @@ type Config struct {
 	// RPCClient is the RPC Client that should be used by the allocrunner and its
 	// hooks to communicate with Nomad Servers.
 	RPCClient RPCer
+
+	// Getter is an interface for retrieving artifacts.
+	Getter interfaces.ArtifactGetter
 }
