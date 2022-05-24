@@ -1150,7 +1150,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	// Add the static endpoints to the RPC server.
 
-	encrypter := NewEncrypter()
+	encrypter := NewEncrypter(os.TempDir()) // TODO
 
 	if s.staticEndpoints.Status == nil {
 		// Initialize the list just once
