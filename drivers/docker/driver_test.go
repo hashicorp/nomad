@@ -2844,6 +2844,32 @@ func TestDockerDriver_memoryLimits(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_cgroupParent(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("v1", func(t *testing.T) {
+		testutil.CgroupsCompatibleV1(t)
+
+		parent := cgroupParent(&drivers.Resources{
+			LinuxResources: &drivers.LinuxResources{
+				CpusetCgroupPath: "/sys/fs/cgroup/cpuset/nomad",
+			},
+		})
+		require.Equal(t, "", parent)
+	})
+
+	t.Run("v2", func(t *testing.T) {
+		testutil.CgroupsCompatibleV2(t)
+
+		parent := cgroupParent(&drivers.Resources{
+			LinuxResources: &drivers.LinuxResources{
+				CpusetCgroupPath: "/sys/fs/cgroup/nomad.slice",
+			},
+		})
+		require.Equal(t, "nomad.slice", parent)
+	})
+}
+
 func TestDockerDriver_parseSignal(t *testing.T) {
 	ci.Parallel(t)
 
