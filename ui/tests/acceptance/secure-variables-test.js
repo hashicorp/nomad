@@ -23,7 +23,7 @@ module('Acceptance | secure variables', function (hooks) {
     assert.ok(Layout.gutter.variables.isHidden);
   });
 
-  test.only('it allows access for management level tokens', async function (assert) {
+  test('it allows access for management level tokens', async function (assert) {
     defaultScenario(server);
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await Variables.visit();
