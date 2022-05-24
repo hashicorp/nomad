@@ -23,10 +23,6 @@ type SecureVariables struct {
 	srv       *Server
 	logger    hclog.Logger
 	encrypter *Encrypter
-
-	// ctx provides context regarding the underlying connection, so we can
-	// perform TLS certificate validation on internal only endpoints.
-	ctx *RPCContext
 }
 
 // Upsert creates or updates secure variables held within Nomad.
@@ -40,44 +36,17 @@ func (sv *SecureVariables) Upsert(
 	defer metrics.MeasureSince([]string{"nomad", "secure_variables", "upsert"}, time.Now())
 
 	// Perform the ACL token resolution.
-	aclObj, err := sv.srv.ResolveToken(args.AuthToken)
-
-	switch err {
-	case nil:
-		// If ACLs are enabled, ensure the caller has the submit-job namespace
-		// capability.
-		if aclObj != nil {
-			hasSubmitJob := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob)
-			if !hasSubmitJob {
-				return structs.ErrPermissionDenied
-			}
-		}
-	default:
-		// This endpoint is generally called by Nomad nodes, so we want to
-		// perform this check, unless the token resolution gave us a terminal
-		// error.
-		if err != structs.ErrTokenNotFound {
-			return err
-		}
-
-		// Attempt to lookup AuthToken as a Node.SecretID and return any error
-		// wrapped along with the original.
-		node, stateErr := sv.srv.fsm.State().NodeBySecretID(nil, args.AuthToken)
-		if stateErr != nil {
-			var mErr multierror.Error
-			mErr.Errors = append(mErr.Errors, err, stateErr)
-			return mErr.ErrorOrNil()
-		}
-
-		// At this point, we do not have a valid ACL token, nor are we being
-		// called, or able to confirm via the state store, by a node.
-		if node == nil {
-			return structs.ErrTokenNotFound
+	if aclObj, err := sv.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil {
+		// FIXME: Temporary ACL Test policy. Update once implementation complete
+		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+			return structs.ErrPermissionDenied
 		}
 	}
 
 	// Use a multierror, so we can capture all validation errors and pass this
-	// back so fixing in a single swoop.
+	// back so they can be addressed by the caller in a single pass.
 	var mErr multierror.Error
 
 	// Iterate the secure variables and validate them. Any error results in the
@@ -85,9 +54,11 @@ func (sv *SecureVariables) Upsert(
 	for _, i := range args.Data {
 		if err := i.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
+			continue
 		}
 		if err := sv.encrypt(i); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
+			continue
 		}
 	}
 	if err := mErr.ErrorOrNil(); err != nil {
@@ -112,8 +83,7 @@ func (sv *SecureVariables) Upsert(
 }
 
 // Delete removes a single secure variable, as specified by its namespace and
-// path from Nomad. This is typically called by Nomad nodes, however, in extreme
-// situations can be used via the CLI and API by operators.
+// path from Nomad.
 func (sv *SecureVariables) Delete(
 	args *structs.SecureVariablesDeleteRequest,
 	reply *structs.SecureVariablesDeleteResponse) error {
@@ -124,39 +94,12 @@ func (sv *SecureVariables) Delete(
 	defer metrics.MeasureSince([]string{"nomad", "secure_variables", "delete"}, time.Now())
 
 	// Perform the ACL token resolution.
-	aclObj, err := sv.srv.ResolveToken(args.AuthToken)
-
-	switch err {
-	case nil:
-		// If ACLs are enabled, ensure the caller has the submit-job namespace
-		// capability.
-		if aclObj != nil {
-			hasSubmitJob := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob)
-			if !hasSubmitJob {
-				return structs.ErrPermissionDenied
-			}
-		}
-	default:
-		// This endpoint is generally called by Nomad nodes, so we want to
-		// perform this check, unless the token resolution gave us a terminal
-		// error.
-		if err != structs.ErrTokenNotFound {
-			return err
-		}
-
-		// Attempt to lookup AuthToken as a Node.SecretID and return any error
-		// wrapped along with the original.
-		node, stateErr := sv.srv.fsm.State().NodeBySecretID(nil, args.AuthToken)
-		if stateErr != nil {
-			var mErr multierror.Error
-			mErr.Errors = append(mErr.Errors, err, stateErr)
-			return mErr.ErrorOrNil()
-		}
-
-		// At this point, we do not have a valid ACL token, nor are we being
-		// called, or able to confirm via the state store, by a node.
-		if node == nil {
-			return structs.ErrTokenNotFound
+	if aclObj, err := sv.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil {
+		// FIXME: Temporary ACL Test policy. Update once implementation complete
+		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+			return structs.ErrPermissionDenied
 		}
 	}
 
@@ -184,9 +127,13 @@ func (sv *SecureVariables) Read(args *structs.SecureVariablesReadRequest, reply 
 	}
 	defer metrics.MeasureSince([]string{"nomad", "secure_variables", "read"}, time.Now())
 
-	// Perform our mixed auth handling.
-	if err := sv.handleMixedAuthEndpoint(args.QueryOptions, acl.NamespaceCapabilityReadJob); err != nil {
+	if aclObj, err := sv.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
+	} else if aclObj != nil {
+		// FIXME: Temporary ACL Test policy. Update once implementation complete
+		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// Setup the blocking query
@@ -194,7 +141,6 @@ func (sv *SecureVariables) Read(args *structs.SecureVariablesReadRequest, reply 
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, s *state.StateStore) error {
-			// Look for the namespace
 			out, err := s.GetSecureVariable(ws, args.RequestNamespace(), args.Path)
 			if err != nil {
 				return err
@@ -209,64 +155,11 @@ func (sv *SecureVariables) Read(args *structs.SecureVariablesReadRequest, reply 
 				}
 				reply.Index = out.ModifyIndex
 			} else {
-				// Use the last index that affected the secure table
-				index, err := s.Index(state.TableSecureVariables)
-				if err != nil {
-					return err
-				}
-
-				// Ensure we never set the index to zero, otherwise a blocking query cannot be used.
-				// We floor the index at one, since realistically the first write must have a higher index.
-				if index == 0 {
-					index = 1
-				}
-				reply.Index = index
+				sv.srv.replySetIndex(state.TableSecureVariables, &reply.QueryMeta)
 			}
 			return nil
 		}}
 	return sv.srv.blockingRPC(&opts)
-}
-
-// handleMixedAuthEndpoint is a helper to handle auth on RPC endpoints that can
-// either be called by Nomad nodes, or by external clients.
-func (sv *SecureVariables) handleMixedAuthEndpoint(args structs.QueryOptions, cap string) error {
-
-	// Perform the initial token resolution.
-	aclObj, err := sv.srv.ResolveToken(args.AuthToken)
-
-	switch err {
-	case nil:
-		// Perform our ACL validation. If the object is nil, this means ACLs
-		// are not enabled, otherwise trigger the allowed namespace function.
-		if aclObj != nil {
-			if !aclObj.AllowNsOp(args.RequestNamespace(), cap) {
-				return structs.ErrPermissionDenied
-			}
-		}
-	default:
-		// In the event we got any error other than notfound, consider this
-		// terminal.
-		if err != structs.ErrTokenNotFound {
-			return err
-		}
-
-		// Attempt to lookup AuthToken as a Node.SecretID and return any error
-		// wrapped along with the original.
-		node, stateErr := sv.srv.fsm.State().NodeBySecretID(nil, args.AuthToken)
-		if stateErr != nil {
-			var mErr multierror.Error
-			mErr.Errors = append(mErr.Errors, err, stateErr)
-			return mErr.ErrorOrNil()
-		}
-
-		// At this point, we do not have a valid ACL token, nor are we being
-		// called, or able to confirm via the state store, by a node.
-		if node == nil {
-			return structs.ErrTokenNotFound
-		}
-	}
-
-	return nil
 }
 
 // List is used to list secure variables held within state. It supports single
@@ -286,9 +179,13 @@ func (sv *SecureVariables) List(
 		return sv.listAllSecureVariables(args, reply)
 	}
 
-	// Perform our mixed auth handling.
-	if err := sv.handleMixedAuthEndpoint(args.QueryOptions, acl.NamespaceCapabilityReadJob); err != nil {
+	if aclObj, err := sv.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
+	} else if aclObj != nil {
+		// FIXME: Temporary ACL Test policy. Update once implementation complete
+		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// Set up and return the blocking query.
@@ -316,8 +213,8 @@ func (sv *SecureVariables) List(
 			var svs []*structs.SecureVariableStub
 
 			// Build the paginator. This includes the function that is
-			// responsible for appending a registration to the secure variables
-			// array.
+			// responsible for appending a variable to the secure variables
+			// stubs slice.
 			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
 				func(raw interface{}) error {
 					sv := raw.(*structs.SecureVariable)
@@ -365,6 +262,7 @@ func (s *SecureVariables) listAllSecureVariables(
 	// allowFunc checks whether the caller has the read-job capability on the
 	// passed namespace.
 	allowFunc := func(ns string) bool {
+		// FIXME: Temporary ACL Test policy. Update once implementation complete
 		return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
 	}
 
