@@ -9,7 +9,7 @@ import (
 
 func (s *HTTPServer) SecureVariablesListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "GET" {
-		return nil, CodedError(405, ErrInvalidMethod)
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
 	args := structs.SecureVariablesListRequest{}
@@ -64,7 +64,7 @@ func (s *HTTPServer) secureVariableQuery(resp http.ResponseWriter, req *http.Req
 	setMeta(resp, &out.QueryMeta)
 
 	if out.Data == nil {
-		return nil, CodedError(404, "Secure variable not found")
+		return nil, CodedError(http.StatusNotFound, "Secure variable not found")
 	}
 	return out.Data, nil
 }
