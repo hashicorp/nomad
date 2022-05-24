@@ -16,6 +16,6 @@ export default class VariablesRoute extends Route.extend(withForbiddenState) {
   model() {
     return RSVP.hash({
       variables: this.store.findAll('variable'),
-    });
+    }).catch(notifyForbidden(this));
   }
 }

@@ -1,11 +1,11 @@
 import ApplicationAdapter from './application';
 import { isArray } from '@ember/array';
-import { singularize, pluralize } from 'ember-inflector';
+import { pluralize } from 'ember-inflector';
 import classic from 'ember-classic-decorator';
 
 @classic
 export default class VariableAdapter extends ApplicationAdapter {
-  pathForType(_modelName) {
+  pathForType() {
     return 'var';
   }
   handleResponse(_status, _headers, response) {
@@ -26,7 +26,7 @@ export default class VariableAdapter extends ApplicationAdapter {
   }
   // PUT instead of POST on create;
   // /v1/var instead of /v1/vars on create (urlForFindRecord)
-  createRecord(store, type, snapshot) {
+  createRecord(snapshot) {
     let data = this.serialize(snapshot);
     return this.ajax(
       this.urlForFindRecord(snapshot.id, snapshot.modelName),
@@ -36,7 +36,7 @@ export default class VariableAdapter extends ApplicationAdapter {
   }
 
   // TODO: seems like I shouldn't need both here??
-  urlForFindAll(modelName, snapshot) {
+  urlForFindAll(modelName) {
     let baseUrl = this.buildURL(modelName);
     return pluralize(baseUrl);
   }
