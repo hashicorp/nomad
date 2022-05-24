@@ -1,13 +1,20 @@
 import ApplicationAdapter from './application';
 import { isArray } from '@ember/array';
+import { singularize, pluralize } from 'ember-inflector';
+import classic from 'ember-classic-decorator';
 
-export default class VarAdapter extends ApplicationAdapter {
+@classic
+export default class VariableAdapter extends ApplicationAdapter {
+  pathForType(_modelName) {
+    return 'var';
+  }
   handleResponse(_status, _headers, response) {
     const successful = ('' + _status).startsWith(2);
     if (successful) {
       if (response) {
         if (isArray(response)) {
           response.forEach((item) => (item.ID = item.Path));
+          // TODO: do this in the serializer. Map path to id.
         } else {
           response.ID = response.Path;
         }
@@ -26,5 +33,15 @@ export default class VarAdapter extends ApplicationAdapter {
       'PUT',
       { data }
     );
+  }
+
+  // TODO: seems like I shouldn't need both here??
+  urlForFindAll(modelName, snapshot) {
+    let baseUrl = this.buildURL(modelName);
+    return pluralize(baseUrl);
+  }
+  urlForFindRecord(id, modelName, snapshot) {
+    let baseUrl = this.buildURL(modelName, id, snapshot);
+    return baseUrl;
   }
 }

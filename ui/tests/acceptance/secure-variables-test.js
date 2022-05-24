@@ -13,41 +13,41 @@ const SECURE_TOKEN_ID = '53cur3-v4r14bl35';
 module('Acceptance | secure variables', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+  hooks.beforeEach(async function () {
+    server.createList('variable', 3);
+  });
 
-  module('Guarding page access', function () {
-    test('it redirects to jobs and hides the gutter link when the token lacks permissions', async function (assert) {
-      await Variables.visit();
-      assert.equal(currentURL(), '/jobs');
-      assert.ok(Layout.gutter.variables.isHidden);
-    });
+  test('it redirects to jobs and hides the gutter link when the token lacks permissions', async function (assert) {
+    await Variables.visit();
+    assert.equal(currentURL(), '/jobs');
+    assert.ok(Layout.gutter.variables.isHidden);
+  });
 
-    test('it allows access for management level tokens', async function (assert) {
-      defaultScenario(server);
-      window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+  test.only('it allows access for management level tokens', async function (assert) {
+    defaultScenario(server);
+    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    await Variables.visit();
+    assert.equal(currentURL(), '/variables');
+    assert.ok(Layout.gutter.variables.isVisible, 'Menu section is visible');
+  });
 
-      await Variables.visit();
-      assert.equal(currentURL(), '/variables');
-      assert.ok(Layout.gutter.variables.isVisible);
-    });
+  test('it allows access for list-variables allowed ACL rules', async function (assert) {
+    assert.expect(2);
+    defaultScenario(server);
+    const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+    window.localStorage.nomadTokenSecret = variablesToken.secretId;
 
-    test('it allows access for list-variables allowed ACL rules', async function (assert) {
-      assert.expect(2);
-      defaultScenario(server);
-      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
-      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+    await Variables.visit();
+    assert.equal(currentURL(), '/variables');
+    assert.ok(Layout.gutter.variables.isVisible);
+  });
 
-      await Variables.visit();
-      assert.equal(currentURL(), '/variables');
-      assert.ok(Layout.gutter.variables.isVisible);
-    });
-
-    test('it passes an accessibility audit', async function (assert) {
-      assert.expect(1);
-      defaultScenario(server);
-      const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
-      window.localStorage.nomadTokenSecret = variablesToken.secretId;
-      await Variables.visit();
-      await a11yAudit(assert);
-    });
+  test('it passes an accessibility audit', async function (assert) {
+    assert.expect(1);
+    defaultScenario(server);
+    const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+    window.localStorage.nomadTokenSecret = variablesToken.secretId;
+    await Variables.visit();
+    await a11yAudit(assert);
   });
 });
