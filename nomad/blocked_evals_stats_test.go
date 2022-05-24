@@ -298,12 +298,14 @@ func (t testBlockedEvalsRandomBlockedEval) Generate(rand *rand.Rand, _ int) refl
 
 	// Get how many task groups, datacenters and node classes to generate.
 	// Add 1 to avoid 0.
+	jobCount := rand.Intn(3) + 1
 	tgCount := rand.Intn(10) + 1
 	dcCount := rand.Intn(3) + 1
 	nodeClassCount := rand.Intn(3) + 1
 
 	failedTGAllocs := map[string]*structs.AllocMetric{}
 
+	e.JobID = fmt.Sprintf("job-%d", jobCount)
 	for tg := 1; tg <= tgCount; tg++ {
 		tgName := fmt.Sprintf("group-%d", tg)
 
@@ -403,11 +405,24 @@ func TestBlockedEvalsStats_BlockedResources(t *testing.T) {
 	manualCount := func(testEval testBlockedEvalsRandomBlockedEval, block bool, unblockIdx uint16) *BlockedResourcesStats {
 		if block || len(evalHistory) == 0 {
 			evalHistory = append(evalHistory, testEval.eval)
+
+			// Find and unblock evals for the same job.
+			for _, e := range evalHistory {
+				if e.Namespace == testEval.eval.Namespace && e.JobID == testEval.eval.JobID {
+					blockedEvals[e.ID] = false
+				}
+			}
 			blockedEvals[testEval.eval.ID] = true
 		} else {
 			i := int(unblockIdx) % len(evalHistory)
 			eval := evalHistory[i]
-			blockedEvals[eval.ID] = false
+
+			// Find and unlock all evals for this job.
+			for _, e := range evalHistory {
+				if e.Namespace == eval.Namespace && e.JobID == eval.JobID {
+					blockedEvals[e.ID] = false
+				}
+			}
 		}
 
 		result := NewBlockedResourcesStats()
