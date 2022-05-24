@@ -76,8 +76,10 @@ GNUMakefile.local
 
 rkt-*
 
+# Common editor config
 ./idea
 *.iml
+.vscode/launch.json
 
 # UI rules
 
@@ -127,6 +129,3 @@ e2e/remotetasks/input/ecs.vars
 
 # local terraform overrides
 *.auto.tfvars
-
-# vscode config
-.vscode/launch.json
