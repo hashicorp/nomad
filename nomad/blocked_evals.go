@@ -249,8 +249,8 @@ func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) (newCa
 	if ok {
 		if latestEvalIndex(existingW.eval) <= latestEvalIndex(eval) {
 			delete(b.captured, existingID)
-			b.stats.Unblock(eval)
 			dup = existingW.eval
+			b.stats.Unblock(dup)
 		} else {
 			dup = eval
 			newCancelled = true
@@ -728,10 +728,10 @@ func (b *BlockedEvals) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "job", "memory"}, float32(v.MemoryMB), labels)
 			}
 
-			for k, v := range stats.BlockedResources.ByNodeInfo {
+			for k, v := range stats.BlockedResources.ByNode {
 				labels := []metrics.Label{
-					{Name: "datacenter", Value: k.Datacenter},
-					{Name: "node_class", Value: k.NodeClass},
+					{Name: "datacenter", Value: k.dc},
+					{Name: "node_class", Value: k.class},
 				}
 				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "cpu"}, float32(v.CPU), labels)
 				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "memory"}, float32(v.MemoryMB), labels)

@@ -21,7 +21,13 @@ type BlockedStats struct {
 
 	// BlockedResources stores the amount of resources requested by blocked
 	// evaluations.
-	BlockedResources BlockedResourcesStats
+	BlockedResources *BlockedResourcesStats
+}
+
+// node stores information related to nodes.
+type node struct {
+	dc    string
+	class string
 }
 
 // NewBlockedStats returns a new BlockedStats.
@@ -59,16 +65,16 @@ func (b *BlockedStats) prune(cutoff time.Time) {
 		}
 	}
 
-	for k, v := range b.BlockedResources.ByNodeInfo {
+	for k, v := range b.BlockedResources.ByNode {
 		if shouldPrune(v) {
-			delete(b.BlockedResources.ByNodeInfo, k)
+			delete(b.BlockedResources.ByNode, k)
 		}
 	}
 }
 
 // generateResourceStats returns a summary of the resources requested by the
 // input evaluation.
-func generateResourceStats(eval *structs.Evaluation) BlockedResourcesStats {
+func generateResourceStats(eval *structs.Evaluation) *BlockedResourcesStats {
 	dcs := make(map[string]struct{})
 	classes := make(map[string]struct{})
 
@@ -80,11 +86,9 @@ func generateResourceStats(eval *structs.Evaluation) BlockedResourcesStats {
 		for dc := range allocMetrics.NodesAvailable {
 			dcs[dc] = struct{}{}
 		}
-
 		for class := range allocMetrics.ClassExhausted {
 			classes[class] = struct{}{}
 		}
-
 		for _, r := range allocMetrics.ResourcesExhausted {
 			resources.CPU += r.CPU
 			resources.MemoryMB += r.MemoryMB
@@ -92,47 +96,48 @@ func generateResourceStats(eval *structs.Evaluation) BlockedResourcesStats {
 	}
 
 	byJob := make(map[structs.NamespacedID]BlockedResourcesSummary)
-	byJob[structs.NewNamespacedID(eval.JobID, eval.Namespace)] = resources
+	nsID := structs.NewNamespacedID(eval.JobID, eval.Namespace)
+	byJob[nsID] = resources
 
-	byNodeInfo := make(map[NodeInfo]BlockedResourcesSummary)
+	byNodeInfo := make(map[node]BlockedResourcesSummary)
 	for dc := range dcs {
 		for class := range classes {
-			k := NodeInfo{dc, class}
+			k := node{dc: dc, class: class}
 			byNodeInfo[k] = resources
 		}
 	}
 
-	return BlockedResourcesStats{
-		ByJob:      byJob,
-		ByNodeInfo: byNodeInfo,
+	return &BlockedResourcesStats{
+		ByJob:  byJob,
+		ByNode: byNodeInfo,
 	}
 }
 
-// BlockedResourcesStats stores resources requested by block evaluations
-// split into different dimensions.
+// BlockedResourcesStats stores resources requested by blocked evaluations,
+// tracked both by job and by node.
 type BlockedResourcesStats struct {
-	ByJob      map[structs.NamespacedID]BlockedResourcesSummary
-	ByNodeInfo map[NodeInfo]BlockedResourcesSummary
+	ByJob  map[structs.NamespacedID]BlockedResourcesSummary
+	ByNode map[node]BlockedResourcesSummary
 }
 
 // NewBlockedResourcesStats returns a new BlockedResourcesStats.
-func NewBlockedResourcesStats() BlockedResourcesStats {
-	return BlockedResourcesStats{
-		ByJob:      make(map[structs.NamespacedID]BlockedResourcesSummary),
-		ByNodeInfo: make(map[NodeInfo]BlockedResourcesSummary),
+func NewBlockedResourcesStats() *BlockedResourcesStats {
+	return &BlockedResourcesStats{
+		ByJob:  make(map[structs.NamespacedID]BlockedResourcesSummary),
+		ByNode: make(map[node]BlockedResourcesSummary),
 	}
 }
 
 // Copy returns a deep copy of the blocked resource stats.
-func (b BlockedResourcesStats) Copy() BlockedResourcesStats {
+func (b *BlockedResourcesStats) Copy() *BlockedResourcesStats {
 	result := NewBlockedResourcesStats()
 
 	for k, v := range b.ByJob {
-		result.ByJob[k] = v
+		result.ByJob[k] = v // value copy
 	}
 
-	for k, v := range b.ByNodeInfo {
-		result.ByNodeInfo[k] = v
+	for k, v := range b.ByNode {
+		result.ByNode[k] = v // value copy
 	}
 
 	return result
@@ -140,15 +145,15 @@ func (b BlockedResourcesStats) Copy() BlockedResourcesStats {
 
 // Add returns a new BlockedResourcesStats with the values set to the current
 // resource values plus the input.
-func (b BlockedResourcesStats) Add(a BlockedResourcesStats) BlockedResourcesStats {
+func (b *BlockedResourcesStats) Add(a *BlockedResourcesStats) *BlockedResourcesStats {
 	result := b.Copy()
 
 	for k, v := range a.ByJob {
 		result.ByJob[k] = b.ByJob[k].Add(v)
 	}
 
-	for k, v := range a.ByNodeInfo {
-		result.ByNodeInfo[k] = b.ByNodeInfo[k].Add(v)
+	for k, v := range a.ByNode {
+		result.ByNode[k] = b.ByNode[k].Add(v)
 	}
 
 	return result
@@ -156,24 +161,18 @@ func (b BlockedResourcesStats) Add(a BlockedResourcesStats) BlockedResourcesStat
 
 // Subtract returns a new BlockedResourcesStats with the values set to the
 // current resource values minus the input.
-func (b BlockedResourcesStats) Subtract(a BlockedResourcesStats) BlockedResourcesStats {
+func (b *BlockedResourcesStats) Subtract(a *BlockedResourcesStats) *BlockedResourcesStats {
 	result := b.Copy()
 
 	for k, v := range a.ByJob {
 		result.ByJob[k] = b.ByJob[k].Subtract(v)
 	}
 
-	for k, v := range a.ByNodeInfo {
-		result.ByNodeInfo[k] = b.ByNodeInfo[k].Subtract(v)
+	for k, v := range a.ByNode {
+		result.ByNode[k] = b.ByNode[k].Subtract(v)
 	}
 
 	return result
-}
-
-// NodeInfo stores information related to nodes.
-type NodeInfo struct {
-	Datacenter string
-	NodeClass  string
 }
 
 // BlockedResourcesSummary stores resource values for blocked evals.
