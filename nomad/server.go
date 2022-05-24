@@ -1171,6 +1171,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 		s.staticEndpoints.System = &System{srv: s, logger: s.logger.Named("system")}
 		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
 		s.staticEndpoints.Namespace = &Namespace{srv: s}
+		s.staticEndpoints.SecureVariables = &SecureVariables{srv: s, logger: s.logger.Named("secure_variables"), encrypter: encrypter}
 
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
 
@@ -1181,7 +1182,6 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
 		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")}
 		s.staticEndpoints.ServiceRegistration = &ServiceRegistration{srv: s}
-		s.staticEndpoints.SecureVariables = &SecureVariables{srv: s, logger: s.logger.Named("secure_variables"), encrypter: encrypter}
 
 		// Client endpoints
 		s.staticEndpoints.ClientStats = &ClientStats{srv: s, logger: s.logger.Named("client_stats")}
@@ -1229,7 +1229,6 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 	node := &Node{srv: s, ctx: ctx, logger: s.logger.Named("client")}
 	plan := &Plan{srv: s, ctx: ctx, logger: s.logger.Named("plan")}
 	serviceReg := &ServiceRegistration{srv: s, ctx: ctx}
-	variablesReg := &SecureVariables{srv: s, logger: s.logger.Named("secure_variables"), encrypter: encrypter, ctx: ctx}
 	keyringReg := &Keyring{srv: s, logger: s.logger.Named("keyring"), encrypter: encrypter}
 
 	// Register the dynamic endpoints
@@ -1239,7 +1238,6 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 	server.Register(node)
 	server.Register(plan)
 	_ = server.Register(serviceReg)
-	_ = server.Register(variablesReg)
 	_ = server.Register(keyringReg)
 	return nil
 }
