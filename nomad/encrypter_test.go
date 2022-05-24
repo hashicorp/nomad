@@ -98,4 +98,20 @@ func TestEncrypter_Restore(t *testing.T) {
 	err := msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
 	require.NoError(t, err)
 	require.Len(t, listResp.Keys, 4)
+
+	for _, keyMeta := range listResp.Keys {
+
+		getReq := &structs.KeyringGetRootKeyRequest{
+			KeyID: keyMeta.KeyID,
+			QueryOptions: structs.QueryOptions{
+				Region: "global",
+			},
+		}
+		var getResp structs.KeyringGetRootKeyResponse
+		err = msgpackrpc.CallWithCodec(codec, "Keyring.Get", getReq, &getResp)
+		require.NoError(t, err)
+
+		gotKey := getResp.Key
+		require.Len(t, gotKey.Key, 32)
+	}
 }
