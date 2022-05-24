@@ -21,3 +21,15 @@ type AllocStateHandler interface {
 type DeviceStatsReporter interface {
 	LatestDeviceResourceStats([]*structs.AllocatedDeviceResource) []*device.DeviceGroupStats
 }
+
+// EnvReplacer is an interface which can interpolate environment variables and
+// is usually satisfied by taskenv.TaskEnv.
+type EnvReplacer interface {
+	ReplaceEnv(string) string
+	ClientPath(string, bool) (string, bool)
+}
+
+// ArtifactGetter is an interface satisfied by the helper/getter package.
+type ArtifactGetter interface {
+	GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact) error
+}

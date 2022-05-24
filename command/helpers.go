@@ -427,6 +427,9 @@ func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []strin
 			Src: jpath,
 			Pwd: pwd,
 			Dst: job.Name(),
+
+			// This will prevent copying or writing files through symlinks
+			DisableSymlinks: true,
 		}
 
 		if err := client.Get(); err != nil {
