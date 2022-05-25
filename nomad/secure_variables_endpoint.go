@@ -111,7 +111,7 @@ func (sv *SecureVariables) Upsert(
 	return nil
 }
 
-// Delete removes a singlesecure variable, as specified by its namespace and
+// Delete removes a single secure variable, as specified by its namespace and
 // path from Nomad. This is typically called by Nomad nodes, however, in extreme
 // situations can be used via the CLI and API by operators.
 func (sv *SecureVariables) Delete(
@@ -177,7 +177,7 @@ func (sv *SecureVariables) Delete(
 	return nil
 }
 
-// GetNamespace is used to get a specific namespace
+// Read is used to get a specific secure variable
 func (sv *SecureVariables) Read(args *structs.SecureVariablesReadRequest, reply *structs.SecureVariablesReadResponse) error {
 	if done, err := sv.srv.forward(structs.SecureVariablesReadRPCMethod, args, args, reply); done {
 		return err
