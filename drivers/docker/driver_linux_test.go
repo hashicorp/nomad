@@ -87,7 +87,6 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	_, _, _, cleanup := dockerSetup(t, task, nil)
 	defer cleanup()
 
-	// XXX Logging doesn't work on OSX so just test on Linux
 	// Check that data was written to the directory.
 	outputFile := filepath.Join(task.TaskDir().LogDir, "redis-demo.stderr.0")
 	exp := "can't fork"
