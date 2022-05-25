@@ -20,6 +20,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const nomadKeystoreExtension = ".nks.json"
+
 // Encrypter is the keyring for secure variables.
 type Encrypter struct {
 	lock         sync.RWMutex
@@ -61,10 +63,10 @@ func encrypterFromKeystore(keystoreDirectory string) (*Encrypter, error) {
 		if path != keystoreDirectory && info.IsDir() {
 			return filepath.SkipDir
 		}
-		if !strings.HasSuffix(path, ".nks.json") {
+		if !strings.HasSuffix(path, nomadKeystoreExtension) {
 			return nil
 		}
-		id := strings.TrimSuffix(filepath.Base(path), ".nks.json")
+		id := strings.TrimSuffix(filepath.Base(path), nomadKeystoreExtension)
 		if !helper.IsUUID(id) {
 			return nil
 		}
@@ -190,7 +192,7 @@ func (e *Encrypter) saveKeyToStore(rootKey *structs.RootKey) error {
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(e.keystorePath, rootKey.Meta.KeyID+".nks.json")
+	path := filepath.Join(e.keystorePath, rootKey.Meta.KeyID+nomadKeystoreExtension)
 	err = os.WriteFile(path, buf.Bytes(), 0600)
 	if err != nil {
 		return err
