@@ -57,8 +57,18 @@ func TestEncrypter_Restore(t *testing.T) {
 	defer shutdown()
 	testutil.WaitForLeader(t, srv.RPC)
 	codec := rpcClient(t, srv)
-
 	nodeID := srv.GetConfig().NodeID
+
+	// Verify we have a bootstrap key
+
+	listReq := &structs.KeyringListRootKeyMetaRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	var listResp structs.KeyringListRootKeyMetaResponse
+	msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
+	require.Len(t, listResp.Keys, 1)
 
 	// Send a few key rotations to add keys
 
@@ -89,15 +99,9 @@ func TestEncrypter_Restore(t *testing.T) {
 
 	// Verify we've restored all the keys from the old keystore
 
-	listReq := &structs.KeyringListRootKeyMetaRequest{
-		QueryOptions: structs.QueryOptions{
-			Region: "global",
-		},
-	}
-	var listResp structs.KeyringListRootKeyMetaResponse
 	err := msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
 	require.NoError(t, err)
-	require.Len(t, listResp.Keys, 4)
+	require.Len(t, listResp.Keys, 5) // 4 new + the bootstrap key
 
 	for _, keyMeta := range listResp.Keys {
 
