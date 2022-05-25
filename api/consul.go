@@ -75,7 +75,6 @@ func (css *ConsulSidecarService) Canonicalize() {
 	css.Proxy.Canonicalize()
 }
 
-
 // SidecarTask represents a subset of Task fields that can be set to override
 // the fields of the Task generated for the sidecar
 type SidecarTask struct {
@@ -196,11 +195,12 @@ func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
 
 // ConsulUpstream represents a Consul Connect upstream jobspec stanza.
 type ConsulUpstream struct {
-	DestinationName  string             `mapstructure:"destination_name" hcl:"destination_name,optional"`
-	LocalBindPort    int                `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
-	Datacenter       string             `mapstructure:"datacenter" hcl:"datacenter,optional"`
-	LocalBindAddress string             `mapstructure:"local_bind_address" hcl:"local_bind_address,optional"`
-	MeshGateway      *ConsulMeshGateway `mapstructure:"mesh_gateway" hcl:"mesh_gateway,block"`
+	DestinationName      string             `mapstructure:"destination_name" hcl:"destination_name,optional"`
+	DestinationNamespace string             `mapstructure:"destination_namespace" hcl:"destination_namespace,optional"`
+	LocalBindPort        int                `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
+	Datacenter           string             `mapstructure:"datacenter" hcl:"datacenter,optional"`
+	LocalBindAddress     string             `mapstructure:"local_bind_address" hcl:"local_bind_address,optional"`
+	MeshGateway          *ConsulMeshGateway `mapstructure:"mesh_gateway" hcl:"mesh_gateway,block"`
 }
 
 func (cu *ConsulUpstream) Copy() *ConsulUpstream {
@@ -208,11 +208,12 @@ func (cu *ConsulUpstream) Copy() *ConsulUpstream {
 		return nil
 	}
 	return &ConsulUpstream{
-		DestinationName:  cu.DestinationName,
-		LocalBindPort:    cu.LocalBindPort,
-		Datacenter:       cu.Datacenter,
-		LocalBindAddress: cu.LocalBindAddress,
-		MeshGateway:      cu.MeshGateway.Copy(),
+		DestinationName:      cu.DestinationName,
+		DestinationNamespace: cu.DestinationNamespace,
+		LocalBindPort:        cu.LocalBindPort,
+		Datacenter:           cu.Datacenter,
+		LocalBindAddress:     cu.LocalBindAddress,
+		MeshGateway:          cu.MeshGateway.Copy(),
 	}
 }
 

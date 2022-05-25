@@ -209,8 +209,9 @@ func TestService_Hash(t *testing.T) {
 					LocalServicePort:    24000,
 					Config:              map[string]interface{}{"foo": "bar"},
 					Upstreams: []ConsulUpstream{{
-						DestinationName: "upstream1",
-						LocalBindPort:   29000,
+						DestinationName:      "upstream1",
+						DestinationNamespace: "ns2",
+						LocalBindPort:        29000,
 					}},
 				},
 			},
@@ -291,11 +292,15 @@ func TestService_Hash(t *testing.T) {
 		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Config = map[string]interface{}{"foo": "baz"} })
 	})
 
-	t.Run("mod connect sidecar proxy upstream dest name", func(t *testing.T) {
+	t.Run("mod connect sidecar proxy upstream destination name", func(t *testing.T) {
 		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Upstreams[0].DestinationName = "dest2" })
 	})
 
-	t.Run("mod connect sidecar proxy upstream dest local bind port", func(t *testing.T) {
+	t.Run("mod connect sidecar proxy upstream destination namespace", func(t *testing.T) {
+		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Upstreams[0].DestinationNamespace = "ns3" })
+	})
+
+	t.Run("mod connect sidecar proxy upstream destination local bind port", func(t *testing.T) {
 		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Upstreams[0].LocalBindPort = 29999 })
 	})
 }
@@ -331,12 +336,14 @@ func TestConsulConnect_CopyEquals(t *testing.T) {
 				LocalServicePort:    8080,
 				Upstreams: []ConsulUpstream{
 					{
-						DestinationName: "up1",
-						LocalBindPort:   9002,
+						DestinationName:      "up1",
+						DestinationNamespace: "ns2",
+						LocalBindPort:        9002,
 					},
 					{
-						DestinationName: "up2",
-						LocalBindPort:   9003,
+						DestinationName:      "up2",
+						DestinationNamespace: "ns2",
+						LocalBindPort:        9003,
 					},
 				},
 				Config: map[string]interface{}{
@@ -527,6 +534,16 @@ func TestConsulUpstream_upstreamEquals(t *testing.T) {
 	t.Run("different", func(t *testing.T) {
 		a := []ConsulUpstream{up("bar", 9000)}
 		b := []ConsulUpstream{up("foo", 8000)}
+		require.False(t, upstreamsEquals(a, b))
+	})
+
+	t.Run("different namespace", func(t *testing.T) {
+		a := []ConsulUpstream{up("foo", 8000)}
+		a[0].DestinationNamespace = "ns1"
+
+		b := []ConsulUpstream{up("foo", 8000)}
+		b[0].DestinationNamespace = "ns2"
+
 		require.False(t, upstreamsEquals(a, b))
 	})
 

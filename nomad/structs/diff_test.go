@@ -2773,10 +2773,11 @@ func TestTaskGroupDiff(t *testing.T) {
 									LocalServicePort:    8080,
 									Upstreams: []ConsulUpstream{
 										{
-											DestinationName:  "foo",
-											LocalBindPort:    8000,
-											Datacenter:       "dc2",
-											LocalBindAddress: "127.0.0.2",
+											DestinationName:      "foo",
+											DestinationNamespace: "ns2",
+											LocalBindPort:        8000,
+											Datacenter:           "dc2",
+											LocalBindAddress:     "127.0.0.2",
 											MeshGateway: &ConsulMeshGateway{
 												Mode: "remote",
 											},
@@ -3100,6 +3101,12 @@ func TestTaskGroupDiff(t *testing.T) {
 																Name: "DestinationName",
 																Old:  "",
 																New:  "foo",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "DestinationNamespace",
+																Old:  "",
+																New:  "ns2",
 															},
 															{
 																Type: DiffTypeAdded,
