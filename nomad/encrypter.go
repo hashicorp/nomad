@@ -61,10 +61,10 @@ func encrypterFromKeystore(keystoreDirectory string) (*Encrypter, error) {
 		if path != keystoreDirectory && info.IsDir() {
 			return filepath.SkipDir
 		}
-		if filepath.Ext(path) != ".json" {
+		if !strings.HasSuffix(path, ".nks.json") {
 			return nil
 		}
-		id := strings.TrimSuffix(filepath.Base(path), ".json")
+		id := strings.TrimSuffix(filepath.Base(path), ".nks.json")
 		if !helper.IsUUID(id) {
 			return nil
 		}
@@ -173,7 +173,7 @@ func (e *Encrypter) GetKey(keyID string) ([]byte, error) {
 // RemoveKey removes a key by ID from the keyring
 func (e *Encrypter) RemoveKey(keyID string) error {
 	// TODO: should the server remove the serialized file here?
-	// TODO: given that it's irreverislbe, should the server *ever*
+	// TODO: given that it's irreversible, should the server *ever*
 	// remove the serialized file?
 	e.lock.Lock()
 	defer e.lock.Unlock()
@@ -190,7 +190,7 @@ func (e *Encrypter) saveKeyToStore(rootKey *structs.RootKey) error {
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(e.keystorePath, rootKey.Meta.KeyID+".json")
+	path := filepath.Join(e.keystorePath, rootKey.Meta.KeyID+".nks.json")
 	err = os.WriteFile(path, buf.Bytes(), 0600)
 	if err != nil {
 		return err
@@ -226,10 +226,14 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 
 	// Note: we expect to have null bytes for padding, but we don't
 	// want to use RawStdEncoding which breaks a lot of command line
-	// tools. So we'll truncate the key to the expected length. In
-	// theory this value could be vary on Meta.Algorithm but all
-	// currently supported algos are the same length.
-	const keyLen = 32
+	// tools. So we'll truncate the key to the expected length.
+	var keyLen int
+	switch storedKey.Meta.Algorithm {
+	case structs.EncryptionAlgorithmXChaCha20, structs.EncryptionAlgorithmAES256GCM:
+		keyLen = 32
+	default:
+		return nil, fmt.Errorf("invalid algorithm")
+	}
 
 	key := make([]byte, keyLen)
 	_, err = base64.StdEncoding.Decode(key, []byte(storedKey.Key)[:keyLen])

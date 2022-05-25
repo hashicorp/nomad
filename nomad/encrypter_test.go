@@ -32,7 +32,7 @@ func TestEncrypter_LoadSave(t *testing.T) {
 			require.NoError(t, encrypter.saveKeyToStore(key))
 
 			gotKey, err := encrypter.loadKeyFromStore(
-				filepath.Join(tmpDir, key.Meta.KeyID+".json"))
+				filepath.Join(tmpDir, key.Meta.KeyID+".nks.json"))
 			require.NoError(t, err)
 			require.NoError(t, encrypter.addCipher(gotKey))
 		})
@@ -40,7 +40,7 @@ func TestEncrypter_LoadSave(t *testing.T) {
 }
 
 // TestEncrypter_Restore exercises the entire reload of a keystore,
-// including pairing metadfata with key material
+// including pairing metadata with key material
 func TestEncrypter_Restore(t *testing.T) {
 
 	ci.Parallel(t)

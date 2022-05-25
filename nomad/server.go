@@ -1153,7 +1153,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 
 	// Set up the keyring
-	encrypter, err := NewEncrypter(filepath.Join(s.config.DataDir, "server", "keystore"))
+	encrypter, err := NewEncrypter(filepath.Join(s.config.DataDir, "keystore"))
 	if err != nil {
 		return err
 	}
