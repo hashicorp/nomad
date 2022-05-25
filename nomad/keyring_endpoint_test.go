@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -23,23 +22,19 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	defer shutdown()
 	testutil.WaitForLeader(t, srv.RPC)
 	codec := rpcClient(t, srv)
-	id := uuid.Generate()
 
 	// Upsert a new key
 
+	key, err := structs.NewRootKey(structs.EncryptionAlgorithmXChaCha20)
+	require.NoError(t, err)
+	id := key.Meta.KeyID
+	key.Meta.Active = true
+
 	updateReq := &structs.KeyringUpdateRootKeyRequest{
-		RootKey: &structs.RootKey{
-			Meta: &structs.RootKeyMeta{
-				KeyID:     id,
-				Algorithm: structs.EncryptionAlgorithmXChaCha20,
-				Active:    true,
-			},
-			Key: []byte{},
-		},
+		RootKey:      key,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var updateResp structs.KeyringUpdateRootKeyResponse
-	var err error
 
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
 	require.EqualError(t, err, structs.ErrPermissionDenied.Error())
@@ -136,26 +131,22 @@ func TestKeyringEndpoint_InvalidUpdates(t *testing.T) {
 	defer shutdown()
 	testutil.WaitForLeader(t, srv.RPC)
 	codec := rpcClient(t, srv)
-	id := uuid.Generate()
 
 	// Setup an existing key
+	key, err := structs.NewRootKey(structs.EncryptionAlgorithmXChaCha20)
+	require.NoError(t, err)
+	id := key.Meta.KeyID
+	key.Meta.Active = true
 
 	updateReq := &structs.KeyringUpdateRootKeyRequest{
-		RootKey: &structs.RootKey{
-			Meta: &structs.RootKeyMeta{
-				KeyID:     id,
-				Algorithm: structs.EncryptionAlgorithmXChaCha20,
-				Active:    true,
-			},
-			Key: []byte{},
-		},
+		RootKey: key,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			AuthToken: rootToken.SecretID,
 		},
 	}
 	var updateResp structs.KeyringUpdateRootKeyResponse
-	err := msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
+	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -177,8 +168,17 @@ func TestKeyringEndpoint_InvalidUpdates(t *testing.T) {
 		{
 			key: &structs.RootKey{Meta: &structs.RootKeyMeta{
 				KeyID:     id,
-				Algorithm: structs.EncryptionAlgorithmAES256GCM,
+				Algorithm: structs.EncryptionAlgorithmXChaCha20,
 			}},
+			expectedErrMsg: "root key material is required",
+		},
+		{
+			key: &structs.RootKey{
+				Key: []byte{0x01},
+				Meta: &structs.RootKeyMeta{
+					KeyID:     id,
+					Algorithm: structs.EncryptionAlgorithmAES256GCM,
+				}},
 			expectedErrMsg: "root key algorithm cannot be changed after a key is created",
 		},
 	}
@@ -211,26 +211,22 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	defer shutdown()
 	testutil.WaitForLeader(t, srv.RPC)
 	codec := rpcClient(t, srv)
-	id := uuid.Generate()
 
 	// Setup an existing key
+	key, err := structs.NewRootKey(structs.EncryptionAlgorithmXChaCha20)
+	require.NoError(t, err)
+	id := key.Meta.KeyID
+	key.Meta.Active = true
 
 	updateReq := &structs.KeyringUpdateRootKeyRequest{
-		RootKey: &structs.RootKey{
-			Meta: &structs.RootKeyMeta{
-				KeyID:     id,
-				Algorithm: structs.EncryptionAlgorithmXChaCha20,
-				Active:    true,
-			},
-			Key: []byte{},
-		},
+		RootKey: key,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			AuthToken: rootToken.SecretID,
 		},
 	}
 	var updateResp structs.KeyringUpdateRootKeyResponse
-	err := msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
+	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
 	require.NoError(t, err)
 
 	// Rotate the key
@@ -262,14 +258,27 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 
 	require.Greater(t, listResp.Index, updateResp.Index)
 	require.Len(t, listResp.Keys, 2)
+
+	var newID string
 	for _, keyMeta := range listResp.Keys {
 		if keyMeta.KeyID == id {
 			require.False(t, keyMeta.Active, "expected old key to be inactive")
 		} else {
 			require.True(t, keyMeta.Active, "expected new key to be inactive")
+			newID = keyMeta.KeyID
 		}
 	}
 
-	// TODO: verify that Encrypter has been updated
+	getReq := &structs.KeyringGetRootKeyRequest{
+		KeyID: newID,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	var getResp structs.KeyringGetRootKeyResponse
+	err = msgpackrpc.CallWithCodec(codec, "Keyring.Get", getReq, &getResp)
+	require.NoError(t, err)
 
+	gotKey := getResp.Key
+	require.Len(t, gotKey.Key, 32)
 }
