@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -42,19 +41,24 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 		args.Algorithm = structs.EncryptionAlgorithmXChaCha20
 	}
 
-	meta := structs.NewRootKeyMeta()
-	meta.Algorithm = args.Algorithm
-	meta.Active = true
+	rootKey, err := structs.NewRootKey(args.Algorithm)
+	if err != nil {
+		return err
+	}
 
-	// TODO: have the Encrypter generate and persist the actual key
-	// material. this is just here to silence the structcheck lint
-	for keyID := range k.encrypter.ciphers {
-		k.logger.Trace("TODO", "key", keyID)
+	rootKey.Meta.Active = true
+
+	// make sure it's been added to the local keystore before we write
+	// it to raft, so that followers don't try to Get a key that
+	// hasn't yet been written to disk
+	err = k.encrypter.AddKey(rootKey)
+	if err != nil {
+		return err
 	}
 
 	// Update metadata via Raft so followers can retrieve this key
 	req := structs.KeyringUpdateRootKeyMetaRequest{
-		RootKeyMeta:  meta,
+		RootKeyMeta:  rootKey.Meta,
 		WriteRequest: args.WriteRequest,
 	}
 	out, index, err := k.srv.raftApply(structs.RootKeyMetaUpsertRequestType, req)
@@ -64,7 +68,7 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
-	reply.Key = meta
+	reply.Key = rootKey.Meta
 	reply.Index = index
 	return nil
 }
@@ -138,13 +142,21 @@ func (k *Keyring) Update(args *structs.KeyringUpdateRootKeyRequest, reply *struc
 		return err
 	}
 
+	// make sure it's been added to the local keystore before we write
+	// it to raft, so that followers don't try to Get a key that
+	// hasn't yet been written to disk
+	err = k.encrypter.AddKey(args.RootKey)
+	if err != nil {
+		return err
+	}
+
 	// unwrap the request to turn it into a meta update only
 	metaReq := &structs.KeyringUpdateRootKeyMetaRequest{
 		RootKeyMeta:  args.RootKey.Meta,
 		WriteRequest: args.WriteRequest,
 	}
 
-	// update via Raft
+	// update the metadata via Raft
 	out, index, err := k.srv.raftApply(structs.RootKeyMetaUpsertRequestType, metaReq)
 	if err != nil {
 		return err
@@ -152,6 +164,7 @@ func (k *Keyring) Update(args *structs.KeyringUpdateRootKeyRequest, reply *struc
 	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
+
 	reply.Index = index
 	return nil
 }
@@ -160,20 +173,13 @@ func (k *Keyring) Update(args *structs.KeyringUpdateRootKeyRequest, reply *struc
 // existing key is valid
 func (k *Keyring) validateUpdate(args *structs.KeyringUpdateRootKeyRequest) error {
 
-	if args.RootKey.Meta == nil {
-		return fmt.Errorf("root key metadata is required")
+	err := args.RootKey.Meta.Validate()
+	if err != nil {
+		return err
 	}
-	if args.RootKey.Meta.KeyID == "" || !helper.IsUUID(args.RootKey.Meta.KeyID) {
-		return fmt.Errorf("root key UUID is required")
+	if len(args.RootKey.Key) == 0 {
+		return fmt.Errorf("root key material is required")
 	}
-	if args.RootKey.Meta.Algorithm == "" {
-		return fmt.Errorf("algorithm is required")
-	}
-
-	// TODO: once the encrypter is implemented
-	// if len(args.RootKey.Key) == 0 {
-	// 	return fmt.Errorf("root key material is required")
-	// }
 
 	// lookup any existing key and validate the update
 	snap, err := k.srv.fsm.State().Snapshot()
@@ -230,12 +236,16 @@ func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.Key
 				return k.srv.replySetIndex(state.TableRootKeyMeta, &reply.QueryMeta)
 			}
 
-			// TODO: retrieve the key material from the keyring
-			key := &structs.RootKey{
-				Meta: keyMeta,
-				Key:  []byte{},
+			// retrieve the key material from the keyring
+			key, err := k.encrypter.GetKey(keyMeta.KeyID)
+			if err != nil {
+				return err
 			}
-			reply.Key = key
+			rootKey := &structs.RootKey{
+				Meta: keyMeta,
+				Key:  key,
+			}
+			reply.Key = rootKey
 			reply.Index = keyMeta.ModifyIndex
 			return nil
 		},
@@ -285,6 +295,10 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
+
+	// remove the key from the keyring too
+	k.encrypter.RemoveKey(args.KeyID)
+
 	reply.Index = index
 	return nil
 }

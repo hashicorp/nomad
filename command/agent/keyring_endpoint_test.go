@@ -46,9 +46,9 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 		// Update
 
 		keyMeta := rotateResp.Key
-		keyBuf := make([]byte, 128)
+		keyBuf := make([]byte, 32)
 		rand.Read(keyBuf)
-		encodedKey := make([]byte, base64.StdEncoding.EncodedLen(128))
+		encodedKey := make([]byte, base64.StdEncoding.EncodedLen(32))
 		base64.StdEncoding.Encode(encodedKey, keyBuf)
 
 		newID := uuid.Generate()
