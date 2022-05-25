@@ -724,14 +724,17 @@ func TestDockerDriver_Start_Image_HTTPS(t *testing.T) {
 	}
 	require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
 
-	d := dockerDriverHarness(t, nil)
-	cleanup := d.MkAllocDir(task, true)
+	harness := dockerDriverHarness(t, nil)
+	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
-	_, _, err := d.StartTask(task)
+	_, _, err := harness.StartTask(task)
 	require.NoError(t, err)
 
-	d.DestroyTask(task.ID, true)
+	err = harness.WaitUntilStarted(task.ID, 1*time.Minute)
+	require.NoError(t, err)
+
+	harness.DestroyTask(task.ID, true)
 }
 
 func newTaskConfig(variant string, command []string) TaskConfig {
@@ -787,11 +790,6 @@ func TestDocker_ExecTaskStreaming(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	// todo(shoenig) these fail maybe 50% of the time on GHA, and the test cases
-	//  are tricky to follow all the way through - maybe a decent candidate for
-	//  a generics re-write.
-	ci.SkipSlow(t, "flaky on GHA; #12358")
-
 	taskCfg := newTaskConfig("", []string{"/bin/sleep", "1000"})
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -801,17 +799,20 @@ func TestDocker_ExecTaskStreaming(t *testing.T) {
 	}
 	require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
 
-	d := dockerDriverHarness(t, nil)
-	cleanup := d.MkAllocDir(task, true)
+	harness := dockerDriverHarness(t, nil)
+	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 	copyImage(t, task.TaskDir(), "busybox.tar")
 
-	_, _, err := d.StartTask(task)
+	_, _, err := harness.StartTask(task)
 	require.NoError(t, err)
 
-	defer d.DestroyTask(task.ID, true)
+	err = harness.WaitUntilStarted(task.ID, 1*time.Minute)
+	require.NoError(t, err)
 
-	dtestutil.ExecTaskStreamingConformanceTests(t, d, task.ID)
+	defer harness.DestroyTask(task.ID, true)
+
+	dtestutil.ExecTaskStreamingConformanceTests(t, harness, task.ID)
 
 }
 
@@ -862,6 +863,9 @@ func Test_dnsConfig(t *testing.T) {
 			_, _, err := harness.StartTask(task)
 			require.NoError(t, err)
 
+			err = harness.WaitUntilStarted(task.ID, 1*time.Minute)
+			require.NoError(t, err)
+
 			dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)
 
 			// cleanup immediately before the next test case
@@ -870,5 +874,4 @@ func Test_dnsConfig(t *testing.T) {
 			harness.Kill()
 		})
 	}
-
 }

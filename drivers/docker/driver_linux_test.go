@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
@@ -21,6 +20,7 @@ import (
 
 func TestDockerDriver_authFromHelper(t *testing.T) {
 	ci.Parallel(t)
+	testutil.DockerCompatible(t)
 
 	dir := t.TempDir()
 	helperPayload := "{\"Username\":\"hashi\",\"Secret\":\"nomad\"}"
@@ -31,11 +31,10 @@ func TestDockerDriver_authFromHelper(t *testing.T) {
 	require.NoError(t, err)
 
 	path := os.Getenv("PATH")
-	os.Setenv("PATH", fmt.Sprintf("%s:%s", path, dir))
-	defer os.Setenv("PATH", path)
+	t.Setenv("PATH", fmt.Sprintf("%s:%s", path, dir))
 
-	helper := authFromHelper("testnomad")
-	creds, err := helper("registry.local:5000/repo/image")
+	authHelper := authFromHelper("testnomad")
+	creds, err := authHelper("registry.local:5000/repo/image")
 	require.NoError(t, err)
 	require.NotNil(t, creds)
 	require.Equal(t, "hashi", creds.Username)
@@ -51,6 +50,7 @@ func TestDockerDriver_authFromHelper(t *testing.T) {
 
 func TestDockerDriver_PluginConfig_PidsLimit(t *testing.T) {
 	ci.Parallel(t)
+	testutil.DockerCompatible(t)
 
 	dh := dockerDriverHarness(t, nil)
 	driver := dh.Impl().(*Driver)
@@ -74,23 +74,19 @@ func TestDockerDriver_PluginConfig_PidsLimit(t *testing.T) {
 
 func TestDockerDriver_PidsLimit(t *testing.T) {
 	ci.Parallel(t)
-
 	testutil.DockerCompatible(t)
-	require := require.New(t)
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
+
 	cfg.PidsLimit = 1
 	cfg.Command = "/bin/sh"
 	cfg.Args = []string{"-c", "sleep 5 & sleep 5 & sleep 5"}
-	require.NoError(task.EncodeConcreteDriverConfig(cfg))
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	_, driver, _, cleanup := dockerSetup(t, task, nil)
+	_, _, _, cleanup := dockerSetup(t, task, nil)
 	defer cleanup()
 
-	driver.WaitUntilStarted(task.ID, time.Duration(tu.TestMultiplier()*5)*time.Second)
-
-	// XXX Logging doesn't work on OSX so just test on Linux
 	// Check that data was written to the directory.
 	outputFile := filepath.Join(task.TaskDir().LogDir, "redis-demo.stderr.0")
 	exp := "can't fork"
@@ -104,6 +100,6 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 }
