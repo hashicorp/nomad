@@ -94,8 +94,10 @@ func (s *HTTPServer) keyringUpsertRequest(resp http.ResponseWriter, req *http.Re
 		return nil, CodedError(400, "decoded key did not include metadata")
 	}
 
-	decodedKey := make([]byte, base64.StdEncoding.DecodedLen(len(key.Key)))
-	_, err := base64.StdEncoding.Decode(decodedKey, []byte(key.Key))
+	const keyLen = 32
+
+	decodedKey := make([]byte, keyLen)
+	_, err := base64.StdEncoding.Decode(decodedKey, []byte(key.Key)[:keyLen])
 	if err != nil {
 		return nil, CodedError(400, fmt.Sprintf("could not decode key: %v", err))
 	}
