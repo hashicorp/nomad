@@ -1,8 +1,16 @@
 package structs
 
 import (
+	"fmt"
 	"time"
 
+	// note: this is aliased so that it's more noticeable if someone
+	// accidentally swaps it out for math/rand via running goimports
+	cryptorand "crypto/rand"
+
+	"golang.org/x/crypto/chacha20poly1305"
+
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 )
 
@@ -143,6 +151,34 @@ type RootKey struct {
 	Key  []byte // serialized to keystore as base64 blob
 }
 
+// NewRootKey returns a new root key and its metadata.
+func NewRootKey(algorithm EncryptionAlgorithm) (*RootKey, error) {
+	meta := NewRootKeyMeta()
+	meta.Algorithm = algorithm
+
+	rootKey := &RootKey{
+		Meta: meta,
+	}
+
+	switch algorithm {
+	case EncryptionAlgorithmAES256GCM:
+		key := make([]byte, 32)
+		if _, err := cryptorand.Read(key); err != nil {
+			return nil, err
+		}
+		rootKey.Key = key
+
+	case EncryptionAlgorithmXChaCha20:
+		key := make([]byte, chacha20poly1305.KeySize)
+		if _, err := cryptorand.Read(key); err != nil {
+			return nil, err
+		}
+		rootKey.Key = key
+	}
+
+	return rootKey, nil
+}
+
 // RootKeyMeta is the metadata used to refer to a RootKey. It is
 // stored in raft.
 type RootKeyMeta struct {
@@ -164,12 +200,49 @@ func NewRootKeyMeta() *RootKeyMeta {
 	}
 }
 
+// RootKeyMetaStub is for serializing root key metadata to the
+// keystore, not for the List API. It excludes frequently-changing
+// fields such as EncryptionsCount or ModifyIndex so we don't have to
+// sync them to the on-disk keystore when the fields are already in
+// raft.
+type RootKeyMetaStub struct {
+	KeyID      string
+	Algorithm  EncryptionAlgorithm
+	CreateTime time.Time
+	Active     bool
+}
+
+func (rkm *RootKeyMeta) Stub() *RootKeyMetaStub {
+	if rkm == nil {
+		return nil
+	}
+	return &RootKeyMetaStub{
+		KeyID:      rkm.KeyID,
+		Algorithm:  rkm.Algorithm,
+		CreateTime: rkm.CreateTime,
+		Active:     rkm.Active,
+	}
+
+}
 func (rkm *RootKeyMeta) Copy() *RootKeyMeta {
 	if rkm == nil {
 		return nil
 	}
 	out := *rkm
 	return &out
+}
+
+func (rkm *RootKeyMeta) Validate() error {
+	if rkm == nil {
+		return fmt.Errorf("root key metadata is required")
+	}
+	if rkm.KeyID == "" || !helper.IsUUID(rkm.KeyID) {
+		return fmt.Errorf("root key UUID is required")
+	}
+	if rkm.Algorithm == "" {
+		return fmt.Errorf("root key algorithm is required")
+	}
+	return nil
 }
 
 // EncryptionAlgorithm chooses which algorithm is used for
