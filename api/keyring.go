@@ -82,9 +82,9 @@ func (k *Keyring) Rotate(opts *KeyringRotateOptions, w *WriteOptions) (*RootKeyM
 			qp.Set("full", "true")
 		}
 	}
-	resp := &RootKeyMeta{}
+	resp := &struct{ Key *RootKeyMeta }{}
 	wm, err := k.client.write("/v1/operator/keyring/rotate?"+qp.Encode(), nil, resp, w)
-	return resp, wm, err
+	return resp.Key, wm, err
 }
 
 // KeyringRotateOptions are parameters for the Rotate API
