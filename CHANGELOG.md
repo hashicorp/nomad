@@ -1,3 +1,13 @@
+## 1.3.1 (May 19, 2022)
+
+SECURITY:
+
+* A vulnerability was identified in the go-getter library that Nomad uses for its artifacts such that a specially crafted Nomad jobspec can be used for privilege escalation onto client agent hosts. [CVE-2022-30324](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-30324) [[GH-13057](https://github.com/hashicorp/nomad/issues/13057)]
+
+BUG FIXES:
+
+* agent: fixed a panic on startup when the `server.protocol_version` config parameter was set [[GH-12962](https://github.com/hashicorp/nomad/issues/12962)]
+
 ## 1.3.0 (May 11, 2022)
 
 FEATURES:
@@ -140,6 +150,12 @@ BUG FIXES:
 * ui: Fixed a bug where volumes were being incorrectly linked when per_alloc=true [[GH-12713](https://github.com/hashicorp/nomad/issues/12713)]
 * ui: fix broken link to task-groups in the Recent Allocations table in the Job Detail overview page. [[GH-12765](https://github.com/hashicorp/nomad/issues/12765)]
 * ui: fix the unit for the task row memory usage metric [[GH-11980](https://github.com/hashicorp/nomad/issues/11980)]
+
+## 1.2.8 (May 19, 2022)
+
+SECURITY:
+
+* A vulnerability was identified in the go-getter library that Nomad uses for its artifacts such that a specially crafted Nomad jobspec can be used for privilege escalation onto client agent hosts. [CVE-2022-30324](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-30324) [[GH-13057](https://github.com/hashicorp/nomad/issues/13057)]
 
 ## 1.2.7 (May 10, 2022)
 
@@ -360,6 +376,12 @@ BUG FIXES:
 * rpc: Set the job scale eval priority to the job priority [[GH-11429](https://github.com/hashicorp/nomad/issues/11429)]
 * server: Fixed a panic on arm64 platform when dispatching a job with a payload [[GH-11396](https://github.com/hashicorp/nomad/issues/11396)]
 * server: Fixed a panic that may occur when preempting multiple allocations on the same node [[GH-11346](https://github.com/hashicorp/nomad/issues/11346)]
+
+## 1.1.14 (May 19, 2022)
+
+SECURITY:
+
+* A vulnerability was identified in the go-getter library that Nomad uses for its artifacts such that a specially crafted Nomad jobspec can be used for privilege escalation onto client agent hosts. [CVE-2022-30324](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-30324) [[GH-13057](https://github.com/hashicorp/nomad/issues/13057)]
 
 ## 1.1.13 (May 10, 2022)
 

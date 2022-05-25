@@ -10,63 +10,132 @@ import (
 	"github.com/hashicorp/go-cleanhttp"
 	gg "github.com/hashicorp/go-getter"
 
+	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
-
-// httpClient is a shared HTTP client for use across all http/https Getter
-// instantiations. The HTTP client is designed to be thread-safe, and using a pooled
-// transport will help reduce excessive connections when clients are downloading lots
-// of artifacts.
-var httpClient = &http.Client{
-	Transport: cleanhttp.DefaultPooledTransport(),
-}
 
 const (
 	// gitSSHPrefix is the prefix for downloading via git using ssh
 	gitSSHPrefix = "git@github.com:"
 )
 
-// EnvReplacer is an interface which can interpolate environment variables and
-// is usually satisfied by taskenv.TaskEnv.
-type EnvReplacer interface {
-	ReplaceEnv(string) string
-	ClientPath(string, bool) (string, bool)
+// Getter wraps go-getter calls in an artifact configuration.
+type Getter struct {
+	// httpClient is a shared HTTP client for use across all http/https
+	// Getter instantiations. The HTTP client is designed to be
+	// thread-safe, and using a pooled transport will help reduce excessive
+	// connections when clients are downloading lots of artifacts.
+	httpClient *http.Client
+	config     *config.ArtifactConfig
+}
+
+// NewGetter returns a new Getter instance. This function is called once per
+// client and shared across alloc and task runners.
+func NewGetter(config *config.ArtifactConfig) *Getter {
+	return &Getter{
+		httpClient: &http.Client{
+			Transport: cleanhttp.DefaultPooledTransport(),
+		},
+		config: config,
+	}
+}
+
+// GetArtifact downloads an artifact into the specified task directory.
+func (g *Getter) GetArtifact(taskEnv interfaces.EnvReplacer, artifact *structs.TaskArtifact) error {
+	ggURL, err := getGetterUrl(taskEnv, artifact)
+	if err != nil {
+		return newGetError(artifact.GetterSource, err, false)
+	}
+
+	dest, escapes := taskEnv.ClientPath(artifact.RelativeDest, true)
+	// Verify the destination is still in the task sandbox after interpolation
+	if escapes {
+		return newGetError(artifact.RelativeDest,
+			errors.New("artifact destination path escapes the alloc directory"),
+			false)
+	}
+
+	// Convert from string getter mode to go-getter const
+	mode := gg.ClientModeAny
+	switch artifact.GetterMode {
+	case structs.GetterModeFile:
+		mode = gg.ClientModeFile
+	case structs.GetterModeDir:
+		mode = gg.ClientModeDir
+	}
+
+	headers := getHeaders(taskEnv, artifact.GetterHeaders)
+	if err := g.getClient(ggURL, headers, mode, dest).Get(); err != nil {
+		return newGetError(ggURL, err, true)
+	}
+
+	return nil
 }
 
 // getClient returns a client that is suitable for Nomad downloading artifacts.
-func getClient(src string, headers http.Header, mode gg.ClientMode, dst string) *gg.Client {
+func (g *Getter) getClient(src string, headers http.Header, mode gg.ClientMode, dst string) *gg.Client {
 	return &gg.Client{
 		Src:     src,
 		Dst:     dst,
 		Mode:    mode,
 		Umask:   060000000,
-		Getters: createGetters(headers),
+		Getters: g.createGetters(headers),
+
+		// This will prevent copying or writing files through symlinks
+		DisableSymlinks: true,
 	}
 }
 
-func createGetters(header http.Header) map[string]gg.Getter {
+func (g *Getter) createGetters(header http.Header) map[string]gg.Getter {
 	httpGetter := &gg.HttpGetter{
 		Netrc:  true,
-		Client: httpClient,
+		Client: g.httpClient,
 		Header: header,
+
+		// Do not support the custom X-Terraform-Get header and
+		// associated logic.
+		XTerraformGetDisabled: true,
+
+		// Disable HEAD requests as they can produce corrupt files when
+		// retrying a download of a resource that has changed.
+		// hashicorp/go-getter#219
+		DoNotCheckHeadFirst: true,
+
+		// Read timeout for HTTP operations. Must be long enough to
+		// accommodate large/slow downloads.
+		ReadTimeout: g.config.HTTPReadTimeout,
+
+		// Maximum download size. Must be large enough to accommodate
+		// large downloads.
+		MaxBytes: g.config.HTTPMaxBytes,
 	}
+
 	// Explicitly create fresh set of supported Getter for each Client, because
 	// go-getter is not thread-safe. Use a shared HTTP client for http/https Getter,
 	// with pooled transport which is thread-safe.
 	//
 	// If a getter type is not listed here, it is not supported (e.g. file).
 	return map[string]gg.Getter{
-		"git":   new(gg.GitGetter),
-		"gcs":   new(gg.GCSGetter),
-		"hg":    new(gg.HgGetter),
-		"s3":    new(gg.S3Getter),
+		"git": &gg.GitGetter{
+			Timeout: g.config.GitTimeout,
+		},
+		"hg": &gg.HgGetter{
+			Timeout: g.config.HgTimeout,
+		},
+		"gcs": &gg.GCSGetter{
+			Timeout: g.config.GCSTimeout,
+		},
+		"s3": &gg.S3Getter{
+			Timeout: g.config.S3Timeout,
+		},
 		"http":  httpGetter,
 		"https": httpGetter,
 	}
 }
 
 // getGetterUrl returns the go-getter URL to download the artifact.
-func getGetterUrl(taskEnv EnvReplacer, artifact *structs.TaskArtifact) (string, error) {
+func getGetterUrl(taskEnv interfaces.EnvReplacer, artifact *structs.TaskArtifact) (string, error) {
 	source := taskEnv.ReplaceEnv(artifact.GetterSource)
 
 	// Handle an invalid URL when given a go-getter url such as
@@ -98,7 +167,7 @@ func getGetterUrl(taskEnv EnvReplacer, artifact *structs.TaskArtifact) (string, 
 	return ggURL, nil
 }
 
-func getHeaders(env EnvReplacer, m map[string]string) http.Header {
+func getHeaders(env interfaces.EnvReplacer, m map[string]string) http.Header {
 	if len(m) == 0 {
 		return nil
 	}
@@ -108,38 +177,6 @@ func getHeaders(env EnvReplacer, m map[string]string) http.Header {
 		headers.Set(k, env.ReplaceEnv(v))
 	}
 	return headers
-}
-
-// GetArtifact downloads an artifact into the specified task directory.
-func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact) error {
-	ggURL, err := getGetterUrl(taskEnv, artifact)
-	if err != nil {
-		return newGetError(artifact.GetterSource, err, false)
-	}
-
-	dest, escapes := taskEnv.ClientPath(artifact.RelativeDest, true)
-	// Verify the destination is still in the task sandbox after interpolation
-	if escapes {
-		return newGetError(artifact.RelativeDest,
-			errors.New("artifact destination path escapes the alloc directory"),
-			false)
-	}
-
-	// Convert from string getter mode to go-getter const
-	mode := gg.ClientModeAny
-	switch artifact.GetterMode {
-	case structs.GetterModeFile:
-		mode = gg.ClientModeFile
-	case structs.GetterModeDir:
-		mode = gg.ClientModeDir
-	}
-
-	headers := getHeaders(taskEnv, artifact.GetterHeaders)
-	if err := getClient(ggURL, headers, mode, dest).Get(); err != nil {
-		return newGetError(ggURL, err, true)
-	}
-
-	return nil
 }
 
 // GetError wraps the underlying artifact fetching error with the URL. It

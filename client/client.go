@@ -23,12 +23,14 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
@@ -319,6 +321,9 @@ type Client struct {
 
 	// EnterpriseClient is used to set and check enterprise features for clients
 	EnterpriseClient *EnterpriseClient
+
+	// getter is an interface for retrieving artifacts.
+	getter cinterfaces.ArtifactGetter
 }
 
 var (
@@ -377,6 +382,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
 		cpusetManager:        cgutil.CreateCPUSetManager(cfg.CgroupParent, logger),
+		getter:               getter.NewGetter(cfg.Artifact),
 		EnterpriseClient:     newEnterpriseClient(logger),
 	}
 
@@ -1170,6 +1176,7 @@ func (c *Client) restoreState() error {
 			ServersContactedCh:  c.serversContactedCh,
 			ServiceRegWrapper:   c.serviceRegWrapper,
 			RPCClient:           c,
+			Getter:              c.getter,
 		}
 		c.configLock.RUnlock()
 
@@ -2507,6 +2514,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		DriverManager:       c.drivermanager,
 		ServiceRegWrapper:   c.serviceRegWrapper,
 		RPCClient:           c,
+		Getter:              c.getter,
 	}
 	c.configLock.RUnlock()
 
