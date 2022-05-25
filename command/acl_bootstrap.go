@@ -2,6 +2,8 @@ package command
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -59,27 +61,47 @@ func (c *ACLBootstrapCommand) Name() string { return "acl bootstrap" }
 func (c *ACLBootstrapCommand) Run(args []string) int {
 
 	var (
-		json           bool
-		tmpl           string
-		bootstraptoken string
+		json bool
+		tmpl string
+		file string
 	)
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
-	flags.StringVar(&bootstraptoken, "bootstrap-token", "", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
 	// Check that we got no arguments
 	args = flags.Args()
-	if l := len(args); l != 0 {
-		c.Ui.Error("This command takes no arguments")
+	if l := len(args); l < 0 || l > 1 {
+		c.Ui.Error("This command takes up to one argument")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
+
+	var terminalToken []byte
+	var err error
+
+	if len(args) == 1 {
+		switch args[0] {
+		case "":
+			terminalToken = []byte{}
+		case "-":
+			terminalToken, err = ioutil.ReadAll(os.Stdin)
+		default:
+			terminalToken, err = ioutil.ReadFile(file)
+		}
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error reading provided token: %v", err))
+			return 1
+		}
+	}
+
+	// Remove newline from the token if it was passed by stdin
+	boottoken := strings.TrimSuffix(string(terminalToken), "\n")
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -89,7 +111,7 @@ func (c *ACLBootstrapCommand) Run(args []string) int {
 	}
 
 	// Get the bootstrap token
-	token, _, err := client.ACLTokens().BootstrapOpts(bootstraptoken, nil)
+	token, _, err := client.ACLTokens().BootstrapOpts(boottoken, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error bootstrapping: %s", err))
 		return 1
