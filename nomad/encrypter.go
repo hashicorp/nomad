@@ -69,7 +69,7 @@ func encrypterFromKeystore(keystoreDirectory string) (*Encrypter, error) {
 			return nil
 		}
 
-		key, err := encrypter.LoadKeyFromStore(path)
+		key, err := encrypter.loadKeyFromStore(path)
 		if err != nil {
 			return fmt.Errorf("could not load key file %s from keystore: %v", path, err)
 		}
@@ -112,8 +112,19 @@ func (e *Encrypter) Decrypt(encryptedData []byte, keyID string) ([]byte, error) 
 	return encryptedData, nil
 }
 
-// AddKey stores the key in the keyring and creates a new cipher for it.
+// AddKey stores the key in the keystore and creates a new cipher for it.
 func (e *Encrypter) AddKey(rootKey *structs.RootKey) error {
+	if err := e.addCipher(rootKey); err != nil {
+		return err
+	}
+	if err := e.saveKeyToStore(rootKey); err != nil {
+		return err
+	}
+	return nil
+}
+
+// addCipher stores the key in the keyring and creates a new cipher for it.
+func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
 
 	if rootKey.Meta == nil {
 		return fmt.Errorf("missing metadata")
@@ -171,8 +182,8 @@ func (e *Encrypter) RemoveKey(keyID string) error {
 	return nil
 }
 
-// SaveKeyToStore serializes a root key to the on-disk keystore.
-func (e *Encrypter) SaveKeyToStore(rootKey *structs.RootKey) error {
+// saveKeyToStore serializes a root key to the on-disk keystore.
+func (e *Encrypter) saveKeyToStore(rootKey *structs.RootKey) error {
 	var buf bytes.Buffer
 	enc := codec.NewEncoder(&buf, structs.JsonHandleWithExtensions)
 	err := enc.Encode(rootKey)
@@ -187,8 +198,8 @@ func (e *Encrypter) SaveKeyToStore(rootKey *structs.RootKey) error {
 	return nil
 }
 
-// LoadKeyFromStore deserializes a root key from disk.
-func (e *Encrypter) LoadKeyFromStore(path string) (*structs.RootKey, error) {
+// loadKeyFromStore deserializes a root key from disk.
+func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 
 	raw, err := os.ReadFile(path)
 	if err != nil {

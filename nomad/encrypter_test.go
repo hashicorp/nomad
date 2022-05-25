@@ -29,12 +29,12 @@ func TestEncrypter_LoadSave(t *testing.T) {
 		t.Run(string(algo), func(t *testing.T) {
 			key, err := structs.NewRootKey(algo)
 			require.NoError(t, err)
-			require.NoError(t, encrypter.SaveKeyToStore(key))
+			require.NoError(t, encrypter.saveKeyToStore(key))
 
-			gotKey, err := encrypter.LoadKeyFromStore(
+			gotKey, err := encrypter.loadKeyFromStore(
 				filepath.Join(tmpDir, key.Meta.KeyID+".json"))
 			require.NoError(t, err)
-			require.NoError(t, encrypter.AddKey(gotKey))
+			require.NoError(t, encrypter.addCipher(gotKey))
 		})
 	}
 }

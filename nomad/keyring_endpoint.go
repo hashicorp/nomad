@@ -55,10 +55,6 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 	if err != nil {
 		return err
 	}
-	err = k.encrypter.SaveKeyToStore(rootKey)
-	if err != nil {
-		return err
-	}
 
 	// Update metadata via Raft so followers can retrieve this key
 	req := structs.KeyringUpdateRootKeyMetaRequest{
@@ -150,10 +146,6 @@ func (k *Keyring) Update(args *structs.KeyringUpdateRootKeyRequest, reply *struc
 	// it to raft, so that followers don't try to Get a key that
 	// hasn't yet been written to disk
 	err = k.encrypter.AddKey(args.RootKey)
-	if err != nil {
-		return err
-	}
-	err = k.encrypter.SaveKeyToStore(args.RootKey)
 	if err != nil {
 		return err
 	}
