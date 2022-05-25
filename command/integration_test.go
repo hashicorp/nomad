@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,6 +38,8 @@ func TestIntegration_Command_NomadInit(t *testing.T) {
 
 func TestIntegration_Command_RoundTripJob(t *testing.T) {
 	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+
 	assert := assert.New(t)
 	tmpDir := t.TempDir()
 
