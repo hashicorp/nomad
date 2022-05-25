@@ -52,6 +52,7 @@ func (sv *SecureVariables) Upsert(
 	// Iterate the secure variables and validate them. Any error results in the
 	// call failing.
 	for _, i := range args.Data {
+		i.Canonicalize()
 		if err := i.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 			continue
