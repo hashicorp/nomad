@@ -324,6 +324,9 @@ type ClientConfig struct {
 	// correct scheduling decisions on allocations which require this.
 	NomadServiceDiscovery *bool `hcl:"nomad_service_discovery"`
 
+	// DefaultIneligible disables scheduling eligibility for newly-created nodes.
+	DefaultIneligible bool `hcl:"default_ineligible"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -1773,6 +1776,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	// supplied an override value.
 	if b.NomadServiceDiscovery != nil {
 		result.NomadServiceDiscovery = b.NomadServiceDiscovery
+	}
+
+	if b.DefaultIneligible {
+		result.DefaultIneligible = true
 	}
 
 	if b.CgroupParent != "" {

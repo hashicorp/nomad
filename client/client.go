@@ -1472,6 +1472,12 @@ func (c *Client) setupNode() error {
 		node.Meta["connect.proxy_concurrency"] = defaultConnectProxyConcurrency
 	}
 
+	if c.config.DefaultIneligible {
+		node.SchedulingEligibility = structs.NodeSchedulingIneligible
+	} else {
+		node.SchedulingEligibility = structs.NodeSchedulingEligible
+	}
+
 	return nil
 }
 

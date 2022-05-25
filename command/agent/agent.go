@@ -715,6 +715,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		conf.NomadServiceDiscovery = *agentConfig.Client.NomadServiceDiscovery
 	}
 
+	conf.DefaultIneligible = agentConfig.Client.DefaultIneligible
+
 	return conf, nil
 }
 
