@@ -36,7 +36,6 @@
     {{/each}}
     <footer>
       <button
-        class="button is-primary" type="submit">Add Variable</button>
-        {{!-- TODO: conditionally pluralize "Variable" if multiple are being created at once --}}
+        class="button is-primary" type="submit">Save {{pluralize 'Variable' this.keyValues.length}}</button>
     </footer>
   </form>
