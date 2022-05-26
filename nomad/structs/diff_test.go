@@ -2775,6 +2775,7 @@ func TestTaskGroupDiff(t *testing.T) {
 										{
 											DestinationName:      "foo",
 											DestinationNamespace: "ns2",
+											DestinationType:      "prepared_query",
 											LocalBindPort:        8000,
 											Datacenter:           "dc2",
 											LocalBindAddress:     "127.0.0.2",
@@ -3107,6 +3108,12 @@ func TestTaskGroupDiff(t *testing.T) {
 																Name: "DestinationNamespace",
 																Old:  "",
 																New:  "ns2",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "DestinationType",
+																Old:  "",
+																New:  "prepared_query",
 															},
 															{
 																Type: DiffTypeAdded,

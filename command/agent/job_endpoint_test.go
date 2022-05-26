@@ -3681,6 +3681,7 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 	require.Equal(t, []structs.ConsulUpstream{{
 		DestinationName:      "upstream",
 		DestinationNamespace: "ns2",
+		DestinationType:      "prepared_query",
 		LocalBindPort:        8000,
 		Datacenter:           "dc2",
 		LocalBindAddress:     "127.0.0.2",
@@ -3688,6 +3689,7 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 	}}, apiUpstreamsToStructs([]*api.ConsulUpstream{{
 		DestinationName:      "upstream",
 		DestinationNamespace: "ns2",
+		DestinationType:      "prepared_query",
 		LocalBindPort:        8000,
 		Datacenter:           "dc2",
 		LocalBindAddress:     "127.0.0.2",

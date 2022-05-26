@@ -362,6 +362,7 @@ func TestConnect_connectUpstreams(t *testing.T) {
 			}, {
 				DestinationName:      "bar",
 				DestinationNamespace: "ns2",
+				DestinationType:      "prepared_query",
 				LocalBindPort:        9000,
 				Datacenter:           "dc2",
 				LocalBindAddress:     "127.0.0.2",
@@ -372,6 +373,7 @@ func TestConnect_connectUpstreams(t *testing.T) {
 			}, {
 				DestinationName:      "bar",
 				DestinationNamespace: "ns2",
+				DestinationType:      "prepared_query",
 				LocalBindPort:        9000,
 				Datacenter:           "dc2",
 				LocalBindAddress:     "127.0.0.2",

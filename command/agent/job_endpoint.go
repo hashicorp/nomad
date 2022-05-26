@@ -1630,6 +1630,7 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 		upstreams[i] = structs.ConsulUpstream{
 			DestinationName:      upstream.DestinationName,
 			DestinationNamespace: upstream.DestinationNamespace,
+			DestinationType:      upstream.DestinationType,
 			LocalBindPort:        upstream.LocalBindPort,
 			Datacenter:           upstream.Datacenter,
 			LocalBindAddress:     upstream.LocalBindAddress,

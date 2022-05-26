@@ -165,6 +165,7 @@ func TestConsulUpstream_Copy(t *testing.T) {
 		cu := &ConsulUpstream{
 			DestinationName:      "dest1",
 			DestinationNamespace: "ns2",
+			DestinationType:      "prepared_query",
 			Datacenter:           "dc2",
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
@@ -188,6 +189,7 @@ func TestConsulUpstream_Canonicalize(t *testing.T) {
 		cu := &ConsulUpstream{
 			DestinationName:      "dest1",
 			DestinationNamespace: "ns2",
+			DestinationType:      "prepared_query",
 			Datacenter:           "dc2",
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
@@ -197,6 +199,7 @@ func TestConsulUpstream_Canonicalize(t *testing.T) {
 		require.Equal(t, &ConsulUpstream{
 			DestinationName:      "dest1",
 			DestinationNamespace: "ns2",
+			DestinationType:      "prepared_query",
 			Datacenter:           "dc2",
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
