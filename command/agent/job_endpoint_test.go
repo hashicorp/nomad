@@ -3679,17 +3679,19 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 	require.Nil(t, apiUpstreamsToStructs(nil))
 	require.Nil(t, apiUpstreamsToStructs(make([]*api.ConsulUpstream, 0)))
 	require.Equal(t, []structs.ConsulUpstream{{
-		DestinationName:  "upstream",
-		LocalBindPort:    8000,
-		Datacenter:       "dc2",
-		LocalBindAddress: "127.0.0.2",
-		MeshGateway:      &structs.ConsulMeshGateway{Mode: "local"},
+		DestinationName:      "upstream",
+		DestinationNamespace: "ns2",
+		LocalBindPort:        8000,
+		Datacenter:           "dc2",
+		LocalBindAddress:     "127.0.0.2",
+		MeshGateway:          &structs.ConsulMeshGateway{Mode: "local"},
 	}}, apiUpstreamsToStructs([]*api.ConsulUpstream{{
-		DestinationName:  "upstream",
-		LocalBindPort:    8000,
-		Datacenter:       "dc2",
-		LocalBindAddress: "127.0.0.2",
-		MeshGateway:      &api.ConsulMeshGateway{Mode: "local"},
+		DestinationName:      "upstream",
+		DestinationNamespace: "ns2",
+		LocalBindPort:        8000,
+		Datacenter:           "dc2",
+		LocalBindAddress:     "127.0.0.2",
+		MeshGateway:          &api.ConsulMeshGateway{Mode: "local"},
 	}}))
 }
 
