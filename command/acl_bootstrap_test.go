@@ -1,6 +1,8 @@
 package command
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -79,9 +81,9 @@ func TestACLBootstrapCommand_NonACLServer(t *testing.T) {
 	assert.NotContains(out, "Secret ID")
 }
 
-// Attempting to bootstrap the server with an operator provided token should
+// Attempting to bootstrap the server with an operator provided token in a file should
 // return the same token in the result.
-func TestACLBootstrapCommand_WithOperatorBootstrapToken(t *testing.T) {
+func TestACLBootstrapCommand_WithOperatorFileBootstrapToken(t *testing.T) {
 	ci.Parallel(t)
 	// create a acl-enabled server without bootstrapping the token
 	config := func(c *agent.Config) {
@@ -92,6 +94,15 @@ func TestACLBootstrapCommand_WithOperatorBootstrapToken(t *testing.T) {
 	// create a valid token
 	mockToken := mock.ACLToken()
 
+	// Create temp file
+	f, err := ioutil.TempFile("", "nomad-token.token")
+	assert.Nil(t, err)
+	defer os.Remove(f.Name())
+
+	// Write the token to the file
+	err = ioutil.WriteFile(f.Name(), []byte(mockToken.SecretID), 0700)
+	assert.Nil(t, err)
+
 	srv, _, url := testServer(t, true, config)
 	defer srv.Shutdown()
 
@@ -100,14 +111,14 @@ func TestACLBootstrapCommand_WithOperatorBootstrapToken(t *testing.T) {
 	ui := cli.NewMockUi()
 	cmd := &ACLBootstrapCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
-	code := cmd.Run([]string{"-address=" + url, "-bootstrap-token=" + mockToken.SecretID})
+	code := cmd.Run([]string{"-address=" + url, f.Name()})
 	assert.Equal(t, 0, code)
 
 	out := ui.OutputWriter.String()
 	assert.Contains(t, out, mockToken.SecretID)
 }
 
-// Attempting to bootstrap the server with an invalid operator provided token should
+// Attempting to bootstrap the server with an invalid operator provided token in a file should
 // fail.
 func TestACLBootstrapCommand_WithBadOperatorBootstrapToken(t *testing.T) {
 	ci.Parallel(t)
@@ -118,8 +129,17 @@ func TestACLBootstrapCommand_WithBadOperatorBootstrapToken(t *testing.T) {
 		c.ACL.PolicyTTL = 0
 	}
 
-	// create a valid token
+	// create a invalid token
 	invalidToken := "invalid-token"
+
+	// Create temp file
+	f, err := ioutil.TempFile("", "nomad-token.token")
+	assert.Nil(t, err)
+	defer os.Remove(f.Name())
+
+	// Write the token to the file
+	err = ioutil.WriteFile(f.Name(), []byte(invalidToken), 0700)
+	assert.Nil(t, err)
 
 	srv, _, url := testServer(t, true, config)
 	defer srv.Shutdown()
@@ -129,7 +149,7 @@ func TestACLBootstrapCommand_WithBadOperatorBootstrapToken(t *testing.T) {
 	ui := cli.NewMockUi()
 	cmd := &ACLBootstrapCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
-	code := cmd.Run([]string{"-address=" + url, "-bootstrap-token=" + invalidToken})
+	code := cmd.Run([]string{"-address=" + url, f.Name()})
 	assert.Equal(t, 1, code)
 
 	out := ui.OutputWriter.String()
