@@ -4,20 +4,15 @@
   }
   .key-value {
     display: grid;
-    grid-template-columns: 1fr 4fr auto;
+    grid-template-columns: 1fr 4fr auto auto;
     gap: 1rem;
     align-items: end;
 
-    span {
-      display: flex;
-      align-items: center;
-    }
-
     button.show-hide-values {
-      pointer-events: none;
-      cursor: pointer;
       background-color: transparent;
-      height: auto;
+      border: none;
+      margin-left: -1rem;
+      box-shadow: none;
       &:hover {
         color: $nomad-green;
       }
