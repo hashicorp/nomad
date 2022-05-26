@@ -47,8 +47,8 @@
         {{on "click" this.toggleShowHide}}
       >
         <FlightIcon
-          @name="{{if this.hideValues "eye-off" "eye"}}"
-          @title="{{if this.hideValues "Show Values" "Hide Values"}}"
+          @name={{if this.shouldHideValues "eye-off" "eye"}}
+          @title={{if this.shouldHideValues "Show Values" "Hide Values"}}
         />
       </button>
 

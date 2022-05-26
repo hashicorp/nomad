@@ -10,15 +10,15 @@ export default class SecureVariableFormComponent extends Component {
   keyValues = A([{ key: '', value: '' }]);
 
   @tracked
-  hideValues = true;
+  shouldHideValues = true;
 
   get valueFieldType() {
-    return this.hideValues ? 'password' : 'text';
+    return this.shouldHideValues ? 'password' : 'text';
   }
 
   @action
   toggleShowHide() {
-    this.hideValues = !this.hideValues;
+    this.shouldHideValues = !this.shouldHideValues;
   }
 
   @action appendRow() {
