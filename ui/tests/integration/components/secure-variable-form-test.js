@@ -14,7 +14,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
   });
 
   test('shows a single row by default and expands on "Add More"', async function (assert) {
-    // assert.expect(6);
+    assert.expect(3);
 
     await render(hbs`<SecureVariableForm />`);
 
@@ -42,6 +42,8 @@ module('Integration | Component | secure-variable-form', function (hooks) {
   });
 
   test('Values can be toggled to show/hide', async function (assert) {
+    assert.expect(6);
+
     await render(hbs`<SecureVariableForm />`);
     await click('.key-value button.add-more'); // add a second variable
 
