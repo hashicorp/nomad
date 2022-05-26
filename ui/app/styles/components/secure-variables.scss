@@ -7,6 +7,21 @@
     grid-template-columns: 1fr 4fr auto;
     gap: 1rem;
     align-items: end;
+
+    span {
+      display: flex;
+      align-items: center;
+    }
+
+    button.show-hide-values {
+      pointer-events: none;
+      cursor: pointer;
+      background-color: transparent;
+      height: auto;
+      &:hover {
+        color: $nomad-green;
+      }
+    }
   }
 
   .add-more:focus {

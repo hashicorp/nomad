@@ -1,10 +1,28 @@
+// @ts-check
+
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
+import { tracked } from '@glimmer/tracking';
+import { A } from '@ember/array';
 
 export default class SecureVariableFormComponent extends Component {
-  keyValues = [{ key: '', value: '' }];
+  path = '';
+  keyValues = A([{ key: '', value: '' }]);
+
+  @tracked
+  hideValues = true;
+
+  get valueFieldType() {
+    return this.hideValues ? 'password' : 'text';
+  }
+
+  @action
+  toggleShowHide() {
+    this.hideValues = !this.hideValues;
+  }
 
   @action appendRow() {
+    this.keyValues.reverseObjects();
     this.keyValues.pushObject({
       key: '',
       value: '',

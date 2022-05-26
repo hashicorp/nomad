@@ -1,6 +1,7 @@
   <form
     class="new-secure-variables"
     {{on "submit" this.saveNewVariable}}
+    autocopmlete="off"
   >
     {{!-- TODO: {{if this.parseError 'is-danger'}} on inputs --}}
     <div>
@@ -27,11 +28,25 @@
           />
       </label>
       <label>
-        <span>Value</span>
+        <span>Value
+        <button
+          class="show-hide-values button is-borderless is-compact"
+          type="button"
+          tabindex="-1"
+          {{on "click" this.toggleShowHide}}
+        >
+          <FlightIcon
+            @name="{{if this.hideValues "eye-off" "eye"}}"
+            @title="{{if this.hideValues "Show Values" "Hide Values"}}"
+          />
+        </button>
+        </span>
         <Input
-          @type="text"
+          @type={{this.valueFieldType}}
           @value={{entry.value}}
-          class="input" />
+          class="input value-input"
+          autocomplete="new-password" {{!-- prevent auto-fill --}}
+          />
       </label>
       {{#if (eq entry this.keyValues.lastObject)}}
         <button
