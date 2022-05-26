@@ -603,6 +603,37 @@ func TestConsulExposePath_exposePathsEqual(t *testing.T) {
 	})
 }
 
+func TestConsulUpstream_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("nil", func(t *testing.T) {
+		require.NoError(t, (*ConsulUpstream)(nil).Validate())
+	})
+
+	t.Run("missing destination_name", func(t *testing.T) {
+		err := (&ConsulUpstream{
+			DestinationName: "",
+		}).Validate()
+		require.EqualError(t, err, "upstream.destination_name must be set")
+	})
+
+	t.Run("invalid destination_type", func(t *testing.T) {
+		err := (&ConsulUpstream{
+			DestinationName: "example",
+			DestinationType: "banana",
+		}).Validate()
+		require.EqualError(t, err, `upstream.destination_type must be "service" or "prepared_query", got "banana"`)
+	})
+
+	t.Run("normal", func(t *testing.T) {
+		err := (&ConsulUpstream{
+			DestinationName: "example",
+			DestinationType: "prepared_query",
+		}).Validate()
+		require.NoError(t, err)
+	})
+}
+
 func TestConsulExposeConfig_Copy(t *testing.T) {
 	ci.Parallel(t)
 

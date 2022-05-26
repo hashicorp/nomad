@@ -726,6 +726,7 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 			for _, upstream := range p.Upstreams {
 				hashString(h, upstream.DestinationName)
 				hashString(h, upstream.DestinationNamespace)
+				hashString(h, upstream.DestinationType)
 				hashString(h, strconv.Itoa(upstream.LocalBindPort))
 				hashStringIfNonEmpty(h, upstream.Datacenter)
 				hashStringIfNonEmpty(h, upstream.LocalBindAddress)
@@ -954,7 +955,11 @@ func (c *ConsulConnect) Validate() error {
 		}
 	}
 
-	// The Native and Sidecar cases are validated up at the service level.
+	if err := c.SidecarService.Validate(); err != nil {
+		return err
+	}
+
+	// The Native case is validated up at the service level.
 
 	return nil
 }
@@ -1015,6 +1020,18 @@ func (s *ConsulSidecarService) Equals(o *ConsulSidecarService) bool {
 	}
 
 	return s.Proxy.Equals(o.Proxy)
+}
+
+func (s *ConsulSidecarService) Validate() error {
+	if s == nil {
+		return nil
+	}
+
+	if err := s.Proxy.Validate(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // SidecarTask represents a subset of Task fields that are able to be overridden
@@ -1271,6 +1288,20 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 	return newP
 }
 
+func (p *ConsulProxy) Validate() error {
+	if p == nil {
+		return nil
+	}
+
+	for _, up := range p.Upstreams {
+		if err := up.Validate(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // opaqueMapsEqual compares map[string]interface{} commonly used for opaque
 // config blocks. Interprets nil and {} as the same.
 func opaqueMapsEqual(a, b map[string]interface{}) bool {
@@ -1367,6 +1398,9 @@ type ConsulUpstream struct {
 	// DestinationNamespace is the namespace of the upstream service.
 	DestinationNamespace string
 
+	// DestinationType is type of query made for DestinationName ("service" or "prepared_query")
+	DestinationType string
+
 	// LocalBindPort is the port the proxy will receive connections for the
 	// upstream on.
 	LocalBindPort int
@@ -1409,6 +1443,7 @@ func (u *ConsulUpstream) Copy() *ConsulUpstream {
 	return &ConsulUpstream{
 		DestinationName:      u.DestinationName,
 		DestinationNamespace: u.DestinationNamespace,
+		DestinationType:      u.DestinationType,
 		LocalBindPort:        u.LocalBindPort,
 		Datacenter:           u.Datacenter,
 		LocalBindAddress:     u.LocalBindAddress,
@@ -1427,6 +1462,8 @@ func (u *ConsulUpstream) Equals(o *ConsulUpstream) bool {
 		return false
 	case u.DestinationNamespace != o.DestinationNamespace:
 		return false
+	case u.DestinationType != o.DestinationType:
+		return false
 	case u.LocalBindPort != o.LocalBindPort:
 		return false
 	case u.Datacenter != o.Datacenter:
@@ -1438,6 +1475,28 @@ func (u *ConsulUpstream) Equals(o *ConsulUpstream) bool {
 	}
 
 	return true
+}
+
+func (u *ConsulUpstream) Validate() error {
+	if u == nil {
+		return nil
+	}
+
+	if u.DestinationName == "" {
+		return errors.New("Connect upstream.destination_name must be set")
+	}
+
+	switch u.DestinationType {
+	case "", "service", "prepared_query":
+	default:
+		return fmt.Errorf("Connect upstream.destination_type must be %q or %q, got %q", "service", "prepared_query", u.DestinationType)
+	}
+
+	if err := u.MeshGateway.Validate(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ConsulExposeConfig represents a Consul Connect expose jobspec stanza.

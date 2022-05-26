@@ -197,6 +197,7 @@ func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
 type ConsulUpstream struct {
 	DestinationName      string             `mapstructure:"destination_name" hcl:"destination_name,optional"`
 	DestinationNamespace string             `mapstructure:"destination_namespace" hcl:"destination_namespace,optional"`
+	DestinationType      string             `mapstructure:"destination_type" hcl:"destination_type,optional"`
 	LocalBindPort        int                `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
 	Datacenter           string             `mapstructure:"datacenter" hcl:"datacenter,optional"`
 	LocalBindAddress     string             `mapstructure:"local_bind_address" hcl:"local_bind_address,optional"`
@@ -210,6 +211,7 @@ func (cu *ConsulUpstream) Copy() *ConsulUpstream {
 	return &ConsulUpstream{
 		DestinationName:      cu.DestinationName,
 		DestinationNamespace: cu.DestinationNamespace,
+		DestinationType:      cu.DestinationType,
 		LocalBindPort:        cu.LocalBindPort,
 		Datacenter:           cu.Datacenter,
 		LocalBindAddress:     cu.LocalBindAddress,
