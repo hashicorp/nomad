@@ -1,5 +1,4 @@
 import ApplicationAdapter from './application';
-import { isArray } from '@ember/array';
 import { pluralize } from 'ember-inflector';
 import classic from 'ember-classic-decorator';
 
