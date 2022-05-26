@@ -120,7 +120,7 @@ func TestACLBootstrapCommand_WithOperatorFileBootstrapToken(t *testing.T) {
 
 // Attempting to bootstrap the server with an invalid operator provided token in a file should
 // fail.
-func TestACLBootstrapCommand_WithBadOperatorBootstrapToken(t *testing.T) {
+func TestACLBootstrapCommand_WithBadOperatorFileBootstrapToken(t *testing.T) {
 	ci.Parallel(t)
 
 	// create a acl-enabled server without bootstrapping the token
