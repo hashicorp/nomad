@@ -281,7 +281,7 @@ scripts.
   check. Scripts are executed within the task's environment, and
   `check_restart` stanzas will apply to the specified task. For `checks` on group
   level `services` only. Inherits the [`service.task`][service_task] value if not
-  set.
+  set. May only be set for script or gRPC checks.
 
 - `timeout` `(string: <required>)` - Specifies how long Consul will wait for a
   health check query to succeed. This is specified using a label suffix like
