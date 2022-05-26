@@ -10,17 +10,21 @@
           @type="text"
           @value={{this.path}}
           placeholder="/path/to/variable"
-          class="input" />
+          class="input"
+          {{autofocus}}
+          />
       </label>
     </div>
-    {{#each this.keyValues as |entry|}}
+    {{#each this.keyValues as |entry iter|}}
     <div class="key-value">
       <label>
         <span>Key</span>
         <Input
           @type="text"
           @value={{entry.key}}
-          class="input" />
+          class="input"
+          {{autofocus ignore=(eq iter 0)}}
+          />
       </label>
       <label>
         <span>Value</span>
@@ -29,9 +33,11 @@
           @value={{entry.value}}
           class="input" />
       </label>
-      <button
-        {{on "click" this.appendRow}}
-        class="button is-light is-borderless" type="button">Add More</button>
+      {{#if (eq entry this.keyValues.lastObject)}}
+        <button
+          {{on "click" this.appendRow}}
+          class="add-more button is-light is-borderless" type="button">Add More</button>
+      {{/if}}
     </div>
     {{/each}}
     <footer>

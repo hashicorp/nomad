@@ -8,4 +8,8 @@
     gap: 1rem;
     align-items: end;
   }
+
+  .add-more:focus {
+    background-color: $grey-lighter;
+  }
 }
