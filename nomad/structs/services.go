@@ -725,6 +725,7 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 			hashConfig(h, p.Config)
 			for _, upstream := range p.Upstreams {
 				hashString(h, upstream.DestinationName)
+				hashString(h, upstream.DestinationNamespace)
 				hashString(h, strconv.Itoa(upstream.LocalBindPort))
 				hashStringIfNonEmpty(h, upstream.Datacenter)
 				hashStringIfNonEmpty(h, upstream.LocalBindAddress)
@@ -1363,6 +1364,9 @@ type ConsulUpstream struct {
 	// DestinationName is the name of the upstream service.
 	DestinationName string
 
+	// DestinationNamespace is the namespace of the upstream service.
+	DestinationNamespace string
+
 	// LocalBindPort is the port the proxy will receive connections for the
 	// upstream on.
 	LocalBindPort int
@@ -1403,11 +1407,12 @@ func (u *ConsulUpstream) Copy() *ConsulUpstream {
 	}
 
 	return &ConsulUpstream{
-		DestinationName:  u.DestinationName,
-		LocalBindPort:    u.LocalBindPort,
-		Datacenter:       u.Datacenter,
-		LocalBindAddress: u.LocalBindAddress,
-		MeshGateway:      u.MeshGateway.Copy(),
+		DestinationName:      u.DestinationName,
+		DestinationNamespace: u.DestinationNamespace,
+		LocalBindPort:        u.LocalBindPort,
+		Datacenter:           u.Datacenter,
+		LocalBindAddress:     u.LocalBindAddress,
+		MeshGateway:          u.MeshGateway.Copy(),
 	}
 }
 
@@ -1419,6 +1424,8 @@ func (u *ConsulUpstream) Equals(o *ConsulUpstream) bool {
 
 	switch {
 	case u.DestinationName != o.DestinationName:
+		return false
+	case u.DestinationNamespace != o.DestinationNamespace:
 		return false
 	case u.LocalBindPort != o.LocalBindPort:
 		return false
