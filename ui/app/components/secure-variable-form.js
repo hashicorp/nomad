@@ -22,7 +22,6 @@ export default class SecureVariableFormComponent extends Component {
   }
 
   @action appendRow() {
-    this.keyValues.reverseObjects();
     this.keyValues.pushObject({
       key: '',
       value: '',
