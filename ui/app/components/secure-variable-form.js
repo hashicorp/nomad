@@ -4,9 +4,21 @@ import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { A } from '@ember/array';
+import MutableArray from '@ember/array/mutable';
+
+/**
+ * @typedef SecureVariable
+ * @type {object}
+ * @property {string} key
+ * @property {string} value
+ */
 
 export default class SecureVariableFormComponent extends Component {
   path = '';
+
+  /**
+   * @type {MutableArray<SecureVariable>}
+   */
   keyValues = A([{ key: '', value: '' }]);
 
   @tracked
@@ -26,6 +38,14 @@ export default class SecureVariableFormComponent extends Component {
       key: '',
       value: '',
     });
+  }
+
+  /**
+   *
+   * @param {SecureVariable} row
+   */
+  @action deleteRow(row) {
+    this.keyValues.removeObject(row);
   }
 
   @action

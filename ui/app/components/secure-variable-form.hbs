@@ -29,7 +29,7 @@
           />
       </label>
 
-      <label>
+      <label class="value-label">
         <span>Value
         </span>
         <Input
@@ -38,24 +38,27 @@
           class="input value-input"
           autocomplete="new-password" {{!-- prevent auto-fill --}}
           />
+        <button
+          class="show-hide-values button is-light"
+          type="button"
+          tabindex="-1"
+          {{on "click" this.toggleShowHide}}
+        >
+          <FlightIcon
+            @name={{if this.shouldHideValues "eye-off" "eye"}}
+            @title={{if this.shouldHideValues "Show Values" "Hide Values"}}
+          />
+        </button>
       </label>
-
-      <button
-        class="show-hide-values button is-borderless"
-        type="button"
-        tabindex="-1"
-        {{on "click" this.toggleShowHide}}
-      >
-        <FlightIcon
-          @name={{if this.shouldHideValues "eye-off" "eye"}}
-          @title={{if this.shouldHideValues "Show Values" "Hide Values"}}
-        />
-      </button>
 
       {{#if (eq entry this.keyValues.lastObject)}}
         <button
           {{on "click" this.appendRow}}
-          class="add-more button is-light is-borderless" type="button">Add More</button>
+          class="add-more button is-info is-inverted" type="button">Add More</button>
+      {{else}}
+        <button
+          {{on "click" (action this.deleteRow entry)}}
+          class="add-more button is-danger is-inverted" type="button">Delete</button>
       {{/if}}
     </div>
     {{/each}}

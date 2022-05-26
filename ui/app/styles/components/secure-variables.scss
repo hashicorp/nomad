@@ -4,18 +4,22 @@
   }
   .key-value {
     display: grid;
-    grid-template-columns: 1fr 4fr auto auto;
+    grid-template-columns: 1fr 4fr 130px;
     gap: 1rem;
     align-items: end;
 
-    button.show-hide-values {
-      background-color: transparent;
-      border: none;
-      margin-left: -1rem;
-      box-shadow: none;
-      &:hover {
-        color: $nomad-green;
+    .value-label {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      & > span {
+        grid-column: -1 / 1;
       }
+    }
+
+    button.show-hide-values {
+      height: 100%;
+      box-shadow: none;
+      margin-left: -1px;
     }
   }
 
