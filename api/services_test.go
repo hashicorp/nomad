@@ -227,11 +227,12 @@ func TestService_Connect_ConsulUpstream_Copy(t *testing.T) {
 
 	t.Run("complete upstream", func(t *testing.T) {
 		cu := &ConsulUpstream{
-			DestinationName:  "dest1",
-			Datacenter:       "dc2",
-			LocalBindPort:    2000,
-			LocalBindAddress: "10.0.0.1",
-			MeshGateway:      &ConsulMeshGateway{Mode: "remote"},
+			DestinationName:      "dest1",
+			DestinationNamespace: "ns2",
+			Datacenter:           "dc2",
+			LocalBindPort:        2000,
+			LocalBindAddress:     "10.0.0.1",
+			MeshGateway:          &ConsulMeshGateway{Mode: "remote"},
 		}
 		result := cu.Copy()
 		require.Equal(t, cu, result)
@@ -249,19 +250,21 @@ func TestService_Connect_ConsulUpstream_Canonicalize(t *testing.T) {
 
 	t.Run("complete", func(t *testing.T) {
 		cu := &ConsulUpstream{
-			DestinationName:  "dest1",
-			Datacenter:       "dc2",
-			LocalBindPort:    2000,
-			LocalBindAddress: "10.0.0.1",
-			MeshGateway:      &ConsulMeshGateway{Mode: ""},
+			DestinationName:      "dest1",
+			DestinationNamespace: "ns2",
+			Datacenter:           "dc2",
+			LocalBindPort:        2000,
+			LocalBindAddress:     "10.0.0.1",
+			MeshGateway:          &ConsulMeshGateway{Mode: ""},
 		}
 		cu.Canonicalize()
 		require.Equal(t, &ConsulUpstream{
-			DestinationName:  "dest1",
-			Datacenter:       "dc2",
-			LocalBindPort:    2000,
-			LocalBindAddress: "10.0.0.1",
-			MeshGateway:      &ConsulMeshGateway{Mode: ""},
+			DestinationName:      "dest1",
+			DestinationNamespace: "ns2",
+			Datacenter:           "dc2",
+			LocalBindPort:        2000,
+			LocalBindAddress:     "10.0.0.1",
+			MeshGateway:          &ConsulMeshGateway{Mode: ""},
 		}, cu)
 	})
 }
