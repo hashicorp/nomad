@@ -140,7 +140,7 @@ func (s *HTTPServer) ACLTokenBootstrap(resp http.ResponseWriter, req *http.Reque
 
 	var args structs.ACLTokenBootstrapRequest
 
-	if req.ContentLength != 0 {
+	if req.Body != nil {
 		if err := decodeBody(req, &args); err != nil {
 			return nil, CodedError(400, err.Error())
 		}
