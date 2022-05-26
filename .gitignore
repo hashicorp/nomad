@@ -79,7 +79,7 @@ rkt-*
 # Common editor config
 ./idea
 *.iml
-.vscode/launch.json
+.vscode
 
 # UI rules
 
