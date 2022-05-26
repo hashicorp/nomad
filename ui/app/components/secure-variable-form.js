@@ -4,6 +4,7 @@ import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { A } from '@ember/array';
+// eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 
 /**
