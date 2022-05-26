@@ -92,6 +92,7 @@ func (c *ACLBootstrapCommand) Run(args []string) int {
 		case "-":
 			terminalToken, err = ioutil.ReadAll(os.Stdin)
 		default:
+			file = args[0]
 			terminalToken, err = ioutil.ReadFile(file)
 		}
 		if err != nil {
