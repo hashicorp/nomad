@@ -1707,7 +1707,7 @@ func (s *Server) initializeKeyring() error {
 		return fmt.Errorf("could not initialize keyring: %v", err)
 	}
 
-	err = s.staticEndpoints.Keyring.encrypter.AddKey(rootKey)
+	err = s.encrypter.AddKey(rootKey)
 	if err != nil {
 		return fmt.Errorf("could not add initial key to keyring: %v", err)
 	}
