@@ -19,11 +19,12 @@
     button.show-hide-values {
       height: 100%;
       box-shadow: none;
-      margin-left: -1px;
+      margin-left: -2px;
+      border-color: $grey-blue;
     }
   }
 
-  .add-more:focus {
-    background-color: $grey-lighter;
-  }
+  // .add-more:focus {
+  //   background-color: $grey-lighter;
+  // }
 }

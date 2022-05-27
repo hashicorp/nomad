@@ -13,8 +13,8 @@ module('Integration | Component | secure-variable-form', function (hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  test('shows a single row by default and expands on "Add More"', async function (assert) {
-    assert.expect(3);
+  test('shows a single row by default and modifies on "Add More" and "Delete"', async function (assert) {
+    assert.expect(4);
 
     await render(hbs`<SecureVariableForm />`);
 
@@ -38,6 +38,14 @@ module('Integration | Component | secure-variable-form', function (hooks) {
       findAll('div.key-value').length,
       3,
       'A third KV row exists after adding a new one'
+    );
+
+    await click('.key-value button.delete-row');
+
+    assert.equal(
+      findAll('div.key-value').length,
+      2,
+      'Back down to two rows after hitting delete'
     );
   });
 
