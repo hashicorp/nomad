@@ -5,7 +5,7 @@
 >
   Edit
 </LinkTo>
-<ListTable data-test-eval-table @source={{this.keyValues}} as |t|>
+<ListTable data-test-eval-table @source={{this.model.keyValues}} as |t|>
   <t.body as |row|>
     <tr>
     <td>{{row.model.key}}</td>

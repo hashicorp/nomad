@@ -4,9 +4,7 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class VariableAdapter extends ApplicationAdapter {
-  pathForType() {
-    return 'var';
-  }
+  pathForType = () => 'var';
 
   // PUT instead of POST on create;
   // /v1/var instead of /v1/vars on create (urlForFindRecord)
