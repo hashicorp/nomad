@@ -1,6 +1,7 @@
   <form
     class="new-secure-variables"
     {{on "submit" this.saveNewVariable}}
+    autocomplete="off"
   >
     {{!-- TODO: {{if this.parseError 'is-danger'}} on inputs --}}
     <div>
@@ -17,6 +18,7 @@
     </div>
     {{#each this.keyValues as |entry iter|}}
     <div class="key-value">
+
       <label>
         <span>Key</span>
         <Input
@@ -26,17 +28,37 @@
           {{autofocus ignore=(eq iter 0)}}
           />
       </label>
-      <label>
-        <span>Value</span>
+
+      <label class="value-label">
+        <span>Value
+        </span>
         <Input
-          @type="text"
+          @type={{this.valueFieldType}}
           @value={{entry.value}}
-          class="input" />
+          class="input value-input"
+          autocomplete="new-password" {{!-- prevent auto-fill --}}
+          />
+        <button
+          class="show-hide-values button is-light"
+          type="button"
+          tabindex="-1"
+          {{on "click" this.toggleShowHide}}
+        >
+          <FlightIcon
+            @name={{if this.shouldHideValues "eye-off" "eye"}}
+            @title={{if this.shouldHideValues "Show Values" "Hide Values"}}
+          />
+        </button>
       </label>
+
       {{#if (eq entry this.keyValues.lastObject)}}
         <button
           {{on "click" this.appendRow}}
-          class="add-more button is-light is-borderless" type="button">Add More</button>
+          class="add-more button is-info is-inverted" type="button">Add More</button>
+      {{else}}
+        <button
+          {{on "click" (action this.deleteRow entry)}}
+          class="delete-row button is-danger is-inverted" type="button">Delete</button>
       {{/if}}
     </div>
     {{/each}}

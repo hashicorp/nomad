@@ -4,12 +4,27 @@
   }
   .key-value {
     display: grid;
-    grid-template-columns: 1fr 4fr auto;
+    grid-template-columns: 1fr 4fr 130px;
     gap: 1rem;
     align-items: end;
+
+    .value-label {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      & > span {
+        grid-column: -1 / 1;
+      }
+    }
+
+    button.show-hide-values {
+      height: 100%;
+      box-shadow: none;
+      margin-left: -2px;
+      border-color: $grey-blue;
+    }
   }
 
-  .add-more:focus {
-    background-color: $grey-lighter;
-  }
+  // .add-more:focus {
+  //   background-color: $grey-lighter;
+  // }
 }

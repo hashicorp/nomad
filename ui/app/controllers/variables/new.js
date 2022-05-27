@@ -8,6 +8,9 @@ export default class VariablesNewController extends Controller {
   async saveNewVariable({ path, keyValues }) {
     // TODO: validation
 
+    // get rid of incomplete values before saving
+    keyValues = keyValues.reject((kv) => !kv.key);
+
     // Transform key value array into object
     const items = keyValues.reduce((acc, { key, value }) => {
       acc[key] = value;
