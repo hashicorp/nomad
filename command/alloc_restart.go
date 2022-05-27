@@ -32,8 +32,8 @@ General Options:
 Restart Specific Options:
 
   -task <task-name>
-	Specify the individual task to restart. If task name is given with both an 
-	argument and the '-task' option, preference is given to the '-task' option.
+    Specify the individual task to restart. If task name is given with both an 
+    argument and the '-task' option, preference is given to the '-task' option.
 
   -verbose
     Show full information.
