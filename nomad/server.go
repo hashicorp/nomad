@@ -463,10 +463,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	// Start enterprise background workers
 	s.startEnterpriseBackground()
 
-	// FIXME: Remove once real implemenation exists
-	// Start Mock Secure Variables Server
-	go NewMockVariableStore(s, s.logger.Named("secure_variables"))
-
 	// Done
 	return s, nil
 }
