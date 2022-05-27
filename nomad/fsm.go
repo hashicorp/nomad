@@ -1993,7 +1993,7 @@ func (n *nomadFSM) applySecureVariableUpsert(msgType structs.MessageType, buf []
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertSecureVariables(msgType, index, []*structs.SecureVariable{req.Data}); err != nil {
+	if err := n.state.UpsertSecureVariables(msgType, index, req.Data); err != nil {
 		n.logger.Error("UpsertSecureVariables failed", "error", err)
 		return err
 	}
@@ -2008,7 +2008,7 @@ func (n *nomadFSM) applySecureVariableDelete(msgType structs.MessageType, buf []
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteSecureVariables(msgType, index, []string{req.Path}); err != nil {
+	if err := n.state.DeleteSecureVariables(msgType, index, req.Namespace, []string{req.Path}); err != nil {
 		n.logger.Error("DeleteSecureVariables failed", "error", err)
 		return err
 	}
