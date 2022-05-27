@@ -2,9 +2,7 @@ import Route from '@ember/routing/route';
 
 export default class VariablesNewRoute extends Route {
   model() {
-    return this.store.findAll('namespace').then(() => {
-      return this.store.createRecord('variable');
-    });
+    return this.store.createRecord('variable');
   }
   resetController(controller, isExiting) {
     if (isExiting) {
