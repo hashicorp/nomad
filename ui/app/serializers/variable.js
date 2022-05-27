@@ -1,6 +1,5 @@
 import classic from 'ember-classic-decorator';
 import ApplicationSerializer from './application';
-import { get } from '@ember/object';
 
 @classic
 export default class VariableSerializer extends ApplicationSerializer {
