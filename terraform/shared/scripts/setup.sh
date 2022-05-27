@@ -126,7 +126,7 @@ if [[ ! -z ${INSTALL_NVIDIA_DOCKER+x} ]]; then
     sudo tee /etc/apt/sources.list.d/nvidia-docker.list
 
   sudo apt-get update
-  sudo apt-get install -y nvidia-docker2
+  sudo apt-get install -y nvidia-docker2 --allow-unauthenticated
 fi
 
 # rkt
