@@ -2,6 +2,7 @@ package structs
 
 import (
 	"fmt"
+	"reflect"
 	"time"
 
 	// note: this is aliased so that it's more noticeable if someone
@@ -12,6 +13,36 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
+)
+
+const (
+	// SecureVariablesUpsertRPCMethod is the RPC method for upserting
+	// secure variables into Nomad state.
+	//
+	// Args: SecureVariablesUpsertRequest
+	// Reply: SecureVariablesUpsertResponse
+	SecureVariablesUpsertRPCMethod = "SecureVariables.Upsert"
+
+	// SecureVariablesDeleteRPCMethod is the RPC method for deleting
+	// a secure variable by its namespace and path.
+	//
+	// Args: SecureVariablesDeleteRequest
+	// Reply: SecureVariablesDeleteResponse
+	SecureVariablesDeleteRPCMethod = "SecureVariables.Delete"
+
+	// SecureVariablesListRPCMethod is the RPC method for listing secure
+	// variables within Nomad.
+	//
+	// Args: SecureVariablesListRequest
+	// Reply: SecureVariablesListResponse
+	SecureVariablesListRPCMethod = "SecureVariables.List"
+
+	// SecureVariablesGetServiceRPCMethod is the RPC method for fetching a
+	// secure variable according to its namepace and path.
+	//
+	// Args: SecureVariablesByNameRequest
+	// Reply: SecureVariablesByNameResponse
+	SecureVariablesReadRPCMethod = "SecureVariables.Read"
 )
 
 // SecureVariable is the metadata envelope for a Secure Variable
@@ -41,7 +72,7 @@ type SecureVariableData struct {
 }
 
 func (sv SecureVariableData) Copy() *SecureVariableData {
-	out := make([]byte, 0, len(sv.Data))
+	out := make([]byte, len(sv.Data))
 	copy(out, sv.Data)
 	return &SecureVariableData{
 		Data:  out,
@@ -64,6 +95,37 @@ func (sv *SecureVariable) Copy() *SecureVariable {
 		out.EncryptedData = sv.EncryptedData.Copy()
 	}
 	return &out
+}
+
+func (sv SecureVariable) Equals(sv2 SecureVariable) bool {
+	// FIXME: This should be a smarter equality check
+	return reflect.DeepEqual(sv, sv2)
+}
+
+func (sv SecureVariable) Validate() error {
+	// FIXME: Placeholder for more extensive validation
+	return nil
+}
+
+func (sv *SecureVariable) Canonicalize() {
+	if sv.Namespace == "" {
+		sv.Namespace = DefaultNamespace
+	}
+}
+
+// GetNamespace returns the secure variable's namespace. Used for pagination.
+func (sv SecureVariable) GetNamespace() string {
+	return sv.Namespace
+}
+
+// GetID returns the secure variable's path. Used for pagination.
+func (sv SecureVariable) GetID() string {
+	return sv.Path
+}
+
+// GetCreateIndex returns the secure variable's create index. Used for pagination.
+func (sv SecureVariable) GetCreateIndex() uint64 {
+	return sv.CreateIndex
 }
 
 func (sv SecureVariable) Stub() SecureVariableStub {
@@ -107,6 +169,11 @@ type SecureVariablesQuota struct {
 }
 
 type SecureVariablesUpsertRequest struct {
+	Data []*SecureVariable
+	WriteRequest
+}
+
+type SecureVariableUpsertRequest struct {
 	Data *SecureVariable
 	WriteRequest
 }

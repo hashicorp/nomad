@@ -9,7 +9,7 @@ import (
 
 func (s *HTTPServer) SecureVariablesListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "GET" {
-		return nil, CodedError(405, ErrInvalidMethod)
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
 	args := structs.SecureVariablesListRequest{}
@@ -18,7 +18,7 @@ func (s *HTTPServer) SecureVariablesListRequest(resp http.ResponseWriter, req *h
 	}
 
 	var out structs.SecureVariablesListResponse
-	if err := s.agent.RPC("SecureVariables.List", &args, &out); err != nil {
+	if err := s.agent.RPC(structs.SecureVariablesListRPCMethod, &args, &out); err != nil {
 		return nil, err
 	}
 
@@ -57,14 +57,14 @@ func (s *HTTPServer) secureVariableQuery(resp http.ResponseWriter, req *http.Req
 	}
 
 	var out structs.SecureVariablesReadResponse
-	if err := s.agent.RPC("SecureVariables.Read", &args, &out); err != nil {
+	if err := s.agent.RPC(structs.SecureVariablesReadRPCMethod, &args, &out); err != nil {
 		return nil, err
 	}
 
 	setMeta(resp, &out.QueryMeta)
 
 	if out.Data == nil {
-		return nil, CodedError(404, "Secure variable not found")
+		return nil, CodedError(http.StatusNotFound, "Secure variable not found")
 	}
 	return out.Data, nil
 }
@@ -79,12 +79,12 @@ func (s *HTTPServer) secureVariableUpsert(resp http.ResponseWriter, req *http.Re
 	SecureVariable.Path = path
 	// Format the request
 	args := structs.SecureVariablesUpsertRequest{
-		Data: &SecureVariable,
+		Data: []*structs.SecureVariable{&SecureVariable},
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.SecureVariablesUpsertResponse
-	if err := s.agent.RPC("SecureVariables.Update", &args, &out); err != nil {
+	if err := s.agent.RPC(structs.SecureVariablesUpsertRPCMethod, &args, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.WriteMeta.Index)
@@ -101,7 +101,7 @@ func (s *HTTPServer) secureVariableDelete(resp http.ResponseWriter, req *http.Re
 	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.SecureVariablesDeleteResponse
-	if err := s.agent.RPC("SecureVariables.Delete", &args, &out); err != nil {
+	if err := s.agent.RPC(structs.SecureVariablesDeleteRPCMethod, &args, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.WriteMeta.Index)

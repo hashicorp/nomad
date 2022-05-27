@@ -3,6 +3,7 @@ package mock
 import (
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
 	"time"
 
@@ -2299,6 +2300,8 @@ func ServiceRegistrations() []*structs.ServiceRegistration {
 	}
 }
 
+type MockSecureVariables map[string]*structs.SecureVariable
+
 func SecureVariable() *structs.SecureVariable {
 	envs := []string{"dev", "test", "prod"}
 	envIdx := rand.Intn(3)
@@ -2319,6 +2322,10 @@ func SecureVariable() *structs.SecureVariable {
 			"username": fake.Username(),
 			"password": fake.Password(true, true, true, true, false, 16),
 		},
+		EncryptedData: &structs.SecureVariableData{
+			KeyID: fake.UUID(),
+			Data:  []byte{},
+		},
 		CreateIndex: createIdx,
 		ModifyIndex: createIdx,
 		CreateTime:  createDT,
@@ -2330,4 +2337,49 @@ func SecureVariable() *structs.SecureVariable {
 		sv.ModifyIndex = sv.CreateIndex + uint64(rand.Intn(100))
 	}
 	return sv
+}
+
+// SecureVariables returns a random number of secure variables between min
+// and max inclusive.
+func SecureVariables(minU, maxU uint8) MockSecureVariables {
+	// the unsignedness of the args is to prevent goofy parameters, they're
+	// easier to work with as ints in this code.
+	min := int(minU)
+	max := int(maxU)
+	vc := min
+	// handle cases with irrational arguments. Max < Min = min
+	if max > min {
+		vc = rand.Intn(max-min) + min
+	}
+	svs := make([]*structs.SecureVariable, vc)
+	paths := make(map[string]*structs.SecureVariable, vc)
+	for i := 0; i < vc; i++ {
+		nv := SecureVariable()
+		// There is an extremely rare chance of path collision because the mock
+		// secure variables generate their paths randomly. This check will add
+		// an extra component on conflict to (ideally) disambiguate them.
+		if _, found := paths[nv.Path]; found {
+			nv.Path = nv.Path + "/" + fmt.Sprint(time.Now().UnixNano())
+		}
+		paths[nv.Path] = nv
+		svs[i] = nv
+	}
+	return paths
+}
+
+func (svs MockSecureVariables) ListPaths() []string {
+	out := make([]string, 0, len(svs))
+	for _, sv := range svs {
+		out = append(out, sv.Path)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (svs MockSecureVariables) List() []*structs.SecureVariable {
+	out := make([]*structs.SecureVariable, 0, len(svs))
+	for _, p := range svs.ListPaths() {
+		out = append(out, svs[p].Copy())
+	}
+	return out
 }

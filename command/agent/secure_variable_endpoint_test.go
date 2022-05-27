@@ -37,12 +37,10 @@ func TestHTTP_SecureVariableList(t *testing.T) {
 		require.NoError(t, err)
 
 		// add vars and test a populated backend
-		sv1 := mock.SecureVariable()
-		sv2 := mock.SecureVariable()
-		sv3 := mock.SecureVariable()
-		sv4 := mock.SecureVariable()
-		sv4.Path = sv1.Path + "/child"
-		for _, sv := range []*structs.SecureVariable{sv1, sv2, sv3, sv4} {
+		svMap := mock.SecureVariables(4, 4)
+		svs := svMap.List()
+		svs[3].Path = svs[0].Path + "/child"
+		for _, sv := range svs {
 			require.NoError(t, rpcWriteSV(s, sv))
 		}
 
@@ -64,7 +62,7 @@ func TestHTTP_SecureVariableList(t *testing.T) {
 		require.Len(t, obj.([]*structs.SecureVariableStub), 4)
 
 		// test prefix query
-		req, err = http.NewRequest("GET", "/v1/vars?prefix="+sv1.Path, nil)
+		req, err = http.NewRequest("GET", "/v1/vars?prefix="+svs[0].Path, nil)
 		require.NoError(t, err)
 		respW = httptest.NewRecorder()
 
@@ -72,14 +70,13 @@ func TestHTTP_SecureVariableList(t *testing.T) {
 		obj, err = s.Server.SecureVariablesListRequest(respW, req)
 		require.NoError(t, err)
 		require.Len(t, obj.([]*structs.SecureVariableStub), 2)
-
 	})
 }
 
 func TestHTTP_SecureVariableQuery(t *testing.T) {
 	//ci.Parallel(t)
 	httpTest(t, cb, func(s *TestAgent) {
-		// Make a request for a non-existent variable
+		// Make a request for a non-existing variable
 		req, err := http.NewRequest("GET", "/v1/var/does/not/exist", nil)
 		require.NoError(t, err)
 		respW := httptest.NewRecorder()
@@ -127,10 +124,11 @@ func TestHTTP_SecureVariableCreate(t *testing.T) {
 	//ci.Parallel(t)
 	httpTest(t, cb, func(s *TestAgent) {
 		sv1 := mock.SecureVariable()
+		sv1U := sv1.Copy()
+
 		require.NoError(t, rpcWriteSV(s, sv1))
 
 		// Make a change for update
-		sv1U := sv1.Copy()
 		sv1U.UnencryptedData["newness"] = "awwyeah"
 
 		// Make the HTTP request
@@ -148,7 +146,7 @@ func TestHTTP_SecureVariableCreate(t *testing.T) {
 		require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
 
 		// Check the variable was created
-		out, err := rpcReadSV(s, sv1.Path)
+		out, err := rpcReadSV(s, sv1.Namespace, sv1.Path)
 		require.NoError(t, err)
 		require.NotNil(t, out)
 
@@ -178,6 +176,8 @@ func TestHTTP_SecureVariableUpdate(t *testing.T) {
 	httpTest(t, cb, func(s *TestAgent) {
 		// Make the HTTP request
 		sv1 := mock.SecureVariable()
+		sv1.EncryptedData = nil
+
 		buf := encodeReq(sv1)
 		req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, buf)
 		require.NoError(t, err)
@@ -192,11 +192,12 @@ func TestHTTP_SecureVariableUpdate(t *testing.T) {
 		require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
 
 		// Check the variable was updated
-		out, err := rpcReadSV(s, sv1.Path)
+		out, err := rpcReadSV(s, sv1.Namespace, sv1.Path)
 		require.NoError(t, err)
 		require.NotNil(t, out)
 
 		sv1.CreateIndex, sv1.ModifyIndex = out.CreateIndex, out.ModifyIndex
+		sv1.CreateTime, sv1.ModifyTime = out.CreateTime, out.ModifyTime
 		require.Equal(t, sv1.Path, out.Path)
 		require.Equal(t, sv1, out)
 	})
@@ -221,8 +222,8 @@ func TestHTTP_SecureVariableDelete(t *testing.T) {
 		// Check for the index
 		require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
 
-		// Check variable bag was deleted
-		sv, err := rpcReadSV(s, sv1.Path)
+		// Check variable was deleted
+		sv, err := rpcReadSV(s, sv1.Namespace, sv1.Path)
 		require.NoError(t, err)
 		require.Nil(t, sv)
 	})
@@ -237,18 +238,30 @@ func encodeBrokenReq(obj interface{}) io.ReadCloser {
 	return ioutil.NopCloser(bytes.NewReader(b))
 }
 
-func rpcReadSV(s *TestAgent, p string) (*structs.SecureVariable, error) {
-	checkArgs := structs.SecureVariablesReadRequest{Path: p, QueryOptions: structs.QueryOptions{Region: "global"}}
+func rpcReadSV(s *TestAgent, ns, p string) (*structs.SecureVariable, error) {
+	checkArgs := structs.SecureVariablesReadRequest{Path: p, QueryOptions: structs.QueryOptions{Namespace: ns, Region: "global"}}
 	var checkResp structs.SecureVariablesReadResponse
-	err := s.Agent.RPC("SecureVariables.Read", &checkArgs, &checkResp)
+	err := s.Agent.RPC(structs.SecureVariablesReadRPCMethod, &checkArgs, &checkResp)
 	return checkResp.Data, err
 }
 
 func rpcWriteSV(s *TestAgent, sv *structs.SecureVariable) error {
 	args := structs.SecureVariablesUpsertRequest{
-		Data:         sv,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Data:         []*structs.SecureVariable{sv},
+		WriteRequest: structs.WriteRequest{Namespace: sv.Namespace, Region: "global"},
 	}
 	var resp structs.SecureVariablesUpsertResponse
-	return s.Agent.RPC("SecureVariables.Create", &args, &resp)
+	err := s.Agent.RPC(structs.SecureVariablesUpsertRPCMethod, &args, &resp)
+	if err != nil {
+		return err
+	}
+	nv, err := rpcReadSV(s, sv.Namespace, sv.Path)
+	if err != nil {
+		return err
+	}
+	sv.CreateIndex = nv.CreateIndex
+	sv.CreateTime = nv.CreateTime
+	sv.ModifyIndex = nv.ModifyIndex
+	sv.ModifyTime = nv.ModifyTime
+	return nil
 }
