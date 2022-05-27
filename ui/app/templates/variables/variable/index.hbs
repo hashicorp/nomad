@@ -1,0 +1,15 @@
+<LinkTo
+  class="button is-primary"
+  @model={{this.model}}
+  @route="variables.variable.edit"
+>
+  Edit
+</LinkTo>
+<ListTable data-test-eval-table @source={{this.keyValues}} as |t|>
+  <t.body as |row|>
+    <tr>
+    <td>{{row.model.key}}</td>
+    <td>{{row.model.value}}</td>
+    </tr>
+  </t.body>
+</ListTable>

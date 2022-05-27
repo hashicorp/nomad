@@ -15,12 +15,27 @@ import MutableArray from '@ember/array/mutable';
  */
 
 export default class SecureVariableFormComponent extends Component {
-  path = '';
+  get path() {
+    return this.args.model?.path || '';
+  }
 
   /**
    * @type {MutableArray<SecureVariable>}
    */
-  keyValues = A([{ key: '', value: '' }]);
+  // keyValues = A([{ key: '', value: '' }]);
+  get keyValues() {
+    if (
+      this.args.model?.items &&
+      Object.entries(this.args.model.items).length
+    ) {
+      return Object.entries(this.args.model.items).map(([key, value]) => ({
+        key,
+        value,
+      }));
+    } else {
+      return A([{ key: '', value: '' }]);
+    }
+  }
 
   @tracked
   shouldHideValues = true;
