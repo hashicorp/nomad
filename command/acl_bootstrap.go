@@ -32,9 +32,6 @@ Bootstrap Options:
   -t
     Format and display the bootstrap response using a Go template.
 
-  -bootstrap-token
-    Provide an operator generated management token.
-
 `
 	return strings.TrimSpace(helpText)
 }
@@ -42,9 +39,8 @@ Bootstrap Options:
 func (c *ACLBootstrapCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json":            complete.PredictNothing,
-			"-t":               complete.PredictAnything,
-			"-bootstrap-token": complete.PredictAnything,
+			"-json": complete.PredictNothing,
+			"-t":    complete.PredictAnything,
 		})
 }
 
