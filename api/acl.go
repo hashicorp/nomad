@@ -263,7 +263,7 @@ type OneTimeTokenExchangeResponse struct {
 	Token *ACLToken
 }
 
-// BootstrapRequest is used to when operators provide an ACL Bootstrap Token
+// BootstrapRequest is used for when operators provide an ACL Bootstrap Token
 type BootstrapRequest struct {
 	BootstrapSecret string
 }
