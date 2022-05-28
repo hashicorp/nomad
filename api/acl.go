@@ -72,7 +72,7 @@ func (c *Client) ACLTokens() *ACLTokens {
 	return &ACLTokens{client: c}
 }
 
-// This Method is deprecated and will be removed in 1.5
+// DEPRECATED: will be removed in Nomad 1.5.0
 // Bootstrap is used to get the initial bootstrap token
 func (a *ACLTokens) Bootstrap(q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	var resp ACLToken
