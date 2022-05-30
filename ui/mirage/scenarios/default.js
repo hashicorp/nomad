@@ -50,6 +50,7 @@ function smallCluster(server) {
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
   server.createList('csi-plugin', 2);
+  server.createList('variable', 3);
 
   // #region evaluations
 
