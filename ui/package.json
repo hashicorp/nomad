@@ -170,6 +170,7 @@
     ]
   },
   "dependencies": {
+    "@hashicorp/ember-flight-icons": "^2.0.5",
     "@percy/cli": "^1.1.0",
     "@percy/ember": "^3.0.0",
     "codemirror": "^5.56.0",
