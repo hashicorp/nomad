@@ -10,13 +10,24 @@ module('Unit | Model | variable', function (hooks) {
     let model = store.createRecord('variable');
     model.setProperties({
       path: 'my/fun/path',
-      namespace: 'toots',
-      items: {
-        foo: 'bar',
-        myVar: 'myValue',
-      },
+      namespace: 'default',
+      keyValues: [
+        { key: 'foo', value: 'bar' },
+        { key: 'myVar', value: 'myValue' },
+      ],
     });
     assert.ok(model.path);
-    assert.equal(Object.entries(model.items).length, 2);
+    assert.equal(model.keyValues.length, 2);
+  });
+
+  test('it has a single keyValue by default', function (assert) {
+    let store = this.owner.lookup('service:store');
+
+    let model = store.createRecord('variable');
+    model.setProperties({
+      path: 'my/fun/path',
+      namespace: 'default',
+    });
+    assert.equal(model.keyValues.length, 1);
   });
 });

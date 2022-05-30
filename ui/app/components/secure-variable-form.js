@@ -1,26 +1,9 @@
-// @ts-check
-
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
-import { A } from '@ember/array';
-// eslint-disable-next-line no-unused-vars
-import MutableArray from '@ember/array/mutable';
-
-/**
- * @typedef SecureVariable
- * @type {object}
- * @property {string} key
- * @property {string} value
- */
-
+import { inject as service } from '@ember/service';
 export default class SecureVariableFormComponent extends Component {
-  path = '';
-
-  /**
-   * @type {MutableArray<SecureVariable>}
-   */
-  keyValues = A([{ key: '', value: '' }]);
+  @service router;
 
   @tracked
   shouldHideValues = true;
@@ -29,30 +12,37 @@ export default class SecureVariableFormComponent extends Component {
     return this.shouldHideValues ? 'password' : 'text';
   }
 
+  get shouldDisableSave() {
+    return !this.args.model?.path;
+  }
+
   @action
   toggleShowHide() {
     this.shouldHideValues = !this.shouldHideValues;
   }
 
   @action appendRow() {
-    this.keyValues.pushObject({
+    this.args.model.keyValues.pushObject({
       key: '',
       value: '',
     });
   }
 
-  /**
-   *
-   * @param {SecureVariable} row
-   */
   @action deleteRow(row) {
-    this.keyValues.removeObject(row);
+    this.args.model.keyValues.removeObject(row);
   }
 
   @action
-  saveNewVariable(e) {
+  async save(e) {
     e.preventDefault();
-    const { path, keyValues } = this;
-    this.args.save({ path, keyValues });
+
+    this.args.model.id = this.args.model.path;
+
+    const transitionTarget = this.args.model.isNew
+      ? 'variables'
+      : 'variables.variable';
+
+    await this.args.model.save();
+    this.router.transitionTo(transitionTarget);
   }
 }
