@@ -30,8 +30,6 @@ export default class VariableSerializer extends ApplicationSerializer {
   // Transform our KeyValues array into an Items object
   serialize(snapshot, options) {
     const json = super.serialize(snapshot, options);
-    console.log('serializing', json, json[this.primaryKey]);
-    // json.Id = json[this.primaryKey];
     json.Items = json.KeyValues.reduce((acc, { key, value }) => {
       acc[key] = value;
       return acc;
