@@ -13,7 +13,7 @@ export default class SecureVariableFormComponent extends Component {
   }
 
   get shouldDisableSave() {
-    return !this.args.model.path;
+    return !this.args.model?.path;
   }
 
   @action

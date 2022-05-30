@@ -7,15 +7,13 @@ export default Factory.extend({
     return this.id;
   },
   namespace: 'default',
-  items() {
-    return (
-      this.Items || {
-        [faker.database.column()]: faker.database.collation(),
-        [faker.database.column()]: faker.database.collation(),
-        [faker.database.column()]: faker.database.collation(),
-        [faker.database.column()]: faker.database.collation(),
-        [faker.database.column()]: faker.database.collation(),
-      }
-    );
+  keyValues() {
+    return [
+      { key: faker.database.column(), value: faker.database.collation() },
+      { key: faker.database.column(), value: faker.database.collation() },
+      { key: faker.database.column(), value: faker.database.collation() },
+      { key: faker.database.column(), value: faker.database.collation() },
+      { key: faker.database.column(), value: faker.database.collation() },
+    ];
   },
 });
