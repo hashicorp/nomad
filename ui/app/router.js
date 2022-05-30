@@ -78,5 +78,17 @@ Router.map(function () {
   this.route('evaluations', function () {});
 
   this.route('not-found', { path: '/*' });
-  this.route('variables', function () {});
+  this.route('variables', function () {
+    this.route('new');
+
+    this.route(
+      'variable',
+      {
+        path: '/*path',
+      },
+      function () {
+        this.route('edit');
+      }
+    );
+  });
 });

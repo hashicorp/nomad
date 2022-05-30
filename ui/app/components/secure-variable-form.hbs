@@ -1,0 +1,71 @@
+
+  <form
+    class="new-secure-variables"
+    {{on "submit" this.save}}
+    autocomplete="off"
+  >
+    {{!-- TODO: {{if this.parseError 'is-danger'}} on inputs --}}
+    <div>
+      <label>
+        <span>Path</span>
+        <Input
+          @type="text"
+          @value={{@model.path}}
+          placeholder="/path/to/variable"
+          class="input"
+          {{autofocus}}
+          />
+      </label>
+    </div>
+    {{#each @model.keyValues as |entry iter|}}
+    <div class="key-value">
+
+      <label>
+        <span>Key</span>
+        <Input
+          @type="text"
+          @value={{entry.key}}
+          class="input"
+          {{autofocus ignore=(eq iter 0)}}
+          />
+      </label>
+
+      <label class="value-label">
+        <span>Value
+        </span>
+        <Input
+          @type={{this.valueFieldType}}
+          @value={{entry.value}}
+          class="input value-input"
+          autocomplete="new-password" {{!-- prevent auto-fill --}}
+          />
+        <button
+          class="show-hide-values button is-light"
+          type="button"
+          tabindex="-1"
+          {{on "click" this.toggleShowHide}}
+        >
+          <FlightIcon
+            @name={{if this.shouldHideValues "eye-off" "eye"}}
+            @title={{if this.shouldHideValues "Show Values" "Hide Values"}}
+          />
+        </button>
+      </label>
+
+      {{#if (eq entry @model.keyValues.lastObject)}}
+        <button
+          {{on "click" this.appendRow}}
+          class="add-more button is-info is-inverted" type="button">Add More</button>
+      {{else}}
+        <button
+          {{on "click" (action this.deleteRow entry)}}
+          class="delete-row button is-danger is-inverted" type="button">Delete</button>
+      {{/if}}
+    </div>
+    {{/each}}
+    <footer>
+      <button
+        disabled={{this.shouldDisableSave}}
+        class="button is-primary" type="submit">Save {{pluralize 'Variable' @model.keyValues.length}}</button>
+    </footer>
+  </form>

@@ -10,10 +10,22 @@ export default class extends AbstractAbility {
   )
   canList;
 
+  @or(
+    'bypassAuthorization',
+    'selfTokenIsManagement',
+    'policiesSupportVariableCreation'
+  )
+  canCreate;
+
   @computed('rulesForNamespace.@each.capabilities')
   get policiesSupportVariableView() {
     return this.rulesForNamespace.some((rules) => {
       return get(rules, 'SecureVariables');
     });
+  }
+
+  @computed('rulesForNamespace.@each.capabilities')
+  get policiesSupportVariableCreation() {
+    return true; // TODO: check SecureVariables.<path>.capabilities[]
   }
 }
