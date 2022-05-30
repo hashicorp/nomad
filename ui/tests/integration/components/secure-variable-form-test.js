@@ -97,6 +97,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
   });
 
   test('Existing variable shows properties by default', async function (assert) {
+    assert.expect(13);
     const keyValues = [
       { key: 'my-completely-normal-key', value: 'never' },
       { key: 'another key, but with spaces', value: 'gonna' },
