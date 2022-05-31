@@ -124,12 +124,16 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_BridgeNetwork(t *tes
 		"gateway_name": "my-gateway",
 	}
 	job.TaskGroups[0].Services[0].Name = "${NOMAD_META_gateway_name}"
+	job.TaskGroups[0].Services[0].Connect.Gateway.Ingress.TLS = &structs.ConsulGatewayTLSConfig{
+		Enabled:       true,
+		TLSMinVersion: "TLSv1_2",
+	}
 
 	// setup expectations
 	expTG := job.TaskGroups[0].Copy()
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
-		newConnectGatewayTask(structs.ConnectIngressPrefix, "my-gateway", false),
+		newConnectGatewayTask(structs.ConnectIngressPrefix, "my-gateway", false, true),
 	}
 	expTG.Services[0].Name = "my-gateway"
 	expTG.Tasks[0].Canonicalize(job, expTG)
@@ -161,7 +165,7 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_HostNetwork(t *testi
 	expTG := job.TaskGroups[0].Copy()
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
-		newConnectGatewayTask(structs.ConnectIngressPrefix, "my-gateway", true),
+		newConnectGatewayTask(structs.ConnectIngressPrefix, "my-gateway", true, false),
 	}
 	expTG.Services[0].Name = "my-gateway"
 	expTG.Tasks[0].Canonicalize(job, expTG)
@@ -263,7 +267,7 @@ func TestJobEndpointConnect_groupConnectHook_TerminatingGateway(t *testing.T) {
 	expTG := job.TaskGroups[0].Copy()
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
-		newConnectGatewayTask(structs.ConnectTerminatingPrefix, "my-gateway", false),
+		newConnectGatewayTask(structs.ConnectTerminatingPrefix, "my-gateway", false, false),
 	}
 	expTG.Services[0].Name = "my-gateway"
 	expTG.Tasks[0].Canonicalize(job, expTG)
@@ -297,7 +301,7 @@ func TestJobEndpointConnect_groupConnectHook_MeshGateway(t *testing.T) {
 	expTG := job.TaskGroups[0].Copy()
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
-		newConnectGatewayTask(structs.ConnectMeshPrefix, "my-gateway", false),
+		newConnectGatewayTask(structs.ConnectMeshPrefix, "my-gateway", false, false),
 	}
 	expTG.Services[0].Name = "my-gateway"
 	expTG.Services[0].PortLabel = "public_port"
@@ -611,7 +615,7 @@ func TestJobEndpointConnect_newConnectGatewayTask_host(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("ingress", func(t *testing.T) {
-		task := newConnectGatewayTask(structs.ConnectIngressPrefix, "foo", true)
+		task := newConnectGatewayTask(structs.ConnectIngressPrefix, "foo", true, false)
 		require.Equal(t, "connect-ingress-foo", task.Name)
 		require.Equal(t, "connect-ingress:foo", string(task.Kind))
 		require.Equal(t, ">= 1.8.0", task.Constraints[0].RTarget)
@@ -620,7 +624,7 @@ func TestJobEndpointConnect_newConnectGatewayTask_host(t *testing.T) {
 	})
 
 	t.Run("terminating", func(t *testing.T) {
-		task := newConnectGatewayTask(structs.ConnectTerminatingPrefix, "bar", true)
+		task := newConnectGatewayTask(structs.ConnectTerminatingPrefix, "bar", true, false)
 		require.Equal(t, "connect-terminating-bar", task.Name)
 		require.Equal(t, "connect-terminating:bar", string(task.Kind))
 		require.Equal(t, ">= 1.8.0", task.Constraints[0].RTarget)
@@ -632,7 +636,7 @@ func TestJobEndpointConnect_newConnectGatewayTask_host(t *testing.T) {
 func TestJobEndpointConnect_newConnectGatewayTask_bridge(t *testing.T) {
 	ci.Parallel(t)
 
-	task := newConnectGatewayTask(structs.ConnectIngressPrefix, "service1", false)
+	task := newConnectGatewayTask(structs.ConnectIngressPrefix, "service1", false, false)
 	require.NotContains(t, task.Config, "network_mode")
 }
 

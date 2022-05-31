@@ -358,7 +358,10 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 
 // ConsulGatewayTLSConfig is used to configure TLS for a gateway.
 type ConsulGatewayTLSConfig struct {
-	Enabled bool `hcl:"enabled,optional"`
+	Enabled       bool     `hcl:"enabled,optional"`
+	TLSMinVersion string   `hcl:"tls_min_version,optional" mapstructure:"tls_min_version"`
+	TLSMaxVersion string   `hcl:"tls_max_version,optional" mapstructure:"tls_max_version"`
+	CipherSuites  []string `hcl:"cipher_suites,optional" mapstructure:"cipher_suites"`
 }
 
 func (tc *ConsulGatewayTLSConfig) Canonicalize() {
@@ -369,9 +372,18 @@ func (tc *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 		return nil
 	}
 
-	return &ConsulGatewayTLSConfig{
-		Enabled: tc.Enabled,
+	result := &ConsulGatewayTLSConfig{
+		Enabled:       tc.Enabled,
+		TLSMinVersion: tc.TLSMinVersion,
+		TLSMaxVersion: tc.TLSMaxVersion,
 	}
+	if len(tc.CipherSuites) != 0 {
+		cipherSuites := make([]string, len(tc.CipherSuites))
+		copy(cipherSuites, tc.CipherSuites)
+		result.CipherSuites = cipherSuites
+	}
+
+	return result
 }
 
 // ConsulIngressService is used to configure a service fronted by the ingress gateway.

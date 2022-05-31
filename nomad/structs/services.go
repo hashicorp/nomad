@@ -928,6 +928,14 @@ func (c *ConsulConnect) IsTerminating() bool {
 	return c.IsGateway() && c.Gateway.Terminating != nil
 }
 
+// IsCustomizedTLS checks if the service customizes ingress tls config.
+func (c *ConsulConnect) IsCustomizedTLS() bool {
+	return c.IsIngress() && c.Gateway.Ingress.TLS != nil &&
+		(c.Gateway.Ingress.TLS.TLSMinVersion != "" ||
+			c.Gateway.Ingress.TLS.TLSMaxVersion != "" ||
+			len(c.Gateway.Ingress.TLS.CipherSuites) != 0)
+}
+
 func (c *ConsulConnect) IsMesh() bool {
 	return c.IsGateway() && c.Gateway.Mesh != nil
 }
@@ -1775,7 +1783,10 @@ func (p *ConsulGatewayProxy) Validate() error {
 
 // ConsulGatewayTLSConfig is used to configure TLS for a gateway.
 type ConsulGatewayTLSConfig struct {
-	Enabled bool
+	Enabled       bool
+	TLSMinVersion string
+	TLSMaxVersion string
+	CipherSuites  []string
 }
 
 func (c *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
@@ -1784,7 +1795,10 @@ func (c *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 	}
 
 	return &ConsulGatewayTLSConfig{
-		Enabled: c.Enabled,
+		Enabled:       c.Enabled,
+		TLSMinVersion: c.TLSMinVersion,
+		TLSMaxVersion: c.TLSMaxVersion,
+		CipherSuites:  helper.CopySliceString(c.CipherSuites),
 	}
 }
 
@@ -1793,7 +1807,10 @@ func (c *ConsulGatewayTLSConfig) Equals(o *ConsulGatewayTLSConfig) bool {
 		return c == o
 	}
 
-	return c.Enabled == o.Enabled
+	return c.Enabled == o.Enabled &&
+		c.TLSMinVersion == o.TLSMinVersion &&
+		c.TLSMaxVersion == o.TLSMaxVersion &&
+		helper.CompareSliceSetString(c.CipherSuites, o.CipherSuites)
 }
 
 // ConsulIngressService is used to configure a service fronted by the ingress gateway.

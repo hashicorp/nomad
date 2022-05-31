@@ -1560,7 +1560,9 @@ func TestParse(t *testing.T) {
 								},
 								Ingress: &api.ConsulIngressConfigEntry{
 									TLS: &api.ConsulGatewayTLSConfig{
-										Enabled: true,
+										Enabled:       true,
+										TLSMinVersion: "TLSv1_2",
+										CipherSuites:  []string{"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"},
 									},
 									Listeners: []*api.ConsulIngressListener{{
 										Port:     8001,

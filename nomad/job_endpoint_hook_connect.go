@@ -89,6 +89,17 @@ func connectGatewayVersionConstraint() *structs.Constraint {
 	}
 }
 
+// connectGatewayTLSVersionConstraint is used when building a connect gateway
+// task to ensure proper Consul version is used that supports customized TLS version.
+// https://github.com/hashicorp/consul/pull/11576
+func connectGatewayTLSVersionConstraint() *structs.Constraint {
+	return &structs.Constraint{
+		LTarget: "${attr.consul.version}",
+		RTarget: ">= 1.11.2",
+		Operand: structs.ConstraintSemver,
+	}
+}
+
 func connectListenerConstraint() *structs.Constraint {
 	return &structs.Constraint{
 		LTarget: "${attr.consul.grpc}",
@@ -315,7 +326,9 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 				// detect whether the group is in host networking mode, which will
 				// require tweaking the default gateway task config
 				netHost := netMode == "host"
-				task := newConnectGatewayTask(prefix, service.Name, netHost)
+				customizedTLS := service.Connect.IsCustomizedTLS()
+
+				task := newConnectGatewayTask(prefix, service.Name, netHost, customizedTLS)
 				g.Tasks = append(g.Tasks, task)
 
 				// the connect.sidecar_task stanza can also be used to configure
@@ -434,7 +447,14 @@ func gatewayBindAddressesIngressForBridge(ingress *structs.ConsulIngressConfigEn
 	return addresses
 }
 
-func newConnectGatewayTask(prefix, service string, netHost bool) *structs.Task {
+func newConnectGatewayTask(prefix, service string, netHost, customizedTls bool) *structs.Task {
+	constraints := structs.Constraints{
+		connectGatewayVersionConstraint(),
+		connectListenerConstraint(),
+	}
+	if customizedTls {
+		constraints = append(constraints, connectGatewayTLSVersionConstraint())
+	}
 	return &structs.Task{
 		// Name is used in container name so must start with '[A-Za-z0-9]'
 		Name:          fmt.Sprintf("%s-%s", prefix, service),
@@ -446,11 +466,8 @@ func newConnectGatewayTask(prefix, service string, netHost bool) *structs.Task {
 			MaxFiles:      2,
 			MaxFileSizeMB: 2,
 		},
-		Resources: connectSidecarResources(),
-		Constraints: structs.Constraints{
-			connectGatewayVersionConstraint(),
-			connectListenerConstraint(),
-		},
+		Resources:   connectSidecarResources(),
+		Constraints: constraints,
 	}
 }
 
