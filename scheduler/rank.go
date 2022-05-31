@@ -15,7 +15,7 @@ const (
 	binPackingMaxFitScore = 18.0
 )
 
-// Rank is used to provide a score and various ranking metadata
+// RankedNode is used to provide a score and various ranking metadata
 // along with a node when iterating. This state can be modified as
 // various rank methods are applied.
 type RankedNode struct {
