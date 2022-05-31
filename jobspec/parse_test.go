@@ -847,6 +847,28 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"service-tagged-address.hcl",
+			&api.Job{
+				ID:   stringToPtr("service_tagged_address"),
+				Name: stringToPtr("service_tagged_address"),
+				Type: stringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: stringToPtr("group"),
+						Services: []*api.Service{
+							{
+								Name: "service1",
+								TaggedAddresses: map[string]string{
+									"public_wan": "1.2.3.4",
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
 			"service-check-driver-address.hcl",
 			&api.Job{
 				ID:   stringToPtr("address_mode_driver"),

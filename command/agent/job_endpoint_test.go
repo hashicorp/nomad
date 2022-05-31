@@ -2518,6 +2518,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
+						TaggedAddresses: map[string]string{
+							"wan": "1.2.3.4",
+						},
 						CheckRestart: &api.CheckRestart{
 							Limit: 4,
 							Grace: helper.TimeToPtr(11 * time.Second),
@@ -2914,6 +2917,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Address:           "group.example.com",
 						Meta: map[string]string{
 							"servicemeta": "foobar",
+						},
+						TaggedAddresses: map[string]string{
+							"wan": "1.2.3.4",
 						},
 						OnUpdate: "require_healthy",
 						Checks: []*structs.ServiceCheck{
