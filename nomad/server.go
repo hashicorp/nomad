@@ -1644,9 +1644,7 @@ func (s *Server) setupNewWorkersLocked() error {
 	// make a copy of the s.workers array so we can safely stop those goroutines asynchronously
 	oldWorkers := make([]*Worker, len(s.workers))
 	defer s.stopOldWorkers(oldWorkers)
-	for i, w := range s.workers {
-		oldWorkers[i] = w
-	}
+	copy(oldWorkers, s.workers)
 	s.logger.Info(fmt.Sprintf("marking %v current schedulers for shutdown", len(oldWorkers)))
 
 	// build a clean backing array and call setupWorkersLocked like setupWorkers

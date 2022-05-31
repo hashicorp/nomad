@@ -3943,10 +3943,7 @@ func (a *AllocatedDeviceResource) Copy() *AllocatedDeviceResource {
 
 	// Copy the devices
 	na.DeviceIDs = make([]string, len(a.DeviceIDs))
-	for i, id := range a.DeviceIDs {
-		na.DeviceIDs[i] = id
-	}
-
+	copy(na.DeviceIDs, a.DeviceIDs)
 	return &na
 }
 
