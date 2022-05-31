@@ -1124,9 +1124,8 @@ OUTER:
 			if w.available(option) {
 				return option
 			}
-			// We match the class but are temporarily unavailable, the eval
-			// should be blocked
-			return nil
+			// We match the class but are temporarily unavailable
+			continue OUTER
 		case EvalComputedClassEscaped:
 			tgEscaped = true
 		case EvalComputedClassUnknown:
