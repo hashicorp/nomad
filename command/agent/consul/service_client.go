@@ -1029,17 +1029,9 @@ func (c *ServiceClient) serviceRegs(
 		}
 	}
 
-	var taggedAddresses map[string]api.ServiceAddress
-	for k, v := range service.TaggedAddresses {
-		sa, err := parseAddress(v, port)
-		if err != nil {
-			c.logger.Warn("failed to parse advertise address", "name", k, "adrress", v)
-			continue
-		}
-		if taggedAddresses == nil {
-			taggedAddresses = make(map[string]api.ServiceAddress)
-		}
-		taggedAddresses[k] = sa
+	taggedAddresses, err := parseTaggedAddresses(service.TaggedAddresses, port)
+	if err != nil {
+		return nil, err
 	}
 
 	// Build the Consul Service registration request
@@ -1706,5 +1698,18 @@ func parseAddress(raw string, port int) (api.ServiceAddress, error) {
 
 	result.Address = addr
 	result.Port = port
+	return result, nil
+}
+
+// morph the tagged_addresses map into the structure consul api wants
+func parseTaggedAddresses(m map[string]string, port int) (map[string]api.ServiceAddress, error) {
+	result := make(map[string]api.ServiceAddress, len(m))
+	for k, v := range m {
+		sa, err := parseAddress(v, port)
+		if err != nil {
+			return nil, err
+		}
+		result[k] = sa
+	}
 	return result, nil
 }

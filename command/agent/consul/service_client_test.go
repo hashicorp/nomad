@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,6 +29,9 @@ func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
 			Address:           "1.1.1.1",
 			EnableTagOverride: true,
 			Meta:              map[string]string{"foo": "1"},
+			TaggedAddresses: map[string]api.ServiceAddress{
+				"public_wan": {Address: "1.2.3.4", Port: 8080},
+			},
 			Connect: &api.AgentServiceConnect{
 				Native: false,
 				SidecarService: &api.AgentServiceRegistration{
@@ -56,6 +60,9 @@ func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
 		Address:           "1.1.1.1",
 		EnableTagOverride: true,
 		Meta:              map[string]string{"foo": "1"},
+		TaggedAddresses: map[string]api.ServiceAddress{
+			"public_wan": {Address: "1.2.3.4", Port: 8080},
+		},
 	}
 
 	sidecar := &api.AgentService{
@@ -208,6 +215,15 @@ func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
 			// like the parent service, the sidecar's tags always get enforced
 			// regardless of ETO if this is a sync due to applied operations
 			w.Connect.SidecarService.Tags = []string{"other", "tags"}
+			return &w
+		})
+	})
+
+	t.Run("different tagged addresses", func(t *testing.T) {
+		try(t, true, syncNewOps, func(w asr) *asr {
+			w.TaggedAddresses = map[string]api.ServiceAddress{
+				"public_wan": {Address: "5.6.7.8", Port: 8080},
+			}
 			return &w
 		})
 	})
@@ -647,4 +663,45 @@ func TestSyncLogic_maybeSidecarProxyCheck(t *testing.T) {
 	try("service:_nomad-task-2f5fb517-57d4-44ee-7780-dc1cb6e103cd-group-api-count-api-9001-sidecar-proxy:X", false)
 	try("service:_nomad-task-2f5fb517-57d4-44ee-7780-dc1cb6e103cd-group-api-count-api-9001-sidecar-proxy: ", false)
 	try("service", false)
+}
+
+func TestSyncLogic_parseTaggedAddresses(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("nil", func(t *testing.T) {
+		m, err := parseTaggedAddresses(nil, 0)
+		must.NoError(t, err)
+		must.MapEmpty(t, m)
+	})
+
+	t.Run("parse fail", func(t *testing.T) {
+		ta := map[string]string{
+			"public_wan": "not an address",
+		}
+		result, err := parseTaggedAddresses(ta, 8080)
+		must.Error(t, err)
+		must.MapEmpty(t, result)
+	})
+
+	t.Run("parse address", func(t *testing.T) {
+		ta := map[string]string{
+			"public_wan": "1.2.3.4",
+		}
+		result, err := parseTaggedAddresses(ta, 8080)
+		must.NoError(t, err)
+		must.MapEq(t, map[string]api.ServiceAddress{
+			"public_wan": {Address: "1.2.3.4", Port: 8080},
+		}, result)
+	})
+
+	t.Run("parse address and port", func(t *testing.T) {
+		ta := map[string]string{
+			"public_wan": "1.2.3.4:9999",
+		}
+		result, err := parseTaggedAddresses(ta, 8080)
+		must.NoError(t, err)
+		must.MapEq(t, map[string]api.ServiceAddress{
+			"public_wan": {Address: "1.2.3.4", Port: 9999},
+		}, result)
+	})
 }

@@ -472,6 +472,8 @@ type Service struct {
 	Meta       map[string]string // Consul service meta
 	CanaryMeta map[string]string // Consul service meta when it is a canary
 
+	// The values to set for tagged_addresses in Consul service registration.
+	// Does not affect Nomad networking, these are for Consul service discovery.
 	TaggedAddresses map[string]string
 
 	// The consul namespace in which this service will be registered. Namespace
@@ -536,6 +538,9 @@ func (s *Service) Canonicalize(job, taskGroup, task, jobNamespace string) {
 	}
 	if len(s.Checks) == 0 {
 		s.Checks = nil
+	}
+	if len(s.TaggedAddresses) == 0 {
+		s.TaggedAddresses = nil
 	}
 
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{

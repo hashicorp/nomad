@@ -401,8 +401,6 @@ func CopyMapStringFloat64(m map[string]float64) map[string]float64 {
 	return c
 }
 
-// CopyMapStringSliceString copies a map of strings to string slices such as
-// http.Header
 func CopyMapStringSliceString(m map[string][]string) map[string][]string {
 	l := len(m)
 	if l == 0 {

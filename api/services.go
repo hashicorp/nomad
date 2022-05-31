@@ -281,6 +281,18 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 		s.Provider = ServiceProviderConsul
 	}
 
+	if len(s.Meta) == 0 {
+		s.Meta = nil
+	}
+
+	if len(s.CanaryMeta) == 0 {
+		s.CanaryMeta = nil
+	}
+
+	if len(s.TaggedAddresses) == 0 {
+		s.TaggedAddresses = nil
+	}
+
 	s.Connect.Canonicalize()
 
 	// Canonicalize CheckRestart on Checks and merge Service.CheckRestart
