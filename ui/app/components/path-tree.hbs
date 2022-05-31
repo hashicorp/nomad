@@ -1,0 +1,28 @@
+{{#each-in @branch as |k v|}}
+  {{#if k}}
+    <tr class={{if @nested "nested"}}>
+      <td>
+        <span>{{trim-path k}}</span>
+      </td>
+      <td>
+        ?¿?¿?
+        {{!-- {{row.model.namespace}} --}}
+      </td>
+    </tr>
+  {{/if}}
+
+  {{!-- {{#each v.files as |file|}}
+    <tr>
+      <td>
+        <a>{{file}}</a>
+      </td>
+      <td>
+        !i!i!
+      </td>
+    </tr>
+  {{/each}} --}}
+
+  {{!-- {{#if v.children}}
+    <PathTree @branch={{v.children}} @nested />
+  {{/if}} --}}
+{{/each-in}}

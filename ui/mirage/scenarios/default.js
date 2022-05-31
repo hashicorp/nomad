@@ -50,7 +50,24 @@ function smallCluster(server) {
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
   server.createList('csi-plugin', 2);
-  server.createList('variable', 3);
+  // server.createList('variable', 3);
+  [
+    'a/b/c/foo0',
+    'a/b/c/bar1',
+    'a/b/c/d/e/foo2',
+    'a/b/c/d/e/bar3',
+    'a/b/c/d/e/f/foo4',
+    'a/b/c/d/e/f/g/foo5',
+    'a/b/c/x/y/z/foo6',
+    'a/b/c/x/y/z/bar7',
+    'a/b/c/x/y/z/baz8',
+    'w/x/y/foo9',
+    'w/x/y/z/foo10',
+    'w/x/y/z/bar11',
+    'just some arbitrary path',
+    'another arbitrary path',
+    'another arbitrary path again',
+  ].forEach((path) => server.create('variable', { path }));
 
   // #region evaluations
 

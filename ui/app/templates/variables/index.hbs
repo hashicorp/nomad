@@ -1,5 +1,10 @@
 {{page-title "Secure Variables"}}
 <section class="section">
+{{!-- aaa
+{{this.variablePathTree}}
+bbb --}}
+  {{!-- <PathTree @branch={{this.variablePathTree}} /> --}}
+
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
@@ -40,7 +45,7 @@
       </div>
     </div>
     {{#if @model.variables.length}}
-      <ListTable data-test-eval-table @source={{@model.variables}} as |t|>
+      <ListTable as |t|>
         <t.head>
           <th>
             Path
@@ -49,16 +54,11 @@
             Namespace
           </th>
         </t.head>
-        <t.body as |row|>
-          <tr {{on "click" (fn this.goToVariable row.model)}}>
-            <td>
-              {{row.model.path}}
-            </td>
-            <td>
-              {{row.model.namespace}}
-            </td>
-          </tr>
-        </t.body>
+        <tbody>
+          <PathTree
+            @branch={{this.variablePathTree.children}}
+          />
+        </tbody>
       </ListTable>
     {{else}}
       <div class="empty-message">

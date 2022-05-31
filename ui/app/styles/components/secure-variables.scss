@@ -28,3 +28,13 @@
   //   background-color: $grey-lighter;
   // }
 }
+
+.path-tree {
+  margin-left: 5px;
+  padding-left: 5px;
+  border-left: 1px dotted grey;
+  a {
+    font-weight: bold;
+    margin-left: 11px;
+  }
+}
