@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"gophers.dev/pkgs/netlog"
 )
 
 const (
@@ -818,8 +819,11 @@ func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions
 	return option
 }
 
-// handlePreemptions sets relevant preeemption related fields.
+// handlePreemptions sets relevant preemption related fields.
 func (s *GenericScheduler) handlePreemptions(option *RankedNode, alloc *structs.Allocation, missing placementResult) {
+	netlog.Cyan("handlePreemptions alloc: %s", alloc.Name)
+	// alloc is the high priority job pushing things out
+
 	if option.PreemptedAllocs == nil {
 		return
 	}
@@ -839,5 +843,6 @@ func (s *GenericScheduler) handlePreemptions(option *RankedNode, alloc *structs.
 		}
 	}
 
+	netlog.Yellow(" -> preempt alloc ids: %s", preemptedAllocIDs)
 	alloc.PreemptedAllocations = preemptedAllocIDs
 }
