@@ -21,11 +21,11 @@ func NewArchFingerprint(logger log.Logger) Fingerprint {
 func (f *ArchFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	resp.AddAttribute("cpu.arch", runtime.GOARCH)
 
-	if (runtime.GOARCH == "amd64") {
+	if runtime.GOARCH == "amd64" {
 		resp.AddAttribute("cpu.arch_classic", "x86_64")
-	} else if (runtime.GOARCH == "386") {
+	} else if runtime.GOARCH == "386" {
 		resp.AddAttribute("cpu.arch_classic", "i386")
-	} else if (runtime.GOARCH == "arm64") {
+	} else if runtime.GOARCH == "arm64" {
 		resp.AddAttribute("cpu.arch_classic", "aarch64")
 	}
 
