@@ -57,6 +57,7 @@ website/vendor
 
 # Go work files
 go.work
+go.work.sum
 
 # init outputs
 example.nomad
