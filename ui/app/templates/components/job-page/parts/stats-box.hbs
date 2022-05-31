@@ -22,6 +22,12 @@
       </span>
       {{@job.version}}
     </span>
+    <span class="pair" data-test-job-stat="service">
+      <span class="term">
+        Service
+      </span>
+      {{@job.services.length}}
+    </span>
     {{yield to="before-namespace"}}
     {{#if (and @job.namespace this.system.shouldShowNamespaces)}}
       <span class="pair" data-test-job-stat="namespace">
