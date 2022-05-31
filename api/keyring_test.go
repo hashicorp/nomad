@@ -39,10 +39,9 @@ func TestKeyring_CRUD(t *testing.T) {
 	wm, err = kr.Update(&RootKey{
 		Key: string(encodedKey),
 		Meta: &RootKeyMeta{
-			KeyID:            id,
-			Active:           true,
-			Algorithm:        EncryptionAlgorithmAES256GCM,
-			EncryptionsCount: 100,
+			KeyID:     id,
+			Active:    true,
+			Algorithm: EncryptionAlgorithmAES256GCM,
 		}}, nil)
 	require.NoError(t, err)
 	assertWriteMeta(t, wm)

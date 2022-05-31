@@ -22,7 +22,6 @@ func TestEncrypter_LoadSave(t *testing.T) {
 
 	algos := []structs.EncryptionAlgorithm{
 		structs.EncryptionAlgorithmAES256GCM,
-		structs.EncryptionAlgorithmXChaCha20,
 	}
 
 	for _, algo := range algos {

@@ -62,10 +62,9 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 
 		key := &api.RootKey{
 			Meta: &api.RootKeyMeta{
-				Active:           true,
-				KeyID:            newID2,
-				Algorithm:        api.EncryptionAlgorithm(keyMeta.Algorithm),
-				EncryptionsCount: 500,
+				Active:    true,
+				KeyID:     newID2,
+				Algorithm: api.EncryptionAlgorithm(keyMeta.Algorithm),
 			},
 			Key: string(encodedKey),
 		}
