@@ -32,6 +32,7 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 		rotateResp := obj.(structs.KeyringRotateRootKeyResponse)
 		require.NotNil(t, rotateResp.Key)
 		require.True(t, rotateResp.Key.Active)
+		newID1 := rotateResp.Key.KeyID
 
 		// List
 
@@ -40,8 +41,14 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 		obj, err = s.Server.KeyringRequest(respW, req)
 		require.NoError(t, err)
 		listResp := obj.([]*structs.RootKeyMeta)
-		require.Len(t, listResp, 1)
-		require.True(t, listResp[0].Active)
+		require.Len(t, listResp, 2)
+		for _, key := range listResp {
+			if key.KeyID == newID1 {
+				require.True(t, key.Active, "new key should be active")
+			} else {
+				require.False(t, key.Active, "initial key should be inactive")
+			}
+		}
 
 		// Update
 
@@ -51,12 +58,12 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 		encodedKey := make([]byte, base64.StdEncoding.EncodedLen(32))
 		base64.StdEncoding.Encode(encodedKey, keyBuf)
 
-		newID := uuid.Generate()
+		newID2 := uuid.Generate()
 
 		key := &api.RootKey{
 			Meta: &api.RootKeyMeta{
 				Active:           true,
-				KeyID:            newID,
+				KeyID:            newID2,
 				Algorithm:        api.EncryptionAlgorithm(keyMeta.Algorithm),
 				EncryptionsCount: 500,
 			},
@@ -84,9 +91,15 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 		obj, err = s.Server.KeyringRequest(respW, req)
 		require.NoError(t, err)
 		listResp = obj.([]*structs.RootKeyMeta)
-		require.Len(t, listResp, 1)
-		require.True(t, listResp[0].Active)
-		require.Equal(t, newID, listResp[0].KeyID)
+		require.Len(t, listResp, 2)
 
+		for _, key := range listResp {
+			require.NotEqual(t, newID1, key.KeyID)
+			if key.KeyID == newID2 {
+				require.True(t, key.Active, "new key should be active")
+			} else {
+				require.False(t, key.Active, "initial key should be inactive")
+			}
+		}
 	})
 }
