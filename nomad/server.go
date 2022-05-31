@@ -1184,6 +1184,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
 		s.staticEndpoints.Namespace = &Namespace{srv: s}
 		s.staticEndpoints.SecureVariables = &SecureVariables{srv: s, logger: s.logger.Named("secure_variables"), encrypter: encrypter}
+		s.staticEndpoints.Keyring = &Keyring{srv: s, logger: s.logger.Named("keyring"), encrypter: encrypter}
 
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
 
@@ -1241,7 +1242,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 	node := &Node{srv: s, ctx: ctx, logger: s.logger.Named("client")}
 	plan := &Plan{srv: s, ctx: ctx, logger: s.logger.Named("plan")}
 	serviceReg := &ServiceRegistration{srv: s, ctx: ctx}
-	keyringReg := &Keyring{srv: s, logger: s.logger.Named("keyring"), encrypter: encrypter}
+	keyringReg := &Keyring{srv: s, ctx: ctx, logger: s.logger.Named("keyring"), encrypter: encrypter}
 
 	// Register the dynamic endpoints
 	server.Register(alloc)

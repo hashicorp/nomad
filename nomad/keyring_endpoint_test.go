@@ -85,7 +85,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	// wait for the blocking query to complete and check the response
 	wg.Wait()
 	require.Greater(t, listResp.Index, getResp.Index)
-	require.Len(t, listResp.Keys, 1)
+	require.Len(t, listResp.Keys, 2) // bootstrap + new one
 
 	// Delete the key and verify that it's gone
 
@@ -117,7 +117,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
 	require.NoError(t, err)
 	require.Greater(t, listResp.Index, getResp.Index)
-	require.Len(t, listResp.Keys, 0)
+	require.Len(t, listResp.Keys, 1) // just the bootstrap key
 }
 
 // TestKeyringEndpoint_validateUpdate exercises all the various
@@ -215,7 +215,6 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	// Setup an existing key
 	key, err := structs.NewRootKey(structs.EncryptionAlgorithmXChaCha20)
 	require.NoError(t, err)
-	id := key.Meta.KeyID
 	key.Meta.Active = true
 
 	updateReq := &structs.KeyringUpdateRootKeyRequest{
@@ -245,6 +244,8 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, updateResp.Index, rotateResp.Index)
 
+	newID := rotateResp.Key.KeyID
+
 	// Verify we have a new key and the old one is inactive
 
 	listReq := &structs.KeyringListRootKeyMetaRequest{
@@ -257,15 +258,13 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Greater(t, listResp.Index, updateResp.Index)
-	require.Len(t, listResp.Keys, 2)
+	require.Len(t, listResp.Keys, 3) // bootstrap + old + new
 
-	var newID string
 	for _, keyMeta := range listResp.Keys {
-		if keyMeta.KeyID == id {
-			require.False(t, keyMeta.Active, "expected old key to be inactive")
+		if keyMeta.KeyID != newID {
+			require.False(t, keyMeta.Active, "expected old keys to be inactive")
 		} else {
 			require.True(t, keyMeta.Active, "expected new key to be inactive")
-			newID = keyMeta.KeyID
 		}
 	}
 

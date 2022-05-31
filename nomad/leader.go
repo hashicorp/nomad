@@ -292,6 +292,12 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Initialize scheduler configuration.
 	schedulerConfig := s.getOrCreateSchedulerConfig()
 
+	// Create the first root key if it doesn't already exist
+	err := s.initializeKeyring()
+	if err != nil {
+		return err
+	}
+
 	// Initialize the ClusterID
 	_, _ = s.ClusterID()
 	// todo: use cluster ID for stuff, later!
@@ -1678,6 +1684,46 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 	}
 
 	return config
+}
+
+// initializeKeyring creates the first root key if the leader doesn't
+// already have one. The metadata will be replicated via raft and then
+// the followers will get the key material from their own key
+// replication.
+func (s *Server) initializeKeyring() error {
+
+	store := s.fsm.State()
+	keyMeta, err := store.GetActiveRootKeyMeta(nil)
+	if err != nil {
+		return err
+	}
+	if keyMeta != nil {
+		return nil
+	}
+
+	s.logger.Named("core").Trace("initializing keyring")
+
+	// TODO: algorithm should be set from config
+	rootKey, err := structs.NewRootKey(structs.EncryptionAlgorithmXChaCha20)
+	rootKey.Meta.Active = true
+	if err != nil {
+		return fmt.Errorf("could not initialize keyring: %v", err)
+	}
+
+	err = s.staticEndpoints.Keyring.encrypter.AddKey(rootKey)
+	if err != nil {
+		return fmt.Errorf("could not add initial key to keyring: %v", err)
+	}
+
+	if _, _, err = s.raftApply(structs.RootKeyMetaUpsertRequestType,
+		structs.KeyringUpdateRootKeyMetaRequest{
+			RootKeyMeta: rootKey.Meta,
+		}); err != nil {
+		return fmt.Errorf("could not initialize keyring: %v", err)
+	}
+
+	s.logger.Named("core").Info("initialized keyring", "id", rootKey.Meta.KeyID)
+	return nil
 }
 
 func (s *Server) generateClusterID() (string, error) {
