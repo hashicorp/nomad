@@ -148,6 +148,13 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_BridgeNetwork(t *tes
 	// Test that the hook is idempotent
 	require.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
 	require.Exactly(t, expTG, job.TaskGroups[0])
+
+	// Test that the hook populates the correct constraint for customized tls
+	require.Contains(t, job.TaskGroups[0].Tasks[0].Constraints, &structs.Constraint{
+		LTarget: "${attr.consul.version}",
+		RTarget: ">= 1.11.2",
+		Operand: structs.ConstraintSemver,
+	})
 }
 
 func TestJobEndpointConnect_groupConnectHook_IngressGateway_HostNetwork(t *testing.T) {
