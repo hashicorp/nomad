@@ -231,7 +231,8 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 	}
 
 	key := make([]byte, keyLen)
-	_, err = base64.StdEncoding.Decode(key, []byte(storedKey.Key)[:keyLen])
+	encodedKeyLen := base64.StdEncoding.EncodedLen(keyLen)
+	_, err = base64.StdEncoding.Decode(key, []byte(storedKey.Key)[:encodedKeyLen])
 	if err != nil {
 		return nil, fmt.Errorf("could not decode key: %v", err)
 	}
