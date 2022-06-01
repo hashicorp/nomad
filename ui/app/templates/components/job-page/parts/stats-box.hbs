@@ -27,7 +27,13 @@
         <span class="term">
           Services
         </span>
-        {{@job.services.length}}
+        <LinkTo
+          @route="jobs.job.services"
+          @model={{@job}}
+          @activeClass="is-active"
+        >
+          {{@job.services.length}}
+        </LinkTo>
       </span>
     {{/if}}
     {{yield to="before-namespace"}}
