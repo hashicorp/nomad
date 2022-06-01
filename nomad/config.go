@@ -196,6 +196,14 @@ type Config struct {
 	// one-time tokens.
 	OneTimeTokenGCInterval time.Duration
 
+	// RootKeyGCInterval is how often we dispatch a job to GC
+	// encryption key metadata
+	RootKeyGCInterval time.Duration
+
+	// RootKeyGCThreshold is how "old" encryption key metadata must be
+	// to be eligible for GC.
+	RootKeyGCThreshold time.Duration
+
 	// EvalNackTimeout controls how long we allow a sub-scheduler to
 	// work on an evaluation before we consider it failed and Nack it.
 	// This allows that evaluation to be handed to another sub-scheduler
@@ -385,6 +393,8 @@ func DefaultConfig() *Config {
 		CSIVolumeClaimGCInterval:         5 * time.Minute,
 		CSIVolumeClaimGCThreshold:        5 * time.Minute,
 		OneTimeTokenGCInterval:           10 * time.Minute,
+		RootKeyGCInterval:                10 * time.Minute,
+		RootKeyGCThreshold:               1 * time.Hour,
 		EvalNackTimeout:                  60 * time.Second,
 		EvalDeliveryLimit:                3,
 		EvalNackInitialReenqueueDelay:    1 * time.Second,
