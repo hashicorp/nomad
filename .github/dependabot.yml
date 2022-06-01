@@ -23,7 +23,9 @@ updates:
   - package-ecosystem: npm
     directory: "/website"
     schedule:
-      interval: daily
+      interval: weekly
+    assignees:
+      - @hashicorp/web-platform
     labels:
       - "theme/dependencies"
       - "theme/website"
