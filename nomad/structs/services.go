@@ -1476,9 +1476,7 @@ func (e *ConsulExposeConfig) Copy() *ConsulExposeConfig {
 		return nil
 	}
 	paths := make([]ConsulExposePath, len(e.Paths))
-	for i := 0; i < len(e.Paths); i++ {
-		paths[i] = e.Paths[i]
-	}
+	copy(paths, e.Paths)
 	return &ConsulExposeConfig{
 		Paths: paths,
 	}
