@@ -2,6 +2,7 @@ import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
+import { trimPath } from '../helpers/trim-path';
 export default class SecureVariableFormComponent extends Component {
   @service router;
 
@@ -35,7 +36,7 @@ export default class SecureVariableFormComponent extends Component {
   @action
   async save(e) {
     e.preventDefault();
-
+    this.args.model.path = trimPath([this.args.model.path]); // remove starting and trailing slashes
     this.args.model.id = this.args.model.path;
 
     const transitionTarget = this.args.model.isNew

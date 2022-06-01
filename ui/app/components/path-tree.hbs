@@ -1,28 +1,45 @@
-{{#each-in @branch as |k v|}}
-  {{#if k}}
-    <tr class={{if @nested "nested"}}>
-      <td>
-        <span>{{trim-path k}}</span>
-      </td>
-      <td>
-        ?¿?¿?
-        {{!-- {{row.model.namespace}} --}}
-      </td>
-    </tr>
+<ListTable @source={{@branch}} as |t|>
+  <t.head>
+    <th>
+      Path
+    </th>
+  </t.head>
+  <tbody>
+{{#each-in @branch as |key v|}}
+  {{#if (eq key "children")}}
+    {{#each-in v as |pathName pathData|}}
+      <tr>
+        <td>
+          <span>
+            <FlightIcon @name="folder" />
+            <LinkTo @route="variables.path" @model={{pathData.absolutePath}}>
+              {{trim-path pathName}}
+            </LinkTo>
+          </span>
+        </td>
+      </tr>
+    {{/each-in}}
   {{/if}}
 
-  {{!-- {{#each v.files as |file|}}
-    <tr>
-      <td>
-        <a>{{file}}</a>
-      </td>
-      <td>
-        !i!i!
-      </td>
-    </tr>
-  {{/each}} --}}
+  {{#if (eq key "files")}}
+    {{#each v as |file|}}
+      <tr>
+        <td>
+          <FlightIcon @name="file-text" />
+          <LinkTo
+            @route="variables.variable"
+            @model={{file.absoluteFilePath}}
+          >
+            {{file.name}}
+          </LinkTo>
+        </td>
+      </tr>
+    {{/each}}
+  {{/if}}
 
-  {{!-- {{#if v.children}}
-    <PathTree @branch={{v.children}} @nested />
+  {{!-- {{#if (eq key "children")}}
+    <PathTree @branch={{v}} @nested />
   {{/if}} --}}
 {{/each-in}}
+  </tbody>
+      </ListTable>

@@ -10,7 +10,8 @@ import Helper from '@ember/component/helper';
 export function trimPath([path], options = {}) {
   if (path.startsWith('/')) {
     path = trimPath([path.slice(1)]);
-  } else if (path.endsWith('/')) {
+  }
+  if (path.endsWith('/')) {
     path = trimPath([path.slice(0, -1)]);
   }
   return path;
