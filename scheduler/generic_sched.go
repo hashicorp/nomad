@@ -825,24 +825,29 @@ func (s *GenericScheduler) handlePreemptions(option *RankedNode, alloc *structs.
 	// alloc is the high priority job pushing things out
 
 	if option.PreemptedAllocs == nil {
+		netlog.Cyan("A")
 		return
 	}
 
 	// If this placement involves preemption, set DesiredState to evict for those allocations
 	var preemptedAllocIDs []string
 	for _, stop := range option.PreemptedAllocs {
+		netlog.Cyan(" -> stop: %v", stop)
 		s.plan.AppendPreemptedAlloc(stop, alloc.ID)
 		preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
 
 		if s.eval.AnnotatePlan && s.plan.Annotations != nil {
+			netlog.Cyan(" B")
 			s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub(nil))
 			if s.plan.Annotations.DesiredTGUpdates != nil {
+				netlog.Cyan("C desired: %v", missing.TaskGroup().Name)
 				desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup().Name]
 				desired.Preemptions += 1
+
 			}
 		}
 	}
 
-	netlog.Yellow(" -> preempt alloc ids: %s", preemptedAllocIDs)
+	netlog.Cyan(" -> preempt alloc ids: %s", preemptedAllocIDs)
 	alloc.PreemptedAllocations = preemptedAllocIDs
 }
