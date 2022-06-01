@@ -826,15 +826,15 @@ OUTER:
 		return false
 	}
 
-	if !reflect.DeepEqual(s.Meta, o.Meta) {
+	if !helper.CompareMapStringString(s.Meta, o.Meta) {
 		return false
 	}
 
-	if !reflect.DeepEqual(s.CanaryMeta, o.CanaryMeta) {
+	if !helper.CompareMapStringString(s.CanaryMeta, o.CanaryMeta) {
 		return false
 	}
 
-	if !reflect.DeepEqual(s.TaggedAddresses, o.TaggedAddresses) {
+	if !helper.CompareMapStringString(s.TaggedAddresses, o.TaggedAddresses) {
 		return false
 	}
 
