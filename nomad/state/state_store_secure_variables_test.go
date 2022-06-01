@@ -11,6 +11,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -381,6 +382,42 @@ func TestStateStore_ListSecureVariablesByNamespaceAndPrefix(t *testing.T) {
 		count3++
 	}
 	require.Equal(t, 0, count3)
+}
+
+func TestStateStore_ListSecureVariablesByKeyID(t *testing.T) {
+	ci.Parallel(t)
+	testState := testStateStore(t)
+
+	// Generate some test secure variables and upsert them.
+	svs, _ := mockSecureVariables(7, 7)
+	keyID := uuid.Generate()
+
+	expectedForKey := []string{}
+	for i := 0; i < 5; i++ {
+		svs[i].EncryptedData.KeyID = keyID
+		expectedForKey = append(expectedForKey, svs[i].Path)
+		sort.Strings(expectedForKey)
+	}
+
+	expectedOrphaned := []string{svs[5].Path, svs[6].Path}
+
+	initialIndex := uint64(10)
+	require.NoError(t, testState.UpsertSecureVariables(
+		structs.MsgTypeTestSetup, initialIndex, svs))
+
+	ws := memdb.NewWatchSet()
+	iter, err := testState.GetSecureVariablesByKeyID(ws, keyID)
+	require.NoError(t, err)
+
+	var count int
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		sv := raw.(*structs.SecureVariable)
+		require.Equal(t, keyID, sv.EncryptedData.KeyID)
+		require.Equal(t, expectedForKey[count], sv.Path)
+		require.NotContains(t, expectedOrphaned, sv.Path)
+		count++
+	}
+	require.Equal(t, 5, count)
 }
 
 // mockSecureVariables returns a random number of secure variables between min

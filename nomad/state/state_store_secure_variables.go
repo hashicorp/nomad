@@ -54,6 +54,21 @@ func (s *StateStore) GetSecureVariablesByNamespaceAndPrefix(
 	return iter, nil
 }
 
+// GetSecureVariablesByKeyID returns an iterator that contains all
+// variables that were encrypted with a particular key
+func (s *StateStore) GetSecureVariablesByKeyID(
+	ws memdb.WatchSet, keyID string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableSecureVariables, indexKeyID, keyID)
+	if err != nil {
+		return nil, fmt.Errorf("secure variable lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 // GetSecureVariable returns an single secure variable at a given namespace and
 // path.
 func (s *StateStore) GetSecureVariable(
