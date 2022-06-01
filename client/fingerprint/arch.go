@@ -1,7 +1,9 @@
 package fingerprint
 
 import (
+	"os/exec"
 	"runtime"
+	"strings"
 
 	log "github.com/hashicorp/go-hclog"
 )
@@ -21,12 +23,16 @@ func NewArchFingerprint(logger log.Logger) Fingerprint {
 func (f *ArchFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	resp.AddAttribute("cpu.arch", runtime.GOARCH)
 
-	if runtime.GOARCH == "amd64" {
-		resp.AddAttribute("cpu.arch_classic", "x86_64")
-	} else if runtime.GOARCH == "386" {
-		resp.AddAttribute("cpu.arch_classic", "i386")
-	} else if runtime.GOARCH == "arm64" {
-		resp.AddAttribute("cpu.arch_classic", "aarch64")
+	if runtime.GOOS == "linux" {
+		unameOutput, err := exec.Command("uname", "-m").Output()
+
+		if err != nil {
+			f.logger.Warn("error calling 'uname -m'")
+			resp.AddAttribute("cpu.machine", "undefined")
+		} else {
+			output := strings.TrimSpace(string(unameOutput))
+			resp.AddAttribute("cpu.machine", output)
+		}
 	}
 
 	resp.Detected = true
