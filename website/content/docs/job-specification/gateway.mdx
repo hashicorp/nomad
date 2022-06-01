@@ -98,17 +98,20 @@ envoy_gateway_bind_addresses "<service>" {
   on the gateway. If TLS is enabled, then each host defined in the `host` field will
   be added as a DNSSAN to the gateway's x509 certificate.
 
-- `tls_min_version` `(string: optional)` - Set this configuration to override
-  the default min tls version supported by the gateway. Details for supported versions
-  see [Consul TLSMinVersion](https://www.consul.io/docs/connect/config-entries/ingress-gateway#tlsminversion).
+- `tls_min_version` `(string: optional)` - Set the default minimum TLS version 
+  supported by the gateway. Refer to
+  [`TLSMinVersion`](https://www.consul.io/docs/connect/config-entries/ingress-gateway#tlsminversion)
+  in the Consul documentation for supported versions.
 
-- `tls_max_version` `(string: optional)` - Set this configuration to override
-   the default max tls version supported by the gateway. Details for supported versions
-   see [Consul TLSMaxVersion](https://www.consul.io/docs/connect/config-entries/ingress-gateway#tlsmaxversion).
+- `tls_max_version` `(string: optional)` - Set the default maximum TLS version 
+  supported by the gateway. Refer to 
+  [`TLSMaxVersion`](https://www.consul.io/docs/connect/config-entries/ingress-gateway#tlsmaxversion)
+  in the Consul documentation for supported versions.
 
-- `cipher_suites` `(array<string>: optional)` - Set this configuration to override
-   the default list of TLS cipher suites for the gateway's listeners. Details for supported cipher suites
-   see [Consul CipherSuites](https://www.consul.io/docs/connect/config-entries/ingress-gateway#ciphersuites).
+- `cipher_suites` `(array<string>: optional)` - Set the default list of TLS 
+  cipher suites for the gateway's listeners. Refer to 
+  [`CipherSuites`](https://www.consul.io/docs/connect/config-entries/ingress-gateway#ciphersuites)
+  in the Consul documentation for the supported cipher suites.
 
 #### `listener` Parameters
 
