@@ -3265,6 +3265,18 @@ func TestTaskGroupDiff(t *testing.T) {
 																Old:  "false",
 																New:  "true",
 															},
+															{
+																Type: DiffTypeNone,
+																Name: "TLSMaxVersion",
+																Old:  "",
+																New:  "",
+															},
+															{
+																Type: DiffTypeNone,
+																Name: "TLSMinVersion",
+																Old:  "",
+																New:  "",
+															},
 														},
 													},
 													{
