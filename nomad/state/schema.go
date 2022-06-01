@@ -25,6 +25,7 @@ const (
 	indexNodeID      = "node_id"
 	indexAllocID     = "alloc_id"
 	indexServiceName = "service_name"
+	indexKeyID       = "key_id"
 )
 
 var (
@@ -1230,8 +1231,8 @@ func secureVariablesTableSchema() *memdb.TableSchema {
 					},
 				},
 			},
-			"key_id": {
-				Name:         "key_id",
+			indexKeyID: {
+				Name:         indexKeyID,
 				AllowMissing: false,
 				Indexer:      &secureVariableKeyIDFieldIndexer{},
 			},

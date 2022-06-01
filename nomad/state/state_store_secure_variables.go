@@ -60,7 +60,7 @@ func (s *StateStore) GetSecureVariablesByKeyID(
 	ws memdb.WatchSet, keyID string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableSecureVariables, "key_id", keyID)
+	iter, err := txn.Get(TableSecureVariables, indexKeyID, keyID)
 	if err != nil {
 		return nil, fmt.Errorf("secure variable lookup failed: %v", err)
 	}
