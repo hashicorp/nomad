@@ -472,6 +472,10 @@ type Service struct {
 	Meta       map[string]string // Consul service meta
 	CanaryMeta map[string]string // Consul service meta when it is a canary
 
+	// The values to set for tagged_addresses in Consul service registration.
+	// Does not affect Nomad networking, these are for Consul service discovery.
+	TaggedAddresses map[string]string
+
 	// The consul namespace in which this service will be registered. Namespace
 	// at the service.check level is not part of the Nomad API - it must be
 	// set at the job or group level. This field is managed internally so
@@ -516,6 +520,7 @@ func (s *Service) Copy() *Service {
 
 	ns.Meta = helper.CopyMapStringString(s.Meta)
 	ns.CanaryMeta = helper.CopyMapStringString(s.CanaryMeta)
+	ns.TaggedAddresses = helper.CopyMapStringString(s.TaggedAddresses)
 
 	return ns
 }
@@ -533,6 +538,9 @@ func (s *Service) Canonicalize(job, taskGroup, task, jobNamespace string) {
 	}
 	if len(s.Checks) == 0 {
 		s.Checks = nil
+	}
+	if len(s.TaggedAddresses) == 0 {
+		s.TaggedAddresses = nil
 	}
 
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
@@ -699,6 +707,7 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	hashBool(h, s.EnableTagOverride, "ETO")
 	hashMeta(h, s.Meta)
 	hashMeta(h, s.CanaryMeta)
+	hashMeta(h, s.TaggedAddresses)
 	hashConnect(h, s.Connect)
 	hashString(h, s.OnUpdate)
 	hashString(h, s.Namespace)
@@ -817,11 +826,15 @@ OUTER:
 		return false
 	}
 
-	if !reflect.DeepEqual(s.Meta, o.Meta) {
+	if !helper.CompareMapStringString(s.Meta, o.Meta) {
 		return false
 	}
 
-	if !reflect.DeepEqual(s.CanaryMeta, o.CanaryMeta) {
+	if !helper.CompareMapStringString(s.CanaryMeta, o.CanaryMeta) {
+		return false
+	}
+
+	if !helper.CompareMapStringString(s.TaggedAddresses, o.TaggedAddresses) {
 		return false
 	}
 

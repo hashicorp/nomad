@@ -21,14 +21,15 @@ func TestServiceRegistrations_Delete(t *testing.T) {
 	// TODO(jrasell) add tests once registration process is in place.
 }
 
-
 func TestService_Canonicalize(t *testing.T) {
 	testutil.Parallel(t)
 
 	j := &Job{Name: stringToPtr("job")}
 	tg := &TaskGroup{Name: stringToPtr("group")}
 	task := &Task{Name: "task"}
-	s := &Service{}
+	s := &Service{
+		TaggedAddresses: make(map[string]string),
+	}
 
 	s.Canonicalize(task, tg, j)
 
@@ -36,6 +37,9 @@ func TestService_Canonicalize(t *testing.T) {
 	require.Equal(t, "auto", s.AddressMode)
 	require.Equal(t, OnUpdateRequireHealthy, s.OnUpdate)
 	require.Equal(t, ServiceProviderConsul, s.Provider)
+	require.Nil(t, s.Meta)
+	require.Nil(t, s.CanaryMeta)
+	require.Nil(t, s.TaggedAddresses)
 }
 
 func TestServiceCheck_Canonicalize(t *testing.T) {

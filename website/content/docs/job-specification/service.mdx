@@ -146,6 +146,9 @@ Connect][connect] integration.
   mode. Useful with interpolation - for example to advertise the public IP address
   of an AWS EC2 instance set this to `${attr.unique.platform.aws.public-ipv4}`.
 
+- `tagged_addresses` `(map<string|string>` - Specifies custom [tagged addresses][tagged_addresses] to
+  advertise in the Consul service registration. Only available where `provider = "consul"`.
+
 - `address_mode` `(string: "auto")` - Specifies which address (host, alloc or
   driver-specific) this service should advertise. See [below for
   examples.](#using-driver-address-mode) Valid options are:
@@ -833,3 +836,4 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [service_task]: /docs/job-specification/service#task-1
 [network_mode]: /docs/job-specification/network#mode
 [on_update]: /docs/job-specification/service#on_update
+[tagged_addresses]: https://www.consul.io/docs/discovery/services#tagged-addresses

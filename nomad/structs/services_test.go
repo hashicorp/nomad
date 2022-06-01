@@ -1601,7 +1601,7 @@ func TestService_Validate(t *testing.T) {
 	}
 }
 
-func TestService_Advertise(t *testing.T) {
+func TestService_Validate_Address(t *testing.T) {
 	try := func(mode, advertise string, exp error) {
 		s := &Service{Name: "s1", Provider: "consul", AddressMode: mode, Address: advertise}
 		result := s.Validate()
@@ -1632,7 +1632,8 @@ func TestService_Equals(t *testing.T) {
 	ci.Parallel(t)
 
 	s := Service{
-		Name: "testservice",
+		Name:            "testservice",
+		TaggedAddresses: make(map[string]string),
 	}
 
 	s.Canonicalize("testjob", "testgroup", "testtask", "default")
@@ -1678,6 +1679,9 @@ func TestService_Equals(t *testing.T) {
 	assertDiff()
 
 	o.Provider = "nomad"
+	assertDiff()
+
+	o.TaggedAddresses = map[string]string{"foo": "bar"}
 	assertDiff()
 }
 

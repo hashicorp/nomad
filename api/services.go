@@ -236,6 +236,7 @@ type Service struct {
 	Connect           *ConsulConnect    `hcl:"connect,block"`
 	Meta              map[string]string `hcl:"meta,block"`
 	CanaryMeta        map[string]string `hcl:"canary_meta,block"`
+	TaggedAddresses   map[string]string `hcl:"tagged_addresses,block"`
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
 	OnUpdate          string            `mapstructure:"on_update" hcl:"on_update,optional"`
 
@@ -278,6 +279,18 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	// Default the service provider.
 	if s.Provider == "" {
 		s.Provider = ServiceProviderConsul
+	}
+
+	if len(s.Meta) == 0 {
+		s.Meta = nil
+	}
+
+	if len(s.CanaryMeta) == 0 {
+		s.CanaryMeta = nil
+	}
+
+	if len(s.TaggedAddresses) == 0 {
+		s.TaggedAddresses = nil
 	}
 
 	s.Connect.Canonicalize()
