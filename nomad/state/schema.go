@@ -1230,8 +1230,69 @@ func secureVariablesTableSchema() *memdb.TableSchema {
 					},
 				},
 			},
+			"key_id": {
+				Name:         "key_id",
+				AllowMissing: false,
+				Indexer:      &secureVariableKeyIDFieldIndexer{},
+			},
 		},
 	}
+}
+
+type secureVariableKeyIDFieldIndexer struct{}
+
+// FromArgs implements go-memdb/Indexer and is used to build an exact
+// index lookup based on arguments
+func (s *secureVariableKeyIDFieldIndexer) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("must provide only a single argument")
+	}
+	arg, ok := args[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
+	}
+	// Add the null character as a terminator
+	arg += "\x00"
+	return []byte(arg), nil
+}
+
+// PrefixFromArgs implements go-memdb/PrefixIndexer and returns a
+// prefix that should be used for scanning based on the arguments
+func (s *secureVariableKeyIDFieldIndexer) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	val, err := s.FromArgs(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Strip the null terminator, the rest is a prefix
+	n := len(val)
+	if n > 0 {
+		return val[:n-1], nil
+	}
+	return val, nil
+}
+
+// FromObject implements go-memdb/SingleIndexer and is used to extract
+// an index value from an object or to indicate that the index value
+// is missing.
+func (s *secureVariableKeyIDFieldIndexer) FromObject(obj interface{}) (bool, []byte, error) {
+	variable, ok := obj.(*structs.SecureVariable)
+	if !ok {
+		return false, nil, fmt.Errorf("object %#v is not a SecureVariable", obj)
+	}
+
+	if variable.EncryptedData == nil {
+		return false, nil, nil
+	}
+
+	keyID := variable.EncryptedData.KeyID
+	if keyID == "" {
+		return false, nil, nil
+	}
+
+	// Add the null character as a terminator
+	keyID += "\x00"
+	return true, []byte(keyID), nil
 }
 
 // secureVariablesQuotasTableSchema returns the MemDB schema for Nomad
