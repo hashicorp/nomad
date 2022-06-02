@@ -55,8 +55,7 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 		keyMeta := rotateResp.Key
 		keyBuf := make([]byte, 32)
 		rand.Read(keyBuf)
-		encodedKey := make([]byte, base64.StdEncoding.EncodedLen(32))
-		base64.StdEncoding.Encode(encodedKey, keyBuf)
+		encodedKey := base64.StdEncoding.EncodeToString(keyBuf)
 
 		newID2 := uuid.Generate()
 
@@ -66,7 +65,7 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 				KeyID:     newID2,
 				Algorithm: api.EncryptionAlgorithm(keyMeta.Algorithm),
 			},
-			Key: string(encodedKey),
+			Key: encodedKey,
 		}
 		reqBuf := encodeReq(key)
 

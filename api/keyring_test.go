@@ -33,11 +33,10 @@ func TestKeyring_CRUD(t *testing.T) {
 	id := "fd77c376-9785-4c80-8e62-4ec3ab5f8b9a"
 	buf := make([]byte, 32)
 	rand.Read(buf)
-	encodedKey := make([]byte, base64.StdEncoding.EncodedLen(32))
-	base64.StdEncoding.Encode(encodedKey, buf)
+	encodedKey := base64.StdEncoding.EncodeToString(buf)
 
 	wm, err = kr.Update(&RootKey{
-		Key: string(encodedKey),
+		Key: encodedKey,
 		Meta: &RootKeyMeta{
 			KeyID:     id,
 			Active:    true,

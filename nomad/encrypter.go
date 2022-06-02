@@ -219,20 +219,7 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 		return nil, err
 	}
 
-	// Note: we expect to have null bytes for padding, but we don't
-	// want to use RawStdEncoding which breaks a lot of command line
-	// tools. So we'll truncate the key to the expected length.
-	var keyLen int
-	switch storedKey.Meta.Algorithm {
-	case structs.EncryptionAlgorithmAES256GCM:
-		keyLen = 32
-	default:
-		return nil, fmt.Errorf("invalid algorithm")
-	}
-
-	key := make([]byte, keyLen)
-	encodedKeyLen := base64.StdEncoding.EncodedLen(keyLen)
-	_, err = base64.StdEncoding.Decode(key, []byte(storedKey.Key)[:encodedKeyLen])
+	key, err := base64.StdEncoding.DecodeString(storedKey.Key)
 	if err != nil {
 		return nil, fmt.Errorf("could not decode key: %v", err)
 	}
