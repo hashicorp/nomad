@@ -3,6 +3,7 @@ package nomad
 import (
 	"sync"
 	"testing"
+	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/stretchr/testify/require"
@@ -25,7 +26,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 
 	// Upsert a new key
 
-	key, err := structs.NewRootKey(structs.EncryptionAlgorithmXChaCha20)
+	key, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
 	require.NoError(t, err)
 	id := key.Meta.KeyID
 	key.Meta.Active = true
@@ -54,7 +55,7 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Get", getReq, &getResp)
 	require.NoError(t, err)
 	require.Equal(t, updateResp.Index, getResp.Index)
-	require.Equal(t, structs.EncryptionAlgorithmXChaCha20, getResp.Key.Meta.Algorithm)
+	require.Equal(t, structs.EncryptionAlgorithmAES256GCM, getResp.Key.Meta.Algorithm)
 
 	// Make a blocking query for List and wait for an Update. Note
 	// that List/Get queries don't need ACL tokens in the test server
@@ -77,7 +78,8 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	updateReq.RootKey.Meta.EncryptionsCount++
+	updateReq.RootKey.Meta.CreateTime = time.Now()
+
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
 	require.NoError(t, err)
 	require.NotEqual(t, uint64(0), updateResp.Index)
@@ -133,7 +135,7 @@ func TestKeyringEndpoint_InvalidUpdates(t *testing.T) {
 	codec := rpcClient(t, srv)
 
 	// Setup an existing key
-	key, err := structs.NewRootKey(structs.EncryptionAlgorithmXChaCha20)
+	key, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
 	require.NoError(t, err)
 	id := key.Meta.KeyID
 	key.Meta.Active = true
@@ -168,7 +170,7 @@ func TestKeyringEndpoint_InvalidUpdates(t *testing.T) {
 		{
 			key: &structs.RootKey{Meta: &structs.RootKeyMeta{
 				KeyID:     id,
-				Algorithm: structs.EncryptionAlgorithmXChaCha20,
+				Algorithm: structs.EncryptionAlgorithmAES256GCM,
 			}},
 			expectedErrMsg: "root key material is required",
 		},
@@ -177,7 +179,7 @@ func TestKeyringEndpoint_InvalidUpdates(t *testing.T) {
 				Key: []byte{0x01},
 				Meta: &structs.RootKeyMeta{
 					KeyID:     id,
-					Algorithm: structs.EncryptionAlgorithmAES256GCM,
+					Algorithm: "whatever",
 				}},
 			expectedErrMsg: "root key algorithm cannot be changed after a key is created",
 		},
@@ -213,7 +215,7 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 	codec := rpcClient(t, srv)
 
 	// Setup an existing key
-	key, err := structs.NewRootKey(structs.EncryptionAlgorithmXChaCha20)
+	key, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
 	require.NoError(t, err)
 	key.Meta.Active = true
 
