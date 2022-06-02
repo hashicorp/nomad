@@ -26,6 +26,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"golang.org/x/crypto/blake2b"
+	"gophers.dev/pkgs/netlog"
 
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
@@ -11279,6 +11280,7 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus, 
 // AppendPreemptedAlloc is used to append an allocation that's being preempted to the plan.
 // To minimize the size of the plan, this only sets a minimal set of fields in the allocation
 func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string) {
+	netlog.Green("AppendPreemptedAlloc, id: %s, preemptingAllocID: %s", alloc.ID, preemptingAllocID)
 	newAlloc := &Allocation{}
 	newAlloc.ID = alloc.ID
 	newAlloc.JobID = alloc.JobID
@@ -11303,6 +11305,7 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string)
 	node := alloc.NodeID
 	existing := p.NodePreemptions[node]
 	p.NodePreemptions[node] = append(existing, newAlloc)
+	netlog.Green(" -> NodePreemptions[%s]: %v", node, p.NodePreemptions)
 }
 
 // AppendUnknownAlloc marks an allocation as unknown.

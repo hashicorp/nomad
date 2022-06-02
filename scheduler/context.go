@@ -6,6 +6,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"gophers.dev/pkgs/netlog"
 )
 
 // Context is used to track contextual information used for placement
@@ -178,15 +179,25 @@ func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, erro
 		return nil, err
 	}
 
+	for i, pro := range proposed {
+		netlog.Green("node: %s, proposed[%d]: %s", nodeID, i, pro.Name)
+	}
+
 	// Determine the proposed allocation by first removing allocations
 	// that are planned evictions and adding the new allocations.
 	if update := e.plan.NodeUpdate[nodeID]; len(update) > 0 {
+		for i, up := range update {
+			netlog.Green("A remove[%d]: %s", i, up.Name)
+		}
 		proposed = structs.RemoveAllocs(proposed, update)
 	}
 
 	// Remove any allocs that are being preempted
 	nodePreemptedAllocs := e.plan.NodePreemptions[nodeID]
 	if len(nodePreemptedAllocs) > 0 {
+		for i, pre := range nodePreemptedAllocs {
+			netlog.Green("B remove[%d]: %s", i, pre.Name)
+		}
 		proposed = structs.RemoveAllocs(proposed, nodePreemptedAllocs)
 	}
 

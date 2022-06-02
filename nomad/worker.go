@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
+	"gophers.dev/pkgs/netlog"
 )
 
 const (
@@ -743,6 +744,7 @@ SUBMIT:
 // ReblockEval is used to reinsert a blocked evaluation into the blocked eval
 // tracker. This allows the worker to act as the planner for the scheduler.
 func (w *Worker) ReblockEval(eval *structs.Evaluation) error {
+	netlog.Yellow("ReblockEval id:", eval.ID)
 	// Check for a shutdown before plan submission. This checks the server state rather than
 	// the worker's to prevent erroring on work in flight that would complete otherwise.
 	if w.srv.IsShutdown() {

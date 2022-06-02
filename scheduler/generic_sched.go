@@ -200,7 +200,11 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 
 	// If the current evaluation is a blocked evaluation and we didn't place
 	// everything, do not update the status to complete.
+	netlog.Yellow("g_s eval status: %s, len failedTGAllocs: %d", s.eval.Status, len(s.failedTGAllocs))
+	// YOU ARE HERE
+	// really want to know if an alloc is
 	if s.eval.Status == structs.EvalStatusBlocked && len(s.failedTGAllocs) != 0 {
+
 		e := s.ctx.Eligibility()
 		newEval := s.eval.Copy()
 		newEval.EscapedComputedClass = e.HasEscaped()
@@ -664,6 +668,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				s.ctx.Metrics().ExhaustResources(tg)
 
 				// Track the fact that we didn't find a placement
+				netlog.Cyan("set failedTGAllocs[%s]: %v", tg.Name, s.ctx.Metrics())
 				s.failedTGAllocs[tg.Name] = s.ctx.Metrics()
 
 				// If we weren't able to find a replacement for the allocation, back
@@ -816,6 +821,7 @@ func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions
 		selectOptions.Preempt = true
 		option = s.stack.Select(tg, selectOptions)
 	}
+	netlog.Cyan("setting preempt: %t", selectOptions.Preempt)
 	return option
 }
 
