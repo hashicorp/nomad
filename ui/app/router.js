@@ -92,7 +92,7 @@ Router.map(function () {
     );
 
     this.route('path', {
-      path: '/path/:absolutePath',
+      path: '/path/*absolutePath',
     });
   });
 });
