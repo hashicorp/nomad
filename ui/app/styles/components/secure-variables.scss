@@ -23,18 +23,15 @@
       border-color: $grey-blue;
     }
   }
-
-  // .add-more:focus {
-  //   background-color: $grey-lighter;
-  // }
 }
 
-.path-tree {
-  margin-left: 5px;
-  padding-left: 5px;
-  border-left: 1px dotted grey;
+table.path-tree {
   a {
-    font-weight: bold;
-    margin-left: 11px;
+    color: #0a0a0a;
+    text-decoration: none;
+  }
+  svg {
+    margin-bottom: -2px;
+    margin-right: 10px;
   }
 }
