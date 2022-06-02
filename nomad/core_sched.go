@@ -58,6 +58,8 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 		return c.csiPluginGC(eval)
 	case structs.CoreJobOneTimeTokenGC:
 		return c.expiredOneTimeTokenGC(eval)
+	case structs.CoreJobRootKeyGC:
+		return c.rootKeyGC(eval)
 	case structs.CoreJobForceGC:
 		return c.forceGC(eval)
 	default:
@@ -83,6 +85,9 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 		return err
 	}
 	if err := c.expiredOneTimeTokenGC(eval); err != nil {
+		return err
+	}
+	if err := c.rootKeyGC(eval); err != nil {
 		return err
 	}
 	// Node GC must occur after the others to ensure the allocations are
@@ -778,6 +783,55 @@ func (c *CoreScheduler) expiredOneTimeTokenGC(eval *structs.Evaluation) error {
 		},
 	}
 	return c.srv.RPC("ACL.ExpireOneTimeTokens", req, &structs.GenericResponse{})
+}
+
+// rootKeyGC is used to garbage collect unused root keys
+func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation) error {
+
+	oldThreshold := c.getThreshold(eval, "root key",
+		"root_key_gc_threshold", c.srv.config.RootKeyGCThreshold)
+
+	ws := memdb.NewWatchSet()
+	iter, err := c.snap.RootKeyMetas(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		keyMeta := raw.(*structs.RootKeyMeta)
+		if keyMeta.Active {
+			continue // never GC the active key
+		}
+		if keyMeta.CreateIndex > oldThreshold {
+			continue // don't GC recent keys
+		}
+		varIter, err := c.snap.GetSecureVariablesByKeyID(ws, keyMeta.KeyID)
+		if err != nil {
+			return err
+		}
+		if varIter.Next() != nil {
+			continue // key is still in use
+		}
+
+		req := &structs.KeyringDeleteRootKeyRequest{
+			KeyID: keyMeta.KeyID,
+			WriteRequest: structs.WriteRequest{
+				Region:    c.srv.config.Region,
+				AuthToken: eval.LeaderACL,
+			},
+		}
+		if err := c.srv.RPC("Keyring.Delete",
+			req, &structs.KeyringDeleteRootKeyResponse{}); err != nil {
+			c.logger.Error("root key delete failed", "error", err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 // getThreshold returns the index threshold for determining whether an

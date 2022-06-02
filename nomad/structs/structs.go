@@ -10731,6 +10731,10 @@ const (
 	// tokens. We periodically scan for expired tokens and delete them.
 	CoreJobOneTimeTokenGC = "one-time-token-gc"
 
+	// CoreJobRootKeyGC is used for the garbage collection of unused
+	// encryption keys.
+	CoreJobRootKeyGC = "root-key-gc"
+
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"
 )
