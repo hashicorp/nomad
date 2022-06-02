@@ -292,7 +292,8 @@ func (a allocSet) filterByRescheduleable(isBatch bool, now time.Time, evalID str
 	return
 }
 
-// shouldFilter returns whether the alloc should be ignored or considered untainted
+// shouldFilter returns whether the alloc should be ignored or considered untainted.
+//
 // Ignored allocs are filtered out.
 // Untainted allocs count against the desired total.
 // Filtering logic for batch jobs:
@@ -309,10 +310,12 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 	// complete but not failed, they shouldn't be replaced.
 	if isBatch {
 		switch alloc.DesiredStatus {
-		case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
+		case structs.AllocDesiredStatusStop:
 			if alloc.RanSuccessfully() {
 				return true, false
 			}
+			return false, true
+		case structs.AllocDesiredStatusEvict:
 			return false, true
 		default:
 		}
