@@ -1,9 +1,7 @@
 package fingerprint
 
 import (
-	"os/exec"
 	"runtime"
-	"strings"
 
 	log "github.com/hashicorp/go-hclog"
 )
