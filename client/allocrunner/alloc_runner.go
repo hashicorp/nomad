@@ -1222,6 +1222,9 @@ func (ar *allocRunner) RestartAll(taskEvent *structs.TaskEvent) error {
 		}
 	}
 
+	// TODO: run before or after the taskRestartHooks?
+	ar.taskHookCoordinator.RestartTaskHookCoordinator()
+
 	return err.ErrorOrNil()
 }
 

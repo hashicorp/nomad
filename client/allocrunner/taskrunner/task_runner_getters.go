@@ -33,6 +33,11 @@ func (tr *TaskRunner) IsPrestartTask() bool {
 	return tr.Task().Lifecycle != nil && tr.Task().Lifecycle.Hook == structs.TaskLifecycleHookPrestart
 }
 
+// IsPostStartTask returns true if this task is a poststart task in its task group.
+func (tr *TaskRunner) IsPoststartTask() bool {
+	return tr.Task().Lifecycle != nil && tr.Task().Lifecycle.Hook == structs.TaskLifecycleHookPoststart
+}
+
 // IsPoststopTask returns true if this task is a poststop task in its task group.
 func (tr *TaskRunner) IsPoststopTask() bool {
 	return tr.Task().Lifecycle != nil && tr.Task().Lifecycle.Hook == structs.TaskLifecycleHookPoststop

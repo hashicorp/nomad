@@ -542,6 +542,7 @@ func (tr *TaskRunner) Run() {
 	}
 
 	select {
+	// TODO: rename lifecycleStartConditionMetCtx or something
 	case <-tr.startConditionMetCtx:
 		tr.logger.Debug("lifecycle start condition has been met, proceeding")
 		// yay proceed
@@ -622,6 +623,19 @@ MAIN:
 			}
 		}
 
+		// Block until the allocation is ready to finish
+		// TODO: this whole design will break prestart tasks
+		//  - if we block prestart tasks from fully executing, they will always be in running state
+		//  - if they never reach dead state, then main tasks will never start :<
+		select {
+		case <-tr.endConditionMetCtx:
+			tr.logger.Debug("lifecycle end condition has been met, proceeding")
+			// yay proceed
+		case <-tr.killCtx.Done():
+		case <-tr.shutdownCtx.Done():
+			return
+		}
+
 		// Clear the handle
 		tr.clearDriverHandle()
 
@@ -669,22 +683,15 @@ MAIN:
 		}
 	}
 
+	// TODO: prestart phase depends on all prestart tasks being dead
+	//    - prestart tasks will never reach this code
+	//    - how do we adjust the event
 	// Mark the task as dead
 	tr.UpdateState(structs.TaskStateDead, nil)
 
 	// Run the stop hooks
 	if err := tr.stop(); err != nil {
 		tr.logger.Error("stop failed", "error", err)
-	}
-
-	// Block until the allocation is ready to finish
-	select {
-	case <-tr.endConditionMetCtx:
-		tr.logger.Debug("lifecycle end condition has been met, proceeding")
-		// yay proceed
-	case <-tr.killCtx.Done():
-	case <-tr.shutdownCtx.Done():
-		return
 	}
 
 	tr.logger.Debug("task run loop exiting")

@@ -8,6 +8,15 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// TODO: killed deployment while prestart was stuck in running state>>>
+//        [ERROR] client.alloc_runner.task_runner.task_hook.stats_hook:
+//        failed to start stats collection for task: alloc_id=24546e00-09c1-6582-d589-85b63b5b9548
+//        task=prestart error="task not found for given id"
+
+// TODO: investigate when a task is marked as Dead
+//       - prestart will never get to Dead if it's being blocked
+//       - this blocks all tasks from being executed
+
 // TaskHookCoordinator helps coordinate when mainTasks start tasks can launch
 // namely after all Prestart Tasks have run, and after all BlockUntilCompleted have completed
 type taskHookCoordinator struct {
@@ -27,6 +36,9 @@ type taskHookCoordinator struct {
 	poststopTaskCtx        context.Context
 	poststopTaskCtxCancel  context.CancelFunc
 
+	restartAllocCtx       context.Context
+	restartAllocCtxCancel context.CancelFunc
+
 	prestartSidecar   map[string]struct{}
 	prestartEphemeral map[string]struct{}
 	mainTasksRunning  map[string]struct{} // poststop: main tasks running -> finished
@@ -40,6 +52,7 @@ func newTaskHookCoordinator(logger hclog.Logger, tasks []*structs.Task) *taskHoo
 	mainTaskCtx, mainCancelFn := context.WithCancel(context.Background())
 	poststartTaskCtx, poststartCancelFn := context.WithCancel(context.Background())
 	poststopTaskCtx, poststopTaskCancelFn := context.WithCancel(context.Background())
+	restartAllocCtx, restartAllocCancelFn := context.WithCancel(context.Background())
 
 	c := &taskHookCoordinator{
 		logger:                 logger,
@@ -54,6 +67,8 @@ func newTaskHookCoordinator(logger hclog.Logger, tasks []*structs.Task) *taskHoo
 		poststartTaskCtxCancel: poststartCancelFn,
 		poststopTaskCtx:        poststopTaskCtx,
 		poststopTaskCtxCancel:  poststopTaskCancelFn,
+		restartAllocCtx:        restartAllocCtx,
+		restartAllocCtxCancel:  restartAllocCancelFn,
 	}
 	c.setTasks(tasks)
 	return c
@@ -122,8 +137,10 @@ func (c *taskHookCoordinator) startConditionForTask(task *structs.Task) <-chan s
 }
 
 // Tasks are able to exit the taskrunner Run() loop when poststop tasks are ready to start
+// TODO: in case of a restart, poststop tasks will not be ready to run
+//  - need to refresh the taskhookcoordinator so execution flow happens sequentially
 func (c *taskHookCoordinator) endConditionForTask(task *structs.Task) <-chan struct{} {
-	return c.poststopTaskCtx.Done()
+	return c.restartAllocCtx.Done()
 }
 
 // This is not thread safe! This must only be called from one thread per alloc runner.
@@ -146,6 +163,7 @@ func (c *taskHookCoordinator) taskStateUpdated(states map[string]*structs.TaskSt
 		delete(c.prestartEphemeral, task)
 	}
 
+	// This unblocks the main tasks
 	for task := range c.mainTasksRunning {
 		st := states[task]
 
@@ -156,6 +174,7 @@ func (c *taskHookCoordinator) taskStateUpdated(states map[string]*structs.TaskSt
 		delete(c.mainTasksRunning, task)
 	}
 
+	// This unblocks the PostStart tasks
 	for task := range c.mainTasksPending {
 		st := states[task]
 		if st == nil || st.StartedAt.IsZero() {
@@ -165,16 +184,30 @@ func (c *taskHookCoordinator) taskStateUpdated(states map[string]*structs.TaskSt
 		delete(c.mainTasksPending, task)
 	}
 
+	// This unblocks the Main tasks
 	if !c.hasPrestartTasks() {
 		c.mainTaskCtxCancel()
 	}
 
+	// This unblocks the PostStart tasks
 	if !c.hasPendingMainTasks() {
 		c.poststartTaskCtxCancel()
 	}
+
+	// This unblocks the PostStop tasks
 	if !c.hasRunningMainTasks() {
 		c.poststopTaskCtxCancel()
+
+		// TODO: realizing now that the naming is bad,
+		//       you can unblock the endCondition in case of
+		//       regular execution or in case of a restart
+		c.restartAllocCtxCancel()
 	}
+
+}
+
+func (c *taskHookCoordinator) RestartTaskHookCoordinator() {
+	c.restartAllocCtxCancel()
 }
 
 func (c *taskHookCoordinator) StartPoststopTasks() {
