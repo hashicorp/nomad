@@ -3811,7 +3811,12 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 		require.Equal(t, &structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{
 				Ingress: &structs.ConsulIngressConfigEntry{
-					TLS: &structs.ConsulGatewayTLSConfig{Enabled: true},
+					TLS: &structs.ConsulGatewayTLSConfig{
+						Enabled:       true,
+						TLSMinVersion: "TLSv1_2",
+						TLSMaxVersion: "TLSv1_3",
+						CipherSuites:  []string{"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"},
+					},
 					Listeners: []*structs.ConsulIngressListener{{
 						Port:     1111,
 						Protocol: "http",
@@ -3826,7 +3831,12 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 			&api.ConsulConnect{
 				Gateway: &api.ConsulGateway{
 					Ingress: &api.ConsulIngressConfigEntry{
-						TLS: &api.ConsulGatewayTLSConfig{Enabled: true},
+						TLS: &api.ConsulGatewayTLSConfig{
+							Enabled:       true,
+							TLSMinVersion: "TLSv1_2",
+							TLSMaxVersion: "TLSv1_3",
+							CipherSuites:  []string{"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"},
+						},
 						Listeners: []*api.ConsulIngressListener{{
 							Port:     1111,
 							Protocol: "http",

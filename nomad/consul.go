@@ -603,16 +603,19 @@ func convertIngressCE(namespace, service string, entry *structs.ConsulIngressCon
 		})
 	}
 
-	tlsEnabled := false
-	if entry.TLS != nil && entry.TLS.Enabled {
-		tlsEnabled = true
+	tls := api.GatewayTLSConfig{}
+	if entry.TLS != nil {
+		tls.Enabled = entry.TLS.Enabled
+		tls.TLSMinVersion = entry.TLS.TLSMinVersion
+		tls.TLSMaxVersion = entry.TLS.TLSMaxVersion
+		tls.CipherSuites = helper.CopySliceString(entry.TLS.CipherSuites)
 	}
 
 	return &api.IngressGatewayConfigEntry{
 		Namespace: namespace,
 		Kind:      api.IngressGateway,
 		Name:      service,
-		TLS:       api.GatewayTLSConfig{Enabled: tlsEnabled},
+		TLS:       tls,
 		Listeners: listeners,
 	}
 }
