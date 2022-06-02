@@ -22,19 +22,6 @@ func NewArchFingerprint(logger log.Logger) Fingerprint {
 
 func (f *ArchFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	resp.AddAttribute("cpu.arch", runtime.GOARCH)
-
-	if runtime.GOOS == "linux" {
-		unameOutput, err := exec.Command("uname", "-m").Output()
-
-		if err != nil {
-			f.logger.Warn("error calling 'uname -m'")
-			resp.AddAttribute("cpu.machine", "undefined")
-		} else {
-			output := strings.TrimSpace(string(unameOutput))
-			resp.AddAttribute("cpu.machine", output)
-		}
-	}
-
 	resp.Detected = true
 	return nil
 }
