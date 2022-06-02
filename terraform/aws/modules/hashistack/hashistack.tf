@@ -93,7 +93,7 @@ resource "aws_security_group" "primary" {
     security_groups = [aws_security_group.server_lb.id]
   }
 
-  # Fabio 
+  # Fabio
   ingress {
     from_port   = 9998
     to_port     = 9999
@@ -157,37 +157,6 @@ resource "aws_security_group" "primary" {
   }
 }
 
-data "template_file" "user_data_server" {
-  template = file("${path.root}/user-data-server.sh")
-
-  vars = {
-    server_count = var.server_count
-    region       = var.region
-    retry_join = chomp(
-      join(
-        " ",
-        formatlist("%s=%s", keys(var.retry_join), values(var.retry_join)),
-      ),
-    )
-    nomad_binary = var.nomad_binary
-  }
-}
-
-data "template_file" "user_data_client" {
-  template = file("${path.root}/user-data-client.sh")
-
-  vars = {
-    region = var.region
-    retry_join = chomp(
-      join(
-        " ",
-        formatlist("%s=%s ", keys(var.retry_join), values(var.retry_join)),
-      ),
-    )
-    nomad_binary = var.nomad_binary
-  }
-}
-
 resource "aws_instance" "server" {
   ami                    = var.ami
   instance_type          = var.server_instance_type
@@ -211,7 +180,19 @@ resource "aws_instance" "server" {
     delete_on_termination = "true"
   }
 
-  user_data            = data.template_file.user_data_server.rendered
+  user_data = templatefile("${path.root}/user-data-server.sh",
+    {
+      server_count = var.server_count
+      region       = var.region
+      retry_join = chomp(
+        join(
+          " ",
+          formatlist("%s=%s", keys(var.retry_join), values(var.retry_join)),
+        ),
+      )
+      nomad_binary = var.nomad_binary
+    }
+  )
   iam_instance_profile = aws_iam_instance_profile.instance_profile.name
 }
 
@@ -246,7 +227,18 @@ resource "aws_instance" "client" {
     delete_on_termination = "true"
   }
 
-  user_data            = data.template_file.user_data_client.rendered
+  user_data = templatefile("${path.root}/user-data-client.sh",
+    {
+      region = var.region
+      retry_join = chomp(
+        join(
+          " ",
+          formatlist("%s=%s ", keys(var.retry_join), values(var.retry_join)),
+        ),
+      )
+      nomad_binary = var.nomad_binary
+    }
+  )
   iam_instance_profile = aws_iam_instance_profile.instance_profile.name
 }
 
@@ -292,11 +284,26 @@ data "aws_iam_policy_document" "auto_discover_cluster" {
   }
 }
 
-resource "aws_elb" "server_lb" {
+resource "aws_vpc" "intsvc-us-east-2" {
+  cidr_block       = "10.0.0.0/16"
+  instance_tenancy = "default"
+
+  tags = {
+    Name = "main"
+  }
+}
+
+resource "aws_lb" "server_lb" {
   name               = "${var.name}-server-lb"
-  availability_zones = distinct(aws_instance.server.*.availability_zone)
-  internal           = false
+  load_balancer_type = "application"
+  availability_zones = ["us-east-2a", "us-east-2b", "us-east-2c"]
+  internal           = true
   instances          = aws_instance.server.*.id
+
+  subnet_mapping {
+    subnet_id            = aws_subnet.example1.id
+    private_ipv4_address = "10.0.1.15"
+  }
   listener {
     instance_port     = 4646
     instance_protocol = "http"
@@ -312,12 +319,12 @@ resource "aws_elb" "server_lb" {
   security_groups = [aws_security_group.server_lb.id]
 }
 
-output "server_public_ips" {
-  value = aws_instance.server[*].public_ip
+output "server_private_ips" {
+  value = aws_instance.server[*].private_ip
 }
 
-output "client_public_ips" {
-  value = aws_instance.client[*].public_ip
+output "client_private_ips" {
+  value = aws_instance.client[*].private_ip
 }
 
 output "server_lb_ip" {
