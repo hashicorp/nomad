@@ -502,16 +502,20 @@ func (s *GenericScheduler) downgradedJobForPlacement(p placementResult) (string,
 // computePlacements computes placements for allocations. It is given the set of
 // destructive updates to place and the set of new placements to place.
 func (s *GenericScheduler) computePlacements(destructive, place []placementResult) error {
+	netlog.Cyan("A")
 	// Get the base nodes
 	nodes, _, byDC, err := readyNodesInDCs(s.state, s.job.Datacenters)
 	if err != nil {
 		return err
 	}
+	netlog.Cyan("B nodes: %v", nodes)
 
 	var deploymentID string
 	if s.deployment != nil && s.deployment.Active() {
 		deploymentID = s.deployment.ID
 	}
+
+	netlog.Cyan("C deploymentID: %s", deploymentID)
 
 	// Update the set of placement nodes
 	s.stack.SetNodes(nodes)
@@ -522,10 +526,13 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 	// Have to handle destructive changes first as we need to discount their
 	// resources. To understand this imagine the resources were reduced and the
 	// count was scaled up.
-	for _, results := range [][]placementResult{destructive, place} {
-		for _, missing := range results {
+	for rI, results := range [][]placementResult{destructive, place} {
+		netlog.Cyan("D ri: %d, len(results): %d", rI, len(results))
+		for mI, missing := range results {
+			netlog.Cyan("E mI: %d, missing: %v", mI, missing)
 			// Get the task group
 			tg := missing.TaskGroup()
+			netlog.Cyan("F missing tg: %s", tg)
 
 			var downgradedJob *structs.Job
 
@@ -549,17 +556,23 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				}
 			}
 
+			netlog.Cyan("G s.failedTGAllocs[%s]: %s, %v", tg.Name, s.failedTGAllocs[tg.Name])
+
 			// Check if this task group has already failed
 			if metric, ok := s.failedTGAllocs[tg.Name]; ok {
+				netlog.Cyan("H already failed")
 				metric.CoalescedFailures += 1
 				metric.ExhaustResources(tg)
 				continue
 			}
 
+			netlog.Cyan("I")
+
 			// Use downgraded job in scheduling stack to honor
 			// old job resources and constraints
 			if downgradedJob != nil {
 				s.stack.SetJob(downgradedJob)
+				netlog.Cyan("J use downgraded job")
 			}
 
 			// Find the preferred node
@@ -567,6 +580,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			if err != nil {
 				return err
 			}
+			netlog.Cyan("K preferredNode: %v", preferredNode)
 
 			// Check if we should stop the previous allocation upon successful
 			// placement of its replacement. This allow atomic placements/stops. We
@@ -575,6 +589,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			stopPrevAlloc, stopPrevAllocDesc := missing.StopPreviousAlloc()
 			prevAllocation := missing.PreviousAllocation()
 			if stopPrevAlloc {
+				netlog.Cyan("L stopPrevAlloc: %v", prevAllocation.ID)
 				s.plan.AppendStoppedAlloc(prevAllocation, stopPrevAllocDesc, "", "")
 			}
 
@@ -594,8 +609,11 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				s.stack.SetJob(s.job)
 			}
 
+			netlog.Cyan("CP option is nil: %t", option == nil)
+
 			// Set fields based on if we found an allocation option
 			if option != nil {
+				netlog.Cyan("M")
 				resources := &structs.AllocatedResources{
 					Tasks:          option.TaskResources,
 					TaskLifecycles: option.TaskLifecycles,
@@ -635,32 +653,39 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// If the new allocation is replacing an older allocation then we
 				// set the record the older allocation id so that they are chained
 				if prevAllocation != nil {
+					netlog.Cyan("N")
 					alloc.PreviousAllocation = prevAllocation.ID
 					if missing.IsRescheduling() {
+						netlog.Cyan("O")
 						updateRescheduleTracker(alloc, prevAllocation, now)
 					}
 
 					// If the allocation has task handles,
 					// copy them to the new allocation
+					netlog.Cyan("P")
 					propagateTaskState(alloc, prevAllocation, missing.PreviousLost())
 				}
 
 				// If we are placing a canary and we found a match, add the canary
 				// to the deployment state object and mark it as a canary.
 				if missing.Canary() && s.deployment != nil {
+					netlog.Cyan("Q")
 					alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
 						Canary: true,
 					}
 				}
 
+				netlog.Cyan("R")
 				s.handlePreemptions(option, alloc, missing)
 
 				// Track the placement
 				s.plan.AppendAlloc(alloc, downgradedJob)
 
 			} else {
+				netlog.Cyan("S")
 				// Lazy initialize the failed map
 				if s.failedTGAllocs == nil {
+					netlog.Cyan("T")
 					s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 				}
 
@@ -674,13 +699,14 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// If we weren't able to find a replacement for the allocation, back
 				// out the fact that we asked to stop the allocation.
 				if stopPrevAlloc {
+					netlog.Cyan("U")
 					s.plan.PopUpdate(prevAllocation)
 				}
 			}
-
+			netlog.Cyan("V")
 		}
 	}
-
+	netlog.Cyan("Z")
 	return nil
 }
 

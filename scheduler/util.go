@@ -1133,6 +1133,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		// the case that it is an in-place update to avoid both additional data
 		// in the plan and work for the clients.
 		if existing.TerminalStatus() {
+
 			return true, false, nil
 		}
 

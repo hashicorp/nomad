@@ -11305,7 +11305,10 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string)
 	node := alloc.NodeID
 	existing := p.NodePreemptions[node]
 	p.NodePreemptions[node] = append(existing, newAlloc)
-	netlog.Green(" -> NodePreemptions[%s]: %v", node, p.NodePreemptions)
+	netlog.Green(" -> NodePreemptions[%s] ...", node)
+	for i, prem := range p.NodePreemptions[node] {
+		netlog.Green(" --> %d: %s (%s)", i, prem.ID, alloc.Name)
+	}
 }
 
 // AppendUnknownAlloc marks an allocation as unknown.

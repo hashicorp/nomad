@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
+	"gophers.dev/pkgs/netlog"
 )
 
 // planner is used to manage the submitted allocation plans that are waiting
@@ -516,22 +517,30 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 		}
 
 		if nodePreemptions := plan.NodePreemptions[nodeID]; nodePreemptions != nil {
+			netlog.Purple("nodePreemptions: %d ...", len(nodePreemptions))
 
 			// Do a pass over preempted allocs in the plan to check
 			// whether the alloc is already in a terminal state
 			var filteredNodePreemptions []*structs.Allocation
-			for _, preemptedAlloc := range nodePreemptions {
+			for i, preemptedAlloc := range nodePreemptions {
+
 				alloc, err := snap.AllocByID(nil, preemptedAlloc.ID)
+				netlog.Purple("alloc[%d] id: %s, name: %s, tstatus: %v, dstatus: %v", i, alloc.ID, alloc.Name, alloc.TerminalStatus(), alloc.DesiredStatus)
 				if err != nil {
 					mErr.Errors = append(mErr.Errors, err)
 					continue
 				}
 				if alloc != nil && !alloc.TerminalStatus() {
+					netlog.Purple("filter alloc id: %s, name: %s", alloc.ID, alloc.Name)
 					filteredNodePreemptions = append(filteredNodePreemptions, preemptedAlloc)
 				}
 			}
 
 			result.NodePreemptions[nodeID] = filteredNodePreemptions
+			netlog.Purple("filtered preemptions %d ...", len(filteredNodePreemptions))
+			for i, alloc := range filteredNodePreemptions {
+				netlog.Purple("i: %d, id: %s, name: %s", i, alloc.ID, alloc.Name)
+			}
 		}
 
 		return
