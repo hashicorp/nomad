@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | path-tree', function (hooks) {
   setupRenderingTest(hooks);
@@ -14,13 +15,6 @@ module('Integration | Component | path-tree', function (hooks) {
 
     assert.dom(this.element).hasText('');
 
-    // Template block usage:
-    await render(hbs`
-      <PathTree>
-        template block text
-      </PathTree>
-    `);
-
-    assert.dom(this.element).hasText('template block text');
+    await componentA11yAudit(this.element, assert);
   });
 });

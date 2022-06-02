@@ -4,10 +4,10 @@ import Helper from '@ember/component/helper';
 /**
  * Trims any number of slashes from the beginning and end of a string.
  * @param {Array<string>} params
- * @param {*} options
+ * @param {*} _options
  * @returns {string}
  */
-export function trimPath([path], options = {}) {
+export function trimPath([path], _options = {}) {
   if (path.startsWith('/')) {
     path = trimPath([path.slice(1)]);
   }
