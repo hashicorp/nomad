@@ -284,26 +284,11 @@ data "aws_iam_policy_document" "auto_discover_cluster" {
   }
 }
 
-resource "aws_vpc" "intsvc-us-east-2" {
-  cidr_block       = "10.0.0.0/16"
-  instance_tenancy = "default"
-
-  tags = {
-    Name = "main"
-  }
-}
-
-resource "aws_lb" "server_lb" {
+resource "aws_elb" "server_lb" {
   name               = "${var.name}-server-lb"
-  load_balancer_type = "application"
-  availability_zones = ["us-east-2a", "us-east-2b", "us-east-2c"]
-  internal           = true
+  availability_zones = distinct(aws_instance.server.*.availability_zone)
+  internal           = false
   instances          = aws_instance.server.*.id
-
-  subnet_mapping {
-    subnet_id            = aws_subnet.example1.id
-    private_ipv4_address = "10.0.1.15"
-  }
   listener {
     instance_port     = 4646
     instance_protocol = "http"
@@ -319,12 +304,12 @@ resource "aws_lb" "server_lb" {
   security_groups = [aws_security_group.server_lb.id]
 }
 
-output "server_private_ips" {
-  value = aws_instance.server[*].private_ip
+output "server_public_ips" {
+  value = aws_instance.server[*].public_ip
 }
 
-output "client_private_ips" {
-  value = aws_instance.client[*].private_ip
+output "client_public_ips" {
+  value = aws_instance.client[*].public_ip
 }
 
 output "server_lb_ip" {
