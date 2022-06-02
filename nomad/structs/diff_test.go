@@ -3265,6 +3265,18 @@ func TestTaskGroupDiff(t *testing.T) {
 																Old:  "false",
 																New:  "true",
 															},
+															{
+																Type: DiffTypeNone,
+																Name: "TLSMaxVersion",
+																Old:  "",
+																New:  "",
+															},
+															{
+																Type: DiffTypeNone,
+																Name: "TLSMinVersion",
+																Old:  "",
+																New:  "",
+															},
 														},
 													},
 													{
@@ -7888,6 +7900,100 @@ func TestServicesDiff(t *testing.T) {
 						{
 							Type: DiffTypeNone,
 							Name: "TaskName",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:       "Service with different ingress tls",
+			Contextual: false,
+			Old: []*Service{
+				{
+					Name:      "webapp",
+					Provider:  "consul",
+					PortLabel: "http",
+					Connect: &ConsulConnect{
+						Gateway: &ConsulGateway{
+							Ingress: &ConsulIngressConfigEntry{},
+						},
+					},
+				},
+			},
+			New: []*Service{
+				{
+					Name:      "webapp",
+					Provider:  "consul",
+					PortLabel: "http",
+					Connect: &ConsulConnect{
+						Gateway: &ConsulGateway{
+							Ingress: &ConsulIngressConfigEntry{
+								TLS: &ConsulGatewayTLSConfig{
+									Enabled:       true,
+									TLSMinVersion: "TLSv1_2",
+									CipherSuites:  []string{"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"},
+								},
+							},
+						},
+					},
+				},
+			},
+			Expected: []*ObjectDiff{
+				{
+					Type: DiffTypeEdited,
+					Name: "Service",
+					Objects: []*ObjectDiff{
+						{
+							Type: DiffTypeEdited,
+							Name: "ConsulConnect",
+							Objects: []*ObjectDiff{
+								{
+									Type: DiffTypeEdited,
+									Name: "Gateway",
+									Objects: []*ObjectDiff{
+										{
+											Type: DiffTypeEdited,
+											Name: "Ingress",
+											Objects: []*ObjectDiff{
+												{
+													Type: DiffTypeAdded,
+													Name: "TLS",
+													Fields: []*FieldDiff{
+														{
+															Type: DiffTypeAdded,
+															Name: "Enabled",
+															New:  "true",
+														},
+														{
+															Type: DiffTypeAdded,
+															Name: "TLSMinVersion",
+															New:  "TLSv1_2",
+														},
+													},
+													Objects: []*ObjectDiff{
+														{
+															Type: DiffTypeAdded,
+															Name: "CipherSuites",
+															Fields: []*FieldDiff{
+																{
+																	Type: DiffTypeAdded,
+																	Name: "CipherSuites",
+																	New:  "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+																},
+																{
+																	Type: DiffTypeAdded,
+																	Name: "CipherSuites",
+																	New:  "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
 						},
 					},
 				},

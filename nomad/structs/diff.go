@@ -1129,15 +1129,22 @@ func connectGatewayTLSConfigDiff(prev, next *ConsulGatewayTLSConfig, contextual 
 	if reflect.DeepEqual(prev, next) {
 		return nil
 	} else if prev == nil {
+		prev = &ConsulGatewayTLSConfig{}
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
 	} else if next == nil {
+		next = &ConsulGatewayTLSConfig{}
 		diff.Type = DiffTypeDeleted
 		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
 	} else {
 		diff.Type = DiffTypeEdited
 		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
 		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	}
+
+	// CipherSuites diffs
+	if setDiff := stringSetDiff(prev.CipherSuites, next.CipherSuites, "CipherSuites", contextual); setDiff != nil {
+		diff.Objects = append(diff.Objects, setDiff)
 	}
 
 	// Diff the primitive field.

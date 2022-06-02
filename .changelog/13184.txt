@@ -1,0 +1,3 @@
+```release-note:improvements
+consul/connect: Allow configuring tls settings for ingress.
+```
