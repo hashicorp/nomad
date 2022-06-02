@@ -6641,11 +6641,6 @@ func (s *StateStore) UpsertRootKeyMeta(index uint64, rootKeyMeta *structs.RootKe
 		existing := raw.(*structs.RootKeyMeta)
 		rootKeyMeta.CreateIndex = existing.CreateIndex
 		rootKeyMeta.CreateTime = existing.CreateTime
-
-		// prevent resetting the encryptions count
-		if existing.EncryptionsCount > rootKeyMeta.EncryptionsCount {
-			rootKeyMeta.EncryptionsCount = existing.EncryptionsCount
-		}
 		isRotation = !existing.Active && rootKeyMeta.Active
 	} else {
 		rootKeyMeta.CreateIndex = index

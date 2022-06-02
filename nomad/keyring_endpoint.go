@@ -37,8 +37,7 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 		// TODO: implement full key rotation via a core job
 	}
 	if args.Algorithm == "" {
-		// TODO: set this default value from server config
-		args.Algorithm = structs.EncryptionAlgorithmXChaCha20
+		args.Algorithm = structs.EncryptionAlgorithmAES256GCM
 	}
 
 	rootKey, err := structs.NewRootKey(args.Algorithm)
