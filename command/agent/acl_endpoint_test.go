@@ -240,6 +240,11 @@ func TestHTTP_ACLTokenBootstrapOperator(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
+
+		// Since we're not actually writing this HTTP request, we have
+		// to manually set ContentLength
+		req.ContentLength = -1
+
 		respW := httptest.NewRecorder()
 		// Make the request
 		obj, err := s.Server.ACLTokenBootstrap(respW, req)
