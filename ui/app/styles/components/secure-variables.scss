@@ -26,12 +26,15 @@
 }
 
 table.path-tree {
-  a {
-    color: #0a0a0a;
-    text-decoration: none;
-  }
-  svg {
-    margin-bottom: -2px;
-    margin-right: 10px;
+  tr {
+    cursor: pointer;
+    a {
+      color: #0a0a0a;
+      text-decoration: none;
+    }
+    svg {
+      margin-bottom: -2px;
+      margin-right: 10px;
+    }
   }
 }
