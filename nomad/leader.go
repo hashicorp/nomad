@@ -767,6 +767,8 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	defer csiVolumeClaimGC.Stop()
 	oneTimeTokenGC := time.NewTicker(s.config.OneTimeTokenGCInterval)
 	defer oneTimeTokenGC.Stop()
+	rootKeyGC := time.NewTicker(s.config.RootKeyGCInterval)
+	defer rootKeyGC.Stop()
 
 	// getLatest grabs the latest index from the state store. It returns true if
 	// the index was retrieved successfully.
@@ -814,6 +816,10 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 
 			if index, ok := getLatest(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobOneTimeTokenGC, index))
+			}
+		case <-rootKeyGC.C:
+			if index, ok := getLatest(); ok {
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobRootKeyGC, index))
 			}
 		case <-stopCh:
 			return
