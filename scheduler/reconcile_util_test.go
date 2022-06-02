@@ -2,7 +2,6 @@ package scheduler
 
 import (
 	"testing"
-
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
@@ -823,6 +822,113 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 			require.Equal(t, tc.disconnecting, disconnecting, "nodes-nil: %s", "disconnecting")
 			require.Equal(t, tc.reconnecting, reconnecting, "nodes-nil: %s", "reconnecting")
 			require.Equal(t, tc.ignore, ignore, "nodes-nil: %s", "ignore")
+		})
+	}
+}
+
+func TestReconcile_shouldFilter(t *testing.T) {
+	testCases := []struct {
+		description   string
+		batch         bool
+		failed        bool
+		desiredStatus string
+		clientStatus  string
+
+		untainted bool
+		ignore    bool
+	}{
+		{
+			description:   "batch running",
+			batch:         true,
+			failed:        false,
+			desiredStatus: structs.AllocDesiredStatusRun,
+			clientStatus:  structs.AllocClientStatusRunning,
+			untainted:     true,
+			ignore:        false,
+		},
+		{
+			description:   "batch stopped success",
+			batch:         true,
+			failed:        false,
+			desiredStatus: structs.AllocDesiredStatusStop,
+			clientStatus:  structs.AllocClientStatusRunning,
+			untainted:     true,
+			ignore:        false,
+		},
+		{
+			description:   "batch stopped failed",
+			batch:         true,
+			failed:        true,
+			desiredStatus: structs.AllocDesiredStatusStop,
+			clientStatus:  structs.AllocClientStatusComplete,
+			untainted:     false,
+			ignore:        true,
+		},
+		{
+			description:   "batch evicted",
+			batch:         true,
+			desiredStatus: structs.AllocDesiredStatusEvict,
+			clientStatus:  structs.AllocClientStatusComplete,
+			untainted:     false,
+			ignore:        true,
+		},
+		{
+			description:   "batch failed",
+			batch:         true,
+			desiredStatus: structs.AllocDesiredStatusRun,
+			clientStatus:  structs.AllocClientStatusFailed,
+			untainted:     false,
+			ignore:        false,
+		},
+		{
+			description:   "service running",
+			batch:         false,
+			failed:        false,
+			desiredStatus: structs.AllocDesiredStatusRun,
+			clientStatus:  structs.AllocClientStatusRunning,
+			untainted:     false,
+			ignore:        false,
+		},
+		{
+			description:   "service stopped",
+			batch:         false,
+			failed:        false,
+			desiredStatus: structs.AllocDesiredStatusStop,
+			clientStatus:  structs.AllocClientStatusComplete,
+			untainted:     false,
+			ignore:        true,
+		},
+		{
+			description:   "service evicted",
+			batch:         false,
+			failed:        false,
+			desiredStatus: structs.AllocDesiredStatusEvict,
+			clientStatus:  structs.AllocClientStatusComplete,
+			untainted:     false,
+			ignore:        true,
+		},
+		{
+			description:   "service client complete",
+			batch:         false,
+			failed:        false,
+			desiredStatus: structs.AllocDesiredStatusRun,
+			clientStatus:  structs.AllocClientStatusComplete,
+			untainted:     false,
+			ignore:        true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			alloc := &structs.Allocation{
+				DesiredStatus: tc.desiredStatus,
+				TaskStates:    map[string]*structs.TaskState{"task": {State: structs.TaskStateDead, Failed: tc.failed}},
+				ClientStatus:  tc.clientStatus,
+			}
+
+			untainted, ignore := shouldFilter(alloc, tc.batch)
+			require.Equal(t, tc.untainted, untainted)
+			require.Equal(t, tc.ignore, ignore)
 		})
 	}
 }
