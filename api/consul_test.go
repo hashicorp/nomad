@@ -516,3 +516,32 @@ func TestConsulMeshGateway_Copy(t *testing.T) {
 		require.Equal(t, c, result)
 	})
 }
+
+func TestConsulGatewayTLSConfig_Copy(t *testing.T) {
+	testutil.Parallel(t)
+
+	t.Run("nil", func(t *testing.T) {
+		c := (*ConsulGatewayTLSConfig)(nil)
+		result := c.Copy()
+		require.Nil(t, result)
+	})
+
+	t.Run("enabled", func(t *testing.T) {
+		c := &ConsulGatewayTLSConfig{
+			Enabled: true,
+		}
+		result := c.Copy()
+		require.Equal(t, c, result)
+	})
+
+	t.Run("customized", func(t *testing.T) {
+		c := &ConsulGatewayTLSConfig{
+			Enabled:       true,
+			TLSMinVersion: "TLSv1_2",
+			TLSMaxVersion: "TLSv1_3",
+			CipherSuites:  []string{"foo", "bar"},
+		}
+		result := c.Copy()
+		require.Equal(t, c, result)
+	})
+}

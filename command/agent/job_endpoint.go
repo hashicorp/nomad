@@ -1502,7 +1502,10 @@ func apiConnectGatewayTLSConfig(in *api.ConsulGatewayTLSConfig) *structs.ConsulG
 	}
 
 	return &structs.ConsulGatewayTLSConfig{
-		Enabled: in.Enabled,
+		Enabled:       in.Enabled,
+		TLSMinVersion: in.TLSMinVersion,
+		TLSMaxVersion: in.TLSMaxVersion,
+		CipherSuites:  helper.CopySliceString(in.CipherSuites),
 	}
 }
 
