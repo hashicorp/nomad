@@ -87,15 +87,13 @@ func csiVolumeExt(v interface{}) interface{} {
 // to misuse.
 func rootKeyExt(v interface{}) interface{} {
 	key := v.(*RootKey)
-
-	encodedKey := make([]byte, base64.StdEncoding.EncodedLen(len(key.Key)))
-	base64.StdEncoding.Encode(encodedKey, key.Key)
+	encodedKey := base64.StdEncoding.EncodeToString(key.Key)
 
 	return &struct {
 		Meta *RootKeyMetaStub
 		Key  string
 	}{
 		Meta: key.Meta.Stub(),
-		Key:  string(encodedKey),
+		Key:  encodedKey,
 	}
 }

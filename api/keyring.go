@@ -21,7 +21,6 @@ func (c *Client) Keyring() *Keyring {
 type EncryptionAlgorithm string
 
 const (
-	EncryptionAlgorithmXChaCha20 EncryptionAlgorithm = "xchacha20"
 	EncryptionAlgorithmAES256GCM EncryptionAlgorithm = "aes256-gcm"
 )
 
@@ -34,13 +33,12 @@ type RootKey struct {
 
 // RootKeyMeta is the metadata used to refer to a RootKey.
 type RootKeyMeta struct {
-	Active           bool
-	KeyID            string // UUID
-	Algorithm        EncryptionAlgorithm
-	EncryptionsCount uint64
-	CreateTime       time.Time
-	CreateIndex      uint64
-	ModifyIndex      uint64
+	Active      bool
+	KeyID       string // UUID
+	Algorithm   EncryptionAlgorithm
+	CreateTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 // List lists all the keyring metadata

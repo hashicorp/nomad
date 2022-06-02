@@ -68,8 +68,6 @@ func (s *HTTPServer) keyringRotateRequest(resp http.ResponseWriter, req *http.Re
 	switch query.Get("algo") {
 	case string(structs.EncryptionAlgorithmAES256GCM):
 		args.Algorithm = structs.EncryptionAlgorithmAES256GCM
-	case string(structs.EncryptionAlgorithmXChaCha20):
-		args.Algorithm = structs.EncryptionAlgorithmXChaCha20
 	}
 
 	if _, ok := query["full"]; ok {
@@ -106,10 +104,9 @@ func (s *HTTPServer) keyringUpsertRequest(resp http.ResponseWriter, req *http.Re
 		RootKey: &structs.RootKey{
 			Key: decodedKey,
 			Meta: &structs.RootKeyMeta{
-				Active:           key.Meta.Active,
-				KeyID:            key.Meta.KeyID,
-				Algorithm:        structs.EncryptionAlgorithm(key.Meta.Algorithm),
-				EncryptionsCount: key.Meta.EncryptionsCount,
+				Active:    key.Meta.Active,
+				KeyID:     key.Meta.KeyID,
+				Algorithm: structs.EncryptionAlgorithm(key.Meta.Algorithm),
 			},
 		},
 	}

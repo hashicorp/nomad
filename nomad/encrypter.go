@@ -14,7 +14,6 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-msgpack/codec"
-	"golang.org/x/crypto/chacha20poly1305"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -132,7 +131,6 @@ func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
 		return fmt.Errorf("missing metadata")
 	}
 	var aead cipher.AEAD
-	var err error
 
 	switch rootKey.Meta.Algorithm {
 	case structs.EncryptionAlgorithmAES256GCM:
@@ -141,11 +139,6 @@ func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
 			return fmt.Errorf("could not create cipher: %v", err)
 		}
 		aead, err = cipher.NewGCM(block)
-		if err != nil {
-			return fmt.Errorf("could not create cipher: %v", err)
-		}
-	case structs.EncryptionAlgorithmXChaCha20:
-		aead, err = chacha20poly1305.NewX(rootKey.Key)
 		if err != nil {
 			return fmt.Errorf("could not create cipher: %v", err)
 		}
@@ -226,19 +219,7 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 		return nil, err
 	}
 
-	// Note: we expect to have null bytes for padding, but we don't
-	// want to use RawStdEncoding which breaks a lot of command line
-	// tools. So we'll truncate the key to the expected length.
-	var keyLen int
-	switch storedKey.Meta.Algorithm {
-	case structs.EncryptionAlgorithmXChaCha20, structs.EncryptionAlgorithmAES256GCM:
-		keyLen = 32
-	default:
-		return nil, fmt.Errorf("invalid algorithm")
-	}
-
-	key := make([]byte, keyLen)
-	_, err = base64.StdEncoding.Decode(key, []byte(storedKey.Key)[:keyLen])
+	key, err := base64.StdEncoding.DecodeString(storedKey.Key)
 	if err != nil {
 		return nil, fmt.Errorf("could not decode key: %v", err)
 	}

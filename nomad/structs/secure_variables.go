@@ -9,8 +9,6 @@ import (
 	// accidentally swaps it out for math/rand via running goimports
 	cryptorand "crypto/rand"
 
-	"golang.org/x/crypto/chacha20poly1305"
-
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 )
@@ -234,13 +232,6 @@ func NewRootKey(algorithm EncryptionAlgorithm) (*RootKey, error) {
 			return nil, err
 		}
 		rootKey.Key = key
-
-	case EncryptionAlgorithmXChaCha20:
-		key := make([]byte, chacha20poly1305.KeySize)
-		if _, err := cryptorand.Read(key); err != nil {
-			return nil, err
-		}
-		rootKey.Key = key
 	}
 
 	return rootKey, nil
@@ -249,29 +240,27 @@ func NewRootKey(algorithm EncryptionAlgorithm) (*RootKey, error) {
 // RootKeyMeta is the metadata used to refer to a RootKey. It is
 // stored in raft.
 type RootKeyMeta struct {
-	Active           bool
-	KeyID            string // UUID
-	Algorithm        EncryptionAlgorithm
-	EncryptionsCount uint64
-	CreateTime       time.Time
-	CreateIndex      uint64
-	ModifyIndex      uint64
+	Active      bool
+	KeyID       string // UUID
+	Algorithm   EncryptionAlgorithm
+	CreateTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 // NewRootKeyMeta returns a new RootKeyMeta with default values
 func NewRootKeyMeta() *RootKeyMeta {
 	return &RootKeyMeta{
 		KeyID:      uuid.Generate(),
-		Algorithm:  EncryptionAlgorithmXChaCha20,
+		Algorithm:  EncryptionAlgorithmAES256GCM,
 		CreateTime: time.Now(),
 	}
 }
 
 // RootKeyMetaStub is for serializing root key metadata to the
 // keystore, not for the List API. It excludes frequently-changing
-// fields such as EncryptionsCount or ModifyIndex so we don't have to
-// sync them to the on-disk keystore when the fields are already in
-// raft.
+// fields such as ModifyIndex so we don't have to sync them to the
+// on-disk keystore when the fields are already in raft.
 type RootKeyMetaStub struct {
 	KeyID      string
 	Algorithm  EncryptionAlgorithm
@@ -317,7 +306,6 @@ func (rkm *RootKeyMeta) Validate() error {
 type EncryptionAlgorithm string
 
 const (
-	EncryptionAlgorithmXChaCha20 EncryptionAlgorithm = "xchacha20"
 	EncryptionAlgorithmAES256GCM EncryptionAlgorithm = "aes256-gcm"
 )
 
