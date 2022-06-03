@@ -525,21 +525,21 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 		states := make(map[string]*structs.TaskState, trNum)
 
 		for name, tr := range ar.tasks {
-			state := tr.TaskState()
-			states[name] = state
+			taskState := tr.TaskState()
+			states[name] = taskState
 
 			if tr.IsPoststopTask() {
 				continue
 			}
 
 			// Capture live task runners in case we need to kill them
-			if state.State != structs.TaskStateDead {
+			if taskState.State != structs.TaskStateDead {
 				liveRunners = append(liveRunners, tr)
 				continue
 			}
 
 			// Task is dead, determine if other tasks should be killed
-			if state.Failed {
+			if taskState.Failed {
 				// Only set failed event if no event has been
 				// set yet to give dead leaders priority.
 				if killEvent == nil {
