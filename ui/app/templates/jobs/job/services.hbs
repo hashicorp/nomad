@@ -1,0 +1,54 @@
+{{page-title "Job " this.model.name " services"}}
+<JobSubnav @job={{this.model}} />
+<section class="section">
+  {{#if this.model.services.length}}
+    <ListTable
+      @source={{this.model.services}}
+      @sortProperty={{this.sortProperty}}
+      @sortDescending={{this.sortDescending}}
+      @class="with-foot" as |t|
+    >
+      <t.head>
+        <t.sort-by @prop="name">
+          Name
+        </t.sort-by>
+        <t.sort-by @prop="tags">
+          Tags
+        </t.sort-by>
+      </t.head>
+      <t.body as |row|>
+        <tr>
+          <td>
+            <span>
+              <b>
+                redis-cache-db
+              </b>
+            </span>
+          </td>
+          <td>
+            <span class="tag is-service-tag" data-test-service-tag>
+              Web
+            </span>
+            <span class="tag is-service-tag" data-test-service-tag>
+              Global
+            </span>
+          </td>
+        </tr>
+      </t.body>
+    </ListTable>
+  {{else}}
+    <div class="boxed-section-body">
+      <div class="empty-message" data-test-empty-services-list>
+        <h3
+          class="empty-message-headline"
+          data-test-empty-services-list-headline
+        >
+          No Services
+        </h3>
+        <p class="empty-message-body">
+          No services have been set-up.
+        </p>
+      </div>
+    </div>
+  {{/if}}
+</section>
