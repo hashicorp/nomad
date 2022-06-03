@@ -56,6 +56,9 @@ type TaskPrestartRequest struct {
 	// Vault token may optionally be set if a Vault token is available
 	VaultToken string
 
+	// NomadToken token may optionally be set if a Nomad token is available
+	NomadToken string
+
 	// TaskDir contains the task's directory tree on the host
 	TaskDir *allocdir.TaskDir
 
@@ -152,6 +155,8 @@ type TaskExitedHook interface {
 
 type TaskUpdateRequest struct {
 	VaultToken string
+
+	NomadToken string
 
 	// Alloc is the current version of the allocation (may have been
 	// updated since the hook was created)
