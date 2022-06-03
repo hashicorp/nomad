@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -128,13 +129,11 @@ func (sv *SecureVariables) Read(args *structs.SecureVariablesReadRequest, reply 
 	}
 	defer metrics.MeasureSince([]string{"nomad", "secure_variables", "read"}, time.Now())
 
-	if aclObj, err := sv.srv.ResolveToken(args.AuthToken); err != nil {
+	// FIXME: Temporary ACL Test policy. Update once implementation complete
+	err := sv.handleMixedAuthEndpoint(args.QueryOptions,
+		acl.NamespaceCapabilitySubmitJob, args.Path)
+	if err != nil {
 		return err
-	} else if aclObj != nil {
-		// FIXME: Temporary ACL Test policy. Update once implementation complete
-		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
-			return structs.ErrPermissionDenied
-		}
 	}
 
 	// Setup the blocking query
@@ -180,13 +179,14 @@ func (sv *SecureVariables) List(
 		return sv.listAllSecureVariables(args, reply)
 	}
 
-	if aclObj, err := sv.srv.ResolveToken(args.AuthToken); err != nil {
+	// FIXME: Temporary ACL Test policy. Update once implementation complete
+	err := sv.handleMixedAuthEndpoint(args.QueryOptions,
+		acl.NamespaceCapabilitySubmitJob, args.Prefix)
+	if err != nil {
 		return err
-	} else if aclObj != nil {
-		// FIXME: Temporary ACL Test policy. Update once implementation complete
-		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
-			return structs.ErrPermissionDenied
-		}
+	}
+	if err != nil {
+		return err
 	}
 
 	// Set up and return the blocking query.
@@ -365,5 +365,58 @@ func (sv *SecureVariables) decrypt(v *structs.SecureVariable) error {
 		return err
 	}
 	v.EncryptedData = nil
+	return nil
+}
+
+// handleMixedAuthEndpoint is a helper to handle auth on RPC endpoints that can
+// either be called by external clients or by workload identity
+func (sv *SecureVariables) handleMixedAuthEndpoint(args structs.QueryOptions, cap, pathOrPrefix string) error {
+
+	// Perform the initial token resolution.
+	aclObj, err := sv.srv.ResolveToken(args.AuthToken)
+	if err == nil {
+		// Perform our ACL validation. If the object is nil, this means ACLs
+		// are not enabled, otherwise trigger the allowed namespace function.
+		if aclObj != nil {
+			if !aclObj.AllowNsOp(args.RequestNamespace(), cap) {
+				return structs.ErrPermissionDenied
+			}
+		}
+		return nil
+	}
+
+	// Attempt to verify the token as a JWT with a workload
+	// identity claim
+	claim, err := sv.srv.ResolveClaim(args.AuthToken)
+	if err != nil {
+		return structs.ErrPermissionDenied
+	}
+
+	store := sv.srv.fsm.State()
+	alloc, err := store.AllocByID(nil, claim.AllocationID)
+	if err != nil || alloc == nil || alloc.Job == nil {
+		return structs.ErrPermissionDenied
+	}
+
+	// the claims for terminal allocs are always treated as expired
+	if alloc.TerminalStatus() {
+		return structs.ErrPermissionDenied
+	}
+
+	if alloc.Job.Namespace != args.RequestNamespace() {
+		return structs.ErrPermissionDenied
+	}
+
+	parts := strings.Split(pathOrPrefix, "/")
+	expect := []string{"jobs", alloc.Job.ID, alloc.TaskGroup, claim.TaskName}
+	if len(parts) > len(expect) {
+		return structs.ErrPermissionDenied
+	}
+
+	for idx, part := range parts {
+		if part != expect[idx] {
+			return structs.ErrPermissionDenied
+		}
+	}
 	return nil
 }
