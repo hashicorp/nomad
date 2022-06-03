@@ -163,7 +163,7 @@ func (c *taskHookCoordinator) taskStateUpdated(states map[string]*structs.TaskSt
 		delete(c.prestartEphemeral, task)
 	}
 
-	// This unblocks the main tasks
+	// This unblocks the PostStop tasks
 	for task := range c.mainTasksRunning {
 		st := states[task]
 

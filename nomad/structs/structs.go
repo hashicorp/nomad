@@ -7836,9 +7836,10 @@ func (h *TaskHandle) Copy() *TaskHandle {
 
 // Set of possible states for a task.
 const (
-	TaskStatePending = "pending" // The task is waiting to be run.
-	TaskStateRunning = "running" // The task is currently running.
-	TaskStateDead    = "dead"    // Terminal state of task.
+	TaskStatePending  = "pending"  // The task is waiting to be run.
+	TaskStateRunning  = "running"  // The task is currently running.
+	TaskStateComplete = "complete" // The task is completed but not terminal
+	TaskStateDead     = "dead"     // Terminal state of task.
 )
 
 // TaskState tracks the current state of a task and events that caused state
@@ -7910,7 +7911,7 @@ func (ts *TaskState) Copy() *TaskState {
 // for batch allocations or ephemeral (non-sidecar) lifecycle tasks part of a
 // service or system allocation.
 func (ts *TaskState) Successful() bool {
-	return ts.State == TaskStateDead && !ts.Failed
+	return (ts.State == TaskStateDead || ts.State == TaskStateComplete) && !ts.Failed
 }
 
 const (

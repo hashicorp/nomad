@@ -623,6 +623,8 @@ MAIN:
 			}
 		}
 
+		tr.UpdateState(structs.TaskStateComplete, nil)
+
 		// Block until the allocation is ready to finish
 		// TODO: this whole design will break prestart tasks
 		//  - if we block prestart tasks from fully executing, they will always be in running state
