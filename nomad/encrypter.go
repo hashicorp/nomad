@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	jwt "github.com/golang-jwt/jwt/v4"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
 	"golang.org/x/time/rate"
@@ -27,15 +29,22 @@ const nomadKeystoreExtension = ".nks.json"
 
 // Encrypter is the keyring for secure variables.
 type Encrypter struct {
-	lock         sync.RWMutex
-	keys         map[string]*structs.RootKey // map of key IDs to key material
-	ciphers      map[string]cipher.AEAD      // map of key IDs to ciphers
+	srv          *Server
 	keystorePath string
+
+	keyring map[string]*keyset
+	lock    sync.RWMutex
+}
+
+type keyset struct {
+	rootKey    *structs.RootKey
+	cipher     cipher.AEAD
+	privateKey ed25519.PrivateKey
 }
 
 // NewEncrypter loads or creates a new local keystore and returns an
 // encryption keyring with the keys it finds.
-func NewEncrypter(keystorePath string) (*Encrypter, error) {
+func NewEncrypter(srv *Server, keystorePath string) (*Encrypter, error) {
 	err := os.MkdirAll(keystorePath, 0700)
 	if err != nil {
 		return nil, err
@@ -44,14 +53,14 @@ func NewEncrypter(keystorePath string) (*Encrypter, error) {
 	if err != nil {
 		return nil, err
 	}
+	encrypter.srv = srv
 	return encrypter, nil
 }
 
 func encrypterFromKeystore(keystoreDirectory string) (*Encrypter, error) {
 
 	encrypter := &Encrypter{
-		ciphers:      make(map[string]cipher.AEAD),
-		keys:         make(map[string]*structs.RootKey),
+		keyring:      make(map[string]*keyset),
 		keystorePath: keystoreDirectory,
 	}
 
@@ -107,6 +116,57 @@ func (e *Encrypter) Encrypt(unencryptedData []byte, keyID string) []byte {
 	return unencryptedData
 }
 
+// keyIDHeader is the JWT header for the Nomad Key ID used to sign the
+// claim. This name matches the common industry practice for this
+// header name.
+const keyIDHeader = "kid"
+
+// SignClaims signs the identity claim for the task and returns an
+// encoded JWT with both the claim and its signature
+func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, error) {
+
+	keyset, err := e.activeKeySet()
+	if err != nil {
+		return "", err
+	}
+
+	token := jwt.NewWithClaims(&jwt.SigningMethodEd25519{}, claim)
+	token.Header[keyIDHeader] = keyset.rootKey.Meta.KeyID
+
+	tokenString, err := token.SignedString(keyset.privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
+// VerifyClaim accepts a previously-signed encoded claim and validates
+// it before returning the claim
+func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, error) {
+
+	token, err := jwt.ParseWithClaims(tokenString, &structs.IdentityClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodEd25519); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		raw := token.Header[keyIDHeader]
+		if raw == nil {
+			return nil, fmt.Errorf("missing key ID header")
+		}
+		keyID := raw.(string)
+		keyset, err := e.keysetByID(keyID)
+		if err != nil {
+			return nil, err
+		}
+		return keyset.privateKey.Public(), nil
+	})
+
+	if claims, ok := token.Claims.(*structs.IdentityClaims); ok && token.Valid {
+		return claims, nil
+	}
+	return nil, err
+}
+
 // Decrypt takes an encrypted buffer and then root key ID. It extracts
 // the nonce, decrypts the content, and returns the cleartext data.
 func (e *Encrypter) Decrypt(encryptedData []byte, keyID string) ([]byte, error) {
@@ -150,22 +210,46 @@ func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
 		return fmt.Errorf("invalid algorithm %s", rootKey.Meta.Algorithm)
 	}
 
+	privateKey := ed25519.NewKeyFromSeed(rootKey.Key)
+
 	e.lock.Lock()
 	defer e.lock.Unlock()
-	e.ciphers[rootKey.Meta.KeyID] = aead
-	e.keys[rootKey.Meta.KeyID] = rootKey
+	e.keyring[rootKey.Meta.KeyID] = &keyset{
+		rootKey:    rootKey,
+		cipher:     aead,
+		privateKey: privateKey,
+	}
 	return nil
 }
 
 // GetKey retrieves the key material by ID from the keyring
 func (e *Encrypter) GetKey(keyID string) ([]byte, error) {
+	keyset, err := e.keysetByID(keyID)
+	if err != nil {
+		return []byte{}, err
+	}
+	return keyset.rootKey.Key, nil
+}
+
+func (e *Encrypter) activeKeySet() (*keyset, error) {
+	store := e.srv.fsm.State()
+	keyMeta, err := store.GetActiveRootKeyMeta(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return e.keysetByID(keyMeta.KeyID)
+}
+
+func (e *Encrypter) keysetByID(keyID string) (*keyset, error) {
 	e.lock.RLock()
 	defer e.lock.RUnlock()
-	key, ok := e.keys[keyID]
+
+	keyset, ok := e.keyring[keyID]
 	if !ok {
-		return []byte{}, fmt.Errorf("no such key %s in keyring", keyID)
+		return nil, fmt.Errorf("no such key %s in keyring", keyID)
 	}
-	return key.Key, nil
+	return keyset, nil
 }
 
 // RemoveKey removes a key by ID from the keyring
@@ -175,8 +259,7 @@ func (e *Encrypter) RemoveKey(keyID string) error {
 	// remove the serialized file?
 	e.lock.Lock()
 	defer e.lock.Unlock()
-	delete(e.ciphers, keyID)
-	delete(e.keys, keyID)
+	delete(e.keyring, keyID)
 	return nil
 }
 
@@ -212,6 +295,7 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 	if err := json.Unmarshal(raw, storedKey); err != nil {
 		return nil, err
 	}
+
 	meta := &structs.RootKeyMeta{
 		Active:     storedKey.Meta.Active,
 		KeyID:      storedKey.Meta.KeyID,
@@ -231,7 +315,6 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 		Meta: meta,
 		Key:  key,
 	}, nil
-
 }
 
 type KeyringReplicator struct {
