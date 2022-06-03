@@ -171,7 +171,7 @@ func (t *Tracker) TaskEvents() map[string]*structs.TaskEvent {
 	// Go through are task information and build the event map
 	for task, state := range t.taskHealth {
 		useChecks := t.tg.Update.HealthCheck == structs.UpdateStrategyHealthCheck_Checks
-		if e, ok := state.event(deadline, t.tg.Update.MinHealthyTime, useChecks); ok {
+		if e, ok := state.event(deadline, t.tg.Update.HealthyDeadline, t.tg.Update.MinHealthyTime, useChecks); ok {
 			events[task] = structs.NewTaskEvent(AllocHealthEventSource).SetMessage(e)
 		}
 	}
@@ -487,7 +487,7 @@ type taskHealthState struct {
 // event takes the deadline time for the allocation to be healthy and the update
 // strategy of the group. It returns true if the task has contributed to the
 // allocation being unhealthy and if so, an event description of why.
-func (t *taskHealthState) event(deadline time.Time, minHealthyTime time.Duration, useChecks bool) (string, bool) {
+func (t *taskHealthState) event(deadline time.Time, healthyDeadline, minHealthyTime time.Duration, useChecks bool) (string, bool) {
 	requireChecks := false
 	desiredChecks := 0
 	for _, s := range t.task.Services {
@@ -505,7 +505,7 @@ func (t *taskHealthState) event(deadline time.Time, minHealthyTime time.Duration
 
 		switch t.state.State {
 		case structs.TaskStatePending:
-			return "Task not running by deadline", true
+			return fmt.Sprintf("Task not running by healthy_deadline of %v", healthyDeadline), true
 		case structs.TaskStateDead:
 			// hook tasks are healthy when dead successfully
 			if t.task.Lifecycle == nil || t.task.Lifecycle.Sidecar {
@@ -514,7 +514,7 @@ func (t *taskHealthState) event(deadline time.Time, minHealthyTime time.Duration
 		case structs.TaskStateRunning:
 			// We are running so check if we have been running long enough
 			if t.state.StartedAt.Add(minHealthyTime).After(deadline) {
-				return fmt.Sprintf("Task not running for min_healthy_time of %v by deadline", minHealthyTime), true
+				return fmt.Sprintf("Task not running for min_healthy_time of %v by healthy_deadline of %v", minHealthyTime, healthyDeadline), true
 			}
 		}
 	}
