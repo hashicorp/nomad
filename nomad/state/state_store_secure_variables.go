@@ -54,6 +54,23 @@ func (s *StateStore) GetSecureVariablesByNamespaceAndPrefix(
 	return iter, nil
 }
 
+// GetSecureVariablesByPrefix returns an iterator that contains all variables that
+// match the prefix in any namespace. Namespace filtering is the responsibility
+// of the caller.
+func (s *StateStore) GetSecureVariablesByPrefix(
+	ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	// Walk the entire table.
+	iter, err := txn.Get(TableSecureVariables, indexPath+"_prefix", prefix)
+	if err != nil {
+		return nil, fmt.Errorf("secure variable lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 // GetSecureVariablesByKeyID returns an iterator that contains all
 // variables that were encrypted with a particular key
 func (s *StateStore) GetSecureVariablesByKeyID(
@@ -69,7 +86,7 @@ func (s *StateStore) GetSecureVariablesByKeyID(
 	return iter, nil
 }
 
-// GetSecureVariable returns an single secure variable at a given namespace and
+// GetSecureVariable returns a single secure variable at a given namespace and
 // path.
 func (s *StateStore) GetSecureVariable(
 	ws memdb.WatchSet, namespace, path string) (*structs.SecureVariableEncrypted, error) {
@@ -154,6 +171,7 @@ func (s *StateStore) upsertSecureVariableImpl(index uint64, txn *txn, sv *struct
 
 // shouldWrite can be used to determine if a write needs to happen.
 func shouldWrite(sv, existing *structs.SecureVariableEncrypted) bool {
+	// FIXME: Move this to the RPC layer eventually.
 	if existing == nil {
 		return true
 	}
@@ -208,7 +226,7 @@ func (s *StateStore) DeleteSecureVariableTxn(index uint64, namespace, path strin
 		return fmt.Errorf("secure variable not found")
 	}
 
-	// Delete the launch
+	// Delete the variable
 	if err := txn.Delete(TableSecureVariables, existing); err != nil {
 		return fmt.Errorf("secure variable delete failed: %v", err)
 	}
