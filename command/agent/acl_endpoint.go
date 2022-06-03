@@ -138,8 +138,14 @@ func (s *HTTPServer) ACLTokenBootstrap(resp http.ResponseWriter, req *http.Reque
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	// Format the request
-	args := structs.ACLTokenBootstrapRequest{}
+	var args structs.ACLTokenBootstrapRequest
+
+	if req.ContentLength != 0 {
+		if err := decodeBody(req, &args); err != nil {
+			return nil, CodedError(400, err.Error())
+		}
+	}
+
 	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.ACLTokenUpsertResponse
