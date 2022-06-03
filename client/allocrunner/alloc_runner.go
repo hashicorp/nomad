@@ -626,16 +626,16 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 			ar.logger.Warn("error stopping leader task", "error", err, "task_name", name)
 		}
 
-		state := tr.TaskState()
-		states[name] = state
+		taskState := tr.TaskState()
+		states[name] = taskState
 		break
 	}
 
-	// Kill the rest concurrently
+	// Kill the rest non-sidecar or poststop tasks concurrently
 	wg := sync.WaitGroup{}
 	for name, tr := range ar.tasks {
-		// Filter out poststop tasks so they run after all the other tasks are killed
-		if tr.IsLeader() || tr.IsPoststopTask() {
+		// Filter out poststop and sidecar tasks so that they stop after all the other tasks are killed
+		if tr.IsLeader() || tr.IsPoststopTask() || tr.IsSidecarTask() {
 			continue
 		}
 
@@ -649,9 +649,33 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 				ar.logger.Warn("error stopping task", "error", err, "task_name", name)
 			}
 
-			state := tr.TaskState()
+			taskState := tr.TaskState()
 			mu.Lock()
-			states[name] = state
+			states[name] = taskState
+			mu.Unlock()
+		}(name, tr)
+	}
+	wg.Wait()
+
+	// Kill the sidecar tasks last.
+	for name, tr := range ar.tasks {
+		if !tr.IsSidecarTask() || tr.IsLeader() || tr.IsPoststopTask() {
+			continue
+		}
+
+		wg.Add(1)
+		go func(name string, tr *taskrunner.TaskRunner) {
+			defer wg.Done()
+			taskEvent := structs.NewTaskEvent(structs.TaskKilling)
+			taskEvent.SetKillTimeout(tr.Task().KillTimeout)
+			err := tr.Kill(context.TODO(), taskEvent)
+			if err != nil && err != taskrunner.ErrTaskNotRunning {
+				ar.logger.Warn("error stopping task", "error", err, "task_name", name)
+			}
+
+			taskState := tr.TaskState()
+			mu.Lock()
+			states[name] = taskState
 			mu.Unlock()
 		}(name, tr)
 	}
