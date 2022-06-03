@@ -1349,6 +1349,46 @@ func TestACLEndpoint_Bootstrap(t *testing.T) {
 	assert.Equal(t, created, out)
 }
 
+func TestACLEndpoint_BootstrapOperator(t *testing.T) {
+	ci.Parallel(t)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.ACLEnabled = true
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Lookup the tokens
+	req := &structs.ACLTokenBootstrapRequest{
+		WriteRequest:    structs.WriteRequest{Region: "global"},
+		BootstrapSecret: "2b778dd9-f5f1-6f29-b4b4-9a5fa948757a",
+	}
+	var resp structs.ACLTokenUpsertResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.Bootstrap", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.NotEqual(t, uint64(0), resp.Index)
+	assert.NotNil(t, resp.Tokens[0])
+
+	// Get the token out from the response
+	created := resp.Tokens[0]
+	assert.NotEqual(t, "", created.AccessorID)
+	assert.NotEqual(t, "", created.SecretID)
+	assert.NotEqual(t, time.Time{}, created.CreateTime)
+	assert.Equal(t, structs.ACLManagementToken, created.Type)
+	assert.Equal(t, "Bootstrap Token", created.Name)
+	assert.Equal(t, true, created.Global)
+
+	// Check we created the token
+	out, err := s1.fsm.State().ACLTokenByAccessorID(nil, created.AccessorID)
+	assert.Nil(t, err)
+	assert.Equal(t, created, out)
+	// Check we have the correct operator token
+	tokenout, err := s1.fsm.State().ACLTokenBySecretID(nil, created.SecretID)
+	assert.Nil(t, err)
+	assert.Equal(t, created, tokenout)
+}
+
 func TestACLEndpoint_Bootstrap_Reset(t *testing.T) {
 	ci.Parallel(t)
 	dir := t.TempDir()
