@@ -15,7 +15,11 @@ The `acl bootstrap` command is used to bootstrap the initial ACL token.
 nomad acl bootstrap [options]
 ```
 
-The `acl bootstrap` command requires no arguments.
+The `acl bootstrap` command can be used in two ways: 
+- If you provide no arguments it will return a system generated bootstrap token.
+- If you would like to provide an operator generated token it is possible to provide the token
+using a file `acl bootstrap [path]`. The Token can be read from stdin by setting the path to "-". 
+Please make sure you secure this token in an apropriate manner as it could be written to your terminal history.
 
 ## General Options
 
@@ -28,12 +32,49 @@ The `acl bootstrap` command requires no arguments.
 
 ## Examples
 
-Bootstrap the initial token:
+Bootstrap the initial token without arguments:
 
 ```shell-session
 $ nomad acl bootstrap
 Accessor ID  = 5b7fd453-d3f7-6814-81dc-fcfe6daedea5
 Secret ID    = 9184ec35-65d4-9258-61e3-0c066d0a45c5
+Name         = Bootstrap Token
+Type         = management
+Global       = true
+Policies     = n/a
+Create Time  = 2017-09-11 17:38:10.999089612 +0000 UTC
+Create Index = 7
+Modify Index = 7
+```
+
+Bootstrap the initial token with provided token:
+
+root.token file
+```shell-session
+2b778dd9-f5f1-6f29-b4b4-9a5fa948757a
+```
+
+```shell-session
+$ nomad acl bootstrap root.token
+Accessor ID  = 5b7fd453-d3f7-6814-81dc-fcfe6daedea5
+Secret ID    = 2b778dd9-f5f1-6f29-b4b4-9a5fa948757a
+Name         = Bootstrap Token
+Type         = management
+Global       = true
+Policies     = n/a
+Create Time  = 2017-09-11 17:38:10.999089612 +0000 UTC
+Create Index = 7
+Modify Index = 7
+```
+
+Bootstrap the initial token with provided token using stdin 
+
+```shell-session
+$ nomad acl bootstrap -
+2b778dd9-f5f1-6f29-b4b4-9a5fa948757a
+EOF
+Accessor ID  = 5b7fd453-d3f7-6814-81dc-fcfe6daedea5
+Secret ID    = 2b778dd9-f5f1-6f29-b4b4-9a5fa948757a
 Name         = Bootstrap Token
 Type         = management
 Global       = true

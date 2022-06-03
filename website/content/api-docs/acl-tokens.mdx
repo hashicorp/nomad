@@ -11,7 +11,10 @@ For more details about ACLs, please see the [ACL Guide](https://learn.hashicorp.
 
 ## Bootstrap Token
 
-This endpoint is used to bootstrap the ACL system and provide the initial management token.
+This endpoint is used to bootstrap the ACL system and provide the initial management token. 
+An operator created token can be provided in the body of the request to bootstrap the cluster 
+if required. If no header is provided the cluster will return a generated management token. 
+The provided token should be presented in a UUID format.
 This request is always forwarded to the authoritative region. It can only be invoked once
 until a [bootstrap reset](https://learn.hashicorp.com/tutorials/nomad/access-control-bootstrap#re-bootstrap-acl-system) is performed.
 
@@ -41,6 +44,39 @@ $ curl \
 {
   "AccessorID": "b780e702-98ce-521f-2e5f-c6b87de05b24",
   "SecretID": "3f4a0fcd-7c42-773c-25db-2d31ba0c05fe",
+  "Name": "Bootstrap Token",
+  "Type": "management",
+  "Policies": null,
+  "Global": true,
+  "CreateTime": "2017-08-23T22:47:14.695408057Z",
+  "CreateIndex": 7,
+  "ModifyIndex": 7
+}
+```
+
+### Sample Operator Payload
+
+```json
+{
+  "BootstrapSecret": "2b778dd9-f5f1-6f29-b4b4-9a5fa948757a"
+}
+```
+
+### Sample Request With Operator Token
+
+```shell-session
+$ curl \
+    --request POST \
+    --data @root-token.json \
+    https://localhost:4646/v1/acl/bootstrap
+```
+
+### Sample Response With Operator Token
+
+```json
+{
+  "AccessorID": "b780e702-98ce-521f-2e5f-c6b87de05b24",
+  "SecretID": "2b778dd9-f5f1-6f29-b4b4-9a5fa948757a",
   "Name": "Bootstrap Token",
   "Type": "management",
   "Policies": null,
