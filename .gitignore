@@ -74,8 +74,10 @@ GNUMakefile.local
 
 rkt-*
 
+# Common editor config
 ./idea
 *.iml
+.vscode
 
 # UI rules
 

@@ -13,6 +13,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	policy "github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
@@ -353,6 +354,7 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 		return aclDisabled
 	}
 	args.Region = a.srv.config.AuthoritativeRegion
+	providedTokenID := args.BootstrapSecret
 
 	if done, err := a.srv.forward("ACL.Bootstrap", args, args, reply); done {
 		return err
@@ -396,6 +398,16 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 		Global:     true,
 		CreateTime: time.Now().UTC(),
 	}
+
+	// if a token has been passed in from the API overwrite the generated one.
+	if providedTokenID != "" {
+		if helper.IsUUID(providedTokenID) {
+			args.Token.SecretID = providedTokenID
+		} else {
+			return structs.NewErrRPCCodedf(400, "invalid acl token")
+		}
+	}
+
 	args.Token.SetHash()
 
 	// Update via Raft
