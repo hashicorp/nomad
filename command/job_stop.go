@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 
@@ -129,7 +128,7 @@ func (c *JobStopCommand) Run(args []string) int {
 	}
 
 	var jobIDs []string
-	for _, jobID := range os.Args[2:] {
+	for _, jobID := range flags.Args() {
 		jobIDs = append(jobIDs, strings.TrimSpace(jobID))
 	}
 
