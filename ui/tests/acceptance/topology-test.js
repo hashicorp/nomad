@@ -184,7 +184,7 @@ module('Acceptance | topology', function (hooks) {
     await reset();
 
     await Topology.allocInfoPanel.visitJob();
-    assert.equal(currentURL(), `/jobs/${job.id}`);
+    assert.equal(currentURL(), `/jobs/${job.id}@default`);
 
     await reset();
 
