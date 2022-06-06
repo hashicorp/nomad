@@ -726,14 +726,10 @@ func DefaultConfig() *Config {
 				Max: helper.TimeToPtr(4 * time.Minute),
 			},
 			ConsulRetry: &RetryConfig{
-				Attempts:   helper.IntToPtr(0), // unlimited
-				Backoff:    helper.TimeToPtr(250 * time.Millisecond),
-				MaxBackoff: helper.TimeToPtr(1 * time.Minute),
+				Attempts: helper.IntToPtr(0), // unlimited
 			},
 			VaultRetry: &RetryConfig{
-				Attempts:   helper.IntToPtr(0), // unlimited
-				Backoff:    helper.TimeToPtr(250 * time.Millisecond),
-				MaxBackoff: helper.TimeToPtr(1 * time.Minute),
+				Attempts: helper.IntToPtr(0), // unlimited
 			},
 		},
 		RPCHoldTimeout:     5 * time.Second,
