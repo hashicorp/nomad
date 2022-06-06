@@ -316,9 +316,9 @@ config {
   working directory] is prevented by default and limits volumes to directories
   that exist inside the allocation working directory. You can allow mounting
   host paths outside of the [allocation working directory] on individual clients
-  by setting the `docker.volumes.enabled` option to `true` in the client's
-  configuration. We recommend using [`mounts`](#mounts) if you wish to have more
-  control over volume definitions.
+  by setting the `docker.volumes.enabled` option to `true` in the
+  [client's configuration](#client-requirements). We recommend using
+  [`mount`](#mount) if you wish to have more control over volume definitions.
 
   ```hcl
   config {
