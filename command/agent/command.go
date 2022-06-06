@@ -436,6 +436,9 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		if config.Server.Enabled && config.Server.BootstrapExpect == 1 {
 			c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
 		}
+		if config.Server.Enabled && config.Server.BootstrapExpect%2 == 0 {
+			c.Ui.Error("WARNING: Number of bootstrap servers should ideally be set to an odd number.")
+		}
 	}
 
 	// ProtocolVersion has never been used. Warn if it is set as someone

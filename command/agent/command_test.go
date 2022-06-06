@@ -45,6 +45,10 @@ func TestCommand_Args(t *testing.T) {
 			"WARNING: Bootstrap mode enabled!",
 		},
 		{
+			[]string{"-data-dir=" + tmpDir, "-server", "-bootstrap-expect=2"},
+			"Number of bootstrap servers should ideally be set to an odd number",
+		},
+		{
 			[]string{"-server"},
 			"Must specify \"data_dir\" config option or \"data-dir\" CLI flag",
 		},
