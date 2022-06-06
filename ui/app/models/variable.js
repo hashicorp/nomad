@@ -34,11 +34,6 @@ export default class VariableModel extends Model {
   @attr('string') path;
 
   /**
-   * @type {string}
-   */
-  @attr('string') namespace;
-
-  /**
    * @type {MutableArray<KeyValue>}
    */
   @attr({
@@ -47,4 +42,15 @@ export default class VariableModel extends Model {
     },
   })
   keyValues;
+
+  /** @type {number} */
+  @attr('number') createIndex;
+  /** @type {number} */
+  @attr('number') modifyIndex;
+  /** @type {string} */
+  @attr('string') createTime;
+  /** @type {string} */
+  @attr('string') modifyTime;
+  /** @type {string} */
+  @attr('string') namespace;
 }
