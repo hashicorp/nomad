@@ -66,20 +66,28 @@ administration.
 
 ## ACLs
 
-Several endpoints in Nomad use or require ACL tokens to operate. The token are used to authenticate the request and determine if the request is allowed based on the associated authorizations. Tokens are specified per-request by using the `X-Nomad-Token` request header set to the `SecretID` of an ACL Token.
+Several endpoints in Nomad use or require ACL tokens to operate. The token are used to authenticate the request and determine if the request is allowed based on the associated authorizations. Tokens are specified per-request by using the `X-Nomad-Token` request header or with the Bearer scheme in the authorization header set to the `SecretID` of an ACL Token.
 
 For more details about ACLs, please see the [ACL Guide](https://learn.hashicorp.com/collections/nomad/access-control).
 
 ## Authentication
 
-When ACLs are enabled, a Nomad token should be provided to API requests using the `X-Nomad-Token` header. When using authentication, clients should communicate via TLS.
+When ACLs are enabled, a Nomad token should be provided to API requests using the `X-Nomad-Token` header or with the Bearer scheme in the authorization header. When using authentication, clients should communicate via TLS.
 
-Here is an example using curl:
+Here is an example using curl with `X-Nomad-Token`:
 
 ```shell-session
 $ curl \
     --header "X-Nomad-Token: aa534e09-6a07-0a45-2295-a7f77063d429" \
     https://localhost:4646/v1/jobs
+```
+
+Below is an example using `curl` with a [RFC6750](https://tools.ietf.org/html/rfc6750) Bearer token:
+
+```shell-session
+$ curl \
+    --header "Authorization: Bearer <token>" \
+    http://localhost:4646/v1/jobs
 ```
 
 ## Namespaces
