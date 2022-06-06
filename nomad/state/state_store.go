@@ -3112,6 +3112,12 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 	defer txn.Abort()
 
 	jobs := make(map[structs.NamespacedID]string, len(evals))
+
+	// evalsTableUpdated and allocsTableUpdated allow us to track whether each
+	// table has been modified. This allows us to skip updating the index table
+	// entries if we do not need to.
+	var evalsTableUpdated, allocsTableUpdated bool
+
 	for _, eval := range evals {
 		existing, err := txn.First("evals", "id", eval)
 		if err != nil {
@@ -3123,6 +3129,11 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		if err := txn.Delete("evals", existing); err != nil {
 			return fmt.Errorf("eval delete failed: %v", err)
 		}
+
+		// Mark that we have made a successful modification to the evals
+		// table.
+		evalsTableUpdated = true
+
 		eval := existing.(*structs.Evaluation)
 
 		tuple := structs.NamespacedID{
@@ -3143,14 +3154,22 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		if err := txn.Delete("allocs", raw); err != nil {
 			return fmt.Errorf("alloc delete failed: %v", err)
 		}
+
+		// Mark that we have made a successful modification to the allocs
+		// table.
+		allocsTableUpdated = true
 	}
 
 	// Update the indexes
-	if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
+	if evalsTableUpdated {
+		if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
 	}
-	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
+	if allocsTableUpdated {
+		if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
 	}
 
 	// Set the job's status
