@@ -11,14 +11,12 @@
           <LinkTo
             @route="variables.new"
             @query={{hash namespace=this.qpNamespace path=(concat this.model.absolutePath "/")}}
-            data-test-run-job
             class="button is-primary"
           >
             Create Secure Variable
           </LinkTo>
         {{else}}
           <button
-            data-test-run-job
             class="button is-primary is-disabled tooltip is-right-aligned"
             aria-label="You don’t have sufficient permissions"
             disabled
