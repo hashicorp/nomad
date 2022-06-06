@@ -8,11 +8,9 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
-	"github.com/pkg/errors"
-
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -36,12 +34,12 @@ const (
 )
 
 const (
-	// NodeRegisterEventReregistered is the message used when the node becomes
-	// reregistered.
+	// NodeRegisterEventRegistered is the message used when the node becomes
+	// registered.
 	NodeRegisterEventRegistered = "Node registered"
 
 	// NodeRegisterEventReregistered is the message used when the node becomes
-	// reregistered.
+	// re-registered.
 	NodeRegisterEventReregistered = "Node re-registered"
 )
 
@@ -63,7 +61,7 @@ type IndexEntry struct {
 // StateStoreConfig is used to configure a new state store
 type StateStoreConfig struct {
 	// Logger is used to output the state store's logs
-	Logger log.Logger
+	Logger hclog.Logger
 
 	// Region is the region of the server embedding the state store.
 	Region string
@@ -83,7 +81,7 @@ type StateStoreConfig struct {
 // returned as a result of a read against the state store should be
 // considered a constant and NEVER modified in place.
 type StateStore struct {
-	logger log.Logger
+	logger hclog.Logger
 	db     *changeTrackerDB
 
 	// config is the passed in configuration
@@ -3530,9 +3528,10 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			// Keep the clients task states
 			alloc.TaskStates = exist.TaskStates
 
-			// If the scheduler is marking this allocation as lost we do not
+			// If the scheduler is marking this allocation as lost or unknown we do not
 			// want to reuse the status of the existing allocation.
-			if alloc.ClientStatus != structs.AllocClientStatusLost {
+			if alloc.ClientStatus != structs.AllocClientStatusLost &&
+				alloc.ClientStatus != structs.AllocClientStatusUnknown {
 				alloc.ClientStatus = exist.ClientStatus
 				alloc.ClientDescription = exist.ClientDescription
 			}
@@ -4101,13 +4100,13 @@ func (s *StateStore) UpsertSITokenAccessors(index uint64, accessors []*structs.S
 
 		// insert the accessor
 		if err := txn.Insert(siTokenAccessorTable, accessor); err != nil {
-			return errors.Wrap(err, "accessor insert failed")
+			return fmt.Errorf("accessor insert failed: %w", err)
 		}
 	}
 
 	// update the index for this table
 	if err := txn.Insert("index", indexEntry(siTokenAccessorTable, index)); err != nil {
-		return errors.Wrap(err, "index update failed")
+		return fmt.Errorf("index update failed: %w", err)
 	}
 
 	return txn.Commit()
@@ -4122,13 +4121,13 @@ func (s *StateStore) DeleteSITokenAccessors(index uint64, accessors []*structs.S
 	for _, accessor := range accessors {
 		// Delete the accessor
 		if err := txn.Delete(siTokenAccessorTable, accessor); err != nil {
-			return errors.Wrap(err, "accessor delete failed")
+			return fmt.Errorf("accessor delete failed: %w", err)
 		}
 	}
 
 	// update the index for this table
 	if err := txn.Insert("index", indexEntry(siTokenAccessorTable, index)); err != nil {
-		return errors.Wrap(err, "index update failed")
+		return fmt.Errorf("index update failed: %w", err)
 	}
 
 	return txn.Commit()
@@ -4141,7 +4140,7 @@ func (s *StateStore) SITokenAccessor(ws memdb.WatchSet, accessorID string) (*str
 
 	watchCh, existing, err := txn.FirstWatch(siTokenAccessorTable, "id", accessorID)
 	if err != nil {
-		return nil, errors.Wrap(err, "accessor lookup failed")
+		return nil, fmt.Errorf("accessor lookup failed: %w", err)
 	}
 
 	ws.Add(watchCh)
@@ -4734,6 +4733,8 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 				tg.Failed += 1
 			case structs.AllocClientStatusLost:
 				tg.Lost += 1
+			case structs.AllocClientStatusUnknown:
+				tg.Unknown += 1
 			case structs.AllocClientStatusComplete:
 				tg.Complete += 1
 			case structs.AllocClientStatusRunning:
@@ -5291,6 +5292,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			tgSummary.Complete += 1
 		case structs.AllocClientStatusLost:
 			tgSummary.Lost += 1
+		case structs.AllocClientStatusUnknown:
+			tgSummary.Unknown += 1
 		}
 
 		// Decrementing the count of the bin of the last state
@@ -5306,6 +5309,10 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		case structs.AllocClientStatusLost:
 			if tgSummary.Lost > 0 {
 				tgSummary.Lost -= 1
+			}
+		case structs.AllocClientStatusUnknown:
+			if tgSummary.Unknown > 0 {
+				tgSummary.Unknown -= 1
 			}
 		case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
 		default:
@@ -5896,7 +5903,7 @@ func (s *StateStore) ClusterMetadata(ws memdb.WatchSet) (*structs.ClusterMetadat
 	// Get the cluster metadata
 	watchCh, m, err := txn.FirstWatch("cluster_meta", "id")
 	if err != nil {
-		return nil, errors.Wrap(err, "failed cluster metadata lookup")
+		return nil, fmt.Errorf("failed cluster metadata lookup: %w", err)
 	}
 	ws.Add(watchCh)
 
@@ -5912,7 +5919,7 @@ func (s *StateStore) ClusterSetMetadata(index uint64, meta *structs.ClusterMetad
 	defer txn.Abort()
 
 	if err := s.setClusterMetadata(txn, meta); err != nil {
-		return errors.Wrap(err, "set cluster metadata failed")
+		return fmt.Errorf("set cluster metadata failed: %w", err)
 	}
 
 	return txn.Commit()

@@ -1,3 +1,4 @@
+/* eslint-disable qunit/require-expect */
 import { get } from '@ember/object';
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -12,6 +13,7 @@ import {
   formatScheduledHertz,
 } from 'nomad-ui/utils/units';
 import queryString from 'query-string';
+import percySnapshot from '@percy/ember';
 
 const sumResources = (list, dimension) =>
   list.reduce((agg, val) => agg + (get(val, dimension) || 0), 0);
@@ -39,6 +41,9 @@ module('Acceptance | topology', function (hooks) {
     server.createList('allocation', 5);
 
     await Topology.visit();
+
+    await percySnapshot(assert);
+
     assert.equal(Topology.infoPanelTitle, 'Cluster Details');
     assert.notOk(Topology.filteredNodesWarning.isPresent);
 
@@ -179,7 +184,7 @@ module('Acceptance | topology', function (hooks) {
     await reset();
 
     await Topology.allocInfoPanel.visitJob();
-    assert.equal(currentURL(), `/jobs/${job.id}`);
+    assert.equal(currentURL(), `/jobs/${job.id}@default`);
 
     await reset();
 

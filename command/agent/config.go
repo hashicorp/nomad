@@ -318,6 +318,15 @@ type ClientConfig struct {
 	// doest not exist Nomad will attempt to create it during startup. Defaults to '/nomad'
 	CgroupParent string `hcl:"cgroup_parent"`
 
+	// NomadServiceDiscovery is a boolean parameter which allows operators to
+	// enable/disable to Nomad native service discovery feature on the client.
+	// This parameter is exposed via the Nomad fingerprinter and used to ensure
+	// correct scheduling decisions on allocations which require this.
+	NomadServiceDiscovery *bool `hcl:"nomad_service_discovery"`
+
+	// Artifact contains the configuration for artifacts.
+	Artifact *config.ArtifactConfig `hcl:"artifact"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -911,10 +920,11 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
 	conf.Client.TemplateConfig = &client.ClientTemplateConfig{
-		FunctionDenylist: []string{"plugin"},
+		FunctionDenylist: client.DefaultTemplateFunctionDenylist,
 		DisableSandbox:   false,
 	}
 	conf.Client.BindWildcardDefaultHostNetwork = true
+	conf.Client.NomadServiceDiscovery = helper.BoolToPtr(true)
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
@@ -960,12 +970,14 @@ func DefaultConfig() *Config {
 				RetryMaxAttempts: 0,
 			},
 			TemplateConfig: &client.ClientTemplateConfig{
-				FunctionDenylist: []string{"plugin"},
+				FunctionDenylist: client.DefaultTemplateFunctionDenylist,
 				DisableSandbox:   false,
 			},
 			BindWildcardDefaultHostNetwork: true,
 			CNIPath:                        "/opt/cni/bin",
 			CNIConfigDir:                   "/opt/cni/config",
+			NomadServiceDiscovery:          helper.BoolToPtr(true),
+			Artifact:                       config.DefaultArtifactConfig(),
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
@@ -1697,11 +1709,8 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.DisableRemoteExec = b.DisableRemoteExec
 	}
 
-	if result.TemplateConfig == nil && b.TemplateConfig != nil {
-		templateConfig := *b.TemplateConfig
-		result.TemplateConfig = &templateConfig
-	} else if b.TemplateConfig != nil {
-		result.TemplateConfig = result.TemplateConfig.Merge(b.TemplateConfig)
+	if b.TemplateConfig != nil {
+		result.TemplateConfig = b.TemplateConfig
 	}
 
 	// Add the servers
@@ -1763,6 +1772,19 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.BindWildcardDefaultHostNetwork {
 		result.BindWildcardDefaultHostNetwork = true
 	}
+
+	// This value is a pointer, therefore if it is not nil the user has
+	// supplied an override value.
+	if b.NomadServiceDiscovery != nil {
+		result.NomadServiceDiscovery = b.NomadServiceDiscovery
+	}
+
+	if b.CgroupParent != "" {
+		result.CgroupParent = b.CgroupParent
+	}
+
+	result.Artifact = a.Artifact.Merge(b.Artifact)
+
 	return &result
 }
 

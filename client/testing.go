@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
-	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/servers"
+	"github.com/hashicorp/nomad/client/serviceregistration/mock"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
@@ -53,7 +53,7 @@ func TestClientWithRPCs(t testing.T, cb func(c *config.Config), rpcs map[string]
 		conf.PluginSingletonLoader = singleton.NewSingletonLoader(logger, conf.PluginLoader)
 	}
 	mockCatalog := agentconsul.NewMockCatalog(logger)
-	mockService := consulapi.NewMockConsulServiceClient(t, logger)
+	mockService := mock.NewServiceRegistrationHandler(logger)
 	client, err := NewClient(conf, mockCatalog, nil, mockService, rpcs)
 	if err != nil {
 		cleanup()

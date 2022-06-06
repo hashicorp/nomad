@@ -33,27 +33,6 @@ variable "client_count_windows_2016_amd64" {
   default     = "1"
 }
 
-variable "aws_assume_role_arn" {
-  description = "The AWS IAM role to assume (not used by human users)"
-  default     = ""
-}
-
-variable "aws_assume_role_session_name" {
-  description = "The AWS IAM session name to assume (not used by human users)"
-  default     = ""
-}
-
-variable "aws_assume_role_external_id" {
-  description = "The AWS IAM external ID to assume (not used by human users)"
-  default     = ""
-}
-
-variable "profile" {
-  description = "A default Nomad/Consul/Vault configuration profile"
-  type        = string
-  default     = ""
-}
-
 variable "restrict_ingress_cidrblock" {
   description = "Restrict ingress traffic to cluster to invoker ip address"
   type        = bool

@@ -1,0 +1,4 @@
+# release configuration
+
+/.release/                              @hashicorp/release-engineering @hashicorp/github-nomad-core
+/.github/workflows/build.yml            @hashicorp/release-engineering @hashicorp/github-nomad-core

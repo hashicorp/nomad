@@ -1507,9 +1507,7 @@ func TestDockerDriver_Init(t *testing.T) {
 func TestDockerDriver_CPUSetCPUs(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows does not support CPUSetCPUs.")
-	}
+	testutil.CgroupsCompatible(t)
 
 	testCases := []struct {
 		Name       string
@@ -2115,15 +2113,12 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 	}
 
 	{
-		tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesdisabled")
-		if err != nil {
-			t.Fatalf("error creating temporary dir: %v", err)
-		}
+		tmpvol := t.TempDir()
 
 		task, driver, _, _, cleanup := setupDockerVolumes(t, cfg, tmpvol)
 		defer cleanup()
 
-		_, _, err = driver.StartTask(task)
+		_, _, err := driver.StartTask(task)
 		defer driver.DestroyTask(task.ID, true)
 		if err == nil {
 			require.Fail(t, "Started driver successfully when volumes should have been disabled.")
@@ -2184,11 +2179,10 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 		},
 	}
 
-	tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesenabled")
-	require.NoError(t, err)
+	tmpvol := t.TempDir()
 
 	// Evaluate symlinks so it works on MacOS
-	tmpvol, err = filepath.EvalSymlinks(tmpvol)
+	tmpvol, err := filepath.EvalSymlinks(tmpvol)
 	require.NoError(t, err)
 
 	task, driver, _, hostpath, cleanup := setupDockerVolumes(t, cfg, tmpvol)
@@ -2298,7 +2292,7 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 			AuthConfig: nil,
 		},
 		{
-			Repo: "redis:3.2",
+			Repo: "redis:7",
 			AuthConfig: &docker.AuthConfiguration{
 				Username:      "test",
 				Password:      "1234",
@@ -2307,7 +2301,7 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 			},
 		},
 		{
-			Repo: "quay.io/redis:3.2",
+			Repo: "quay.io/redis:7",
 			AuthConfig: &docker.AuthConfiguration{
 				Username:      "test",
 				Password:      "5678",
@@ -2316,7 +2310,7 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 			},
 		},
 		{
-			Repo: "other.io/redis:3.2",
+			Repo: "other.io/redis:7",
 			AuthConfig: &docker.AuthConfiguration{
 				Username:      "test",
 				Password:      "abcd",
@@ -2848,6 +2842,32 @@ func TestDockerDriver_memoryLimits(t *testing.T) {
 			require.Equal(t, c.expectedSoft, soft)
 		})
 	}
+}
+
+func TestDockerDriver_cgroupParent(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("v1", func(t *testing.T) {
+		testutil.CgroupsCompatibleV1(t)
+
+		parent := cgroupParent(&drivers.Resources{
+			LinuxResources: &drivers.LinuxResources{
+				CpusetCgroupPath: "/sys/fs/cgroup/cpuset/nomad",
+			},
+		})
+		require.Equal(t, "", parent)
+	})
+
+	t.Run("v2", func(t *testing.T) {
+		testutil.CgroupsCompatibleV2(t)
+
+		parent := cgroupParent(&drivers.Resources{
+			LinuxResources: &drivers.LinuxResources{
+				CpusetCgroupPath: "/sys/fs/cgroup/nomad.slice",
+			},
+		})
+		require.Equal(t, "nomad.slice", parent)
+	})
 }
 
 func TestDockerDriver_parseSignal(t *testing.T) {

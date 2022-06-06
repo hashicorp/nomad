@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/pkg/errors"
 )
 
 // StateRestore is used to optimize the performance when restoring state by
@@ -107,7 +106,7 @@ func (r *StateRestore) VaultAccessorRestore(accessor *structs.VaultAccessor) err
 // SITokenAccessorRestore is used to restore an SI token accessor
 func (r *StateRestore) SITokenAccessorRestore(accessor *structs.SITokenAccessor) error {
 	if err := r.txn.Insert(siTokenAccessorTable, accessor); err != nil {
-		return errors.Wrap(err, "si token accessor insert failed")
+		return fmt.Errorf("si token accessor insert failed: %w", err)
 	}
 	return nil
 }
@@ -186,6 +185,15 @@ func (r *StateRestore) ScalingEventsRestore(jobEvents *structs.JobScalingEvents)
 func (r *StateRestore) NamespaceRestore(ns *structs.Namespace) error {
 	if err := r.txn.Insert(TableNamespaces, ns); err != nil {
 		return fmt.Errorf("namespace insert failed: %v", err)
+	}
+	return nil
+}
+
+// ServiceRegistrationRestore is used to restore a single service registration
+// into the service_registrations table.
+func (r *StateRestore) ServiceRegistrationRestore(service *structs.ServiceRegistration) error {
+	if err := r.txn.Insert(TableServiceRegistrations, service); err != nil {
+		return fmt.Errorf("service registration insert failed: %v", err)
 	}
 	return nil
 }

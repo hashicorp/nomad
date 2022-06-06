@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-sockaddr"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -191,8 +192,7 @@ func TestRPC_PlaintextRPCSucceedsWhenInUpgradeMode(t *testing.T) {
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "node1")
@@ -234,8 +234,7 @@ func TestRPC_PlaintextRPCFailsWhenNotInUpgradeMode(t *testing.T) {
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "node1")
@@ -301,8 +300,7 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
@@ -355,8 +353,7 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 func TestRPC_streamingRpcConn_goodMethod_Plaintext(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
@@ -413,8 +410,7 @@ func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
@@ -868,6 +864,15 @@ func TestRPC_Limits_OK(t *testing.T) {
 				}
 				c.RPCHandshakeTimeout = tc.timeout
 				c.RPCMaxConnsPerClient = tc.limit
+
+				// Bind the server to a private IP so that Autopilot's
+				// StatsFetcher requests come from a different IP than the test
+				// requests, otherwise they would interfere with the connection
+				// rate limiter since limits are imposed by IP address.
+				ip, err := sockaddr.GetPrivateIP()
+				require.NoError(t, err)
+				c.RPCAddr.IP = []byte(ip)
+				c.SerfConfig.MemberlistConfig.BindAddr = ip
 			})
 			defer func() {
 				cleanup()
@@ -1157,6 +1162,9 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 		"Node.UpdateAlloc": &structs.AllocUpdateRequest{
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		},
+		"ServiceRegistration.Upsert": &structs.ServiceRegistrationUpsertRequest{
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		},
 	}
 
 	// When VerifyServerHostname is enabled:
@@ -1322,7 +1330,7 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 	var err error
 
 	h := tlsTestHelper{
-		dir:    tmpDir(t),
+		dir:    t.TempDir(),
 		nodeID: 1,
 	}
 

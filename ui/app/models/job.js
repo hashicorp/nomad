@@ -37,13 +37,7 @@ export default class Job extends Model {
 
   @computed('plainId')
   get idWithNamespace() {
-    const namespaceId = this.belongsTo('namespace').id();
-
-    if (!namespaceId || namespaceId === 'default') {
-      return this.plainId;
-    } else {
-      return `${this.plainId}@${namespaceId}`;
-    }
+    return `${this.plainId}@${this.belongsTo('namespace').id() ?? 'default'}`;
   }
 
   @computed('periodic', 'parameterized', 'dispatched')
@@ -131,6 +125,7 @@ export default class Job extends Model {
   @alias('summary.completeAllocs') completeAllocs;
   @alias('summary.failedAllocs') failedAllocs;
   @alias('summary.lostAllocs') lostAllocs;
+  @alias('summary.unknownAllocs') unknownAllocs;
   @alias('summary.totalAllocs') totalAllocs;
   @alias('summary.pendingChildren') pendingChildren;
   @alias('summary.runningChildren') runningChildren;

@@ -332,8 +332,6 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		if err != nil {
 			return err
 		}
-		// TODO: allow volume spec file to set namespace
-		// https://github.com/hashicorp/nomad/issues/11196
 		if vol.Namespace == "" {
 			vol.Namespace = args.RequestNamespace()
 		}
@@ -472,15 +470,6 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		args.NodeID = alloc.NodeID
 	}
 
-	if isNewClaim {
-		// if this is a new claim, add a Volume and PublishContext from the
-		// controller (if any) to the reply
-		err = v.controllerPublishVolume(args, reply)
-		if err != nil {
-			return fmt.Errorf("controller publish: %v", err)
-		}
-	}
-
 	resp, index, err := v.srv.raftApply(structs.CSIVolumeClaimRequestType, args)
 	if err != nil {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "claim")
@@ -488,6 +477,15 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	}
 	if respErr, ok := resp.(error); ok {
 		return respErr
+	}
+
+	if isNewClaim {
+		// if this is a new claim, add a Volume and PublishContext from the
+		// controller (if any) to the reply
+		err = v.controllerPublishVolume(args, reply)
+		if err != nil {
+			return fmt.Errorf("controller publish: %v", err)
+		}
 	}
 
 	reply.Index = index
@@ -570,7 +568,10 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 
 	err = v.srv.RPC(method, cReq, cResp)
 	if err != nil {
-		return fmt.Errorf("attach volume: %v", err)
+		if strings.Contains(err.Error(), "FailedPrecondition") {
+			return fmt.Errorf("%v: %v", structs.ErrCSIClientRPCRetryable, err)
+		}
+		return err
 	}
 	resp.PublishContext = cResp.PublishContext
 	return nil
@@ -670,6 +671,7 @@ NODE_DETACHED:
 	}
 
 RELEASE_CLAIM:
+	v.logger.Trace("releasing claim", "vol", vol.ID)
 	// advance a CSIVolumeClaimStateControllerDetached claim
 	claim.State = structs.CSIVolumeClaimStateReadyToFree
 	err = v.checkpointClaim(vol, claim)
@@ -683,6 +685,7 @@ RELEASE_CLAIM:
 }
 
 func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
+	v.logger.Trace("node unpublish", "vol", vol.ID)
 	if claim.AllocationID != "" {
 		err := v.nodeUnpublishVolumeImpl(vol, claim)
 		if err != nil {
@@ -725,6 +728,11 @@ func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.C
 }
 
 func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
+	if claim.AccessMode == structs.CSIVolumeAccessModeUnknown {
+		// claim has already been released client-side
+		return nil
+	}
+
 	req := &cstructs.ClientCSINodeDetachVolumeRequest{
 		PluginID:       vol.PluginID,
 		VolumeID:       vol.ID,
@@ -751,7 +759,7 @@ func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *struc
 }
 
 func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
-
+	v.logger.Trace("controller unpublish", "vol", vol.ID)
 	if !vol.ControllerRequired {
 		claim.State = structs.CSIVolumeClaimStateReadyToFree
 		return nil
@@ -820,17 +828,17 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 // and GC'd by this point, so looking there is the last resort.
 func (v *CSIVolume) lookupExternalNodeID(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) (string, error) {
 	for _, rClaim := range vol.ReadClaims {
-		if rClaim.NodeID == claim.NodeID {
+		if rClaim.NodeID == claim.NodeID && rClaim.ExternalNodeID != "" {
 			return rClaim.ExternalNodeID, nil
 		}
 	}
 	for _, wClaim := range vol.WriteClaims {
-		if wClaim.NodeID == claim.NodeID {
+		if wClaim.NodeID == claim.NodeID && wClaim.ExternalNodeID != "" {
 			return wClaim.ExternalNodeID, nil
 		}
 	}
 	for _, pClaim := range vol.PastClaims {
-		if pClaim.NodeID == claim.NodeID {
+		if pClaim.NodeID == claim.NodeID && pClaim.ExternalNodeID != "" {
 			return pClaim.ExternalNodeID, nil
 		}
 	}
@@ -913,7 +921,9 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 	// We also validate that the plugin exists for each plugin, and validate the
 	// capabilities when the plugin has a controller.
 	for _, vol := range args.Volumes {
-		vol.Namespace = args.RequestNamespace()
+		if vol.Namespace == "" {
+			vol.Namespace = args.RequestNamespace()
+		}
 		if err = vol.Validate(); err != nil {
 			return err
 		}
@@ -1038,7 +1048,7 @@ func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.
 		// NOTE: deleting the volume in the external storage provider can't be
 		// made atomic with deregistration. We can't delete a volume that's
 		// not registered because we need to be able to lookup its plugin.
-		err = v.deleteVolume(vol, plugin)
+		err = v.deleteVolume(vol, plugin, args.Secrets)
 		if err != nil {
 			return err
 		}
@@ -1062,12 +1072,18 @@ func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.
 	return nil
 }
 
-func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin) error {
+func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin, querySecrets structs.CSISecrets) error {
+	// Combine volume and query secrets into one map.
+	// Query secrets override any secrets stored with the volume.
+	combinedSecrets := vol.Secrets
+	for k, v := range querySecrets {
+		combinedSecrets[k] = v
+	}
 
 	method := "ClientCSI.ControllerDeleteVolume"
 	cReq := &cstructs.ClientCSIControllerDeleteVolumeRequest{
 		ExternalVolumeID: vol.ExternalID,
-		Secrets:          vol.Secrets,
+		Secrets:          combinedSecrets,
 	}
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerDeleteVolumeResponse{}
@@ -1195,10 +1211,16 @@ func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply
 			continue
 		}
 
+		secrets := vol.Secrets
+		for k, v := range snap.Secrets {
+			// merge request secrets onto volume secrets
+			secrets[k] = v
+		}
+
 		cReq := &cstructs.ClientCSIControllerCreateSnapshotRequest{
 			ExternalSourceVolumeID: vol.ExternalID,
 			Name:                   snap.Name,
-			Secrets:                vol.Secrets,
+			Secrets:                secrets,
 			Parameters:             snap.Parameters,
 		}
 		cReq.PluginID = pluginID

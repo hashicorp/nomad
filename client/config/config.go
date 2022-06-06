@@ -17,6 +17,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/nomad/structs"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
@@ -64,6 +65,8 @@ var (
 	}
 
 	DefaultTemplateMaxStale = 5 * time.Second
+
+	DefaultTemplateFunctionDenylist = []string{"plugin", "writeToFile"}
 )
 
 // RPCHandler can be provided to the Client if there is a local server
@@ -279,6 +282,17 @@ type Config struct {
 
 	// ReservableCores if set overrides the set of reservable cores reported in fingerprinting.
 	ReservableCores []uint16
+
+	// NomadServiceDiscovery determines whether the Nomad native service
+	// discovery client functionality is enabled.
+	NomadServiceDiscovery bool
+
+	// TemplateDialer is our custom HTTP dialer for consul-template. This is
+	// used for template functions which require access to the Nomad API.
+	TemplateDialer *bufconndialer.BufConnWrapper
+
+	// Artifact configuration from the agent's config file.
+	Artifact *ArtifactConfig
 }
 
 // ClientTemplateConfig is configuration on the client specific to template
@@ -354,7 +368,13 @@ func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 
 	nc := new(ClientTemplateConfig)
 	*nc = *c
-	nc.FunctionDenylist = helper.CopySliceString(nc.FunctionDenylist)
+
+	if len(c.FunctionDenylist) > 0 {
+		nc.FunctionDenylist = helper.CopySliceString(nc.FunctionDenylist)
+	} else if c.FunctionDenylist != nil {
+		// Explicitly no functions denied (which is different than nil)
+		nc.FunctionDenylist = []string{}
+	}
 
 	if c.BlockQueryWaitTime != nil {
 		nc.BlockQueryWaitTime = &*c.BlockQueryWaitTime
@@ -379,80 +399,14 @@ func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 	return nc
 }
 
-// Merge merges the values of two ClientTemplateConfigs. If first copies the receiver
-// instance, and then overrides those values with the instance to merge with.
-func (c *ClientTemplateConfig) Merge(b *ClientTemplateConfig) *ClientTemplateConfig {
-	if c == nil {
-		return b
-	}
-
-	result := *c
-
-	if b == nil {
-		return &result
-	}
-
-	if b.BlockQueryWaitTime != nil {
-		result.BlockQueryWaitTime = b.BlockQueryWaitTime
-	}
-	if b.BlockQueryWaitTimeHCL != "" {
-		result.BlockQueryWaitTimeHCL = b.BlockQueryWaitTimeHCL
-	}
-
-	if b.ConsulRetry != nil {
-		result.ConsulRetry = result.ConsulRetry.Merge(b.ConsulRetry)
-	}
-
-	result.DisableSandbox = b.DisableSandbox
-
-	// Maintain backward compatibility for older clients
-	if len(b.FunctionBlacklist) > 0 {
-		for _, fn := range b.FunctionBlacklist {
-			if !helper.SliceStringContains(result.FunctionBlacklist, fn) {
-				result.FunctionBlacklist = append(result.FunctionBlacklist, fn)
-			}
-		}
-	}
-
-	if len(b.FunctionDenylist) > 0 {
-		for _, fn := range b.FunctionDenylist {
-			if !helper.SliceStringContains(result.FunctionDenylist, fn) {
-				result.FunctionDenylist = append(result.FunctionDenylist, fn)
-			}
-		}
-	}
-
-	if b.MaxStale != nil {
-		result.MaxStale = b.MaxStale
-	}
-
-	if b.MaxStaleHCL != "" {
-		result.MaxStaleHCL = b.MaxStaleHCL
-	}
-
-	if b.Wait != nil {
-		result.Wait = result.Wait.Merge(b.Wait)
-	}
-
-	if b.WaitBounds != nil {
-		result.WaitBounds = result.WaitBounds.Merge(b.WaitBounds)
-	}
-
-	if b.VaultRetry != nil {
-		result.VaultRetry = result.VaultRetry.Merge(b.VaultRetry)
-	}
-
-	return &result
-}
-
 func (c *ClientTemplateConfig) IsEmpty() bool {
 	if c == nil {
 		return true
 	}
 
 	return !c.DisableSandbox &&
-		len(c.FunctionDenylist) == 0 &&
-		len(c.FunctionBlacklist) == 0 &&
+		c.FunctionDenylist == nil &&
+		c.FunctionBlacklist == nil &&
 		c.BlockQueryWaitTime == nil &&
 		c.BlockQueryWaitTimeHCL == "" &&
 		c.MaxStale == nil &&
@@ -744,6 +698,7 @@ func (c *Config) Copy() *Config {
 		nc.ReservableCores = make([]uint16, len(c.ReservableCores))
 		copy(nc.ReservableCores, c.ReservableCores)
 	}
+	nc.Artifact = c.Artifact.Copy()
 	return nc
 }
 
@@ -766,7 +721,7 @@ func DefaultConfig() *Config {
 		NoHostUUID:              true,
 		DisableRemoteExec:       false,
 		TemplateConfig: &ClientTemplateConfig{
-			FunctionDenylist: []string{"plugin"},
+			FunctionDenylist: DefaultTemplateFunctionDenylist,
 			DisableSandbox:   false,
 		},
 		RPCHoldTimeout:     5 * time.Second,
@@ -774,7 +729,7 @@ func DefaultConfig() *Config {
 		CNIConfigDir:       "/opt/cni/config",
 		CNIInterfacePrefix: "eth",
 		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
-		CgroupParent:       cgutil.DefaultCgroupParent,
+		CgroupParent:       cgutil.GetCgroupParent(""),
 		MaxDynamicPort:     structs.DefaultMinDynamicPort,
 		MinDynamicPort:     structs.DefaultMaxDynamicPort,
 	}

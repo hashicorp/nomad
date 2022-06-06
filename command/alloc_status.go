@@ -538,6 +538,8 @@ func buildDisplayMessage(event *api.TaskEvent) string {
 		desc = event.DriverMessage
 	case api.TaskLeaderDead:
 		desc = "Leader Task in Group dead"
+	case api.TaskClientReconnected:
+		desc = "Client reconnected"
 	default:
 		desc = event.Message
 	}
@@ -824,9 +826,14 @@ FOUND:
 				fmt.Sprintf("%s|%v", volReq.Name, *volMount.ReadOnly))
 		case structs.VolumeTypeCSI:
 			if verbose {
+				source := volReq.Source
+				if volReq.PerAlloc {
+					source = source + structs.AllocSuffix(alloc.Name)
+				}
+
 				// there's an extra API call per volume here so we toggle it
 				// off with the -verbose flag
-				vol, _, err := client.CSIVolumes().Info(volReq.Source, nil)
+				vol, _, err := client.CSIVolumes().Info(source, nil)
 				if err != nil {
 					c.Ui.Error(fmt.Sprintf("Error retrieving volume info for %q: %s",
 						volReq.Name, err))

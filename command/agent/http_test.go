@@ -1114,6 +1114,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 			conf.TLSConfig.Insecure = true
 			client, err := api.NewClient(conf)
 			require.NoError(t, err)
+			defer client.Close()
 
 			// Assert a blocking query isn't timed out by the
 			// handshake timeout

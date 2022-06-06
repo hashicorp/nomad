@@ -201,6 +201,7 @@ func TestParse(t *testing.T) {
 							},
 						},
 						StopAfterClientDisconnect: timeToPtr(120 * time.Second),
+						MaxClientDisconnect:       timeToPtr(120 * time.Hour),
 						ReschedulePolicy: &api.ReschedulePolicy{
 							Interval: timeToPtr(12 * time.Hour),
 							Attempts: intToPtr(5),
@@ -837,6 +838,28 @@ func TestParse(t *testing.T) {
 								KillSignal: "SIGQUIT",
 								Config: map[string]interface{}{
 									"image": "hashicorp/image",
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"service-tagged-address.hcl",
+			&api.Job{
+				ID:   stringToPtr("service_tagged_address"),
+				Name: stringToPtr("service_tagged_address"),
+				Type: stringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: stringToPtr("group"),
+						Services: []*api.Service{
+							{
+								Name: "service1",
+								TaggedAddresses: map[string]string{
+									"public_wan": "1.2.3.4",
 								},
 							},
 						},
@@ -1537,7 +1560,9 @@ func TestParse(t *testing.T) {
 								},
 								Ingress: &api.ConsulIngressConfigEntry{
 									TLS: &api.ConsulGatewayTLSConfig{
-										Enabled: true,
+										Enabled:       true,
+										TLSMinVersion: "TLSv1_2",
+										CipherSuites:  []string{"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"},
 									},
 									Listeners: []*api.ConsulIngressListener{{
 										Port:     8001,
@@ -1758,6 +1783,32 @@ func TestParse(t *testing.T) {
 								Resources: &api.Resources{
 									Cores:    intToPtr(4),
 									MemoryMB: intToPtr(128),
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"service-provider.hcl",
+			&api.Job{
+				ID:   stringToPtr("service-provider"),
+				Name: stringToPtr("service-provider"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Count: intToPtr(5),
+						Name:  stringToPtr("group"),
+						Tasks: []*api.Task{
+							{
+								Name:   "task",
+								Driver: "docker",
+								Services: []*api.Service{
+									{
+										Name:     "service-provider",
+										Provider: "nomad",
+									},
 								},
 							},
 						},

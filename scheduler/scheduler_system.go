@@ -229,7 +229,9 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	live, term := structs.SplitTerminalAllocs(allocs)
 
 	// Diff the required and existing allocations
-	diff := diffSystemAllocs(s.job, s.nodes, s.notReadyNodes, tainted, live, term)
+	diff := diffSystemAllocs(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
+		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
+
 	s.logger.Debug("reconciled current state with desired state",
 		"place", len(diff.place), "update", len(diff.update),
 		"migrate", len(diff.migrate), "stop", len(diff.stop),
@@ -249,6 +251,10 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// status lost.
 	for _, e := range diff.lost {
 		s.plan.AppendStoppedAlloc(e.Alloc, allocLost, structs.AllocClientStatusLost, "")
+	}
+
+	for _, e := range diff.disconnecting {
+		s.plan.AppendUnknownAlloc(e.Alloc)
 	}
 
 	// Attempt to do the upgrades in place
@@ -508,6 +514,7 @@ func (s *SystemScheduler) canHandle(trigger string) bool {
 	case structs.EvalTriggerAllocStop:
 	case structs.EvalTriggerQueuedAllocs:
 	case structs.EvalTriggerScaling:
+	case structs.EvalTriggerReconnect:
 	default:
 		switch s.sysbatch {
 		case true:

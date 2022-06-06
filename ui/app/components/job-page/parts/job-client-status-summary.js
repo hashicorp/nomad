@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import { action, computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { camelize } from '@ember/string';
 import { classNames } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 import jobClientStatus from 'nomad-ui/utils/properties/job-client-status';
@@ -36,8 +37,7 @@ export default class JobClientStatusSummary extends Component {
 
   @action
   onSliceClick(ev, slice) {
-    /* eslint-disable-next-line ember/no-string-prototype-extensions */
-    this.gotoClients([slice.className.camelize()]);
+    this.gotoClients([camelize(slice.className)]);
   }
 
   persist(item, isOpen) {

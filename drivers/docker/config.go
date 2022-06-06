@@ -754,7 +754,9 @@ func (d *Driver) SetConfig(c *base.Config) error {
 
 	d.coordinator = newDockerCoordinator(coordinatorConfig)
 
-	d.reconciler = newReconciler(d)
+	d.danglingReconciler = newReconciler(d)
+
+	d.cpusetFixer = newCpusetFixer(d)
 
 	return nil
 }

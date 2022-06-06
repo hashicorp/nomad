@@ -80,19 +80,6 @@ func ReattachToExecutor(reattachConfig *plugin.ReattachConfig, logger hclog.Logg
 	return newExecutorClient(config, logger)
 }
 
-// ReattachToPre09Executor creates a plugin client that reattaches to an existing
-// pre 0.9 Nomad executor
-func ReattachToPre09Executor(reattachConfig *plugin.ReattachConfig, logger hclog.Logger) (Executor, *plugin.Client, error) {
-	config := &plugin.ClientConfig{
-		HandshakeConfig:  base.Handshake,
-		Reattach:         reattachConfig,
-		Plugins:          GetPre09PluginMap(logger, false),
-		AllowedProtocols: []plugin.Protocol{plugin.ProtocolNetRPC},
-		Logger:           logger.Named("executor"),
-	}
-	return newExecutorClient(config, logger)
-}
-
 func newExecutorClient(config *plugin.ClientConfig, logger hclog.Logger) (Executor, *plugin.Client, error) {
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()

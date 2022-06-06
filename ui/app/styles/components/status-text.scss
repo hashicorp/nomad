@@ -5,6 +5,10 @@
     color: $nomad-green-dark;
   }
 
+  &.node-disconnected {
+    color: $yellow;
+  }
+
   &.node-down {
     color: $danger;
   }

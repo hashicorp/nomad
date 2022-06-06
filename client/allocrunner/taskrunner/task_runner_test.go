@@ -15,16 +15,16 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/config"
 	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
+	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -39,6 +39,9 @@ import (
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type MockTaskStateUpdater struct {
@@ -90,10 +93,26 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	}
 	taskDir := allocDir.NewTaskDir(taskName)
 
+	// Compute the name of the v2 cgroup in case we need it in creation, configuration, and cleanup
+	cgroup := filepath.Join(cgutil.CgroupRoot, "testing.slice", cgutil.CgroupScope(alloc.ID, taskName))
+
+	// Create the cgroup if we are in v2 mode
+	if cgutil.UseV2 {
+		if err := os.MkdirAll(cgroup, 0755); err != nil {
+			t.Fatalf("failed to setup v2 cgroup for test: %v:", err)
+		}
+	}
+
 	trCleanup := func() {
 		if err := allocDir.Destroy(); err != nil {
 			t.Logf("error destroying alloc dir: %v", err)
 		}
+
+		// Cleanup the cgroup if we are in v2 mode
+		if cgutil.UseV2 {
+			_ = os.RemoveAll(cgroup)
+		}
+
 		cleanup()
 	}
 
@@ -104,13 +123,18 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	closedCh := make(chan struct{})
 	close(closedCh)
 
+	// Set up the Nomad and Consul registration providers along with the wrapper.
+	consulRegMock := regMock.NewServiceRegistrationHandler(logger)
+	nomadRegMock := regMock.NewServiceRegistrationHandler(logger)
+	wrapperMock := wrapper.NewHandlerWrapper(logger, consulRegMock, nomadRegMock)
+
 	conf := &Config{
 		Alloc:                 alloc,
 		ClientConfig:          clientConf,
 		Task:                  thisTask,
 		TaskDir:               taskDir,
 		Logger:                clientConf.Logger,
-		Consul:                consulapi.NewMockConsulServiceClient(t, logger),
+		Consul:                consulRegMock,
 		ConsulSI:              consulapi.NewMockServiceIdentitiesClient(),
 		Vault:                 vaultclient.NewMockVaultClient(),
 		StateDB:               cstate.NoopDB{},
@@ -121,7 +145,17 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		StartConditionMetCtx:  closedCh,
 		ShutdownDelayCtx:      shutdownDelayCtx,
 		ShutdownDelayCancelFn: shutdownDelayCancelFn,
+		ServiceRegWrapper:     wrapperMock,
+		Getter:                getter.TestDefaultGetter(t),
 	}
+
+	// Set the cgroup path getter if we are in v2 mode
+	if cgutil.UseV2 {
+		conf.CpusetCgroupPathGetter = func(context.Context) (string, error) {
+			return filepath.Join(cgutil.CgroupRoot, "testing.slice", alloc.ID, thisTask.Name), nil
+		}
+	}
+
 	return conf, trCleanup
 }
 
@@ -221,6 +255,11 @@ func TestTaskRunner_Stop_ExitCode(t *testing.T) {
 		"command": "/bin/sleep",
 		"args":    []string{"1000"},
 	}
+	task.Env = map[string]string{
+		"NOMAD_PARENT_CGROUP": "nomad.slice",
+		"NOMAD_ALLOC_ID":      alloc.ID,
+		"NOMAD_TASK_NAME":     task.Name,
+	}
 
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
@@ -315,13 +354,16 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 // returned once it is running and waiting in pending along with a cleanup
 // func.
 func setupRestoreFailureTest(t *testing.T, alloc *structs.Allocation) (*TaskRunner, *Config, func()) {
-	ci.Parallel(t)
-
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "raw_exec"
 	task.Config = map[string]interface{}{
 		"command": "sleep",
 		"args":    []string{"30"},
+	}
+	task.Env = map[string]string{
+		"NOMAD_PARENT_CGROUP": "nomad.slice",
+		"NOMAD_ALLOC_ID":      alloc.ID,
+		"NOMAD_TASK_NAME":     task.Name,
 	}
 	conf, cleanup1 := testTaskRunnerConfig(t, alloc, task.Name)
 	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between runs
@@ -471,6 +513,11 @@ func TestTaskRunner_Restore_System(t *testing.T) {
 		"command": "sleep",
 		"args":    []string{"30"},
 	}
+	task.Env = map[string]string{
+		"NOMAD_PARENT_CGROUP": "nomad.slice",
+		"NOMAD_ALLOC_ID":      alloc.ID,
+		"NOMAD_TASK_NAME":     task.Name,
+	}
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
 	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between runs
@@ -579,7 +626,6 @@ func TestTaskRunner_TaskEnv_Interpolated(t *testing.T) {
 func TestTaskRunner_TaskEnv_Chroot(t *testing.T) {
 	ctestutil.ExecCompatible(t)
 	ci.Parallel(t)
-	require := require.New(t)
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -603,33 +649,27 @@ func TestTaskRunner_TaskEnv_Chroot(t *testing.T) {
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
 
-	// Remove /sbin and /usr from chroot
-	conf.ClientConfig.ChrootEnv = map[string]string{
-		"/bin":            "/bin",
-		"/etc":            "/etc",
-		"/lib":            "/lib",
-		"/lib32":          "/lib32",
-		"/lib64":          "/lib64",
-		"/run/resolvconf": "/run/resolvconf",
-	}
-
 	tr, err := NewTaskRunner(conf)
-	require.NoError(err)
+	require.NoError(t, err)
 	go tr.Run()
 	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
 	// Wait for task to exit
+	timeout := 15 * time.Second
+	if testutil.IsCI() {
+		timeout = 120 * time.Second
+	}
 	select {
 	case <-tr.WaitCh():
-	case <-time.After(15 * time.Second):
-		require.Fail("timeout waiting for task to exit")
+	case <-time.After(timeout):
+		require.Fail(t, "timeout waiting for task to exit")
 	}
 
 	// Read stdout
 	p := filepath.Join(conf.TaskDir.LogDir, task.Name+".stdout.0")
 	stdout, err := ioutil.ReadFile(p)
-	require.NoError(err)
-	require.Equalf(exp, string(stdout), "expected: %s\n\nactual: %s\n", exp, stdout)
+	require.NoError(t, err)
+	require.Equalf(t, exp, string(stdout), "expected: %s\n\nactual: %s\n", exp, stdout)
 }
 
 // TestTaskRunner_TaskEnv_Image asserts image drivers use chroot paths and
@@ -643,7 +683,7 @@ func TestTaskRunner_TaskEnv_Image(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "docker"
 	task.Config = map[string]interface{}{
-		"image":        "redis:3.2-alpine",
+		"image":        "redis:7-alpine",
 		"network_mode": "none",
 		"command":      "sh",
 		"args": []string{"-c", "echo $NOMAD_ALLOC_DIR; " +
@@ -693,7 +733,11 @@ func TestTaskRunner_TaskEnv_None(t *testing.T) {
 			"echo $PATH",
 		},
 	}
-
+	task.Env = map[string]string{
+		"NOMAD_PARENT_CGROUP": "nomad.slice",
+		"NOMAD_ALLOC_ID":      alloc.ID,
+		"NOMAD_TASK_NAME":     task.Name,
+	}
 	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
@@ -946,7 +990,7 @@ func TestTaskRunner_ShutdownDelay(t *testing.T) {
 	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
-	mockConsul := conf.Consul.(*consulapi.MockConsulServiceClient)
+	mockConsul := conf.Consul.(*regMock.ServiceRegistrationHandler)
 
 	// Wait for the task to start
 	testWaitForTaskToStart(t, tr)
@@ -1034,7 +1078,7 @@ func TestTaskRunner_NoShutdownDelay(t *testing.T) {
 	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
-	mockConsul := conf.Consul.(*consulapi.MockConsulServiceClient)
+	mockConsul := conf.Consul.(*regMock.ServiceRegistrationHandler)
 
 	testWaitForTaskToStart(t, tr)
 
@@ -1235,6 +1279,7 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 			Grace: 100 * time.Millisecond,
 		},
 	}
+	task.Services[0].Provider = structs.ServiceProviderConsul
 
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
@@ -1252,6 +1297,7 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	defer consulClient.Shutdown()
 
 	conf.Consul = consulClient
+	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, consulClient, nil)
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
@@ -1712,6 +1758,7 @@ func TestTaskRunner_Download_ChrootExec(t *testing.T) {
 	task.Config = map[string]interface{}{
 		"command": "noop.sh",
 	}
+
 	task.Artifacts = []*structs.TaskArtifact{
 		{
 			GetterSource: fmt.Sprintf("%s/testdata/noop.sh", ts.URL),
@@ -1751,6 +1798,11 @@ func TestTaskRunner_Download_RawExec(t *testing.T) {
 	task.Driver = "raw_exec"
 	task.Config = map[string]interface{}{
 		"command": "noop.sh",
+	}
+	task.Env = map[string]string{
+		"NOMAD_PARENT_CGROUP": "nomad.slice",
+		"NOMAD_ALLOC_ID":      alloc.ID,
+		"NOMAD_TASK_NAME":     task.Name,
 	}
 	task.Artifacts = []*structs.TaskArtifact{
 		{
@@ -1891,6 +1943,7 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 			Name:        "host-service",
 			PortLabel:   "http",
 			AddressMode: "host",
+			Provider:    structs.ServiceProviderConsul,
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:        "driver-check",
@@ -1904,6 +1957,7 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 			Name:        "driver-service",
 			PortLabel:   "5678",
 			AddressMode: "driver",
+			Provider:    structs.ServiceProviderConsul,
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:      "host-check",
@@ -1934,6 +1988,7 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 	go consulClient.Run()
 
 	conf.Consul = consulClient
+	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, consulClient, nil)
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
@@ -2486,7 +2541,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	state := tr.TaskState()
 	require.Equal(t, structs.TaskStateDead, state.State)
 
-	consul := conf.Consul.(*consulapi.MockConsulServiceClient)
+	consul := conf.Consul.(*regMock.ServiceRegistrationHandler)
 	consulOps := consul.GetOps()
 	require.Len(t, consulOps, 4)
 

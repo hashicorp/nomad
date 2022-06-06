@@ -4,17 +4,18 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
-	testing "github.com/mitchellh/go-testing-interface"
-
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/logmon"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -24,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,6 +36,7 @@ type DriverHarness struct {
 	t      testing.T
 	logger hclog.Logger
 	impl   drivers.DriverPlugin
+	cgroup string
 }
 
 func (h *DriverHarness) Impl() drivers.DriverPlugin {
@@ -41,7 +44,6 @@ func (h *DriverHarness) Impl() drivers.DriverPlugin {
 }
 func NewDriverHarness(t testing.T, d drivers.DriverPlugin) *DriverHarness {
 	logger := testlog.HCLogger(t).Named("driver_harness")
-
 	pd := drivers.NewDriverPlugin(d, logger)
 
 	client, server := plugin.TestPluginGRPCConn(t,
@@ -53,12 +55,10 @@ func NewDriverHarness(t testing.T, d drivers.DriverPlugin) *DriverHarness {
 	)
 
 	raw, err := client.Dispense(base.PluginTypeDriver)
-	if err != nil {
-		t.Fatalf("err dispensing plugin: %v", err)
-	}
+	require.NoError(t, err, "failed to dispense plugin")
 
 	dClient := raw.(drivers.DriverPlugin)
-	h := &DriverHarness{
+	return &DriverHarness{
 		client:       client,
 		server:       server,
 		DriverPlugin: dClient,
@@ -66,48 +66,48 @@ func NewDriverHarness(t testing.T, d drivers.DriverPlugin) *DriverHarness {
 		t:            t,
 		impl:         d,
 	}
+}
 
-	return h
+// setupCgroupV2 creates a v2 cgroup for the task, as if a Client were initialized
+// and managing the cgroup as it normally would via the cpuset manager.
+//
+// Note that we are being lazy and trying to avoid importing cgutil because
+// currently plugins/drivers/testutils is platform agnostic-ish.
+//
+// Some drivers (raw_exec) setup their own cgroup, while others (exec, java, docker)
+// would otherwise depend on the Nomad cpuset manager (and docker daemon) to create
+// one, which isn't available here in testing, and so we create one via the harness.
+// Plumbing such metadata through to the harness is a mind bender, so we just always
+// create the cgroup, but at least put it under 'testing.slice'.
+//
+// tl;dr raw_exec tests should ignore this cgroup.
+func (h *DriverHarness) setupCgroupV2(allocID, task string) {
+	if cgutil.UseV2 {
+		h.cgroup = filepath.Join(cgutil.CgroupRoot, "testing.slice", cgutil.CgroupScope(allocID, task))
+		h.logger.Trace("create cgroup for test", "parent", "testing.slice", "id", allocID, "task", task, "path", h.cgroup)
+		if err := os.MkdirAll(h.cgroup, 0755); err != nil {
+			panic(err)
+		}
+	}
 }
 
 func (h *DriverHarness) Kill() {
-	h.client.Close()
+	_ = h.client.Close()
 	h.server.Stop()
+	h.cleanupCgroup()
 }
 
-// tinyChroot is useful for testing, where we do not use anything other than
-// trivial /bin commands like sleep and sh.
-//
-// Note that you cannot chroot a symlink.
-var tinyChroot = map[string]string{
-	// destination: /bin
-	"/usr/bin/sleep": "/bin/sleep",
-	"/usr/bin/dash":  "/bin/sh",
-	"/usr/bin/bash":  "/bin/bash",
-	"/usr/bin/cat":   "/bin/cat",
-
-	// destination: /usr/bin
-	"/usr/bin/stty":   "/usr/bin/stty",
-	"/usr/bin/head":   "/usr/bin/head",
-	"/usr/bin/mktemp": "/usr/bin/mktemp",
-	"/usr/bin/echo":   "/usr/bin/echo",
-	"/usr/bin/touch":  "/usr/bin/touch",
-	"/usr/bin/stat":   "/usr/bin/stat",
-
-	// destination: /etc/
-	"/etc/ld.so.cache":  "/etc/ld.so.cache",
-	"/etc/ld.so.conf":   "/etc/ld.so.conf",
-	"/etc/ld.so.conf.d": "/etc/ld.so.conf.d",
-	"/etc/passwd":       "/etc/passwd",
-	"/etc/resolv.conf":  "/etc/resolv.conf",
-
-	// others
-	"/lib":                 "/lib",
-	"/lib32":               "/lib32",
-	"/lib64":               "/lib64",
-	"/usr/lib/jvm":         "/usr/lib/jvm",
-	"/run/resolvconf":      "/run/resolvconf",
-	"/run/systemd/resolve": "/run/systemd/resolve",
+// cleanupCgroup might cleanup a cgroup that may or may not be tricked by DriverHarness.
+func (h *DriverHarness) cleanupCgroup() {
+	// some [non-exec] tests don't bother with MkAllocDir which is what would create
+	// the cgroup, but then do call Kill, so in that case skip the cgroup cleanup
+	if cgutil.UseV2 && h.cgroup != "" {
+		if err := os.Remove(h.cgroup); err != nil && !os.IsNotExist(err) {
+			// in some cases the driver will cleanup the cgroup itself, in which
+			// case we do not care about the cgroup not existing at cleanup time
+			h.t.Fatalf("failed to cleanup cgroup: %v", err)
+		}
+	}
 }
 
 // MkAllocDir creates a temporary directory and allocdir structure.
@@ -130,7 +130,8 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 	require.NoError(h.t, err)
 
 	fsi := caps.FSIsolation
-	require.NoError(h.t, taskDir.Build(fsi == drivers.FSIsolationChroot, tinyChroot))
+	h.logger.Trace("FS isolation", "fsi", fsi)
+	require.NoError(h.t, taskDir.Build(fsi == drivers.FSIsolationChroot, ci.TinyChroot))
 
 	task := &structs.Task{
 		Name: t.Name,
@@ -139,6 +140,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 
 	// Create the mock allocation
 	alloc := mock.Alloc()
+	alloc.ID = t.AllocID
 	if t.Resources != nil {
 		alloc.AllocatedResources.Tasks[task.Name] = t.Resources.NomadResources
 	}
@@ -156,6 +158,9 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 			}
 		}
 	}
+
+	// setup a v2 cgroup for test cases that assume one exists
+	h.setupCgroupV2(alloc.ID, task.Name)
 
 	//logmon
 	if enableLogs {
@@ -189,6 +194,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 	return func() {
 		h.client.Close()
 		allocDir.Destroy()
+		h.cleanupCgroup()
 	}
 }
 

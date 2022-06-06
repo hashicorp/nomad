@@ -539,9 +539,7 @@ func TestOperator_SnapshotSave(t *testing.T) {
 	ci.Parallel(t)
 
 	////// Nomad clusters topology - not specific to test
-	dir, err := ioutil.TempDir("", "nomadtest-operator-")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	server1, cleanupLS := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
@@ -646,9 +644,7 @@ func TestOperator_SnapshotSave_ACL(t *testing.T) {
 	ci.Parallel(t)
 
 	////// Nomad clusters topology - not specific to test
-	dir, err := ioutil.TempDir("", "nomadtest-operator-")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	s, root, cleanupLS := TestACLServer(t, func(c *Config) {
 		c.BootstrapExpect = 1
@@ -741,9 +737,7 @@ func TestOperator_SnapshotRestore(t *testing.T) {
 }
 
 func generateSnapshot(t *testing.T) (*snapshot.Snapshot, *structs.Job) {
-	dir, err := ioutil.TempDir("", "nomadtest-operator-")
-	require.NoError(t, err)
-	t.Cleanup(func() { os.RemoveAll(dir) })
+	dir := t.TempDir()
 
 	s, cleanup := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 1
@@ -762,7 +756,7 @@ func generateSnapshot(t *testing.T) (*snapshot.Snapshot, *structs.Job) {
 	}
 	var jobResp structs.JobRegisterResponse
 	codec := rpcClient(t, s)
-	err = msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp)
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp)
 	require.NoError(t, err)
 
 	err = s.State().UpsertJob(structs.MsgTypeTestSetup, 1000, job)
@@ -780,9 +774,7 @@ func testRestoreSnapshot(t *testing.T, req *structs.SnapshotRestoreRequest, snap
 	assertionFn func(t *testing.T, server *Server)) {
 
 	////// Nomad clusters topology - not specific to test
-	dir, err := ioutil.TempDir("", "nomadtest-operator-")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	server1, cleanupLS := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
@@ -886,9 +878,7 @@ func testRestoreSnapshot(t *testing.T, req *structs.SnapshotRestoreRequest, snap
 func TestOperator_SnapshotRestore_ACL(t *testing.T) {
 	ci.Parallel(t)
 
-	dir, err := ioutil.TempDir("", "nomadtest-operator-")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	/////////  Actually run query now
 	cases := []struct {

@@ -542,3 +542,34 @@ func TestStateStore_RestoreSchedulerConfig(t *testing.T) {
 
 	require.Equal(schedConfig, out)
 }
+
+func TestStateStore_ServiceRegistrationRestore(t *testing.T) {
+	ci.Parallel(t)
+	testState := testStateStore(t)
+
+	// Set up our test registrations and index.
+	expectedIndex := uint64(13)
+	serviceRegs := mock.ServiceRegistrations()
+
+	restore, err := testState.Restore()
+	require.NoError(t, err)
+
+	// Iterate the service registrations, restore, and commit. Set the indexes
+	// on the objects, so we can check these.
+	for i := range serviceRegs {
+		serviceRegs[i].ModifyIndex = expectedIndex
+		serviceRegs[i].CreateIndex = expectedIndex
+		require.NoError(t, restore.ServiceRegistrationRestore(serviceRegs[i]))
+	}
+	require.NoError(t, restore.Commit())
+
+	// Check the state is now populated as we expect and that we can find the
+	// restored registrations.
+	ws := memdb.NewWatchSet()
+
+	for i := range serviceRegs {
+		out, err := testState.GetServiceRegistrationByID(ws, serviceRegs[i].Namespace, serviceRegs[i].ID)
+		require.NoError(t, err)
+		require.Equal(t, serviceRegs[i], out)
+	}
+}

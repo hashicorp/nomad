@@ -7,6 +7,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import Layout from 'nomad-ui/tests/pages/layout';
+import percySnapshot from '@percy/ember';
 
 let managementToken, clientToken;
 
@@ -43,6 +44,8 @@ module('Acceptance | jobs list', function (hooks) {
 
     await JobsList.visit();
 
+    await percySnapshot(assert);
+
     const sortedJobs = server.db.jobs.sortBy('modifyIndex').reverse();
     assert.equal(JobsList.jobs.length, JobsList.pageSize);
     JobsList.jobs.forEach((job, index) => {
@@ -61,7 +64,7 @@ module('Acceptance | jobs list', function (hooks) {
 
     assert.equal(jobRow.name, job.name, 'Name');
     assert.notOk(jobRow.hasNamespace);
-    assert.equal(jobRow.link, `/ui/jobs/${job.id}`, 'Detail Link');
+    assert.equal(jobRow.link, `/ui/jobs/${job.id}@default`, 'Detail Link');
     assert.equal(jobRow.status, job.status, 'Status');
     assert.equal(jobRow.type, typeForJob(job), 'Type');
     assert.equal(jobRow.priority, job.priority, 'Priority');
@@ -75,7 +78,7 @@ module('Acceptance | jobs list', function (hooks) {
     await JobsList.visit();
     await JobsList.jobs.objectAt(0).clickName();
 
-    assert.equal(currentURL(), `/jobs/${job.id}`);
+    assert.equal(currentURL(), `/jobs/${job.id}@default`);
   });
 
   test('the new job button transitions to the new job page', async function (assert) {
@@ -115,6 +118,8 @@ module('Acceptance | jobs list', function (hooks) {
 
   test('when there are no jobs, there is an empty message', async function (assert) {
     await JobsList.visit();
+
+    await percySnapshot(assert);
 
     assert.ok(JobsList.isEmpty, 'There is an empty message');
     assert.equal(

@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
-	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -156,11 +154,7 @@ func TestConsulGRPCSocketHook_Prerun_Error(t *testing.T) {
 func TestConsulGRPCSocketHook_proxy_Unix(t *testing.T) {
 	ci.Parallel(t)
 
-	dir, err := ioutil.TempDir("", "nomadtest_proxy_Unix")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, os.RemoveAll(dir))
-	}()
+	dir := t.TempDir()
 
 	// Setup fake listener that would be inside the netns (normally a unix
 	// socket, but it doesn't matter for this test).

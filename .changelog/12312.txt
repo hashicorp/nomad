@@ -1,0 +1,6 @@
+```release-note:bug
+template: Fixed a bug preventing allowing all consul-template functions.
+```
+```release-note:improvement
+template: Upgraded to from consul-template v0.25.2 to v0.28.0 which includes the sprig library of functions and more.
+```

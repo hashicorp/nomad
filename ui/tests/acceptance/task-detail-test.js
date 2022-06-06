@@ -104,7 +104,7 @@ module('Acceptance | task detail', function (hooks) {
     await Layout.breadcrumbFor('jobs.job.index').visit();
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}`,
+      `/jobs/${job.id}@default`,
       'Job breadcrumb links correctly'
     );
 
@@ -112,7 +112,7 @@ module('Acceptance | task detail', function (hooks) {
     await Layout.breadcrumbFor('jobs.job.task-group').visit();
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}/${taskGroup}`,
+      `/jobs/${job.id}@default/${taskGroup}`,
       'Task Group breadcrumb links correctly'
     );
 

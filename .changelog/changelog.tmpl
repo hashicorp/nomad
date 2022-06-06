@@ -6,7 +6,7 @@ FEATURES:
 {{ end -}}
 {{- end -}}
 
-{{- if index .NotesByType "breaking-change" -}}
+{{- if index .NotesByType "breaking-change" }}
 BREAKING CHANGES:
 
 {{range index .NotesByType "breaking-change" -}}
@@ -53,4 +53,3 @@ NOTES:
 * {{ template "note" . }}
 {{ end -}}
 {{- end -}}
-

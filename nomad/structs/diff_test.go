@@ -2773,10 +2773,11 @@ func TestTaskGroupDiff(t *testing.T) {
 									LocalServicePort:    8080,
 									Upstreams: []ConsulUpstream{
 										{
-											DestinationName:  "foo",
-											LocalBindPort:    8000,
-											Datacenter:       "dc2",
-											LocalBindAddress: "127.0.0.2",
+											DestinationName:      "foo",
+											DestinationNamespace: "ns2",
+											LocalBindPort:        8000,
+											Datacenter:           "dc2",
+											LocalBindAddress:     "127.0.0.2",
 											MeshGateway: &ConsulMeshGateway{
 												Mode: "remote",
 											},
@@ -2843,6 +2844,12 @@ func TestTaskGroupDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeNone,
+								Name: "Address",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "AddressMode",
 								Old:  "",
 								New:  "",
@@ -2874,6 +2881,12 @@ func TestTaskGroupDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "PortLabel",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Provider",
 								Old:  "",
 								New:  "",
 							},
@@ -3091,6 +3104,12 @@ func TestTaskGroupDiff(t *testing.T) {
 															},
 															{
 																Type: DiffTypeAdded,
+																Name: "DestinationNamespace",
+																Old:  "",
+																New:  "ns2",
+															},
+															{
+																Type: DiffTypeAdded,
 																Name: "LocalBindAddress",
 																Old:  "",
 																New:  "127.0.0.2",
@@ -3245,6 +3264,18 @@ func TestTaskGroupDiff(t *testing.T) {
 																Name: "Enabled",
 																Old:  "false",
 																New:  "true",
+															},
+															{
+																Type: DiffTypeNone,
+																Name: "TLSMaxVersion",
+																Old:  "",
+																New:  "",
+															},
+															{
+																Type: DiffTypeNone,
+																Name: "TLSMinVersion",
+																Old:  "",
+																New:  "",
 															},
 														},
 													},
@@ -3900,6 +3931,75 @@ func TestTaskGroupDiff(t *testing.T) {
 								},
 							},
 						},
+					},
+				},
+			},
+		},
+		{
+			TestCase: "MaxClientDisconnect added",
+			Old: &TaskGroup{
+				Name:                "foo",
+				MaxClientDisconnect: nil,
+			},
+			New: &TaskGroup{
+				Name:                "foo",
+				MaxClientDisconnect: helper.TimeToPtr(20 * time.Second),
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Name: "foo",
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "MaxClientDisconnect",
+						Old:  "",
+						New:  "20000000000",
+					},
+				},
+			},
+		},
+		{
+			TestCase: "MaxClientDisconnect updated",
+			Old: &TaskGroup{
+				Name:                "foo",
+				MaxClientDisconnect: helper.TimeToPtr(10 * time.Second),
+			},
+			New: &TaskGroup{
+				Name:                "foo",
+				MaxClientDisconnect: helper.TimeToPtr(20 * time.Second),
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Name: "foo",
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "MaxClientDisconnect",
+						Old:  "10000000000",
+						New:  "20000000000",
+					},
+				},
+			},
+		},
+		{
+			TestCase: "MaxClientDisconnect deleted",
+			Old: &TaskGroup{
+				Name:                "foo",
+				MaxClientDisconnect: helper.TimeToPtr(10 * time.Second),
+			},
+			New: &TaskGroup{
+				Name:                "foo",
+				MaxClientDisconnect: nil,
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Name: "foo",
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "MaxClientDisconnect",
+						Old:  "10000000000",
+						New:  "",
 					},
 				},
 			},
@@ -5561,6 +5661,7 @@ func TestTaskDiff(t *testing.T) {
 						Name:        "foo",
 						PortLabel:   "bar",
 						AddressMode: "driver",
+						Address:     "a.example.com",
 						TaskName:    "task1",
 					},
 				},
@@ -5572,6 +5673,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "Service",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Address",
+								Old:  "",
+								New:  "a.example.com",
+							},
 							{
 								Type: DiffTypeAdded,
 								Name: "AddressMode",
@@ -5607,6 +5714,10 @@ func TestTaskDiff(t *testing.T) {
 								Name: "PortLabel",
 								Old:  "foo",
 								New:  "bar",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Provider",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -5728,6 +5839,10 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeNone,
+								Name: "Address",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "AddressMode",
 							},
 							{
@@ -5751,6 +5866,10 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "PortLabel",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Provider",
 							},
 							{
 								Type: DiffTypeNone,
@@ -6239,6 +6358,12 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeNone,
+								Name: "Address",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "AddressMode",
 								Old:  "",
 								New:  "",
@@ -6270,6 +6395,10 @@ func TestTaskDiff(t *testing.T) {
 								Name: "PortLabel",
 								Old:  "",
 								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Provider",
 							},
 							{
 								Type: DiffTypeNone,
@@ -7304,6 +7433,7 @@ func TestServicesDiff(t *testing.T) {
 					Name:              "webapp",
 					PortLabel:         "http",
 					AddressMode:       "host",
+					Address:           "a.example.com",
 					EnableTagOverride: true,
 					Tags:              []string{"prod"},
 					CanaryTags:        []string{"canary"},
@@ -7314,6 +7444,7 @@ func TestServicesDiff(t *testing.T) {
 					Name:              "webapp-2",
 					PortLabel:         "https",
 					AddressMode:       "alloc",
+					Address:           "b.example.com",
 					EnableTagOverride: false,
 					Tags:              []string{"prod", "dev"},
 					CanaryTags:        []string{"qa"},
@@ -7324,6 +7455,12 @@ func TestServicesDiff(t *testing.T) {
 					Type: DiffTypeEdited,
 					Name: "Service",
 					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeEdited,
+							Name: "Address",
+							Old:  "a.example.com",
+							New:  "b.example.com",
+						},
 						{
 							Type: DiffTypeEdited,
 							Name: "AddressMode",
@@ -7355,6 +7492,10 @@ func TestServicesDiff(t *testing.T) {
 							Name: "PortLabel",
 							Old:  "http",
 							New:  "https",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Provider",
 						},
 						{
 							Type: DiffTypeNone,
@@ -7416,6 +7557,10 @@ func TestServicesDiff(t *testing.T) {
 					Fields: []*FieldDiff{
 						{
 							Type: DiffTypeNone,
+							Name: "Address",
+						},
+						{
+							Type: DiffTypeNone,
 							Name: "AddressMode",
 						},
 						{
@@ -7440,6 +7585,10 @@ func TestServicesDiff(t *testing.T) {
 							Type: DiffTypeAdded,
 							Name: "PortLabel",
 							New:  "http",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Provider",
 						},
 						{
 							Type: DiffTypeNone,
@@ -7475,6 +7624,10 @@ func TestServicesDiff(t *testing.T) {
 					Fields: []*FieldDiff{
 						{
 							Type: DiffTypeNone,
+							Name: "Address",
+						},
+						{
+							Type: DiffTypeNone,
 							Name: "AddressMode",
 						},
 						{
@@ -7499,6 +7652,10 @@ func TestServicesDiff(t *testing.T) {
 							Type: DiffTypeAdded,
 							Name: "PortLabel",
 							New:  "https",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Provider",
 						},
 						{
 							Type: DiffTypeNone,
@@ -7538,6 +7695,10 @@ func TestServicesDiff(t *testing.T) {
 					Fields: []*FieldDiff{
 						{
 							Type: DiffTypeNone,
+							Name: "Address",
+						},
+						{
+							Type: DiffTypeNone,
 							Name: "AddressMode",
 						},
 						{
@@ -7565,6 +7726,9 @@ func TestServicesDiff(t *testing.T) {
 							Name: "PortLabel",
 							Old:  "http",
 							New:  "https-redirect",
+						}, {
+							Type: DiffTypeNone,
+							Name: "Provider",
 						},
 						{
 							Type: DiffTypeNone,
@@ -7608,6 +7772,10 @@ func TestServicesDiff(t *testing.T) {
 					Fields: []*FieldDiff{
 						{
 							Type: DiffTypeNone,
+							Name: "Address",
+						},
+						{
+							Type: DiffTypeNone,
 							Name: "AddressMode",
 						},
 						{
@@ -7638,6 +7806,10 @@ func TestServicesDiff(t *testing.T) {
 						},
 						{
 							Type: DiffTypeNone,
+							Name: "Provider",
+						},
+						{
+							Type: DiffTypeNone,
 							Name: "TaskName",
 						},
 					},
@@ -7656,6 +7828,170 @@ func TestServicesDiff(t *testing.T) {
 									Name: "Tags",
 									Old:  "prod",
 									New:  "prod",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:       "Service with different provider",
+			Contextual: true,
+			Old: []*Service{
+				{
+					Name:      "webapp",
+					Provider:  "nomad",
+					PortLabel: "http",
+				},
+			},
+			New: []*Service{
+				{
+					Name:      "webapp",
+					Provider:  "consul",
+					PortLabel: "http",
+				},
+			},
+			Expected: []*ObjectDiff{
+				{
+					Type: DiffTypeEdited,
+					Name: "Service",
+					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "Address",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "AddressMode",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "EnableTagOverride",
+							Old:  "false",
+							New:  "false",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Name",
+							Old:  "webapp",
+							New:  "webapp",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Namespace",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "OnUpdate",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "PortLabel",
+							Old:  "http",
+							New:  "http",
+						},
+						{
+							Type: DiffTypeEdited,
+							Name: "Provider",
+							Old:  "nomad",
+							New:  "consul",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "TaskName",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:       "Service with different ingress tls",
+			Contextual: false,
+			Old: []*Service{
+				{
+					Name:      "webapp",
+					Provider:  "consul",
+					PortLabel: "http",
+					Connect: &ConsulConnect{
+						Gateway: &ConsulGateway{
+							Ingress: &ConsulIngressConfigEntry{},
+						},
+					},
+				},
+			},
+			New: []*Service{
+				{
+					Name:      "webapp",
+					Provider:  "consul",
+					PortLabel: "http",
+					Connect: &ConsulConnect{
+						Gateway: &ConsulGateway{
+							Ingress: &ConsulIngressConfigEntry{
+								TLS: &ConsulGatewayTLSConfig{
+									Enabled:       true,
+									TLSMinVersion: "TLSv1_2",
+									CipherSuites:  []string{"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"},
+								},
+							},
+						},
+					},
+				},
+			},
+			Expected: []*ObjectDiff{
+				{
+					Type: DiffTypeEdited,
+					Name: "Service",
+					Objects: []*ObjectDiff{
+						{
+							Type: DiffTypeEdited,
+							Name: "ConsulConnect",
+							Objects: []*ObjectDiff{
+								{
+									Type: DiffTypeEdited,
+									Name: "Gateway",
+									Objects: []*ObjectDiff{
+										{
+											Type: DiffTypeEdited,
+											Name: "Ingress",
+											Objects: []*ObjectDiff{
+												{
+													Type: DiffTypeAdded,
+													Name: "TLS",
+													Fields: []*FieldDiff{
+														{
+															Type: DiffTypeAdded,
+															Name: "Enabled",
+															New:  "true",
+														},
+														{
+															Type: DiffTypeAdded,
+															Name: "TLSMinVersion",
+															New:  "TLSv1_2",
+														},
+													},
+													Objects: []*ObjectDiff{
+														{
+															Type: DiffTypeAdded,
+															Name: "CipherSuites",
+															Fields: []*FieldDiff{
+																{
+																	Type: DiffTypeAdded,
+																	Name: "CipherSuites",
+																	New:  "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+																},
+																{
+																	Type: DiffTypeAdded,
+																	Name: "CipherSuites",
+																	New:  "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
 								},
 							},
 						},

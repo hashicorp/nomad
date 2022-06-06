@@ -271,6 +271,8 @@ default of `orphan = false`.
 More information about creating orphan tokens can be found in
 [Vault's Token Hierarchies and Orphan Tokens documentation][tokenhierarchy].
 
+The [`-period` flag](https://www.vaultproject.io/docs/commands/token/create#period) is required to allow the automatic renewal of the token. If this is left out, a [`vault token renew` command](https://www.vaultproject.io/docs/commands/token/renew) will need to be run manually to renew the token.
+
 The token can then be set in the server configuration's
 [`vault` stanza][config], as a command-line flag, or via an environment
 variable.

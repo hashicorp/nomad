@@ -2,30 +2,82 @@ package e2eutil
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/testutil"
 )
+
+// AgentDisconnect is a test helper function that runs a raw_exec job
+// that will disconnect a client at the network level and reconnect it
+// after the specified period of time.
+//
+// Returns once the job is registered with the job ID of the restart
+// job and any registration errors, not after the duration, so that
+// callers can take actions while the client is down.
+func AgentDisconnect(nodeID string, after time.Duration) (string, error) {
+	jobID := "disconnect-" + nodeID
+	vars := []string{"-var", "nodeID=" + nodeID}
+	if after > 0 {
+		vars = append(vars, "-var", fmt.Sprintf("time=%d", int(after.Seconds())))
+	}
+
+	jobFilePath := "../e2eutil/input/disconnect-node.nomad"
+
+	// TODO: temporary hack around having older tests running on the
+	// framework vs new tests not, as the framework has a different
+	// working directory
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	if filepath.Base(dir) == "e2e" {
+		jobFilePath = "e2eutil/input/disconnect-node.nomad"
+	}
+
+	err = RegisterWithArgs(jobID, jobFilePath, vars...)
+	return jobID, err
+}
+
+// AgentRestartAfter is a test helper function that runs a raw_exec
+// job that will stop a client and restart it after the specified
+// period of time. The node must be running under systemd.
+//
+// Returns once the job is registered with the job ID of the restart
+// job and any registration errors, not after the duration, so that
+// callers can take actions while the client is down.
+func AgentRestartAfter(nodeID string, after time.Duration) (string, error) {
+	jobID := "restart-" + nodeID
+	vars := []string{"-var", "nodeID=" + nodeID}
+	if after > 0 {
+		vars = append(vars, "-var", fmt.Sprintf("time=%d", int(after.Seconds())))
+	}
+
+	jobFilePath := "../e2eutil/input/restart-node.nomad"
+
+	// TODO: temporary hack around having older tests running on the
+	// framework vs new tests not, as the framework has a different
+	// working directory
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	if filepath.Base(dir) == "e2e" {
+		jobFilePath = "e2eutil/input/restart-node.nomad"
+	}
+
+	err = RegisterWithArgs(jobID, jobFilePath, vars...)
+	return jobID, err
+}
 
 // AgentRestart is a test helper function that restarts a client node
 // running under systemd using a raw_exec job. Returns the job ID of
 // the restart job so that callers can clean it up.
 func AgentRestart(client *api.Client, nodeID string) (string, error) {
-	ok, err := isUbuntu(client, nodeID)
-	if !ok {
-		// TODO(tgross): we're checking this because we want to use
-		// systemctl to restart the node, but we should also figure
-		// out a way to detect dev mode targets.
-		return "", fmt.Errorf("AgentRestart only works against ubuntu targets")
-	}
-	if err != nil {
-		return "", err
-	}
 
-	job := newRestartJob(nodeID)
-	jobID := *job.ID
-	_, _, err = client.Jobs().Register(job, nil)
+	jobID, err := AgentRestartAfter(nodeID, 0)
 	if err != nil {
 		return jobID, err
 	}
@@ -60,57 +112,6 @@ func AgentRestart(client *api.Client, nodeID string) (string, error) {
 		}
 	}
 	return jobID, fmt.Errorf("node did not become ready: %v", reasonErr)
-}
-
-func isUbuntu(client *api.Client, nodeID string) (bool, error) {
-	node, _, err := client.Nodes().Info(nodeID, nil)
-	if err != nil || node == nil {
-		return false, err
-	}
-	if name, ok := node.Attributes["os.name"]; ok {
-		return name == "ubuntu", nil
-	}
-	return false, nil
-}
-
-func newRestartJob(nodeID string) *api.Job {
-	jobType := "batch"
-	name := "restart"
-	jobID := "restart-" + uuid.Generate()[0:8]
-	attempts := 0
-	job := &api.Job{
-		Name:        &name,
-		ID:          &jobID,
-		Datacenters: []string{"dc1"},
-		Type:        &jobType,
-		TaskGroups: []*api.TaskGroup{
-			{
-				Name: &name,
-				Constraints: []*api.Constraint{
-					{
-						LTarget: "${node.unique.id}",
-						RTarget: nodeID,
-						Operand: "=",
-					},
-				},
-				RestartPolicy: &api.RestartPolicy{
-					Attempts: &attempts,
-				},
-				Tasks: []*api.Task{
-					{
-						Name:   name,
-						Driver: "raw_exec",
-						Config: map[string]interface{}{
-							"command": "systemctl",
-							"args":    []string{"restart", "nomad"},
-						},
-					},
-				},
-			},
-		},
-	}
-	job.Canonicalize()
-	return job
 }
 
 // ListWindowsClientNodes returns a list of Windows client IDs, so that tests
@@ -183,4 +184,30 @@ func NodeStatusListFiltered(filterFn func(string) bool) ([]map[string]string, er
 	}
 
 	return nodes, nil
+}
+
+func WaitForNodeStatus(nodeID, status string, wc *WaitConfig) error {
+	var got string
+	var err error
+	interval, retries := wc.OrDefault()
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		time.Sleep(interval)
+
+		nodeStatuses, err := NodeStatusList()
+		if err != nil {
+			return false, err
+		}
+		for _, nodeStatus := range nodeStatuses {
+			if nodeStatus["ID"] == nodeID {
+				got = nodeStatus["Status"]
+				if got == status {
+					return true, nil
+				}
+			}
+		}
+		return false, nil
+	}, func(e error) {
+		err = fmt.Errorf("node status check failed: got %#v", got)
+	})
+	return err
 }

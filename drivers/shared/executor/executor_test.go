@@ -15,10 +15,12 @@ import (
 	"testing"
 	"time"
 
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -88,6 +90,10 @@ func testExecutorCommand(t *testing.T) *testExecCmd {
 				MemoryLimitBytes: 256 * 1024 * 1024,
 			},
 		},
+	}
+
+	if cgutil.UseV2 {
+		cmd.Resources.LinuxResources.CpusetCgroupPath = filepath.Join(cgutil.CgroupRoot, "testing.scope", cgutil.CgroupScope(alloc.ID, task.Name))
 	}
 
 	testCmd := &testExecCmd{
@@ -253,6 +259,8 @@ func TestExecutor_Start_Wait_Children(t *testing.T) {
 
 func TestExecutor_WaitExitSignal(t *testing.T) {
 	ci.Parallel(t)
+	testutil.CgroupsCompatibleV1(t) // todo(shoenig) #12351
+
 	for name, factory := range executorFactories {
 		t.Run(name, func(t *testing.T) {
 			testExecCmd := testExecutorCommand(t)
@@ -407,16 +415,14 @@ func TestUniversalExecutor_LookupPath(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 	// Create a temp dir
-	tmpDir, err := ioutil.TempDir("", "")
-	require.Nil(err)
-	defer os.Remove(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Make a foo subdir
 	os.MkdirAll(filepath.Join(tmpDir, "foo"), 0700)
 
 	// Write a file under foo
 	filePath := filepath.Join(tmpDir, "foo", "tmp.txt")
-	err = ioutil.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
+	err := ioutil.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
 	require.Nil(err)
 
 	// Lookup with full path on host to binary
@@ -519,6 +525,7 @@ func copyFile(t *testing.T, src, dst string) {
 func TestExecutor_Start_Kill_Immediately_NoGrace(t *testing.T) {
 	ci.Parallel(t)
 	for name, factory := range executorFactories {
+
 		t.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			testExecCmd := testExecutorCommand(t)
@@ -597,9 +604,7 @@ func TestExecutor_Start_NonExecutableBinaries(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			require := require.New(t)
 
-			tmpDir, err := ioutil.TempDir("", "nomad-executor-tests")
-			require.NoError(err)
-			defer os.RemoveAll(tmpDir)
+			tmpDir := t.TempDir()
 
 			nonExecutablePath := filepath.Join(tmpDir, "nonexecutablefile")
 			ioutil.WriteFile(nonExecutablePath,

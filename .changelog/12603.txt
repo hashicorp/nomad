@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Added `NOMAD_SHORT_ALLOC_ID` allocation env var
+```

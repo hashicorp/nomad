@@ -39,6 +39,9 @@ type templateHookConfig struct {
 
 	// consulNamespace is the current Consul namespace
 	consulNamespace string
+
+	// nomadNamespace is the job's Nomad namespace
+	nomadNamespace string
 }
 
 type templateHook struct {
@@ -122,6 +125,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.config.envBuilder,
 		MaxTemplateEventRate: template.DefaultMaxTemplateEventRate,
+		NomadNamespace:       h.config.nomadNamespace,
 	})
 	if err != nil {
 		h.logger.Error("failed to create template manager", "error", err)

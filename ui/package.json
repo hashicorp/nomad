@@ -20,9 +20,10 @@
     "build-storybook": "STORYBOOK=true ember build && build-storybook -s dist",
     "storybook": "STORYBOOK=true start-storybook -p 6006 -s dist",
     "test": "npm-run-all lint test:*",
-    "test:ember": "ember test",
+    "test:ember": "percy exec -- ember test",
     "local:qunitdom": "ember test --server --query=dockcontainer",
-    "local:exam": "ember exam --server --load-balance --parallel=4"
+    "local:exam": "ember exam --server --load-balance --parallel=4",
+    "seedless-test": "USE_PERCY=false ember test"
   },
   "husky": {
     "hooks": {
@@ -40,6 +41,7 @@
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "^7.4.3",
     "@ember/optional-features": "2.0.0",
+    "@ember/render-modifiers": "^2.0.4",
     "@ember/test-helpers": "^2.6.0",
     "@glimmer/component": "^1.0.4",
     "@glimmer/tracking": "^1.0.4",
@@ -79,10 +81,11 @@
     "ember-cli-sri": "^2.1.1",
     "ember-cli-string-helpers": "^6.1.0",
     "ember-cli-terser": "^4.0.2",
+    "ember-click-outside": "^3.0.0",
     "ember-composable-helpers": "^5.0.0",
     "ember-concurrency": "^2.2.1",
     "ember-copy": "^2.0.1",
-    "ember-data": "~3.28.6",
+    "ember-data": "~3.24",
     "ember-data-model-fragments": "5.0.0-beta.3",
     "ember-decorators": "^6.1.1",
     "ember-exam": "6.1.0",
@@ -95,6 +98,7 @@
     "ember-modifier": "^3.1.0",
     "ember-moment": "^9.0.1",
     "ember-named-blocks-polyfill": "^0.2.4",
+    "ember-on-resize-modifier": "^1.0.0",
     "ember-overridable-computed": "^1.0.0",
     "ember-page-title": "^6.2.2",
     "ember-power-select": "^4.1.7",
@@ -104,6 +108,8 @@
     "ember-responsive": "^4.0.2",
     "ember-sinon": "^5.0.0",
     "ember-source": "~3.28.8",
+    "ember-stargate": "^0.4.1",
+    "ember-statecharts": "^0.13.2",
     "ember-template-lint": "^3.15.0",
     "ember-test-selectors": "^6.0.0",
     "ember-truth-helpers": "^3.0.0",
@@ -164,7 +170,11 @@
     ]
   },
   "dependencies": {
+    "@percy/cli": "^1.1.0",
+    "@percy/ember": "^3.0.0",
     "codemirror": "^5.56.0",
+    "curved-arrows": "^0.1.0",
+    "d3": "^7.3.0",
     "lru_map": "^0.4.1",
     "no-case": "^3.0.4",
     "title-case": "^3.0.3"

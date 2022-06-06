@@ -1,7 +1,7 @@
 import { set, get } from '@ember/object';
 import ApplicationSerializer from './application';
 import classic from 'ember-classic-decorator';
-
+import { capitalize } from '@ember/string';
 @classic
 export default class VolumeSerializer extends ApplicationSerializer {
   attrs = {
@@ -56,8 +56,7 @@ export default class VolumeSerializer extends ApplicationSerializer {
 
   keyForRelationship(attr, relationshipType) {
     //Embedded relationship attributes don't end in IDs
-    /* eslint-disable-next-line ember/no-string-prototype-extensions */
-    if (this.embeddedRelationships.includes(attr)) return attr.capitalize();
+    if (this.embeddedRelationships.includes(attr)) return capitalize(attr);
     return super.keyForRelationship(attr, relationshipType);
   }
 

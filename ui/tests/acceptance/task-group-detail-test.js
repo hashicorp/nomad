@@ -669,11 +669,20 @@ module('Acceptance | task group detail', function (hooks) {
   testFacet('Status', {
     facet: TaskGroup.facets.status,
     paramName: 'status',
-    expectedOptions: ['Pending', 'Running', 'Complete', 'Failed', 'Lost'],
+    expectedOptions: [
+      'Pending',
+      'Running',
+      'Complete',
+      'Failed',
+      'Lost',
+      'Unknown',
+    ],
     async beforeEach() {
-      ['pending', 'running', 'complete', 'failed', 'lost'].forEach((s) => {
-        server.createList('allocation', 5, { clientStatus: s });
-      });
+      ['pending', 'running', 'complete', 'failed', 'lost', 'unknown'].forEach(
+        (s) => {
+          server.createList('allocation', 5, { clientStatus: s });
+        }
+      );
       await TaskGroup.visit({ id: job.id, name: taskGroup.name });
     },
     filter: (alloc, selection) =>

@@ -71,7 +71,7 @@ Diff        =
 +/- Task Group: "cache"
   +/- Task: "redis"
     +/- Config {
-      +/- image:           "redis:3.2" => "redis:4.0"
+      +/- image:           "redis:7" => "redis:4.0"
           port_map[0][db]: "6379"
         }
 
@@ -96,7 +96,7 @@ Diff        =
 +/- Task Group: "cache"
   +/- Task: "redis"
     +/- Config {
-      +/- image:           "redis:4.0" => "redis:3.2"
+      +/- image:           "redis:4.0" => "redis:7"
           port_map[0][db]: "6379"
         }
 
@@ -108,7 +108,7 @@ Diff        =
 +/- Task Group: "cache"
   +/- Task: "redis"
     +/- Config {
-      +/- image:           "redis:3.2" => "redis:4.0"
+      +/- image:           "redis:7" => "redis:4.0"
           port_map[0][db]: "6379"
         }
 

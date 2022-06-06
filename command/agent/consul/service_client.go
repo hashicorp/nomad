@@ -14,14 +14,12 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper/envoy"
-	"github.com/pkg/errors"
-
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 const (
@@ -215,6 +213,8 @@ func different(wanted *api.AgentServiceRegistration, existing *api.AgentService,
 		return true
 	case !reflect.DeepEqual(wanted.Meta, existing.Meta):
 		return true
+	case !reflect.DeepEqual(wanted.TaggedAddresses, existing.TaggedAddresses):
+		return true
 	case tagsDifferent(wanted.Tags, existing.Tags):
 		return true
 	case connectSidecarDifferent(wanted, sidecar):
@@ -370,115 +370,12 @@ func (o operations) String() string {
 	return fmt.Sprintf("<%d, %d, %d, %d>", len(o.regServices), len(o.regChecks), len(o.deregServices), len(o.deregChecks))
 }
 
-// AllocRegistration holds the status of services registered for a particular
-// allocations by task.
-type AllocRegistration struct {
-	// Tasks maps the name of a task to its registered services and checks
-	Tasks map[string]*ServiceRegistrations
-}
-
-func (a *AllocRegistration) copy() *AllocRegistration {
-	c := &AllocRegistration{
-		Tasks: make(map[string]*ServiceRegistrations, len(a.Tasks)),
-	}
-
-	for k, v := range a.Tasks {
-		c.Tasks[k] = v.copy()
-	}
-
-	return c
-}
-
-// NumServices returns the number of registered services
-func (a *AllocRegistration) NumServices() int {
-	if a == nil {
-		return 0
-	}
-
-	total := 0
-	for _, treg := range a.Tasks {
-		for _, sreg := range treg.Services {
-			if sreg.Service != nil {
-				total++
-			}
-		}
-	}
-
-	return total
-}
-
-// NumChecks returns the number of registered checks
-func (a *AllocRegistration) NumChecks() int {
-	if a == nil {
-		return 0
-	}
-
-	total := 0
-	for _, treg := range a.Tasks {
-		for _, sreg := range treg.Services {
-			total += len(sreg.Checks)
-		}
-	}
-
-	return total
-}
-
-// ServiceRegistrations holds the status of services registered for a particular
-// task or task group.
-type ServiceRegistrations struct {
-	Services map[string]*ServiceRegistration
-}
-
-func (t *ServiceRegistrations) copy() *ServiceRegistrations {
-	c := &ServiceRegistrations{
-		Services: make(map[string]*ServiceRegistration, len(t.Services)),
-	}
-
-	for k, v := range t.Services {
-		c.Services[k] = v.copy()
-	}
-
-	return c
-}
-
-// ServiceRegistration holds the status of a registered Consul Service and its
-// Checks.
-type ServiceRegistration struct {
-	// serviceID and checkIDs are internal fields that track just the IDs of the
-	// services/checks registered in Consul. It is used to materialize the other
-	// fields when queried.
-	serviceID string
-	checkIDs  map[string]struct{}
-
-	// CheckOnUpdate is a map of checkIDs and the associated OnUpdate value
-	// from the ServiceCheck It is used to determine how a reported checks
-	// status should be evaluated.
-	CheckOnUpdate map[string]string
-
-	// Service is the AgentService registered in Consul.
-	Service *api.AgentService
-
-	// Checks is the status of the registered checks.
-	Checks []*api.AgentCheck
-}
-
-func (s *ServiceRegistration) copy() *ServiceRegistration {
-	// Copy does not copy the external fields but only the internal fields. This
-	// is so that the caller of AllocRegistrations can not access the internal
-	// fields and that method uses these fields to populate the external fields.
-	return &ServiceRegistration{
-		serviceID:     s.serviceID,
-		checkIDs:      helper.CopyMapStringStruct(s.checkIDs),
-		CheckOnUpdate: helper.CopyMapStringString(s.CheckOnUpdate),
-	}
-}
-
 // ServiceClient handles task and agent service registration with Consul.
 type ServiceClient struct {
 	agentAPI         AgentAPI
 	namespacesClient *NamespacesClient
 
-	logger           log.Logger
+	logger           hclog.Logger
 	retryInterval    time.Duration
 	maxRetryInterval time.Duration
 	periodicInterval time.Duration
@@ -503,7 +400,7 @@ type ServiceClient struct {
 
 	// allocRegistrations stores the services and checks that are registered
 	// with Consul by allocation ID.
-	allocRegistrations     map[string]*AllocRegistration
+	allocRegistrations     map[string]*serviceregistration.AllocRegistration
 	allocRegistrationsLock sync.RWMutex
 
 	// Nomad agent services and checks that are recorded so they can be removed
@@ -533,7 +430,7 @@ type ServiceClient struct {
 // Client, logger and takes whether the client is being used by a Nomad Client agent.
 // When being used by a Nomad client, this Consul client reconciles all services and
 // checks created by Nomad on behalf of running tasks.
-func NewServiceClient(agentAPI AgentAPI, namespacesClient *NamespacesClient, logger log.Logger, isNomadClient bool) *ServiceClient {
+func NewServiceClient(agentAPI AgentAPI, namespacesClient *NamespacesClient, logger hclog.Logger, isNomadClient bool) *ServiceClient {
 	logger = logger.ResetNamed("consul.sync")
 	return &ServiceClient{
 		agentAPI:                       agentAPI,
@@ -550,7 +447,7 @@ func NewServiceClient(agentAPI AgentAPI, namespacesClient *NamespacesClient, log
 		checks:                         make(map[string]*api.AgentCheckRegistration),
 		explicitlyDeregisteredServices: make(map[string]bool),
 		explicitlyDeregisteredChecks:   make(map[string]bool),
-		allocRegistrations:             make(map[string]*AllocRegistration),
+		allocRegistrations:             make(map[string]*serviceregistration.AllocRegistration),
 		agentServices:                  make(map[string]struct{}),
 		agentChecks:                    make(map[string]struct{}),
 		checkWatcher:                   newCheckWatcher(logger, agentAPI, namespacesClient),
@@ -775,7 +672,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 	namespaces, err := c.namespacesClient.List()
 	if err != nil {
 		metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-		return errors.Wrap(err, "failed to query Consul namespaces")
+		return fmt.Errorf("failed to query Consul namespaces: %w", err)
 	}
 
 	// Accumulate all services in Consul across all namespaces.
@@ -783,7 +680,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 	for _, namespace := range namespaces {
 		if nsServices, err := c.agentAPI.ServicesWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)}); err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-			return errors.Wrap(err, "failed to query Consul services")
+			return fmt.Errorf("failed to query Consul services: %w", err)
 		} else {
 			for k, v := range nsServices {
 				servicesInConsul[k] = v
@@ -873,7 +770,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		nsChecks, err := c.agentAPI.ChecksWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
 		if err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-			return errors.Wrap(err, "failed to query Consul checks")
+			return fmt.Errorf("failed to query Consul checks: %w", err)
 		}
 		for k, v := range nsChecks {
 			checksInConsul[k] = v
@@ -1033,14 +930,15 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 // serviceRegs creates service registrations, check registrations, and script
 // checks from a service. It returns a service registration object with the
 // service and check IDs populated.
-func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, workload *WorkloadServices) (
-	*ServiceRegistration, error) {
+func (c *ServiceClient) serviceRegs(
+	ops *operations, service *structs.Service, workload *serviceregistration.WorkloadServices) (
+	*serviceregistration.ServiceRegistration, error) {
 
 	// Get the services ID
-	id := MakeAllocServiceID(workload.AllocID, workload.Name(), service)
-	sreg := &ServiceRegistration{
-		serviceID:     id,
-		checkIDs:      make(map[string]struct{}, len(service.Checks)),
+	id := serviceregistration.MakeAllocServiceID(workload.AllocID, workload.Name(), service)
+	sreg := &serviceregistration.ServiceRegistration{
+		ServiceID:     id,
+		CheckIDs:      make(map[string]struct{}, len(service.Checks)),
 		CheckOnUpdate: make(map[string]string, len(service.Checks)),
 	}
 
@@ -1051,7 +949,8 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	}
 
 	// Determine the address to advertise based on the mode
-	ip, port, err := getAddress(addrMode, service.PortLabel, workload.Networks, workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
+	ip, port, err := serviceregistration.GetAddress(
+		service.Address, addrMode, service.PortLabel, workload.Networks, workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get address for service %q: %v", service.Name, err)
 	}
@@ -1067,13 +966,13 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	}
 
 	// newConnect returns (nil, nil) if there's no Connect-enabled service.
-	connect, err := newConnect(id, service.Name, service.Connect, workload.Networks, workload.Ports)
+	connect, err := newConnect(id, workload.AllocID, service.Name, service.Connect, workload.Networks, workload.Ports)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}
 
 	// newConnectGateway returns nil if there's no Connect gateway.
-	gateway := newConnectGateway(service.Name, service.Connect)
+	gateway := newConnectGateway(service.Connect)
 
 	// Determine whether to use meta or canary_meta
 	var meta map[string]string
@@ -1130,17 +1029,23 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		}
 	}
 
+	taggedAddresses, err := parseTaggedAddresses(service.TaggedAddresses, port)
+	if err != nil {
+		return nil, err
+	}
+
 	// Build the Consul Service registration request
 	serviceReg := &api.AgentServiceRegistration{
 		Kind:              kind,
 		ID:                id,
 		Name:              service.Name,
-		Namespace:         workload.ConsulNamespace,
+		Namespace:         workload.Namespace,
 		Tags:              tags,
 		EnableTagOverride: service.EnableTagOverride,
 		Address:           ip,
 		Port:              port,
 		Meta:              meta,
+		TaggedAddresses:   taggedAddresses,
 		Connect:           connect, // will be nil if no Connect stanza
 		Proxy:             gateway, // will be nil if no Connect Gateway stanza
 	}
@@ -1152,7 +1057,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		return nil, err
 	}
 	for _, registration := range checkRegs {
-		sreg.checkIDs[registration.ID] = struct{}{}
+		sreg.CheckIDs[registration.ID] = struct{}{}
 		ops.regChecks = append(ops.regChecks, registration)
 	}
 
@@ -1161,7 +1066,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 
 // checkRegs creates check registrations for the given service
 func (c *ServiceClient) checkRegs(serviceID string, service *structs.Service,
-	workload *WorkloadServices, sreg *ServiceRegistration) ([]*api.AgentCheckRegistration, error) {
+	workload *serviceregistration.WorkloadServices, sreg *serviceregistration.ServiceRegistration) ([]*api.AgentCheckRegistration, error) {
 
 	registrations := make([]*api.AgentCheckRegistration, 0, len(service.Checks))
 	for _, check := range service.Checks {
@@ -1176,19 +1081,26 @@ func (c *ServiceClient) checkRegs(serviceID string, service *structs.Service,
 
 			addrMode := check.AddressMode
 			if addrMode == "" {
-				// pre-#3380 compat
-				addrMode = structs.AddressModeHost
+				if service.Address != "" {
+					// if the service is using a custom address, enable the check
+					// to use that address
+					addrMode = structs.AddressModeAuto
+				} else {
+					// otherwise default to the host address
+					addrMode = structs.AddressModeHost
+				}
 			}
 
 			var err error
-			ip, port, err = getAddress(addrMode, portLabel, workload.Networks, workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
+			ip, port, err = serviceregistration.GetAddress(
+				service.Address, addrMode, portLabel, workload.Networks, workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
 			if err != nil {
 				return nil, fmt.Errorf("error getting address for check %q: %v", check.Name, err)
 			}
 		}
 
 		checkID := MakeCheckID(serviceID, check)
-		registration, err := createCheckReg(serviceID, checkID, check, ip, port, workload.ConsulNamespace)
+		registration, err := createCheckReg(serviceID, checkID, check, ip, port, workload.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("failed to add check %q: %v", check.Name, err)
 		}
@@ -1205,15 +1117,15 @@ func (c *ServiceClient) checkRegs(serviceID string, service *structs.Service,
 // Checks will always use the IP from the Task struct (host's IP).
 //
 // Actual communication with Consul is done asynchronously (see Run).
-func (c *ServiceClient) RegisterWorkload(workload *WorkloadServices) error {
+func (c *ServiceClient) RegisterWorkload(workload *serviceregistration.WorkloadServices) error {
 	// Fast path
 	numServices := len(workload.Services)
 	if numServices == 0 {
 		return nil
 	}
 
-	t := new(ServiceRegistrations)
-	t.Services = make(map[string]*ServiceRegistration, numServices)
+	t := new(serviceregistration.ServiceRegistrations)
+	t.Services = make(map[string]*serviceregistration.ServiceRegistration, numServices)
 
 	ops := &operations{}
 	for _, service := range workload.Services {
@@ -1221,7 +1133,7 @@ func (c *ServiceClient) RegisterWorkload(workload *WorkloadServices) error {
 		if err != nil {
 			return err
 		}
-		t.Services[sreg.serviceID] = sreg
+		t.Services[sreg.ServiceID] = sreg
 	}
 
 	// Add the workload to the allocation's registration
@@ -1232,7 +1144,7 @@ func (c *ServiceClient) RegisterWorkload(workload *WorkloadServices) error {
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
 	for _, service := range workload.Services {
-		serviceID := MakeAllocServiceID(workload.AllocID, workload.Name(), service)
+		serviceID := serviceregistration.MakeAllocServiceID(workload.AllocID, workload.Name(), service)
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := MakeCheckID(serviceID, check)
@@ -1247,19 +1159,19 @@ func (c *ServiceClient) RegisterWorkload(workload *WorkloadServices) error {
 // changed.
 //
 // DriverNetwork must not change between invocations for the same allocation.
-func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error {
+func (c *ServiceClient) UpdateWorkload(old, newWorkload *serviceregistration.WorkloadServices) error {
 	ops := new(operations)
-	regs := new(ServiceRegistrations)
-	regs.Services = make(map[string]*ServiceRegistration, len(newWorkload.Services))
+	regs := new(serviceregistration.ServiceRegistrations)
+	regs.Services = make(map[string]*serviceregistration.ServiceRegistration, len(newWorkload.Services))
 
 	newIDs := make(map[string]*structs.Service, len(newWorkload.Services))
 	for _, s := range newWorkload.Services {
-		newIDs[MakeAllocServiceID(newWorkload.AllocID, newWorkload.Name(), s)] = s
+		newIDs[serviceregistration.MakeAllocServiceID(newWorkload.AllocID, newWorkload.Name(), s)] = s
 	}
 
 	// Loop over existing Services to see if they have been removed
 	for _, existingSvc := range old.Services {
-		existingID := MakeAllocServiceID(old.AllocID, old.Name(), existingSvc)
+		existingID := serviceregistration.MakeAllocServiceID(old.AllocID, old.Name(), existingSvc)
 		newSvc, ok := newIDs[existingID]
 
 		if !ok {
@@ -1285,9 +1197,9 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 		}
 
 		// Service still exists so add it to the task's registration
-		sreg := &ServiceRegistration{
-			serviceID:     existingID,
-			checkIDs:      make(map[string]struct{}, len(newSvc.Checks)),
+		sreg := &serviceregistration.ServiceRegistration{
+			ServiceID:     existingID,
+			CheckIDs:      make(map[string]struct{}, len(newSvc.Checks)),
 			CheckOnUpdate: make(map[string]string, len(newSvc.Checks)),
 		}
 		regs.Services[existingID] = sreg
@@ -1305,7 +1217,7 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 				// Check is still required. Remove it from the map so it doesn't get
 				// deleted later.
 				delete(existingChecks, checkID)
-				sreg.checkIDs[checkID] = struct{}{}
+				sreg.CheckIDs[checkID] = struct{}{}
 				sreg.CheckOnUpdate[checkID] = check.OnUpdate
 			}
 
@@ -1316,7 +1228,7 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 			}
 
 			for _, registration := range checkRegs {
-				sreg.checkIDs[registration.ID] = struct{}{}
+				sreg.CheckIDs[registration.ID] = struct{}{}
 				sreg.CheckOnUpdate[registration.ID] = check.OnUpdate
 				ops.regChecks = append(ops.regChecks, registration)
 			}
@@ -1345,7 +1257,7 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 			return err
 		}
 
-		regs.Services[sreg.serviceID] = sreg
+		regs.Services[sreg.ServiceID] = sreg
 	}
 
 	// Add the task to the allocation's registration
@@ -1370,11 +1282,11 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 // RemoveWorkload from Consul. Removes all service entries and checks.
 //
 // Actual communication with Consul is done asynchronously (see Run).
-func (c *ServiceClient) RemoveWorkload(workload *WorkloadServices) {
+func (c *ServiceClient) RemoveWorkload(workload *serviceregistration.WorkloadServices) {
 	ops := operations{}
 
 	for _, service := range workload.Services {
-		id := MakeAllocServiceID(workload.AllocID, workload.Name(), service)
+		id := serviceregistration.MakeAllocServiceID(workload.AllocID, workload.Name(), service)
 		ops.deregServices = append(ops.deregServices, id)
 
 		for _, check := range service.Checks {
@@ -1406,7 +1318,7 @@ func normalizeNamespace(namespace string) string {
 
 // AllocRegistrations returns the registrations for the given allocation. If the
 // allocation has no registrations, the response is a nil object.
-func (c *ServiceClient) AllocRegistrations(allocID string) (*AllocRegistration, error) {
+func (c *ServiceClient) AllocRegistrations(allocID string) (*serviceregistration.AllocRegistration, error) {
 	// Get the internal struct using the lock
 	c.allocRegistrationsLock.RLock()
 	regInternal, ok := c.allocRegistrations[allocID]
@@ -1416,13 +1328,13 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*AllocRegistration, 
 	}
 
 	// Copy so we don't expose internal structs
-	reg := regInternal.copy()
+	reg := regInternal.Copy()
 	c.allocRegistrationsLock.RUnlock()
 
 	// Get the list of all namespaces created so we can iterate them.
 	namespaces, err := c.namespacesClient.List()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to retrieve namespaces from consul")
+		return nil, fmt.Errorf("failed to retrieve namespaces from consul: %w", err)
 	}
 
 	services := make(map[string]*api.AgentService)
@@ -1432,7 +1344,7 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*AllocRegistration, 
 	for _, namespace := range namespaces {
 		nsServices, err := c.agentAPI.ServicesWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to retrieve services from consul")
+			return nil, fmt.Errorf("failed to retrieve services from consul: %w", err)
 		}
 		for k, v := range nsServices {
 			services[k] = v
@@ -1440,7 +1352,7 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*AllocRegistration, 
 
 		nsChecks, err := c.agentAPI.ChecksWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to retrieve checks from consul")
+			return nil, fmt.Errorf("failed to retrieve checks from consul: %w", err)
 		}
 		for k, v := range nsChecks {
 			checks[k] = v
@@ -1451,7 +1363,7 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*AllocRegistration, 
 	for _, treg := range reg.Tasks {
 		for serviceID, sreg := range treg.Services {
 			sreg.Service = services[serviceID]
-			for checkID := range sreg.checkIDs {
+			for checkID := range sreg.CheckIDs {
 				if check, ok := checks[checkID]; ok {
 					sreg.Checks = append(sreg.Checks, check)
 				}
@@ -1547,14 +1459,14 @@ func (c *ServiceClient) Shutdown() error {
 }
 
 // addRegistration adds the service registrations for the given allocation.
-func (c *ServiceClient) addRegistrations(allocID, taskName string, reg *ServiceRegistrations) {
+func (c *ServiceClient) addRegistrations(allocID, taskName string, reg *serviceregistration.ServiceRegistrations) {
 	c.allocRegistrationsLock.Lock()
 	defer c.allocRegistrationsLock.Unlock()
 
 	alloc, ok := c.allocRegistrations[allocID]
 	if !ok {
-		alloc = &AllocRegistration{
-			Tasks: make(map[string]*ServiceRegistrations),
+		alloc = &serviceregistration.AllocRegistration{
+			Tasks: make(map[string]*serviceregistration.ServiceRegistrations),
 		}
 		c.allocRegistrations[allocID] = alloc
 	}
@@ -1590,14 +1502,6 @@ func (c *ServiceClient) removeRegistration(allocID, taskName string) {
 //
 func makeAgentServiceID(role string, service *structs.Service) string {
 	return fmt.Sprintf("%s-%s-%s", nomadServicePrefix, role, service.Hash(role, "", false))
-}
-
-// MakeAllocServiceID creates a unique ID for identifying an alloc service in
-// Consul.
-//
-//	Example Service ID: _nomad-task-b4e61df9-b095-d64e-f241-23860da1375f-redis-http-http
-func MakeAllocServiceID(allocID, taskName string, service *structs.Service) string {
-	return fmt.Sprintf("%s%s-%s-%s-%s", nomadTaskPrefix, allocID, taskName, service.Name, service.PortLabel)
 }
 
 // MakeCheckID creates a unique ID for a check.
@@ -1769,126 +1673,43 @@ func getNomadSidecar(id string, services map[string]*api.AgentService) *api.Agen
 	return services[sidecarID]
 }
 
-// getAddress returns the IP and port to use for a service or check. If no port
-// label is specified (an empty value), zero values are returned because no
-// address could be resolved.
-func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet *drivers.DriverNetwork, ports structs.AllocatedPorts, netStatus *structs.AllocNetworkStatus) (string, int, error) {
-	switch addrMode {
-	case structs.AddressModeAuto:
-		if driverNet.Advertise() {
-			addrMode = structs.AddressModeDriver
-		} else {
-			addrMode = structs.AddressModeHost
-		}
-		return getAddress(addrMode, portLabel, networks, driverNet, ports, netStatus)
-	case structs.AddressModeHost:
-		if portLabel == "" {
-			if len(networks) != 1 {
-				// If no networks are specified return zero
-				// values. Consul will advertise the host IP
-				// with no port. This is the pre-0.7.1 behavior
-				// some people rely on.
-				return "", 0, nil
-			}
-
-			return networks[0].IP, 0, nil
+func parseAddress(raw string, port int) (api.ServiceAddress, error) {
+	result := api.ServiceAddress{}
+	addr, portStr, err := net.SplitHostPort(raw)
+	// Error message from Go's net/ipsock.go
+	if err != nil {
+		if !strings.Contains(err.Error(), "missing port in address") {
+			return result, fmt.Errorf("error parsing address %q: %v", raw, err)
 		}
 
-		// Default path: use host ip:port
-		// Try finding port in the AllocatedPorts struct first
-		// Check in Networks struct for backwards compatibility if not found
-		mapping, ok := ports.Get(portLabel)
-		if !ok {
-			mapping = networks.Port(portLabel)
-			if mapping.Value > 0 {
-				return mapping.HostIP, mapping.Value, nil
-			}
-
-			// If port isn't a label, try to parse it as a literal port number
-			port, err := strconv.Atoi(portLabel)
-			if err != nil {
-				// Don't include Atoi error message as user likely
-				// never intended it to be a numeric and it creates a
-				// confusing error message
-				return "", 0, fmt.Errorf("invalid port %q: port label not found", portLabel)
-			}
-			if port <= 0 {
-				return "", 0, fmt.Errorf("invalid port: %q: port must be >0", portLabel)
-			}
-
-			// A number was given which will use the Consul agent's address and the given port
-			// Returning a blank string as an address will use the Consul agent's address
-			return "", port, nil
+		// Use the whole input as the address if there wasn't a port.
+		if ip := net.ParseIP(raw); ip == nil {
+			return result, fmt.Errorf("error parsing address %q: not an IP address", raw)
 		}
-		return mapping.HostIP, mapping.Value, nil
-
-	case structs.AddressModeDriver:
-		// Require a driver network if driver address mode is used
-		if driverNet == nil {
-			return "", 0, fmt.Errorf(`cannot use address_mode="driver": no driver network exists`)
-		}
-
-		// If no port label is specified just return the IP
-		if portLabel == "" {
-			return driverNet.IP, 0, nil
-		}
-
-		// If the port is a label, use the driver's port (not the host's)
-		if port, ok := ports.Get(portLabel); ok {
-			return driverNet.IP, port.To, nil
-		}
-
-		// Check if old style driver portmap is used
-		if port, ok := driverNet.PortMap[portLabel]; ok {
-			return driverNet.IP, port, nil
-		}
-
-		// If port isn't a label, try to parse it as a literal port number
-		port, err := strconv.Atoi(portLabel)
-		if err != nil {
-			// Don't include Atoi error message as user likely
-			// never intended it to be a numeric and it creates a
-			// confusing error message
-			return "", 0, fmt.Errorf("invalid port label %q: port labels in driver address_mode must be numeric or in the driver's port map", portLabel)
-		}
-		if port <= 0 {
-			return "", 0, fmt.Errorf("invalid port: %q: port must be >0", portLabel)
-		}
-
-		return driverNet.IP, port, nil
-
-	case structs.AddressModeAlloc:
-		if netStatus == nil {
-			return "", 0, fmt.Errorf(`cannot use address_mode="alloc": no allocation network status reported`)
-		}
-
-		// If no port label is specified just return the IP
-		if portLabel == "" {
-			return netStatus.Address, 0, nil
-		}
-
-		// If port is a label and is found then return it
-		if port, ok := ports.Get(portLabel); ok {
-			// Use port.To value unless not set
-			if port.To > 0 {
-				return netStatus.Address, port.To, nil
-			}
-			return netStatus.Address, port.Value, nil
-		}
-
-		// Check if port is a literal number
-		port, err := strconv.Atoi(portLabel)
-		if err != nil {
-			// User likely specified wrong port label here
-			return "", 0, fmt.Errorf("invalid port %q: port label not found or is not numeric", portLabel)
-		}
-		if port <= 0 {
-			return "", 0, fmt.Errorf("invalid port: %q: port must be >0", portLabel)
-		}
-		return netStatus.Address, port, nil
-
-	default:
-		// Shouldn't happen due to validation, but enforce invariants
-		return "", 0, fmt.Errorf("invalid address mode %q", addrMode)
+		addr = raw
 	}
+
+	if portStr != "" {
+		port, err = strconv.Atoi(portStr)
+		if err != nil {
+			return result, fmt.Errorf("error parsing port %q: %v", portStr, err)
+		}
+	}
+
+	result.Address = addr
+	result.Port = port
+	return result, nil
+}
+
+// morph the tagged_addresses map into the structure consul api wants
+func parseTaggedAddresses(m map[string]string, port int) (map[string]api.ServiceAddress, error) {
+	result := make(map[string]api.ServiceAddress, len(m))
+	for k, v := range m {
+		sa, err := parseAddress(v, port)
+		if err != nil {
+			return nil, err
+		}
+		result[k] = sa
+	}
+	return result, nil
 }

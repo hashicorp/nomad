@@ -1545,7 +1545,7 @@ func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
 	// Fetch the response
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), "missing Vault Token") {
+	if err == nil || !strings.Contains(err.Error(), "missing Vault token") {
 		t.Fatalf("expected Vault not enabled error: %v", err)
 	}
 }
@@ -1645,15 +1645,13 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 		t.Fatalf("vault token not cleared")
 	}
 
-	// Check that an implicit constraint was created
+	// Check that an implicit constraints were created for Vault and Consul.
 	constraints := out.TaskGroups[0].Constraints
-	if l := len(constraints); l != 1 {
+	if l := len(constraints); l != 2 {
 		t.Fatalf("Unexpected number of tests: %v", l)
 	}
 
-	if !constraints[0].Equal(vaultConstraint) {
-		t.Fatalf("bad constraint; got %#v; want %#v", constraints[0], vaultConstraint)
-	}
+	require.ElementsMatch(t, constraints, []*structs.Constraint{consulServiceDiscoveryConstraint, vaultConstraint})
 
 	// Create the register request with another job asking for a vault policy but
 	// send the root Vault token
@@ -2605,7 +2603,7 @@ func TestJobEndpoint_Revert_Vault_NoToken(t *testing.T) {
 
 	// Fetch the response
 	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp)
-	if err == nil || !strings.Contains(err.Error(), "missing Vault Token") {
+	if err == nil || !strings.Contains(err.Error(), "missing Vault token") {
 		t.Fatalf("expected Vault not enabled error: %v", err)
 	}
 }
@@ -6222,15 +6220,11 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 		t.Fatalf("index mis-match")
 	}
 
-	// Check that there is an implicit vault constraint
-	constraints := out.TaskGroups[0].Constraints
-	if len(constraints) != 1 {
-		t.Fatalf("Expected an implicit constraint")
-	}
-
-	if !constraints[0].Equal(vaultConstraint) {
-		t.Fatalf("Expected implicit vault constraint")
-	}
+	// Check that there is an implicit Vault and Consul constraint.
+	require.Len(t, out.TaskGroups[0].Constraints, 2)
+	require.ElementsMatch(t, out.TaskGroups[0].Constraints, []*structs.Constraint{
+		consulServiceDiscoveryConstraint, vaultConstraint,
+	})
 }
 
 func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
@@ -6380,20 +6374,11 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 		t.Fatalf("index mis-match")
 	}
 
-	// Check that there is an implicit signal constraint
-	constraints := out.TaskGroups[0].Constraints
-	if len(constraints) != 1 {
-		t.Fatalf("Expected an implicit constraint")
-	}
-
-	sigConstraint := getSignalConstraint([]string{signal1, signal2})
-	if !strings.HasPrefix(sigConstraint.RTarget, "SIGHUP") {
-		t.Fatalf("signals not sorted: %v", sigConstraint.RTarget)
-	}
-
-	if !constraints[0].Equal(sigConstraint) {
-		t.Fatalf("Expected implicit vault constraint")
-	}
+	// Check that there is an implicit signal and Consul constraint.
+	require.Len(t, out.TaskGroups[0].Constraints, 2)
+	require.ElementsMatch(t, out.TaskGroups[0].Constraints, []*structs.Constraint{
+		getSignalConstraint([]string{signal1, signal2}), consulServiceDiscoveryConstraint},
+	)
 }
 
 func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
@@ -7916,5 +7901,282 @@ func TestJobEndpoint_GetScaleStatus_ACL(t *testing.T) {
 		err = msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &validResp)
 		require.NoError(err, tc.name)
 		require.NotNil(validResp.JobScaleStatus)
+	}
+}
+
+func TestJob_GetServiceRegistrations(t *testing.T) {
+	ci.Parallel(t)
+
+	// This function is a helper function to set up job and service which can
+	// be queried.
+	correctSetupFn := func(s *Server) (error, string, *structs.ServiceRegistration) {
+		// Generate an upsert a job.
+		job := mock.Job()
+		err := s.State().UpsertJob(structs.MsgTypeTestSetup, 10, job)
+		if err != nil {
+			return nil, "", nil
+		}
+
+		// Generate services. Set the jobID on the first service so this
+		// matches the job now held in state.
+		services := mock.ServiceRegistrations()
+		services[0].JobID = job.ID
+		err = s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 20, services)
+
+		return err, job.ID, services[0]
+	}
+
+	testCases := []struct {
+		serverFn func(t *testing.T) (*Server, *structs.ACLToken, func())
+		testFn   func(t *testing.T, s *Server, token *structs.ACLToken)
+		name     string
+	}{
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				server, cleanup := TestServer(t, nil)
+				return server, nil, cleanup
+			},
+			testFn: func(t *testing.T, s *Server, _ *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				err, jobID, service := correctSetupFn(s)
+				require.NoError(t, err)
+
+				// Perform a lookup and test the response.
+				serviceRegReq := &structs.JobServiceRegistrationsRequest{
+					JobID: jobID,
+					QueryOptions: structs.QueryOptions{
+						Namespace: service.Namespace,
+						Region:    s.Region(),
+					},
+				}
+				var serviceRegResp structs.JobServiceRegistrationsResponse
+				err = msgpackrpc.CallWithCodec(codec, structs.JobServiceRegistrationsRPCMethod, serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+				require.EqualValues(t, uint64(20), serviceRegResp.Index)
+				require.ElementsMatch(t, serviceRegResp.Services, []*structs.ServiceRegistration{service})
+			},
+			name: "ACLs disabled job found with regs",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				server, cleanup := TestServer(t, nil)
+				return server, nil, cleanup
+			},
+			testFn: func(t *testing.T, s *Server, _ *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				// Generate and upsert our services.
+				services := mock.ServiceRegistrations()
+				require.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 20, services))
+
+				// Perform a lookup on the first service using the job ID. This
+				// job does not exist within the Nomad state meaning the
+				// service is orphaned or the caller used an incorrect job ID.
+				serviceRegReq := &structs.JobServiceRegistrationsRequest{
+					JobID: services[0].JobID,
+					QueryOptions: structs.QueryOptions{
+						Namespace: services[0].Namespace,
+						Region:    s.Region(),
+					},
+				}
+				var serviceRegResp structs.JobServiceRegistrationsResponse
+				err := msgpackrpc.CallWithCodec(codec, structs.JobServiceRegistrationsRPCMethod, serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+				require.Nil(t, serviceRegResp.Services)
+			},
+			name: "ACLs disabled job not found",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				server, cleanup := TestServer(t, nil)
+				return server, nil, cleanup
+			},
+			testFn: func(t *testing.T, s *Server, _ *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				// Generate an upsert a job.
+				job := mock.Job()
+				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
+
+				// Perform a lookup and test the response.
+				serviceRegReq := &structs.JobServiceRegistrationsRequest{
+					JobID: job.ID,
+					QueryOptions: structs.QueryOptions{
+						Namespace: job.Namespace,
+						Region:    s.Region(),
+					},
+				}
+				var serviceRegResp structs.JobServiceRegistrationsResponse
+				err := msgpackrpc.CallWithCodec(codec, structs.JobServiceRegistrationsRPCMethod, serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+				require.ElementsMatch(t, serviceRegResp.Services, []*structs.ServiceRegistration{})
+			},
+			name: "ACLs disabled job found without regs",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				return TestACLServer(t, nil)
+			},
+			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				err, jobID, service := correctSetupFn(s)
+				require.NoError(t, err)
+
+				// Perform a lookup and test the response.
+				serviceRegReq := &structs.JobServiceRegistrationsRequest{
+					JobID: jobID,
+					QueryOptions: structs.QueryOptions{
+						Namespace: service.Namespace,
+						Region:    s.Region(),
+						AuthToken: token.SecretID,
+					},
+				}
+				var serviceRegResp structs.JobServiceRegistrationsResponse
+				err = msgpackrpc.CallWithCodec(codec, structs.JobServiceRegistrationsRPCMethod, serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+				require.ElementsMatch(t, serviceRegResp.Services, []*structs.ServiceRegistration{service})
+			},
+			name: "ACLs enabled use management token",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				return TestACLServer(t, nil)
+			},
+			testFn: func(t *testing.T, s *Server, _ *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				err, jobID, service := correctSetupFn(s)
+				require.NoError(t, err)
+
+				// Create and policy and grab the auth token.
+				authToken := mock.CreatePolicyAndToken(t, s.State(), 30, "test-node-get-service-reg",
+					mock.NamespacePolicy(service.Namespace, "", []string{acl.NamespaceCapabilityReadJob})).SecretID
+
+				// Perform a lookup and test the response.
+				serviceRegReq := &structs.JobServiceRegistrationsRequest{
+					JobID: jobID,
+					QueryOptions: structs.QueryOptions{
+						Namespace: service.Namespace,
+						Region:    s.Region(),
+						AuthToken: authToken,
+					},
+				}
+				var serviceRegResp structs.JobServiceRegistrationsResponse
+				err = msgpackrpc.CallWithCodec(codec, structs.JobServiceRegistrationsRPCMethod, serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+				require.ElementsMatch(t, serviceRegResp.Services, []*structs.ServiceRegistration{service})
+			},
+			name: "ACLs enabled use read-job namespace capability token",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				return TestACLServer(t, nil)
+			},
+			testFn: func(t *testing.T, s *Server, _ *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				err, jobID, service := correctSetupFn(s)
+				require.NoError(t, err)
+
+				// Create and policy and grab the auth token.
+				authToken := mock.CreatePolicyAndToken(t, s.State(), 30, "test-node-get-service-reg",
+					mock.NamespacePolicy(service.Namespace, "read", nil)).SecretID
+
+				// Perform a lookup and test the response.
+				serviceRegReq := &structs.JobServiceRegistrationsRequest{
+					JobID: jobID,
+					QueryOptions: structs.QueryOptions{
+						Namespace: service.Namespace,
+						Region:    s.Region(),
+						AuthToken: authToken,
+					},
+				}
+				var serviceRegResp structs.JobServiceRegistrationsResponse
+				err = msgpackrpc.CallWithCodec(codec, structs.JobServiceRegistrationsRPCMethod, serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+				require.ElementsMatch(t, serviceRegResp.Services, []*structs.ServiceRegistration{service})
+			},
+			name: "ACLs enabled use read namespace policy token",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				return TestACLServer(t, nil)
+			},
+			testFn: func(t *testing.T, s *Server, _ *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				err, jobID, service := correctSetupFn(s)
+				require.NoError(t, err)
+
+				// Create and policy and grab the auth token.
+				authToken := mock.CreatePolicyAndToken(t, s.State(), 30, "test-node-get-service-reg",
+					mock.NamespacePolicy("ohno", "read", nil)).SecretID
+
+				// Perform a lookup and test the response.
+				serviceRegReq := &structs.JobServiceRegistrationsRequest{
+					JobID: jobID,
+					QueryOptions: structs.QueryOptions{
+						Namespace: service.Namespace,
+						Region:    s.Region(),
+						AuthToken: authToken,
+					},
+				}
+				var serviceRegResp structs.JobServiceRegistrationsResponse
+				err = msgpackrpc.CallWithCodec(codec, structs.JobServiceRegistrationsRPCMethod, serviceRegReq, &serviceRegResp)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "Permission denied")
+				require.Empty(t, serviceRegResp.Services)
+			},
+			name: "ACLs enabled use read incorrect namespace policy token",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				return TestACLServer(t, nil)
+			},
+			testFn: func(t *testing.T, s *Server, _ *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				err, jobID, service := correctSetupFn(s)
+				require.NoError(t, err)
+
+				// Create and policy and grab the auth token.
+				authToken := mock.CreatePolicyAndToken(t, s.State(), 30, "test-node-get-service-reg",
+					mock.NamespacePolicy(service.Namespace, "", []string{acl.NamespaceCapabilityReadScalingPolicy})).SecretID
+
+				// Perform a lookup and test the response.
+				serviceRegReq := &structs.JobServiceRegistrationsRequest{
+					JobID: jobID,
+					QueryOptions: structs.QueryOptions{
+						Namespace: service.Namespace,
+						Region:    s.Region(),
+						AuthToken: authToken,
+					},
+				}
+				var serviceRegResp structs.JobServiceRegistrationsResponse
+				err = msgpackrpc.CallWithCodec(codec, structs.JobServiceRegistrationsRPCMethod, serviceRegReq, &serviceRegResp)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "Permission denied")
+				require.Empty(t, serviceRegResp.Services)
+			},
+			name: "ACLs enabled use incorrect capability",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			server, aclToken, cleanup := tc.serverFn(t)
+			defer cleanup()
+			tc.testFn(t, server, aclToken)
+		})
 	}
 }

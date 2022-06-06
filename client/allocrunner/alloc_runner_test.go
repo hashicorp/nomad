@@ -1,6 +1,7 @@
 package allocrunner
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,9 +13,9 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allochealth"
 	"github.com/hashicorp/nomad/client/allocwatcher"
-	cconsul "github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/serviceregistration"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
-	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -492,7 +493,8 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	tg := alloc.Job.TaskGroups[0]
 	tg.Services = []*structs.Service{
 		{
-			Name: "shutdown_service",
+			Name:     "shutdown_service",
+			Provider: structs.ServiceProviderConsul,
 		},
 	}
 
@@ -580,9 +582,9 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	})
 
 	// Get consul client operations
-	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
+	consulClient := conf.Consul.(*regMock.ServiceRegistrationHandler)
 	consulOpts := consulClient.GetOps()
-	var groupRemoveOp cconsul.MockConsulOp
+	var groupRemoveOp regMock.Operation
 	for _, op := range consulOpts {
 		// Grab the first deregistration request
 		if op.Op == "remove" && op.Name == "group-web" {
@@ -1033,12 +1035,12 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	defer cleanup()
 
 	// Only return the check as healthy after a duration
-	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
-	consulClient.AllocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
-		return &consul.AllocRegistration{
-			Tasks: map[string]*consul.ServiceRegistrations{
+	consulClient := conf.Consul.(*regMock.ServiceRegistrationHandler)
+	consulClient.AllocRegistrationsFn = func(allocID string) (*serviceregistration.AllocRegistration, error) {
+		return &serviceregistration.AllocRegistration{
+			Tasks: map[string]*serviceregistration.ServiceRegistrations{
 				task.Name: {
-					Services: map[string]*consul.ServiceRegistration{
+					Services: map[string]*serviceregistration.ServiceRegistration{
 						"123": {
 							Service: &api.AgentService{Service: "fakeservice"},
 							Checks:  []*api.AgentCheck{checkUnhealthy},
@@ -1319,6 +1321,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 		{
 			Name:      "fakservice",
 			PortLabel: "http",
+			Provider:  structs.ServiceProviderConsul,
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:     "fakecheck",
@@ -1357,12 +1360,12 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	conf, cleanup := testAllocRunnerConfig(t, alloc)
 	defer cleanup()
 
-	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
-	consulClient.AllocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
-		return &consul.AllocRegistration{
-			Tasks: map[string]*consul.ServiceRegistrations{
+	consulClient := conf.Consul.(*regMock.ServiceRegistrationHandler)
+	consulClient.AllocRegistrationsFn = func(allocID string) (*serviceregistration.AllocRegistration, error) {
+		return &serviceregistration.AllocRegistration{
+			Tasks: map[string]*serviceregistration.ServiceRegistrations{
 				task.Name: {
-					Services: map[string]*consul.ServiceRegistration{
+					Services: map[string]*serviceregistration.ServiceRegistration{
 						"123": {
 							Service: &api.AgentService{Service: "fakeservice"},
 							Checks:  []*api.AgentCheck{checkHealthy},
@@ -1572,4 +1575,111 @@ func TestAllocRunner_PersistState_Destroyed(t *testing.T) {
 	_, ts, err = conf.StateDB.GetTaskRunnerState(alloc.ID, taskName)
 	require.NoError(t, err)
 	require.Nil(t, ts)
+}
+
+func TestAllocRunner_Reconnect(t *testing.T) {
+	t.Parallel()
+
+	type tcase struct {
+		clientStatus string
+		taskState    string
+		taskEvent    *structs.TaskEvent
+	}
+	tcases := []tcase{
+		{
+			structs.AllocClientStatusRunning,
+			structs.TaskStateRunning,
+			structs.NewTaskEvent(structs.TaskStarted),
+		},
+		{
+			structs.AllocClientStatusComplete,
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskTerminated),
+		},
+		{
+			structs.AllocClientStatusFailed,
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskDriverFailure).SetFailsTask(),
+		},
+		{
+			structs.AllocClientStatusPending,
+			structs.TaskStatePending,
+			structs.NewTaskEvent(structs.TaskReceived),
+		},
+	}
+
+	for _, tc := range tcases {
+		t.Run(tc.clientStatus, func(t *testing.T) {
+			// create a running alloc
+			alloc := mock.BatchAlloc()
+			alloc.AllocModifyIndex = 10
+			alloc.ModifyIndex = 10
+			alloc.ModifyTime = time.Now().UnixNano()
+
+			// Ensure task takes some time
+			task := alloc.Job.TaskGroups[0].Tasks[0]
+			task.Driver = "mock_driver"
+			task.Config["run_for"] = "30s"
+
+			original := alloc.Copy()
+
+			conf, cleanup := testAllocRunnerConfig(t, alloc)
+			defer cleanup()
+
+			ar, err := NewAllocRunner(conf)
+			require.NoError(t, err)
+			defer destroy(ar)
+
+			go ar.Run()
+
+			for _, taskRunner := range ar.tasks {
+				taskRunner.UpdateState(tc.taskState, tc.taskEvent)
+			}
+
+			update := ar.Alloc().Copy()
+
+			update.ClientStatus = structs.AllocClientStatusUnknown
+			update.AllocModifyIndex = original.AllocModifyIndex + 10
+			update.ModifyIndex = original.ModifyIndex + 10
+			update.ModifyTime = original.ModifyTime + 10
+
+			err = ar.Reconnect(update)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.clientStatus, ar.AllocState().ClientStatus)
+
+
+			// Make sure the runner's alloc indexes match the update.
+			require.Equal(t, update.AllocModifyIndex, ar.Alloc().AllocModifyIndex)
+			require.Equal(t, update.ModifyIndex, ar.Alloc().ModifyIndex)
+			require.Equal(t, update.ModifyTime, ar.Alloc().ModifyTime)
+
+			found := false
+
+			updater := conf.StateUpdater.(*MockStateUpdater)
+			var last *structs.Allocation
+			testutil.WaitForResult(func() (bool, error) {
+				last = updater.Last()
+				if last == nil {
+					return false, errors.New("last update nil")
+				}
+
+				states := last.TaskStates
+				for _, s := range states {
+					for _, e := range s.Events {
+						if e.Type == structs.TaskClientReconnected {
+							found = true
+							return true, nil
+						}
+					}
+				}
+
+				return false, errors.New("no reconnect event found")
+			}, func(err error) {
+				require.NoError(t, err)
+			})
+
+			require.True(t, found, "no reconnect event found")
+		})
+	}
 }

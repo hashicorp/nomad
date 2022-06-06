@@ -3,7 +3,6 @@ package taskrunner
 import (
 	"context"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -42,30 +41,20 @@ func TestConnectNativeHook_Name(t *testing.T) {
 }
 
 func setupCertDirs(t *testing.T) (string, string) {
-	fd, err := ioutil.TempFile("", "connect_native_testcert")
+	fd, err := ioutil.TempFile(t.TempDir(), "connect_native_testcert")
 	require.NoError(t, err)
 	_, err = fd.WriteString("ABCDEF")
 	require.NoError(t, err)
 	err = fd.Close()
 	require.NoError(t, err)
 
-	d, err := ioutil.TempDir("", "connect_native_testsecrets")
-	require.NoError(t, err)
-	return fd.Name(), d
-}
-
-func cleanupCertDirs(t *testing.T, original, secrets string) {
-	err := os.Remove(original)
-	require.NoError(t, err)
-	err = os.RemoveAll(secrets)
-	require.NoError(t, err)
+	return fd.Name(), t.TempDir()
 }
 
 func TestConnectNativeHook_copyCertificate(t *testing.T) {
 	ci.Parallel(t)
 
 	f, d := setupCertDirs(t)
-	defer cleanupCertDirs(t, f, d)
 
 	t.Run("no source", func(t *testing.T) {
 		err := new(connectNativeHook).copyCertificate("", d, "out.pem")
@@ -85,7 +74,6 @@ func TestConnectNativeHook_copyCertificates(t *testing.T) {
 	ci.Parallel(t)
 
 	f, d := setupCertDirs(t)
-	defer cleanupCertDirs(t, f, d)
 
 	t.Run("normal", func(t *testing.T) {
 		err := new(connectNativeHook).copyCertificates(consulTransportConfig{
@@ -450,8 +438,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 	testutil.RequireConsul(t)
 
 	try := func(t *testing.T, shareSSL *bool) {
-		fakeCert, fakeCertDir := setupCertDirs(t)
-		defer cleanupCertDirs(t, fakeCert, fakeCertDir)
+		fakeCert, _ := setupCertDirs(t)
 
 		testConsul := getTestConsul(t)
 		defer testConsul.Stop()
@@ -570,8 +557,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
-	fakeCert, fakeCertDir := setupCertDirs(t)
-	defer cleanupCertDirs(t, fakeCert, fakeCertDir)
+	fakeCert, _ := setupCertDirs(t)
 
 	testConsul := getTestConsul(t)
 	defer testConsul.Stop()

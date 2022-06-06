@@ -14,8 +14,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -192,9 +194,35 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 			false, "")
 		require.Zero(t, r.exitCode)
 
-		if !strings.Contains(r.stdout, ":freezer:/nomad") && !strings.Contains(r.stdout, "freezer:/docker") {
-			require.Fail(t, "unexpected freezer cgroup", "expected freezer to be /nomad/ or /docker/, but found:\n%s", r.stdout)
+		if !cgutil.UseV2 {
+			acceptable := []string{
+				":freezer:/nomad", ":freezer:/docker",
+			}
+			if testutil.IsCI() {
+				// github actions freezer cgroup
+				acceptable = append(acceptable, ":freezer:/actions_job")
+			}
 
+			ok := false
+			for _, freezerGroup := range acceptable {
+				if strings.Contains(r.stdout, freezerGroup) {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				require.Fail(t, "unexpected freezer cgroup", "expected freezer to be /nomad/ or /docker/, but found:\n%s", r.stdout)
+			}
+		} else {
+			info, _ := driver.PluginInfo()
+			if info.Name == "docker" {
+				// Note: docker on cgroups v2 now returns nothing
+				// root@97b4d3d33035:/# cat /proc/self/cgroup
+				// 0::/
+				t.Skip("/proc/self/cgroup not useful in docker cgroups.v2")
+			}
+			// e.g. 0::/testing.slice/5bdbd6c2-8aba-3ab2-728b-0ff3a81727a9.sleep.scope
+			require.True(t, strings.HasSuffix(strings.TrimSpace(r.stdout), ".scope"), "actual stdout %q", r.stdout)
 		}
 	})
 }

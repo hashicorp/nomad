@@ -171,6 +171,14 @@ func SliceStringToSet(s []string) map[string]struct{} {
 	return m
 }
 
+func SetToSliceString(set map[string]struct{}) []string {
+	flattened := make([]string, 0, len(set))
+	for x := range set {
+		flattened = append(flattened, x)
+	}
+	return flattened
+}
+
 // SliceStringIsSubset returns whether the smaller set of strings is a subset of
 // the larger. If the smaller slice is not a subset, the offending elements are
 // returned.
@@ -344,6 +352,29 @@ func CopyMapStringInterface(m map[string]interface{}) map[string]interface{} {
 	return c
 }
 
+// MergeMapStringString will merge two maps into one. If a duplicate key exists
+// the value in the second map will replace the value in the first map. If both
+// maps are empty or nil this returns an empty map.
+func MergeMapStringString(m map[string]string, n map[string]string) map[string]string {
+	if len(m) == 0 && len(n) == 0 {
+		return map[string]string{}
+	}
+	if len(m) == 0 {
+		return n
+	}
+	if len(n) == 0 {
+		return m
+	}
+
+	result := CopyMapStringString(m)
+
+	for k, v := range n {
+		result[k] = v
+	}
+
+	return result
+}
+
 func CopyMapStringInt(m map[string]int) map[string]int {
 	l := len(m)
 	if l == 0 {
@@ -370,8 +401,6 @@ func CopyMapStringFloat64(m map[string]float64) map[string]float64 {
 	return c
 }
 
-// CopyMapStringSliceString copies a map of strings to string slices such as
-// http.Header
 func CopyMapStringSliceString(m map[string][]string) map[string][]string {
 	l := len(m)
 	if l == 0 {

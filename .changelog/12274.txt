@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Enable support for cgroups v2
+```

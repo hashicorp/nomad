@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -15,8 +14,9 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/client/config"
-	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
+	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
@@ -30,8 +30,6 @@ import (
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
-
-	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/stretchr/testify/require"
 )
 
@@ -442,6 +440,7 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 	job := mock.Job()
 	// allow running job on any node including self client, that may not be a Linux box
 	job.Constraints = nil
+	job.TaskGroups[0].Constraints = nil
 	job.TaskGroups[0].Count = 1
 	task := job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -618,7 +617,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	c1.config.Logger = logger
 	consulCatalog := consul.NewMockCatalog(logger)
-	mockService := consulApi.NewMockConsulServiceClient(t, logger)
+	mockService := regMock.NewServiceRegistrationHandler(logger)
 
 	// ensure we use non-shutdown driver instances
 	c1.config.PluginLoader = catalog.TestPluginLoaderWithOptions(t, "", c1.config.Options, nil)
@@ -734,11 +733,7 @@ func TestClient_AddAllocError(t *testing.T) {
 func TestClient_Init(t *testing.T) {
 	ci.Parallel(t)
 
-	dir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	allocDir := filepath.Join(dir, "alloc")
 
 	config := config.DefaultConfig()
@@ -1713,4 +1708,90 @@ func Test_verifiedTasks(t *testing.T) {
 		tgTasks := []string{"g1t1", "g1t2", "g1t3"}
 		try(t, alloc(tgTasks), tasks, tasks, "")
 	})
+}
+
+func TestClient_ReconnectAllocs(t *testing.T) {
+	t.Parallel()
+
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
+		c.DevMode = false
+		c.RPCHandler = s1
+	})
+	defer cleanupC1()
+
+	waitTilNodeReady(c1, t)
+
+	job := mock.Job()
+
+	runningAlloc := mock.Alloc()
+	runningAlloc.NodeID = c1.Node().ID
+	runningAlloc.Job = job
+	runningAlloc.JobID = job.ID
+	runningAlloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	runningAlloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+	runningAlloc.ClientStatus = structs.AllocClientStatusPending
+
+	state := s1.State()
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
+	require.NoError(t, err)
+
+	err = state.UpsertJobSummary(101, mock.JobSummary(runningAlloc.JobID))
+	require.NoError(t, err)
+
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{runningAlloc})
+	require.NoError(t, err)
+
+	// Ensure allocation gets upserted with desired status.
+	testutil.WaitForResult(func() (bool, error) {
+		upsertResult, stateErr := state.AllocByID(nil, runningAlloc.ID)
+		return upsertResult.ClientStatus == structs.AllocClientStatusRunning, stateErr
+	}, func(err error) {
+		require.NoError(t, err, "allocation query failed")
+	})
+
+	// Create the unknown version of the alloc from the running one, update state
+	// to simulate what reconciler would have done, and then send to the client.
+	unknownAlloc, err := state.AllocByID(nil, runningAlloc.ID)
+	require.Equal(t, structs.AllocClientStatusRunning, unknownAlloc.ClientStatus)
+	require.NoError(t, err)
+	unknownAlloc.ClientStatus = structs.AllocClientStatusUnknown
+	unknownAlloc.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, runningAlloc.AllocModifyIndex+1, []*structs.Allocation{unknownAlloc})
+	require.NoError(t, err)
+
+	updates := &allocUpdates{
+		pulled: map[string]*structs.Allocation{
+			unknownAlloc.ID: unknownAlloc,
+		},
+	}
+
+	c1.runAllocs(updates)
+
+	invalid := false
+	var runner AllocRunner
+	var finalAlloc *structs.Allocation
+	// Ensure the allocation is not invalid on the client and has been marked
+	// running on the server with the new modify index
+	testutil.WaitForResult(func() (result bool, stateErr error) {
+		c1.allocLock.RLock()
+		runner = c1.allocs[unknownAlloc.ID]
+		_, invalid = c1.invalidAllocs[unknownAlloc.ID]
+		c1.allocLock.RUnlock()
+
+		finalAlloc, stateErr = state.AllocByID(nil, unknownAlloc.ID)
+		result = structs.AllocClientStatusRunning == finalAlloc.ClientStatus
+		return
+	}, func(err error) {
+		require.NoError(t, err, "allocation server check failed")
+	})
+
+	require.NotNil(t, runner, "expected alloc runner")
+	require.False(t, invalid, "expected alloc to not be marked invalid")
+	require.Equal(t, unknownAlloc.AllocModifyIndex, finalAlloc.AllocModifyIndex)
 }

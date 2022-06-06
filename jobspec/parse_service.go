@@ -50,7 +50,9 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 		"task",
 		"meta",
 		"canary_meta",
+		"tagged_addresses",
 		"on_update",
+		"provider",
 	}
 	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return nil, err
@@ -67,6 +69,7 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 	delete(m, "connect")
 	delete(m, "meta")
 	delete(m, "canary_meta")
+	delete(m, "tagged_addresses")
 
 	if err := mapstructure.WeakDecode(m, &service); err != nil {
 		return nil, err
@@ -134,6 +137,20 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 				return nil, err
 			}
 			if err := mapstructure.WeakDecode(m, &service.CanaryMeta); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Parse out tagged_addresses fields. These are in HCL as a list so we need
+	// to iterate over them and merge them.
+	if taO := listVal.Filter("tagged_addresses"); len(taO.Items) > 0 {
+		for _, o := range taO.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return nil, err
+			}
+			if err := mapstructure.WeakDecode(m, &service.TaggedAddresses); err != nil {
 				return nil, err
 			}
 		}
@@ -524,6 +541,9 @@ func parseConsulIngressListener(o *ast.ObjectItem) (*api.ConsulIngressListener, 
 func parseConsulGatewayTLS(o *ast.ObjectItem) (*api.ConsulGatewayTLSConfig, error) {
 	valid := []string{
 		"enabled",
+		"tls_min_version",
+		"tls_max_version",
+		"cipher_suites",
 	}
 
 	if err := checkHCLKeys(o.Val, valid); err != nil {

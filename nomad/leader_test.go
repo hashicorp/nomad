@@ -1186,6 +1186,7 @@ func leaderElectionTest(t *testing.T, raftProtocol raft.ProtocolVersion) {
 
 func TestLeader_RollRaftServer(t *testing.T) {
 	ci.Parallel(t)
+	ci.SkipSlow(t, "flaky on GHA; #12358")
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 2
@@ -1389,7 +1390,7 @@ func TestLeader_TransitionsUpdateConsistencyRead(t *testing.T) {
 // (and unpaused) upon leader elections (and step downs).
 func TestLeader_PausingWorkers(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 12
 	})

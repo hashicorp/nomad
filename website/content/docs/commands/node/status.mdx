@@ -47,6 +47,16 @@ capability.
 
 - `-verbose`: Show full information.
 
+- `-per-page`: How many results to show per page.
+
+- `-page-token`: Where to start pagination.
+
+- `-filter`: Specifies an expression used to filter query results.
+
+- `-os`: Display operating system name.
+
+- `-quiet`:  Display only node IDs.
+
 - `-json` : Output the node in its JSON format.
 
 - `-t` : Format and display node using a Go template.
@@ -61,6 +71,27 @@ ID        DC   Name   Class   Drain  Eligibility  Status
 a72dfba2  dc1  node1  <none>  false  eligible     ready
 1f3f03ea  dc1  node2  <none>  false  eligible     ready
 ```
+
+List view, with operating system name:
+
+```shell-session
+$ nomad node status -os
+ID        DC   Name   Class   OS      Drain  Eligibility  Status
+a72dfba2  dc1  node1  <none>  ubuntu  false  eligible     ready
+f73e3993  dc1  node2  <none>  centos  false  eligible     ready
+```
+
+List view, with quiet:
+
+```shell-session
+$ nomad node status -quiet
+820561cf-830d-b089-cg03-f2cfc4cecff7
+07949e3a-4c25-e1bf-3dbh-984c2e28fec2
+8bc2c581-37ba-dj08-9f67-53bc217f36f8
+f35be281-85a5-d1e6-d268-6e8a6f0684df
+```
+
+**NOTE**: `-quiet` cannot be used in conjuction with `-verbose` or `-json`.
 
 List view, with running allocations:
 

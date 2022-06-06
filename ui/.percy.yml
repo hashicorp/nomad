@@ -1,0 +1,12 @@
+version: 1
+snapshot:
+  # Hide high-variability data from Percy snapshots; helps make sure that randomized data doesn't cause a visual diff.
+  percy-css: | 
+    .topo-viz { 
+      display: none;
+    }
+    .related-evaluations path,
+    .related-evaluations circle,
+    .dashboard-metric {
+      visibility: hidden;
+    }

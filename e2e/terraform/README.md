@@ -36,7 +36,7 @@ values for `VAULT_TOKEN`, `VAULT_ADDR`, and `VAULT_NAMESPACE`:
 ```
 cd ./hcp-vault-auth
 terraform apply --auto-approve
-$(terraform output environment --raw)
+$(terraform output --raw environment)
 ```
 
 Optionally, edit the `terraform.tfvars` file to change the number of
@@ -83,6 +83,27 @@ folder and upload them to the cluster during provisioning.
   * `client-linux-0.hcl`, etc. are specific to individual instances.
 * `etc/consul.d` are the Consul agent configuration files.
 * `etc/acls` are ACL policy files for Consul and Vault.
+
+## Web UI
+
+To access the web UI, deploy a reverse proxy to the cluster. All
+clients have a TLS proxy certificate at `/etc/nomad.d/tls_proxy.crt`
+and a self-signed cert at `/etc/nomad.d/self_signed.crt`. See
+`../ui/inputs/proxy.nomad` for an example of using this. Deploy as follows:
+
+```sh
+nomad namespace apply proxy
+nomad job run ../ui/input/proxy.nomad
+```
+
+You can get the public IP for the proxy allocation from the following
+nested query:
+
+```sh
+nomad node status -json -verbose \
+    $(nomad operator api '/v1/allocations?namespace=proxy' | jq -r '.[] | select(.JobID == "nomad-proxy") | .NodeID') \
+    | jq '.Attributes."unique.platform.aws.public-ipv4"'
+```
 
 ## Outputs
 

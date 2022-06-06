@@ -2,8 +2,132 @@ package api
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 )
+
+// ServiceRegistration is an instance of a single allocation advertising itself
+// as a named service with a specific address. Each registration is constructed
+// from the job specification Service block. Whether the service is registered
+// within Nomad, and therefore generates a ServiceRegistration is controlled by
+// the Service.Provider parameter.
+type ServiceRegistration struct {
+
+	// ID is the unique identifier for this registration. It currently follows
+	// the Consul service registration format to provide consistency between
+	// the two solutions.
+	ID string
+
+	// ServiceName is the human friendly identifier for this service
+	// registration.
+	ServiceName string
+
+	// Namespace represents the namespace within which this service is
+	// registered.
+	Namespace string
+
+	// NodeID is Node.ID on which this service registration is currently
+	// running.
+	NodeID string
+
+	// Datacenter is the DC identifier of the node as identified by
+	// Node.Datacenter.
+	Datacenter string
+
+	// JobID is Job.ID and represents the job which contained the service block
+	// which resulted in this service registration.
+	JobID string
+
+	// AllocID is Allocation.ID and represents the allocation within which this
+	// service is running.
+	AllocID string
+
+	// Tags are determined from either Service.Tags or Service.CanaryTags and
+	// help identify this service. Tags can also be used to perform lookups of
+	// services depending on their state and role.
+	Tags []string
+
+	// Address is the IP address of this service registration. This information
+	// comes from the client and is not guaranteed to be routable; this depends
+	// on cluster network topology.
+	Address string
+
+	// Port is the port number on which this service registration is bound. It
+	// is determined by a combination of factors on the client.
+	Port int
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// ServiceRegistrationListStub represents all service registrations held within a
+// single namespace.
+type ServiceRegistrationListStub struct {
+
+	// Namespace details the namespace in which these services have been
+	// registered.
+	Namespace string
+
+	// Services is a list of services found within the namespace.
+	Services []*ServiceRegistrationStub
+}
+
+// ServiceRegistrationStub is the stub object describing an individual
+// namespaced service. The object is built in a manner which would allow us to
+// add additional fields in the future, if we wanted.
+type ServiceRegistrationStub struct {
+
+	// ServiceName is the human friendly name for this service as specified
+	// within Service.Name.
+	ServiceName string
+
+	// Tags is a list of unique tags found for this service. The list is
+	// de-duplicated automatically by Nomad.
+	Tags []string
+}
+
+// Services is used to query the service endpoints.
+type Services struct {
+	client *Client
+}
+
+// Services returns a new handle on the services endpoints.
+func (c *Client) Services() *Services {
+	return &Services{client: c}
+}
+
+// List can be used to list all service registrations currently stored within
+// the target namespace. It returns a stub response object.
+func (s *Services) List(q *QueryOptions) ([]*ServiceRegistrationListStub, *QueryMeta, error) {
+	var resp []*ServiceRegistrationListStub
+	qm, err := s.client.query("/v1/services", &resp, q)
+	if err != nil {
+		return nil, qm, err
+	}
+	return resp, qm, nil
+}
+
+// Get is used to return a list of service registrations whose name matches the
+// specified parameter.
+func (s *Services) Get(serviceName string, q *QueryOptions) ([]*ServiceRegistration, *QueryMeta, error) {
+	var resp []*ServiceRegistration
+	qm, err := s.client.query("/v1/service/"+url.PathEscape(serviceName), &resp, q)
+	if err != nil {
+		return nil, qm, err
+	}
+	return resp, qm, nil
+}
+
+// Delete can be used to delete an individual service registration as defined
+// by its service name and service ID.
+func (s *Services) Delete(serviceName, serviceID string, q *WriteOptions) (*WriteMeta, error) {
+	path := fmt.Sprintf("/v1/service/%s/%s", url.PathEscape(serviceName), url.PathEscape(serviceID))
+	wm, err := s.client.delete(path, nil, q)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
 
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
@@ -70,10 +194,8 @@ func (c *CheckRestart) Merge(o *CheckRestart) *CheckRestart {
 	return nc
 }
 
-// ServiceCheck represents the consul health check that Nomad registers.
+// ServiceCheck represents a Nomad job-submitters view of a Consul service health check.
 type ServiceCheck struct {
-	//FIXME Id is unused. Remove?
-	Id                     string              `hcl:"id,optional"`
 	Name                   string              `hcl:"name,optional"`
 	Type                   string              `hcl:"type,optional"`
 	Command                string              `hcl:"command,optional"`
@@ -83,6 +205,7 @@ type ServiceCheck struct {
 	PortLabel              string              `mapstructure:"port" hcl:"port,optional"`
 	Expose                 bool                `hcl:"expose,optional"`
 	AddressMode            string              `mapstructure:"address_mode" hcl:"address_mode,optional"`
+	Advertise              string              `hcl:"advertise,optional"`
 	Interval               time.Duration       `hcl:"interval,optional"`
 	Timeout                time.Duration       `hcl:"timeout,optional"`
 	InitialStatus          string              `mapstructure:"initial_status" hcl:"initial_status,optional"`
@@ -99,29 +222,37 @@ type ServiceCheck struct {
 	OnUpdate               string              `mapstructure:"on_update" hcl:"on_update,optional"`
 }
 
-// Service represents a Consul service definition.
+// Service represents a Nomad job-submitters view of a Consul or Nomad service.
 type Service struct {
-	//FIXME Id is unused. Remove?
-	Id                string            `hcl:"id,optional"`
 	Name              string            `hcl:"name,optional"`
 	Tags              []string          `hcl:"tags,optional"`
 	CanaryTags        []string          `mapstructure:"canary_tags" hcl:"canary_tags,optional"`
 	EnableTagOverride bool              `mapstructure:"enable_tag_override" hcl:"enable_tag_override,optional"`
 	PortLabel         string            `mapstructure:"port" hcl:"port,optional"`
 	AddressMode       string            `mapstructure:"address_mode" hcl:"address_mode,optional"`
+	Address           string            `hcl:"address,optional"`
 	Checks            []ServiceCheck    `hcl:"check,block"`
 	CheckRestart      *CheckRestart     `mapstructure:"check_restart" hcl:"check_restart,block"`
 	Connect           *ConsulConnect    `hcl:"connect,block"`
 	Meta              map[string]string `hcl:"meta,block"`
 	CanaryMeta        map[string]string `hcl:"canary_meta,block"`
+	TaggedAddresses   map[string]string `hcl:"tagged_addresses,block"`
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
 	OnUpdate          string            `mapstructure:"on_update" hcl:"on_update,optional"`
+
+	// Provider defines which backend system provides the service registration,
+	// either "consul" (default) or "nomad".
+	Provider string `hcl:"provider,optional"`
 }
 
 const (
 	OnUpdateRequireHealthy = "require_healthy"
 	OnUpdateIgnoreWarn     = "ignore_warnings"
 	OnUpdateIgnore         = "ignore"
+
+	// ServiceProviderConsul is the default provider for services when no
+	// parameter is set.
+	ServiceProviderConsul = "consul"
 )
 
 // Canonicalize the Service by ensuring its name and address mode are set. Task
@@ -145,6 +276,23 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 		s.OnUpdate = OnUpdateRequireHealthy
 	}
 
+	// Default the service provider.
+	if s.Provider == "" {
+		s.Provider = ServiceProviderConsul
+	}
+
+	if len(s.Meta) == 0 {
+		s.Meta = nil
+	}
+
+	if len(s.CanaryMeta) == 0 {
+		s.CanaryMeta = nil
+	}
+
+	if len(s.TaggedAddresses) == 0 {
+		s.TaggedAddresses = nil
+	}
+
 	s.Connect.Canonicalize()
 
 	// Canonicalize CheckRestart on Checks and merge Service.CheckRestart
@@ -166,558 +314,4 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 			s.Checks[i].OnUpdate = s.OnUpdate
 		}
 	}
-}
-
-// ConsulConnect represents a Consul Connect jobspec stanza.
-type ConsulConnect struct {
-	Native         bool                  `hcl:"native,optional"`
-	Gateway        *ConsulGateway        `hcl:"gateway,block"`
-	SidecarService *ConsulSidecarService `mapstructure:"sidecar_service" hcl:"sidecar_service,block"`
-	SidecarTask    *SidecarTask          `mapstructure:"sidecar_task" hcl:"sidecar_task,block"`
-}
-
-func (cc *ConsulConnect) Canonicalize() {
-	if cc == nil {
-		return
-	}
-
-	cc.SidecarService.Canonicalize()
-	cc.SidecarTask.Canonicalize()
-	cc.Gateway.Canonicalize()
-}
-
-// ConsulSidecarService represents a Consul Connect SidecarService jobspec
-// stanza.
-type ConsulSidecarService struct {
-	Tags                   []string     `hcl:"tags,optional"`
-	Port                   string       `hcl:"port,optional"`
-	Proxy                  *ConsulProxy `hcl:"proxy,block"`
-	DisableDefaultTCPCheck bool         `mapstructure:"disable_default_tcp_check" hcl:"disable_default_tcp_check,optional"`
-}
-
-func (css *ConsulSidecarService) Canonicalize() {
-	if css == nil {
-		return
-	}
-
-	if len(css.Tags) == 0 {
-		css.Tags = nil
-	}
-
-	css.Proxy.Canonicalize()
-}
-
-// SidecarTask represents a subset of Task fields that can be set to override
-// the fields of the Task generated for the sidecar
-type SidecarTask struct {
-	Name          string                 `hcl:"name,optional"`
-	Driver        string                 `hcl:"driver,optional"`
-	User          string                 `hcl:"user,optional"`
-	Config        map[string]interface{} `hcl:"config,block"`
-	Env           map[string]string      `hcl:"env,block"`
-	Resources     *Resources             `hcl:"resources,block"`
-	Meta          map[string]string      `hcl:"meta,block"`
-	KillTimeout   *time.Duration         `mapstructure:"kill_timeout" hcl:"kill_timeout,optional"`
-	LogConfig     *LogConfig             `mapstructure:"logs" hcl:"logs,block"`
-	ShutdownDelay *time.Duration         `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
-	KillSignal    string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
-}
-
-func (st *SidecarTask) Canonicalize() {
-	if st == nil {
-		return
-	}
-
-	if len(st.Config) == 0 {
-		st.Config = nil
-	}
-
-	if len(st.Env) == 0 {
-		st.Env = nil
-	}
-
-	if st.Resources == nil {
-		st.Resources = DefaultResources()
-	} else {
-		st.Resources.Canonicalize()
-	}
-
-	if st.LogConfig == nil {
-		st.LogConfig = DefaultLogConfig()
-	} else {
-		st.LogConfig.Canonicalize()
-	}
-
-	if len(st.Meta) == 0 {
-		st.Meta = nil
-	}
-
-	if st.KillTimeout == nil {
-		st.KillTimeout = timeToPtr(5 * time.Second)
-	}
-
-	if st.ShutdownDelay == nil {
-		st.ShutdownDelay = timeToPtr(0)
-	}
-}
-
-// ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
-type ConsulProxy struct {
-	LocalServiceAddress string                 `mapstructure:"local_service_address" hcl:"local_service_address,optional"`
-	LocalServicePort    int                    `mapstructure:"local_service_port" hcl:"local_service_port,optional"`
-	ExposeConfig        *ConsulExposeConfig    `mapstructure:"expose" hcl:"expose,block"`
-	Upstreams           []*ConsulUpstream      `hcl:"upstreams,block"`
-	Config              map[string]interface{} `hcl:"config,block"`
-}
-
-func (cp *ConsulProxy) Canonicalize() {
-	if cp == nil {
-		return
-	}
-
-	cp.ExposeConfig.Canonicalize()
-
-	if len(cp.Upstreams) == 0 {
-		cp.Upstreams = nil
-	}
-
-	for _, upstream := range cp.Upstreams {
-		upstream.Canonicalize()
-	}
-
-	if len(cp.Config) == 0 {
-		cp.Config = nil
-	}
-}
-
-// ConsulMeshGateway is used to configure mesh gateway usage when connecting to
-// a connect upstream in another datacenter.
-type ConsulMeshGateway struct {
-	// Mode configures how an upstream should be accessed with regard to using
-	// mesh gateways.
-	//
-	// local - the connect proxy makes outbound connections through mesh gateway
-	// originating in the same datacenter.
-	//
-	// remote - the connect proxy makes outbound connections to a mesh gateway
-	// in the destination datacenter.
-	//
-	// none (default) - no mesh gateway is used, the proxy makes outbound connections
-	// directly to destination services.
-	//
-	// https://www.consul.io/docs/connect/gateways/mesh-gateway#modes-of-operation
-	Mode string `mapstructure:"mode" hcl:"mode,optional"`
-}
-
-func (c *ConsulMeshGateway) Canonicalize() {
-	// Mode may be empty string, indicating behavior will defer to Consul
-	// service-defaults config entry.
-	return
-}
-
-func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
-	if c == nil {
-		return nil
-	}
-
-	return &ConsulMeshGateway{
-		Mode: c.Mode,
-	}
-}
-
-// ConsulUpstream represents a Consul Connect upstream jobspec stanza.
-type ConsulUpstream struct {
-	DestinationName  string             `mapstructure:"destination_name" hcl:"destination_name,optional"`
-	LocalBindPort    int                `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
-	Datacenter       string             `mapstructure:"datacenter" hcl:"datacenter,optional"`
-	LocalBindAddress string             `mapstructure:"local_bind_address" hcl:"local_bind_address,optional"`
-	MeshGateway      *ConsulMeshGateway `mapstructure:"mesh_gateway" hcl:"mesh_gateway,block"`
-}
-
-func (cu *ConsulUpstream) Copy() *ConsulUpstream {
-	if cu == nil {
-		return nil
-	}
-	return &ConsulUpstream{
-		DestinationName:  cu.DestinationName,
-		LocalBindPort:    cu.LocalBindPort,
-		Datacenter:       cu.Datacenter,
-		LocalBindAddress: cu.LocalBindAddress,
-		MeshGateway:      cu.MeshGateway.Copy(),
-	}
-}
-
-func (cu *ConsulUpstream) Canonicalize() {
-	if cu == nil {
-		return
-	}
-	cu.MeshGateway.Canonicalize()
-}
-
-type ConsulExposeConfig struct {
-	Path []*ConsulExposePath `mapstructure:"path" hcl:"path,block"`
-}
-
-func (cec *ConsulExposeConfig) Canonicalize() {
-	if cec == nil {
-		return
-	}
-
-	if len(cec.Path) == 0 {
-		cec.Path = nil
-	}
-}
-
-type ConsulExposePath struct {
-	Path          string `hcl:"path,optional"`
-	Protocol      string `hcl:"protocol,optional"`
-	LocalPathPort int    `mapstructure:"local_path_port" hcl:"local_path_port,optional"`
-	ListenerPort  string `mapstructure:"listener_port" hcl:"listener_port,optional"`
-}
-
-// ConsulGateway is used to configure one of the Consul Connect Gateway types.
-type ConsulGateway struct {
-	// Proxy is used to configure the Envoy instance acting as the gateway.
-	Proxy *ConsulGatewayProxy `hcl:"proxy,block"`
-
-	// Ingress represents the Consul Configuration Entry for an Ingress Gateway.
-	Ingress *ConsulIngressConfigEntry `hcl:"ingress,block"`
-
-	// Terminating represents the Consul Configuration Entry for a Terminating Gateway.
-	Terminating *ConsulTerminatingConfigEntry `hcl:"terminating,block"`
-
-	// Mesh indicates the Consul service should be a Mesh Gateway.
-	Mesh *ConsulMeshConfigEntry `hcl:"mesh,block"`
-}
-
-func (g *ConsulGateway) Canonicalize() {
-	if g == nil {
-		return
-	}
-	g.Proxy.Canonicalize()
-	g.Ingress.Canonicalize()
-	g.Terminating.Canonicalize()
-}
-
-func (g *ConsulGateway) Copy() *ConsulGateway {
-	if g == nil {
-		return nil
-	}
-
-	return &ConsulGateway{
-		Proxy:       g.Proxy.Copy(),
-		Ingress:     g.Ingress.Copy(),
-		Terminating: g.Terminating.Copy(),
-	}
-}
-
-type ConsulGatewayBindAddress struct {
-	Name    string `hcl:",label"`
-	Address string `mapstructure:"address" hcl:"address,optional"`
-	Port    int    `mapstructure:"port" hcl:"port,optional"`
-}
-
-var (
-	// defaultGatewayConnectTimeout is the default amount of time connections to
-	// upstreams are allowed before timing out.
-	defaultGatewayConnectTimeout = 5 * time.Second
-)
-
-// ConsulGatewayProxy is used to tune parameters of the proxy instance acting as
-// one of the forms of Connect gateways that Consul supports.
-//
-// https://www.consul.io/docs/connect/proxies/envoy#gateway-options
-type ConsulGatewayProxy struct {
-	ConnectTimeout                  *time.Duration                       `mapstructure:"connect_timeout" hcl:"connect_timeout,optional"`
-	EnvoyGatewayBindTaggedAddresses bool                                 `mapstructure:"envoy_gateway_bind_tagged_addresses" hcl:"envoy_gateway_bind_tagged_addresses,optional"`
-	EnvoyGatewayBindAddresses       map[string]*ConsulGatewayBindAddress `mapstructure:"envoy_gateway_bind_addresses" hcl:"envoy_gateway_bind_addresses,block"`
-	EnvoyGatewayNoDefaultBind       bool                                 `mapstructure:"envoy_gateway_no_default_bind" hcl:"envoy_gateway_no_default_bind,optional"`
-	EnvoyDNSDiscoveryType           string                               `mapstructure:"envoy_dns_discovery_type" hcl:"envoy_dns_discovery_type,optional"`
-	Config                          map[string]interface{}               `hcl:"config,block"` // escape hatch envoy config
-}
-
-func (p *ConsulGatewayProxy) Canonicalize() {
-	if p == nil {
-		return
-	}
-
-	if p.ConnectTimeout == nil {
-		// same as the default from consul
-		p.ConnectTimeout = timeToPtr(defaultGatewayConnectTimeout)
-	}
-
-	if len(p.EnvoyGatewayBindAddresses) == 0 {
-		p.EnvoyGatewayBindAddresses = nil
-	}
-
-	if len(p.Config) == 0 {
-		p.Config = nil
-	}
-}
-
-func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
-	if p == nil {
-		return nil
-	}
-
-	var binds map[string]*ConsulGatewayBindAddress = nil
-	if p.EnvoyGatewayBindAddresses != nil {
-		binds = make(map[string]*ConsulGatewayBindAddress, len(p.EnvoyGatewayBindAddresses))
-		for k, v := range p.EnvoyGatewayBindAddresses {
-			binds[k] = v
-		}
-	}
-
-	var config map[string]interface{} = nil
-	if p.Config != nil {
-		config = make(map[string]interface{}, len(p.Config))
-		for k, v := range p.Config {
-			config[k] = v
-		}
-	}
-
-	return &ConsulGatewayProxy{
-		ConnectTimeout:                  timeToPtr(*p.ConnectTimeout),
-		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
-		EnvoyGatewayBindAddresses:       binds,
-		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,
-		EnvoyDNSDiscoveryType:           p.EnvoyDNSDiscoveryType,
-		Config:                          config,
-	}
-}
-
-// ConsulGatewayTLSConfig is used to configure TLS for a gateway.
-type ConsulGatewayTLSConfig struct {
-	Enabled bool `hcl:"enabled,optional"`
-}
-
-func (tc *ConsulGatewayTLSConfig) Canonicalize() {
-}
-
-func (tc *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
-	if tc == nil {
-		return nil
-	}
-
-	return &ConsulGatewayTLSConfig{
-		Enabled: tc.Enabled,
-	}
-}
-
-// ConsulIngressService is used to configure a service fronted by the ingress gateway.
-type ConsulIngressService struct {
-	// Namespace is not yet supported.
-	// Namespace string
-	Name string `hcl:"name,optional"`
-
-	Hosts []string `hcl:"hosts,optional"`
-}
-
-func (s *ConsulIngressService) Canonicalize() {
-	if s == nil {
-		return
-	}
-
-	if len(s.Hosts) == 0 {
-		s.Hosts = nil
-	}
-}
-
-func (s *ConsulIngressService) Copy() *ConsulIngressService {
-	if s == nil {
-		return nil
-	}
-
-	var hosts []string = nil
-	if n := len(s.Hosts); n > 0 {
-		hosts = make([]string, n)
-		copy(hosts, s.Hosts)
-	}
-
-	return &ConsulIngressService{
-		Name:  s.Name,
-		Hosts: hosts,
-	}
-}
-
-const (
-	defaultIngressListenerProtocol = "tcp"
-)
-
-// ConsulIngressListener is used to configure a listener on a Consul Ingress
-// Gateway.
-type ConsulIngressListener struct {
-	Port     int                     `hcl:"port,optional"`
-	Protocol string                  `hcl:"protocol,optional"`
-	Services []*ConsulIngressService `hcl:"service,block"`
-}
-
-func (l *ConsulIngressListener) Canonicalize() {
-	if l == nil {
-		return
-	}
-
-	if l.Protocol == "" {
-		// same as default from consul
-		l.Protocol = defaultIngressListenerProtocol
-	}
-
-	if len(l.Services) == 0 {
-		l.Services = nil
-	}
-}
-
-func (l *ConsulIngressListener) Copy() *ConsulIngressListener {
-	if l == nil {
-		return nil
-	}
-
-	var services []*ConsulIngressService = nil
-	if n := len(l.Services); n > 0 {
-		services = make([]*ConsulIngressService, n)
-		for i := 0; i < n; i++ {
-			services[i] = l.Services[i].Copy()
-		}
-	}
-
-	return &ConsulIngressListener{
-		Port:     l.Port,
-		Protocol: l.Protocol,
-		Services: services,
-	}
-}
-
-// ConsulIngressConfigEntry represents the Consul Configuration Entry type for
-// an Ingress Gateway.
-//
-// https://www.consul.io/docs/agent/config-entries/ingress-gateway#available-fields
-type ConsulIngressConfigEntry struct {
-	// Namespace is not yet supported.
-	// Namespace string
-
-	TLS       *ConsulGatewayTLSConfig  `hcl:"tls,block"`
-	Listeners []*ConsulIngressListener `hcl:"listener,block"`
-}
-
-func (e *ConsulIngressConfigEntry) Canonicalize() {
-	if e == nil {
-		return
-	}
-
-	e.TLS.Canonicalize()
-
-	if len(e.Listeners) == 0 {
-		e.Listeners = nil
-	}
-
-	for _, listener := range e.Listeners {
-		listener.Canonicalize()
-	}
-}
-
-func (e *ConsulIngressConfigEntry) Copy() *ConsulIngressConfigEntry {
-	if e == nil {
-		return nil
-	}
-
-	var listeners []*ConsulIngressListener = nil
-	if n := len(e.Listeners); n > 0 {
-		listeners = make([]*ConsulIngressListener, n)
-		for i := 0; i < n; i++ {
-			listeners[i] = e.Listeners[i].Copy()
-		}
-	}
-
-	return &ConsulIngressConfigEntry{
-		TLS:       e.TLS.Copy(),
-		Listeners: listeners,
-	}
-}
-
-type ConsulLinkedService struct {
-	Name     string `hcl:"name,optional"`
-	CAFile   string `hcl:"ca_file,optional" mapstructure:"ca_file"`
-	CertFile string `hcl:"cert_file,optional" mapstructure:"cert_file"`
-	KeyFile  string `hcl:"key_file,optional" mapstructure:"key_file"`
-	SNI      string `hcl:"sni,optional"`
-}
-
-func (s *ConsulLinkedService) Canonicalize() {
-	// nothing to do for now
-}
-
-func (s *ConsulLinkedService) Copy() *ConsulLinkedService {
-	if s == nil {
-		return nil
-	}
-
-	return &ConsulLinkedService{
-		Name:     s.Name,
-		CAFile:   s.CAFile,
-		CertFile: s.CertFile,
-		KeyFile:  s.KeyFile,
-		SNI:      s.SNI,
-	}
-}
-
-// ConsulTerminatingConfigEntry represents the Consul Configuration Entry type
-// for a Terminating Gateway.
-//
-// https://www.consul.io/docs/agent/config-entries/terminating-gateway#available-fields
-type ConsulTerminatingConfigEntry struct {
-	// Namespace is not yet supported.
-	// Namespace string
-
-	Services []*ConsulLinkedService `hcl:"service,block"`
-}
-
-func (e *ConsulTerminatingConfigEntry) Canonicalize() {
-	if e == nil {
-		return
-	}
-
-	if len(e.Services) == 0 {
-		e.Services = nil
-	}
-
-	for _, service := range e.Services {
-		service.Canonicalize()
-	}
-}
-
-func (e *ConsulTerminatingConfigEntry) Copy() *ConsulTerminatingConfigEntry {
-	if e == nil {
-		return nil
-	}
-
-	var services []*ConsulLinkedService = nil
-	if n := len(e.Services); n > 0 {
-		services = make([]*ConsulLinkedService, n)
-		for i := 0; i < n; i++ {
-			services[i] = e.Services[i].Copy()
-		}
-	}
-
-	return &ConsulTerminatingConfigEntry{
-		Services: services,
-	}
-}
-
-// ConsulMeshConfigEntry is a stub used to represent that the gateway service type
-// should be for a Mesh Gateway. Unlike Ingress and Terminating, there is no
-// actual Consul Config Entry type for mesh-gateway, at least for now. We still
-// create a type for future proofing, instead just using a bool for example.
-type ConsulMeshConfigEntry struct {
-	// nothing in here
-}
-
-func (e *ConsulMeshConfigEntry) Canonicalize() {
-	return
-}
-
-func (e *ConsulMeshConfigEntry) Copy() *ConsulMeshConfigEntry {
-	if e == nil {
-		return nil
-	}
-	return new(ConsulMeshConfigEntry)
 }

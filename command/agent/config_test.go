@@ -120,7 +120,7 @@ func TestConfig_Merge(t *testing.T) {
 			ClientMaxPort:     19996,
 			DisableRemoteExec: false,
 			TemplateConfig: &client.ClientTemplateConfig{
-				FunctionDenylist: []string{"plugin"},
+				FunctionDenylist: client.DefaultTemplateFunctionDenylist,
 				DisableSandbox:   false,
 			},
 			Reserved: &Resources{
@@ -129,6 +129,7 @@ func TestConfig_Merge(t *testing.T) {
 				DiskMB:        10,
 				ReservedPorts: "1,10-30,55",
 			},
+			NomadServiceDiscovery: helper.BoolToPtr(false),
 		},
 		Server: &ServerConfig{
 			Enabled:                false,
@@ -304,7 +305,7 @@ func TestConfig_Merge(t *testing.T) {
 			MaxKillTimeout:    "50s",
 			DisableRemoteExec: false,
 			TemplateConfig: &client.ClientTemplateConfig{
-				FunctionDenylist: []string{"plugin"},
+				FunctionDenylist: client.DefaultTemplateFunctionDenylist,
 				DisableSandbox:   false,
 			},
 			Reserved: &Resources{
@@ -317,6 +318,7 @@ func TestConfig_Merge(t *testing.T) {
 			GCParallelDestroys:    6,
 			GCDiskUsageThreshold:  71,
 			GCInodeUsageThreshold: 86,
+			NomadServiceDiscovery: helper.BoolToPtr(false),
 		},
 		Server: &ServerConfig{
 			Enabled:                true,
@@ -489,11 +491,7 @@ func TestConfig_LoadConfigDir(t *testing.T) {
 		t.Fatalf("expected error, got nothing")
 	}
 
-	dir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Returns empty config on empty dir
 	config, err := LoadConfig(dir)
@@ -574,11 +572,7 @@ func TestConfig_LoadConfig(t *testing.T) {
 			expectedConfigFiles, config.Files)
 	}
 
-	dir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	file1 := filepath.Join(dir, "config1.hcl")
 	err = ioutil.WriteFile(file1, []byte(`{"datacenter":"sfo"}`), 0600)
@@ -1335,12 +1329,10 @@ func TestTelemetry_Parse(t *testing.T) {
 	ci.Parallel(t)
 
 	require := require.New(t)
-	dir, err := ioutil.TempDir("", "nomad")
-	require.NoError(err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	file1 := filepath.Join(dir, "config1.hcl")
-	err = ioutil.WriteFile(file1, []byte(`telemetry{
+	err := ioutil.WriteFile(file1, []byte(`telemetry{
 		prefix_filter = ["+nomad.raft"]
 		filter_default = false
 		disable_dispatched_job_summary_metrics = true
@@ -1452,41 +1444,79 @@ func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 	require.Equal(t, 20*time.Second, *templateConfig.VaultRetry.MaxBackoff)
 }
 
-func TestConfig_LoadConsulTemplateBasic(t *testing.T) {
-	ci.Parallel(t)
+func TestConfig_LoadConsulTemplate_FunctionDenylist(t *testing.T) {
+	cases := []struct {
+		File     string
+		Expected *client.ClientTemplateConfig
+	}{
+		{
+			"test-resources/minimal_client.hcl",
+			nil,
+		},
+		{
+			"test-resources/client_with_basic_template.json",
+			&client.ClientTemplateConfig{
+				DisableSandbox:   true,
+				FunctionDenylist: []string{},
+			},
+		},
+		{
+			"test-resources/client_with_basic_template.hcl",
+			&client.ClientTemplateConfig{
+				DisableSandbox:   true,
+				FunctionDenylist: []string{},
+			},
+		},
+		{
+			"test-resources/client_with_function_denylist.hcl",
+			&client.ClientTemplateConfig{
+				DisableSandbox:   false,
+				FunctionDenylist: []string{"foo"},
+			},
+		},
+		{
+			"test-resources/client_with_function_denylist_empty.hcl",
+			&client.ClientTemplateConfig{
+				DisableSandbox:   false,
+				FunctionDenylist: []string{},
+			},
+		},
+		{
+			"test-resources/client_with_function_denylist_empty_string.hcl",
+			&client.ClientTemplateConfig{
+				DisableSandbox:   true,
+				FunctionDenylist: []string{""},
+			},
+		},
+		{
+			"test-resources/client_with_function_denylist_empty_string.json",
+			&client.ClientTemplateConfig{
+				DisableSandbox:   true,
+				FunctionDenylist: []string{""},
+			},
+		},
+		{
+			"test-resources/client_with_function_denylist_nil.hcl",
+			&client.ClientTemplateConfig{
+				DisableSandbox: true,
+			},
+		},
+		{
+			"test-resources/client_with_empty_template.hcl",
+			nil,
+		},
+	}
 
-	defaultConfig := DefaultConfig()
+	for _, tc := range cases {
+		t.Run(tc.File, func(t *testing.T) {
+			agentConfig, err := LoadConfig(tc.File)
 
-	// hcl
-	agentConfig, err := LoadConfig("test-resources/client_with_basic_template.hcl")
-	require.NoError(t, err)
-	require.NotNil(t, agentConfig.Client.TemplateConfig)
+			require.NoError(t, err)
 
-	agentConfig = defaultConfig.Merge(agentConfig)
-
-	clientAgent := Agent{config: agentConfig}
-	clientConfig, err := clientAgent.clientConfig()
-	require.NoError(t, err)
-
-	templateConfig := clientConfig.TemplateConfig
-	require.NotNil(t, templateConfig)
-	require.True(t, templateConfig.DisableSandbox)
-	require.Len(t, templateConfig.FunctionDenylist, 1)
-
-	// json
-	agentConfig, err = LoadConfig("test-resources/client_with_basic_template.json")
-	require.NoError(t, err)
-
-	agentConfig = defaultConfig.Merge(agentConfig)
-
-	clientAgent = Agent{config: agentConfig}
-	clientConfig, err = clientAgent.clientConfig()
-	require.NoError(t, err)
-
-	templateConfig = clientConfig.TemplateConfig
-	require.NotNil(t, templateConfig)
-	require.True(t, templateConfig.DisableSandbox)
-	require.Len(t, templateConfig.FunctionDenylist, 1)
+			templateConfig := agentConfig.Client.TemplateConfig
+			require.Equal(t, tc.Expected, templateConfig)
+		})
+	}
 }
 
 func TestParseMultipleIPTemplates(t *testing.T) {

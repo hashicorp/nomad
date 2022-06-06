@@ -21,10 +21,10 @@ func TestConfig_ParseHCL(t *testing.T) {
 		{
 			"basic image",
 			`config {
-				image = "redis:3.2"
+				image = "redis:7"
 			}`,
 			&TaskConfig{
-				Image:            "redis:3.2",
+				Image:            "redis:7",
 				Devices:          []DockerDevice{},
 				Mounts:           []DockerMount{},
 				MountsList:       []DockerMount{},
@@ -196,7 +196,7 @@ func TestConfig_ParseAllHCL(t *testing.T) {
 
 	cfgStr := `
 config {
-  image = "redis:3.2"
+  image = "redis:7"
   image_pull_timeout = "15m"
   advertise_ipv6_address = true
   args = ["command_arg1", "command_arg2"]
@@ -342,7 +342,7 @@ config {
 }`
 
 	expected := &TaskConfig{
-		Image:             "redis:3.2",
+		Image:             "redis:7",
 		ImagePullTimeout:  "15m",
 		AdvertiseIPv6Addr: true,
 		Args:              []string{"command_arg1", "command_arg2"},
@@ -704,7 +704,7 @@ func TestConfig_DriverConfig_PullActivityTimeout(t *testing.T) {
 
 func TestConfig_DriverConfig_AllowRuntimes(t *testing.T) {
 	ci.Parallel(t)
-	
+
 	cases := []struct {
 		name     string
 		config   string

@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: `operator debug` command now skips generating pprofs to avoid a panic on Nomad 0.11.2. 0.11.1, and 0.11.0
+```

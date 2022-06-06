@@ -1,0 +1,60 @@
+<div class="boxed-section">
+  <div class="boxed-section-head">
+    Related Evaluations
+  </div>
+  <div class="boxed-section-body related-evaluations" data-test-eval-container>
+    <div class="sidebar-content" {{on-resize @fns.handleResize}}>
+      {{#if (and @data.width @data.height)}}
+        <Providers::ActorsRelationships as |actors|>
+          <svg
+            width={{@data.width}}
+            height="100%"
+            style="z-index: 10; inset: 0; position: absolute; pointer-events: none"
+            {{did-update actors.fns.recalcCurves @data.width}}
+          >
+            {{#each actors.data.relationships as |r|}}
+              <path
+                d={{r.d}}
+                stroke="#7E8FA8"
+                strokeWidth="1"
+                fill="none"
+              ></path>
+              <circle
+                cx={{r.sx}}
+                cy={{r.sy}}
+                r="4"
+                fill="white"
+                stroke="black"
+              ></circle>
+              <circle
+                cx={{r.ex}}
+                cy={{r.ey}}
+                r="4"
+                fill="white"
+                stroke="black"
+              ></circle>
+            {{/each}}
+          </svg>
+        </Providers::ActorsRelationships>
+      {{/if}}
+      <div>
+        <EvaluationSidebar::EvaluationActor
+          @eval={{@data.parentEvaluation}}
+          @activeEvaluationID={{@data.activeEvaluationID}}
+          @onClick={{fn @fns.handleEvaluationClick @data.parentEvaluation}}
+        />
+      </div>
+      {{#each @data.descendentsMap as |evals|}}
+        <div class="evaluation-actors">
+          {{#each evals as |eval|}}
+            <EvaluationSidebar::EvaluationActor
+              @eval={{eval.data}}
+              @activeEvaluationID={{@data.activeEvaluationID}}
+              @onClick={{fn @fns.handleEvaluationClick eval.data}}
+            />
+          {{/each}}
+        </div>
+      {{/each}}
+    </div>
+  </div>
+</div>

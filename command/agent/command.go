@@ -19,7 +19,6 @@ import (
 	"github.com/armon/go-metrics/circonus"
 	"github.com/armon/go-metrics/datadog"
 	"github.com/armon/go-metrics/prometheus"
-	"github.com/hashicorp/consul/lib"
 	checkpoint "github.com/hashicorp/go-checkpoint"
 	discover "github.com/hashicorp/go-discover"
 	hclog "github.com/hashicorp/go-hclog"
@@ -407,6 +406,11 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		}
 	}
 
+	if err := config.Client.Artifact.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("client.artifact stanza invalid: %v", err))
+		return false
+	}
+
 	if !config.DevMode {
 		// Ensure that we have the directories we need to run.
 		if config.Server.Enabled && config.DataDir == "" {
@@ -437,7 +441,7 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	// ProtocolVersion has never been used. Warn if it is set as someone
 	// has probably made a mistake.
 	if config.Server.ProtocolVersion != 0 {
-		c.agent.logger.Warn("Please remove deprecated protocol_version field from config.")
+		c.Ui.Warn("Please remove deprecated protocol_version field from config.")
 	}
 
 	return true
@@ -517,6 +521,7 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 // setupAgent is used to start the agent and various interfaces
 func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOutput io.Writer, inmem *metrics.InmemSink) error {
 	c.Ui.Output("Starting Nomad agent...")
+
 	agent, err := NewAgent(config, logger, logOutput, inmem)
 	if err != nil {
 		// log the error as well, so it appears at the end
@@ -555,7 +560,7 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 
 		// Do an immediate check within the next 30 seconds
 		go func() {
-			time.Sleep(lib.RandomStagger(30 * time.Second))
+			time.Sleep(helper.RandomStagger(30 * time.Second))
 			c.checkpointResults(checkpoint.Check(updateParams))
 		}()
 	}
@@ -703,6 +708,8 @@ func (c *Command) Run(args []string) int {
 	// Swap out UI implementation if json logging is enabled
 	if config.LogJson {
 		c.Ui = &logging.HcLogUI{Log: logger}
+		// Don't buffer json logs because they aren't reordered anyway.
+		logGate.Flush()
 	}
 
 	// Log config files

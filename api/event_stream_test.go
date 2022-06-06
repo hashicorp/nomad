@@ -258,6 +258,18 @@ func TestEventStream_PayloadValueHelpers(t *testing.T) {
 				}, n)
 			},
 		},
+		{
+			desc:  "service",
+			input: []byte(`{"Topic": "Service", "Payload": {"Service":{"ID":"some-service-id","Namespace":"some-service-namespace-id","Datacenter":"us-east-1a"}}}`),
+			expectFn: func(t *testing.T, event Event) {
+				require.Equal(t, TopicService, event.Topic)
+				a, err := event.Service()
+				require.NoError(t, err)
+				require.Equal(t, "us-east-1a", a.Datacenter)
+				require.Equal(t, "some-service-id", a.ID)
+				require.Equal(t, "some-service-namespace-id", a.Namespace)
+			},
+		},
 	}
 
 	for _, tc := range testCases {

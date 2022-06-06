@@ -49,10 +49,11 @@ func (s *StateStore) AutopilotSetConfig(index uint64, config *structs.AutopilotC
 	tx := s.db.WriteTxn(index)
 	defer tx.Abort()
 
-	s.autopilotSetConfigTxn(index, tx, config)
+	if err := s.autopilotSetConfigTxn(index, tx, config); err != nil {
+		return err
+	}
 
-	tx.Commit()
-	return nil
+	return tx.Commit()
 }
 
 // AutopilotCASConfig is used to try updating the Autopilot configuration with a
@@ -76,10 +77,12 @@ func (s *StateStore) AutopilotCASConfig(index, cidx uint64, config *structs.Auto
 		return false, nil
 	}
 
-	s.autopilotSetConfigTxn(index, tx, config)
+	if err := s.autopilotSetConfigTxn(index, tx, config); err != nil {
+		return false, err
+	}
 
-	tx.Commit()
-	return true, nil
+	err = tx.Commit()
+	return err == nil, err
 }
 
 func (s *StateStore) autopilotSetConfigTxn(idx uint64, tx *txn, config *structs.AutopilotConfig) error {

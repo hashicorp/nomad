@@ -10,7 +10,18 @@ import (
 )
 
 const (
-	TableNamespaces = "namespaces"
+	tableIndex = "index"
+
+	TableNamespaces           = "namespaces"
+	TableServiceRegistrations = "service_registrations"
+)
+
+const (
+	indexID          = "id"
+	indexJob         = "job"
+	indexNodeID      = "node_id"
+	indexAllocID     = "alloc_id"
+	indexServiceName = "service_name"
 )
 
 var (
@@ -58,6 +69,7 @@ func init() {
 		scalingPolicyTableSchema,
 		scalingEventTableSchema,
 		namespaceTableSchema,
+		serviceRegistrationsTableSchema,
 	}...)
 }
 
@@ -1108,6 +1120,83 @@ func namespaceTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "Quota",
+				},
+			},
+		},
+	}
+}
+
+// serviceRegistrationsTableSchema returns the MemDB schema for Nomad native
+// service registrations.
+func serviceRegistrationsTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableServiceRegistrations,
+		Indexes: map[string]*memdb.IndexSchema{
+			// The serviceID in combination with namespace forms a unique
+			// identifier for a service registration. This is used to look up
+			// and delete services in individual isolation.
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
+				},
+			},
+			indexServiceName: {
+				Name:         indexServiceName,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ServiceName",
+						},
+					},
+				},
+			},
+			indexJob: {
+				Name:         indexJob,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "JobID",
+						},
+					},
+				},
+			},
+			// The nodeID index allows lookups and deletions to be performed
+			// for an entire node. This is primarily used when a node becomes
+			// lost.
+			indexNodeID: {
+				Name:         indexNodeID,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "NodeID",
+				},
+			},
+			indexAllocID: {
+				Name:         indexAllocID,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "AllocID",
 				},
 			},
 		},

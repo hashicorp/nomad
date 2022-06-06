@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 if [[ "$USER" != "vagrant" ]]; then
     echo "WARNING: This script is intended to be run from Nomad's Vagrant"
     read -rsp $'Press any key to continue anyway...\n' -n1
@@ -42,7 +42,7 @@ job "weave-example" {
     task "redis" {
       driver = "docker"
       config {
-        image = "redis:3.2"
+        image = "redis:7"
         port_map {
           db = 6379
         }

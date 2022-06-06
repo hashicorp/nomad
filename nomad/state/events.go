@@ -6,28 +6,31 @@ import (
 )
 
 var MsgTypeEvents = map[structs.MessageType]string{
-	structs.NodeRegisterRequestType:                 structs.TypeNodeRegistration,
-	structs.NodeDeregisterRequestType:               structs.TypeNodeDeregistration,
-	structs.UpsertNodeEventsType:                    structs.TypeNodeEvent,
-	structs.EvalUpdateRequestType:                   structs.TypeEvalUpdated,
-	structs.AllocClientUpdateRequestType:            structs.TypeAllocationUpdated,
-	structs.JobRegisterRequestType:                  structs.TypeJobRegistered,
-	structs.AllocUpdateRequestType:                  structs.TypeAllocationUpdated,
-	structs.NodeUpdateStatusRequestType:             structs.TypeNodeEvent,
-	structs.JobDeregisterRequestType:                structs.TypeJobDeregistered,
-	structs.JobBatchDeregisterRequestType:           structs.TypeJobBatchDeregistered,
-	structs.AllocUpdateDesiredTransitionRequestType: structs.TypeAllocationUpdateDesiredStatus,
-	structs.NodeUpdateEligibilityRequestType:        structs.TypeNodeDrain,
-	structs.NodeUpdateDrainRequestType:              structs.TypeNodeDrain,
-	structs.BatchNodeUpdateDrainRequestType:         structs.TypeNodeDrain,
-	structs.DeploymentStatusUpdateRequestType:       structs.TypeDeploymentUpdate,
-	structs.DeploymentPromoteRequestType:            structs.TypeDeploymentPromotion,
-	structs.DeploymentAllocHealthRequestType:        structs.TypeDeploymentAllocHealth,
-	structs.ApplyPlanResultsRequestType:             structs.TypePlanResult,
-	structs.ACLTokenDeleteRequestType:               structs.TypeACLTokenDeleted,
-	structs.ACLTokenUpsertRequestType:               structs.TypeACLTokenUpserted,
-	structs.ACLPolicyDeleteRequestType:              structs.TypeACLPolicyDeleted,
-	structs.ACLPolicyUpsertRequestType:              structs.TypeACLPolicyUpserted,
+	structs.NodeRegisterRequestType:                      structs.TypeNodeRegistration,
+	structs.NodeDeregisterRequestType:                    structs.TypeNodeDeregistration,
+	structs.UpsertNodeEventsType:                         structs.TypeNodeEvent,
+	structs.EvalUpdateRequestType:                        structs.TypeEvalUpdated,
+	structs.AllocClientUpdateRequestType:                 structs.TypeAllocationUpdated,
+	structs.JobRegisterRequestType:                       structs.TypeJobRegistered,
+	structs.AllocUpdateRequestType:                       structs.TypeAllocationUpdated,
+	structs.NodeUpdateStatusRequestType:                  structs.TypeNodeEvent,
+	structs.JobDeregisterRequestType:                     structs.TypeJobDeregistered,
+	structs.JobBatchDeregisterRequestType:                structs.TypeJobBatchDeregistered,
+	structs.AllocUpdateDesiredTransitionRequestType:      structs.TypeAllocationUpdateDesiredStatus,
+	structs.NodeUpdateEligibilityRequestType:             structs.TypeNodeDrain,
+	structs.NodeUpdateDrainRequestType:                   structs.TypeNodeDrain,
+	structs.BatchNodeUpdateDrainRequestType:              structs.TypeNodeDrain,
+	structs.DeploymentStatusUpdateRequestType:            structs.TypeDeploymentUpdate,
+	structs.DeploymentPromoteRequestType:                 structs.TypeDeploymentPromotion,
+	structs.DeploymentAllocHealthRequestType:             structs.TypeDeploymentAllocHealth,
+	structs.ApplyPlanResultsRequestType:                  structs.TypePlanResult,
+	structs.ACLTokenDeleteRequestType:                    structs.TypeACLTokenDeleted,
+	structs.ACLTokenUpsertRequestType:                    structs.TypeACLTokenUpserted,
+	structs.ACLPolicyDeleteRequestType:                   structs.TypeACLPolicyDeleted,
+	structs.ACLPolicyUpsertRequestType:                   structs.TypeACLPolicyUpserted,
+	structs.ServiceRegistrationUpsertRequestType:         structs.TypeServiceRegistration,
+	structs.ServiceRegistrationDeleteByIDRequestType:     structs.TypeServiceDeregistration,
+	structs.ServiceRegistrationDeleteByNodeIDRequestType: structs.TypeServiceDeregistration,
 }
 
 func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
@@ -86,6 +89,23 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Key:   before.ID,
 				Payload: &structs.NodeStreamEvent{
 					Node: before,
+				},
+			}, true
+		case TableServiceRegistrations:
+			before, ok := change.Before.(*structs.ServiceRegistration)
+			if !ok {
+				return structs.Event{}, false
+			}
+			return structs.Event{
+				Topic: structs.TopicService,
+				Key:   before.ID,
+				FilterKeys: []string{
+					before.JobID,
+					before.ServiceName,
+				},
+				Namespace: before.Namespace,
+				Payload: &structs.ServiceRegistrationStreamEvent{
+					Service: before,
 				},
 			}, true
 		}
@@ -196,6 +216,23 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			FilterKeys: []string{after.JobID},
 			Payload: &structs.DeploymentEvent{
 				Deployment: after,
+			},
+		}, true
+	case TableServiceRegistrations:
+		after, ok := change.After.(*structs.ServiceRegistration)
+		if !ok {
+			return structs.Event{}, false
+		}
+		return structs.Event{
+			Topic: structs.TopicService,
+			Key:   after.ID,
+			FilterKeys: []string{
+				after.JobID,
+				after.ServiceName,
+			},
+			Namespace: after.Namespace,
+			Payload: &structs.ServiceRegistrationStreamEvent{
+				Service: after,
 			},
 		}, true
 	}

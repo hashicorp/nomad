@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/fs"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -51,11 +50,7 @@ var (
 func TestAllocDir_BuildAlloc(t *testing.T) {
 	ci.Parallel(t)
 
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
@@ -103,11 +98,7 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 	ci.Parallel(t)
 	MountCompatible(t)
 
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
@@ -150,11 +141,7 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 func TestAllocDir_Snapshot(t *testing.T) {
 	ci.Parallel(t)
 
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
@@ -232,17 +219,8 @@ func TestAllocDir_Snapshot(t *testing.T) {
 func TestAllocDir_Move(t *testing.T) {
 	ci.Parallel(t)
 
-	tmp1, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp1)
-
-	tmp2, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp2)
+	tmp1 := t.TempDir()
+	tmp2 := t.TempDir()
 
 	// Create two alloc dirs
 	d1 := NewAllocDir(testlog.HCLogger(t), tmp1, "test")
@@ -302,11 +280,7 @@ func TestAllocDir_Move(t *testing.T) {
 func TestAllocDir_EscapeChecking(t *testing.T) {
 	ci.Parallel(t)
 
-	tmp, err := ioutil.TempDir("", "AllocDir")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	if err := d.Build(); err != nil {
@@ -373,11 +347,7 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 func TestAllocDir_SplitPath(t *testing.T) {
 	ci.Parallel(t)
 
-	dir, err := ioutil.TempDir("", "tmpdirtest")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	dest := filepath.Join(dir, "/foo/bar/baz")
 	if err := os.MkdirAll(dest, os.ModePerm); err != nil {
@@ -401,11 +371,7 @@ func TestAllocDir_CreateDir(t *testing.T) {
 		t.Skip("Must be root to run test")
 	}
 
-	dir, err := ioutil.TempDir("", "tmpdirtest")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// create a subdir and a file
 	subdir := filepath.Join(dir, "subdir")
@@ -418,10 +384,7 @@ func TestAllocDir_CreateDir(t *testing.T) {
 	}
 
 	// Create the above hierarchy under another destination
-	dir1, err := ioutil.TempDir("/tmp", "tempdirdest")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	dir1 := t.TempDir()
 
 	if err := createDir(dir1, subdir); err != nil {
 		t.Fatalf("err: %v", err)
@@ -440,11 +403,7 @@ func TestAllocDir_CreateDir(t *testing.T) {
 func TestPathFuncs(t *testing.T) {
 	ci.Parallel(t)
 
-	dir, err := ioutil.TempDir("", "nomadtest-pathfuncs")
-	if err != nil {
-		t.Fatalf("error creating temp dir: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	missingDir := filepath.Join(dir, "does-not-exist")
 

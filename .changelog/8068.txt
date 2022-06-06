@@ -1,0 +1,10 @@
+```release-note:breaking-change
+connect: Consul Service Identity ACL tokens automatically generated for Connect services are now
+created as Local rather than Global tokens. Nomad clusters with Connect services making cross-Consul
+datacenter requests will need to ensure their Consul agents are configured with anonymous ACL tokens
+of sufficient node and service read permissions.
+```
+
+```release-note:breaking-change
+connect: The minimum Consul version supported by Nomad's Connect integration is now Consul v1.8.0.
+```

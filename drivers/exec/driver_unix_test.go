@@ -1,5 +1,4 @@
 //go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package exec
 
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
@@ -26,7 +26,6 @@ import (
 
 func TestExecDriver_StartWaitStop(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -34,29 +33,31 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 
 	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
+	allocID := uuid.Generate()
 	task := &drivers.TaskConfig{
+		AllocID:   allocID,
 		ID:        uuid.Generate(),
 		Name:      "test",
-		Resources: testResources,
+		Resources: testResources(allocID, "test"),
 	}
 
 	taskConfig := map[string]interface{}{
 		"command": "/bin/sleep",
 		"args":    []string{"600"},
 	}
-	require.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
+	require.NoError(t, task.EncodeConcreteDriverConfig(&taskConfig))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
 	handle, _, err := harness.StartTask(task)
 	defer harness.DestroyTask(task.ID, true)
-	require.NoError(err)
+	require.NoError(t, err)
 
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
-	require.NoError(err)
+	require.NoError(t, err)
 
-	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
+	require.NoError(t, harness.WaitUntilStarted(task.ID, 1*time.Second))
 
 	go func() {
 		harness.StopTask(task.ID, 2*time.Second, "SIGKILL")
@@ -64,9 +65,9 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 
 	select {
 	case result := <-ch:
-		require.Equal(int(unix.SIGKILL), result.Signal)
+		require.Equal(t, int(unix.SIGKILL), result.Signal)
 	case <-time.After(10 * time.Second):
-		require.Fail("timeout waiting for task to shutdown")
+		require.Fail(t, "timeout waiting for task to shutdown")
 	}
 
 	// Ensure that the task is marked as dead, but account
@@ -82,13 +83,12 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		require.NoError(t, err)
 	})
 }
 
 func TestExec_ExecTaskStreaming(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -102,6 +102,12 @@ func TestExec_ExecTaskStreaming(t *testing.T) {
 		Name: "sleep",
 	}
 
+	if cgutil.UseV2 {
+		allocID := uuid.Generate()
+		task.AllocID = allocID
+		task.Resources = testResources(allocID, "sleep")
+	}
+
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
@@ -109,14 +115,13 @@ func TestExec_ExecTaskStreaming(t *testing.T) {
 		Command: "/bin/sleep",
 		Args:    []string{"9000"},
 	}
-	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
 
 	_, _, err := harness.StartTask(task)
-	require.NoError(err)
+	require.NoError(t, err)
 	defer d.DestroyTask(task.ID, true)
 
 	dtestutil.ExecTaskStreamingConformanceTests(t, harness, task.ID)
-
 }
 
 // Tests that a given DNSConfig properly configures dns
@@ -124,7 +129,6 @@ func TestExec_dnsConfig(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.RequireRoot(t)
 	ctestutils.ExecCompatible(t)
-	require := require.New(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -163,6 +167,11 @@ func TestExec_dnsConfig(t *testing.T) {
 			DNS:  c.cfg,
 		}
 
+		if cgutil.UseV2 {
+			allocID := uuid.Generate()
+			task.Resources = testResources(allocID, "sleep")
+		}
+
 		cleanup := harness.MkAllocDir(task, false)
 		defer cleanup()
 
@@ -170,10 +179,10 @@ func TestExec_dnsConfig(t *testing.T) {
 			Command: "/bin/sleep",
 			Args:    []string{"9000"},
 		}
-		require.NoError(task.EncodeConcreteDriverConfig(&tc))
+		require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
 
 		_, _, err := harness.StartTask(task)
-		require.NoError(err)
+		require.NoError(t, err)
 		defer d.DestroyTask(task.ID, true)
 
 		dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)
@@ -187,6 +196,12 @@ func TestExecDriver_Capabilities(t *testing.T) {
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "sleep",
+	}
+
+	if cgutil.UseV2 {
+		allocID := uuid.Generate()
+		task.AllocID = allocID
+		task.Resources = testResources(allocID, "sleep")
 	}
 
 	for _, tc := range []struct {

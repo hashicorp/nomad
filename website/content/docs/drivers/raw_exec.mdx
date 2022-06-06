@@ -98,17 +98,6 @@ plugin "raw_exec" {
 }
 ```
 
-Nomad versions before v0.9 use the following client configuration. This configuration is
-also supported in Nomad v0.9.0, but is deprecated in favor of the plugin stanza:
-
-```
-client {
-  options = {
-    "driver.raw_exec.enable" = "1"
-  }
-}
-```
-
 ## Plugin Options
 
 - `enabled` - Specifies whether the driver should be enabled or disabled.
@@ -121,20 +110,6 @@ client {
   Linux and when `/sys/fs/cgroup/freezer/nomad` is writable for the
   Nomad process. Using a cgroup significantly reduces Nomad's CPU
   usage when collecting process metrics.
-
-## Client Options
-
-~> Note: client configuration options will soon be deprecated. Please use
-[plugin options][plugin-options] instead. See the [plugin stanza][plugin-stanza] documentation for more information.
-
-- `driver.raw_exec.enable` - Specifies whether the driver should be enabled or
-  disabled. Defaults to `false`.
-
-- `driver.raw_exec.no_cgroups` - Specifies whether the driver should not use
-  cgroups to manage the process group launched by the driver. By default,
-  cgroups are used to manage the process tree to ensure full cleanup of all
-  processes started by the task. The driver only uses cgroups when Nomad is
-  launched as root, on Linux and when cgroups are detected.
 
 ## Client Attributes
 

@@ -78,6 +78,7 @@ all groups (and tasks) in the job.
   distinct_property
   regexp
   set_contains
+  set_contains_any
   version
   semver
   is_set
@@ -175,6 +176,18 @@ constraint {
   constraint {
     attribute = "..."
     operator  = "set_contains"
+    value     = "a,b,c"
+  }
+  ```
+
+- `"set_contains_any"` - Specifies a contains constraint against the attribute. The
+  attribute and the list being checked are split using commas. This will check
+  that the given attribute contains **any** of the specified elements.
+
+  ```hcl
+  constraint {
+    attribute = "..."
+    operator  = "set_contains_any"
     value     = "a,b,c"
   }
   ```

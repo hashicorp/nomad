@@ -670,8 +670,10 @@ func (d *Driver) GetHandle(taskID string) *taskHandle {
 	return h
 }
 
-func (d *Driver) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, error) {
-	return nil, nil
+var _ drivers.DriverNetworkManager = (*Driver)(nil)
+
+func (d *Driver) CreateNetwork(allocID string, request *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
+	return nil, true, nil
 }
 
 func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSpec) error {

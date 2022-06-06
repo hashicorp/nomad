@@ -299,7 +299,7 @@ $ curl \
                   "db": 6379
                 }
               ],
-              "image": "redis:3.2"
+              "image": "redis:7"
             },
             "Env": null,
             "Services": [
@@ -506,7 +506,7 @@ $ curl \
           "VaultError": "",
           "TaskSignalReason": "",
           "TaskSignal": "",
-          "DriverMessage": "Downloading image redis:3.2"
+          "DriverMessage": "Downloading image redis:7"
         },
         {
           "Type": "Started",
@@ -762,8 +762,8 @@ It opens a WebSocket to transmit input to and output from the command.
 | `WebSocket` | `/v1/client/allocation/:alloc_id/exec` | WebSocket JSON streams |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries) and
-[required ACLs](/api/index.html#acls).
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
 
 | Blocking Queries | ACL Required                                                                                 |
 | ---------------- | -------------------------------------------------------------------------------------------- |
@@ -842,4 +842,59 @@ Request and response frames encompass the full range of terminal emulator inputs
 # "\x1b[H\x1b[2J$ ":
 # CSI-H (move cursor to top left corner), CSI-2J (clear entire screen), print "$ "
 {"stdout":{"data":"G1tIG1sySiQg"}}
+```
+
+## Allocation Services
+
+The endpoint is used to read all services registered within Nomad belonging to the passed
+allocation ID.
+
+| Method | Path                             | Produces           |
+| ------ | -------------------------------- | ------------------ |
+| `GET`  | `/allocation/:alloc_id/services` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | Consistency Modes | ACL Required         |
+| ---------------- | ----------------- | -------------------- |
+| `YES`            | `all`             | `namespace:read-job` |
+
+### Parameters
+
+- `:alloc_id` `(string: <required>)` - Specifies the service name. This is
+specified as part of the path.
+
+- `namespace` `(string: "default")` - Specifies the target namespace.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/allocation/177160af-26f6-619f-9c9f-5e46d1104395/services
+```
+
+### Sample Response
+
+```json
+[
+  {
+    "Address": "127.0.0.1",
+    "AllocID": "177160af-26f6-619f-9c9f-5e46d1104395",
+    "CreateIndex": 14,
+    "Datacenter": "dc1",
+    "ID": "_nomad-task-177160af-26f6-619f-9c9f-5e46d1104395-redis-example-cache-redis-db",
+    "JobID": "example",
+    "ModifyIndex": 24,
+    "Namespace": "default",
+    "NodeID": "7406e90b-de16-d118-80fe-60d0f2730cb3",
+    "Port": 29702,
+    "ServiceName": "example-cache-redis",
+    "Tags": [
+      "db",
+      "cache"
+    ]
+  }
+]
 ```

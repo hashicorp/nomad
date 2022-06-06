@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -411,9 +410,7 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 func TestOperator_SnapshotRequests(t *testing.T) {
 	ci.Parallel(t)
 
-	dir, err := ioutil.TempDir("", "nomadtest-operator-")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	snapshotPath := filepath.Join(dir, "snapshot.bin")
 	job := mock.Job()

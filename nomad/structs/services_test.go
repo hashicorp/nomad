@@ -1,11 +1,14 @@
 package structs
 
 import (
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -206,8 +209,9 @@ func TestService_Hash(t *testing.T) {
 					LocalServicePort:    24000,
 					Config:              map[string]interface{}{"foo": "bar"},
 					Upstreams: []ConsulUpstream{{
-						DestinationName: "upstream1",
-						LocalBindPort:   29000,
+						DestinationName:      "upstream1",
+						DestinationNamespace: "ns2",
+						LocalBindPort:        29000,
 					}},
 				},
 			},
@@ -243,6 +247,10 @@ func TestService_Hash(t *testing.T) {
 
 	// these tests use tweaker to modify 1 field and make the false assertion
 	// on comparing the resulting hash output
+
+	t.Run("mod address", func(t *testing.T) {
+		try(t, func(s *svc) { s.Address = "example.com" })
+	})
 
 	t.Run("mod name", func(t *testing.T) {
 		try(t, func(s *svc) { s.Name = "newName" })
@@ -284,11 +292,15 @@ func TestService_Hash(t *testing.T) {
 		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Config = map[string]interface{}{"foo": "baz"} })
 	})
 
-	t.Run("mod connect sidecar proxy upstream dest name", func(t *testing.T) {
+	t.Run("mod connect sidecar proxy upstream destination name", func(t *testing.T) {
 		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Upstreams[0].DestinationName = "dest2" })
 	})
 
-	t.Run("mod connect sidecar proxy upstream dest local bind port", func(t *testing.T) {
+	t.Run("mod connect sidecar proxy upstream destination namespace", func(t *testing.T) {
+		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Upstreams[0].DestinationNamespace = "ns3" })
+	})
+
+	t.Run("mod connect sidecar proxy upstream destination local bind port", func(t *testing.T) {
 		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Upstreams[0].LocalBindPort = 29999 })
 	})
 }
@@ -324,12 +336,14 @@ func TestConsulConnect_CopyEquals(t *testing.T) {
 				LocalServicePort:    8080,
 				Upstreams: []ConsulUpstream{
 					{
-						DestinationName: "up1",
-						LocalBindPort:   9002,
+						DestinationName:      "up1",
+						DestinationNamespace: "ns2",
+						LocalBindPort:        9002,
 					},
 					{
-						DestinationName: "up2",
-						LocalBindPort:   9003,
+						DestinationName:      "up2",
+						DestinationNamespace: "ns2",
+						LocalBindPort:        9003,
 					},
 				},
 				Config: map[string]interface{}{
@@ -520,6 +534,16 @@ func TestConsulUpstream_upstreamEquals(t *testing.T) {
 	t.Run("different", func(t *testing.T) {
 		a := []ConsulUpstream{up("bar", 9000)}
 		b := []ConsulUpstream{up("foo", 8000)}
+		require.False(t, upstreamsEquals(a, b))
+	})
+
+	t.Run("different namespace", func(t *testing.T) {
+		a := []ConsulUpstream{up("foo", 8000)}
+		a[0].DestinationNamespace = "ns1"
+
+		b := []ConsulUpstream{up("foo", 8000)}
+		b[0].DestinationNamespace = "ns2"
+
 		require.False(t, upstreamsEquals(a, b))
 	})
 
@@ -1474,4 +1498,267 @@ func TestConsulMeshGateway_Validate(t *testing.T) {
 		err := (&ConsulMeshGateway{Mode: "local"}).Validate()
 		require.NoError(t, err)
 	})
+}
+
+func TestService_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		input     *Service
+		expErr    bool
+		expErrStr string
+		name      string
+	}{
+		{
+			input: &Service{
+				Name: "testservice",
+			},
+			expErr: false,
+			name:   "base service",
+		},
+		{
+			input: &Service{
+				Name: "testservice",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			expErr:    true,
+			expErrStr: "Connect Native and requires setting the task",
+			name:      "Native Connect without task name",
+		},
+		{
+			input: &Service{
+				Name:     "testservice",
+				TaskName: "testtask",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			expErr: false,
+			name:   "Native Connect with task name",
+		},
+		{
+			input: &Service{
+				Name:     "testservice",
+				TaskName: "testtask",
+				Connect: &ConsulConnect{
+					Native:         true,
+					SidecarService: &ConsulSidecarService{},
+				},
+			},
+			expErr:    true,
+			expErrStr: "Consul Connect must be exclusively native",
+			name:      "Native Connect with Sidecar",
+		},
+		{
+			input: &Service{
+				Name:     "testservice",
+				Provider: "nomad",
+				Checks: []*ServiceCheck{
+					{
+						Name: "servicecheck",
+					},
+				},
+			},
+			expErr:    true,
+			expErrStr: "Service with provider nomad cannot include Check blocks",
+			name:      "provider nomad with checks",
+		},
+		{
+			input: &Service{
+				Name:     "testservice",
+				Provider: "nomad",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			expErr:    true,
+			expErrStr: "Service with provider nomad cannot include Connect blocks",
+			name:      "provider nomad with connect",
+		},
+		{
+			input: &Service{
+				Name:     "testservice",
+				Provider: "nomad",
+			},
+			expErr: false,
+			name:   "provider nomad valid",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.input.Canonicalize("testjob", "testgroup", "testtask", "testnamespace")
+			err := tc.input.Validate()
+			if tc.expErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expErrStr)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestService_Validate_Address(t *testing.T) {
+	try := func(mode, advertise string, exp error) {
+		s := &Service{Name: "s1", Provider: "consul", AddressMode: mode, Address: advertise}
+		result := s.Validate()
+		if exp == nil {
+			require.NoError(t, result)
+		} else {
+			// would be nice if multierror worked with errors.Is
+			require.Contains(t, result.Error(), exp.Error())
+		}
+	}
+
+	// advertise not set
+	try("", "", nil)
+	try("auto", "", nil)
+	try("host", "", nil)
+	try("alloc", "", nil)
+	try("driver", "", nil)
+
+	// advertise is set
+	try("", "example.com", nil)
+	try("auto", "example.com", nil)
+	try("host", "example.com", errors.New(`Service address_mode must be "auto" if address is set`))
+	try("alloc", "example.com", errors.New(`Service address_mode must be "auto" if address is set`))
+	try("driver", "example.com", errors.New(`Service address_mode must be "auto" if address is set`))
+}
+
+func TestService_Equals(t *testing.T) {
+	ci.Parallel(t)
+
+	s := Service{
+		Name:            "testservice",
+		TaggedAddresses: make(map[string]string),
+	}
+
+	s.Canonicalize("testjob", "testgroup", "testtask", "default")
+
+	o := s.Copy()
+
+	// Base service should be equal to copy of itself
+	require.True(t, s.Equals(o))
+
+	// create a helper to assert a diff and reset the struct
+	assertDiff := func() {
+		require.False(t, s.Equals(o))
+		o = s.Copy()
+		require.True(t, s.Equals(o), "bug in copy")
+	}
+
+	// Changing any field should cause inequality
+	o.Name = "diff"
+	assertDiff()
+
+	o.Address = "diff"
+	assertDiff()
+
+	o.PortLabel = "diff"
+	assertDiff()
+
+	o.AddressMode = AddressModeDriver
+	assertDiff()
+
+	o.Tags = []string{"diff"}
+	assertDiff()
+
+	o.CanaryTags = []string{"diff"}
+	assertDiff()
+
+	o.Checks = []*ServiceCheck{{Name: "diff"}}
+	assertDiff()
+
+	o.Connect = &ConsulConnect{Native: true}
+	assertDiff()
+
+	o.EnableTagOverride = true
+	assertDiff()
+
+	o.Provider = "nomad"
+	assertDiff()
+
+	o.TaggedAddresses = map[string]string{"foo": "bar"}
+	assertDiff()
+}
+
+func TestService_validateNomadService(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		inputService         *Service
+		inputErr             *multierror.Error
+		expectedOutputErrors []error
+		name                 string
+	}{
+		{
+			inputService: &Service{
+				Name:      "webapp",
+				PortLabel: "http",
+				Namespace: "default",
+				Provider:  "nomad",
+			},
+			inputErr:             &multierror.Error{},
+			expectedOutputErrors: []error{},
+			name:                 "valid service",
+		},
+		{
+			inputService: &Service{
+				Name:      "webapp",
+				PortLabel: "http",
+				Namespace: "default",
+				Provider:  "nomad",
+				Checks: []*ServiceCheck{
+					{Name: "some-check"},
+				},
+			},
+			inputErr:             &multierror.Error{},
+			expectedOutputErrors: []error{errors.New("Service with provider nomad cannot include Check blocks")},
+			name:                 "invalid service due to checks",
+		},
+		{
+			inputService: &Service{
+				Name:      "webapp",
+				PortLabel: "http",
+				Namespace: "default",
+				Provider:  "nomad",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			inputErr:             &multierror.Error{},
+			expectedOutputErrors: []error{errors.New("Service with provider nomad cannot include Connect blocks")},
+			name:                 "invalid service due to connect",
+		},
+		{
+			inputService: &Service{
+				Name:      "webapp",
+				PortLabel: "http",
+				Namespace: "default",
+				Provider:  "nomad",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+				Checks: []*ServiceCheck{
+					{Name: "some-check"},
+				},
+			},
+			inputErr: &multierror.Error{},
+			expectedOutputErrors: []error{
+				errors.New("Service with provider nomad cannot include Check blocks"),
+				errors.New("Service with provider nomad cannot include Connect blocks"),
+			},
+			name: "invalid service due to checks and connect",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.inputService.validateNomadService(tc.inputErr)
+			require.ElementsMatch(t, tc.expectedOutputErrors, tc.inputErr.Errors)
+		})
+	}
 }

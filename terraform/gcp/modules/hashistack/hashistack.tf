@@ -201,7 +201,7 @@ resource "google_compute_instance" "server" {
   scheduling {
     preemptible = var.enable_preemptible
     # scheduling must have automatic_restart be false when preemptible is true.
-    automatic_restart = ! var.enable_preemptible
+    automatic_restart = !var.enable_preemptible
   }
 
   service_account {
@@ -245,7 +245,7 @@ resource "google_compute_instance" "client" {
   scheduling {
     preemptible = var.enable_preemptible
     # scheduling must have automatic_restart be false when preemptible is true.
-    automatic_restart = ! var.enable_preemptible
+    automatic_restart = !var.enable_preemptible
   }
 
   service_account {

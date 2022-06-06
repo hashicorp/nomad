@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where per-alloc volumes used the incorrect ID when querying for `alloc status -verbose`
+```

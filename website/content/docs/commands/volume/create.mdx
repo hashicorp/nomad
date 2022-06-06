@@ -37,6 +37,7 @@ The file may be provided as either HCL or JSON. An example HCL configuration:
 
 ```hcl
 id           = "ebs_prod_db1"
+namespace    = "default"
 name         = "database"
 type         = "csi"
 plugin_id    = "ebs-prod"
@@ -84,6 +85,10 @@ parameters {
   [`volume.source`][csi_volume_source] field in a job specification will refer
   to the volume.
 
+- `namespace` `(string: <optional>)` - The namespace of the volume. This field
+  overrides the namespace provided by the `-namespace` flag or `NOMAD_NAMESPACE`
+  environment variable. Defaults to `"default"` if unset.
+
 - `name` `(string: <required>)` - The display name of the volume. This field
   may be used by the external storage provider to tag the volume.
 
@@ -103,17 +108,25 @@ parameters {
   volume. If omitted, the volume will be created from scratch. The
   `clone_id` cannot be set if the `snapshot_id` field is set.
 
-- `capacity_min` `(string: <optional>)` - Option for setting the capacity. The
-  volume must be at least this large, in bytes. The storage provider may
-  return a volume that is larger than this value. Accepts human-friendly
-  suffixes such as `"100GiB"`. This field may not be supported by all
-  storage providers.
+- `capacity_min` `(string: <optional>)` - Option for requesting a
+  minimum capacity, in bytes. The capacity of a volume may be the
+  physical size of a disk, or a quota, depending on the storage
+  provider. The specific size of the resulting volume will be
+  somewhere between `capacity_min` and `capacity_max`; the exact
+  behavior is up to the storage provider. If you want to specify an
+  exact size, you should set `capacity_min` and `capacity_max` to the
+  same value. Accepts human-friendly suffixes such as `"100GiB"`. This
+  field may not be supported by all storage providers.
 
-- `capacity_max` `(string: <optional>)` - Option for setting the capacity. The
-  volume must be no more than this large, in bytes. The storage provider may
-  return a volume that is smaller than this value. Accepts human-friendly
-  suffixes such as `"100GiB"`. This field may not be supported by all
-  storage providers.
+- `capacity_max` `(string: <optional>)` - Option for requesting a
+  maximum capacity, in bytes. The capacity of a volume may be the
+  physical size of a disk, or a quota, depending on the storage
+  provider. The specific size of the resulting volume will be
+  somewhere between `capacity_min` and `capacity_max`; the exact
+  behavior is up to the storage provider. If you want to specify an
+  exact size, you should set `capacity_min` and `capacity_max` to the
+  same value. Accepts human-friendly suffixes such as `"100GiB"`. This
+  field may not be supported by all storage providers.
 
 - `capability` `(Capability: <required>)` - Option for validating the
   capability of a volume. You must provide at least one `capability` block, and

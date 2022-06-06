@@ -2,18 +2,19 @@ package allocrunner
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/pkg/errors"
 )
 
 func tgFirstNetworkIsBridge(tg *structs.TaskGroup) bool {
@@ -161,7 +162,7 @@ func (p *httpSocketProxy) run(alloc *structs.Allocation) error {
 
 	listener, err := net.Listen("unix", hostHTTPSockPath)
 	if err != nil {
-		return errors.Wrap(err, "unable to create unix socket for Consul HTTP endpoint")
+		return fmt.Errorf("unable to create unix socket for Consul HTTP endpoint: %w", err)
 	}
 
 	// The Consul HTTP socket should be usable by all users in case a task is
@@ -169,7 +170,7 @@ func (p *httpSocketProxy) run(alloc *structs.Allocation) error {
 	// socket permissions when creating the file, so we must manually call
 	// chmod afterwards.
 	if err := os.Chmod(hostHTTPSockPath, os.ModePerm); err != nil {
-		return errors.Wrap(err, "unable to set permissions on unix socket")
+		return fmt.Errorf("unable to set permissions on unix socket: %w", err)
 	}
 
 	go func() {
@@ -203,7 +204,7 @@ func maybeRemoveOldSocket(socketPath string) error {
 	_, err := os.Stat(socketPath)
 	if err == nil {
 		if err = os.Remove(socketPath); err != nil {
-			return errors.Wrap(err, "unable to remove existing unix socket")
+			return fmt.Errorf("unable to remove existing unix socket: %w", err)
 		}
 	}
 	return nil

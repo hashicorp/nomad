@@ -38,11 +38,11 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			name: "single string attr",
 			config: hclutils.HclConfigToInterface(t, `
 			config {
-				image = "redis:3.2"
+				image = "redis:7"
 			}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:            "redis:3.2",
+				Image:            "redis:7",
 				Devices:          []docker.DockerDevice{},
 				Mounts:           []docker.DockerMount{},
 				MountsList:       []docker.DockerMount{},
@@ -56,12 +56,12 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			config: hclutils.JsonConfigToInterface(t, `
 						{
 							"Config": {
-								"image": "redis:3.2"
+								"image": "redis:7"
 			                }
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:            "redis:3.2",
+				Image:            "redis:7",
 				Devices:          []docker.DockerDevice{},
 				Mounts:           []docker.DockerMount{},
 				MountsList:       []docker.DockerMount{},
@@ -74,12 +74,12 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			name: "number attr",
 			config: hclutils.HclConfigToInterface(t, `
 						config {
-							image = "redis:3.2"
+							image = "redis:7"
 							pids_limit  = 2
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:            "redis:3.2",
+				Image:            "redis:7",
 				PidsLimit:        2,
 				Devices:          []docker.DockerDevice{},
 				Mounts:           []docker.DockerMount{},
@@ -94,13 +94,13 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			config: hclutils.JsonConfigToInterface(t, `
 						{
 							"Config": {
-								"image": "redis:3.2",
+								"image": "redis:7",
 								"pids_limit": "2"
 			                }
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:            "redis:3.2",
+				Image:            "redis:7",
 				PidsLimit:        2,
 				Devices:          []docker.DockerDevice{},
 				Mounts:           []docker.DockerMount{},
@@ -114,12 +114,12 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			name: "number attr interpolated",
 			config: hclutils.HclConfigToInterface(t, `
 						config {
-							image = "redis:3.2"
+							image = "redis:7"
 							pids_limit  = "${2 + 2}"
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:            "redis:3.2",
+				Image:            "redis:7",
 				PidsLimit:        4,
 				Devices:          []docker.DockerDevice{},
 				Mounts:           []docker.DockerMount{},
@@ -134,13 +134,13 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			config: hclutils.JsonConfigToInterface(t, `
 						{
 							"Config": {
-								"image": "redis:3.2",
+								"image": "redis:7",
 								"pids_limit": "${2 + 2}"
 			                }
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:            "redis:3.2",
+				Image:            "redis:7",
 				PidsLimit:        4,
 				Devices:          []docker.DockerDevice{},
 				Mounts:           []docker.DockerMount{},
@@ -154,12 +154,12 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			name: "multi attr",
 			config: hclutils.HclConfigToInterface(t, `
 						config {
-							image = "redis:3.2"
+							image = "redis:7"
 							args = ["foo", "bar"]
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:            "redis:3.2",
+				Image:            "redis:7",
 				Args:             []string{"foo", "bar"},
 				Devices:          []docker.DockerDevice{},
 				Mounts:           []docker.DockerMount{},
@@ -174,13 +174,13 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			config: hclutils.JsonConfigToInterface(t, `
 						{
 							"Config": {
-								"image": "redis:3.2",
+								"image": "redis:7",
 								"args": ["foo", "bar"]
 			                }
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:            "redis:3.2",
+				Image:            "redis:7",
 				Args:             []string{"foo", "bar"},
 				Devices:          []docker.DockerDevice{},
 				Mounts:           []docker.DockerMount{},
@@ -194,14 +194,14 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			name: "multi attr variables",
 			config: hclutils.HclConfigToInterface(t, `
 						config {
-							image = "redis:3.2"
+							image = "redis:7"
 							args = ["${NOMAD_META_hello}", "${NOMAD_ALLOC_INDEX}"]
 							pids_limit = "${NOMAD_ALLOC_INDEX + 2}"
 						}`),
 			spec: dockerDecSpec,
 			vars: vars,
 			expected: &docker.TaskConfig{
-				Image:            "redis:3.2",
+				Image:            "redis:7",
 				Args:             []string{"world", "2"},
 				PidsLimit:        4,
 				Devices:          []docker.DockerDevice{},
@@ -217,13 +217,13 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			config: hclutils.JsonConfigToInterface(t, `
 						{
 							"Config": {
-								"image": "redis:3.2",
+								"image": "redis:7",
 								"args": ["foo", "bar"]
 			                }
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:            "redis:3.2",
+				Image:            "redis:7",
 				Args:             []string{"foo", "bar"},
 				Devices:          []docker.DockerDevice{},
 				Mounts:           []docker.DockerMount{},
@@ -237,7 +237,7 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			name: "port_map",
 			config: hclutils.HclConfigToInterface(t, `
 			config {
-				image = "redis:3.2"
+				image = "redis:7"
 				port_map {
 					foo = 1234
 					bar = 5678
@@ -245,7 +245,7 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image: "redis:3.2",
+				Image: "redis:7",
 				PortMap: map[string]int{
 					"foo": 1234,
 					"bar": 5678,
@@ -263,7 +263,7 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			config: hclutils.JsonConfigToInterface(t, `
 							{
 								"Config": {
-									"image": "redis:3.2",
+									"image": "redis:7",
 									"port_map": [{
 										"foo": 1234,
 										"bar": 5678
@@ -272,7 +272,7 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 							}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image: "redis:3.2",
+				Image: "redis:7",
 				PortMap: map[string]int{
 					"foo": 1234,
 					"bar": 5678,
@@ -289,7 +289,7 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			name: "devices",
 			config: hclutils.HclConfigToInterface(t, `
 						config {
-							image = "redis:3.2"
+							image = "redis:7"
 							devices = [
 								{
 									host_path = "/dev/sda1"
@@ -304,7 +304,7 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image: "redis:3.2",
+				Image: "redis:7",
 				Devices: []docker.DockerDevice{
 					{
 						HostPath:          "/dev/sda1",
@@ -327,7 +327,7 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			name: "docker_logging",
 			config: hclutils.HclConfigToInterface(t, `
 				config {
-					image = "redis:3.2"
+					image = "redis:7"
 					network_mode = "host"
 					dns_servers = ["169.254.1.1"]
 					logging {
@@ -339,7 +339,7 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 				}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:       "redis:3.2",
+				Image:       "redis:7",
 				NetworkMode: "host",
 				DNSServers:  []string{"169.254.1.1"},
 				Logging: docker.DockerLogging{
@@ -361,7 +361,7 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			config: hclutils.JsonConfigToInterface(t, `
 					{
 						"Config": {
-							"image": "redis:3.2",
+							"image": "redis:7",
 							"devices": [
 								{
 									"host_path": "/dev/sda1",
@@ -377,7 +377,7 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 					}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image: "redis:3.2",
+				Image: "redis:7",
 				Devices: []docker.DockerDevice{
 					{
 						HostPath:          "/dev/sda1",
@@ -565,7 +565,7 @@ func TestParseInvalid(t *testing.T) {
 	}{
 		{
 			"invalid_field",
-			`config { image = "redis:3.2" bad_key = "whatever"}`,
+			`config { image = "redis:7" bad_key = "whatever"}`,
 		},
 	}
 

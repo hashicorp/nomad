@@ -81,7 +81,10 @@ type ClientConfig struct {
 
 // VaultConfig is used to configure Vault
 type VaultConfig struct {
-	Enabled bool `json:"enabled"`
+	Enabled              bool   `json:"enabled"`
+	Address              string `json:"address"`
+	AllowUnauthenticated bool   `json:"allow_unauthenticated"`
+	Token                string `json:"token"`
 }
 
 // ACLConfig is used to configure ACLs
@@ -114,7 +117,8 @@ func defaultServerConfig() (*TestServerConfig, []int) {
 			Enabled: false,
 		},
 		Vault: &VaultConfig{
-			Enabled: false,
+			Enabled:              false,
+			AllowUnauthenticated: true,
 		},
 		ACL: &ACLConfig{
 			Enabled: false,

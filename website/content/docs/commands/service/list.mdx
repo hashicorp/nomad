@@ -1,0 +1,56 @@
+---
+layout: docs
+page_title: 'Commands: service list'
+description: |
+  The service list command is used to list the registered Nomad services.
+---
+
+# Command: service list
+
+The `service list` command is used to list the registered Nomad services.
+
+~> Service commands are new in Nomad 1.3.
+
+## Usage
+
+```plaintext
+nomad service list [options]
+```
+
+The `service list` command requires no arguments.
+
+When ACLs are enabled, this command requires a token with the `read-job`
+capability for the namespace being queried.
+
+The command supports the wildcard namespace identifier. Any namespaces that
+the token does not have access to will have its services filtered from the
+results.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## List Options
+
+- `-json`: Output the services in its JSON format.
+
+- `-t`: Format and display the services using a Go template.
+
+## Examples
+
+List all services in the `default` namespace:
+
+```shell-session
+$ nomad service list
+Service Name         Tags
+example-cache-redis  [cache,db]
+```
+
+List all services in all namespaces:
+
+```shell-session
+$ nomad service list -namespace="*"
+Service Name                  Namespace  Tags
+example-cache-redis           default    [cache,db]
+platform-example-cache-redis  platform   []
+```

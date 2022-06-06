@@ -26,6 +26,10 @@ func TestInterpolateServices(t *testing.T) {
 			CanaryMeta: map[string]string{
 				"canarymeta-key": "${canarymeta}",
 			},
+			Address: "${address}",
+			TaggedAddresses: map[string]string{
+				"${ta-key}": "${ta-address}",
+			},
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:          "${checkname}",
@@ -51,6 +55,9 @@ func TestInterpolateServices(t *testing.T) {
 			"portlabel":    "portlabel",
 			"tags":         "tags",
 			"meta":         "meta-value",
+			"address":      "example.com",
+			"ta-key":       "public_wan",
+			"ta-address":   "1.2.3.4",
 			"canarymeta":   "canarymeta-value",
 			"checkname":    "checkname",
 			"checktype":    "checktype",
@@ -79,6 +86,10 @@ func TestInterpolateServices(t *testing.T) {
 			},
 			CanaryMeta: map[string]string{
 				"canarymeta-key": "canarymeta-value",
+			},
+			Address: "example.com",
+			TaggedAddresses: map[string]string{
+				"public_wan": "1.2.3.4",
 			},
 			Checks: []*structs.ServiceCheck{
 				{

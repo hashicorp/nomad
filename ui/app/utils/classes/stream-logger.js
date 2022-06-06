@@ -10,7 +10,7 @@ import classic from 'ember-classic-decorator';
 export default class StreamLogger extends EmberObject.extend(AbstractLogger) {
   reader = null;
 
-  get isSupported() {
+  static get isSupported() {
     return !!window.ReadableStream;
   }
 

@@ -20,6 +20,7 @@ func TestFS_Logs(t *testing.T) {
 	testutil.Parallel(t)
 	require := require.New(t)
 	rpcPort := 0
+
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		rpcPort = c.Ports.RPC
 		c.Client = &testutil.ClientConfig{

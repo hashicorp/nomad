@@ -110,6 +110,7 @@ func (c *VolumeInitCommand) Run(args []string) int {
 
 var defaultHclVolumeSpec = strings.TrimSpace(`
 id        = "ebs_prod_db1"
+namespace = "default"
 name      = "database"
 type      = "csi"
 plugin_id = "plugin_id"
@@ -183,6 +184,7 @@ context {
 var defaultJsonVolumeSpec = strings.TrimSpace(`
 {
   "id": "ebs_prod_db1",
+  "namespace": "default",
   "name": "database",
   "type": "csi",
   "plugin_id": "plugin_id",

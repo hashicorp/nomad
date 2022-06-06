@@ -214,6 +214,14 @@ Below is a table documenting common node properties:
     </tr>
     <tr>
       <td>
+        <code>{'${attr.kernel.arch}'}</code>
+      </td>
+      <td>
+        Kernel architecture of the client (e.g. <code>x86_64</code>, <code>aarch64</code>)
+      </td>
+    </tr>
+    <tr>
+      <td>
         <code>{'${attr.kernel.name}'}</code>
       </td>
       <td>
@@ -234,6 +242,12 @@ Below is a table documenting common node properties:
         <code>{'${attr.platform.aws.ami-id}'}</code>
       </td>
       <td>AMI ID of the client (if on AWS EC2)</td>
+    </tr>
+    <tr>
+      <td>
+        <code>{'${attr.platform.aws.instance-life-cycle}'}</code>
+      </td>
+      <td>Instance lifecycle (e.g. spot, on-demand) of the client (if on AWS EC2)</td>
     </tr>
     <tr>
       <td>
@@ -328,7 +342,7 @@ syntax:
 task "redis" {
   driver = "docker"
   config {
-    image  = "redis:3.2"
+    image  = "redis:7"
     labels {
       label1 = "${env["invalid...name"]}"
       label2 = "${env["valid.name"]}"

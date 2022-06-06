@@ -52,6 +52,7 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 		"platform.aws.ami-id",
 		"unique.platform.aws.hostname",
 		"unique.platform.aws.instance-id",
+		"platform.aws.instance-life-cycle",
 		"platform.aws.instance-type",
 		"unique.platform.aws.local-hostname",
 		"unique.platform.aws.local-ipv4",
@@ -335,6 +336,11 @@ var awsStubs = []endpoint{
 		Body:        "i-b3ba3875",
 	},
 	{
+		Uri:         "/latest/meta-data/instance-life-cycle",
+		ContentType: "text/plain",
+		Body:        "on-demand",
+	},
+	{
 		Uri:         "/latest/meta-data/instance-type",
 		ContentType: "text/plain",
 		Body:        "t3a.2xlarge",
@@ -388,6 +394,11 @@ var unknownInstanceType = []endpoint{
 		Body:        "i-b3ba3875",
 	},
 	{
+		Uri:         "/latest/meta-data/instance-life-cycle",
+		ContentType: "text/plain",
+		Body:        "on-demand",
+	},
+	{
 		Uri:         "/latest/meta-data/instance-type",
 		ContentType: "text/plain",
 		Body:        "xyz123.uber",
@@ -416,6 +427,11 @@ var noNetworkAWSStubs = []endpoint{
 		Uri:         "/latest/meta-data/instance-id",
 		ContentType: "text/plain",
 		Body:        "i-b3ba3875",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-life-cycle",
+		ContentType: "text/plain",
+		Body:        "on-demand",
 	},
 	{
 		Uri:         "/latest/meta-data/instance-type",
