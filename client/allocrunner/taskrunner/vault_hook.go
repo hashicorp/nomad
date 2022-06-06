@@ -53,6 +53,7 @@ type vaultHookConfig struct {
 	logger      log.Logger
 	alloc       *structs.Allocation
 	task        string
+	parentCtx   context.Context
 }
 
 type vaultHook struct {
@@ -95,7 +96,7 @@ type vaultHook struct {
 }
 
 func newVaultHook(config *vaultHookConfig) *vaultHook {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(config.parentCtx)
 	h := &vaultHook{
 		vaultStanza:  config.vaultStanza,
 		client:       config.client,
