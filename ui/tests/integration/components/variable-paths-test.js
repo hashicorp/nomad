@@ -12,7 +12,7 @@ module('Integration | Component | path-tree', function (hooks) {
     // Set any properties with this.set('myProperty', 'value');
     // Handle any actions with this.set('myAction', function(val) { ... });
 
-    await render(hbs`<PathTree />`);
+    await render(hbs`<VariablePaths />`);
 
     assert.dom(this.element).hasText('');
 
