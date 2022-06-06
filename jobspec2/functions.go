@@ -105,6 +105,7 @@ func Functions(basedir string, allowFS bool) map[string]function.Function {
 		"basename":   guardFS(allowFS, filesystem.BasenameFunc),
 		"dirname":    guardFS(allowFS, filesystem.DirnameFunc),
 		"file":       guardFS(allowFS, filesystem.MakeFileFunc(basedir, false)),
+		"filebase64": guardFS(allowFS, filesystem.MakeFileFunc(basedir, true)),
 		"fileexists": guardFS(allowFS, filesystem.MakeFileExistsFunc(basedir)),
 		"fileset":    guardFS(allowFS, filesystem.MakeFileSetFunc(basedir)),
 		"pathexpand": guardFS(allowFS, filesystem.PathExpandFunc),
