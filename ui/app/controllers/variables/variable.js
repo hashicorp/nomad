@@ -15,11 +15,4 @@ export default class VariablesVariableController extends Controller {
     }, []);
     return crumbs;
   }
-
-  get breadcrumb() {
-    return {
-      label: this.model.path,
-      args: [`variables.variable`, this.model.path],
-    };
-  }
 }
