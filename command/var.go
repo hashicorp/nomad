@@ -34,7 +34,7 @@ Usage: nomad var <subcommand> [options] [args]
 
   Examine a secure variable:
 
-      $ nomad var read <path>
+      $ nomad var get <path>
 
   List existing secure variables:
 
