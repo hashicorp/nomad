@@ -217,7 +217,7 @@ chroot as doing so would cause infinite recursion.
   files on the client host via the `file` function. By default, templates can
   access files only within the [task working directory].
 
-- `max_stale` `(string: "87600h")` - # This is the maximum interval to allow "stale"
+- `max_stale` `(string: "87600h")` - This is the maximum interval to allow "stale"
   data. By default, only the Consul leader will respond to queries. Requests to
   a follower will forward to the leader. In large clusters with many requests,
   this is not as scalable. This option allows any follower to respond to a query,
@@ -256,10 +256,10 @@ chroot as doing so would cause infinite recursion.
   using long polling.
 
 - `consul_retry` `(Code: { attempts = 0 backoff = "250ms" max_backoff = "1m" })`-
-  This controls the retry behavior when an error is returned from Consul. Consul
-  Template is highly fault tolerant, meaning it does not exit in the face of failure.
-  Instead, it uses exponential back-off and retry functions to wait for the cluster
-  to become available, as is customary in distributed systems.
+  This controls the retry behavior when an error is returned from Consul. The template
+  runner will not exit in the face of failure. Instead, it uses exponential back-off 
+  and retry functions to wait for the Consul cluster to become available, as is 
+  customary in distributed systems.
 
   ```hcl
   consul_retry {
