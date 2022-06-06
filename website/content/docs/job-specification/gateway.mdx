@@ -119,9 +119,9 @@ envoy_gateway_bind_addresses "<service>" {
 - `protocol` `(string: "tcp")` - The protocol associated with the listener. One
   of `tcp`, `http`, `http2`, or `grpc`.
 
-  ~> **Note:** If using `http`, preconfiguring a [service-default] in Consul to
+  ~> **Note:** If using any protocol other than `tcp` (for example: `http` or `grpc`), preconfiguring a [service-default] in Consul to
   set the [Protocol](https://www.consul.io/docs/agent/config-entries/service-defaults#protocol)
-  of the service to `http` is recommended.
+  of the service to the desired protocol is mandatory due to an [open issue](https://github.com/hashicorp/nomad/issues/8647).
 
 - `service` <code>(array<[service]>: required)</code> - One or more services to be
   exposed via this listener. For `tcp` listeners, only a single service is allowed.
