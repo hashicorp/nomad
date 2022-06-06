@@ -902,6 +902,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"var put": func() (cli.Command, error) {
+			return &VarPutCommand{
+				Meta: meta,
+			}, nil
+		},
 		"version": func() (cli.Command, error) {
 			return &VersionCommand{
 				Version: version.GetVersion(),

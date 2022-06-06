@@ -30,7 +30,7 @@ Usage: nomad var <subcommand> [options] [args]
 
   Upsert a secure variable:
 
-      $ nomad var apply <path>
+      $ nomad var put <path>
 
   Examine a secure variable:
 
