@@ -1081,7 +1081,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	require.NotEmpty(t, state.Events)
 	last := state.Events[len(state.Events)-1]
 	require.Equal(t, allochealth.AllocHealthEventSource, last.Type)
-	require.Contains(t, last.Message, "by deadline")
+	require.Contains(t, last.Message, "by healthy_deadline")
 }
 
 // TestAllocRunner_Destroy asserts that Destroy kills and cleans up a running
@@ -1647,7 +1647,6 @@ func TestAllocRunner_Reconnect(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Equal(t, tc.clientStatus, ar.AllocState().ClientStatus)
-
 
 			// Make sure the runner's alloc indexes match the update.
 			require.Equal(t, update.AllocModifyIndex, ar.Alloc().AllocModifyIndex)
