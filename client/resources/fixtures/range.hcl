@@ -1,6 +1,5 @@
-resource "gpu" {
-  range {
-    lower = 1
-    upper = 4
+task {
+  resources {
+    gpu = 2
   }
 }

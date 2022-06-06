@@ -2,53 +2,36 @@ package resources
 
 import (
 	"fmt"
-
-	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/go-multierror"
 )
 
-// Validator defines and interface that can be implemented to validate a value
-// based on custom resources configuration.
-type Validator interface {
-	Type() string
-	Validate(interface{}) error
+// Resource is a custom resource that users can configure to expose custom capabilities
+// available per client.
+type Resource struct {
+	Name  string `hcl:"key"`
+	Range *Range `hcl:"range,expand,optional"`
 }
 
-// NewValidator is a factory method that returns concrete resource validators by type.
-func NewValidator(rc *config.ResourceConfig) (Validator, error) {
-	if err := rc.Validate(); err != nil {
-		return nil, err
+func (r *Resource) ValidateConfig() error {
+	mErr := new(multierror.Error)
+
+	if r.Range != nil {
+		if err := r.Range.validateConfig(); err != nil {
+			mErr = multierror.Append(mErr, fmt.Errorf("invalid config: resource %s of type range returned error - %s", r.Name, err.Error()))
+		}
 	}
 
-	_type := rc.Config["type"]
-
-	switch _type {
-	case "range":
-		return &rangeValidator{
-			Upper: rc.Config["upper"].(int),
-			Lower: rc.Config["lower"].(int),
-		}, nil
-	default:
-		return nil, fmt.Errorf("error: unsuported resource type %s", _type)
-	}
+	return mErr.ErrorOrNil()
 }
 
-// rangeValidator is a validator that ensures resource configuration contains an integer
+// Range is a ResourceType that ensures resource configuration contains an integer
 // value within the allowable upper and lower bounds.
-type rangeValidator struct {
-	Upper int
-	Lower int
+type Range struct {
+	Upper int `hcl:"upper"`
+	Lower int `hcl:"lower"`
 }
 
-func (r *rangeValidator) Type() string {
-	return "range"
-}
-
-func (r *rangeValidator) Validate(iface interface{}) error {
-	val, ok := iface.(int)
-	if !ok {
-		return fmt.Errorf("invalid resource config: %#v cannot be cast to int64", iface)
-	}
-
+func (r *Range) Validate(val int) error {
 	if val < r.Lower {
 		return fmt.Errorf("invalid resource config: value %d cannot be less than lower bound %d", val, r.Lower)
 	}
@@ -58,4 +41,14 @@ func (r *rangeValidator) Validate(iface interface{}) error {
 	}
 
 	return nil
+}
+
+func (r *Range) validateConfig() error {
+	mErr := new(multierror.Error)
+
+	if r.Lower > r.Upper {
+		mErr = multierror.Append(mErr, fmt.Errorf("lower bound %d is greater than upper bound %d", r.Lower, r.Upper))
+	}
+
+	return mErr.ErrorOrNil()
 }

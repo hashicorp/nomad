@@ -5,19 +5,13 @@ import (
 
 	"fmt"
 	"github.com/hashicorp/hcl"
-	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/require"
 )
 
 func TestResource_Range(t *testing.T) {
-	type testConfig struct {
-		Resources []*config.ResourceConfig `hcl:"resource"`
-	}
-
 	rangeTmpl := `
 resource "%s" {
-	config {
-		type  = "range"
+	range {
    		lower = %d
    		upper = %d
  	}
@@ -26,7 +20,6 @@ resource "%s" {
 
 	type testCase struct {
 		name      string
-		_type     string
 		value     interface{}
 		lower     interface{}
 		upper     interface{}
@@ -39,7 +32,6 @@ resource "%s" {
 	testCases := []testCase{
 		{
 			name:      "invalid-config-no-lower-bound",
-			_type:     "range",
 			value:     5,
 			lower:     0,
 			upper:     10,
@@ -48,8 +40,7 @@ resource "%s" {
 			errMsg:    "",
 			tmpl: `
 resource "%s" {
-	config {
-		type  = "range"
+	range {
    		upper = %d
  	}
 }
@@ -57,7 +48,6 @@ resource "%s" {
 		},
 		{
 			name:      "invalid-config-lower-bound",
-			_type:     "range",
 			value:     5,
 			lower:     false,
 			upper:     10,
@@ -68,7 +58,6 @@ resource "%s" {
 		},
 		{
 			name:      "invalid-config-no-upper-bound",
-			_type:     "range",
 			value:     5,
 			lower:     0,
 			upper:     10,
@@ -77,8 +66,7 @@ resource "%s" {
 			errMsg:    "",
 			tmpl: `
 resource "%s" {
-	config {
-		type  = "range"
+	range {
    		lower = %d
  	}
 }
@@ -86,7 +74,6 @@ resource "%s" {
 		},
 		{
 			name:      "invalid-config-upper-bound",
-			_type:     "range",
 			value:     5,
 			lower:     0,
 			upper:     "foo",
@@ -97,17 +84,15 @@ resource "%s" {
 		},
 		{
 			name:      "invalid-config-lower-greater-than-upper",
-			_type:     "range",
 			value:     5,
 			lower:     10,
 			upper:     5,
-			cfgErrMsg: "which is greater than upper bound",
+			cfgErrMsg: "greater than upper bound",
 			errMsg:    "",
 			tmpl:      rangeTmpl,
 		},
 		{
 			name:      "valid-between",
-			_type:     "range",
 			value:     5,
 			lower:     0,
 			upper:     10,
@@ -117,7 +102,6 @@ resource "%s" {
 		},
 		{
 			name:      "valid-matches-lower-bound",
-			_type:     "range",
 			value:     5,
 			lower:     5,
 			upper:     10,
@@ -127,7 +111,6 @@ resource "%s" {
 		},
 		{
 			name:      "valid-matches-upper-bound",
-			_type:     "range",
 			value:     10,
 			lower:     5,
 			upper:     10,
@@ -137,7 +120,6 @@ resource "%s" {
 		},
 		{
 			name:      "invalid-less-than-lower-bound",
-			_type:     "range",
 			value:     4,
 			lower:     5,
 			upper:     10,
@@ -147,7 +129,6 @@ resource "%s" {
 		},
 		{
 			name:      "invalid-greater-than-upper-bound",
-			_type:     "range",
 			value:     11,
 			lower:     5,
 			upper:     10,
@@ -157,7 +138,6 @@ resource "%s" {
 		},
 		{
 			name:      "invalid-typecast-error",
-			_type:     "range",
 			value:     "foo",
 			lower:     5,
 			upper:     10,
@@ -170,8 +150,8 @@ resource "%s" {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			resourceHCL := fmt.Sprintf(tc.tmpl, tc.name, tc.lower, tc.upper)
-			cfg := &testConfig{}
-			err := hcl.Decode(cfg, resourceHCL)
+			resource := &Resource{}
+			err := hcl.Decode(resource, resourceHCL)
 
 			if tc.parseErr != "" {
 				require.ErrorContains(t, err, tc.parseErr)
@@ -179,14 +159,11 @@ resource "%s" {
 			}
 
 			require.NoError(t, err)
-			require.NotNil(t, cfg)
-			require.Len(t, cfg.Resources, 1)
-			resourceCfg := cfg.Resources[0]
-			require.Equal(t, tc.name, resourceCfg.Name)
-			require.NotNil(t, resourceCfg.Config)
-			require.Equal(t, "range", resourceCfg.Config["type"])
+			require.NotNil(t, resource)
+			require.Equal(t, tc.name, resource.Name)
+			require.NotNil(t, resource.Range)
 
-			err = resourceCfg.Validate()
+			err = resource.ValidateConfig()
 
 			if tc.cfgErrMsg == "" {
 				require.NoError(t, err)
@@ -195,14 +172,9 @@ resource "%s" {
 				return
 			}
 
-			validator, err := NewValidator(resourceCfg)
-			require.NoError(t, err)
-
-			err = validator.Validate(tc.value)
+			err = resource.Range.Validate(tc.value.(int))
 
 			if tc.errMsg == "" {
-				require.NoError(t, err)
-				err = validator.Validate(tc.value)
 				require.NoError(t, err)
 			} else {
 				require.Error(t, err)
