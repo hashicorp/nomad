@@ -46,11 +46,7 @@ Keyring Options:
                      only be performed on keys that are not the active key.
 
   -rotate            Generate a new encryption key for all future variables.
-                     Allows the use of the -algo and -full flags.
-
-  -algo=<algorithm>  When used with -rotate, set the specific encryption
-                     algorithm to use for the new key. One of "aes256-gcm" or
-                     "xchacha20".
+                     Allows the use of the -full flag.
 
   -full              When used with -rotate, decrypt all variables and
                      re-encrypt with the new key. The command will immediately
@@ -84,7 +80,7 @@ func (c *OperatorSecureVariablesKeyringCommand) AutocompleteArgs() complete.Pred
 func (c *OperatorSecureVariablesKeyringCommand) Name() string { return "secure-variables keyring" }
 
 func (c *OperatorSecureVariablesKeyringCommand) Run(args []string) int {
-	var installKey, removeKey, algo string
+	var installKey, removeKey string
 	var listKeys, rotateKey, rotateFull, verbose bool
 
 	flags := c.Meta.FlagSet("secure-variables keyring", FlagSetClient)
@@ -96,7 +92,6 @@ func (c *OperatorSecureVariablesKeyringCommand) Run(args []string) int {
 	flags.BoolVar(&rotateKey, "rotate", false, "rotate key")
 
 	flags.BoolVar(&rotateFull, "full", false, "full key rotation")
-	flags.StringVar(&algo, "algo", "", "algorithm for new key")
 	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -211,11 +206,11 @@ func (c *OperatorSecureVariablesKeyringCommand) handleKeysResponse(keys []*api.R
 		length = 8
 	}
 	out := make([]string, len(keys)+1)
-	out[0] = "Key|Active|Algorithm|Create Time"
+	out[0] = "Key|Active|Create Time"
 	i := 1
 	for _, k := range keys {
-		out[i] = fmt.Sprintf("%s|%v|%s|%s",
-			k.KeyID[:length], k.Active, k.Algorithm, formatTime(k.CreateTime))
+		out[i] = fmt.Sprintf("%s|%v|%s",
+			k.KeyID[:length], k.Active, formatTime(k.CreateTime))
 		i = i + 1
 	}
 	c.Ui.Output(formatList(out))
