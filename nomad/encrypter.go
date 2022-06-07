@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"bytes"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
@@ -12,8 +13,11 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
+	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
+	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -127,7 +131,7 @@ func (e *Encrypter) AddKey(rootKey *structs.RootKey) error {
 // addCipher stores the key in the keyring and creates a new cipher for it.
 func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
 
-	if rootKey.Meta == nil {
+	if rootKey == nil || rootKey.Meta == nil {
 		return fmt.Errorf("missing metadata")
 	}
 	var aead cipher.AEAD
@@ -157,7 +161,6 @@ func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
 func (e *Encrypter) GetKey(keyID string) ([]byte, error) {
 	e.lock.RLock()
 	defer e.lock.RUnlock()
-
 	key, ok := e.keys[keyID]
 	if !ok {
 		return []byte{}, fmt.Errorf("no such key %s in keyring", keyID)
@@ -229,4 +232,136 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 		Key:  key,
 	}, nil
 
+}
+
+type KeyringReplicator struct {
+	srv       *Server
+	encrypter *Encrypter
+	logger    log.Logger
+	stopFn    context.CancelFunc
+}
+
+func NewKeyringReplicator(srv *Server, e *Encrypter) *KeyringReplicator {
+	ctx, cancel := context.WithCancel(context.Background())
+	repl := &KeyringReplicator{
+		srv:       srv,
+		encrypter: e,
+		logger:    srv.logger.Named("keyring.replicator"),
+		stopFn:    cancel,
+	}
+	go repl.run(ctx)
+	return repl
+}
+
+// stop is provided for testing
+func (krr *KeyringReplicator) stop() {
+	krr.stopFn()
+}
+
+func (krr *KeyringReplicator) run(ctx context.Context) {
+	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
+	krr.logger.Debug("starting encryption key replication")
+	defer krr.logger.Debug("exiting key replication")
+
+	retryErrTimer, stop := helper.NewSafeTimer(time.Second * 1)
+	defer stop()
+
+START:
+	store := krr.srv.fsm.State()
+
+	for {
+		select {
+		case <-krr.srv.shutdownCtx.Done():
+			return
+		case <-ctx.Done():
+			return
+		default:
+			// Rate limit how often we attempt replication
+			limiter.Wait(ctx)
+
+			ws := store.NewWatchSet()
+			iter, err := store.RootKeyMetas(ws)
+			if err != nil {
+				krr.logger.Error("failed to fetch keyring", "error", err)
+				goto ERR_WAIT
+			}
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				keyMeta := raw.(*structs.RootKeyMeta)
+				keyID := keyMeta.KeyID
+				if _, err := krr.encrypter.GetKey(keyID); err == nil {
+					// the key material is immutable so if we've already got it
+					// we can safely return early
+					continue
+				}
+
+				krr.logger.Trace("replicating new key", "id", keyID)
+
+				getReq := &structs.KeyringGetRootKeyRequest{
+					KeyID: keyID,
+					QueryOptions: structs.QueryOptions{
+						Region: krr.srv.config.Region,
+					},
+				}
+				getResp := &structs.KeyringGetRootKeyResponse{}
+				err := krr.srv.RPC("Keyring.Get", getReq, getResp)
+
+				if err != nil || getResp.Key == nil {
+					// Key replication needs to tolerate leadership
+					// flapping. If a key is rotated during a
+					// leadership transition, it's possible that the
+					// new leader has not yet replicated the key from
+					// the old leader before the transition. Ask all
+					// the other servers if they have it.
+					krr.logger.Debug("failed to fetch key from current leader",
+						"key", keyID, "error", err)
+					getReq.AllowStale = true
+					for _, peer := range krr.getAllPeers() {
+						err = krr.srv.forwardServer(peer, "Keyring.Get", getReq, getResp)
+						if err == nil {
+							break
+						}
+					}
+					if getResp.Key == nil {
+						krr.logger.Error("failed to fetch key from any peer",
+							"key", keyID, "error", err)
+						goto ERR_WAIT
+					}
+				}
+				err = krr.encrypter.AddKey(getResp.Key)
+				if err != nil {
+					krr.logger.Error("failed to add key", "key", keyID, "error", err)
+					goto ERR_WAIT
+				}
+				krr.logger.Trace("added key", "key", keyID)
+			}
+		}
+	}
+
+ERR_WAIT:
+	// TODO: what's the right amount of backoff here? should this be
+	// part of our configuration?
+	retryErrTimer.Reset(1 * time.Second)
+
+	select {
+	case <-retryErrTimer.C:
+		goto START
+	case <-ctx.Done():
+		return
+	}
+
+}
+
+// TODO: move this method into Server?
+func (krr *KeyringReplicator) getAllPeers() []*serverParts {
+	krr.srv.peerLock.RLock()
+	defer krr.srv.peerLock.RUnlock()
+	peers := make([]*serverParts, 0, len(krr.srv.localPeers))
+	for _, peer := range krr.srv.localPeers {
+		peers = append(peers, peer.Copy())
+	}
+	return peers
 }
