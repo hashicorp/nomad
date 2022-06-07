@@ -12,7 +12,8 @@
           @type="text"
           @value={{@model.path}}
           placeholder="/path/to/variable"
-          class="input"
+          class="input path-input"
+          disabled={{not (@model.isNew)}}
           {{autofocus}}
           />
       </label>
