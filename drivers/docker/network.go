@@ -28,16 +28,7 @@ func (d *Driver) CreateNetwork(allocID string, createSpec *drivers.NetworkCreate
 		return nil, false, fmt.Errorf("failed to connect to docker daemon: %s", err)
 	}
 
-	repo, _ := parseDockerImage(d.config.InfraImage)
-	authOptions, err := firstValidAuth(repo, []authBackend{
-		authFromDockerConfig(d.config.Auth.Config),
-		authFromHelper(d.config.Auth.Helper),
-	})
-	if err != nil {
-		d.logger.Debug("auth failed for infra container image pull", "image", d.config.InfraImage, "error", err)
-	}
-	_, err = d.coordinator.PullImage(d.config.InfraImage, authOptions, allocID, noopLogEventFn, d.config.infraImagePullTimeoutDuration, d.config.pullActivityTimeoutDuration)
-	if err != nil {
+	if err := d.pullInfraImage(allocID); err != nil {
 		return nil, false, err
 	}
 
@@ -123,4 +114,33 @@ func (d *Driver) createSandboxContainerConfig(allocID string, createSpec *driver
 			NetworkMode: "none",
 		},
 	}, nil
+}
+
+// pullInfraImage conditionally pulls the `infra_image` from the Docker registry
+// only if its name uses the "latest" tag or the image doesn't already exist locally.
+func (d *Driver) pullInfraImage(allocID string) error {
+	repo, tag := parseDockerImage(d.config.InfraImage)
+
+	if tag != "latest" {
+		dockerImage, err := client.InspectImage(d.config.InfraImage)
+		if err != nil {
+			d.logger.Debug("InspectImage failed for infra_image container pull", "image", d.config.InfraImage, "error", err)
+			return err
+		} else if dockerImage != nil {
+			// Image exists, so no pull is attempted; just increment its reference count
+			d.coordinator.IncrementImageReference(dockerImage.ID, d.config.InfraImage, allocID)
+			return nil
+		}
+	}
+
+	authOptions, err := firstValidAuth(repo, []authBackend{
+		authFromDockerConfig(d.config.Auth.Config),
+		authFromHelper(d.config.Auth.Helper),
+	})
+	if err != nil {
+		d.logger.Debug("auth failed for infra_image container pull", "image", d.config.InfraImage, "error", err)
+	}
+
+	_, err = d.coordinator.PullImage(d.config.InfraImage, authOptions, allocID, noopLogEventFn, d.config.infraImagePullTimeoutDuration, d.config.pullActivityTimeoutDuration)
+	return err
 }
