@@ -6,7 +6,7 @@
   </t.head>
   <tbody>
     {{#each this.folders as |folder|}}
-      <tr {{on "click" (fn this.handleFolderClick folder.data.absolutePath)}}>
+      <tr data-test-folder-row {{on "click" (fn this.handleFolderClick folder.data.absolutePath)}}>
         <td>
           <span>
             <FlightIcon @name="folder" />
@@ -19,7 +19,7 @@
     {{/each}}
 
     {{#each this.files as |file|}}
-      <tr {{on "click" (fn this.handleFileClick file.absoluteFilePath)}}>
+      <tr data-test-file-row {{on "click" (fn this.handleFileClick file.absoluteFilePath)}}>
         <td>
           <FlightIcon @name="file-text" />
           <LinkTo

@@ -21,10 +21,10 @@ module('Unit | Utility | path-tree', function () {
   test('it converts path strings to a Variable Path Object ', function (assert) {
     const tree = new pathTree(PATHSTRINGS);
     assert.ok(
-      tree.paths.hasOwnProperty('root'),
+      'root' in tree.paths,
       'Tree has a paths object that begins with a root'
     );
-    assert.ok(tree.paths.root.hasOwnProperty('children'), 'Root has children');
+    assert.ok('children' in tree.paths.root, 'Root has children');
     assert.ok(
       Object.keys(tree.paths.root.children).length === 2,
       'Root has 2 children (a[...] and foo[...])'
@@ -34,15 +34,15 @@ module('Unit | Utility | path-tree', function () {
   test('it compacts empty folders correctly', function (assert) {
     const tree = new pathTree(PATHSTRINGS);
     assert.ok(
-      tree.paths.root.children.hasOwnProperty('a'),
+      'a' in tree.paths.root.children,
       'root.a is uncompacted since it contains a file (b)'
     );
     assert.notOk(
-      tree.paths.root.children.hasOwnProperty('foo'),
+      'foo' in tree.paths.root.children,
       'root.foo does not exist since it contains no files'
     );
     assert.ok(
-      tree.paths.root.children.hasOwnProperty('foo/bar'),
+      'foo/bar' in tree.paths.root.children,
       'root.foo/bar is compacted since the only child from foo is bar'
     );
     assert.equal(
