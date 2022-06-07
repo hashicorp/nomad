@@ -591,6 +591,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator secure-variables keyring": func() (cli.Command, error) {
+			return &OperatorSecureVariablesKeyringCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator snapshot": func() (cli.Command, error) {
 			return &OperatorSnapshotCommand{
 				Meta: meta,
