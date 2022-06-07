@@ -670,7 +670,7 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 			taskEvent.SetKillTimeout(tr.Task().KillTimeout)
 			err := tr.Kill(context.TODO(), taskEvent)
 			if err != nil && err != taskrunner.ErrTaskNotRunning {
-				ar.logger.Warn("error stopping task", "error", err, "task_name", name)
+				ar.logger.Warn("error stopping sidecar task", "error", err, "task_name", name)
 			}
 
 			taskState := tr.TaskState()
