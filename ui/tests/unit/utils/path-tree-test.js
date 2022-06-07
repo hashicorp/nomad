@@ -25,8 +25,9 @@ module('Unit | Utility | path-tree', function () {
       'Tree has a paths object that begins with a root'
     );
     assert.ok('children' in tree.paths.root, 'Root has children');
-    assert.ok(
-      Object.keys(tree.paths.root.children).length === 2,
+    assert.equal(
+      Object.keys(tree.paths.root.children).length,
+      2,
       'Root has 2 children (a[...] and foo[...])'
     );
   });
@@ -54,7 +55,6 @@ module('Unit | Utility | path-tree', function () {
 
   test('it allows for node-based search and traversal', function (assert) {
     const tree = new pathTree(PATHSTRINGS);
-    const foundPath = tree.findPath('a/b');
     assert.deepEqual(
       tree.paths.root,
       tree.findPath(''),

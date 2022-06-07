@@ -4,7 +4,6 @@ import { render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import pathTree from 'nomad-ui/utils/path-tree';
-import Variables from 'nomad-ui/tests/pages/variables';
 
 const PATHSTRINGS = [
   { path: '/foo/bar/baz' },
