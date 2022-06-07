@@ -9,6 +9,11 @@
     }
   }
 
+  .duplicate-path-error {
+    position: relative;
+    animation: slide-in 0.3s ease-out;
+  }
+
   .key-value {
     display: grid;
     grid-template-columns: 1fr 4fr 130px;
@@ -43,5 +48,17 @@ table.path-tree {
       margin-bottom: -2px;
       margin-right: 10px;
     }
+  }
+}
+
+@keyframes slide-in {
+  0% {
+    top: 10px;
+    opacity: 0;
+  }
+
+  100% {
+    top: 0px;
+    opacity: 1;
   }
 }

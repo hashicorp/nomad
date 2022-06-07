@@ -19,7 +19,7 @@
           />
       </label>
       {{#if this.duplicatePathError}}
-        <p class="help is-danger">
+        <p class="duplicate-path-error help is-danger">
           There is already a Secure Variable located at {{@model.path}}.
           <br />
           Please choose a different path, or <LinkTo @route="variables.variable.edit" @model={{this.duplicatePathError.variable}}>edit the existing Secure Variable</LinkTo>.

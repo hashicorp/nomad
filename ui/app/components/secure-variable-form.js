@@ -26,6 +26,7 @@ export default class SecureVariableFormComponent extends Component {
     const value = trimPath([e.target.value]);
     let existingVariable = this.store
       .peekAll('variable')
+      .without(this.args.model)
       .find((v) => v.path === value);
     if (existingVariable) {
       this.duplicatePathError = { variable: existingVariable };
