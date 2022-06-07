@@ -25,9 +25,6 @@ import (
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v4"
-	"github.com/hashicorp/nomad/helper/escapingfs"
-	"golang.org/x/crypto/blake2b"
-
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
@@ -38,12 +35,14 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
+	"golang.org/x/crypto/blake2b"
 )
 
 var (
@@ -4818,7 +4817,7 @@ func (jc *JobChildrenSummary) Copy() *JobChildrenSummary {
 	return njc
 }
 
-// TaskGroup summarizes the state of all the allocations of a particular
+// TaskGroupSummary summarizes the state of all the allocations of a particular
 // TaskGroup
 type TaskGroupSummary struct {
 	Queued   int
@@ -4909,9 +4908,9 @@ func (u *UpdateStrategy) Copy() *UpdateStrategy {
 		return nil
 	}
 
-	copy := new(UpdateStrategy)
-	*copy = *u
-	return copy
+	c := new(UpdateStrategy)
+	*c = *u
+	return c
 }
 
 func (u *UpdateStrategy) Validate() error {
@@ -6312,6 +6311,25 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 	for _, task := range tg.Tasks {
 		task.Canonicalize(job, tg)
 	}
+}
+
+// NomadServices returns a list of all group and task - level services in tg that
+// are making use of the nomad service provider.
+func (tg *TaskGroup) NomadServices() []*Service {
+	var services []*Service
+	for _, service := range tg.Services {
+		if service.Provider == ServiceProviderNomad {
+			services = append(services, service)
+		}
+	}
+	for _, task := range tg.Tasks {
+		for _, service := range task.Services {
+			if service.Provider == ServiceProviderNomad {
+				services = append(services, service)
+			}
+		}
+	}
+	return services
 }
 
 // Validate is used to check a task group for reasonable configuration
@@ -7817,7 +7835,7 @@ func (wc *WaitConfig) Validate() error {
 	return nil
 }
 
-// AllocState records a single event that changes the state of the whole allocation
+// AllocStateField records a single event that changes the state of the whole allocation
 type AllocStateField uint8
 
 const (
@@ -10650,6 +10668,12 @@ func (a *AllocNetworkStatus) Copy() *AllocNetworkStatus {
 		Address:       a.Address,
 		DNS:           a.DNS.Copy(),
 	}
+}
+
+// NetworkStatus is an interface satisfied by alloc runner, for acquiring the
+// network status of an allocation.
+type NetworkStatus interface {
+	NetworkStatus() *AllocNetworkStatus
 }
 
 // AllocDeploymentStatus captures the status of the allocation as part of the

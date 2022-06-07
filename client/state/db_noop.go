@@ -5,6 +5,7 @@ import (
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -85,6 +86,22 @@ func (n NoopDB) PutDynamicPluginRegistryState(ps *dynamicplugins.RegistryState) 
 
 func (n NoopDB) GetDynamicPluginRegistryState() (*dynamicplugins.RegistryState, error) {
 	return nil, nil
+}
+
+func (n NoopDB) PutCheckResult(allocID string, qr *structs.CheckQueryResult) error {
+	return nil
+}
+
+func (n NoopDB) GetCheckResults() (checks.ClientResults, error) {
+	return nil, nil
+}
+
+func (n NoopDB) DeleteCheckResults(allocID string, checkIDs []structs.CheckID) error {
+	return nil
+}
+
+func (n NoopDB) PurgeCheckResults(allocID string) error {
+	return nil
 }
 
 func (n NoopDB) Close() error {

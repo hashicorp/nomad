@@ -356,6 +356,8 @@ func (b *Bucket) Get(key []byte, obj interface{}) error {
 // Iterate iterates each key in Bucket b that starts with prefix. fn is called on
 // the key and msg-pack decoded value. If prefix is empty or nil, all keys in the
 // bucket are iterated.
+//
+// b must already exist.
 func Iterate[T any](b *Bucket, prefix []byte, fn func([]byte, T)) error {
 	c := b.boltBucket.Cursor()
 	for k, data := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, data = c.Next() {
@@ -371,6 +373,8 @@ func Iterate[T any](b *Bucket, prefix []byte, fn func([]byte, T)) error {
 // DeletePrefix removes all keys starting with prefix from the bucket. If no keys
 // with prefix exist then nothing is done and a nil error is returned. Returns an
 // error if the bucket was created from a read-only transaction.
+//
+// b must already exist.
 func (b *Bucket) DeletePrefix(prefix []byte) error {
 	c := b.boltBucket.Cursor()
 	for k, _ := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, _ = c.Next() {

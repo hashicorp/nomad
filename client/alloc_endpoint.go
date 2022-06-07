@@ -8,9 +8,8 @@ import (
 	"io"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-msgpack/codec"
-
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
@@ -134,6 +133,29 @@ func (a *Allocations) Stats(args *cstructs.AllocStatsRequest, reply *cstructs.Al
 	}
 
 	reply.Stats = stats
+	return nil
+}
+
+// Checks is used to retrieve nomad service discovery check status information.
+func (a *Allocations) Checks(args *cstructs.AllocChecksRequest, reply *cstructs.AllocChecksResponse) error {
+	defer metrics.MeasureSince([]string{"client", "allocations", "checks"}, time.Now())
+
+	// Get the allocation
+	alloc, err := a.c.GetAlloc(args.AllocID)
+	if err != nil {
+		return err
+	}
+
+	// Check read-job permission
+	if aclObj, aclErr := a.c.ResolveToken(args.AuthToken); aclErr != nil {
+		return aclErr
+	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
+		return nstructs.ErrPermissionDenied
+	}
+
+	// Get the status information for the allocation
+	reply.Results = a.c.checkStore.List(alloc.ID)
+
 	return nil
 }
 
