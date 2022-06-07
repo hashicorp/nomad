@@ -1,8 +1,11 @@
 package nomad
 
 import (
+	"context"
+	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/stretchr/testify/require"
@@ -117,4 +120,155 @@ func TestEncrypter_Restore(t *testing.T) {
 		gotKey := getResp.Key
 		require.Len(t, gotKey.Key, 32)
 	}
+}
+
+// TestKeyringReplicator exercises key replication between servers
+func TestKeyringReplicator(t *testing.T) {
+
+	ci.Parallel(t)
+
+	srv1, cleanupSRV1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+		c.NumSchedulers = 0
+	})
+	defer cleanupSRV1()
+
+	// add two more servers after we've bootstrapped
+
+	srv2, cleanupSRV2 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+		c.NumSchedulers = 0
+	})
+	defer cleanupSRV2()
+	srv3, cleanupSRV3 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+		c.NumSchedulers = 0
+	})
+	defer cleanupSRV3()
+
+	TestJoin(t, srv1, srv2)
+	TestJoin(t, srv1, srv3)
+
+	testutil.WaitForLeader(t, srv1.RPC)
+	testutil.WaitForLeader(t, srv2.RPC)
+	testutil.WaitForLeader(t, srv3.RPC)
+
+	servers := []*Server{srv1, srv2, srv3}
+	var leader *Server
+
+	for _, srv := range servers {
+		if ok, _ := srv.getLeader(); ok {
+			leader = srv
+		}
+	}
+	require.NotNil(t, leader, "expected there to be a leader")
+	codec := rpcClient(t, leader)
+	t.Logf("leader is %s", leader.config.NodeName)
+
+	// Verify we have a bootstrap key
+
+	listReq := &structs.KeyringListRootKeyMetaRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	var listResp structs.KeyringListRootKeyMetaResponse
+	msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
+	require.Len(t, listResp.Keys, 1)
+	keyID1 := listResp.Keys[0].KeyID
+
+	keyPath := filepath.Join(leader.GetConfig().DataDir, "keystore",
+		keyID1+nomadKeystoreExtension)
+	_, err := os.Stat(keyPath)
+	require.NoError(t, err, "expected key to be found in leader keystore")
+
+	// Helper function for checking that a specific key has been
+	// replicated to followers
+
+	checkReplicationFn := func(keyID string) func() bool {
+		return func() bool {
+			for _, srv := range servers {
+				if srv == leader {
+					continue
+				}
+				keyPath := filepath.Join(srv.GetConfig().DataDir, "keystore",
+					keyID+nomadKeystoreExtension)
+				if _, err := os.Stat(keyPath); err != nil {
+					return false
+				}
+
+			}
+			return true
+		}
+	}
+
+	// Assert that the bootstrap key has been replicated to followers
+	require.Eventually(t, checkReplicationFn(keyID1),
+		time.Second*5, time.Second,
+		"expected keys to be replicated to followers after bootstrap")
+
+	// Assert that key rotations are replicated to followers
+
+	rotateReq := &structs.KeyringRotateRootKeyRequest{
+		WriteRequest: structs.WriteRequest{
+			Region: "global",
+		},
+	}
+	var rotateResp structs.KeyringRotateRootKeyResponse
+	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
+	require.NoError(t, err)
+	keyID2 := rotateResp.Key.KeyID
+
+	getReq := &structs.KeyringGetRootKeyRequest{
+		KeyID: keyID2,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	var getResp structs.KeyringGetRootKeyResponse
+	err = msgpackrpc.CallWithCodec(codec, "Keyring.Get", getReq, &getResp)
+	require.NoError(t, err)
+	require.NotNil(t, getResp.Key, "expected key to be found on leader")
+
+	keyPath = filepath.Join(leader.GetConfig().DataDir, "keystore",
+		keyID2+nomadKeystoreExtension)
+	_, err = os.Stat(keyPath)
+	require.NoError(t, err, "expected key to be found in leader keystore")
+
+	require.Eventually(t, checkReplicationFn(keyID2),
+		time.Second*5, time.Second,
+		"expected keys to be replicated to followers after rotation")
+
+	// Scenario: simulate a key rotation that doesn't get replicated
+	// before a leader election by stopping replication, rotating the
+	// key, and triggering a leader election.
+
+	for _, srv := range servers {
+		if srv == leader {
+			continue
+		}
+		srv.keyringReplicator.stop()
+	}
+
+	err = msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
+	require.NoError(t, err)
+	keyID3 := rotateResp.Key.KeyID
+
+	err = leader.leadershipTransfer()
+	require.NoError(t, err)
+
+	for _, srv := range servers {
+		if ok, _ := srv.getLeader(); !ok {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			go srv.keyringReplicator.run(ctx)
+		} else {
+			t.Logf("new leader is %s", srv.config.NodeName)
+		}
+	}
+
+	require.Eventually(t, checkReplicationFn(keyID3),
+		time.Second*5, time.Second,
+		"expected keys to be replicated to followers after election")
+
 }

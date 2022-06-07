@@ -200,6 +200,13 @@ type Server struct {
 	// volumeWatcher is used to release volume claims
 	volumeWatcher *volumewatcher.Watcher
 
+	// keyringReplicator is used to replicate encryption keys for
+	// secure variables from the leader
+	keyringReplicator *KeyringReplicator
+
+	// encrypter is the keyring for secure variables
+	encrypter *Encrypter
+
 	// evalBroker is used to manage the in-progress evaluations
 	// that are waiting to be brokered to a sub-scheduler
 	evalBroker *EvalBroker
@@ -378,6 +385,13 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		return nil, fmt.Errorf("Failed to setup Vault client: %v", err)
 	}
 
+	// Set up the keyring
+	encrypter, err := NewEncrypter(filepath.Join(s.config.DataDir, "keystore"))
+	if err != nil {
+		return nil, err
+	}
+	s.encrypter = encrypter
+
 	// Initialize the RPC layer
 	if err := s.setupRPC(tlsWrap); err != nil {
 		s.Shutdown()
@@ -462,6 +476,11 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 
 	// Start enterprise background workers
 	s.startEnterpriseBackground()
+
+	// Enable the keyring replicator on servers; the replicator has to
+	// be created before the RPC server and FSM but needs them to
+	// exist before it can start.
+	s.keyringReplicator = NewKeyringReplicator(s, encrypter)
 
 	// Done
 	return s, nil
@@ -1148,12 +1167,6 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 // setupRpcServer is used to populate an RPC server with endpoints
 func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 
-	// Set up the keyring
-	encrypter, err := NewEncrypter(filepath.Join(s.config.DataDir, "keystore"))
-	if err != nil {
-		return err
-	}
-
 	// Add the static endpoints to the RPC server.
 	if s.staticEndpoints.Status == nil {
 		// Initialize the list just once
@@ -1171,8 +1184,8 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 		s.staticEndpoints.System = &System{srv: s, logger: s.logger.Named("system")}
 		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
 		s.staticEndpoints.Namespace = &Namespace{srv: s}
-		s.staticEndpoints.SecureVariables = &SecureVariables{srv: s, logger: s.logger.Named("secure_variables"), encrypter: encrypter}
-		s.staticEndpoints.Keyring = &Keyring{srv: s, logger: s.logger.Named("keyring"), encrypter: encrypter}
+		s.staticEndpoints.SecureVariables = &SecureVariables{srv: s, logger: s.logger.Named("secure_variables"), encrypter: s.encrypter}
+		s.staticEndpoints.Keyring = &Keyring{srv: s, logger: s.logger.Named("keyring"), encrypter: s.encrypter}
 
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
 
@@ -1230,7 +1243,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 	node := &Node{srv: s, ctx: ctx, logger: s.logger.Named("client")}
 	plan := &Plan{srv: s, ctx: ctx, logger: s.logger.Named("plan")}
 	serviceReg := &ServiceRegistration{srv: s, ctx: ctx}
-	keyringReg := &Keyring{srv: s, ctx: ctx, logger: s.logger.Named("keyring"), encrypter: encrypter}
+	keyringReg := &Keyring{srv: s, ctx: ctx, logger: s.logger.Named("keyring"), encrypter: s.encrypter}
 
 	// Register the dynamic endpoints
 	server.Register(alloc)
