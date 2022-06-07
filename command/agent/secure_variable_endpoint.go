@@ -55,7 +55,6 @@ func (s *HTTPServer) secureVariableQuery(resp http.ResponseWriter, req *http.Req
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
-
 	var out structs.SecureVariablesReadResponse
 	if err := s.agent.RPC(structs.SecureVariablesReadRPCMethod, &args, &out); err != nil {
 		return nil, err
@@ -76,7 +75,11 @@ func (s *HTTPServer) secureVariableUpsert(resp http.ResponseWriter, req *http.Re
 	if err := decodeBody(req, &SecureVariable); err != nil {
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
+	if SecureVariable.UnencryptedData == nil {
+		return nil, CodedError(http.StatusBadRequest, "Secure variable missing required Items object.")
+	}
 	SecureVariable.Path = path
+
 	// Format the request
 	args := structs.SecureVariablesUpsertRequest{
 		Data: []*structs.SecureVariable{&SecureVariable},
