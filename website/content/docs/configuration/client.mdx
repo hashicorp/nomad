@@ -256,8 +256,8 @@ chroot as doing so would cause infinite recursion.
 - `wait` `(map: { min = "5s" max = "4m" })` - Defines the minimum and maximum amount of time to wait
   before attempting to re-render a template. By default, Consul Template will loop continually and re-render.
   If this value is set, Nomad will configure Consul Template with a backoff timer that will tick on an interval
-  equal to the specified `min` value. The the loop will not re-render the template until the `max` value duration
-  has elapsed, or until the underlying data has changed. This is useful to enable in systems where network
+  equal to the specified `min` value. The loop will not re-render the template until the `max` value duration
+  has elapsed, or the underlying data has changed. This is useful to enable in systems where network
   connectivity to Consul is degraded, because it will reduce the number of times a template is rendered. This
   configuration is also exposed in the _task template stanza_ to allow overrides per task.
 
