@@ -1,5 +1,7 @@
 {{page-title "Secure Variables: " this.model.path}}
-<Breadcrumb @crumb={{this.breadcrumb}} />
+{{#each this.breadcrumbs as |crumb|}}
+  <Breadcrumb @crumb={{crumb}} />
+{{/each}}
 <section class="section">
   {{outlet}}
 </section>

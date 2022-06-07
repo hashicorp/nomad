@@ -23,8 +23,18 @@
       border-color: $grey-blue;
     }
   }
+}
 
-  // .add-more:focus {
-  //   background-color: $grey-lighter;
-  // }
+table.path-tree {
+  tr {
+    cursor: pointer;
+    a {
+      color: #0a0a0a;
+      text-decoration: none;
+    }
+    svg {
+      margin-bottom: -2px;
+      margin-right: 10px;
+    }
+  }
 }

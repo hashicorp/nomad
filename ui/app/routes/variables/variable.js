@@ -7,6 +7,6 @@ export default class VariablesVariableRoute extends Route.extend(
   WithModelErrorHandling
 ) {
   model(params) {
-    return this.store.findRecord('variable', params.path);
+    return this.store.findRecord('variable', decodeURIComponent(params.path));
   }
 }
