@@ -1,0 +1,46 @@
+{{page-title "Secure Variables: " this.model.absolutePath}}
+{{#each this.breadcrumbs as |crumb|}}
+  <Breadcrumb @crumb={{crumb}} />
+{{/each}}
+  <section class="section">
+    <div class="toolbar">
+      <div class="toolbar-item is-right-aligned is-mobile-full-width">
+        <div class="button-bar">
+        {{!-- TODO: make sure qpNamespace persists to here --}}
+        {{#if (can "create variable" namespace=this.qpNamespace)}}
+          <LinkTo
+            @route="variables.new"
+            @query={{hash namespace=this.qpNamespace path=(concat this.model.absolutePath "/")}}
+            class="button is-primary"
+          >
+            Create Secure Variable
+          </LinkTo>
+        {{else}}
+          <button
+            class="button is-primary is-disabled tooltip is-right-aligned"
+            aria-label="You don’t have sufficient permissions"
+            disabled
+            type="button"
+          >
+            Create Secure Variable
+          </button>
+        {{/if}}
+
+        </div>
+      </div>
+    </div>
+{{#if this.model.treeAtPath}}
+  <VariablePaths
+    @branch={{this.model.treeAtPath}}
+  />
+{{else}}
+  <div class="empty-message">
+    <h3 data-test-empty-volumes-list-headline class="empty-message-headline">
+      Path /{{this.model.absolutePath}} contains no variables
+    </h3>
+    <p class="empty-message-body">
+      To get started, <LinkTo @route="variables.new" @query={{hash path=(concat this.model.absolutePath "/")}}>create a new secure variable here</LinkTo>, or <LinkTo @route="variables">go back to the Secure Variables root directory</LinkTo>.
+    </p>
+  </div>
+{{/if}}
+  </section>

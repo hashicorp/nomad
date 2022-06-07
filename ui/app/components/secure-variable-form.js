@@ -35,8 +35,7 @@ export default class SecureVariableFormComponent extends Component {
   @action
   async save(e) {
     e.preventDefault();
-
-    this.args.model.id = this.args.model.path;
+    this.args.model.setAndTrimPath();
 
     const transitionTarget = this.args.model.isNew
       ? 'variables'

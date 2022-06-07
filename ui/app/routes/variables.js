@@ -1,21 +1,28 @@
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
-import RSVP from 'rsvp';
-import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
+import notifyError from 'nomad-ui/utils/notify-error';
+import PathTree from 'nomad-ui/utils/path-tree';
 
 export default class VariablesRoute extends Route.extend(WithForbiddenState) {
   @service can;
   @service router;
+  @service store;
 
   beforeModel() {
     if (this.can.cannot('list variables')) {
       this.router.transitionTo('/jobs');
     }
   }
-  model() {
-    return RSVP.hash({
-      variables: this.store.findAll('variable'),
-    }).catch(notifyForbidden(this));
+  async model() {
+    try {
+      const variables = await this.store.findAll('variable');
+      return {
+        variables,
+        pathTree: new PathTree(variables),
+      };
+    } catch (e) {
+      notifyError(this)(e);
+    }
   }
 }
