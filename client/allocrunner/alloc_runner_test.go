@@ -1573,3 +1573,238 @@ func TestAllocRunner_PersistState_Destroyed(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, ts)
 }
+
+func TestAllocRunner_Reconnect(t *testing.T) {
+	t.Parallel()
+
+	type tcase struct {
+		clientStatus string
+		taskState    string
+		taskEvent    *structs.TaskEvent
+	}
+	tcases := []tcase{
+		{
+			structs.AllocClientStatusRunning,
+			structs.TaskStateRunning,
+			structs.NewTaskEvent(structs.TaskStarted),
+		},
+		{
+			structs.AllocClientStatusComplete,
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskTerminated),
+		},
+		{
+			structs.AllocClientStatusFailed,
+			structs.TaskStateDead,
+			structs.NewTaskEvent(structs.TaskDriverFailure).SetFailsTask(),
+		},
+		{
+			structs.AllocClientStatusPending,
+			structs.TaskStatePending,
+			structs.NewTaskEvent(structs.TaskReceived),
+		},
+	}
+
+	for _, tc := range tcases {
+		t.Run(tc.clientStatus, func(t *testing.T) {
+			// create a running alloc
+			alloc := mock.BatchAlloc()
+			alloc.AllocModifyIndex = 10
+			alloc.ModifyIndex = 10
+			alloc.ModifyTime = time.Now().UnixNano()
+
+			// Ensure task takes some time
+			task := alloc.Job.TaskGroups[0].Tasks[0]
+			task.Driver = "mock_driver"
+			task.Config["run_for"] = "30s"
+
+			original := alloc.Copy()
+
+			conf, cleanup := testAllocRunnerConfig(t, alloc)
+			defer cleanup()
+
+			ar, err := NewAllocRunner(conf)
+			require.NoError(t, err)
+			defer destroy(ar)
+
+			go ar.Run()
+
+			for _, taskRunner := range ar.tasks {
+				taskRunner.UpdateState(tc.taskState, tc.taskEvent)
+			}
+
+			update := ar.Alloc().Copy()
+
+			update.ClientStatus = structs.AllocClientStatusUnknown
+			update.AllocModifyIndex = original.AllocModifyIndex + 10
+			update.ModifyIndex = original.ModifyIndex + 10
+			update.ModifyTime = original.ModifyTime + 10
+
+			err = ar.Reconnect(update)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.clientStatus, ar.AllocState().ClientStatus)
+
+			// Make sure the runner's alloc indexes match the update.
+			require.Equal(t, update.AllocModifyIndex, ar.Alloc().AllocModifyIndex)
+			require.Equal(t, update.ModifyIndex, ar.Alloc().ModifyIndex)
+			require.Equal(t, update.ModifyTime, ar.Alloc().ModifyTime)
+
+			found := false
+
+			updater := conf.StateUpdater.(*MockStateUpdater)
+			var last *structs.Allocation
+			testutil.WaitForResult(func() (bool, error) {
+				last = updater.Last()
+				if last == nil {
+					return false, errors.New("last update nil")
+				}
+
+				states := last.TaskStates
+				for _, s := range states {
+					for _, e := range s.Events {
+						if e.Type == structs.TaskClientReconnected {
+							found = true
+							return true, nil
+						}
+					}
+				}
+
+				return false, errors.New("no reconnect event found")
+			}, func(err error) {
+				require.NoError(t, err)
+			})
+
+			require.True(t, found, "no reconnect event found")
+		})
+	}
+}
+
+// TestAllocRunner_Lifecycle_Shutdown_Order asserts that a service job with 3
+// lifecycle hooks (1 sidecar, 1 ephemeral, 1 poststop) starts all 4 tasks, and shuts down
+// the sidecar after main, but before poststop.
+func TestAllocRunner_Lifecycle_Shutdown_Order(t *testing.T) {
+	alloc := mock.LifecycleAllocWithPoststopDeploy()
+
+	alloc.Job.Type = structs.JobTypeService
+
+	mainTask := alloc.Job.TaskGroups[0].Tasks[0]
+	mainTask.Config["run_for"] = "100s"
+
+	sidecarTask := alloc.Job.TaskGroups[0].Tasks[1]
+	sidecarTask.Lifecycle.Hook = structs.TaskLifecycleHookPoststart
+	sidecarTask.Config["run_for"] = "100s"
+
+	poststopTask := alloc.Job.TaskGroups[0].Tasks[2]
+	ephemeralTask := alloc.Job.TaskGroups[0].Tasks[3]
+
+	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{mainTask, ephemeralTask, sidecarTask, poststopTask}
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	defer destroy(ar)
+	go ar.Run()
+
+	upd := conf.StateUpdater.(*MockStateUpdater)
+
+	// Wait for main and sidecar tasks to be running, and that the
+	// ephemeral task ran and exited.
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+
+		if last.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
+		}
+
+		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateRunning {
+			return false, fmt.Errorf("expected main task to be running not %s", s)
+		}
+
+		if s := last.TaskStates[sidecarTask.Name].State; s != structs.TaskStateRunning {
+			return false, fmt.Errorf("expected sidecar task to be running not %s", s)
+		}
+
+		if s := last.TaskStates[ephemeralTask.Name].State; s != structs.TaskStateDead {
+			return false, fmt.Errorf("expected ephemeral task to be dead not %s", s)
+		}
+
+		if last.TaskStates[ephemeralTask.Name].Failed {
+			return false, fmt.Errorf("expected ephemeral task to be successful not failed")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error waiting for initial state:\n%v", err)
+	})
+
+	// Tell the alloc to stop
+	stopAlloc := alloc.Copy()
+	stopAlloc.DesiredStatus = structs.AllocDesiredStatusStop
+	ar.Update(stopAlloc)
+
+	// Wait for tasks to stop.
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+
+		if s := last.TaskStates[ephemeralTask.Name].State; s != structs.TaskStateDead {
+			return false, fmt.Errorf("expected ephemeral task to be dead not %s", s)
+		}
+
+		if last.TaskStates[ephemeralTask.Name].Failed {
+			return false, fmt.Errorf("expected ephemeral task to be successful not failed")
+		}
+
+		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateDead {
+			return false, fmt.Errorf("expected main task to be dead not %s", s)
+		}
+
+		if last.TaskStates[mainTask.Name].Failed {
+			return false, fmt.Errorf("expected main task to be successful not failed")
+		}
+
+		if s := last.TaskStates[sidecarTask.Name].State; s != structs.TaskStateDead {
+			return false, fmt.Errorf("expected sidecar task to be dead not %s", s)
+		}
+
+		if last.TaskStates[sidecarTask.Name].Failed {
+			return false, fmt.Errorf("expected sidecar task to be successful not failed")
+		}
+
+		if s := last.TaskStates[poststopTask.Name].State; s != structs.TaskStateRunning {
+			return false, fmt.Errorf("expected poststop task to be running not %s", s)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error waiting for kill state:\n%v", err)
+	})
+
+	last := upd.Last()
+	require.Less(t, last.TaskStates[ephemeralTask.Name].FinishedAt, last.TaskStates[mainTask.Name].FinishedAt)
+	require.Less(t, last.TaskStates[mainTask.Name].FinishedAt, last.TaskStates[sidecarTask.Name].FinishedAt)
+
+	// Wait for poststop task to stop.
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+
+		if s := last.TaskStates[poststopTask.Name].State; s != structs.TaskStateDead {
+			return false, fmt.Errorf("expected poststop task to be dead not %s", s)
+		}
+
+		if last.TaskStates[poststopTask.Name].Failed {
+			return false, fmt.Errorf("expected poststop task to be successful not failed")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error waiting for poststop state:\n%v", err)
+	})
+
+	last = upd.Last()
+	require.Less(t, last.TaskStates[sidecarTask.Name].FinishedAt, last.TaskStates[poststopTask.Name].FinishedAt)
+}
