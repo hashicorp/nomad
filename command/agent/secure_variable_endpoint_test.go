@@ -59,7 +59,7 @@ func TestHTTP_SecureVariableList(t *testing.T) {
 		require.NotZero(t, respW.HeaderMap.Get("X-Nomad-LastContact"))
 
 		// Check the output (the 3 we register )
-		require.Len(t, obj.([]*structs.SecureVariableStub), 4)
+		require.Len(t, obj.([]*structs.SecureVariableMetadata), 4)
 
 		// test prefix query
 		req, err = http.NewRequest("GET", "/v1/vars?prefix="+svs[0].Path, nil)
@@ -69,7 +69,7 @@ func TestHTTP_SecureVariableList(t *testing.T) {
 		// Make the request
 		obj, err = s.Server.SecureVariablesListRequest(respW, req)
 		require.NoError(t, err)
-		require.Len(t, obj.([]*structs.SecureVariableStub), 2)
+		require.Len(t, obj.([]*structs.SecureVariableMetadata), 2)
 	})
 }
 
@@ -116,7 +116,7 @@ func TestHTTP_SecureVariableQuery(t *testing.T) {
 		require.NotZero(t, respW.HeaderMap.Get("X-Nomad-LastContact"))
 
 		// Check the output
-		require.Equal(t, sv1.Path, obj.(*structs.SecureVariable).Path)
+		require.Equal(t, sv1.Path, obj.(*structs.SecureVariableDecrypted).Path)
 	})
 }
 
@@ -129,7 +129,7 @@ func TestHTTP_SecureVariableCreate(t *testing.T) {
 		require.NoError(t, rpcWriteSV(s, sv1))
 
 		// Make a change for update
-		sv1U.UnencryptedData["newness"] = "awwyeah"
+		sv1U.SecureVariableItems["newness"] = "awwyeah"
 
 		// Make the HTTP request
 		buf := encodeReq(&sv1U)
@@ -153,7 +153,7 @@ func TestHTTP_SecureVariableCreate(t *testing.T) {
 		sv1.CreateIndex, sv1.ModifyIndex = out.CreateIndex, out.ModifyIndex
 		require.Equal(t, sv1.Path, out.Path)
 		require.NotEqual(t, sv1, out)
-		require.Contains(t, out.UnencryptedData, "newness")
+		require.Equal(t, "awwyeah", out.SecureVariableItems["newness"])
 
 		// break the request body
 		badBuf := encodeBrokenReq(&sv1U)
@@ -176,7 +176,6 @@ func TestHTTP_SecureVariableUpdate(t *testing.T) {
 	httpTest(t, cb, func(s *TestAgent) {
 		// Make the HTTP request
 		sv1 := mock.SecureVariable()
-		sv1.EncryptedData = nil
 
 		buf := encodeReq(sv1)
 		req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, buf)
@@ -238,16 +237,16 @@ func encodeBrokenReq(obj interface{}) io.ReadCloser {
 	return ioutil.NopCloser(bytes.NewReader(b))
 }
 
-func rpcReadSV(s *TestAgent, ns, p string) (*structs.SecureVariable, error) {
+func rpcReadSV(s *TestAgent, ns, p string) (*structs.SecureVariableDecrypted, error) {
 	checkArgs := structs.SecureVariablesReadRequest{Path: p, QueryOptions: structs.QueryOptions{Namespace: ns, Region: "global"}}
 	var checkResp structs.SecureVariablesReadResponse
 	err := s.Agent.RPC(structs.SecureVariablesReadRPCMethod, &checkArgs, &checkResp)
 	return checkResp.Data, err
 }
 
-func rpcWriteSV(s *TestAgent, sv *structs.SecureVariable) error {
+func rpcWriteSV(s *TestAgent, sv *structs.SecureVariableDecrypted) error {
 	args := structs.SecureVariablesUpsertRequest{
-		Data:         []*structs.SecureVariable{sv},
+		Data:         []*structs.SecureVariableDecrypted{sv},
 		WriteRequest: structs.WriteRequest{Namespace: sv.Namespace, Region: "global"},
 	}
 	var resp structs.SecureVariablesUpsertResponse

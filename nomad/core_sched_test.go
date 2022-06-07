@@ -2477,10 +2477,10 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	key2.Active = false
 	require.NoError(t, store.UpsertRootKeyMeta(600, key2))
 
-	variable := mock.SecureVariable()
-	variable.EncryptedData.KeyID = key2.KeyID
+	variable := mock.SecureVariableEncrypted()
+	variable.KeyID = key2.KeyID
 	require.NoError(t, store.UpsertSecureVariables(
-		structs.MsgTypeTestSetup, 601, []*structs.SecureVariable{variable}))
+		structs.MsgTypeTestSetup, 601, []*structs.SecureVariableEncrypted{variable}))
 
 	// insert a time table index between the two keys
 	tt := srv.fsm.TimeTable()

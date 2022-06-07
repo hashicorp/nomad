@@ -200,7 +200,7 @@ func (r *StateRestore) ServiceRegistrationRestore(service *structs.ServiceRegist
 
 // SecureVariablesRestore is used to restore a single secure variable
 // into the secure_variables table.
-func (r *StateRestore) SecureVariablesRestore(variable *structs.SecureVariable) error {
+func (r *StateRestore) SecureVariablesRestore(variable *structs.SecureVariableEncrypted) error {
 	if err := r.txn.Insert(TableSecureVariables, variable); err != nil {
 		return fmt.Errorf("secure variable insert failed: %v", err)
 	}

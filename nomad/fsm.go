@@ -1698,7 +1698,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			}
 
 		case SecureVariablesSnapshot:
-			variable := new(structs.SecureVariable)
+			variable := new(structs.SecureVariableEncrypted)
 			if err := dec.Decode(variable); err != nil {
 				return err
 			}
@@ -1988,7 +1988,7 @@ func (n *nomadFSM) applyDeleteServiceRegistrationByNodeID(msgType structs.Messag
 
 func (n *nomadFSM) applySecureVariableUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_secure_variable_upsert"}, time.Now())
-	var req structs.SecureVariablesUpsertRequest
+	var req structs.SecureVariablesEncryptedUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
@@ -2740,7 +2740,7 @@ func (s *nomadSnapshot) persistSecureVariables(sink raft.SnapshotSink,
 		if raw == nil {
 			break
 		}
-		variable := raw.(*structs.SecureVariable)
+		variable := raw.(*structs.SecureVariableEncrypted)
 		sink.Write([]byte{byte(SecureVariablesSnapshot)})
 		if err := encoder.Encode(variable); err != nil {
 			return err
