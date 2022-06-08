@@ -2,6 +2,13 @@
   & > div {
     margin-bottom: 1rem;
   }
+
+  .path-input {
+    &:disabled {
+      background-color: #f5f5f5;
+    }
+  }
+
   .key-value {
     display: grid;
     grid-template-columns: 1fr 4fr 130px;
