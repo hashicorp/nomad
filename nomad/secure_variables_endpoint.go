@@ -12,6 +12,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -384,6 +385,11 @@ func (sv *SecureVariables) handleMixedAuthEndpoint(args structs.QueryOptions, ca
 		}
 		return nil
 	}
+	if helper.IsUUID(args.AuthToken) {
+		// early return for ErrNotFound or other errors if it's formed
+		// like an ACLToken.SecretID
+		return err
+	}
 
 	// Attempt to verify the token as a JWT with a workload
 	// identity claim
@@ -392,23 +398,57 @@ func (sv *SecureVariables) handleMixedAuthEndpoint(args structs.QueryOptions, ca
 		return structs.ErrPermissionDenied
 	}
 
-	store := sv.srv.fsm.State()
-	alloc, err := store.AllocByID(nil, claim.AllocationID)
-	if err != nil || alloc == nil || alloc.Job == nil {
+	alloc, err := sv.authValidateAllocationIdentity(claim.AllocationID, args.RequestNamespace())
+	if err != nil {
+		metrics.IncrCounter([]string{
+			"nomad", "secure_variables", "invalid_allocation_identity"}, 1)
+		sv.logger.Trace("allocation identity was not valid", "error", err)
 		return structs.ErrPermissionDenied
+	}
+
+	err = sv.authValidatePrefix(alloc, claim.TaskName, pathOrPrefix)
+	if err != nil {
+		sv.logger.Trace("allocation identity did not have permission for path")
+		return structs.ErrPermissionDenied
+	}
+
+	return nil
+}
+
+// authValidateAllocationIdentity asserts that the allocation ID
+// belongs to a non-terminal Allocation in the requested namespace
+func (sv *SecureVariables) authValidateAllocationIdentity(allocID, ns string) (*structs.Allocation, error) {
+
+	store, err := sv.srv.fsm.State().Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	alloc, err := store.AllocByID(nil, allocID)
+	if err != nil {
+		return nil, err
+	}
+	if alloc == nil || alloc.Job == nil {
+		return nil, fmt.Errorf("allocation does not exist")
 	}
 
 	// the claims for terminal allocs are always treated as expired
 	if alloc.TerminalStatus() {
-		return structs.ErrPermissionDenied
+		return nil, fmt.Errorf("allocation is terminal")
 	}
 
-	if alloc.Job.Namespace != args.RequestNamespace() {
-		return structs.ErrPermissionDenied
+	if alloc.Job.Namespace != ns {
+		return nil, fmt.Errorf("allocation is in another namespace")
 	}
+
+	return alloc, nil
+}
+
+// authValidatePrefix asserts that the requested path is valid for
+// this allocation
+func (sv *SecureVariables) authValidatePrefix(alloc *structs.Allocation, taskName, pathOrPrefix string) error {
 
 	parts := strings.Split(pathOrPrefix, "/")
-	expect := []string{"jobs", alloc.Job.ID, alloc.TaskGroup, claim.TaskName}
+	expect := []string{"jobs", alloc.Job.ID, alloc.TaskGroup, taskName}
 	if len(parts) > len(expect) {
 		return structs.ErrPermissionDenied
 	}

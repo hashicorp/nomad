@@ -294,5 +294,6 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	require.NotNil(t, got)
 	require.NoError(t, got.Valid())
 	require.Equal(t, alloc.ID, got.AllocationID)
+	require.Equal(t, alloc.JobID, got.JobID)
 	require.Equal(t, "web", got.TaskName)
 }

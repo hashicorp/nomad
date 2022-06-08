@@ -147,7 +147,7 @@ func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, er
 
 	token, err := jwt.ParseWithClaims(tokenString, &structs.IdentityClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodEd25519); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Method.Alg())
 		}
 		raw := token.Header[keyIDHeader]
 		if raw == nil {
@@ -161,10 +161,15 @@ func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, er
 		return keyset.privateKey.Public(), nil
 	})
 
-	if claims, ok := token.Claims.(*structs.IdentityClaims); ok && token.Valid {
-		return claims, nil
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify token: %v", err)
 	}
-	return nil, err
+
+	claims, ok := token.Claims.(*structs.IdentityClaims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("failed to verify token: invalid token")
+	}
+	return claims, nil
 }
 
 // Decrypt takes an encrypted buffer and then root key ID. It extracts

@@ -111,6 +111,13 @@ func TestSecureVariablesEndpoint_auth(t *testing.T) {
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
+			name:        "invalid prefix is denied",
+			token:       idToken,
+			cap:         "n/a",
+			path:        fmt.Sprintf("jobs/%s/w", jobID),
+			expectedErr: structs.ErrPermissionDenied,
+		},
+		{
 			name:        "missing auth token is denied",
 			cap:         "n/a",
 			path:        fmt.Sprintf("jobs/%s/web/web", jobID),

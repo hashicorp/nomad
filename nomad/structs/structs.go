@@ -10283,6 +10283,7 @@ func (a *Allocation) ToIdentityClaims() *IdentityClaims {
 	now := jwt.NewNumericDate(time.Now().UTC())
 	return &IdentityClaims{
 		Namespace:    a.Namespace,
+		JobID:        a.JobID,
 		AllocationID: a.ID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			// TODO: in Nomad 1.5.0 we'll have a refresh loop to
@@ -10307,6 +10308,7 @@ func (a *Allocation) ToTaskIdentityClaims(taskName string) *IdentityClaims {
 // should never be serialized to msgpack unsigned.
 type IdentityClaims struct {
 	Namespace    string `json:"nomad_namespace"`
+	JobID        string `json:"nomad_job_id"`
 	AllocationID string `json:"nomad_allocation_id"`
 	TaskName     string `json:"nomad_task"`
 
