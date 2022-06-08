@@ -686,6 +686,25 @@ RELEASE_CLAIM:
 
 func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
 	v.logger.Trace("node unpublish", "vol", vol.ID)
+
+	store := v.srv.fsm.State()
+
+	// If the node has been GC'd or is down, we can't send it a node
+	// unpublish. We need to assume the node has unpublished at its
+	// end. If it hasn't, any controller unpublish will potentially
+	// hang or error and need to be retried.
+	if claim.NodeID != "" {
+		node, err := store.NodeByID(memdb.NewWatchSet(), claim.NodeID)
+		if err != nil {
+			return err
+		}
+		if node == nil || node.Status == structs.NodeStatusDown {
+			v.logger.Debug("skipping node unpublish for down or GC'd node")
+			claim.State = structs.CSIVolumeClaimStateNodeDetached
+			return v.checkpointClaim(vol, claim)
+		}
+	}
+
 	if claim.AllocationID != "" {
 		err := v.nodeUnpublishVolumeImpl(vol, claim)
 		if err != nil {
@@ -698,8 +717,7 @@ func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.C
 	// The RPC sent from the 'nomad node detach' command or GC won't have an
 	// allocation ID set so we try to unpublish every terminal or invalid
 	// alloc on the node, all of which will be in PastClaims after denormalizing
-	state := v.srv.fsm.State()
-	vol, err := state.CSIVolumeDenormalize(memdb.NewWatchSet(), vol)
+	vol, err := store.CSIVolumeDenormalize(memdb.NewWatchSet(), vol)
 	if err != nil {
 		return err
 	}

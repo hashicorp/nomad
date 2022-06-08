@@ -504,22 +504,32 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 	type tc struct {
 		name           string
 		startingState  structs.CSIVolumeClaimState
+		nodeID         string
 		expectedErrMsg string
 	}
 	testCases := []tc{
 		{
 			name:          "success",
 			startingState: structs.CSIVolumeClaimStateControllerDetached,
+			nodeID:        node.ID,
 		},
 		{
 			name:           "unpublish previously detached node",
 			startingState:  structs.CSIVolumeClaimStateNodeDetached,
 			expectedErrMsg: "could not detach from controller: controller detach volume: No path to node",
+			nodeID:         node.ID,
+		},
+		{
+			name:           "unpublish claim on garbage collected node",
+			startingState:  structs.CSIVolumeClaimStateTaken,
+			expectedErrMsg: "could not detach from controller: controller detach volume: No path to node",
+			nodeID:         uuid.Generate(),
 		},
 		{
 			name:           "first unpublish",
 			startingState:  structs.CSIVolumeClaimStateTaken,
 			expectedErrMsg: "could not detach from controller: controller detach volume: No path to node",
+			nodeID:         node.ID,
 		},
 	}
 
@@ -545,7 +555,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 			// setup: create an alloc that will claim our volume
 			alloc := mock.BatchAlloc()
-			alloc.NodeID = node.ID
+			alloc.NodeID = tc.nodeID
 			alloc.ClientStatus = structs.AllocClientStatusFailed
 
 			index++
@@ -554,7 +564,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			// setup: claim the volume for our alloc
 			claim := &structs.CSIVolumeClaim{
 				AllocationID:   alloc.ID,
-				NodeID:         node.ID,
+				NodeID:         tc.nodeID,
 				ExternalNodeID: "i-example",
 				Mode:           structs.CSIVolumeClaimRead,
 			}
