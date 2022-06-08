@@ -64,7 +64,7 @@ job "expose-check-example" {
       driver = "docker"
 
       config {
-        image = "hashicorpnomad/counter-api:v3"
+        image = "hashicorpdev/counter-api:v3"
       }
     }
   }
@@ -122,7 +122,7 @@ job "expose-example" {
       driver = "docker"
 
       config {
-        image = "hashicorpnomad/counter-api:v3"
+        image = "hashicorpdev/counter-api:v3"
       }
 
       # e.g. reference ${NOMAD_PORT_api_expose_healthcheck} for other uses

@@ -24,7 +24,7 @@ job "countdash-terminating" {
       driver = "docker"
 
       config {
-        image        = "hashicorpnomad/counter-api:v3"
+        image        = "hashicorpdev/counter-api:v3"
         network_mode = "host"
       }
     }
@@ -102,7 +102,7 @@ job "countdash-terminating" {
       }
 
       config {
-        image = "hashicorpnomad/counter-dashboard:v3"
+        image = "hashicorpdev/counter-dashboard:v3"
       }
     }
   }
