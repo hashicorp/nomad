@@ -313,7 +313,12 @@ job "countdash" {
       # are specific to each driver, so please see specific driver
       # documentation for more information.
       config {
-        image = "hashicorpnomad/counter-api:v3"
+        image = "hashicorpdev/counter-api:v3"
+
+        # The "auth_soft_fail" configuration instructs Nomad to try public
+        # repositories if the task fails to authenticate when pulling images
+        # and the Docker driver has an "auth" configuration block.
+        auth_soft_fail = true
       }
 
       # The "artifact" stanza instructs Nomad to download an artifact from a
@@ -457,7 +462,8 @@ job "countdash" {
       }
 
       config {
-        image = "hashicorpnomad/counter-dashboard:v3"
+        image          = "hashicorpdev/counter-dashboard:v3"
+        auth_soft_fail = true
       }
     }
   }
