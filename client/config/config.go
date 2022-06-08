@@ -64,7 +64,7 @@ var (
 		"/run/systemd/resolve": "/run/systemd/resolve",
 	}
 
-	DefaultTemplateMaxStale = 5 * time.Second
+	DefaultTemplateMaxStale = 87600 * time.Hour
 
 	DefaultTemplateFunctionDenylist = []string{"plugin", "writeToFile"}
 )
@@ -721,8 +721,20 @@ func DefaultConfig() *Config {
 		NoHostUUID:              true,
 		DisableRemoteExec:       false,
 		TemplateConfig: &ClientTemplateConfig{
-			FunctionDenylist: DefaultTemplateFunctionDenylist,
-			DisableSandbox:   false,
+			FunctionDenylist:   DefaultTemplateFunctionDenylist,
+			DisableSandbox:     false,
+			BlockQueryWaitTime: helper.TimeToPtr(5 * time.Minute),         // match Consul default
+			MaxStale:           helper.TimeToPtr(DefaultTemplateMaxStale), // match Consul default
+			Wait: &WaitConfig{
+				Min: helper.TimeToPtr(5 * time.Second),
+				Max: helper.TimeToPtr(4 * time.Minute),
+			},
+			ConsulRetry: &RetryConfig{
+				Attempts: helper.IntToPtr(0), // unlimited
+			},
+			VaultRetry: &RetryConfig{
+				Attempts: helper.IntToPtr(0), // unlimited
+			},
 		},
 		RPCHoldTimeout:     5 * time.Second,
 		CNIPath:            "/opt/cni/bin",
