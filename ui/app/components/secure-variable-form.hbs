@@ -12,17 +12,17 @@
           @type="text"
           @value={{@model.path}}
           placeholder="/path/to/variable"
-          class="input path-input {{if this.duplicatePathError "error"}}"
+          class="input path-input {{if this.duplicatePathWarning "error"}}"
           disabled={{not @model.isNew}}
           {{on "input" this.validatePath}}
           {{autofocus}}
           />
       </label>
-      {{#if this.duplicatePathError}}
+      {{#if this.duplicatePathWarning}}
         <p class="duplicate-path-error help is-danger">
           There is already a Secure Variable located at {{@model.path}}.
           <br />
-          Please choose a different path, or <LinkTo @route="variables.variable.edit" @model={{this.duplicatePathError.variable.path}}>edit the existing Secure Variable</LinkTo>.
+          Please choose a different path, or <LinkTo @route="variables.variable.edit" @model={{this.duplicatePathWarning.path}}>edit the existing Secure Variable</LinkTo>.
         </p>
       {{/if}}
     </div>

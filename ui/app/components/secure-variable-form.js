@@ -1,3 +1,5 @@
+// @ts-check
+
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
@@ -11,7 +13,15 @@ export default class SecureVariableFormComponent extends Component {
   @tracked
   shouldHideValues = true;
 
-  @tracked duplicatePathError = false;
+  /**
+   * @typedef {Object} DuplicatePathWarning
+   * @property {string} path
+   */
+
+  /**
+   * @type {DuplicatePathWarning}
+   */
+  @tracked duplicatePathWarning = null;
 
   get valueFieldType() {
     return this.shouldHideValues ? 'password' : 'text';
@@ -29,9 +39,11 @@ export default class SecureVariableFormComponent extends Component {
       .without(this.args.model)
       .find((v) => v.path === value);
     if (existingVariable) {
-      this.duplicatePathError = { variable: existingVariable };
+      this.duplicatePathWarning = {
+        path: existingVariable.path,
+      };
     } else {
-      this.duplicatePathError = false;
+      this.duplicatePathWarning = null;
     }
   }
 

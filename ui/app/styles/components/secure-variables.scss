@@ -7,6 +7,10 @@
     &:disabled {
       background-color: #f5f5f5;
     }
+    &.error {
+      color: $red;
+      border-color: $red;
+    }
   }
 
   .duplicate-path-error {
