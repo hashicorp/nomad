@@ -22,7 +22,7 @@ func testContainerDetails() (image string, imageName string, imageTag string) {
 	tag := "1"
 
 	if runtime.GOOS == "windows" {
-		name = "hashicorpnomad/busybox-windows"
+		name = "hashicorpdev/busybox-windows"
 		tag = "server2016-0.1"
 	}
 

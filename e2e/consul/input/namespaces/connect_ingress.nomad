@@ -97,7 +97,7 @@ job "connect_ingress" {
       driver = "docker"
 
       config {
-        image        = "hashicorpnomad/uuid-api:v3"
+        image        = "hashicorpdev/uuid-api:v3"
         network_mode = "host"
       }
 
@@ -130,7 +130,7 @@ job "connect_ingress" {
       driver = "docker"
 
       config {
-        image        = "hashicorpnomad/uuid-api:v3"
+        image        = "hashicorpdev/uuid-api:v3"
         network_mode = "host"
       }
 
