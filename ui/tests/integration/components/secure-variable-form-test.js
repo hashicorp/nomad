@@ -144,4 +144,30 @@ module('Integration | Component | secure-variable-form', function (hooks) {
       );
     });
   });
+
+  test('Prevent editing path input on existing variables', async function (assert) {
+    assert.expect(3);
+
+    const variable = await this.server.create('variable', {
+      name: 'foo',
+      namespace: 'bar',
+      path: '/baz/bat',
+      keyValues: [{ key: '', value: '' }],
+    });
+    variable.isNew = false;
+    this.set('variable', variable);
+    await render(hbs`<SecureVariableForm @model={{this.variable}} />`);
+    assert.dom('input.path-input').hasValue('/baz/bat', 'Path is set');
+    assert
+      .dom('input.path-input')
+      .isDisabled('Existing variable is in disabled state');
+
+    variable.isNew = true;
+    variable.path = '';
+    this.set('variable', variable);
+    await render(hbs`<SecureVariableForm @model={{this.variable}} />`);
+    assert
+      .dom('input.path-input')
+      .isNotDisabled('New variable is not in disabled state');
+  });
 });
