@@ -301,9 +301,9 @@ operators want zero on-client downtime due to node connectivity issues. This
 setting cannot be used with [`stop_after_client_disconnect`].
 
 ```hcl
-# client_config.hcl
+# server_config.hcl
 
-client {
+server {
   enabled         = true
   heartbeat_grace = "2m"
 }
