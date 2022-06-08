@@ -1,12 +1,27 @@
+// @ts-check
+
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
+import { trimPath } from '../helpers/trim-path';
+
 export default class SecureVariableFormComponent extends Component {
   @service router;
+  @service store;
 
   @tracked
   shouldHideValues = true;
+
+  /**
+   * @typedef {Object} DuplicatePathWarning
+   * @property {string} path
+   */
+
+  /**
+   * @type {DuplicatePathWarning}
+   */
+  @tracked duplicatePathWarning = null;
 
   get valueFieldType() {
     return this.shouldHideValues ? 'password' : 'text';
@@ -14,6 +29,22 @@ export default class SecureVariableFormComponent extends Component {
 
   get shouldDisableSave() {
     return !this.args.model?.path;
+  }
+
+  @action
+  validatePath(e) {
+    const value = trimPath([e.target.value]);
+    let existingVariable = this.store
+      .peekAll('variable')
+      .without(this.args.model)
+      .find((v) => v.path === value);
+    if (existingVariable) {
+      this.duplicatePathWarning = {
+        path: existingVariable.path,
+      };
+    } else {
+      this.duplicatePathWarning = null;
+    }
   }
 
   @action

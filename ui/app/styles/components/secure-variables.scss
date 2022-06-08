@@ -7,6 +7,15 @@
     &:disabled {
       background-color: #f5f5f5;
     }
+    &.error {
+      color: $red;
+      border-color: $red;
+    }
+  }
+
+  .duplicate-path-error {
+    position: relative;
+    animation: slide-in 0.3s ease-out;
   }
 
   .key-value {
@@ -43,5 +52,17 @@ table.path-tree {
       margin-bottom: -2px;
       margin-right: 10px;
     }
+  }
+}
+
+@keyframes slide-in {
+  0% {
+    top: 10px;
+    opacity: 0;
+  }
+
+  100% {
+    top: 0px;
+    opacity: 1;
   }
 }
