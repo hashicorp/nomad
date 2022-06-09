@@ -1,3 +1,11 @@
+.section.single-variable {
+  margin-top: 1.5rem;
+
+  .back-link {
+    text-decoration: none;
+  }
+}
+
 .new-secure-variables {
   & > div {
     margin-bottom: 1rem;
@@ -37,6 +45,10 @@
       box-shadow: none;
       margin-left: -2px;
       border-color: $grey-blue;
+    }
+
+    button.add-more[disabled] {
+      border-color: #dbdbdb;
     }
   }
 }

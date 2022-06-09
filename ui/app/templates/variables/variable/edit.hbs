@@ -1,2 +1,11 @@
 {{page-title "Edit Secure Variable"}}
+
+<h1 class="title">
+  <LinkTo class="back-link" @route="variables.variable.index">
+    <FlightIcon @name="chevrons-left" @title="Back to {{this.model.path}}" />
+  </LinkTo>
+  Edit
+  {{this.model.path}}
+</h1>
+
 <SecureVariableForm @model={{this.model}} />
