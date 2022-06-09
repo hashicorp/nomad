@@ -476,8 +476,6 @@ START:
 	}
 
 ERR_WAIT:
-	// TODO: what's the right amount of backoff here? should this be
-	// part of our configuration?
 	retryErrTimer.Reset(1 * time.Second)
 
 	select {
