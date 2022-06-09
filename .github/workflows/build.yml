@@ -72,25 +72,9 @@ jobs:
         with:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
-  generate-ld-flags:
-    needs: get-product-version
-    runs-on: ubuntu-latest
-    outputs:
-      ldflags: ${{ steps.generate-ld-flags.outputs.ldflags }}
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.inputs.build-ref }}
-      - name: "Generate ld flags"
-        id: generate-ld-flags
-        run: |
-          project="$(go list -m)"
-          sha="$(git rev-parse --short HEAD)"
-          echo "::set-output name=ldflags::"-s -w -X \'$project/version.Name=${{ env.PKG_NAME }}\' \
-          -X \'$project/version.GitDescribe=v$(make version base=1)\'""
 
   build-other:
-    needs: [get-go-version, get-product-version, generate-ld-flags]
+    needs: [get-go-version, get-product-version]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -130,7 +114,6 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           GO_TAGS: ${{ env.GO_TAGS }}
-          GO_LDFLAGS: ${{ needs.generate-ld-flags.outputs.ldflags }}
           CGO_ENABLED: 1
         run: |
           make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
@@ -141,7 +124,7 @@ jobs:
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
 
   build-linux:
-    needs: [get-go-version, get-product-version, generate-ld-flags]
+    needs: [get-go-version, get-product-version]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -206,7 +189,6 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           GO_TAGS: ${{ env.GO_TAGS }}
-          GO_LDFLAGS: ${{ needs.generate-ld-flags.outputs.ldflags }}
           CGO_ENABLED: 1
         run: |
           make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
@@ -250,7 +232,7 @@ jobs:
           path: out/${{ env.DEB_PACKAGE }}
 
   build-darwin:
-    needs: [get-go-version, get-product-version, generate-ld-flags]
+    needs: [get-go-version, get-product-version]
     runs-on: macos-latest
     strategy:
       matrix:
@@ -291,7 +273,6 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           GO_TAGS: "${{ env.GO_TAGS }} netcgo"
-          GO_LDFLAGS: ${{ needs.generate-ld-flags.outputs.ldflags }}
           CGO_ENABLED: 1
         run: |
           make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
