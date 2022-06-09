@@ -391,7 +391,7 @@ func TestAllocation_ClientTerminalStatus(t *testing.T) {
 }
 
 func TestAllocations_ShouldMigrate(t *testing.T) {
-	testutil.Parallel(t)
+	t.Parallel()
 	require.True(t, DesiredTransition{Migrate: pointerOf(true)}.ShouldMigrate())
 	require.False(t, DesiredTransition{}.ShouldMigrate())
 	require.False(t, DesiredTransition{Migrate: pointerOf(false)}.ShouldMigrate())

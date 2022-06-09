@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper/escapingfs"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/hashicorp/cronexpr"
@@ -37,8 +38,6 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
-	"github.com/hashicorp/nomad/helper/escapingfs"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/lib/kheap"
@@ -6497,6 +6496,7 @@ func (tg *TaskGroup) validateServices() error {
 				}
 			}
 		}
+	}
 	for i, service := range tg.Services {
 		if err := service.Validate(); err != nil {
 			outer := fmt.Errorf("Service[%d] %s validation failed: %s", i, service.Name, err)

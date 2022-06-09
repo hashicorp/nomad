@@ -5169,5 +5169,3 @@ func TestReconciler_RescheduleNot_Batch(t *testing.T) {
 		},
 	})
 }
-<<<<<<< HEAD
-=======

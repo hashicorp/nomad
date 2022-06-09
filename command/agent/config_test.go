@@ -339,8 +339,8 @@ func TestConfig_Merge(t *testing.T) {
 			NonVotingServer:        true,
 			RedundancyZone:         "bar",
 			UpgradeVersion:         "bar",
-			EnableEventBroker:      helper.BoolToPtr(true),
-			EventBufferSize:        helper.IntToPtr(100),
+			EnableEventBroker:      pointer.Of(true),
+			EventBufferSize:        pointer.Of(100),
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,

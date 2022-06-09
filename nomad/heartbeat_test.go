@@ -8,7 +8,6 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -286,5 +285,3 @@ func TestHeartbeat_Server_HeartbeatTTL_Failover(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	})
 }
-<<<<<<< HEAD
-=======

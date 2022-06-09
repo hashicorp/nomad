@@ -2132,5 +2132,3 @@ func TestSystemSched_canHandle(t *testing.T) {
 		require.False(t, s.canHandle(structs.EvalTriggerPeriodicJob))
 	})
 }
-<<<<<<< HEAD
-=======

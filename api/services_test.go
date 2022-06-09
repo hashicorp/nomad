@@ -345,9 +345,9 @@ func TestService_Connect_SidecarTask_Canonicalize(t *testing.T) {
 
 	t.Run("non empty sidecar_task resources", func(t *testing.T) {
 		exp := DefaultResources()
-		exp.MemoryMB = intToPtr(333)
+		exp.MemoryMB = pointerOf(333)
 		st := &SidecarTask{
-			Resources: &Resources{MemoryMB: intToPtr(333)},
+			Resources: &Resources{MemoryMB: pointerOf(333)},
 		}
 		st.Canonicalize()
 		require.Equal(t, exp, st.Resources)
@@ -380,7 +380,7 @@ func TestService_ConsulGateway_Canonicalize(t *testing.T) {
 			},
 		}
 		cg.Canonicalize()
-		require.Equal(t, timeToPtr(5*time.Second), cg.Proxy.ConnectTimeout)
+		require.Equal(t, pointerOf(5*time.Second), cg.Proxy.ConnectTimeout)
 		require.True(t, cg.Proxy.EnvoyGatewayBindTaggedAddresses)
 		require.Nil(t, cg.Proxy.EnvoyGatewayBindAddresses)
 		require.True(t, cg.Proxy.EnvoyGatewayNoDefaultBind)
@@ -400,7 +400,7 @@ func TestService_ConsulGateway_Copy(t *testing.T) {
 
 	gateway := &ConsulGateway{
 		Proxy: &ConsulGatewayProxy{
-			ConnectTimeout:                  timeToPtr(3 * time.Second),
+			ConnectTimeout:                  pointerOf(3 * time.Second),
 			EnvoyGatewayBindTaggedAddresses: true,
 			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 				"listener1": {Address: "10.0.0.1", Port: 2000},

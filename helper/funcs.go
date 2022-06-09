@@ -249,8 +249,24 @@ func CompareMapStringString(a, b map[string]string) bool {
 	return true
 }
 
-// Below is helpers for copying generic structures.
+// CopyMap creates a copy of m. Struct values are not deep copies.
+//
+// If m is nil or contains no elements, the return value is nil.
+func CopyMap[M ~map[K]V, K comparable, V any](m M) M {
+	if len(m) == 0 {
+		return nil
+	}
 
+	result := make(M, len(m))
+	for k, v := range m {
+		result[k] = v
+	}
+	return result
+}
+
+// CopyMapStringString creates a copy of m.
+//
+// Deprecated; use CopyMap instead.
 func CopyMapStringString(m map[string]string) map[string]string {
 	l := len(m)
 	if l == 0 {
@@ -264,6 +280,9 @@ func CopyMapStringString(m map[string]string) map[string]string {
 	return c
 }
 
+// CopyMapStringStruct creates a copy of m.
+//
+// Deprecated; use CopyMap instead.
 func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
 	l := len(m)
 	if l == 0 {
@@ -277,6 +296,9 @@ func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
 	return c
 }
 
+// CopyMapStringInterface creates a copy of m.
+//
+// Deprecated; use CopyMap instead.
 func CopyMapStringInterface(m map[string]interface{}) map[string]interface{} {
 	l := len(m)
 	if l == 0 {
@@ -303,6 +325,9 @@ func CopyMapStringInt(m map[string]int) map[string]int {
 	return c
 }
 
+// CopyMapStringFloat64 creates a copy of m.
+//
+// Deprecated; use CopyMap instead.
 func CopyMapStringFloat64(m map[string]float64) map[string]float64 {
 	l := len(m)
 	if l == 0 {
@@ -331,6 +356,9 @@ func CopyMapStringSliceString(m map[string][]string) map[string][]string {
 	return c
 }
 
+// CopySliceString creates a copy of s.
+//
+// Deprecated; use slices.Clone instead.
 func CopySliceString(s []string) []string {
 	l := len(s)
 	if l == 0 {
@@ -342,6 +370,9 @@ func CopySliceString(s []string) []string {
 	return c
 }
 
+// CopySliceInt creates a copy of s.
+//
+// Deprecated; use slices.Clone instead.
 func CopySliceInt(s []int) []int {
 	l := len(s)
 	if l == 0 {

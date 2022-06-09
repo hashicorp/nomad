@@ -56,5 +56,3 @@ func TestConsul_MergeNamespace(t *testing.T) {
 		require.Nil(t, ns)
 	})
 }
-<<<<<<< HEAD
-=======

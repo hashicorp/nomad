@@ -1468,7 +1468,7 @@ func (j *Job) listAllNamespaces(args *structs.JobListRequest, reply *structs.Job
 			if err != nil {
 				return err
 			}
-			reply.Index = helper.Uint64Max(jindex, sindex)
+			reply.Index = helper.Max(jindex, sindex)
 
 			// Set the query response
 			j.srv.setQueryMeta(&reply.QueryMeta)

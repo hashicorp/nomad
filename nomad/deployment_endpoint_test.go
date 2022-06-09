@@ -1185,6 +1185,7 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 	}
 
 	state := s1.fsm.State()
+	index := uint64(1000)
 
 	for _, m := range mocks {
 		index++
