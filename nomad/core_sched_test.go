@@ -2482,22 +2482,33 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	require.NoError(t, store.UpsertSecureVariables(
 		structs.MsgTypeTestSetup, 601, []*structs.SecureVariableEncrypted{variable}))
 
-	// insert a time table index between the two keys
+	// insert an allocation
+	alloc := mock.Alloc()
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	require.NoError(t, store.UpsertAllocs(
+		structs.MsgTypeTestSetup, 700, []*structs.Allocation{alloc}))
+
+	// insert an "old" key that's newer than oldest alloc
+	key3 := structs.NewRootKeyMeta()
+	key3.Active = false
+	require.NoError(t, store.UpsertRootKeyMeta(750, key3))
+
+	// insert a time table index before the last key
 	tt := srv.fsm.TimeTable()
 	tt.Witness(1000, time.Now().UTC().Add(-1*srv.config.RootKeyGCThreshold))
 
 	// insert a "new" but inactive key
-	key3 := structs.NewRootKeyMeta()
-	key3.Active = false
-	require.NoError(t, store.UpsertRootKeyMeta(1500, key3))
+	key4 := structs.NewRootKeyMeta()
+	key4.Active = false
+	require.NoError(t, store.UpsertRootKeyMeta(1500, key4))
 
 	// run the core job
 	snap, err := store.Snapshot()
 	require.NoError(t, err)
 	core := NewCoreScheduler(srv, snap)
-	eval := srv.coreJobEval(structs.CoreJobRootKeyGC, 2000)
+	eval := srv.coreJobEval(structs.CoreJobRootKeyRotateOrGC, 2000)
 	c := core.(*CoreScheduler)
-	require.NoError(t, c.rootKeyGC(eval))
+	require.NoError(t, c.rootKeyRotateOrGC(eval))
 
 	ws := memdb.NewWatchSet()
 	key, err := store.RootKeyMetaByID(ws, key0.KeyID)
@@ -2513,6 +2524,10 @@ func TestCoreScheduler_RootKeyGC(t *testing.T) {
 	require.NotNil(t, key, "old key should not have been GCd if still in use")
 
 	key, err = store.RootKeyMetaByID(ws, key3.KeyID)
+	require.NoError(t, err)
+	require.NotNil(t, key, "old key newer than oldest alloc should not have been GCd")
+
+	key, err = store.RootKeyMetaByID(ws, key4.KeyID)
 	require.NoError(t, err)
 	require.NotNil(t, key, "new key should not have been GCd")
 }

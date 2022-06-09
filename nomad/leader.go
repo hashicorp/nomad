@@ -819,7 +819,7 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 			}
 		case <-rootKeyGC.C:
 			if index, ok := getLatest(); ok {
-				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobRootKeyGC, index))
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobRootKeyRotateOrGC, index))
 			}
 		case <-stopCh:
 			return

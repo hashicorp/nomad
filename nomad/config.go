@@ -204,6 +204,10 @@ type Config struct {
 	// to be eligible for GC.
 	RootKeyGCThreshold time.Duration
 
+	// RootKeyRotationThreshold is how "old" an active key can be
+	// before it's rotated
+	RootKeyRotationThreshold time.Duration
+
 	// EvalNackTimeout controls how long we allow a sub-scheduler to
 	// work on an evaluation before we consider it failed and Nack it.
 	// This allows that evaluation to be handed to another sub-scheduler
@@ -395,6 +399,7 @@ func DefaultConfig() *Config {
 		OneTimeTokenGCInterval:           10 * time.Minute,
 		RootKeyGCInterval:                10 * time.Minute,
 		RootKeyGCThreshold:               1 * time.Hour,
+		RootKeyRotationThreshold:         720 * time.Hour, // 30 days
 		EvalNackTimeout:                  60 * time.Second,
 		EvalDeliveryLimit:                3,
 		EvalNackInitialReenqueueDelay:    1 * time.Second,
