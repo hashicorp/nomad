@@ -5,6 +5,7 @@ import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
 import { trimPath } from '../helpers/trim-path';
+import { pathToObject } from '../utils/path-tree';
 
 export default class SecureVariableFormComponent extends Component {
   @service router;
@@ -67,12 +68,7 @@ export default class SecureVariableFormComponent extends Component {
   async save(e) {
     e.preventDefault();
     this.args.model.setAndTrimPath();
-
-    const transitionTarget = this.args.model.isNew
-      ? 'variables'
-      : 'variables.variable';
-
     await this.args.model.save();
-    this.router.transitionTo(transitionTarget);
+    this.router.transitionTo('variables.variable', this.args.model.path);
   }
 }

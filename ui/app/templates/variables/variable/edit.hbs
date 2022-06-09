@@ -2,7 +2,11 @@
 
 <h1 class="title">
   <LinkTo class="back-link" @route="variables.variable.index">
-    <FlightIcon @name="chevrons-left" @title="Back to {{this.model.path}}" />
+    <FlightIcon
+      @name="chevron-left"
+      @title="Back to {{this.model.path}}"
+      @size="24"
+      />
   </LinkTo>
   Edit
   {{this.model.path}}
