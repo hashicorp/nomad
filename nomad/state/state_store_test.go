@@ -4300,6 +4300,19 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+
+	// Call the eval delete function with zero length eval and alloc ID arrays.
+	// This should result in the table indexes both staying the same, rather
+	// than updating without cause.
+	require.NoError(t, state.DeleteEval(1010, []string{}, []string{}))
+
+	allocsIndex, err := state.Index("allocs")
+	require.NoError(t, err)
+	require.Equal(t, uint64(1002), allocsIndex)
+
+	evalsIndex, err := state.Index("evals")
+	require.NoError(t, err)
+	require.Equal(t, uint64(1002), evalsIndex)
 }
 
 func TestStateStore_DeleteEval_ChildJob(t *testing.T) {
