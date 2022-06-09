@@ -61,6 +61,13 @@ The `qemu` driver supports the following configuration in the job spec:
   [alloc_dir](/docs/configuration/client#alloc_dir)
   paths.) This feature is currently not supported on Windows.
 
+- `guest_agent` `(bool: false)` - Enable support for the [QEMU Guest 
+  Agent](https://wiki.qemu.org/Features/GuestAgent) for this virtual machine. This 
+  will add the necessary virtual hardware and create a `qemu-guest-agent.sock`
+  file in the task's working directory for interacting with the agent. The QEMU Guest
+  Agent must be running in the guest VM.  This feature is currently not supported
+  on Windows.
+
 - `port_map` - (Optional) A key-value map of port labels.
 
   ```hcl
