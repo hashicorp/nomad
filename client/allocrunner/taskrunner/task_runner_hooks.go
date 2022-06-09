@@ -84,7 +84,8 @@ func (tr *TaskRunner) initHooks() {
 
 	// If Vault is enabled, add the hook
 	if task.Vault != nil {
-		tr.runnerHooks = append(tr.runnerHooks, newVaultHook(&vaultHookConfig{
+		joinedCtx, joinedCancel := joincontext.Join(tr.killCtx, tr.shutdownCtx)
+		tr.runnerHooks = append(tr.runnerHooks, newVaultHook(joinedCtx, joinedCancel, &vaultHookConfig{
 			vaultStanza: task.Vault,
 			client:      tr.vaultClient,
 			events:      tr,
@@ -93,7 +94,6 @@ func (tr *TaskRunner) initHooks() {
 			logger:      hookLogger,
 			alloc:       tr.Alloc(),
 			task:        tr.taskName,
-			parentCtx:   tr.shutdownCtx,
 		}))
 	}
 

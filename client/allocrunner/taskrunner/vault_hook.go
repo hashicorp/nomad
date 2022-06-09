@@ -53,7 +53,6 @@ type vaultHookConfig struct {
 	logger      log.Logger
 	alloc       *structs.Allocation
 	task        string
-	parentCtx   context.Context
 }
 
 type vaultHook struct {
@@ -95,8 +94,7 @@ type vaultHook struct {
 	future *tokenFuture
 }
 
-func newVaultHook(config *vaultHookConfig) *vaultHook {
-	ctx, cancel := context.WithCancel(config.parentCtx)
+func newVaultHook(ctx context.Context, cancel context.CancelFunc, config *vaultHookConfig) *vaultHook {
 	h := &vaultHook{
 		vaultStanza:  config.vaultStanza,
 		client:       config.client,
