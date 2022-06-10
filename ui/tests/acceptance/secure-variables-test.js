@@ -4,6 +4,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import defaultScenario from '../../mirage/scenarios/default';
+import { click, find, findAll } from '@ember/test-helpers';
 
 import Variables from 'nomad-ui/tests/pages/variables';
 import Layout from 'nomad-ui/tests/pages/layout';
@@ -40,6 +41,82 @@ module('Acceptance | secure variables', function (hooks) {
     await Variables.visit();
     assert.equal(currentURL(), '/variables');
     assert.ok(Layout.gutter.variables.isVisible);
+  });
+
+  test('it correctly traverses to and deletes a variable', async function (assert) {
+    assert.expect(13);
+    defaultScenario(server);
+    const variablesToken = server.db.tokens.find(SECURE_TOKEN_ID);
+    window.localStorage.nomadTokenSecret = variablesToken.secretId;
+
+    await Variables.visit();
+    assert.equal(currentURL(), '/variables');
+    assert.ok(Layout.gutter.variables.isVisible);
+
+    let abcLink = [...findAll('[data-test-folder-row]')].filter((a) =>
+      a.textContent.includes('a/b/c')
+    )[0];
+
+    await click(abcLink);
+
+    assert.equal(
+      currentURL(),
+      '/variables/path/a/b/c',
+      'correctly traverses to a deeply nested path'
+    );
+    assert.equal(
+      findAll('[data-test-folder-row]').length,
+      2,
+      'correctly shows 2 sub-folders'
+    );
+    assert.equal(
+      findAll('[data-test-file-row]').length,
+      2,
+      'correctly shows 2 files'
+    );
+    let fooLink = [...findAll('[data-test-file-row]')].filter((a) =>
+      a.textContent.includes('foo0')
+    )[0];
+
+    assert.ok(fooLink, 'foo0 file is present');
+
+    await click(fooLink);
+    assert.equal(
+      currentURL(),
+      '/variables/a/b/c/foo0',
+      'correctly traverses to a deeply nested variable file'
+    );
+    const deleteButton = find('[data-test-delete-button] button');
+    assert.dom(deleteButton).exists('delete button is present');
+
+    await click(deleteButton);
+    assert
+      .dom('[data-test-confirmation-message]')
+      .exists('confirmation message is present');
+
+    await click(find('[data-test-confirm-button]'));
+    assert.equal(
+      currentURL(),
+      '/variables/path/a/b/c',
+      'correctly returns to the parent path page after deletion'
+    );
+
+    assert.equal(
+      findAll('[data-test-folder-row]').length,
+      2,
+      'still correctly shows 2 sub-folders'
+    );
+    assert.equal(
+      findAll('[data-test-file-row]').length,
+      1,
+      'now correctly shows 1 file'
+    );
+
+    fooLink = [...findAll('[data-test-file-row]')].filter((a) =>
+      a.textContent.includes('foo0')
+    )[0];
+
+    assert.notOk(fooLink, 'foo0 file is no longer present');
   });
 
   test('it passes an accessibility audit', async function (assert) {

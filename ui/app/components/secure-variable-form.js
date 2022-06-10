@@ -67,12 +67,7 @@ export default class SecureVariableFormComponent extends Component {
   async save(e) {
     e.preventDefault();
     this.args.model.setAndTrimPath();
-
-    const transitionTarget = this.args.model.isNew
-      ? 'variables'
-      : 'variables.variable';
-
     await this.args.model.save();
-    this.router.transitionTo(transitionTarget);
+    this.router.transitionTo('variables.variable', this.args.model.path);
   }
 }

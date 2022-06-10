@@ -1,80 +1,82 @@
+<form
+  class="new-secure-variables"
+  {{on "submit" this.save}}
+  autocomplete="off"
+>
+  {{!-- TODO: {{if this.parseError 'is-danger'}} on inputs --}}
+  <div>
+    <label>
+      <span>Path</span>
+      <Input
+        @type="text"
+        @value={{@model.path}}
+        placeholder="/path/to/variable"
+        class="input path-input {{if this.duplicatePathWarning "error"}}"
+        disabled={{not @model.isNew}}
+        {{on "input" this.validatePath}}
+        {{autofocus}}
+        />
+    </label>
+    {{#if this.duplicatePathWarning}}
+      <p class="duplicate-path-error help is-danger">
+        There is already a Secure Variable located at {{@model.path}}.
+        <br />
+        Please choose a different path, or <LinkTo @route="variables.variable.edit" @model={{this.duplicatePathWarning.path}}>edit the existing Secure Variable</LinkTo>.
+      </p>
+    {{/if}}
+  </div>
+  {{#each @model.keyValues as |entry iter|}}
+  <div class="key-value">
 
-  <form
-    class="new-secure-variables"
-    {{on "submit" this.save}}
-    autocomplete="off"
-  >
-    {{!-- TODO: {{if this.parseError 'is-danger'}} on inputs --}}
-    <div>
-      <label>
-        <span>Path</span>
-        <Input
-          @type="text"
-          @value={{@model.path}}
-          placeholder="/path/to/variable"
-          class="input path-input {{if this.duplicatePathWarning "error"}}"
-          disabled={{not @model.isNew}}
-          {{on "input" this.validatePath}}
-          {{autofocus}}
-          />
-      </label>
-      {{#if this.duplicatePathWarning}}
-        <p class="duplicate-path-error help is-danger">
-          There is already a Secure Variable located at {{@model.path}}.
-          <br />
-          Please choose a different path, or <LinkTo @route="variables.variable.edit" @model={{this.duplicatePathWarning.path}}>edit the existing Secure Variable</LinkTo>.
-        </p>
-      {{/if}}
-    </div>
-    {{#each @model.keyValues as |entry iter|}}
-    <div class="key-value">
+    <label>
+      <span>Key</span>
+      <Input
+        @type="text"
+        @value={{entry.key}}
+        class="input"
+        {{autofocus ignore=(eq iter 0)}}
+        />
+    </label>
 
-      <label>
-        <span>Key</span>
-        <Input
-          @type="text"
-          @value={{entry.key}}
-          class="input"
-          {{autofocus ignore=(eq iter 0)}}
-          />
-      </label>
-
-      <label class="value-label">
-        <span>Value
-        </span>
-        <Input
-          @type={{this.valueFieldType}}
-          @value={{entry.value}}
-          class="input value-input"
-          autocomplete="new-password" {{!-- prevent auto-fill --}}
-          />
-        <button
-          class="show-hide-values button is-light"
-          type="button"
-          tabindex="-1"
-          {{on "click" this.toggleShowHide}}
-        >
-          <FlightIcon
-            @name={{if this.shouldHideValues "eye-off" "eye"}}
-            @title={{if this.shouldHideValues "Show Values" "Hide Values"}}
-          />
-        </button>
-      </label>
-
-      {{#if (eq entry @model.keyValues.lastObject)}}
-        <button
-          {{on "click" this.appendRow}}
-          class="add-more button is-info is-inverted" type="button">Add More</button>
-      {{else}}
-        <button
-          {{on "click" (action this.deleteRow entry)}}
-          class="delete-row button is-danger is-inverted" type="button">Delete</button>
-      {{/if}}
-    </div>
-    {{/each}}
-    <footer>
+    <label class="value-label">
+      <span>Value
+      </span>
+      <Input
+        @type={{this.valueFieldType}}
+        @value={{entry.value}}
+        class="input value-input"
+        autocomplete="new-password" {{!-- prevent auto-fill --}}
+        />
       <button
-        disabled={{this.shouldDisableSave}}
-        class="button is-primary" type="submit">Save {{pluralize 'Variable' @model.keyValues.length}}</button>
-    </footer>
-  </form>
+        class="show-hide-values button is-light"
+        type="button"
+        tabindex="-1"
+        {{on "click" this.toggleShowHide}}
+      >
+        <FlightIcon
+          @name={{if this.shouldHideValues "eye-off" "eye"}}
+          @title={{if this.shouldHideValues "Show Values" "Hide Values"}}
+        />
+      </button>
+    </label>
+
+    {{#if (eq entry @model.keyValues.lastObject)}}
+      <button
+        {{on "click" this.appendRow}}
+        class="add-more button is-info is-inverted"
+        type="button"
+        disabled={{not (and entry.key entry.value)}}
+      >Add More</button>
+    {{else}}
+      <button
+        {{on "click" (action this.deleteRow entry)}}
+        class="delete-row button is-danger is-inverted" type="button">Delete</button>
+    {{/if}}
+  </div>
+  {{/each}}
+  <footer>
+    <button
+      disabled={{this.shouldDisableSave}}
+      class="button is-primary" type="submit">Save {{pluralize 'Variable' @model.keyValues.length}}</button>
+  </footer>
+</form>

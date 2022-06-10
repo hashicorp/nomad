@@ -2,7 +2,7 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
-import { click, findAll, render } from '@ember/test-helpers';
+import { click, typeIn, findAll, render } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 
 module('Integration | Component | secure-variable-form', function (hooks) {
@@ -22,7 +22,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
         keyValues: [{ key: '', value: '' }],
       })
     );
-    assert.expect(4);
+    assert.expect(7);
 
     await render(hbs`<SecureVariableForm @model={{this.mockedModel}} />`);
     assert.equal(
@@ -31,6 +31,28 @@ module('Integration | Component | secure-variable-form', function (hooks) {
       'A single KV row exists by default'
     );
 
+    assert
+      .dom('.key-value button.add-more')
+      .isDisabled(
+        'The "Add More" button is disabled until key and value are filled'
+      );
+
+    await typeIn('.key-value label:nth-child(1) input', 'foo');
+
+    assert
+      .dom('.key-value button.add-more')
+      .isDisabled(
+        'The "Add More" button is still disabled with only key filled'
+      );
+
+    await typeIn('.key-value label:nth-child(2) input', 'bar');
+
+    assert
+      .dom('.key-value button.add-more')
+      .isNotDisabled(
+        'The "Add More" button is no longer disabled after key and value are filled'
+      );
+
     await click('.key-value button.add-more');
 
     assert.equal(
@@ -38,6 +60,9 @@ module('Integration | Component | secure-variable-form', function (hooks) {
       2,
       'A second KV row exists after adding a new one'
     );
+
+    await typeIn('.key-value:last-of-type label:nth-child(1) input', 'foo');
+    await typeIn('.key-value:last-of-type label:nth-child(2) input', 'bar');
 
     await click('.key-value button.add-more');
 
@@ -60,7 +85,7 @@ module('Integration | Component | secure-variable-form', function (hooks) {
     this.set(
       'mockedModel',
       server.create('variable', {
-        keyValues: [{ key: '', value: '' }],
+        keyValues: [{ key: 'foo', value: 'bar' }],
       })
     );
 
