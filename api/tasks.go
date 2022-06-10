@@ -1049,4 +1049,8 @@ func (t *TaskCSIPluginConfig) Canonicalize() {
 	if t.MountDir == "" {
 		t.MountDir = "/csi"
 	}
+
+	if t.HealthTimeout == 0 {
+		t.HealthTimeout = 30 * time.Second
+	}
 }
