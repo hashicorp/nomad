@@ -101,12 +101,6 @@ module('Acceptance | secure variables', function (hooks) {
       'correctly returns to the parent path page after deletion'
     );
 
-    // Re-find folder a/b/c
-    abcLink = [...findAll('[data-test-folder-row]')].filter((a) =>
-      a.textContent.includes('a/b/c')
-    )[0];
-    await click(abcLink);
-
     assert.equal(
       findAll('[data-test-folder-row]').length,
       2,
