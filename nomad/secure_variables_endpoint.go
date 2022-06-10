@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -11,6 +12,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -128,13 +130,11 @@ func (sv *SecureVariables) Read(args *structs.SecureVariablesReadRequest, reply 
 	}
 	defer metrics.MeasureSince([]string{"nomad", "secure_variables", "read"}, time.Now())
 
-	if aclObj, err := sv.srv.ResolveToken(args.AuthToken); err != nil {
+	// FIXME: Temporary ACL Test policy. Update once implementation complete
+	err := sv.handleMixedAuthEndpoint(args.QueryOptions,
+		acl.NamespaceCapabilitySubmitJob, args.Path)
+	if err != nil {
 		return err
-	} else if aclObj != nil {
-		// FIXME: Temporary ACL Test policy. Update once implementation complete
-		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
-			return structs.ErrPermissionDenied
-		}
 	}
 
 	// Setup the blocking query
@@ -180,13 +180,14 @@ func (sv *SecureVariables) List(
 		return sv.listAllSecureVariables(args, reply)
 	}
 
-	if aclObj, err := sv.srv.ResolveToken(args.AuthToken); err != nil {
+	// FIXME: Temporary ACL Test policy. Update once implementation complete
+	err := sv.handleMixedAuthEndpoint(args.QueryOptions,
+		acl.NamespaceCapabilitySubmitJob, args.Prefix)
+	if err != nil {
 		return err
-	} else if aclObj != nil {
-		// FIXME: Temporary ACL Test policy. Update once implementation complete
-		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
-			return structs.ErrPermissionDenied
-		}
+	}
+	if err != nil {
+		return err
 	}
 
 	// Set up and return the blocking query.
@@ -365,5 +366,97 @@ func (sv *SecureVariables) decrypt(v *structs.SecureVariable) error {
 		return err
 	}
 	v.EncryptedData = nil
+	return nil
+}
+
+// handleMixedAuthEndpoint is a helper to handle auth on RPC endpoints that can
+// either be called by external clients or by workload identity
+func (sv *SecureVariables) handleMixedAuthEndpoint(args structs.QueryOptions, cap, pathOrPrefix string) error {
+
+	// Perform the initial token resolution.
+	aclObj, err := sv.srv.ResolveToken(args.AuthToken)
+	if err == nil {
+		// Perform our ACL validation. If the object is nil, this means ACLs
+		// are not enabled, otherwise trigger the allowed namespace function.
+		if aclObj != nil {
+			if !aclObj.AllowNsOp(args.RequestNamespace(), cap) {
+				return structs.ErrPermissionDenied
+			}
+		}
+		return nil
+	}
+	if helper.IsUUID(args.AuthToken) {
+		// early return for ErrNotFound or other errors if it's formed
+		// like an ACLToken.SecretID
+		return err
+	}
+
+	// Attempt to verify the token as a JWT with a workload
+	// identity claim
+	claim, err := sv.srv.ResolveClaim(args.AuthToken)
+	if err != nil {
+		return structs.ErrPermissionDenied
+	}
+
+	alloc, err := sv.authValidateAllocationIdentity(claim.AllocationID, args.RequestNamespace())
+	if err != nil {
+		metrics.IncrCounter([]string{
+			"nomad", "secure_variables", "invalid_allocation_identity"}, 1)
+		sv.logger.Trace("allocation identity was not valid", "error", err)
+		return structs.ErrPermissionDenied
+	}
+
+	err = sv.authValidatePrefix(alloc, claim.TaskName, pathOrPrefix)
+	if err != nil {
+		sv.logger.Trace("allocation identity did not have permission for path", "error", err)
+		return structs.ErrPermissionDenied
+	}
+
+	return nil
+}
+
+// authValidateAllocationIdentity asserts that the allocation ID
+// belongs to a non-terminal Allocation in the requested namespace
+func (sv *SecureVariables) authValidateAllocationIdentity(allocID, ns string) (*structs.Allocation, error) {
+
+	store, err := sv.srv.fsm.State().Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	alloc, err := store.AllocByID(nil, allocID)
+	if err != nil {
+		return nil, err
+	}
+	if alloc == nil || alloc.Job == nil {
+		return nil, fmt.Errorf("allocation does not exist")
+	}
+
+	// the claims for terminal allocs are always treated as expired
+	if alloc.TerminalStatus() {
+		return nil, fmt.Errorf("allocation is terminal")
+	}
+
+	if alloc.Job.Namespace != ns {
+		return nil, fmt.Errorf("allocation is in another namespace")
+	}
+
+	return alloc, nil
+}
+
+// authValidatePrefix asserts that the requested path is valid for
+// this allocation
+func (sv *SecureVariables) authValidatePrefix(alloc *structs.Allocation, taskName, pathOrPrefix string) error {
+
+	parts := strings.Split(pathOrPrefix, "/")
+	expect := []string{"jobs", alloc.Job.ID, alloc.TaskGroup, taskName}
+	if len(parts) > len(expect) {
+		return structs.ErrPermissionDenied
+	}
+
+	for idx, part := range parts {
+		if part != expect[idx] {
+			return structs.ErrPermissionDenied
+		}
+	}
 	return nil
 }

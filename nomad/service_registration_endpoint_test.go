@@ -857,7 +857,66 @@ func TestServiceRegistration_List(t *testing.T) {
 						}},
 				}, serviceRegResp.Services)
 			},
-			name: "ACLs enabled with node secret toekn",
+			name: "ACLs enabled with node secret token",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				return TestACLServer(t, nil)
+			},
+			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				// Create a namespace as this is needed when using an ACL like
+				// we do in this test.
+				ns := &structs.Namespace{
+					Name:        "platform",
+					Description: "test namespace",
+					CreateIndex: 5,
+					ModifyIndex: 5,
+				}
+				ns.SetHash()
+				require.NoError(t, s.State().UpsertNamespaces(5, []*structs.Namespace{ns}))
+
+				// Generate an allocation with a signed identity
+				allocs := []*structs.Allocation{mock.Alloc()}
+				job := allocs[0].Job
+				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
+				s.signAllocIdentities(job, allocs)
+				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
+
+				signedToken := allocs[0].SignedIdentities["web"]
+
+				// Generate and upsert some service registrations.
+				services := mock.ServiceRegistrations()
+				require.NoError(t, s.State().UpsertServiceRegistrations(
+					structs.MsgTypeTestSetup, 20, services))
+
+				// Test a request while setting the auth token to the signed token
+				serviceRegReq := &structs.ServiceRegistrationListRequest{
+					QueryOptions: structs.QueryOptions{
+						Namespace: "platform",
+						Region:    DefaultRegion,
+						AuthToken: signedToken,
+					},
+				}
+				var serviceRegResp structs.ServiceRegistrationListResponse
+				err := msgpackrpc.CallWithCodec(
+					codec, structs.ServiceRegistrationListRPCMethod,
+					serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{
+					{
+						Namespace: "platform",
+						Services: []*structs.ServiceRegistrationStub{
+							{
+								ServiceName: "countdash-api",
+								Tags:        []string{"bar"},
+							},
+						}},
+				}, serviceRegResp.Services)
+			},
+			name: "ACLs enabled with valid signed identity",
 		},
 	}
 
@@ -1022,6 +1081,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 			},
 			name: "ACLs enabled",
 		},
+
 		{
 			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
 				return TestACLServer(t, nil)
@@ -1073,6 +1133,50 @@ func TestServiceRegistration_GetService(t *testing.T) {
 				}, serviceRegResp.Services)
 			},
 			name: "ACLs enabled using node secret",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				return TestACLServer(t, nil)
+			},
+			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForLeader(t, s.RPC)
+
+				// Generate mock services then upsert them individually using different indexes.
+				services := mock.ServiceRegistrations()
+
+				require.NoError(t, s.fsm.State().UpsertServiceRegistrations(
+					structs.MsgTypeTestSetup, 10, []*structs.ServiceRegistration{services[0]}))
+
+				require.NoError(t, s.fsm.State().UpsertServiceRegistrations(
+					structs.MsgTypeTestSetup, 20, []*structs.ServiceRegistration{services[1]}))
+
+				// Generate an allocation with a signed identity
+				allocs := []*structs.Allocation{mock.Alloc()}
+				job := allocs[0].Job
+				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
+				s.signAllocIdentities(job, allocs)
+				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
+
+				signedToken := allocs[0].SignedIdentities["web"]
+
+				// Lookup the first registration.
+				serviceRegReq := &structs.ServiceRegistrationByNameRequest{
+					ServiceName: services[0].ServiceName,
+					QueryOptions: structs.QueryOptions{
+						Namespace: services[0].Namespace,
+						Region:    s.Region(),
+						AuthToken: signedToken,
+					},
+				}
+				var serviceRegResp structs.ServiceRegistrationByNameResponse
+				err := msgpackrpc.CallWithCodec(codec, structs.ServiceRegistrationGetServiceRPCMethod, serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+				require.Equal(t, uint64(10), serviceRegResp.Services[0].CreateIndex)
+				require.Equal(t, uint64(20), serviceRegResp.Index)
+				require.Len(t, serviceRegResp.Services, 1)
+			},
+			name: "ACLs enabled using valid signed identity",
 		},
 		{
 			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
